@@ -90,19 +90,78 @@ test_ollama_models() {
     echo "✓ Model listing test passed"
 }
 
+# Smart model selection for generation tests
+select_generation_model() {
+    echo "🎯 Selecting suitable model for generation..." >&2
+    
+    local all_models
+    all_models=$(curl -s "$OLLAMA_BASE_URL/api/tags" | jq -r '.models[].name' 2>/dev/null)
+    
+    if [[ -z "$all_models" ]]; then
+        return 1
+    fi
+    
+    # List of known generative models (prioritized)
+    local preferred_models=(
+        "llama3.1:8b"
+        "llama3.2:3b"
+        "llama3.2:1b"
+        "llama2:7b"
+        "llama2:13b"
+        "qwen2.5:7b"
+        "qwen2.5-coder:7b"
+        "deepseek-r1:8b"
+        "codellama:7b"
+        "phi3:3.8b"
+        "mistral:7b"
+        "gemma:7b"
+        "neural-chat:7b"
+    )
+    
+    # First, try to find a preferred model
+    for preferred in "${preferred_models[@]}"; do
+        if echo "$all_models" | grep -q "^${preferred}$"; then
+            echo "$preferred"
+            return 0
+        fi
+    done
+    
+    # If no preferred model found, filter out embedding and vision-only models
+    local filtered_models
+    filtered_models=$(echo "$all_models" | grep -v -E "(embed|embedding|vision|clip)" | grep -v -E "^(nomic-embed|all-minilm|bge-)" | head -5)
+    
+    if [[ -n "$filtered_models" ]]; then
+        # Select first filtered model
+        echo "$filtered_models" | head -1
+        return 0
+    fi
+    
+    # Last resort: try any model that's not obviously an embedding model
+    local any_model
+    any_model=$(echo "$all_models" | grep -v "embed" | head -1)
+    if [[ -n "$any_model" ]]; then
+        echo "$any_model"
+        return 0
+    fi
+    
+    # If all else fails, return first model and let error handling deal with it
+    echo "$all_models" | head -1
+    return 0
+}
+
 # Test text generation with different models
 test_ollama_generation() {
     echo "🤖 Testing Ollama text generation..."
     
-    # Get first available model
+    # Use smart model selection
     local available_model
-    available_model=$(curl -s "$OLLAMA_BASE_URL/api/tags" | jq -r '.models[0].name' 2>/dev/null)
+    available_model=$(select_generation_model)
     
     if [[ -z "$available_model" || "$available_model" == "null" ]]; then
-        skip_test "No models available for generation test"
+        skip_test "No suitable models available for generation test"
     fi
     
-    echo "Using model: $available_model"
+    echo "Selected model: $available_model"
     
     # Test simple generation
     local prompt="Hello, this is a test. Please respond with 'Test successful'."
@@ -166,13 +225,15 @@ test_ollama_error_handling() {
 test_ollama_performance() {
     echo "⚡ Testing Ollama performance..."
     
-    # Get available model
+    # Use smart model selection
     local available_model
-    available_model=$(curl -s "$OLLAMA_BASE_URL/api/tags" | jq -r '.models[0].name' 2>/dev/null)
+    available_model=$(select_generation_model)
     
     if [[ -z "$available_model" || "$available_model" == "null" ]]; then
-        skip_test "No models available for performance test"
+        skip_test "No suitable models available for performance test"
     fi
+    
+    echo "Using model for performance test: $available_model"
     
     # Test simple generation timing
     local start_time=$(date +%s)

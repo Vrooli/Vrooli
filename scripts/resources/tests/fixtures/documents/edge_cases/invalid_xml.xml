@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+    <unclosed_tag>
+        <nested>Some content</nested>
+        <another_nested>More content
+    </unclosed_tag>
+    
+    <self_closing/>
+    <also_self_closing />
+    
+    <invalid_chars>Content with & unescaped & characters</invalid_chars>
+    <special_chars>Content with < and > characters</special_chars>
+    
+    <missing_end_tag>This tag is never closed
+    
+    <duplicate_attribute name="first" name="second">Duplicate attributes</duplicate_attribute>
+    
+    <empty_attribute name="">Empty attribute value</empty_attribute>
+    
+    <!-- Unclosed comment
+    
+    <invalid_nesting>
+        <inner>
+            <deeper>
+        </inner>
+            </deeper>
+    </invalid_nesting>
+    
+    <!-- Multiple root elements follow -->
+</root>
+
+<second_root>
+    This document has multiple root elements, which is invalid XML
+</second_root>

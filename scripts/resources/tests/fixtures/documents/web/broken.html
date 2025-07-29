@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Broken HTML Test Page</title>
+    <!-- Intentionally broken HTML for testing error handling -->
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f0f0f0;
+        }
+        
+        /* Unclosed CSS comment
+        .broken-style {
+            color: red;
+    </style>
+</head>
+<body>
+    <h1>Broken HTML Document</h1>
+    <p>This document contains intentional errors for testing automation tools' error handling capabilities.</p>
+    
+    <!-- Unclosed div tag -->
+    <div class="container">
+        <h2>Section with Unclosed Tag</h2>
+        <p>This div will never be properly closed.
+    
+    <div class="nested">
+        <!-- Missing closing quote -->
+        <input type="text id="broken-input" placeholder="Missing quote in ID attribute">
+        
+        <!-- Invalid tag structure -->
+        <p>This paragraph has <strong>bold text but <em>italic is not properly nested</strong></em></p>
+        
+        <!-- Script with syntax error -->
+        <script>
+            // Intentional JavaScript syntax error
+            function brokenFunction( {
+                console.log("This function has syntax errors"
+                let undefinedVariable = ;
+                return "This won't work"
+            }
+            
+            // Unclosed string
+            let brokenString = "This string never closes
+            
+            // Undefined function call
+            nonExistentFunction();
+        </script>
+    </div>
+    
+    <!-- Malformed table -->
+    <table>
+        <tr>
+            <td>Cell 1</td>
+            <td>Cell 2
+        <!-- Missing closing tags for tr and table -->
+    
+    <!-- Image with invalid src -->
+    <img src="this-image-does-not-exist.jpg" alt="Broken image">
+    
+    <!-- Link with invalid href -->
+    <a href="javascript:brokenFunction()">Click this broken link</a>
+    
+    <!-- Form with missing attributes -->
+    <form>
+        <!-- Input without type -->
+        <input name="broken-field">
+        
+        <!-- Select without closing tag -->
+        <select name="broken-select">
+            <option value="1">Option 1
+            <option value="2">Option 2
+        
+        <!-- Button with onclick pointing to undefined function -->
+        <button onclick="undefinedFunction()">Broken Button</button>
+    </form>
+    
+    <!-- Misplaced closing tags -->
+    </div>
+    </body>
+    
+    <!-- Additional unclosed div for more chaos -->
+    <div class="extra-broken">
+        <span>This span is never closed
+        <p>Neither is this paragraph
+    
+    <!-- CSS with syntax errors -->
+    <style>
+        .more-broken-css {
+            color: invalidcolor;
+            background-color: #gggggg; /* Invalid hex color */
+            font-size: 16pxpx; /* Invalid unit */
+            display: invalidvalue;
+        }
+        
+        /* Unclosed selector */
+        .another-broken-class {
+            margin: 10px
+    </style>
+    
+    <!-- JavaScript with more errors -->
+    <script>
+        // Reference error
+        console.log(undefinedVariable);
+        
+        // Type error
+        let nullValue = null;
+        nullValue.someMethod();
+        
+        // Syntax error in JSON
+        let brokenJson = JSON.parse('{"key": invalid}');
+        
+        // Infinite loop (commented out to prevent browser hang)
+        // while(true) { console.log("infinite"); }
+        
+        // Wrong event listener
+        document.getElementById('non-existent-element').addEventListener('click', function() {
+            console.log('This will throw an error');
+        });
+    </script>
+    
+<!-- Missing closing html tag -->

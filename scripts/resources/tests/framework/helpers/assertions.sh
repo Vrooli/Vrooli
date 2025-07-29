@@ -315,13 +315,20 @@ require_resource() {
     
     # Check if resource is in healthy resources list
     local resource_available=false
+    
+    # First try to use HEALTHY_RESOURCES array if available
     if [[ -n "${HEALTHY_RESOURCES:-}" ]]; then
-        for healthy_resource in ${HEALTHY_RESOURCES[@]}; do
+        for healthy_resource in "${HEALTHY_RESOURCES[@]}"; do
             if [[ "$healthy_resource" == "$resource" ]]; then
                 resource_available=true
                 break
             fi
         done
+    # Fallback to checking HEALTHY_RESOURCES_STR string
+    elif [[ -n "${HEALTHY_RESOURCES_STR:-}" ]]; then
+        if [[ " $HEALTHY_RESOURCES_STR " == *" $resource "* ]]; then
+            resource_available=true
+        fi
     fi
     
     if [[ "$resource_available" == "true" ]]; then

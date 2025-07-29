@@ -202,9 +202,7 @@ EOF
         echo "export ${port_var_name}=\"$resource_port\"" >> "$test_env_file"
     fi
     
-    # Add array recreation to the environment file
-    echo "# Recreate the array from the string" >> "$test_env_file"
-    echo 'HEALTHY_RESOURCES=($HEALTHY_RESOURCES_STR)' >> "$test_env_file"
+    # Note: Individual tests will use HEALTHY_RESOURCES_STR directly via require_resource()
     
     # Set up test logging
     local test_log_file="/tmp/vrooli_test_${test_identifier//[^a-zA-Z0-9]/_}_$$.log"

@@ -1,0 +1,153 @@
+{
+  "export_metadata": {
+    "timestamp": "2025-07-29T14:30:00Z",
+    "version": "1.2.0",
+    "source_system": "vrooli_test_db",
+    "total_records": 150,
+    "export_type": "full"
+  },
+  "products": [
+    {
+      "id": "prod_001",
+      "name": "AI Development Platform",
+      "category": "software",
+      "price": 299.99,
+      "currency": "USD",
+      "description": "Comprehensive AI development and deployment platform with integrated resource management",
+      "features": [
+        "Visual workflow builder",
+        "Multi-model AI support",
+        "Resource orchestration",
+        "Real-time monitoring"
+      ],
+      "tags": ["ai", "development", "platform", "automation"],
+      "availability": {
+        "in_stock": true,
+        "quantity": 1000,
+        "warehouse_locations": ["US-WEST", "EU-CENTRAL", "ASIA-PACIFIC"]
+      },
+      "metadata": {
+        "created_at": "2024-01-15T10:00:00Z",
+        "updated_at": "2025-07-29T12:00:00Z",
+        "created_by": "product_team",
+        "version": "3.2.1"
+      }
+    },
+    {
+      "id": "prod_002", 
+      "name": "Document Processing Service",
+      "category": "service",
+      "price": 49.99,
+      "currency": "USD",
+      "description": "Advanced document processing with OCR, text extraction, and AI analysis capabilities",
+      "features": [
+        "OCR for scanned documents",
+        "Multi-format support",
+        "AI-powered analysis",
+        "Batch processing"
+      ],
+      "tags": ["document", "processing", "ocr", "ai"],
+      "availability": {
+        "in_stock": true,
+        "quantity": 5000,
+        "warehouse_locations": ["CLOUD-SERVICE"]
+      },
+      "metadata": {
+        "created_at": "2024-02-20T15:30:00Z",
+        "updated_at": "2025-07-29T11:45:00Z",
+        "created_by": "service_team",
+        "version": "2.1.0"
+      }
+    },
+    {
+      "id": "prod_003",
+      "name": "Automation Toolkit",
+      "category": "toolkit",
+      "price": 129.99,
+      "currency": "USD", 
+      "description": "Complete automation toolkit with n8n, Node-RED, and custom workflow capabilities",
+      "features": [
+        "Visual workflow design",
+        "300+ integrations",
+        "Real-time execution",
+        "Custom node development"
+      ],
+      "tags": ["automation", "workflow", "integration", "toolkit"],
+      "availability": {
+        "in_stock": true,
+        "quantity": 2500,
+        "warehouse_locations": ["US-EAST", "EU-WEST"]
+      },
+      "metadata": {
+        "created_at": "2024-03-10T09:15:00Z",
+        "updated_at": "2025-07-29T10:30:00Z",
+        "created_by": "automation_team",
+        "version": "1.8.3"
+      }
+    }
+  ],
+  "transactions": [
+    {
+      "transaction_id": "txn_2025072901",
+      "customer_id": "cust_1001",
+      "product_ids": ["prod_001", "prod_002"],
+      "total_amount": 349.98,
+      "currency": "USD",
+      "status": "completed",
+      "payment_method": "credit_card",
+      "billing_address": {
+        "street": "123 Innovation Drive",
+        "city": "San Francisco",
+        "state": "CA",
+        "zip_code": "94105",
+        "country": "USA"
+      },
+      "items": [
+        {
+          "product_id": "prod_001",
+          "quantity": 1,
+          "unit_price": 299.99,
+          "total_price": 299.99
+        },
+        {
+          "product_id": "prod_002",
+          "quantity": 1,
+          "unit_price": 49.99,
+          "total_price": 49.99
+        }
+      ],
+      "timestamps": {
+        "created": "2025-07-29T13:45:00Z",
+        "processed": "2025-07-29T13:46:15Z",
+        "completed": "2025-07-29T13:47:30Z"
+      }
+    }
+  ],
+  "analytics": {
+    "revenue": {
+      "total": 52750.80,
+      "monthly": {
+        "2025-07": 8950.25,
+        "2025-06": 12400.50,
+        "2025-05": 15200.75,
+        "2025-04": 16199.30
+      }
+    },
+    "customer_segments": {
+      "enterprise": 45,
+      "small_business": 78,
+      "individual": 27
+    },
+    "product_performance": {
+      "top_selling": "prod_001",
+      "highest_revenue": "prod_001",
+      "fastest_growing": "prod_002"
+    }
+  },
+  "system_info": {
+    "database_version": "PostgreSQL 14.9",
+    "schema_version": "2.4.1",
+    "last_backup": "2025-07-29T06:00:00Z",
+    "maintenance_window": "2025-07-30T02:00:00Z"
+  }
+}
