@@ -71,6 +71,27 @@ export AGENT_S2_CORS_ORIGINS="*"                       # Allowed CORS origins
 export AGENT_S2_CORS_METHODS="GET,POST"                # Allowed HTTP methods
 ```
 
+### Stealth Mode Configuration
+
+```bash
+# Stealth Mode Settings
+export AGENT_S2_STEALTH_MODE_ENABLED=true              # Enable/disable stealth mode (default: true)
+export AGENT_S2_SESSION_STORAGE_PATH=/data/sessions    # Session storage path
+export AGENT_S2_SESSION_DATA_PERSISTENCE=true          # Enable session data persistence (default: true)
+export AGENT_S2_SESSION_STATE_PERSISTENCE=false        # Enable session state persistence (default: false)
+export AGENT_S2_SESSION_ENCRYPTION=true                # Enable session encryption (default: true)
+export AGENT_S2_SESSION_TTL_DAYS=30                    # Session TTL in days (default: 30)
+export AGENT_S2_STEALTH_PROFILE_TYPE=residential       # Profile type: residential, mobile, datacenter
+
+# Stealth Feature Toggles (configured via API or manage.sh)
+# - fingerprint_randomization: Randomize browser fingerprints
+# - webdriver_hiding: Hide WebDriver automation flags
+# - user_agent_rotation: Rotate user agents based on profile type
+# - canvas_noise: Add noise to canvas fingerprinting
+# - webgl_randomization: Randomize WebGL parameters
+# - session_persistence: Maintain cookies and auth across sessions
+```
+
 ## Installation Configuration
 
 ### Basic Installation Options
@@ -108,6 +129,13 @@ export AGENT_S2_CORS_METHODS="GET,POST"                # Allowed HTTP methods
   --vnc-password mysecurepassword \
   --audit-logging yes \
   --security-hardening yes
+
+# Stealth mode configuration
+./manage.sh --action install \
+  --mode sandbox \
+  --llm-provider anthropic \
+  --stealth-enabled yes \
+  --stealth-profile residential
 ```
 
 ### Host Mode Configuration
@@ -147,6 +175,10 @@ export AGENT_S2_CORS_METHODS="GET,POST"                # Allowed HTTP methods
 | `--host-mounts` | Host mount points | `none` | Comma-separated paths |
 | `--memory-limit` | Container memory limit | `2g` | Memory specification |
 | `--cpu-limit` | Container CPU limit | `1.0` | CPU specification |
+| `--stealth-enabled` | Enable stealth mode | `yes` | `yes`, `no` |
+| `--stealth-profile` | Stealth profile type | `residential` | `residential`, `mobile`, `datacenter` |
+| `--stealth-feature` | Configure stealth feature | `none` | Feature=value pairs |
+| `--stealth-url` | Test URL for stealth | `https://bot.sannysoft.com/` | Any URL |
 | `--force` | Force reinstallation | `no` | `yes`, `no` |
 
 ## Runtime Mode Management

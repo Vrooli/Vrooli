@@ -217,6 +217,21 @@ user_pref("network.cookie.thirdparty.sessionOnly", false);
 // Disable Firefox's automation detection
 user_pref("marionette.enabled", false);
 user_pref("dom.webdriver.enabled", false);
+
+// ========== AUTOMATED SESSION RESET SUPPORT ==========
+
+// Disable quit confirmation dialogs (for automated session clearing)
+user_pref("browser.warnOnQuit", false);
+user_pref("browser.showQuitWarning", false);
+user_pref("browser.sessionstore.warnOnQuit", false);
+
+// Disable tab close warnings (for automated tab management)  
+user_pref("browser.tabs.warnOnClose", false);
+user_pref("browser.tabs.warnOnCloseOtherTabs", false);
+
+// Disable window close warnings
+user_pref("browser.warnOnCloseWindow", false);
+user_pref("browser.tabs.closeWindowWithLastTab", true);
 EOF
 
 # Ensure proper permissions

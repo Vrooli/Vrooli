@@ -47,8 +47,8 @@ class AIHandler:
         
         # Initialize stealth manager
         stealth_config = StealthConfig(
-            enabled=os.getenv("STEALTH_MODE_ENABLED", "true").lower() == "true",
-            session_storage_path=os.getenv("SESSION_STORAGE_PATH", "/data/sessions")
+            enabled=Config.STEALTH_MODE_ENABLED,
+            session_storage_path=Config.SESSION_STORAGE_PATH
         )
         self.stealth_manager = StealthManager(stealth_config)
         

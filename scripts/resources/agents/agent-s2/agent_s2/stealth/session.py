@@ -3,6 +3,8 @@
 import json
 import os
 import shutil
+import subprocess
+import time
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timedelta
@@ -194,17 +196,43 @@ class SessionManager:
         logger.info(f"Loaded session data for profile: {profile_id}")
         return data
         
-    def delete_session_data(self, profile_id: str) -> None:
-        """Delete session data for a profile
+    def delete_session_data(self, profile_id: str = None, automation_service=None, restart_browser: bool = True) -> None:
+        """Delete session data for a profile and optionally restart browser
         
         Args:
-            profile_id: Profile identifier
+            profile_id: Profile identifier (if None, deletes all profiles)
+            automation_service: Optional automation service for browser control
+            restart_browser: Whether to restart Firefox with clean state
         """
-        profile_dir = self.storage_path / "profiles" / profile_id
+        # Delete saved profile data
+        if profile_id:
+            profile_dir = self.storage_path / "profiles" / profile_id
+            if profile_dir.exists():
+                shutil.rmtree(profile_dir)
+                logger.info(f"Deleted session data for profile: {profile_id}")
+        else:
+            # Delete all profiles
+            profiles_dir = self.storage_path / "profiles"
+            if profiles_dir.exists():
+                shutil.rmtree(profiles_dir)
+                profiles_dir.mkdir(exist_ok=True)
+                logger.info("Deleted all session data")
         
-        if profile_dir.exists():
-            shutil.rmtree(profile_dir)
-            logger.info(f"Deleted session data for profile: {profile_id}")
+        # Restart Firefox with clean state
+        if restart_browser:
+            try:
+                logger.info("Restarting Firefox with clean state...")
+                self._restart_firefox_clean()
+            except Exception as e:
+                logger.error(f"Failed to restart Firefox: {e}")
+                # Fallback to closing windows
+                if automation_service:
+                    try:
+                        self._close_browser_windows(automation_service)
+                    except Exception as fallback_error:
+                        logger.error(f"Fallback window closing also failed: {fallback_error}")
+        
+        logger.info("Session data reset completed")
             
     def save_session_state(self, state: Dict[str, Any]) -> None:
         """Save browser window/tab state
@@ -239,13 +267,28 @@ class SessionManager:
         logger.info("Loaded session state")
         return state
         
-    def delete_session_state(self) -> None:
-        """Delete saved session state"""
+    def delete_session_state(self, automation_service=None) -> None:
+        """Delete saved session state and close all browser windows/tabs
+        
+        Args:
+            automation_service: Optional automation service for browser control
+        """
+        # Close all active browser windows/tabs
+        if automation_service:
+            try:
+                logger.info("Closing all browser windows/tabs...")
+                self._close_browser_windows(automation_service)
+            except Exception as e:
+                logger.warning(f"Failed to close browser windows: {e}")
+        
+        # Delete saved state file
         state_file = self.storage_path / "states" / "current_state.json"
         
         if state_file.exists():
             state_file.unlink()
-            logger.info("Deleted session state")
+            logger.info("Deleted session state file")
+        
+        logger.info("Session state reset completed")
             
     def list_profiles(self) -> List[Dict[str, Any]]:
         """List all saved profiles
@@ -295,6 +338,62 @@ class SessionManager:
             logger.info(f"Cleaned up {cleaned} expired profiles")
             
         return cleaned
+        
+    def _close_browser_windows(self, automation_service) -> None:
+        """Close all active browser windows/tabs using automation
+        
+        Args:
+            automation_service: Automation service instance
+        """
+        try:
+            # Method 1: Close all Firefox windows at once
+            logger.debug("Attempting to close all windows with Ctrl+Shift+W")
+            automation_service.hotkey('ctrl', 'shift', 'w')
+            time.sleep(0.5)  # Brief pause to let windows close
+            
+            # Method 2: Fallback - close individual tabs
+            logger.debug("Closing individual tabs as fallback")
+            for i in range(10):  # Max 10 tabs fallback
+                try:
+                    automation_service.hotkey('ctrl', 'w')  # Close current tab
+                    time.sleep(0.1)
+                except Exception:
+                    break  # No more tabs to close
+                    
+            logger.info("Browser windows/tabs closed successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to close browser windows: {e}")
+            raise
+        
+    def _restart_firefox_clean(self) -> None:
+        """Kill Firefox processes and restart with clean profile"""
+        try:
+            # Kill Firefox processes gracefully first
+            logger.debug("Attempting graceful Firefox shutdown")
+            result = subprocess.run(['pkill', '-f', 'firefox'], capture_output=True, text=True)
+            time.sleep(2)  # Wait for graceful shutdown
+            
+            # Force kill if still running
+            logger.debug("Force killing remaining Firefox processes")
+            subprocess.run(['pkill', '-9', '-f', 'firefox'], capture_output=True, text=True)
+            time.sleep(1)  # Brief pause
+            
+            # Restart Firefox in background with clean state
+            logger.debug("Starting Firefox with clean profile")
+            subprocess.Popen([
+                'firefox-esr', '--new-window', 'about:blank'
+            ], env={'DISPLAY': ':99'}, 
+               stdout=subprocess.DEVNULL, 
+               stderr=subprocess.DEVNULL)
+            
+            # Give Firefox time to start
+            time.sleep(3)
+            logger.info("Firefox restarted with clean state")
+            
+        except Exception as e:
+            logger.error(f"Failed to restart Firefox: {e}")
+            raise
         
     def export_profile(self, profile_id: str, output_path: str) -> None:
         """Export profile to a file

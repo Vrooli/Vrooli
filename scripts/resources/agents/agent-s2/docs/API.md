@@ -335,6 +335,291 @@ curl -X POST http://localhost:4113/ai/analyze \
 }
 ```
 
+## Stealth Mode API
+
+The stealth mode API provides advanced anti-bot detection capabilities including browser fingerprint randomization, session persistence, and various evasion techniques.
+
+### Get Stealth Status
+
+**Recommended Method:**
+```bash
+# Check stealth mode status and configuration
+./manage.sh --action configure-stealth
+```
+
+**Direct API:**
+```http
+GET /stealth/status
+```
+
+Returns current stealth mode configuration and status.
+
+**Response:**
+```json
+{
+  "enabled": true,
+  "features_enabled": [
+    "fingerprint_randomization",
+    "webdriver_hiding", 
+    "user_agent_rotation",
+    "session_persistence"
+  ],
+  "current_profile": {
+    "id": "residential_profile_123",
+    "type": "residential",
+    "active": true
+  },
+  "session_storage": {
+    "path": "/data/sessions",
+    "encryption_enabled": true
+  }
+}
+```
+
+### Configure Stealth Settings
+
+**Recommended Method:**
+```bash
+# Enable stealth mode
+./manage.sh --action configure-stealth --stealth-enabled yes
+
+# Configure specific feature
+./manage.sh --action configure-stealth --stealth-feature "fingerprint_randomization=true"
+```
+
+**Direct API:**
+```http
+POST /stealth/configure
+```
+
+**Request Body:**
+```json
+{
+  "enabled": true,
+  "features": {
+    "fingerprint_randomization": true,
+    "webdriver_hiding": true,
+    "user_agent_rotation": true,
+    "session_persistence": true,
+    "canvas_noise": true,
+    "webgl_randomization": true
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "config": {
+    "enabled": true,
+    "fingerprint_randomization": true,
+    "webdriver_hiding": true,
+    "user_agent_rotation": true,
+    "session_persistence": true,
+    "canvas_noise": true,
+    "webgl_randomization": true
+  }
+}
+```
+
+### Test Stealth Effectiveness
+
+**Recommended Method:**
+```bash
+# Test stealth mode with default detection site
+./manage.sh --action test-stealth
+
+# Test with custom URL
+./manage.sh --action test-stealth --stealth-url https://fingerprint.com/demo
+```
+
+**Direct API:**
+```http
+POST /stealth/test
+```
+
+**Request Body:**
+```json
+{
+  "url": "https://bot.sannysoft.com/"
+}
+```
+
+**Response:**
+```json
+{
+  "test_url": "https://bot.sannysoft.com/",
+  "timestamp": "2024-01-01T12:00:00Z",
+  "fingerprint_changed": true,
+  "webdriver_detected": false,
+  "stealth_effective": true,
+  "details": {
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)...",
+    "canvas_fingerprint": "a7b3c9d2e4f1...",
+    "webgl_vendor": "Intel Inc."
+  }
+}
+```
+
+### Profile Management
+
+#### Create Profile
+
+**Recommended Method:**
+```bash
+# Create residential profile
+./manage.sh --action create-profile --profile shopping --type residential
+```
+
+**Direct API:**
+```http
+POST /stealth/profile/create
+```
+
+**Request Body:**
+```json
+{
+  "profile_id": "shopping_profile",
+  "profile_type": "residential"
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "profile_id": "shopping_profile",
+  "profile": {
+    "type": "residential",
+    "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)...",
+    "screen_resolution": "1920x1080",
+    "hardware": {
+      "cpu_cores": 8,
+      "memory_gb": 16
+    },
+    "timezone": "America/New_York",
+    "language": "en-US"
+  }
+}
+```
+
+#### List Profiles
+
+**Recommended Method:**
+```bash
+# List all saved session profiles
+./manage.sh --action list-sessions
+```
+
+**Direct API:**
+```http
+GET /stealth/profile/list
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "profiles": [
+    {
+      "id": "shopping_profile",
+      "type": "residential",
+      "saved_at": "2024-01-01T12:00:00Z",
+      "expires_at": "2024-01-31T12:00:00Z",
+      "size": 2048,
+      "active": true
+    }
+  ],
+  "count": 1
+}
+```
+
+#### Activate Profile
+
+```http
+PUT /stealth/profile/{profile_id}/activate
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "profile_id": "shopping_profile",
+  "features_enabled": [
+    "fingerprint_randomization",
+    "session_persistence"
+  ],
+  "message": "Profile activated successfully"
+}
+```
+
+#### Delete Profile
+
+```http
+DELETE /stealth/profile/{profile_id}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Profile shopping_profile deleted"
+}
+```
+
+### Session Management
+
+#### Save Current Session
+
+**Direct API:**
+```http
+POST /stealth/session/save
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "profile_id": "shopping_profile",
+  "session_data_saved": true,
+  "items_saved": {
+    "cookies": 15,
+    "local_storage": 8,
+    "session_storage": 3
+  }
+}
+```
+
+#### Reset Session
+
+**Recommended Method:**
+```bash
+# Reset all session data
+./manage.sh --action reset-session-data
+
+# Reset session state only
+./manage.sh --action reset-session-state
+```
+
+**Direct API:**
+```http
+DELETE /stealth/session/reset
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "message": "Session state reset",
+  "items_cleared": {
+    "cookies": 15,
+    "local_storage": 8,
+    "session_storage": 3
+  }
+}
+```
+
 ## Error Responses
 
 All endpoints return consistent error responses:
@@ -358,6 +643,10 @@ All endpoints return consistent error responses:
 - `SCREENSHOT_FAILED`: Display not available or screenshot failed
 - `TASK_TIMEOUT`: Operation exceeded timeout limit
 - `INVALID_INPUT`: Request body validation failed
+- `STEALTH_NOT_INITIALIZED`: Stealth mode not properly initialized
+- `PROFILE_NOT_FOUND`: Requested stealth profile does not exist
+- `SESSION_SAVE_FAILED`: Unable to save session data
+- `ENCRYPTION_ERROR`: Session data encryption/decryption failed
 
 ## Rate Limits
 

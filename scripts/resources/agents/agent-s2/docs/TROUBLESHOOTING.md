@@ -554,6 +554,100 @@ Before seeking help, collect this information:
    - Provide reproduction steps
    - Attach relevant logs
 
+## Stealth Mode Issues
+
+### Stealth Mode Not Working
+
+**Symptoms**: Bot detection still identifies automation, stealth features not applied
+
+**Diagnosis Steps**:
+```bash
+# Check stealth status
+./manage.sh --action configure-stealth
+
+# Test stealth effectiveness
+./manage.sh --action test-stealth
+
+# Check stealth configuration
+curl http://localhost:4113/stealth/status
+```
+
+**Solutions**:
+```bash
+# Method 1: Restart stealth mode
+./manage.sh --action configure-stealth --stealth-enabled yes
+
+# Method 2: Test with different profile
+./manage.sh --action configure-stealth --stealth-feature "profile_type=mobile"
+
+# Method 3: Check specific bot detection site
+./manage.sh --action test-stealth --stealth-url https://fingerprint.com/demo
+```
+
+### Session Data Not Persisting
+
+**Symptoms**: Cookies/auth lost between sessions, login required repeatedly
+
+**Diagnosis Steps**:
+```bash
+# Check session storage
+./manage.sh --action list-sessions
+
+# Verify session directory permissions
+docker exec agent-s2 ls -la /data/sessions
+
+# Check session configuration
+curl http://localhost:4113/stealth/status | jq .session_storage
+```
+
+**Solutions**:
+```bash
+# Method 1: Manually save session
+curl -X POST http://localhost:4113/stealth/session/save
+
+# Method 2: Check storage permissions
+docker exec agent-s2 chown -R agents2:agents2 /data/sessions
+
+# Method 3: Verify encryption is working
+docker exec agent-s2 ls -la /data/sessions/.session_key
+```
+
+### Profile Creation Failing
+
+**Symptoms**: Cannot create or activate stealth profiles
+
+**Solutions**:
+```bash
+# Check available profiles
+./manage.sh --action list-sessions
+
+# Create new profile manually
+curl -X POST http://localhost:4113/stealth/profile/create \
+  -H "Content-Type: application/json" \
+  -d '{"profile_id": "test_profile", "profile_type": "residential"}'
+
+# Reset session data if corrupted
+./manage.sh --action reset-session-data
+```
+
+### Stealth Mode Performance Issues
+
+**Symptoms**: Slow page loading, high resource usage with stealth enabled
+
+**Solutions**:
+```bash
+# Disable unnecessary stealth features
+curl -X POST http://localhost:4113/stealth/configure \
+  -H "Content-Type: application/json" \
+  -d '{"enabled": true, "features": {"canvas_noise": false, "webgl_randomization": false}}'
+
+# Use datacenter profile for better performance
+./manage.sh --action configure-stealth --stealth-feature "profile_type=datacenter"
+
+# Monitor resource usage
+docker stats agent-s2
+```
+
 ## Prevention and Maintenance
 
 ### Regular Maintenance

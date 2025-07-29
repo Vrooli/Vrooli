@@ -176,7 +176,7 @@ async def activate_profile(profile_id: str, request: Request) -> Dict[str, Any]:
 
 @router.delete("/profile/{profile_id}")
 async def delete_profile(profile_id: str, request: Request) -> Dict[str, Any]:
-    """Delete a stealth profile
+    """Delete a stealth profile and restart browser
     
     Args:
         profile_id: Profile to delete
@@ -189,11 +189,15 @@ async def delete_profile(profile_id: str, request: Request) -> Dict[str, Any]:
         raise HTTPException(status_code=500, detail="Stealth mode not initialized")
         
     try:
-        handler.stealth_manager.session_manager.delete_session_data(profile_id)
+        # Pass automation service for browser control
+        automation_service = getattr(handler, 'automation_service', None)
+        handler.stealth_manager.session_manager.delete_session_data(
+            profile_id, automation_service, restart_browser=True
+        )
         
         return {
             "success": True,
-            "message": f"Profile {profile_id} deleted"
+            "message": f"Profile {profile_id} deleted and browser restarted"
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete profile: {str(e)}")
@@ -220,7 +224,7 @@ async def save_session(request: Request) -> Dict[str, Any]:
 
 @router.delete("/session/reset")
 async def reset_session(request: Request) -> Dict[str, Any]:
-    """Reset session data
+    """Reset session state and close all browser windows/tabs
     
     Returns:
         Reset result
@@ -229,9 +233,37 @@ async def reset_session(request: Request) -> Dict[str, Any]:
     if not hasattr(handler, 'stealth_manager'):
         raise HTTPException(status_code=500, detail="Stealth mode not initialized")
         
-    handler.stealth_manager.session_manager.delete_session_state()
+    # Pass automation service for browser control
+    automation_service = getattr(handler, 'automation_service', None)
+    handler.stealth_manager.session_manager.delete_session_state(automation_service)
     
     return {
         "success": True,
-        "message": "Session state reset"
+        "message": "Session state reset and browser windows closed"
     }
+
+
+@router.delete("/session/data")
+async def reset_session_data(request: Request) -> Dict[str, Any]:
+    """Reset all session data and restart browser
+    
+    Returns:
+        Reset result
+    """
+    handler = get_ai_handler(request)
+    if not hasattr(handler, 'stealth_manager'):
+        raise HTTPException(status_code=500, detail="Stealth mode not initialized")
+        
+    try:
+        # Pass automation service for browser control, clear all profiles
+        automation_service = getattr(handler, 'automation_service', None)
+        handler.stealth_manager.session_manager.delete_session_data(
+            profile_id=None, automation_service=automation_service, restart_browser=True
+        )
+        
+        return {
+            "success": True,
+            "message": "All session data cleared and browser restarted"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to reset session data: {str(e)}")
