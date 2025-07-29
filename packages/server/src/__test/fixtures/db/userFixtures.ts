@@ -1,26 +1,29 @@
-import { AccountStatus, generatePK, generatePublicId, nanoid } from "@vrooli/shared";
+/* eslint-disable no-magic-numbers */
 import { type Prisma } from "@prisma/client";
+import { AccountStatus, generatePK, generatePublicId, nanoid } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
+import type { BulkSeedOptions, BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
 
 /**
  * Database fixtures for User model - used for seeding test data
  * These follow Prisma's shape for database operations
  */
 
-// Consistent IDs for testing
+// Consistent IDs for testing - using lazy initialization
+const _userDbIds: { [key: string]: bigint | undefined } = {};
+
 export const userDbIds = {
-    user1: generatePK(),
-    user2: generatePK(),
-    user3: generatePK(),
-    bot1: generatePK(),
-    bot2: generatePK(),
-    auth1: generatePK(),
-    auth2: generatePK(),
-    auth3: generatePK(),
-    email1: generatePK(),
-    email2: generatePK(),
-    email3: generatePK(),
+    get user1() { return _userDbIds.user1 ??= generatePK(); },
+    get user2() { return _userDbIds.user2 ??= generatePK(); },
+    get user3() { return _userDbIds.user3 ??= generatePK(); },
+    get bot1() { return _userDbIds.bot1 ??= generatePK(); },
+    get bot2() { return _userDbIds.bot2 ??= generatePK(); },
+    get auth1() { return _userDbIds.auth1 ??= generatePK(); },
+    get auth2() { return _userDbIds.auth2 ??= generatePK(); },
+    get auth3() { return _userDbIds.auth3 ??= generatePK(); },
+    get email1() { return _userDbIds.email1 ??= generatePK(); },
+    get email2() { return _userDbIds.email2 ??= generatePK(); },
+    get email3() { return _userDbIds.email3 ??= generatePK(); },
 };
 
 /**
@@ -315,7 +318,7 @@ export const userDbFixtures: DbTestFixtures<Prisma.userCreateInput> = {
  * Enhanced factory for creating user database fixtures
  */
 export class UserDbFactory extends EnhancedDbFactory<Prisma.userCreateInput> {
-    
+
     /**
      * Get the test fixtures for User model
      */
@@ -393,7 +396,7 @@ export class UserDbFactory extends EnhancedDbFactory<Prisma.userCreateInput> {
                     handle: `depictbot_${nanoid()}`,
                     status: AccountStatus.Unlocked,
                     isBot: false, // Not a bot but depicting person
-                    isBotDepictingPerson: true,  
+                    isBotDepictingPerson: true,
                     isPrivate: false,
                 },
             },
@@ -489,11 +492,11 @@ export class UserDbFactory extends EnhancedDbFactory<Prisma.userCreateInput> {
         try {
             const factory = new UserDbFactory();
             const result = factory.createWithRelationships({ withAuth: true, overrides });
-            
+
             if (!result || !result.data) {
                 throw new Error("createWithRelationships did not return expected result structure");
             }
-            
+
             return result.data;
         } catch (error) {
             console.error("Error in UserDbFactory.createWithAuth:", error);
@@ -518,11 +521,11 @@ export class UserDbFactory extends EnhancedDbFactory<Prisma.userCreateInput> {
         try {
             const factory = new UserDbFactory();
             const result = factory.createWithRelationships({ withAuth: true, withRoles: roles, overrides });
-            
+
             if (!result || !result.data) {
                 throw new Error("createWithRelationships did not return expected result structure");
             }
-            
+
             return result.data;
         } catch (error) {
             console.error("Error in UserDbFactory.createWithRoles:", error);
@@ -537,11 +540,11 @@ export class UserDbFactory extends EnhancedDbFactory<Prisma.userCreateInput> {
         try {
             const factory = new UserDbFactory();
             const result = factory.createWithRelationships({ withAuth: true, withTeams: teams, overrides });
-            
+
             if (!result || !result.data) {
                 throw new Error("createWithRelationships did not return expected result structure");
             }
-            
+
             return result.data;
         } catch (error) {
             console.error("Error in UserDbFactory.createWithTeams:", error);
@@ -581,13 +584,13 @@ export async function seedTestUsers(
 
     for (let i = 0; i < count; i++) {
         const overrides = options?.overrides?.[i] || { name: `Test User ${i + 1}` };
-        
+
         let userData: Prisma.userCreateInput;
-        
+
         if (options?.withAuth) {
-            userData = factory.createWithRelationships({ 
-                withAuth: true, 
-                overrides, 
+            userData = factory.createWithRelationships({
+                withAuth: true,
+                overrides,
             }).data;
             authCount++;
         } else {

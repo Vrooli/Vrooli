@@ -1,7 +1,8 @@
-import { generatePK, generatePublicId, CommentFor } from "@vrooli/shared";
+/* eslint-disable no-magic-numbers */
 import { type Prisma } from "@prisma/client";
+import { CommentFor, generatePK } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
+import type { BulkSeedOptions, BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
 
 /**
  * Database fixtures for Comment model - used for seeding test data
@@ -11,24 +12,30 @@ import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios 
  * and can be attached to: Issue, PullRequest, ResourceVersion
  */
 
-// Consistent IDs for testing
-export const commentDbIds = {
-    comment1: generatePK(),
-    comment2: generatePK(),
-    comment3: generatePK(),
-    comment4: generatePK(),
-    comment5: generatePK(),
-    translation1: generatePK(),
-    translation2: generatePK(),
-    translation3: generatePK(),
-    translation4: generatePK(),
-    user1: generatePK(),
-    user2: generatePK(),
-    team1: generatePK(),
-    issue1: generatePK(),
-    resourceVersion1: generatePK(),
-    pullRequest1: generatePK(),
-};
+// Consistent IDs for testing - using factory function to avoid module-level generatePK() calls
+let _commentDbIds: Record<string, bigint> | null = null;
+export function getCommentDbIds() {
+    if (!_commentDbIds) {
+        _commentDbIds = {
+            comment1: generatePK(),
+            comment2: generatePK(),
+            comment3: generatePK(),
+            comment4: generatePK(),
+            comment5: generatePK(),
+            translation1: generatePK(),
+            translation2: generatePK(),
+            translation3: generatePK(),
+            translation4: generatePK(),
+            user1: generatePK(),
+            user2: generatePK(),
+            team1: generatePK(),
+            issue1: generatePK(),
+            resourceVersion1: generatePK(),
+            pullRequest1: generatePK(),
+        };
+    }
+    return _commentDbIds;
+}
 
 /**
  * Enhanced test fixtures for Comment model following standard structure
@@ -50,8 +57,8 @@ export const commentDbFixtures: DbTestFixtures<Prisma.commentUncheckedCreateInpu
         id: generatePK(),
         score: 5,
         bookmarks: 3,
-        ownedByUserId: commentDbIds.user1,
-        issueId: commentDbIds.issue1,
+        ownedByUserId: getCommentDbIds().user1,
+        issueId: getCommentDbIds().issue1,
         translations: {
             create: [
                 {
@@ -70,13 +77,13 @@ export const commentDbFixtures: DbTestFixtures<Prisma.commentUncheckedCreateInpu
             create: [{
                 id: generatePK(),
                 emoji: "👍",
-                byId: commentDbIds.user2,
+                byId: getCommentDbIds().user2,
             }],
         },
         bookmarkedBy: {
             create: [{
                 id: generatePK(),
-                userId: commentDbIds.user2,
+                userId: getCommentDbIds().user2,
             }],
         },
     },
@@ -129,8 +136,8 @@ export const commentDbFixtures: DbTestFixtures<Prisma.commentUncheckedCreateInpu
             id: generatePK(),
             score: 0,
             bookmarks: 0,
-            ownedByUserId: commentDbIds.user1,
-            ownedByTeamId: commentDbIds.team1, // Should not have both
+            ownedByUserId: getCommentDbIds().user1,
+            ownedByTeamId: getCommentDbIds().team1, // Should not have both
             translations: {
                 create: [{
                     id: generatePK(),
@@ -181,7 +188,7 @@ export const commentDbFixtures: DbTestFixtures<Prisma.commentUncheckedCreateInpu
             id: generatePK(),
             score: 0,
             bookmarks: 0,
-            parentId: commentDbIds.comment1,
+            parentId: getCommentDbIds().comment1,
             translations: {
                 create: [{
                     id: generatePK(),
@@ -208,7 +215,7 @@ export const commentDbFixtures: DbTestFixtures<Prisma.commentUncheckedCreateInpu
             id: generatePK(),
             score: 0,
             bookmarks: 0,
-            ownedByTeamId: commentDbIds.team1,
+            ownedByTeamId: getCommentDbIds().team1,
             translations: {
                 create: [{
                     id: generatePK(),
@@ -234,9 +241,9 @@ export const commentDbFixtures: DbTestFixtures<Prisma.commentUncheckedCreateInpu
             id: generatePK(),
             score: 0,
             bookmarks: 0,
-            issueId: commentDbIds.issue1,
-            resourceVersionId: commentDbIds.resourceVersion1,
-            pullRequestId: commentDbIds.pullRequest1,
+            issueId: getCommentDbIds().issue1,
+            resourceVersionId: getCommentDbIds().resourceVersion1,
+            pullRequestId: getCommentDbIds().pullRequest1,
             translations: {
                 create: [{
                     id: generatePK(),
@@ -252,7 +259,7 @@ export const commentDbFixtures: DbTestFixtures<Prisma.commentUncheckedCreateInpu
  * Enhanced factory for creating comment database fixtures
  */
 export class CommentDbFactory extends EnhancedDbFactory<Prisma.commentUncheckedCreateInput> {
-    
+
     /**
      * Get the test fixtures for Comment model
      */
@@ -267,7 +274,7 @@ export class CommentDbFactory extends EnhancedDbFactory<Prisma.commentUncheckedC
         return {
             constraints: {
                 uniqueViolation: {
-                    id: commentDbIds.comment1, // Duplicate ID
+                    id: getCommentDbIds().comment1, // Duplicate ID
                     score: 0,
                     bookmarks: 0,
                     translations: {
@@ -322,10 +329,10 @@ export class CommentDbFactory extends EnhancedDbFactory<Prisma.commentUncheckedC
             },
             businessLogic: {
                 selfParentReference: {
-                    id: commentDbIds.comment2,
+                    id: getCommentDbIds().comment2,
                     score: 0,
                     bookmarks: 0,
-                    parentId: commentDbIds.comment2, // Self-reference
+                    parentId: getCommentDbIds().comment2, // Self-reference
                     translations: {
                         create: [{
                             id: generatePK(),
@@ -335,10 +342,10 @@ export class CommentDbFactory extends EnhancedDbFactory<Prisma.commentUncheckedC
                     },
                 },
                 circularParentReference: {
-                    id: commentDbIds.comment3,
+                    id: getCommentDbIds().comment3,
                     score: 0,
                     bookmarks: 0,
-                    parentId: commentDbIds.comment4, // Circular reference setup
+                    parentId: getCommentDbIds().comment4, // Circular reference setup
                     translations: {
                         create: [{
                             id: generatePK(),
@@ -380,7 +387,7 @@ export class CommentDbFactory extends EnhancedDbFactory<Prisma.commentUncheckedC
     protected addAuthentication(data: Prisma.commentUncheckedCreateInput): Prisma.commentUncheckedCreateInput {
         return {
             ...data,
-            ownedByUserId: commentDbIds.user1,
+            ownedByUserId: getCommentDbIds().user1,
         };
     }
 
@@ -404,12 +411,12 @@ export class CommentDbFactory extends EnhancedDbFactory<Prisma.commentUncheckedC
     protected addOtherRelations(data: Prisma.commentUncheckedCreateInput): Prisma.commentUncheckedCreateInput {
         return {
             ...data,
-            issueId: commentDbIds.issue1,
+            issueId: getCommentDbIds().issue1,
             reactions: {
                 create: [{
                     id: generatePK(),
                     emoji: "👍",
-                    byId: commentDbIds.user1,
+                    byId: getCommentDbIds().user1,
                 }],
             },
         };
@@ -525,10 +532,10 @@ export class CommentDbFactory extends EnhancedDbFactory<Prisma.commentUncheckedC
         overrides?: Partial<Prisma.commentUncheckedCreateInput>,
     ): Prisma.commentUncheckedCreateInput {
         const factory = new CommentDbFactory();
-        const ownerRelation = ownerType === "user" 
+        const ownerRelation = ownerType === "user"
             ? { ownedByUserId: BigInt(ownerId) }
             : { ownedByTeamId: BigInt(ownerId) };
-        
+
         return factory.createMinimal({
             ...overrides,
             ...ownerRelation,
@@ -544,7 +551,7 @@ export class CommentDbFactory extends EnhancedDbFactory<Prisma.commentUncheckedC
         const parentRelation = {
             [`${objectType}Id`]: BigInt(objectId),
         };
-        
+
         return factory.createMinimal({
             ...overrides,
             ...parentRelation,
@@ -565,12 +572,12 @@ export class CommentDbFactory extends EnhancedDbFactory<Prisma.commentUncheckedC
             [CommentFor.PullRequest]: "pullRequestId",
             [CommentFor.ResourceVersion]: "resourceVersionId",
         };
-        
+
         const relationField = typeMapping[objectType];
         if (!relationField) {
             throw new Error(`Invalid comment object type: ${objectType}`);
         }
-        
+
         return factory.createMinimal({
             ...overrides,
             [relationField]: BigInt(objectId),
@@ -583,7 +590,7 @@ export class CommentDbFactory extends EnhancedDbFactory<Prisma.commentUncheckedC
     static createBulkForObjects(
         objects: Array<{ type: CommentFor; id: string; userId: string; text?: string }>,
     ): Prisma.commentUncheckedCreateInput[] {
-        return objects.map((obj, index) => 
+        return objects.map((obj, index) =>
             this.createForObject(obj.type, obj.id, {
                 ownedByUserId: BigInt(obj.userId),
                 translations: {
@@ -670,7 +677,7 @@ export async function seedCommentThread(
                         }],
                     },
                 });
-                
+
                 const reply = await prisma.comment.create({ data: replyData });
                 comments.push(reply);
             }
@@ -756,7 +763,7 @@ export async function seedTestComments(
                 create: [{
                     id: generatePK(),
                     emoji: ["👍", "❤️", "😄", "😮", "😢", "😡"][i % 6],
-                    byId: commentDbIds.user1,
+                    byId: getCommentDbIds().user1,
                 }],
             };
         }
@@ -770,7 +777,7 @@ export async function seedTestComments(
             for (let level = 0; level < options.nestedLevel; level++) {
                 const replyData = factory.createMinimal({
                     parentId: BigInt(parentComment.id),
-                    ownedByUserId: commentDbIds.user1,
+                    ownedByUserId: getCommentDbIds().user1,
                     translations: {
                         create: [{
                             id: generatePK(),
@@ -779,7 +786,7 @@ export async function seedTestComments(
                         }],
                     },
                 });
-                
+
                 const reply = await prisma.comment.create({ data: replyData });
                 comments.push(reply);
                 parentComment = reply;

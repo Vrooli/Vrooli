@@ -113,7 +113,7 @@ describe("EndpointsPayment", () => {
             it("not logged in", async () => {
                 await assertRequiresAuth(
                     payment.findOne,
-                    { id: generatePK() },
+                    { id: generatePK().toString() },
                     payment_findOne,
                 );
             });
@@ -121,7 +121,7 @@ describe("EndpointsPayment", () => {
             it("API key - no read permissions", async () => {
                 await assertRequiresApiKeyReadPermissions(
                     payment.findOne,
-                    { id: generatePK() },
+                    { id: generatePK().toString() },
                     payment_findOne,
                     ["Payment"],
                 );
@@ -210,7 +210,7 @@ describe("EndpointsPayment", () => {
                     id: testUsers[0].id.toString(),
                 });
 
-                const input: FindByIdInput = { id: generatePK() };
+                const input: FindByIdInput = { id: generatePK().toString() };
                 const result = await payment.findOne({ input }, { req, res }, payment_findOne);
 
                 expect(result).toBeNull();
@@ -341,18 +341,22 @@ describe("EndpointsPayment", () => {
             });
 
             it("returns team payments for team members", async () => {
-                const { testUsers, testTeam1 } = await createTestData();
+                const { testUsers, testTeam1, payments } = await createTestData();
                 const { req, res } = await mockAuthenticatedSession({
                     id: testUsers[0].id.toString(),
                 });
 
-                const input: PaymentSearchInput = {
-                    teams: [testTeam1.id.toString()],
-                };
+                // Team payments are automatically included for team members via visibility system
+                const input: PaymentSearchInput = {};
                 const result = await payment.findMany({ input }, { req, res }, payment_findMany);
 
-                expect(result.results).toHaveLength(1);
-                expect(result.results[0].team?.id).toBe(testTeam1.id.toString());
+                // User 1 should see their own payments plus team payments (3 total)
+                expect(result.results).toHaveLength(3);
+
+                // Check that team payment is included
+                const teamPayment = result.results.find(p => p.team?.id === testTeam1.id.toString());
+                expect(teamPayment).toBeDefined();
+                expect(teamPayment?.id).toBe(payments[3].id.toString());
             });
 
             it("searches by amount range", async () => {

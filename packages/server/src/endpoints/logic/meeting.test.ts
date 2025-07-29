@@ -139,7 +139,7 @@ describe("EndpointsMeeting", () => {
             it("returns meeting by publicId for any authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id,
+                    id: testUsers[0].id.toString(),
                 });
                 const input: FindByPublicIdInput = { publicId: meetings[0].publicId };
                 const result = await meeting.findOne({ input }, { req, res }, meeting_findOne);
@@ -160,7 +160,7 @@ describe("EndpointsMeeting", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, {
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id,
+                    id: testUsers[0].id.toString(),
                 });
                 const input: FindByPublicIdInput = { publicId: meetings[0].publicId };
                 const result = await meeting.findOne({ input }, { req, res }, meeting_findOne);
@@ -175,7 +175,7 @@ describe("EndpointsMeeting", () => {
             it("returns meetings without filters for any authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id,
+                    id: testUsers[0].id.toString(),
                 });
                 const input: MeetingSearchInput = { take: 10 };
                 const expectedIds = meetings.map(m => m.id);
@@ -199,7 +199,7 @@ describe("EndpointsMeeting", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, {
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id,
+                    id: testUsers[0].id.toString(),
                 });
                 const input: MeetingSearchInput = { take: 10 };
                 const expectedIds = meetings.map(m => m.id);
@@ -215,7 +215,7 @@ describe("EndpointsMeeting", () => {
             it("creates a meeting for authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id,
+                    id: testUsers[0].id.toString(),
                 });
 
                 // Use validation fixtures for API input
@@ -240,7 +240,7 @@ describe("EndpointsMeeting", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, {
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id,
+                    id: testUsers[0].id.toString(),
                 });
 
                 // Use complete fixture for comprehensive test
@@ -274,7 +274,7 @@ describe("EndpointsMeeting", () => {
             it("updates meeting for authenticated user", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id,
+                    id: testUsers[0].id.toString(),
                 });
 
                 const input: MeetingUpdateInput = {
@@ -292,7 +292,7 @@ describe("EndpointsMeeting", () => {
             it("admin can update any meeting", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: adminUser.id,
+                    id: adminUser.id.toString(),
                 });
 
                 const input: MeetingUpdateInput = {

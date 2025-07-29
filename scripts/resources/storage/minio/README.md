@@ -1,32 +1,53 @@
-# MinIO Local Object Storage
+# MinIO - Local Object Storage
 
 MinIO is a high-performance, S3-compatible object storage server that provides local storage capabilities for Vrooli. It enables file uploads, artifact storage, and serves as a foundation for future cloud storage migrations.
 
+## Quick Reference
+- **Category**: Storage
+- **Ports**: 9000 (API), 9001 (Console)
+- **Container**: minio
+- **API Docs**: [Complete API Reference](docs/API.md)
+- **Status**: Production Ready
+
+## When to Use
+- **Local file storage** with S3-compatible API access
+- **AI model and artifact storage** for generated content
+- **File uploads and downloads** for user content
+- **Multi-application file sharing** within Vrooli ecosystem
+
+**Alternative**: Cloud storage (AWS S3, Google Cloud Storage) for scale, local filesystem for simplicity
+
 ## 🚀 Quick Start
 
-### Installation
-
 ```bash
-# Install with default settings
-./scripts/resources/storage/minio/manage.sh --action install
+# Install MinIO with defaults
+./manage.sh --action install
 
-# Install with custom ports
-MINIO_CUSTOM_PORT=9100 MINIO_CUSTOM_CONSOLE_PORT=9101 \
-  ./scripts/resources/storage/minio/manage.sh --action install
+# Check status
+./manage.sh --action status
 
-# Install with custom credentials
-MINIO_CUSTOM_ROOT_USER=admin MINIO_CUSTOM_ROOT_PASSWORD=secretpass \
-  ./scripts/resources/storage/minio/manage.sh --action install
+# View credentials
+./manage.sh --action show-credentials
+
+# Test functionality
+./manage.sh --action test-upload
 ```
 
-### Access
+## Access Points
 
 After installation:
 - **Console UI**: http://localhost:9001 (web interface)
 - **API Endpoint**: http://localhost:9000 (S3-compatible API)
-- **Credentials**: Run `./manage.sh --action show-credentials`
+- **Health Check**: http://localhost:9000/minio/health/live
 
-## 📦 Default Buckets
+## 📚 Documentation
+
+- 📖 [**Complete API Reference**](docs/API.md) - S3 API, service management, bucket operations, integration examples
+- ⚙️ [**Configuration Guide**](docs/CONFIGURATION.md) - Installation options, security, performance tuning
+- 🔧 [**Troubleshooting**](docs/TROUBLESHOOTING.md) - Common issues, diagnostics, recovery procedures
+- 📂 [**Examples**](examples/README.md) - S3 integration patterns and automation workflows
+
+## Default Buckets
 
 MinIO automatically creates four buckets for Vrooli:
 
@@ -37,270 +58,129 @@ MinIO automatically creates four buckets for Vrooli:
 | `vrooli-model-cache` | Downloaded AI models | Private |
 | `vrooli-temp-storage` | Temporary files (24hr auto-delete) | Private |
 
-## 🔧 Common Operations
-
-### Service Management
+## Service Management
 
 ```bash
-# Check status
+# Installation and setup
+./manage.sh --action install
 ./manage.sh --action status
 
-# Start/stop/restart
+# Service control
 ./manage.sh --action start
 ./manage.sh --action stop
 ./manage.sh --action restart
 
-# View logs
+# Monitoring and maintenance
 ./manage.sh --action logs --lines 100
-
-# Monitor health
 ./manage.sh --action monitor --interval 5
-```
+./manage.sh --action diagnose
 
-### Bucket Management
-
-```bash
-# List all buckets with statistics
+# Bucket management
 ./manage.sh --action list-buckets
-
-# Create a new bucket
 ./manage.sh --action create-bucket --bucket my-bucket --policy download
-
-# Remove a bucket
 ./manage.sh --action remove-bucket --bucket my-bucket
-./manage.sh --action remove-bucket --bucket my-bucket --force yes  # For non-empty
-```
 
-### Credentials
-
-```bash
-# Show current credentials
+# Credentials
 ./manage.sh --action show-credentials
-
-# Reset credentials (generates new secure ones)
 ./manage.sh --action reset-credentials
 ```
 
-### Testing
+## Custom Installation
 
 ```bash
-# Test file upload/download functionality
-./manage.sh --action test-upload
+# Custom ports (avoid conflicts)
+MINIO_CUSTOM_PORT=9100 MINIO_CUSTOM_CONSOLE_PORT=9101 \
+  ./manage.sh --action install
 
-# Run diagnostics
-./manage.sh --action diagnose
+# Custom credentials  
+MINIO_CUSTOM_ROOT_USER=admin MINIO_CUSTOM_ROOT_PASSWORD=secretpass \
+  ./manage.sh --action install
+
+# Performance tuning
+MINIO_API_REQUESTS_MAX=1000 MINIO_REGION=us-west-1 \
+  ./manage.sh --action install
 ```
 
-## 🔐 Security
+## Integration Examples
 
-### Default Security
-
-- Generates secure credentials on first install (if not provided)
-- Credentials stored in `~/.minio/config/credentials` with 600 permissions
-- Network isolated via Docker network
-- Health checks enabled
-
-### Custom Credentials
-
-Set before installation:
+### With AWS CLI
 ```bash
-export MINIO_CUSTOM_ROOT_USER="myuser"
-export MINIO_CUSTOM_ROOT_PASSWORD="mysecurepassword"
-./manage.sh --action install
+# Configure for MinIO
+aws configure set aws_access_key_id minioadmin
+aws configure set aws_secret_access_key minio123
+
+# Use S3 commands
+aws s3 ls --endpoint-url http://localhost:9000
+aws s3 cp file.txt s3://bucket-name/ --endpoint-url http://localhost:9000
 ```
 
-### Bucket Policies
+### With Python (boto3)
+```python
+import boto3
 
-Available policies:
-- `none` - Private (default)
-- `download` - Public read access
-- `upload` - Public write access
-- `public` - Full public access
+s3_client = boto3.client(
+    's3',
+    endpoint_url='http://localhost:9000',
+    aws_access_key_id='minioadmin',
+    aws_secret_access_key='minio123'
+)
 
-## 🏗️ Architecture
+# Upload file
+s3_client.upload_file('local-file.txt', 'bucket-name', 'remote-file.txt')
+```
+
+### With AI Resources
+```bash
+# Store AI model artifacts
+curl -X PUT --data-binary @model.bin \
+  http://localhost:9000/vrooli-model-cache/llama-3.1-8b.bin
+
+# Store agent screenshots
+curl -X PUT --data-binary @screenshot.png \
+  http://localhost:9000/vrooli-agent-artifacts/task-screenshot.png
+```
+
+## Security Features
+
+- **Secure Credentials**: Auto-generated secure passwords on first install
+- **Network Isolation**: Runs in isolated Docker network
+- **File Permissions**: Credentials stored with 600 permissions
+- **Access Policies**: Configurable bucket-level access control
+- **Health Monitoring**: Built-in health checks and diagnostics
+
+## Architecture
 
 ### Directory Structure
-
 ```
 ~/.minio/
-├── data/           # Object storage data
-│   └── .minio.sys/ # System metadata
-└── config/         # Configuration and credentials
-    └── credentials # Access credentials file
+├── data/                    # Object storage data
+│   ├── vrooli-user-uploads/
+│   ├── vrooli-agent-artifacts/
+│   ├── vrooli-model-cache/
+│   └── vrooli-temp-storage/
+└── config/
+    └── credentials          # Access credentials (600 perms)
 ```
 
 ### Docker Configuration
+- **Container**: `minio` with `unless-stopped` restart policy
+- **Network**: `minio-network` (isolated)
+- **Volumes**: Data persistence and configuration mounting
+- **Health Checks**: Automatic container health monitoring
 
-- **Container**: `minio`
-- **Network**: `minio-network`
-- **Ports**: 
-  - 9000 (API)
-  - 9001 (Console)
-- **Volumes**:
-  - `~/.minio/data:/data`
-  - `~/.minio/config:/root/.minio`
+## Automatic Features
 
-## 🔌 Integration with Vrooli
+- **Bucket Creation**: Default Vrooli buckets created automatically
+- **Lifecycle Policies**: 24-hour cleanup for temporary storage
+- **Health Monitoring**: Continuous service health checks
+- **Secure Defaults**: Strong passwords and proper permissions
 
-MinIO automatically registers with Vrooli's resource discovery system. The configuration is stored in `~/.vrooli/resources.local.json`:
+## Integration with Vrooli
 
-```json
-{
-  "services": {
-    "storage": {
-      "minio": {
-        "enabled": true,
-        "endpoint": "localhost:9000",
-        "useSSL": false,
-        "accessKey": "${MINIO_ACCESS_KEY}",
-        "secretKey": "${MINIO_SECRET_KEY}",
-        "buckets": {
-          "userUploads": "vrooli-user-uploads",
-          "agentArtifacts": "vrooli-agent-artifacts",
-          "modelCache": "vrooli-model-cache",
-          "tempStorage": "vrooli-temp-storage"
-        }
-      }
-    }
-  }
-}
-```
+MinIO automatically registers with Vrooli's resource discovery system, providing:
+- **User Uploads**: Profile pictures and file attachments
+- **Agent Artifacts**: AI-generated images and documents  
+- **Model Cache**: Downloaded and cached AI models
+- **Temporary Storage**: Short-lived files with auto-cleanup
 
-## 🛠️ Advanced Usage
-
-### Using MinIO Client (mc)
-
-The MinIO client is available inside the container:
-
-```bash
-# Execute mc commands
-docker exec minio mc ls local/
-
-# Create alias for external mc client
-mc alias set vrooli http://localhost:9000 $(./manage.sh --action show-credentials | grep Username | cut -d' ' -f2) $(./manage.sh --action show-credentials | grep Password | cut -d' ' -f2)
-```
-
-### Lifecycle Policies
-
-Temporary storage bucket has automatic cleanup:
-```bash
-# Files older than 24 hours are automatically deleted
-# To set custom lifecycle:
-docker exec minio mc ilm add local/my-bucket --expire-days 7
-```
-
-### Backup and Restore
-
-```bash
-# Backup all data
-tar -czf minio-backup-$(date +%Y%m%d).tar.gz ~/.minio/data/
-
-# Restore from backup
-./manage.sh --action stop
-tar -xzf minio-backup-20240115.tar.gz -C ~/
-./manage.sh --action start
-```
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Port conflicts**
-```bash
-# Check what's using the port
-sudo lsof -i :9000
-
-# Use custom ports
-MINIO_CUSTOM_PORT=9100 ./manage.sh --action install
-```
-
-**Container won't start**
-```bash
-# Check logs
-./manage.sh --action logs --lines 100
-
-# Run diagnostics
-./manage.sh --action diagnose
-
-# Check disk space
-df -h ~/.minio/
-```
-
-**Can't access console**
-```bash
-# Verify container is running
-docker ps | grep minio
-
-# Check network
-curl -I http://localhost:9001
-
-# Ensure credentials are correct
-./manage.sh --action show-credentials
-```
-
-### Reset Everything
-
-```bash
-# Complete uninstall including data
-./manage.sh --action uninstall --remove-data yes
-
-# Fresh install
-./manage.sh --action install
-```
-
-## 📊 Performance Tuning
-
-### Environment Variables
-
-```bash
-# Increase connection limit
-MINIO_API_REQUESTS_MAX=1000 ./manage.sh --action install
-
-# Set region
-MINIO_REGION=us-west-1 ./manage.sh --action install
-```
-
-### Resource Limits
-
-Edit docker run command in `lib/docker.sh` to add:
-```bash
---memory="2g" \
---cpus="2.0" \
-```
-
-## 🔄 Maintenance
-
-### Upgrade MinIO
-
-```bash
-# Upgrade to latest version
-./manage.sh --action upgrade
-```
-
-### Monitoring
-
-```bash
-# Real-time monitoring
-./manage.sh --action monitor
-
-# Check resource usage
-docker stats minio
-
-# Disk usage
-du -sh ~/.minio/data/
-```
-
-## 📝 Notes
-
-- MinIO data persists between container restarts
-- Uninstalling preserves data by default (use `--remove-data yes` to delete)
-- Console provides a user-friendly interface for bucket management
-- S3-compatible API enables easy migration to cloud storage
-- Supports presigned URLs for secure temporary access
-
-## 🔗 Resources
-
-- [MinIO Documentation](https://docs.min.io/)
-- [MinIO Client Guide](https://docs.min.io/docs/minio-client-complete-guide.html)
-- [S3 API Reference](https://docs.aws.amazon.com/AmazonS3/latest/API/Welcome.html)
-- [Vrooli Resource System](/packages/server/src/services/resources/README.md)
+For detailed usage instructions, S3 API integration, and troubleshooting, see the documentation links above.

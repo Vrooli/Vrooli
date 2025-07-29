@@ -152,7 +152,7 @@ describe("EndpointsReminder", () => {
                 });
 
                 const input: FindByIdInput = {
-                    id: "non-existent-id",
+                    id: generatePK().toString(),
                 };
 
                 await expect(async () => {
@@ -372,7 +372,7 @@ describe("EndpointsReminder", () => {
                     name: "Unauthorized Reminder",
                     description: "This reminder should not be created",
                     dueDate: new Date("2023-04-01"),
-                    reminderListConnect: "non-existent-list-id",
+                    reminderListConnect: generatePK(),
                 });
 
                 await expect(async () => {
@@ -500,7 +500,7 @@ describe("EndpointsReminder", () => {
                 });
 
                 const input: ReminderUpdateInput = {
-                    id: "non-existent-id",
+                    id: generatePK(),
                     name: "Update Non-existent Reminder",
                     isComplete: true,
                 };

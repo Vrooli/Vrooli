@@ -93,26 +93,26 @@ describe("EndpointsReport", () => {
                 ...loggedInUserNoPremiumData(),
                 id: testUsers[0].id,
             });
-            const input: FindByIdInput = { id: seededReport1.id };
+            const input: FindByIdInput = { id: seededReport1.id.toString() };
             const result = await report.findOne({ input }, { req, res }, report_findOne);
             expect(result).not.toBeNull();
-            expect(result.id).toEqual(seededReport1.id);
+            expect(result.id).toEqual(seededReport1.id.toString());
             expect(result.reason).toEqual(seededReport1.reason);
         });
 
         it("returns a report by id when not authenticated", async () => {
             const { seededReport2 } = await createTestData();
             const { req, res } = await mockLoggedOutSession();
-            const input: FindByIdInput = { id: seededReport2.id };
+            const input: FindByIdInput = { id: seededReport2.id.toString() };
             const result = await report.findOne({ input }, { req, res }, report_findOne);
             expect(result).not.toBeNull();
-            expect(result.id).toEqual(seededReport2.id);
+            expect(result.id).toEqual(seededReport2.id.toString());
         });
 
         it("throws error for non-existent report", async () => {
             await createTestData();
             const { req, res } = await mockLoggedOutSession();
-            const input: FindByIdInput = { id: "non-existent-id" };
+            const input: FindByIdInput = { id: generatePK().toString() };
 
             await expect(async () => {
                 await report.findOne({ input }, { req, res }, report_findOne);
@@ -129,8 +129,8 @@ describe("EndpointsReport", () => {
             });
             const input: ReportSearchInput = { take: 10 };
             const expectedIds = [
-                seededReport1.id,
-                seededReport2.id,
+                seededReport1.id.toString(),
+                seededReport2.id.toString(),
             ];
             const result = await report.findMany({ input }, { req, res }, report_findMany);
             expect(result).not.toBeNull();
@@ -144,9 +144,9 @@ describe("EndpointsReport", () => {
                 ...loggedInUserNoPremiumData(),
                 id: testUsers[0].id,
             });
-            const input: ReportSearchInput = { take: 10, userId: testUsers[0].id };
+            const input: ReportSearchInput = { take: 10, userId: testUsers[0].id.toString() };
             const expectedIds = [
-                seededReport1.id,
+                seededReport1.id.toString(),
             ];
             const result = await report.findMany({ input }, { req, res }, report_findMany);
             assertFindManyResultIds(expect, result, expectedIds);
@@ -164,7 +164,7 @@ describe("EndpointsReport", () => {
             const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id });
             const result = await report.findMany({ input }, { req, res }, report_findMany);
             expect(result.edges).toHaveLength(1);
-            expect(result.edges![0]!.node!.id).toBe(seededReport1.id);
+            expect(result.edges![0]!.node!.id).toBe(seededReport1.id.toString());
         });
 
         it("allows anonymous access to all reports", async () => {
@@ -259,7 +259,7 @@ describe("EndpointsReport", () => {
                 ...loggedInUserNoPremiumData(),
                 id: testUsers[1].id,
             });
-            const input: ReportUpdateInput = { id: seededReport1.id, reason: "Updated" };
+            const input: ReportUpdateInput = { id: seededReport1.id.toString(), reason: "Updated" };
 
             await expect(async () => {
                 await report.updateOne({ input }, { req, res }, report_updateOne);
@@ -274,7 +274,7 @@ describe("EndpointsReport", () => {
                 id: testUsers[0].id,
             });
 
-            const input: ReportUpdateInput = { id: seededReport1.id, reason: "Updated by creator" };
+            const input: ReportUpdateInput = { id: seededReport1.id.toString(), reason: "Updated by creator" };
             const result = await report.updateOne({ input }, { req, res }, report_updateOne);
             expect(result.reason).toBe("Updated by creator");
         });
@@ -286,7 +286,7 @@ describe("EndpointsReport", () => {
                 id: adminUser.id,
             });
 
-            const input: ReportUpdateInput = { id: "non-existent-id", reason: "No such" };
+            const input: ReportUpdateInput = { id: generatePK().toString(), reason: "No such" };
 
             await expect(async () => {
                 await report.updateOne({ input }, { req, res }, report_updateOne);
@@ -296,7 +296,7 @@ describe("EndpointsReport", () => {
         it("throws when not authenticated", async () => {
             const { seededReport1 } = await createTestData();
             const { req, res } = await mockLoggedOutSession();
-            const input: ReportUpdateInput = { id: seededReport1.id, reason: "Should fail" };
+            const input: ReportUpdateInput = { id: seededReport1.id.toString(), reason: "Should fail" };
 
             await expect(async () => {
                 await report.updateOne({ input }, { req, res }, report_updateOne);

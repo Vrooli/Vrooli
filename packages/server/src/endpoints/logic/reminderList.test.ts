@@ -1,4 +1,4 @@
-import { type ReminderListCreateInput, type ReminderListUpdateInput } from "@vrooli/shared";
+import { type ReminderListCreateInput, type ReminderListUpdateInput, generatePK } from "@vrooli/shared";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
@@ -187,7 +187,7 @@ describe("EndpointsReminderList", () => {
                     id: testUsers[0].id,
                 });
 
-                const input: ReminderListUpdateInput = { id: "non-existent-id" };
+                const input: ReminderListUpdateInput = { id: generatePK().toString() };
 
                 await expect(async () => {
                     await reminderList.updateOne({ input }, { req, res }, reminderList_updateOne);

@@ -1,28 +1,31 @@
+/* eslint-disable no-magic-numbers */
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
-import { generatePK } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK } from "@vrooli/shared";
 
 /**
  * Database fixtures for CreditAccount model - used for seeding billing test data
  * These follow Prisma's shape for database operations
  */
 
-// Consistent IDs for testing
-export const creditAccountDbIds = {
-    userAccount1: generatePK(),
-    userAccount2: generatePK(),
-    teamAccount1: generatePK(),
-    teamAccount2: generatePK(),
-    zeroBalance: generatePK(),
-    highBalance: generatePK(),
-    negativeBalance: generatePK(),
-};
+// Consistent IDs for testing - using factory function to avoid module-level generatePK() calls
+export function getCreditAccountDbIds() {
+    return {
+        userAccount1: generatePK(),
+        userAccount2: generatePK(),
+        teamAccount1: generatePK(),
+        teamAccount2: generatePK(),
+        zeroBalance: generatePK(),
+        highBalance: generatePK(),
+        negativeBalance: generatePK(),
+    };
+}
 
 /**
  * User credit account with positive balance
  */
 export const userCreditAccountDb: Prisma.credit_accountCreateInput = {
-    id: creditAccountDbIds.userAccount1,
+    id: getCreditAccountDbIds().userAccount1,
     currentBalance: 1000000n, // 1,000,000 credits
     user: {
         connect: { id: generatePK() },
@@ -33,7 +36,7 @@ export const userCreditAccountDb: Prisma.credit_accountCreateInput = {
  * User credit account with low balance
  */
 export const lowBalanceUserAccountDb: Prisma.credit_accountCreateInput = {
-    id: creditAccountDbIds.userAccount2,
+    id: getCreditAccountDbIds().userAccount2,
     currentBalance: 5000n, // 5,000 credits
     user: {
         connect: { id: generatePK() },
@@ -44,7 +47,7 @@ export const lowBalanceUserAccountDb: Prisma.credit_accountCreateInput = {
  * Team credit account with high balance
  */
 export const teamCreditAccountDb: Prisma.credit_accountCreateInput = {
-    id: creditAccountDbIds.teamAccount1,
+    id: getCreditAccountDbIds().teamAccount1,
     currentBalance: 10000000n, // 10,000,000 credits
     team: {
         connect: { id: generatePK() },
@@ -55,7 +58,7 @@ export const teamCreditAccountDb: Prisma.credit_accountCreateInput = {
  * Team credit account with enterprise balance
  */
 export const enterpriseTeamAccountDb: Prisma.credit_accountCreateInput = {
-    id: creditAccountDbIds.teamAccount2,
+    id: getCreditAccountDbIds().teamAccount2,
     currentBalance: 100000000n, // 100,000,000 credits
     team: {
         connect: { id: generatePK() },
@@ -66,7 +69,7 @@ export const enterpriseTeamAccountDb: Prisma.credit_accountCreateInput = {
  * Account with zero balance
  */
 export const zeroBalanceAccountDb: Prisma.credit_accountCreateInput = {
-    id: creditAccountDbIds.zeroBalance,
+    id: getCreditAccountDbIds().zeroBalance,
     currentBalance: 0n,
     user: {
         connect: { id: generatePK() },
@@ -77,7 +80,7 @@ export const zeroBalanceAccountDb: Prisma.credit_accountCreateInput = {
  * Account with very high balance (testing limits)
  */
 export const highBalanceAccountDb: Prisma.credit_accountCreateInput = {
-    id: creditAccountDbIds.highBalance,
+    id: getCreditAccountDbIds().highBalance,
     currentBalance: 999999999999n, // Nearly 1 trillion credits
     user: {
         connect: { id: generatePK() },
@@ -88,7 +91,7 @@ export const highBalanceAccountDb: Prisma.credit_accountCreateInput = {
  * Account with negative balance (debt scenario)
  */
 export const negativeBalanceAccountDb: Prisma.credit_accountCreateInput = {
-    id: creditAccountDbIds.negativeBalance,
+    id: getCreditAccountDbIds().negativeBalance,
     currentBalance: -50000n, // -50,000 credits (in debt)
     user: {
         connect: { id: generatePK() },
@@ -194,7 +197,7 @@ export class CreditAccountDbFactory {
         return {
             id: generatePK(),
             currentBalance: purchaseAmount,
-            ...(entityType === "user" 
+            ...(entityType === "user"
                 ? { user: { connect: { id: entityId } } }
                 : { team: { connect: { id: entityId } } }
             ),
@@ -237,7 +240,7 @@ export class CreditAccountDbFactory {
         return {
             id: generatePK(),
             currentBalance,
-            ...(entityType === "user" 
+            ...(entityType === "user"
                 ? { user: { connect: { id: entityId } } }
                 : { team: { connect: { id: entityId } } }
             ),
@@ -269,7 +272,7 @@ export class CreditAccountDbFactory {
         return {
             id: generatePK(),
             currentBalance: balance,
-            ...(entityType === "user" 
+            ...(entityType === "user"
                 ? { user: { connect: { id: entityId } } }
                 : { team: { connect: { id: entityId } } }
             ),
@@ -336,7 +339,7 @@ export async function seedTestCreditAccounts(db: PrismaClient) {
         data: {
             id: generatePK(),
             publicId: "credit_user_2",
-            name: "Credit Test User 2", 
+            name: "Credit Test User 2",
             handle: "credituser2",
             status: "Unlocked",
             isBot: false,

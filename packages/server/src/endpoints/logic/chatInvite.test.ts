@@ -1,5 +1,5 @@
-import { type ChatInviteCreateInput, type ChatInviteSearchInput, type ChatInviteUpdateInput, type FindByIdInput, type User, type Chat, type ChatInvite } from "@vrooli/shared";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { type Chat, type ChatInvite, type ChatInviteCreateInput, type ChatInviteSearchInput, type ChatInviteUpdateInput, type FindByIdInput, type User } from "@vrooli/shared";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
@@ -17,9 +17,7 @@ import { chatInvite } from "./chatInvite.js";
 // Import database fixtures for seeding
 import { seedTestChat } from "../../__test/fixtures/db/chatFixtures.js";
 import { seedChatInvites } from "../../__test/fixtures/db/chatInviteFixtures.js";
-import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
-import { generatePK } from "@vrooli/shared";
 import { chatInviteTestDataFactory } from "../../../shared/src/__test/fixtures/api-inputs/chatInviteFixtures.js";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
@@ -42,7 +40,7 @@ describe("EndpointsChatInvite", () => {
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","phone","push_device","session"],
+            tables: ["user", "user_auth", "email", "phone", "push_device", "session"],
             logOrphans: true,
         });
         if (orphans.length > 0) {

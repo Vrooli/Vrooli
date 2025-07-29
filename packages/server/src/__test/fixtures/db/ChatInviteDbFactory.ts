@@ -1,9 +1,9 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
-import { generatePK, ChatInviteStatus } from "@vrooli/shared";
 import { type Prisma, type PrismaClient, type chat_invite } from "@prisma/client";
+import { ChatInviteStatus } from "@vrooli/shared";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
@@ -32,7 +32,7 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
     Prisma.chat_inviteUpdateInput
 > {
     protected scenarios: Record<string, TestScenario> = {};
-    
+
     constructor(modelName: string, prisma: PrismaClient) {
         super(modelName, prisma);
         this.initializeScenarios();
@@ -256,7 +256,7 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.chat_inviteCreateInput,
         config: ChatInviteRelationConfig,
-        tx: PrismaClient,
+        _tx: PrismaClient,
     ): Promise<Prisma.chat_inviteCreateInput> {
         const data = { ...baseData };
 
@@ -304,7 +304,7 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
         message?: string,
     ): Promise<chat_invite[]> {
         const invites = await Promise.all(
-            userIds.map(userId => 
+            userIds.map(userId =>
                 this.createPendingInvite(chatId, userId, message),
             ),
         );
@@ -337,7 +337,7 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
 
     protected async checkModelConstraints(record: chat_invite): Promise<string[]> {
         const violations: string[] = [];
-        
+
         // Check for duplicate invite
         const duplicate = await this.prisma.chat_invite.findFirst({
             where: {
@@ -346,7 +346,7 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
                 id: { not: record.id },
             },
         });
-        
+
         if (duplicate) {
             violations.push("User already has an invite to this chat");
         }
@@ -358,7 +358,7 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
                 userId: record.userId,
             },
         });
-        
+
         if (existingParticipant) {
             violations.push("User is already a participant in this chat");
         }
@@ -409,7 +409,7 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
     async getUserPendingInvites(userId: bigint): Promise<chat_invite[]> {
         return await this.prisma.chat_invite.findMany({
             where: {
-                userId: userId,
+                userId,
                 status: ChatInviteStatus.Pending,
             },
             include: this.getDefaultInclude(),
@@ -458,7 +458,7 @@ export class ChatInviteDbFactory extends EnhancedDatabaseFactory<
 }
 
 // Export factory creator function
-export const createChatInviteDbFactory = (prisma: PrismaClient) => 
+export const createChatInviteDbFactory = (prisma: PrismaClient) =>
     ChatInviteDbFactory.getInstance("chat_invite", prisma);
 
 // Export the class for type usage

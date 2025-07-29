@@ -8,8 +8,8 @@ import type {
 } from "./types.js";
 
 interface ChatParticipantRelationConfig extends RelationConfig {
-    chat: { chatId: string };
-    user: { userId: string };
+    chat: { chatId: bigint };
+    user: { userId: bigint };
 }
 
 /**
@@ -63,7 +63,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
                     hasUnread: true,
                 },
                 invalidTypes: {
-                    id: "not-a-snowflake",
+                    id: this.generateId(),
                     hasUnread: "yes", // Should be boolean
                     chat: "not-an-object", // Should be object
                     user: null, // Should be object
@@ -145,8 +145,8 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         hasUnread: false,
                     },
-                    chat: { chatId: this.generateId().toString() },
-                    user: { userId: this.generateId().toString() },
+                    chat: { chatId: this.generateId() },
+                    user: { userId: this.generateId() },
                 },
             },
             inactiveParticipant: {
@@ -156,8 +156,8 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         hasUnread: true,
                     },
-                    chat: { chatId: this.generateId().toString() },
-                    user: { userId: this.generateId().toString() },
+                    chat: { chatId: this.generateId() },
+                    user: { userId: this.generateId() },
                 },
             },
             newParticipant: {
@@ -167,8 +167,8 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         hasUnread: true,
                     },
-                    chat: { chatId: this.generateId().toString() },
-                    user: { userId: this.generateId().toString() },
+                    chat: { chatId: this.generateId() },
+                    user: { userId: this.generateId() },
                 },
             },
             bulkParticipants: {
@@ -178,8 +178,8 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         hasUnread: false,
                     },
-                    chat: { chatId: this.generateId().toString() },
-                    user: { userId: this.generateId().toString() },
+                    chat: { chatId: this.generateId() },
+                    user: { userId: this.generateId() },
                 },
             },
             adminParticipant: {
@@ -189,8 +189,8 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         hasUnread: false,
                     },
-                    chat: { chatId: this.generateId().toString() },
-                    user: { userId: this.generateId().toString() },
+                    chat: { chatId: this.generateId() },
+                    user: { userId: this.generateId() },
                 },
             },
         };
@@ -240,7 +240,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
         // Handle chat connection (required)
         if (config.chat) {
             data.chat = {
-                connect: { id: BigInt(config.chat.chatId) },
+                connect: { id: config.chat.chatId },
             };
         } else {
             throw new Error("ChatParticipant requires a chat connection");
@@ -249,7 +249,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
         // Handle user connection (required)
         if (config.user) {
             data.user = {
-                connect: { id: BigInt(config.user.userId) },
+                connect: { id: config.user.userId },
             };
         } else {
             throw new Error("ChatParticipant requires a user connection");
@@ -262,16 +262,16 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
      * Add a participant to a chat
      */
     async addParticipant(
-        chatId: string,
-        userId: string,
+        chatId: string | bigint,
+        userId: string | bigint,
         hasUnread = true,
     ): Promise<chat_participants> {
         return await this.createWithRelations({
             overrides: {
                 hasUnread,
             },
-            chat: { chatId },
-            user: { userId },
+            chat: { chatId: typeof chatId === "string" ? BigInt(chatId) : chatId },
+            user: { userId: typeof userId === "string" ? BigInt(userId) : userId },
         });
     }
 
@@ -279,8 +279,8 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
      * Add multiple participants to a chat
      */
     async addBulkParticipants(
-        chatId: string,
-        userIds: string[],
+        chatId: string | bigint,
+        userIds: Array<string | bigint>,
         hasUnread = true,
     ): Promise<chat_participants[]> {
         const participants = await Promise.all(
@@ -294,11 +294,11 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
     /**
      * Remove a participant from a chat
      */
-    async removeParticipant(chatId: string, userId: string): Promise<void> {
+    async removeParticipant(chatId: string | bigint, userId: string | bigint): Promise<void> {
         await this.prisma.chat_participants.deleteMany({
             where: {
-                chatId: BigInt(chatId),
-                userId: BigInt(userId),
+                chatId: typeof chatId === "string" ? BigInt(chatId) : chatId,
+                userId: typeof userId === "string" ? BigInt(userId) : userId,
             },
         });
     }
@@ -306,11 +306,11 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
     /**
      * Mark messages as read for a participant
      */
-    async markAsRead(chatId: string, userId: string): Promise<chat_participants> {
+    async markAsRead(chatId: string | bigint, userId: string | bigint): Promise<chat_participants> {
         const participant = await this.prisma.chat_participants.findFirst({
             where: {
-                chatId: BigInt(chatId),
-                userId: BigInt(userId),
+                chatId: typeof chatId === "string" ? BigInt(chatId) : chatId,
+                userId: typeof userId === "string" ? BigInt(userId) : userId,
             },
         });
 
@@ -328,11 +328,11 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
     /**
      * Mark messages as unread for a participant
      */
-    async markAsUnread(chatId: string, userId: string): Promise<chat_participants> {
+    async markAsUnread(chatId: string | bigint, userId: string | bigint): Promise<chat_participants> {
         const participant = await this.prisma.chat_participants.findFirst({
             where: {
-                chatId: BigInt(chatId),
-                userId: BigInt(userId),
+                chatId: typeof chatId === "string" ? BigInt(chatId) : chatId,
+                userId: typeof userId === "string" ? BigInt(userId) : userId,
             },
         });
 
@@ -415,10 +415,10 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get participants with unread messages
      */
-    async getParticipantsWithUnread(chatId: string): Promise<chat_participants[]> {
+    async getParticipantsWithUnread(chatId: string | bigint): Promise<chat_participants[]> {
         return await this.prisma.chat_participants.findMany({
             where: {
-                chatId: BigInt(chatId),
+                chatId: typeof chatId === "string" ? BigInt(chatId) : chatId,
                 hasUnread: true,
             },
             include: this.getDefaultInclude(),
@@ -428,10 +428,10 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get active participants (those who have read all messages)
      */
-    async getActiveParticipants(chatId: string): Promise<chat_participants[]> {
+    async getActiveParticipants(chatId: string | bigint): Promise<chat_participants[]> {
         return await this.prisma.chat_participants.findMany({
             where: {
-                chatId: BigInt(chatId),
+                chatId: typeof chatId === "string" ? BigInt(chatId) : chatId,
                 hasUnread: false,
             },
             include: this.getDefaultInclude(),
@@ -441,8 +441,8 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get user's chat participations
      */
-    async getUserChats(userId: string, hasUnread?: boolean): Promise<chat_participants[]> {
-        const where: Prisma.chat_participantsWhereInput = { userId: BigInt(userId) };
+    async getUserChats(userId: string | bigint, hasUnread?: boolean): Promise<chat_participants[]> {
+        const where: Prisma.chat_participantsWhereInput = { userId: typeof userId === "string" ? BigInt(userId) : userId };
         if (hasUnread !== undefined) {
             where.hasUnread = hasUnread;
         }
@@ -458,8 +458,8 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
      * Create a chat with initial participants
      */
     async createChatWithParticipants(
-        chatId: string,
-        participantConfigs: Array<{ userId: string; hasUnread?: boolean }>,
+        chatId: string | bigint,
+        participantConfigs: Array<{ userId: string | bigint; hasUnread?: boolean }>,
     ): Promise<chat_participants[]> {
         const participants = await Promise.all(
             participantConfigs.map(config => 
@@ -477,8 +477,8 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
      * Update read status for multiple participants
      */
     async bulkUpdateReadStatus(
-        chatId: string,
-        updates: Array<{ userId: string; hasUnread: boolean }>,
+        chatId: string | bigint,
+        updates: Array<{ userId: string | bigint; hasUnread: boolean }>,
     ): Promise<void> {
         for (const update of updates) {
             if (update.hasUnread) {
@@ -492,7 +492,7 @@ export class ChatParticipantDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create test participation scenarios
      */
-    async createTestingScenarios(chatId: string, userIds: string[]): Promise<{
+    async createTestingScenarios(chatId: string | bigint, userIds: Array<string | bigint>): Promise<{
         active: chat_participants[];
         inactive: chat_participants[];
         mixed: chat_participants[];

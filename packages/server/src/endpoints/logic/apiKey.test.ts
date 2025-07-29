@@ -144,7 +144,7 @@ describe("EndpointsApiKey", () => {
                 const { req, res } = await mockLoggedOutSession(); // validate doesn't require authentication
 
                 const input: ApiKeyValidateInput = {
-                    id: apiKeys[0].id,
+                    id: apiKeys[0].id.toString(),
                     secret: apiKeys[0].keyPartial, // This would be the full key in real usage
                 };
 
@@ -160,7 +160,7 @@ describe("EndpointsApiKey", () => {
                 const { req, res } = await mockLoggedOutSession();
 
                 const input: ApiKeyValidateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     secret: "invalid-secret",
                 };
 
@@ -177,9 +177,9 @@ describe("EndpointsApiKey", () => {
                 // Test cases that should fail with 0900 (missing or empty required fields)
                 const invalidInputs0900 = [
                     { id: "", secret: "valid-secret" }, // empty id
-                    { id: generatePK(), secret: "" }, // empty secret
+                    { id: generatePK().toString(), secret: "" }, // empty secret
                     { secret: "valid-secret" }, // missing id
-                    { id: generatePK() }, // missing secret
+                    { id: generatePK().toString() }, // missing secret
                 ];
 
                 for (const invalidInput of invalidInputs0900) {
@@ -213,7 +213,7 @@ describe("EndpointsApiKey", () => {
             // Hybrid approach: use direct assertion for simple auth check
             it("not logged in", async () => {
                 const input: ApiKeyUpdateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     name: "Updated API Key Name",
                 };
                 await assertRequiresAuth(apiKey.updateOne, input, apiKey_updateOne);
@@ -229,7 +229,7 @@ describe("EndpointsApiKey", () => {
                 });
 
                 const input: ApiKeyUpdateInput = {
-                    id: apiKeys[0].id,
+                    id: apiKeys[0].id.toString(),
                     name: "Updated API Key Name",
                     creditsLimitHard: 2000,
                 };
@@ -252,7 +252,7 @@ describe("EndpointsApiKey", () => {
                 });
 
                 const input: ApiKeyUpdateInput = {
-                    id: apiKeys[0].id, // Owned by testUsers.records[0]
+                    id: apiKeys[0].id.toString(), // Owned by testUsers.records[0]
                     name: "Updated API Key Name",
                 };
 
