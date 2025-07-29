@@ -68,8 +68,11 @@ n8n::build_docker_command() {
     # Webhook configuration
     if [[ -n "$webhook_url" ]]; then
         docker_cmd+=" -e WEBHOOK_URL=$webhook_url"
-        docker_cmd+=" -e N8N_PROTOCOL=https"
-        docker_cmd+=" -e N8N_HOST=$(echo "$webhook_url" | sed 's|https://||' | sed 's|/.*||')"
+        # Extract protocol from webhook URL
+        local protocol=$(echo "$webhook_url" | sed 's|://.*||')
+        docker_cmd+=" -e N8N_PROTOCOL=$protocol"
+        # Extract host by removing protocol and path
+        docker_cmd+=" -e N8N_HOST=$(echo "$webhook_url" | sed 's|.*://||' | sed 's|/.*||')"
     fi
     
     # Basic authentication
