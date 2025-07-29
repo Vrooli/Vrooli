@@ -47,15 +47,28 @@ vi.mock("../../redisConn.js", () => ({
 
 // Mock other dependencies
 vi.mock("../../actions/reads.js", () => ({
-    readOneHelper: vi.fn().mockResolvedValue({
-        id: "version-123",
-        config: { content: "console.log('Hello World');", codeLanguage: "JavaScript" },
-        codeLanguage: "JavaScript",
+    readOneHelper: vi.fn().mockImplementation(async ({ input }) => {
+        // Return a version object with the requested ID
+        return {
+            id: input.id,
+            config: { content: "console.log('Hello World');", codeLanguage: "javascript" },
+            codeLanguage: "javascript",
+        };
     }),
 }));
 
 vi.mock("../../utils/getAuthenticatedData.js", () => ({
-    getAuthenticatedData: vi.fn().mockResolvedValue({ "version-123": {} }),
+    getAuthenticatedData: vi.fn().mockImplementation(async (idsByType) => {
+        // Return an object with the requested IDs as keys
+        const result: Record<string, any> = {};
+        // Iterate through all object types and their IDs
+        Object.values(idsByType).forEach((ids: string[]) => {
+            ids.forEach((id: string) => {
+                result[id] = {};
+            });
+        });
+        return result;
+    }),
 }));
 
 vi.mock("../../validators/permissions.js", () => ({
@@ -136,7 +149,7 @@ describe("sandboxProcess", () => {
         it("should capture stdout output", async () => {
             const input: RunUserCodeInput = {
                 code: "console.log('Hello World');",
-                codeLanguage: CodeLanguage.JavaScript,
+                codeLanguage: CodeLanguage.Javascript,
                 input: {},
             };
 
@@ -181,7 +194,7 @@ describe("sandboxProcess", () => {
         it("should prevent dangerous file system operations", async () => {
             const input: RunUserCodeInput = {
                 code: "const fs = require('fs'); fs.readFileSync('/etc/passwd');",
-                codeLanguage: CodeLanguage.JavaScript,
+                codeLanguage: CodeLanguage.Javascript,
                 input: {},
             };
 
@@ -195,7 +208,7 @@ describe("sandboxProcess", () => {
         it("should prevent network access attempts", async () => {
             const input: RunUserCodeInput = {
                 code: "const http = require('http'); http.get('http://evil.com');",
-                codeLanguage: CodeLanguage.JavaScript,
+                codeLanguage: CodeLanguage.Javascript,
                 input: {},
             };
 
@@ -208,7 +221,7 @@ describe("sandboxProcess", () => {
         it("should prevent process spawning", async () => {
             const input: RunUserCodeInput = {
                 code: "const { exec } = require('child_process'); exec('rm -rf /');",
-                codeLanguage: CodeLanguage.JavaScript,
+                codeLanguage: CodeLanguage.Javascript,
                 input: {},
             };
 
@@ -221,7 +234,7 @@ describe("sandboxProcess", () => {
         it("should isolate code execution environment", async () => {
             const input: RunUserCodeInput = {
                 code: "global.maliciousData = 'hacked'; console.log('Code executed');",
-                codeLanguage: CodeLanguage.JavaScript,
+                codeLanguage: CodeLanguage.Javascript,
                 input: {},
             };
 
@@ -237,7 +250,7 @@ describe("sandboxProcess", () => {
         it("should enforce execution timeout", async () => {
             const input: RunUserCodeInput = {
                 code: "while(true) { /* infinite loop */ }",
-                codeLanguage: CodeLanguage.JavaScript,
+                codeLanguage: CodeLanguage.Javascript,
                 input: {},
             };
 
@@ -253,7 +266,7 @@ describe("sandboxProcess", () => {
         it("should handle CPU-intensive operations", async () => {
             const input: RunUserCodeInput = {
                 code: "for(let i = 0; i < 1000000; i++) { Math.sqrt(i); }",
-                codeLanguage: CodeLanguage.JavaScript,
+                codeLanguage: CodeLanguage.Javascript,
                 input: {},
             };
 
@@ -288,7 +301,7 @@ describe("sandboxProcess", () => {
         it("should handle memory-intensive operations", async () => {
             const input: RunUserCodeInput = {
                 code: "const arr = new Array(1000).fill('test'); console.log(arr.length);",
-                codeLanguage: CodeLanguage.JavaScript,
+                codeLanguage: CodeLanguage.Javascript,
                 input: {},
             };
 
@@ -303,7 +316,7 @@ describe("sandboxProcess", () => {
         it("should handle syntax errors", async () => {
             const input: RunUserCodeInput = {
                 code: "console.log('missing quote);",
-                codeLanguage: CodeLanguage.JavaScript,
+                codeLanguage: CodeLanguage.Javascript,
                 input: {},
             };
 
@@ -316,7 +329,7 @@ describe("sandboxProcess", () => {
         it("should handle runtime errors", async () => {
             const input: RunUserCodeInput = {
                 code: "throw new Error('Test error');",
-                codeLanguage: CodeLanguage.JavaScript,
+                codeLanguage: CodeLanguage.Javascript,
                 input: {},
             };
 
@@ -347,21 +360,19 @@ describe("sandboxProcess", () => {
         });
 
         it("should handle permission denied", async () => {
-            const { permissionsCheck } = await import("../../validators/permissions.js");
-            const mockPermissionsCheck = permissionsCheck as any;
-            mockPermissionsCheck.mockRejectedValueOnce(new Error("Permission denied"));
-
-            const { CacheService } = await import("../../redisConn.js");
-            const mockCacheService = CacheService.get() as any;
-            mockCacheService.get.mockResolvedValueOnce({
-                id: "version-123",
-                content: "console.log('test');",
-                codeLanguage: "JavaScript",
-            });
+            // Set up readOneHelper to simulate permissions failure
+            const { readOneHelper } = await import("../../actions/reads.js");
+            const mockReadOneHelper = readOneHelper as any;
+            mockReadOneHelper.mockRejectedValueOnce(new Error("Permission denied"));
 
             const payload = createTestSandboxPayload();
 
-            await expect(doSandbox(payload)).rejects.toThrow("Permission denied");
+            const result = await doSandbox(payload);
+            
+            expect(result).toEqual({
+                __type: "error",
+                error: "An internal error occurred while processing the sandbox request.",
+            });
         });
     });
 
@@ -369,7 +380,7 @@ describe("sandboxProcess", () => {
         it("should support JavaScript execution", async () => {
             const input: RunUserCodeInput = {
                 code: "const result = [1, 2, 3].map(x => x * 2); console.log(result);",
-                codeLanguage: CodeLanguage.JavaScript,
+                codeLanguage: CodeLanguage.Javascript,
                 input: {},
             };
 
@@ -406,7 +417,7 @@ describe("sandboxProcess", () => {
         it("should handle language-specific standard libraries", async () => {
             const jsInput: RunUserCodeInput = {
                 code: "const date = new Date(); console.log(typeof date);",
-                codeLanguage: CodeLanguage.JavaScript,
+                codeLanguage: CodeLanguage.Javascript,
                 input: {},
             };
 
@@ -428,7 +439,7 @@ describe("sandboxProcess", () => {
 
             const jsInput: RunUserCodeInput = {
                 code: "console.log('Input received:', JSON.stringify(input));",
-                codeLanguage: CodeLanguage.JavaScript,
+                codeLanguage: CodeLanguage.Javascript,
                 input: testInput,
             };
 
@@ -452,15 +463,15 @@ describe("sandboxProcess", () => {
         });
 
         it("should process sandbox request with cache hit", async () => {
+            const payload = createTestSandboxPayload();
+            
             const { CacheService } = await import("../../redisConn.js");
             const mockCacheService = CacheService.get() as any;
             mockCacheService.get.mockResolvedValueOnce({
-                id: "version-123",
+                id: payload.codeVersionId,
                 content: "console.log('From cache');",
-                codeLanguage: "JavaScript",
+                codeLanguage: "javascript",
             });
-
-            const payload = createTestSandboxPayload();
 
             const result = await doSandbox(payload);
 

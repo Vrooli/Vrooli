@@ -1,5 +1,6 @@
 // AI_CHECK: TEST_QUALITY=1, TEST_COVERAGE=1 | LAST: 2025-06-18
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { generatePK } from "../../__test/fixtures/db/idHelpers.js";
 import { createIsolatedQueueTestHarness } from "../../__test/helpers/queueTestUtils.js";
 import { clearRedisCache } from "../queueFactory.js";
 import { QueueService } from "../queues.js";
@@ -78,42 +79,49 @@ describe("Swarm Queue", () => {
     });
 
     describe("processSwarm", () => {
-        const baseSwarmData: Omit<SwarmExecutionTask, "status"> = {
-            type: QueueTaskType.SWARM_EXECUTION,
-            id: "swarm-123",
-            userId: "user-123",
-            allocation: {
-                maxCredits: "1000",
-                maxDurationMs: 300000,
-                maxMemoryMB: 256,
-                maxConcurrentSteps: 2,
-            },
-            input: {
-                swarmId: "swarm-123",
-                goal: "Complete test objectives efficiently",
-                executionConfig: {
-                    model: "gpt-4",
+        function createBaseSwarmData(): Omit<SwarmExecutionTask, "status"> {
+            const userId = generatePK().toString();
+            const swarmId = generatePK().toString();
+            const sessionId = generatePK().toString();
+
+            return {
+                type: QueueTaskType.SWARM_EXECUTION,
+                id: swarmId,
+                userId,
+                allocation: {
+                    maxCredits: "1000",
+                    maxDurationMs: 300000,
+                    maxMemoryMB: 256,
+                    maxConcurrentSteps: 2,
                 },
-                userData: {
-                    __typename: "SessionUser" as const,
-                    id: "user-123",
-                    credits: "5000",
-                    hasPremium: false,
-                    hasReceivedPhoneVerificationReward: false,
-                    languages: ["en"],
-                    phoneNumberVerified: false,
-                    publicId: "pub_user-123",
-                    session: {
-                        __typename: "SessionUserSession" as const,
-                        id: "session-123",
-                        lastRefreshAt: new Date().toISOString(),
+                input: {
+                    swarmId,
+                    goal: "Complete test objectives efficiently",
+                    executionConfig: {
+                        model: "gpt-4",
                     },
-                    updatedAt: new Date().toISOString(),
+                    userData: {
+                        __typename: "SessionUser" as const,
+                        id: userId,
+                        credits: "5000",
+                        hasPremium: false,
+                        hasReceivedPhoneVerificationReward: false,
+                        languages: ["en"],
+                        phoneNumberVerified: false,
+                        publicId: `pub_${userId}`,
+                        session: {
+                            __typename: "SessionUserSession" as const,
+                            id: sessionId,
+                            lastRefreshAt: new Date().toISOString(),
+                        },
+                        updatedAt: new Date().toISOString(),
+                    },
                 },
-            },
-        };
+            };
+        }
 
         it("should add swarm task with correct status", async () => {
+            const baseSwarmData = createBaseSwarmData();
             const result = await processSwarm(baseSwarmData, queueService);
             expect(result.success).toBe(true);
             expect(result.data?.id).toBeDefined();
@@ -127,15 +135,18 @@ describe("Swarm Queue", () => {
 
         describe("priority calculation", () => {
             it("should set base priority for non-premium users", async () => {
+                const baseSwarmData = createBaseSwarmData();
                 const result = await processSwarm(baseSwarmData, queueService);
                 const job = await queueService.swarm.queue.getJob(result.data!.id);
                 expect(job?.opts.priority).toBe(100); // BASE_PRIORITY
             });
 
             it("should boost priority for premium users", async () => {
+                const baseSwarmData = createBaseSwarmData();
+                const userId = generatePK().toString();
                 const premiumData = {
                     ...baseSwarmData,
-                    userData: { id: "user-123", hasPremium: true },
+                    userData: { id: userId, hasPremium: true },
                 };
                 const result = await processSwarm(premiumData, queueService);
                 const job = await queueService.swarm.queue.getJob(result.data!.id);
@@ -144,9 +155,11 @@ describe("Swarm Queue", () => {
 
             it("should not go below 0 priority", async () => {
                 // Even with maximum boosts, priority should not go below 0
+                const baseSwarmData = createBaseSwarmData();
+                const userId = generatePK().toString();
                 const data = {
                     ...baseSwarmData,
-                    userData: { id: "user-123", hasPremium: true },
+                    userData: { id: userId, hasPremium: true },
                 };
                 const result = await processSwarm(data, queueService);
                 const job = await queueService.swarm.queue.getJob(result.data!.id);
@@ -193,22 +206,29 @@ describe("Swarm Queue", () => {
     });
 
     describe("processNewSwarmExecution", () => {
-        const baseExecutionData: Omit<SwarmExecutionTask, "status"> = {
-            type: QueueTaskType.SWARM_EXECUTION,
-            swarmId: "exec-123",
-            executionId: "execution-456",
-            userId: "user-789",
-            userData: {
-                id: "user-789",
-                hasPremium: false,
-            },
-            config: {
-                model: "gpt-4",
-                temperature: 0.7,
-            },
-        };
+        function createBaseExecutionData(): Omit<SwarmExecutionTask, "status"> {
+            const userId = generatePK().toString();
+            const swarmId = generatePK().toString();
+            const executionId = generatePK().toString();
+
+            return {
+                type: QueueTaskType.SWARM_EXECUTION,
+                swarmId,
+                executionId,
+                userId,
+                userData: {
+                    id: userId,
+                    hasPremium: false,
+                },
+                config: {
+                    model: "gpt-4",
+                    temperature: 0.7,
+                },
+            };
+        }
 
         it("should add swarm execution task with correct status", async () => {
+            const baseExecutionData = createBaseExecutionData();
             const result = await processNewSwarmExecution(baseExecutionData, queueService);
             expect(result.success).toBe(true);
             expect(result.data?.id).toBeDefined();
@@ -222,9 +242,11 @@ describe("Swarm Queue", () => {
 
         it("should apply same priority rules as processSwarm", async () => {
             // Test with premium user
+            const baseExecutionData = createBaseExecutionData();
+            const userId = generatePK().toString();
             const premiumData = {
                 ...baseExecutionData,
-                userData: { id: "user-789", hasPremium: true },
+                userData: { id: userId, hasPremium: true },
             };
             const result = await processNewSwarmExecution(premiumData, queueService);
             const job = await queueService.swarm.queue.getJob(result.data!.id);
@@ -232,6 +254,7 @@ describe("Swarm Queue", () => {
         });
 
         it("should handle different execution configurations", async () => {
+            const baseExecutionData = createBaseExecutionData();
             const executionVariants = [
                 { ...baseExecutionData, config: { model: "gpt-3.5-turbo" } },
                 { ...baseExecutionData, config: { model: "claude-3" } },
@@ -250,13 +273,18 @@ describe("Swarm Queue", () => {
 
     describe("changeSwarmTaskStatus", () => {
         let taskId: string;
+        let userId: string;
 
         beforeEach(async () => {
             // Add a test job
+            userId = generatePK().toString();
+            const swarmId = generatePK().toString();
+            const sessionId = generatePK().toString();
+
             const result = await processSwarm({
                 type: QueueTaskType.SWARM_EXECUTION,
-                id: "test-swarm",
-                userId: "user-123",
+                id: swarmId,
+                userId,
                 allocation: {
                     maxCredits: "1000",
                     maxDurationMs: 300000,
@@ -264,20 +292,20 @@ describe("Swarm Queue", () => {
                     maxConcurrentSteps: 2,
                 },
                 input: {
-                    swarmId: "test-swarm",
+                    swarmId,
                     goal: "Test swarm status changes",
                     userData: {
                         __typename: "SessionUser" as const,
-                        id: "user-123",
+                        id: userId,
                         credits: "5000",
                         hasPremium: false,
                         hasReceivedPhoneVerificationReward: false,
                         languages: ["en"],
                         phoneNumberVerified: false,
-                        publicId: "pub_user-123",
+                        publicId: `pub_${userId}`,
                         session: {
                             __typename: "SessionUserSession" as const,
-                            id: "session-123",
+                            id: sessionId,
                             lastRefreshAt: new Date().toISOString(),
                         },
                         updatedAt: new Date().toISOString(),
@@ -288,27 +316,28 @@ describe("Swarm Queue", () => {
         });
 
         it("should change task status", async () => {
-            const result = await changeSwarmTaskStatus(taskId, "Running", "user-123", queueService);
+            const result = await changeSwarmTaskStatus(taskId, "Running", userId, queueService);
             expect(result.success).toBe(true);
         });
 
         it("should verify status change is delegated to swarm queue", async () => {
             const spy = vi.spyOn(queueService.swarm, "changeTaskStatus");
-            await changeSwarmTaskStatus(taskId, "Running", "user-123", queueService);
-            expect(spy).toHaveBeenCalledWith(taskId, "Running", "user-123");
+            await changeSwarmTaskStatus(taskId, "Running", userId, queueService);
+            expect(spy).toHaveBeenCalledWith(taskId, "Running", userId);
         });
 
         it("should handle custom status values", async () => {
             const customStatuses = ["Processing", "Analyzing", "Generating"];
 
             for (const status of customStatuses) {
-                const result = await changeSwarmTaskStatus(taskId, status, "user-123", queueService);
+                const result = await changeSwarmTaskStatus(taskId, status, userId, queueService);
                 expect(result.success).toBe(true);
             }
         });
 
         it("should handle invalid task ID", async () => {
-            const result = await changeSwarmTaskStatus("invalid-id", "Running", "user-123", queueService);
+            const invalidUserId = generatePK().toString();
+            const result = await changeSwarmTaskStatus("invalid-id", "Running", invalidUserId, queueService);
             expect(result.success).toBe(false);
         });
     });
@@ -317,12 +346,19 @@ describe("Swarm Queue", () => {
         const taskIds: string[] = [];
 
         beforeEach(async () => {
+            // Clear taskIds array before each test
+            taskIds.length = 0;
+
             // Add multiple test jobs
             for (let i = 0; i < 3; i++) {
+                const userId = generatePK().toString();
+                const swarmId = generatePK().toString();
+                const sessionId = generatePK().toString();
+
                 const result = await processSwarm({
                     type: QueueTaskType.SWARM_EXECUTION,
-                    id: `swarm-${i}`,
-                    userId: "user-123",
+                    id: swarmId,
+                    userId,
                     allocation: {
                         maxCredits: "1000",
                         maxDurationMs: 300000,
@@ -330,20 +366,20 @@ describe("Swarm Queue", () => {
                         maxConcurrentSteps: 2,
                     },
                     input: {
-                        swarmId: `swarm-${i}`,
+                        swarmId,
                         goal: `Test multiple swarms ${i}`,
                         userData: {
                             __typename: "SessionUser" as const,
-                            id: "user-123",
+                            id: userId,
                             credits: "5000",
                             hasPremium: false,
                             hasReceivedPhoneVerificationReward: false,
                             languages: ["en"],
                             phoneNumberVerified: false,
-                            publicId: "pub_user-123",
+                            publicId: `pub_${userId}`,
                             session: {
                                 __typename: "SessionUserSession" as const,
-                                id: "session-123",
+                                id: sessionId,
                                 lastRefreshAt: new Date().toISOString(),
                             },
                             updatedAt: new Date().toISOString(),
@@ -412,10 +448,14 @@ describe("Swarm Queue", () => {
                     swarmProcess: processSwarmMock,
                 }));
 
+                const userId = generatePK().toString();
+                const swarmId = generatePK().toString();
+                const sessionId = generatePK().toString();
+
                 const swarmData = {
                     type: QueueTaskType.SWARM_EXECUTION,
-                    id: "test-swarm-integration",
-                    userId: "user-123",
+                    id: swarmId,
+                    userId,
                     allocation: {
                         maxCredits: "1000",
                         maxDurationMs: 300000,
@@ -423,20 +463,20 @@ describe("Swarm Queue", () => {
                         maxConcurrentSteps: 2,
                     },
                     input: {
-                        swarmId: "test-swarm-integration",
+                        swarmId,
                         goal: "Integration test execution",
                         userData: {
                             __typename: "SessionUser" as const,
-                            id: "user-123",
+                            id: userId,
                             credits: "5000",
                             hasPremium: false,
                             hasReceivedPhoneVerificationReward: false,
                             languages: ["en"],
                             phoneNumberVerified: false,
-                            publicId: "pub_user-123",
+                            publicId: `pub_${userId}`,
                             session: {
                                 __typename: "SessionUserSession" as const,
-                                id: "session-123",
+                                id: sessionId,
                                 lastRefreshAt: new Date().toISOString(),
                             },
                             updatedAt: new Date().toISOString(),
@@ -489,10 +529,14 @@ describe("Swarm Queue", () => {
                     swarmProcess: processSwarmMock,
                 }));
 
+                const userId = generatePK().toString();
+                const swarmId = generatePK().toString();
+                const sessionId = generatePK().toString();
+
                 const swarmData = {
                     type: QueueTaskType.SWARM_EXECUTION,
-                    id: "test-swarm-fail",
-                    userId: "user-123",
+                    id: swarmId,
+                    userId,
                     allocation: {
                         maxCredits: "1000",
                         maxDurationMs: 300000,
@@ -500,20 +544,20 @@ describe("Swarm Queue", () => {
                         maxConcurrentSteps: 2,
                     },
                     input: {
-                        swarmId: "test-swarm-fail",
+                        swarmId,
                         goal: "Test failure handling",
                         userData: {
                             __typename: "SessionUser" as const,
-                            id: "user-123",
+                            id: userId,
                             credits: "5000",
                             hasPremium: false,
                             hasReceivedPhoneVerificationReward: false,
                             languages: ["en"],
                             phoneNumberVerified: false,
-                            publicId: "pub_user-123",
+                            publicId: `pub_${userId}`,
                             session: {
                                 __typename: "SessionUserSession" as const,
-                                id: "session-123",
+                                id: sessionId,
                                 lastRefreshAt: new Date().toISOString(),
                             },
                             updatedAt: new Date().toISOString(),
@@ -550,12 +594,16 @@ describe("Swarm Queue", () => {
 
                 // The three-tier coordinator is already mocked globally
 
+                const userId = generatePK().toString();
+                const swarmId = generatePK().toString();
+                const executionId = generatePK().toString();
+
                 const executionData = {
                     type: QueueTaskType.SWARM_EXECUTION,
-                    swarmId: "exec-three-tier",
-                    executionId: "execution-three-tier",
-                    userId: "user-789",
-                    userData: { id: "user-789", hasPremium: true },
+                    swarmId,
+                    executionId,
+                    userId,
+                    userData: { id: userId, hasPremium: true },
                     config: {
                         model: "gpt-4",
                         temperature: 0.7,
@@ -587,10 +635,14 @@ describe("Swarm Queue", () => {
             // Add many tasks quickly
             const promises = [];
             for (let i = 0; i < 20; i++) {
+                const userId = generatePK().toString();
+                const swarmId = generatePK().toString();
+                const sessionId = generatePK().toString();
+
                 const data = {
                     type: QueueTaskType.SWARM_EXECUTION,
-                    id: `swarm-concurrent-${i}`,
-                    userId: `user-${i}`,
+                    id: swarmId,
+                    userId,
                     allocation: {
                         maxCredits: "1000",
                         maxDurationMs: 300000,
@@ -598,20 +650,20 @@ describe("Swarm Queue", () => {
                         maxConcurrentSteps: 2,
                     },
                     input: {
-                        swarmId: `swarm-concurrent-${i}`,
+                        swarmId,
                         goal: `Concurrent test ${i}`,
                         userData: {
                             __typename: "SessionUser" as const,
-                            id: `user-${i}`,
+                            id: userId,
                             credits: "5000",
                             hasPremium: i % 2 === 0,
                             hasReceivedPhoneVerificationReward: false,
                             languages: ["en"],
                             phoneNumberVerified: false,
-                            publicId: `pub_user-${i}`,
+                            publicId: `pub_${userId}`,
                             session: {
                                 __typename: "SessionUserSession" as const,
-                                id: `session-${i}`,
+                                id: sessionId,
                                 lastRefreshAt: new Date().toISOString(),
                             },
                             updatedAt: new Date().toISOString(),
@@ -635,17 +687,21 @@ describe("Swarm Queue", () => {
         it("should process tasks in priority order", async () => {
             // Add tasks with different priorities
             const tasks = [
-                { swarmId: "low-priority", userData: { id: "user-1", hasPremium: false } },
-                { swarmId: "high-priority", userData: { id: "user-2", hasPremium: true } },
-                { swarmId: "low-priority-2", userData: { id: "user-3", hasPremium: false } },
+                { hasPremium: false },
+                { hasPremium: true },
+                { hasPremium: false },
             ];
 
             const results = [];
             for (const task of tasks) {
+                const userId = generatePK().toString();
+                const swarmId = generatePK().toString();
+                const sessionId = generatePK().toString();
+
                 const data = {
                     type: QueueTaskType.SWARM_EXECUTION,
-                    id: task.swarmId,
-                    userId: task.userData.id,
+                    id: swarmId,
+                    userId,
                     allocation: {
                         maxCredits: "1000",
                         maxDurationMs: 300000,
@@ -653,20 +709,20 @@ describe("Swarm Queue", () => {
                         maxConcurrentSteps: 2,
                     },
                     input: {
-                        swarmId: task.swarmId,
-                        goal: `Priority test for ${task.swarmId}`,
+                        swarmId,
+                        goal: `Priority test for ${task.hasPremium ? "premium" : "regular"} user`,
                         userData: {
                             __typename: "SessionUser" as const,
-                            id: task.userData.id,
+                            id: userId,
                             credits: "5000",
-                            hasPremium: task.userData.hasPremium,
+                            hasPremium: task.hasPremium,
                             hasReceivedPhoneVerificationReward: false,
                             languages: ["en"],
                             phoneNumberVerified: false,
-                            publicId: `pub_${task.userData.id}`,
+                            publicId: `pub_${userId}`,
                             session: {
                                 __typename: "SessionUserSession" as const,
-                                id: `session-${task.userData.id}`,
+                                id: sessionId,
                                 lastRefreshAt: new Date().toISOString(),
                             },
                             updatedAt: new Date().toISOString(),
@@ -674,7 +730,7 @@ describe("Swarm Queue", () => {
                     },
                 };
                 const result = await processSwarm(data, queueService);
-                results.push({ id: result.data!.id, isPremium: task.userData.hasPremium });
+                results.push({ id: result.data!.id, isPremium: task.hasPremium });
             }
 
             // Premium tasks should be processed with higher priority
@@ -706,12 +762,16 @@ describe("Swarm Queue", () => {
                     executeSwarm: vi.fn().mockRejectedValue(new Error("Tier coordination failed")),
                 });
 
+                const userId = generatePK().toString();
+                const swarmId = generatePK().toString();
+                const executionId = generatePK().toString();
+
                 const executionData = {
                     type: QueueTaskType.SWARM_EXECUTION,
-                    swarmId: "exec-fail-tier",
-                    executionId: "execution-fail-tier",
-                    userId: "user-789",
-                    userData: { id: "user-789", hasPremium: false },
+                    swarmId,
+                    executionId,
+                    userId,
+                    userData: { id: userId, hasPremium: false },
                     config: {
                         model: "gpt-4",
                         temperature: 0.7,
@@ -738,7 +798,10 @@ describe("Swarm Queue", () => {
         });
 
         it("should handle swarm state transitions", async () => {
-            const swarmId = "state-transition-swarm";
+            const userId = generatePK().toString();
+            const swarmId = generatePK().toString();
+            const sessionId = generatePK().toString();
+
             const states = [
                 "Initializing",
                 "Planning",
@@ -752,7 +815,7 @@ describe("Swarm Queue", () => {
             const result = await processSwarm({
                 type: QueueTaskType.SWARM_EXECUTION,
                 id: swarmId,
-                userId: "user-123",
+                userId,
                 allocation: {
                     maxCredits: "1000",
                     maxDurationMs: 300000,
@@ -764,16 +827,16 @@ describe("Swarm Queue", () => {
                     goal: "Test state transitions",
                     userData: {
                         __typename: "SessionUser" as const,
-                        id: "user-123",
+                        id: userId,
                         credits: "5000",
                         hasPremium: false,
                         hasReceivedPhoneVerificationReward: false,
                         languages: ["en"],
                         phoneNumberVerified: false,
-                        publicId: "pub_user-123",
+                        publicId: `pub_${userId}`,
                         session: {
                             __typename: "SessionUserSession" as const,
-                            id: "session-123",
+                            id: sessionId,
                             lastRefreshAt: new Date().toISOString(),
                         },
                         updatedAt: new Date().toISOString(),
@@ -788,7 +851,7 @@ describe("Swarm Queue", () => {
                 const statusResult = await changeSwarmTaskStatus(
                     taskId,
                     state,
-                    "user-123",
+                    userId,
                     queueService,
                 );
                 expect(statusResult.success).toBe(true);
@@ -817,12 +880,16 @@ describe("Swarm Queue", () => {
                 ];
 
                 for (const config of resourceConfigs) {
+                    const userId = generatePK().toString();
+                    const swarmId = generatePK().toString();
+                    const executionId = generatePK().toString();
+
                     const executionData = {
                         type: QueueTaskType.SWARM_EXECUTION,
-                        swarmId: `exec-resource-${config.maxIterations}`,
-                        executionId: `execution-resource-${config.maxIterations}`,
-                        userId: "user-789",
-                        userData: { id: "user-789", hasPremium: false },
+                        swarmId,
+                        executionId,
+                        userId,
+                        userData: { id: userId, hasPremium: false },
                         config: {
                             model: "gpt-4",
                             ...config,
@@ -859,12 +926,16 @@ describe("Swarm Queue", () => {
             ];
 
             for (const config of invalidConfigs) {
+                const userId = generatePK().toString();
+                const swarmId = generatePK().toString();
+                const executionId = generatePK().toString();
+
                 const executionData = {
                     type: QueueTaskType.SWARM_EXECUTION,
-                    swarmId: `exec-invalid-${JSON.stringify(config)}`,
-                    executionId: `execution-invalid-${Date.now()}`,
-                    userId: "user-789",
-                    userData: { id: "user-789", hasPremium: false },
+                    swarmId,
+                    executionId,
+                    userId,
+                    userData: { id: userId, hasPremium: false },
                     config: config as any,
                 };
 
@@ -884,6 +955,9 @@ describe("Swarm Queue", () => {
                 const isolatedQueueService = QueueService.get();
                 await isolatedQueueService.init(redisUrl);
 
+                const userId = generatePK().toString();
+                const sessionId = generatePK().toString();
+
                 const incompleteData = {
                     type: QueueTaskType.SWARM_EXECUTION,
                     allocation: {
@@ -896,16 +970,16 @@ describe("Swarm Queue", () => {
                         // Missing required goal property to test validation
                         userData: {
                             __typename: "SessionUser" as const,
-                            id: "user-123",
+                            id: userId,
                             credits: "5000",
                             hasPremium: false,
                             hasReceivedPhoneVerificationReward: false,
                             languages: ["en"],
                             phoneNumberVerified: false,
-                            publicId: "pub_user-123",
+                            publicId: `pub_${userId}`,
                             session: {
                                 __typename: "SessionUserSession" as const,
-                                id: "session-123",
+                                id: sessionId,
                                 lastRefreshAt: new Date().toISOString(),
                             },
                             updatedAt: new Date().toISOString(),
@@ -934,11 +1008,15 @@ describe("Swarm Queue", () => {
             const promises = [];
 
             for (let i = 0; i < overloadCount; i++) {
+                const userId = generatePK().toString();
+                const swarmId = generatePK().toString();
+                const sessionId = generatePK().toString();
+
                 promises.push(
                     processSwarm({
                         type: QueueTaskType.SWARM_EXECUTION,
-                        id: `overload-${i}`,
-                        userId: `user-${i % 10}`,
+                        id: swarmId,
+                        userId,
                         allocation: {
                             maxCredits: "1000",
                             maxDurationMs: 300000,
@@ -946,23 +1024,23 @@ describe("Swarm Queue", () => {
                             maxConcurrentSteps: 2,
                         },
                         input: {
-                            swarmId: `overload-${i}`,
+                            swarmId,
                             goal: `Complete overload test ${i} efficiently`,
                             executionConfig: {
                                 model: "gpt-4",
                             },
                             userData: {
                                 __typename: "SessionUser" as const,
-                                id: `user-${i % 10}`,
+                                id: userId,
                                 credits: "5000",
                                 hasPremium: false,
                                 hasReceivedPhoneVerificationReward: false,
                                 languages: ["en"],
                                 phoneNumberVerified: false,
-                                publicId: `pub_user-${i % 10}`,
+                                publicId: `pub_${userId}`,
                                 session: {
                                     __typename: "SessionUserSession" as const,
-                                    id: `session-${i % 10}`,
+                                    id: sessionId,
                                     lastRefreshAt: new Date().toISOString(),
                                 },
                                 updatedAt: new Date().toISOString(),
