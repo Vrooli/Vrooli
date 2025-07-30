@@ -43,11 +43,53 @@ async def lifespan(app: FastAPI):
             app_state["ai_handler"] = AIHandler()
             await app_state["ai_handler"].initialize()
             logger.info("AI handler initialized successfully")
+            app_state["ai_init_error"] = None  # Clear any previous errors
         except Exception as e:
+            import traceback
+            error_type = type(e).__name__
+            
+            # Determine error category and suggestions
+            error_details = {
+                "error_type": error_type,
+                "details": str(e),
+                "traceback": traceback.format_exc(),
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+            # Provide specific suggestions based on error type
+            if "ConnectionError" in error_type or "RequestException" in str(e):
+                error_details["category"] = "connection_failed"
+                error_details["suggestions"] = [
+                    "Ensure Ollama is running: docker run -d -p 11434:11434 --name ollama ollama/ollama",
+                    f"Check if Ollama is accessible at {Config.AI_API_URL}",
+                    "Verify network connectivity: curl http://localhost:11434/api/tags",
+                    "If using Docker, ensure the container can reach the host network"
+                ]
+            elif "model" in str(e).lower():
+                error_details["category"] = "model_not_found"
+                error_details["suggestions"] = [
+                    f"Pull the required model: ollama pull {Config.AI_MODEL}",
+                    "List available models: ollama list",
+                    "Use a vision model for best results: ollama pull llama3.2-vision:11b"
+                ]
+            else:
+                error_details["category"] = "initialization_failed"
+                error_details["suggestions"] = [
+                    "Check the logs for detailed error information",
+                    "Verify environment variables are correctly set",
+                    "Try running with AGENTS2_ENABLE_AI=false for core automation only"
+                ]
+            
+            app_state["ai_init_error"] = error_details
             logger.warning(f"AI initialization failed: {e}")
             logger.info("Running in core automation mode only")
     else:
         logger.info("AI disabled - running in core automation mode")
+        app_state["ai_init_error"] = {
+            "category": "disabled",
+            "details": "AI features are disabled by configuration",
+            "suggestions": ["Set AGENTS2_ENABLE_AI=true to enable AI features"]
+        }
     
     # Startup
     yield

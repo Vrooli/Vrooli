@@ -3,6 +3,12 @@
 # Tests for Ollama API functions
 
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export OLLAMA_BASE_URL="http://localhost:11434"
     export OLLAMA_INSTALL_DIR="/usr/local/bin"
@@ -54,36 +60,32 @@ setup() {
     export MSG_FAILED_API_REQUEST="Failed API request"
     export MSG_CHECK_STATUS="Check status"
     
-    # Mock functions
+    # Setup Ollama-specific mocks (using shared infrastructure)
+    mock::ollama::setup "healthy"
+    
+    # Override specific ollama functions for these tests
     ollama::is_healthy() { return 0; }  # Default: healthy
     ollama::validate_model_available() { return 0; }  # Default: model available
     ollama::get_installed_models() { echo "llama3.1:8b deepseek-r1:8b"; }
     ollama::get_best_available_model() { echo "llama3.1:8b"; }
     ollama::calculate_default_size() { echo "13.7"; }
     
-    system::is_command() { return 0; }  # Default: command exists
+    # Note: log:: and system::is_command functions now come from shared mocks
     
-    log::info() { echo "INFO: $*"; }
-    log::success() { echo "SUCCESS: $*"; }
-    log::error() { echo "ERROR: $*"; }
-    log::warn() { echo "WARN: $*"; }
-    log::header() { echo "HEADER: $*"; }
-    
-    # Mock system commands
-    date() { echo "1234567890"; }  # Fixed timestamp for testing
+    # Override curl mock for Ollama-specific API responses
     curl() {
         if [[ "$*" =~ -X.*POST.*api/generate ]]; then
             # Mock successful API response
             echo '{"response":"Test response text","total_duration":1000000000,"prompt_eval_count":10,"eval_count":20}'
+            return 0
         fi
-        return 0
+        
+        # Fall back to shared curl mock for other requests
+        $(declare -f curl | tail -n +2)
     }
-    jq() { /usr/bin/jq "$@"; }
-    wc() { /usr/bin/wc "$@"; }
-    tr() { /usr/bin/tr "$@"; }
-    sed() { /bin/sed "$@"; }
-    cat() { /bin/cat "$@"; }
-    echo() { /bin/echo "$@"; }
+    
+    # Mock system commands (shared mocks handle most, only override what's needed)
+    date() { echo "1234567890"; }  # Fixed timestamp for testing
     
     # Source the API functions
     source "$(dirname "$BATS_TEST_FILENAME")/api.sh"

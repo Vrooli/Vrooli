@@ -33,6 +33,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3-xlib scrot gnome-screenshot \
     # Demo GUI applications for testing and automation examples
     xterm mousepad gedit firefox-esr gnome-calculator \
+    # Window management tools for target-aware automation
+    wmctrl xdotool x11-utils \
     # Clean up
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
@@ -84,8 +86,8 @@ ENV XDG_RUNTIME_DIR=/tmp/runtime-agents2
 ENV PYTHONPATH=/opt/agent-s2:$PYTHONPATH
 
 # AI Configuration environment variables
-ENV AGENTS2_LLM_PROVIDER=anthropic
-ENV AGENTS2_LLM_MODEL=claude-3-7-sonnet-20250219
+ENV AGENTS2_LLM_PROVIDER=ollama
+ENV AGENTS2_LLM_MODEL=llama3.2-vision:11b
 ENV AGENTS2_ENABLE_AI=true
 ENV AGENTS2_ENABLE_SEARCH=false
 ENV AGENTS2_TIMEOUT=300

@@ -79,29 +79,44 @@ agents2::usage_screenshot() {
         echo
         log::info "Example API usage:"
         cat << 'EOF'
-# Take screenshot via API
-curl -X POST http://localhost:4113/screenshot \
-  -H "Content-Type: application/json" \
-  -d '{"format": "png", "quality": 95}'
+# Take screenshot via API (JSON response with base64)
+curl -X POST http://localhost:4113/screenshot?format=png
+
+# Take screenshot as raw binary file (NEW)
+curl -X POST "http://localhost:4113/screenshot?format=png&response_format=binary" \
+  -o screenshot.png
+
+# Extract PNG from JSON response  
+curl -X POST http://localhost:4113/screenshot?format=png | \
+  jq -r '.data' | sed 's/^data:image\/[^;]*;base64,//' | base64 -d > screenshot.png
 
 # Take screenshot of specific region
-curl -X POST http://localhost:4113/screenshot \
+curl -X POST http://localhost:4113/screenshot?format=png \
   -H "Content-Type: application/json" \
-  -d '{"format": "png", "region": [100, 100, 800, 600]}'
+  -d '[100, 100, 800, 600]'
 
-# Python example
+# Python example (JSON format)
 import requests
 import base64
 
 response = requests.post(
     "http://localhost:4113/screenshot",
-    json={"format": "png"}
+    params={"format": "png"}
 )
 if response.ok:
     data = response.json()
     image_data = data['data'].split(',')[1]
     with open('screenshot.png', 'wb') as f:
         f.write(base64.b64decode(image_data))
+
+# Python example (binary format)
+response = requests.post(
+    "http://localhost:4113/screenshot",
+    params={"format": "png", "response_format": "binary"}
+)
+if response.ok:
+    with open('screenshot.png', 'wb') as f:
+        f.write(response.content)
 EOF
     fi
 }

@@ -66,27 +66,24 @@ Follow the numbered directories in order. Each section builds on the previous on
 ### For AI Examples (Section 04)
 Choose one AI provider:
 
-**Option A: Anthropic Claude (Recommended)**
+**Option A: Local Ollama (Recommended)**
+```bash
+# Install Ollama (if not already installed)
+curl -fsSL https://ollama.ai/install.sh | sh
+ollama pull llama3.2-vision:11b
+
+# Agent S2 uses Ollama by default - no additional configuration needed!
+```
+
+**Option B: Anthropic Claude**
 ```bash
 export ANTHROPIC_API_KEY="your_key_here"
 export AGENT_S2_AI_ENABLED=true
 ```
 
-**Option B: OpenAI**
+**Option C: OpenAI**
 ```bash
 export OPENAI_API_KEY="your_key_here"
-export AGENT_S2_AI_ENABLED=true
-```
-
-**Option C: Local Ollama**
-```bash
-# Install Ollama
-curl -fsSL https://ollama.ai/install.sh | sh
-ollama pull llama3.2-vision:11b
-
-# Configure Agent S2
-export AGENT_S2_AI_API_URL="http://localhost:11434/api/chat"
-export AGENT_S2_AI_MODEL="llama3.2-vision:11b"
 export AGENT_S2_AI_ENABLED=true
 ```
 

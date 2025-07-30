@@ -32,14 +32,25 @@ agents2::export_config() {
 
     # LLM configuration (only set if not already defined)
     if [[ -z "${AGENTS2_LLM_PROVIDER:-}" ]]; then
-        readonly AGENTS2_LLM_PROVIDER="${LLM_PROVIDER:-${ARGS_LLM_PROVIDER:-anthropic}}"
+        # Intelligently detect provider based on available API keys
+        local detected_provider="ollama"  # Default to Ollama
+        
+        # Check if API keys are provided via environment or arguments
+        if [[ -n "${OPENAI_API_KEY:-}" ]] || [[ -n "${ARGS_OPENAI_API_KEY:-}" ]]; then
+            detected_provider="openai"
+        elif [[ -n "${ANTHROPIC_API_KEY:-}" ]] || [[ -n "${ARGS_ANTHROPIC_API_KEY:-}" ]]; then
+            detected_provider="anthropic"
+        fi
+        
+        # Use explicit provider if specified, otherwise use detected
+        readonly AGENTS2_LLM_PROVIDER="${LLM_PROVIDER:-${ARGS_LLM_PROVIDER:-$detected_provider}}"
     fi
     if [[ -z "${AGENTS2_LLM_MODEL:-}" ]]; then
         # Set model defaults based on provider
         local default_model
         case "${AGENTS2_LLM_PROVIDER}" in
             "ollama")
-                default_model="llama2:7b"
+                default_model="llama3.2-vision:11b"
                 ;;
             "openai")
                 default_model="gpt-4o"
@@ -48,7 +59,7 @@ agents2::export_config() {
                 default_model="claude-3-7-sonnet-20250219"
                 ;;
             *)
-                default_model="claude-3-7-sonnet-20250219"
+                default_model="llama3.2-vision:11b"
                 ;;
         esac
         readonly AGENTS2_LLM_MODEL="${LLM_MODEL:-${ARGS_LLM_MODEL:-$default_model}}"

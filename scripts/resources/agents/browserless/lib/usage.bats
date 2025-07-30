@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export BROWSERLESS_CUSTOM_PORT="9999"
     export BROWSERLESS_BASE_URL="http://localhost:9999"
@@ -21,10 +27,6 @@ setup() {
     browserless::export_messages
     
     # Mock logging functions
-    log::header() { echo "HEADER: $*"; }
-    log::info() { echo "INFO: $*"; }
-    log::success() { echo "SUCCESS: $*"; }
-    log::error() { echo "ERROR: $*"; }
     
     # Mock API test functions
     browserless::test_screenshot() {

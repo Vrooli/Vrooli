@@ -3,6 +3,12 @@
 # Tests for Ollama installation functions
 
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export OLLAMA_USER="ollama"
     export OLLAMA_SERVICE_NAME="ollama"
@@ -69,14 +75,8 @@ setup() {
     resources::is_service_running() { return 0; }
     resources::remove_config() { return 0; }
     
-    system::is_command() { return 0; }
     flow::is_yes() { [[ "$1" == "yes" ]]; }
     
-    log::info() { echo "INFO: $*"; }
-    log::success() { echo "SUCCESS: $*"; }
-    log::error() { echo "ERROR: $*"; }
-    log::warn() { echo "WARN: $*"; }
-    log::header() { echo "HEADER: $*"; }
     
     # Mock system commands
     mktemp() { echo "/tmp/test_installer_$$"; }
@@ -91,7 +91,6 @@ setup() {
         esac
         return 0
     }
-    curl() { return 0; }
     id() { 
         case "$1" in
             "$OLLAMA_USER") return 1 ;;  # User doesn't exist by default

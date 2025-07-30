@@ -72,16 +72,16 @@ agents2::parse_arguments() {
     
     args::register \
         --name "llm-provider" \
-        --desc "LLM provider for Agent S2 (openai, anthropic, ollama)" \
+        --desc "LLM provider for Agent S2 (ollama, openai, anthropic)" \
         --type "value" \
-        --options "openai|anthropic|ollama" \
-        --default "anthropic"
+        --options "ollama|openai|anthropic" \
+        --default "ollama"
     
     args::register \
         --name "llm-model" \
         --desc "LLM model to use" \
         --type "value" \
-        --default "claude-3-7-sonnet-20250219"
+        --default "llama3.2-vision:11b"
     
     args::register \
         --name "enable-ai" \
@@ -204,7 +204,7 @@ agents2::usage() {
     echo
     echo "Examples:"
     echo "  $0 --action install                              # Install Agent S2 with default settings"
-    echo "  $0 --action install --llm-provider anthropic     # Install with Anthropic provider"
+    echo "  $0 --action install --llm-provider ollama        # Install with Ollama provider (default)"
     echo "  $0 --action install --mode host                  # Install with host mode enabled"
     echo "  $0 --action start --mode sandbox                 # Start in sandbox mode"
     echo "  $0 --action start --mode host                    # Start in host mode"

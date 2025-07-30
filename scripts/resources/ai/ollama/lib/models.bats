@@ -3,6 +3,12 @@
 # Tests for Ollama model management functions
 
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set up test model catalog
     declare -gA MODEL_CATALOG=(
         ["llama3.1:8b"]="4.9|general,chat,reasoning|Latest general-purpose model from Meta"
@@ -48,15 +54,9 @@ setup() {
     
     # Mock functions
     ollama::is_healthy() { return 0; }  # Default: healthy
-    system::is_command() { return 0; }  # Default: command exists
     resources::handle_error() { return 1; }
     resources::add_rollback_action() { return 0; }
     
-    log::info() { echo "INFO: $*"; }
-    log::success() { echo "SUCCESS: $*"; }
-    log::error() { echo "ERROR: $*"; }
-    log::warn() { echo "WARN: $*"; }
-    log::header() { echo "HEADER: $*"; }
     
     # Mock system commands
     bc() { 

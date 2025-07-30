@@ -2,11 +2,18 @@
 
 import logging
 import time
-from typing import Optional, Tuple, List, Union
+from typing import Optional, Tuple, List, Union, Dict, Any
 
 import pyautogui
 
+from .window_manager import WindowManager, WindowInfo, WindowManagerError
+
 logger = logging.getLogger(__name__)
+
+
+class AutomationError(Exception):
+    """Automation specific exceptions"""
+    pass
 
 
 class AutomationService:
@@ -17,6 +24,149 @@ class AutomationService:
         # Configure pyautogui
         pyautogui.FAILSAFE = False  # Disable failsafe in container
         pyautogui.PAUSE = 0.1  # Small pause between actions
+        
+        # Initialize window manager for target-aware automation
+        self.window_manager = WindowManager()
+    
+    # Target-aware automation methods
+    def _ensure_target_focus(self, target_app: str, window_criteria: Dict = None) -> Tuple[bool, Optional[WindowInfo], float]:
+        """Ensure target application has focus before automation
+        
+        Args:
+            target_app: Target application name
+            window_criteria: Optional window selection criteria
+            
+        Returns:
+            Tuple of (success, focused_window_info, focus_time)
+        """
+        if not target_app:
+            return True, None, 0.0  # No target specified, proceed
+        
+        start_time = time.time()
+        
+        try:
+            # Check if already focused
+            focused = self.window_manager.get_focused_window()
+            if focused and self._matches_target(focused, target_app):
+                return True, focused, time.time() - start_time
+            
+            # Need to focus target app
+            success = self.window_manager.focus_application(target_app, window_criteria or {})
+            focus_time = time.time() - start_time
+            
+            if success:
+                # Get the focused window info
+                focused_window = self.window_manager.get_focused_window()
+                return True, focused_window, focus_time
+            else:
+                logger.warning(f"Could not focus target application: {target_app}")
+                return False, None, focus_time
+                
+        except Exception as e:
+            focus_time = time.time() - start_time
+            logger.error(f"Error ensuring target focus for {target_app}: {e}")
+            return False, None, focus_time
+    
+    def _matches_target(self, window: WindowInfo, target_app: str) -> bool:
+        """Check if window matches target application"""
+        return window.app_name.lower() == target_app.lower()
+    
+    def click_targeted(self, x: int, y: int, target_app: str = None, 
+                      button: str = "left", clicks: int = 1, 
+                      window_criteria: Dict = None) -> Tuple[bool, Optional[WindowInfo], float]:
+        """Enhanced click with target awareness
+        
+        Args:
+            x: X coordinate
+            y: Y coordinate  
+            target_app: Target application name
+            button: Mouse button
+            clicks: Number of clicks
+            window_criteria: Window selection criteria
+            
+        Returns:
+            Tuple of (success, focused_window_info, focus_time)
+        """
+        if target_app:
+            success, focused_window, focus_time = self._ensure_target_focus(target_app, window_criteria)
+            if not success:
+                raise AutomationError(f"Could not focus target application: {target_app}")
+        else:
+            focused_window, focus_time = None, 0.0
+        
+        # Proceed with click
+        self.click(x, y, button, clicks)
+        return True, focused_window, focus_time
+    
+    def type_text_targeted(self, text: str, target_app: str = None, 
+                          interval: float = 0.0, window_criteria: Dict = None) -> Tuple[bool, Optional[WindowInfo], float]:
+        """Enhanced typing with target awareness
+        
+        Args:
+            text: Text to type
+            target_app: Target application name
+            interval: Typing interval
+            window_criteria: Window selection criteria
+            
+        Returns:
+            Tuple of (success, focused_window_info, focus_time)
+        """
+        if target_app:
+            success, focused_window, focus_time = self._ensure_target_focus(target_app, window_criteria)
+            if not success:
+                raise AutomationError(f"Could not focus target application: {target_app}")
+        else:
+            focused_window, focus_time = None, 0.0
+        
+        # Proceed with typing
+        self.type_text(text, interval)
+        return True, focused_window, focus_time
+    
+    def press_key_targeted(self, keys: Union[str, List[str]], target_app: str = None,
+                          window_criteria: Dict = None) -> Tuple[bool, Optional[WindowInfo], float]:
+        """Enhanced key press with target awareness
+        
+        Args:
+            keys: Key(s) to press
+            target_app: Target application name
+            window_criteria: Window selection criteria
+            
+        Returns:
+            Tuple of (success, focused_window_info, focus_time)
+        """
+        if target_app:
+            success, focused_window, focus_time = self._ensure_target_focus(target_app, window_criteria)
+            if not success:
+                raise AutomationError(f"Could not focus target application: {target_app}")
+        else:
+            focused_window, focus_time = None, 0.0
+        
+        # Proceed with key press
+        self.press_key(keys)
+        return True, focused_window, focus_time
+    
+    def hotkey_targeted(self, *keys: str, target_app: str = None,
+                       window_criteria: Dict = None) -> Tuple[bool, Optional[WindowInfo], float]:
+        """Enhanced hotkey with target awareness
+        
+        Args:
+            *keys: Keys to press together
+            target_app: Target application name
+            window_criteria: Window selection criteria
+            
+        Returns:
+            Tuple of (success, focused_window_info, focus_time)
+        """
+        if target_app:
+            success, focused_window, focus_time = self._ensure_target_focus(target_app, window_criteria)
+            if not success:
+                raise AutomationError(f"Could not focus target application: {target_app}")
+        else:
+            focused_window, focus_time = None, 0.0
+        
+        # Proceed with hotkey
+        self.hotkey(*keys)
+        return True, focused_window, focus_time
         
     # Mouse operations
     def get_mouse_position(self) -> Tuple[int, int]:

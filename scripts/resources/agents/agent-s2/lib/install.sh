@@ -140,7 +140,12 @@ agents2::show_installation_success() {
     log::header "🔧 Configuration"
     log::info "Operating Mode: ${MODE:-sandbox}"
     log::info "Host Mode Enabled: ${AGENT_S2_HOST_MODE_ENABLED:-false}"
-    log::info "LLM Provider: $AGENTS2_LLM_PROVIDER"
+    # Show actual provider based on what will be used
+    local actual_provider="$AGENTS2_LLM_PROVIDER"
+    if [[ -z "${AGENTS2_OPENAI_API_KEY}" && -z "${AGENTS2_ANTHROPIC_API_KEY}" ]]; then
+        actual_provider="ollama (auto-detected)"
+    fi
+    log::info "LLM Provider: $actual_provider"
     log::info "LLM Model: $AGENTS2_LLM_MODEL"
     log::info "Display: $AGENTS2_DISPLAY ($([[ "${MODE:-sandbox}" == "host" && "$AGENT_S2_HOST_DISPLAY_ACCESS" == "true" ]] && echo "Host" || echo "Virtual"))"
     log::info "Resolution: $AGENTS2_SCREEN_RESOLUTION"

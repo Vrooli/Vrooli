@@ -34,10 +34,10 @@ class Config:
     VNC_PORT: int = int(os.getenv("AGENT_S2_VNC_PORT", "5900"))
     
     # AI Configuration
-    AI_ENABLED: bool = os.getenv("AGENT_S2_AI_ENABLED", "true").lower() == "true"
-    AI_API_URL: str = os.getenv("AGENT_S2_AI_API_URL", "http://localhost:11434/api/chat")
-    AI_MODEL: str = os.getenv("AGENT_S2_AI_MODEL", "llama3.2-vision:11b")
-    AI_TIMEOUT: int = int(os.getenv("AGENT_S2_AI_TIMEOUT", "120"))
+    AI_ENABLED: bool = os.getenv("AGENTS2_ENABLE_AI", "true").lower() == "true"
+    AI_API_URL: str = os.getenv("AGENTS2_OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/") + "/api/chat"
+    AI_MODEL: str = os.getenv("AGENTS2_LLM_MODEL", "llama3.2-vision:11b")
+    AI_TIMEOUT: int = int(os.getenv("AGENTS2_AI_TIMEOUT", "120"))
     
     # Output Configuration
     OUTPUT_DIR: str = os.getenv("AGENT_S2_OUTPUT_DIR", "/tmp/agent-s2-outputs")

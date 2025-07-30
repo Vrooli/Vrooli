@@ -5,6 +5,12 @@ load ../test_helper
 
 # BATS setup function - runs before each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set up paths
     export BATS_TEST_DIRNAME="${BATS_TEST_DIRNAME:-$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)}"
     export CLAUDE_CODE_DIR="$BATS_TEST_DIRNAME/.."
@@ -30,19 +36,8 @@ setup() {
     
     # Default mocks
     confirm() { return 0; }  # Always confirm
-    system::is_command() { 
-        case "$1" in
-            jq) return 0 ;;
-            *) return 0 ;;
-        esac
-    }
     
     # Mock log functions to prevent "command not found" errors
-    log::header() { echo "HEADER: $*"; }
-    log::info() { echo "INFO: $*"; }
-    log::success() { echo "SUCCESS: $*"; }
-    log::warn() { echo "WARN: $*"; }
-    log::error() { echo "ERROR: $*"; }
 }
 
 @test "session.sh defines required functions" {

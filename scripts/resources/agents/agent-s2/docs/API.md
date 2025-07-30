@@ -83,18 +83,50 @@ POST /screenshot?format={format}&quality={quality}
 **Query Parameters:**
 - `format`: "png" or "jpeg" (default: "png")
 - `quality`: 1-100 for JPEG (default: 95)
+- `response_format`: "json" or "binary" (default: "json")
+  - `json`: Returns JSON with base64-encoded image data
+  - `binary`: Returns raw image file directly
 
 **Request Body (optional):**
 ```json
 [x, y, width, height]  // Region array
 ```
 
-**Direct API Examples (use manage.sh instead when possible):**
+**Recommended Method (Recommended):**
 ```bash
-# Full screen PNG
+# Take a screenshot using the management script
+./manage.sh --action usage --usage-type screenshot
+
+# This will:
+# 1. Take a screenshot and save it as agent-s2-screenshot.png
+# 2. Show example code for API integration
+```
+
+**Response Format:**
+Screenshots are returned as JSON with base64-encoded data by default:
+```json
+{
+  "success": true,
+  "format": "png", 
+  "size": {"width": 1920, "height": 1080},
+  "data": "data:image/png;base64,iVBORw0KGgo..."
+}
+```
+
+**Direct API Examples (for integrations):**
+```bash
+# Full screen PNG (JSON response with base64)
 curl -X POST "http://localhost:4113/screenshot?format=png"
 
-# Region screenshot
+# Raw binary PNG file (new feature)
+curl -X POST "http://localhost:4113/screenshot?format=png&response_format=binary" \
+  -o screenshot.png
+
+# Extract PNG from JSON response
+curl -X POST "http://localhost:4113/screenshot?format=png" | \
+  jq -r '.data' | sed 's/^data:image\/[^;]*;base64,//' | base64 -d > screenshot.png
+
+# Region screenshot 
 curl -X POST "http://localhost:4113/screenshot?format=png" \
   -H "Content-Type: application/json" \
   -d '[100, 100, 500, 400]'

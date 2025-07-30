@@ -16,11 +16,15 @@ Agent S2 is an open-source framework for autonomous computer interaction, enabli
 - Docker installed and running
 - 2GB+ RAM available
 - Ports 4113 and 5900 available
-- **For AI Features**: API key for OpenAI or Anthropic
+- **For AI Features**: Local Ollama instance (default) or API key for OpenAI/Anthropic
 
 ### Installation
 ```bash
-# Basic installation with AI enabled
+# Basic installation with AI enabled (uses Ollama by default)
+./manage.sh --action install \
+  --mode sandbox
+
+# Alternative: with specific Anthropic provider
 ./manage.sh --action install \
   --mode sandbox \
   --llm-provider anthropic \

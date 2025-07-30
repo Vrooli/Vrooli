@@ -7,9 +7,11 @@ This guide covers all configuration options for Agent S2, including environment 
 ### Core Configuration
 
 ```bash
-# AI Provider Configuration (choose one)
-export ANTHROPIC_API_KEY="your_anthropic_api_key_here"  # Recommended
-export OPENAI_API_KEY="your_openai_api_key_here"       # Alternative
+# AI Provider Configuration
+# Default: Uses local Ollama (no configuration needed)
+# Alternatives:
+export ANTHROPIC_API_KEY="your_anthropic_api_key_here"  # Override to use Anthropic
+export OPENAI_API_KEY="your_openai_api_key_here"       # Override to use OpenAI
 
 # General API key (alternative to provider-specific keys)
 export AGENTS2_API_KEY="your_api_key_here"
@@ -97,7 +99,11 @@ export AGENT_S2_STEALTH_PROFILE_TYPE=residential       # Profile type: residenti
 ### Basic Installation Options
 
 ```bash
-# Sandbox mode with AI (recommended)
+# Sandbox mode with AI (recommended - uses Ollama by default)
+./manage.sh --action install \
+  --mode sandbox
+
+# Alternative: with Anthropic
 ./manage.sh --action install \
   --mode sandbox \
   --llm-provider anthropic \
@@ -118,7 +124,17 @@ export AGENT_S2_STEALTH_PROFILE_TYPE=residential       # Profile type: residenti
 ### Advanced Installation Options
 
 ```bash
-# Full feature installation
+# Full feature installation with Ollama (default)
+./manage.sh --action install \
+  --mode sandbox \
+  --enable-ai yes \
+  --enable-search yes \
+  --host-mode-enabled yes \
+  --vnc-password mysecurepassword \
+  --audit-logging yes \
+  --security-hardening yes
+
+# Alternative: Full feature installation with Anthropic
 ./manage.sh --action install \
   --mode sandbox \
   --llm-provider anthropic \
@@ -133,7 +149,6 @@ export AGENT_S2_STEALTH_PROFILE_TYPE=residential       # Profile type: residenti
 # Stealth mode configuration
 ./manage.sh --action install \
   --mode sandbox \
-  --llm-provider anthropic \
   --stealth-enabled yes \
   --stealth-profile residential
 ```
@@ -161,8 +176,8 @@ export AGENT_S2_STEALTH_PROFILE_TYPE=residential       # Profile type: residenti
 | Parameter | Description | Default | Options |
 |-----------|-------------|---------|---------|
 | `--mode` | Operation mode | `sandbox` | `sandbox`, `host` |
-| `--llm-provider` | AI provider | `anthropic` | `anthropic`, `openai` |
-| `--llm-model` | AI model | `claude-3-7-sonnet-20250219` | Provider-specific models |
+| `--llm-provider` | AI provider | `ollama` | `ollama`, `anthropic`, `openai` |
+| `--llm-model` | AI model | `llama3.2-vision:11b` | Provider-specific models |
 | `--enable-ai` | Enable AI features | `yes` | `yes`, `no` |
 | `--enable-search` | Enable web search | `no` | `yes`, `no` |
 | `--host-mode-enabled` | Enable host mode | `no` | `yes`, `no` |

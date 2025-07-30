@@ -62,7 +62,7 @@ agents2::test_screenshot() {
     log::info "Testing screenshot API..."
     
     local response
-    if ! response=$(agents2::api_request "POST" "/screenshot" '{"format": "png", "quality": 95}'); then
+    if ! response=$(agents2::api_request "POST" "/screenshot?format=png&quality=95" ''); then
         log::error "Screenshot API request failed"
         return 1
     fi

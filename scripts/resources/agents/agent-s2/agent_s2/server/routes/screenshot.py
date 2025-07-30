@@ -3,6 +3,7 @@
 import logging
 from typing import Optional, List
 from fastapi import APIRouter, Query, Body, HTTPException
+from fastapi.responses import Response
 
 from ..models.responses import ScreenshotResponse
 from ..services.capture import ScreenshotService
@@ -14,11 +15,12 @@ router = APIRouter()
 screenshot_service = ScreenshotService()
 
 
-@router.post("", response_model=ScreenshotResponse)
-@router.post("/", response_model=ScreenshotResponse)
+@router.post("")
+@router.post("/")
 async def take_screenshot(
     format: str = Query(default="png", description="Image format (png or jpeg)"),
     quality: int = Query(default=95, ge=1, le=100, description="JPEG quality"),
+    response_format: str = Query(default="json", description="Response format (json or binary)"),
     region: Optional[List[int]] = Body(default=None, description="Region [x, y, width, height]")
 ):
     """Take a screenshot of the current display
@@ -26,24 +28,53 @@ async def take_screenshot(
     Args:
         format: Image format (png or jpeg)
         quality: JPEG quality (1-100)
+        response_format: Response format (json or binary)
         region: Optional region to capture [x, y, width, height]
         
     Returns:
-        Screenshot data with base64 encoded image
+        For json format: Screenshot data with base64 encoded image
+        For binary format: Raw image bytes
     """
     try:
+        # Validate response_format
+        if response_format not in ["json", "binary"]:
+            raise ValueError(f"Invalid response_format: {response_format}. Must be 'json' or 'binary'")
+            
         result = screenshot_service.capture(
             format=format,
             quality=quality,
             region=region
         )
         
-        return ScreenshotResponse(
-            success=True,
-            format=result["format"],
-            size=result["size"],
-            data=result["data"]
-        )
+        if response_format == "binary":
+            # Return raw binary data
+            image_data = result["data"]
+            if image_data.startswith('data:image'):
+                # Extract base64 part and decode
+                base64_data = image_data.split(',')[1]
+                import base64
+                binary_data = base64.b64decode(base64_data)
+                
+                # Determine MIME type
+                mime_type = f"image/{result['format']}"
+                
+                return Response(
+                    content=binary_data,
+                    media_type=mime_type,
+                    headers={
+                        "Content-Disposition": f"attachment; filename=screenshot.{result['format']}"
+                    }
+                )
+            else:
+                raise ValueError("Invalid image data format")
+        else:
+            # Return JSON response (default behavior)
+            return ScreenshotResponse(
+                success=True,
+                format=result["format"],
+                size=result["size"],
+                data=result["data"]
+            )
         
     except ValueError as e:
         logger.error(f"Screenshot validation error: {e}")

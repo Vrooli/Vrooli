@@ -52,26 +52,115 @@ class AIHandler:
         )
         self.stealth_manager = StealthManager(stealth_config)
         
+    async def _discover_ollama_service(self):
+        """Auto-detect available Ollama services
+        
+        Returns:
+            Dict with discovered service info or None if not found
+        """
+        logger.info("🔍 Auto-detecting Ollama services...")
+        
+        # Common Ollama locations to check
+        ollama_locations = [
+            ("http://localhost:11434", "Local Ollama"),
+            ("http://ollama:11434", "Docker service 'ollama'"),
+            ("http://host.docker.internal:11434", "Host machine (Docker Desktop)"),
+            ("http://172.17.0.1:11434", "Docker host gateway")
+        ]
+        
+        # Add current configured URL if different
+        if self.ollama_base_url not in [loc[0] for loc in ollama_locations]:
+            ollama_locations.insert(0, (self.ollama_base_url, "Configured URL"))
+        
+        for url, description in ollama_locations:
+            try:
+                logger.debug(f"Checking {description} at {url}")
+                response = requests.get(f"{url}/api/tags", timeout=2)
+                
+                if response.status_code == 200:
+                    models_data = response.json()
+                    models = models_data.get("models", [])
+                    model_names = [m["name"] for m in models]
+                    
+                    logger.info(f"✅ Found Ollama at {url} ({description}) with {len(models)} models")
+                    
+                    # Look for vision models first
+                    vision_models = [m for m in model_names if "vision" in m.lower() or "llava" in m.lower()]
+                    
+                    return {
+                        "url": url,
+                        "description": description,
+                        "models": model_names,
+                        "vision_models": vision_models,
+                        "model_count": len(models)
+                    }
+                    
+            except requests.RequestException as e:
+                logger.debug(f"Failed to connect to {url}: {type(e).__name__}")
+                continue
+            except Exception as e:
+                logger.debug(f"Unexpected error checking {url}: {e}")
+                continue
+        
+        logger.warning("❌ No Ollama service found at any common location")
+        return None
+
     async def initialize(self):
-        """Initialize AI agent with error handling"""
+        """Initialize AI agent with error handling and auto-detection"""
         if not self.enabled:
             logger.info("AI disabled in configuration")
             return
             
+        logger.info(f"Initializing AI handler with provider: {self.provider}")
+        logger.info(f"Configured model: {self.model}")
+        logger.info(f"Initial Ollama base URL: {self.ollama_base_url}")
+        
         try:
             # Check if requests library is available
             if requests is None:
                 logger.error("requests library not available. Install with: pip install requests")
                 return
+            
+            # Try auto-detection first
+            discovered = await self._discover_ollama_service()
+            
+            if discovered:
+                # Update configuration with discovered service
+                self.ollama_base_url = discovered["url"]
+                logger.info(f"🎯 Using discovered Ollama at: {discovered['url']} ({discovered['description']})")
+                
+                # Auto-select best model if current model not available
+                if self.model not in discovered["models"]:
+                    if discovered["vision_models"]:
+                        # Prefer vision models for Agent-S2
+                        self.model = discovered["vision_models"][0]
+                        logger.info(f"🎨 Auto-selected vision model: {self.model}")
+                    elif discovered["models"]:
+                        # Fall back to first available model
+                        self.model = discovered["models"][0]
+                        logger.info(f"🤖 Auto-selected model: {self.model}")
+                    else:
+                        logger.error("No models available in Ollama. Please pull a model.")
+                        logger.error("Recommended: ollama pull llama3.2-vision:11b")
+                        return
+                else:
+                    logger.info(f"✅ Configured model '{self.model}' is available")
+            else:
+                # No auto-detection successful, try configured URL anyway
+                logger.warning("Auto-detection failed, trying configured URL...")
                 
             # Check Ollama health using direct HTTP call
+            logger.info("Checking Ollama connectivity...")
             try:
                 health_response = requests.get(f"{self.ollama_base_url}/api/tags", timeout=5)
                 if health_response.status_code != 200:
                     logger.error(f"Ollama health check failed: {health_response.status_code}")
+                    logger.error(f"Make sure Ollama is running and accessible at {self.ollama_base_url}")
                     return
+                logger.info("✅ Ollama is reachable")
             except requests.RequestException as e:
-                logger.error(f"Ollama is not reachable: {e}")
+                logger.error(f"Ollama is not reachable at {self.ollama_base_url}: {e}")
+                logger.error("Ensure Ollama is running and listening on all interfaces (OLLAMA_HOST=0.0.0.0)")
                 return
                 
             # Test API connectivity
@@ -85,15 +174,25 @@ class AIHandler:
                 models = response.json().get("models", [])
                 available_models = [model["name"] for model in models]
                 
+                logger.info(f"Found {len(available_models)} models in Ollama")
+                
                 if self.model not in available_models:
-                    logger.warning(f"Configured model '{self.model}' not found. Available models: {available_models}")
-                    # Use the first available model as fallback
-                    if available_models:
+                    logger.warning(f"Configured model '{self.model}' not found")
+                    logger.info(f"Available models: {', '.join(available_models) if available_models else 'None'}")
+                    
+                    # Look for vision models as preferred fallback
+                    vision_models = [m for m in available_models if 'vision' in m.lower() or 'llava' in m.lower()]
+                    if vision_models:
+                        self.model = vision_models[0]
+                        logger.info(f"Using vision model as fallback: {self.model}")
+                    elif available_models:
                         self.model = available_models[0]
-                        logger.info(f"Using fallback model: {self.model}")
+                        logger.info(f"Using first available model as fallback: {self.model}")
                     else:
-                        logger.error("No models available in Ollama")
+                        logger.error("No models available in Ollama. Please pull a model using: ollama pull llama3.2-vision:11b")
                         return
+                else:
+                    logger.info(f"✅ Model '{self.model}' is available")
                         
             except requests.RequestException as e:
                 logger.error(f"Failed to connect to Ollama API: {e}")
@@ -110,7 +209,10 @@ class AIHandler:
                 logger.error(f"Failed to initialize stealth mode: {e}")
                 
             self.initialized = True
-            logger.info(f"AI handler initialized with Ollama (model: {self.model})")
+            logger.info(f"✅ AI handler initialized successfully")
+            logger.info(f"   Provider: {self.provider}")
+            logger.info(f"   Model: {self.model}")
+            logger.info(f"   Base URL: {self.ollama_base_url}")
             
         except Exception as e:
             logger.error(f"Failed to initialize AI handler: {e}")
@@ -272,10 +374,36 @@ Example parameters: {{"x": 100, "y": 200}}, {{"text": "hello"}}, {{"key": "Enter
                     "estimated_duration": "Manual review needed"
                 }
                 
+            # Execute the plan if we have valid actions
+            actions_taken = []
+            if ai_plan.get("plan"):
+                # Convert plan format to actions format if needed
+                ai_actions = []
+                for step in ai_plan.get("plan", []):
+                    if "action" in step and "parameters" in step:
+                        action_dict = {"type": step["action"]}
+                        action_dict.update(step.get("parameters", {}))
+                        if "description" in step:
+                            action_dict["description"] = step["description"]
+                        ai_actions.append(action_dict)
+                
+                # Execute the actions
+                if ai_actions:
+                    try:
+                        actions_taken = await self._execute_ai_actions(ai_actions, command_context=task)
+                    except Exception as exec_error:
+                        logger.error(f"Failed to execute AI actions: {exec_error}")
+                        actions_taken = [{
+                            "action": "execution_failed",
+                            "result": f"Failed to execute actions: {exec_error}",
+                            "status": "failed"
+                        }]
+            
             return {
                 "success": True,
                 "task": task,
-                "summary": f"AI analyzed task: {task}",
+                "summary": f"AI analyzed and executed task: {task}" if actions_taken else f"AI analyzed task: {task}",
+                "actions_taken": actions_taken,
                 "plan": ai_plan.get("plan", []),
                 "reasoning": ai_plan.get("reasoning", "AI provided task analysis"),
                 "estimated_duration": ai_plan.get("estimated_duration", "Unknown"),
@@ -292,12 +420,185 @@ Example parameters: {{"x": 100, "y": 200}}, {{"text": "hello"}}, {{"key": "Enter
                 "error": str(e)
             }
             
-    async def execute_command(self, command: str, context: Optional[str] = None) -> Dict[str, Any]:
+    async def _execute_ai_actions(self, ai_actions: List[Dict[str, Any]], 
+                                 target_app: Optional[str] = None,
+                                 command_context: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Execute a list of AI-generated actions
+        
+        Args:
+            ai_actions: List of action dictionaries from AI
+            target_app: Optional target application
+            command_context: Optional context for logging
+            
+        Returns:
+            List of executed action results
+        """
+        executed_actions = []
+        
+        # Inject target_app into all actions if specified and not already present
+        if target_app:
+            for action in ai_actions:
+                if action.get("type") in ["click", "type", "key"] and "target_app" not in action:
+                    action["target_app"] = target_app
+        
+        # Check if this is a screenshot save command
+        is_screenshot_save_command = command_context and any(
+            word in command_context.lower() for word in ["save", "capture", "screenshot"]
+        )
+        custom_filename = None
+        if command_context and "save" in command_context.lower() and "as" in command_context.lower():
+            # Try to extract filename from command like "save it as desktop_capture.png"
+            import re
+            filename_match = re.search(r'save.*?as\s+([^\s\.]+(?:\.[a-z]+)?)', command_context.lower())
+            if filename_match:
+                custom_filename = filename_match.group(1)
+                if not custom_filename.endswith(('.png', '.jpg', '.jpeg')):
+                    custom_filename += '.png'
+        
+        # Execute each action
+        for action in ai_actions:
+            try:
+                if action.get("type") == "click":
+                    x, y = action.get("x", 500), action.get("y", 300)
+                    button = action.get("button", "left")  # Support right-click
+                    action_target_app = action.get("target_app")
+                    
+                    if action_target_app:
+                        # Use targeted click method
+                        success, focused_window, focus_time = self.automation_service.click_targeted(
+                            x=x, y=y, target_app=action_target_app, button=button
+                        )
+                        executed_actions.append({
+                            "action": "click",
+                            "parameters": {"x": x, "y": y, "button": button, "target_app": action_target_app},
+                            "result": action.get("description", f"{button.title()}-clicked at position with target focus"),
+                            "status": "success",
+                            "focused_window": focused_window.title if focused_window else None,
+                            "focus_time": focus_time
+                        })
+                    else:
+                        # Use regular click method
+                        if button == "right":
+                            self.automation_service.right_click(x, y)
+                        else:
+                            self.automation_service.click(x, y)
+                            
+                        executed_actions.append({
+                            "action": "click",
+                            "parameters": {"x": x, "y": y, "button": button},
+                            "result": action.get("description", f"{button.title()}-clicked at position"),
+                            "status": "success"
+                        })
+                    
+                elif action.get("type") == "type":
+                    text = action.get("text", "")
+                    action_target_app = action.get("target_app")
+                    
+                    if text:
+                        if action_target_app:
+                            # Use targeted typing method
+                            success, focused_window, focus_time = self.automation_service.type_text_targeted(
+                                text=text, target_app=action_target_app
+                            )
+                            executed_actions.append({
+                                "action": "type",
+                                "parameters": {"text": text, "target_app": action_target_app},
+                                "result": action.get("description", "Typed text with target focus"),
+                                "status": "success",
+                                "focused_window": focused_window.title if focused_window else None,
+                                "focus_time": focus_time
+                            })
+                        else:
+                            # Use regular typing method
+                            self.automation_service.type_text(text)
+                            executed_actions.append({
+                                "action": "type",
+                                "parameters": {"text": text},
+                                "result": action.get("description", "Typed text"),
+                                "status": "success"
+                            })
+                        
+                elif action.get("type") == "key":
+                    key = action.get("key", "")
+                    action_target_app = action.get("target_app")
+                    
+                    if key:
+                        if action_target_app:
+                            # Use targeted key press method
+                            success, focused_window, focus_time = self.automation_service.press_key_targeted(
+                                keys=key, target_app=action_target_app
+                            )
+                            executed_actions.append({
+                                "action": "key",
+                                "parameters": {"key": key, "target_app": action_target_app},
+                                "result": action.get("description", f"Pressed {key} with target focus"),
+                                "status": "success",
+                                "focused_window": focused_window.title if focused_window else None,
+                                "focus_time": focus_time
+                            })
+                        else:
+                            # Use regular key press method
+                            self.automation_service.press_key([key])
+                            executed_actions.append({
+                                "action": "key",
+                                "parameters": {"key": key},
+                                "result": action.get("description", f"Pressed {key}"),
+                                "status": "success"
+                            })
+                        
+                elif action.get("type") == "wait":
+                    duration = action.get("duration", 1.0)
+                    import asyncio
+                    await asyncio.sleep(duration)
+                    executed_actions.append({
+                        "action": "wait",
+                        "parameters": {"duration": duration},
+                        "result": action.get("description", f"Waited {duration}s"),
+                        "status": "success"
+                    })
+                    
+                elif action.get("type") == "screenshot" or (action.get("type") in ["capture", "save"] and is_screenshot_save_command):
+                    # Take an additional screenshot and save with custom name if specified
+                    if custom_filename:
+                        save_path = f"/tmp/{custom_filename}"
+                    else:
+                        save_path = f"/tmp/agent-s2-user-screenshot-{int(time.time())}.png"
+                    
+                    try:
+                        self.screenshot_service.capture_to_file(save_path, format="png")
+                        executed_actions.append({
+                            "action": "screenshot_save",
+                            "parameters": {"filename": save_path},
+                            "result": f"Screenshot saved to {save_path}",
+                            "status": "success",
+                            "screenshot_path": save_path
+                        })
+                    except Exception as save_error:
+                        executed_actions.append({
+                            "action": "screenshot_save",
+                            "parameters": {"filename": save_path},
+                            "result": f"Failed to save screenshot: {save_error}",
+                            "status": "failed"
+                        })
+                    
+            except Exception as action_error:
+                executed_actions.append({
+                    "action": action.get("type", "unknown"),
+                    "parameters": action,
+                    "result": f"Failed: {action_error}",
+                    "status": "failed"
+                })
+        
+        return executed_actions
+
+    async def execute_command(self, command: str, context: Optional[str] = None, 
+                            target_app: Optional[str] = None) -> Dict[str, Any]:
         """Execute a natural language command
         
         Args:
             command: Natural language command
             context: Optional context
+            target_app: Optional target application for actions
             
         Returns:
             Command execution result
@@ -330,15 +631,20 @@ Example parameters: {{"x": 100, "y": 200}}, {{"text": "hello"}}, {{"key": "Enter
                 "screenshot_path": screenshot_path if screenshot_saved else None
             })
             
-            # Create AI prompt for command execution
-            system_prompt = """You are an automation assistant that can see and interact with a computer screen. Given a screenshot and a natural language command, analyze what you see and provide specific automation actions.
+            # Create AI prompt for command execution  
+            target_info = f"\n\nTARGET APPLICATION: {target_app}\n- All actions will be focused on this application\n- Include \"target_app\": \"{target_app}\" in all automation actions" if target_app else ""
+            
+            available_apps = self.automation_service.window_manager.get_running_applications()
+            apps_info = f"\nAvailable Applications: {', '.join(available_apps)}" if available_apps else ""
+            
+            system_prompt = f"""You are an automation assistant that can see and interact with a computer screen. Given a screenshot and a natural language command, analyze what you see and provide specific automation actions.
 
 IMPORTANT SYSTEM INFORMATION:
 - Desktop Environment: Fluxbox window manager (NOT Windows or GNOME)
 - The screenshot shows the ENTIRE screen (1920x1080 pixels)
 - Provide ABSOLUTE screen coordinates, NOT window-relative coordinates
 - The top-left corner of the screen is (0, 0)
-- The bottom-right corner is (1920, 1080)
+- The bottom-right corner is (1920, 1080){apps_info}{target_info}
 
 FLUXBOX WINDOW MANAGEMENT:
 - Windows DO NOT have visible close/minimize/maximize buttons (X buttons)
@@ -348,21 +654,23 @@ FLUXBOX WINDOW MANAGEMENT:
 - Window title bars are thin dark bars at the top of application windows
 
 Respond with JSON format:
-{
+{{
   "actions": [
-    {"type": "click", "x": 100, "y": 200, "description": "Click on [specific element you see]"},
-    {"type": "type", "text": "Hello", "description": "Type text in [specific field]"},
-    {"type": "key", "key": "Enter", "description": "Press Enter"},
-    {"type": "wait", "duration": 1.0, "description": "Wait 1 second"}
+    {{"type": "click", "x": 100, "y": 200, "description": "Click on [specific element you see]"{', "target_app": "' + target_app + '"' if target_app else ""}}},
+    {{"type": "type", "text": "Hello", "description": "Type text in [specific field]"{', "target_app": "' + target_app + '"' if target_app else ""}}},
+    {{"type": "key", "key": "Enter", "description": "Press Enter"{', "target_app": "' + target_app + '"' if target_app else ""}}},
+    {{"type": "wait", "duration": 1.0, "description": "Wait 1 second"}}
   ],
   "reasoning": "I can see [describe what you see]. To [command], I will [explain approach]"
-}
+}}
+
+{'IMPORTANT: When target_app is specified, always include "target_app": "' + target_app + '" in click, type, and key actions.' if target_app else ''}
 
 CLOSING WINDOWS EXAMPLE:
 To close a window:
-1. {"type": "click", "x": 200, "y": 7, "description": "Right-click on window title bar", "button": "right"}
-2. {"type": "wait", "duration": 0.5, "description": "Wait for context menu"}
-3. {"type": "click", "x": 134, "y": 147, "description": "Click Close in context menu"}
+1. {{"type": "click", "x": 200, "y": 7, "description": "Right-click on window title bar", "button": "right"}}
+2. {{"type": "wait", "duration": 0.5, "description": "Wait for context menu"}}
+3. {{"type": "click", "x": 134, "y": 147, "description": "Click Close in context menu"}}
 
 Available action types: click, type, key, scroll, wait, drag
 For click actions, add "button": "right" for right-clicks
@@ -446,108 +754,17 @@ Analyze the screenshot and provide specific automation actions to execute this c
                     reasoning = ai_result.get("reasoning", "AI provided action plan")
                 else:
                     # Fallback: basic command parsing
-                    ai_actions, reasoning = self._parse_command_fallback(command)
+                    ai_actions, reasoning = self._parse_command_fallback(command, target_app)
             except (json.JSONDecodeError, AttributeError):
                 # Fallback: basic command parsing
-                ai_actions, reasoning = self._parse_command_fallback(command)
+                ai_actions, reasoning = self._parse_command_fallback(command, target_app)
             
-            # Execute the actions
-            executed_actions = []
-            
-            # Check if this command is about saving a screenshot
-            is_screenshot_save_command = any(word in command.lower() for word in ["save", "capture", "screenshot"])
-            custom_filename = None
-            if "save" in command.lower() and "as" in command.lower():
-                # Try to extract filename from command like "save it as desktop_capture.png"
-                import re
-                filename_match = re.search(r'save.*?as\s+([^\s\.]+(?:\.[a-z]+)?)', command.lower())
-                if filename_match:
-                    custom_filename = filename_match.group(1)
-                    if not custom_filename.endswith(('.png', '.jpg', '.jpeg')):
-                        custom_filename += '.png'
-            
-            for action in ai_actions:
-                try:
-                    if action.get("type") == "click":
-                        x, y = action.get("x", 500), action.get("y", 300)
-                        button = action.get("button", "left")  # Support right-click
-                        
-                        if button == "right":
-                            self.automation_service.right_click(x, y)
-                        else:
-                            self.automation_service.click(x, y)
-                            
-                        executed_actions.append({
-                            "action": "click",
-                            "parameters": {"x": x, "y": y, "button": button},
-                            "result": action.get("description", f"{button.title()}-clicked at position"),
-                            "status": "success"
-                        })
-                        
-                    elif action.get("type") == "type":
-                        text = action.get("text", "")
-                        if text:
-                            self.automation_service.type_text(text)
-                            executed_actions.append({
-                                "action": "type",
-                                "parameters": {"text": text},
-                                "result": action.get("description", "Typed text"),
-                                "status": "success"
-                            })
-                            
-                    elif action.get("type") == "key":
-                        key = action.get("key", "")
-                        if key:
-                            self.automation_service.press_key([key])
-                            executed_actions.append({
-                                "action": "key",
-                                "parameters": {"key": key},
-                                "result": action.get("description", f"Pressed {key}"),
-                                "status": "success"
-                            })
-                            
-                    elif action.get("type") == "wait":
-                        duration = action.get("duration", 1.0)
-                        import asyncio
-                        await asyncio.sleep(duration)
-                        executed_actions.append({
-                            "action": "wait",
-                            "parameters": {"duration": duration},
-                            "result": action.get("description", f"Waited {duration}s"),
-                            "status": "success"
-                        })
-                        
-                    elif action.get("type") == "screenshot" or (action.get("type") in ["capture", "save"] and is_screenshot_save_command):
-                        # Take an additional screenshot and save with custom name if specified
-                        if custom_filename:
-                            save_path = f"/tmp/{custom_filename}"
-                        else:
-                            save_path = f"/tmp/agent-s2-user-screenshot-{int(time.time())}.png"
-                        
-                        try:
-                            self.screenshot_service.capture_to_file(save_path, format="png")
-                            executed_actions.append({
-                                "action": "screenshot_save",
-                                "parameters": {"filename": save_path},
-                                "result": f"Screenshot saved to {save_path}",
-                                "status": "success",
-                                "screenshot_path": save_path
-                            })
-                        except Exception as save_error:
-                            executed_actions.append({
-                                "action": "screenshot_save",
-                                "parameters": {"filename": save_path},
-                                "result": f"Failed to save screenshot: {save_error}",
-                                "status": "failed"
-                            })
-                        
-                except Exception as action_error:
-                    executed_actions.append({
-                        "action": action.get("type", "unknown"),
-                        "parameters": action,
-                        "result": f"Failed: {action_error}",
-                        "status": "failed"
-                    })
+            # Execute the actions using the shared execution method
+            executed_actions = await self._execute_ai_actions(
+                ai_actions, 
+                target_app=target_app,
+                command_context=command
+            )
             
             return {
                 "command": command,
@@ -572,13 +789,16 @@ Analyze the screenshot and provide specific automation actions to execute this c
                 "message": "Command execution failed"
             }
             
-    def _parse_command_fallback(self, command: str) -> tuple:
+    def _parse_command_fallback(self, command: str, target_app: Optional[str] = None) -> tuple:
         """Fallback command parsing when AI fails"""
         command_lower = command.lower()
         actions = []
         
         if "click" in command_lower:
-            actions.append({"type": "click", "x": 500, "y": 300, "description": "Click at center"})
+            action = {"type": "click", "x": 500, "y": 300, "description": "Click at center"}
+            if target_app:
+                action["target_app"] = target_app
+            actions.append(action)
         if "type" in command_lower or "write" in command_lower:
             # Try to extract text after "type" or "write"
             import re
@@ -587,11 +807,17 @@ Analyze the screenshot and provide specific automation actions to execute this c
                 text = text_match.group(1)
             else:
                 text = "Sample text"
-            actions.append({"type": "type", "text": text, "description": f"Type: {text}"})
+            action = {"type": "type", "text": text, "description": f"Type: {text}"}
+            if target_app:
+                action["target_app"] = target_app
+            actions.append(action)
         if "enter" in command_lower:
-            actions.append({"type": "key", "key": "Return", "description": "Press Enter"})
+            action = {"type": "key", "key": "Return", "description": "Press Enter"}
+            if target_app:
+                action["target_app"] = target_app
+            actions.append(action)
             
-        reasoning = "Used fallback command parsing (AI parsing failed)"
+        reasoning = f"Used fallback command parsing (AI parsing failed){f' with target app: {target_app}' if target_app else ''}"
         return actions, reasoning
             
     async def execute_command_async(self,

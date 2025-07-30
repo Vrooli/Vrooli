@@ -3,6 +3,12 @@
 # Tests for Ollama status and service management functions
 
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export OLLAMA_PORT="11434"
     export OLLAMA_BASE_URL="http://localhost:11434"
@@ -25,12 +31,7 @@ setup() {
     resources::handle_error() { return 1; }
     resources::print_status() { echo "Status for $1"; }
     
-    system::is_command() { return 0; }  # Default: command exists
     
-    log::info() { echo "INFO: $*"; }
-    log::success() { echo "SUCCESS: $*"; }
-    log::error() { echo "ERROR: $*"; }
-    log::warn() { echo "WARN: $*"; }
     
     # Mock system commands
     systemctl() {

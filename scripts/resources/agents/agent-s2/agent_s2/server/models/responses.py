@@ -54,21 +54,31 @@ class MousePositionResponse(BaseModel):
     y: int
 
 
-class MouseActionResponse(BaseModel):
-    """Mouse action response"""
+class TargetedActionResponse(BaseModel):
+    """Response for targeted automation actions"""
     success: bool
     action: str
-    position: Optional[Dict[str, int]] = None
-    message: Optional[str] = None
+    target_app: Optional[str] = Field(default=None, description="Target application that was focused")
+    focused_window: Optional[str] = Field(default=None, description="Title of window that was focused")
+    window_id: Optional[str] = Field(default=None, description="ID of window that was focused")
+    focus_time: Optional[float] = Field(default=None, description="Time taken to focus target (seconds)")
+    execution_time: float = Field(..., description="Total execution time (seconds)")
+    message: str = Field(..., description="Description of action performed")
+    error: Optional[str] = Field(default=None, description="Error message if action failed")
 
 
-class KeyboardActionResponse(BaseModel):
-    """Keyboard action response"""
-    success: bool
-    action: str
-    text: Optional[str] = None
-    key: Optional[str] = None
-    message: Optional[str] = None
+class MouseActionResponse(TargetedActionResponse):
+    """Mouse action response with target awareness"""
+    position: Optional[Dict[str, int]] = Field(default=None, description="Mouse position after action")
+    button: Optional[str] = Field(default=None, description="Mouse button used")
+    clicks: Optional[int] = Field(default=None, description="Number of clicks performed")
+
+
+class KeyboardActionResponse(TargetedActionResponse):
+    """Keyboard action response with target awareness"""
+    text: Optional[str] = Field(default=None, description="Text that was typed")
+    key: Optional[str] = Field(default=None, description="Key combination that was pressed")
+    interval: Optional[float] = Field(default=None, description="Typing interval used")
 
 
 class FindElementResponse(BaseModel):

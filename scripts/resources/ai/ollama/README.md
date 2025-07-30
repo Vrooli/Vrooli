@@ -24,6 +24,7 @@ For comprehensive guides and advanced configuration:
 - **[📖 Full Documentation](docs/README.md)** - Complete guide with all topics
 - **[⚡ Installation Guide](docs/INSTALLATION.md)** - Setup and model installation
 - **[🤖 Models Guide](docs/MODELS.md)** - Available models and selection
+- **[🎨 Model Customization](#-model-customization-with-modelfiles)** - Create specialized models with Modelfiles
 - **[⚙️ Configuration](docs/CONFIGURATION.md)** - Advanced settings and tuning
 - **[💻 API Reference](docs/API.md)** - REST endpoints and examples
 
@@ -31,6 +32,7 @@ For comprehensive guides and advanced configuration:
 
 - **Privacy-first**: All inference runs locally
 - **Multiple models**: 50+ available models for different tasks
+- **Model customization**: Create specialized models via Modelfiles
 - **GPU acceleration**: NVIDIA GPU support for faster inference
 - **Type-aware**: Automatic model selection based on task type
 - **Resource efficient**: Smart memory management and model loading
@@ -53,7 +55,125 @@ For comprehensive guides and advanced configuration:
   --model "llama3.1:8b" \
   --temperature 0.3 \
   --max-tokens 500
+
+# Model customization (create specialized models)
+ollama create my-specialist -f my-modelfile     # Create custom model
+ollama list                                     # List all models (including custom)
+ollama show my-specialist                       # View model configuration
+ollama rm my-specialist                         # Delete custom model
 ```
+
+## 🎨 Model Customization with Modelfiles
+
+Create specialized AI models without training! Ollama's Modelfile feature lets you customize any base model with domain-specific behavior, custom system prompts, and specialized parameters.
+
+### 🚀 Quick Example: Real Estate Chatbot
+
+```bash
+# 1. Create a Modelfile
+cat > /tmp/real-estate-specialist << 'EOF'
+FROM llama3.1:8b
+
+SYSTEM """You are an expert real estate chatbot assistant. Your role is to help clients with property inquiries, schedule viewings, and provide comprehensive real estate information.
+
+Key responsibilities:
+- Answer property-related questions with accurate, helpful information
+- Assist with scheduling property viewings and appointments
+- Provide market insights and neighborhood information
+- Help qualify leads by understanding client needs and budget
+- Maintain a professional, friendly, and knowledgeable tone
+
+When a client inquires about properties, always gather:
+- Budget range and preferred location
+- Property type and bedroom/bathroom requirements
+- Special requirements (pet-friendly, parking, etc.)
+- Timeframe for purchasing/renting
+"""
+
+PARAMETER temperature 0.7
+PARAMETER top_p 0.9
+EOF
+
+# 2. Create the specialized model (use CLI - more reliable than API)
+ollama create real-estate-specialist -f /tmp/real-estate-specialist
+
+# 3. Use your specialized model
+curl -X POST http://localhost:11434/api/generate -d '{
+  "model": "real-estate-specialist",
+  "prompt": "I need a 3-bedroom house under $500k",
+  "stream": false
+}'
+```
+
+### 🔧 Modelfile Components
+
+```dockerfile
+FROM llama3.1:8b                    # Base model to customize
+
+SYSTEM """Your specialized behavior and instructions"""
+
+PARAMETER temperature 0.7           # Creativity (0.0-1.0)
+PARAMETER top_p 0.9                 # Response diversity
+PARAMETER top_k 40                  # Vocabulary restriction
+PARAMETER repeat_penalty 1.1       # Reduce repetition
+
+TEMPLATE """{{ .System }}{{ .Prompt }}"""  # Custom formatting (optional)
+```
+
+### 💡 Common Use Cases
+
+| Specialization | Modelfile Focus | Example System Prompt |
+|---------------|-----------------|----------------------|
+| **Customer Support** | Helpful, policy-aware | "You are a customer service expert for [Company]. Always be helpful and follow company policies..." |
+| **Code Review** | Technical, detailed | "You are a senior software engineer. Review code for bugs, performance, and best practices..." |
+| **Legal Assistant** | Precise, cautious | "You are a legal research assistant. Provide accurate information and always recommend consulting a lawyer..." |
+| **Medical Info** | Careful, factual | "You are a medical information assistant. Provide general health information but always recommend consulting healthcare professionals..." |
+
+### ⚠️ CLI vs API: Important Differences
+
+**✅ Use Ollama CLI for model creation:**
+```bash
+ollama create my-model -f modelfile    # ✅ Reliable, clear errors
+ollama list                            # ✅ View all models
+ollama rm my-model                     # ✅ Delete models
+```
+
+**⚠️ API has limitations for model creation:**
+```bash
+curl -X POST /api/create ...           # ❌ Complex, undocumented requirements
+```
+
+**✅ Use REST API for inference:**
+```bash
+curl -X POST /api/generate ...         # ✅ Perfect for applications
+curl -X POST /api/chat ...             # ✅ Conversation interface
+```
+
+### 🎯 Pro Tips
+
+1. **Start Simple**: Begin with just a SYSTEM prompt, add parameters later
+2. **Test Iteratively**: Create, test, modify, recreate until perfect
+3. **Use Examples**: Include conversation examples in your SYSTEM prompt
+4. **Parameter Tuning**: Lower temperature (≤0.3) for factual tasks, higher (0.7-0.9) for creative tasks
+5. **Version Control**: Use descriptive model names like `customer-support-v2`
+
+### 🔄 Model Management
+
+```bash
+# List all your custom models
+ollama list
+
+# Copy a model (for versioning)
+ollama cp real-estate-specialist real-estate-v2
+
+# Show model configuration
+ollama show real-estate-specialist
+
+# Delete old versions
+ollama rm real-estate-v1
+```
+
+**Key Insight**: This approach often outperforms traditional fine-tuning for business applications - it's faster, more controllable, and requires no training data!
 
 ## 📋 System Requirements
 

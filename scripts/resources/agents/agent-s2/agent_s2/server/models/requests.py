@@ -4,6 +4,23 @@ from typing import Dict, Any, Optional, List
 from pydantic import BaseModel, Field
 
 
+class WindowCriteria(BaseModel):
+    """Criteria for selecting specific window of an application"""
+    title_contains: Optional[str] = Field(default=None, description="Window title must contain this text")
+    title_matches: Optional[str] = Field(default=None, description="Window title must match this regex pattern")
+    url_contains: Optional[str] = Field(default=None, description="Browser window URL must contain this text")
+    window_id: Optional[str] = Field(default=None, description="Explicit window ID to target")
+    prefer_recent: bool = Field(default=True, description="Prefer most recently active window")
+
+
+class TargetedAutomationRequest(BaseModel):
+    """Base class for target-aware automation requests"""
+    target_app: Optional[str] = Field(default=None, description="Target application name (firefox, terminal, calculator)")
+    window_criteria: Optional[WindowCriteria] = Field(default=None, description="Criteria for window selection")
+    ensure_focus: bool = Field(default=True, description="Ensure target has focus before action")
+    focus_timeout: float = Field(default=2.0, description="Timeout for focus operations in seconds")
+
+
 class TaskRequest(BaseModel):
     """Task execution request"""
     task_type: str = Field(..., description="Type of task: screenshot, click, type, automation")
@@ -18,29 +35,29 @@ class ScreenshotRequest(BaseModel):
     region: Optional[List[int]] = Field(default=None, description="Region to capture [x, y, width, height]")
 
 
-class MouseMoveRequest(BaseModel):
-    """Mouse movement request"""
+class MouseMoveRequest(TargetedAutomationRequest):
+    """Mouse movement request with target awareness"""
     x: int = Field(..., description="Target X coordinate")
     y: int = Field(..., description="Target Y coordinate")
     duration: float = Field(default=0.0, ge=0, description="Movement duration in seconds")
 
 
-class MouseClickRequest(BaseModel):
-    """Mouse click request"""
+class MouseClickRequest(TargetedAutomationRequest):
+    """Mouse click request with target awareness"""
     button: str = Field(default="left", description="Mouse button (left, right, middle)")
     x: Optional[int] = Field(default=None, description="X coordinate (uses current position if None)")
     y: Optional[int] = Field(default=None, description="Y coordinate (uses current position if None)")
     clicks: int = Field(default=1, ge=1, description="Number of clicks")
 
 
-class KeyboardTypeRequest(BaseModel):
-    """Keyboard typing request"""
+class KeyboardTypeRequest(TargetedAutomationRequest):
+    """Keyboard typing request with target awareness"""
     text: str = Field(..., description="Text to type")
     interval: float = Field(default=0.0, ge=0, description="Delay between keystrokes in seconds")
 
 
-class KeyboardPressRequest(BaseModel):
-    """Keyboard key press request"""
+class KeyboardPressRequest(TargetedAutomationRequest):
+    """Keyboard key press request with target awareness"""
     key: str = Field(..., description="Key to press")
     modifiers: Optional[List[str]] = Field(default=None, description="Modifier keys (ctrl, alt, shift)")
 

@@ -162,9 +162,10 @@ Display Configuration:
 - Host Display Access: $AGENTS2_ENABLE_HOST_DISPLAY
 
 LLM Configuration:
-- Provider: $AGENTS2_LLM_PROVIDER
+- Provider: $([[ -z "${AGENTS2_OPENAI_API_KEY}" && -z "${AGENTS2_ANTHROPIC_API_KEY}" ]] && echo "ollama (auto-detected)" || echo "$AGENTS2_LLM_PROVIDER")
 - Model: $AGENTS2_LLM_MODEL
-- API Key: $([ -n "$AGENTS2_API_KEY" ] && echo "Configured" || echo "Not configured")
+- Ollama URL: $AGENTS2_OLLAMA_BASE_URL
+- API Keys: $([[ -n "${AGENTS2_OPENAI_API_KEY}" || -n "${AGENTS2_ANTHROPIC_API_KEY}" ]] && echo "Configured" || echo "None (using Ollama)")
 
 Resource Limits:
 - Memory: $AGENTS2_MEMORY_LIMIT
