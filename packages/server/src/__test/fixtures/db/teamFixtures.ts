@@ -1,141 +1,333 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
+/* eslint-disable no-magic-numbers */
 import { type Prisma } from "@prisma/client";
+import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
+import type { BulkSeedOptions, BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
 
 /**
  * Database fixtures for Team model - used for seeding test data
  * These follow Prisma's shape for database operations
  */
 
-// Consistent IDs for testing
-export const teamDbIds = {
-    team1: generatePK(),
-    team2: generatePK(),
-    team3: generatePK(),
-    team4: generatePK(),
-    parent1: generatePK(),
-    translation1: generatePK(),
-    translation2: generatePK(),
-    translation3: generatePK(),
-    translation4: generatePK(),
-    member1: generatePK(),
-    member2: generatePK(),
-    member3: generatePK(),
-};
+// Consistent IDs for testing - cached for performance
+let _teamDbIds: any = null;
+export function getTeamDbIds() {
+    if (!_teamDbIds) {
+        _teamDbIds = {
+            team1: generatePK(),
+            team2: generatePK(),
+            team3: generatePK(),
+            team4: generatePK(),
+            parent1: generatePK(),
+            translation1: generatePK(),
+            translation2: generatePK(),
+            translation3: generatePK(),
+            translation4: generatePK(),
+            member1: generatePK(),
+            member2: generatePK(),
+            member3: generatePK(),
+        };
+    }
+    return _teamDbIds;
+}
 
 /**
  * Enhanced test fixtures for Team model following standard structure
  */
-export const teamDbFixtures: DbTestFixtures<Prisma.teamCreateInput> = {
-    minimal: {
-        id: generatePK(),
-        publicId: generatePublicId(),
-        handle: `testteam_${nanoid()}`,
-        isPrivate: false,
-        isOpenToNewMembers: true,
-        translations: {
-            create: [{
+let _teamDbFixtures: DbTestFixtures<Prisma.teamCreateInput> | null = null;
+export function getTeamDbFixtures(): DbTestFixtures<Prisma.teamCreateInput> {
+    if (!_teamDbFixtures) {
+        _teamDbFixtures = {
+            minimal: {
                 id: generatePK(),
-                language: "en",
-                name: "Test Team",
-            }],
-        },
-    },
-    complete: {
-        id: generatePK(),
-        publicId: generatePublicId(),
-        handle: `complete_${nanoid()}`,
-        isPrivate: false,
-        isOpenToNewMembers: true,
-        bannerImage: "https://example.com/banner.jpg",
-        profileImage: "https://example.com/profile.jpg",
-        config: {
-            theme: "light",
-            allowDirectMessages: true,
-            publicProfile: true,
-        },
-        permissions: JSON.stringify({
-            canEditTeam: ["Admin", "Owner"],
-            canInviteMembers: ["Admin", "Owner", "Member"],
-            canCreateResources: ["Admin", "Owner", "Member"],
-        }),
-        translations: {
-            create: [
-                {
-                    id: generatePK(),
-                    language: "en",
-                    name: "Complete Team",
-                    bio: "A fully-featured test team with all capabilities",
+                publicId: generatePublicId(),
+                handle: `testteam_${nanoid()}`,
+                isPrivate: false,
+                isOpenToNewMembers: true,
+                translations: {
+                    create: [{
+                        id: generatePK(),
+                        language: "en",
+                        name: "Test Team",
+                    }],
                 },
-                {
-                    id: generatePK(),
-                    language: "es",
-                    name: "Equipo Completo",
-                    bio: "Un equipo de prueba completo con todas las capacidades",
+            },
+            complete: {
+                id: generatePK(),
+                publicId: generatePublicId(),
+                handle: `complete_${nanoid()}`,
+                isPrivate: false,
+                isOpenToNewMembers: true,
+                bannerImage: "https://example.com/banner.jpg",
+                profileImage: "https://example.com/profile.jpg",
+                config: {
+                    theme: "light",
+                    allowDirectMessages: true,
+                    publicProfile: true,
                 },
-            ],
-        },
-    },
-    invalid: {
-        missingRequired: {
-            // Missing required id, handle, translations
-            isPrivate: false,
-            isOpenToNewMembers: true,
-        },
-        invalidTypes: {
-            id: "not-a-valid-snowflake",
-            publicId: 123, // Should be string
-            handle: true, // Should be string
-            isPrivate: "yes", // Should be boolean
-            isOpenToNewMembers: "true", // Should be boolean
-        },
-        duplicateHandle: {
-            id: generatePK(),
+                permissions: JSON.stringify({
+                    canEditTeam: ["Admin", "Owner"],
+                    canInviteMembers: ["Admin", "Owner", "Member"],
+                    canCreateResources: ["Admin", "Owner", "Member"],
+                }),
+                translations: {
+                    create: [
+                        {
+                            id: generatePK(),
+                            language: "en",
+                            name: "Complete Team",
+                            bio: "A fully-featured test team with all capabilities",
+                        },
+                        {
+                            id: generatePK(),
+                            language: "es",
+                            name: "Equipo Completo",
+                            bio: "Un equipo de prueba completo con todas las capacidades",
+                        },
+                    ],
+                },
+            },
+            invalid: {
+                missingRequired: {
+                    // Missing required id, handle, translations
+                    isPrivate: false,
+                    isOpenToNewMembers: true,
+                },
+                invalidTypes: {
+                    id: "not-a-valid-snowflake",
+                    publicId: 123, // Should be string
+                    handle: true, // Should be string
+                    isPrivate: "yes", // Should be boolean
+                    isOpenToNewMembers: "true", // Should be boolean
+                },
+                duplicateHandle: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    handle: "duplicate_team_handle", // Same handle as another team
+                    isPrivate: false,
+                    isOpenToNewMembers: true,
+                    translations: {
+                        create: [{
+                            id: generatePK(),
+                            language: "en",
+                            name: "Duplicate Team",
+                        }],
+                    },
+                },
+                invalidTranslations: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    handle: `invalid_trans_${nanoid()}`,
+                    isPrivate: false,
+                    isOpenToNewMembers: true,
+                    translations: {
+                        create: [{
+                            id: generatePK(),
+                            language: "invalid-lang", // Invalid language code
+                            name: "", // Empty name
+                        }],
+                    },
+                },
+            },
+            edgeCases: {
+                maxLengthHandle: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    handle: "a".repeat(64), // Maximum handle length
+                    isPrivate: false,
+                    isOpenToNewMembers: true,
+                    translations: {
+                        create: [{
+                            id: generatePK(),
+                            language: "en",
+                            name: "Max Length Handle Team",
+                        }],
+                    },
+                },
+                privateClosedTeam: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    handle: `private_${nanoid()}`,
+                    isPrivate: true,
+                    isOpenToNewMembers: false,
+                    translations: {
+                        create: [{
+                            id: generatePK(),
+                            language: "en",
+                            name: "Private Closed Team",
+                            bio: "A private team closed to new members",
+                        }],
+                    },
+                },
+                multiLanguageTeam: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    handle: `multilang_${nanoid()}`,
+                    isPrivate: false,
+                    isOpenToNewMembers: true,
+                    translations: {
+                        create: [
+                            { id: generatePK(), language: "en", name: "Multilingual Team", bio: "English description" },
+                            { id: generatePK(), language: "es", name: "Equipo Multilingüe", bio: "Descripción en español" },
+                            { id: generatePK(), language: "fr", name: "Équipe Multilingue", bio: "Description française" },
+                            { id: generatePK(), language: "de", name: "Mehrsprachiges Team", bio: "Deutsche Beschreibung" },
+                            { id: generatePK(), language: "ja", name: "多言語チーム", bio: "日本語の説明" },
+                        ],
+                    },
+                },
+                teamWithComplexPermissions: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    handle: `complex_perms_${nanoid()}`,
+                    isPrivate: false,
+                    isOpenToNewMembers: true,
+                    permissions: JSON.stringify({
+                        canEditTeam: ["Owner"],
+                        canInviteMembers: ["Admin", "Owner"],
+                        canCreateResources: ["Admin", "Owner", "Member"],
+                        canDeleteResources: ["Owner"],
+                        canManageMembers: ["Admin", "Owner"],
+                        canViewPrivateResources: ["Admin", "Owner", "Member"],
+                        canModerateDiscussions: ["Admin", "Owner"],
+                    }),
+                    translations: {
+                        create: [{
+                            id: generatePK(),
+                            language: "en",
+                            name: "Complex Permissions Team",
+                            bio: "A team with complex permission structure",
+                        }],
+                    },
+                },
+                teamWithAdvancedConfig: {
+                    id: generatePK(),
+                    publicId: generatePublicId(),
+                    handle: `advanced_config_${nanoid()}`,
+                    isPrivate: false,
+                    isOpenToNewMembers: true,
+                    config: {
+                        theme: "dark",
+                        allowDirectMessages: false,
+                        publicProfile: false,
+                        requireApprovalForJoining: true,
+                        maxMembers: 100,
+                        allowGuestViewing: false,
+                        enableNotifications: true,
+                        defaultLanguage: "en",
+                        timezone: "UTC",
+                    },
+                    translations: {
+                        create: [{
+                            id: generatePK(),
+                            language: "en",
+                            name: "Advanced Config Team",
+                            bio: "A team with advanced configuration options",
+                        }],
+                    },
+                },
+            },
+        };
+    }
+    return _teamDbFixtures;
+}
+
+/**
+ * Legacy fixtures for backward compatibility
+ */
+let _minimalTeamDb: Prisma.teamCreateInput | null = null;
+export function getMinimalTeamDb(): Prisma.teamCreateInput {
+    if (!_minimalTeamDb) {
+        const ids = getTeamDbIds();
+        _minimalTeamDb = {
+            id: ids.team1,
             publicId: generatePublicId(),
-            handle: "duplicate_team_handle", // Same handle as another team
+            handle: `testteam_${nanoid()}`,
             isPrivate: false,
             isOpenToNewMembers: true,
             translations: {
                 create: [{
-                    id: generatePK(),
+                    id: ids.translation1,
                     language: "en",
-                    name: "Duplicate Team",
+                    name: "Test Team",
                 }],
             },
-        },
-        invalidTranslations: {
-            id: generatePK(),
+        };
+    }
+    return _minimalTeamDb;
+}
+
+let _teamWithCreatorDb: Prisma.teamCreateInput | null = null;
+export function getTeamWithCreatorDb(): Prisma.teamCreateInput {
+    if (!_teamWithCreatorDb) {
+        const ids = getTeamDbIds();
+        _teamWithCreatorDb = {
+            id: ids.team2,
             publicId: generatePublicId(),
-            handle: `invalid_trans_${nanoid()}`,
+            handle: `creatorteam_${nanoid()}`,
             isPrivate: false,
             isOpenToNewMembers: true,
             translations: {
                 create: [{
-                    id: generatePK(),
-                    language: "invalid-lang", // Invalid language code
-                    name: "", // Empty name
-                }],
-            },
-        },
-    },
-    edgeCases: {
-        maxLengthHandle: {
-            id: generatePK(),
-            publicId: generatePublicId(),
-            handle: "a".repeat(64), // Maximum handle length
-            isPrivate: false,
-            isOpenToNewMembers: true,
-            translations: {
-                create: [{
-                    id: generatePK(),
+                    id: ids.translation2,
                     language: "en",
-                    name: "Max Length Handle Team",
+                    name: "Creator Team",
+                    bio: "A team with a creator",
                 }],
             },
-        },
-        privateClosedTeam: {
-            id: generatePK(),
+        };
+    }
+    return _teamWithCreatorDb;
+}
+
+let _completeTeamDb: Prisma.teamCreateInput | null = null;
+export function getCompleteTeamDb(): Prisma.teamCreateInput {
+    if (!_completeTeamDb) {
+        const ids = getTeamDbIds();
+        _completeTeamDb = {
+            id: ids.team3,
+            publicId: generatePublicId(),
+            handle: `complete_${nanoid()}`,
+            isPrivate: false,
+            isOpenToNewMembers: true,
+            bannerImage: "https://example.com/banner.jpg",
+            profileImage: "https://example.com/profile.jpg",
+            config: {
+                theme: "light",
+                allowDirectMessages: true,
+                publicProfile: true,
+            },
+            permissions: JSON.stringify({
+                canEditTeam: ["Admin", "Owner"],
+                canInviteMembers: ["Admin", "Owner", "Member"],
+                canCreateResources: ["Admin", "Owner", "Member"],
+            }),
+            translations: {
+                create: [
+                    {
+                        id: ids.translation3,
+                        language: "en",
+                        name: "Complete Team",
+                        bio: "A fully-featured test team with all capabilities",
+                    },
+                    {
+                        id: ids.translation4,
+                        language: "es",
+                        name: "Equipo Completo",
+                        bio: "Un equipo de prueba completo con todas las capacidades",
+                    },
+                ],
+            },
+        };
+    }
+    return _completeTeamDb;
+}
+
+let _privateTeamDb: Prisma.teamCreateInput | null = null;
+export function getPrivateTeamDb(): Prisma.teamCreateInput {
+    if (!_privateTeamDb) {
+        const ids = getTeamDbIds();
+        _privateTeamDb = {
+            id: ids.team4,
             publicId: generatePublicId(),
             handle: `private_${nanoid()}`,
             isPrivate: true,
@@ -144,186 +336,44 @@ export const teamDbFixtures: DbTestFixtures<Prisma.teamCreateInput> = {
                 create: [{
                     id: generatePK(),
                     language: "en",
-                    name: "Private Closed Team",
-                    bio: "A private team closed to new members",
+                    name: "Private Team",
+                    bio: "A private team for testing access controls",
                 }],
             },
-        },
-        multiLanguageTeam: {
-            id: generatePK(),
-            publicId: generatePublicId(),
-            handle: `multilang_${nanoid()}`,
-            isPrivate: false,
-            isOpenToNewMembers: true,
-            translations: {
-                create: [
-                    { id: generatePK(), language: "en", name: "Multilingual Team", bio: "English description" },
-                    { id: generatePK(), language: "es", name: "Equipo Multilingüe", bio: "Descripción en español" },
-                    { id: generatePK(), language: "fr", name: "Équipe Multilingue", bio: "Description française" },
-                    { id: generatePK(), language: "de", name: "Mehrsprachiges Team", bio: "Deutsche Beschreibung" },
-                    { id: generatePK(), language: "ja", name: "多言語チーム", bio: "日本語の説明" },
-                ],
-            },
-        },
-        teamWithComplexPermissions: {
-            id: generatePK(),
-            publicId: generatePublicId(),
-            handle: `complex_perms_${nanoid()}`,
-            isPrivate: false,
-            isOpenToNewMembers: true,
-            permissions: JSON.stringify({
-                canEditTeam: ["Owner"],
-                canInviteMembers: ["Admin", "Owner"],
-                canCreateResources: ["Admin", "Owner", "Member"],
-                canDeleteResources: ["Owner"],
-                canManageMembers: ["Admin", "Owner"],
-                canViewPrivateResources: ["Admin", "Owner", "Member"],
-                canModerateDiscussions: ["Admin", "Owner"],
-            }),
-            translations: {
-                create: [{
-                    id: generatePK(),
-                    language: "en",
-                    name: "Complex Permissions Team",
-                    bio: "A team with complex permission structure",
-                }],
-            },
-        },
-        teamWithAdvancedConfig: {
-            id: generatePK(),
-            publicId: generatePublicId(),
-            handle: `advanced_config_${nanoid()}`,
-            isPrivate: false,
-            isOpenToNewMembers: true,
-            config: {
-                theme: "dark",
-                allowDirectMessages: false,
-                publicProfile: false,
-                requireApprovalForJoining: true,
-                maxMembers: 100,
-                allowGuestViewing: false,
-                enableNotifications: true,
-                defaultLanguage: "en",
-                timezone: "UTC",
-            },
-            translations: {
-                create: [{
-                    id: generatePK(),
-                    language: "en",
-                    name: "Advanced Config Team",
-                    bio: "A team with advanced configuration options",
-                }],
-            },
-        },
-    },
-};
+        };
+    }
+    return _privateTeamDb;
+}
 
-/**
- * Legacy fixtures for backward compatibility
- */
-export const minimalTeamDb: Prisma.teamCreateInput = {
-    id: teamDbIds.team1,
-    publicId: generatePublicId(),
-    handle: `testteam_${nanoid()}`,
-    isPrivate: false,
-    isOpenToNewMembers: true,
-    translations: {
-        create: [{
-            id: teamDbIds.translation1,
-            language: "en",
-            name: "Test Team",
-        }],
-    },
-};
-
-export const teamWithCreatorDb: Prisma.teamCreateInput = {
-    id: teamDbIds.team2,
-    publicId: generatePublicId(),
-    handle: `creatorteam_${nanoid()}`,
-    isPrivate: false,
-    isOpenToNewMembers: true,
-    translations: {
-        create: [{
-            id: teamDbIds.translation2,
-            language: "en",
-            name: "Creator Team",
-            bio: "A team with a creator",
-        }],
-    },
-};
-
-export const completeTeamDb: Prisma.teamCreateInput = {
-    id: teamDbIds.team3,
-    publicId: generatePublicId(),
-    handle: `complete_${nanoid()}`,
-    isPrivate: false,
-    isOpenToNewMembers: true,
-    bannerImage: "https://example.com/banner.jpg",
-    profileImage: "https://example.com/profile.jpg",
-    config: {
-        theme: "light",
-        allowDirectMessages: true,
-        publicProfile: true,
-    },
-    permissions: JSON.stringify({
-        canEditTeam: ["Admin", "Owner"],
-        canInviteMembers: ["Admin", "Owner", "Member"],
-        canCreateResources: ["Admin", "Owner", "Member"],
-    }),
-    translations: {
-        create: [
-            {
-                id: teamDbIds.translation3,
-                language: "en",
-                name: "Complete Team",
-                bio: "A fully-featured test team with all capabilities",
-            },
-            {
-                id: teamDbIds.translation4,
-                language: "es",
-                name: "Equipo Completo",
-                bio: "Un equipo de prueba completo con todas las capacidades",
-            },
-        ],
-    },
-};
-
-export const privateTeamDb: Prisma.teamCreateInput = {
-    id: teamDbIds.team4,
-    publicId: generatePublicId(),
-    handle: `private_${nanoid()}`,
-    isPrivate: true,
-    isOpenToNewMembers: false,
-    translations: {
-        create: [{
-            id: generatePK(),
-            language: "en",
-            name: "Private Team",
-            bio: "A private team for testing access controls",
-        }],
-    },
-};
+// Backward compatibility exports
+export const minimalTeamDb = getMinimalTeamDb();
+export const teamWithCreatorDb = getTeamWithCreatorDb();
+export const completeTeamDb = getCompleteTeamDb();
+export const privateTeamDb = getPrivateTeamDb();
+export const teamDbFixtures = getTeamDbFixtures();
+export const teamDbIds = getTeamDbIds();
 
 /**
  * Enhanced factory for creating team database fixtures
  */
 export class TeamDbFactory extends EnhancedDbFactory<Prisma.teamCreateInput> {
-    
+
     /**
      * Get the test fixtures for Team model
      */
     protected getFixtures(): DbTestFixtures<Prisma.teamCreateInput> {
-        return teamDbFixtures;
+        return getTeamDbFixtures();
     }
 
     /**
      * Get Team-specific error scenarios
      */
     protected getErrorScenarios(): DbErrorScenarios {
+        const ids = getTeamDbIds();
         return {
             constraints: {
                 uniqueViolation: {
-                    id: teamDbIds.team1, // Duplicate ID
+                    id: ids.team1, // Duplicate ID
                     publicId: generatePublicId(),
                     handle: "duplicate_team_handle",
                     isPrivate: false,
@@ -367,8 +417,8 @@ export class TeamDbFactory extends EnhancedDbFactory<Prisma.teamCreateInput> {
                 },
             },
             validation: {
-                requiredFieldMissing: teamDbFixtures.invalid.missingRequired,
-                invalidDataType: teamDbFixtures.invalid.invalidTypes,
+                requiredFieldMissing: getTeamDbFixtures().invalid.missingRequired,
+                invalidDataType: getTeamDbFixtures().invalid.invalidTypes,
                 outOfRange: {
                     id: generatePK(),
                     publicId: generatePublicId(),
@@ -655,12 +705,12 @@ export async function seedTestTeams(
                 }],
             },
         };
-        
+
         let teamData: Prisma.teamCreateInput;
-        
+
         if (options?.withAuth || options?.withCreator) {
-            teamData = factory.createWithRelationships({ 
-                withAuth: true, 
+            teamData = factory.createWithRelationships({
+                withAuth: true,
                 overrides: {
                     ...overrides,
                     isPrivate: options?.isPrivate ?? false,
@@ -724,7 +774,7 @@ export async function createTeamWithFullMembership(
 ) {
     const memberIds = options.memberIds || [];
     const adminIds = options.adminIds || [];
-    
+
     const teamData = TeamDbFactory.createWithCreator(options.ownerId, {
         ...options.teamData,
         members: {
@@ -758,7 +808,7 @@ export async function createTeamWithFullMembership(
         data: teamData,
         include: {
             translations: true,
-            members: { 
+            members: {
                 include: { user: { select: { id: true, name: true, handle: true } } },
             },
             createdBy: { select: { id: true, name: true, handle: true } },

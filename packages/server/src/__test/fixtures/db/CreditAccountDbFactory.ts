@@ -1,5 +1,6 @@
+/* eslint-disable no-magic-numbers */
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: removed temporary any type parameter, improved invalid type casts
-import type { Prisma, PrismaClient } from "@prisma/client";
+import type { credit_account, Prisma, PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { DbTestFixtures } from "./types.js";
 
@@ -15,7 +16,7 @@ import type { DbTestFixtures } from "./types.js";
  * - Predefined test scenarios
  */
 export class CreditAccountDbFactory extends EnhancedDatabaseFactory<
-    Prisma.credit_accountCreateInput,
+    credit_account,
     Prisma.credit_accountCreateInput,
     Prisma.credit_accountInclude,
     Prisma.credit_accountUpdateInput
@@ -51,43 +52,43 @@ export class CreditAccountDbFactory extends EnhancedDatabaseFactory<
     protected getFixtures(): DbTestFixtures<Prisma.credit_accountCreateInput, Prisma.credit_accountUpdateInput> {
         const userId = this.generateId();
         const teamId = this.generateId();
-        
+
         return {
             minimal: this.generateMinimalData(),
-            
+
             complete: this.generateCompleteData(),
-            
+
             edgeCases: {
                 zeroBalance: {
                     id: this.generateId(),
                     currentBalance: BigInt(0),
                     user: { connect: { id: userId } },
                 },
-                
+
                 highBalance: {
                     id: this.generateId(),
                     currentBalance: BigInt(10000000), // 10 million credits
                     user: { connect: { id: userId } },
                 },
-                
+
                 teamAccount: {
                     id: this.generateId(),
                     currentBalance: BigInt(50000),
                     team: { connect: { id: teamId } },
                 },
-                
+
                 userWithLowBalance: {
                     id: this.generateId(),
                     currentBalance: BigInt(10),
                     user: { connect: { id: userId } },
                 },
-                
+
                 maxBalance: {
                     id: this.generateId(),
                     currentBalance: BigInt("9223372036854775807"), // Max bigint value
                     user: { connect: { id: userId } },
                 },
-                
+
                 bothUserAndTeam: {
                     id: this.generateId(),
                     currentBalance: BigInt(1000),
@@ -95,38 +96,38 @@ export class CreditAccountDbFactory extends EnhancedDatabaseFactory<
                     team: { connect: { id: teamId } },
                 },
             },
-            
+
             invalid: {
                 missingRequired: {
                     id: this.generateId(),
                     currentBalance: BigInt(1000),
                     // Missing user or team connection
                 } as Prisma.credit_accountCreateInput,
-                
+
                 invalidTypes: {
                     id: "not-a-bigint" as unknown as bigint,
                     currentBalance: "not-a-number" as unknown as bigint,
                     user: { connect: { id: userId } },
                 } as Prisma.credit_accountCreateInput,
             },
-            
+
             updates: {
                 minimal: {
                     currentBalance: BigInt(5000),
                 },
-                
+
                 complete: {
                     currentBalance: BigInt(100000),
                 },
-                
+
                 addCredits: {
                     currentBalance: BigInt(5000),
                 },
-                
+
                 subtractCredits: {
                     currentBalance: BigInt(500),
                 },
-                
+
                 zeroOut: {
                     currentBalance: BigInt(0),
                 },
@@ -143,7 +144,7 @@ export class CreditAccountDbFactory extends EnhancedDatabaseFactory<
             currentBalance: balance,
             ...overrides,
         };
-        
+
         return this.createMinimal(data);
     }
 
@@ -158,7 +159,7 @@ export class CreditAccountDbFactory extends EnhancedDatabaseFactory<
             team: undefined, // Clear team connection
             ...overrides,
         };
-        
+
         return this.createMinimal(data);
     }
 
@@ -173,7 +174,7 @@ export class CreditAccountDbFactory extends EnhancedDatabaseFactory<
             user: undefined, // Clear user connection
             ...overrides,
         };
-        
+
         return this.createMinimal(data);
     }
 }

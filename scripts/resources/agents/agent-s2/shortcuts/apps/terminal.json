@@ -1,0 +1,187 @@
+{
+  "app_name": "Terminal",
+  "version": "1.0.0",
+  "description": "Keyboard shortcuts for Linux terminal emulators",
+  "shortcuts": {
+    "clipboard": {
+      "copy": {
+        "keys": ["Ctrl+Shift+C"],
+        "description": "Copy selected text",
+        "priority": 1
+      },
+      "paste": {
+        "keys": ["Ctrl+Shift+V", "Shift+Insert"],
+        "description": "Paste from clipboard",
+        "priority": 1
+      },
+      "select_all": {
+        "keys": ["Ctrl+Shift+A"],
+        "description": "Select all text in terminal"
+      }
+    },
+    "navigation": {
+      "clear_screen": {
+        "keys": ["Ctrl+L"],
+        "description": "Clear terminal screen",
+        "priority": 1
+      },
+      "beginning_of_line": {
+        "keys": ["Ctrl+A", "Home"],
+        "description": "Move cursor to beginning of line"
+      },
+      "end_of_line": {
+        "keys": ["Ctrl+E", "End"],
+        "description": "Move cursor to end of line"
+      },
+      "forward_word": {
+        "keys": ["Alt+F", "Ctrl+Right"],
+        "description": "Move forward one word"
+      },
+      "backward_word": {
+        "keys": ["Alt+B", "Ctrl+Left"],
+        "description": "Move backward one word"
+      },
+      "scroll_up": {
+        "keys": ["Shift+PageUp"],
+        "description": "Scroll terminal output up"
+      },
+      "scroll_down": {
+        "keys": ["Shift+PageDown"],
+        "description": "Scroll terminal output down"
+      }
+    },
+    "editing": {
+      "delete_word_forward": {
+        "keys": ["Alt+D"],
+        "description": "Delete word after cursor"
+      },
+      "delete_word_backward": {
+        "keys": ["Ctrl+W"],
+        "description": "Delete word before cursor"
+      },
+      "delete_to_end": {
+        "keys": ["Ctrl+K"],
+        "description": "Delete from cursor to end of line"
+      },
+      "delete_to_beginning": {
+        "keys": ["Ctrl+U"],
+        "description": "Delete from cursor to beginning of line"
+      },
+      "transpose_chars": {
+        "keys": ["Ctrl+T"],
+        "description": "Swap current and previous characters"
+      }
+    },
+    "process_control": {
+      "interrupt": {
+        "keys": ["Ctrl+C"],
+        "description": "Interrupt/stop current process",
+        "priority": 1
+      },
+      "suspend": {
+        "keys": ["Ctrl+Z"],
+        "description": "Suspend current process"
+      },
+      "eof": {
+        "keys": ["Ctrl+D"],
+        "description": "End of file/logout",
+        "priority": 1
+      },
+      "quit": {
+        "keys": ["Ctrl+\\"],
+        "description": "Quit process (SIGQUIT)"
+      }
+    },
+    "history": {
+      "previous_command": {
+        "keys": ["Up", "Ctrl+P"],
+        "description": "Previous command in history",
+        "priority": 1
+      },
+      "next_command": {
+        "keys": ["Down", "Ctrl+N"],
+        "description": "Next command in history"
+      },
+      "reverse_search": {
+        "keys": ["Ctrl+R"],
+        "description": "Reverse search command history",
+        "priority": 1
+      },
+      "forward_search": {
+        "keys": ["Ctrl+S"],
+        "description": "Forward search command history"
+      }
+    },
+    "tabs": {
+      "new_tab": {
+        "keys": ["Ctrl+Shift+T"],
+        "description": "Open new terminal tab"
+      },
+      "close_tab": {
+        "keys": ["Ctrl+Shift+W"],
+        "description": "Close current tab"
+      },
+      "next_tab": {
+        "keys": ["Ctrl+PageDown"],
+        "description": "Switch to next tab"
+      },
+      "previous_tab": {
+        "keys": ["Ctrl+PageUp"],
+        "description": "Switch to previous tab"
+      },
+      "tab_number": {
+        "keys": ["Alt+1-9"],
+        "description": "Switch to tab by number"
+      }
+    },
+    "window": {
+      "new_window": {
+        "keys": ["Ctrl+Shift+N"],
+        "description": "Open new terminal window"
+      },
+      "zoom_in": {
+        "keys": ["Ctrl+Plus", "Ctrl+Shift+Plus"],
+        "description": "Increase font size"
+      },
+      "zoom_out": {
+        "keys": ["Ctrl+Minus"],
+        "description": "Decrease font size"
+      },
+      "zoom_reset": {
+        "keys": ["Ctrl+0"],
+        "description": "Reset font size"
+      },
+      "fullscreen": {
+        "keys": ["F11"],
+        "description": "Toggle fullscreen mode"
+      }
+    },
+    "special": {
+      "tab_completion": {
+        "keys": ["Tab"],
+        "description": "Auto-complete commands/paths",
+        "priority": 1
+      },
+      "cancel_line": {
+        "keys": ["Ctrl+C", "Ctrl+G"],
+        "description": "Cancel current line"
+      },
+      "background_process": {
+        "keys": ["&"],
+        "description": "Run command in background (append to command)"
+      }
+    }
+  },
+  "priority_actions": {
+    "stop_process": ["interrupt"],
+    "clear_terminal": ["clear_screen"],
+    "paste_command": ["paste"],
+    "search_history": ["reverse_search"],
+    "complete_command": ["tab_completion"]
+  },
+  "context_hints": {
+    "clipboard": "Terminal uses Ctrl+Shift for clipboard operations instead of just Ctrl",
+    "navigation": "Use Ctrl+R to search command history instead of scrolling",
+    "efficiency": "Tab completion saves typing and prevents errors"
+  }
+}

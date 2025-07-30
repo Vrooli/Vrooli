@@ -1,17 +1,18 @@
+/* eslint-disable no-magic-numbers */
 /**
  * Scenario Runner
  * 
  * Executes test scenarios and collects results
  */
 
-import { EventPublisher } from "../../../../services/events/publisher.js";
-import { getEventBus } from "../../../../services/events/eventBus.js";
-import type { ScenarioContext, ScenarioEvent, RoutineCall, ScenarioResult } from "./types.js";
-import type { EventSubscriptionId } from "../../../../services/events/types.js";
-import { ScenarioExecutionError } from "../../types.js";
-import { ResourceManager, type ResourceLimits } from "./ResourceManager.js";
-import { ErrorHandler } from "./ErrorHandler.js";
 import { logger } from "../../../../events/logger.js";
+import { getEventBus } from "../../../../services/events/eventBus.js";
+import type { EventSubscriptionId } from "../../../../services/events/types.js";
+import { TestEventGuards } from "../../../helpers/testEvents.js";
+import { ScenarioExecutionError } from "../../types.js";
+import { ErrorHandler } from "./ErrorHandler.js";
+import { ResourceManager, type ResourceLimits } from "./ResourceManager.js";
+import type { ScenarioContext, ScenarioResult } from "./types.js";
 
 export interface ScenarioRunOptions {
     initialEvent: {
@@ -48,7 +49,7 @@ export class ScenarioRunner {
     async execute(options: ScenarioRunOptions): Promise<ScenarioResult> {
         const startTime = Date.now();
         const errors: Error[] = [];
-        
+
         // Initialize resource manager
         const resourceLimits: ResourceLimits = {
             maxMemoryMB: 256,
@@ -57,9 +58,9 @@ export class ScenarioRunner {
             maxConcurrentOperations: 10,
             ...options.resourceLimits,
         };
-        
+
         this.resourceManager = new ResourceManager(resourceLimits);
-        
+
         try {
             // Set up event capture with error handling
             await this.errorHandler.withErrorHandling(
@@ -70,7 +71,7 @@ export class ScenarioRunner {
                     startTime: new Date(),
                 },
             );
-            
+
             // Set up routine call interception with error handling
             await this.errorHandler.withErrorHandling(
                 () => this.setupRoutineInterception(),
@@ -80,12 +81,12 @@ export class ScenarioRunner {
                     startTime: new Date(),
                 },
             );
-            
+
             // Create completion promise
             this.completionPromise = new Promise((resolve) => {
                 this.completionResolve = resolve;
             });
-            
+
             // Emit initial event to start the scenario
             const eventBus = getEventBus();
             const eventResult = await this.errorHandler.withErrorHandling(
@@ -100,20 +101,20 @@ export class ScenarioRunner {
                     startTime: new Date(),
                 },
             );
-            
+
             if (!eventResult.success) {
                 throw new ScenarioExecutionError(
                     `Initial event failed: ${eventResult.error?.message || "Unknown error"}`,
                     this.context.name,
                 );
             }
-            
+
             logger.info("[ScenarioRunner] Initial event emitted successfully", {
                 scenarioName: this.context.name,
                 eventType: options.initialEvent.type,
                 eventId: eventResult.eventId,
             });
-            
+
             // Wait for scenario completion or timeout with resource monitoring
             const result = await this.errorHandler.withErrorHandling(
                 () => Promise.race([
@@ -126,7 +127,7 @@ export class ScenarioRunner {
                     startTime: new Date(),
                 },
             );
-            
+
             return {
                 success: this.validateExpectations(),
                 blackboard: this.blackboardToObject(),
@@ -155,27 +156,27 @@ export class ScenarioRunner {
 
     private async setupEventCapture(): Promise<void> {
         const eventBus = getEventBus();
-        
+
         // Subscribe to all expected event topics
         if (this.context.expectations.eventSequence) {
             for (const topic of this.context.expectations.eventSequence) {
                 const subscriptionId = await eventBus.subscribe(
                     topic,
-                    (event) => {
+                    async (event) => {
                         this.context.events.push({
                             topic,
                             data: event.data,
                             timestamp: new Date(),
-                            source: event.source || "unknown",
+                            source: event.metadata?.userId || "unknown",
                         });
-                        
+
                         logger.debug("[ScenarioRunner] Event captured", {
                             scenarioName: this.context.name,
                             eventType: topic,
                             eventId: event.id,
                             totalEvents: this.context.events.length,
                         });
-                        
+
                         // Check if scenario is complete after each event
                         if (this.isScenarioComplete() && this.completionResolve) {
                             logger.info("[ScenarioRunner] Scenario completion detected", {
@@ -188,12 +189,11 @@ export class ScenarioRunner {
                             });
                         }
                     },
-                    { mode: "standard" },
                 );
-                
+
                 // Store subscription ID for cleanup
                 this.eventSubscriptions.set(topic, subscriptionId);
-                
+
                 // Add to resource manager
                 if (this.resourceManager) {
                     await this.resourceManager.addResource({
@@ -207,7 +207,7 @@ export class ScenarioRunner {
                 }
             }
         }
-        
+
         logger.info("[ScenarioRunner] Event capture setup complete", {
             scenarioName: this.context.name,
             subscribedTopics: this.context.expectations.eventSequence || [],
@@ -219,34 +219,40 @@ export class ScenarioRunner {
         // This would integrate with the actual routine execution system
         // For now, create a mock interceptor that simulates routine calls
         const eventBus = getEventBus();
-        
+
         const subscriptionId = await eventBus.subscribe(
             "routine/executed",
-            (event) => {
-                const routineCall = {
-                    routineId: event.data.routineId || "unknown",
-                    routineLabel: event.data.routineLabel || "unknown",
-                    input: event.data.input || {},
-                    output: event.data.output || {},
-                    timestamp: new Date(),
-                    duration: event.data.duration || 0,
-                    success: event.data.success !== false,
-                };
-                
-                this.context.routineCalls.push(routineCall);
-                
-                logger.debug("[ScenarioRunner] Routine call captured", {
-                    scenarioName: this.context.name,
-                    routineLabel: routineCall.routineLabel,
-                    success: routineCall.success,
-                    totalCalls: this.context.routineCalls.length,
-                });
+            async (event) => {
+                if (TestEventGuards.isRoutineExecuted(event)) {
+                    const routineCall = {
+                        routineId: event.data.routineId || "unknown",
+                        routineLabel: event.data.routineLabel || "unknown",
+                        input: event.data.input || {},
+                        output: event.data.output || {},
+                        timestamp: new Date(),
+                        duration: event.data.duration || 0,
+                        success: event.data.success !== false,
+                    };
+
+                    this.context.routineCalls.push(routineCall);
+
+                    logger.debug("[ScenarioRunner] Routine call captured", {
+                        scenarioName: this.context.name,
+                        routineLabel: routineCall.routineLabel,
+                        success: routineCall.success,
+                        totalCalls: this.context.routineCalls.length,
+                    });
+                } else {
+                    logger.warn("[ScenarioRunner] Received non-routine execution event on routine/executed topic", {
+                        eventType: event.type,
+                        scenarioName: this.context.name,
+                    });
+                }
             },
-            { mode: "standard" },
         );
-        
+
         this.eventSubscriptions.set("routine/executed", subscriptionId);
-        
+
         logger.info("[ScenarioRunner] Routine interception setup complete", {
             scenarioName: this.context.name,
         });
@@ -301,7 +307,7 @@ export class ScenarioRunner {
         if (this.context.expectations.eventSequence) {
             const receivedTopics = this.context.events.map(e => e.topic);
             const expectedSequence = this.context.expectations.eventSequence;
-            
+
             // Check if events occurred in order
             let sequenceIndex = 0;
             for (const topic of receivedTopics) {
@@ -310,7 +316,7 @@ export class ScenarioRunner {
                     if (sequenceIndex === expectedSequence.length) break;
                 }
             }
-            
+
             if (sequenceIndex !== expectedSequence.length) {
                 return false;
             }
@@ -352,7 +358,7 @@ export class ScenarioRunner {
             } else {
                 // Fallback cleanup
                 const eventBus = getEventBus();
-                
+
                 // Unsubscribe from events
                 for (const [topic, subscriptionId] of this.eventSubscriptions.entries()) {
                     try {
@@ -362,12 +368,12 @@ export class ScenarioRunner {
                     }
                 }
             }
-            
+
             // Clean up routine interceptor
             if (this.routineInterceptor) {
                 // Cleanup logic here
             }
-            
+
             this.eventSubscriptions.clear();
             this.context.endTime = new Date();
             this.completionPromise = null;

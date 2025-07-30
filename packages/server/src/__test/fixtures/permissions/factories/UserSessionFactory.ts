@@ -6,14 +6,14 @@
  */
 
 import { AccountStatus, generatePK } from "@vrooli/shared";
-import { type AuthenticatedSessionData } from "../../../../types.js";
+import { type SessionData } from "../../../../types.js";
 import { BasePermissionFactory } from "./BasePermissionFactory.js";
 
 /**
  * Factory for creating user session fixtures
  */
-export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessionData> {
-    
+export class UserSessionFactory extends BasePermissionFactory<SessionData> {
+
     /**
      * ID counter for generating consistent test IDs
      */
@@ -22,10 +22,10 @@ export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessi
     /**
      * Create a session with specific overrides
      */
-    createSession(overrides?: Partial<AuthenticatedSessionData>): AuthenticatedSessionData {
+    createSession(overrides?: Partial<SessionData>): SessionData {
         this.idCounter++;
-        
-        const baseSession: AuthenticatedSessionData = {
+
+        const baseSession: SessionData = {
             ...this.baseUserData,
             id: this.generateTestId("", this.idCounter),
             handle: `user${this.idCounter}`,
@@ -45,7 +45,7 @@ export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessi
     /**
      * Create an admin user session
      */
-    createAdmin(overrides?: Partial<AuthenticatedSessionData>): AuthenticatedSessionData {
+    createAdmin(overrides?: Partial<SessionData>): SessionData {
         return this.createSession({
             id: "111111111111111111",
             handle: "admin",
@@ -53,7 +53,7 @@ export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessi
             email: "admin@vrooli.com",
             hasPremium: true,
             roles: [{
-                role: { 
+                role: {
                     name: "Admin",
                     permissions: JSON.stringify(["*"]),
                 },
@@ -65,7 +65,7 @@ export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessi
     /**
      * Create a standard user session
      */
-    createStandard(overrides?: Partial<AuthenticatedSessionData>): AuthenticatedSessionData {
+    createStandard(overrides?: Partial<SessionData>): SessionData {
         return this.createSession({
             id: "222222222222222222",
             handle: "johndoe",
@@ -78,7 +78,7 @@ export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessi
     /**
      * Create a premium user session
      */
-    createPremium(overrides?: Partial<AuthenticatedSessionData>): AuthenticatedSessionData {
+    createPremium(overrides?: Partial<SessionData>): SessionData {
         return this.createSession({
             id: "333333333333333333",
             handle: "premiumuser",
@@ -92,7 +92,7 @@ export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessi
     /**
      * Create an unverified user session
      */
-    createUnverified(overrides?: Partial<AuthenticatedSessionData>): AuthenticatedSessionData {
+    createUnverified(overrides?: Partial<SessionData>): SessionData {
         return this.createSession({
             id: "444444444444444444",
             handle: "unverified",
@@ -106,7 +106,7 @@ export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessi
     /**
      * Create a banned user session
      */
-    createBanned(overrides?: Partial<AuthenticatedSessionData>): AuthenticatedSessionData {
+    createBanned(overrides?: Partial<SessionData>): SessionData {
         return this.createSession({
             id: "555555555555555555",
             handle: "banned",
@@ -120,7 +120,7 @@ export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessi
     /**
      * Create a suspended user session
      */
-    createSuspended(overrides?: Partial<AuthenticatedSessionData>): AuthenticatedSessionData {
+    createSuspended(overrides?: Partial<SessionData>): SessionData {
         return this.createSession({
             id: "666666666666666666",
             handle: "suspended",
@@ -134,7 +134,7 @@ export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessi
     /**
      * Create a bot user session
      */
-    createBot(overrides?: Partial<AuthenticatedSessionData>): AuthenticatedSessionData {
+    createBot(overrides?: Partial<SessionData>): SessionData {
         return this.createSession({
             id: "777777777777777777",
             handle: "testbot",
@@ -148,7 +148,7 @@ export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessi
     /**
      * Create a guest user session (not logged in)
      */
-    createGuest(overrides?: Partial<AuthenticatedSessionData>): AuthenticatedSessionData {
+    createGuest(overrides?: Partial<SessionData>): SessionData {
         return {
             ...this.baseUserData,
             id: "",
@@ -156,7 +156,7 @@ export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessi
             isLoggedIn: false,
             timeZone: this.defaultOptions.timeZone ?? "UTC",
             ...overrides,
-        } as AuthenticatedSessionData;
+        } as SessionData;
     }
 
     /**
@@ -165,8 +165,8 @@ export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessi
     createWithCustomRole(
         roleName: string,
         permissions: string[],
-        overrides?: Partial<AuthenticatedSessionData>,
-    ): AuthenticatedSessionData {
+        overrides?: Partial<SessionData>,
+    ): SessionData {
         return this.createSession({
             id: "888888888888888888",
             handle: "customrole",
@@ -185,7 +185,7 @@ export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessi
     /**
      * Create a user with expired premium
      */
-    createExpiredPremium(overrides?: Partial<AuthenticatedSessionData>): AuthenticatedSessionData {
+    createExpiredPremium(overrides?: Partial<SessionData>): SessionData {
         return this.createSession({
             id: "999999999999999999",
             handle: "expiredpremium",
@@ -200,20 +200,20 @@ export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessi
     /**
      * Create a user with partial data (edge case)
      */
-    createPartial(overrides?: Partial<AuthenticatedSessionData>): AuthenticatedSessionData {
+    createPartial(overrides?: Partial<SessionData>): SessionData {
         return {
             ...this.baseUserData,
             id: "000000000000000001",
             isLoggedIn: true,
             timeZone: this.defaultOptions.timeZone ?? "UTC",
             ...overrides,
-        } as AuthenticatedSessionData;
+        } as SessionData;
     }
 
     /**
      * Create a user with conflicting permissions
      */
-    createConflictingPermissions(overrides?: Partial<AuthenticatedSessionData>): AuthenticatedSessionData {
+    createConflictingPermissions(overrides?: Partial<SessionData>): SessionData {
         return this.createSession({
             id: "000000000000000002",
             handle: "conflicted",
@@ -240,7 +240,7 @@ export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessi
     /**
      * Create a user with all possible permissions
      */
-    createMaxPermissions(overrides?: Partial<AuthenticatedSessionData>): AuthenticatedSessionData {
+    createMaxPermissions(overrides?: Partial<SessionData>): SessionData {
         return this.createSession({
             id: "000000000000000003",
             handle: "maxperms",
@@ -262,7 +262,7 @@ export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessi
     /**
      * Create a user in the process of deletion
      */
-    createDeleting(overrides?: Partial<AuthenticatedSessionData>): AuthenticatedSessionData {
+    createDeleting(overrides?: Partial<SessionData>): SessionData {
         return this.createSession({
             id: "000000000000000004",
             handle: "deleting",
@@ -276,13 +276,13 @@ export class UserSessionFactory extends BasePermissionFactory<AuthenticatedSessi
     /**
      * Create multiple users with relationships
      */
-    createTeam(teamSize = 3): AuthenticatedSessionData[] {
-        const team: AuthenticatedSessionData[] = [];
+    createTeam(teamSize = 3): SessionData[] {
+        const team: SessionData[] = [];
         const teamId = generatePK();
 
         // Owner
         team.push(this.withTeam(
-            this.createSession({ 
+            this.createSession({
                 handle: "owner",
                 name: "Team Owner",
             }),

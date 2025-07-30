@@ -10,6 +10,8 @@ Agent S2 provides a comprehensive RESTful API for both core automation and AI-po
 - **Recommended Access**: `./manage.sh --action usage --usage-type [type]`
 - **Health Check**: `./manage.sh --action status` (or `GET /health`)
 - **Capabilities**: `GET /capabilities`
+- **API Documentation**: `http://localhost:4113/docs` (Swagger UI)
+- **OpenAPI Spec**: `http://localhost:4113/openapi.json` (for endpoint discovery)
 
 ## Authentication
 
@@ -210,8 +212,27 @@ POST /keyboard/press
 **Request Body:**
 ```json
 {
-  "keys": ["ctrl", "c"]  // Key combination
+  "key": "c",
+  "modifiers": ["ctrl"]  // Optional modifier keys
 }
+```
+
+**Examples:**
+```bash
+# Press single key
+curl -X POST http://localhost:4113/keyboard/press \
+  -H "Content-Type: application/json" \
+  -d '{"key": "Return"}'
+
+# Press key with modifiers
+curl -X POST http://localhost:4113/keyboard/press \
+  -H "Content-Type: application/json" \
+  -d '{"key": "c", "modifiers": ["ctrl"]}'
+
+# Press hotkey combination (alternative endpoint)
+curl -X POST http://localhost:4113/keyboard/hotkey \
+  -H "Content-Type: application/json" \
+  -d '["ctrl", "alt", "t"]'
 ```
 
 ### Task Management
@@ -234,6 +255,8 @@ POST /tasks/cancel/{task_id}
 ## AI Intelligence API
 
 These endpoints require a valid API key (ANTHROPIC_API_KEY or OPENAI_API_KEY).
+
+> **⚠️ Important**: AI features may not be available due to permission or configuration issues. If AI endpoints return errors, use the core automation endpoints (`/mouse/*`, `/keyboard/*`, `/screenshot`) instead. Check service status with `./manage.sh --action status` or `GET /ai/status`.
 
 ### Execute AI Action
 
@@ -402,7 +425,7 @@ Returns current stealth mode configuration and status.
     "active": true
   },
   "session_storage": {
-    "path": "/data/sessions",
+    "path": "/home/agents2/.agent-s2/sessions",
     "encryption_enabled": true
   }
 }
@@ -679,6 +702,23 @@ All endpoints return consistent error responses:
 - `PROFILE_NOT_FOUND`: Requested stealth profile does not exist
 - `SESSION_SAVE_FAILED`: Unable to save session data
 - `ENCRYPTION_ERROR`: Session data encryption/decryption failed
+
+### API Troubleshooting
+
+**Endpoint Not Found (404 Error)**:
+1. Check the current API endpoints: `curl http://localhost:4113/openapi.json | jq '.paths | keys'`
+2. Verify service is running: `./manage.sh --action status`
+3. Use the management script instead: `./manage.sh --action usage --usage-type [type]`
+
+**AI Service Permission Errors**:
+1. Check AI status: `curl http://localhost:4113/ai/status`
+2. Use core automation endpoints instead: `/mouse/*`, `/keyboard/*`, `/screenshot`
+3. Verify API keys: `./manage.sh --action status` (check ai_status section)
+
+**Request Body Validation Errors**:
+1. Check the OpenAPI spec for correct schemas: `curl http://localhost:4113/openapi.json`
+2. Ensure required fields are included (e.g., `"key"` for keyboard press, `"text"` for typing)
+3. Use the interactive API docs: `http://localhost:4113/docs`
 
 ## Rate Limits
 

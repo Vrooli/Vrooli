@@ -1,3 +1,4 @@
+/* eslint-disable no-magic-numbers */
 /**
  * Migration Helper
  * 
@@ -7,7 +8,7 @@
 import fs from "fs/promises";
 import path from "path";
 import { fileURLToPath } from "url";
-import type { RoutineSchema, AgentSchema, SwarmSchema } from "../schemas/index.js";
+import type { AgentSchema, RoutineSchema, SwarmSchema } from "../schemas/index.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -19,13 +20,14 @@ export class MigrationHelper {
         // Extract routine information
         const routineSchemas: RoutineSchema[] = [];
         const agentSchemas: AgentSchema[] = [];
-        
+
         // Create a basic swarm schema
         const swarmSchema: SwarmSchema = {
             identity: {
                 name: swarmTask.input?.teamConfiguration?.name || "migrated-swarm",
                 version: "1.0.0",
             },
+            description: "Migrated swarm from legacy format",
             businessPrompt: swarmTask.input?.goal || "Migrated swarm goal",
             agents: [], // Will be filled with agent references
             resources: {
@@ -125,7 +127,7 @@ export class MigrationHelper {
 
         // Scan source directory for fixtures
         const files = await this.scanDirectory(sourceDir);
-        
+
         for (const file of files) {
             try {
                 if (file.includes("swarmTask")) {

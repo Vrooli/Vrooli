@@ -594,7 +594,7 @@ curl http://localhost:4113/stealth/status
 ./manage.sh --action list-sessions
 
 # Verify session directory permissions
-docker exec agent-s2 ls -la /data/sessions
+docker exec agent-s2 ls -la /home/agents2/.agent-s2/sessions
 
 # Check session configuration
 curl http://localhost:4113/stealth/status | jq .session_storage
@@ -606,10 +606,10 @@ curl http://localhost:4113/stealth/status | jq .session_storage
 curl -X POST http://localhost:4113/stealth/session/save
 
 # Method 2: Check storage permissions
-docker exec agent-s2 chown -R agents2:agents2 /data/sessions
+docker exec agent-s2 chown -R agents2:agents2 /home/agents2/.agent-s2/sessions
 
 # Method 3: Verify encryption is working
-docker exec agent-s2 ls -la /data/sessions/.session_key
+docker exec agent-s2 ls -la /home/agents2/.agent-s2/sessions/.session_key
 ```
 
 ### Profile Creation Failing

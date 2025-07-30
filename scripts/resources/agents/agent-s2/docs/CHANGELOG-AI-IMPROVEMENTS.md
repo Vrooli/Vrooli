@@ -129,7 +129,7 @@ No action required. The improvements are backward compatible and will automatica
 
 ## Known Issues
 
-1. **Directory Permissions**: Container requires `/data/sessions/profiles` directory with proper permissions
+1. **Directory Permissions**: Container requires `/home/agents2/.agent-s2/sessions/profiles` directory with proper permissions
 2. **Network Isolation**: Docker containers may need `--network host` for local Ollama access
 
 ## Future Improvements

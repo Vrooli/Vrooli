@@ -4,23 +4,23 @@
  * Utilities for validating permissions and access control in tests.
  */
 
-import { type AuthenticatedSessionData } from "../../../../types.js";
-import { 
+import { type SessionData } from "../../../../types.js";
+import {
     type ApiKeyAuthData,
-    type PermissionInheritance,
     type PermissionValidator as IPermissionValidator,
+    type PermissionInheritance,
 } from "../types.js";
 
 /**
  * Implementation of permission validation utilities
  */
 export class PermissionValidator implements IPermissionValidator {
-    
+
     /**
      * Check if a session has a specific permission
      */
     hasPermission(
-        session: AuthenticatedSessionData | ApiKeyAuthData,
+        session: SessionData | ApiKeyAuthData,
         permission: string,
     ): boolean {
         // Check if it's an API key session
@@ -36,7 +36,7 @@ export class PermissionValidator implements IPermissionValidator {
         // Check each role
         for (const roleData of session.roles) {
             const permissions = this.parsePermissions(roleData.role.permissions);
-            
+
             // Check for wildcard permission
             if (permissions.includes("*")) {
                 return true;
@@ -69,7 +69,7 @@ export class PermissionValidator implements IPermissionValidator {
      * Check if a session can perform an action on a resource
      */
     canAccess(
-        session: AuthenticatedSessionData | ApiKeyAuthData,
+        session: SessionData | ApiKeyAuthData,
         action: string,
         resource: Record<string, unknown>,
     ): boolean {
@@ -122,13 +122,13 @@ export class PermissionValidator implements IPermissionValidator {
     /**
      * Get all permissions for a session
      */
-    getPermissions(session: AuthenticatedSessionData | ApiKeyAuthData): string[] {
+    getPermissions(session: SessionData | ApiKeyAuthData): string[] {
         if (this.isApiKeySession(session)) {
             return this.getApiKeyPermissions(session);
         }
 
         const allPermissions: string[] = [];
-        
+
         if (!session.roles || session.roles.length === 0) {
             return allPermissions;
         }
@@ -163,22 +163,22 @@ export class PermissionValidator implements IPermissionValidator {
      */
     validateInheritance(chain: PermissionInheritance[]): boolean {
         const seenNames = new Set<string>();
-        
+
         for (const item of chain) {
             // Check for circular references
             if (item.inherits && seenNames.has(item.inherits)) {
                 return false;
             }
-            
+
             // Validate structure
             if (item.adds && !Array.isArray(item.adds)) {
                 return false;
             }
-            
+
             if (item.excludes && !Array.isArray(item.excludes)) {
                 return false;
             }
-            
+
             // Track seen names
             if (item.inherits) {
                 seenNames.add(item.inherits);
@@ -191,14 +191,14 @@ export class PermissionValidator implements IPermissionValidator {
     /**
      * Check if session is a user session
      */
-    private isUserSession(session: AuthenticatedSessionData | ApiKeyAuthData): session is AuthenticatedSessionData {
+    private isUserSession(session: SessionData | ApiKeyAuthData): session is SessionData {
         return !("__type" in session);
     }
 
     /**
      * Check if session is an API key session
      */
-    private isApiKeySession(session: AuthenticatedSessionData | ApiKeyAuthData): session is ApiKeyAuthData {
+    private isApiKeySession(session: SessionData | ApiKeyAuthData): session is ApiKeyAuthData {
         return "__type" in session;
     }
 
@@ -225,11 +225,11 @@ export class PermissionValidator implements IPermissionValidator {
 
         // Parse the permission to determine read/write
         const [_resource, action] = permission.split(".");
-        
+
         if (action === "read") {
             return this.checkApiKeyReadPermission(session.permissions.read);
         }
-        
+
         if (action === "write" || action === "create" || action === "update" || action === "delete") {
             return this.checkApiKeyWritePermission(session.permissions.write);
         }
@@ -282,7 +282,7 @@ export class PermissionValidator implements IPermissionValidator {
      * Check if a user has any of the specified permissions
      */
     hasAnyPermission(
-        session: AuthenticatedSessionData | ApiKeyAuthData,
+        session: SessionData | ApiKeyAuthData,
         permissions: string[],
     ): boolean {
         for (const permission of permissions) {
@@ -297,7 +297,7 @@ export class PermissionValidator implements IPermissionValidator {
      * Check if a user has all of the specified permissions
      */
     hasAllPermissions(
-        session: AuthenticatedSessionData | ApiKeyAuthData,
+        session: SessionData | ApiKeyAuthData,
         permissions: string[],
     ): boolean {
         for (const permission of permissions) {

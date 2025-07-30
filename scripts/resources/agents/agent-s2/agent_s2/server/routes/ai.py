@@ -10,6 +10,9 @@ from ..models.responses import AICommandResponse, AIPlanResponse, AIAnalyzeRespo
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+# Store last AI interaction for debugging
+last_ai_debug = {}
+
 
 def get_ai_handler(request: Request):
     """Get AI handler from app state"""
@@ -57,6 +60,13 @@ def get_ai_handler(request: Request):
     return ai_handler
 
 
+@router.get("/debug/last")
+async def get_last_debug():
+    """Get debug info from last AI interaction"""
+    global last_ai_debug
+    return {"debug": last_ai_debug}
+
+
 @router.post("/action", response_model=AIActionResponse)
 async def ai_action(request: AIActionRequest, req: Request):
     """Execute an AI-driven action
@@ -70,11 +80,25 @@ async def ai_action(request: AIActionRequest, req: Request):
     ai_handler = get_ai_handler(req)
     
     try:
+        # Include security config in context if provided
+        context = request.context or {}
+        if request.security_config:
+            context["security_config"] = request.security_config.dict()
+            
         result = await ai_handler.execute_action(
             task=request.task,
             screenshot=request.screenshot,
-            context=request.context
+            context=context
         )
+        
+        # Store debug info globally
+        global last_ai_debug
+        last_ai_debug = {
+            "task": request.task,
+            "context": context,
+            "result_debug": result.get("debug_info", {}),
+            "timestamp": os.popen("date").read().strip()
+        }
         
         return AIActionResponse(
             success=result.get("success", False),
@@ -82,7 +106,8 @@ async def ai_action(request: AIActionRequest, req: Request):
             summary=result.get("summary", "Action completed"),
             actions_taken=result.get("actions_taken", []),
             reasoning=result.get("reasoning"),
-            error=result.get("error")
+            error=result.get("error"),
+            debug_info=result.get("debug_info")
         )
     except Exception as e:
         logger.error(f"AI action failed: {e}")

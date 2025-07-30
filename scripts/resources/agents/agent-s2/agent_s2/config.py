@@ -35,9 +35,10 @@ class Config:
     
     # AI Configuration
     AI_ENABLED: bool = os.getenv("AGENTS2_ENABLE_AI", "true").lower() == "true"
-    AI_API_URL: str = os.getenv("AGENTS2_OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/") + "/api/chat"
+    AI_PROVIDER: str = os.getenv("AGENTS2_LLM_PROVIDER", "ollama")
+    AI_API_URL: str = os.getenv("AGENTS2_OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/") + "/api/generate"
     AI_MODEL: str = os.getenv("AGENTS2_LLM_MODEL", "llama3.2-vision:11b")
-    AI_TIMEOUT: int = int(os.getenv("AGENTS2_AI_TIMEOUT", "120"))
+    AI_TIMEOUT: int = int(os.getenv("AGENTS2_TIMEOUT", "120"))
     
     # Output Configuration
     OUTPUT_DIR: str = os.getenv("AGENT_S2_OUTPUT_DIR", "/tmp/agent-s2-outputs")
@@ -82,7 +83,7 @@ class Config:
     
     # Stealth Mode Configuration
     STEALTH_MODE_ENABLED: bool = os.getenv("AGENT_S2_STEALTH_MODE_ENABLED", "true").lower() == "true"
-    SESSION_STORAGE_PATH: str = os.getenv("AGENT_S2_SESSION_STORAGE_PATH", "/data/sessions")
+    SESSION_STORAGE_PATH: str = os.getenv("AGENT_S2_SESSION_STORAGE_PATH", "/home/agents2/.agent-s2/sessions")
     SESSION_DATA_PERSISTENCE: bool = os.getenv("AGENT_S2_SESSION_DATA_PERSISTENCE", "true").lower() == "true"
     SESSION_STATE_PERSISTENCE: bool = os.getenv("AGENT_S2_SESSION_STATE_PERSISTENCE", "false").lower() == "true"
     SESSION_ENCRYPTION: bool = os.getenv("AGENT_S2_SESSION_ENCRYPTION", "true").lower() == "true"

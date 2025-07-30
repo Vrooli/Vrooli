@@ -1,0 +1,186 @@
+{
+  "app_name": "Firefox",
+  "version": "1.0.0",
+  "description": "Keyboard shortcuts for Mozilla Firefox web browser",
+  "shortcuts": {
+    "navigation": {
+      "focus_address_bar": {
+        "keys": ["Ctrl+L", "Alt+D", "F6"],
+        "description": "Focus the address/URL bar",
+        "priority": 1
+      },
+      "go_back": {
+        "keys": ["Alt+Left", "Backspace"],
+        "description": "Navigate back in history"
+      },
+      "go_forward": {
+        "keys": ["Alt+Right", "Shift+Backspace"],
+        "description": "Navigate forward in history"
+      },
+      "refresh": {
+        "keys": ["F5", "Ctrl+R"],
+        "description": "Refresh the current page"
+      },
+      "hard_refresh": {
+        "keys": ["Ctrl+F5", "Ctrl+Shift+R"],
+        "description": "Refresh ignoring cache"
+      },
+      "stop_loading": {
+        "keys": ["Escape"],
+        "description": "Stop loading the current page"
+      },
+      "home": {
+        "keys": ["Alt+Home"],
+        "description": "Go to home page"
+      }
+    },
+    "tabs": {
+      "new_tab": {
+        "keys": ["Ctrl+T"],
+        "description": "Open a new tab",
+        "priority": 1
+      },
+      "close_tab": {
+        "keys": ["Ctrl+W"],
+        "description": "Close current tab"
+      },
+      "reopen_tab": {
+        "keys": ["Ctrl+Shift+T"],
+        "description": "Reopen recently closed tab"
+      },
+      "next_tab": {
+        "keys": ["Ctrl+Tab", "Ctrl+PageDown"],
+        "description": "Switch to next tab"
+      },
+      "previous_tab": {
+        "keys": ["Ctrl+Shift+Tab", "Ctrl+PageUp"],
+        "description": "Switch to previous tab"
+      },
+      "tab_number": {
+        "keys": ["Ctrl+1-9"],
+        "description": "Switch to tab by number (1-9)"
+      },
+      "last_tab": {
+        "keys": ["Ctrl+9"],
+        "description": "Switch to last tab"
+      }
+    },
+    "windows": {
+      "new_window": {
+        "keys": ["Ctrl+N"],
+        "description": "Open a new window"
+      },
+      "new_private_window": {
+        "keys": ["Ctrl+Shift+P"],
+        "description": "Open a new private browsing window"
+      },
+      "close_window": {
+        "keys": ["Ctrl+Shift+W", "Alt+F4"],
+        "description": "Close the current window"
+      }
+    },
+    "search": {
+      "find_in_page": {
+        "keys": ["Ctrl+F"],
+        "description": "Find in current page",
+        "priority": 1
+      },
+      "find_next": {
+        "keys": ["F3", "Ctrl+G"],
+        "description": "Find next occurrence"
+      },
+      "find_previous": {
+        "keys": ["Shift+F3", "Ctrl+Shift+G"],
+        "description": "Find previous occurrence"
+      },
+      "quick_find": {
+        "keys": ["/"],
+        "description": "Quick find (links only)"
+      }
+    },
+    "bookmarks": {
+      "bookmark_page": {
+        "keys": ["Ctrl+D"],
+        "description": "Bookmark current page"
+      },
+      "bookmarks_sidebar": {
+        "keys": ["Ctrl+B"],
+        "description": "Toggle bookmarks sidebar"
+      },
+      "bookmarks_manager": {
+        "keys": ["Ctrl+Shift+O"],
+        "description": "Open bookmarks manager"
+      }
+    },
+    "developer": {
+      "dev_tools": {
+        "keys": ["F12", "Ctrl+Shift+I"],
+        "description": "Toggle developer tools"
+      },
+      "console": {
+        "keys": ["Ctrl+Shift+K"],
+        "description": "Open web console"
+      },
+      "inspector": {
+        "keys": ["Ctrl+Shift+C"],
+        "description": "Inspect element"
+      },
+      "view_source": {
+        "keys": ["Ctrl+U"],
+        "description": "View page source"
+      }
+    },
+    "zoom": {
+      "zoom_in": {
+        "keys": ["Ctrl+Plus", "Ctrl+="],
+        "description": "Zoom in"
+      },
+      "zoom_out": {
+        "keys": ["Ctrl+Minus"],
+        "description": "Zoom out"
+      },
+      "zoom_reset": {
+        "keys": ["Ctrl+0"],
+        "description": "Reset zoom to 100%"
+      }
+    },
+    "misc": {
+      "downloads": {
+        "keys": ["Ctrl+J"],
+        "description": "Open downloads"
+      },
+      "history": {
+        "keys": ["Ctrl+H"],
+        "description": "Open history"
+      },
+      "clear_data": {
+        "keys": ["Ctrl+Shift+Delete"],
+        "description": "Clear browsing data"
+      },
+      "print": {
+        "keys": ["Ctrl+P"],
+        "description": "Print page"
+      },
+      "save_page": {
+        "keys": ["Ctrl+S"],
+        "description": "Save page"
+      },
+      "fullscreen": {
+        "keys": ["F11"],
+        "description": "Toggle fullscreen"
+      }
+    }
+  },
+  "priority_actions": {
+    "navigate_to_url": ["focus_address_bar"],
+    "search_web": ["focus_address_bar", "new_tab"],
+    "find_on_page": ["find_in_page"],
+    "open_link_new_tab": ["new_tab"],
+    "go_to_previous_page": ["go_back"]
+  },
+  "context_hints": {
+    "navigation_task": "For navigation tasks, use Ctrl+L to focus address bar instead of clicking",
+    "new_content": "For opening new content, use Ctrl+T for new tab instead of clicking + button",
+    "search_task": "For searching within page, use Ctrl+F instead of menu navigation"
+  }
+}

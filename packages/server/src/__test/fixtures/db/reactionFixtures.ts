@@ -1,39 +1,51 @@
-import { generatePK } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { generatePK } from "@vrooli/shared";
 
 /**
  * Database fixtures for Reaction model - used for seeding test data
  * These follow Prisma's shape for database operations
  */
 
-// Consistent IDs for testing
-export const reactionDbIds = {
-    reaction1: generatePK(),
-    reaction2: generatePK(),
-    reaction3: generatePK(),
-    reaction4: generatePK(),
-    reaction5: generatePK(),
-    reaction6: generatePK(),
-};
+// Consistent IDs for testing - using factory function to avoid module-level generatePK() calls
+export function getReactionDbIds() {
+    return {
+        reaction1: generatePK(),
+        reaction2: generatePK(),
+        reaction3: generatePK(),
+        reaction4: generatePK(),
+        reaction5: generatePK(),
+        reaction6: generatePK(),
+    };
+}
 
 /**
  * Minimal reaction data for database creation
+ * Uses getter to ensure generatePK is called lazily, not at module load time
  */
-export const minimalReactionDb: Prisma.reactionCreateInput = {
-    id: reactionDbIds.reaction1,
-    emoji: "👍",
-    by: { connect: { id: generatePK() } },
+export const minimalReactionDb = {
+    get create(): Prisma.reactionCreateInput {
+        return {
+            id: getReactionDbIds().reaction1,
+            emoji: "👍",
+            by: { connect: { id: BigInt(generatePK()) } },
+        };
+    },
 };
 
 /**
  * Complete reaction with all fields
+ * Uses getter to ensure generatePK is called lazily, not at module load time
  */
-export const completeReactionDb: Prisma.reactionCreateInput = {
-    id: reactionDbIds.reaction2,
-    emoji: "❤️",
-    by: { connect: { id: generatePK() } },
-    createdAt: new Date(),
-    updatedAt: new Date(),
+export const completeReactionDb = {
+    get create(): Prisma.reactionCreateInput {
+        return {
+            id: getReactionDbIds().reaction2,
+            emoji: "❤️",
+            by: { connect: { id: BigInt(generatePK()) } },
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        };
+    },
 };
 
 /**
@@ -50,7 +62,7 @@ export class ReactionDbFactory {
         return {
             id: generatePK(),
             emoji: "👍",
-            by: { connect: { id: byId } },
+            by: { connect: { id: BigInt(byId) } },
             ...overrides,
         };
     }
@@ -66,13 +78,13 @@ export class ReactionDbFactory {
         overrides?: Partial<Prisma.reactionCreateInput>,
     ): Prisma.reactionCreateInput {
         const baseReaction = this.createMinimal(byId, overrides);
-        
+
         // Add the appropriate connection based on object type
         const connections: Record<string, any> = {
-            resource: { resource: { connect: { id: objectId } } },
-            chatMessage: { chatMessage: { connect: { id: objectId } } },
-            comment: { comment: { connect: { id: objectId } } },
-            issue: { issue: { connect: { id: objectId } } },
+            resource: { resource: { connect: { id: BigInt(objectId) } } },
+            chatMessage: { chatMessage: { connect: { id: BigInt(objectId) } } },
+            comment: { comment: { connect: { id: BigInt(objectId) } } },
+            issue: { issue: { connect: { id: BigInt(objectId) } } },
         };
 
         return {
@@ -91,7 +103,7 @@ export class ReactionDbFactory {
         objectType: "resource" | "chatMessage" | "comment" | "issue",
         emojis: string[],
     ): Prisma.reactionCreateInput[] {
-        return byIds.map((byId, index) => 
+        return byIds.map((byId, index) =>
             this.createForObject(
                 byId,
                 objectId,
@@ -117,8 +129,8 @@ export class ReactionDbFactory {
         };
 
         const { emojis, count } = patterns[pattern];
-        const byIds = Array.from({ length: count }, () => generatePK());
-        
+        const byIds = Array.from({ length: count }, () => generatePK().toString());
+
         return this.createMultipleForObject(byIds, objectId, objectType, emojis);
     }
 }
@@ -149,10 +161,10 @@ export class ReactionSummaryDbFactory {
 
             // Add the appropriate connection
             const connections: Record<string, any> = {
-                resource: { resource: { connect: { id: objectId } } },
-                chatMessage: { chatMessage: { connect: { id: objectId } } },
-                comment: { comment: { connect: { id: objectId } } },
-                issue: { issue: { connect: { id: objectId } } },
+                resource: { resource: { connect: { id: BigInt(objectId) } } },
+                chatMessage: { chatMessage: { connect: { id: BigInt(objectId) } } },
+                comment: { comment: { connect: { id: BigInt(objectId) } } },
+                issue: { issue: { connect: { id: BigInt(objectId) } } },
             };
 
             return {
@@ -177,7 +189,7 @@ export async function seedReactions(
     },
 ) {
     const reactions = [];
-    
+
     if (options.pattern) {
         // Use predefined pattern
         const patternReactions = ReactionDbFactory.createCommonReactions(
@@ -185,10 +197,10 @@ export async function seedReactions(
             options.objectType,
             options.pattern,
         );
-        
+
         // Update with actual user IDs
         for (let i = 0; i < patternReactions.length && i < options.byUserIds.length; i++) {
-            patternReactions[i].by = { connect: { id: options.byUserIds[i] } };
+            patternReactions[i].by = { connect: { id: BigInt(options.byUserIds[i]) } };
             reactions.push(patternReactions[i]);
         }
     } else if (options.customEmojis) {
@@ -241,7 +253,7 @@ export async function cleanupReactions(
     objectType: "resource" | "chatMessage" | "comment" | "issue",
 ) {
     const whereClause = {
-        [`${objectType}Id`]: objectId,
+        [`${objectType}Id`]: BigInt(objectId),
     };
 
     // Delete reactions and summaries (summaries should cascade delete)

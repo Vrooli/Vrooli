@@ -1,8 +1,8 @@
-import { generatePublicId, nanoid } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+// Import removed - generatePublicId and nanoid not used in this factory
+import { type Prisma, type PrismaClient, type reaction } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
@@ -49,15 +49,15 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
             minimal: {
                 id: this.generateId(),
                 emoji: "👍",
-                byId: this.generateId(),
+                by: { connect: { id: this.generateId() } },
                 // Must have at least one target
-                resourceId: this.generateId(),
+                resource: { connect: { id: this.generateId() } },
             },
             complete: {
                 id: this.generateId(),
                 emoji: "❤️",
-                byId: this.generateId(),
-                resourceId: this.generateId(),
+                by: { connect: { id: this.generateId() } },
+                resource: { connect: { id: this.generateId() } },
                 createdAt: new Date(),
                 updatedAt: new Date(),
             },
@@ -68,65 +68,65 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
                 invalidTypes: {
                     id: "not-a-snowflake",
                     emoji: 123, // Should be string
-                    byId: null, // Should be string
-                    resourceId: true, // Should be string
+                    by: null, // Should be object
+                    resource: true, // Should be object
                 },
                 noTarget: {
                     id: this.generateId(),
                     emoji: "👍",
-                    byId: this.generateId(),
-                    // No target specified (resourceId, chatMessageId, commentId, or issueId)
+                    by: { connect: { id: this.generateId() } },
+                    // No target specified (resource, chatMessage, comment, or issue)
                 },
                 multipleTargets: {
                     id: this.generateId(),
                     emoji: "👍",
-                    byId: this.generateId(),
-                    resourceId: this.generateId(),
-                    chatMessageId: this.generateId(), // Multiple targets not allowed
+                    by: { connect: { id: this.generateId() } },
+                    resource: { connect: { id: this.generateId() } },
+                    chatMessage: { connect: { id: this.generateId() } }, // Multiple targets not allowed
                 },
                 invalidEmoji: {
                     id: this.generateId(),
                     emoji: "not_an_emoji", // Invalid emoji format
-                    byId: this.generateId(),
-                    resourceId: this.generateId(),
+                    by: { connect: { id: this.generateId() } },
+                    resource: { connect: { id: this.generateId() } },
                 },
             },
             edgeCases: {
                 unicodeEmoji: {
                     id: this.generateId(),
                     emoji: "🏳️‍🌈", // Complex unicode emoji
-                    byId: this.generateId(),
-                    resourceId: this.generateId(),
+                    by: { connect: { id: this.generateId() } },
+                    resource: { connect: { id: this.generateId() } },
                 },
                 textEmoji: {
                     id: this.generateId(),
                     emoji: ":heart:", // Text representation
-                    byId: this.generateId(),
-                    resourceId: this.generateId(),
+                    by: { connect: { id: this.generateId() } },
+                    resource: { connect: { id: this.generateId() } },
                 },
                 multipleEmojis: {
                     id: this.generateId(),
                     emoji: "👍❤️🎉", // Multiple emojis
-                    byId: this.generateId(),
-                    resourceId: this.generateId(),
+                    by: { connect: { id: this.generateId() } },
+                    resource: { connect: { id: this.generateId() } },
                 },
                 reactionToComment: {
                     id: this.generateId(),
                     emoji: "💬",
-                    byId: this.generateId(),
+                    by: { connect: { id: this.generateId() } },
                     comment: { connect: { id: this.generateId() } },
                 },
                 reactionToIssue: {
                     id: this.generateId(),
                     emoji: "🐛",
-                    byId: this.generateId(),
+                    by: { connect: { id: this.generateId() } },
                     issue: { connect: { id: this.generateId() } },
                 },
                 reactionToChatMessage: {
                     id: this.generateId(),
                     emoji: "💬",
-                    byId: this.generateId(),
-                    chatMessageId: this.generateId(),
+                    by: { connect: { id: this.generateId() } },
+                    chatMessage: { connect: { id: this.generateId() } },
                 },
             },
             updates: {
@@ -145,8 +145,8 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
         return {
             id: this.generateId(),
             emoji: "👍",
-            byId: this.generateId(),
-            resourceId: this.generateId(), // Default to resource
+            by: { connect: { id: this.generateId() } },
+            resource: { connect: { id: this.generateId() } }, // Default to resource
             ...overrides,
         };
     }
@@ -155,8 +155,8 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
         return {
             id: this.generateId(),
             emoji: "❤️",
-            byId: this.generateId(),
-            resourceId: this.generateId(),
+            by: { connect: { id: this.generateId() } },
+            resource: { connect: { id: this.generateId() } },
             createdAt: new Date(),
             updatedAt: new Date(),
             ...overrides,
@@ -243,25 +243,21 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
             resource: {
                 select: {
                     id: true,
-                    index: true,
                 },
             },
             chatMessage: {
                 select: {
                     id: true,
-                    publicId: true,
                 },
             },
             comment: {
                 select: {
                     id: true,
-                    publicId: true,
                 },
             },
             issue: {
                 select: {
                     id: true,
-                    publicId: true,
                 },
             },
         };
@@ -270,36 +266,36 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.reactionCreateInput,
         config: ReactionRelationConfig,
-        tx: any,
+        _tx: unknown,
     ): Promise<Prisma.reactionCreateInput> {
         const data = { ...baseData };
 
         // Handle user association
         if (config.userId) {
-            data.byId = config.userId;
+            data.by = { connect: { id: BigInt(config.userId) } };
         }
 
         // Handle target type
         if (config.targetType && config.targetId) {
             // Clear any existing targets
-            delete data.resourceId;
-            delete data.chatMessageId;
-            delete data.commentId;
-            delete data.issueId;
+            delete data.resource;
+            delete data.chatMessage;
+            delete data.comment;
+            delete data.issue;
 
             // Set the appropriate target
             switch (config.targetType) {
                 case "resource":
-                    data.resourceId = config.targetId;
+                    data.resource = { connect: { id: BigInt(config.targetId) } };
                     break;
                 case "chatMessage":
-                    data.chatMessageId = config.targetId;
+                    data.chatMessage = { connect: { id: BigInt(config.targetId) } };
                     break;
                 case "comment":
-                    data.commentId = config.targetId;
+                    data.comment = { connect: { id: BigInt(config.targetId) } };
                     break;
                 case "issue":
-                    data.issueId = config.targetId;
+                    data.issue = { connect: { id: BigInt(config.targetId) } };
                     break;
             }
         }
@@ -315,7 +311,7 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
         targetId: string,
         userId: string,
         emoji = "👍",
-    ): Promise<Prisma.reaction> {
+    ): Promise<reaction> {
         return await this.createWithRelations({
             overrides: { emoji },
             userId,
@@ -331,8 +327,8 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
         targetType: "resource" | "chatMessage" | "comment" | "issue",
         targetId: string,
         reactions: Array<{ userId: string; emoji: string }>,
-    ): Promise<Prisma.reaction[]> {
-        const createdReactions: Prisma.reaction[] = [];
+    ): Promise<reaction[]> {
+        const createdReactions: reaction[] = [];
 
         for (const { userId, emoji } of reactions) {
             const reaction = await this.createReactionTo(targetType, targetId, userId, emoji);
@@ -345,21 +341,21 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create common reaction patterns
      */
-    async createLikeReaction(targetId: string, userId: string): Promise<Prisma.reaction> {
+    async createLikeReaction(targetId: string, userId: string): Promise<reaction> {
         return await this.createReactionTo("resource", targetId, userId, "👍");
     }
 
-    async createLoveReaction(targetId: string, userId: string): Promise<Prisma.reaction> {
+    async createLoveReaction(targetId: string, userId: string): Promise<reaction> {
         return await this.createReactionTo("resource", targetId, userId, "❤️");
     }
 
-    async createCelebrationReaction(targetId: string, userId: string): Promise<Prisma.reaction> {
+    async createCelebrationReaction(targetId: string, userId: string): Promise<reaction> {
         return await this.createReactionTo("resource", targetId, userId, "🎉");
     }
 
-    protected async checkModelConstraints(record: Prisma.reaction): Promise<string[]> {
+    protected async checkModelConstraints(record: reaction): Promise<string[]> {
         const violations: string[] = [];
-        
+
         // Check that only one target is specified
         const targetCount = [
             record.resourceId,
@@ -379,8 +375,9 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
             violations.push("Emoji cannot be empty");
         }
 
-        if (record.emoji && record.emoji.length > 32) {
-            violations.push("Emoji exceeds maximum length of 32 characters");
+        const MAX_EMOJI_LENGTH = 32;
+        if (record.emoji && record.emoji.length > MAX_EMOJI_LENGTH) {
+            violations.push(`Emoji exceeds maximum length of ${MAX_EMOJI_LENGTH} characters`);
         }
 
         // Check user exists
@@ -409,17 +406,17 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
         return violations;
     }
 
-    protected getCascadeInclude(): any {
+    protected getCascadeInclude(): Record<string, unknown> {
         return {
             // Reactions don't have dependent records to cascade delete
         };
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.reaction,
-        remainingDepth: number,
-        tx: any,
-        includeOnly?: string[],
+        _record: reaction,
+        _remainingDepth: number,
+        _tx: unknown,
+        _includeOnly?: string[],
     ): Promise<void> {
         // Reactions don't have dependent records
         // The reaction summary should be updated when reactions are deleted
@@ -433,8 +430,8 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
         targetType: "resource" | "chatMessage" | "comment" | "issue",
         targetId: string,
     ): Promise<Record<string, number>> {
-        const where: any = {};
-        where[`${targetType}Id`] = targetId;
+        const where: Record<string, unknown> = {};
+        where[`${targetType}Id`] = BigInt(targetId);
 
         const reactions = await this.prisma.reaction.findMany({
             where,
@@ -456,7 +453,7 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
         targetType: "resource" | "chatMessage" | "comment" | "issue",
         targetId: string,
         userIds: string[],
-    ): Promise<Prisma.reaction[]> {
+    ): Promise<reaction[]> {
         const emojis = ["👍", "❤️", "🎉", "🔥", "👏", "😊", "🚀", "💯"];
         const reactions: Array<{ userId: string; emoji: string }> = [];
 
@@ -473,8 +470,9 @@ export class ReactionDbFactory extends EnhancedDatabaseFactory<
 }
 
 // Export factory creator function
-export const createReactionDbFactory = (prisma: PrismaClient) => 
-    new ReactionDbFactory(prisma);
+export function createReactionDbFactory(prisma: PrismaClient): ReactionDbFactory {
+    return new ReactionDbFactory(prisma);
+}
 
 // Export the class for type usage
 export { ReactionDbFactory as ReactionDbFactoryClass };

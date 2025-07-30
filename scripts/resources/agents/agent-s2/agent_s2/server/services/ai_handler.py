@@ -5,8 +5,11 @@ import logging
 import json
 import subprocess
 import time
+import re
 from typing import Dict, Any, Optional, List
 from datetime import datetime
+import sys
+from pathlib import Path
 
 try:
     import requests
@@ -17,8 +20,23 @@ from ...config import Config
 from .capture import ScreenshotService
 from .automation import AutomationService
 from ...stealth import StealthManager, StealthConfig
+from .url_security import TypeAction, TypeActionType, URLValidator, get_security_config
+from ...environment.context import ModeContext
+from ...environment.discovery import EnvironmentDiscovery
+
+# Import shortcut detector if available
+try:
+    shortcuts_path = Path('/home/agents2/shortcuts')
+    if shortcuts_path.exists():
+        sys.path.insert(0, str(shortcuts_path))
+        from detector import ShortcutDetector
+    else:
+        ShortcutDetector = None
+except ImportError:
+    ShortcutDetector = None
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 
 class AIHandler:
@@ -28,7 +46,7 @@ class AIHandler:
         """Initialize AI handler"""
         self.initialized = False
         self.enabled = Config.AI_ENABLED
-        self.provider = "ollama"
+        self.provider = Config.AI_PROVIDER
         self.model = Config.AI_MODEL
         self.api_url = Config.AI_API_URL
         # Use configured API URL base or fallback to localhost
@@ -45,12 +63,31 @@ class AIHandler:
         self.screenshot_service = ScreenshotService()
         self.automation_service = AutomationService()
         
+        # Initialize shortcut detector if available
+        self.shortcut_detector = None
+        if ShortcutDetector:
+            try:
+                self.shortcut_detector = ShortcutDetector('/home/agents2/shortcuts')
+                logger.info("Keyboard shortcut detector initialized")
+            except Exception as e:
+                logger.warning(f"Failed to initialize shortcut detector: {e}")
+        
         # Initialize stealth manager
         stealth_config = StealthConfig(
             enabled=Config.STEALTH_MODE_ENABLED,
             session_storage_path=Config.SESSION_STORAGE_PATH
         )
         self.stealth_manager = StealthManager(stealth_config)
+        
+        # Initialize environment context for application discovery
+        try:
+            self.environment_discovery = EnvironmentDiscovery()
+            self.mode_context = ModeContext(discovery=self.environment_discovery)
+            logger.info("Environment discovery and mode context initialized")
+        except Exception as e:
+            logger.warning(f"Failed to initialize environment context: {e}")
+            self.environment_discovery = None
+            self.mode_context = None
         
     async def _discover_ollama_service(self):
         """Auto-detect available Ollama services
@@ -116,6 +153,12 @@ class AIHandler:
         logger.info(f"Initial Ollama base URL: {self.ollama_base_url}")
         
         try:
+            # Validate provider support
+            if self.provider != "ollama":
+                logger.error(f"Provider '{self.provider}' is not yet implemented. Only 'ollama' is currently supported.")
+                logger.error("To use Ollama, set AGENTS2_LLM_PROVIDER=ollama or remove the environment variable (defaults to ollama)")
+                return
+                
             # Check if requests library is available
             if requests is None:
                 logger.error("requests library not available. Install with: pip install requests")
@@ -319,22 +362,52 @@ class AIHandler:
         if not self.initialized:
             raise RuntimeError("AI handler not initialized")
             
+        logger.info(f"execute_action called with task: {task}")  # Debug log
+        
+        debug_info = {}  # Initialize debug_info outside try block
+        
         try:
             # Take screenshot if not provided
             if not screenshot:
                 screenshot_data = self.screenshot_service.capture()
                 screenshot = screenshot_data["data"]
                 
+            # Get window context
+            window_context = self._get_window_context()
+            logger.info(f"Window context in execute_action: {window_context[:200]}...")  # Debug log
+            
             # Build context for AI
             context_str = ""
             if context:
                 context_str = f"\nContext: {json.dumps(context, indent=2)}"
                 
             # Create AI prompt for task execution
-            system_prompt = """You are an AI assistant that helps with computer automation tasks. 
+            system_prompt = f"""You are an AI assistant that helps with computer automation tasks. 
 You can analyze screen content and provide step-by-step instructions for automating tasks.
 Always provide specific, actionable steps with clear parameters for mouse clicks, keyboard input, etc.
-Be precise about coordinates and text to type."""
+Be precise about coordinates and text to type.
+
+APPLICATION LAUNCHING:
+- To open/launch applications, ALWAYS use the "launch_app" action type
+- DO NOT type launcher commands like "Alt+F1 → firefox" - use launch_app instead
+- Example: To open Firefox, use action "launch_app" with parameters {{"app_name": "Firefox ESR"}}
+
+SECURITY GUIDELINES FOR WEB NAVIGATION:
+- ALWAYS use full URLs with https:// protocol when navigating to websites
+- For example: use "https://reddit.com" not "reddit.com"
+- Double-check typed URLs for typos before pressing Enter
+- Verify the URL in address bar matches the intended destination
+- NEVER type a domain name if it's already in the address bar (to avoid duplicates like reddit.comreddit.com)
+- When navigating to a new site, first click on the address bar, then clear it (Ctrl+A), then type the full URL
+
+WINDOW CONTEXT:
+{window_context}
+
+IMPORTANT WINDOW FOCUS RULES:
+1. The ACTIVE WINDOW receives keyboard input
+2. To interact with a different window, you MUST click on its Focus Point coordinates (shown above)
+3. NEVER guess window positions - always use the exact Focus Point coordinates provided
+4. Each window shows "Focus Point: (x, y)" - these are the exact coordinates to click for focusing that window"""
 
             user_prompt = f"""Task: {task}
             
@@ -345,9 +418,20 @@ Please provide a step-by-step plan to accomplish this task. Format your response
 - "reasoning": Brief explanation of the approach
 - "estimated_duration": Time estimate
 
-Example action types: "click", "type", "key_press", "scroll", "wait"
-Example parameters: {{"x": 100, "y": 200}}, {{"text": "hello"}}, {{"key": "Enter"}}"""
+Example action types: "click", "type", "key", "scroll", "wait", "launch_app"
+Example parameters: {{"x": 100, "y": 200}}, {{"text": "hello"}}, {{"key": "Enter"}}, {{"app_name": "Firefox ESR"}}
 
+For launching applications: {{"action": "launch_app", "parameters": {{"app_name": "ApplicationName"}}, "description": "Launch application"}}"""
+
+            # Log AI input for debugging
+            debug_info.update({
+                "system_prompt": system_prompt[:500] + "..." if len(system_prompt) > 500 else system_prompt,
+                "user_prompt": user_prompt,
+                "screenshot_included": bool(screenshot),
+                "context": context
+            })
+            logger.info(f"AI DEBUG INFO: {json.dumps(debug_info, indent=2)}")
+            
             # Call Ollama for task planning
             ai_response = self._call_ollama(user_prompt, system=system_prompt)
             ai_text = ai_response.get("response", "")
@@ -355,7 +439,6 @@ Example parameters: {{"x": 100, "y": 200}}, {{"text": "hello"}}, {{"key": "Enter
             # Try to parse AI response as JSON, fallback to text analysis
             try:
                 # Look for JSON in the response
-                import re
                 json_match = re.search(r'\{.*\}', ai_text, re.DOTALL)
                 if json_match:
                     ai_plan = json.loads(json_match.group())
@@ -390,7 +473,14 @@ Example parameters: {{"x": 100, "y": 200}}, {{"text": "hello"}}, {{"key": "Enter
                 # Execute the actions
                 if ai_actions:
                     try:
-                        actions_taken = await self._execute_ai_actions(ai_actions, command_context=task)
+                        logger.info(f"AI actions to execute: {ai_actions}")  # Debug log
+                        # Extract security config from context
+                        security_config = context.get("security_config") if context else None
+                        actions_taken = await self._execute_ai_actions(
+                            ai_actions, 
+                            command_context=task,
+                            security_config=security_config
+                        )
                     except Exception as exec_error:
                         logger.error(f"Failed to execute AI actions: {exec_error}")
                         actions_taken = [{
@@ -399,6 +489,10 @@ Example parameters: {{"x": 100, "y": 200}}, {{"text": "hello"}}, {{"key": "Enter
                             "status": "failed"
                         }]
             
+            # Add a simple debug message to verify
+            if not debug_info:
+                debug_info = {"message": "Debug info was not populated"}
+                
             return {
                 "success": True,
                 "task": task,
@@ -408,7 +502,8 @@ Example parameters: {{"x": 100, "y": 200}}, {{"text": "hello"}}, {{"key": "Enter
                 "reasoning": ai_plan.get("reasoning", "AI provided task analysis"),
                 "estimated_duration": ai_plan.get("estimated_duration", "Unknown"),
                 "ai_model": self.model,
-                "raw_ai_response": ai_text
+                "raw_ai_response": ai_text,
+                "debug_info": debug_info
             }
             
         except Exception as e:
@@ -417,18 +512,21 @@ Example parameters: {{"x": 100, "y": 200}}, {{"text": "hello"}}, {{"key": "Enter
                 "success": False,
                 "task": task,
                 "summary": "Execution failed",
-                "error": str(e)
+                "error": str(e),
+                "debug_info": debug_info
             }
             
     async def _execute_ai_actions(self, ai_actions: List[Dict[str, Any]], 
                                  target_app: Optional[str] = None,
-                                 command_context: Optional[str] = None) -> List[Dict[str, Any]]:
+                                 command_context: Optional[str] = None,
+                                 security_config: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """Execute a list of AI-generated actions
         
         Args:
             ai_actions: List of action dictionaries from AI
             target_app: Optional target application
             command_context: Optional context for logging
+            security_config: Optional security configuration for URL validation
             
         Returns:
             List of executed action results
@@ -448,7 +546,6 @@ Example parameters: {{"x": 100, "y": 200}}, {{"text": "hello"}}, {{"key": "Enter
         custom_filename = None
         if command_context and "save" in command_context.lower() and "as" in command_context.lower():
             # Try to extract filename from command like "save it as desktop_capture.png"
-            import re
             filename_match = re.search(r'save.*?as\s+([^\s\.]+(?:\.[a-z]+)?)', command_context.lower())
             if filename_match:
                 custom_filename = filename_match.group(1)
@@ -495,6 +592,71 @@ Example parameters: {{"x": 100, "y": 200}}, {{"text": "hello"}}, {{"key": "Enter
                     action_target_app = action.get("target_app")
                     
                     if text:
+                        # Determine action type based on context
+                        action_type = TypeActionType.TEXT
+                        text_lower = text.lower()
+                        
+                        # Enhanced URL detection
+                        url_indicators = [
+                            "http://", "https://", "www.", 
+                            ".com", ".org", ".net", ".io", ".edu", ".gov",
+                            ".co", ".uk", ".de", ".fr", ".jp", ".cn",
+                            ".ly", ".tk", ".ml", ".ga"  # Include shorteners and suspicious TLDs
+                        ]
+                        
+                        # Check if it looks like a URL
+                        if any(indicator in text_lower for indicator in url_indicators):
+                            action_type = TypeActionType.URL
+                        # Also check for domain/path pattern (e.g., "site.com/path" or "bit.ly/xyz")
+                        elif re.match(r'^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(/|$)', text):
+                            action_type = TypeActionType.URL
+                        elif "@" in text and "." in text:
+                            action_type = TypeActionType.EMAIL
+                            
+                        # Validate URL-type actions
+                        if action_type == TypeActionType.URL:
+                            logger.info(f"Detected URL type action for text: {text}")
+                            logger.info(f"Security config passed: {security_config}")
+                            
+                            # Get security config from passed config, environment, or defaults
+                            if security_config:
+                                # Use passed security config
+                                sec_config = get_security_config(
+                                    profile_name=security_config.get("security_profile", "moderate"),
+                                    custom_allowed=security_config.get("allowed_domains"),
+                                    custom_blocked=security_config.get("blocked_domains")
+                                )
+                            else:
+                                # Fall back to environment or defaults
+                                sec_config = get_security_config(
+                                    profile_name=os.environ.get("AGENTS2_SECURITY_PROFILE", "moderate")
+                                )
+                            
+                            type_action = TypeAction(text, action_type, sec_config)
+                            logger.info(f"Using security config: {sec_config}")
+                            validation_result = type_action.validate()
+                            logger.info(f"Validation result: valid={validation_result.valid}, reason={validation_result.reason}")
+                            
+                            if not validation_result.valid:
+                                logger.warning(f"URL validation failed: {validation_result.reason}")
+                                executed_actions.append({
+                                    "action": "type",
+                                    "parameters": {"text": text},
+                                    "result": f"BLOCKED: {validation_result.reason}",
+                                    "status": "blocked",
+                                    "security_reason": validation_result.reason,
+                                    "suggested_url": validation_result.suggested_url
+                                })
+                                
+                                # If we have a suggested URL, use that instead
+                                if validation_result.suggested_url:
+                                    logger.info(f"Using suggested URL: {validation_result.suggested_url}")
+                                    text = validation_result.suggested_url
+                                else:
+                                    # Skip this action entirely
+                                    continue
+                        
+                        # Proceed with typing
                         if action_target_app:
                             # Use targeted typing method
                             success, focused_window, focus_time = self.automation_service.type_text_targeted(
@@ -518,11 +680,12 @@ Example parameters: {{"x": 100, "y": 200}}, {{"text": "hello"}}, {{"key": "Enter
                                 "status": "success"
                             })
                         
-                elif action.get("type") == "key":
+                elif action.get("type") == "key" or action.get("type") == "key_press":
                     key = action.get("key", "")
                     action_target_app = action.get("target_app")
                     
                     if key:
+                        logger.info(f"Executing key press: '{key}'")  # Debug log
                         if action_target_app:
                             # Use targeted key press method
                             success, focused_window, focus_time = self.automation_service.press_key_targeted(
@@ -580,6 +743,85 @@ Example parameters: {{"x": 100, "y": 200}}, {{"text": "hello"}}, {{"key": "Enter
                             "result": f"Failed to save screenshot: {save_error}",
                             "status": "failed"
                         })
+                        
+                elif action.get("type") == "launch_app":
+                    # Launch an application using the environment context
+                    app_name = action.get("app_name", "")
+                    
+                    if not app_name:
+                        executed_actions.append({
+                            "action": "launch_app",
+                            "parameters": {"app_name": app_name},
+                            "result": "Failed: No app_name specified",
+                            "status": "failed"
+                        })
+                        continue
+                    
+                    if not self.mode_context:
+                        executed_actions.append({
+                            "action": "launch_app",
+                            "parameters": {"app_name": app_name},
+                            "result": "Failed: Application discovery not initialized",
+                            "status": "failed"
+                        })
+                        continue
+                        
+                    try:
+                        # Get application info
+                        app_info = self.mode_context.get_application_info(app_name)
+                        
+                        if not app_info:
+                            executed_actions.append({
+                                "action": "launch_app",
+                                "parameters": {"app_name": app_name},
+                                "result": f"Failed: Application '{app_name}' not found",
+                                "status": "failed"
+                            })
+                            continue
+                        
+                        # Launch the application using subprocess
+                        command = app_info.get("command", "")
+                        if not command:
+                            executed_actions.append({
+                                "action": "launch_app",
+                                "parameters": {"app_name": app_name},
+                                "result": f"Failed: No command found for '{app_name}'",
+                                "status": "failed"
+                            })
+                            continue
+                        
+                        # Launch in background with proper display
+                        env = os.environ.copy()
+                        env["DISPLAY"] = Config.DISPLAY
+                        
+                        process = subprocess.Popen(
+                            [command],
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                            env=env,
+                            start_new_session=True
+                        )
+                        
+                        # Give the app a moment to start
+                        import asyncio
+                        await asyncio.sleep(2.0)
+                        
+                        executed_actions.append({
+                            "action": "launch_app",
+                            "parameters": {"app_name": app_name, "command": command},
+                            "result": f"Successfully launched {app_info.get('name', app_name)}",
+                            "status": "success",
+                            "process_id": process.pid,
+                            "app_info": app_info
+                        })
+                        
+                    except Exception as launch_error:
+                        executed_actions.append({
+                            "action": "launch_app",
+                            "parameters": {"app_name": app_name},
+                            "result": f"Failed to launch '{app_name}': {launch_error}",
+                            "status": "failed"
+                        })
                     
             except Exception as action_error:
                 executed_actions.append({
@@ -631,11 +873,23 @@ Example parameters: {{"x": 100, "y": 200}}, {{"text": "hello"}}, {{"key": "Enter
                 "screenshot_path": screenshot_path if screenshot_saved else None
             })
             
+            # Get comprehensive window context
+            window_context = self._get_window_context()
+            logger.info(f"Window context retrieved: {window_context[:200]}...")  # Debug log
+            
             # Create AI prompt for command execution  
             target_info = f"\n\nTARGET APPLICATION: {target_app}\n- All actions will be focused on this application\n- Include \"target_app\": \"{target_app}\" in all automation actions" if target_app else ""
             
             available_apps = self.automation_service.window_manager.get_running_applications()
             apps_info = f"\nAvailable Applications: {', '.join(available_apps)}" if available_apps else ""
+            
+            # Get keyboard shortcuts context if available
+            shortcuts_context = ""
+            if self.shortcut_detector:
+                try:
+                    shortcuts_context = self.shortcut_detector.format_shortcuts_context(command)
+                except Exception as e:
+                    logger.warning(f"Failed to get shortcuts context: {e}")
             
             system_prompt = f"""You are an automation assistant that can see and interact with a computer screen. Given a screenshot and a natural language command, analyze what you see and provide specific automation actions.
 
@@ -645,6 +899,29 @@ IMPORTANT SYSTEM INFORMATION:
 - Provide ABSOLUTE screen coordinates, NOT window-relative coordinates
 - The top-left corner of the screen is (0, 0)
 - The bottom-right corner is (1920, 1080){apps_info}{target_info}
+
+APPLICATION LAUNCHING:
+- To open/launch applications, ALWAYS use the "launch_app" action type
+- DO NOT type launcher commands like "Alt+F1 → firefox" - use launch_app instead
+- Example: To open Firefox, use {{"type": "launch_app", "app_name": "Firefox ESR"}}
+- Available applications are listed in the WINDOW CONTEXT section below
+
+SECURITY GUIDELINES FOR WEB NAVIGATION:
+- ALWAYS use full URLs with https:// protocol when navigating to websites
+- For example: use "https://reddit.com" not "reddit.com"
+- Double-check typed URLs for typos before pressing Enter
+- Verify the URL in address bar matches the intended destination
+- NEVER type a domain name if it's already in the address bar (to avoid duplicates like reddit.comreddit.com)
+- When navigating to a new site, first click on the address bar, then clear it (Ctrl+A), then type the full URL
+
+WINDOW CONTEXT:
+{window_context}
+
+IMPORTANT WINDOW FOCUS RULES:
+1. The ACTIVE WINDOW receives keyboard input
+2. To interact with a different window, you MUST click on its Focus Point coordinates (shown above)
+3. NEVER guess window positions - always use the exact Focus Point coordinates provided
+4. Each window shows "Focus Point: (x, y)" - these are the exact coordinates to click for focusing that window
 
 FLUXBOX WINDOW MANAGEMENT:
 - Windows DO NOT have visible close/minimize/maximize buttons (X buttons)
@@ -659,6 +936,7 @@ Respond with JSON format:
     {{"type": "click", "x": 100, "y": 200, "description": "Click on [specific element you see]"{', "target_app": "' + target_app + '"' if target_app else ""}}},
     {{"type": "type", "text": "Hello", "description": "Type text in [specific field]"{', "target_app": "' + target_app + '"' if target_app else ""}}},
     {{"type": "key", "key": "Enter", "description": "Press Enter"{', "target_app": "' + target_app + '"' if target_app else ""}}},
+    {{"type": "launch_app", "app_name": "Firefox ESR", "description": "Launch Firefox browser"}},
     {{"type": "wait", "duration": 1.0, "description": "Wait 1 second"}}
   ],
   "reasoning": "I can see [describe what you see]. To [command], I will [explain approach]"
@@ -666,17 +944,26 @@ Respond with JSON format:
 
 {'IMPORTANT: When target_app is specified, always include "target_app": "' + target_app + '" in click, type, and key actions.' if target_app else ''}
 
+LAUNCHING APPLICATION EXAMPLE:
+To open Firefox:
+{{"type": "launch_app", "app_name": "Firefox ESR", "description": "Launch Firefox web browser"}}
+
 CLOSING WINDOWS EXAMPLE:
 To close a window:
 1. {{"type": "click", "x": 200, "y": 7, "description": "Right-click on window title bar", "button": "right"}}
 2. {{"type": "wait", "duration": 0.5, "description": "Wait for context menu"}}
 3. {{"type": "click", "x": 134, "y": 147, "description": "Click Close in context menu"}}
 
-Available action types: click, type, key, scroll, wait, drag
+Available action types: click, type, key, scroll, wait, drag, launch_app
 For click actions, add "button": "right" for right-clicks
+For launch_app actions, use exact app names from AVAILABLE APPLICATIONS list
 
-Be specific about what you see and provide EXACT ABSOLUTE screen coordinates!"""
+Be specific about what you see and provide EXACT ABSOLUTE screen coordinates!
+{shortcuts_context}"""
 
+            logger.debug(f"System prompt length: {len(system_prompt)}")  # Debug log
+            logger.debug(f"System prompt preview: {system_prompt[:500]}...")  # Debug log
+            
             context_str = f" Context: {context}" if context else ""
             user_prompt = f"""Command: {command}{context_str}
 
@@ -688,7 +975,7 @@ Analyze the screenshot and provide specific automation actions to execute this c
                 if "base64," in screenshot:
                     parts = screenshot.split("base64,")
                     if len(parts) > 1:
-                        screenshot_base64 = parts[1]
+                        screenshot_base64 = parts[1].replace('\n', '').replace('\r', '').strip()
                     else:
                         logger.warning("Screenshot split did not produce expected parts")
                         screenshot_base64 = screenshot
@@ -715,6 +1002,20 @@ Analyze the screenshot and provide specific automation actions to execute this c
             except Exception as log_error:
                 logger.warning(f"Error logging screenshot data: {log_error}")
             
+            # Log AI input for debugging
+            logger.info("=" * 80)
+            logger.info("AI INPUT DEBUG - SYSTEM PROMPT:")
+            logger.info("-" * 40)
+            logger.info(system_prompt[:1000] + "..." if len(system_prompt) > 1000 else system_prompt)
+            logger.info("-" * 40)
+            logger.info("AI INPUT DEBUG - USER PROMPT:")
+            logger.info("-" * 40)
+            logger.info(user_prompt)
+            logger.info("-" * 40)
+            logger.info(f"AI INPUT DEBUG - SCREENSHOT: {'Included' if screenshot_base64 else 'Not included'}")
+            logger.info(f"AI INPUT DEBUG - MODEL: {self.model}")
+            logger.info("=" * 80)
+            
             try:
                 # Get AI analysis with vision model
                 logger.info(f"Calling Ollama with model: {self.model}")
@@ -736,6 +1037,14 @@ Analyze the screenshot and provide specific automation actions to execute this c
                 )
                 ai_text = ai_response.get("response", "")
                 logger.info(f"Vision model response received, length: {len(ai_text)}")
+                
+                # Log AI output for debugging
+                logger.info("=" * 80)
+                logger.info("AI OUTPUT DEBUG - RESPONSE:")
+                logger.info("-" * 40)
+                logger.info(ai_text[:1000] + "..." if len(ai_text) > 1000 else ai_text)
+                logger.info("-" * 40)
+                logger.info("=" * 80)
             except Exception as e:
                 logger.error(f"Vision model error: {type(e).__name__}: {str(e)}")
                 logger.error(f"Full error details: {repr(e)}")
@@ -746,7 +1055,6 @@ Analyze the screenshot and provide specific automation actions to execute this c
             
             # Parse AI response for actions
             try:
-                import re
                 json_match = re.search(r'\{.*\}', ai_text, re.DOTALL)
                 if json_match:
                     ai_result = json.loads(json_match.group())
@@ -760,6 +1068,7 @@ Analyze the screenshot and provide specific automation actions to execute this c
                 ai_actions, reasoning = self._parse_command_fallback(command, target_app)
             
             # Execute the actions using the shared execution method
+            logger.info(f"AI actions to execute in command: {ai_actions}")  # Debug log
             executed_actions = await self._execute_ai_actions(
                 ai_actions, 
                 target_app=target_app,
@@ -801,7 +1110,6 @@ Analyze the screenshot and provide specific automation actions to execute this c
             actions.append(action)
         if "type" in command_lower or "write" in command_lower:
             # Try to extract text after "type" or "write"
-            import re
             text_match = re.search(r'(?:type|write)\s+["\']([^"\']*)["\']', command, re.IGNORECASE)
             if text_match:
                 text = text_match.group(1)
@@ -923,7 +1231,6 @@ Common actions: click, type, scroll, drag, key presses"""
             
             # Parse AI response
             try:
-                import re
                 json_match = re.search(r'\{.*\}', ai_text, re.DOTALL)
                 if json_match:
                     ai_analysis = json.loads(json_match.group())
@@ -971,3 +1278,93 @@ Common actions: click, type, scroll, drag, key presses"""
                 "suggested_actions": [],
                 "error": str(e)
             }
+    
+    def _get_window_context(self) -> str:
+        """Get comprehensive window context for AI"""
+        try:
+            # Get all windows
+            all_windows = self.automation_service.window_manager.list_all_windows()
+            
+            # Get focused window
+            focused_window = self.automation_service.window_manager.get_focused_window()
+            
+            # Format window information
+            context_parts = []
+            
+            # Add keyboard shortcuts for active window if available
+            if self.shortcut_detector and focused_window:
+                try:
+                    shortcuts_data = self.shortcut_detector.get_shortcuts_for_window(
+                        window_title=focused_window.title,
+                        window_class=focused_window.app_name
+                    )
+                    if shortcuts_data.get('priority_actions'):
+                        context_parts.append("\nKEYBOARD SHORTCUTS AVAILABLE:")
+                        for task, actions in shortcuts_data['priority_actions'].items():
+                            task_formatted = task.replace('_', ' ').title()
+                            context_parts.append(f"- {task_formatted}: Use keyboard shortcut instead of clicking")
+                except Exception as e:
+                    logger.debug(f"Could not get shortcuts for window: {e}")
+            
+            # Current active window
+            if focused_window:
+                # Calculate focus point (center of title bar area)
+                focus_x = focused_window.geometry['x'] + (focused_window.geometry['width'] // 2)
+                focus_y = focused_window.geometry['y'] + 20  # 20 pixels down from top for title bar
+                
+                context_parts.append(f"ACTIVE WINDOW: {focused_window.app_name} - \"{focused_window.title}\"")
+                context_parts.append(f"  Position: ({focused_window.geometry['x']}, {focused_window.geometry['y']})")
+                context_parts.append(f"  Size: {focused_window.geometry['width']}x{focused_window.geometry['height']}")
+                context_parts.append(f"  Focus Point: ({focus_x}, {focus_y}) - Click here to ensure this window is focused")
+                context_parts.append(f"  Window ID: {focused_window.window_id}")
+            else:
+                context_parts.append("ACTIVE WINDOW: None detected")
+            
+            # All windows list
+            context_parts.append("\nALL WINDOWS:")
+            for window in all_windows:
+                # Calculate focus point for each window
+                focus_x = window.geometry['x'] + (window.geometry['width'] // 2)
+                focus_y = window.geometry['y'] + 20  # 20 pixels down from top for title bar
+                
+                is_active = " [ACTIVE]" if window.is_focused else ""
+                context_parts.append(f"- {window.app_name}: \"{window.title}\"{is_active}")
+                context_parts.append(f"  Position: ({window.geometry['x']}, {window.geometry['y']}) Size: {window.geometry['width']}x{window.geometry['height']}")
+                context_parts.append(f"  Focus Point: ({focus_x}, {focus_y}) - Click here to focus this window")
+            
+            # Important note about window focus
+            context_parts.append("\nIMPORTANT: The ACTIVE WINDOW receives keyboard input. To interact with a different window:")
+            context_parts.append("1. Click on the window's Focus Point coordinates shown above to focus it")
+            context_parts.append("2. Or use target_app parameter in actions to auto-focus before interaction")
+            context_parts.append("3. ALWAYS use the Focus Point coordinates when you need to click on a window to focus it")
+            
+            # Add available applications information
+            if self.mode_context:
+                try:
+                    applications = self.mode_context.context_data.get("applications", {})
+                    if applications:
+                        context_parts.append("\nAVAILABLE APPLICATIONS (can be launched):")
+                        for app_name, app_info in applications.items():
+                            description = app_info.get("description", "No description")
+                            command = app_info.get("command", "Unknown command")
+                            launcher = app_info.get("launcher", "Use launch_app action")
+                            context_parts.append(f"- {app_name}: {description}")
+                            context_parts.append(f"  Command: {command}")
+                            context_parts.append(f"  How to launch: {launcher}")
+                        
+                        context_parts.append("\nLAUNCHING APPLICATIONS:")
+                        context_parts.append("To launch any application above, use: {\"type\": \"launch_app\", \"app_name\": \"ApplicationName\"}")
+                        context_parts.append("Example: {\"type\": \"launch_app\", \"app_name\": \"Firefox ESR\"}")
+                    else:
+                        context_parts.append("\nAVAILABLE APPLICATIONS: None detected")
+                except Exception as e:
+                    logger.debug(f"Failed to get applications context: {e}")
+                    context_parts.append("\nAVAILABLE APPLICATIONS: Error retrieving application list")
+            else:
+                context_parts.append("\nAVAILABLE APPLICATIONS: Application discovery not initialized")
+            
+            return "\n".join(context_parts)
+            
+        except Exception as e:
+            logger.warning(f"Failed to get window context: {e}")
+            return "Window context unavailable"

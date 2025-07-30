@@ -1,25 +1,32 @@
-import { generatePK, generatePublicId } from "@vrooli/shared";
+/* eslint-disable no-magic-numbers */
 import { type Prisma } from "@prisma/client";
+import { generatePK, generatePublicId } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
+import type { BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
 
 /**
  * Database fixtures for Issue model - used for seeding test data
  * These follow Prisma's shape for database operations
  */
 
-// Consistent IDs for testing
-export const issueDbIds = {
-    issue1: generatePK(),
-    issue2: generatePK(),
-    issue3: generatePK(),
-    user1: generatePK(),
-    user2: generatePK(),
-    project1: generatePK(),
-    routine1: generatePK(),
-    label1: generatePK(),
-    label2: generatePK(),
-};
+// Cached IDs for consistent testing - lazy initialization pattern
+let _issueDbIds: Record<string, bigint> | null = null;
+export function getIssueDbIds() {
+    if (!_issueDbIds) {
+        _issueDbIds = {
+            issue1: generatePK(),
+            issue2: generatePK(),
+            issue3: generatePK(),
+            user1: generatePK(),
+            user2: generatePK(),
+            project1: generatePK(),
+            routine1: generatePK(),
+            label1: generatePK(),
+            label2: generatePK(),
+        };
+    }
+    return _issueDbIds;
+}
 
 /**
  * Enhanced test fixtures for Issue model following standard structure
@@ -28,18 +35,18 @@ export const issueDbFixtures: DbTestFixtures<Prisma.issueCreateInput> = {
     minimal: {
         id: generatePK(),
         publicId: generatePublicId(),
-        createdBy: { connect: { id: issueDbIds.user1 } },
+        createdBy: { connect: { id: getIssueDbIds().user1 } },
     },
     complete: {
         id: generatePK(),
         publicId: generatePublicId(),
-        createdBy: { connect: { id: issueDbIds.user1 } },
-        closedBy: { connect: { id: issueDbIds.user2 } },
-        project: { connect: { id: issueDbIds.project1 } },
+        createdBy: { connect: { id: getIssueDbIds().user1 } },
+        closedBy: { connect: { id: getIssueDbIds().user2 } },
+        project: { connect: { id: getIssueDbIds().project1 } },
         labels: {
             connect: [
-                { id: issueDbIds.label1 },
-                { id: issueDbIds.label2 },
+                { id: getIssueDbIds().label1 },
+                { id: getIssueDbIds().label2 },
             ],
         },
         translations: {
@@ -73,15 +80,15 @@ export const issueDbFixtures: DbTestFixtures<Prisma.issueCreateInput> = {
         noTargetObject: {
             id: generatePK(),
             publicId: generatePublicId(),
-            createdBy: { connect: { id: issueDbIds.user1 } },
+            createdBy: { connect: { id: getIssueDbIds().user1 } },
             // No target object connected (business logic issue)
         },
         multipleTargets: {
             id: generatePK(),
             publicId: generatePublicId(),
-            createdBy: { connect: { id: issueDbIds.user1 } },
-            project: { connect: { id: issueDbIds.project1 } },
-            routine: { connect: { id: issueDbIds.routine1 } },
+            createdBy: { connect: { id: getIssueDbIds().user1 } },
+            project: { connect: { id: getIssueDbIds().project1 } },
+            routine: { connect: { id: getIssueDbIds().routine1 } },
             // Multiple targets (business logic violation)
         },
     },
@@ -89,8 +96,8 @@ export const issueDbFixtures: DbTestFixtures<Prisma.issueCreateInput> = {
         projectIssue: {
             id: generatePK(),
             publicId: generatePublicId(),
-            createdBy: { connect: { id: issueDbIds.user1 } },
-            project: { connect: { id: issueDbIds.project1 } },
+            createdBy: { connect: { id: getIssueDbIds().user1 } },
+            project: { connect: { id: getIssueDbIds().project1 } },
             translations: {
                 create: [{
                     id: generatePK(),
@@ -103,8 +110,8 @@ export const issueDbFixtures: DbTestFixtures<Prisma.issueCreateInput> = {
         routineIssue: {
             id: generatePK(),
             publicId: generatePublicId(),
-            createdBy: { connect: { id: issueDbIds.user1 } },
-            routine: { connect: { id: issueDbIds.routine1 } },
+            createdBy: { connect: { id: getIssueDbIds().user1 } },
+            routine: { connect: { id: getIssueDbIds().routine1 } },
             translations: {
                 create: [{
                     id: generatePK(),
@@ -117,9 +124,9 @@ export const issueDbFixtures: DbTestFixtures<Prisma.issueCreateInput> = {
         closedIssue: {
             id: generatePK(),
             publicId: generatePublicId(),
-            createdBy: { connect: { id: issueDbIds.user1 } },
-            closedBy: { connect: { id: issueDbIds.user2 } },
-            project: { connect: { id: issueDbIds.project1 } },
+            createdBy: { connect: { id: getIssueDbIds().user1 } },
+            closedBy: { connect: { id: getIssueDbIds().user2 } },
+            project: { connect: { id: getIssueDbIds().project1 } },
             translations: {
                 create: [{
                     id: generatePK(),
@@ -132,12 +139,12 @@ export const issueDbFixtures: DbTestFixtures<Prisma.issueCreateInput> = {
         labeledIssue: {
             id: generatePK(),
             publicId: generatePublicId(),
-            createdBy: { connect: { id: issueDbIds.user1 } },
-            project: { connect: { id: issueDbIds.project1 } },
+            createdBy: { connect: { id: getIssueDbIds().user1 } },
+            project: { connect: { id: getIssueDbIds().project1 } },
             labels: {
                 connect: [
-                    { id: issueDbIds.label1 },
-                    { id: issueDbIds.label2 },
+                    { id: getIssueDbIds().label1 },
+                    { id: getIssueDbIds().label2 },
                 ],
             },
             translations: {
@@ -152,8 +159,8 @@ export const issueDbFixtures: DbTestFixtures<Prisma.issueCreateInput> = {
         multiLanguageIssue: {
             id: generatePK(),
             publicId: generatePublicId(),
-            createdBy: { connect: { id: issueDbIds.user1 } },
-            project: { connect: { id: issueDbIds.project1 } },
+            createdBy: { connect: { id: getIssueDbIds().user1 } },
+            project: { connect: { id: getIssueDbIds().project1 } },
             translations: {
                 create: [
                     { id: generatePK(), language: "en", name: "Multi-language Issue", description: "English description" },
@@ -165,9 +172,9 @@ export const issueDbFixtures: DbTestFixtures<Prisma.issueCreateInput> = {
         selfClosedIssue: {
             id: generatePK(),
             publicId: generatePublicId(),
-            createdBy: { connect: { id: issueDbIds.user1 } },
-            closedBy: { connect: { id: issueDbIds.user1 } }, // Same user created and closed
-            project: { connect: { id: issueDbIds.project1 } },
+            createdBy: { connect: { id: getIssueDbIds().user1 } },
+            closedBy: { connect: { id: getIssueDbIds().user1 } }, // Same user created and closed
+            project: { connect: { id: getIssueDbIds().project1 } },
             translations: {
                 create: [{
                     id: generatePK(),
@@ -184,7 +191,7 @@ export const issueDbFixtures: DbTestFixtures<Prisma.issueCreateInput> = {
  * Enhanced factory for creating issue database fixtures
  */
 export class IssueDbFactory extends EnhancedDbFactory<Prisma.issueCreateInput> {
-    
+
     /**
      * Get the test fixtures for Issue model
      */
@@ -199,9 +206,9 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.issueCreateInput> {
         return {
             constraints: {
                 uniqueViolation: {
-                    id: issueDbIds.issue1, // Duplicate ID
+                    id: getIssueDbIds().issue1, // Duplicate ID
                     publicId: generatePublicId(),
-                    createdBy: { connect: { id: issueDbIds.user1 } },
+                    createdBy: { connect: { id: getIssueDbIds().user1 } },
                 },
                 foreignKeyViolation: {
                     id: generatePK(),
@@ -211,7 +218,7 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.issueCreateInput> {
                 checkConstraintViolation: {
                     id: generatePK(),
                     publicId: "", // Empty publicId
-                    createdBy: { connect: { id: issueDbIds.user1 } },
+                    createdBy: { connect: { id: getIssueDbIds().user1 } },
                 },
             },
             validation: {
@@ -220,7 +227,7 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.issueCreateInput> {
                 outOfRange: {
                     id: generatePK(),
                     publicId: "a".repeat(500), // PublicId too long
-                    createdBy: { connect: { id: issueDbIds.user1 } },
+                    createdBy: { connect: { id: getIssueDbIds().user1 } },
                 },
             },
             businessLogic: {
@@ -229,9 +236,9 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.issueCreateInput> {
                 invalidClosure: {
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    createdBy: { connect: { id: issueDbIds.user1 } },
+                    createdBy: { connect: { id: getIssueDbIds().user1 } },
                     closedBy: { connect: { id: "non-existent-user-id" } }, // Invalid closer
-                    project: { connect: { id: issueDbIds.project1 } },
+                    project: { connect: { id: getIssueDbIds().project1 } },
                 },
             },
         };
@@ -251,7 +258,7 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.issueCreateInput> {
         // Check business logic - should have exactly one target object
         const targetFields = ["api", "code", "note", "project", "routine", "standard", "team"];
         const connectedTargets = targetFields.filter(field => data[field as keyof Prisma.issueCreateInput]);
-        
+
         if (connectedTargets.length === 0) {
             warnings.push("Issue should reference a target object");
         } else if (connectedTargets.length > 1) {
@@ -259,7 +266,7 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.issueCreateInput> {
         }
 
         // Check closure logic
-        if (data.closedBy && data.createdBy && 
+        if (data.closedBy && data.createdBy &&
             typeof data.closedBy === "object" && "connect" in data.closedBy &&
             typeof data.createdBy === "object" && "connect" in data.createdBy &&
             data.closedBy.connect.id === data.createdBy.connect.id) {
@@ -288,7 +295,7 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.issueCreateInput> {
         overrides?: Partial<Prisma.issueCreateInput>,
     ): Prisma.issueCreateInput {
         const base = this.createMinimal(createdById, overrides);
-        
+
         // Add the appropriate connection based on object type
         const connections: Record<string, any> = {
             Api: { api: { connect: { id: objectId } } },

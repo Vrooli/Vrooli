@@ -1,25 +1,32 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
+/* eslint-disable no-magic-numbers */
 import { type Prisma } from "@prisma/client";
+import { generatePK, generatePublicId } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
+import type { BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
 
 /**
  * Database fixtures for Meeting model - used for seeding test data
  * These follow Prisma's shape for database operations
  */
 
-// Consistent IDs for testing
-export const meetingDbIds = {
-    meeting1: generatePK(),
-    meeting2: generatePK(),
-    meeting3: generatePK(),
-    invite1: generatePK(),
-    invite2: generatePK(),
-    invite3: generatePK(),
-    translation1: generatePK(),
-    translation2: generatePK(),
-    translation3: generatePK(),
-};
+// Consistent IDs for testing - cached for performance
+let _meetingDbIds: Record<string, bigint> | null = null;
+export function getMeetingDbIds() {
+    if (!_meetingDbIds) {
+        _meetingDbIds = {
+            meeting1: generatePK(),
+            meeting2: generatePK(),
+            meeting3: generatePK(),
+            invite1: generatePK(),
+            invite2: generatePK(),
+            invite3: generatePK(),
+            translation1: generatePK(),
+            translation2: generatePK(),
+            translation3: generatePK(),
+        };
+    }
+    return _meetingDbIds;
+}
 
 /**
  * Enhanced test fixtures for Meeting model following standard structure
@@ -172,7 +179,7 @@ export const meetingDbFixtures: DbTestFixtures<Prisma.meetingCreateInput> = {
  * Enhanced factory for creating meeting database fixtures
  */
 export class MeetingDbFactory extends EnhancedDbFactory<Prisma.meetingCreateInput> {
-    
+
     /**
      * Get the test fixtures for Meeting model
      */
@@ -187,7 +194,7 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.meetingCreateInpu
         return {
             constraints: {
                 uniqueViolation: {
-                    id: meetingDbIds.meeting1, // Duplicate ID
+                    id: getMeetingDbIds().meeting1, // Duplicate ID
                     publicId: generatePublicId(),
                     team: { connect: { id: "team_placeholder_id" } },
                     openToAnyoneWithInvite: false,
@@ -340,8 +347,8 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.meetingCreateInpu
     ): Prisma.meetingCreateInput {
         return this.createWithTranslations(
             teamId,
-            [{ 
-                language: "en", 
+            [{
+                language: "en",
                 name: "Scheduled Meeting",
                 description: "Team sync meeting",
             }],
@@ -408,15 +415,15 @@ export async function seedMeetings(
 
     for (let i = 0; i < count; i++) {
         const scheduledFor = options.scheduleDates?.[i] || new Date(Date.now() + (i + 1) * 24 * 60 * 60 * 1000);
-        
+
         let meetingData: Prisma.meetingCreateInput;
-        
+
         if (options.withInvites) {
             meetingData = MeetingDbFactory.createWithInvites(
                 options.teamId,
-                options.withInvites.map(inv => ({ 
-                    userId: inv.userId, 
-                    createdById: options.createdById, 
+                options.withInvites.map(inv => ({
+                    userId: inv.userId,
+                    createdById: options.createdById,
                 })),
                 { scheduledFor },
             );
@@ -433,14 +440,14 @@ export async function seedMeetings(
                 },
             });
         }
-        
+
         if (scheduledFor > new Date()) {
             scheduledCount++;
         }
 
         const meeting = await prisma.meeting.create({
             data: meetingData,
-            include: { 
+            include: {
                 invites: true,
                 translations: true,
                 team: true,

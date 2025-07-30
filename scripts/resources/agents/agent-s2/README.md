@@ -1,6 +1,6 @@
-# Agent S2 - Autonomous Computer Interaction Service
+# Agent S2 - Natural Language Computer Control
 
-Agent S2 is an open-source framework for autonomous computer interaction, enabling AI agents to observe, reason, and perform tasks on digital interfaces using mouse and keyboard control. This integration provides Agent S2 as a secure, Docker-based service within the Vrooli ecosystem.
+Agent S2 enables you to control your computer using natural language commands. Simply describe what you want to do - "go to Reddit", "search for tutorials", "open calculator" - and Agent S2 will execute the task using AI-powered visual understanding and automation. It combines the intelligence of LLMs with precise mouse/keyboard control to interact with any application or website.
 
 ## 🎯 Quick Reference
 
@@ -44,20 +44,20 @@ Agent S2 is an open-source framework for autonomous computer interaction, enabli
 
 ### Basic Usage
 ```bash
+# Execute AI tasks with natural language (primary feature)
+./manage.sh --action ai-task --task "go to reddit"
+./manage.sh --action ai-task --task "search for Python tutorials on Google"
+./manage.sh --action ai-task --task "open calculator and compute 25 * 4"
+./manage.sh --action ai-task --task "take a screenshot of the desktop"
+
 # Check service status
 ./manage.sh --action status
 
-# Test screenshot functionality
-./manage.sh --action usage --usage-type screenshot
-
-# Test automation capabilities
-./manage.sh --action usage --usage-type automation
-
-# Test AI planning (requires API key)
-./manage.sh --action usage --usage-type planning
-
-# View all available usage examples
-./manage.sh --action usage --usage-type help
+# Test specific capabilities
+./manage.sh --action usage --usage-type screenshot    # Screenshot functionality
+./manage.sh --action usage --usage-type automation    # Core automation
+./manage.sh --action usage --usage-type planning      # AI planning
+./manage.sh --action usage --usage-type help          # All examples
 ```
 
 ### Verify Installation
@@ -85,6 +85,26 @@ Agent S2 is an open-source framework for autonomous computer interaction, enabli
 - **🔄 Task Management**: Asynchronous task execution with status tracking
 - **🛡️ Stealth Mode**: Advanced anti-bot detection with fingerprint randomization and session persistence
 
+## 🤖 AI Task Execution
+
+Agent S2 can understand and execute natural language commands. Simply describe what you want to do:
+
+```bash
+# Navigate to websites
+./manage.sh --action ai-task --task "go to reddit and browse the front page"
+
+# Search for information
+./manage.sh --action ai-task --task "search Google for machine learning tutorials"
+
+# Interact with applications
+./manage.sh --action ai-task --task "open calculator and compute 150 divided by 3"
+
+# Complex multi-step tasks
+./manage.sh --action ai-task --task "take a screenshot, open text editor, and write a summary"
+```
+
+The AI understands context and can handle complex instructions that would normally require multiple manual steps.
+
 ## 📖 Documentation
 
 - **[API Reference](docs/API.md)** - Complete endpoint documentation and examples
@@ -98,16 +118,18 @@ Agent S2 is an open-source framework for autonomous computer interaction, enabli
 ## 🎯 When to Use Agent S2
 
 ### Use Agent S2 When:
-- Automating desktop applications (Excel, Photoshop, games, etc.)
-- Performing GUI testing for applications
-- Extracting visual data from any application
-- Combining AI intelligence with precise automation
-- Requiring human-like interaction patterns
+- **Natural language automation**: "Go to website X and do Y" - describe tasks in plain English
+- **Web navigation with AI reasoning**: Navigate complex sites, handle popups, solve CAPTCHAs
+- **Desktop application automation**: Control Excel, Photoshop, games, or any GUI application
+- **Visual understanding required**: "Click the blue button", "Find the search box", etc.
+- **Multi-step workflows**: Complex tasks requiring decision-making and adaptation
+- **GUI testing**: Automated testing that requires visual verification
 
 ### Consider Alternatives When:
-- Working only with web pages → [Browserless](../browserless/)
-- Building API-based workflows → [n8n](../../automation/n8n/)
-- Performing simple web scraping → [SearXNG](../../search/searxng/)
+- Working with simple, predictable web pages → [Browserless](../browserless/)
+- Building pure API-based workflows → [n8n](../../automation/n8n/)
+- Performing basic web scraping → [SearXNG](../../search/searxng/)
+- You know exact selectors/coordinates → Use core automation endpoints directly
 
 ## 🔗 Integration Examples
 

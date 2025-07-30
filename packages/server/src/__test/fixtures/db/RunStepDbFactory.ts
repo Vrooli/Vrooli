@@ -1,15 +1,16 @@
+/* eslint-disable no-magic-numbers */
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
+import { type Prisma, type PrismaClient, RunStepStatus, type run_step } from "@prisma/client";
 import { nanoid } from "@vrooli/shared";
-import { type Prisma, type PrismaClient, RunStepStatus } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
 
 interface RunStepRelationConfig extends RelationConfig {
-    withRun?: { runId: string };
+    withRun?: { runId: bigint };
     withResourceVersion?: { resourceVersionId: string };
 }
 
@@ -27,14 +28,25 @@ interface RunStepRelationConfig extends RelationConfig {
  * - Predefined test scenarios
  */
 export class RunStepDbFactory extends EnhancedDatabaseFactory<
-    Prisma.run_stepCreateInput,
+    run_step,
     Prisma.run_stepCreateInput,
     Prisma.run_stepInclude,
     Prisma.run_stepUpdateInput
 > {
     protected scenarios: Record<string, TestScenario> = {};
+    // Store commonly used IDs for fixtures
+    private fixtureRunId: string;
+    private defaultRunId: string;
+    private fixtureResourceVersionId: string;
+    private defaultResourceVersionId: string;
+
     constructor(prisma: PrismaClient) {
         super("RunStep", prisma);
+        // Generate valid IDs that can be reused in fixtures
+        this.fixtureRunId = this.generateId().toString();
+        this.defaultRunId = this.generateId().toString();
+        this.fixtureResourceVersionId = this.generateId().toString();
+        this.defaultResourceVersionId = this.generateId().toString();
         this.initializeScenarios();
     }
 
@@ -62,7 +74,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                 complexity: 10,
                 contextSwitches: 0,
                 run: {
-                    connect: { id: "run_id" },
+                    connect: { id: this.fixtureRunId },
                 },
             },
             complete: {
@@ -78,10 +90,10 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                 completedAt: oneMinuteAgo,
                 timeElapsed: 240000, // 4 minutes in milliseconds
                 run: {
-                    connect: { id: "run_id" },
+                    connect: { id: this.fixtureRunId },
                 },
                 resourceVersion: {
-                    connect: { id: "resource_version_id" },
+                    connect: { id: this.fixtureResourceVersionId },
                 },
             },
             invalid: {
@@ -91,7 +103,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     contextSwitches: 0,
                 },
                 invalidTypes: {
-                    id: "not-a-bigint",
+                    id: 123456789, // Should be BigInt, not number
                     name: null, // Should be string
                     nodeId: 123, // Should be string UUID
                     resourceInId: true, // Should be string UUID
@@ -111,7 +123,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     complexity: 0,
                     contextSwitches: 0,
                     run: {
-                        connect: { id: "run_id" },
+                        connect: { id: this.fixtureRunId },
                     },
                 },
                 invalidTimeRange: {
@@ -126,7 +138,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     startedAt: now,
                     completedAt: oneMinuteAgo, // Completed before started
                     run: {
-                        connect: { id: "run_id" },
+                        connect: { id: this.fixtureRunId },
                     },
                 },
                 invalidUuid: {
@@ -139,7 +151,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     complexity: 0,
                     contextSwitches: 0,
                     run: {
-                        connect: { id: "run_id" },
+                        connect: { id: this.fixtureRunId },
                     },
                 },
                 negativeOrder: {
@@ -152,22 +164,22 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     complexity: 0,
                     contextSwitches: 0,
                     run: {
-                        connect: { id: "run_id" },
+                        connect: { id: this.fixtureRunId },
                     },
                 },
             },
             edgeCases: {
-                pendingStep: {
+                notStartedStep: {
                     id: this.generateId(),
-                    name: "Pending Step",
+                    name: "Not Started Step",
                     nodeId: nanoid(),
                     resourceInId: nanoid(),
                     order: 0,
-                    status: RunStepStatus.Pending,
+                    status: RunStepStatus.InProgress,
                     complexity: 0,
                     contextSwitches: 0,
                     run: {
-                        connect: { id: "run_id" },
+                        connect: { id: this.fixtureRunId },
                     },
                 },
                 inProgressStep: {
@@ -181,7 +193,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     contextSwitches: 2,
                     startedAt: fiveMinutesAgo,
                     run: {
-                        connect: { id: "run_id" },
+                        connect: { id: this.fixtureRunId },
                     },
                 },
                 completedStep: {
@@ -197,23 +209,23 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     completedAt: fiveMinutesAgo,
                     timeElapsed: 300000, // 5 minutes
                     run: {
-                        connect: { id: "run_id" },
+                        connect: { id: this.fixtureRunId },
                     },
                 },
-                failedStep: {
+                stoppedStep: {
                     id: this.generateId(),
-                    name: "Failed Step",
+                    name: "Stopped Step",
                     nodeId: nanoid(),
                     resourceInId: nanoid(),
                     order: 3,
-                    status: RunStepStatus.Failed,
+                    status: RunStepStatus.Skipped,
                     complexity: 5,
                     contextSwitches: 5,
                     startedAt: tenMinutesAgo,
                     completedAt: fiveMinutesAgo,
                     timeElapsed: 300000,
                     run: {
-                        connect: { id: "run_id" },
+                        connect: { id: this.fixtureRunId },
                     },
                 },
                 skippedStep: {
@@ -226,7 +238,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     complexity: 0,
                     contextSwitches: 0,
                     run: {
-                        connect: { id: "run_id" },
+                        connect: { id: this.fixtureRunId },
                     },
                 },
                 highComplexityStep: {
@@ -242,7 +254,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     completedAt: new Date(now.getTime() - 30 * 60 * 1000), // 30 minutes ago
                     timeElapsed: 1800000, // 30 minutes
                     run: {
-                        connect: { id: "run_id" },
+                        connect: { id: this.fixtureRunId },
                     },
                 },
                 quickStep: {
@@ -258,7 +270,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     completedAt: new Date(now.getTime() - 1000), // 1 second ago
                     timeElapsed: 4000, // 4 seconds
                     run: {
-                        connect: { id: "run_id" },
+                        connect: { id: this.fixtureRunId },
                     },
                 },
                 highOrderStep: {
@@ -267,11 +279,11 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     nodeId: nanoid(),
                     resourceInId: nanoid(),
                     order: 999,
-                    status: RunStepStatus.Pending,
+                    status: RunStepStatus.InProgress,
                     complexity: 0,
                     contextSwitches: 0,
                     run: {
-                        connect: { id: "run_id" },
+                        connect: { id: this.fixtureRunId },
                     },
                 },
             },
@@ -298,11 +310,11 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
             nodeId: nanoid(),
             resourceInId: nanoid(),
             order: 0,
-            status: RunStepStatus.Pending,
+            status: RunStepStatus.InProgress,
             complexity: 0,
             contextSwitches: 0,
             run: {
-                connect: { id: "default_run_id" },
+                connect: { id: this.defaultRunId },
             },
             ...overrides,
         };
@@ -311,7 +323,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
     protected generateCompleteData(overrides?: Partial<Prisma.run_stepCreateInput>): Prisma.run_stepCreateInput {
         const now = new Date();
         const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
-        
+
         return {
             id: this.generateId(),
             name: `Complete_Step_${nanoid()}`,
@@ -325,10 +337,10 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
             completedAt: now,
             timeElapsed: 300000, // 5 minutes
             run: {
-                connect: { id: "default_run_id" },
+                connect: { id: this.defaultRunId },
             },
             resourceVersion: {
-                connect: { id: "default_resource_version_id" },
+                connect: { id: this.defaultResourceVersionId },
             },
             ...overrides,
         };
@@ -364,18 +376,18 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                         status: RunStepStatus.InProgress,
                         startedAt: new Date(Date.now() - 600000), // 10 minutes ago
                     },
-                    withResourceVersion: { resourceVersionId: "resource_version_id" },
+                    withResourceVersion: { resourceVersionId: this.fixtureResourceVersionId.toString() },
                 },
             },
-            failedStep: {
-                name: "failedStep",
-                description: "Step that failed during execution",
+            skippedStep: {
+                name: "skippedStep",
+                description: "Step that was skipped during execution",
                 config: {
                     overrides: {
-                        name: "Failed Validation Step",
+                        name: "Skipped Validation Step",
                         complexity: 30,
                         contextSwitches: 5,
-                        status: RunStepStatus.Failed,
+                        status: RunStepStatus.Skipped,
                         startedAt: new Date(Date.now() - 120000), // 2 minutes ago
                         completedAt: new Date(Date.now() - 60000), // 1 minute ago
                         timeElapsed: 60000,
@@ -416,15 +428,16 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create specific step types
      */
-    async createPendingStep(runId: string, order: number): Promise<Prisma.run_step> {
+    async createNotStartedStep(runId: string, order: number): Promise<any> {
         return await this.createMinimal({
             order,
-            status: RunStepStatus.Pending,
+            status: RunStepStatus.InProgress,
+            startedAt: undefined,
             run: { connect: { id: runId } },
         });
     }
 
-    async createInProgressStep(runId: string, order: number): Promise<Prisma.run_step> {
+    async createInProgressStep(runId: string, order: number): Promise<any> {
         return await this.createMinimal({
             order,
             status: RunStepStatus.InProgress,
@@ -434,13 +447,13 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
     }
 
     async createCompletedStep(
-        runId: string, 
-        order: number, 
+        runId: string,
+        order: number,
         complexity = 10,
-    ): Promise<Prisma.run_step> {
+    ): Promise<any> {
         const now = new Date();
         const startTime = new Date(now.getTime() - complexity * 10000); // 10s per complexity point
-        
+
         return await this.createMinimal({
             order,
             status: RunStepStatus.Completed,
@@ -452,16 +465,10 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    async createFailedStep(runId: string, order: number): Promise<Prisma.run_step> {
-        const now = new Date();
-        const startTime = new Date(now.getTime() - 60000); // 1 minute ago
-        
+    async createSkippedStep(runId: string, order: number): Promise<any> {
         return await this.createMinimal({
             order,
-            status: RunStepStatus.Failed,
-            startedAt: startTime,
-            completedAt: now,
-            timeElapsed: 60000,
+            status: RunStepStatus.Skipped,
             run: { connect: { id: runId } },
         });
     }
@@ -479,7 +486,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                 select: {
                     id: true,
                     publicId: true,
-                    versionString: true,
+                    versionLabel: true,
                 },
             },
         };
@@ -511,7 +518,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
 
     protected async checkModelConstraints(record: Prisma.run_step): Promise<string[]> {
         const violations: string[] = [];
-        
+
         // Check name length
         if (record.name.length > 128) {
             violations.push("Step name exceeds 128 character limit");
@@ -542,16 +549,17 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
             violations.push("Completed steps must have completion time");
         }
 
-        if (record.status === RunStepStatus.Failed && !record.completedAt) {
-            violations.push("Failed steps must have completion time");
+        if (record.status === RunStepStatus.Skipped && record.startedAt) {
+            violations.push("Skipped steps should not have start time");
         }
 
         if (record.status === RunStepStatus.InProgress && !record.startedAt) {
             violations.push("In-progress steps must have start time");
         }
 
-        if (record.status === RunStepStatus.Pending && record.startedAt) {
-            violations.push("Pending steps should not have start time");
+        // InProgress steps without start time represent not-started steps
+        if (record.status === RunStepStatus.InProgress && record.completedAt) {
+            violations.push("In-progress steps should not have completion time");
         }
 
         // Check time elapsed consistency
@@ -606,14 +614,14 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
         }>,
     ): Promise<Prisma.run_step[]> {
         const now = new Date();
-        
+
         return await this.createMany(
             stepConfigs.map((config, i) => {
                 const startTime = new Date(now.getTime() - (stepConfigs.length - i) * 60000);
-                const endTime = config.status === RunStepStatus.Completed || config.status === RunStepStatus.Failed
+                const endTime = config.status === RunStepStatus.Completed
                     ? new Date(startTime.getTime() + 30000)
                     : undefined;
-                
+
                 return {
                     name: config.name,
                     nodeId: nanoid(),
@@ -622,7 +630,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                     status: config.status,
                     complexity: config.complexity || 10,
                     contextSwitches: config.contextSwitches || 0,
-                    startedAt: config.status !== RunStepStatus.Pending ? startTime : undefined,
+                    startedAt: config.status === RunStepStatus.Completed || config.status === RunStepStatus.InProgress ? startTime : undefined,
                     completedAt: endTime,
                     timeElapsed: endTime ? endTime.getTime() - startTime.getTime() : undefined,
                     run: { connect: { id: runId } },
@@ -635,29 +643,22 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
      * Create test steps for various scenarios
      */
     async createTestSteps(runId: string): Promise<{
-        pending: Prisma.run_step;
-        inProgress: Prisma.run_step;
-        completed: Prisma.run_step;
-        failed: Prisma.run_step;
-        skipped: Prisma.run_step;
+        notStarted: any;
+        inProgress: any;
+        completed: any;
+        skipped: any;
     }> {
-        const [pending, inProgress, completed, failed, skipped] = await Promise.all([
-            this.createPendingStep(runId, 0),
+        const [notStarted, inProgress, completed, skipped] = await Promise.all([
+            this.createNotStartedStep(runId, 0),
             this.createInProgressStep(runId, 1),
             this.createCompletedStep(runId, 2),
-            this.createFailedStep(runId, 3),
-            this.createMinimal({
-                order: 4,
-                status: RunStepStatus.Skipped,
-                run: { connect: { id: runId } },
-            }),
+            this.createSkippedStep(runId, 3),
         ]);
 
         return {
-            pending,
+            notStarted,
             inProgress,
             completed,
-            failed,
             skipped,
         };
     }
@@ -670,23 +671,23 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
         order: number,
         duration: number, // in milliseconds
         status: RunStepStatus = RunStepStatus.Completed,
-    ): Promise<Prisma.run_step> {
+    ): Promise<any> {
         const endTime = new Date();
         const startTime = new Date(endTime.getTime() - duration);
-        
+
         return await this.createMinimal({
             order,
             status,
             startedAt: startTime,
-            completedAt: status === RunStepStatus.Completed || status === RunStepStatus.Failed ? endTime : undefined,
-            timeElapsed: status === RunStepStatus.Completed || status === RunStepStatus.Failed ? duration : undefined,
+            completedAt: status === RunStepStatus.Completed ? endTime : undefined,
+            timeElapsed: status === RunStepStatus.Completed ? duration : undefined,
             run: { connect: { id: runId } },
         });
     }
 }
 
 // Export factory creator function
-export const createRunStepDbFactory = (prisma: PrismaClient) => 
+export const createRunStepDbFactory = (prisma: PrismaClient) =>
     new RunStepDbFactory(prisma);
 
 // Export the class for type usage

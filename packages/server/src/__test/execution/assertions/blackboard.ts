@@ -14,10 +14,6 @@ export interface BlackboardAssertions {
     toContainState(partialState: Record<string, any>): void;
 }
 
-declare module "vitest" {
-    type Assertion<T> = BlackboardAssertions
-    type AsymmetricMatchersContaining = BlackboardAssertions
-}
 
 export function extendBlackboardAssertions() {
     expect.extend({
@@ -34,7 +30,7 @@ export function extendBlackboardAssertions() {
         toHaveKeys(received: Map<string, any>, keys: string[]) {
             const missingKeys = keys.filter(key => !received.has(key));
             const pass = missingKeys.length === 0;
-            
+
             return {
                 pass,
                 message: () => pass
@@ -65,7 +61,7 @@ export function extendBlackboardAssertions() {
 
         toMatchState(received: Map<string, any>, expectedState: Record<string, any>) {
             const actualState: Record<string, any> = {};
-            for (const [key, value] of received.entries()) {
+            for (const [key, value] of Array.from(received.entries())) {
                 actualState[key] = value;
             }
 
@@ -81,7 +77,7 @@ export function extendBlackboardAssertions() {
 
         toContainState(received: Map<string, any>, partialState: Record<string, any>) {
             const mismatches: string[] = [];
-            
+
             for (const [key, expectedValue] of Object.entries(partialState)) {
                 if (!received.has(key)) {
                     mismatches.push(`Missing key: ${key}`);

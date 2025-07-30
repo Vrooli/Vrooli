@@ -1,8 +1,8 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: improved generic type constraints
 import { type PrismaClient } from "@prisma/client";
-import { type EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import { TestRecordTracker } from "../../helpers/testRecordTracker.js";
 import { cleanupGroups } from "../../helpers/testCleanupHelpers.js";
+import { TestRecordTracker } from "../../helpers/testRecordTracker.js";
+import { type EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 
 /**
  * Registry for managing database fixture factories
@@ -24,7 +24,7 @@ export class DatabaseFactoryRegistry {
         modelName: string,
         factoryClass: new (modelName: string, prisma: PrismaClient) => T,
     ): T {
-        const factory = factoryClass.getInstance(modelName, this.prisma);
+        const factory = new factoryClass(modelName, this.prisma);
         this.factories.set(modelName, factory);
         return factory;
     }
@@ -64,7 +64,7 @@ export class DatabaseFactoryRegistry {
             factory => factory.cleanupAll(),
         );
         await Promise.all(cleanupPromises);
-        
+
         // Then clean up any records tracked by the global tracker
         await TestRecordTracker.cleanup(this.prisma);
     }
@@ -156,7 +156,7 @@ export class DatabaseFactoryRegistry {
         return await this.prisma.$transaction(async (tx) => {
             // Create transaction-aware factory map
             const txFactories = new Map<string, EnhancedDatabaseFactory<any, any>>();
-            
+
             this.factories.forEach((factory, modelName) => {
                 // Create a proxy that uses the transaction
                 const txFactory = new Proxy(factory, {
@@ -180,12 +180,12 @@ export class DatabaseFactoryRegistry {
     async createScenario(scenarioName: string, config: Record<string, any>): Promise<Record<string, any>> {
         return await this.transaction(async (tx, factories) => {
             const result: Record<string, any> = {};
-            
+
             // Execute scenario steps in order
             for (const [step, stepConfig] of Object.entries(config)) {
                 const [modelName, action] = step.split(".");
                 const factory = factories.get(modelName);
-                
+
                 if (!factory) {
                     throw new Error(`Unknown model in scenario step: ${modelName}`);
                 }
@@ -201,10 +201,12 @@ export class DatabaseFactoryRegistry {
                         result[step] = await factory.createWithRelations(stepConfig);
                         break;
                     case "seedMultiple":
-                        result[step] = await factory.seedMultiple(
-                            stepConfig.count || 1,
-                            stepConfig.template,
-                        );
+                        const count = stepConfig.count || 1;
+                        const items = [];
+                        for (let i = 0; i < count; i++) {
+                            items.push(await factory.create(stepConfig.template));
+                        }
+                        result[step] = items;
                         break;
                     default:
                         throw new Error(`Unknown action in scenario step: ${action}`);
@@ -222,7 +224,7 @@ export class DatabaseFactoryRegistry {
     async smartCleanup(scope: "full" | "userAuth" | "chat" | "team" | "execution" | "financial" | "content" | "minimal" = "full"): Promise<void> {
         // Use the dependency-ordered cleanup helpers for more efficient cleanup
         await cleanupGroups[scope](this.prisma);
-        
+
         // Clear all factory tracking since records are now cleaned up
         this.clearAllTracking();
     }
@@ -238,13 +240,13 @@ export class DatabaseFactoryRegistry {
     } {
         const factoryTracked = this.getAllCreatedIds();
         const globalTracked = TestRecordTracker.getSummary();
-        
+
         const totalFactoryRecords = Object.values(factoryTracked).reduce(
-            (total, ids) => total + ids.length, 
+            (total, ids) => total + ids.length,
             0,
         );
         const totalGlobalRecords = TestRecordTracker.totalTrackedRecords;
-        
+
         return {
             factoryTracked,
             globalTracked,
@@ -281,15 +283,15 @@ export class DatabaseFactoryRegistry {
         cleanup: () => Promise<void>;
     }> {
         const { trackingScope = "both" } = config;
-        
+
         // Start tracking if requested
         if (trackingScope === "global" || trackingScope === "both") {
             this.startTrackingSession();
         }
-        
+
         // Create the environment
         const data = await this.createTestEnvironment(config);
-        
+
         // Return with custom cleanup function
         return {
             data,

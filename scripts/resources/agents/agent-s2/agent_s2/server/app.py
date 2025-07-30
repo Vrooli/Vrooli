@@ -5,6 +5,7 @@ Main FastAPI application setup and configuration.
 
 import os
 import logging
+import asyncio
 from datetime import datetime
 from contextlib import asynccontextmanager
 
@@ -16,6 +17,7 @@ from ..config import Config
 from .routes import health, screenshot, mouse, keyboard, ai, tasks, modes, stealth
 from .middleware import ErrorHandlerMiddleware
 from .services.ai_handler import AIHandler
+from .services.proxy_service import ProxyManager
 
 # Configure logging
 logging.basicConfig(
@@ -29,7 +31,8 @@ app_state = {
     "tasks": {},
     "task_counter": 0,
     "startup_time": datetime.utcnow().isoformat(),
-    "ai_handler": None
+    "ai_handler": None,
+    "proxy_service": None
 }
 
 @asynccontextmanager
@@ -91,13 +94,80 @@ async def lifespan(app: FastAPI):
             "suggestions": ["Set AGENTS2_ENABLE_AI=true to enable AI features"]
         }
     
+    # Initialize security proxy if enabled (fully asynchronous)
+    if os.environ.get("AGENT_S2_ENABLE_PROXY", "true").lower() == "true":
+        logger.info("Initializing security proxy service...")
+        try:
+            proxy_manager = ProxyManager()
+            proxy_service = proxy_manager.get_proxy_service()
+            app_state["proxy_service"] = proxy_service
+            
+            # Start proxy initialization in background (completely non-blocking)
+            async def initialize_proxy():
+                try:
+                    logger.info("Starting security proxy service in background...")
+                    
+                    # Check if we have root for iptables (in Docker we might)
+                    if os.geteuid() == 0:
+                        try:
+                            proxy_service.setup_transparent_proxy()
+                            logger.info("Transparent proxy configured with iptables")
+                        except Exception as e:
+                            logger.warning(f"Failed to setup transparent proxy: {e}")
+                    else:
+                        logger.warning("Running without root - transparent proxy disabled")
+                        logger.info("Security checks will only apply to AI-driven navigation")
+                    
+                    # Install CA certificate for HTTPS interception
+                    try:
+                        if proxy_service.install_ca_certificate():
+                            logger.info("mitmproxy CA certificate installed")
+                        else:
+                            logger.info("Continuing without CA certificate installation")
+                    except Exception as e:
+                        logger.warning(f"CA certificate installation failed: {e}")
+                    
+                    # Start the proxy service
+                    try:
+                        await proxy_manager.ensure_proxy_running()
+                        logger.info("Security proxy service started successfully")
+                    except Exception as e:
+                        logger.warning(f"Failed to start security proxy service: {e}")
+                        logger.info("AI-level security validation remains active")
+                        
+                except Exception as e:
+                    logger.error(f"Proxy background initialization failed: {e}")
+                    logger.info("Continuing with AI-level security only")
+            
+            # Start proxy initialization task without awaiting
+            asyncio.create_task(initialize_proxy())
+            logger.info("Security proxy initialization started in background")
+            
+        except Exception as e:
+            logger.error(f"Security proxy setup failed: {e}")
+            logger.info("Continuing without network-level security")
+    else:
+        logger.info("Security proxy disabled by configuration")
+    
     # Startup
     yield
     
     # Shutdown
     logger.info("Shutting down Agent S2 API Server...")
+    
+    # Shutdown AI handler
     if app_state["ai_handler"]:
         await app_state["ai_handler"].shutdown()
+    
+    # Shutdown proxy service
+    if app_state.get("proxy_service"):
+        try:
+            await app_state["proxy_service"].stop()
+            if os.geteuid() == 0:
+                app_state["proxy_service"].cleanup_iptables()
+            logger.info("Security proxy service stopped")
+        except Exception as e:
+            logger.error(f"Error stopping proxy service: {e}")
 
 # Create FastAPI app
 app = FastAPI(

@@ -7,10 +7,10 @@
  */
 
 import { generatePK, type VisibilityType } from "@vrooli/shared";
-import { type AuthenticatedSessionData } from "../../../../types.js";
+import { type SessionData } from "../../../../types.js";
 import { type ApiKeyAuthData, type PermissionScenario } from "../types.js";
-import { UserSessionFactory } from "./UserSessionFactory.js";
 import { ApiKeyFactory } from "./ApiKeyFactory.js";
+import { UserSessionFactory } from "./UserSessionFactory.js";
 
 /**
  * Configuration for generating object permission fixtures
@@ -18,25 +18,25 @@ import { ApiKeyFactory } from "./ApiKeyFactory.js";
 export interface ObjectPermissionConfig<TObject> {
     /** The object type name (e.g., "Bookmark", "Project") */
     objectType: string;
-    
+
     /** Function to create a minimal object */
     createMinimal: (overrides?: Partial<TObject>) => TObject;
-    
+
     /** Function to create a complete object */
     createComplete: (overrides?: Partial<TObject>) => TObject;
-    
+
     /** Supported actions for this object type */
     supportedActions: string[];
-    
+
     /** Whether this object can be team-owned */
     canBeTeamOwned?: boolean;
-    
+
     /** Whether this object has visibility settings */
     hasVisibility?: boolean;
-    
+
     /** Custom permission rules */
     customRules?: {
-        [action: string]: (session: AuthenticatedSessionData | ApiKeyAuthData, object: TObject) => boolean;
+        [action: string]: (session: SessionData | ApiKeyAuthData, object: TObject) => boolean;
     };
 }
 
@@ -46,8 +46,8 @@ export interface ObjectPermissionConfig<TObject> {
 export class ObjectPermissionFactory<TObject extends { id?: string; __typename?: string }> {
     private readonly userFactory = new UserSessionFactory();
     private readonly apiKeyFactory = new ApiKeyFactory();
-    
-    constructor(private readonly config: ObjectPermissionConfig<TObject>) {}
+
+    constructor(private readonly config: ObjectPermissionConfig<TObject>) { }
 
     /**
      * Create a public object owned by a user

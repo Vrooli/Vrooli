@@ -1,18 +1,19 @@
-import { generatePublicId, nanoid, ReportStatus, ReportSuggestedAction } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+/* eslint-disable no-magic-numbers */
+import { type Prisma, type PrismaClient, type report } from "@prisma/client";
+import { generatePublicId, ReportStatus, ReportSuggestedAction } from "@vrooli/shared";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
 
 interface ReportRelationConfig extends RelationConfig {
-    createdById?: string;
+    createdById?: bigint;
     targetType?: "resourceVersion" | "chatMessage" | "comment" | "issue" | "tag" | "team" | "user";
-    targetId?: string;
+    targetId?: bigint;
     withResponses?: Array<{
-        createdById: string;
+        createdById: bigint;
         actionSuggested: ReportSuggestedAction;
         details?: string;
     }>;
@@ -32,7 +33,7 @@ interface ReportRelationConfig extends RelationConfig {
  * - Report resolution testing
  */
 export class ReportDbFactory extends EnhancedDatabaseFactory<
-    Prisma.reportCreateInput,
+    report,
     Prisma.reportCreateInput,
     Prisma.reportInclude,
     Prisma.reportUpdateInput
@@ -550,7 +551,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
 
     protected async checkModelConstraints(record: Prisma.report): Promise<string[]> {
         const violations: string[] = [];
-        
+
         // Check that only one target is specified
         const targetCount = [
             record.resourceVersionId,
@@ -625,7 +626,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
         includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
-        const shouldDelete = (relation: string) => 
+        const shouldDelete = (relation: string) =>
             !includeOnly || includeOnly.includes(relation);
 
         // Delete responses
@@ -710,7 +711,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
         byTargetType: Record<string, number>;
     }> {
         const where: any = {};
-        
+
         if (options?.startDate || options?.endDate) {
             where.createdAt = {};
             if (options.startDate) {
@@ -770,7 +771,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
 }
 
 // Export factory creator function
-export const createReportDbFactory = (prisma: PrismaClient) => 
+export const createReportDbFactory = (prisma: PrismaClient) =>
     new ReportDbFactory(prisma);
 
 // Export the class for type usage

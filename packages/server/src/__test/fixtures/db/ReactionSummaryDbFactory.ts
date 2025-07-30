@@ -1,15 +1,15 @@
-import { generatePublicId, nanoid } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+/* eslint-disable no-magic-numbers */
+import { type Prisma, type PrismaClient, type reaction_summary } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
 
 interface ReactionSummaryRelationConfig extends RelationConfig {
     targetType?: "resource" | "chatMessage" | "comment" | "issue";
-    targetId?: string;
+    targetId?: bigint;
     reactionCounts?: Array<{ emoji: string; count: number }>;
 }
 
@@ -26,7 +26,7 @@ interface ReactionSummaryRelationConfig extends RelationConfig {
  * - Edge case handling for counts
  */
 export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
-    Prisma.reaction_summaryCreateInput,
+    reaction_summary,
     Prisma.reaction_summaryCreateInput,
     Prisma.reaction_summaryInclude,
     Prisma.reaction_summaryUpdateInput
@@ -66,7 +66,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
                     // Missing id, emoji, count, and any target
                 },
                 invalidTypes: {
-                    id: "not-a-snowflake",
+                    id: 123 as any, // Should be bigint/string, not number
                     emoji: 123, // Should be string
                     count: "not-a-number", // Should be number
                     resourceId: true, // Should be string
@@ -120,13 +120,13 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
                     id: this.generateId(),
                     emoji: "💬",
                     count: 5,
-                    comment: { connect: { id: this.generateId() } },
+                    commentId: this.generateId(),
                 },
                 summaryForIssue: {
                     id: this.generateId(),
                     emoji: "🐛",
                     count: 3,
-                    issue: { connect: { id: this.generateId() } },
+                    issueId: this.generateId(),
                 },
                 summaryForChatMessage: {
                     id: this.generateId(),
@@ -315,7 +315,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
      */
     async createSummaryFor(
         targetType: "resource" | "chatMessage" | "comment" | "issue",
-        targetId: string,
+        targetId: bigint,
         emoji: string,
         count: number,
     ): Promise<Prisma.reaction_summary> {
@@ -331,7 +331,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
      */
     async createMultipleSummariesForTarget(
         targetType: "resource" | "chatMessage" | "comment" | "issue",
-        targetId: string,
+        targetId: bigint,
         reactionCounts: Array<{ emoji: string; count: number }>,
     ): Promise<Prisma.reaction_summary[]> {
         const summaries: Prisma.reaction_summary[] = [];
@@ -386,7 +386,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
 
     protected async checkModelConstraints(record: Prisma.reaction_summary): Promise<string[]> {
         const violations: string[] = [];
-        
+
         // Check that only one target is specified
         const targetCount = [
             record.resourceId,
@@ -488,7 +488,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
                     count: actualCount,
                 };
                 data[`${targetType}Id`] = targetId;
-                
+
                 return await this.prisma.reaction_summary.create({
                     data,
                     include: this.getDefaultInclude(),
@@ -519,7 +519,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
 }
 
 // Export factory creator function
-export const createReactionSummaryDbFactory = (prisma: PrismaClient) => 
+export const createReactionSummaryDbFactory = (prisma: PrismaClient) =>
     new ReactionSummaryDbFactory(prisma);
 
 // Export the class for type usage

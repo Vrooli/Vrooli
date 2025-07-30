@@ -237,6 +237,9 @@ EOF
 # Ensure proper permissions
 chown -R agents2:agents2 /home/agents2/.mozilla
 
+# Note: Security proxy setup (iptables) is now handled by init.sh during container startup
+# The mitmproxy service itself is started by the Python application
+
 # Start Firefox in the background (minimized)
 echo "Starting Firefox..."
 DISPLAY=:99 firefox-esr --new-window "about:blank" > /var/log/supervisor/firefox.log 2>&1 &
@@ -245,6 +248,21 @@ sleep 3
 # Start xterm terminal (for emergency access)
 echo "Starting terminal..."
 DISPLAY=:99 xterm -geometry 80x24+10+10 -bg black -fg white -fa 'Monospace' -fs 10 > /var/log/supervisor/xterm.log 2>&1 &
+
+# Set up Fluxbox background to prevent fbsetbg errors
+echo "Setting up wallpaper..."
+mkdir -p /home/agents2/.fluxbox
+cat > /home/agents2/.fluxbox/overlay << 'EOF'
+# Solid color background - prevents fbsetbg errors
+background: solid
+background.color: #2c3e50
+EOF
+
+# Create fbsetbg configuration to use feh as wallpaper setter
+cat > /home/agents2/.fluxbox/lastwallpaper << 'EOF'
+$full feh --bg-fill --no-fehbg '' 2>/dev/null || true
+EOF
+chmod +x /home/agents2/.fluxbox/lastwallpaper
 
 # Create a simple desktop file for easy access
 mkdir -p /home/agents2/Desktop

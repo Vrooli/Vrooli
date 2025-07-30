@@ -311,15 +311,47 @@ agents2::execute_ai_task() {
     
     log::info "Executing AI task: $task"
     
-    # Build request JSON
+    # Show what we're sending to the AI
+    log::info "=== AI REQUEST DEBUG ==="
+    log::info "Task: $task"
+    log::info "Security Config:"
+    log::info "  - Allowed domains: ${ALLOWED_DOMAINS:-<none>}"
+    log::info "  - Blocked domains: ${BLOCKED_DOMAINS:-<none>}"
+    log::info "  - Security profile: ${SECURITY_PROFILE:-<default>}"
+    log::info "======================="
+    
+    # Build request JSON with security parameters
     local request_json
-    request_json=$(jq -n \
-        --arg task "$task" \
-        '{
+    local jq_args=()
+    jq_args+=(--arg task "$task")
+    
+    # Always add security parameters (empty string if not set)
+    jq_args+=(--arg allowed_domains "${ALLOWED_DOMAINS:-}")
+    jq_args+=(--arg blocked_domains "${BLOCKED_DOMAINS:-}")
+    jq_args+=(--arg security_profile "${SECURITY_PROFILE:-}")
+    
+    # Build JSON with conditional fields
+    if [[ -n "${ALLOWED_DOMAINS:-}" ]] || [[ -n "${BLOCKED_DOMAINS:-}" ]] || [[ -n "${SECURITY_PROFILE:-}" ]]; then
+        request_json=$(jq -n "${jq_args[@]}" '{
             task: $task,
             screenshot_before: true,
-            screenshot_after: true
+            screenshot_after: true,
+            security_config: ({} 
+                | if ($allowed_domains != "") then .allowed_domains = ($allowed_domains | split(",")) else . end
+                | if ($blocked_domains != "") then .blocked_domains = ($blocked_domains | split(",")) else . end
+                | if ($security_profile != "") then .security_profile = $security_profile else . end
+            )
         }')
+    else
+        # No security parameters, build simpler JSON
+        request_json=$(jq -n \
+            --arg task "$task" \
+            '{
+                task: $task,
+                screenshot_before: true,
+                screenshot_after: true
+            }')
+    fi
     
     # Execute AI action
     local response
@@ -328,6 +360,7 @@ agents2::execute_ai_task() {
         
         # Pretty print response with jq if available
         if system::is_command "jq"; then
+            # First show the full response
             echo "$response" | jq .
             
             # Extract and display key information
@@ -339,6 +372,14 @@ agents2::execute_ai_task() {
             echo
             log::info "Task Status: $status"
             log::info "Actions Executed: $actions_count"
+            
+            # Display debug info if available in response
+            if echo "$response" | jq -e '.debug_info' >/dev/null 2>&1; then
+                echo
+                log::info "=== AI PROMPTS SENT TO MODEL ==="
+                echo "$response" | jq -r '.debug_info.from_handler | "System Prompt:\n\(.system_prompt)\n\nUser Prompt:\n\(.user_prompt)\n\nScreenshot Included: \(.screenshot_included)\n\nContext:\n\(.context | tostring)"'
+                log::info "==============================="
+            fi
             
             if [[ "$success" != "true" ]]; then
                 local error_msg

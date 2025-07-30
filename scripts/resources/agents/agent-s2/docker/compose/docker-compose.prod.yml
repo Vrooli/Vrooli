@@ -48,6 +48,9 @@ services:
       
     restart: always
     
+    # Shared memory size for Firefox (required to prevent crashes)
+    shm_size: '2gb'
+    
     # Production resource limits
     deploy:
       resources:
@@ -58,9 +61,17 @@ services:
           cpus: '1'
           memory: 1G
           
-    # Security options
+    # Security configuration for transparent proxy
+    cap_drop:
+      - ALL  # Drop all capabilities first
+    cap_add:
+      - NET_ADMIN      # Required for iptables manipulation via sudo
+      - NET_RAW        # Required for packet manipulation
+      - SYS_ADMIN      # Required for some iptables operations
+      - SETUID         # Required for sudo operations
+      - SETGID         # Required for sudo operations
     security_opt:
-      - no-new-privileges:true
+      - apparmor:unconfined    # Allow broader system access for iptables
     read_only: false  # Required for X11 and screenshot operations
     
     # Logging configuration

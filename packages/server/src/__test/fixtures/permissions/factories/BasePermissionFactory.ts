@@ -5,8 +5,8 @@
  * the unified fixture architecture pattern.
  */
 
-import { type AuthenticatedSessionData } from "../../../../types.js";
-import { 
+import { type SessionData } from "../../../../types.js";
+import {
     type ApiKeyAuthData,
     type PermissionContext,
     type PermissionFixtureFactory,
@@ -23,9 +23,9 @@ const TEST_ID_PADDING = 17;
 /**
  * Base factory for creating permission-related fixtures
  */
-export abstract class BasePermissionFactory<TSession extends AuthenticatedSessionData | ApiKeyAuthData> 
+export abstract class BasePermissionFactory<TSession extends SessionData | ApiKeyAuthData>
     implements PermissionFixtureFactory<TSession> {
-    
+
     /**
      * Default session options
      */
@@ -61,14 +61,14 @@ export abstract class BasePermissionFactory<TSession extends AuthenticatedSessio
             return {
                 ...session,
                 roles: [{
-                    role: { 
+                    role: {
                         name: "Custom",
                         permissions: JSON.stringify(permissions),
                     },
                 }],
             } as TSession;
         }
-        
+
         // For API keys, permissions are structured differently
         throw new Error("Use withApiKeyPermissions for API key sessions");
     }
@@ -84,7 +84,7 @@ export abstract class BasePermissionFactory<TSession extends AuthenticatedSessio
         return {
             ...session,
             roles: [{
-                role: { 
+                role: {
                     name: role,
                     permissions: this.getPermissionsForRole(role),
                 },
@@ -142,7 +142,7 @@ export abstract class BasePermissionFactory<TSession extends AuthenticatedSessio
     /**
      * Check if session is a user session
      */
-    protected isUserSession(session: TSession): session is AuthenticatedSessionData {
+    protected isUserSession(session: TSession): session is SessionData {
         return !("__type" in session);
     }
 
@@ -193,11 +193,11 @@ export abstract class BasePermissionFactory<TSession extends AuthenticatedSessio
         checkFn: (ctx: PermissionContext) => boolean | Promise<boolean>,
     ): Promise<PermissionTestResult> {
         const start = Date.now();
-        
+
         try {
             const allowed = await checkFn(context);
             const end = Date.now();
-            
+
             return {
                 allowed,
                 timing: {
@@ -208,7 +208,7 @@ export abstract class BasePermissionFactory<TSession extends AuthenticatedSessio
             };
         } catch (error) {
             const end = Date.now();
-            
+
             return {
                 allowed: false,
                 reason: error instanceof Error ? error.message : "Unknown error",

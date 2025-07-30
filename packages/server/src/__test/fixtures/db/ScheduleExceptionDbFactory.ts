@@ -1,23 +1,24 @@
-import { generatePK } from "@vrooli/shared";
+/* eslint-disable no-magic-numbers */
 import { type Prisma } from "@prisma/client";
+import { generatePK } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { DbTestFixtures, DbErrorScenarios } from "./types.js";
+import type { DbErrorScenarios, DbTestFixtures } from "./types.js";
 
 /**
  * Enhanced test fixtures for ScheduleException model following standard structure
  */
-export const scheduleExceptionDbFixtures: DbTestFixtures<Prisma.schedule_exceptionCreateInput> = {
+export const scheduleExceptionDbFixtures: DbTestFixtures<Prisma.schedule_exceptionCreateInput, Prisma.schedule_exceptionUpdateInput> = {
     minimal: {
         id: generatePK(),
         originalStartTime: new Date("2025-07-04T09:00:00Z"),
-        schedule: { connect: { id: "schedule_placeholder_id" } },
+        schedule: { connect: { id: BigInt("1234567890123456789") } },
     },
     complete: {
         id: generatePK(),
         originalStartTime: new Date("2025-12-25T09:00:00Z"),
         newStartTime: new Date("2025-12-26T11:00:00Z"),
         newEndTime: new Date("2025-12-26T15:00:00Z"),
-        schedule: { connect: { id: "schedule_placeholder_id" } },
+        schedule: { connect: { id: BigInt("1234567890123456789") } },
     },
     invalid: {
         missingRequired: {
@@ -36,7 +37,7 @@ export const scheduleExceptionDbFixtures: DbTestFixtures<Prisma.schedule_excepti
             originalStartTime: new Date(),
             newStartTime: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours later
             newEndTime: new Date(Date.now() + 60 * 60 * 1000), // 1 hour later (before start)
-            schedule: { connect: { id: "schedule_placeholder_id" } },
+            schedule: { connect: { id: BigInt("1234567890123456789") } },
         },
     },
     edgeCases: {
@@ -45,49 +46,49 @@ export const scheduleExceptionDbFixtures: DbTestFixtures<Prisma.schedule_excepti
             originalStartTime: new Date("2025-08-15T14:00:00Z"),
             newStartTime: null,
             newEndTime: null,
-            schedule: { connect: { id: "schedule_placeholder_id" } },
+            schedule: { connect: { id: BigInt("1234567890123456789") } },
         },
         holidayException: {
             id: generatePK(),
             originalStartTime: new Date("2025-12-25T09:00:00Z"), // Christmas
             newStartTime: null,
             newEndTime: null,
-            schedule: { connect: { id: "schedule_placeholder_id" } },
+            schedule: { connect: { id: BigInt("1234567890123456789") } },
         },
         extendedDuration: {
             id: generatePK(),
             originalStartTime: new Date("2025-06-15T10:00:00Z"),
             newStartTime: new Date("2025-06-15T10:00:00Z"), // Same start
             newEndTime: new Date("2025-06-15T18:00:00Z"), // Extended to 8 hours
-            schedule: { connect: { id: "schedule_placeholder_id" } },
+            schedule: { connect: { id: BigInt("1234567890123456789") } },
         },
         rescheduledToNextWeek: {
             id: generatePK(),
             originalStartTime: new Date("2025-05-01T14:00:00Z"),
             newStartTime: new Date("2025-05-08T14:00:00Z"), // Next week same time
             newEndTime: new Date("2025-05-08T15:00:00Z"),
-            schedule: { connect: { id: "schedule_placeholder_id" } },
+            schedule: { connect: { id: BigInt("1234567890123456789") } },
         },
         movedEarlier: {
             id: generatePK(),
             originalStartTime: new Date("2025-07-10T15:00:00Z"),
             newStartTime: new Date("2025-07-10T09:00:00Z"), // 6 hours earlier
             newEndTime: new Date("2025-07-10T11:00:00Z"),
-            schedule: { connect: { id: "schedule_placeholder_id" } },
+            schedule: { connect: { id: BigInt("1234567890123456789") } },
         },
         shortenedDuration: {
             id: generatePK(),
             originalStartTime: new Date("2025-09-20T13:00:00Z"),
             newStartTime: new Date("2025-09-20T13:00:00Z"), // Same start
             newEndTime: new Date("2025-09-20T14:00:00Z"), // Shortened to 1 hour
-            schedule: { connect: { id: "schedule_placeholder_id" } },
+            schedule: { connect: { id: BigInt("1234567890123456789") } },
         },
         multipleDayEvent: {
             id: generatePK(),
             originalStartTime: new Date("2025-10-01T09:00:00Z"),
             newStartTime: new Date("2025-10-15T09:00:00Z"), // 2 weeks later
             newEndTime: new Date("2025-10-17T17:00:00Z"), // 3-day event
-            schedule: { connect: { id: "schedule_placeholder_id" } },
+            schedule: { connect: { id: BigInt("1234567890123456789") } },
         },
     },
 };
@@ -95,12 +96,12 @@ export const scheduleExceptionDbFixtures: DbTestFixtures<Prisma.schedule_excepti
 /**
  * Enhanced factory for creating schedule exception database fixtures
  */
-export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedule_exceptionCreateInput> {
-    
+export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedule_exceptionCreateInput, Prisma.schedule_exceptionUpdateInput> {
+
     /**
      * Get the test fixtures for ScheduleException model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.schedule_exceptionCreateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.schedule_exceptionCreateInput, Prisma.schedule_exceptionUpdateInput> {
         return scheduleExceptionDbFixtures;
     }
 
@@ -111,43 +112,43 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
         return {
             constraints: {
                 uniqueViolation: {
-                    id: this.generateId(),
+                    id: generatePK(),
                     originalStartTime: new Date(),
-                    schedule: { connect: { id: "schedule_placeholder_id" } },
+                    schedule: { connect: { id: BigInt("1234567890123456789") } },
                 },
                 foreignKeyViolation: {
-                    id: this.generateId(),
+                    id: generatePK(),
                     originalStartTime: new Date(),
-                    schedule: { connect: { id: "non-existent-schedule-id" } },
+                    schedule: { connect: { id: BigInt("9999999999999999999") } },
                 },
                 checkConstraintViolation: {
-                    id: this.generateId(),
+                    id: generatePK(),
                     originalStartTime: new Date(),
                     newStartTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
                     newEndTime: new Date(Date.now() + 60 * 60 * 1000), // End before start
-                    schedule: { connect: { id: "schedule_placeholder_id" } },
+                    schedule: { connect: { id: BigInt("1234567890123456789") } },
                 },
             },
             validation: {
                 requiredFieldMissing: scheduleExceptionDbFixtures.invalid.missingRequired,
                 invalidDataType: scheduleExceptionDbFixtures.invalid.invalidTypes,
                 outOfRange: {
-                    id: this.generateId(),
+                    id: generatePK(),
                     originalStartTime: new Date("1900-01-01"), // Too far in past
-                    schedule: { connect: { id: "schedule_placeholder_id" } },
+                    schedule: { connect: { id: BigInt("1234567890123456789") } },
                 },
             },
             businessLogic: {
                 endBeforeStart: scheduleExceptionDbFixtures.invalid.invalidTimeRange,
                 exceptionWithoutRecurrence: {
-                    id: this.generateId(),
+                    id: generatePK(),
                     originalStartTime: new Date(),
-                    schedule: { connect: { id: "one-time-schedule-id" } }, // Non-recurring schedule
+                    schedule: { connect: { id: BigInt("8888888888888888888") } }, // Non-recurring schedule
                 },
                 duplicateException: {
-                    id: this.generateId(),
+                    id: generatePK(),
                     originalStartTime: new Date("2025-06-01T10:00:00Z"), // Same as another exception
-                    schedule: { connect: { id: "schedule_placeholder_id" } },
+                    schedule: { connect: { id: BigInt("1234567890123456789") } },
                 },
             },
         };
@@ -158,7 +159,7 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
      */
     protected generateFreshIdentifiers(): Record<string, any> {
         return {
-            id: this.generateId(),
+            id: generatePK(),
         };
     }
 
@@ -197,7 +198,7 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
     /**
      * Add schedule association to exception
      */
-    protected addScheduleAssociation(data: Prisma.schedule_exceptionCreateInput, scheduleId: string): Prisma.schedule_exceptionCreateInput {
+    protected addScheduleAssociation(data: Prisma.schedule_exceptionCreateInput, scheduleId: bigint): Prisma.schedule_exceptionCreateInput {
         return {
             ...data,
             schedule: { connect: { id: scheduleId } },
@@ -207,7 +208,7 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
     // Static factory methods for backward compatibility and convenience
 
     static createMinimal(
-        scheduleId: string,
+        scheduleId: bigint,
         overrides?: Partial<Prisma.schedule_exceptionCreateInput>,
     ): Prisma.schedule_exceptionCreateInput {
         const factory = new ScheduleExceptionDbFactory();
@@ -216,7 +217,7 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
     }
 
     static createComplete(
-        scheduleId: string,
+        scheduleId: bigint,
         overrides?: Partial<Prisma.schedule_exceptionCreateInput>,
     ): Prisma.schedule_exceptionCreateInput {
         const factory = new ScheduleExceptionDbFactory();
@@ -225,7 +226,7 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
     }
 
     static createCancellation(
-        scheduleId: string,
+        scheduleId: bigint,
         originalTime: Date,
         overrides?: Partial<Prisma.schedule_exceptionCreateInput>,
     ): Prisma.schedule_exceptionCreateInput {
@@ -234,13 +235,13 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
             originalStartTime: originalTime,
             newStartTime: null,
             newEndTime: null,
-            schedule: { connect: { id: scheduleId } },
+            schedule: { connect: { id: BigInt(scheduleId) } },
             ...overrides,
         });
     }
 
     static createRescheduled(
-        scheduleId: string,
+        scheduleId: bigint,
         originalTime: Date,
         newStartTime: Date,
         newEndTime: Date,
@@ -251,13 +252,13 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
             originalStartTime: originalTime,
             newStartTime,
             newEndTime,
-            schedule: { connect: { id: scheduleId } },
+            schedule: { connect: { id: BigInt(scheduleId) } },
             ...overrides,
         });
     }
 
     static createExtended(
-        scheduleId: string,
+        scheduleId: bigint,
         originalTime: Date,
         extensionHours = 2,
         overrides?: Partial<Prisma.schedule_exceptionCreateInput>,
@@ -268,13 +269,13 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
             originalStartTime: originalTime,
             newStartTime: originalTime, // Same start time
             newEndTime,
-            schedule: { connect: { id: scheduleId } },
+            schedule: { connect: { id: BigInt(scheduleId) } },
             ...overrides,
         });
     }
 
     static createMovedToNextDay(
-        scheduleId: string,
+        scheduleId: bigint,
         originalTime: Date,
         durationHours = 8,
         overrides?: Partial<Prisma.schedule_exceptionCreateInput>,
@@ -282,13 +283,13 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
         const nextDay = new Date(originalTime);
         nextDay.setDate(nextDay.getDate() + 1);
         const newEndTime = new Date(nextDay.getTime() + (durationHours * 60 * 60 * 1000));
-        
+
         const factory = new ScheduleExceptionDbFactory();
         return factory.createMinimal({
             originalStartTime: originalTime,
             newStartTime: nextDay,
             newEndTime,
-            schedule: { connect: { id: scheduleId } },
+            schedule: { connect: { id: BigInt(scheduleId) } },
             ...overrides,
         });
     }
@@ -297,7 +298,7 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
      * Create exception for holiday
      */
     static createHolidayException(
-        scheduleId: string,
+        scheduleId: bigint,
         holidayDate: Date,
         holidayName?: string,
         overrides?: Partial<Prisma.schedule_exceptionCreateInput>,
@@ -312,7 +313,7 @@ export class ScheduleExceptionDbFactory extends EnhancedDbFactory<Prisma.schedul
      * Create batch of exceptions for testing
      */
     static createBatch(
-        scheduleId: string,
+        scheduleId: bigint,
         exceptions: Array<{
             type: "cancel" | "reschedule" | "extend" | "shorten";
             originalDate: Date;
@@ -361,7 +362,7 @@ export const scheduleExceptionPatterns = {
     /**
      * US Federal holidays for a year
      */
-    usFederalHolidays: (scheduleId: string, year: number) => [
+    usFederalHolidays: (scheduleId: bigint, year: number) => [
         ScheduleExceptionDbFactory.createHolidayException(scheduleId, new Date(`${year}-01-01`), "New Year's Day"),
         ScheduleExceptionDbFactory.createHolidayException(scheduleId, new Date(`${year}-07-04`), "Independence Day"),
         ScheduleExceptionDbFactory.createHolidayException(scheduleId, new Date(`${year}-11-11`), "Veterans Day"),
@@ -371,7 +372,7 @@ export const scheduleExceptionPatterns = {
     /**
      * Conference week - all meetings moved
      */
-    conferenceWeek: (scheduleId: string, weekStart: Date) => {
+    conferenceWeek: (scheduleId: bigint, weekStart: Date) => {
         const exceptions = [];
         for (let i = 0; i < 5; i++) { // Monday to Friday
             const date = new Date(weekStart);
@@ -384,7 +385,7 @@ export const scheduleExceptionPatterns = {
     /**
      * Summer schedule - meetings shortened
      */
-    summerSchedule: (scheduleId: string, startDate: Date, weeks = 12) => {
+    summerSchedule: (scheduleId: bigint, startDate: Date, weeks = 12) => {
         const exceptions = [];
         for (let w = 0; w < weeks; w++) {
             const date = new Date(startDate);

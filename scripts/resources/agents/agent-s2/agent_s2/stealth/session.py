@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 class SessionManager:
     """Manages browser session data and state persistence"""
     
-    def __init__(self, storage_path: str = "/data/sessions", 
+    def __init__(self, storage_path: str = "/home/agents2/.agent-s2/sessions", 
                  encryption_enabled: bool = True,
                  ttl_days: int = 30):
         """Initialize session manager
@@ -277,9 +277,17 @@ class SessionManager:
         if automation_service:
             try:
                 logger.info("Closing all browser windows/tabs...")
+                logger.debug(f"Using automation service: {type(automation_service)}")
                 self._close_browser_windows(automation_service)
             except Exception as e:
-                logger.warning(f"Failed to close browser windows: {e}")
+                logger.error(f"Failed to close browser windows: {e}")
+                logger.error(f"Automation service type: {type(automation_service)}")
+                logger.error(f"Automation service has hotkey: {hasattr(automation_service, 'hotkey')}")
+                # Don't fail silently - this is important functionality
+                raise
+        else:
+            logger.warning("No automation service provided - browser windows will not be closed automatically")
+            logger.warning("Consider manual window cleanup or check automation service initialization")
         
         # Delete saved state file
         state_file = self.storage_path / "states" / "current_state.json"

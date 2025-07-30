@@ -1,10 +1,9 @@
 // @ts-nocheck - Disabled due to Prisma type issues
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
-import { generatePublicId } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+import { type Prisma, type PrismaClient, type resource_version_relation } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
@@ -27,7 +26,7 @@ interface ResourceVersionRelationRelationConfig extends RelationConfig {
  * - Comprehensive validation
  */
 export class ResourceVersionRelationDbFactory extends EnhancedDatabaseFactory<
-    Prisma.resource_version_relationCreateInput,
+    resource_version_relation,
     Prisma.resource_version_relationCreateInput,
     Prisma.resource_version_relationInclude,
     Prisma.resource_version_relationUpdateInput
@@ -333,7 +332,7 @@ export class ResourceVersionRelationDbFactory extends EnhancedDatabaseFactory<
      */
     async createDependencyChain(versionIds: string[]): Promise<Prisma.ResourceVersionRelation[]> {
         const relations: Prisma.ResourceVersionRelation[] = [];
-        
+
         for (let i = 0; i < versionIds.length - 1; i++) {
             const relation = await this.createDependency(
                 versionIds[i],
@@ -342,7 +341,7 @@ export class ResourceVersionRelationDbFactory extends EnhancedDatabaseFactory<
             );
             relations.push(relation);
         }
-        
+
         return relations;
     }
 
@@ -459,7 +458,7 @@ export class ResourceVersionRelationDbFactory extends EnhancedDatabaseFactory<
 }
 
 // Export factory creator function
-export const createResourceVersionRelationDbFactory = (prisma: PrismaClient) => 
+export const createResourceVersionRelationDbFactory = (prisma: PrismaClient) =>
     new ResourceVersionRelationDbFactory(prisma);
 
 // Export the class for type usage

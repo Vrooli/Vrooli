@@ -1,7 +1,7 @@
+/* eslint-disable no-magic-numbers */
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
-import { type Prisma, type PrismaClient } from "@prisma/client";
-import { AccountStatus, generatePublicId, nanoid } from "@vrooli/shared";
-import { botConfigFixtures } from "@vrooli/shared/test-fixtures/config";
+import { type Prisma, type PrismaClient, type user } from "@prisma/client";
+import { AccountStatus, botConfigFixtures, generatePublicId, nanoid } from "@vrooli/shared";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type {
     DbTestFixtures,
@@ -12,7 +12,7 @@ import type {
 interface UserRelationConfig extends RelationConfig {
     withAuth?: boolean;
     withEmails?: boolean | number;
-    teams?: Array<{ teamId: string; role: string }>;
+    teams?: Array<{ teamId: string | (() => string); role: string }>;
     withBotSettings?: boolean;
     translations?: Array<{ language: string; bio: string }>;
 }
@@ -95,7 +95,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                     isBot: false,
                 },
                 invalidTypes: {
-                    id: "not-a-snowflake",
+                    id: BigInt(-1), // Invalid bigint ID
                     publicId: 123, // Should be string
                     name: null, // Should be string
                     handle: true, // Should be string
@@ -177,11 +177,6 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                     botSettings: {
                         ...botConfigFixtures.complete,
                         maxTokens: 4096,
-                        persona: {
-                            ...botConfigFixtures.complete.persona,
-                            creativity: 0.9,
-                            verbosity: 0.1,
-                        },
                     },
                 },
                 multiLanguageTranslations: {
@@ -213,7 +208,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                     profileImage: "https://example.com/new-profile.jpg",
                     translations: {
                         update: [{
-                            where: { id: "translation_id" },
+                            where: { id: this.generateId() }, // Use proper bigint ID
                             data: { bio: "Updated bio" },
                         }],
                     },
@@ -287,7 +282,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                     withAuth: true,
                     withEmails: true,
                     teams: [{
-                        team: { connect: { id: this.generateId() } },
+                        teamId: () => this.generateId().toString(), // Generate at runtime
                         role: "Owner",
                     }],
                 },
@@ -335,9 +330,9 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                     withAuth: true,
                     withEmails: 3,
                     teams: [
-                        { team: { connect: { id: this.generateId() } }, role: "Owner" },
-                        { team: { connect: { id: this.generateId() } }, role: "Admin" },
-                        { team: { connect: { id: this.generateId() } }, role: "Member" },
+                        { teamId: () => this.generateId().toString(), role: "Owner" },
+                        { teamId: () => this.generateId().toString(), role: "Admin" },
+                        { teamId: () => this.generateId().toString(), role: "Member" },
                     ],
                 },
             },
@@ -457,7 +452,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                 create: config.teams.map(team => ({
                     id: this.generateId(),
                     publicId: generatePublicId(),
-                    teamId: team.teamId,
+                    teamId: typeof team.teamId === "function" ? team.teamId() : team.teamId,
                     isAdmin: team.role === "Owner" || team.role === "Admin",
                     permissions: team.role === "Owner" ? JSON.stringify({
                         canInvite: true,

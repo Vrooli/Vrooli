@@ -44,12 +44,17 @@ services:
       # - ${HOME}/workspace:/mnt/workspace:rw
       
     # Security configuration for host mode
+    cap_drop:
+      - ALL  # Drop all capabilities first
+    cap_add:
+      - NET_ADMIN      # Required for iptables manipulation via sudo
+      - NET_RAW        # Required for packet manipulation
+      - SYS_ADMIN      # Required for some iptables operations
+      - SYS_PTRACE     # For process inspection and application discovery
+      - SETUID         # Required for sudo operations
+      - SETGID         # Required for sudo operations
     security_opt:
       - apparmor:agent-s2-host
-      
-    # Additional capabilities needed for host integration
-    cap_add:
-      - SYS_PTRACE  # For process inspection and application discovery
       
     # Device access for graphics and audio
     devices:
@@ -81,6 +86,9 @@ services:
       retries: 3
       start_period: 90s
       
+    # Shared memory size for Firefox (required to prevent crashes)
+    shm_size: '2gb'
+    
     # Host mode requires higher resource limits
     deploy:
       resources:

@@ -3,15 +3,15 @@
  * This bypasses the complex EnhancedDatabaseFactory to focus on core functionality
  */
 
-import { generatePK } from "@vrooli/shared";
 import { type Prisma, type PrismaClient, type user } from "@prisma/client";
+import { generatePK, generatePublicId } from "@vrooli/shared";
 
 /**
  * Simple factory that works with correct Prisma types
  * This demonstrates the correct pattern without complex inheritance
  */
 export class SimpleUserDbFactory {
-    constructor(private prisma: PrismaClient) {}
+    constructor(private prisma: PrismaClient) { }
 
     /**
      * Create minimal user with only required fields
@@ -19,7 +19,7 @@ export class SimpleUserDbFactory {
     async createMinimal(overrides?: Partial<Prisma.userCreateInput>): Promise<user> {
         const data: Prisma.userCreateInput = {
             id: generatePK(),
-            publicId: generatePK().toString(),
+            publicId: generatePublicId(),
             name: "Test User",
             handle: `test_user_${generatePK().toString().slice(-6)}`,
             status: "Unlocked",
@@ -40,7 +40,7 @@ export class SimpleUserDbFactory {
     async createComplete(overrides?: Partial<Prisma.userCreateInput>): Promise<user> {
         const data: Prisma.userCreateInput = {
             id: generatePK(),
-            publicId: generatePK().toString(),
+            publicId: generatePublicId(),
             name: "Complete Test User",
             handle: `complete_user_${generatePK().toString().slice(-6)}`,
             status: "Unlocked",
@@ -66,7 +66,7 @@ export class SimpleUserDbFactory {
             const user = await tx.user.create({
                 data: {
                     id: generatePK(),
-                    publicId: generatePK().toString(),
+                    publicId: generatePublicId(),
                     name: "User with Auth",
                     handle: `auth_user_${generatePK().toString().slice(-6)}`,
                     status: "Unlocked",

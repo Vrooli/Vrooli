@@ -1,6 +1,7 @@
+/* eslint-disable no-magic-numbers */
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
 
 /**
  * Database fixtures for ResourceVersion model - used for seeding test data
@@ -236,7 +237,7 @@ export class ResourceVersionDbFactory {
     }
 
     static createWithRelations(
-        relations: Array<{ toVersionId: string; relationType: string; labels: string[] }>,
+        relations: Array<{ toVersionId: bigint; relationType: string; labels: string[] }>,
         overrides?: Partial<Prisma.resource_versionCreateInput>,
     ): Prisma.resource_versionCreateInput {
         return {
@@ -330,7 +331,7 @@ export class ResourceVersionDbFactory {
 export async function seedResourceVersions(
     prisma: any,
     options: {
-        rootId: string;
+        rootId: bigint;
         count?: number;
         withTranslations?: boolean;
         withRelations?: boolean;
@@ -378,10 +379,10 @@ export async function seedResourceVersions(
                     id: generatePK(),
                     language: lang,
                     name: `${versionData.translations?.create?.[0]?.name || "Resource Version"} (${lang})`,
-                    description: lang === "en" ? "A test resource version" : 
-                               lang === "es" ? "Una versión de recurso de prueba" :
-                               lang === "fr" ? "Une version de ressource de test" :
-                               "A test resource version",
+                    description: lang === "en" ? "A test resource version" :
+                        lang === "es" ? "Una versión de recurso de prueba" :
+                            lang === "fr" ? "Une version de ressource de test" :
+                                "A test resource version",
                 })),
             };
         }
@@ -417,7 +418,7 @@ export async function seedResourceVersions(
 /**
  * Helper to clean up resource versions and related data
  */
-export async function cleanupResourceVersions(prisma: PrismaClient, versionIds: string[]) {
+export async function cleanupResourceVersions(prisma: PrismaClient, versionIds: bigint[]) {
     // Clean up in correct order due to foreign key constraints
     await prisma.resource_version_relation.deleteMany({
         where: {

@@ -16,6 +16,10 @@ aiofiles==23.2.1
 
 # Security
 cryptography==41.0.7
+mitmproxy==10.1.6
+
+# Async support
+aiohttp==3.9.1
 
 # Optional AI Dependencies (install separately if needed)
 # gui-agents-s2

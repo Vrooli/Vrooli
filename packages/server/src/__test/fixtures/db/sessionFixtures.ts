@@ -1,6 +1,6 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
-import { generatePK } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK } from "@vrooli/shared";
 
 /**
  * Database fixtures for Session model - used for seeding auth test data
@@ -8,171 +8,348 @@ import { type Prisma, type PrismaClient } from "@prisma/client";
  */
 
 // Consistent IDs for testing
+let _sessionDbIds: Record<string, bigint> | null = null;
 export const sessionDbIds = {
-    activeSession1: generatePK(),
-    activeSession2: generatePK(),
-    expiredSession: generatePK(),
-    revokedSession: generatePK(),
-    recentSession: generatePK(),
-    oldSession: generatePK(),
-    mobileSession: generatePK(),
-    desktopSession: generatePK(),
+    get activeSession1() {
+        if (!_sessionDbIds) {
+            _sessionDbIds = {
+                activeSession1: generatePK(),
+                activeSession2: generatePK(),
+                expiredSession: generatePK(),
+                revokedSession: generatePK(),
+                recentSession: generatePK(),
+                oldSession: generatePK(),
+                mobileSession: generatePK(),
+                desktopSession: generatePK(),
+            };
+        }
+        return _sessionDbIds.activeSession1;
+    },
+    get activeSession2() {
+        if (!_sessionDbIds) {
+            _sessionDbIds = {
+                activeSession1: generatePK(),
+                activeSession2: generatePK(),
+                expiredSession: generatePK(),
+                revokedSession: generatePK(),
+                recentSession: generatePK(),
+                oldSession: generatePK(),
+                mobileSession: generatePK(),
+                desktopSession: generatePK(),
+            };
+        }
+        return _sessionDbIds.activeSession2;
+    },
+    get expiredSession() {
+        if (!_sessionDbIds) {
+            _sessionDbIds = {
+                activeSession1: generatePK(),
+                activeSession2: generatePK(),
+                expiredSession: generatePK(),
+                revokedSession: generatePK(),
+                recentSession: generatePK(),
+                oldSession: generatePK(),
+                mobileSession: generatePK(),
+                desktopSession: generatePK(),
+            };
+        }
+        return _sessionDbIds.expiredSession;
+    },
+    get revokedSession() {
+        if (!_sessionDbIds) {
+            _sessionDbIds = {
+                activeSession1: generatePK(),
+                activeSession2: generatePK(),
+                expiredSession: generatePK(),
+                revokedSession: generatePK(),
+                recentSession: generatePK(),
+                oldSession: generatePK(),
+                mobileSession: generatePK(),
+                desktopSession: generatePK(),
+            };
+        }
+        return _sessionDbIds.revokedSession;
+    },
+    get recentSession() {
+        if (!_sessionDbIds) {
+            _sessionDbIds = {
+                activeSession1: generatePK(),
+                activeSession2: generatePK(),
+                expiredSession: generatePK(),
+                revokedSession: generatePK(),
+                recentSession: generatePK(),
+                oldSession: generatePK(),
+                mobileSession: generatePK(),
+                desktopSession: generatePK(),
+            };
+        }
+        return _sessionDbIds.recentSession;
+    },
+    get oldSession() {
+        if (!_sessionDbIds) {
+            _sessionDbIds = {
+                activeSession1: generatePK(),
+                activeSession2: generatePK(),
+                expiredSession: generatePK(),
+                revokedSession: generatePK(),
+                recentSession: generatePK(),
+                oldSession: generatePK(),
+                mobileSession: generatePK(),
+                desktopSession: generatePK(),
+            };
+        }
+        return _sessionDbIds.oldSession;
+    },
+    get mobileSession() {
+        if (!_sessionDbIds) {
+            _sessionDbIds = {
+                activeSession1: generatePK(),
+                activeSession2: generatePK(),
+                expiredSession: generatePK(),
+                revokedSession: generatePK(),
+                recentSession: generatePK(),
+                oldSession: generatePK(),
+                mobileSession: generatePK(),
+                desktopSession: generatePK(),
+            };
+        }
+        return _sessionDbIds.mobileSession;
+    },
+    get desktopSession() {
+        if (!_sessionDbIds) {
+            _sessionDbIds = {
+                activeSession1: generatePK(),
+                activeSession2: generatePK(),
+                expiredSession: generatePK(),
+                revokedSession: generatePK(),
+                recentSession: generatePK(),
+                oldSession: generatePK(),
+                mobileSession: generatePK(),
+                desktopSession: generatePK(),
+            };
+        }
+        return _sessionDbIds.desktopSession;
+    },
 };
 
 /**
  * Active session - standard user
  */
-export const activeSessionDb: Prisma.sessionCreateInput = {
-    id: sessionDbIds.activeSession1,
-    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-    last_refresh_at: new Date(),
-    device_info: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    ip_address: "192.168.1.100",
-    user: {
-        connect: { id: generatePK() },
-    },
-    auth: {
-        connect: { id: generatePK() },
+let _activeSessionDb: Prisma.sessionCreateInput | null = null;
+export const activeSessionDb = {
+    get data(): Prisma.sessionCreateInput {
+        if (!_activeSessionDb) {
+            _activeSessionDb = {
+                id: sessionDbIds.activeSession1,
+                expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+                last_refresh_at: new Date(),
+                device_info: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                ip_address: "192.168.1.100",
+                user: {
+                    connect: { id: generatePK() },
+                },
+                auth: {
+                    connect: { id: generatePK() },
+                },
+            };
+        }
+        return _activeSessionDb;
     },
 };
 
 /**
  * Recently created active session
  */
-export const recentActiveSessionDb: Prisma.sessionCreateInput = {
-    id: sessionDbIds.activeSession2,
-    expires_at: new Date(Date.now() + 29 * 24 * 60 * 60 * 1000), // 29 days from now
-    last_refresh_at: new Date(Date.now() - 60 * 1000), // Refreshed 1 minute ago
-    device_info: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-    ip_address: "192.168.1.101",
-    user: {
-        connect: { id: generatePK() },
-    },
-    auth: {
-        connect: { id: generatePK() },
+let _recentActiveSessionDb: Prisma.sessionCreateInput | null = null;
+export const recentActiveSessionDb = {
+    get data(): Prisma.sessionCreateInput {
+        if (!_recentActiveSessionDb) {
+            _recentActiveSessionDb = {
+                id: sessionDbIds.activeSession2,
+                expires_at: new Date(Date.now() + 29 * 24 * 60 * 60 * 1000), // 29 days from now
+                last_refresh_at: new Date(Date.now() - 60 * 1000), // Refreshed 1 minute ago
+                device_info: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+                ip_address: "192.168.1.101",
+                user: {
+                    connect: { id: generatePK() },
+                },
+                auth: {
+                    connect: { id: generatePK() },
+                },
+            };
+        }
+        return _recentActiveSessionDb;
     },
 };
 
 /**
  * Expired session
  */
-export const expiredSessionDb: Prisma.sessionCreateInput = {
-    id: sessionDbIds.expiredSession,
-    expires_at: new Date(Date.now() - 24 * 60 * 60 * 1000), // Expired 1 day ago
-    last_refresh_at: new Date(Date.now() - 25 * 60 * 60 * 1000), // Last refreshed 25 hours ago
-    device_info: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    ip_address: "192.168.1.102",
-    user: {
-        connect: { id: generatePK() },
-    },
-    auth: {
-        connect: { id: generatePK() },
+let _expiredSessionDb: Prisma.sessionCreateInput | null = null;
+export const expiredSessionDb = {
+    get data(): Prisma.sessionCreateInput {
+        if (!_expiredSessionDb) {
+            _expiredSessionDb = {
+                id: sessionDbIds.expiredSession,
+                expires_at: new Date(Date.now() - 24 * 60 * 60 * 1000), // Expired 1 day ago
+                last_refresh_at: new Date(Date.now() - 25 * 60 * 60 * 1000), // Last refreshed 25 hours ago
+                device_info: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                ip_address: "192.168.1.102",
+                user: {
+                    connect: { id: generatePK() },
+                },
+                auth: {
+                    connect: { id: generatePK() },
+                },
+            };
+        }
+        return _expiredSessionDb;
     },
 };
 
 /**
  * Revoked session
  */
-export const revokedSessionDb: Prisma.sessionCreateInput = {
-    id: sessionDbIds.revokedSession,
-    expires_at: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000), // Would expire in 20 days
-    last_refresh_at: new Date(Date.now() - 2 * 60 * 60 * 1000), // Last refreshed 2 hours ago
-    revokedAt: new Date(Date.now() - 60 * 60 * 1000), // Revoked 1 hour ago
-    device_info: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
-    ip_address: "192.168.1.103",
-    user: {
-        connect: { id: generatePK() },
-    },
-    auth: {
-        connect: { id: generatePK() },
+let _revokedSessionDb: Prisma.sessionCreateInput | null = null;
+export const revokedSessionDb = {
+    get data(): Prisma.sessionCreateInput {
+        if (!_revokedSessionDb) {
+            _revokedSessionDb = {
+                id: sessionDbIds.revokedSession,
+                expires_at: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000), // Would expire in 20 days
+                last_refresh_at: new Date(Date.now() - 2 * 60 * 60 * 1000), // Last refreshed 2 hours ago
+                revokedAt: new Date(Date.now() - 60 * 60 * 1000), // Revoked 1 hour ago
+                device_info: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36",
+                ip_address: "192.168.1.103",
+                user: {
+                    connect: { id: generatePK() },
+                },
+                auth: {
+                    connect: { id: generatePK() },
+                },
+            };
+        }
+        return _revokedSessionDb;
     },
 };
 
 /**
  * Recently refreshed session
  */
-export const recentSessionDb: Prisma.sessionCreateInput = {
-    id: sessionDbIds.recentSession,
-    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-    last_refresh_at: new Date(Date.now() - 5 * 60 * 1000), // Refreshed 5 minutes ago
-    device_info: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
-    ip_address: "10.0.0.50",
-    user: {
-        connect: { id: generatePK() },
-    },
-    auth: {
-        connect: { id: generatePK() },
+let _recentSessionDb: Prisma.sessionCreateInput | null = null;
+export const recentSessionDb = {
+    get data(): Prisma.sessionCreateInput {
+        if (!_recentSessionDb) {
+            _recentSessionDb = {
+                id: sessionDbIds.recentSession,
+                expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+                last_refresh_at: new Date(Date.now() - 5 * 60 * 1000), // Refreshed 5 minutes ago
+                device_info: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
+                ip_address: "10.0.0.50",
+                user: {
+                    connect: { id: generatePK() },
+                },
+                auth: {
+                    connect: { id: generatePK() },
+                },
+            };
+        }
+        return _recentSessionDb;
     },
 };
 
 /**
  * Old session (near expiry)
  */
-export const oldSessionDb: Prisma.sessionCreateInput = {
-    id: sessionDbIds.oldSession,
-    expires_at: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // Expires in 2 days
-    last_refresh_at: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000), // Last refreshed 28 days ago
-    device_info: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    ip_address: "192.168.1.104",
-    user: {
-        connect: { id: generatePK() },
-    },
-    auth: {
-        connect: { id: generatePK() },
+let _oldSessionDb: Prisma.sessionCreateInput | null = null;
+export const oldSessionDb = {
+    get data(): Prisma.sessionCreateInput {
+        if (!_oldSessionDb) {
+            _oldSessionDb = {
+                id: sessionDbIds.oldSession,
+                expires_at: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // Expires in 2 days
+                last_refresh_at: new Date(Date.now() - 28 * 24 * 60 * 60 * 1000), // Last refreshed 28 days ago
+                device_info: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                ip_address: "192.168.1.104",
+                user: {
+                    connect: { id: generatePK() },
+                },
+                auth: {
+                    connect: { id: generatePK() },
+                },
+            };
+        }
+        return _oldSessionDb;
     },
 };
 
 /**
  * Mobile session with detailed device info
  */
-export const mobileSessionDb: Prisma.sessionCreateInput = {
-    id: sessionDbIds.mobileSession,
-    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-    last_refresh_at: new Date(Date.now() - 30 * 60 * 1000), // Refreshed 30 minutes ago
-    device_info: JSON.stringify({
-        userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15",
-        platform: "iPhone",
-        vendor: "Apple Computer, Inc.",
-        language: "en-US",
-        screenResolution: "1179x2556",
-        timezone: "America/New_York",
-        cookieEnabled: true,
-        doNotTrack: false,
-    }),
-    ip_address: "172.16.0.25",
-    user: {
-        connect: { id: generatePK() },
-    },
-    auth: {
-        connect: { id: generatePK() },
+let _mobileSessionDb: Prisma.sessionCreateInput | null = null;
+export const mobileSessionDb = {
+    get data(): Prisma.sessionCreateInput {
+        if (!_mobileSessionDb) {
+            _mobileSessionDb = {
+                id: sessionDbIds.mobileSession,
+                expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+                last_refresh_at: new Date(Date.now() - 30 * 60 * 1000), // Refreshed 30 minutes ago
+                device_info: JSON.stringify({
+                    userAgent: "Mozilla/5.0 (iPhone; CPU iPhone OS 17_1 like Mac OS X) AppleWebKit/605.1.15",
+                    platform: "iPhone",
+                    vendor: "Apple Computer, Inc.",
+                    language: "en-US",
+                    screenResolution: "1179x2556",
+                    timezone: "America/New_York",
+                    cookieEnabled: true,
+                    doNotTrack: false,
+                }),
+                ip_address: "172.16.0.25",
+                user: {
+                    connect: { id: generatePK() },
+                },
+                auth: {
+                    connect: { id: generatePK() },
+                },
+            };
+        }
+        return _mobileSessionDb;
     },
 };
 
 /**
  * Desktop session with detailed device info
  */
-export const desktopSessionDb: Prisma.sessionCreateInput = {
-    id: sessionDbIds.desktopSession,
-    expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-    last_refresh_at: new Date(Date.now() - 15 * 60 * 1000), // Refreshed 15 minutes ago
-    device_info: JSON.stringify({
-        userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        platform: "Win32",
-        vendor: "Google Inc.",
-        language: "en-US",
-        screenResolution: "1920x1080",
-        timezone: "America/Los_Angeles",
-        cookieEnabled: true,
-        doNotTrack: false,
-        hardwareConcurrency: 8,
-        memory: 8192,
-    }),
-    ip_address: "203.0.113.42",
-    user: {
-        connect: { id: generatePK() },
-    },
-    auth: {
-        connect: { id: generatePK() },
+let _desktopSessionDb: Prisma.sessionCreateInput | null = null;
+export const desktopSessionDb = {
+    get data(): Prisma.sessionCreateInput {
+        if (!_desktopSessionDb) {
+            _desktopSessionDb = {
+                id: sessionDbIds.desktopSession,
+                expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+                last_refresh_at: new Date(Date.now() - 15 * 60 * 1000), // Refreshed 15 minutes ago
+                device_info: JSON.stringify({
+                    userAgent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                    platform: "Win32",
+                    vendor: "Google Inc.",
+                    language: "en-US",
+                    screenResolution: "1920x1080",
+                    timezone: "America/Los_Angeles",
+                    cookieEnabled: true,
+                    doNotTrack: false,
+                    hardwareConcurrency: 8,
+                    memory: 8192,
+                }),
+                ip_address: "203.0.113.42",
+                user: {
+                    connect: { id: generatePK() },
+                },
+                auth: {
+                    connect: { id: generatePK() },
+                },
+            };
+        }
+        return _desktopSessionDb;
     },
 };
 
@@ -189,6 +366,8 @@ export class SessionDbFactory {
             expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
             last_refresh_at: new Date(),
             ip_address: "127.0.0.1",
+            user: { connect: { id: generatePK() } },
+            auth: { connect: { id: generatePK() } },
             ...overrides,
         };
     }
@@ -381,7 +560,7 @@ export class SessionDbFactory {
         count = 3,
     ): Prisma.sessionCreateInput[] {
         const sessions: Prisma.sessionCreateInput[] = [];
-        
+
         for (let i = 0; i < count; i++) {
             sessions.push({
                 id: generatePK(),
@@ -393,7 +572,7 @@ export class SessionDbFactory {
                 auth: { connect: { id: authId } },
             });
         }
-        
+
         return sessions;
     }
 }
@@ -420,7 +599,7 @@ export async function seedTestSessions(db: PrismaClient) {
         },
     });
 
-    const auth1 = await db.userAuth.create({
+    const auth1 = await db.user_auth.create({
         data: {
             id: generatePK(),
             provider: "Password",
@@ -442,7 +621,7 @@ export async function seedTestSessions(db: PrismaClient) {
         },
     });
 
-    const auth2 = await db.userAuth.create({
+    const auth2 = await db.user_auth.create({
         data: {
             id: generatePK(),
             provider: "Password",
@@ -475,7 +654,7 @@ export async function seedTestSessions(db: PrismaClient) {
  */
 export async function seedSessionHistory(db: PrismaClient, userId: bigint, authId: bigint) {
     const sessionHistory = SessionDbFactory.createMultipleForUser(userId, authId, 5);
-    
+
     // Add one revoked and one expired session
     sessionHistory.push(
         SessionDbFactory.createRevoked(userId, authId, 24), // Revoked 1 day ago

@@ -297,14 +297,26 @@ Remember: You have significant system access. Use responsibly and respect securi
         if app_name in apps:
             return apps[app_name]
             
-        # Case-insensitive search
+        # Case-insensitive search on key names
         for name, info in apps.items():
             if name.lower() == app_name.lower():
                 return info
                 
-        # Partial match
+        # Case-insensitive search on display names
         for name, info in apps.items():
-            if app_name.lower() in name.lower() or app_name.lower() in info.get("command", "").lower():
+            display_name = info.get("name", "")
+            if display_name.lower() == app_name.lower():
+                return info
+                
+        # Partial match on key names, display names, and commands
+        for name, info in apps.items():
+            display_name = info.get("name", "")
+            command = info.get("command", "")
+            app_name_lower = app_name.lower()
+            
+            if (app_name_lower in name.lower() or 
+                app_name_lower in display_name.lower() or 
+                app_name_lower in command.lower()):
                 return info
                 
         return None

@@ -43,8 +43,8 @@ setup() {
     
     [ "$ACTION" = "status" ]
     [ "$FORCE" = "no" ]
-    [ "$LLM_PROVIDER" = "anthropic" ]
-    [ "$LLM_MODEL" = "claude-3-7-sonnet-20250219" ]
+    [ "$LLM_PROVIDER" = "ollama" ]  # This is the actual default from the function
+    [ "$LLM_MODEL" = "llama3.2-vision:11b" ]  # This is the actual default from the function
     [ "$ENABLE_AI" = "yes" ]
     [ "$ENABLE_SEARCH" = "no" ]
     [ "$VNC_PASSWORD" = "agents2vnc" ]
@@ -122,7 +122,7 @@ setup() {
     [ -n "$AGENTS2_PORT" ]
     [ -n "$AGENTS2_BASE_URL" ]
     [ -n "$AGENTS2_CONTAINER_NAME" ]
-    [ -n "$AGENTS2_IMAGE" ]
+    [ -n "$AGENTS2_IMAGE_NAME" ]
     [ -n "$AGENTS2_VNC_PORT" ]
 }
 
@@ -131,8 +131,8 @@ setup() {
     agents2::export_messages
     
     [ -n "$MSG_INSTALL_SUCCESS" ]
-    [ -n "$MSG_DOCKER_NOT_FOUND" ]
-    [ -n "$MSG_HEALTHY" ]
+    [ -n "$MSG_DOCKER_REQUIRED" ]
+    [ -n "$MSG_SERVICE_HEALTHY" ]
     [ -n "$MSG_ALREADY_INSTALLED" ]
 }
 

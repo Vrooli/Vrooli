@@ -44,7 +44,7 @@ Agent-S2's Stealth Mode provides advanced anti-detection capabilities to bypass 
 AGENT_S2_STEALTH_MODE_ENABLED=true
 
 # Session storage path
-AGENT_S2_SESSION_STORAGE_PATH=/data/sessions
+AGENT_S2_SESSION_STORAGE_PATH=/home/agents2/.agent-s2/sessions
 
 # Enable session data persistence (default: true)
 AGENT_S2_SESSION_DATA_PERSISTENCE=true

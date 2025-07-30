@@ -1,16 +1,17 @@
-// @ts-nocheck - Disabled due to schema mismatch (no project model found)
-import { generatePublicId, nanoid } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+/* eslint-disable no-magic-numbers */
+// @ts-nocheck - Disabled because the 'project' model doesn't exist in the current Prisma schema
+// This factory is kept for future use when the project model is added to the schema
+import { type Prisma, type PrismaClient, type project } from "@prisma/client";
+import { generatePublicId, nanoid, projectConfigFixtures } from "@vrooli/shared";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import { projectConfigFixtures } from "../../../../../shared/src/__test/fixtures/config/projectConfigFixtures.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
 
 interface ProjectRelationConfig extends RelationConfig {
-    owner?: { userId?: string; teamId?: string };
+    owner?: { userId?: bigint; teamId?: bigint };
     versions?: Array<{
         versionLabel: string;
         isLatest?: boolean;
@@ -100,7 +101,7 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
                     isPrivate: false,
                 },
                 invalidTypes: {
-                    id: "not-a-snowflake",
+                    id: BigInt(-1), // Invalid bigint ID (negative)
                     publicId: 123, // Should be string
                     handle: true, // Should be string
                     isPrivate: "yes", // Should be boolean
@@ -118,8 +119,8 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
                     publicId: generatePublicId(),
                     handle: `project_${nanoid()}`,
                     isPrivate: false,
-                    ownedByUser: { connect: { id: "user123" } },
-                    ownedByTeam: { connect: { id: "team123" } }, // Can't have both
+                    ownedByUser: { connect: { id: this.generateId() } },
+                    ownedByTeam: { connect: { id: this.generateId() } }, // Can't have both
                 },
             },
             edgeCases: {
@@ -191,8 +192,8 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
                     projectSettings: projectConfigFixtures.variants.commercialProject,
                     translations: {
                         update: [{
-                            where: { id: "translation_id" },
-                            data: { 
+                            where: { id: this.generateId() },
+                            data: {
                                 description: "Updated project description",
                                 instructions: "Updated instructions",
                             },
@@ -205,7 +206,7 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.projectCreateInput>): Prisma.projectCreateInput {
         const uniqueHandle = `project_${nanoid()}`;
-        
+
         return {
             id: this.generateId(),
             publicId: generatePublicId(),
@@ -217,7 +218,7 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
 
     protected generateCompleteData(overrides?: Partial<Prisma.projectCreateInput>): Prisma.projectCreateInput {
         const uniqueHandle = `complete_project_${nanoid()}`;
-        
+
         return {
             id: this.generateId(),
             publicId: generatePublicId(),
@@ -542,7 +543,7 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a team-owned project
      */
-    async createTeamProject(teamId: string): Promise<Prisma.Project> {
+    async createTeamProject(teamId: bigint): Promise<Prisma.Project> {
         return this.createWithRelations({
             owner: { teamId },
             overrides: {
@@ -589,11 +590,11 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
 
     protected async checkModelConstraints(record: Prisma.Project): Promise<string[]> {
         const violations: string[] = [];
-        
+
         // Check handle uniqueness
         if (record.handle) {
             const duplicate = await this.prisma.project.findFirst({
-                where: { 
+                where: {
                     handle: record.handle,
                     id: { not: record.id },
                 },
@@ -608,23 +609,23 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
             violations.push("Handle contains invalid characters");
         }
 
-        // Check that project has at least one version
-        const versions = await this.prisma.project_version.count({
+        // Check that project has at least one version (using unified resource system)
+        const versions = await this.prisma.resource_version.count({
             where: { rootId: record.id },
         });
-        
+
         if (versions === 0) {
             violations.push("Project must have at least one version");
         }
 
-        // Check that only one version is marked as latest
-        const latestVersions = await this.prisma.project_version.count({
+        // Check that only one version is marked as latest (using unified resource system)
+        const latestVersions = await this.prisma.resource_version.count({
             where: {
                 rootId: record.id,
                 isLatest: true,
             },
         });
-        
+
         if (latestVersions > 1) {
             violations.push("Project can only have one latest version");
         }
@@ -668,23 +669,25 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
         includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
-        const shouldDelete = (relation: string) => 
+        const shouldDelete = (relation: string) =>
             !includeOnly || includeOnly.includes(relation);
-        
+
         // Delete in order of dependencies
-        
+
         // Delete project versions (cascade will handle their related records)
         if (shouldDelete("versions") && record.versions?.length) {
             for (const version of record.versions) {
                 // Delete version translations
                 if (version.translations?.length) {
-                    await tx.project_version_translation.deleteMany({
-                        where: { projectVersionId: version.id },
+                    // Updated to use unified resource_version_translation table
+                    await tx.resource_version_translation.deleteMany({
+                        where: { resourceVersionId: version.id },
                     });
                 }
             }
-            
-            await tx.project_version.deleteMany({
+
+            // Delete project versions (using unified resource system)
+            await tx.resource_version.deleteMany({
                 where: { rootId: record.id },
             });
         }
@@ -728,22 +731,22 @@ export class ProjectDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create project collection for testing
      */
-    async createProjectCollection(ownerId: string, count = 3): Promise<Prisma.Project[]> {
+    async createProjectCollection(ownerId: bigint, count = 3): Promise<Prisma.Project[]> {
         const projects: Prisma.Project[] = [];
         const types = ["opensource", "educational", "research", "commercial"];
-        
+
         for (let i = 0; i < count; i++) {
             const type = types[i % types.length];
             const project = await this.seedScenario(`${type}Project` as any);
             projects.push(project as unknown as Prisma.Project);
         }
-        
+
         return projects;
     }
 }
 
 // Export factory creator function
-export const createProjectDbFactory = (prisma: PrismaClient) => 
+export const createProjectDbFactory = (prisma: PrismaClient) =>
     new ProjectDbFactory(prisma);
 
 // Export the class for type usage

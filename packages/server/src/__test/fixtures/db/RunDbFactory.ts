@@ -1,9 +1,10 @@
+/* eslint-disable no-magic-numbers */
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with proper types
+import { type Prisma, type PrismaClient, type run, RunStatus, RunStepStatus } from "@prisma/client";
 import { nanoid } from "@vrooli/shared";
-import { type Prisma, type PrismaClient, RunStatus, RunStepStatus } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
@@ -16,6 +17,11 @@ interface RunRelationConfig extends RelationConfig {
     withResourceVersion?: { resourceVersionId: string };
     withSteps?: boolean | number;
     withIO?: boolean | number;
+}
+
+type RunWithIncludes = run & {
+    steps?: any[];
+    io?: any[];
 }
 
 /**
@@ -38,30 +44,30 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
     Prisma.runInclude,
     Prisma.runUpdateInput
 > {
-    protected scenarios: Record<string, TestScenario<RunRelationConfig>> = {};
-    
+    protected scenarios: Record<string, TestScenario> = {};
+
     constructor(prisma: PrismaClient) {
         super("Run", prisma);
         this.initializeScenarios();
     }
 
     // Add missing methods
-    async createWithRelations(options: { overrides?: Partial<Prisma.runCreateInput>; withSteps?: number | boolean; withIO?: number | boolean }): Promise<Prisma.run> {
+    async createWithRelations(options: { overrides?: Partial<Prisma.runCreateInput>; withSteps?: number | boolean; withIO?: number | boolean }): Promise<run> {
         const data = await this.generateCompleteData(options.overrides);
-        
+
         // Apply relationships after generation
         const relationConfig: RunRelationConfig = {};
         if (options.withSteps) relationConfig.withSteps = options.withSteps;
         if (options.withIO) relationConfig.withIO = options.withIO;
-        
+
         const finalData = await this.applyRelationships(data, relationConfig, this.prisma);
         return await this.prisma.run.create({ data: finalData, include: this.getDefaultInclude() });
     }
 
-    async seedScenario(scenarioName: string): Promise<Prisma.run> {
+    async seedScenario(scenarioName: string): Promise<run> {
         const scenario = this.scenarios[scenarioName];
         if (!scenario) throw new Error(`Scenario ${scenarioName} not found`);
-        
+
         const data = await this.generateCompleteData(scenario.config.overrides);
         const finalData = await this.applyRelationships(data, scenario.config, this.prisma);
         return await this.prisma.run.create({ data: finalData, include: this.getDefaultInclude() });
@@ -323,7 +329,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
     protected generateCompleteData(overrides?: Partial<Prisma.runCreateInput>): Prisma.runCreateInput {
         const now = new Date();
         const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
-        
+
         return {
             id: this.generateId(),
             name: `Complete_Run_${nanoid()}`,
@@ -454,7 +460,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create specific run types
      */
-    async createScheduledRun(scheduleId: string): Promise<Prisma.run> {
+    async createScheduledRun(scheduleId: string): Promise<run> {
         return await this.createMinimal({
             status: RunStatus.Scheduled,
             wasRunAutomatically: true,
@@ -462,12 +468,12 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    async createInProgressRun(userId?: string, teamId?: string): Promise<Prisma.run> {
-        const ownership = userId 
-            ? { user: { connect: { id: userId } } }
-            : teamId 
-            ? { team: { connect: { id: teamId } } }
-            : {};
+    async createInProgressRun(userId?: string, teamId?: string): Promise<run> {
+        const ownership = userId
+            ? { user: { connect: { id: BigInt(userId) } } }
+            : teamId
+                ? { team: { connect: { id: BigInt(teamId) } } }
+                : {};
 
         return await this.createWithRelations({
             overrides: {
@@ -479,13 +485,13 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    async createCompletedRun(userId: string): Promise<Prisma.run> {
+    async createCompletedRun(userId: string): Promise<run> {
         const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-        
+
         return await this.seedScenario("completedRun");
     }
 
-    async createFailedRun(errorData: Record<string, unknown> = {}): Promise<Prisma.run> {
+    async createFailedRun(errorData: Record<string, unknown> = {}): Promise<run> {
         return await this.createMinimal({
             status: RunStatus.Failed,
             data: JSON.stringify({ error: errorData }),
@@ -559,7 +565,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
         if (config.withSteps) {
             const stepCount = typeof config.withSteps === "number" ? config.withSteps : 1;
             const startTime = data.startedAt || new Date(Date.now() - 60 * 60 * 1000);
-            
+
             data.steps = {
                 create: Array.from({ length: stepCount }, (_, i) => ({
                     id: this.generateId(),
@@ -578,15 +584,15 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
         // Handle IO
         if (config.withIO) {
             const ioCount = typeof config.withIO === "number" ? config.withIO : 1;
-            
+
             data.io = {
                 create: Array.from({ length: ioCount }, (_, i) => ({
                     id: this.generateId(),
                     nodeInputName: i % 2 === 0 ? `input${i / 2}` : `output${Math.floor(i / 2)}`,
                     nodeName: `Node ${Math.floor(i / 2)}`,
-                    data: JSON.stringify({ 
+                    data: JSON.stringify({
                         type: i % 2 === 0 ? "input" : "output",
-                        value: `data_${i}`, 
+                        value: `data_${i}`,
                     }),
                 })),
             };
@@ -595,9 +601,9 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
         return data;
     }
 
-    protected async checkModelConstraints(record: Prisma.run): Promise<string[]> {
+    protected async checkModelConstraints(record: RunWithIncludes): Promise<string[]> {
         const violations: string[] = [];
-        
+
         // Check ownership (must have either user or team, not both)
         if (record.userId && record.teamId) {
             violations.push("Run cannot belong to both user and team");
@@ -669,12 +675,12 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.run,
+        record: RunWithIncludes,
         remainingDepth: number,
         tx: PrismaClient,
         includeOnly?: string[],
     ): Promise<void> {
-        const shouldDelete = (relation: string) => 
+        const shouldDelete = (relation: string) =>
             !includeOnly || includeOnly.includes(relation);
 
         // Delete steps
@@ -702,7 +708,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
             complexity?: number;
         }>,
         userId?: string,
-    ): Promise<Prisma.run> {
+    ): Promise<run> {
         const now = new Date();
         const steps = stepConfigs.map((config, i) => ({
             id: this.generateId(),
@@ -728,14 +734,14 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
      * Create test runs for different scenarios
      */
     async createTestRuns(userId: string): Promise<{
-        scheduled: Prisma.run;
-        inProgress: Prisma.run;
-        completed: Prisma.run;
-        failed: Prisma.run;
-        automated: Prisma.run;
+        scheduled: run;
+        inProgress: run;
+        completed: run;
+        failed: run;
+        automated: run;
     }> {
         const [scheduled, inProgress, completed, failed, automated] = await Promise.all([
-            this.createMinimal({ 
+            this.createMinimal({
                 user: { connect: { id: BigInt(userId) } },
                 status: RunStatus.Scheduled,
             }),
@@ -761,7 +767,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
         inputs: Record<string, unknown>,
         outputs: Record<string, unknown>,
         userId: string,
-    ): Promise<Prisma.run> {
+    ): Promise<run> {
         const ioData = [
             ...Object.entries(inputs).map(([key, value]) => ({
                 id: this.generateId(),
@@ -785,7 +791,7 @@ export class RunDbFactory extends EnhancedDatabaseFactory<
 }
 
 // Export factory creator function
-export const createRunDbFactory = (prisma: PrismaClient) => 
+export const createRunDbFactory = (prisma: PrismaClient) =>
     new RunDbFactory(prisma);
 
 // Export the class for type usage

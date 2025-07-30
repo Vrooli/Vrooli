@@ -1,7 +1,7 @@
+/* eslint-disable no-magic-numbers */
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with proper types
 import { type Prisma, type PrismaClient } from "@prisma/client";
-import { generatePK } from "@vrooli/shared";
-import { messageConfigFixtures } from "@vrooli/shared/test-fixtures/config";
+import { generatePK, messageConfigFixtures } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
 import type { BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
 

@@ -6,15 +6,15 @@
  */
 
 import { type Request, type Response } from "express";
-import { type AuthenticatedSessionData } from "../../../types.js";
-import { UserSessionFactory } from "./factories/UserSessionFactory.js";
+import { type SessionData } from "../../../types.js";
 import { ApiKeyFactory } from "./factories/ApiKeyFactory.js";
-import { PermissionValidator } from "./validators/PermissionValidator.js";
-import { 
+import { UserSessionFactory } from "./factories/UserSessionFactory.js";
+import {
     type ApiKeyAuthData,
     type PermissionMatrix,
     type PermissionTestHelpers,
 } from "./types.js";
+import { PermissionValidator } from "./validators/PermissionValidator.js";
 
 // Factory instances
 const userFactory = new UserSessionFactory();
@@ -24,7 +24,7 @@ const validator = new PermissionValidator();
 /**
  * Create a mock Express request with session data
  */
-export function createMockRequest(session: AuthenticatedSessionData | ApiKeyAuthData): Request {
+export function createMockRequest(session: SessionData | ApiKeyAuthData): Request {
     return {
         session,
         headers: {
@@ -55,7 +55,7 @@ export function createMockResponse(): Response {
         clearCookie: jest.fn().mockReturnThis(),
         locals: {},
     } as unknown as Response;
-    
+
     return res;
 }
 
@@ -63,11 +63,11 @@ export function createMockResponse(): Response {
  * Create a session with request/response objects
  */
 export async function createSession(
-    sessionData: AuthenticatedSessionData | ApiKeyAuthData,
+    sessionData: SessionData | ApiKeyAuthData,
 ): Promise<{ req: Request; res: Response }> {
     const req = createMockRequest(sessionData);
     const res = createMockResponse();
-    
+
     return { req, res };
 }
 
@@ -84,7 +84,7 @@ export async function createApiKeySession(
  * Create multiple sessions for testing
  */
 export async function createMultipleSessions(
-    sessions: Array<AuthenticatedSessionData | ApiKeyAuthData>,
+    sessions: Array<SessionData | ApiKeyAuthData>,
 ): Promise<Array<{ req: Request; res: Response }>> {
     return Promise.all(sessions.map(session => createSession(session)));
 }
@@ -99,17 +99,17 @@ export const quickSession = {
     guest: () => createSession(userFactory.createGuest()),
     banned: () => createSession(userFactory.createBanned()),
     bot: () => createSession(userFactory.createBot()),
-    
+
     // API key sessions
     readOnly: () => createSession(apiKeyFactory.createReadOnlyPublic()),
     writeEnabled: () => createSession(apiKeyFactory.createWrite()),
     botKey: () => createSession(apiKeyFactory.createBot()),
     expired: () => createSession(apiKeyFactory.createExpired()),
-    
+
     // Custom sessions
-    withUser: (user: AuthenticatedSessionData) => createSession(user),
+    withUser: (user: SessionData) => createSession(user),
     withApiKey: (apiKey: ApiKeyAuthData) => createSession(apiKey),
-    
+
     // With specific permissions
     withPermissions: (permissions: string[]) => {
         const user = userFactory.createWithCustomRole("Custom", permissions);
@@ -136,7 +136,7 @@ export const testHelpers: PermissionTestHelpers = {
                 if (error.message === "Expected permission to be denied, but it was granted") {
                     throw error;
                 }
-                
+
                 if (expectedError) {
                     if (typeof expectedError === "string") {
                         expect(error.message).toContain(expectedError);
@@ -164,7 +164,7 @@ export const testHelpers: PermissionTestHelpers = {
      * Test a permission matrix
      */
     testPermissionMatrix: async (
-        testFn: (session: AuthenticatedSessionData | ApiKeyAuthData) => Promise<unknown>,
+        testFn: (session: SessionData | ApiKeyAuthData) => Promise<unknown>,
         matrix: PermissionMatrix,
     ): Promise<void> => {
         const personas = {
@@ -185,7 +185,7 @@ export const testHelpers: PermissionTestHelpers = {
             }
 
             const { req, res } = await createSession(persona);
-            
+
             try {
                 await testFn({ req, res });
                 if (!shouldPass) {
@@ -203,9 +203,9 @@ export const testHelpers: PermissionTestHelpers = {
      * Test permission changes
      */
     testPermissionChange: async (
-        testFn: (session: AuthenticatedSessionData | ApiKeyAuthData) => Promise<unknown>,
-        before: AuthenticatedSessionData,
-        after: AuthenticatedSessionData,
+        testFn: (session: SessionData | ApiKeyAuthData) => Promise<unknown>,
+        before: SessionData,
+        after: SessionData,
         expectations: { beforeShouldPass: boolean; afterShouldPass: boolean },
     ): Promise<void> => {
         // Test before state
@@ -239,8 +239,8 @@ export const testHelpers: PermissionTestHelpers = {
      * Test bulk permissions
      */
     testBulkPermissions: async (
-        operations: Array<{ name: string; fn: (session: AuthenticatedSessionData | ApiKeyAuthData) => Promise<unknown> }>,
-        sessions: Array<{ name: string; session: AuthenticatedSessionData | ApiKeyAuthData; isApiKey?: boolean }>,
+        operations: Array<{ name: string; fn: (session: SessionData | ApiKeyAuthData) => Promise<unknown> }>,
+        sessions: Array<{ name: string; session: SessionData | ApiKeyAuthData; isApiKey?: boolean }>,
         expectations: Record<string, Record<string, boolean>>,
     ): Promise<void> => {
         for (const operation of operations) {
@@ -251,7 +251,7 @@ export const testHelpers: PermissionTestHelpers = {
                 }
 
                 const { req, res } = await createSession(sessionConfig.session);
-                
+
                 try {
                     await operation.fn({ req, res });
                     if (!expected) {
@@ -268,7 +268,7 @@ export const testHelpers: PermissionTestHelpers = {
 };
 
 // Export individual functions for backward compatibility
-export const { 
+export const {
     expectPermissionDenied,
     expectPermissionGranted,
     testPermissionMatrix,
@@ -280,7 +280,7 @@ export const {
  * Utility to check permissions without throwing
  */
 export async function checkPermission(
-    session: AuthenticatedSessionData | ApiKeyAuthData,
+    session: SessionData | ApiKeyAuthData,
     permission: string,
 ): Promise<boolean> {
     return validator.hasPermission(session, permission);
@@ -290,7 +290,7 @@ export async function checkPermission(
  * Utility to check resource access
  */
 export async function checkAccess(
-    session: AuthenticatedSessionData | ApiKeyAuthData,
+    session: SessionData | ApiKeyAuthData,
     action: string,
     resource: Record<string, unknown>,
 ): Promise<boolean> {
@@ -301,7 +301,7 @@ export async function checkAccess(
  * Create a permission testing context
  */
 export function createPermissionContext(
-    session: AuthenticatedSessionData | ApiKeyAuthData,
+    session: SessionData | ApiKeyAuthData,
     additionalContext?: Record<string, unknown>,
 ) {
     return {

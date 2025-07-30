@@ -1,5 +1,5 @@
 import { AccountStatus, generatePK } from "@vrooli/shared";
-import { type AuthenticatedSessionData } from "../../../types.js";
+import { type SessionData } from "../../../types.js";
 
 /**
  * User personas representing common user types in the system.
@@ -18,7 +18,7 @@ const baseUserData = {
 /**
  * System administrator with full access to all features
  */
-export const adminUser: AuthenticatedSessionData = {
+export const adminUser: SessionData = {
     ...baseUserData,
     id: "111111111111111111", // Consistent ID for admin
     handle: "admin",
@@ -37,7 +37,7 @@ export const adminUser: AuthenticatedSessionData = {
 /**
  * Regular user with standard permissions
  */
-export const standardUser: AuthenticatedSessionData = {
+export const standardUser: SessionData = {
     ...baseUserData,
     id: "222222222222222222",
     handle: "johndoe",
@@ -54,7 +54,7 @@ export const standardUser: AuthenticatedSessionData = {
 /**
  * Premium user with enhanced features
  */
-export const premiumUser: AuthenticatedSessionData = {
+export const premiumUser: SessionData = {
     ...baseUserData,
     id: "333333333333333333",
     handle: "premium_user",
@@ -71,7 +71,7 @@ export const premiumUser: AuthenticatedSessionData = {
 /**
  * New user with unverified email
  */
-export const unverifiedUser: AuthenticatedSessionData = {
+export const unverifiedUser: SessionData = {
     ...baseUserData,
     id: "444444444444444444",
     handle: "newuser",
@@ -88,7 +88,7 @@ export const unverifiedUser: AuthenticatedSessionData = {
 /**
  * Banned user - should be denied most operations
  */
-export const bannedUser: AuthenticatedSessionData = {
+export const bannedUser: SessionData = {
     ...baseUserData,
     id: "555555555555555555",
     handle: "banned_user",
@@ -105,7 +105,7 @@ export const bannedUser: AuthenticatedSessionData = {
 /**
  * Guest user (not logged in)
  */
-export const guestUser: AuthenticatedSessionData = {
+export const guestUser: SessionData = {
     ...baseUserData,
     id: "",
     handle: null,
@@ -122,7 +122,7 @@ export const guestUser: AuthenticatedSessionData = {
 /**
  * Bot user with special permissions
  */
-export const botUser: AuthenticatedSessionData = {
+export const botUser: SessionData = {
     ...baseUserData,
     id: "666666666666666666",
     handle: "test_bot",
@@ -140,7 +140,7 @@ export const botUser: AuthenticatedSessionData = {
 /**
  * User with custom role permissions
  */
-export const customRoleUser: AuthenticatedSessionData = {
+export const customRoleUser: SessionData = {
     ...baseUserData,
     id: "777777777777777777",
     handle: "custom_role",
@@ -152,9 +152,9 @@ export const customRoleUser: AuthenticatedSessionData = {
     timeZone: "Asia/Tokyo",
     hasPremium: false,
     roles: [{
-        role: { 
-            name: "ContentModerator", 
-            permissions: JSON.stringify(["moderate_content", "view_reports"]), 
+        role: {
+            name: "ContentModerator",
+            permissions: JSON.stringify(["moderate_content", "view_reports"]),
         },
     }],
 };
@@ -163,18 +163,18 @@ export const customRoleUser: AuthenticatedSessionData = {
  * Helper function to create a user with specific permissions
  */
 export function createUserWithPermissions(
-    overrides: Partial<AuthenticatedSessionData>,
+    overrides: Partial<SessionData>,
     permissions: string[] = [],
-): AuthenticatedSessionData {
+): SessionData {
     const id = overrides.id || generatePK().toString();
     return {
         ...standardUser,
         ...overrides,
         id,
         roles: permissions.length > 0 ? [{
-            role: { 
-                name: "CustomRole", 
-                permissions: JSON.stringify(permissions), 
+            role: {
+                name: "CustomRole",
+                permissions: JSON.stringify(permissions),
             },
         }] : [],
     };
@@ -183,7 +183,7 @@ export function createUserWithPermissions(
 /**
  * Suspended user - temporarily suspended, different from banned
  */
-export const suspendedUser: AuthenticatedSessionData = {
+export const suspendedUser: SessionData = {
     ...baseUserData,
     id: "888888888888888888",
     handle: "suspended_user",
@@ -200,7 +200,7 @@ export const suspendedUser: AuthenticatedSessionData = {
 /**
  * User with expired premium subscription
  */
-export const expiredPremiumUser: AuthenticatedSessionData = {
+export const expiredPremiumUser: SessionData = {
     ...baseUserData,
     id: "999999999999999999",
     handle: "expired_premium",
@@ -218,7 +218,7 @@ export const expiredPremiumUser: AuthenticatedSessionData = {
 /**
  * Create multiple related users for testing cross-user permissions
  */
-export function createUserGroup(baseName: string, count = 3): AuthenticatedSessionData[] {
+export function createUserGroup(baseName: string, count = 3): SessionData[] {
     return Array(count).fill(null).map((_, index) => ({
         ...standardUser,
         id: generatePK().toString(),

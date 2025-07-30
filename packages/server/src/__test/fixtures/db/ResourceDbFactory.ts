@@ -1,6 +1,6 @@
 // AI_CHECK: TYPE_SAFETY=server-factory-bigint-migration | LAST: 2025-06-29 - Migrated to BigInt IDs, snake_case tables, correct field names
+import { type Prisma, type PrismaClient, type resource } from "@prisma/client";
 import { ResourceType } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 
 /**
@@ -22,7 +22,7 @@ import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
  * - Type-safe BigInt ID handling
  */
 export class ResourceDbFactory extends EnhancedDatabaseFactory<
-    { id: bigint },
+    resource,
     Prisma.resourceCreateInput,
     Prisma.resourceInclude,
     Prisma.resourceUpdateInput
@@ -72,7 +72,7 @@ export class ResourceDbFactory extends EnhancedDatabaseFactory<
     }> {
         const resource = await this.createMinimal(resourceOverrides);
         const versions: Array<any> = [];
-        
+
         for (let i = 0; i < versionCount; i++) {
             const version = await this.prisma.resource_version.create({
                 data: {
@@ -86,7 +86,7 @@ export class ResourceDbFactory extends EnhancedDatabaseFactory<
             });
             versions.push(version);
         }
-        
+
         return { resource, versions };
     }
 
@@ -175,5 +175,6 @@ export class ResourceDbFactory extends EnhancedDatabaseFactory<
 }
 
 // Export factory creator function
-export const createResourceDbFactory = (prisma: PrismaClient) => 
-    new ResourceDbFactory(prisma);
+export function createResourceDbFactory(prisma: PrismaClient) {
+    return new ResourceDbFactory(prisma);
+}

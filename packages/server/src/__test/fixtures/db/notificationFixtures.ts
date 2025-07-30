@@ -1,22 +1,29 @@
-import { generatePK, nanoid } from "@vrooli/shared";
+/* eslint-disable no-magic-numbers */
 import { type Prisma } from "@prisma/client";
+import { generatePK } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
+import type { BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
 
 /**
  * Database fixtures for Notification model - used for seeding test data
  * These follow Prisma's shape for database operations
  */
 
-// Consistent IDs for testing
-export const notificationDbIds = {
-    notification1: generatePK(),
-    notification2: generatePK(),
-    notification3: generatePK(),
-    subscription1: generatePK(),
-    subscription2: generatePK(),
-    subscription3: generatePK(),
-};
+// Consistent IDs for testing - using lazy initialization to avoid module-level generatePK() calls
+let _notificationDbIds: Record<string, bigint> | null = null;
+export function getNotificationDbIds() {
+    if (!_notificationDbIds) {
+        _notificationDbIds = {
+            notification1: generatePK(),
+            notification2: generatePK(),
+            notification3: generatePK(),
+            subscription1: generatePK(),
+            subscription2: generatePK(),
+            subscription3: generatePK(),
+        };
+    }
+    return _notificationDbIds;
+}
 
 /**
  * Enhanced test fixtures for Notification model following standard structure
@@ -54,7 +61,7 @@ export const notificationDbFixtures: DbTestFixtures<Prisma.notificationCreateInp
         invalidUserConnection: {
             id: generatePK(),
             category: "Update",
-            user: { connect: { id: "non-existent-user-id" } },
+            user: { connect: { id: generatePK() } },
             isRead: false,
         },
         invalidObjectConnection: {
@@ -62,7 +69,7 @@ export const notificationDbFixtures: DbTestFixtures<Prisma.notificationCreateInp
             category: "CommentReply",
             user: { connect: { id: "user_placeholder_id" } },
             isRead: false,
-            comment: { connect: { id: "non-existent-comment-id" } },
+            comment: { connect: { id: generatePK() } },
         },
     },
     edgeCases: {
@@ -119,7 +126,7 @@ export const notificationDbFixtures: DbTestFixtures<Prisma.notificationCreateInp
  * Enhanced factory for creating notification database fixtures
  */
 export class NotificationDbFactory extends EnhancedDbFactory<Prisma.notificationCreateInput> {
-    
+
     /**
      * Get the test fixtures for Notification model
      */
@@ -134,7 +141,7 @@ export class NotificationDbFactory extends EnhancedDbFactory<Prisma.notification
         return {
             constraints: {
                 uniqueViolation: {
-                    id: notificationDbIds.notification1, // Duplicate ID
+                    id: getNotificationDbIds().notification1, // Duplicate ID
                     category: "Update",
                     user: { connect: { id: "user_placeholder_id" } },
                     isRead: false,
@@ -142,7 +149,7 @@ export class NotificationDbFactory extends EnhancedDbFactory<Prisma.notification
                 foreignKeyViolation: {
                     id: generatePK(),
                     category: "Update",
-                    user: { connect: { id: "non-existent-user-id" } },
+                    user: { connect: { id: generatePK() } },
                     isRead: false,
                 },
                 checkConstraintViolation: {
@@ -175,7 +182,7 @@ export class NotificationDbFactory extends EnhancedDbFactory<Prisma.notification
                     category: "CommentReply",
                     user: { connect: { id: "user_placeholder_id" } },
                     isRead: false,
-                    comment: { connect: { id: "non-existent-comment-id" } },
+                    comment: { connect: { id: generatePK() } },
                 },
             },
         };
@@ -215,7 +222,7 @@ export class NotificationDbFactory extends EnhancedDbFactory<Prisma.notification
         if (data.isRead === undefined) errors.push("isRead flag is required");
 
         // Check business logic
-        if (data.fromUser && data.user && 
+        if (data.fromUser && data.user &&
             typeof data.fromUser === "object" && "connect" in data.fromUser &&
             typeof data.user === "object" && "connect" in data.user &&
             data.fromUser.connect?.id === data.user.connect?.id) {
@@ -320,7 +327,7 @@ export const notificationSubscriptionDbFixtures: DbTestFixtures<Prisma.notificat
         },
         invalidUserConnection: {
             id: generatePK(),
-            subscriber: { connect: { id: "non-existent-user-id" } },
+            subscriber: { connect: { id: generatePK() } },
             silent: false,
         },
     },
@@ -352,7 +359,7 @@ export const notificationSubscriptionDbFixtures: DbTestFixtures<Prisma.notificat
  * Enhanced factory for creating notification subscription database fixtures
  */
 export class NotificationSubscriptionDbFactory extends EnhancedDbFactory<Prisma.notification_subscriptionCreateInput> {
-    
+
     /**
      * Override to only generate fields that exist in notification_subscription schema
      */
@@ -362,7 +369,7 @@ export class NotificationSubscriptionDbFactory extends EnhancedDbFactory<Prisma.
             // notification_subscription doesn't have publicId or handle fields
         };
     }
-    
+
     /**
      * Get the test fixtures for NotificationSubscription model
      */
@@ -377,13 +384,13 @@ export class NotificationSubscriptionDbFactory extends EnhancedDbFactory<Prisma.
         return {
             constraints: {
                 uniqueViolation: {
-                    id: notificationDbIds.subscription1, // Duplicate ID
+                    id: getNotificationDbIds().subscription1, // Duplicate ID
                     subscriber: { connect: { id: "user_placeholder_id" } },
                     silent: false,
                 },
                 foreignKeyViolation: {
                     id: generatePK(),
-                    subscriber: { connect: { id: "non-existent-user-id" } },
+                    subscriber: { connect: { id: generatePK() } },
                     silent: false,
                 },
                 checkConstraintViolation: {
@@ -454,13 +461,13 @@ export class NotificationSubscriptionDbFactory extends EnhancedDbFactory<Prisma.
         }
 
         // Check that at least one entity is being subscribed to
-        const hasEntity = !!(data.resourceId || data.chatId || data.commentId || 
-                           data.issueId || data.meetingId || data.pullRequestId || 
-                           data.reportId || data.scheduleId || data.teamId ||
-                           data.resource || data.chat || data.comment ||
-                           data.issue || data.meeting || data.pullRequest ||
-                           data.report || data.schedule || data.team);
-        
+        const hasEntity = !!(data.resourceId || data.chatId || data.commentId ||
+            data.issueId || data.meetingId || data.pullRequestId ||
+            data.reportId || data.scheduleId || data.teamId ||
+            data.resource || data.chat || data.comment ||
+            data.issue || data.meeting || data.pullRequest ||
+            data.report || data.schedule || data.team);
+
         if (!hasEntity) {
             warnings.push("Subscription should reference at least one entity to subscribe to");
         }
@@ -541,12 +548,12 @@ export async function seedNotifications(
     for (let i = 0; i < count; i++) {
         const category = categories[i % categories.length];
         const isRead = options.withRead && i % 2 === 0;
-        
+
         const notification = await prisma.notification.create({
             data: NotificationDbFactory.createMinimal(
                 options.userId,
                 category,
-                { 
+                {
                     isRead,
                     title: `${category} Notification ${i + 1}`,
                     description: `Description for ${category.toLowerCase()} notification ${i + 1}`,
@@ -561,7 +568,7 @@ export async function seedNotifications(
             },
         });
         notifications.push(notification);
-        
+
         if (isRead) readCount++;
     }
 

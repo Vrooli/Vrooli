@@ -1,9 +1,12 @@
-import { nanoid } from "@vrooli/shared";
-import { type Prisma, type payment } from "@prisma/client";
+import { type Prisma } from "@prisma/client";
+import { generatePK, nanoid } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
 } from "./types.js";
+
+// Constants for test values
+const INVALID_TYPE_NUMBER = 123;
 
 /**
  * Enhanced database fixture factory for Payment model
@@ -11,10 +14,10 @@ import type {
  * 
  * Features:
  * - Type-safe Prisma integration
- * - Support for different payment types (Stripe, Direct)
- * - Payment status variations (pending, completed, failed, refunded)
+ * - Support for different payment types (Credits, Premium, Donation)
+ * - Payment status variations (Pending, Paid, Failed)
  * - Currency support
- * - Premium/subscription handling
+ * - Payment method tracking
  * - Predefined test scenarios
  */
 export class PaymentDbFactory extends EnhancedDbFactory<
@@ -26,31 +29,31 @@ export class PaymentDbFactory extends EnhancedDbFactory<
      * Get complete test fixtures for Payment model
      */
     protected getFixtures(): DbTestFixtures<Prisma.paymentCreateInput, Prisma.paymentUpdateInput> {
-        const userId = this.generateId();
-        
+        const userId = generatePK();
+
         return {
             minimal: {
-                id: this.generateId(),
+                id: generatePK(),
                 amount: 999, // $9.99 in cents
                 currency: "USD",
                 paymentType: "Credits",
                 status: "Pending",
+                checkoutId: `checkout_${nanoid()}`,
+                paymentMethod: "card",
+                description: "Credits purchase",
                 user: {
                     connect: { id: userId },
                 },
             },
             complete: {
-                id: this.generateId(),
+                id: generatePK(),
                 amount: 1999, // $19.99 in cents
                 currency: "USD",
                 paymentType: "PremiumMonthly",
                 status: "Paid",
-                stripePaymentIntentId: `pi_${nanoid()}`,
-                stripeClientSecret: `pi_${nanoid()}_secret_${nanoid()}`,
+                checkoutId: `checkout_${nanoid()}`,
+                paymentMethod: "card",
                 description: "Premium subscription payment",
-                processingFee: 58, // Stripe fee: 2.9% + 30 cents
-                receivedAt: new Date(),
-                refundedAt: null,
                 user: {
                     connect: { id: userId },
                 },
@@ -61,17 +64,22 @@ export class PaymentDbFactory extends EnhancedDbFactory<
                     description: "Invalid payment missing required fields",
                 },
                 invalidTypes: {
-                    id: 123 as any, // Should be bigint
-                    amount: "invalid" as any, // Should be number
-                    currency: null as any, // Should be string
-                    status: 123 as any, // Should be string
+                    id: INVALID_TYPE_NUMBER as unknown, // Should be string (bigint in TypeScript)
+                    amount: "invalid" as unknown, // Should be number
+                    currency: null as unknown, // Should be string
+                    status: INVALID_TYPE_NUMBER as unknown, // Should be string
+                    checkoutId: INVALID_TYPE_NUMBER as unknown, // Should be string
+                    paymentMethod: INVALID_TYPE_NUMBER as unknown, // Should be string
                 },
                 negativeAmount: {
-                    id: this.generateId(),
+                    id: generatePK(),
                     amount: -500, // Negative amount
                     currency: "USD",
                     paymentType: "Credits",
                     status: "Pending",
+                    checkoutId: `checkout_${nanoid()}`,
+                    paymentMethod: "card",
+                    description: "Invalid negative amount",
                     user: {
                         connect: { id: userId },
                     },
@@ -79,67 +87,66 @@ export class PaymentDbFactory extends EnhancedDbFactory<
             },
             edgeCases: {
                 creditsPurchase: {
-                    id: this.generateId(),
+                    id: generatePK(),
                     amount: 5000, // $50.00
                     currency: "USD",
                     paymentType: "Credits",
                     status: "Paid",
+                    checkoutId: `checkout_${nanoid()}`,
+                    paymentMethod: "card",
                     description: "Credits purchase",
-                    processingFee: 0, // No fee for credits
-                    receivedAt: new Date(),
                     user: {
                         connect: { id: userId },
                     },
                 },
                 failedPayment: {
-                    id: this.generateId(),
+                    id: generatePK(),
                     amount: 2999, // $29.99
                     currency: "USD",
                     paymentType: "PremiumYearly",
                     status: "Failed",
-                    stripePaymentIntentId: `pi_${nanoid()}`,
+                    checkoutId: `checkout_${nanoid()}`,
+                    paymentMethod: "card",
                     description: "Failed premium subscription",
                     user: {
                         connect: { id: userId },
                     },
                 },
                 donationPayment: {
-                    id: this.generateId(),
+                    id: generatePK(),
                     amount: 1499, // $14.99
                     currency: "USD",
                     paymentType: "Donation",
                     status: "Paid",
-                    stripePaymentIntentId: `pi_${nanoid()}`,
+                    checkoutId: `checkout_${nanoid()}`,
+                    paymentMethod: "card",
                     description: "Platform donation",
-                    processingFee: 43, // Processing fee
-                    receivedAt: new Date(Date.now() - 86400000), // 1 day ago
                     user: {
                         connect: { id: userId },
                     },
                 },
                 foreignCurrency: {
-                    id: this.generateId(),
+                    id: generatePK(),
                     amount: 1200, // €12.00 in cents
                     currency: "EUR",
                     paymentType: "PremiumMonthly",
                     status: "Paid",
-                    stripePaymentIntentId: `pi_${nanoid()}`,
+                    checkoutId: `checkout_${nanoid()}`,
+                    paymentMethod: "card",
                     description: "European premium subscription",
-                    processingFee: 65, // Different fee structure for EUR
-                    receivedAt: new Date(),
                     user: {
                         connect: { id: userId },
                     },
                 },
                 yearlySubscription: {
-                    id: this.generateId(),
+                    id: generatePK(),
                     amount: 99999, // $999.99
                     currency: "USD",
                     paymentType: "PremiumYearly",
                     status: "Paid",
+                    checkoutId: `checkout_${nanoid()}`,
+                    paymentMethod: "card",
                     description: "Annual premium subscription",
-                    processingFee: 2900, // Higher processing fee for large amount
-                    receivedAt: new Date(),
                     user: {
                         connect: { id: userId },
                     },
@@ -148,11 +155,11 @@ export class PaymentDbFactory extends EnhancedDbFactory<
             updates: {
                 minimal: {
                     status: "Paid",
-                    receivedAt: new Date(),
                 },
                 complete: {
                     status: "Failed",
                     description: "Updated payment description",
+                    paymentMethod: "bank_transfer",
                 },
             },
         };
@@ -161,7 +168,9 @@ export class PaymentDbFactory extends EnhancedDbFactory<
 }
 
 // Export factory creator function
-export const createPaymentDbFactory = () => new PaymentDbFactory();
+export function createPaymentDbFactory() {
+    return new PaymentDbFactory();
+}
 
 // Export the class for type usage
 export { PaymentDbFactory as PaymentDbFactoryClass };

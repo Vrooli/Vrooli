@@ -15,6 +15,7 @@ export class TeamDbFactory {
                 id: BigInt(teamData.id),
                 publicId: generatePublicId(),
                 isPrivate: false,
+                createdById: teamData.created_by ? BigInt(teamData.created_by) : null,
                 // Skip user relations for now to avoid foreign key issues
                 translations: {
                     create: {
@@ -43,7 +44,7 @@ export class TeamDbFactory {
             data: {
                 translations: data.name || data.description ? {
                     update: {
-                        where: { 
+                        where: {
                             team_translation_teamId_language_unique: {
                                 teamId: BigInt(id),
                                 language: "en",

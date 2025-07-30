@@ -1,0 +1,182 @@
+{
+  "app_name": "Common",
+  "version": "1.0.0",
+  "description": "Universal keyboard shortcuts that work across most Linux applications",
+  "shortcuts": {
+    "clipboard": {
+      "copy": {
+        "keys": ["Ctrl+C"],
+        "description": "Copy selected content",
+        "priority": 1
+      },
+      "cut": {
+        "keys": ["Ctrl+X"],
+        "description": "Cut selected content"
+      },
+      "paste": {
+        "keys": ["Ctrl+V"],
+        "description": "Paste from clipboard",
+        "priority": 1
+      },
+      "select_all": {
+        "keys": ["Ctrl+A"],
+        "description": "Select all content",
+        "priority": 1
+      }
+    },
+    "file_operations": {
+      "new": {
+        "keys": ["Ctrl+N"],
+        "description": "Create new file/document"
+      },
+      "open": {
+        "keys": ["Ctrl+O"],
+        "description": "Open file"
+      },
+      "save": {
+        "keys": ["Ctrl+S"],
+        "description": "Save current file",
+        "priority": 1
+      },
+      "save_as": {
+        "keys": ["Ctrl+Shift+S"],
+        "description": "Save as new file"
+      },
+      "print": {
+        "keys": ["Ctrl+P"],
+        "description": "Print document"
+      },
+      "close": {
+        "keys": ["Ctrl+W"],
+        "description": "Close current file/tab"
+      },
+      "quit": {
+        "keys": ["Ctrl+Q", "Alt+F4"],
+        "description": "Quit application"
+      }
+    },
+    "editing": {
+      "undo": {
+        "keys": ["Ctrl+Z"],
+        "description": "Undo last action",
+        "priority": 1
+      },
+      "redo": {
+        "keys": ["Ctrl+Y", "Ctrl+Shift+Z"],
+        "description": "Redo last undone action"
+      },
+      "find": {
+        "keys": ["Ctrl+F"],
+        "description": "Find text",
+        "priority": 1
+      },
+      "replace": {
+        "keys": ["Ctrl+H"],
+        "description": "Find and replace"
+      }
+    },
+    "navigation": {
+      "home": {
+        "keys": ["Home"],
+        "description": "Go to beginning of line/document"
+      },
+      "end": {
+        "keys": ["End"],
+        "description": "Go to end of line/document"
+      },
+      "page_up": {
+        "keys": ["PageUp"],
+        "description": "Scroll up one page"
+      },
+      "page_down": {
+        "keys": ["PageDown"],
+        "description": "Scroll down one page"
+      },
+      "top_of_document": {
+        "keys": ["Ctrl+Home"],
+        "description": "Go to top of document"
+      },
+      "bottom_of_document": {
+        "keys": ["Ctrl+End"],
+        "description": "Go to bottom of document"
+      }
+    },
+    "window_management": {
+      "switch_application": {
+        "keys": ["Alt+Tab"],
+        "description": "Switch between applications",
+        "priority": 1
+      },
+      "switch_window": {
+        "keys": ["Alt+`"],
+        "description": "Switch between windows of same application"
+      },
+      "minimize": {
+        "keys": ["Alt+F9"],
+        "description": "Minimize window"
+      },
+      "maximize": {
+        "keys": ["Alt+F10"],
+        "description": "Maximize/restore window"
+      },
+      "close_window": {
+        "keys": ["Alt+F4"],
+        "description": "Close window"
+      }
+    },
+    "system": {
+      "escape": {
+        "keys": ["Escape"],
+        "description": "Cancel current operation",
+        "priority": 1
+      },
+      "enter": {
+        "keys": ["Enter"],
+        "description": "Confirm/execute",
+        "priority": 1
+      },
+      "tab": {
+        "keys": ["Tab"],
+        "description": "Navigate to next field/element"
+      },
+      "shift_tab": {
+        "keys": ["Shift+Tab"],
+        "description": "Navigate to previous field/element"
+      },
+      "context_menu": {
+        "keys": ["Shift+F10", "Menu"],
+        "description": "Open context menu (right-click menu)"
+      }
+    },
+    "text_navigation": {
+      "next_word": {
+        "keys": ["Ctrl+Right"],
+        "description": "Move cursor to next word"
+      },
+      "previous_word": {
+        "keys": ["Ctrl+Left"],
+        "description": "Move cursor to previous word"
+      },
+      "delete_word": {
+        "keys": ["Ctrl+Delete"],
+        "description": "Delete next word"
+      },
+      "backspace_word": {
+        "keys": ["Ctrl+Backspace"],
+        "description": "Delete previous word"
+      }
+    }
+  },
+  "priority_actions": {
+    "save_work": ["save"],
+    "copy_content": ["select_all", "copy"],
+    "paste_content": ["paste"],
+    "undo_action": ["undo"],
+    "find_text": ["find"],
+    "switch_app": ["switch_application"]
+  },
+  "context_hints": {
+    "general": "These shortcuts work in most applications and should be preferred over GUI interactions",
+    "efficiency": "Using keyboard shortcuts is faster and more reliable than clicking through menus"
+  }
+}

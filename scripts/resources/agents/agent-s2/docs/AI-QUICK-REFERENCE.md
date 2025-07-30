@@ -43,7 +43,7 @@ curl -X POST http://localhost:4113/ai/action \
 3. **Container issues**:
    ```bash
    # Fix permissions
-   docker exec -u root agent-s2 bash -c "mkdir -p /data/sessions/profiles && chown -R agents2:agents2 /data"
+   docker exec -u root agent-s2 bash -c "mkdir -p /home/agents2/.agent-s2/sessions/profiles && chown -R agents2:agents2 /home/agents2/.agent-s2"
    docker restart agent-s2
    ```
 
@@ -107,9 +107,9 @@ curl -X POST http://localhost:4113/ai/action \
 
 ## 🐛 Common Issues
 
-### "Permission denied: '/data'"
+### "Permission denied: '/home/agents2/.agent-s2'"
 ```bash
-docker exec -u root agent-s2 bash -c "mkdir -p /data && chown agents2:agents2 /data"
+docker exec -u root agent-s2 bash -c "mkdir -p /home/agents2/.agent-s2 && chown agents2:agents2 /home/agents2/.agent-s2"
 docker restart agent-s2
 ```
 

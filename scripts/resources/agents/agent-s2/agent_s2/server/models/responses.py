@@ -29,6 +29,7 @@ class HealthResponse(BaseModel):
     tasks_processed: int
     ai_status: Dict[str, Any]
     mode_info: Optional[Dict[str, Any]] = None
+    proxy_status: Optional[Dict[str, Any]] = None
 
 
 class CapabilitiesResponse(BaseModel):
@@ -129,3 +130,4 @@ class AIActionResponse(BaseModel):
     actions_taken: Optional[List[Dict[str, Any]]] = None
     reasoning: Optional[str] = None
     error: Optional[str] = None
+    debug_info: Optional[Dict[str, Any]] = None

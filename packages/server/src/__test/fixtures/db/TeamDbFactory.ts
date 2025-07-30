@@ -1,8 +1,9 @@
+/* eslint-disable no-magic-numbers */
+import { type Prisma, type PrismaClient, type team } from "@prisma/client";
 import { generatePublicId, nanoid } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
@@ -78,7 +79,8 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                         {
                             id: this.generateId(),
                             language: "en",
-                                        bio: "A comprehensive test team with all features",
+                            name: "Complete Test Team",
+                            bio: "A comprehensive test team with all features",
                         },
                         {
                             id: this.generateId(),
@@ -96,7 +98,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                     isOpenToNewMembers: true,
                 },
                 invalidTypes: {
-                    id: "not-a-snowflake",
+                    id: BigInt(-1), // Invalid bigint (negative)
                     publicId: 123, // Should be string
                     handle: true, // Should be string
                     isPrivate: "yes", // Should be boolean
@@ -195,7 +197,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.teamCreateInput>): Prisma.teamCreateInput {
         const uniqueHandle = `team_${nanoid()}`;
-        
+
         return {
             id: this.generateId(),
             publicId: generatePublicId(),
@@ -209,7 +211,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
 
     protected generateCompleteData(overrides?: Partial<Prisma.teamCreateInput>): Prisma.teamCreateInput {
         const uniqueHandle = `complete_team_${nanoid()}`;
-        
+
         return {
             id: this.generateId(),
             publicId: generatePublicId(),
@@ -224,7 +226,8 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                     {
                         id: this.generateId(),
                         language: "en",
-                                bio: "A comprehensive test team with all features",
+                        name: "Complete Test Team",
+                        bio: "A comprehensive test team with all features",
                     },
                     {
                         id: this.generateId(),
@@ -250,7 +253,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         name: "Small Team",
                     },
-                    owner: { user: { connect: { id: this.generateId() } } },
+                    // Note: owner ID will be generated when scenario is used
                 },
             },
             standardTeam: {
@@ -260,12 +263,10 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         name: "Standard Team",
                     },
-                    owner: { user: { connect: { id: this.generateId() } } },
-                    members: [
-                        { user: { connect: { id: this.generateId() } }, role: "Admin" },
-                        { user: { connect: { id: this.generateId() } }, role: "Member" },
-                        { user: { connect: { id: this.generateId() } }, role: "Member" },
-                    ],
+                    // Note: owner ID will be generated when scenario is used
+                    // Note: member IDs will be generated when scenario is used
+                    memberCount: 3,
+                    memberRoles: ["Admin", "Member", "Member"],
                 },
             },
             organizationTeam: {
@@ -277,7 +278,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                         isPrivate: true,
                         isOpenToNewMembers: false,
                     },
-                    owner: { user: { connect: { id: this.generateId() } } },
+                    // Note: owner ID will be generated when scenario is used
                     translations: [
                         {
                             language: "en",
@@ -314,19 +315,49 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                         isPrivate: true,
                         isOpenToNewMembers: false,
                     },
-                    owner: { user: { connect: { id: this.generateId() } } },
-                    members: [
-                        { user: { connect: { id: this.generateId() } }, role: "Admin" },
-                        { user: { connect: { id: this.generateId() } }, role: "Admin" },
-                        { user: { connect: { id: this.generateId() } }, role: "Member" },
-                        { user: { connect: { id: this.generateId() } }, role: "Member" },
-                        { user: { connect: { id: this.generateId() } }, role: "Member" },
-                    ],
+                    // Note: owner ID will be generated when scenario is used
+                    // Note: member IDs will be generated when scenario is used
+                    memberCount: 5,
+                    memberRoles: ["Admin", "Admin", "Member", "Member", "Member"],
                     projects: 5,
                     resourceLists: 3,
                 },
             },
         };
+    }
+
+    /**
+     * Seed a specific test scenario with fresh IDs
+     */
+    async seedScenario(scenarioName: string): Promise<team> {
+        const scenario = this.scenarios[scenarioName];
+        if (!scenario) {
+            throw new Error(`Scenario ${scenarioName} not found`);
+        }
+
+        // Generate fresh IDs for the scenario
+        const config = { ...scenario.config };
+
+        // Generate owner ID if needed
+        if (scenario.config.owner) {
+            config.owner = { userId: this.generateId().toString() };
+        }
+
+        // Generate member IDs if needed  
+        if (scenario.config.memberCount && scenario.config.memberRoles) {
+            config.members = scenario.config.memberRoles.map(role => ({
+                userId: this.generateId().toString(),
+                role,
+            }));
+        }
+
+        const data = this.generateCompleteData(scenario.config.overrides);
+        const finalData = await this.applyRelationships(data, config, this.prisma);
+
+        return await this.prisma.team.create({
+            data: finalData,
+            include: this.getDefaultInclude(),
+        });
     }
 
     protected getDefaultInclude(): Prisma.teamInclude {
@@ -335,7 +366,8 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
             members: {
                 select: {
                     id: true,
-                    role: true,
+                    isAdmin: true,
+                    permissions: true,
                     user: {
                         select: {
                             id: true,
@@ -462,11 +494,11 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
 
     protected async checkModelConstraints(record: team): Promise<string[]> {
         const violations: string[] = [];
-        
+
         // Check handle uniqueness
         if (record.handle) {
             const duplicate = await this.prisma.team.findFirst({
-                where: { 
+                where: {
                     handle: record.handle,
                     id: { not: record.id },
                 },
@@ -485,10 +517,14 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
         const owners = await this.prisma.member.count({
             where: {
                 teamId: record.id,
-                role: "Owner",
+                isAdmin: true,
+                permissions: {
+                    path: ["manageTeam"],
+                    equals: true,
+                },
             },
         });
-        
+
         if (owners === 0) {
             violations.push("Team must have at least one owner");
         }
@@ -521,11 +557,11 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
         includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
-        const shouldDelete = (relation: string) => 
+        const shouldDelete = (relation: string) =>
             !includeOnly || includeOnly.includes(relation);
-        
+
         // Delete in order of dependencies
-        
+
         // Delete chats
         if (shouldDelete("chats") && record.chats?.length) {
             await tx.chat.deleteMany({
@@ -594,24 +630,24 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
         userIds: string[],
     ): Promise<team[]> {
         const teams: team[] = [];
-        
+
         for (let i = 0; i < teamCount; i++) {
             const startIdx = (i * membersPerTeam) % userIds.length;
             const memberIds = [];
-            
+
             for (let j = 0; j < membersPerTeam; j++) {
                 const userIdx = (startIdx + j) % userIds.length;
                 memberIds.push(userIds[userIdx]);
             }
-            
+
             const team = await this.createWithOwnerAndMembers(
                 memberIds[0], // First member is owner
                 memberIds.slice(1), // Rest are members
             );
-            
+
             teams.push(team);
         }
-        
+
         return teams;
     }
 
@@ -621,14 +657,14 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
      */
     async createTeamHierarchy(levels = 3): Promise<team[]> {
         const teams: team[] = [];
-        
+
         // Create root team
         const rootTeam = await this.createComplete({
             name: "Root Organization",
             handle: `root_org_${nanoid()}`,
         });
         teams.push(rootTeam);
-        
+
         // Create sub-teams
         // Note: This is a placeholder - actual implementation would depend on schema
         for (let i = 0; i < levels - 1; i++) {
@@ -638,7 +674,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
             });
             teams.push(subTeam);
         }
-        
+
         return teams;
     }
 
@@ -668,7 +704,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
 }
 
 // Export factory creator function
-export const createTeamDbFactory = (prisma: PrismaClient) => 
+export const createTeamDbFactory = (prisma: PrismaClient) =>
     new TeamDbFactory(prisma);
 
 // Export the class for type usage

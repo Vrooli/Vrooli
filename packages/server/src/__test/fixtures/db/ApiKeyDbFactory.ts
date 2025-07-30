@@ -1,5 +1,6 @@
+/* eslint-disable no-magic-numbers */
 // AI_CHECK: TYPE_SAFETY=server-factory-bigint-migration | LAST: 2025-06-29 - Migrated to BigInt IDs, snake_case tables, correct field names
-import { type Prisma, type PrismaClient } from "@prisma/client";
+import { type api_key, type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 
 /**
@@ -20,7 +21,7 @@ import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
  * - Disabled/enabled states
  */
 export class ApiKeyDbFactory extends EnhancedDatabaseFactory<
-    { id: bigint },
+    api_key,
     Prisma.api_keyCreateInput,
     Prisma.api_keyInclude,
     Prisma.api_keyUpdateInput
@@ -58,7 +59,7 @@ export class ApiKeyDbFactory extends EnhancedDatabaseFactory<
             id: this.generateId(),
             creditsUsed: BigInt(50),
             limitHard: BigInt(25000000000),
-            limitSoft: BigInt(25000000000), 
+            limitSoft: BigInt(25000000000),
             name: "Complete Test API Key",
             key: this.generatePublicId(),
             permissions: {

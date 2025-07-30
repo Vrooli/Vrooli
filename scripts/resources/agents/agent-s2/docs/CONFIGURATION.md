@@ -78,7 +78,7 @@ export AGENT_S2_CORS_METHODS="GET,POST"                # Allowed HTTP methods
 ```bash
 # Stealth Mode Settings
 export AGENT_S2_STEALTH_MODE_ENABLED=true              # Enable/disable stealth mode (default: true)
-export AGENT_S2_SESSION_STORAGE_PATH=/data/sessions    # Session storage path
+export AGENT_S2_SESSION_STORAGE_PATH=/home/agents2/.agent-s2/sessions    # Session storage path
 export AGENT_S2_SESSION_DATA_PERSISTENCE=true          # Enable session data persistence (default: true)
 export AGENT_S2_SESSION_STATE_PERSISTENCE=false        # Enable session state persistence (default: false)
 export AGENT_S2_SESSION_ENCRYPTION=true                # Enable session encryption (default: true)

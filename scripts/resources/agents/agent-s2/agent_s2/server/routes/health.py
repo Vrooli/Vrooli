@@ -8,6 +8,7 @@ import pyautogui
 from ..models.responses import HealthResponse, CapabilitiesResponse
 from ...config import Config, AgentMode
 from ...environment import ModeContext
+from ..services.proxy_service import ProxyManager
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -51,6 +52,29 @@ async def health_check(request: Request):
                 "security_level": "unknown",
                 "applications_available": 0
             }
+        
+        # Get proxy status
+        proxy_status = {
+            "enabled": False,
+            "running": False,
+            "transparent_mode": False,
+            "stats": None
+        }
+        
+        try:
+            proxy_service = app_state.get("proxy_service")
+            if proxy_service:
+                proxy_status["enabled"] = True
+                proxy_status["running"] = proxy_service.running
+                proxy_status["transparent_mode"] = proxy_service.is_proxy_configured()
+                
+                # Get proxy stats if available
+                if proxy_service.running and hasattr(proxy_service, 'master') and proxy_service.master:
+                    addon = next((a for a in proxy_service.master.addons if hasattr(a, 'get_stats')), None)
+                    if addon:
+                        proxy_status["stats"] = addon.get_stats()
+        except Exception as e:
+            logger.debug(f"Failed to get proxy status: {e}")
 
         return HealthResponse(
             status="healthy",
@@ -59,7 +83,8 @@ async def health_check(request: Request):
             startup_time=app_state["startup_time"],
             tasks_processed=app_state["task_counter"],
             ai_status=ai_status,
-            mode_info=mode_info
+            mode_info=mode_info,
+            proxy_status=proxy_status
         )
     except Exception as e:
         logger.error(f"Health check failed: {e}")

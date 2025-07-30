@@ -1,0 +1,44 @@
+{
+  "version": "1.0.0",
+  "description": "Master registry for keyboard shortcuts across applications",
+  "os": "linux",
+  "categories": {
+    "browsers": ["firefox", "chrome", "chromium"],
+    "terminals": ["terminal", "konsole", "gnome-terminal", "xterm"],
+    "editors": ["vscode", "vim", "nano", "gedit"],
+    "file_managers": ["nautilus", "thunar", "dolphin"]
+  },
+  "priority_rules": {
+    "prefer_shortcuts": true,
+    "shortcut_threshold": 2,
+    "comment": "Use shortcuts when action count would be >= threshold"
+  },
+  "applications": {
+    "firefox": {
+      "file": "apps/firefox.json",
+      "patterns": ["firefox", "Mozilla Firefox", "Firefox Web Browser"],
+      "enabled": true
+    },
+    "chrome": {
+      "file": "apps/chrome.json", 
+      "patterns": ["chrome", "chromium", "Google Chrome", "Chromium"],
+      "enabled": true
+    },
+    "terminal": {
+      "file": "apps/terminal.json",
+      "patterns": ["terminal", "xterm", "konsole", "gnome-terminal"],
+      "enabled": true
+    },
+    "vscode": {
+      "file": "apps/vscode.json",
+      "patterns": ["code", "vscode", "Visual Studio Code"],
+      "enabled": true
+    },
+    "common": {
+      "file": "apps/common.json",
+      "patterns": ["*"],
+      "enabled": true,
+      "comment": "Universal shortcuts that work across most applications"
+    }
+  }
+}

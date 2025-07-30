@@ -25,7 +25,7 @@ class StealthConfig:
     # Session persistence
     session_data_persistence: bool = True
     session_state_persistence: bool = False
-    session_storage_path: str = "/data/sessions"
+    session_storage_path: str = "/home/agents2/.agent-s2/sessions"
     session_encryption: bool = True
     session_ttl_days: int = 30
     

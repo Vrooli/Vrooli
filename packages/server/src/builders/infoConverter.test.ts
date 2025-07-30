@@ -9,11 +9,13 @@ import { expect, describe, it, beforeEach, beforeAll } from "vitest";
 import { type ModelType } from "@vrooli/shared";
 
 // Delay imports that use ModelMap to avoid initialization issues
+/* eslint-disable @typescript-eslint/consistent-type-imports */
 let CountFields: typeof import("./infoConverter.js").CountFields;
 let InfoConverter: typeof import("./infoConverter.js").InfoConverter;
 let addSupplementalFields: typeof import("./infoConverter.js").addSupplementalFields;
 let addSupplementalFieldsHelper: typeof import("./infoConverter.js").addSupplementalFieldsHelper;
 let addSupplementalFieldsMultiTypes: typeof import("./infoConverter.js").addSupplementalFieldsMultiTypes;
+/* eslint-enable @typescript-eslint/consistent-type-imports */
 
 // Test configuration factories - inline, no external dependencies
 function createTestModelConfig(type: ModelType, config: any) {

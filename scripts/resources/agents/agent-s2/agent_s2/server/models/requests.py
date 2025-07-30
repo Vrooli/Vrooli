@@ -88,8 +88,16 @@ class AIAnalyzeRequest(BaseModel):
     screenshot: Optional[str] = Field(default=None, description="Base64 screenshot to analyze")
 
 
+class SecurityConfig(BaseModel):
+    """Security configuration for URL validation"""
+    allowed_domains: Optional[List[str]] = Field(default=None, description="Whitelist of allowed domains")
+    blocked_domains: Optional[List[str]] = Field(default=None, description="Blacklist of blocked domains")
+    security_profile: Optional[str] = Field(default="moderate", description="Security profile: strict, moderate, permissive")
+
+
 class AIActionRequest(BaseModel):
     """AI action request"""
     task: str = Field(..., description="Task description for AI")
     screenshot: Optional[str] = Field(default=None, description="Optional screenshot data")
     context: Optional[Dict[str, Any]] = Field(default=None, description="Optional context information")
+    security_config: Optional[SecurityConfig] = Field(default=None, description="Security configuration for URL validation")

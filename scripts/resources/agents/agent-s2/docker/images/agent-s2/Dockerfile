@@ -8,7 +8,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Copy requirements and install Python packages
 COPY docker/images/agent-s2/requirements.txt /tmp/
-RUN pip install --user --no-cache-dir -r /tmp/requirements.txt
+RUN pip install --user --no-cache-dir -r /tmp/requirements.txt && \
+    pip install --user --no-cache-dir mitmproxy==10.1.6
 
 # === RUNTIME STAGE ===
 FROM python:3.11-slim as runtime
@@ -29,10 +30,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     supervisor \
     # Networking and utilities
     curl net-tools procps \
+    # Security proxy tools
+    sudo iptables iproute2 libnss3-tools \
     # Required for pyautogui
     python3-xlib scrot gnome-screenshot \
     # Demo GUI applications for testing and automation examples
     xterm mousepad gedit firefox-esr gnome-calculator \
+    # Image viewer and wallpaper setter (fixes fbsetbg error)
+    feh \
     # Window management tools for target-aware automation
     wmctrl xdotool x11-utils \
     # Clean up
@@ -60,9 +65,11 @@ RUN mkdir -p /opt/agent-s2/api /var/log/supervisor /tmp/.X11-unix \
 # Copy configuration files
 COPY --chown=agents2:agents2 docker/config/supervisor.conf /etc/supervisor/conf.d/
 
-# Copy scripts
+# Copy scripts (init.sh must be owned by root for privileged operations)
+COPY docker/scripts/init.sh /opt/agent-s2/
 COPY --chown=agents2:agents2 docker/scripts/startup.sh /opt/agent-s2/
 COPY --chown=agents2:agents2 docker/scripts/vnc-password.sh /opt/agent-s2/
+COPY --chown=agents2:agents2 docker/scripts/setup-proxy.sh /opt/agent-s2/
 
 # Copy Python package
 COPY --chown=agents2:agents2 agent_s2 /opt/agent-s2/agent_s2/
@@ -74,7 +81,12 @@ RUN chmod +x /opt/agent-s2/*.sh
 ARG VNC_PASSWORD=agents2vnc
 RUN /opt/agent-s2/vnc-password.sh "$VNC_PASSWORD"
 
-# Switch to non-root user
+# Make init script executable and set up sudo permissions for iptables
+RUN chmod +x /opt/agent-s2/init.sh && \
+    echo "agents2 ALL=(ALL) NOPASSWD: /sbin/iptables, /sbin/ip6tables, /usr/sbin/sysctl" >> /etc/sudoers.d/agents2-proxy && \
+    chmod 0440 /etc/sudoers.d/agents2-proxy
+
+# Switch to non-root user (init script will use sudo for iptables)
 USER agents2
 WORKDIR /home/agents2
 
@@ -102,5 +114,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
 # Expose ports
 EXPOSE 4113 5900
 
-# Start supervisor
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisor.conf"]
+# Start with init script (runs as root for privileged setup, then starts supervisor)
+CMD ["/opt/agent-s2/init.sh"]

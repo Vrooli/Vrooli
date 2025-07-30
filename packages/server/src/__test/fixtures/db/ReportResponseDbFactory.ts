@@ -1,8 +1,9 @@
-import { generatePublicId, nanoid, ReportSuggestedAction } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+/* eslint-disable no-magic-numbers */
+import { type Prisma, type PrismaClient, type report_response } from "@prisma/client";
+import { ReportSuggestedAction } from "@vrooli/shared";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
@@ -25,7 +26,7 @@ interface ReportResponseRelationConfig extends RelationConfig {
  * - Unique constraint handling (one response per user per report)
  */
 export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
-    Prisma.report_responseCreateInput,
+    report_response,
     Prisma.report_responseCreateInput,
     Prisma.report_responseInclude,
     Prisma.report_responseUpdateInput
@@ -376,7 +377,7 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
 
     protected async checkModelConstraints(record: Prisma.report_response): Promise<string[]> {
         const violations: string[] = [];
-        
+
         // Check details length
         if (record.details && record.details.length > 8192) {
             violations.push("Response details exceed maximum length of 8192 characters");
@@ -542,7 +543,7 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
 }
 
 // Export factory creator function
-export const createReportResponseDbFactory = (prisma: PrismaClient) => 
+export const createReportResponseDbFactory = (prisma: PrismaClient) =>
     new ReportResponseDbFactory(prisma);
 
 // Export the class for type usage

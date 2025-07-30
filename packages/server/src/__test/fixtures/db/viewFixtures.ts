@@ -1,7 +1,8 @@
-import { generatePK, ViewFor } from "@vrooli/shared";
+/* eslint-disable no-magic-numbers */
 import { type Prisma } from "@prisma/client";
+import { generatePK, ViewFor } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
+import type { BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
 
 /**
  * Database fixtures for View model - used for seeding test data
@@ -11,123 +12,131 @@ import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios 
  * Resource, ResourceVersion, Team, User
  */
 
-// Consistent IDs for testing
-export const viewDbIds = {
-    view1: generatePK(),
-    view2: generatePK(),
-    view3: generatePK(),
-    view4: generatePK(),
-    view5: generatePK(),
-    user1: generatePK(),
-    user2: generatePK(),
-    session1: generatePK(),
-    resource1: generatePK(),
-    resourceVersion1: generatePK(),
-    team1: generatePK(),
-};
+// Consistent IDs for testing - using lazy initialization to avoid module-level generatePK() calls
+let _viewDbIds: Record<string, bigint> | null = null;
+export function getViewDbIds() {
+    if (!_viewDbIds) {
+        _viewDbIds = {
+            view1: generatePK(),
+            view2: generatePK(),
+            view3: generatePK(),
+            view4: generatePK(),
+            view5: generatePK(),
+            user1: generatePK(),
+            user2: generatePK(),
+            session1: generatePK(),
+            resource1: generatePK(),
+            resourceVersion1: generatePK(),
+            team1: generatePK(),
+        };
+    }
+    return _viewDbIds;
+}
 
 /**
  * Enhanced test fixtures for View model following standard structure
  */
-export const viewDbFixtures: DbTestFixtures<Prisma.viewUncheckedCreateInput> = {
-    minimal: {
-        id: generatePK(),
-        name: "Test View",
-        lastViewedAt: new Date(),
-        // Note: Views must have either byId (user) or bySessionId
-        byId: viewDbIds.user1,
-    },
-    complete: {
-        id: generatePK(),
-        name: "Complete View",
-        lastViewedAt: new Date(),
-        byId: viewDbIds.user1,
-        resourceId: viewDbIds.resource1,
-    },
-    invalid: {
-        missingRequired: {
-            // Missing both byId and bySessionId
-            name: "Invalid View",
+export function getViewDbFixtures(): DbTestFixtures<Prisma.viewUncheckedCreateInput> {
+    return {
+        minimal: {
+            id: generatePK(),
+            name: "Test View",
             lastViewedAt: new Date(),
+            // Note: Views must have either byId (user) or bySessionId
+            byId: getViewDbIds().user1,
         },
-        invalidTypes: {
-            id: "not-a-valid-snowflake",
-            name: 123, // Should be string
-            lastViewedAt: "not-a-date", // Should be Date
-            byId: "invalid-user-id", // Should be valid BigInt
-        },
-        bothUserAndSession: {
+        complete: {
             id: generatePK(),
-            name: "Invalid View",
+            name: "Complete View",
             lastViewedAt: new Date(),
-            byId: viewDbIds.user1,
-            bySessionId: viewDbIds.session1, // Cannot have both
+            byId: getViewDbIds().user1,
+            resourceId: getViewDbIds().resource1,
         },
-        noViewedObject: {
-            id: generatePK(),
-            name: "View with no object",
-            lastViewedAt: new Date(),
-            byId: viewDbIds.user1,
-            // No object connected
+        invalid: {
+            missingRequired: {
+                // Missing both byId and bySessionId
+                name: "Invalid View",
+                lastViewedAt: new Date(),
+            },
+            invalidTypes: {
+                id: "not-a-valid-snowflake",
+                name: 123, // Should be string
+                lastViewedAt: "not-a-date", // Should be Date
+                byId: "invalid-user-id", // Should be valid BigInt
+            },
+            bothUserAndSession: {
+                id: generatePK(),
+                name: "Invalid View",
+                lastViewedAt: new Date(),
+                byId: getViewDbIds().user1,
+                bySessionId: getViewDbIds().session1, // Cannot have both
+            },
+            noViewedObject: {
+                id: generatePK(),
+                name: "View with no object",
+                lastViewedAt: new Date(),
+                byId: getViewDbIds().user1,
+                // No object connected
+            },
+            multipleObjects: {
+                id: generatePK(),
+                name: "Multiple Objects View",
+                lastViewedAt: new Date(),
+                byId: getViewDbIds().user1,
+                resourceId: getViewDbIds().resource1,
+                teamId: getViewDbIds().team1, // Multiple objects (invalid)
+            },
         },
-        multipleObjects: {
-            id: generatePK(),
-            name: "Multiple Objects View",
-            lastViewedAt: new Date(),
-            byId: viewDbIds.user1,
-            resourceId: viewDbIds.resource1,
-            teamId: viewDbIds.team1, // Multiple objects (invalid)
+        edgeCases: {
+            anonymousView: {
+                id: generatePK(),
+                name: "Anonymous View",
+                lastViewedAt: new Date(),
+                bySessionId: getViewDbIds().session1, // Session instead of user
+                resourceId: getViewDbIds().resource1,
+            },
+            recentView: {
+                id: generatePK(),
+                name: "Recent View",
+                lastViewedAt: new Date(), // Current time
+                byId: getViewDbIds().user1,
+                teamId: getViewDbIds().team1,
+            },
+            oldView: {
+                id: generatePK(),
+                name: "Old View",
+                lastViewedAt: new Date("2020-01-01"), // Old timestamp
+                byId: getViewDbIds().user1,
+                userId: getViewDbIds().user2,
+            },
+            resourceVersionView: {
+                id: generatePK(),
+                name: "Resource Version View",
+                lastViewedAt: new Date(),
+                byId: getViewDbIds().user1,
+                resourceVersionId: getViewDbIds().resourceVersion1,
+            },
+            maxLengthName: {
+                id: generatePK(),
+                name: "a".repeat(255), // Maximum name length
+                lastViewedAt: new Date(),
+                byId: getViewDbIds().user1,
+                resourceId: getViewDbIds().resource1,
+            },
         },
-    },
-    edgeCases: {
-        anonymousView: {
-            id: generatePK(),
-            name: "Anonymous View",
-            lastViewedAt: new Date(),
-            bySessionId: viewDbIds.session1, // Session instead of user
-            resourceId: viewDbIds.resource1,
-        },
-        recentView: {
-            id: generatePK(),
-            name: "Recent View",
-            lastViewedAt: new Date(), // Current time
-            byId: viewDbIds.user1,
-            teamId: viewDbIds.team1,
-        },
-        oldView: {
-            id: generatePK(),
-            name: "Old View",
-            lastViewedAt: new Date("2020-01-01"), // Old timestamp
-            byId: viewDbIds.user1,
-            userId: viewDbIds.user2,
-        },
-        resourceVersionView: {
-            id: generatePK(),
-            name: "Resource Version View",
-            lastViewedAt: new Date(),
-            byId: viewDbIds.user1,
-            resourceVersionId: viewDbIds.resourceVersion1,
-        },
-        maxLengthName: {
-            id: generatePK(),
-            name: "a".repeat(255), // Maximum name length
-            lastViewedAt: new Date(),
-            byId: viewDbIds.user1,
-            resourceId: viewDbIds.resource1,
-        },
-    },
-};
+    };
+}
 
 /**
  * Enhanced factory for creating view database fixtures
  */
 export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateInput> {
-    
+
     /**
      * Get the test fixtures for View model
      */
     protected getFixtures(): DbTestFixtures<Prisma.viewUncheckedCreateInput> {
-        return viewDbFixtures;
+        return getViewDbFixtures();
     }
 
     /**
@@ -137,10 +146,10 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
         return {
             constraints: {
                 uniqueViolation: {
-                    id: viewDbIds.view1, // Duplicate ID
+                    id: getViewDbIds().view1, // Duplicate ID
                     name: "Test View",
                     lastViewedAt: new Date(),
-                    byId: viewDbIds.user1,
+                    byId: getViewDbIds().user1,
                 },
                 foreignKeyViolation: {
                     id: generatePK(),
@@ -152,29 +161,29 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
                     id: generatePK(),
                     name: "", // Empty name might violate constraint
                     lastViewedAt: new Date(),
-                    byId: viewDbIds.user1,
+                    byId: getViewDbIds().user1,
                 },
             },
             validation: {
-                requiredFieldMissing: viewDbFixtures.invalid.missingRequired,
-                invalidDataType: viewDbFixtures.invalid.invalidTypes,
+                requiredFieldMissing: getViewDbFixtures().invalid.missingRequired,
+                invalidDataType: getViewDbFixtures().invalid.invalidTypes,
                 outOfRange: {
                     id: generatePK(),
                     name: "a".repeat(256), // Name too long
                     lastViewedAt: new Date(),
-                    byId: viewDbIds.user1,
+                    byId: getViewDbIds().user1,
                 },
             },
             businessLogic: {
-                bothUserAndSession: viewDbFixtures.invalid.bothUserAndSession,
-                noViewedObject: viewDbFixtures.invalid.noViewedObject,
-                multipleObjects: viewDbFixtures.invalid.multipleObjects,
+                bothUserAndSession: getViewDbFixtures().invalid.bothUserAndSession,
+                noViewedObject: getViewDbFixtures().invalid.noViewedObject,
+                multipleObjects: getViewDbFixtures().invalid.multipleObjects,
                 futureTimestamp: {
                     id: generatePK(),
                     name: "Future View",
                     lastViewedAt: new Date(Date.now() + 86400000), // Tomorrow
-                    byId: viewDbIds.user1,
-                    resourceId: viewDbIds.resource1,
+                    byId: getViewDbIds().user1,
+                    resourceId: getViewDbIds().resource1,
                 },
             },
         };
@@ -218,7 +227,7 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
         // Check business logic - must have exactly one viewed object
         const viewableFields = ["resourceId", "resourceVersionId", "teamId", "userId"];
         const connectedObjects = viewableFields.filter(field => data[field as keyof Prisma.viewUncheckedCreateInput]);
-        
+
         if (connectedObjects.length === 0) {
             warnings.push("View should reference exactly one viewable object");
         } else if (connectedObjects.length > 1) {
@@ -252,7 +261,7 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
         overrides?: Partial<Prisma.viewUncheckedCreateInput>,
     ): Prisma.viewUncheckedCreateInput {
         const factory = new ViewDbFactory();
-        
+
         // Map ViewFor enum and legacy types to field names
         const typeMapping: Record<string, string> = {
             [ViewFor.Resource]: "resourceId",
@@ -303,11 +312,11 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
             name: `Anonymous ${objectType} View`,
             ...overrides,
         });
-        
+
         // Remove byId and set bySessionId for anonymous views
         delete data.byId;
         data.bySessionId = BigInt(sessionId);
-        
+
         return data;
     }
 
@@ -326,7 +335,7 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
         byId: string,
         objects: Array<{ id: string; type: ViewFor | "Issue" | "Resource" | "Team" | "User"; viewedAt?: Date }>,
     ): Prisma.viewUncheckedCreateInput[] {
-        return objects.map((obj, index) => 
+        return objects.map((obj, index) =>
             this.createForObject(byId, obj.id, obj.type, {
                 lastViewedAt: obj.viewedAt || new Date(Date.now() - (index * 60000)), // 1 minute intervals
             }),
@@ -442,7 +451,7 @@ export async function seedRecentActivity(
 
     for (let i = 0; i < count; i++) {
         const viewedAt = new Date(now.getTime() - (i * 3600000)); // 1 hour intervals
-        
+
         const viewData = ViewDbFactory.createWithTimestamp(
             userId,
             viewedAt,
@@ -557,17 +566,17 @@ export async function seedViewsByDateRange(
 ): Promise<BulkSeedResult<any>> {
     const views = [];
     const { userId, objectId, objectType, startDate, endDate, viewsPerDay = 1 } = options;
-    
+
     const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     for (let day = 0; day < days; day++) {
         for (let viewNum = 0; viewNum < viewsPerDay; viewNum++) {
             const viewedAt = new Date(
                 startDate.getTime() + (day * 24 * 60 * 60 * 1000) + (viewNum * 60 * 60 * 1000),
             );
-            
+
             if (viewedAt > endDate) break;
-            
+
             const viewData = ViewDbFactory.createForObject(
                 userId,
                 objectId,
@@ -577,12 +586,12 @@ export async function seedViewsByDateRange(
                     name: `Date Range View Day ${day + 1} #${viewNum + 1}`,
                 },
             );
-            
+
             const view = await prisma.view.create({ data: viewData });
             views.push(view);
         }
     }
-    
+
     return {
         records: views,
         summary: {

@@ -1,8 +1,9 @@
-import { generatePublicId, nanoid } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+/* eslint-disable no-magic-numbers */
+import { type Prisma, type PrismaClient, type resource_version } from "@prisma/client";
+import { generatePublicId } from "@vrooli/shared";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
@@ -10,7 +11,7 @@ import type {
 interface ResourceVersionRelationConfig extends RelationConfig {
     root?: { resourceId: string };
     translations?: Array<{ language: string; name: string; description?: string; instructions?: string; details?: string }>;
-    relations?: Array<{ 
+    relations?: Array<{
         relationshipType: string;
         targetVersionId: string;
         isManualEntry?: boolean;
@@ -189,7 +190,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                     translations: {
                         update: [{
                             where: { id: "translation_id" },
-                            data: { 
+                            data: {
                                 description: "Updated description",
                                 instructions: "Updated instructions",
                             },
@@ -569,7 +570,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
         includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
-        const shouldDelete = (relation: string) => 
+        const shouldDelete = (relation: string) =>
             !includeOnly || includeOnly.includes(relation);
 
         // Delete translations
@@ -592,7 +593,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
      */
     async createVersionHistory(resourceId: string, count = 3): Promise<Prisma.ResourceVersion[]> {
         const versions: Prisma.ResourceVersion[] = [];
-        
+
         for (let i = 0; i < count; i++) {
             const isLatest = i === count - 1;
             const version = await this.createWithRelations({
@@ -612,13 +613,13 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
             });
             versions.push(version);
         }
-        
+
         return versions;
     }
 }
 
 // Export factory creator function
-export const createResourceVersionDbFactory = (prisma: PrismaClient) => 
+export const createResourceVersionDbFactory = (prisma: PrismaClient) =>
     new ResourceVersionDbFactory(prisma);
 
 // Export the class for type usage

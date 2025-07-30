@@ -59,7 +59,7 @@ agents2::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|info|usage|mode|switch-mode|test-mode|reset-session-data|reset-session-state|list-sessions|export-session|import-session|configure-stealth|test-stealth" \
+        --options "install|uninstall|start|stop|restart|status|logs|info|usage|mode|switch-mode|test-mode|reset-session-data|reset-session-state|list-sessions|export-session|import-session|configure-stealth|test-stealth|ai-task" \
         --default "install"
     
     args::register \
@@ -167,6 +167,31 @@ agents2::parse_arguments() {
         --type "value" \
         --default "https://bot.sannysoft.com/"
     
+    args::register \
+        --name "task" \
+        --desc "Task description for AI task execution" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "allowed-domains" \
+        --desc "Comma-separated list of allowed domains for URL navigation" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "blocked-domains" \
+        --desc "Comma-separated list of blocked domains" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "security-profile" \
+        --desc "Security profile for URL validation" \
+        --type "value" \
+        --options "strict|moderate|permissive" \
+        --default "moderate"
+    
     if args::is_asking_for_help "$@"; then
         agents2::usage
         exit 0
@@ -184,6 +209,7 @@ agents2::parse_arguments() {
     export VNC_PASSWORD=$(args::get "vnc-password")
     export ENABLE_HOST_DISPLAY=$(args::get "enable-host-display")
     export ENABLE_AI=$(args::get "enable-ai")
+    export ENABLE_SEARCH=$(args::get "enable-search")
     export ARGS_ENABLE_AI=$(args::get "enable-ai")
     export USAGE_TYPE=$(args::get "usage-type")
     export MODE=$(args::get "mode")
@@ -194,6 +220,10 @@ agents2::parse_arguments() {
     export STEALTH_ENABLED=$(args::get "stealth-enabled")
     export STEALTH_FEATURE=$(args::get "stealth-feature")
     export STEALTH_TEST_URL=$(args::get "stealth-url")
+    export AI_TASK=$(args::get "task")
+    export ALLOWED_DOMAINS=$(args::get "allowed-domains")
+    export BLOCKED_DOMAINS=$(args::get "blocked-domains")
+    export SECURITY_PROFILE=$(args::get "security-profile")
 }
 
 #######################################
@@ -216,7 +246,14 @@ agents2::usage() {
     echo "  $0 --action usage                                # Show usage examples"
     echo "  $0 --action usage --usage-type screenshot        # Test screenshot API"
     echo "  $0 --action usage --usage-type automation        # Test automation capabilities"
+    echo "  $0 --action ai-task --task \"go to reddit\"       # Execute AI task"
+    echo "  $0 --action ai-task --task \"search for news\"    # Another AI task example"
     echo "  $0 --action uninstall                           # Remove Agent S2"
+    echo
+    echo "Security Examples:"
+    echo "  $0 --action ai-task --task \"browse news\" --allowed-domains \"reddit.com,news.ycombinator.com\""
+    echo "  $0 --action ai-task --task \"research\" --blocked-domains \"facebook.com,twitter.com\""
+    echo "  $0 --action ai-task --task \"safe browse\" --security-profile strict"
     echo
     echo "Stealth Mode Examples:"
     echo "  $0 --action configure-stealth --stealth-enabled yes      # Enable stealth mode"
@@ -314,6 +351,13 @@ agents2::main() {
             ;;
         "test-stealth")
             agents2::test_stealth "$STEALTH_TEST_URL"
+            ;;
+        "ai-task")
+            if [[ -z "$AI_TASK" ]]; then
+                log::error "Task description is required. Use --task \"your task description\""
+                exit 1
+            fi
+            agents2::execute_ai_task "$AI_TASK"
             ;;
         *)
             log::error "Unknown action: $ACTION"
