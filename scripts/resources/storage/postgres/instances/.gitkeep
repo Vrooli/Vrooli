@@ -1,0 +1,2 @@
+# This directory stores instance-specific data for PostgreSQL instances
+# Each instance will have its own subdirectory here

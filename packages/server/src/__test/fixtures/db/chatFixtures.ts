@@ -1,7 +1,7 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced as any with proper type cast for Prisma.chatUpsertArgs["create"]
 import { generatePK, generatePublicId } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
-import { chatConfigFixtures } from "@vrooli/shared/test-fixtures/config.js";
+import { chatConfigFixtures } from "@vrooli/shared/test-fixtures/config";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
 import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
 

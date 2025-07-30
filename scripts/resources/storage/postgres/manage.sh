@@ -1,0 +1,639 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# PostgreSQL Storage Resource Management Script
+# This script handles installation, configuration, and management of PostgreSQL instances
+
+DESCRIPTION="Install and manage PostgreSQL database instances for client isolation using Docker"
+
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+RESOURCES_DIR="${SCRIPT_DIR}/../.."
+
+# Source common resources
+# shellcheck disable=SC1091
+source "${RESOURCES_DIR}/common.sh"
+# shellcheck disable=SC1091
+source "${RESOURCES_DIR}/../helpers/utils/args.sh"
+
+# Source configuration
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/config/defaults.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/config/messages.sh"
+
+# Export configuration
+postgres::export_config
+postgres::messages::init
+
+# Source all library modules
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/common.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/docker.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/instance.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/status.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/install.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/database.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/backup.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/migration.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/multi_instance.sh"
+
+#######################################
+# Parse command line arguments
+#######################################
+postgres::parse_arguments() {
+    args::reset
+    
+    args::register_help
+    args::register_yes
+    
+    args::register \
+        --name "action" \
+        --flag "a" \
+        --desc "Action to perform" \
+        --type "value" \
+        --options "install|uninstall|create|destroy|start|stop|restart|status|list|logs|connect|diagnose|monitor|upgrade|backup|restore|migrate|migrate-init|migrate-status|migrate-rollback|migrate-list|seed|create-db|drop-db|create-user|drop-user|db-stats|list-backups|delete-backup|verify-backup|cleanup-backups|multi-start|multi-stop|multi-restart|multi-status|multi-migrate|multi-backup|multi-health" \
+        --default "status"
+    
+    args::register \
+        --name "instance" \
+        --flag "i" \
+        --desc "Instance name (use 'all' for operations on all instances)" \
+        --type "value" \
+        --default "main"
+    
+    args::register \
+        --name "port" \
+        --flag "p" \
+        --desc "Port number for new instance (auto-assigned if not specified)" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "template" \
+        --flag "t" \
+        --desc "Configuration template (development, production, testing, minimal)" \
+        --type "value" \
+        --options "development|production|testing|minimal" \
+        --default "development"
+    
+    args::register \
+        --name "force" \
+        --flag "f" \
+        --desc "Force operation (e.g., destroy without confirmation)" \
+        --type "value" \
+        --options "yes|no" \
+        --default "no"
+    
+    args::register \
+        --name "lines" \
+        --flag "n" \
+        --desc "Number of log lines to show" \
+        --type "value" \
+        --default "50"
+    
+    args::register \
+        --name "interval" \
+        --desc "Monitor interval in seconds" \
+        --type "value" \
+        --default "5"
+    
+    args::register \
+        --name "remove-data" \
+        --desc "Remove all data when uninstalling" \
+        --type "value" \
+        --options "yes|no" \
+        --default "no"
+    
+    args::register \
+        --name "backup-name" \
+        --flag "b" \
+        --desc "Name for backup (defaults to timestamp)" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "backup-type" \
+        --desc "Type of backup (full, schema, data)" \
+        --type "value" \
+        --options "full|schema|data" \
+        --default "full"
+    
+    args::register \
+        --name "database" \
+        --flag "d" \
+        --desc "Database name for operations" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "username" \
+        --flag "u" \
+        --desc "Username for user operations" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "password" \
+        --desc "Password for user creation" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "migrations-dir" \
+        --flag "m" \
+        --desc "Directory containing migration files" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "seed-path" \
+        --flag "s" \
+        --desc "Path to seed file or directory" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "retention-days" \
+        --desc "Backup retention period in days" \
+        --type "value" \
+        --default "$POSTGRES_BACKUP_RETENTION_DAYS"
+    
+    if args::is_asking_for_help "$@"; then
+        postgres::usage
+        exit 0
+    fi
+    
+    args::parse "$@"
+    
+    export ACTION=$(args::get "action")
+    export INSTANCE_NAME=$(args::get "instance")
+    export PORT=$(args::get "port")
+    export TEMPLATE=$(args::get "template")
+    export FORCE=$(args::get "force")
+    export LOG_LINES=$(args::get "lines")
+    export MONITOR_INTERVAL=$(args::get "interval")
+    export REMOVE_DATA=$(args::get "remove-data")
+    export BACKUP_NAME=$(args::get "backup-name")
+    export BACKUP_TYPE=$(args::get "backup-type")
+    export DATABASE=$(args::get "database")
+    export USERNAME=$(args::get "username")
+    export PASSWORD=$(args::get "password")
+    export MIGRATIONS_DIR=$(args::get "migrations-dir")
+    export SEED_PATH=$(args::get "seed-path")
+    export RETENTION_DAYS=$(args::get "retention-days")
+}
+
+#######################################
+# Display usage information
+#######################################
+postgres::usage() {
+    cat << EOF
+PostgreSQL Storage Resource Manager
+
+DESCRIPTION:
+    $DESCRIPTION
+
+USAGE:
+    $0 [OPTIONS]
+
+OPTIONS:
+$(args::show_help)
+
+ACTIONS:
+    Resource Management:
+        install         Install PostgreSQL resource (pulls Docker image, creates directories)
+        uninstall       Uninstall PostgreSQL resource (destroys all instances)
+        upgrade         Upgrade PostgreSQL Docker image
+    
+    Instance Management:
+        create          Create a new PostgreSQL instance
+        destroy         Destroy a PostgreSQL instance
+        start           Start PostgreSQL instance(s)
+        stop            Stop PostgreSQL instance(s)
+        restart         Restart PostgreSQL instance(s)
+        status          Show status of PostgreSQL resource or specific instance
+        list            List all PostgreSQL instances with status
+        logs            Show container logs for an instance
+        connect         Get connection string for an instance
+    
+    Database Operations:
+        create-db       Create a new database in an instance
+        drop-db         Drop a database from an instance
+        create-user     Create a new user in an instance
+        drop-user       Drop a user from an instance
+        migrate         Run schema migrations on an instance
+        migrate-init    Initialize migration system for an instance
+        migrate-status  Show migration status and history
+        migrate-rollback Rollback specific migration
+        migrate-list    List available migrations in directory
+        seed            Seed database with initial data
+        db-stats        Show database statistics
+    
+    Backup & Restore:
+        backup          Create backup of an instance
+        restore         Restore instance from backup
+        list-backups    List available backups
+        delete-backup   Delete a specific backup
+        verify-backup   Verify backup integrity
+        cleanup-backups Clean up old backups
+    
+    Multi-Instance Operations:
+        multi-start     Start multiple instances
+        multi-stop      Stop multiple instances
+        multi-restart   Restart multiple instances
+        multi-status    Show status of multiple instances
+        multi-migrate   Run migrations on multiple instances
+        multi-backup    Backup multiple instances
+        multi-health    Health check multiple instances
+    
+    Monitoring & Diagnostics:
+        diagnose        Run diagnostic checks
+        monitor         Monitor instances continuously
+
+EXAMPLES:
+    # Install PostgreSQL resource
+    $0 --action install
+
+    # Create a new instance for a client
+    $0 --action create --instance real-estate --template production
+
+    # Create instance on specific port
+    $0 --action create --instance testing --port 5440 --template testing
+
+    # List all instances
+    $0 --action list
+
+    # Start all instances
+    $0 --action start --instance all
+
+    # Get connection details
+    $0 --action connect --instance real-estate
+
+    # Monitor instance health
+    $0 --action monitor
+
+    # Show logs for an instance
+    $0 --action logs --instance real-estate --lines 100
+
+    # Destroy instance (with confirmation)
+    $0 --action destroy --instance testing
+
+    # Force destroy without confirmation
+    $0 --action destroy --instance testing --force yes
+
+    # Database operations
+    $0 --action create-db --instance real-estate --database myapp
+    $0 --action migrate --instance real-estate --migrations-dir ./migrations
+    $0 --action seed --instance real-estate --seed-path ./seeds/initial.sql
+    
+    # Backup and restore
+    $0 --action backup --instance real-estate --backup-name production-snapshot
+    $0 --action restore --instance real-estate --backup-name production-snapshot
+    $0 --action list-backups --instance real-estate
+    $0 --action cleanup-backups --retention-days 30
+    
+    # Enhanced migrations
+    $0 --action migrate-init --instance real-estate
+    $0 --action migrate-status --instance real-estate
+    $0 --action migrate-rollback --instance real-estate --backup-name 20240130_001
+    
+    # Multi-instance operations
+    $0 --action multi-start --instance all
+    $0 --action multi-migrate --instance "client1,client2" --migrations-dir ./migrations
+    $0 --action multi-status --instance all
+
+TEMPLATES:
+    development     Default template with verbose logging (default)
+    production      Optimized for production workloads
+    testing         Fast, ephemeral settings for testing
+    minimal         Minimal resource usage
+
+NOTES:
+    - Instances are isolated PostgreSQL databases in separate Docker containers
+    - Each instance gets its own port in the range $POSTGRES_INSTANCE_PORT_RANGE_START-$POSTGRES_INSTANCE_PORT_RANGE_END
+    - Maximum $POSTGRES_MAX_INSTANCES instances can run simultaneously
+    - Use instance names that describe your client or use case (e.g., 'real-estate', 'ecommerce')
+
+EOF
+}
+
+#######################################
+# Show container logs
+# Arguments:
+#   $1 - instance name
+#   $2 - number of lines (optional)
+#######################################
+postgres::show_logs() {
+    local instance_name="${1:-main}"
+    local lines="${2:-50}"
+    local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
+    
+    if ! postgres::common::container_exists "$instance_name"; then
+        log::error "${MSG_INSTANCE_NOT_FOUND}: $instance_name"
+        return 1
+    fi
+    
+    log::info "Showing last $lines lines from PostgreSQL instance '$instance_name':"
+    log::info "================================"
+    
+    docker logs --tail "$lines" "$container_name" 2>&1 || {
+        log::error "Failed to retrieve logs"
+        return 1
+    }
+}
+
+#######################################
+# Show connection information
+#######################################
+postgres::show_connection() {
+    local instance_name="${1:-main}"
+    
+    if ! postgres::common::container_exists "$instance_name"; then
+        log::error "${MSG_INSTANCE_NOT_FOUND}: $instance_name"
+        return 1
+    fi
+    
+    log::info "PostgreSQL Instance Connection Details: $instance_name"
+    log::info "=================================================="
+    
+    local port=$(postgres::common::get_instance_config "$instance_name" "port")
+    local password=$(postgres::common::get_instance_config "$instance_name" "password")
+    local user=$(postgres::common::get_instance_config "$instance_name" "user")
+    local database=$(postgres::common::get_instance_config "$instance_name" "database")
+    
+    if [[ -z "$port" || -z "$password" ]]; then
+        log::error "Instance configuration incomplete"
+        return 1
+    fi
+    
+    log::info "Host: localhost"
+    log::info "Port: $port"
+    log::info "Database: $database"
+    log::info "Username: $user"
+    log::info "Password: $password"
+    log::info ""
+    
+    local conn_string=$(postgres::instance::get_connection_string "$instance_name")
+    log::info "Connection String:"
+    log::info "$conn_string"
+    log::info ""
+    
+    if postgres::common::is_running "$instance_name"; then
+        log::success "Instance is running and ready for connections"
+    else
+        log::warn "Instance is stopped - start it first with:"
+        log::info "$0 --action start --instance $instance_name"
+    fi
+    
+    log::info ""
+    log::info "Example psql connection:"
+    log::info "psql -h localhost -p $port -U $user -d $database"
+}
+
+#######################################
+# Upgrade PostgreSQL Docker image
+#######################################
+postgres::upgrade() {
+    log::info "Upgrading PostgreSQL Docker image..."
+    
+    # Pull latest image
+    if ! postgres::docker::pull_image; then
+        log::error "Failed to pull latest PostgreSQL image"
+        return 1
+    fi
+    
+    local instances=($(postgres::common::list_instances))
+    if [[ ${#instances[@]} -eq 0 ]]; then
+        log::success "PostgreSQL image upgraded (no instances to restart)"
+        return 0
+    fi
+    
+    log::info "Restarting instances to use new image..."
+    local restarted=0
+    local failed=0
+    
+    for instance in "${instances[@]}"; do
+        if postgres::common::is_running "$instance"; then
+            log::info "Restarting instance: $instance"
+            if postgres::docker::restart "$instance"; then
+                ((restarted++))
+            else
+                ((failed++))
+            fi
+        fi
+    done
+    
+    if [[ $failed -eq 0 ]]; then
+        log::success "PostgreSQL upgrade completed successfully"
+        log::info "Restarted $restarted instance(s)"
+    else
+        log::error "Upgrade completed with issues: $failed instance(s) failed to restart"
+        return 1
+    fi
+}
+
+#######################################
+# Main execution
+#######################################
+postgres::main() {
+    postgres::parse_arguments "$@"
+    
+    case "$ACTION" in
+        "install")
+            postgres::install
+            ;;
+        "uninstall")
+            postgres::uninstall
+            ;;
+        "create")
+            postgres::instance::create "$INSTANCE_NAME" "$PORT" "$TEMPLATE"
+            ;;
+        "destroy")
+            postgres::instance::destroy "$INSTANCE_NAME" "$FORCE"
+            ;;
+        "start")
+            postgres::instance::start "$INSTANCE_NAME"
+            ;;
+        "stop")
+            postgres::instance::stop "$INSTANCE_NAME"
+            ;;
+        "restart")
+            postgres::instance::restart "$INSTANCE_NAME"
+            ;;
+        "status")
+            if [[ "$INSTANCE_NAME" == "main" ]] || [[ "$INSTANCE_NAME" == "all" ]]; then
+                postgres::status::check true
+            else
+                postgres::status::show_instance "$INSTANCE_NAME"
+            fi
+            ;;
+        "list")
+            postgres::instance::list
+            ;;
+        "logs")
+            postgres::show_logs "$INSTANCE_NAME" "$LOG_LINES"
+            ;;
+        "connect")
+            postgres::show_connection "$INSTANCE_NAME"
+            ;;
+        "diagnose")
+            postgres::status::diagnose
+            ;;
+        "monitor")
+            postgres::status::monitor "$MONITOR_INTERVAL"
+            ;;
+        "upgrade")
+            postgres::upgrade
+            ;;
+        "backup")
+            postgres::backup::create "$INSTANCE_NAME" "$BACKUP_NAME" "$BACKUP_TYPE"
+            ;;
+        "restore")
+            if [[ -z "$BACKUP_NAME" ]]; then
+                log::error "Backup name is required for restore"
+                log::info "Usage: $0 --action restore --instance <name> --backup-name <backup>"
+                exit 1
+            fi
+            postgres::backup::restore "$INSTANCE_NAME" "$BACKUP_NAME" "$BACKUP_TYPE" "$FORCE"
+            ;;
+        "migrate")
+            if [[ -z "$MIGRATIONS_DIR" ]]; then
+                log::error "Migrations directory is required"
+                log::info "Usage: $0 --action migrate --instance <name> --migrations-dir <path>"
+                exit 1
+            fi
+            postgres::database::migrate "$INSTANCE_NAME" "$MIGRATIONS_DIR" "$DATABASE"
+            ;;
+        "seed")
+            if [[ -z "$SEED_PATH" ]]; then
+                log::error "Seed path is required"
+                log::info "Usage: $0 --action seed --instance <name> --seed-path <path>"
+                exit 1
+            fi
+            postgres::database::seed "$INSTANCE_NAME" "$SEED_PATH" "$DATABASE"
+            ;;
+        "create-db")
+            if [[ -z "$DATABASE" ]]; then
+                log::error "Database name is required"
+                log::info "Usage: $0 --action create-db --instance <name> --database <db_name>"
+                exit 1
+            fi
+            postgres::database::create "$INSTANCE_NAME" "$DATABASE" "$USERNAME"
+            ;;
+        "drop-db")
+            if [[ -z "$DATABASE" ]]; then
+                log::error "Database name is required"
+                log::info "Usage: $0 --action drop-db --instance <name> --database <db_name>"
+                exit 1
+            fi
+            postgres::database::drop "$INSTANCE_NAME" "$DATABASE" "$FORCE"
+            ;;
+        "create-user")
+            if [[ -z "$USERNAME" || -z "$PASSWORD" ]]; then
+                log::error "Username and password are required"
+                log::info "Usage: $0 --action create-user --instance <name> --username <user> --password <pass>"
+                exit 1
+            fi
+            postgres::database::create_user "$INSTANCE_NAME" "$USERNAME" "$PASSWORD"
+            ;;
+        "drop-user")
+            if [[ -z "$USERNAME" ]]; then
+                log::error "Username is required"
+                log::info "Usage: $0 --action drop-user --instance <name> --username <user>"
+                exit 1
+            fi
+            postgres::database::drop_user "$INSTANCE_NAME" "$USERNAME" "$FORCE"
+            ;;
+        "db-stats")
+            postgres::database::stats "$INSTANCE_NAME" "$DATABASE"
+            ;;
+        "list-backups")
+            postgres::backup::list "$INSTANCE_NAME"
+            ;;
+        "delete-backup")
+            if [[ -z "$BACKUP_NAME" ]]; then
+                log::error "Backup name is required"
+                log::info "Usage: $0 --action delete-backup --instance <name> --backup-name <backup>"
+                exit 1
+            fi
+            postgres::backup::delete "$INSTANCE_NAME" "$BACKUP_NAME" "$FORCE"
+            ;;
+        "verify-backup")
+            if [[ -z "$BACKUP_NAME" ]]; then
+                log::error "Backup name is required"
+                log::info "Usage: $0 --action verify-backup --instance <name> --backup-name <backup>"
+                exit 1
+            fi
+            postgres::backup::verify "$INSTANCE_NAME" "$BACKUP_NAME"
+            ;;
+        "cleanup-backups")
+            postgres::backup::cleanup "$INSTANCE_NAME" "$RETENTION_DAYS"
+            ;;
+        "migrate-init")
+            postgres::migration::init "$INSTANCE_NAME" "$DATABASE"
+            ;;
+        "migrate-status")
+            postgres::migration::status "$INSTANCE_NAME" "$DATABASE"
+            ;;
+        "migrate-rollback")
+            if [[ -z "$BACKUP_NAME" ]]; then
+                log::error "Migration version is required for rollback"
+                log::info "Usage: $0 --action migrate-rollback --instance <name> --backup-name <version>"
+                exit 1
+            fi
+            postgres::migration::rollback "$INSTANCE_NAME" "$BACKUP_NAME" "$DATABASE"
+            ;;
+        "migrate-list")
+            if [[ -z "$MIGRATIONS_DIR" ]]; then
+                log::error "Migrations directory is required"
+                log::info "Usage: $0 --action migrate-list --migrations-dir <path>"
+                exit 1
+            fi
+            postgres::migration::list_available "$MIGRATIONS_DIR"
+            ;;
+        "multi-start")
+            postgres::multi::start "$INSTANCE_NAME"
+            ;;
+        "multi-stop")
+            postgres::multi::stop "$INSTANCE_NAME"
+            ;;
+        "multi-restart")
+            postgres::multi::restart "$INSTANCE_NAME"
+            ;;
+        "multi-status")
+            postgres::multi::status "$INSTANCE_NAME"
+            ;;
+        "multi-migrate")
+            if [[ -z "$MIGRATIONS_DIR" ]]; then
+                log::error "Migrations directory is required"
+                log::info "Usage: $0 --action multi-migrate --instance <pattern> --migrations-dir <path>"
+                exit 1
+            fi
+            postgres::multi::migrate "$INSTANCE_NAME" "$MIGRATIONS_DIR" "$DATABASE"
+            ;;
+        "multi-backup")
+            postgres::multi::backup "$INSTANCE_NAME" "$BACKUP_NAME" "$BACKUP_TYPE"
+            ;;
+        "multi-health")
+            postgres::multi::health_check "$INSTANCE_NAME"
+            ;;
+        *)
+            log::error "Unknown action: $ACTION"
+            postgres::usage
+            exit 1
+            ;;
+    esac
+}
+
+# Run main function if script is executed directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    postgres::main "$@"
+fi
