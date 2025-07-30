@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export COMFYUI_CUSTOM_PORT="8188"
     export COMFYUI_CONTAINER_NAME="comfyui-test"
@@ -16,67 +22,10 @@ setup() {
     COMFYUI_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "curl"|"docker"|"jq"|"netstat"|"lsof") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock curl for health checks
-    curl() {
-        case "$*" in
-            *"localhost:8188"*)
-                if [[ "$*" =~ "fail" ]]; then
-                    return 1  # Simulate health check failure
-                fi
-                echo '{"status":"ready","queue":{"running":[],"pending":[]},"system":{"ram":{"total":32768,"used":8192},"vram":{"total":24576,"used":4096}}}'
-                ;;
-            *"localhost:8188/api/v1/queue"*)
-                echo '{"queue_running":[],"queue_pending":[{"number":1,"id":"test-123"}]}'
-                ;;
-            *"localhost:8188/api/v1/history"*)
-                echo '{"test-123":{"status":"completed","runtime":125.5}}'
-                ;;
-            *"localhost:8188/system_stats"*)
-                echo '{"system":{"ram_used":8192,"ram_total":32768,"vram_used":4096,"vram_total":24576}}'
-                ;;
-            *) 
-                echo "CURL: $*"
-                return 0
-                ;;
-        esac
-    }
     
     # Mock Docker operations
-    docker() {
-        case "$1" in
-            "ps")
-                if [[ "$*" =~ "--filter" ]] && [[ "$*" =~ "comfyui-test" ]]; then
-                    echo "comfyui-test"
-                fi
-                ;;
-            "inspect")
-                if [[ "$*" =~ "comfyui-test" ]]; then
-                    cat <<EOF
-{
-  "State": {
-    "Running": true,
-    "Status": "running",
-    "StartedAt": "2024-01-15T10:30:00Z",
-    "Health": {
-      "Status": "healthy",
-      "LastCheck": "2024-01-15T11:00:00Z"
-    }
-  },
-  "Config": {
-    "Image": "comfyanonymous/comfyui:latest"
-  },
-  "NetworkSettings": {
-    "Ports": {
-      "8188/tcp": [{"HostPort": "8188"}]
-    }
-  }
 }
 EOF
                 fi

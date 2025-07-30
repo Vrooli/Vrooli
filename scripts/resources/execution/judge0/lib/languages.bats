@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export JUDGE0_PORT="2358"
     export JUDGE0_BASE_URL="http://localhost:2358"
@@ -14,49 +20,8 @@ setup() {
     JUDGE0_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "curl"|"jq") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock curl for API calls
-    curl() {
-        case "$*" in
-            *"/languages"*)
-                if [[ "$*" =~ "/languages/92" ]]; then
-                    echo '{"id":92,"name":"Python (3.11.2)","is_archived":false,"source_file":"main.py","compile_cmd":null,"run_cmd":"python3 main.py","memory_limit":262144,"cpu_time_limit":5,"wall_time_limit":10}'
-                elif [[ "$*" =~ "/languages/93" ]]; then
-                    echo '{"id":93,"name":"JavaScript (Node.js 18.15.0)","is_archived":false,"source_file":"main.js","compile_cmd":null,"run_cmd":"node main.js","memory_limit":262144,"cpu_time_limit":5,"wall_time_limit":10}'
-                elif [[ "$*" =~ "/languages/91" ]]; then
-                    echo '{"id":91,"name":"Java (OpenJDK 19.0.2)","is_archived":false,"source_file":"Main.java","compile_cmd":"javac Main.java","run_cmd":"java Main","memory_limit":524288,"cpu_time_limit":10,"wall_time_limit":15}'
-                else
-                    cat <<EOF
-[
-  {"id":92,"name":"Python (3.11.2)","is_archived":false,"source_file":"main.py","compile_cmd":null,"run_cmd":"python3 main.py"},
-  {"id":93,"name":"JavaScript (Node.js 18.15.0)","is_archived":false,"source_file":"main.js","compile_cmd":null,"run_cmd":"node main.js"},
-  {"id":91,"name":"Java (OpenJDK 19.0.2)","is_archived":false,"source_file":"Main.java","compile_cmd":"javac Main.java","run_cmd":"java Main"},
-  {"id":105,"name":"C++ (GCC 12.2.0)","is_archived":false,"source_file":"main.cpp","compile_cmd":"g++ -o main main.cpp","run_cmd":"./main"},
-  {"id":104,"name":"C (GCC 12.2.0)","is_archived":false,"source_file":"main.c","compile_cmd":"gcc -o main main.c","run_cmd":"./main"},
-  {"id":95,"name":"Go (1.20.2)","is_archived":false,"source_file":"main.go","compile_cmd":"go build -o main main.go","run_cmd":"./main"},
-  {"id":73,"name":"Rust (1.68.2)","is_archived":false,"source_file":"main.rs","compile_cmd":"rustc main.rs","run_cmd":"./main"},
-  {"id":51,"name":"C# (.NET 7.0)","is_archived":false,"source_file":"Main.cs","compile_cmd":"csc Main.cs","run_cmd":"mono Main.exe"},
-  {"id":72,"name":"Ruby (3.2.1)","is_archived":false,"source_file":"main.rb","compile_cmd":null,"run_cmd":"ruby main.rb"},
-  {"id":68,"name":"PHP (8.2.3)","is_archived":false,"source_file":"main.php","compile_cmd":null,"run_cmd":"php main.php"},
-  {"id":83,"name":"Swift (5.8.0)","is_archived":false,"source_file":"main.swift","compile_cmd":"swiftc main.swift","run_cmd":"./main"},
-  {"id":78,"name":"Kotlin (1.8.20)","is_archived":false,"source_file":"main.kt","compile_cmd":"kotlinc main.kt -include-runtime -d main.jar","run_cmd":"java -jar main.jar"},
-  {"id":80,"name":"R (4.2.3)","is_archived":false,"source_file":"main.r","compile_cmd":null,"run_cmd":"Rscript main.r"},
-  {"id":46,"name":"Bash (5.2.15)","is_archived":false,"source_file":"main.sh","compile_cmd":null,"run_cmd":"bash main.sh"},
-  {"id":82,"name":"SQL (SQLite 3.40.1)","is_archived":false,"source_file":"main.sql","compile_cmd":null,"run_cmd":"sqlite3 < main.sql"}
-]
-EOF
-                fi
-                ;;
-            *) echo "CURL: $*" ;;
-        esac
-        return 0
-    }
     
     # Mock jq for JSON processing
     jq() {
@@ -83,12 +48,6 @@ EOF
     }
     
     # Mock log functions
-    log::info() { echo "INFO: $1"; }
-    log::error() { echo "ERROR: $1"; }
-    log::warn() { echo "WARN: $1"; }
-    log::success() { echo "SUCCESS: $1"; }
-    log::debug() { echo "DEBUG: $1"; }
-    log::header() { echo "=== $1 ==="; }
     
     # Mock Judge0 functions
     judge0::api::request() {

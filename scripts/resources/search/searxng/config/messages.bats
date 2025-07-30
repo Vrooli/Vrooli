@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set mock environment for message templates
     export SEARXNG_BASE_URL="http://localhost:8100"
     export SEARXNG_PORT="8100"
@@ -14,10 +20,6 @@ setup() {
     export SEARXNG_RATE_LIMIT="10"
     
     # Mock log functions to avoid dependency issues
-    log::success() { echo "SUCCESS: $*"; }
-    log::info() { echo "INFO: $*"; }
-    log::warn() { echo "WARNING: $*"; }
-    log::error() { echo "ERROR: $*"; }
     
     # Load the messages
     SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"

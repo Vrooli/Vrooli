@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export QDRANT_PORT="6333"
     export QDRANT_GRPC_PORT="6334"
@@ -26,38 +32,10 @@ setup() {
     mkdir -p "$QDRANT_SNAPSHOTS_DIR"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "docker"|"curl"|"jq"|"openssl"|"tar"|"gzip") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock docker commands
-    docker() {
-        case "$1" in
-            "ps") echo "qdrant-test" ;;
-            "network") echo "DOCKER_NETWORK: $*" ;;
-            "volume") echo "DOCKER_VOLUME: $*" ;;
-            "stop"|"rm"|"pull"|"run") echo "DOCKER: $*" ;;
-            *) echo "DOCKER: $*" ;;
-        esac
-        return 0
-    }
     
     # Mock curl for API calls
-    curl() {
-        case "$*" in
-            *"/health"*)
-                echo '{"status":"ok","version":"1.7.4"}'
-                ;;
-            *"/cluster"*)
-                echo '{"result":{"status":"enabled","peer_id":"12345","peers":{"known":[],"total":1}}}'
-                ;;
-            *) echo "CURL: $*" ;;
-        esac
-        return 0
-    }
     
     # Mock jq for JSON processing
     jq() {
@@ -86,12 +64,6 @@ setup() {
     }
     
     # Mock log functions
-    log::info() { echo "INFO: $1"; }
-    log::error() { echo "ERROR: $1"; }
-    log::warn() { echo "WARN: $1"; }
-    log::success() { echo "SUCCESS: $1"; }
-    log::debug() { echo "DEBUG: $1"; }
-    log::header() { echo "=== $1 ==="; }
     
     # Load configuration and messages
     source "${QDRANT_DIR}/config/defaults.sh"
@@ -121,6 +93,7 @@ teardown() {
     [ -d "$QDRANT_SNAPSHOTS_DIR" ]
 }
 
+
 # Test directory creation with existing directories
 @test "qdrant::create_directories handles existing directories" {
     # Directories already exist from setup
@@ -128,6 +101,7 @@ teardown() {
     
     [[ "$result" =~ "directories" ]] || [[ "$result" =~ "already" ]] || [[ "$result" =~ "OK" ]]
 }
+
 
 # Test API key generation
 @test "qdrant::generate_api_key generates valid API key" {
@@ -138,6 +112,7 @@ teardown() {
     [[ "$result" =~ ^[a-zA-Z0-9_-]+$ ]]
 }
 
+
 # Test API key generation with custom length
 @test "qdrant::generate_api_key supports custom length" {
     result=$(qdrant::generate_api_key 32)
@@ -145,6 +120,7 @@ teardown() {
     [ -n "$result" ]
     [[ ${#result} -eq 32 ]]
 }
+
 
 # Test API key storage
 @test "qdrant::save_api_key saves API key securely" {
@@ -160,6 +136,7 @@ teardown() {
     [[ "$perms" =~ ^6[0-9][0-9]$ ]]  # Should be 600 or similar
 }
 
+
 # Test API key retrieval
 @test "qdrant::get_api_key retrieves stored API key" {
     local test_key="test_qdrant_key_123456789"
@@ -173,6 +150,7 @@ teardown() {
     [[ "$result" == "$test_key" ]]
 }
 
+
 # Test API key retrieval with missing file
 @test "qdrant::get_api_key handles missing API key file" {
     rm -f "${QDRANT_CONFIG_DIR}/api_key"
@@ -182,12 +160,14 @@ teardown() {
     [ -z "$result" ]
 }
 
+
 # Test collection name validation
 @test "qdrant::validate_collection_name validates collection names" {
     result=$(qdrant::validate_collection_name "valid_collection_name" && echo "valid" || echo "invalid")
     
     [[ "$result" == "valid" ]]
 }
+
 
 # Test collection name validation with invalid names
 @test "qdrant::validate_collection_name rejects invalid names" {
@@ -196,12 +176,14 @@ teardown() {
     [[ "$result" == "invalid" ]]
 }
 
+
 # Test vector size validation
 @test "qdrant::validate_vector_size validates vector dimensions" {
     result=$(qdrant::validate_vector_size "1536" && echo "valid" || echo "invalid")
     
     [[ "$result" == "valid" ]]
 }
+
 
 # Test vector size validation with invalid sizes
 @test "qdrant::validate_vector_size rejects invalid sizes" {
@@ -213,6 +195,7 @@ teardown() {
     
     [[ "$result" == "invalid" ]]
 }
+
 
 # Test distance metric validation
 @test "qdrant::validate_distance_metric validates distance metrics" {
@@ -226,6 +209,7 @@ teardown() {
     [[ "$result" == "valid" ]]
 }
 
+
 # Test distance metric validation with invalid metrics
 @test "qdrant::validate_distance_metric rejects invalid metrics" {
     result=$(qdrant::validate_distance_metric "Manhattan" && echo "valid" || echo "invalid")
@@ -233,12 +217,14 @@ teardown() {
     [[ "$result" == "invalid" ]]
 }
 
+
 # Test configuration validation
 @test "qdrant::validate_config validates configuration" {
     result=$(qdrant::validate_config)
     
     [[ "$result" =~ "valid" ]] || [[ "$result" =~ "configuration" ]]
 }
+
 
 # Test port validation
 @test "qdrant::validate_port validates port numbers" {
@@ -252,12 +238,14 @@ teardown() {
     [[ "$result" == "invalid" ]]
 }
 
+
 # Test network connectivity check
 @test "qdrant::check_network_connectivity tests network access" {
     result=$(qdrant::check_network_connectivity)
     
     [[ "$result" =~ "network" ]] || [[ "$result" =~ "connectivity" ]]
 }
+
 
 # Test Docker network management
 @test "qdrant::create_network creates Docker network" {
@@ -267,6 +255,7 @@ teardown() {
     [[ "$result" =~ "qdrant-network" ]]
 }
 
+
 # Test Docker network cleanup
 @test "qdrant::remove_network removes Docker network" {
     result=$(qdrant::remove_network)
@@ -274,6 +263,7 @@ teardown() {
     [[ "$result" =~ "network" ]]
     [[ "$result" =~ "qdrant-network" ]]
 }
+
 
 # Test data cleanup
 @test "qdrant::cleanup_data removes data directory" {
@@ -288,6 +278,7 @@ teardown() {
     [ ! -d "$QDRANT_DATA_DIR" ]
 }
 
+
 # Test data cleanup with confirmation
 @test "qdrant::cleanup_data respects user confirmation" {
     export YES="no"
@@ -296,6 +287,7 @@ teardown() {
     [[ "$result" =~ "cancelled" ]] || [[ "$result" =~ "aborted" ]]
     [ -d "$QDRANT_DATA_DIR" ]  # Should still exist
 }
+
 
 # Test permission management
 @test "qdrant::set_permissions sets correct file permissions" {
@@ -309,6 +301,7 @@ teardown() {
     [[ "$perms" == "600" ]]
 }
 
+
 # Test configuration generation
 @test "qdrant::generate_config creates Qdrant configuration file" {
     result=$(qdrant::generate_config)
@@ -321,12 +314,14 @@ teardown() {
     grep -q "storage:" "${QDRANT_CONFIG_DIR}/production.yaml"
 }
 
+
 # Test health monitoring
 @test "qdrant::check_health performs basic health checks" {
     result=$(qdrant::check_health)
     
     [[ "$result" =~ "health" ]] || [[ "$result" =~ "check" ]]
 }
+
 
 # Test backup creation
 @test "qdrant::create_backup creates data backup" {
@@ -335,12 +330,14 @@ teardown() {
     [[ "$result" =~ "backup" ]] || [[ "$result" =~ "created" ]]
 }
 
+
 # Test backup restoration
 @test "qdrant::restore_backup restores data from backup" {
     result=$(qdrant::restore_backup "/tmp/backup.tar.gz")
     
     [[ "$result" =~ "restore" ]] || [[ "$result" =~ "backup" ]]
 }
+
 
 # Test environment preparation
 @test "qdrant::prepare_environment prepares runtime environment" {
@@ -349,12 +346,14 @@ teardown() {
     [[ "$result" =~ "environment" ]] || [[ "$result" =~ "prepared" ]]
 }
 
+
 # Test metrics collection
 @test "qdrant::collect_metrics gathers system metrics" {
     result=$(qdrant::collect_metrics)
     
     [[ "$result" =~ "metrics" ]] || [[ "$result" =~ "collected" ]]
 }
+
 
 # Test utility functions
 @test "qdrant::format_size formats byte sizes" {
@@ -363,11 +362,13 @@ teardown() {
     [[ "$result" =~ "MB" ]] || [[ "$result" =~ "1024" ]]
 }
 
+
 @test "qdrant::format_time formats durations" {
     result=$(qdrant::format_time "3661")
     
     [[ "$result" =~ "1h" ]] && [[ "$result" =~ "1m" ]]
 }
+
 
 # Test error handling
 @test "qdrant::handle_error processes error conditions gracefully" {
@@ -376,6 +377,7 @@ teardown() {
     [[ "$result" =~ "error" ]] || [[ "$result" =~ "Test error message" ]]
 }
 
+
 # Test dependency verification
 @test "qdrant::verify_dependencies checks required dependencies" {
     result=$(qdrant::verify_dependencies)
@@ -383,12 +385,14 @@ teardown() {
     [[ "$result" =~ "dependencies" ]] || [[ "$result" =~ "verified" ]]
 }
 
+
 # Test system compatibility
 @test "qdrant::check_compatibility verifies system compatibility" {
     result=$(qdrant::check_compatibility)
     
     [[ "$result" =~ "compatible" ]] || [[ "$result" =~ "system" ]]
 }
+
 
 # Test vector format validation
 @test "qdrant::validate_vector_format validates vector data format" {
@@ -399,6 +403,7 @@ teardown() {
     [[ "$result" == "valid" ]]
 }
 
+
 # Test vector format validation with invalid data
 @test "qdrant::validate_vector_format rejects invalid vector data" {
     local invalid_vector='invalid vector data'
@@ -408,6 +413,7 @@ teardown() {
     [[ "$result" == "invalid" ]]
 }
 
+
 # Test index optimization
 @test "qdrant::optimize_index optimizes vector indices" {
     result=$(qdrant::optimize_index "test_collection")
@@ -416,12 +422,14 @@ teardown() {
     [[ "$result" =~ "test_collection" ]]
 }
 
+
 # Test memory usage monitoring
 @test "qdrant::check_memory_usage monitors memory consumption" {
     result=$(qdrant::check_memory_usage)
     
     [[ "$result" =~ "memory" ]] || [[ "$result" =~ "usage" ]]
 }
+
 
 # Test disk space monitoring
 @test "qdrant::check_disk_space monitors storage usage" {
@@ -430,6 +438,7 @@ teardown() {
     [[ "$result" =~ "disk" ]] || [[ "$result" =~ "space" ]]
 }
 
+
 # Test performance analysis
 @test "qdrant::analyze_performance analyzes query performance" {
     result=$(qdrant::analyze_performance)
@@ -437,12 +446,14 @@ teardown() {
     [[ "$result" =~ "performance" ]] || [[ "$result" =~ "analysis" ]]
 }
 
+
 # Test query optimization
 @test "qdrant::optimize_queries optimizes search queries" {
     result=$(qdrant::optimize_queries)
     
     [[ "$result" =~ "optimize" ]] || [[ "$result" =~ "queries" ]]
 }
+
 
 # Test cluster management
 @test "qdrant::manage_cluster manages cluster operations" {
@@ -452,6 +463,7 @@ teardown() {
     [[ "$result" =~ "status" ]]
 }
 
+
 # Test shard management
 @test "qdrant::manage_shards manages collection shards" {
     result=$(qdrant::manage_shards "test_collection" "redistribute")
@@ -459,6 +471,7 @@ teardown() {
     [[ "$result" =~ "shard" ]]
     [[ "$result" =~ "test_collection" ]]
 }
+
 
 # Test replica management
 @test "qdrant::manage_replicas manages data replication" {
@@ -468,12 +481,14 @@ teardown() {
     [[ "$result" =~ "test_collection" ]]
 }
 
+
 # Test consistency checks
 @test "qdrant::check_consistency verifies data consistency" {
     result=$(qdrant::check_consistency)
     
     [[ "$result" =~ "consistency" ]] || [[ "$result" =~ "check" ]]
 }
+
 
 # Test data validation
 @test "qdrant::validate_data validates stored data integrity" {
@@ -483,12 +498,14 @@ teardown() {
     [[ "$result" =~ "test_collection" ]]
 }
 
+
 # Test migration utilities
 @test "qdrant::migrate_data migrates data between versions" {
     result=$(qdrant::migrate_data "1.6.0" "1.7.0")
     
     [[ "$result" =~ "migrate" ]] || [[ "$result" =~ "data" ]]
 }
+
 
 # Test export utilities
 @test "qdrant::export_collection exports collection data" {
@@ -498,10 +515,11 @@ teardown() {
     [[ "$result" =~ "test_collection" ]]
 }
 
+
 # Test import utilities
 @test "qdrant::import_collection imports collection data" {
     result=$(qdrant::import_collection "test_collection" "/tmp/import.json")
     
     [[ "$result" =~ "import" ]]
     [[ "$result" =~ "test_collection" ]]
-}
+

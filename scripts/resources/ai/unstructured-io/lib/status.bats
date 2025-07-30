@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export UNSTRUCTURED_IO_CUSTOM_PORT="9999"
     export UNSTRUCTURED_IO_CONTAINER_NAME="unstructured-io-test"
@@ -14,50 +20,10 @@ setup() {
     UNSTRUCTURED_IO_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "docker") return 0 ;;
-            "curl") return 0 ;;
-            "jq") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock Docker functions
-    docker() {
-        case "$1" in
-            "ps")
-                if [[ "$*" =~ "unstructured-io-test" ]]; then
-                    echo "container_id unstructured-io-test"
-                fi
-                ;;
-            "inspect")
-                if [[ "$*" =~ "unstructured-io-test" ]]; then
-                    echo '{"State":{"Running":true},"Config":{"Image":"unstructured-api:latest"},"NetworkSettings":{"Ports":{"8000/tcp":[{"HostPort":"9999"}]}}}'
-                fi
-                ;;
-            "stats")
-                echo "CONTAINER           CPU %     MEM USAGE / LIMIT     MEM %     NET I/O             BLOCK I/O           PIDS"
-                echo "unstructured-io-test   0.50%     512MiB / 4GiB         12.50%    1.2kB / 800B        0B / 0B             15"
-                ;;
-            *) return 0 ;;
-        esac
-    }
     
     # Mock curl for health checks
-    curl() {
-        case "$*" in
-            *"/health"*)
-                echo '{"status":"healthy","version":"0.10.0","uptime":"120"}'
-                return 0
-                ;;
-            *"/general/v0/info"*)
-                echo '{"version":"0.10.0","supported_types":["pdf","docx","txt"],"max_file_size":"50MB"}'
-                return 0
-                ;;
-            *) return 0 ;;
-        esac
-    }
     
     # Mock jq for JSON parsing
     jq() {
@@ -82,25 +48,9 @@ setup() {
     }
     
     # Mock log functions
-    log::info() {
-        echo "INFO: $1"
-        return 0
-    }
     
-    log::error() {
-        echo "ERROR: $1"
-        return 0
-    }
     
-    log::warn() {
-        echo "WARN: $1"
-        return 0
-    }
     
-    log::success() {
-        echo "SUCCESS: $1"
-        return 0
-    }
     
     # Mock common functions
     unstructured_io::container_exists() { return 0; }  # Container exists by default

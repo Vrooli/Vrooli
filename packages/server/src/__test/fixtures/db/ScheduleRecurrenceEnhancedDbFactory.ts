@@ -1,15 +1,14 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
 import { } from "@vrooli/shared";
-import { type Prisma, type PrismaClient, ScheduleRecurrenceType } from "@prisma/client";
+import { type Prisma, type PrismaClient, ScheduleRecurrenceType, type schedule_recurrence } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { 
     DbTestFixtures, 
     RelationConfig,
-    TestScenario,
 } from "./types.js";
 
 interface ScheduleRecurrenceRelationConfig extends RelationConfig {
-    withSchedule?: { scheduleId: string };
+    withSchedule?: { scheduleId: bigint };
 }
 
 /**
@@ -26,13 +25,20 @@ interface ScheduleRecurrenceRelationConfig extends RelationConfig {
  * - Business rule validation
  */
 export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory<
-    Prisma.schedule_recurrenceCreateInput,
+    schedule_recurrence,
     Prisma.schedule_recurrenceCreateInput,
     Prisma.schedule_recurrenceInclude,
     Prisma.schedule_recurrenceUpdateInput
 > {
+    // Store commonly used schedule IDs for fixtures
+    private fixtureScheduleId: bigint;
+    private defaultScheduleId: bigint;
+    
     constructor(prisma: PrismaClient) {
         super("ScheduleRecurrence", prisma);
+        // Generate valid schedule IDs that can be reused in fixtures
+        this.fixtureScheduleId = this.generateId();
+        this.defaultScheduleId = this.generateId();
         this.initializeScenarios();
     }
 
@@ -53,7 +59,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                 recurrenceType: ScheduleRecurrenceType.Daily,
                 interval: 1,
                 schedule: {
-                    connect: { id: "schedule_id" },
+                    connect: { id: this.fixtureScheduleId },
                 },
             },
             complete: {
@@ -64,7 +70,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                 endDate: oneYear,
                 duration: 90, // 90 minutes
                 schedule: {
-                    connect: { id: "schedule_id" },
+                    connect: { id: this.fixtureScheduleId },
                 },
             },
             invalid: {
@@ -73,7 +79,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     duration: 60,
                 },
                 invalidTypes: {
-                    id: "not-a-bigint",
+                    id: 12345 as unknown as bigint, // Using number instead of bigint to test type validation
                     recurrenceType: "InvalidType", // Should be enum value
                     interval: "1", // Should be number
                     dayOfWeek: "Monday", // Should be number
@@ -89,7 +95,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     interval: 0, // Should be at least 1
                     dayOfWeek: 8, // Should be 0-6
                     schedule: {
-                        connect: { id: "schedule_id" },
+                        connect: { id: this.fixtureScheduleId },
                     },
                 },
                 invalidMonthlyConfig: {
@@ -98,7 +104,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     interval: 1,
                     dayOfMonth: 32, // Invalid day of month
                     schedule: {
-                        connect: { id: "schedule_id" },
+                        connect: { id: this.fixtureScheduleId },
                     },
                 },
                 invalidYearlyConfig: {
@@ -108,7 +114,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     month: 13, // Invalid month
                     dayOfMonth: 15,
                     schedule: {
-                        connect: { id: "schedule_id" },
+                        connect: { id: this.fixtureScheduleId },
                     },
                 },
                 negativeInterval: {
@@ -116,7 +122,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     recurrenceType: ScheduleRecurrenceType.Daily,
                     interval: -1, // Should be positive
                     schedule: {
-                        connect: { id: "schedule_id" },
+                        connect: { id: this.fixtureScheduleId },
                     },
                 },
                 negativeDuration: {
@@ -125,7 +131,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     interval: 1,
                     duration: -60, // Should be positive
                     schedule: {
-                        connect: { id: "schedule_id" },
+                        connect: { id: this.fixtureScheduleId },
                     },
                 },
             },
@@ -136,7 +142,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     interval: 1,
                     endDate: null, // No end date
                     schedule: {
-                        connect: { id: "schedule_id" },
+                        connect: { id: this.fixtureScheduleId },
                     },
                 },
                 weeklyMondayToFriday: {
@@ -146,7 +152,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     dayOfWeek: 1, // Monday (need multiple for M-F)
                     duration: 60,
                     schedule: {
-                        connect: { id: "schedule_id" },
+                        connect: { id: this.fixtureScheduleId },
                     },
                 },
                 biWeeklyWednesday: {
@@ -157,7 +163,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     duration: 120,
                     endDate: oneYear,
                     schedule: {
-                        connect: { id: "schedule_id" },
+                        connect: { id: this.fixtureScheduleId },
                     },
                 },
                 monthlyFirstMonday: {
@@ -167,7 +173,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     dayOfWeek: 1, // Monday (first of month logic handled elsewhere)
                     duration: 180,
                     schedule: {
-                        connect: { id: "schedule_id" },
+                        connect: { id: this.fixtureScheduleId },
                     },
                 },
                 monthlyLastDay: {
@@ -177,7 +183,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     dayOfMonth: 31, // Will adjust to last day of month
                     duration: 60,
                     schedule: {
-                        connect: { id: "schedule_id" },
+                        connect: { id: this.fixtureScheduleId },
                     },
                 },
                 quarterly: {
@@ -188,7 +194,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     duration: 240, // 4 hours
                     endDate: twoYears,
                     schedule: {
-                        connect: { id: "schedule_id" },
+                        connect: { id: this.fixtureScheduleId },
                     },
                 },
                 yearlyBirthday: {
@@ -199,7 +205,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     dayOfMonth: 15,
                     duration: 1440, // All day (24 hours)
                     schedule: {
-                        connect: { id: "schedule_id" },
+                        connect: { id: this.fixtureScheduleId },
                     },
                 },
                 leapYearEvent: {
@@ -210,7 +216,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     dayOfMonth: 29, // Only occurs on leap years
                     duration: 60,
                     schedule: {
-                        connect: { id: "schedule_id" },
+                        connect: { id: this.fixtureScheduleId },
                     },
                 },
                 highFrequencyDaily: {
@@ -220,7 +226,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     duration: 30, // 30 minutes
                     endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // One week
                     schedule: {
-                        connect: { id: "schedule_id" },
+                        connect: { id: this.fixtureScheduleId },
                     },
                 },
                 longTermYearly: {
@@ -232,7 +238,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     duration: 480, // 8 hours
                     endDate: new Date("2050-12-31T23:59:59Z"),
                     schedule: {
-                        connect: { id: "schedule_id" },
+                        connect: { id: this.fixtureScheduleId },
                     },
                 },
                 extremeInterval: {
@@ -242,7 +248,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     dayOfMonth: 1,
                     duration: 60,
                     schedule: {
-                        connect: { id: "schedule_id" },
+                        connect: { id: this.fixtureScheduleId },
                     },
                 },
             },
@@ -267,7 +273,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
             recurrenceType: ScheduleRecurrenceType.Daily,
             interval: 1,
             schedule: {
-                connect: { id: "default_schedule_id" },
+                connect: { id: this.defaultScheduleId },
             },
             ...overrides,
         };
@@ -282,7 +288,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
             duration: 60,
             endDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000),
             schedule: {
-                connect: { id: "default_schedule_id" },
+                connect: { id: this.defaultScheduleId },
             },
             ...overrides,
         };
@@ -372,7 +378,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
     /**
      * Create specific recurrence patterns
      */
-    async createDaily(scheduleId: string, interval = 1, duration?: number): Promise<Prisma.schedule_recurrence> {
+    async createDaily(scheduleId: bigint, interval = 1, duration?: number): Promise<schedule_recurrence> {
         return await this.createMinimal({
             recurrenceType: ScheduleRecurrenceType.Daily,
             interval,
@@ -386,7 +392,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
         dayOfWeek: number,
         interval = 1,
         duration?: number,
-    ): Promise<Prisma.schedule_recurrence> {
+    ): Promise<schedule_recurrence> {
         return await this.createMinimal({
             recurrenceType: ScheduleRecurrenceType.Weekly,
             interval,
@@ -401,7 +407,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
         dayOfMonth: number,
         interval = 1,
         duration?: number,
-    ): Promise<Prisma.schedule_recurrence> {
+    ): Promise<schedule_recurrence> {
         return await this.createMinimal({
             recurrenceType: ScheduleRecurrenceType.Monthly,
             interval,
@@ -417,7 +423,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
         dayOfMonth: number,
         interval = 1,
         duration?: number,
-    ): Promise<Prisma.schedule_recurrence> {
+    ): Promise<schedule_recurrence> {
         return await this.createMinimal({
             recurrenceType: ScheduleRecurrenceType.Yearly,
             interval,
@@ -445,7 +451,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
     protected async applyRelationships(
         baseData: Prisma.schedule_recurrenceCreateInput,
         config: ScheduleRecurrenceRelationConfig,
-        tx: PrismaClient,
+        _tx: PrismaClient,
     ): Promise<Prisma.schedule_recurrenceCreateInput> {
         const data = { ...baseData };
 
@@ -459,7 +465,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
         return data;
     }
 
-    protected async checkModelConstraints(record: Prisma.schedule_recurrence): Promise<string[]> {
+    protected async checkModelConstraints(record: schedule_recurrence): Promise<string[]> {
         const violations: string[] = [];
         
         // Check interval
@@ -527,10 +533,10 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.schedule_recurrence,
-        remainingDepth: number,
-        tx: PrismaClient,
-        includeOnly?: string[],
+        _record: schedule_recurrence,
+        _remainingDepth: number,
+        _tx: PrismaClient,
+        _includeOnly?: string[],
     ): Promise<void> {
         // ScheduleRecurrence has no dependent records to delete
     }
@@ -543,7 +549,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
         daysOfWeek: number[],
         interval = 1,
         duration?: number,
-    ): Promise<Prisma.schedule_recurrence[]> {
+    ): Promise<schedule_recurrence[]> {
         return await this.createMany(
             daysOfWeek.map(day => ({
                 recurrenceType: ScheduleRecurrenceType.Weekly,
@@ -562,7 +568,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
         scheduleId: string,
         rrule: string,
         overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
-    ): Promise<Prisma.schedule_recurrence> {
+    ): Promise<schedule_recurrence> {
         const parts = rrule.split(";").reduce((acc, part) => {
             const [key, value] = part.split("=");
             acc[key] = value;
@@ -626,12 +632,12 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
      * Create test recurrences for various scenarios
      */
     async createTestRecurrences(scheduleId: string): Promise<{
-        daily: Prisma.schedule_recurrence;
-        weekly: Prisma.schedule_recurrence;
-        monthly: Prisma.schedule_recurrence;
-        yearly: Prisma.schedule_recurrence;
-        biweekly: Prisma.schedule_recurrence;
-        quarterly: Prisma.schedule_recurrence;
+        daily: schedule_recurrence;
+        weekly: schedule_recurrence;
+        monthly: schedule_recurrence;
+        yearly: schedule_recurrence;
+        biweekly: schedule_recurrence;
+        quarterly: schedule_recurrence;
     }> {
         const [daily, weekly, monthly, yearly, biweekly, quarterly] = await Promise.all([
             this.createDaily(scheduleId, 1, 30),
@@ -648,19 +654,19 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
             monthly,
             yearly,
             biweekly,
-            quarterly: quarterly as unknown as Prisma.schedule_recurrence,
+            quarterly: quarterly as unknown as schedule_recurrence,
         };
     }
 
     /**
      * Create business meeting patterns
      */
-    async createBusinessMeetingPatterns(scheduleId: string): Promise<{
-        standup: Prisma.schedule_recurrence;
-        teamMeeting: Prisma.schedule_recurrence;
-        sprintPlanning: Prisma.schedule_recurrence;
-        allHands: Prisma.schedule_recurrence;
-        review: Prisma.schedule_recurrence;
+    async createBusinessMeetingPatterns(_scheduleId: string): Promise<{
+        standup: schedule_recurrence;
+        teamMeeting: schedule_recurrence;
+        sprintPlanning: schedule_recurrence;
+        allHands: schedule_recurrence;
+        review: schedule_recurrence;
     }> {
         const [standup, teamMeeting, sprintPlanning, allHands, review] = await Promise.all([
             this.seedScenario("dailyStandup"),
@@ -671,11 +677,11 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
         ]);
 
         return {
-            standup: standup as unknown as Prisma.schedule_recurrence,
-            teamMeeting: teamMeeting as unknown as Prisma.schedule_recurrence,
-            sprintPlanning: sprintPlanning as unknown as Prisma.schedule_recurrence,
-            allHands: allHands as unknown as Prisma.schedule_recurrence,
-            review: review as unknown as Prisma.schedule_recurrence,
+            standup: standup as unknown as schedule_recurrence,
+            teamMeeting: teamMeeting as unknown as schedule_recurrence,
+            sprintPlanning: sprintPlanning as unknown as schedule_recurrence,
+            allHands: allHands as unknown as schedule_recurrence,
+            review: review as unknown as schedule_recurrence,
         };
     }
 }

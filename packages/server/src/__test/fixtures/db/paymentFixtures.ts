@@ -7,22 +7,28 @@ import { type Prisma, type PrismaClient } from "@prisma/client";
  * These follow Prisma's shape for database operations
  */
 
-// Consistent IDs for testing
-export const paymentDbIds = {
-    successfulUser: generatePK(),
-    successfulTeam: generatePK(),
-    pendingUser: generatePK(),
-    failedUser: generatePK(),
-    refundedUser: generatePK(),
-    canceledTeam: generatePK(),
-    enterpriseTeam: generatePK(),
-};
+// Cached IDs for consistent testing - lazy initialization pattern
+let _paymentDbIds: Record<string, string> | null = null;
+export function getPaymentDbIds() {
+    if (!_paymentDbIds) {
+        _paymentDbIds = {
+            successfulUser: generatePK(),
+            successfulTeam: generatePK(),
+            pendingUser: generatePK(),
+            failedUser: generatePK(),
+            refundedUser: generatePK(),
+            canceledTeam: generatePK(),
+            enterpriseTeam: generatePK(),
+        };
+    }
+    return _paymentDbIds;
+}
 
 /**
  * Successful user payment - Premium Monthly
  */
 export const successfulUserPaymentDb: Prisma.paymentCreateInput = {
-    id: paymentDbIds.successfulUser,
+    id: getPaymentDbIds().successfulUser,
     amount: 999, // $9.99 in cents
     checkoutId: "cs_test_successful_123",
     currency: "USD",
@@ -39,7 +45,7 @@ export const successfulUserPaymentDb: Prisma.paymentCreateInput = {
  * Successful team payment - Premium Annual
  */
 export const successfulTeamPaymentDb: Prisma.paymentCreateInput = {
-    id: paymentDbIds.successfulTeam,
+    id: getPaymentDbIds().successfulTeam,
     amount: 9999, // $99.99 in cents
     checkoutId: "cs_test_team_annual_456",
     currency: "USD",
@@ -56,7 +62,7 @@ export const successfulTeamPaymentDb: Prisma.paymentCreateInput = {
  * Pending user payment
  */
 export const pendingUserPaymentDb: Prisma.paymentCreateInput = {
-    id: paymentDbIds.pendingUser,
+    id: getPaymentDbIds().pendingUser,
     amount: 1999, // $19.99 in cents
     checkoutId: "cs_test_pending_789",
     currency: "USD",
@@ -73,7 +79,7 @@ export const pendingUserPaymentDb: Prisma.paymentCreateInput = {
  * Failed user payment
  */
 export const failedUserPaymentDb: Prisma.paymentCreateInput = {
-    id: paymentDbIds.failedUser,
+    id: getPaymentDbIds().failedUser,
     amount: 999, // $9.99 in cents
     checkoutId: "cs_test_failed_101",
     currency: "USD",
@@ -90,7 +96,7 @@ export const failedUserPaymentDb: Prisma.paymentCreateInput = {
  * Refunded user payment
  */
 export const refundedUserPaymentDb: Prisma.paymentCreateInput = {
-    id: paymentDbIds.refundedUser,
+    id: getPaymentDbIds().refundedUser,
     amount: 999, // $9.99 in cents
     checkoutId: "cs_test_refunded_202",
     currency: "USD",
@@ -107,7 +113,7 @@ export const refundedUserPaymentDb: Prisma.paymentCreateInput = {
  * Canceled team payment
  */
 export const canceledTeamPaymentDb: Prisma.paymentCreateInput = {
-    id: paymentDbIds.canceledTeam,
+    id: getPaymentDbIds().canceledTeam,
     amount: 29999, // $299.99 in cents
     checkoutId: "cs_test_canceled_303",
     currency: "USD",
@@ -124,7 +130,7 @@ export const canceledTeamPaymentDb: Prisma.paymentCreateInput = {
  * Large enterprise payment
  */
 export const enterprisePaymentDb: Prisma.paymentCreateInput = {
-    id: paymentDbIds.enterpriseTeam,
+    id: getPaymentDbIds().enterpriseTeam,
     amount: 99999, // $999.99 in cents
     checkoutId: "cs_test_enterprise_404",
     currency: "USD",

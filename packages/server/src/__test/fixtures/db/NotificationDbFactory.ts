@@ -1,8 +1,9 @@
+/* eslint-disable no-magic-numbers */
 // Using this.generateId() instead of generatePK
-import { type Prisma, type PrismaClient } from "@prisma/client";
+import { type Prisma, type PrismaClient, type notification } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
@@ -51,7 +52,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                 isRead: false,
                 title: "System Update",
                 count: 1,
-                user: { connect: { id: "user-123" } },
+                user: { connect: { id: this.generateId() } },
             },
             complete: {
                 id: this.generateId(),
@@ -62,7 +63,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                 count: 1,
                 link: "/messages/chat-456",
                 imgLink: "https://example.com/avatars/john-doe.jpg",
-                user: { connect: { id: "user-456" } },
+                user: { connect: { id: this.generateId() } },
             },
             invalid: {
                 missingRequired: {
@@ -87,7 +88,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     isRead: false,
                     title: "a".repeat(129), // Exceeds max length of 128
                     count: 1,
-                    user: { connect: { id: "user-123" } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 descriptionTooLong: {
                     id: this.generateId(),
@@ -96,7 +97,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     title: "Notification",
                     description: "a".repeat(2049), // Exceeds max length of 2048
                     count: 1,
-                    user: { connect: { id: "user-123" } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 invalidCategory: {
                     id: this.generateId(),
@@ -104,7 +105,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     isRead: false,
                     title: "Invalid Category",
                     count: 1,
-                    user: { connect: { id: "user-123" } },
+                    user: { connect: { id: this.generateId() } },
                 },
             },
             edgeCases: {
@@ -114,7 +115,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     isRead: false,
                     title: "a".repeat(128), // Max length
                     count: 1,
-                    user: { connect: { id: "user-max" } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 maxLengthDescription: {
                     id: this.generateId(),
@@ -123,7 +124,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     title: "Long Description",
                     description: "a".repeat(2048), // Max length
                     count: 1,
-                    user: { connect: { id: "user-max-desc" } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 unicodeNotification: {
                     id: this.generateId(),
@@ -132,7 +133,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     title: "👋 New follower!",
                     description: "ユーザー様 started following you 🎉",
                     count: 1,
-                    user: { connect: { id: "user-unicode" } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 groupedNotification: {
                     id: this.generateId(),
@@ -142,7 +143,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     description: "25 people liked your recent post",
                     count: 25,
                     link: "/posts/post-789",
-                    user: { connect: { id: "user-grouped" } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 readNotification: {
                     id: this.generateId(),
@@ -152,7 +153,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     description: "Version 2.0 is now available with new features",
                     count: 1,
                     link: "/settings/updates",
-                    user: { connect: { id: "user-read" } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 urgentNotification: {
                     id: this.generateId(),
@@ -163,7 +164,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     count: 1,
                     link: "/settings/security",
                     imgLink: "https://example.com/icons/warning.png",
-                    user: { connect: { id: "user-urgent" } },
+                    user: { connect: { id: this.generateId() } },
                 },
                 noDescriptionNotification: {
                     id: this.generateId(),
@@ -173,7 +174,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     description: null,
                     count: 1,
                     link: "/meetings/meeting-123",
-                    user: { connect: { id: "user-no-desc" } },
+                    user: { connect: { id: this.generateId() } },
                 },
             },
             updates: {
@@ -196,6 +197,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
             isRead: false,
             title: "Notification",
             count: 1,
+            user: { connect: { id: this.generateId() } },
             ...overrides,
         };
     }
@@ -210,6 +212,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
             count: 1,
             link: "/activity",
             imgLink: "https://example.com/icons/activity.png",
+            user: { connect: { id: this.generateId() } },
             ...overrides,
         };
     }
@@ -354,7 +357,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
         // Handle user connection (required)
         if (config.user) {
             data.user = {
-                connect: { id: config.user.userId },
+                connect: { id: BigInt(config.user.userId) },
             };
         } else {
             throw new Error("Notification requires a user connection");
@@ -377,7 +380,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
             count?: number;
             isRead?: boolean;
         },
-    ): Promise<Prisma.Notification> {
+    ): Promise<notification> {
         return await this.createWithRelations({
             overrides: {
                 category,
@@ -401,7 +404,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
         title: string,
         count: number,
         description?: string,
-    ): Promise<Prisma.Notification> {
+    ): Promise<notification> {
         return await this.createNotification(userId, category, title, {
             description,
             count,
@@ -411,9 +414,9 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     /**
      * Mark notification as read
      */
-    async markAsRead(notificationId: string): Promise<Prisma.Notification> {
+    async markAsRead(notificationId: string): Promise<notification> {
         return await this.prisma.notification.update({
-            where: { id: notificationId },
+            where: { id: BigInt(notificationId) },
             data: { isRead: true },
             include: this.getDefaultInclude(),
         });
@@ -425,7 +428,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     async markMultipleAsRead(notificationIds: string[]): Promise<void> {
         await this.prisma.notification.updateMany({
             where: {
-                id: { in: notificationIds },
+                id: { in: notificationIds.map(id => BigInt(id)) },
             },
             data: { isRead: true },
         });
@@ -437,7 +440,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     async markAllAsRead(userId: string): Promise<void> {
         await this.prisma.notification.updateMany({
             where: {
-                userId,
+                userId: BigInt(userId),
                 isRead: false,
             },
             data: { isRead: true },
@@ -447,17 +450,17 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     /**
      * Increment notification count
      */
-    async incrementCount(notificationId: string, increment = 1): Promise<Prisma.Notification> {
+    async incrementCount(notificationId: string, increment = 1): Promise<notification> {
         return await this.prisma.notification.update({
-            where: { id: notificationId },
+            where: { id: BigInt(notificationId) },
             data: { count: { increment } },
             include: this.getDefaultInclude(),
         });
     }
 
-    protected async checkModelConstraints(record: Prisma.Notification): Promise<string[]> {
+    protected async checkModelConstraints(record: notification): Promise<string[]> {
         const violations: string[] = [];
-        
+
         // Check title length
         if (record.title.length > 128) {
             violations.push("Title exceeds maximum length of 128 characters");
@@ -498,7 +501,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.Notification,
+        record: notification,
         remainingDepth: number,
         tx: any,
         includeOnly?: string[],
@@ -509,10 +512,10 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get unread notifications for user
      */
-    async getUnreadNotifications(userId: string, limit?: number): Promise<Prisma.Notification[]> {
+    async getUnreadNotifications(userId: string, limit?: number): Promise<notification[]> {
         return await this.prisma.notification.findMany({
             where: {
-                userId,
+                userId: BigInt(userId),
                 isRead: false,
             },
             include: this.getDefaultInclude(),
@@ -528,9 +531,9 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
         userId: string,
         category: string,
         options?: { isRead?: boolean; limit?: number },
-    ): Promise<Prisma.Notification[]> {
+    ): Promise<notification[]> {
         const where: Prisma.notificationWhereInput = {
-            userId,
+            userId: BigInt(userId),
             category,
         };
 
@@ -554,7 +557,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
         category: string,
         title: string,
         description?: string,
-    ): Promise<Prisma.Notification[]> {
+    ): Promise<notification[]> {
         const notifications = await Promise.all(
             userIds.map(userId =>
                 this.createNotification(userId, category, title, { description }),
@@ -572,7 +575,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
 
         const result = await this.prisma.notification.deleteMany({
             where: {
-                userId,
+                userId: BigInt(userId),
                 isRead: true,
                 updatedAt: { lt: cutoffDate },
             },
@@ -585,10 +588,10 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
      * Create notification set for testing
      */
     async createTestNotificationSet(userId: string): Promise<{
-        unread: Prisma.Notification[];
-        read: Prisma.Notification[];
-        grouped: Prisma.Notification;
-        urgent: Prisma.Notification;
+        unread: notification[];
+        read: notification[];
+        grouped: notification;
+        urgent: notification;
     }> {
         const unread = await Promise.all([
             this.createNotification(userId, "message", "New message", {
@@ -604,7 +607,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
         const readNotif = await this.createNotification(userId, "system", "Update complete", {
             description: "System update completed successfully",
         });
-        const read = [await this.markAsRead(readNotif.id)];
+        const read = [await this.markAsRead(readNotif.id.toString())];
 
         const grouped = await this.createGroupedNotification(
             userId,
@@ -637,7 +640,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
         byCategory: Record<string, number>;
     }> {
         const notifications = await this.prisma.notification.findMany({
-            where: { userId },
+            where: { userId: BigInt(userId) },
             select: {
                 category: true,
                 isRead: true,
@@ -659,7 +662,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
 }
 
 // Export factory creator function
-export const createNotificationDbFactory = (prisma: PrismaClient) => 
+export const createNotificationDbFactory = (prisma: PrismaClient) =>
     new NotificationDbFactory(prisma);
 
 // Export the class for type usage

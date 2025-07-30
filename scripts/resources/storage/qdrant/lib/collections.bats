@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export QDRANT_PORT="6333"
     export QDRANT_GRPC_PORT="6334"
@@ -26,70 +32,8 @@ setup() {
     mkdir -p "$QDRANT_SNAPSHOTS_DIR"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "curl"|"jq"|"openssl") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock curl for API calls
-    curl() {
-        case "$*" in
-            *"/collections"*)
-                if [[ "$*" =~ "POST" ]]; then
-                    echo '{"result":true,"status":"ok","time":0.025}'
-                elif [[ "$*" =~ "DELETE" ]]; then
-                    echo '{"result":true,"status":"ok","time":0.015}'
-                else
-                    echo '{"result":{"collections":[{"name":"test_collection","vectors_count":1000,"indexed_vectors_count":1000,"points_count":1000,"segments_count":4,"config":{"params":{"vector_size":1536,"distance":"Cosine"}}},{"name":"agent_memory","vectors_count":2500,"indexed_vectors_count":2500,"points_count":2500,"segments_count":8,"config":{"params":{"vector_size":1536,"distance":"Cosine"}}},{"name":"code_embeddings","vectors_count":500,"indexed_vectors_count":500,"points_count":500,"segments_count":2,"config":{"params":{"vector_size":768,"distance":"Dot"}}}]}}'
-                fi
-                ;;
-            *"/collections/test_collection"*)
-                if [[ "$*" =~ "PUT" ]]; then
-                    echo '{"result":true,"status":"ok","time":0.020}'
-                else
-                    echo '{"result":{"status":"green","vectors_count":1000,"indexed_vectors_count":1000,"points_count":1000,"segments_count":4,"config":{"params":{"vector_size":1536,"distance":"Cosine","hnsw_config":{"m":16,"ef_construct":100}}},"payload_schema":{"title":{"data_type":"Text","indexed":true},"category":{"data_type":"Keyword","indexed":true}}}}'
-                fi
-                ;;
-            *"/collections/test_collection/points"*)
-                if [[ "$*" =~ "PUT" ]] || [[ "$*" =~ "POST" ]]; then
-                    echo '{"result":{"operation_id":123,"status":"acknowledged"},"status":"ok","time":0.005}'
-                elif [[ "$*" =~ "DELETE" ]]; then
-                    echo '{"result":{"operation_id":124,"status":"acknowledged"},"status":"ok","time":0.003}'
-                fi
-                ;;
-            *"/collections/test_collection/points/search"*)
-                echo '{"result":[{"id":"point1","version":1,"score":0.95,"payload":{"title":"Test document","category":"test"},"vector":[0.1,0.2,0.3]}],"status":"ok","time":0.012}'
-                ;;
-            *"/collections/test_collection/points/scroll"*)
-                echo '{"result":{"points":[{"id":"point1","version":1,"payload":{"title":"Test document"},"vector":[0.1,0.2,0.3]}],"next_page_offset":"offset123"},"status":"ok","time":0.008}'
-                ;;
-            *"/collections/test_collection/points/count"*)
-                echo '{"result":{"count":1000},"status":"ok","time":0.002}'
-                ;;
-            *"/collections/test_collection/aliases"*)
-                echo '{"result":true,"status":"ok","time":0.005}'
-                ;;
-            *"/collections/test_collection/snapshots"*)
-                if [[ "$*" =~ "POST" ]]; then
-                    echo '{"result":{"name":"snapshot_test_collection_2024-01-15_14-30-00"},"status":"ok","time":2.5}'
-                else
-                    echo '{"result":[{"name":"snapshot_test_collection_2024-01-15_14-30-00","size":1048576,"creation_time":"2024-01-15T14:30:00Z"}],"status":"ok","time":0.003}'
-                fi
-                ;;
-            *"/collections/test_collection/cluster"*)
-                echo '{"result":{"peer_id":"12345","shard_count":4,"local_shards":[{"shard_id":0,"points_count":250},{"shard_id":1,"points_count":250}],"remote_shards":[{"shard_id":2,"points_count":250,"peer_id":"67890"},{"shard_id":3,"points_count":250,"peer_id":"67890"}]},"status":"ok","time":0.010}'
-                ;;
-            *"/collections/test_collection/index"*)
-                echo '{"result":{"operation_id":125,"status":"acknowledged"},"status":"ok","time":0.015}'
-                ;;
-            *)
-                echo "CURL: $*"
-                ;;
-        esac
-        return 0
-    }
     
     # Mock jq for JSON processing
     jq() {
@@ -117,12 +61,6 @@ setup() {
     }
     
     # Mock log functions
-    log::info() { echo "INFO: $1"; }
-    log::error() { echo "ERROR: $1"; }
-    log::warn() { echo "WARN: $1"; }
-    log::success() { echo "SUCCESS: $1"; }
-    log::debug() { echo "DEBUG: $1"; }
-    log::header() { echo "=== $1 ==="; }
     
     # Load configuration and messages
     source "${QDRANT_DIR}/config/defaults.sh"

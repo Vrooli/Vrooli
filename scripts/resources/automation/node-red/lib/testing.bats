@@ -2,7 +2,7 @@
 # Tests for Node-RED testing functions (lib/testing.sh)
 # These are tests for the testing functions - meta-testing!
 
-load ../test-fixtures/test_helper
+load ../test_fixtures/test_helper
 
 setup() {
     setup_test_environment

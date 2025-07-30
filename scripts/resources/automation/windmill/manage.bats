@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export WINDMILL_PORT="5681"
     export WINDMILL_CONTAINER_NAME="windmill-test"
@@ -19,20 +25,8 @@ setup() {
     WINDMILL_DIR="$SCRIPT_DIR"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "docker"|"curl"|"jq") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock log functions
-    log::info() { echo "INFO: $1"; }
-    log::error() { echo "ERROR: $1"; }
-    log::warn() { echo "WARN: $1"; }
-    log::success() { echo "SUCCESS: $1"; }
-    log::debug() { echo "DEBUG: $1"; }
-    log::header() { echo "=== $1 ==="; }
     
     # Mock argument parsing function
     windmill::parse_arguments() {

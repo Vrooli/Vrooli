@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # Tests for Huginn manage.sh script
 
-load test-fixtures/test_helper
+load test_fixtures/test_helper
 
 setup() {
     # Set up test environment

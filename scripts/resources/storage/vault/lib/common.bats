@@ -6,9 +6,6 @@ setup() {
     # Load shared test infrastructure
     source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
     
-    # Setup standard mocks
-    setup_standard_mocks
-    
     # Path to the script under test
     SCRIPT_PATH="$BATS_TEST_DIRNAME/common.sh"
     VAULT_DIR="$BATS_TEST_DIRNAME/.."
@@ -53,6 +50,9 @@ setup() {
         echo "Rollback action added: $1" >&2
         return 0
     }
+    
+    # Setup standard mocks AFTER sourcing real utilities (to override them)
+    setup_standard_mocks
 }
 
 # ============================================================================
@@ -94,7 +94,7 @@ setup() {
 @test "shared mocks are available" {
     # Test that shared mocks are working
     run log::info "test message"
-    [[ "$output" =~ "INFO: test message" ]]
+    [[ "$output" =~ "[INFO]    test message" ]]
     
     run system::is_command "docker"
     [ "$status" -eq 0 ]

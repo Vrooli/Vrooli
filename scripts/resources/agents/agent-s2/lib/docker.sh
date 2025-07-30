@@ -106,6 +106,7 @@ agents2::docker_start() {
         -v "${AGENTS2_DATA_DIR}/logs:/var/log/supervisor:rw"
         -v "${AGENTS2_DATA_DIR}/cache:/home/agents2/.cache:rw"
         -v "${AGENTS2_DATA_DIR}/models:/home/agents2/.agent-s2/models:rw"
+        -v "${AGENTS2_DATA_DIR}/sessions:/home/agents2/.agent-s2/sessions:rw"
         --security-opt "$AGENTS2_SECURITY_OPT"
         --shm-size "$AGENTS2_SHM_SIZE"
         --memory "$AGENTS2_MEMORY_LIMIT"

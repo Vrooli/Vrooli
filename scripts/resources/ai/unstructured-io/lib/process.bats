@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export UNSTRUCTURED_IO_CUSTOM_PORT="9999"
     export UNSTRUCTURED_IO_BASE_URL="http://localhost:9999"
@@ -30,13 +36,6 @@ setup() {
     echo "Binary data" > "$TEST_DIR/input/invalid.bin"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "find") return 0 ;;
-            "parallel") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock find command
     find() {
@@ -112,25 +111,9 @@ setup() {
     }
     
     # Mock log functions
-    log::info() {
-        echo "INFO: $1"
-        return 0
-    }
     
-    log::error() {
-        echo "ERROR: $1"
-        return 0
-    }
     
-    log::warn() {
-        echo "WARN: $1"
-        return 0
-    }
     
-    log::success() {
-        echo "SUCCESS: $1"
-        return 0
-    }
     
     # Load configuration and messages
     source "${UNSTRUCTURED_IO_DIR}/config/defaults.sh"

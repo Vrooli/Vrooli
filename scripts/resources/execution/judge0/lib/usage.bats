@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export JUDGE0_PORT="2358"
     export JUDGE0_BASE_URL="http://localhost:2358"
@@ -30,29 +36,8 @@ setup() {
     chmod +x "${JUDGE0_DIR}/examples/test-judge0.sh"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "curl"|"jq"|"cat"|"less"|"more") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock curl for API calls
-    curl() {
-        case "$*" in
-            *"/system_info"*)
-                echo '{"version":"1.13.1","hostname":"judge0-server","datetime":"2024-01-15T11:00:00Z"}'
-                ;;
-            *"/languages"*)
-                echo '[{"id":92,"name":"Python (3.11.2)"},{"id":93,"name":"JavaScript (Node.js 18.15.0)"},{"id":91,"name":"Java (OpenJDK 19.0.2)"}]'
-                ;;
-            *"/submissions"*)
-                echo '{"token":"abc123-def456-ghi789","status":{"id":3,"description":"Accepted"},"stdout":"SGVsbG8sIFdvcmxkIQ==","stderr":"","time":"0.02","memory":"8192"}'
-                ;;
-            *) echo "CURL: $*" ;;
-        esac
-        return 0
-    }
     
     # Mock jq for JSON processing
     jq() {
@@ -83,12 +68,6 @@ setup() {
     }
     
     # Mock log functions
-    log::info() { echo "INFO: $1"; }
-    log::error() { echo "ERROR: $1"; }
-    log::warn() { echo "WARN: $1"; }
-    log::success() { echo "SUCCESS: $1"; }
-    log::debug() { echo "DEBUG: $1"; }
-    log::header() { echo "=== $1 ==="; }
     
     # Mock Judge0 functions
     judge0::status::is_healthy() { return 0; }

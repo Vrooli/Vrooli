@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export JUDGE0_PORT="2358"
     export JUDGE0_CONTAINER_NAME="judge0-test"
@@ -27,12 +33,6 @@ setup() {
     mkdir -p "$JUDGE0_SUBMISSIONS_DIR"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "docker"|"docker-compose"|"curl"|"jq"|"openssl") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     system::check_port() {
         local port="$1"
@@ -43,51 +43,6 @@ setup() {
     }
     
     # Mock docker commands
-    docker() {
-        case "$1" in
-            "pull")
-                echo "Pulling ${2}..."
-                echo "Status: Downloaded newer image for ${2}"
-                ;;
-            "network")
-                case "$2" in
-                    "create")
-                        echo "Network created: ${4}"
-                        ;;
-                    "ls")
-                        if [[ "$*" =~ "$JUDGE0_NETWORK_NAME" ]]; then
-                            echo "NETWORK ID     NAME                    DRIVER    SCOPE"
-                            echo "abc123def456   $JUDGE0_NETWORK_NAME    bridge    local"
-                        fi
-                        ;;
-                esac
-                ;;
-            "volume")
-                case "$2" in
-                    "create")
-                        echo "Volume created: ${3}"
-                        ;;
-                    "ls")
-                        if [[ "$*" =~ "$JUDGE0_VOLUME_NAME" ]]; then
-                            echo "DRIVER    VOLUME NAME"
-                            echo "local     $JUDGE0_VOLUME_NAME"
-                        fi
-                        ;;
-                esac
-                ;;
-            "run")
-                echo "Starting container with configuration..."
-                echo "Container started: $JUDGE0_CONTAINER_NAME"
-                ;;
-            "ps")
-                if [[ "$*" =~ "$JUDGE0_CONTAINER_NAME" ]]; then
-                    echo "$JUDGE0_CONTAINER_NAME"
-                fi
-                ;;
-            *) echo "DOCKER: $*" ;;
-        esac
-        return 0
-    }
     
     # Mock docker-compose commands
     docker-compose() {
@@ -117,15 +72,6 @@ setup() {
     }
     
     # Mock curl for health checks
-    curl() {
-        case "$*" in
-            *"localhost:2358/system_info"*)
-                echo '{"version":"1.13.1","hostname":"judge0-server","datetime":"2024-01-15T11:00:00Z"}'
-                ;;
-            *) echo "CURL: $*" ;;
-        esac
-        return 0
-    }
     
     # Mock openssl for API key generation
     openssl() {
@@ -142,12 +88,6 @@ setup() {
     }
     
     # Mock log functions
-    log::info() { echo "INFO: $1"; }
-    log::error() { echo "ERROR: $1"; }
-    log::warn() { echo "WARN: $1"; }
-    log::success() { echo "SUCCESS: $1"; }
-    log::debug() { echo "DEBUG: $1"; }
-    log::header() { echo "=== $1 ==="; }
     
     # Mock Judge0 functions from other modules
     judge0::create_directories() { echo "Directories created"; }

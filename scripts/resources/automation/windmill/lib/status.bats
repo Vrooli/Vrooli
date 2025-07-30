@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export WINDMILL_PORT="5681"
     export WINDMILL_CONTAINER_NAME="windmill-test"
@@ -17,75 +23,10 @@ setup() {
     WINDMILL_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "curl"|"docker"|"jq"|"netstat"|"lsof"|"ps") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock curl for health checks and API calls
-    curl() {
-        case "$*" in
-            *"localhost:5681/api/version"*)
-                if [[ "$*" =~ "fail" ]]; then
-                    return 1  # Simulate health check failure
-                fi
-                echo '{"version":"1.0.0","mode":"server","built_at":"2024-01-15T10:00:00Z"}'
-                ;;
-            *"localhost:5681/api/w/demo/jobs"*)
-                echo '[{"id":"job_123","type":"QueuedJob","created_by":"admin"},{"id":"job_456","type":"CompletedJob","created_by":"user1"}]'
-                ;;
-            *"localhost:5681/api/w/demo/scripts"*)
-                echo '[{"hash":"script_1","path":"u/admin/script1","summary":"Script 1"},{"hash":"script_2","path":"u/user/script2","summary":"Script 2"}]'
-                ;;
-            *"localhost:5681/api/workers"*)
-                echo '[{"name":"worker-1","ip":"127.0.0.1","jobs_executed":150,"last_ping":"2024-01-15T11:00:00Z"},{"name":"worker-2","ip":"127.0.0.2","jobs_executed":89,"last_ping":"2024-01-15T11:00:02Z"}]'
-                ;;
-            *"localhost:5681/api/stats"*)
-                echo '{"total_jobs":239,"completed_jobs":201,"failed_jobs":15,"queued_jobs":23,"total_scripts":45,"total_flows":12,"total_apps":8}'
-                ;;
-            *"localhost:5681/healthz"*)
-                echo '{"status":"healthy","database":"connected","workers":"2 active"}'
-                ;;
-            *) 
-                echo "CURL: $*"
-                return 0
-                ;;
-        esac
-    }
     
     # Mock Docker operations
-    docker() {
-        case "$1" in
-            "ps")
-                if [[ "$*" =~ "--filter" ]] && [[ "$*" =~ "windmill-test" ]]; then
-                    echo "windmill-test"
-                elif [[ "$*" =~ "--filter" ]] && [[ "$*" =~ "windmill-db-test" ]]; then
-                    echo "windmill-db-test"
-                fi
-                ;;
-            "inspect")
-                if [[ "$*" =~ "windmill-test" ]]; then
-                    cat <<EOF
-{
-  "State": {
-    "Running": true,
-    "Status": "running",
-    "StartedAt": "2024-01-15T10:30:00Z",
-    "Health": {
-      "Status": "healthy",
-      "LastCheck": "2024-01-15T11:00:00Z"
-    }
-  },
-  "Config": {
-    "Image": "windmillhq/windmill:latest"
-  },
-  "NetworkSettings": {
-    "Ports": {
-      "8000/tcp": [{"HostPort": "5681"}]
-    }
-  }
 }
 EOF
                 elif [[ "$*" =~ "windmill-db-test" ]]; then

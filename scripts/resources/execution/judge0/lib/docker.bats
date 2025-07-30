@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export JUDGE0_PORT="2358"
     export JUDGE0_CONTAINER_NAME="judge0-test"
@@ -24,45 +30,8 @@ setup() {
     mkdir -p "$JUDGE0_CONFIG_DIR"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "docker"|"docker-compose"|"jq") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock docker commands
-    docker() {
-        case "$1" in
-            "ps")
-                if [[ "$*" =~ "--filter" ]] && [[ "$*" =~ "judge0-test" ]]; then
-                    echo "judge0-test"
-                elif [[ "$*" =~ "--filter" ]] && [[ "$*" =~ "judge0-workers-test" ]]; then
-                    echo "judge0-workers-test-1"
-                    echo "judge0-workers-test-2"
-                fi
-                ;;
-            "inspect")
-                if [[ "$*" =~ "judge0-test" ]]; then
-                    cat <<EOF
-{
-  "State": {
-    "Running": true,
-    "Status": "running",
-    "StartedAt": "2024-01-15T10:30:00Z",
-    "Health": {
-      "Status": "healthy",
-      "LastCheck": "2024-01-15T11:00:00Z"
-    }
-  },
-  "Config": {
-    "Image": "judge0/judge0:1.13.1"
-  },
-  "NetworkSettings": {
-    "Ports": {
-      "2358/tcp": [{"HostPort": "2358"}]
-    }
-  }
 }
 EOF
                 fi

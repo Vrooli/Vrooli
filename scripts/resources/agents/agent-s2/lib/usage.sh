@@ -147,35 +147,41 @@ agents2::usage_automation() {
     log::info "Example API usage:"
     cat << 'EOF'
 # Click at specific position
-curl -X POST http://localhost:4113/execute \
+curl -X POST http://localhost:4113/mouse/click \
   -H "Content-Type: application/json" \
   -d '{
-    "task_type": "click",
-    "parameters": {"x": 500, "y": 300, "button": "left"}
+    "x": 500,
+    "y": 300,
+    "button": "left"
   }'
 
 # Type text
-curl -X POST http://localhost:4113/execute \
+curl -X POST http://localhost:4113/keyboard/type \
   -H "Content-Type: application/json" \
   -d '{
-    "task_type": "type_text",
-    "parameters": {"text": "Hello, World!", "interval": 0.1}
+    "text": "Hello, World!",
+    "interval": 0.1
   }'
 
-# Complex automation sequence
-curl -X POST http://localhost:4113/execute \
+# Press key combination
+curl -X POST http://localhost:4113/keyboard/press \
   -H "Content-Type: application/json" \
   -d '{
-    "task_type": "automation_sequence",
-    "parameters": {
-      "steps": [
-        {"type": "mouse_move", "parameters": {"x": 100, "y": 100}},
-        {"type": "click", "parameters": {}},
-        {"type": "type_text", "parameters": {"text": "Automated input"}},
-        {"type": "key_press", "parameters": {"keys": ["Return"]}}
-      ]
-    }
+    "key": "Return"
   }'
+
+# Press key with modifiers
+curl -X POST http://localhost:4113/keyboard/press \
+  -H "Content-Type: application/json" \
+  -d '{
+    "key": "c",
+    "modifiers": ["ctrl"]
+  }'
+
+# Press hotkey combination
+curl -X POST http://localhost:4113/keyboard/hotkey \
+  -H "Content-Type: application/json" \
+  -d '["ctrl", "alt", "t"]'
 EOF
 }
 
@@ -218,7 +224,7 @@ EOF
     
     # Submit the task
     local response
-    if response=$(echo "$planning_request" | agents2::api_request "POST" "/execute" -); then
+    if response=$(echo "$planning_request" | agents2::api_request "POST" "/tasks/execute" -); then
         local task_id
         task_id=$(echo "$response" | jq -r '.task_id // empty' 2>/dev/null)
         
@@ -400,10 +406,26 @@ class AgentS2Client {
         return response.data;
     }
     
-    async execute(taskType, parameters) {
+    async click(x, y, button = 'left') {
         const response = await axios.post(
-            `${this.baseUrl}/execute`,
-            { task_type: taskType, parameters }
+            `${this.baseUrl}/mouse/click`,
+            { x, y, button }
+        );
+        return response.data;
+    }
+    
+    async typeText(text, interval = 0.0) {
+        const response = await axios.post(
+            `${this.baseUrl}/keyboard/type`,
+            { text, interval }
+        );
+        return response.data;
+    }
+    
+    async pressKey(key, modifiers = null) {
+        const response = await axios.post(
+            `${this.baseUrl}/keyboard/press`,
+            { key, modifiers }
         );
         return response.data;
     }
@@ -416,12 +438,10 @@ const agent = new AgentS2Client();
 const screenshot = await agent.screenshot({ format: 'png' });
 
 // Click at position
-await agent.execute('click', { x: 500, y: 300 });
+await agent.click(500, 300);
 
 // Type text
-await agent.execute('type_text', { 
-    text: 'Automated with Agent S2!' 
-});
+await agent.typeText('Automated with Agent S2!');
 ```
 
 === Bash/cURL Example ===
@@ -430,39 +450,53 @@ await agent.execute('type_text', {
 
 AGENT_S2_URL="http://localhost:4113"
 
-# Function to execute Agent S2 task
-agent_s2_execute() {
-    local task_type=$1
-    local params=$2
-    
-    curl -X POST "${AGENT_S2_URL}/execute" \
-        -H "Content-Type: application/json" \
-        -d "{
-            \"task_type\": \"${task_type}\",
-            \"parameters\": ${params}
-        }"
-}
-
-# Take screenshot
+# Take screenshot (JSON format)
 curl -X POST "${AGENT_S2_URL}/screenshot" \
     -H "Content-Type: application/json" \
     -d '{"format": "png"}' \
     -o screenshot.json
 
+# Take screenshot (binary format)
+curl -X POST "${AGENT_S2_URL}/screenshot?format=png&response_format=binary" \
+    -o screenshot.png
+
 # Mouse click
-agent_s2_execute "click" '{"x": 100, "y": 100}'
+curl -X POST "${AGENT_S2_URL}/mouse/click" \
+    -H "Content-Type: application/json" \
+    -d '{"x": 100, "y": 100, "button": "left"}'
 
 # Type text
-agent_s2_execute "type_text" '{"text": "Hello, World!"}'
+curl -X POST "${AGENT_S2_URL}/keyboard/type" \
+    -H "Content-Type: application/json" \
+    -d '{"text": "Hello, World!", "interval": 0.1}'
 
-# Complex automation
-agent_s2_execute "automation_sequence" '{
-    "steps": [
-        {"type": "screenshot", "parameters": {}},
-        {"type": "click", "parameters": {"x": 200, "y": 200}},
-        {"type": "type_text", "parameters": {"text": "Automated"}}
-    ]
-}'
+# Press key
+curl -X POST "${AGENT_S2_URL}/keyboard/press" \
+    -H "Content-Type: application/json" \
+    -d '{"key": "Return"}'
+
+# Press key with modifiers
+curl -X POST "${AGENT_S2_URL}/keyboard/press" \
+    -H "Content-Type: application/json" \
+    -d '{"key": "c", "modifiers": ["ctrl"]}'
+
+# Complex workflow example
+# Take screenshot
+curl -X POST "${AGENT_S2_URL}/screenshot?format=png&response_format=binary" -o before.png
+
+# Move mouse and click
+curl -X POST "${AGENT_S2_URL}/mouse/move" \
+    -H "Content-Type: application/json" \
+    -d '{"x": 200, "y": 200}'
+
+curl -X POST "${AGENT_S2_URL}/mouse/click" \
+    -H "Content-Type: application/json" \
+    -d '{"x": 200, "y": 200}'
+
+# Type text
+curl -X POST "${AGENT_S2_URL}/keyboard/type" \
+    -H "Content-Type: application/json" \
+    -d '{"text": "Automated workflow complete"}'
 ```
 EOF
 }

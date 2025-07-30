@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export COMFYUI_CUSTOM_PORT="8188"
     export COMFYUI_CONTAINER_NAME="comfyui-test"
@@ -17,14 +23,6 @@ setup() {
     COMFYUI_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "nvidia-smi") return 0 ;;
-            "rocm-smi") return 0 ;;
-            "docker") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock nvidia-smi
     nvidia-smi() {
@@ -73,29 +71,8 @@ setup() {
     }
     
     # Mock Docker info
-    docker() {
-        case "$1" in
-            "info")
-                if [[ "${GPU_RUNTIME_AVAILABLE:-yes}" == "yes" ]]; then
-                    echo "Runtimes: runc nvidia"
-                    echo "Default Runtime: nvidia"
-                else
-                    echo "Runtimes: runc"
-                    echo "Default Runtime: runc"
-                fi
-                ;;
-            *) echo "DOCKER_MOCK: $*" ;;
-        esac
-        return 0
-    }
     
     # Mock log functions
-    log::info() { echo "INFO: $1"; }
-    log::error() { echo "ERROR: $1"; }
-    log::warn() { echo "WARN: $1"; }
-    log::success() { echo "SUCCESS: $1"; }
-    log::debug() { echo "DEBUG: $1"; }
-    log::header() { echo "=== $1 ==="; }
     
     # Mock system checks
     system::check_gpu_memory() {

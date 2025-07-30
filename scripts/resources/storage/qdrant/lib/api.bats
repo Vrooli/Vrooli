@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export QDRANT_PORT="6333"
     export QDRANT_GRPC_PORT="6334"
@@ -26,63 +32,8 @@ setup() {
     mkdir -p "$QDRANT_SNAPSHOTS_DIR"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "curl"|"jq"|"grpcurl") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock curl for API calls
-    curl() {
-        case "$*" in
-            *"/health"*)
-                echo '{"status":"ok","version":"1.7.4"}'
-                ;;
-            *"/cluster"*)
-                echo '{"result":{"status":"enabled","peer_id":"12345","peers":{"known":[],"total":1}}}'
-                ;;
-            *"/collections"*)
-                if [[ "$*" =~ "POST" ]] || [[ "$*" =~ "PUT" ]]; then
-                    echo '{"result":true,"status":"ok","time":0.025}'
-                elif [[ "$*" =~ "DELETE" ]]; then
-                    echo '{"result":true,"status":"ok","time":0.015}'
-                else
-                    echo '{"result":{"collections":[{"name":"test_collection","vectors_count":1000,"indexed_vectors_count":1000,"points_count":1000,"segments_count":4,"config":{"params":{"vector_size":1536,"distance":"Cosine"}}}]}}'
-                fi
-                ;;
-            *"/collections/test_collection"*)
-                if [[ "$*" =~ "points" ]]; then
-                    echo '{"result":{"operation_id":123,"status":"acknowledged"},"status":"ok","time":0.005}'
-                else
-                    echo '{"result":{"status":"green","vectors_count":1000,"indexed_vectors_count":1000,"points_count":1000,"segments_count":4,"config":{"params":{"vector_size":1536,"distance":"Cosine"}}}}'
-                fi
-                ;;
-            *"/points/search"*)
-                echo '{"result":[{"id":"point1","version":1,"score":0.95,"payload":{"title":"Test document"},"vector":[0.1,0.2,0.3]}],"status":"ok","time":0.012}'
-                ;;
-            *"/points/scroll"*)
-                echo '{"result":{"points":[{"id":"point1","version":1,"payload":{"title":"Test document"},"vector":[0.1,0.2,0.3]}],"next_page_offset":"offset123"},"status":"ok","time":0.008}'
-                ;;
-            *"/snapshots"*)
-                if [[ "$*" =~ "POST" ]]; then
-                    echo '{"result":{"name":"snapshot_2024-01-15_14-30-00"},"status":"ok","time":2.5}'
-                else
-                    echo '{"result":[{"name":"snapshot_2024-01-15_14-30-00","size":1048576,"creation_time":"2024-01-15T14:30:00Z"}],"status":"ok","time":0.003}'
-                fi
-                ;;
-            *"/metrics"*)
-                echo '{"result":{"collections_total":5,"points_total":10000,"vectors_total":10000,"memory_usage":{"vectors":52428800,"payload":10485760,"index":20971520},"requests":{"total":1000,"per_second":10.5}},"status":"ok","time":0.002}'
-                ;;
-            *"/telemetry"*)
-                echo '{"result":{"id":"qdrant-instance-123","version":"1.7.4","system":{"cpu_count":8,"memory_total":16777216},"collections":[{"name":"test_collection","vectors":1000}]},"status":"ok","time":0.001}'
-                ;;
-            *)
-                echo "CURL: $*"
-                ;;
-        esac
-        return 0
-    }
     
     # Mock jq for JSON processing
     jq() {
@@ -115,12 +66,6 @@ setup() {
     }
     
     # Mock log functions
-    log::info() { echo "INFO: $1"; }
-    log::error() { echo "ERROR: $1"; }
-    log::warn() { echo "WARN: $1"; }
-    log::success() { echo "SUCCESS: $1"; }
-    log::debug() { echo "DEBUG: $1"; }
-    log::header() { echo "=== $1 ==="; }
     
     # Load configuration and messages
     source "${QDRANT_DIR}/config/defaults.sh"

@@ -38,6 +38,7 @@ setup() {
     [ "$?" -eq 0 ]
 }
 
+
 # Test argument parsing
 @test "qdrant::parse_arguments sets defaults correctly" {
     qdrant::parse_arguments --action status
@@ -53,6 +54,7 @@ setup() {
     [ "$LOG_LINES" = "50" ]
     [ "$MONITOR_INTERVAL" = "5" ]
 }
+
 
 # Test argument parsing with custom values
 @test "qdrant::parse_arguments handles custom values" {
@@ -70,6 +72,7 @@ setup() {
     [ "$FORCE" = "yes" ]
 }
 
+
 # Test collection operations arguments
 @test "qdrant::parse_arguments handles collection operations" {
     qdrant::parse_arguments \
@@ -84,6 +87,7 @@ setup() {
     [ "$DISTANCE_METRIC" = "Euclid" ]
 }
 
+
 # Test backup arguments
 @test "qdrant::parse_arguments handles backup arguments" {
     qdrant::parse_arguments \
@@ -96,6 +100,7 @@ setup() {
     [ "$SNAPSHOT_NAME" = "daily-backup-2024" ]
 }
 
+
 # Test restore arguments
 @test "qdrant::parse_arguments handles restore arguments" {
     qdrant::parse_arguments \
@@ -105,6 +110,7 @@ setup() {
     [ "$ACTION" = "restore" ]
     [ "$SNAPSHOT_NAME" = "backup-20240115" ]
 }
+
 
 # Test monitor arguments
 @test "qdrant::parse_arguments handles monitor arguments" {
@@ -116,6 +122,7 @@ setup() {
     [ "$MONITOR_INTERVAL" = "10" ]
 }
 
+
 # Test logs arguments
 @test "qdrant::parse_arguments handles logs arguments" {
     qdrant::parse_arguments \
@@ -126,6 +133,7 @@ setup() {
     [ "$LOG_LINES" = "100" ]
 }
 
+
 # Test uninstall arguments
 @test "qdrant::parse_arguments handles uninstall arguments" {
     qdrant::parse_arguments \
@@ -135,6 +143,7 @@ setup() {
     [ "$ACTION" = "uninstall" ]
     [ "$REMOVE_DATA" = "yes" ]
 }
+
 
 # Test distance metric options
 @test "qdrant::parse_arguments validates distance metrics" {
@@ -147,6 +156,7 @@ setup() {
     qdrant::parse_arguments --action create-collection --distance Euclid
     [ "$DISTANCE_METRIC" = "Euclid" ]
 }
+
 
 # Test action validation
 @test "qdrant::parse_arguments handles all valid actions" {
@@ -163,6 +173,7 @@ setup() {
     done
 }
 
+
 # Test usage display
 @test "qdrant::usage displays help text" {
     run qdrant::usage
@@ -172,6 +183,7 @@ setup() {
     [[ "$output" == *"--action install"* ]]
     [[ "$output" == *"QDRANT_CUSTOM_PORT"* ]]
 }
+
 
 # Test configuration export
 @test "configuration is exported correctly" {
@@ -184,6 +196,7 @@ setup() {
     [ -n "$QDRANT_IMAGE" ]
 }
 
+
 # Test message initialization
 @test "messages are initialized correctly" {
     qdrant::messages::init
@@ -192,6 +205,7 @@ setup() {
     [ -n "$MSG_ALREADY_INSTALLED" ]
     [ -n "$MSG_HEALTHY" ]
 }
+
 
 # Test vector size as integer
 @test "qdrant::parse_arguments handles vector size as integer" {
@@ -202,6 +216,7 @@ setup() {
     [ "$VECTOR_SIZE" = "384" ]
 }
 
+
 # Test collection name with underscores and hyphens
 @test "qdrant::parse_arguments handles collection names with special chars" {
     qdrant::parse_arguments \
@@ -210,6 +225,7 @@ setup() {
     
     [ "$COLLECTION" = "test-collection_v2" ]
 }
+
 
 # Test multiple collections in backup
 @test "qdrant::parse_arguments handles comma-separated collections" {
@@ -220,6 +236,7 @@ setup() {
     [ "$COLLECTIONS_LIST" = "agents,memories,embeddings" ]
 }
 
+
 # Test edge cases
 @test "qdrant::parse_arguments handles empty arguments" {
     qdrant::parse_arguments
@@ -229,6 +246,7 @@ setup() {
     [ "$VECTOR_SIZE" = "1536" ]
     [ "$DISTANCE_METRIC" = "Cosine" ]
 }
+
 
 # Test combined options
 @test "qdrant::parse_arguments handles combined options" {
@@ -242,6 +260,7 @@ setup() {
     [ "$FORCE" = "yes" ]
 }
 
+
 # Test backup with all collections
 @test "qdrant::parse_arguments handles 'all' collections keyword" {
     qdrant::parse_arguments \
@@ -253,6 +272,7 @@ setup() {
     [ "$SNAPSHOT_NAME" = "full-backup" ]
 }
 
+
 # Test configuration values from defaults
 @test "default configuration values are set" {
     # After sourcing, these should be available from config/defaults.sh
@@ -262,6 +282,7 @@ setup() {
     [ "$QDRANT_DEFAULT_GRPC_PORT" = "6334" ]
 }
 
+
 # Test API key handling
 @test "qdrant configuration respects custom API key" {
     export QDRANT_CUSTOM_API_KEY="test-api-key-123"
@@ -269,6 +290,7 @@ setup() {
     
     [ "$QDRANT_API_KEY" = "test-api-key-123" ]
 }
+
 
 # Test snapshot name with timestamp format
 @test "qdrant::parse_arguments handles timestamp-like snapshot names" {
@@ -279,6 +301,7 @@ setup() {
     [ "$SNAPSHOT_NAME" = "backup-2024-01-15-14-30-00" ]
 }
 
+
 # Test force flag with different actions
 @test "qdrant::parse_arguments handles force flag for various actions" {
     qdrant::parse_arguments --action delete-collection --force yes
@@ -286,4 +309,4 @@ setup() {
     
     qdrant::parse_arguments --action install --force no
     [ "$FORCE" = "no" ]
-}
+

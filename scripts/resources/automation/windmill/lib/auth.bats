@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export WINDMILL_PORT="5681"
     export WINDMILL_BASE_URL="http://localhost:5681"
@@ -19,63 +25,8 @@ setup() {
     WINDMILL_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "curl"|"jq"|"openssl"|"base64") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock curl for API calls
-    curl() {
-        case "$*" in
-            *"/api/auth/login"*)
-                if [[ "$*" =~ "admin@test.com" ]]; then
-                    echo '{"token":"wm_admin_token_123","user_id":"admin","workspace":"demo"}'
-                else
-                    echo '{"token":"wm_user_token_456","user_id":"user1","workspace":"demo"}'
-                fi
-                ;;
-            *"/api/auth/logout"*)
-                echo '{"message":"Logged out successfully"}'
-                ;;
-            *"/api/w/demo/users"*)
-                if [[ "$*" =~ "POST" ]]; then
-                    echo '{"user_id":"user_123","email":"user@test.com","created":"2024-01-15T10:00:00Z"}'
-                else
-                    echo '[{"user_id":"admin","email":"admin@test.com","role":"admin"},{"user_id":"user1","email":"user@test.com","role":"user"}]'
-                fi
-                ;;
-            *"/api/w/demo/groups"*)
-                if [[ "$*" =~ "POST" ]]; then
-                    echo '{"group_id":"group_123","name":"developers","created":"2024-01-15T10:00:00Z"}'
-                else
-                    echo '[{"group_id":"admin","name":"Administrators"},{"group_id":"dev","name":"Developers"}]'
-                fi
-                ;;
-            *"/api/tokens"*)
-                if [[ "$*" =~ "POST" ]]; then
-                    echo '{"token":"wm_new_token_789","label":"API Token","expires":"2025-01-15T10:00:00Z"}'
-                else
-                    echo '[{"token":"wm_token_1","label":"API Token 1","created":"2024-01-01T00:00:00Z"}]'
-                fi
-                ;;
-            *"/api/auth/me"*)
-                echo '{"user_id":"admin","email":"admin@test.com","role":"admin","workspace":"demo"}'
-                ;;
-            *"/api/w/demo/users/admin/password"*)
-                echo '{"message":"Password updated successfully"}'
-                ;;
-            *"/api/w/demo/acl"*)
-                echo '[{"resource":"script","permissions":["read","write","execute"],"user":"admin"}]'
-                ;;
-            *"/api/version"*)
-                echo '{"version":"1.0.0","mode":"server"}'
-                ;;
-            *) echo "CURL: $*" ;;
-        esac
-        return 0
-    }
     
     # Mock jq for JSON processing
     jq() {
@@ -109,12 +60,6 @@ setup() {
     }
     
     # Mock log functions
-    log::info() { echo "INFO: $1"; }
-    log::error() { echo "ERROR: $1"; }
-    log::warn() { echo "WARN: $1"; }
-    log::success() { echo "SUCCESS: $1"; }
-    log::debug() { echo "DEBUG: $1"; }
-    log::header() { echo "=== $1 ==="; }
     
     # Mock Windmill utility functions
     windmill::is_running() { return 0; }

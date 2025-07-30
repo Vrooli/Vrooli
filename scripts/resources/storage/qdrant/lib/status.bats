@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export QDRANT_PORT="6333"
     export QDRANT_GRPC_PORT="6334"
@@ -27,43 +33,8 @@ setup() {
     mkdir -p "$QDRANT_SNAPSHOTS_DIR"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "docker"|"curl"|"jq"|"netstat"|"ps"|"top") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock docker commands
-    docker() {
-        case "$1" in
-            "ps")
-                if [[ "$*" =~ "--filter" ]] && [[ "$*" =~ "qdrant-test" ]]; then
-                    echo "qdrant-test"
-                fi
-                ;;
-            "inspect")
-                if [[ "$*" =~ "qdrant-test" ]]; then
-                    cat <<EOF
-{
-  "State": {
-    "Running": true,
-    "Status": "running",
-    "StartedAt": "2024-01-15T10:30:00Z",
-    "Health": {
-      "Status": "healthy",
-      "LastCheck": "2024-01-15T11:00:00Z"
-    }
-  },
-  "Config": {
-    "Image": "qdrant/qdrant:latest"
-  },
-  "NetworkSettings": {
-    "Ports": {
-      "6333/tcp": [{"HostPort": "6333"}],
-      "6334/tcp": [{"HostPort": "6334"}]
-    }
-  }
 }
 EOF
                 fi

@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export JUDGE0_PORT="2358"
     export JUDGE0_CONTAINER_NAME="judge0-test"
@@ -18,70 +24,10 @@ setup() {
     JUDGE0_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "docker"|"curl"|"jq"|"netstat"|"lsof"|"ps") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock curl for API calls
-    curl() {
-        case "$*" in
-            *"localhost:2358/system_info"*)
-                if [[ "$*" =~ "fail" ]]; then
-                    return 1  # Simulate health check failure
-                fi
-                echo '{"version":"1.13.1","hostname":"judge0-server","datetime":"2024-01-15T11:00:00Z","isolate_version":"1.8.1","architecture":"x86_64","cpu_count":4,"memory_limit":"2GB","worker_count":2}'
-                ;;
-            *"localhost:2358/workers"*)
-                echo '[{"id":"worker-1","queue":"default","pid":12345,"status":"idle","hostname":"judge0-worker-1","jobs_processed":150},{"id":"worker-2","queue":"default","pid":12346,"status":"busy","hostname":"judge0-worker-2","jobs_processed":89}]'
-                ;;
-            *"localhost:2358/submissions"*)
-                echo '[{"token":"abc123","status":{"id":3,"description":"Accepted"},"created_at":"2024-01-15T10:30:00Z"},{"token":"def456","status":{"id":1,"description":"In Queue"},"created_at":"2024-01-15T10:35:00Z"}]'
-                ;;
-            *"localhost:2358/languages"*)
-                echo '[{"id":92,"name":"Python (3.11.2)","is_archived":false},{"id":93,"name":"JavaScript (Node.js 18.15.0)","is_archived":false},{"id":91,"name":"Java (OpenJDK 19.0.2)","is_archived":false}]'
-                ;;
-            *) 
-                echo "CURL: $*"
-                return 0
-                ;;
-        esac
-    }
     
     # Mock docker commands
-    docker() {
-        case "$1" in
-            "ps")
-                if [[ "$*" =~ "--filter" ]] && [[ "$*" =~ "judge0-test" ]]; then
-                    echo "judge0-test"
-                elif [[ "$*" =~ "--filter" ]] && [[ "$*" =~ "judge0-workers-test" ]]; then
-                    echo "judge0-workers-test-1"
-                    echo "judge0-workers-test-2"
-                fi
-                ;;
-            "inspect")
-                if [[ "$*" =~ "judge0-test" ]]; then
-                    cat <<EOF
-{
-  "State": {
-    "Running": true,
-    "Status": "running",
-    "StartedAt": "2024-01-15T10:30:00Z",
-    "Health": {
-      "Status": "healthy",
-      "LastCheck": "2024-01-15T11:00:00Z"
-    }
-  },
-  "Config": {
-    "Image": "judge0/judge0:1.13.1"
-  },
-  "NetworkSettings": {
-    "Ports": {
-      "2358/tcp": [{"HostPort": "2358"}]
-    }
-  }
 }
 EOF
                 fi

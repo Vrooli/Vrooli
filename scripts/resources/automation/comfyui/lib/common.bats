@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export COMFYUI_CUSTOM_PORT="8188"
     export COMFYUI_CONTAINER_NAME="comfyui-test"
@@ -19,32 +25,8 @@ setup() {
     mkdir -p "$COMFYUI_DATA_DIR"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "docker") return 0 ;;
-            "nvidia-smi") return 0 ;;
-            "curl") return 0 ;;
-            "jq") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock Docker functions
-    docker() {
-        case "$1" in
-            "ps")
-                if [[ "$*" =~ "comfyui-test" ]]; then
-                    echo "comfyui-test"
-                fi
-                ;;
-            "inspect")
-                if [[ "$*" =~ "comfyui-test" ]]; then
-                    echo '{"State":{"Running":true}}'
-                fi
-                ;;
-            *) return 0 ;;
-        esac
-    }
     
     # Mock nvidia-smi
     nvidia-smi() {
@@ -53,25 +35,9 @@ setup() {
     }
     
     # Mock log functions
-    log::info() {
-        echo "INFO: $1"
-        return 0
-    }
     
-    log::error() {
-        echo "ERROR: $1"
-        return 0
-    }
     
-    log::warn() {
-        echo "WARN: $1"
-        return 0
-    }
     
-    log::success() {
-        echo "SUCCESS: $1"
-        return 0
-    }
     
     # Mock args functions
     args::reset() { return 0; }

@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export COMFYUI_CUSTOM_PORT="8188"
     export COMFYUI_CONTAINER_NAME="comfyui-test"
@@ -23,12 +29,6 @@ setup() {
     mkdir -p "$COMFYUI_DATA_DIR" "$COMFYUI_MODELS_DIR" "$COMFYUI_OUTPUT_DIR"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "docker"|"curl"|"jq"|"wget") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     system::check_port() {
         local port="$1"
@@ -44,38 +44,6 @@ setup() {
     }
     
     # Mock Docker functions
-    docker() {
-        case "$1" in
-            "pull")
-                echo "DOCKER_PULL: $*"
-                return 0
-                ;;
-            "run")
-                echo "DOCKER_RUN: $*"
-                return 0
-                ;;
-            "ps")
-                if [[ "$*" =~ "comfyui-test" ]]; then
-                    echo "comfyui-test"
-                fi
-                ;;
-            "inspect")
-                if [[ "$*" =~ "comfyui-test" ]]; then
-                    echo '{"State":{"Running":true},"Config":{"Image":"comfyanonymous/comfyui:latest"}}'
-                fi
-                ;;
-            "images")
-                if [[ "$*" =~ "comfyanonymous/comfyui" ]]; then
-                    echo "comfyanonymous/comfyui    latest    abc123    2 days ago    5.2GB"
-                fi
-                ;;
-            "info")
-                echo "Runtimes: runc nvidia"
-                echo "Default Runtime: nvidia"
-                ;;
-            *) return 0 ;;
-        esac
-    }
     
     # Mock wget/curl
     wget() {
@@ -83,18 +51,6 @@ setup() {
         return 0
     }
     
-    curl() {
-        case "$*" in
-            *"localhost:8188"*)
-                echo '{"status":"ready","version":"1.0.0"}'
-                ;;
-            *"healthcheck"*)
-                echo "OK"
-                ;;
-            *) echo "CURL: $*" ;;
-        esac
-        return 0
-    }
     
     # Mock filesystem operations
     mkdir() {
@@ -106,12 +62,6 @@ setup() {
     unset -f mkdir
     
     # Mock log functions
-    log::info() { echo "INFO: $1"; }
-    log::error() { echo "ERROR: $1"; }
-    log::warn() { echo "WARN: $1"; }
-    log::success() { echo "SUCCESS: $1"; }
-    log::debug() { echo "DEBUG: $1"; }
-    log::header() { echo "=== $1 ==="; }
     
     # Mock ComfyUI utility functions
     comfyui::container_exists() { return 1; }  # Default: no existing container

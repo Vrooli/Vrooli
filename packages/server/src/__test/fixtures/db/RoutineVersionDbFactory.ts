@@ -1,7 +1,8 @@
 import { generatePublicId, nanoid } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import { routineConfigFixtures } from "../../../../../shared/src/__test/fixtures/config/routineConfigFixtures.js";
+// TODO: Import from @vrooli/shared when test-fixtures are properly exported
+import { routineConfigFixtures } from "@vrooli/shared/src/__test/fixtures/config/routineConfigFixtures.js";
 import type { 
     DbTestFixtures, 
     RelationConfig,
@@ -9,7 +10,7 @@ import type {
 } from "./types.js";
 
 interface RoutineVersionRelationConfig extends RelationConfig {
-    root?: { routineId: string };
+    root?: { routineId: bigint };
     translations?: Array<{ language: string; name: string; description?: string; instructions?: string }>;
     nodes?: Array<{
         nodeType: string;
@@ -18,8 +19,8 @@ interface RoutineVersionRelationConfig extends RelationConfig {
         data?: object;
     }>;
     nodeLinks?: Array<{
-        fromNodeId: string;
-        toNodeId: string;
+        fromNodeId: bigint;
+        toNodeId: bigint;
         operation?: string;
         whens?: object;
     }>;
@@ -28,6 +29,9 @@ interface RoutineVersionRelationConfig extends RelationConfig {
 /**
  * Enhanced database fixture factory for RoutineVersion model
  * Handles versioned routine content with configurations, nodes, and workflow logic
+ * 
+ * NOTE: This factory uses legacy routine_version model types that need to be migrated to resource_version model.
+ * Routine versions are now stored as resource_version with resourceType: ResourceType.Routine
  * 
  * Features:
  * - Type-safe Prisma integration
@@ -40,10 +44,10 @@ interface RoutineVersionRelationConfig extends RelationConfig {
  * - Comprehensive validation
  */
 export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
-    routine_version,
-    Prisma.routine_versionCreateInput,
-    Prisma.routine_versionInclude,
-    Prisma.routine_versionUpdateInput
+    any, // TODO: Should be 'resource_version' when migrated
+    any, // TODO: Should be Prisma.resource_versionCreateInput when migrated
+    any, // TODO: Should be Prisma.resource_versionInclude when migrated
+    any  // TODO: Should be Prisma.resource_versionUpdateInput when migrated
 > {
     protected scenarios: Record<string, TestScenario> = {};
     constructor(prisma: PrismaClient) {
@@ -52,13 +56,14 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected getPrismaDelegate() {
+        // TODO: Update to use resource_version when migrated
         return this.prisma.routine_version;
     }
 
     /**
      * Get complete test fixtures for RoutineVersion model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.routine_versionCreateInput, Prisma.routine_versionUpdateInput> {
+    protected getFixtures(): DbTestFixtures<any, any> {
         return {
             minimal: {
                 id: this.generateId(),
@@ -252,7 +257,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateMinimalData(overrides?: Partial<Prisma.routine_versionCreateInput>): Prisma.routine_versionCreateInput {
+    protected generateMinimalData(overrides?: Partial<any>): any {
         return {
             id: this.generateId(),
             publicId: generatePublicId(),
@@ -267,7 +272,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateCompleteData(overrides?: Partial<Prisma.routine_versionCreateInput>): Prisma.routine_versionCreateInput {
+    protected generateCompleteData(overrides?: Partial<any>): any {
         return {
             id: this.generateId(),
             publicId: generatePublicId(),
@@ -449,7 +454,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected getDefaultInclude(): Prisma.routine_versionInclude {
+    protected getDefaultInclude(): any {
         return {
             root: {
                 select: {
@@ -503,10 +508,10 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async applyRelationships(
-        baseData: Prisma.routine_versionCreateInput,
+        baseData: any,
         config: RoutineVersionRelationConfig,
         tx: any,
-    ): Promise<Prisma.routine_versionCreateInput> {
+    ): Promise<any> {
         const data = { ...baseData };
 
         // Handle root routine connection
@@ -556,7 +561,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a simple action version
      */
-    async createSimpleActionVersion(routineId: string): Promise<Prisma.RoutineVersion> {
+    async createSimpleActionVersion(routineId: bigint): Promise<any> {
         return this.createWithRelations({
             root: { routineId },
             overrides: {
@@ -577,7 +582,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a text generation version
      */
-    async createTextGenerationVersion(routineId: string): Promise<Prisma.RoutineVersion> {
+    async createTextGenerationVersion(routineId: bigint): Promise<any> {
         return this.createWithRelations({
             root: { routineId },
             overrides: {
@@ -598,14 +603,14 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a complex workflow version
      */
-    async createComplexWorkflowVersion(routineId: string): Promise<Prisma.RoutineVersion> {
+    async createComplexWorkflowVersion(routineId: bigint): Promise<any> {
         return this.seedScenario("complexWorkflowVersion");
     }
 
     /**
      * Create a data transformation version
      */
-    async createDataTransformationVersion(routineId: string): Promise<Prisma.RoutineVersion> {
+    async createDataTransformationVersion(routineId: bigint): Promise<any> {
         return this.createWithRelations({
             root: { routineId },
             overrides: {
@@ -626,14 +631,14 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a manual process version
      */
-    async createManualProcessVersion(routineId: string): Promise<Prisma.RoutineVersion> {
+    async createManualProcessVersion(routineId: bigint): Promise<any> {
         return this.seedScenario("manualProcessVersion");
     }
 
     /**
      * Create a beta version
      */
-    async createBetaVersion(routineId: string): Promise<Prisma.RoutineVersion> {
+    async createBetaVersion(routineId: bigint): Promise<any> {
         return this.createWithRelations({
             root: { routineId },
             overrides: {
@@ -658,7 +663,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create version with workflow nodes and links
      */
-    async createVersionWithWorkflow(routineId: string): Promise<Prisma.RoutineVersion> {
+    async createVersionWithWorkflow(routineId: bigint): Promise<any> {
         const nodes = [
             {
                 nodeType: "start",
@@ -695,12 +700,14 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
         });
 
         // Create links after nodes are created
+        // TODO: Update to use resource_version_node when migrated
         const createdNodes = await this.prisma.routine_version_node.findMany({
             where: { routineVersionId: version.id },
             orderBy: { coordinateX: "asc" },
         });
 
         if (createdNodes.length >= 3) {
+            // TODO: Update to use resource_version_nodeLink when migrated
             await this.prisma.routine_version_nodeLink.createMany({
                 data: [
                     {
@@ -724,7 +731,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
         return version;
     }
 
-    protected async checkModelConstraints(record: Prisma.RoutineVersion): Promise<string[]> {
+    protected async checkModelConstraints(record: any): Promise<string[]> {
         const violations: string[] = [];
 
         // Check complexity range
@@ -754,6 +761,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
 
         // Check that only one version is marked as latest per routine
         if (record.isLatest && record.rootId) {
+            // TODO: Update to use resource_version when migrated
             const otherLatest = await this.prisma.routine_version.count({
                 where: {
                     rootId: record.rootId,
@@ -786,7 +794,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.RoutineVersion,
+        record: any,
         remainingDepth: number,
         tx: any,
         includeOnly?: string[],
@@ -827,8 +835,8 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create version history for testing
      */
-    async createVersionHistory(routineId: string, count = 3): Promise<Prisma.RoutineVersion[]> {
-        const versions: Prisma.RoutineVersion[] = [];
+    async createVersionHistory(routineId: bigint, count = 3): Promise<any[]> {
+        const versions: any[] = [];
         const configs = [
             routineConfigFixtures.action.simple,
             routineConfigFixtures.generate.basic,

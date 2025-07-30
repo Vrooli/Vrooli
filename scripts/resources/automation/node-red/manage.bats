@@ -2,7 +2,7 @@
 # Tests for manage.sh - Node-RED management script
 # Integration tests for end-to-end scenarios and interactions between modules
 
-load test-fixtures/test_helper
+load test_fixtures/test_helper
 
 setup() {
     setup_test_environment

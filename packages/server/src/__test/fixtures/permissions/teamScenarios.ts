@@ -1,6 +1,6 @@
 import { MemberRole, generatePK } from "@vrooli/shared";
 import { standardUser, premiumUser, adminUser } from "./userPersonas.js";
-import { type AuthenticatedSessionData } from "../../../types.js";
+import { type SessionData } from "../../../types.js";
 
 /**
  * Team permission scenarios for testing team-based access control
@@ -15,7 +15,7 @@ export interface TeamScenario {
         isPrivate: boolean;
     };
     members: Array<{
-        user: AuthenticatedSessionData;
+        user: SessionData;
         role: MemberRole;
         permissions: string[];
     }>;
@@ -144,7 +144,7 @@ export const invitationTeamScenario: TeamScenario = {
 /**
  * Helper to create a team user
  */
-function createTeamUser(suffix: string): AuthenticatedSessionData {
+function createTeamUser(suffix: string): SessionData {
     return {
         ...standardUser,
         id: generatePK().toString(),

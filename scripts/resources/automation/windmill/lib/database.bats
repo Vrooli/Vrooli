@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export WINDMILL_PORT="5681"
     export WINDMILL_DB_CONTAINER_NAME="windmill-db-test"
@@ -23,52 +29,8 @@ setup() {
     mkdir -p "$WINDMILL_DATA_DIR"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "docker"|"psql"|"pg_dump"|"createdb"|"dropdb") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock Docker operations
-    docker() {
-        case "$1" in
-            "run")
-                echo "DOCKER_RUN: $*"
-                return 0
-                ;;
-            "exec")
-                if [[ "$*" =~ "psql" ]]; then
-                    echo "PostgreSQL connection successful"
-                    echo "windmill_db"
-                elif [[ "$*" =~ "pg_dump" ]]; then
-                    echo "-- PostgreSQL database dump"
-                    echo "CREATE TABLE users (id SERIAL, name TEXT);"
-                else
-                    echo "DOCKER_EXEC: $*"
-                fi
-                return 0
-                ;;
-            "ps")
-                if [[ "$*" =~ "windmill-db-test" ]]; then
-                    echo "windmill-db-test"
-                fi
-                ;;
-            "inspect")
-                if [[ "$*" =~ "windmill-db-test" ]]; then
-                    echo '{"State":{"Running":true,"Health":{"Status":"healthy"}},"Config":{"Image":"postgres:14"}}'
-                fi
-                ;;
-            "logs")
-                if [[ "$*" =~ "windmill-db-test" ]]; then
-                    echo "PostgreSQL init process complete; ready for start up."
-                    echo "database system is ready to accept connections"
-                fi
-                ;;
-            *) echo "DOCKER: $*" ;;
-        esac
-        return 0
-    }
     
     # Mock PostgreSQL commands
     psql() {
@@ -116,12 +78,6 @@ setup() {
     }
     
     # Mock log functions
-    log::info() { echo "INFO: $1"; }
-    log::error() { echo "ERROR: $1"; }
-    log::warn() { echo "WARN: $1"; }
-    log::success() { echo "SUCCESS: $1"; }
-    log::debug() { echo "DEBUG: $1"; }
-    log::header() { echo "=== $1 ==="; }
     
     # Mock Windmill utility functions
     windmill::container_exists() { 

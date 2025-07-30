@@ -294,3 +294,65 @@ agents2::api_test_menu() {
         read -p "Press Enter to continue..."
     done
 }
+
+#######################################
+# Execute AI task using natural language
+# Arguments:
+#   $1 - Task description
+# Returns: 0 if successful, 1 if failed
+#######################################
+agents2::execute_ai_task() {
+    local task="${1:-}"
+    
+    if [[ -z "$task" ]]; then
+        log::error "Task description is required"
+        return 1
+    fi
+    
+    log::info "Executing AI task: $task"
+    
+    # Build request JSON
+    local request_json
+    request_json=$(jq -n \
+        --arg task "$task" \
+        '{
+            task: $task,
+            screenshot_before: true,
+            screenshot_after: true
+        }')
+    
+    # Execute AI action
+    local response
+    if response=$(agents2::api_request "POST" "/ai/action" "$request_json"); then
+        log::success "AI task completed"
+        
+        # Pretty print response with jq if available
+        if system::is_command "jq"; then
+            echo "$response" | jq .
+            
+            # Extract and display key information
+            local success status actions_count
+            success=$(echo "$response" | jq -r '.success // false')
+            status=$(echo "$response" | jq -r '.status // "unknown"')
+            actions_count=$(echo "$response" | jq -r '.actions_taken | length // 0')
+            
+            echo
+            log::info "Task Status: $status"
+            log::info "Actions Executed: $actions_count"
+            
+            if [[ "$success" != "true" ]]; then
+                local error_msg
+                error_msg=$(echo "$response" | jq -r '.error // "Unknown error"')
+                log::error "Task failed: $error_msg"
+                return 1
+            fi
+        else
+            echo "$response"
+        fi
+        
+        return 0
+    else
+        log::error "Failed to execute AI task"
+        return 1
+    fi
+}

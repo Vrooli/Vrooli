@@ -103,20 +103,20 @@ setup() {
 
 @test "ollama::validate_temperature rejects invalid temperatures" {
     # Invalid temperatures
-    ollama::validate_temperature "-0.1"
-    [ "$?" -eq 1 ]
+    run ollama::validate_temperature "-0.1"
+    [ "$status" -eq 1 ]
     
-    ollama::validate_temperature "2.1"
-    [ "$?" -eq 1 ]
+    run ollama::validate_temperature "2.1"
+    [ "$status" -eq 1 ]
     
-    ollama::validate_temperature "abc"
-    [ "$?" -eq 1 ]
+    run ollama::validate_temperature "abc"
+    [ "$status" -eq 1 ]
     
-    ollama::validate_temperature ""
-    [ "$?" -eq 1 ]
+    run ollama::validate_temperature ""
+    [ "$status" -eq 1 ]
     
-    ollama::validate_temperature "3.0"
-    [ "$?" -eq 1 ]
+    run ollama::validate_temperature "3.0"
+    [ "$status" -eq 1 ]
 }
 
 @test "ollama::validate_top_p accepts valid top-p values" {
@@ -136,17 +136,17 @@ setup() {
 
 @test "ollama::validate_top_p rejects invalid top-p values" {
     # Invalid top-p values
-    ollama::validate_top_p "-0.1"
-    [ "$?" -eq 1 ]
+    run ollama::validate_top_p "-0.1"
+    [ "$status" -eq 1 ]
     
-    ollama::validate_top_p "1.1"
-    [ "$?" -eq 1 ]
+    run ollama::validate_top_p "1.1"
+    [ "$status" -eq 1 ]
     
-    ollama::validate_top_p "abc"
-    [ "$?" -eq 1 ]
+    run ollama::validate_top_p "abc"
+    [ "$status" -eq 1 ]
     
-    ollama::validate_top_p ""
-    [ "$?" -eq 1 ]
+    run ollama::validate_top_p ""
+    [ "$status" -eq 1 ]
 }
 
 @test "ollama::validate_top_k accepts valid top-k values" {
@@ -163,20 +163,20 @@ setup() {
 
 @test "ollama::validate_top_k rejects invalid top-k values" {
     # Invalid top-k values
-    ollama::validate_top_k "0"
-    [ "$?" -eq 1 ]
+    run ollama::validate_top_k "0"
+    [ "$status" -eq 1 ]
     
-    ollama::validate_top_k "-1"
-    [ "$?" -eq 1 ]
+    run ollama::validate_top_k "-1"
+    [ "$status" -eq 1 ]
     
-    ollama::validate_top_k "abc"
-    [ "$?" -eq 1 ]
+    run ollama::validate_top_k "abc"
+    [ "$status" -eq 1 ]
     
-    ollama::validate_top_k ""
-    [ "$?" -eq 1 ]
+    run ollama::validate_top_k ""
+    [ "$status" -eq 1 ]
     
-    ollama::validate_top_k "1.5"
-    [ "$?" -eq 1 ]
+    run ollama::validate_top_k "1.5"
+    [ "$status" -eq 1 ]
 }
 
 @test "ollama::validate_max_tokens accepts valid max-tokens values" {
@@ -196,17 +196,17 @@ setup() {
 
 @test "ollama::validate_max_tokens rejects invalid max-tokens values" {
     # Invalid max-tokens values
-    ollama::validate_max_tokens "0"
-    [ "$?" -eq 1 ]
+    run ollama::validate_max_tokens "0"
+    [ "$status" -eq 1 ]
     
-    ollama::validate_max_tokens "-1"
-    [ "$?" -eq 1 ]
+    run ollama::validate_max_tokens "-1"
+    [ "$status" -eq 1 ]
     
-    ollama::validate_max_tokens "abc"
-    [ "$?" -eq 1 ]
+    run ollama::validate_max_tokens "abc"
+    [ "$status" -eq 1 ]
     
-    ollama::validate_max_tokens "1.5"
-    [ "$?" -eq 1 ]
+    run ollama::validate_max_tokens "1.5"
+    [ "$status" -eq 1 ]
 }
 
 @test "all validation functions exist and are callable" {

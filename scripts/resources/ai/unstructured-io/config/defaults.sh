@@ -4,42 +4,90 @@
 # This file contains all configuration constants and defaults for the Unstructured.io resource
 
 # Service configuration
-readonly UNSTRUCTURED_IO_PORT="${UNSTRUCTURED_IO_CUSTOM_PORT:-$(resources::get_default_port "unstructured-io")}"
-readonly UNSTRUCTURED_IO_BASE_URL="http://localhost:${UNSTRUCTURED_IO_PORT}"
-readonly UNSTRUCTURED_IO_SERVICE_NAME="unstructured-io"
-readonly UNSTRUCTURED_IO_CONTAINER_NAME="vrooli-unstructured-io"
+# Check if variables are already set to avoid readonly conflicts in tests
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_PORT="; then
+    readonly UNSTRUCTURED_IO_PORT="${UNSTRUCTURED_IO_CUSTOM_PORT:-$(resources::get_default_port "unstructured-io")}"
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_BASE_URL="; then
+    readonly UNSTRUCTURED_IO_BASE_URL="http://localhost:${UNSTRUCTURED_IO_PORT}"
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_SERVICE_NAME="; then
+    readonly UNSTRUCTURED_IO_SERVICE_NAME="unstructured-io"
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_CONTAINER_NAME="; then
+    readonly UNSTRUCTURED_IO_CONTAINER_NAME="vrooli-unstructured-io"
+fi
 
 # Docker configuration
-readonly UNSTRUCTURED_IO_IMAGE="downloads.unstructured.io/unstructured-io/unstructured-api:latest"
-readonly UNSTRUCTURED_IO_API_PORT=8000  # Internal container port
-readonly UNSTRUCTURED_IO_MEMORY_LIMIT="4g"
-readonly UNSTRUCTURED_IO_CPU_LIMIT="2.0"
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_IMAGE="; then
+    readonly UNSTRUCTURED_IO_IMAGE="downloads.unstructured.io/unstructured-io/unstructured-api:latest"
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_API_PORT="; then
+    readonly UNSTRUCTURED_IO_API_PORT=8000  # Internal container port
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_MEMORY_LIMIT="; then
+    readonly UNSTRUCTURED_IO_MEMORY_LIMIT="4g"
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_CPU_LIMIT="; then
+    readonly UNSTRUCTURED_IO_CPU_LIMIT="2.0"
+fi
 
 # Processing configuration
-readonly UNSTRUCTURED_IO_DEFAULT_STRATEGY="hi_res"  # hi_res, fast, or auto
-readonly UNSTRUCTURED_IO_DEFAULT_LANGUAGES="eng"    # OCR languages
-readonly UNSTRUCTURED_IO_PARTITION_BY_API="true"   # Use API partitioning
-readonly UNSTRUCTURED_IO_INCLUDE_PAGE_BREAKS="true"
-readonly UNSTRUCTURED_IO_ENCODING="utf-8"
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_DEFAULT_STRATEGY="; then
+    readonly UNSTRUCTURED_IO_DEFAULT_STRATEGY="hi_res"  # hi_res, fast, or auto
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_DEFAULT_LANGUAGES="; then
+    readonly UNSTRUCTURED_IO_DEFAULT_LANGUAGES="eng"    # OCR languages
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_PARTITION_BY_API="; then
+    readonly UNSTRUCTURED_IO_PARTITION_BY_API="true"   # Use API partitioning
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_INCLUDE_PAGE_BREAKS="; then
+    readonly UNSTRUCTURED_IO_INCLUDE_PAGE_BREAKS="true"
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_ENCODING="; then
+    readonly UNSTRUCTURED_IO_ENCODING="utf-8"
+fi
 
 # Resource limits
-readonly UNSTRUCTURED_IO_MAX_FILE_SIZE="50MB"
-readonly UNSTRUCTURED_IO_MAX_FILE_SIZE_BYTES=$((50 * 1024 * 1024))  # 50MB in bytes
-readonly UNSTRUCTURED_IO_TIMEOUT_SECONDS=300
-readonly UNSTRUCTURED_IO_MAX_CONCURRENT_REQUESTS=5
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_MAX_FILE_SIZE="; then
+    readonly UNSTRUCTURED_IO_MAX_FILE_SIZE="50MB"
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_MAX_FILE_SIZE_BYTES="; then
+    readonly UNSTRUCTURED_IO_MAX_FILE_SIZE_BYTES=$((50 * 1024 * 1024))  # 50MB in bytes
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_TIMEOUT_SECONDS="; then
+    readonly UNSTRUCTURED_IO_TIMEOUT_SECONDS=300
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_MAX_CONCURRENT_REQUESTS="; then
+    readonly UNSTRUCTURED_IO_MAX_CONCURRENT_REQUESTS=5
+fi
 
 # Health check configuration
-readonly UNSTRUCTURED_IO_HEALTH_ENDPOINT="/healthcheck"
-readonly UNSTRUCTURED_IO_HEALTH_INTERVAL=60
-readonly UNSTRUCTURED_IO_HEALTH_TIMEOUT=5
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_HEALTH_ENDPOINT="; then
+    readonly UNSTRUCTURED_IO_HEALTH_ENDPOINT="/healthcheck"
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_HEALTH_INTERVAL="; then
+    readonly UNSTRUCTURED_IO_HEALTH_INTERVAL=60
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_HEALTH_TIMEOUT="; then
+    readonly UNSTRUCTURED_IO_HEALTH_TIMEOUT=5
+fi
 
 # API endpoints
-readonly UNSTRUCTURED_IO_PROCESS_ENDPOINT="/general/v0/general"
-readonly UNSTRUCTURED_IO_BATCH_ENDPOINT="/general/v0/general/batch"
-readonly UNSTRUCTURED_IO_METRICS_ENDPOINT="/metrics"
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_PROCESS_ENDPOINT="; then
+    readonly UNSTRUCTURED_IO_PROCESS_ENDPOINT="/general/v0/general"
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_BATCH_ENDPOINT="; then
+    readonly UNSTRUCTURED_IO_BATCH_ENDPOINT="/general/v0/general/batch"
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_METRICS_ENDPOINT="; then
+    readonly UNSTRUCTURED_IO_METRICS_ENDPOINT="/metrics"
+fi
 
 # Supported file formats
-readonly UNSTRUCTURED_IO_SUPPORTED_FORMATS=(
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_SUPPORTED_FORMATS="; then
+    readonly UNSTRUCTURED_IO_SUPPORTED_FORMATS=(
     "pdf"     # Portable Document Format
     "docx"    # Microsoft Word
     "doc"     # Legacy Word
@@ -64,6 +112,7 @@ readonly UNSTRUCTURED_IO_SUPPORTED_FORMATS=(
     "bmp"     # Images with text
     "heic"    # Apple images
 )
+fi
 
 # Processing strategies
 declare -A PROCESSING_STRATEGIES=(

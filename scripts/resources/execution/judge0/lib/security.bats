@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export JUDGE0_CPU_TIME_LIMIT="5"
     export JUDGE0_WALL_TIME_LIMIT="10"
@@ -26,42 +32,8 @@ setup() {
     mkdir -p "$JUDGE0_DATA_DIR"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "docker"|"iptables"|"ufw"|"fail2ban"|"openssl"|"chmod"|"chown") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock docker commands
-    docker() {
-        case "$1" in
-            "run")
-                if [[ "$*" =~ "--security-opt" ]]; then
-                    echo "Security options applied: $*"
-                else
-                    echo "Container started without security options"
-                fi
-                ;;
-            "exec")
-                if [[ "$*" =~ "ulimit" ]]; then
-                    echo "ulimit -t: 5"
-                    echo "ulimit -v: 262144"
-                    echo "ulimit -u: 30"
-                    echo "ulimit -f: 5120"
-                elif [[ "$*" =~ "ps aux" ]]; then
-                    echo "USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND"
-                    echo "judge0       1  0.1  0.5   8192  4096 ?        Ss   10:30   0:01 judge0-server"
-                    echo "judge0      42  0.0  0.2   4096  2048 ?        S    10:31   0:00 python3 script.py"
-                fi
-                ;;
-            "inspect")
-                echo '{"Config":{"SecurityOpt":["no-new-privileges:true","seccomp=default"],"User":"judge0"}}'
-                ;;
-            *) echo "DOCKER: $*" ;;
-        esac
-        return 0
-    }
     
     # Mock iptables commands
     iptables() {
@@ -107,12 +79,6 @@ setup() {
     }
     
     # Mock log functions
-    log::info() { echo "INFO: $1"; }
-    log::error() { echo "ERROR: $1"; }
-    log::warn() { echo "WARN: $1"; }
-    log::success() { echo "SUCCESS: $1"; }
-    log::debug() { echo "DEBUG: $1"; }
-    log::header() { echo "=== $1 ==="; }
     
     # Load configuration and messages
     source "${JUDGE0_DIR}/config/defaults.sh"

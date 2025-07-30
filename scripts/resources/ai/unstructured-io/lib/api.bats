@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export UNSTRUCTURED_IO_CUSTOM_PORT="9999"
     export UNSTRUCTURED_IO_CONTAINER_NAME="unstructured-io-test"
@@ -31,14 +37,6 @@ setup() {
     dd if=/dev/zero of="$TEST_DIR/large.pdf" bs=1M count=60 2>/dev/null
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "curl") return 0 ;;
-            "jq") return 0 ;;
-            "file") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock file command
     file() {
@@ -62,47 +60,6 @@ setup() {
     }
     
     # Mock curl for API calls
-    curl() {
-        local url=""
-        local method="GET"
-        local data=""
-        local output_file=""
-        
-        # Parse curl arguments
-        while [[ $# -gt 0 ]]; do
-            case $1 in
-                -X) method="$2"; shift 2 ;;
-                -F) data="$2"; shift 2 ;;
-                -o) output_file="$2"; shift 2 ;;
-                --max-time) shift 2 ;;  # Ignore timeout
-                -s|-f) shift ;;  # Ignore flags
-                http*) url="$1"; shift ;;
-                *) shift ;;
-            esac
-        done
-        
-        case "$url" in
-            *"/general/v0/general"*)
-                if [[ "$data" =~ "test.pdf" ]]; then
-                    echo '{"elements":[{"type":"text","text":"Test content from PDF"}]}'
-                elif [[ "$data" =~ "test.docx" ]]; then
-                    echo '{"elements":[{"type":"text","text":"Test content from Word document"}]}'
-                elif [[ "$data" =~ "test.txt" ]]; then
-                    echo '{"elements":[{"type":"text","text":"Test content"}]}'
-                else
-                    echo '{"elements":[{"type":"text","text":"Processed content"}]}'
-                fi
-                return 0
-                ;;
-            *"/health"*)
-                echo '{"status":"healthy"}'
-                return 0
-                ;;
-            *)
-                return 1
-                ;;
-        esac
-    }
     
     # Mock jq for JSON processing
     jq() {
@@ -121,25 +78,9 @@ setup() {
     }
     
     # Mock log functions
-    log::info() {
-        echo "INFO: $1"
-        return 0
-    }
     
-    log::error() {
-        echo "ERROR: $1"
-        return 0
-    }
     
-    log::warn() {
-        echo "WARN: $1"
-        return 0
-    }
     
-    log::success() {
-        echo "SUCCESS: $1"
-        return 0
-    }
     
     # Mock status function
     unstructured_io::status() {

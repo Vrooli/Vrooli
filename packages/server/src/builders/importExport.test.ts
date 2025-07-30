@@ -24,6 +24,7 @@ import { DbProvider } from "../db/provider.js";
 import { ModelMap } from "../models/base/index.js";
 
 // Delay imports that might use ModelMap
+/* eslint-disable @typescript-eslint/consistent-type-imports */
 let parseImportData: typeof import("./importExport.js").parseImportData;
 let createExportSignature: typeof import("./importExport.js").createExportSignature;
 let importData: typeof import("./importExport.js").importData;
@@ -34,6 +35,7 @@ let getAuthenticatedData: typeof import("../utils/getAuthenticatedData.js").getA
 let permissionsCheck: typeof import("../validators/permissions.js").permissionsCheck;
 let createOneHelper: typeof import("../actions/creates.js").createOneHelper;
 let updateOneHelper: typeof import("../actions/updates.js").updateOneHelper;
+/* eslint-enable @typescript-eslint/consistent-type-imports */
 // Import database fixtures for seeding
 import { seedTestUsers } from "../__test/fixtures/db/userFixtures.js";
 import { seedTestTeams } from "../__test/fixtures/db/teamFixtures.js";

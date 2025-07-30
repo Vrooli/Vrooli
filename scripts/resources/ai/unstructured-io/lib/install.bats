@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export UNSTRUCTURED_IO_CUSTOM_PORT="9999"
     export UNSTRUCTURED_IO_CONTAINER_NAME="unstructured-io-test"
@@ -44,65 +50,17 @@ setup() {
     }
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "docker") return 0 ;;
-            "curl") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     system::is_port_in_use() {
         return 1  # Port available
     }
     
     # Mock Docker functions
-    docker() {
-        case "$1" in
-            "ps")
-                if [[ "$*" =~ "unstructured-io-test" ]]; then
-                    echo ""  # No existing container by default
-                fi
-                ;;
-            "run")
-                echo "DOCKER_RUN: $*"
-                return 0
-                ;;
-            "pull")
-                echo "DOCKER_PULL: $*"
-                return 0
-                ;;
-            "stop"|"rm")
-                echo "DOCKER_${1^^}: $*"
-                return 0
-                ;;
-            "inspect")
-                echo '{"State":{"Running":false}}'
-                ;;
-            *) return 0 ;;
-        esac
-    }
     
     # Mock log functions
-    log::info() {
-        echo "INFO: $1"
-        return 0
-    }
     
-    log::error() {
-        echo "ERROR: $1"
-        return 0
-    }
     
-    log::warn() {
-        echo "WARN: $1"
-        return 0
-    }
     
-    log::success() {
-        echo "SUCCESS: $1"
-        return 0
-    }
     
     # Mock other common functions
     unstructured_io::check_docker() { return 0; }

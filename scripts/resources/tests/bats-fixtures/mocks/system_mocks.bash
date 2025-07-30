@@ -36,6 +36,9 @@ docker() {
         "logs")
             _handle_docker_logs "$@"
             ;;
+        "images")
+            _handle_docker_images "$@"
+            ;;
         "stop"|"start"|"restart")
             _handle_docker_lifecycle "$@"
             ;;
@@ -149,6 +152,43 @@ _handle_docker_lifecycle() {
     return 0
 }
 
+# Docker images handler
+_handle_docker_images() {
+    local image_filter=""
+    
+    # Parse arguments for image filtering
+    while [[ $# -gt 1 ]]; do
+        case "$2" in
+            --filter) 
+                image_filter="$3"
+                shift 2
+                ;;
+            *) 
+                # Assume it's an image name if no filter
+                image_filter="$2"
+                shift
+                ;;
+        esac
+    done
+    
+    # Check for image-specific mock
+    if [[ -n "$image_filter" ]]; then
+        local image_exists_file="$MOCK_RESPONSES_DIR/image_${image_filter}_exists"
+        if [[ -f "$image_exists_file" ]]; then
+            echo "REPOSITORY    TAG       IMAGE ID       CREATED        SIZE"
+            echo "$image_filter   latest    abc123def456   2 hours ago    1.2GB"
+            return 0
+        else
+            # Image not found
+            return 0
+        fi
+    fi
+    
+    # Default empty response
+    echo "REPOSITORY    TAG       IMAGE ID       CREATED        SIZE"
+    return 0
+}
+
 #######################################
 # Curl mock for HTTP requests
 #######################################
@@ -173,6 +213,31 @@ curl() {
     
     # Check for URL-specific mock
     local url_hash=$(echo -n "$url" | md5sum | cut -d' ' -f1)
+    
+    # Check for sequence responses first
+    local sequence_count_file="$MOCK_RESPONSES_DIR/curl_${url_hash}_sequence_count"
+    local sequence_index_file="$MOCK_RESPONSES_DIR/curl_${url_hash}_sequence_index"
+    
+    if [[ -f "$sequence_count_file" && -f "$sequence_index_file" ]]; then
+        local count=$(cat "$sequence_count_file")
+        local index=$(cat "$sequence_index_file")
+        
+        if [[ "$index" -lt "$count" ]]; then
+            local seq_response_file="$MOCK_RESPONSES_DIR/curl_${url_hash}_sequence_${index}_response"
+            local seq_exit_file="$MOCK_RESPONSES_DIR/curl_${url_hash}_sequence_${index}_exitcode"
+            
+            # Increment index for next call
+            echo $((index + 1)) > "$sequence_index_file"
+            
+            # Return sequence response
+            if [[ -f "$seq_response_file" ]]; then
+                [[ "$silent" != "true" ]] && cat "$seq_response_file" || cat "$seq_response_file" 2>/dev/null
+                return $(cat "$seq_exit_file" 2>/dev/null || echo 0)
+            fi
+        fi
+    fi
+    
+    # Fall back to single response
     local response_file="$MOCK_RESPONSES_DIR/curl_${url_hash}_response"
     local exit_file="$MOCK_RESPONSES_DIR/curl_${url_hash}_exitcode"
     
@@ -288,34 +353,39 @@ lsof() {
 # Standard logging interface used across all resources
 #######################################
 log::info() {
-    echo "INFO: $*" >&2
+    echo "[INFO]    $*"
     return 0
 }
 
 log::success() {
-    echo "SUCCESS: $*" >&2
+    echo "[SUCCESS] $*"
     return 0
 }
 
 log::error() {
-    echo "ERROR: $*" >&2
+    echo "[ERROR]   $*"
     return 1
 }
 
 log::warn() {
-    echo "WARN: $*" >&2
+    echo "[WARNING] $*"
+    return 0
+}
+
+log::warning() {
+    echo "[WARNING] $*"
     return 0
 }
 
 log::header() {
-    echo "HEADER: $*" >&2
+    echo "HEADER: $*"
     return 0
 }
 
 log::debug() {
     # Only output if DEBUG mode is enabled
     if [[ "${MOCK_DEBUG:-false}" == "true" ]]; then
-        echo "DEBUG: $*" >&2
+        echo "DEBUG: $*"
     fi
     return 0
 }

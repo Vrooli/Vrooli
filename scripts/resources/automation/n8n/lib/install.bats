@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export N8N_CUSTOM_PORT="5678"
     export N8N_CONTAINER_NAME="n8n-test"
@@ -47,48 +53,12 @@ setup() {
     }
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "docker") return 0 ;;
-            "openssl") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     system::is_port_in_use() {
         return 1  # Port available
     }
     
     # Mock Docker functions
-    docker() {
-        case "$1" in
-            "pull")
-                echo "DOCKER_PULL: $*"
-                return 0
-                ;;
-            "run")
-                echo "DOCKER_RUN: $*"
-                return 0
-                ;;
-            "start"|"stop"|"restart")
-                echo "DOCKER_${1^^}: $*"
-                return 0
-                ;;
-            "ps")
-                if [[ "$*" =~ "n8n-test" ]]; then
-                    echo ""  # No existing container by default
-                fi
-                ;;
-            "inspect")
-                echo '{"State":{"Running":false}}'
-                ;;
-            "rm")
-                echo "DOCKER_RM: $*"
-                return 0
-                ;;
-            *) return 0 ;;
-        esac
-    }
     
     # Mock openssl command
     openssl() {
@@ -101,25 +71,9 @@ setup() {
     }
     
     # Mock log functions
-    log::info() {
-        echo "INFO: $1"
-        return 0
-    }
     
-    log::error() {
-        echo "ERROR: $1"
-        return 0
-    }
     
-    log::warn() {
-        echo "WARN: $1"
-        return 0
-    }
     
-    log::success() {
-        echo "SUCCESS: $1"
-        return 0
-    }
     
     # Mock n8n functions
     n8n::check_docker() { return 0; }

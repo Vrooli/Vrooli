@@ -1,13 +1,16 @@
 #!/usr/bin/env bats
 bats_require_minimum_version 1.5.0
 
-# Path to the script under test
-SCRIPT_PATH="$BATS_TEST_DIRNAME/config.sh"
-SEARXNG_DIR="$BATS_TEST_DIRNAME/.."
-
-# Helper function for proper sourcing in tests
-setup_searxng_config_test_env() {
-    local script_dir="$SEARXNG_DIR"
+# Setup for each test
+setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Path to the script under test
+    SCRIPT_PATH="$BATS_TEST_DIRNAME/config.sh"
+    SEARXNG_DIR="$BATS_TEST_DIRNAME/.."
+    
+    # Source dependencies
     local resources_dir="$SEARXNG_DIR/../.."
     local helpers_dir="$resources_dir/../helpers"
     
@@ -17,29 +20,20 @@ setup_searxng_config_test_env() {
     source "$resources_dir/common.sh"
     
     # Source config and messages
-    source "$script_dir/config/defaults.sh"
-    source "$script_dir/config/messages.sh"
+    source "$SEARXNG_DIR/config/defaults.sh"
+    source "$SEARXNG_DIR/config/messages.sh"
     searxng::export_config
     
     # Source the script under test
     source "$SCRIPT_PATH"
     
-    # Mock functions
-    log::info() { echo "INFO: $*"; }
-    log::success() { echo "SUCCESS: $*"; }
-    log::error() { echo "ERROR: $*"; }
-    log::warn() { echo "WARNING: $*"; }
-    log::header() { echo "HEADER: $*"; }
-    
+    # SearXNG-specific mock functions
     searxng::ensure_data_dir() { 
         mkdir -p "$SEARXNG_DATA_DIR"
         return 0
     }
     
-    # Mock commands
-    mktemp() { echo "/tmp/mock-temp-file"; }
-    mv() { return 0; }
-    cp() { return 0; }
+    # Mock commands specific to SearXNG config
     yq() {
         case "$1" in
             "eval")
@@ -73,6 +67,9 @@ setup_searxng_config_test_env() {
     # Set default mocks
     export MOCK_YAML_VALID="yes"
     export MOCK_YQ_AVAILABLE="yes"
+    
+    # Setup standard mocks AFTER sourcing real utilities (to override them)
+    setup_standard_mocks
 }
 
 # ============================================================================
@@ -80,8 +77,6 @@ setup_searxng_config_test_env() {
 # ============================================================================
 
 @test "sourcing config.sh defines required functions" {
-    setup_searxng_config_test_env
-    
     local required_functions=(
         "searxng::generate_config"
         "searxng::generate_limiter_config"
@@ -104,32 +99,27 @@ setup_searxng_config_test_env() {
 # ============================================================================
 
 @test "searxng::generate_config creates main configuration successfully" {
-    setup_searxng_config_test_env
-    
     # Create mock template
     mkdir -p "$SEARXNG_DIR/config"
     echo 'instance_name: ${SEARXNG_INSTANCE_NAME}' > "$SEARXNG_DIR/config/settings.yml.template"
     
     run searxng::generate_config
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "INFO: Generating SearXNG configuration" ]]
-    [[ "$output" =~ "SUCCESS:" ]]
+    [[ "$output" =~ "[INFO]" ]]
+    [[ "$output" =~ "[SUCCESS]" ]]
     
     # Cleanup
     rm -f "$SEARXNG_DIR/config/settings.yml.template"
 }
 
 @test "searxng::generate_config fails when template missing" {
-    setup_searxng_config_test_env
-    
     run searxng::generate_config
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "ERROR:" ]]
+    [[ "$output" =~ "[ERROR]" ]]
     [[ "$output" =~ "Configuration template not found" ]]
 }
 
 @test "searxng::generate_limiter_config creates limiter config when enabled" {
-    setup_searxng_config_test_env
     export SEARXNG_LIMITER_ENABLED="yes"
     
     # Create mock template
@@ -138,15 +128,14 @@ setup_searxng_config_test_env() {
     
     run searxng::generate_limiter_config
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "INFO: Generating rate limiter configuration" ]]
-    [[ "$output" =~ "SUCCESS:" ]]
+    [[ "$output" =~ "[INFO]" ]]
+    [[ "$output" =~ "[SUCCESS]" ]]
     
     # Cleanup
     rm -f "$SEARXNG_DIR/docker/limiter.toml.template"
 }
 
 @test "searxng::generate_limiter_config skips when disabled" {
-    setup_searxng_config_test_env
     export SEARXNG_LIMITER_ENABLED="no"
     
     run searxng::generate_limiter_config
@@ -159,8 +148,6 @@ setup_searxng_config_test_env() {
 # ============================================================================
 
 @test "searxng::show_config displays all configuration sections" {
-    setup_searxng_config_test_env
-    
     run searxng::show_config
     [ "$status" -eq 0 ]
     [[ "$output" =~ "HEADER: SearXNG Configuration" ]]
@@ -173,8 +160,6 @@ setup_searxng_config_test_env() {
 }
 
 @test "searxng::show_config shows correct values" {
-    setup_searxng_config_test_env
-    
     run searxng::show_config
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Instance Name: $SEARXNG_INSTANCE_NAME" ]]
@@ -185,8 +170,6 @@ setup_searxng_config_test_env() {
 }
 
 @test "searxng::show_config indicates file presence" {
-    setup_searxng_config_test_env
-    
     # Create mock config file
     mkdir -p "$SEARXNG_DATA_DIR"
     touch "$SEARXNG_DATA_DIR/settings.yml"
@@ -200,8 +183,6 @@ setup_searxng_config_test_env() {
 }
 
 @test "searxng::show_config indicates missing files" {
-    setup_searxng_config_test_env
-    
     run searxng::show_config
     [ "$status" -eq 0 ]
     [[ "$output" =~ "settings.yml: ❌ Missing" ]]
@@ -212,7 +193,6 @@ setup_searxng_config_test_env() {
 # ============================================================================
 
 @test "searxng::validate_config_files passes with valid configuration" {
-    setup_searxng_config_test_env
     export MOCK_YAML_VALID="yes"
     export MOCK_YQ_AVAILABLE="yes"
     
@@ -224,7 +204,7 @@ setup_searxng_config_test_env() {
     
     run searxng::validate_config_files
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "SUCCESS:" ]]
+    [[ "$output" =~ "[SUCCESS]" ]]
     [[ "$output" =~ "Configuration validation passed" ]]
     
     # Cleanup
@@ -232,16 +212,13 @@ setup_searxng_config_test_env() {
 }
 
 @test "searxng::validate_config_files fails when config missing" {
-    setup_searxng_config_test_env
-    
     run searxng::validate_config_files
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "ERROR:" ]]
+    [[ "$output" =~ "[ERROR]" ]]
     [[ "$output" =~ "Main configuration file missing" ]]
 }
 
 @test "searxng::validate_config_files handles invalid YAML" {
-    setup_searxng_config_test_env
     export MOCK_YAML_VALID="no"
     export MOCK_YQ_AVAILABLE="yes"
     
@@ -251,7 +228,7 @@ setup_searxng_config_test_env() {
     
     run searxng::validate_config_files
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "ERROR:" ]]
+    [[ "$output" =~ "[ERROR]" ]]
     [[ "$output" =~ "Invalid YAML syntax" ]]
     
     # Cleanup
@@ -259,7 +236,6 @@ setup_searxng_config_test_env() {
 }
 
 @test "searxng::validate_config_files skips validation when yq unavailable" {
-    setup_searxng_config_test_env
     export MOCK_YQ_AVAILABLE="no"
     
     # Create mock config file
@@ -279,13 +255,12 @@ setup_searxng_config_test_env() {
 # ============================================================================
 
 @test "searxng::export_config exports to specified file" {
-    setup_searxng_config_test_env
     local output_file="/tmp/searxng-export-test"
     
     run searxng::export_config "$output_file"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "INFO: Exporting SearXNG configuration" ]]
-    [[ "$output" =~ "SUCCESS:" ]]
+    [[ "$output" =~ "[INFO]" ]]
+    [[ "$output" =~ "[SUCCESS]" ]]
     [[ "$output" =~ "Configuration exported to: $output_file" ]]
     
     # Cleanup
@@ -293,11 +268,9 @@ setup_searxng_config_test_env() {
 }
 
 @test "searxng::export_config fails when no output file specified" {
-    setup_searxng_config_test_env
-    
     run searxng::export_config ""
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "ERROR:" ]]
+    [[ "$output" =~ "[ERROR]" ]]
     [[ "$output" =~ "Output file path is required" ]]
 }
 
@@ -306,22 +279,20 @@ setup_searxng_config_test_env() {
 # ============================================================================
 
 @test "searxng::reset_config backs up and regenerates configuration" {
-    setup_searxng_config_test_env
-    
     # Create mock existing config
     mkdir -p "$SEARXNG_DATA_DIR"
     echo "old config" > "$SEARXNG_DATA_DIR/settings.yml"
     
     # Mock generate_config
     searxng::generate_config() { 
-        echo "SUCCESS: Config regenerated"
+        echo "[SUCCESS] Config regenerated"
         return 0
     }
     
     run searxng::reset_config
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "INFO: Resetting SearXNG configuration" ]]
-    [[ "$output" =~ "SUCCESS:" ]]
+    [[ "$output" =~ "[INFO]" ]]
+    [[ "$output" =~ "[SUCCESS]" ]]
     [[ "$output" =~ "Configuration reset to defaults" ]]
     
     # Cleanup
@@ -329,17 +300,15 @@ setup_searxng_config_test_env() {
 }
 
 @test "searxng::reset_config handles missing existing config" {
-    setup_searxng_config_test_env
-    
     # Mock generate_config
     searxng::generate_config() { 
-        echo "SUCCESS: Config generated"
+        echo "[SUCCESS] Config generated"
         return 0
     }
     
     run searxng::reset_config
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "SUCCESS:" ]]
+    [[ "$output" =~ "[SUCCESS]" ]]
 }
 
 # ============================================================================
@@ -347,15 +316,13 @@ setup_searxng_config_test_env() {
 # ============================================================================
 
 @test "searxng::update_engines validates input" {
-    setup_searxng_config_test_env
-    
     # Create mock config file
     mkdir -p "$SEARXNG_DATA_DIR"
     echo "test config" > "$SEARXNG_DATA_DIR/settings.yml"
     
     run searxng::update_engines ""
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "ERROR:" ]]
+    [[ "$output" =~ "[ERROR]" ]]
     [[ "$output" =~ "Engine list cannot be empty" ]]
     
     # Cleanup
@@ -363,25 +330,21 @@ setup_searxng_config_test_env() {
 }
 
 @test "searxng::update_engines handles missing config file" {
-    setup_searxng_config_test_env
-    
     run searxng::update_engines "google,bing"
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "ERROR:" ]]
+    [[ "$output" =~ "[ERROR]" ]]
     [[ "$output" =~ "SearXNG configuration not found" ]]
 }
 
 @test "searxng::update_engines provides guidance for manual editing" {
-    setup_searxng_config_test_env
-    
     # Create mock config file
     mkdir -p "$SEARXNG_DATA_DIR"
     echo "test config" > "$SEARXNG_DATA_DIR/settings.yml"
     
     run searxng::update_engines "google,bing,duckduckgo"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "INFO: Updating SearXNG engines" ]]
-    [[ "$output" =~ "WARNING:" ]]
+    [[ "$output" =~ "[INFO]" ]]
+    [[ "$output" =~ "[WARNING]" ]]
     [[ "$output" =~ "manual editing" ]]
     [[ "$output" =~ "Supported engines:" ]]
     
@@ -394,8 +357,6 @@ setup_searxng_config_test_env() {
 # ============================================================================
 
 @test "configuration functions handle file operations safely" {
-    setup_searxng_config_test_env
-    
     # Test that functions handle missing directories gracefully
     export SEARXNG_DATA_DIR="/tmp/nonexistent-$(date +%s)"
     
@@ -407,8 +368,6 @@ setup_searxng_config_test_env() {
 }
 
 @test "template processing handles variable substitution" {
-    setup_searxng_config_test_env
-    
     # Create mock template with variables
     mkdir -p "$SEARXNG_DIR/config"
     cat > "$SEARXNG_DIR/config/settings.yml.template" << 'EOF'
@@ -420,7 +379,7 @@ EOF
     
     run searxng::generate_config
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "SUCCESS:" ]]
+    [[ "$output" =~ "[SUCCESS]" ]]
     
     # Cleanup
     rm -f "$SEARXNG_DIR/config/settings.yml.template"

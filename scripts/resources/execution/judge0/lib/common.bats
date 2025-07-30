@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export JUDGE0_PORT="2358"
     export JUDGE0_CONTAINER_NAME="judge0-test"
@@ -27,24 +33,8 @@ setup() {
     mkdir -p "$JUDGE0_SUBMISSIONS_DIR"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "docker"|"curl"|"jq"|"openssl"|"base64") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock docker commands
-    docker() {
-        case "$1" in
-            "ps") echo "judge0-test" ;;
-            "network") echo "DOCKER_NETWORK: $*" ;;
-            "volume") echo "DOCKER_VOLUME: $*" ;;
-            "stop"|"rm"|"pull"|"run") echo "DOCKER: $*" ;;
-            *) echo "DOCKER: $*" ;;
-        esac
-        return 0
-    }
     
     # Mock openssl for API key generation
     openssl() {
@@ -61,12 +51,6 @@ setup() {
     }
     
     # Mock log functions
-    log::info() { echo "INFO: $1"; }
-    log::error() { echo "ERROR: $1"; }
-    log::warn() { echo "WARN: $1"; }
-    log::success() { echo "SUCCESS: $1"; }
-    log::debug() { echo "DEBUG: $1"; }
-    log::header() { echo "=== $1 ==="; }
     
     # Load configuration and messages
     source "${JUDGE0_DIR}/config/defaults.sh"

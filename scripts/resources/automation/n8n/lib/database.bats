@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export N8N_CUSTOM_PORT="5678"
     export N8N_CONTAINER_NAME="n8n-test"
@@ -24,47 +30,8 @@ setup() {
     mkdir -p "$N8N_DATA_DIR"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "docker") return 0 ;;
-            "psql") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock Docker functions
-    docker() {
-        case "$1" in
-            "ps")
-                if [[ "$*" =~ "-a" ]] && [[ "$*" =~ "n8n-postgres-test" ]]; then
-                    echo "n8n-postgres-test"
-                elif [[ "$*" =~ "n8n-postgres-test" ]]; then
-                    echo "n8n-postgres-test"  # Running container
-                fi
-                ;;
-            "run")
-                echo "DOCKER_RUN: $*"
-                return 0
-                ;;
-            "start")
-                echo "DOCKER_START: $*"
-                return 0
-                ;;
-            "stop")
-                echo "DOCKER_STOP: $*"
-                return 0
-                ;;
-            "rm")
-                echo "DOCKER_RM: $*"
-                return 0
-                ;;
-            "exec")
-                echo "DOCKER_EXEC: $*"
-                return 0
-                ;;
-            *) return 0 ;;
-        esac
-    }
     
     # Mock psql command
     psql() {
@@ -81,25 +48,9 @@ setup() {
     }
     
     # Mock log functions
-    log::info() {
-        echo "INFO: $1"
-        return 0
-    }
     
-    log::error() {
-        echo "ERROR: $1"
-        return 0
-    }
     
-    log::warn() {
-        echo "WARN: $1"
-        return 0
-    }
     
-    log::success() {
-        echo "SUCCESS: $1"
-        return 0
-    }
     
     # Load configuration and messages
     source "${N8N_DIR}/config/defaults.sh"

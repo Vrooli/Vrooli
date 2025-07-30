@@ -1,13 +1,19 @@
 #!/usr/bin/env bats
 bats_require_minimum_version 1.5.0
 
-# Path to the script under test
-SCRIPT_PATH="$BATS_TEST_DIRNAME/status.sh"
-SEARXNG_DIR="$BATS_TEST_DIRNAME/.."
-
-# Helper function for proper sourcing in tests
-setup_searxng_status_test_env() {
-    local script_dir="$SEARXNG_DIR"
+# Setup for each test
+setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
+    # Path to the script under test
+    SCRIPT_PATH="$BATS_TEST_DIRNAME/status.sh"
+    SEARXNG_DIR="$BATS_TEST_DIRNAME/.."
+    
+    # Source dependencies
     local resources_dir="$SEARXNG_DIR/../.."
     local helpers_dir="$resources_dir/../helpers"
     
@@ -20,23 +26,17 @@ setup_searxng_status_test_env() {
     source "$resources_dir/common.sh"
     
     # Source config and messages
-    source "$script_dir/config/defaults.sh"
-    source "$script_dir/config/messages.sh"
+    source "$SEARXNG_DIR/config/defaults.sh"
+    source "$SEARXNG_DIR/config/messages.sh"
     searxng::export_config
     
     # Source dependencies
-    source "$script_dir/lib/common.sh"
+    source "$SEARXNG_DIR/lib/common.sh"
     
     # Source the script under test
     source "$SCRIPT_PATH"
     
-    # Mock functions
-    log::info() { echo "INFO: $*"; }
-    log::success() { echo "SUCCESS: $*"; }
-    log::error() { echo "ERROR: $*"; }
-    log::warn() { echo "WARNING: $*"; }
-    log::header() { echo "HEADER: $*"; }
-    
+    # Mock message function
     searxng::message() {
         local type="$1"
         local msg_var="$2"
@@ -122,7 +122,7 @@ setup_searxng_status_test_env() {
         fi
     }
     
-    # Mock curl for API checks
+    # Mock curl for API checks (override shared mock for SearXNG-specific behavior)
     curl() {
         if [[ "$MOCK_API_RESPONDS" == "yes" ]]; then
             return 0
@@ -174,8 +174,6 @@ setup_searxng_status_test_env() {
 # ============================================================================
 
 @test "sourcing status.sh defines required functions" {
-    setup_searxng_status_test_env
-    
     local required_functions=(
         "searxng::show_status"
         "searxng::show_detailed_status"
@@ -197,7 +195,6 @@ setup_searxng_status_test_env() {
 # ============================================================================
 
 @test "searxng::show_status displays healthy status correctly" {
-    setup_searxng_status_test_env
     export MOCK_STATUS="healthy"
     
     run searxng::show_status
@@ -209,7 +206,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "searxng::show_status displays not_installed status" {
-    setup_searxng_status_test_env
     export MOCK_STATUS="not_installed"
     
     run searxng::show_status
@@ -221,7 +217,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "searxng::show_status displays stopped status" {
-    setup_searxng_status_test_env
     export MOCK_STATUS="stopped"
     
     run searxng::show_status
@@ -233,7 +228,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "searxng::show_status displays unhealthy status" {
-    setup_searxng_status_test_env
     export MOCK_STATUS="unhealthy"
     export MOCK_SEARXNG_INSTALLED="yes"
     
@@ -245,8 +239,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "searxng::show_status includes basic information" {
-    setup_searxng_status_test_env
-    
     run searxng::show_status
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Port: $SEARXNG_PORT" ]]
@@ -260,8 +252,6 @@ setup_searxng_status_test_env() {
 # ============================================================================
 
 @test "searxng::show_detailed_status shows container information" {
-    setup_searxng_status_test_env
-    
     run searxng::show_detailed_status
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Container Details:" ]]
@@ -272,8 +262,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "searxng::show_detailed_status shows network status" {
-    setup_searxng_status_test_env
-    
     run searxng::show_detailed_status
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Network Status:" ]]
@@ -281,7 +269,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "searxng::show_detailed_status shows port conflicts" {
-    setup_searxng_status_test_env
     export MOCK_PORT_AVAILABLE="no"
     
     run searxng::show_detailed_status
@@ -290,8 +277,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "searxng::show_detailed_status shows configuration summary" {
-    setup_searxng_status_test_env
-    
     run searxng::show_detailed_status
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Configuration:" ]]
@@ -307,7 +292,6 @@ setup_searxng_status_test_env() {
 # ============================================================================
 
 @test "searxng::check_api_endpoints shows all endpoints healthy" {
-    setup_searxng_status_test_env
     export MOCK_API_RESPONDS="yes"
     
     run searxng::check_api_endpoints
@@ -319,7 +303,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "searxng::check_api_endpoints shows failing endpoints" {
-    setup_searxng_status_test_env
     export MOCK_API_RESPONDS="no"
     
     run searxng::check_api_endpoints
@@ -330,7 +313,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "searxng::check_api_endpoints fails when container not running" {
-    setup_searxng_status_test_env
     export MOCK_SEARXNG_RUNNING="no"
     
     run searxng::check_api_endpoints
@@ -343,8 +325,6 @@ setup_searxng_status_test_env() {
 # ============================================================================
 
 @test "searxng::diagnose performs comprehensive system check" {
-    setup_searxng_status_test_env
-    
     run searxng::diagnose
     [ "$status" -eq 0 ]
     [[ "$output" =~ "HEADER: SearXNG Diagnostic Report" ]]
@@ -355,7 +335,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "searxng::diagnose detects missing dependencies" {
-    setup_searxng_status_test_env
     export MOCK_DOCKER_AVAILABLE="no"
     export MOCK_CURL_AVAILABLE="no"
     
@@ -366,8 +345,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "searxng::diagnose validates configuration" {
-    setup_searxng_status_test_env
-    
     run searxng::diagnose
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Configuration Validation:" ]]
@@ -379,8 +356,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "searxng::diagnose checks Docker environment" {
-    setup_searxng_status_test_env
-    
     run searxng::diagnose
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Docker Environment:" ]]
@@ -389,7 +364,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "searxng::diagnose detects missing Docker resources" {
-    setup_searxng_status_test_env
     export MOCK_NETWORK_EXISTS="no"
     export MOCK_IMAGE_EXISTS="no"
     
@@ -400,8 +374,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "searxng::diagnose shows troubleshooting suggestions" {
-    setup_searxng_status_test_env
-    
     run searxng::diagnose
     [ "$status" -eq 0 ]
     [[ "$output" =~ "HEADER: Troubleshooting Suggestions" ]]
@@ -412,7 +384,6 @@ setup_searxng_status_test_env() {
 # ============================================================================
 
 @test "searxng::analyze_logs analyzes container logs" {
-    setup_searxng_status_test_env
     export MOCK_SEARXNG_INSTALLED="yes"
     
     run searxng::analyze_logs
@@ -422,7 +393,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "searxng::analyze_logs fails when container not available" {
-    setup_searxng_status_test_env
     export MOCK_SEARXNG_INSTALLED="no"
     
     run searxng::analyze_logs
@@ -431,7 +401,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "searxng::analyze_logs detects specific issues" {
-    setup_searxng_status_test_env
     export MOCK_SEARXNG_INSTALLED="yes"
     
     # Override docker logs to include specific issues
@@ -455,7 +424,6 @@ setup_searxng_status_test_env() {
 # ============================================================================
 
 @test "searxng::show_troubleshooting provides status-specific guidance" {
-    setup_searxng_status_test_env
     export MOCK_STATUS="not_installed"
     
     run searxng::show_troubleshooting
@@ -465,7 +433,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "searxng::show_troubleshooting handles stopped status" {
-    setup_searxng_status_test_env
     export MOCK_STATUS="stopped"
     
     run searxng::show_troubleshooting
@@ -474,7 +441,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "searxng::show_troubleshooting handles unhealthy status" {
-    setup_searxng_status_test_env
     export MOCK_STATUS="unhealthy"
     
     run searxng::show_troubleshooting
@@ -484,8 +450,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "searxng::show_troubleshooting includes general guidance" {
-    setup_searxng_status_test_env
-    
     run searxng::show_troubleshooting
     [ "$status" -eq 0 ]
     [[ "$output" =~ "General troubleshooting:" ]]
@@ -496,8 +460,6 @@ setup_searxng_status_test_env() {
 # ============================================================================
 
 @test "searxng::monitor displays status continuously" {
-    setup_searxng_status_test_env
-    
     # Mock date and sleep to control the loop
     local call_count=0
     date() {
@@ -519,8 +481,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "searxng::monitor shows response time for healthy status" {
-    setup_searxng_status_test_env
-    
     # Mock curl to return timing
     curl() {
         if [[ "$*" =~ "-w" ]]; then
@@ -549,8 +509,6 @@ setup_searxng_status_test_env() {
 # ============================================================================
 
 @test "status functions handle all status combinations correctly" {
-    setup_searxng_status_test_env
-    
     local statuses=("not_installed" "stopped" "unhealthy" "healthy")
     
     for status in "${statuses[@]}"; do
@@ -567,8 +525,6 @@ setup_searxng_status_test_env() {
 }
 
 @test "diagnostic checks are comprehensive and accurate" {
-    setup_searxng_status_test_env
-    
     run searxng::diagnose
     [ "$status" -eq 0 ]
     

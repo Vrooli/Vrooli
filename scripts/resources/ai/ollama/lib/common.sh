@@ -176,13 +176,13 @@ ollama::update_config() {
 ollama::validate_temperature() {
     local temp="$1"
     
-    # Check if it's a valid number
-    if ! [[ "$temp" =~ ^[0-9]*\.?[0-9]+$ ]]; then
+    # Check if it's a valid number (including negative for proper rejection)
+    if ! [[ "$temp" =~ ^-?[0-9]*\.?[0-9]+$ ]]; then
         return 1
     fi
     
-    # Check if it's in valid range (0.0-2.0)
-    if (( $(echo "$temp >= 0.0" | bc -l) )) && (( $(echo "$temp <= 2.0" | bc -l) )); then
+    # Use awk for floating point comparison (more portable than bc)
+    if awk -v temp="$temp" 'BEGIN { if (temp >= 0.0 && temp <= 2.0) exit 0; else exit 1 }'; then
         return 0
     else
         return 1
@@ -198,13 +198,13 @@ ollama::validate_temperature() {
 ollama::validate_top_p() {
     local top_p="$1"
     
-    # Check if it's a valid number
-    if ! [[ "$top_p" =~ ^[0-9]*\.?[0-9]+$ ]]; then
+    # Check if it's a valid number (including negative for proper rejection)
+    if ! [[ "$top_p" =~ ^-?[0-9]*\.?[0-9]+$ ]]; then
         return 1
     fi
     
-    # Check if it's in valid range (0.0-1.0)
-    if (( $(echo "$top_p >= 0.0" | bc -l) )) && (( $(echo "$top_p <= 1.0" | bc -l) )); then
+    # Use awk for floating point comparison (more portable than bc)
+    if awk -v top_p="$top_p" 'BEGIN { if (top_p >= 0.0 && top_p <= 1.0) exit 0; else exit 1 }'; then
         return 0
     else
         return 1

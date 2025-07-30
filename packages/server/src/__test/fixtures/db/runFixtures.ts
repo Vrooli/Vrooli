@@ -1,37 +1,44 @@
+/* eslint-disable no-magic-numbers */
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
-import { generatePK } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK } from "@vrooli/shared";
 
 /**
  * Database fixtures for Run model - used for seeding test data
  * These follow Prisma's shape for database operations
  */
 
-// Consistent IDs for testing
-export const runDbIds = {
-    run1: generatePK(),
-    run2: generatePK(),
-    run3: generatePK(),
-    run4: generatePK(),
-    schedule1: generatePK(),
-    schedule2: generatePK(),
-    resourceVersion1: generatePK(),
-    resourceVersion2: generatePK(),
-    team1: generatePK(),
-    user1: generatePK(),
-    user2: generatePK(),
-    step1: generatePK(),
-    step2: generatePK(),
-    step3: generatePK(),
-    io1: generatePK(),
-    io2: generatePK(),
-};
+// Consistent IDs for testing - lazy initialization pattern
+let _runDbIds: Record<string, bigint> | null = null;
+export function getRunDbIds() {
+    if (!_runDbIds) {
+        _runDbIds = {
+            run1: generatePK(),
+            run2: generatePK(),
+            run3: generatePK(),
+            run4: generatePK(),
+            schedule1: generatePK(),
+            schedule2: generatePK(),
+            resourceVersion1: generatePK(),
+            resourceVersion2: generatePK(),
+            team1: generatePK(),
+            user1: generatePK(),
+            user2: generatePK(),
+            step1: generatePK(),
+            step2: generatePK(),
+            step3: generatePK(),
+            io1: generatePK(),
+            io2: generatePK(),
+        };
+    }
+    return _runDbIds;
+}
 
 /**
  * Minimal run data for database creation
  */
 export const minimalRunDb: Prisma.runCreateInput = {
-    id: runDbIds.run1,
+    id: getRunDbIds().run1,
     name: "Test Run",
     status: "Scheduled",
     isPrivate: false,
@@ -44,7 +51,7 @@ export const minimalRunDb: Prisma.runCreateInput = {
  * Run with resource version connection
  */
 export const runWithResourceVersionDb: Prisma.runCreateInput = {
-    id: runDbIds.run2,
+    id: getRunDbIds().run2,
     name: "Run with Resource Version",
     status: "InProgress",
     isPrivate: false,
@@ -54,7 +61,7 @@ export const runWithResourceVersionDb: Prisma.runCreateInput = {
     startedAt: new Date(),
     data: JSON.stringify({ input: "test data" }),
     resourceVersion: {
-        connect: { id: runDbIds.resourceVersion1 },
+        connect: { id: getRunDbIds().resourceVersion1 },
     },
 };
 
@@ -62,7 +69,7 @@ export const runWithResourceVersionDb: Prisma.runCreateInput = {
  * Complete run with all features
  */
 export const completeRunDb: Prisma.runCreateInput = {
-    id: runDbIds.run3,
+    id: getRunDbIds().run3,
     name: "Complete Test Run",
     status: "Completed",
     isPrivate: false,
@@ -72,27 +79,27 @@ export const completeRunDb: Prisma.runCreateInput = {
     startedAt: new Date(Date.now() - 300000), // 5 minutes ago
     completedAt: new Date(Date.now() - 60000), // 1 minute ago
     timeElapsed: 240000, // 4 minutes
-    data: JSON.stringify({ 
+    data: JSON.stringify({
         input: "complex test data",
         parameters: { verbose: true },
         result: "success",
     }),
     resourceVersion: {
-        connect: { id: runDbIds.resourceVersion2 },
+        connect: { id: getRunDbIds().resourceVersion2 },
     },
     user: {
-        connect: { id: runDbIds.user1 },
+        connect: { id: getRunDbIds().user1 },
     },
     team: {
-        connect: { id: runDbIds.team1 },
+        connect: { id: getRunDbIds().team1 },
     },
     schedule: {
-        connect: { id: runDbIds.schedule1 },
+        connect: { id: getRunDbIds().schedule1 },
     },
     steps: {
         create: [
             {
-                id: runDbIds.step1,
+                id: getRunDbIds().step1,
                 name: "Initialize",
                 nodeId: "node_1",
                 status: "Completed",
@@ -103,9 +110,9 @@ export const completeRunDb: Prisma.runCreateInput = {
                 completedAt: new Date(Date.now() - 240000),
             },
             {
-                id: runDbIds.step2,
+                id: getRunDbIds().step2,
                 name: "Process",
-                nodeId: "node_2", 
+                nodeId: "node_2",
                 status: "Completed",
                 order: 2,
                 complexity: 5,
@@ -114,10 +121,10 @@ export const completeRunDb: Prisma.runCreateInput = {
                 completedAt: new Date(Date.now() - 120000),
             },
             {
-                id: runDbIds.step3,
+                id: getRunDbIds().step3,
                 name: "Finalize",
                 nodeId: "node_3",
-                status: "Completed", 
+                status: "Completed",
                 order: 3,
                 complexity: 2,
                 contextSwitches: 1,
@@ -129,13 +136,13 @@ export const completeRunDb: Prisma.runCreateInput = {
     io: {
         create: [
             {
-                id: runDbIds.io1,
+                id: getRunDbIds().io1,
                 nodeName: "node_1",
                 nodeInputName: "input",
                 data: JSON.stringify({ value: "test input" }),
             },
             {
-                id: runDbIds.io2,
+                id: getRunDbIds().io2,
                 nodeName: "node_3",
                 nodeInputName: "output",
                 data: JSON.stringify({ result: "test output" }),
@@ -148,7 +155,7 @@ export const completeRunDb: Prisma.runCreateInput = {
  * Failed run
  */
 export const failedRunDb: Prisma.runCreateInput = {
-    id: runDbIds.run4,
+    id: getRunDbIds().run4,
     name: "Failed Test Run",
     status: "Failed",
     isPrivate: false,
@@ -158,12 +165,12 @@ export const failedRunDb: Prisma.runCreateInput = {
     startedAt: new Date(Date.now() - 180000), // 3 minutes ago
     completedAt: new Date(Date.now() - 120000), // 2 minutes ago
     timeElapsed: 60000, // 1 minute
-    data: JSON.stringify({ 
+    data: JSON.stringify({
         input: "test data",
         error: "Process failed due to invalid input",
     }),
     user: {
-        connect: { id: runDbIds.user2 },
+        connect: { id: getRunDbIds().user2 },
     },
 };
 
@@ -447,7 +454,7 @@ export async function seedRuns(
                     },
                     {
                         id: generatePK(),
-                        nodeName: "output_node", 
+                        nodeName: "output_node",
                         nodeInputName: "output",
                         data: JSON.stringify({ result: `output_${i + 1}`, success: status === "Completed" }),
                     },
@@ -498,11 +505,11 @@ export async function cleanupRuns(prisma: PrismaClient, runIds: string[]) {
     await prisma.runIO.deleteMany({
         where: { runId: { in: runIds } },
     });
-    
+
     await prisma.runStep.deleteMany({
         where: { runId: { in: runIds } },
     });
-    
+
     await prisma.run.deleteMany({
         where: { id: { in: runIds } },
     });

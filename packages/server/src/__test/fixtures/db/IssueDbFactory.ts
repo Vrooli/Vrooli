@@ -1,8 +1,8 @@
-import { nanoid, IssueStatus } from "@vrooli/shared";
 import { type Prisma, type PrismaClient, type issue } from "@prisma/client";
+import { IssueStatus } from "@vrooli/shared";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
@@ -253,7 +253,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
                     views: 50,
                     translations: {
                         update: [{
-                            where: { 
+                            where: {
                                 issue_translation_issueId_language_unique: {
                                     issueId: this.generateId(),
                                     language: "en",
@@ -276,7 +276,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateMinimalData(overrides?: Partial<Prisma.issueCreateInput>): Prisma.issueCreateInput {
+    protected generateMinimalData(overrides?: Partial<issueCreateInput>): issueCreateInput {
         return {
             id: this.generateId(),
             publicId: this.generatePublicId(),
@@ -294,7 +294,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateCompleteData(overrides?: Partial<Prisma.issueCreateInput>): Prisma.issueCreateInput {
+    protected generateCompleteData(overrides?: Partial<issueCreateInput>): issueCreateInput {
         return {
             id: this.generateId(),
             publicId: this.generatePublicId(),
@@ -423,7 +423,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create issues with specific statuses
      */
-    async createOpenIssue(createdById: string, title: string, description: string): Promise<Prisma.issue> {
+    async createOpenIssue(createdById: string, title: string, description: string): Promise<issue> {
         return await this.createMinimal({
             createdBy: { connect: { id: BigInt(createdById) } },
             status: IssueStatus.Open,
@@ -438,7 +438,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    async createInProgressIssue(createdById: string, title: string, description: string): Promise<Prisma.issue> {
+    async createInProgressIssue(createdById: string, title: string, description: string): Promise<issue> {
         return await this.createMinimal({
             createdBy: { connect: { id: BigInt(createdById) } },
             status: IssueStatus.Open,
@@ -453,7 +453,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    async createResolvedIssue(createdById: string, closedById: string, title: string, resolution: string): Promise<Prisma.issue> {
+    async createResolvedIssue(createdById: string, closedById: string, title: string, resolution: string): Promise<issue> {
         return await this.createMinimal({
             createdBy: { connect: { id: BigInt(createdById) } },
             status: IssueStatus.ClosedResolved,
@@ -473,7 +473,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create issue for specific contexts
      */
-    async createResourceIssue(resourceId: string, createdById: string, title: string, description: string): Promise<Prisma.issue> {
+    async createResourceIssue(resourceId: string, createdById: string, title: string, description: string): Promise<issue> {
         return await this.createMinimal({
             resource: { connect: { id: BigInt(resourceId) } },
             createdBy: { connect: { id: BigInt(createdById) } },
@@ -488,7 +488,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    async createTeamIssue(teamId: string, createdById: string, title: string, description: string): Promise<Prisma.issue> {
+    async createTeamIssue(teamId: string, createdById: string, title: string, description: string): Promise<issue> {
         return await this.createMinimal({
             team: { connect: { id: BigInt(teamId) } },
             createdBy: { connect: { id: BigInt(createdById) } },
@@ -506,9 +506,9 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
     /**
      * Update issue status
      */
-    async updateStatus(issueId: string, status: IssueStatus, closedById?: string): Promise<Prisma.issue> {
-        const updateData: Prisma.issueUpdateInput = { status };
-        
+    async updateStatus(issueId: string, status: IssueStatus, closedById?: string): Promise<issue> {
+        const updateData: issueUpdateInput = { status };
+
         if (status === IssueStatus.ClosedResolved || status === IssueStatus.ClosedUnresolved || status === IssueStatus.Rejected) {
             updateData.closedAt = new Date();
             if (closedById) {
@@ -518,7 +518,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
             updateData.closedAt = null;
             updateData.closedBy = { disconnect: true };
         }
-        
+
         return await this.prisma.issue.update({
             where: { id: BigInt(issueId) },
             data: updateData,
@@ -526,7 +526,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    protected getDefaultInclude(): Prisma.issueInclude {
+    protected getDefaultInclude(): issueInclude {
         return {
             resource: true,
             team: true,
@@ -553,10 +553,10 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async applyRelationships(
-        baseData: Prisma.issueCreateInput,
+        baseData: issueCreateInput,
         config: IssueRelationConfig,
         tx: any,
-    ): Promise<Prisma.issueCreateInput> {
+    ): Promise<issueCreateInput> {
         const data = { ...baseData };
 
         // Handle resource relationship
@@ -605,9 +605,9 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         return data;
     }
 
-    protected async checkModelConstraints(record: Prisma.issue): Promise<string[]> {
+    protected async checkModelConstraints(record: issue): Promise<string[]> {
         const violations: string[] = [];
-        
+
         // Check publicId format
         if (record.publicId && record.publicId.length !== 12) {
             violations.push("PublicId must be exactly 12 characters");
@@ -637,7 +637,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         const translations = await this.prisma.issue_translation.findMany({
             where: { issueId: record.id },
         });
-        
+
         if (translations.length === 0) {
             violations.push("Issue must have at least one translation");
         }
@@ -666,13 +666,13 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.issue,
+        record: issue,
         remainingDepth: number,
         tx: any,
         includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
-        const shouldDelete = (relation: string) => 
+        const shouldDelete = (relation: string) =>
             !includeOnly || includeOnly.includes(relation);
 
         // Delete comments (and their sub-relations)
@@ -738,7 +738,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get issues by status
      */
-    async getIssuesByStatus(status: IssueStatus, limit = 10): Promise<Prisma.issue[]> {
+    async getIssuesByStatus(status: IssueStatus, limit = 10): Promise<issue[]> {
         return await this.prisma.issue.findMany({
             where: { status },
             include: this.getDefaultInclude(),
@@ -750,13 +750,13 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get issues for a resource
      */
-    async getResourceIssues(resourceId: string, includeResolved = false): Promise<Prisma.issue[]> {
-        const whereClause: Prisma.issueWhereInput = { resourceId: BigInt(resourceId) };
-        
+    async getResourceIssues(resourceId: string, includeResolved = false): Promise<issue[]> {
+        const whereClause: issueWhereInput = { resourceId: BigInt(resourceId) };
+
         if (!includeResolved) {
             whereClause.status = { notIn: [IssueStatus.ClosedResolved, IssueStatus.ClosedUnresolved] };
         }
-        
+
         return await this.prisma.issue.findMany({
             where: whereClause,
             include: this.getDefaultInclude(),
@@ -767,15 +767,15 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get issues for a team
      */
-    async getTeamIssues(teamId: string, includeResolved = false): Promise<Prisma.issue[]> {
-        const whereClause: Prisma.issueWhereInput = { teamId: BigInt(teamId) };
-        
+    async getTeamIssues(teamId: string, includeResolved = false): Promise<issue[]> {
+        const whereClause: issueWhereInput = { teamId: BigInt(teamId) };
+
         if (!includeResolved) {
-            whereClause.status = { 
-                notIn: [IssueStatus.ClosedResolved, IssueStatus.ClosedUnresolved, IssueStatus.Rejected], 
+            whereClause.status = {
+                notIn: [IssueStatus.ClosedResolved, IssueStatus.ClosedUnresolved, IssueStatus.Rejected],
             };
         }
-        
+
         return await this.prisma.issue.findMany({
             where: whereClause,
             include: this.getDefaultInclude(),
@@ -785,7 +785,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
 }
 
 // Export factory creator function
-export const createIssueDbFactory = (prisma: PrismaClient) => 
+export const createIssueDbFactory = (prisma: PrismaClient) =>
     new IssueDbFactory(prisma);
 
 // Export the class for type usage

@@ -1,13 +1,19 @@
 #!/usr/bin/env bats
 bats_require_minimum_version 1.5.0
 
-# Path to the script under test
-SCRIPT_PATH="$BATS_TEST_DIRNAME/install.sh"
-SEARXNG_DIR="$BATS_TEST_DIRNAME/.."
-
-# Helper function for proper sourcing in tests
-setup_searxng_install_test_env() {
-    local script_dir="$SEARXNG_DIR"
+# Setup for each test
+setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
+    # Path to the script under test
+    SCRIPT_PATH="$BATS_TEST_DIRNAME/install.sh"
+    SEARXNG_DIR="$BATS_TEST_DIRNAME/.."
+    
+    # Source dependencies
     local resources_dir="$SEARXNG_DIR/../.."
     local helpers_dir="$resources_dir/../helpers"
     
@@ -20,24 +26,19 @@ setup_searxng_install_test_env() {
     source "$resources_dir/common.sh"
     
     # Source config and messages
-    source "$script_dir/config/defaults.sh"
-    source "$script_dir/config/messages.sh"
+    source "$SEARXNG_DIR/config/defaults.sh"
+    source "$SEARXNG_DIR/config/messages.sh"
     searxng::export_config
     
     # Source dependencies
-    source "$script_dir/lib/common.sh"
-    source "$script_dir/lib/docker.sh"
-    source "$script_dir/lib/config.sh"
+    source "$SEARXNG_DIR/lib/common.sh"
+    source "$SEARXNG_DIR/lib/docker.sh"
+    source "$SEARXNG_DIR/lib/config.sh"
     
     # Source the script under test
     source "$SCRIPT_PATH"
     
-    # Mock functions
-    log::info() { echo "INFO: $*"; }
-    log::success() { echo "SUCCESS: $*"; }
-    log::error() { echo "ERROR: $*"; }
-    log::warn() { echo "WARNING: $*"; }
-    
+    # Mock message function
     searxng::message() {
         local type="$1"
         local msg_var="$2"
@@ -89,7 +90,7 @@ setup_searxng_install_test_env() {
         esac
     }
     
-    # Mock other functions
+    # Mock SearXNG functions
     searxng::is_installed() { [[ "$MOCK_SEARXNG_INSTALLED" == "yes" ]]; }
     searxng::validate_config() { [[ "$MOCK_CONFIG_VALID" == "yes" ]]; }
     searxng::ensure_data_dir() { [[ "$MOCK_DATA_DIR_SUCCESS" == "yes" ]]; }
@@ -135,8 +136,6 @@ setup_searxng_install_test_env() {
 # ============================================================================
 
 @test "sourcing install.sh defines required functions" {
-    setup_searxng_install_test_env
-    
     local required_functions=(
         "searxng::check_prerequisites"
         "searxng::install"
@@ -159,14 +158,11 @@ setup_searxng_install_test_env() {
 # ============================================================================
 
 @test "searxng::check_prerequisites passes when all dependencies available" {
-    setup_searxng_install_test_env
-    
     run searxng::check_prerequisites
     [ "$status" -eq 0 ]
 }
 
 @test "searxng::check_prerequisites fails when docker missing" {
-    setup_searxng_install_test_env
     export MOCK_DOCKER_AVAILABLE="no"
     
     run searxng::check_prerequisites
@@ -176,7 +172,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::check_prerequisites fails when docker daemon not running" {
-    setup_searxng_install_test_env
     export MOCK_DOCKER_DAEMON_RUNNING="no"
     
     run searxng::check_prerequisites
@@ -185,7 +180,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::check_prerequisites fails when curl missing" {
-    setup_searxng_install_test_env
     export MOCK_CURL_AVAILABLE="no"
     
     run searxng::check_prerequisites
@@ -195,7 +189,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::check_prerequisites warns when openssl missing" {
-    setup_searxng_install_test_env
     export MOCK_OPENSSL_AVAILABLE="no"
     
     run searxng::check_prerequisites
@@ -209,8 +202,6 @@ setup_searxng_install_test_env() {
 # ============================================================================
 
 @test "searxng::install completes full installation successfully" {
-    setup_searxng_install_test_env
-    
     run searxng::install
     [ "$status" -eq 0 ]
     [[ "$output" =~ "info: MSG_SEARXNG_SETUP_START" ]]
@@ -218,7 +209,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::install skips when already installed without force" {
-    setup_searxng_install_test_env
     export MOCK_SEARXNG_INSTALLED="yes"
     export FORCE="no"
     
@@ -229,7 +219,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::install proceeds when already installed with force" {
-    setup_searxng_install_test_env
     export MOCK_SEARXNG_INSTALLED="yes"
     export FORCE="yes"
     
@@ -239,7 +228,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::install fails when prerequisites not met" {
-    setup_searxng_install_test_env
     export MOCK_DOCKER_AVAILABLE="no"
     
     run searxng::install
@@ -247,7 +235,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::install fails when config validation fails" {
-    setup_searxng_install_test_env
     export MOCK_CONFIG_VALID="no"
     
     run searxng::install
@@ -256,7 +243,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::install fails when data directory creation fails" {
-    setup_searxng_install_test_env
     export MOCK_DATA_DIR_SUCCESS="no"
     
     run searxng::install
@@ -264,7 +250,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::install fails when config generation fails" {
-    setup_searxng_install_test_env
     export MOCK_CONFIG_GENERATE_SUCCESS="no"
     
     run searxng::install
@@ -273,7 +258,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::install fails when image pull fails" {
-    setup_searxng_install_test_env
     export MOCK_PULL_SUCCESS="no"
     
     run searxng::install
@@ -281,7 +265,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::install fails when network creation fails" {
-    setup_searxng_install_test_env
     export MOCK_NETWORK_SUCCESS="no"
     
     run searxng::install
@@ -290,7 +273,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::install fails when container start fails" {
-    setup_searxng_install_test_env
     export MOCK_START_SUCCESS="no"
     
     run searxng::install
@@ -298,7 +280,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::install warns when health check fails but continues" {
-    setup_searxng_install_test_env
     export MOCK_HEALTH_SUCCESS="no"
     
     run searxng::install
@@ -312,7 +293,6 @@ setup_searxng_install_test_env() {
 # ============================================================================
 
 @test "searxng::uninstall completes when SearXNG installed" {
-    setup_searxng_install_test_env
     export MOCK_SEARXNG_INSTALLED="yes"
     export YES="yes"  # Auto-confirm
     
@@ -322,7 +302,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::uninstall succeeds when not installed" {
-    setup_searxng_install_test_env
     export MOCK_SEARXNG_INSTALLED="no"
     
     run searxng::uninstall
@@ -331,7 +310,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::uninstall prompts for confirmation when not forced" {
-    setup_searxng_install_test_env
     export MOCK_SEARXNG_INSTALLED="yes"
     export FORCE="no"
     export YES="no"
@@ -343,7 +321,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::uninstall removes data in force mode" {
-    setup_searxng_install_test_env
     export MOCK_SEARXNG_INSTALLED="yes"
     export FORCE="yes"
     
@@ -357,7 +334,6 @@ setup_searxng_install_test_env() {
 # ============================================================================
 
 @test "searxng::upgrade works when SearXNG installed" {
-    setup_searxng_install_test_env
     export MOCK_SEARXNG_INSTALLED="yes"
     export MOCK_RESTART_SUCCESS="yes"
     
@@ -369,7 +345,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::upgrade fails when not installed" {
-    setup_searxng_install_test_env
     export MOCK_SEARXNG_INSTALLED="no"
     
     run searxng::upgrade
@@ -379,7 +354,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::upgrade fails when image pull fails" {
-    setup_searxng_install_test_env
     export MOCK_SEARXNG_INSTALLED="yes"
     export MOCK_PULL_SUCCESS="no"
     
@@ -388,7 +362,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::upgrade fails when restart fails" {
-    setup_searxng_install_test_env
     export MOCK_SEARXNG_INSTALLED="yes"
     export MOCK_RESTART_SUCCESS="no"
     
@@ -403,8 +376,6 @@ setup_searxng_install_test_env() {
 # ============================================================================
 
 @test "searxng::reset regenerates config and restarts" {
-    setup_searxng_install_test_env
-    
     # Mock is_running to return true initially
     searxng::is_running() { return 0; }
     
@@ -416,7 +387,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::reset fails when config generation fails" {
-    setup_searxng_install_test_env
     export MOCK_CONFIG_GENERATE_SUCCESS="no"
     
     run searxng::reset
@@ -425,7 +395,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::reset fails when container start fails" {
-    setup_searxng_install_test_env
     export MOCK_START_SUCCESS="no"
     
     run searxng::reset
@@ -439,8 +408,6 @@ setup_searxng_install_test_env() {
 # ============================================================================
 
 @test "searxng::backup creates backup successfully" {
-    setup_searxng_install_test_env
-    
     # Create mock data directory
     export SEARXNG_DATA_DIR="/tmp/searxng-test-data"
     mkdir -p "$SEARXNG_DATA_DIR"
@@ -458,7 +425,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::backup fails when data directory missing" {
-    setup_searxng_install_test_env
     export SEARXNG_DATA_DIR="/nonexistent/directory"
     
     run searxng::backup
@@ -468,8 +434,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::restore restores from backup successfully" {
-    setup_searxng_install_test_env
-    
     # Create mock backup directory
     local backup_dir="/tmp/searxng-backup-test"
     mkdir -p "$backup_dir"
@@ -494,8 +458,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::restore fails when backup directory missing" {
-    setup_searxng_install_test_env
-    
     run searxng::restore "/nonexistent/backup"
     [ "$status" -eq 1 ]
     [[ "$output" =~ "ERROR:" ]]
@@ -503,8 +465,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::restore fails when no backup directory provided" {
-    setup_searxng_install_test_env
-    
     run searxng::restore ""
     [ "$status" -eq 1 ]
     [[ "$output" =~ "ERROR:" ]]
@@ -516,8 +476,6 @@ setup_searxng_install_test_env() {
 # ============================================================================
 
 @test "searxng::migrate_to_compose migrates successfully" {
-    setup_searxng_install_test_env
-    
     # Mock is_running to return true initially
     searxng::is_running() { return 0; }
     
@@ -529,7 +487,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "searxng::migrate_to_compose fails when compose up fails" {
-    setup_searxng_install_test_env
     export MOCK_COMPOSE_SUCCESS="no"
     
     run searxng::migrate_to_compose
@@ -543,8 +500,6 @@ setup_searxng_install_test_env() {
 # ============================================================================
 
 @test "installation flow handles all error scenarios gracefully" {
-    setup_searxng_install_test_env
-    
     # Test each failure point
     local failure_scenarios=(
         "MOCK_DOCKER_AVAILABLE=no"
@@ -557,7 +512,29 @@ setup_searxng_install_test_env() {
     )
     
     for scenario in "${failure_scenarios[@]}"; do
-        setup_searxng_install_test_env
+        # Reset to defaults for each test
+        export MOCK_DOCKER_AVAILABLE="yes"
+        export MOCK_CURL_AVAILABLE="yes"
+        export MOCK_OPENSSL_AVAILABLE="yes"
+        export MOCK_DOCKER_DAEMON_RUNNING="yes"
+        export MOCK_SEARXNG_INSTALLED="no"
+        export MOCK_CONFIG_VALID="yes"
+        export MOCK_DATA_DIR_SUCCESS="yes"
+        export MOCK_CONFIG_GENERATE_SUCCESS="yes"
+        export MOCK_PULL_SUCCESS="yes"
+        export MOCK_NETWORK_SUCCESS="yes"
+        export MOCK_START_SUCCESS="yes"
+        export MOCK_HEALTH_SUCCESS="yes"
+        export MOCK_STOP_SUCCESS="yes"
+        export MOCK_CLEANUP_SUCCESS="yes"
+        export MOCK_COMPOSE_SUCCESS="yes"
+        export MOCK_REMOVE_SUCCESS="yes"
+        export MOCK_RESTART_SUCCESS="yes"
+        export MOCK_USER_CONFIRMS="yes"
+        export FORCE="no"
+        export YES="no"
+        
+        # Apply the specific failure scenario
         eval "export $scenario"
         
         run searxng::install
@@ -566,8 +543,6 @@ setup_searxng_install_test_env() {
 }
 
 @test "functions properly handle force and yes parameters" {
-    setup_searxng_install_test_env
-    
     # Test force installation
     export MOCK_SEARXNG_INSTALLED="yes"
     export FORCE="yes"

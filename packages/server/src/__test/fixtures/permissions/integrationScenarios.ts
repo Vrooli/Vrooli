@@ -1,4 +1,4 @@
-import { type AuthenticatedSessionData } from "../../../types.js";
+import { type SessionData } from "../../../types.js";
 import { botApiKey, readOnlyPublicApiKey, writeApiKey, type ApiKeyFullAuthData } from "./apiKeyPermissions.js";
 import { basicTeamScenario } from "./teamScenarios.js";
 import { adminUser, bannedUser, guestUser, premiumUser, standardUser } from "./userPersonas.js";
@@ -12,7 +12,7 @@ export interface IntegrationScenario {
     description: string;
     actors: Array<{
         type: "user" | "apiKey";
-        data: AuthenticatedSessionData | ApiKeyFullAuthData;
+        data: SessionData | ApiKeyFullAuthData;
         role?: string;
     }>;
     resource: {
@@ -270,7 +270,7 @@ export const escalationAttemptScenario: IntegrationScenario = {
 /**
  * Helper functions
  */
-function createCollabUser(suffix: string): AuthenticatedSessionData {
+function createCollabUser(suffix: string): SessionData {
     return {
         ...standardUser,
         id: `collab_${suffix}_${Date.now()}`,

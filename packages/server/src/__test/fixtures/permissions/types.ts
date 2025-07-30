@@ -5,7 +5,7 @@
  * unified fixture architecture.
  */
 
-import { type AuthenticatedSessionData } from "../../../types.js";
+import { type SessionData } from "../../../types.js";
 
 /**
  * API Key types for testing
@@ -20,7 +20,7 @@ export enum ApiKeyType {
  */
 export interface PermissionContext {
     /** The authenticated session (user or API key) */
-    session: AuthenticatedSessionData | ApiKeyAuthData;
+    session: SessionData | ApiKeyAuthData;
     /** Additional context like team membership, resource ownership */
     context?: Record<string, unknown>;
     /** Expected permission result */
@@ -60,7 +60,7 @@ export interface PermissionScenario<TResource = Record<string, unknown>> {
         /** Actor identifier */
         id: string;
         /** Actor's session */
-        session: AuthenticatedSessionData | ApiKeyAuthData;
+        session: SessionData | ApiKeyAuthData;
         /** Expected permissions for each action */
         permissions: Record<string, boolean>;
     }>;
@@ -102,7 +102,7 @@ export interface ApiKeyAuthData {
  * Team member with role information
  */
 export interface TeamMember {
-    user: AuthenticatedSessionData;
+    user: SessionData;
     teamId: string;
     role: "Owner" | "Admin" | "Member";
     permissions?: string[];
@@ -112,7 +112,7 @@ export interface TeamMember {
 /**
  * OAuth session data
  */
-export interface OAuthSessionData extends AuthenticatedSessionData {
+export interface OAuthSessionData extends SessionData {
     provider: "google" | "github" | "microsoft" | "discord";
     scope: string[];
     externalId: string;
@@ -146,7 +146,7 @@ export interface PermissionInheritance {
 /**
  * Factory method signatures for creating test fixtures
  */
-export interface PermissionFixtureFactory<TSession = AuthenticatedSessionData> {
+export interface PermissionFixtureFactory<TSession = SessionData> {
     /** Create a session with specific overrides */
     createSession: (overrides?: Partial<TSession>) => TSession;
     
@@ -171,13 +171,13 @@ export interface PermissionFixtureFactory<TSession = AuthenticatedSessionData> {
  */
 export interface PermissionValidator {
     /** Check if a session has a specific permission */
-    hasPermission: (session: AuthenticatedSessionData | ApiKeyAuthData, permission: string) => boolean;
+    hasPermission: (session: SessionData | ApiKeyAuthData, permission: string) => boolean;
     
     /** Check if a session can perform an action on a resource */
-    canAccess: (session: AuthenticatedSessionData | ApiKeyAuthData, action: string, resource: Record<string, unknown>) => boolean;
+    canAccess: (session: SessionData | ApiKeyAuthData, action: string, resource: Record<string, unknown>) => boolean;
     
     /** Get all permissions for a session */
-    getPermissions: (session: AuthenticatedSessionData | ApiKeyAuthData) => string[];
+    getPermissions: (session: SessionData | ApiKeyAuthData) => string[];
     
     /** Validate permission inheritance chain */
     validateInheritance: (chain: PermissionInheritance[]) => boolean;
@@ -211,22 +211,22 @@ export interface PermissionTestHelpers {
     
     /** Test a permission matrix against multiple personas */
     testPermissionMatrix: (
-        testFn: (session: AuthenticatedSessionData | ApiKeyAuthData) => Promise<unknown>,
+        testFn: (session: SessionData | ApiKeyAuthData) => Promise<unknown>,
         matrix: PermissionMatrix
     ) => Promise<void>;
     
     /** Test permission changes over time */
     testPermissionChange: (
-        testFn: (session: AuthenticatedSessionData | ApiKeyAuthData) => Promise<unknown>,
-        before: AuthenticatedSessionData,
-        after: AuthenticatedSessionData,
+        testFn: (session: SessionData | ApiKeyAuthData) => Promise<unknown>,
+        before: SessionData,
+        after: SessionData,
         expectations: { beforeShouldPass: boolean; afterShouldPass: boolean }
     ) => Promise<void>;
     
     /** Test bulk permissions */
     testBulkPermissions: (
-        operations: Array<{ name: string; fn: (session: AuthenticatedSessionData | ApiKeyAuthData) => Promise<unknown> }>,
-        sessions: Array<{ name: string; session: AuthenticatedSessionData | ApiKeyAuthData; isApiKey?: boolean }>,
+        operations: Array<{ name: string; fn: (session: SessionData | ApiKeyAuthData) => Promise<unknown> }>,
+        sessions: Array<{ name: string; session: SessionData | ApiKeyAuthData; isApiKey?: boolean }>,
         expectations: Record<string, Record<string, boolean>>
     ) => Promise<void>;
 }
@@ -237,10 +237,10 @@ export interface PermissionTestHelpers {
 export interface SecurityEdgeCases {
     /** Session-related edge cases */
     sessionEdgeCases: {
-        expired: AuthenticatedSessionData;
+        expired: SessionData;
         malformed: Record<string, unknown>;
-        hijacked: AuthenticatedSessionData;
-        replayed: AuthenticatedSessionData;
+        hijacked: SessionData;
+        replayed: SessionData;
     };
     
     /** Input validation edge cases */
@@ -253,9 +253,9 @@ export interface SecurityEdgeCases {
     
     /** Permission escalation attempts */
     escalationEdgeCases: {
-        roleManipulation: AuthenticatedSessionData;
+        roleManipulation: SessionData;
         scopeExpansion: ApiKeyAuthData;
-        ownershipTakeover: AuthenticatedSessionData;
+        ownershipTakeover: SessionData;
     };
 }
 

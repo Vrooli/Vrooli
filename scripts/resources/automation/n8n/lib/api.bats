@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export N8N_CUSTOM_PORT="5678"
     export N8N_CONTAINER_NAME="n8n-test"
@@ -16,61 +22,8 @@ setup() {
     N8N_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "curl") return 0 ;;
-            "jq") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock curl for API calls
-    curl() {
-        local url=""
-        local method="GET"
-        local data=""
-        local auth=""
-        
-        # Parse curl arguments
-        while [[ $# -gt 0 ]]; do
-            case $1 in
-                -X) method="$2"; shift 2 ;;
-                -d) data="$2"; shift 2 ;;
-                -u) auth="$2"; shift 2 ;;
-                --data-raw) data="$2"; shift 2 ;;
-                -H) shift 2 ;;  # Ignore headers
-                -s|-f) shift ;;  # Ignore flags
-                http*) url="$1"; shift ;;
-                *) shift ;;
-            esac
-        done
-        
-        case "$url" in
-            *"/api/v1/workflows"*)
-                if [[ "$method" == "GET" ]]; then
-                    echo '{"data":[{"id":"1","name":"Test Workflow","active":true}]}'
-                elif [[ "$method" == "POST" ]]; then
-                    echo '{"data":{"id":"2","name":"New Workflow","active":false}}'
-                fi
-                return 0
-                ;;
-            *"/api/v1/executions"*)
-                echo '{"data":[{"id":"1","workflowId":"1","status":"success","startedAt":"2024-01-01T12:00:00Z"}]}'
-                return 0
-                ;;
-            *"/api/v1/credentials"*)
-                echo '{"data":[{"id":"1","name":"Test Credential","type":"httpBasicAuth"}]}'
-                return 0
-                ;;
-            *"/healthz"*)
-                echo '{"status":"ok"}'
-                return 0
-                ;;
-            *)
-                return 1
-                ;;
-        esac
-    }
     
     # Mock jq for JSON processing
     jq() {
@@ -92,25 +45,9 @@ setup() {
     }
     
     # Mock log functions
-    log::info() {
-        echo "INFO: $1"
-        return 0
-    }
     
-    log::error() {
-        echo "ERROR: $1"
-        return 0
-    }
     
-    log::warn() {
-        echo "WARN: $1"
-        return 0
-    }
     
-    log::success() {
-        echo "SUCCESS: $1"
-        return 0
-    }
     
     # Mock n8n functions
     n8n::is_running() { return 0; }

@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export WINDMILL_PORT="5681"
     export WINDMILL_CONTAINER_NAME="windmill-test"
@@ -19,12 +25,6 @@ setup() {
     mkdir -p "$WINDMILL_DATA_DIR"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "docker"|"curl"|"jq"|"openssl"|"base64") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     system::check_port() {
         local port="$1"
@@ -39,39 +39,8 @@ setup() {
     }
     
     # Mock Docker operations
-    docker() {
-        case "$1" in
-            "ps")
-                if [[ "$*" =~ "--filter" ]] && [[ "$*" =~ "windmill-test" ]]; then
-                    echo "windmill-test"
-                fi
-                ;;
-            "inspect")
-                if [[ "$*" =~ "windmill-test" ]]; then
-                    echo '{"State":{"Running":true,"Status":"running"},"Config":{"Image":"windmillhq/windmill:latest"}}'
-                fi
-                ;;
-            "network")
-                echo "windmill-network"
-                ;;
-            *) echo "DOCKER: $*" ;;
-        esac
-        return 0
-    }
     
     # Mock curl for API calls
-    curl() {
-        case "$*" in
-            *"localhost:5681/api/version"*)
-                echo '{"version":"1.0.0","mode":"server"}'
-                ;;
-            *"localhost:5681/api/w"*)
-                echo '{"workspaces":["demo","admin"]}'
-                ;;
-            *) echo "CURL: $*" ;;
-        esac
-        return 0
-    }
     
     # Mock openssl for password generation
     openssl() {
@@ -89,12 +58,6 @@ setup() {
     }
     
     # Mock log functions
-    log::info() { echo "INFO: $1"; }
-    log::error() { echo "ERROR: $1"; }
-    log::warn() { echo "WARN: $1"; }
-    log::success() { echo "SUCCESS: $1"; }
-    log::debug() { echo "DEBUG: $1"; }
-    log::header() { echo "=== $1 ==="; }
     
     # Load configuration and messages
     source "${WINDMILL_DIR}/config/defaults.sh"

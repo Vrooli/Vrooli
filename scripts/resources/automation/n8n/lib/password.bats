@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export N8N_CUSTOM_PORT="5678"
     export N8N_CONTAINER_NAME="n8n-test"
@@ -19,14 +25,6 @@ setup() {
     mkdir -p "$N8N_DATA_DIR"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "openssl") return 0 ;;
-            "bcrypt") return 0 ;;
-            "docker") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock openssl command
     openssl() {
@@ -48,41 +46,11 @@ setup() {
     }
     
     # Mock Docker functions
-    docker() {
-        case "$1" in
-            "exec")
-                echo "DOCKER_EXEC: $*"
-                return 0
-                ;;
-            "ps")
-                if [[ "$*" =~ "n8n-test" ]]; then
-                    echo "n8n-test"
-                fi
-                ;;
-            *) return 0 ;;
-        esac
-    }
     
     # Mock log functions
-    log::info() {
-        echo "INFO: $1"
-        return 0
-    }
     
-    log::error() {
-        echo "ERROR: $1"
-        return 0
-    }
     
-    log::warn() {
-        echo "WARN: $1"
-        return 0
-    }
     
-    log::success() {
-        echo "SUCCESS: $1"
-        return 0
-    }
     
     # Mock input functions
     read() {

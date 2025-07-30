@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export WHISPER_CUSTOM_PORT="8090"
     export WHISPER_CONTAINER_NAME="whisper-test"
@@ -16,79 +22,18 @@ setup() {
     WHISPER_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "docker") return 0 ;;
-            "nvidia-docker") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     system::is_port_in_use() {
         return 1  # Port available
     }
     
     # Mock Docker functions
-    docker() {
-        case "$1" in
-            "pull")
-                echo "DOCKER_PULL: $*"
-                return 0
-                ;;
-            "run")
-                echo "DOCKER_RUN: $*"
-                return 0
-                ;;
-            "start"|"stop"|"restart")
-                echo "DOCKER_${1^^}: $*"
-                return 0
-                ;;
-            "ps")
-                if [[ "$*" =~ "whisper-test" ]]; then
-                    echo "container_id whisper-test"
-                fi
-                ;;
-            "inspect")
-                if [[ "$*" =~ "whisper-test" ]]; then
-                    echo '{"State":{"Running":true},"Config":{"Image":"openai/whisper:latest"}}'
-                fi
-                ;;
-            "logs")
-                echo "Mock whisper container logs"
-                ;;
-            "rm")
-                echo "DOCKER_RM: $*"
-                return 0
-                ;;
-            *) return 0 ;;
-        esac
-    }
     
     # Mock log functions
-    log::info() {
-        echo "INFO: $1"
-        return 0
-    }
     
-    log::error() {
-        echo "ERROR: $1"
-        return 0
-    }
     
-    log::warn() {
-        echo "WARN: $1"
-        return 0
-    }
     
-    log::success() {
-        echo "SUCCESS: $1"
-        return 0
-    }
     
-    log::debug() {
-        echo "DEBUG: $1"
-        return 0
-    }
     
     # Mock common functions
     whisper::get_docker_image() {

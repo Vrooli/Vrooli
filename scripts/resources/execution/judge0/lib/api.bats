@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export JUDGE0_PORT="2358"
     export JUDGE0_BASE_URL="http://localhost:2358"
@@ -23,57 +29,8 @@ setup() {
     JUDGE0_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "curl"|"jq"|"base64") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock curl for API calls
-    curl() {
-        case "$*" in
-            *"/system_info"*)
-                echo '{"version":"1.13.1","hostname":"judge0-server","datetime":"2024-01-15T11:00:00Z","isolate_version":"1.8.1","runtimes":["python","javascript","java"]}'
-                ;;
-            *"/languages"*)
-                echo '[{"id":92,"name":"Python (3.11.2)","is_archived":false,"source_file":"main.py"},{"id":93,"name":"JavaScript (Node.js 18.15.0)","is_archived":false,"source_file":"main.js"},{"id":91,"name":"Java (OpenJDK 19.0.2)","is_archived":false,"source_file":"Main.java"}]'
-                ;;
-            *"/languages/92"*)
-                echo '{"id":92,"name":"Python (3.11.2)","is_archived":false,"source_file":"main.py","compile_cmd":null,"run_cmd":"python3 main.py"}'
-                ;;
-            *"/submissions"* | *"wait=true"*)
-                if [[ "$*" =~ "POST" ]]; then
-                    if [[ "$*" =~ "console.log" ]]; then
-                        echo '{"token":"abc123-def456-ghi789","status":{"id":3,"description":"Accepted"},"stdout":"SGVsbG8sIFdvcmxkIQ==","stderr":"","compile_output":"","time":"0.02","memory":"8192"}'
-                    elif [[ "$*" =~ "print" ]]; then
-                        echo '{"token":"def456-ghi789-jkl012","status":{"id":3,"description":"Accepted"},"stdout":"SGVsbG8gZnJvbSBQeXRob24h","stderr":"","compile_output":"","time":"0.01","memory":"6144"}'
-                    elif [[ "$*" =~ "error" ]]; then
-                        echo '{"token":"ghi789-jkl012-mno345","status":{"id":6,"description":"Compilation Error"},"stdout":"","stderr":"","compile_output":"RXJyb3I6IGludmFsaWQgc3ludGF4","time":"0.0","memory":"0"}'
-                    else
-                        echo '{"token":"jkl012-mno345-pqr678","status":{"id":3,"description":"Accepted"},"stdout":"dGVzdCBvdXRwdXQ=","stderr":"","compile_output":"","time":"0.05","memory":"4096"}'
-                    fi
-                else
-                    echo '[{"token":"abc123-def456-ghi789","status":{"id":3,"description":"Accepted"},"language_id":93},{"token":"def456-ghi789-jkl012","status":{"id":3,"description":"Accepted"},"language_id":92}]'
-                fi
-                ;;
-            *"/submissions/batch"*)
-                echo '[{"token":"batch1-abc123-def456","status":{"id":3,"description":"Accepted"},"stdout":"SGVsbG8gQmF0Y2ggMQ=="},{"token":"batch2-def456-ghi789","status":{"id":3,"description":"Accepted"},"stdout":"SGVsbG8gQmF0Y2ggMg=="}]'
-                ;;
-            *"/submissions/abc123-def456-ghi789"*)
-                if [[ "$*" =~ "DELETE" ]]; then
-                    echo '{"message":"Submission deleted successfully"}'
-                else
-                    echo '{"token":"abc123-def456-ghi789","status":{"id":3,"description":"Accepted"},"stdout":"SGVsbG8sIFdvcmxkIQ==","stderr":"","compile_output":"","time":"0.02","memory":"8192","language_id":93,"source_code":"console.log(\"Hello, World!\");"}'
-                fi
-                ;;
-            *"/workers"*)
-                echo '[{"id":"worker-1","queue":"default","pid":12345,"status":"idle","hostname":"judge0-worker-1"},{"id":"worker-2","queue":"default","pid":12346,"status":"busy","hostname":"judge0-worker-2"}]'
-                ;;
-            *) echo "CURL: $*" ;;
-        esac
-        return 0
-    }
     
     # Mock jq for JSON processing
     jq() {
@@ -111,12 +68,6 @@ setup() {
     }
     
     # Mock log functions
-    log::info() { echo "INFO: $1"; }
-    log::error() { echo "ERROR: $1"; }
-    log::warn() { echo "WARN: $1"; }
-    log::success() { echo "SUCCESS: $1"; }
-    log::debug() { echo "DEBUG: $1"; }
-    log::header() { echo "=== $1 ==="; }
     
     # Mock Judge0 functions
     judge0::get_api_key() { echo "$JUDGE0_API_KEY"; }

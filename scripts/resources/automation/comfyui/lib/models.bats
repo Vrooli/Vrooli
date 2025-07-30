@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export COMFYUI_CUSTOM_PORT="8188"
     export COMFYUI_CONTAINER_NAME="comfyui-test"
@@ -26,31 +32,8 @@ setup() {
     touch "$COMFYUI_MODELS_DIR/vae/test-vae.safetensors"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "curl"|"wget"|"sha256sum"|"du"|"find") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock curl/wget for downloads
-    curl() {
-        case "$*" in
-            *"huggingface.co"*)
-                echo "CURL_DOWNLOAD: $*"
-                # Simulate successful download
-                return 0
-                ;;
-            *"api/v1/object_info"*)
-                echo '{"checkpoints":["test-checkpoint.safetensors"],"loras":["test-lora.safetensors"]}'
-                ;;
-            *"localhost:8188"*)
-                echo '{"status":"ready","models_loaded":["test-model"]}'
-                ;;
-            *) echo "CURL: $*" ;;
-        esac
-        return 0
-    }
     
     wget() {
         echo "WGET_DOWNLOAD: $*"
@@ -93,20 +76,6 @@ setup() {
     }
     
     # Mock Docker operations
-    docker() {
-        case "$1" in
-            "exec")
-                echo "DOCKER_EXEC: $*"
-                return 0
-                ;;
-            "cp")
-                echo "DOCKER_CP: $*"
-                return 0
-                ;;
-            *) echo "DOCKER: $*" ;;
-        esac
-        return 0
-    }
     
     # Mock filesystem operations
     ls() {
@@ -126,12 +95,6 @@ setup() {
     }
     
     # Mock log functions
-    log::info() { echo "INFO: $1"; }
-    log::error() { echo "ERROR: $1"; }
-    log::warn() { echo "WARN: $1"; }
-    log::success() { echo "SUCCESS: $1"; }
-    log::debug() { echo "DEBUG: $1"; }
-    log::header() { echo "=== $1 ==="; }
     
     # Mock ComfyUI utility functions
     comfyui::container_exists() { return 0; }

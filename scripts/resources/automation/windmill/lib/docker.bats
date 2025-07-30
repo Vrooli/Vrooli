@@ -3,6 +3,12 @@
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export WINDMILL_PORT="5681"
     export WINDMILL_CONTAINER_NAME="windmill-test"
@@ -22,86 +28,8 @@ setup() {
     mkdir -p "$WINDMILL_DATA_DIR"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "docker"|"docker-compose") return 0 ;;
-            *) return 1 ;;
-        esac
-    }
     
     # Mock Docker operations
-    docker() {
-        case "$1" in
-            "pull")
-                echo "DOCKER_PULL: $*"
-                return 0
-                ;;
-            "run")
-                echo "DOCKER_RUN: $*"
-                return 0
-                ;;
-            "start"|"stop"|"restart")
-                echo "DOCKER_${1^^}: $*"
-                return 0
-                ;;
-            "ps")
-                if [[ "$*" =~ "windmill-test" ]]; then
-                    echo "windmill-test"
-                elif [[ "$*" =~ "windmill-db-test" ]]; then
-                    echo "windmill-db-test"
-                fi
-                ;;
-            "inspect")
-                if [[ "$*" =~ "windmill-test" ]]; then
-                    echo '{"State":{"Running":true,"Status":"running"},"Config":{"Image":"windmillhq/windmill:latest"},"NetworkSettings":{"Ports":{"8000/tcp":[{"HostPort":"5681"}]}}}'
-                elif [[ "$*" =~ "windmill-db-test" ]]; then
-                    echo '{"State":{"Running":true,"Status":"running"},"Config":{"Image":"postgres:14"}}'
-                fi
-                ;;
-            "logs")
-                if [[ "$*" =~ "windmill-test" ]]; then
-                    echo "Windmill server started on port 8000"
-                    echo "Database connection established"
-                elif [[ "$*" =~ "windmill-db-test" ]]; then
-                    echo "PostgreSQL init process complete; ready for start up"
-                fi
-                ;;
-            "exec")
-                echo "DOCKER_EXEC: $*"
-                return 0
-                ;;
-            "rm")
-                echo "DOCKER_RM: $*"
-                return 0
-                ;;
-            "network")
-                case "$2" in
-                    "create") echo "DOCKER_NETWORK_CREATE: $*" ;;
-                    "ls") echo "windmill-network" ;;
-                    "rm") echo "DOCKER_NETWORK_RM: $*" ;;
-                    *) echo "DOCKER_NETWORK: $*" ;;
-                esac
-                ;;
-            "volume")
-                case "$2" in
-                    "create") echo "DOCKER_VOLUME_CREATE: $*" ;;
-                    "ls") echo "windmill-data" ;;
-                    "rm") echo "DOCKER_VOLUME_RM: $*" ;;
-                    *) echo "DOCKER_VOLUME: $*" ;;
-                esac
-                ;;
-            "stats")
-                echo "CONTAINER       CPU %     MEM USAGE / LIMIT     MEM %"
-                echo "windmill-test   5.50%     512MiB / 2GiB         25.00%"
-                ;;
-            "info")
-                echo "Server Version: 20.10.0"
-                echo "Storage Driver: overlay2"
-                ;;
-            *) echo "DOCKER: $*" ;;
-        esac
-        return 0
-    }
     
     # Mock docker-compose
     docker-compose() {
@@ -125,12 +53,6 @@ setup() {
     }
     
     # Mock log functions
-    log::info() { echo "INFO: $1"; }
-    log::error() { echo "ERROR: $1"; }
-    log::warn() { echo "WARN: $1"; }
-    log::success() { echo "SUCCESS: $1"; }
-    log::debug() { echo "DEBUG: $1"; }
-    log::header() { echo "=== $1 ==="; }
     
     # Mock Windmill utility functions
     windmill::container_exists() { return 0; }

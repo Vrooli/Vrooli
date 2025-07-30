@@ -12,6 +12,12 @@ load_helper() {
 
 # Setup for each test
 setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
     # Set test environment
     export WHISPER_CONTAINER_NAME="whisper-test"
     export WHISPER_PORT="9090"
@@ -36,23 +42,12 @@ setup() {
     export MSG_GPU_NOT_AVAILABLE="⚠️  GPU not available, falling back to CPU"
     
     # Mock system functions
-    system::is_command() {
-        case "$1" in
-            "docker") return 0 ;;
-            "nvidia-smi") return 1 ;;  # No GPU by default
-            *) return 1 ;;
-        esac
-    }
     
     system::is_port_in_use() {
         # For testing, assume port is available unless specifically mocked
         return 1
     }
     
-    log::error() { echo "ERROR: $*" >&2; }
-    log::info() { echo "INFO: $*" >&2; }
-    log::debug() { echo "DEBUG: $*" >&2; }
-    log::warn() { echo "WARN: $*" >&2; }
     
     # Load the script
     SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"

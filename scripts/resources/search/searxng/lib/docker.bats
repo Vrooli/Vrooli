@@ -1,17 +1,19 @@
 #!/usr/bin/env bats
 bats_require_minimum_version 1.5.0
 
-# Path to the script under test
-SCRIPT_PATH="$BATS_TEST_DIRNAME/docker.sh"
-SEARXNG_DIR="$BATS_TEST_DIRNAME/.."
-
-# Source dependencies in correct order
-RESOURCES_DIR="$SEARXNG_DIR/../.."
-HELPERS_DIR="$RESOURCES_DIR/../helpers"
-
-# Helper function for proper sourcing in tests
-setup_searxng_docker_test_env() {
-    local script_dir="$SEARXNG_DIR"
+# Setup for each test
+setup() {
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    
+    # Setup standard mocks
+    setup_standard_mocks
+    
+    # Path to the script under test
+    SCRIPT_PATH="$BATS_TEST_DIRNAME/docker.sh"
+    SEARXNG_DIR="$BATS_TEST_DIRNAME/.."
+    
+    # Source dependencies
     local resources_dir="$SEARXNG_DIR/../.."
     local helpers_dir="$resources_dir/../helpers"
     
@@ -24,12 +26,12 @@ setup_searxng_docker_test_env() {
     source "$resources_dir/common.sh"
     
     # Source config and messages
-    source "$script_dir/config/defaults.sh"
-    source "$script_dir/config/messages.sh"
+    source "$SEARXNG_DIR/config/defaults.sh"
+    source "$SEARXNG_DIR/config/messages.sh"
     searxng::export_config
     
     # Source common functions (dependency for docker.sh)
-    source "$script_dir/lib/common.sh"
+    source "$SEARXNG_DIR/lib/common.sh"
     
     # Source the script under test
     source "$SCRIPT_PATH"
@@ -40,12 +42,6 @@ setup_searxng_docker_test_env() {
     export DOCKER_MOCK_PULL_SUCCESS="yes"
     export DOCKER_MOCK_COMMAND_SUCCESS="yes"
     export DOCKER_COMPOSE_SUCCESS="yes"
-    
-    # Mock log functions
-    log::info() { echo "INFO: $*"; }
-    log::success() { echo "SUCCESS: $*"; }
-    log::error() { echo "ERROR: $*"; }
-    log::warn() { echo "WARNING: $*"; }
     
     # Mock message function
     searxng::message() {
@@ -87,7 +83,7 @@ setup_searxng_docker_test_env() {
         fi
     }
     
-    # Mock docker command
+    # Mock docker command (override the shared one for SearXNG-specific behavior)
     docker() {
         local cmd="$1"
         shift
@@ -190,8 +186,6 @@ setup_searxng_docker_test_env() {
 # ============================================================================
 
 @test "sourcing docker.sh defines required functions" {
-    setup_searxng_docker_test_env
-    
     local required_functions=(
         "searxng::create_network"
         "searxng::remove_network"
@@ -218,7 +212,6 @@ setup_searxng_docker_test_env() {
 # ============================================================================
 
 @test "searxng::create_network creates network when it doesn't exist" {
-    setup_searxng_docker_test_env
     export DOCKER_MOCK_NETWORK_EXISTS="no"
     export DOCKER_MOCK_COMMAND_SUCCESS="yes"
     
@@ -229,7 +222,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::create_network succeeds when network already exists" {
-    setup_searxng_docker_test_env
     export DOCKER_MOCK_NETWORK_EXISTS="yes"
     
     run searxng::create_network
@@ -238,7 +230,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::create_network fails when docker command fails" {
-    setup_searxng_docker_test_env
     export DOCKER_MOCK_NETWORK_EXISTS="no"
     export DOCKER_MOCK_COMMAND_SUCCESS="no"
     
@@ -248,7 +239,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::remove_network removes existing network" {
-    setup_searxng_docker_test_env
     export DOCKER_MOCK_NETWORK_EXISTS="yes"
     export DOCKER_MOCK_COMMAND_SUCCESS="yes"
     
@@ -259,7 +249,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::remove_network succeeds when network doesn't exist" {
-    setup_searxng_docker_test_env
     export DOCKER_MOCK_NETWORK_EXISTS="no"
     
     run searxng::remove_network
@@ -268,7 +257,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::remove_network warns when removal fails" {
-    setup_searxng_docker_test_env
     export DOCKER_MOCK_NETWORK_EXISTS="yes"
     export DOCKER_MOCK_COMMAND_SUCCESS="no"
     
@@ -283,7 +271,6 @@ setup_searxng_docker_test_env() {
 # ============================================================================
 
 @test "searxng::pull_image pulls image successfully" {
-    setup_searxng_docker_test_env
     export DOCKER_MOCK_PULL_SUCCESS="yes"
     
     run searxng::pull_image
@@ -293,7 +280,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::pull_image fails when docker pull fails" {
-    setup_searxng_docker_test_env
     export DOCKER_MOCK_PULL_SUCCESS="no"
     
     run searxng::pull_image
@@ -307,8 +293,6 @@ setup_searxng_docker_test_env() {
 # ============================================================================
 
 @test "searxng::build_docker_command generates valid docker run command" {
-    setup_searxng_docker_test_env
-    
     run searxng::build_docker_command
     [ "$status" -eq 0 ]
     [[ "$output" =~ "docker run -d" ]]
@@ -319,8 +303,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::build_docker_command includes security configuration" {
-    setup_searxng_docker_test_env
-    
     run searxng::build_docker_command
     [ "$status" -eq 0 ]
     [[ "$output" =~ "--cap-drop=ALL" ]]
@@ -330,8 +312,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::build_docker_command includes health check" {
-    setup_searxng_docker_test_env
-    
     run searxng::build_docker_command
     [ "$status" -eq 0 ]
     [[ "$output" =~ "--health-cmd" ]]
@@ -341,16 +321,12 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::build_docker_command includes volume mounts" {
-    setup_searxng_docker_test_env
-    
     run searxng::build_docker_command
     [ "$status" -eq 0 ]
     [[ "$output" =~ "-v ${SEARXNG_DATA_DIR}:/etc/searxng:rw" ]]
 }
 
 @test "searxng::build_docker_command includes environment variables" {
-    setup_searxng_docker_test_env
-    
     run searxng::build_docker_command
     [ "$status" -eq 0 ]
     [[ "$output" =~ "-e SEARXNG_BASE_URL=${SEARXNG_BASE_URL}" ]]
@@ -358,8 +334,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::build_docker_command includes logging configuration" {
-    setup_searxng_docker_test_env
-    
     run searxng::build_docker_command
     [ "$status" -eq 0 ]
     [[ "$output" =~ "--log-driver json-file" ]]
@@ -372,7 +346,6 @@ setup_searxng_docker_test_env() {
 # ============================================================================
 
 @test "searxng::start_container starts container when not running" {
-    setup_searxng_docker_test_env
     export SEARXNG_MOCK_RUNNING="no"
     export DOCKER_MOCK_NETWORK_SUCCESS="yes"
     export DOCKER_MOCK_COMMAND_SUCCESS="yes"
@@ -385,7 +358,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::start_container warns when already running" {
-    setup_searxng_docker_test_env
     export SEARXNG_MOCK_RUNNING="yes"
     
     run searxng::start_container
@@ -394,7 +366,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::start_container fails when network creation fails" {
-    setup_searxng_docker_test_env
     export SEARXNG_MOCK_RUNNING="no"
     export DOCKER_MOCK_NETWORK_SUCCESS="no"
     
@@ -403,7 +374,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::start_container fails when docker run fails" {
-    setup_searxng_docker_test_env
     export SEARXNG_MOCK_RUNNING="no"
     export DOCKER_MOCK_NETWORK_SUCCESS="yes"
     export DOCKER_MOCK_COMMAND_SUCCESS="no"
@@ -414,7 +384,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::stop_container stops running container" {
-    setup_searxng_docker_test_env
     export SEARXNG_MOCK_RUNNING="yes"
     export DOCKER_MOCK_COMMAND_SUCCESS="yes"
     
@@ -425,7 +394,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::stop_container warns when not running" {
-    setup_searxng_docker_test_env
     export SEARXNG_MOCK_RUNNING="no"
     
     run searxng::stop_container
@@ -434,7 +402,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::stop_container fails when docker stop fails" {
-    setup_searxng_docker_test_env
     export SEARXNG_MOCK_RUNNING="yes"
     export DOCKER_MOCK_COMMAND_SUCCESS="no"
     
@@ -444,7 +411,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::restart_container restarts running container" {
-    setup_searxng_docker_test_env
     export SEARXNG_MOCK_RUNNING="yes"
     export DOCKER_MOCK_COMMAND_SUCCESS="yes"
     export DOCKER_MOCK_NETWORK_SUCCESS="yes"
@@ -461,7 +427,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::restart_container starts stopped container" {
-    setup_searxng_docker_test_env
     export SEARXNG_MOCK_RUNNING="no"
     export DOCKER_MOCK_COMMAND_SUCCESS="yes"
     export DOCKER_MOCK_NETWORK_SUCCESS="yes"
@@ -476,7 +441,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::remove_container removes existing container" {
-    setup_searxng_docker_test_env
     export SEARXNG_MOCK_RUNNING="yes"
     export SEARXNG_MOCK_INSTALLED="yes"
     export DOCKER_MOCK_COMMAND_SUCCESS="yes"
@@ -491,7 +455,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::remove_container succeeds when not installed" {
-    setup_searxng_docker_test_env
     export SEARXNG_MOCK_INSTALLED="no"
     
     run searxng::remove_container
@@ -503,7 +466,6 @@ setup_searxng_docker_test_env() {
 # ============================================================================
 
 @test "searxng::compose_up starts with docker compose" {
-    setup_searxng_docker_test_env
     export DOCKER_COMPOSE_SUCCESS="yes"
     export SEARXNG_MOCK_HEALTHY="yes"
     
@@ -521,15 +483,12 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::compose_up fails when compose file missing" {
-    setup_searxng_docker_test_env
-    
     run searxng::compose_up
     [ "$status" -eq 1 ]
     [[ "$output" =~ "Docker Compose file not found" ]]
 }
 
 @test "searxng::compose_up includes redis profile when enabled" {
-    setup_searxng_docker_test_env
     export SEARXNG_ENABLE_REDIS="yes"
     export DOCKER_COMPOSE_SUCCESS="yes"
     export SEARXNG_MOCK_HEALTHY="yes"
@@ -549,7 +508,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::compose_down stops with docker compose" {
-    setup_searxng_docker_test_env
     export DOCKER_COMPOSE_SUCCESS="yes"
     
     # Mock compose file existence
@@ -566,8 +524,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::compose_down fails when compose file missing" {
-    setup_searxng_docker_test_env
-    
     run searxng::compose_down
     [ "$status" -eq 1 ]
     [[ "$output" =~ "Docker Compose file not found" ]]
@@ -578,7 +534,6 @@ setup_searxng_docker_test_env() {
 # ============================================================================
 
 @test "searxng::get_resource_usage shows stats when running" {
-    setup_searxng_docker_test_env
     export SEARXNG_MOCK_RUNNING="yes"
     
     run searxng::get_resource_usage
@@ -589,7 +544,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::get_resource_usage fails when not running" {
-    setup_searxng_docker_test_env
     export SEARXNG_MOCK_RUNNING="no"
     
     run searxng::get_resource_usage
@@ -602,7 +556,6 @@ setup_searxng_docker_test_env() {
 # ============================================================================
 
 @test "searxng::exec_command executes command in container" {
-    setup_searxng_docker_test_env
     export SEARXNG_MOCK_RUNNING="yes"
     
     run searxng::exec_command "test-command"
@@ -611,7 +564,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "searxng::exec_command fails when container not running" {
-    setup_searxng_docker_test_env
     export SEARXNG_MOCK_RUNNING="no"
     
     run searxng::exec_command "test-command"
@@ -625,8 +577,6 @@ setup_searxng_docker_test_env() {
 # ============================================================================
 
 @test "docker commands include proper error handling" {
-    setup_searxng_docker_test_env
-    
     # Test that functions properly handle docker command failures
     export DOCKER_MOCK_COMMAND_SUCCESS="no"
     
@@ -638,7 +588,6 @@ setup_searxng_docker_test_env() {
 }
 
 @test "environment variables are properly exported for compose" {
-    setup_searxng_docker_test_env
     export DOCKER_COMPOSE_SUCCESS="yes"
     export SEARXNG_MOCK_HEALTHY="yes"
     

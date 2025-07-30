@@ -1,5 +1,5 @@
 import { AccountStatus, generatePK } from "@vrooli/shared";
-import { type AuthenticatedSessionData } from "../../../types.js";
+import { type SessionData } from "../../../types.js";
 import { standardUser } from "./userPersonas.js";
 
 /**
@@ -9,7 +9,7 @@ import { standardUser } from "./userPersonas.js";
 /**
  * Expired session data
  */
-export const expiredSession: AuthenticatedSessionData = {
+export const expiredSession: SessionData = {
     ...standardUser,
     id: "888888888888888888",
     csrfToken: "expired-token",
@@ -20,7 +20,7 @@ export const expiredSession: AuthenticatedSessionData = {
 /**
  * User with partial data (migration scenario)
  */
-export const partialUser: AuthenticatedSessionData = {
+export const partialUser: SessionData = {
     ...standardUser,
     id: "999999999999999999",
     email: null, // No email
@@ -32,7 +32,7 @@ export const partialUser: AuthenticatedSessionData = {
 /**
  * User with conflicting permissions
  */
-export const conflictingPermissionsUser: AuthenticatedSessionData = {
+export const conflictingPermissionsUser: SessionData = {
     ...standardUser,
     id: "101010101010101010",
     roles: [
@@ -44,7 +44,7 @@ export const conflictingPermissionsUser: AuthenticatedSessionData = {
 /**
  * User with maximum permissions (stress test)
  */
-export const maxPermissionsUser: AuthenticatedSessionData = {
+export const maxPermissionsUser: SessionData = {
     ...standardUser,
     id: "111111111111111112",
     hasPremium: true,
@@ -72,7 +72,7 @@ export const maxPermissionsUser: AuthenticatedSessionData = {
 /**
  * User in deletion process
  */
-export const deletingUser: AuthenticatedSessionData = {
+export const deletingUser: SessionData = {
     ...standardUser,
     id: "121212121212121212",
     accountStatus: AccountStatus.Deleting,
@@ -82,7 +82,7 @@ export const deletingUser: AuthenticatedSessionData = {
 /**
  * User with rate limit exceeded
  */
-export const rateLimitedUser: AuthenticatedSessionData = {
+export const rateLimitedUser: SessionData = {
     ...standardUser,
     id: "131313131313131313",
     // In real scenario, rate limit would be tracked separately
@@ -92,7 +92,7 @@ export const rateLimitedUser: AuthenticatedSessionData = {
 /**
  * Cross-origin session (CORS testing)
  */
-export const corsTestUser: AuthenticatedSessionData = {
+export const corsTestUser: SessionData = {
     ...standardUser,
     id: "141414141414141414",
     // Would include origin headers in actual request
@@ -101,7 +101,7 @@ export const corsTestUser: AuthenticatedSessionData = {
 /**
  * Session hijacking attempt simulation
  */
-export const hijackedSession: AuthenticatedSessionData = {
+export const hijackedSession: SessionData = {
     ...standardUser,
     id: "151515151515151515",
     csrfToken: "wrong-csrf-token", // Mismatched CSRF
@@ -110,7 +110,7 @@ export const hijackedSession: AuthenticatedSessionData = {
 /**
  * User with special characters in data
  */
-export const specialCharsUser: AuthenticatedSessionData = {
+export const specialCharsUser: SessionData = {
     ...standardUser,
     id: "161616161616161616",
     handle: "user-with_special.chars",
@@ -185,7 +185,7 @@ export const timeBasedPermissions = {
 /**
  * Malformed session data - missing required fields
  */
-export const malformedSession: Partial<AuthenticatedSessionData> = {
+export const malformedSession: Partial<SessionData> = {
     // Missing required fields like id, isLoggedIn, etc.
     handle: "malformed_user",
     // @ts-expect-error - Intentionally incomplete session
@@ -211,7 +211,7 @@ export const invalidTypeSession = {
  */
 export function createEdgeCaseUser(
     scenario: "corrupted" | "null-fields" | "overflow" | "injection" | "malformed",
-): AuthenticatedSessionData | Partial<AuthenticatedSessionData> {
+): SessionData | Partial<SessionData> {
     switch (scenario) {
         case "corrupted":
             return {

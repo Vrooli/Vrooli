@@ -1,32 +1,38 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
-import { generatePK, generatePublicId, ResourceType, nanoid } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK, generatePublicId, ResourceType } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
+import type { BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
 
 /**
  * Database fixtures for Resource model - used for seeding test data
  * These follow Prisma's shape for database operations
  */
 
-// Consistent IDs for testing
-export const resourceDbIds = {
-    resource1: generatePK(),
-    resource2: generatePK(),
-    resource3: generatePK(),
-    version1: generatePK(),
-    version2: generatePK(),
-    version3: generatePK(),
-    translation1: generatePK(),
-    translation2: generatePK(),
-    translation3: generatePK(),
-};
+// Cached IDs for consistent testing - lazy initialization pattern
+let _resourceDbIds: Record<string, bigint> | null = null;
+export function getResourceDbIds() {
+    if (!_resourceDbIds) {
+        _resourceDbIds = {
+            resource1: generatePK(),
+            resource2: generatePK(),
+            resource3: generatePK(),
+            version1: generatePK(),
+            version2: generatePK(),
+            version3: generatePK(),
+            translation1: generatePK(),
+            translation2: generatePK(),
+            translation3: generatePK(),
+        };
+    }
+    return _resourceDbIds;
+}
 
 /**
  * Minimal resource data for database creation
  */
 export const minimalResourceDb: Prisma.resourceCreateInput = {
-    id: resourceDbIds.resource1,
+    id: getResourceDbIds().resource1,
     publicId: generatePublicId(),
     isPrivate: false,
     resourceType: ResourceType.Code,
@@ -36,12 +42,12 @@ export const minimalResourceDb: Prisma.resourceCreateInput = {
  * Resource with owner
  */
 export const resourceWithOwnerDb: Prisma.resourceCreateInput = {
-    id: resourceDbIds.resource2,
+    id: getResourceDbIds().resource2,
     publicId: generatePublicId(),
     isPrivate: false,
     resourceType: ResourceType.Project,
     ownedByUser: {
-        connect: { id: "user_owner_id" }, // Will be replaced in factory
+        connect: { id: BigInt("user_owner_id") }, // Will be replaced in factory
     },
 };
 
@@ -49,18 +55,18 @@ export const resourceWithOwnerDb: Prisma.resourceCreateInput = {
  * Complete resource with all features
  */
 export const completeResourceDb: Prisma.resourceCreateInput = {
-    id: resourceDbIds.resource3,
+    id: getResourceDbIds().resource3,
     publicId: generatePublicId(),
     isPrivate: false,
     isInternal: false,
     resourceType: ResourceType.Routine,
     permissions: "{}",
     ownedByUser: {
-        connect: { id: "user_owner_id" }, // Will be replaced in factory
+        connect: { id: BigInt("user_owner_id") }, // Will be replaced in factory
     },
     versions: {
         create: [{
-            id: resourceDbIds.version1,
+            id: getResourceDbIds().version1,
             publicId: generatePublicId(),
             isComplete: true,
             isLatest: true,
@@ -71,7 +77,7 @@ export const completeResourceDb: Prisma.resourceCreateInput = {
             translations: {
                 create: [
                     {
-                        id: resourceDbIds.translation1,
+                        id: getResourceDbIds().translation1,
                         language: "en",
                         name: "Test Resource",
                         description: "A complete test resource",
@@ -79,7 +85,7 @@ export const completeResourceDb: Prisma.resourceCreateInput = {
                         details: "Detailed information about the resource",
                     },
                     {
-                        id: resourceDbIds.translation2,
+                        id: getResourceDbIds().translation2,
                         language: "es",
                         name: "Recurso de Prueba",
                         description: "Un recurso de prueba completo",
@@ -114,7 +120,7 @@ export const resourceDbFixtures: DbTestFixtures<Prisma.resourceCreateInput> = {
             canDelete: ["Owner"],
         }),
         ownedByUser: {
-            connect: { id: "user_placeholder_id" },
+            connect: { id: BigInt("user_placeholder_id") },
         },
         versions: {
             create: [{
@@ -155,7 +161,7 @@ export const resourceDbFixtures: DbTestFixtures<Prisma.resourceCreateInput> = {
             isPrivate: false,
         },
         invalidTypes: {
-            id: "not-a-valid-snowflake",
+            id: BigInt("123456789012345678"), // Invalid but properly typed bigint
             publicId: 123, // Should be string
             isPrivate: "yes", // Should be boolean
             isInternal: "no", // Should be boolean
@@ -167,8 +173,8 @@ export const resourceDbFixtures: DbTestFixtures<Prisma.resourceCreateInput> = {
             publicId: generatePublicId(),
             isPrivate: false,
             resourceType: ResourceType.Code,
-            ownedByUser: { connect: { id: "non-existent-user-id" } },
-            ownedByTeam: { connect: { id: "non-existent-team-id" } }, // Both owners
+            ownedByUser: { connect: { id: BigInt("non-existent-user-id") } },
+            ownedByTeam: { connect: { id: BigInt("non-existent-team-id") } }, // Both owners
         },
         invalidVersionData: {
             id: generatePK(),
@@ -307,7 +313,7 @@ export const resourceDbFixtures: DbTestFixtures<Prisma.resourceCreateInput> = {
  * Enhanced factory for creating resource database fixtures
  */
 export class ResourceDbFactory extends EnhancedDbFactory<Prisma.resourceCreateInput> {
-    
+
     /**
      * Get the test fixtures for Resource model
      */
@@ -322,7 +328,7 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.resourceCreateIn
         return {
             constraints: {
                 uniqueViolation: {
-                    id: resourceDbIds.resource1, // Duplicate ID
+                    id: getResourceDbIds().resource1, // Duplicate ID
                     publicId: generatePublicId(),
                     isPrivate: false,
                     resourceType: ResourceType.Code,
@@ -404,7 +410,7 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.resourceCreateIn
     protected addOwner(data: Prisma.resourceCreateInput, ownerId: string, ownerType: "user" | "team" = "user"): Prisma.resourceCreateInput {
         return {
             ...data,
-            ...(ownerType === "user" 
+            ...(ownerType === "user"
                 ? { ownedByUser: { connect: { id: ownerId } } }
                 : { ownedByTeam: { connect: { id: ownerId } } }
             ),
@@ -474,7 +480,7 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.resourceCreateIn
         if (data.versions?.create) {
             const versions = Array.isArray(data.versions.create) ? data.versions.create : [data.versions.create];
             const latestVersions = versions.filter(v => v.isLatest);
-            
+
             if (latestVersions.length !== 1) {
                 errors.push("Resource must have exactly one latest version");
             }
@@ -582,10 +588,10 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.resourceCreateIn
         overrides?: Partial<Prisma.resourceCreateInput>,
     ): Prisma.resourceCreateInput {
         const factory = new ResourceDbFactory();
-        const data = factory.createMinimal({ 
+        const data = factory.createMinimal({
             resourceType: ResourceType.Code,
             permissions: JSON.stringify(permissions),
-            ...overrides, 
+            ...overrides,
         });
         return factory.addOwner(data, ownerId, "user");
     }
@@ -599,10 +605,10 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.resourceCreateIn
         overrides?: Partial<Prisma.resourceCreateInput>,
     ): Prisma.resourceCreateInput {
         const factory = new ResourceDbFactory();
-        const data = factory.createMinimal({ 
+        const data = factory.createMinimal({
             resourceType,
             isPrivate: true,
-            ...overrides, 
+            ...overrides,
         });
         return factory.addOwner(data, ownerId, "user");
     }
@@ -616,10 +622,10 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.resourceCreateIn
         overrides?: Partial<Prisma.resourceCreateInput>,
     ): Prisma.resourceCreateInput {
         const factory = new ResourceDbFactory();
-        const data = factory.createMinimal({ 
+        const data = factory.createMinimal({
             resourceType,
             isInternal: true,
-            ...overrides, 
+            ...overrides,
         });
         return factory.addOwner(data, ownerId, "user");
     }
@@ -736,7 +742,7 @@ export async function seedTestResources(
                     isPrivate,
                     isInternal,
                 });
-            
+
             if (options?.withVersions) versionCount++;
         }
 
