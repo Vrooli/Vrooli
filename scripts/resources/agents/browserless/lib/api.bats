@@ -1,28 +1,77 @@
 #!/usr/bin/env bats
 # Tests for Browserless api.sh functions
 
-# Setup for each test
+# Expensive setup operations run once per file
+setup_file() {
+    # Load dependencies once per file
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    BROWSERLESS_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Load configuration and messages once
+    source "${BROWSERLESS_DIR}/config/defaults.sh"
+    source "${BROWSERLESS_DIR}/config/messages.sh"
+    
+    # Load API functions once
+    source "${SCRIPT_DIR}/api.sh"
+    
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_DIR="$SCRIPT_DIR"
+    export SETUP_FILE_BROWSERLESS_DIR="$BROWSERLESS_DIR"
+}
+
+# Lightweight per-test setup
 setup() {
-    # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    # Use paths from setup_file
+    # Mock resources functions to avoid hang
+    declare -A DEFAULT_PORTS=(
+        ["ollama"]="11434"
+        ["agent-s2"]="4113"
+        ["browserless"]="3000"
+        ["unstructured-io"]="8000"
+        ["n8n"]="5678"
+        ["node-red"]="1880"
+        ["huginn"]="3000"
+        ["windmill"]="8000"
+        ["judge0"]="2358"
+        ["searxng"]="8080"
+        ["qdrant"]="6333"
+        ["questdb"]="9000"
+        ["vault"]="8200"
+    )
+    resources::get_default_port() { echo "${DEFAULT_PORTS[$1]:-8080}"; }
+    export -f resources::get_default_port
     
-    # Setup standard mocks
-    setup_standard_mocks
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
+    BROWSERLESS_DIR="${SETUP_FILE_BROWSERLESS_DIR}"
     
-    # Set test environment
+    # Set test environment (lightweight per-test)
     export BROWSERLESS_CUSTOM_PORT="9999"
     export BROWSERLESS_CONTAINER_NAME="browserless-test"
     export BROWSERLESS_BASE_URL="http://localhost:9999"
     export URL="https://example.com"
     export OUTPUT="test-output.png"
     
-    # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
-    BROWSERLESS_DIR="$(dirname "$SCRIPT_DIR")"
+    # Basic mock functions (lightweight)
+    mock::network::set_online() { return 0; }
+    setup_standard_mocks() { 
+        export FORCE="${FORCE:-no}"
+        export YES="${YES:-no}"
+        export OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"
+        export QUIET="${QUIET:-no}"
+        mock::network::set_online
+    }
     
-    # Load configuration and messages
+    # Setup mocks
+    setup_standard_mocks
+    
+    # Re-source config to ensure export functions are available
     source "${BROWSERLESS_DIR}/config/defaults.sh"
     source "${BROWSERLESS_DIR}/config/messages.sh"
+    
+    # Re-source only essential API functions
+    source "${SCRIPT_DIR}/api.sh"
+    
+    # Export config functions  
     browserless::export_config
     browserless::export_messages
     
@@ -30,11 +79,7 @@ setup() {
     browserless::is_healthy() {
         return 0  # Always healthy for API tests
     }
-    
-    # Mock logging functions
-    
-    # Load API functions
-    source "${SCRIPT_DIR}/api.sh"
+    export -f browserless::is_healthy
 }
 
 # Test screenshot API function

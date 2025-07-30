@@ -1,34 +1,40 @@
 #!/usr/bin/env bats
 # Tests for Browserless usage.sh functions
 
-# Setup for each test
-setup() {
+# Expensive setup operations run once per file
+setup_file() {
     # Load shared test infrastructure
     source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
     
+    # Load dependencies once per file
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    BROWSERLESS_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Load configuration and messages once
+    source "${BROWSERLESS_DIR}/config/defaults.sh"
+    source "${BROWSERLESS_DIR}/config/messages.sh"
+    
+    # Load usage functions once
+    source "${SCRIPT_DIR}/usage.sh"
+}
+
+# Lightweight per-test setup
+setup() {
     # Setup standard mocks
     setup_standard_mocks
     
-    # Set test environment
+    # Set test environment (lightweight per-test)
     export BROWSERLESS_CUSTOM_PORT="9999"
     export BROWSERLESS_BASE_URL="http://localhost:9999"
     export USAGE_TYPE="help"
     export URL="https://example.com"
     export OUTPUT="test-output.png"
     
-    # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
-    BROWSERLESS_DIR="$(dirname "$SCRIPT_DIR")"
-    
-    # Load configuration and messages
-    source "${BROWSERLESS_DIR}/config/defaults.sh"
-    source "${BROWSERLESS_DIR}/config/messages.sh"
+    # Export config functions (lightweight)
     browserless::export_config
     browserless::export_messages
     
-    # Mock logging functions
-    
-    # Mock API test functions
+    # Mock API test functions (lightweight)
     browserless::test_screenshot() {
         echo "MOCK: Screenshot test with $1 $2"
         return 0
@@ -59,8 +65,9 @@ setup() {
         return 0
     }
     
-    # Load usage functions
-    source "${SCRIPT_DIR}/usage.sh"
+    # Export all mock functions
+    export -f browserless::test_screenshot browserless::test_pdf browserless::test_scrape
+    export -f browserless::test_pressure browserless::test_function browserless::test_all_apis
 }
 
 # Test usage help display

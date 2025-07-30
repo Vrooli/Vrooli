@@ -1,15 +1,31 @@
 #!/usr/bin/env bats
 # Tests for Browserless install.sh functions
 
-# Setup for each test
-setup() {
+# Expensive setup operations run once per file  
+setup_file() {
     # Load shared test infrastructure
     source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
     
+    # Load dependencies once per file
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    BROWSERLESS_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Load configuration and messages once
+    source "${BROWSERLESS_DIR}/config/defaults.sh"
+    source "${BROWSERLESS_DIR}/config/messages.sh"
+    browserless::export_config
+    browserless::export_messages
+    
+    # Load install functions once
+    source "${SCRIPT_DIR}/install.sh"
+}
+
+# Lightweight per-test setup
+setup() {
     # Setup standard mocks
     setup_standard_mocks
     
-    # Set test environment
+    # Set test environment (lightweight per-test)
     export BROWSERLESS_CUSTOM_PORT="9999"
     export BROWSERLESS_CONTAINER_NAME="browserless-test"
     export BROWSERLESS_BASE_URL="http://localhost:9999"
@@ -21,17 +37,7 @@ setup() {
     export BROWSERLESS_INITIALIZATION_WAIT="5"
     export YES="no"
     
-    # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
-    BROWSERLESS_DIR="$(dirname "$SCRIPT_DIR")"
-    
-    # Load configuration and messages
-    source "${BROWSERLESS_DIR}/config/defaults.sh"
-    source "${BROWSERLESS_DIR}/config/messages.sh"
-    browserless::export_config
-    browserless::export_messages
-    
-    # Mock rollback functions
+    # Mock rollback functions (lightweight)
     resources::add_rollback_action() {
         echo "ROLLBACK: $1"
         return 0
@@ -62,22 +68,25 @@ setup() {
         [[ "$1" == "yes" ]]
     }
     
-    # Mock logging functions
-    
-    # Mock common functions
+    # Mock common functions - prevent slow operations
     browserless::check_existing_installation() { return 0; }
     browserless::validate_prerequisites() { return 0; }
     browserless::wait_for_ready() { return 0; }
     browserless::wait_for_healthy() { return 0; }
     browserless::backup_data() { echo "BACKUP: $1"; }
     
-    # Mock docker functions
+    # Mock docker functions - prevent real Docker calls and timeouts
     browserless::create_network() { echo "CREATE_NETWORK"; }
     browserless::docker_run() { return 0; }
     browserless::docker_remove() { echo "DOCKER_REMOVE: $1"; }
     
-    # Load install functions
-    source "${SCRIPT_DIR}/install.sh"
+    # Export all mock functions
+    export -f resources::add_rollback_action resources::start_rollback_context
+    export -f resources::handle_error resources::update_config resources::remove_config
+    export -f flow::is_yes browserless::check_existing_installation
+    export -f browserless::validate_prerequisites browserless::wait_for_ready
+    export -f browserless::wait_for_healthy browserless::backup_data
+    export -f browserless::create_network browserless::docker_run browserless::docker_remove
 }
 
 # Test directory creation success

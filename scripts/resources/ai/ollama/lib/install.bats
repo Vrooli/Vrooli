@@ -17,7 +17,7 @@ setup() {
     export OLLAMA_BASE_URL="http://localhost:11434"
     export FORCE="no"
     export YES="no"
-    export VROOLI_RESOURCES_CONFIG="/tmp/test_config.json"
+    export TEST_VROOLI_RESOURCES_CONFIG="/tmp/test_config.json"
     
     # Mock message variables
     export MSG_OLLAMA_ALREADY_INSTALLED="Already installed"
@@ -74,6 +74,15 @@ setup() {
     resources::is_service_active() { return 0; }
     resources::is_service_running() { return 0; }
     resources::remove_config() { return 0; }
+    
+    # Override config reading functions to use test config
+    jq() {
+        if [[ "$*" =~ "$VROOLI_RESOURCES_CONFIG" ]]; then
+            command jq "${@/$VROOLI_RESOURCES_CONFIG/$TEST_VROOLI_RESOURCES_CONFIG}"
+        else
+            command jq "$@"
+        fi
+    }
     
     flow::is_yes() { [[ "$1" == "yes" ]]; }
     
@@ -217,7 +226,7 @@ setup() {
     }
     
     # Create fake config file
-    echo '{"services":{"ai":{"ollama":{"enabled":true}}}}' > "$VROOLI_RESOURCES_CONFIG"
+    echo '{"services":{"ai":{"ollama":{"enabled":true}}}}' > "$TEST_VROOLI_RESOURCES_CONFIG"
     
     run ollama::verify_installation
     [ "$status" -eq 0 ]
@@ -225,7 +234,7 @@ setup() {
     [[ "$output" =~ "Ollama installation verification passed" ]]
     
     # Cleanup
-    rm -f "$VROOLI_RESOURCES_CONFIG"
+    rm -f "$TEST_VROOLI_RESOURCES_CONFIG"
 }
 
 @test "ollama::verify_installation fails with missing components" {

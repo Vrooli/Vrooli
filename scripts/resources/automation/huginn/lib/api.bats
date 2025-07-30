@@ -1,12 +1,70 @@
 #!/usr/bin/env bats
+
+# Expensive setup operations run once per file
+setup_file() {
+    # Minimal setup_file - most operations moved to lightweight setup()
+    true
+}
+
 # Tests for Huginn lib/api.sh
 
 load ../test_fixtures/test_helper
 
+# Lightweight per-test setup
 setup() {
-    setup_test_environment
+    # Basic mock functions (lightweight)
+    # Mock resources functions to avoid hang
+    declare -A DEFAULT_PORTS=(
+        ["ollama"]="11434"
+        ["agent-s2"]="4113"
+        ["browserless"]="3000"
+        ["unstructured-io"]="8000"
+        ["n8n"]="5678"
+        ["node-red"]="1880"
+        ["huginn"]="3000"
+        ["windmill"]="8000"
+        ["judge0"]="2358"
+        ["searxng"]="8080"
+        ["qdrant"]="6333"
+        ["questdb"]="9000"
+        ["vault"]="8200"
+    )
+    resources::get_default_port() { echo "${DEFAULT_PORTS[$1]:-8080}"; }
+    export -f resources::get_default_port
+    
+    mock::network::set_online() { return 0; }
+    setup_standard_mocks() { 
+        export FORCE="${FORCE:-no}"
+        export YES="${YES:-no}"
+        export OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"
+        export QUIET="${QUIET:-no}"
+        mock::network::set_online
+    }
+    
+    # Setup mocks
+    setup_standard_mocks
+    
+    # Source scripts directly without expensive environment setup
+    HUGINN_ROOT_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
+    source "$HUGINN_ROOT_DIR/../../../helpers/utils/args.sh" 2>/dev/null || true
+    source "$HUGINN_ROOT_DIR/../../../common.sh" 2>/dev/null || true
+    source "$HUGINN_ROOT_DIR/config/defaults.sh" 2>/dev/null || true
+    source "$HUGINN_ROOT_DIR/config/messages.sh" 2>/dev/null || true
+    source "$HUGINN_ROOT_DIR/lib/api.sh" 2>/dev/null || true
+    
+    # Mock docker and other functions
     mock_docker "success"
-    source_huginn_scripts
+    
+    # Additional lightweight mocks
+    log::info() { echo "[INFO] $*"; }
+    log::success() { echo "[SUCCESS] $*"; }
+    log::warning() { echo "[WARNING] $*"; }
+    log::error() { echo "[ERROR] $*" >&2; }
+    system::is_command() { command -v "$1" >/dev/null 2>&1; }
+    
+    # Set variables only if not already set (avoid readonly errors)
+    : "${CONTAINER_NAME:=huginn}"
+    : "${RESOURCE_PORT:=3000}"
 }
 
 teardown() {

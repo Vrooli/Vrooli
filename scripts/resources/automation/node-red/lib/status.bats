@@ -3,15 +3,26 @@
 
 load ../test_fixtures/test_helper
 
-setup() {
+# Run expensive setup once per file instead of per test
+setup_file() {
     setup_test_environment
     source_node_red_scripts
+}
+
+# Lightweight per-test setup - just reset mocks and ensure functions are available
+setup() {
+    # Re-source the functions if they're not available (shouldn't be needed but ensures test isolation)
+    if ! command -v node_red::show_status >/dev/null 2>&1; then
+        source_node_red_scripts
+    fi
+    
     mock_docker "success"
     mock_curl "success"
     mock_jq "success"
 }
 
-teardown() {
+# Cleanup once per file
+teardown_file() {
     teardown_test_environment
 }
 

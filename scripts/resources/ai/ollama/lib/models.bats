@@ -36,18 +36,27 @@ setup() {
     export MSG_MODELS_HEADER="Available Models"
     export MSG_MODELS_LEGEND="Legend info"
     export MSG_MODELS_TOTAL_SIZE="Total size info"
-    export MSG_UNKNOWN_MODELS="Unknown models"
+    # Mock dynamic message functions
+    MSG_UNKNOWN_MODELS() { echo "Unknown models: $*"; }
+    export -f MSG_UNKNOWN_MODELS
     export MSG_USE_AVAILABLE_MODELS="Use available models"
-    export MSG_MODELS_VALIDATED="Models validated"
+    MSG_MODELS_VALIDATED() {
+        local models=("$@")
+        echo "Validated ${#models[@]} models, total size: $(printf "%.1f" "$total_size")GB"
+    }
+    export -f MSG_MODELS_VALIDATED
     export MSG_MODEL_PULL_SUCCESS="Model pull success"
     export MSG_MODEL_PULL_FAILED="Model pull failed"
     export MSG_MODEL_NONE_SPECIFIED="No models specified"
     export MSG_MODEL_VALIDATION_FAILED="Model validation failed"
     export MSG_MODEL_INSTALL_SUCCESS="Model install success"
     export MSG_MODEL_INSTALL_FAILED="Model install failed"
-    export MSG_MODELS_INSTALLED="Models installed"
-    export MSG_MODELS_FAILED="Models failed"
-    export MSG_LOW_DISK_SPACE="Low disk space"
+    MSG_MODELS_INSTALLED() { echo "Models installed: $*"; }
+    export -f MSG_MODELS_INSTALLED
+    MSG_MODELS_FAILED() { echo "Models failed: $*"; }
+    export -f MSG_MODELS_FAILED
+    MSG_LOW_DISK_SPACE() { echo "Low disk space: $1GB available"; }
+    export -f MSG_LOW_DISK_SPACE
     export MSG_LIST_MODELS_FAILED="List models failed"
     export MSG_OLLAMA_API_UNAVAILABLE="API unavailable"
     export MSG_OLLAMA_NOT_INSTALLED="Not installed"

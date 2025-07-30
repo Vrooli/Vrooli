@@ -53,15 +53,17 @@ setup() {
     [ -n "$MSG_PROMPT_USAGE" ]
     [ -n "$MSG_PROMPT_API_ERROR" ]
     [ -n "$MSG_PROMPT_NO_RESPONSE" ]
-    [ -n "$MSG_PROMPT_RESPONSE_TIME" ]
-    [ -n "$MSG_PROMPT_TOKEN_COUNT" ]
+    # Dynamic message functions
+    type MSG_PROMPT_RESPONSE_TIME >/dev/null 2>&1
+    type MSG_PROMPT_TOKEN_COUNT >/dev/null 2>&1
     [ -n "$MSG_PROMPT_PARAMETERS" ]
 }
 
 @test "warning messages are defined" {
-    [ -n "$MSG_UNKNOWN_MODELS" ]
+    # Dynamic message functions
+    type MSG_UNKNOWN_MODELS >/dev/null 2>&1
     [ -n "$MSG_USE_AVAILABLE_MODELS" ]
-    [ -n "$MSG_LOW_DISK_SPACE" ]
+    type MSG_LOW_DISK_SPACE >/dev/null 2>&1
     [ -n "$MSG_JQ_UNAVAILABLE" ]
     [ -n "$MSG_MODELS_INSTALL_FAILED" ]
     [ -n "$MSG_CONFIG_UPDATE_FAILED" ]
@@ -101,15 +103,17 @@ setup() {
 
 @test "warning messages contain warning indicators" {
     [[ "$MSG_OLLAMA_STARTED_NO_API" =~ ⚠️ ]]
-    [[ "$MSG_LOW_DISK_SPACE" =~ ⚠️ ]]
-    [[ "$MSG_UNKNOWN_MODELS" =~ "Unknown models" ]]
+    # Test dynamic message functions
+    [[ "$(MSG_LOW_DISK_SPACE 5)" =~ ⚠️ ]]
+    [[ "$(MSG_UNKNOWN_MODELS "test-model")" =~ "Unknown models" ]]
 }
 
 @test "informational messages contain emojis where appropriate" {
     [[ "$MSG_MODELS_HEADER" =~ 📚 ]]
     [[ "$MSG_PROMPT_RESPONSE_HEADER" =~ 🤖 ]]
-    [[ "$MSG_PROMPT_RESPONSE_TIME" =~ ⏱️ ]]
-    [[ "$MSG_PROMPT_TOKEN_COUNT" =~ 📊 ]]
+    # Test dynamic message functions
+    [[ "$(MSG_PROMPT_RESPONSE_TIME 1.5)" =~ ⏱️ ]]
+    [[ "$(MSG_PROMPT_TOKEN_COUNT 10 20)" =~ 📊 ]]
     [[ "$MSG_PROMPT_PARAMETERS" =~ 🎛️ ]]
 }
 

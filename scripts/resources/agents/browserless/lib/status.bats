@@ -1,15 +1,29 @@
 #!/usr/bin/env bats
 # Tests for Browserless status.sh functions
 
-# Setup for each test
-setup() {
+# Expensive setup operations run once per file
+setup_file() {
     # Load shared test infrastructure
     source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
     
+    # Load dependencies once per file
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    BROWSERLESS_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Load configuration and messages once
+    source "${BROWSERLESS_DIR}/config/defaults.sh"
+    source "${BROWSERLESS_DIR}/config/messages.sh"
+    
+    # Load status functions once
+    source "${SCRIPT_DIR}/status.sh"
+}
+
+# Lightweight per-test setup
+setup() {
     # Setup standard mocks
     setup_standard_mocks
     
-    # Set test environment
+    # Set test environment (lightweight per-test)
     export BROWSERLESS_CUSTOM_PORT="9999"
     export BROWSERLESS_CONTAINER_NAME="browserless-test"
     export BROWSERLESS_BASE_URL="http://localhost:9999"
@@ -20,22 +34,9 @@ setup() {
     export BROWSERLESS_HEADLESS="yes"
     export BROWSERLESS_TIMEOUT="30000"
     
-    # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
-    BROWSERLESS_DIR="$(dirname "$SCRIPT_DIR")"
-    
-    # Load configuration and messages
-    source "${BROWSERLESS_DIR}/config/defaults.sh"
-    source "${BROWSERLESS_DIR}/config/messages.sh"
+    # Export config functions (lightweight)
     browserless::export_config
     browserless::export_messages
-    
-    # Mock system command check
-    
-    # Mock logging functions
-    
-    # Load status functions
-    source "${SCRIPT_DIR}/status.sh"
 }
 
 # Test health check with healthy service

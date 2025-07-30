@@ -1,10 +1,22 @@
 #!/usr/bin/env bats
 # Tests for Browserless messages.sh configuration
 
-# Setup for each test
-setup() {
-    # Load the messages
+# Expensive setup operations run once per file
+setup_file() {
+    # Load the messages once per file
     SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    source "${SCRIPT_DIR}/messages.sh"
+    
+    # Export the setup_file directory for use in setup()
+    export SETUP_FILE_SCRIPT_DIR="$SCRIPT_DIR"
+}
+
+# Lightweight per-test setup
+setup() {
+    # Use the directory from setup_file
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
+    
+    # Re-source messages to ensure functions are available in test scope
     source "${SCRIPT_DIR}/messages.sh"
 }
 

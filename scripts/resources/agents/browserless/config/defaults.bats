@@ -1,21 +1,34 @@
 #!/usr/bin/env bats
 # Tests for Browserless defaults.sh configuration
 
-# Setup for each test
+# Expensive setup operations run once per file
+setup_file() {
+    # Load the defaults once per file
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    source "${SCRIPT_DIR}/defaults.sh"
+    
+    # Export the setup_file directory for use in setup()
+    export SETUP_FILE_SCRIPT_DIR="$SCRIPT_DIR"
+}
+
+# Lightweight per-test setup
 setup() {
-    # Set test environment
+    # Use the directory from setup_file
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
+    
+    # Set test environment (lightweight per-test)
     export BROWSERLESS_CUSTOM_PORT="9999"
     export MAX_BROWSERS="3"
     export TIMEOUT="15000"
     export HEADLESS="no"
     
-    # Mock resources function
+    # Mock resources function (lightweight)
     resources::get_default_port() {
         echo "4110"
     }
+    export -f resources::get_default_port
     
-    # Load the defaults
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    # Re-source defaults to ensure functions are available in test scope
     source "${SCRIPT_DIR}/defaults.sh"
 }
 

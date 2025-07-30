@@ -2,14 +2,47 @@
 
 # Tests for Ollama API functions
 
+# Expensive setup operations run once per file
+setup_file() {
+    # No expensive operations needed in setup_file for this test
+    true
+}
+
+# Lightweight per-test setup
 setup() {
-    # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    # Basic mock functions (lightweight)
+    # Mock resources functions to avoid hang
+    declare -A DEFAULT_PORTS=(
+        ["ollama"]="11434"
+        ["agent-s2"]="4113"
+        ["browserless"]="3000"
+        ["unstructured-io"]="8000"
+        ["n8n"]="5678"
+        ["node-red"]="1880"
+        ["huginn"]="3000"
+        ["windmill"]="8000"
+        ["judge0"]="2358"
+        ["searxng"]="8080"
+        ["qdrant"]="6333"
+        ["questdb"]="9000"
+        ["vault"]="8200"
+    )
+    resources::get_default_port() { echo "${DEFAULT_PORTS[$1]:-8080}"; }
+    export -f resources::get_default_port
     
-    # Setup standard mocks
+    mock::network::set_online() { return 0; }
+    setup_standard_mocks() { 
+        export FORCE="${FORCE:-no}"
+        export YES="${YES:-no}"
+        export OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"
+        export QUIET="${QUIET:-no}"
+        mock::network::set_online
+    }
+    
+    # Setup mocks
     setup_standard_mocks
     
-    # Set test environment
+    # Set test environment (lightweight per-test)
     export OLLAMA_BASE_URL="http://localhost:11434"
     export OLLAMA_INSTALL_DIR="/usr/local/bin"
     export OLLAMA_PORT="11434"
@@ -36,7 +69,7 @@ setup() {
         "qwen2.5-coder:7b"
     )
     
-    # Mock message variables
+    # Mock message variables (lightweight)
     export MSG_OLLAMA_API_UNAVAILABLE="API unavailable"
     export MSG_START_OLLAMA="Start Ollama"
     export MSG_PROMPT_NO_TEXT="No prompt text"
@@ -60,17 +93,17 @@ setup() {
     export MSG_FAILED_API_REQUEST="Failed API request"
     export MSG_CHECK_STATUS="Check status"
     
-    # Setup Ollama-specific mocks (using shared infrastructure)
-    mock::ollama::setup "healthy"
-    
-    # Override specific ollama functions for these tests
+    # Mock ollama functions (lightweight)
+    mock::ollama::setup() { return 0; }
     ollama::is_healthy() { return 0; }  # Default: healthy
     ollama::validate_model_available() { return 0; }  # Default: model available
     ollama::get_installed_models() { echo "llama3.1:8b deepseek-r1:8b"; }
     ollama::get_best_available_model() { echo "llama3.1:8b"; }
     ollama::calculate_default_size() { echo "13.7"; }
     
-    # Note: log:: and system::is_command functions now come from shared mocks
+    # Export mock functions
+    export -f mock::ollama::setup ollama::is_healthy ollama::validate_model_available
+    export -f ollama::get_installed_models ollama::get_best_available_model ollama::calculate_default_size
     
     # Override curl mock for Ollama-specific API responses
     curl() {
@@ -80,8 +113,8 @@ setup() {
             return 0
         fi
         
-        # Fall back to shared curl mock for other requests
-        $(declare -f curl | tail -n +2)
+        # Fall back to basic curl mock for other requests
+        return 0
     }
     
     # Mock system commands (shared mocks handle most, only override what's needed)

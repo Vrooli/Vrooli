@@ -1,4 +1,11 @@
 #!/usr/bin/env bats
+
+# Expensive setup operations run once per file
+setup_file() {
+    # Minimal setup_file - most operations moved to lightweight setup()
+    true
+}
+
 bats_require_minimum_version 1.5.0
 
 # Path to the script under test

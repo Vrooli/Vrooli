@@ -1,29 +1,75 @@
 #!/usr/bin/env bats
 bats_require_minimum_version 1.5.0
 
-# Setup for each test
-setup() {
-    # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
-    
-    # Setup standard mocks
-    setup_standard_mocks
-    
+# Expensive setup operations run once per file
+setup_file() {
     # Path to the script under test
     SCRIPT_PATH="$BATS_TEST_DIRNAME/api.sh"
     VAULT_DIR="$BATS_TEST_DIRNAME/.."
     COMMON_PATH="$BATS_TEST_DIRNAME/common.sh"
     
-    # Source dependencies
+    # Source dependencies once
     RESOURCES_DIR="$VAULT_DIR/../.."
     HELPERS_DIR="$RESOURCES_DIR/../helpers"
     
-    # Source utilities first
+    # Source utilities once
     source "$HELPERS_DIR/utils/log.sh"
     source "$HELPERS_DIR/utils/system.sh"
     source "$RESOURCES_DIR/common.sh"
     
-    # Set all required test environment variables
+    # Source the scripts under test once
+    source "$COMMON_PATH"
+    source "$SCRIPT_PATH"
+    
+    # Source messages configuration once
+    source "$VAULT_DIR/config/messages.sh"
+    
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_PATH="$SCRIPT_PATH"
+    export SETUP_FILE_VAULT_DIR="$VAULT_DIR"
+    export SETUP_FILE_COMMON_PATH="$COMMON_PATH"
+}
+
+# Lightweight per-test setup
+setup() {
+    # Basic mock functions (lightweight)
+    # Mock resources functions to avoid hang
+    declare -A DEFAULT_PORTS=(
+        ["ollama"]="11434"
+        ["agent-s2"]="4113"
+        ["browserless"]="3000"
+        ["unstructured-io"]="8000"
+        ["n8n"]="5678"
+        ["node-red"]="1880"
+        ["huginn"]="3000"
+        ["windmill"]="8000"
+        ["judge0"]="2358"
+        ["searxng"]="8080"
+        ["qdrant"]="6333"
+        ["questdb"]="9000"
+        ["vault"]="8200"
+    )
+    resources::get_default_port() { echo "${DEFAULT_PORTS[$1]:-8080}"; }
+    export -f resources::get_default_port
+    
+    mock::network::set_online() { return 0; }
+    setup_standard_mocks() { 
+        export FORCE="${FORCE:-no}"
+        export YES="${YES:-no}"
+        export OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"
+        export QUIET="${QUIET:-no}"
+        mock::network::set_online
+    }
+    
+    # Setup mocks
+    setup_standard_mocks
+    
+    # Use paths from setup_file
+    SCRIPT_PATH="${SETUP_FILE_SCRIPT_PATH}"
+    VAULT_DIR="${SETUP_FILE_VAULT_DIR}"
+    COMMON_PATH="${SETUP_FILE_COMMON_PATH}"
+    
+    # Set all required test environment variables (lightweight per-test)
     export VAULT_CONTAINER_NAME='vault-test'
     export VAULT_NAMESPACE_PREFIX='test'
     export VAULT_SECRET_ENGINE='secret'
@@ -39,15 +85,12 @@ setup() {
     export VAULT_UNSEAL_KEYS_FILE='/tmp/vault-test-keys'
     export SCRIPT_DIR="$VAULT_DIR"
     
-    # Source the scripts under test
+    # Re-source only essential functions to ensure availability
     source "$COMMON_PATH"
     source "$SCRIPT_PATH"
-    
-    # Source messages configuration and initialize
-    source "$VAULT_DIR/config/messages.sh"
     vault::messages::init
     
-    # Mock vault functions for API tests
+    # Mock vault functions for API tests (lightweight)
     vault::is_healthy() { return 0; }
     vault::is_sealed() { return 1; }
     vault::api_request() {
@@ -74,7 +117,9 @@ setup() {
             *) echo '{"result":"mocked"}';;
         esac
     }
-    export -f jq
+    
+    # Export all mock functions
+    export -f jq vault::is_healthy vault::is_sealed vault::api_request
 }
 
 # ============================================================================

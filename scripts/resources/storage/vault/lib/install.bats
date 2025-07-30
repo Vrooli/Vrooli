@@ -1,13 +1,10 @@
 #!/usr/bin/env bats
 bats_require_minimum_version 1.5.0
 
-# Setup for each test
-setup() {
+# Expensive setup operations run once per file
+setup_file() {
     # Load shared test infrastructure
     source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
-    
-    # Setup standard mocks
-    setup_standard_mocks
     
     # Path to the scripts under test
     SCRIPT_PATH="$BATS_TEST_DIRNAME/install.sh"
@@ -16,17 +13,34 @@ setup() {
     DOCKER_PATH="$BATS_TEST_DIRNAME/docker.sh"
     API_PATH="$BATS_TEST_DIRNAME/api.sh"
     
-    # Source dependencies
+    # Source dependencies once per file
     RESOURCES_DIR="$VAULT_DIR/../.."
     HELPERS_DIR="$RESOURCES_DIR/../helpers"
     
-    # Source utilities first
+    # Source utilities once
     source "$HELPERS_DIR/utils/log.sh"
     source "$HELPERS_DIR/utils/system.sh"
     source "$HELPERS_DIR/utils/flow.sh"
     source "$RESOURCES_DIR/common.sh"
     
-    # Set all required test environment variables
+    # Source required scripts once
+    source "$COMMON_PATH"
+    source "$DOCKER_PATH"
+    source "$API_PATH"
+    
+    # Source messages configuration and initialize once
+    source "$VAULT_DIR/config/messages.sh"
+    vault::messages::init
+    
+    source "$SCRIPT_PATH"
+}
+
+# Lightweight per-test setup
+setup() {
+    # Setup standard mocks
+    setup_standard_mocks
+    
+    # Set all required test environment variables (lightweight per-test)
     export VAULT_CONTAINER_NAME="vault-test"
     export VAULT_MODE="dev"
     export VAULT_DEV_ROOT_TOKEN_ID="test-token"
@@ -43,23 +57,15 @@ setup() {
     export VAULT_BASE_URL="http://localhost:8200"
     export SCRIPT_DIR="$VAULT_DIR"
     
-    # Source required scripts
-    source "$COMMON_PATH"
-    source "$DOCKER_PATH"
-    source "$API_PATH"
-    
-    # Source messages configuration and initialize
-    source "$VAULT_DIR/config/messages.sh"
-    vault::messages::init
-    
-    source "$SCRIPT_PATH"
-    
-    # Mock functions for install tests
+    # Mock functions for install tests (lightweight)
     resources::add_rollback_action() { 
         echo "Rollback action added: $1" >&2
         return 0
     }
     vault::export_config() { : ; }
+    
+    # Export mock functions
+    export -f resources::add_rollback_action vault::export_config
 }
 
 # ============================================================================

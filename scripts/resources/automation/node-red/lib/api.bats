@@ -3,9 +3,50 @@
 
 load ../test_fixtures/test_helper
 
+# Expensive setup operations run once per file
+setup_file() {
+    # Minimal setup_file - avoid heavy operations
+    export NODE_RED_TEST_DIR="$(mktemp -d)"
+    export NODE_RED_ROOT_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
+    true
+}
+
+# Lightweight per-test setup
 setup() {
-    setup_test_environment
-    source_node_red_scripts
+    # Source scripts directly without expensive environment setup
+    # Mock resources functions to avoid hang
+    declare -A DEFAULT_PORTS=(
+        ["ollama"]="11434"
+        ["agent-s2"]="4113"
+        ["browserless"]="3000"
+        ["unstructured-io"]="8000"
+        ["n8n"]="5678"
+        ["node-red"]="1880"
+        ["huginn"]="3000"
+        ["windmill"]="8000"
+        ["judge0"]="2358"
+        ["searxng"]="8080"
+        ["qdrant"]="6333"
+        ["questdb"]="9000"
+        ["vault"]="8200"
+    )
+    resources::get_default_port() { echo "${DEFAULT_PORTS[$1]:-8080}"; }
+    export -f resources::get_default_port
+    
+    source "$NODE_RED_ROOT_DIR/../../../helpers/utils/args.sh" 2>/dev/null || true
+    source "$NODE_RED_ROOT_DIR/../../../common.sh" 2>/dev/null || true
+    source "$NODE_RED_ROOT_DIR/config/defaults.sh" 2>/dev/null || true
+    source "$NODE_RED_ROOT_DIR/config/messages.sh" 2>/dev/null || true
+    source "$NODE_RED_ROOT_DIR/lib/api.sh" 2>/dev/null || true
+    
+    # Mock functions (lightweight)
+    log::info() { echo "[INFO] $*"; }
+    log::success() { echo "[SUCCESS] $*"; }
+    log::warning() { echo "[WARNING] $*"; }
+    log::error() { echo "[ERROR] $*" >&2; }
+    system::is_command() { command -v "$1" >/dev/null 2>&1; }
+    
+    # Quick mocks
     mock_docker "success"
     mock_curl "success"
     mock_jq "success"
@@ -15,6 +56,9 @@ setup() {
     export FLOW_FILE=""
     export ENDPOINT=""
     export DATA=""
+    # Set variables only if not already set (avoid readonly errors)
+    : "${CONTAINER_NAME:=node-red}"
+    : "${RESOURCE_PORT:=1880}"
 }
 
 teardown() {
