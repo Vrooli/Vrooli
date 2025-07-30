@@ -37,7 +37,7 @@ _determine_paths() {
     fi
     
     export RESOURCE_NAME="$(basename "$RESOURCE_DIR")"
-    export BATS_FIXTURES_DIR="$RESOURCES_DIR/test/bats-fixtures"
+    export BATS_FIXTURES_DIR="$RESOURCES_DIR/tests/bats-fixtures"
 }
 
 # Load core testing utilities and mocks
