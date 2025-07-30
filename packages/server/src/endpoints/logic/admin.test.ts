@@ -235,7 +235,7 @@ describe("EndpointsAdmin", () => {
     describe("userUpdateStatus", () => {
         it("not logged in", async () => {
             await assertRequiresAuth(admin.userUpdateStatus, admin_userUpdateStatus, {
-                userId: "123",
+                userId: generatePK().toString(),
                 status: AccountStatus.SoftLocked,
             });
         });
@@ -314,7 +314,7 @@ describe("EndpointsAdmin", () => {
             await expect(async () => {
                 await admin.userUpdateStatus({
                     input: {
-                        userId: "999999999",
+                        userId: generatePK().toString(),
                         status: AccountStatus.SoftLocked,
                     },
                 }, { req, res }, admin_userUpdateStatus);
@@ -352,7 +352,7 @@ describe("EndpointsAdmin", () => {
 
         it("not logged in", async () => {
             await assertRequiresAuth(admin.userResetPassword, admin_userResetPassword, {
-                userId: "123",
+                userId: generatePK().toString(),
             });
         });
 
@@ -461,7 +461,7 @@ describe("EndpointsAdmin", () => {
             await expect(async () => {
                 await admin.userResetPassword({
                     input: {
-                        userId: "999999999",
+                        userId: generatePK().toString(),
                     },
                 }, { req, res }, admin_userResetPassword);
             }).rejects.toThrow();

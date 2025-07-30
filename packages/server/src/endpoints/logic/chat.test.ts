@@ -1,4 +1,4 @@
-import { type ChatCreateInput, type ChatSearchInput, type FindByIdInput, generatePK, SEEDED_PUBLIC_IDS } from "@vrooli/shared";
+import { type ChatCreateInput, type ChatSearchInput, type FindByPublicIdInput, generatePK, generatePublicId, SEEDED_PUBLIC_IDS } from "@vrooli/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { seedTestChat } from "../../__test/fixtures/db/chatFixtures.js";
 import { UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
@@ -96,7 +96,7 @@ describe("EndpointsChat", () => {
                 ...loggedInUserNoPremiumData(),
                 id: testUser3.id.toString(),
             });
-            const input: FindByIdInput = { id: privateChat.id.toString() };
+            const input: FindByPublicIdInput = { publicId: privateChat.publicId };
             const result = await chat.findOne({ input }, { req, res }, chat_findOne);
             expect(result).not.toBeNull();
             expect(result.id).toEqual(privateChat.id);
@@ -146,7 +146,7 @@ describe("EndpointsChat", () => {
             });
 
             const { req, res } = await mockLoggedOutSession();
-            const input: FindByIdInput = { id: publicChat.id.toString() };
+            const input: FindByPublicIdInput = { publicId: publicChat.publicId };
             const result = await chat.findOne({ input }, { req, res }, chat_findOne);
             expect(result).not.toBeNull();
             expect(result.id).toEqual(publicChat.id);

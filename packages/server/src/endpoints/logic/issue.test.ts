@@ -1,4 +1,4 @@
-import { type FindByIdInput, type IssueCloseInput, type IssueCreateInput, IssueFor, type IssueSearchInput, IssueStatus } from "@vrooli/shared";
+import { type FindByPublicIdInput, type IssueCloseInput, type IssueCreateInput, IssueFor, type IssueSearchInput, IssueStatus } from "@vrooli/shared";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
@@ -104,7 +104,7 @@ describe("EndpointsIssue", () => {
                     ...loggedInUserNoPremiumData(),
                     id: testUsers[0].id,
                 });
-                const input: FindByIdInput = { id: issues[0].id };
+                const input: FindByPublicIdInput = { publicId: issues[0].publicId };
                 const result = await issue.findOne({ input }, { req, res }, issue_findOne);
                 expect(result).not.toBeNull();
                 expect(result.id).toEqual(issues[0].id);
@@ -115,7 +115,7 @@ describe("EndpointsIssue", () => {
                     ...loggedInUserNoPremiumData(),
                     id: testUsers[0].id,
                 });
-                const input: FindByIdInput = { id: issues[2].id }; // Created by user 2
+                const input: FindByPublicIdInput = { publicId: issues[2].publicId }; // Created by user 2
                 const result = await issue.findOne({ input }, { req, res }, issue_findOne);
                 expect(result).not.toBeNull();
                 expect(result.id).toEqual(issues[2].id);
@@ -123,7 +123,7 @@ describe("EndpointsIssue", () => {
 
             it("returns issue when not authenticated", async () => {
                 const { req, res } = await mockLoggedOutSession();
-                const input: FindByIdInput = { id: issues[0].id };
+                const input: FindByPublicIdInput = { publicId: issues[0].publicId };
                 const result = await issue.findOne({ input }, { req, res }, issue_findOne);
                 expect(result).not.toBeNull();
                 expect(result.id).toEqual(issues[0].id);
@@ -136,7 +136,7 @@ describe("EndpointsIssue", () => {
                     ...loggedInUserNoPremiumData(),
                     id: testUsers[0].id,
                 });
-                const input: FindByIdInput = { id: issues[1].id };
+                const input: FindByPublicIdInput = { publicId: issues[1].publicId };
                 const result = await issue.findOne({ input }, { req, res }, issue_findOne);
                 expect(result).not.toBeNull();
                 expect(result.id).toEqual(issues[1].id);

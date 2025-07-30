@@ -8,28 +8,31 @@ import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios 
  * These follow Prisma's shape for database operations
  */
 
-// Consistent IDs for testing
-export const awardDbIds = {
-    award1: generatePK(),
-    award2: generatePK(),
-    award3: generatePK(),
-    user1: generatePK(),
-    user2: generatePK(),
-};
+// Consistent IDs for testing - using factory function to avoid module-level generatePK() calls
+export function getAwardDbIds() {
+    return {
+        award1: generatePK(),
+        award2: generatePK(),
+        award3: generatePK(),
+        user1: generatePK(),
+        user2: generatePK(),
+    };
+}
 
 /**
  * Enhanced test fixtures for Award model following standard structure
  */
-export const awardDbFixtures: DbTestFixtures<Prisma.awardCreateInput> = {
+export function getAwardDbFixtures(): DbTestFixtures<Prisma.awardCreateInput> {
+    return {
     minimal: {
         id: generatePK(),
-        user: { connect: { id: awardDbIds.user1 } },
+        user: { connect: { id: getAwardDbIds().user1 } },
         category: "TestCategory",
         progress: 0,
     },
     complete: {
         id: generatePK(),
-        user: { connect: { id: awardDbIds.user1 } },
+        user: { connect: { id: getAwardDbIds().user1 } },
         category: "CompleteCategory",
         progress: 100,
         timeCompleted: new Date(),
@@ -48,13 +51,13 @@ export const awardDbFixtures: DbTestFixtures<Prisma.awardCreateInput> = {
         },
         invalidProgress: {
             id: generatePK(),
-            user: { connect: { id: awardDbIds.user1 } },
+            user: { connect: { id: getAwardDbIds().user1 } },
             category: "InvalidProgress",
             progress: -10, // Negative progress
         },
         progressTooHigh: {
             id: generatePK(),
-            user: { connect: { id: awardDbIds.user1 } },
+            user: { connect: { id: getAwardDbIds().user1 } },
             category: "TooHighProgress",
             progress: 150, // Progress over 100
         },
@@ -62,51 +65,52 @@ export const awardDbFixtures: DbTestFixtures<Prisma.awardCreateInput> = {
     edgeCases: {
         zeroProgress: {
             id: generatePK(),
-            user: { connect: { id: awardDbIds.user1 } },
+            user: { connect: { id: getAwardDbIds().user1 } },
             category: "ZeroProgress",
             progress: 0,
         },
         maxProgress: {
             id: generatePK(),
-            user: { connect: { id: awardDbIds.user1 } },
+            user: { connect: { id: getAwardDbIds().user1 } },
             category: "MaxProgress",
             progress: 100,
             timeCompleted: new Date(),
         },
         partialProgress: {
             id: generatePK(),
-            user: { connect: { id: awardDbIds.user1 } },
+            user: { connect: { id: getAwardDbIds().user1 } },
             category: "PartialProgress",
             progress: 50,
         },
         longCategoryName: {
             id: generatePK(),
-            user: { connect: { id: awardDbIds.user1 } },
+            user: { connect: { id: getAwardDbIds().user1 } },
             category: "A".repeat(100), // Very long category name
             progress: 25,
         },
         specialCharacters: {
             id: generatePK(),
-            user: { connect: { id: awardDbIds.user1 } },
+            user: { connect: { id: getAwardDbIds().user1 } },
             category: "Special!@#$%^&*()_+{}|:<>?[]\\/.,;'\"Category",
             progress: 75,
         },
         completedRecently: {
             id: generatePK(),
-            user: { connect: { id: awardDbIds.user1 } },
+            user: { connect: { id: getAwardDbIds().user1 } },
             category: "RecentlyCompleted",
             progress: 100,
             timeCompleted: new Date(Date.now() - 1000), // 1 second ago
         },
         completedLongAgo: {
             id: generatePK(),
-            user: { connect: { id: awardDbIds.user1 } },
+            user: { connect: { id: getAwardDbIds().user1 } },
             category: "LongAgoCompleted",
             progress: 100,
             timeCompleted: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), // 1 year ago
         },
     },
-};
+    };
+}
 
 /**
  * Enhanced factory for creating award database fixtures
@@ -117,7 +121,7 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.awardCreateInput> {
      * Get the test fixtures for Award model
      */
     protected getFixtures(): DbTestFixtures<Prisma.awardCreateInput> {
-        return awardDbFixtures;
+        return getAwardDbFixtures();
     }
 
     /**
@@ -136,8 +140,8 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.awardCreateInput> {
         return {
             constraints: {
                 uniqueViolation: {
-                    id: awardDbIds.award1, // Duplicate ID
-                    user: { connect: { id: awardDbIds.user1 } },
+                    id: getAwardDbIds().award1, // Duplicate ID
+                    user: { connect: { id: getAwardDbIds().user1 } },
                     category: "UniqueViolation",
                     progress: 0,
                 },
@@ -149,17 +153,17 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.awardCreateInput> {
                 },
                 checkConstraintViolation: {
                     id: generatePK(),
-                    user: { connect: { id: awardDbIds.user1 } },
+                    user: { connect: { id: getAwardDbIds().user1 } },
                     category: "", // Empty category
                     progress: -1, // Negative progress
                 },
             },
             validation: {
-                requiredFieldMissing: awardDbFixtures.invalid.missingRequired,
-                invalidDataType: awardDbFixtures.invalid.invalidTypes,
+                requiredFieldMissing: getAwardDbFixtures().invalid.missingRequired,
+                invalidDataType: getAwardDbFixtures().invalid.invalidTypes,
                 outOfRange: {
                     id: generatePK(),
-                    user: { connect: { id: awardDbIds.user1 } },
+                    user: { connect: { id: getAwardDbIds().user1 } },
                     category: "a".repeat(500), // Category too long
                     progress: 1000, // Progress way too high
                 },
@@ -167,14 +171,14 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.awardCreateInput> {
             businessLogic: {
                 completedWithoutFullProgress: {
                     id: generatePK(),
-                    user: { connect: { id: awardDbIds.user1 } },
+                    user: { connect: { id: getAwardDbIds().user1 } },
                     category: "InconsistentCompletion",
                     progress: 50, // Not 100 but has completion time
                     timeCompleted: new Date(),
                 },
                 notCompletedWithFullProgress: {
                     id: generatePK(),
-                    user: { connect: { id: awardDbIds.user1 } },
+                    user: { connect: { id: getAwardDbIds().user1 } },
                     category: "InconsistentProgress",
                     progress: 100, // 100 progress but no completion time
                 },

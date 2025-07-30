@@ -21,7 +21,7 @@ AGENT_API="http://localhost:4113"
 OLLAMA_API="http://localhost:11434"
 
 # Script directory for imports
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 
 # Source test framework
 source "$SCRIPT_DIR/framework/helpers/assertions.sh"
@@ -88,7 +88,7 @@ test_ai_screen_analysis() {
     local screenshot_response
     screenshot_response=$(curl -s -X POST "${AGENT_API}/screenshot" \
         -H "Content-Type: application/json" \
-        -d '{"full_screen": true}')
+        -d '[]')
     
     assert_not_empty "$screenshot_response" "Screenshot captured"
     

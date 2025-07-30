@@ -1,9 +1,9 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: removed temporary any type parameter, improved invalid type casts
+import { type email, type Prisma, type PrismaClient } from "@prisma/client";
 import { nanoid } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
 } from "./types.js";
 
@@ -63,7 +63,7 @@ export class EmailDbFactory extends EnhancedDatabaseFactory<
      */
     protected getFixtures(): DbTestFixtures<Prisma.emailCreateInput, Prisma.emailUpdateInput> {
         const userId = this.generateId();
-        
+
         return {
             minimal: this.generateMinimalData(),
             complete: this.generateCompleteData(),

@@ -1,7 +1,8 @@
-import { type Prisma, type PrismaClient } from "@prisma/client";
+/* eslint-disable no-magic-numbers */
+import { type Prisma, type PrismaClient, type user_auth } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
 } from "./types.js";
 
@@ -24,7 +25,7 @@ interface AuthRelationConfig extends RelationConfig {
  * - Predefined test scenarios
  */
 export class AuthDbFactory extends EnhancedDatabaseFactory<
-    any, // Using any temporarily to avoid type issues
+    user_auth,
     Prisma.user_authCreateInput,
     Prisma.user_authInclude,
     Prisma.user_authUpdateInput
@@ -62,7 +63,7 @@ export class AuthDbFactory extends EnhancedDatabaseFactory<
      */
     protected getFixtures(): DbTestFixtures<Prisma.user_authCreateInput, Prisma.user_authUpdateInput> {
         const userId = this.generateId();
-        
+
         return {
             minimal: this.generateMinimalData(),
             complete: this.generateCompleteData(),

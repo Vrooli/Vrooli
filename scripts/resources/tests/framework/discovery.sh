@@ -15,6 +15,11 @@
 #
 # ====================================================================
 
+# Source helper functions early
+if [[ -f "$SCRIPT_DIR/framework/helpers/metadata.sh" ]]; then
+    source "$SCRIPT_DIR/framework/helpers/metadata.sh"
+fi
+
 # Discover all available resources from the resource scripts
 discover_all_resources() {
     log_info "Discovering available resources..."
@@ -79,10 +84,10 @@ filter_enabled_resources() {
             
             if [[ "$is_running" == "true" ]]; then
                 ENABLED_RESOURCES+=("$resource")
-                log_warning "⚠️  $resource is running but not explicitly enabled in config"
+                log_warning "⚠️  Including $resource - running but not configured (auto-discovered)"
             else
                 DISABLED_RESOURCES+=("$resource")
-                log_warning "⚠️  Skipping $resource - not enabled in configuration"
+                log_debug "⚠️  Skipping $resource - not enabled and not running"
             fi
         fi
     done
@@ -96,6 +101,26 @@ filter_enabled_resources() {
     
     if [[ ${#DISABLED_RESOURCES[@]} -gt 0 ]]; then
         log_info "Disabled resources (${#DISABLED_RESOURCES[@]}): ${DISABLED_RESOURCES[*]}"
+    fi
+    
+    # Count auto-discovered resources for summary
+    local auto_discovered_count=0
+    for resource in "${ENABLED_RESOURCES[@]}"; do
+        local enabled
+        enabled=$(jq -r --arg resource "$resource" '
+            .services | to_entries[] | 
+            select(.value | objects | has($resource)) | 
+            .value[$resource].enabled // false
+        ' "$config_file" 2>/dev/null)
+        
+        if [[ "$enabled" != "true" ]]; then
+            auto_discovered_count=$((auto_discovered_count + 1))
+        fi
+    done
+    
+    if [[ $auto_discovered_count -gt 0 ]]; then
+        log_info "📝 $auto_discovered_count resources were auto-discovered (running but not in config)"
+        log_info "   To configure them: edit ~/.vrooli/resources.local.json"
     fi
 }
 
@@ -165,12 +190,52 @@ validate_resource_health() {
 check_resource_running() {
     local resource="$1"
     
-    # Use docker ps to check if resource container is running
-    if docker ps --format "{{.Names}}" | grep -q "^${resource}$" 2>/dev/null; then
-        echo "true"
-    else
-        echo "false"
+    # Special handling for CLI tools and non-containerized resources
+    case "$resource" in
+        "claude-code")
+            # Claude Code is a CLI tool, check if it's installed and available
+            if which claude-code >/dev/null 2>&1 || npx claude-code --version >/dev/null 2>&1; then
+                echo "true"
+            else
+                echo "false"
+            fi
+            return
+            ;;
+        "questdb")
+            # QuestDB might be available but not running - check for installation/availability
+            # For now, assume it's available if discovered (will be handled by health check)
+            echo "true"
+            return
+            ;;
+    esac
+    
+    # Get all running container names
+    local running_containers
+    running_containers=$(docker ps --format "{{.Names}}" 2>/dev/null || echo "")
+    
+    # Check various naming patterns for the resource
+    if [[ -n "$running_containers" ]]; then
+        # Exact match
+        if echo "$running_containers" | grep -q "^${resource}$"; then
+            echo "true"
+            return
+        fi
+        
+        # Common prefixed patterns (vrooli-, project-)
+        if echo "$running_containers" | grep -qE "^(vrooli-|project-)?${resource}(-[0-9]+)?$"; then
+            echo "true"
+            return
+        fi
+        
+        # Pattern with underscores instead of hyphens
+        local resource_underscore="${resource//-/_}"
+        if echo "$running_containers" | grep -qE "^(vrooli[_-]|project[_-])?${resource_underscore}([_-][0-9]+)?$"; then
+            echo "true"
+            return
+        fi
     fi
+    
+    echo "false"
 }
 
 # Check detailed health status of a specific resource
@@ -187,8 +252,43 @@ check_resource_health() {
             return
             ;;
         "windmill")
-            # Windmill has complex deployment, check if main service exists
-            if docker ps --format "{{.Names}}" | grep -q "windmill.*server" 2>/dev/null; then
+            # Windmill uses port 5681 and exposes /api/version endpoint
+            if curl -s --max-time 5 "http://localhost:5681/api/version" >/dev/null 2>&1; then
+                echo "healthy"
+            else
+                echo "unreachable"
+            fi
+            return
+            ;;
+        "unstructured-io")
+            # Unstructured-IO uses port 11450 and exposes /healthcheck endpoint
+            if curl -s --max-time 5 "http://localhost:11450/healthcheck" >/dev/null 2>&1; then
+                echo "healthy"
+            else
+                echo "unreachable"
+            fi
+            return
+            ;;
+        "claude-code")
+            # Claude Code is a CLI tool, check if it responds to basic commands
+            if which claude-code >/dev/null 2>&1; then
+                if timeout 5 claude-code --version >/dev/null 2>&1; then
+                    echo "healthy"
+                else
+                    echo "unreachable"
+                fi
+            elif timeout 10 npx claude-code --version >/dev/null 2>&1; then
+                echo "healthy"
+            else
+                echo "unreachable"
+            fi
+            return
+            ;;
+        "questdb")
+            # QuestDB uses port 9009 and exposes HTTP API
+            if curl -s --max-time 5 "http://localhost:9009/status" >/dev/null 2>&1; then
+                echo "healthy"
+            elif curl -s --max-time 5 "http://localhost:9009/" >/dev/null 2>&1; then
                 echo "healthy"
             else
                 echo "unreachable"
@@ -486,4 +586,230 @@ get_resource_info() {
     fi
     
     echo "$info"
+}
+
+# ====================================================================
+# Scenario Discovery Functions
+# ====================================================================
+
+# Discover all available scenarios from the scenarios directory
+discover_scenarios() {
+    log_info "Discovering available business scenarios..."
+    
+    local scenarios_dir="$SCRIPT_DIR/scenarios"
+    
+    if [[ ! -d "$scenarios_dir" ]]; then
+        log_warning "Scenarios directory not found: $scenarios_dir"
+        return 0
+    fi
+    
+    # Find all scenario test files
+    local scenario_files
+    mapfile -t scenario_files < <(find "$scenarios_dir" -name "*.test.sh" -type f 2>/dev/null | sort)
+    
+    if [[ ${#scenario_files[@]} -eq 0 ]]; then
+        log_warning "No scenario test files found"
+        return 0
+    fi
+    
+    # Process each scenario file to extract metadata
+    declare -g -A SCENARIO_METADATA
+    declare -g -a ALL_SCENARIOS
+    
+    for scenario_file in "${scenario_files[@]}"; do
+        local scenario_name
+        scenario_name=$(basename "$scenario_file" .test.sh)
+        
+        # Extract metadata from the scenario file
+        local metadata_file="/tmp/scenario_metadata_$$"
+        if extract_test_metadata "$scenario_file" "$metadata_file"; then
+            source "$metadata_file"
+            
+            # Store scenario metadata
+            SCENARIO_METADATA["$scenario_name:scenario"]="${SCENARIO:-$scenario_name}"
+            SCENARIO_METADATA["$scenario_name:category"]="${CATEGORY:-unknown}"
+            SCENARIO_METADATA["$scenario_name:complexity"]="${COMPLEXITY:-unknown}"
+            SCENARIO_METADATA["$scenario_name:services"]="${SERVICES:-}"
+            SCENARIO_METADATA["$scenario_name:business_value"]="${BUSINESS_VALUE:-unknown}"
+            SCENARIO_METADATA["$scenario_name:market_demand"]="${MARKET_DEMAND:-unknown}"
+            SCENARIO_METADATA["$scenario_name:revenue_potential"]="${REVENUE_POTENTIAL:-unknown}"
+            SCENARIO_METADATA["$scenario_name:file"]="$scenario_file"
+            
+            ALL_SCENARIOS+=("$scenario_name")
+            
+            log_debug "Found scenario: $scenario_name (${CATEGORY:-unknown}, ${COMPLEXITY:-unknown})"
+            
+            rm -f "$metadata_file"
+        else
+            log_warning "Failed to extract metadata from $scenario_file"
+        fi
+    done
+    
+    log_success "Discovered ${#ALL_SCENARIOS[@]} business scenarios: ${ALL_SCENARIOS[*]}"
+}
+
+# Filter scenarios based on available resources
+filter_runnable_scenarios() {
+    log_info "Filtering scenarios based on available resources..."
+    
+    if [[ ${#ALL_SCENARIOS[@]} -eq 0 ]]; then
+        log_warning "No scenarios to filter"
+        return 0
+    fi
+    
+    declare -g -a RUNNABLE_SCENARIOS
+    declare -g -a BLOCKED_SCENARIOS
+    
+    local available_resources_str="${HEALTHY_RESOURCES[*]}"
+    
+    for scenario in "${ALL_SCENARIOS[@]}"; do
+        local required_services="${SCENARIO_METADATA["$scenario:services"]}"
+        
+        if [[ -z "$required_services" ]]; then
+            log_debug "Scenario $scenario has no service requirements - marking as runnable"
+            RUNNABLE_SCENARIOS+=("$scenario")
+            continue
+        fi
+        
+        # Check if all required services are available
+        local missing_services=""
+        IFS=',' read -ra services <<< "$required_services"
+        
+        local can_run=true
+        for service in "${services[@]}"; do
+            service=$(echo "$service" | xargs)  # Trim whitespace
+            if [[ -n "$service" && " $available_resources_str " != *" $service "* ]]; then
+                can_run=false
+                if [[ -n "$missing_services" ]]; then
+                    missing_services="$missing_services,$service"
+                else
+                    missing_services="$service"
+                fi
+            fi
+        done
+        
+        if [[ "$can_run" == "true" ]]; then
+            RUNNABLE_SCENARIOS+=("$scenario")
+            log_debug "✅ Scenario $scenario is runnable (services: $required_services)"
+        else
+            BLOCKED_SCENARIOS+=("$scenario")
+            log_debug "⚠️  Scenario $scenario blocked - missing: $missing_services"
+        fi
+    done
+    
+    log_success "Found ${#RUNNABLE_SCENARIOS[@]} runnable scenarios: ${RUNNABLE_SCENARIOS[*]}"
+    
+    if [[ ${#BLOCKED_SCENARIOS[@]} -gt 0 ]]; then
+        log_info "Blocked scenarios (${#BLOCKED_SCENARIOS[@]}): ${BLOCKED_SCENARIOS[*]}"
+    fi
+}
+
+# Filter scenarios by metadata criteria
+filter_scenarios_by_criteria() {
+    local filter_criteria="$1"  # e.g., "category=customer-service,complexity=intermediate"
+    
+    log_info "Filtering scenarios by criteria: $filter_criteria"
+    
+    if [[ ${#RUNNABLE_SCENARIOS[@]} -eq 0 ]]; then
+        log_warning "No runnable scenarios to filter"
+        return 0
+    fi
+    
+    # Parse filter criteria
+    declare -A filters
+    if [[ -n "$filter_criteria" ]]; then
+        IFS=',' read -ra criteria <<< "$filter_criteria"
+        for criterion in "${criteria[@]}"; do
+            if [[ "$criterion" =~ ^([^=]+)=(.+)$ ]]; then
+                local key="${BASH_REMATCH[1]}"
+                local value="${BASH_REMATCH[2]}"
+                key=$(echo "$key" | tr '[:lower:]' '[:upper:]' | tr '-' '_')
+                filters["$key"]="$value"
+            fi
+        done
+    fi
+    
+    declare -g -a FILTERED_SCENARIOS
+    
+    for scenario in "${RUNNABLE_SCENARIOS[@]}"; do
+        local matches=true
+        
+        for key in "${!filters[@]}"; do
+            local expected_value="${filters[$key]}"
+            local actual_value="${SCENARIO_METADATA["$scenario:${key,,}"]}"  # Convert to lowercase
+            
+            if [[ "$actual_value" != *"$expected_value"* ]]; then
+                matches=false
+                break
+            fi
+        done
+        
+        if [[ "$matches" == "true" ]]; then
+            FILTERED_SCENARIOS+=("$scenario")
+        fi
+    done
+    
+    if [[ ${#FILTERED_SCENARIOS[@]} -gt 0 ]]; then
+        log_success "Filtered to ${#FILTERED_SCENARIOS[@]} scenarios: ${FILTERED_SCENARIOS[*]}"
+    else
+        log_warning "No scenarios match the specified criteria"
+    fi
+}
+
+# Get scenario metadata for reporting
+get_scenario_metadata() {
+    local scenario="$1"
+    local field="$2"
+    
+    echo "${SCENARIO_METADATA["$scenario:$field"]:-}"
+}
+
+# List scenarios with their metadata
+list_scenarios() {
+    local format="${1:-table}"  # table or json
+    
+    if [[ ${#ALL_SCENARIOS[@]} -eq 0 ]]; then
+        echo "No scenarios discovered"
+        return
+    fi
+    
+    if [[ "$format" == "json" ]]; then
+        echo "["
+        local first=true
+        for scenario in "${ALL_SCENARIOS[@]}"; do
+            if [[ "$first" != "true" ]]; then
+                echo ","
+            fi
+            echo "  {"
+            echo "    \"name\": \"$scenario\","
+            echo "    \"scenario\": \"$(get_scenario_metadata "$scenario" "scenario")\","
+            echo "    \"category\": \"$(get_scenario_metadata "$scenario" "category")\","
+            echo "    \"complexity\": \"$(get_scenario_metadata "$scenario" "complexity")\","
+            echo "    \"services\": \"$(get_scenario_metadata "$scenario" "services")\","
+            echo "    \"business_value\": \"$(get_scenario_metadata "$scenario" "business_value")\","
+            echo "    \"market_demand\": \"$(get_scenario_metadata "$scenario" "market_demand")\","
+            echo "    \"revenue_potential\": \"$(get_scenario_metadata "$scenario" "revenue_potential")\""
+            echo -n "  }"
+            first=false
+        done
+        echo ""
+        echo "]"
+    else
+        printf "%-30s %-20s %-15s %-30s %-20s\n" "Scenario" "Category" "Complexity" "Services" "Revenue Potential"
+        printf "%-30s %-20s %-15s %-30s %-20s\n" "--------" "--------" "----------" "--------" "-----------------"
+        
+        for scenario in "${ALL_SCENARIOS[@]}"; do
+            local category=$(get_scenario_metadata "$scenario" "category")
+            local complexity=$(get_scenario_metadata "$scenario" "complexity")
+            local services=$(get_scenario_metadata "$scenario" "services")
+            local revenue=$(get_scenario_metadata "$scenario" "revenue_potential")
+            
+            printf "%-30s %-20s %-15s %-30s %-20s\n" \
+                "$scenario" \
+                "${category:-unknown}" \
+                "${complexity:-unknown}" \
+                "${services:-none}" \
+                "${revenue:-unknown}"
+        done
+    fi
 }

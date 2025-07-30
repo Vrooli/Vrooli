@@ -1,7 +1,7 @@
-import { generatePK, generatePublicId, BookmarkFor } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { BookmarkFor, generatePK, generatePublicId } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
+import type { BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
 
 /**
  * Database fixtures for Bookmark model - used for seeding test data
@@ -11,18 +11,24 @@ import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios 
  * Comment, Issue, Resource, Tag, Team, User
  */
 
-// Consistent IDs for testing
-export const bookmarkDbIds = {
-    bookmark1: generatePK(),
-    bookmark2: generatePK(),
-    bookmark3: generatePK(),
-    bookmarkList1: generatePK(),
-    bookmarkList2: generatePK(),
-    user1: generatePK(),
-    user2: generatePK(),
-    project1: generatePK(),
-    routine1: generatePK(),
-};
+// Cached IDs for consistent testing - lazy initialization pattern
+let _bookmarkDbIds: Record<string, bigint> | null = null;
+export function getBookmarkDbIds() {
+    if (!_bookmarkDbIds) {
+        _bookmarkDbIds = {
+            bookmark1: generatePK(),
+            bookmark2: generatePK(),
+            bookmark3: generatePK(),
+            bookmarkList1: generatePK(),
+            bookmarkList2: generatePK(),
+            user1: generatePK(),
+            user2: generatePK(),
+            project1: generatePK(),
+            routine1: generatePK(),
+        };
+    }
+    return _bookmarkDbIds;
+}
 
 /**
  * Enhanced test fixtures for Bookmark model following standard structure
@@ -31,14 +37,14 @@ export const bookmarkDbFixtures: DbTestFixtures<Prisma.bookmarkCreateInput> = {
     minimal: {
         id: generatePK(),
         publicId: generatePublicId(),
-        by: { connect: { id: bookmarkDbIds.user1 } },
+        by: { connect: { id: getBookmarkDbIds().user1 } },
     },
     complete: {
         id: generatePK(),
         publicId: generatePublicId(),
-        by: { connect: { id: bookmarkDbIds.user1 } },
-        list: { connect: { id: bookmarkDbIds.bookmarkList1 } },
-        project: { connect: { id: bookmarkDbIds.project1 } },
+        by: { connect: { id: getBookmarkDbIds().user1 } },
+        list: { connect: { id: getBookmarkDbIds().bookmarkList1 } },
+        project: { connect: { id: getBookmarkDbIds().project1 } },
     },
     invalid: {
         missingRequired: {
@@ -54,15 +60,15 @@ export const bookmarkDbFixtures: DbTestFixtures<Prisma.bookmarkCreateInput> = {
         noBookmarkableObject: {
             id: generatePK(),
             publicId: generatePublicId(),
-            by: { connect: { id: bookmarkDbIds.user1 } },
+            by: { connect: { id: getBookmarkDbIds().user1 } },
             // No bookmarkable object connected
         },
         multipleObjects: {
             id: generatePK(),
             publicId: generatePublicId(),
-            by: { connect: { id: bookmarkDbIds.user1 } },
-            project: { connect: { id: bookmarkDbIds.project1 } },
-            routine: { connect: { id: bookmarkDbIds.routine1 } },
+            by: { connect: { id: getBookmarkDbIds().user1 } },
+            project: { connect: { id: getBookmarkDbIds().project1 } },
+            routine: { connect: { id: getBookmarkDbIds().routine1 } },
             // Multiple objects connected (business logic violation)
         },
     },
@@ -70,27 +76,27 @@ export const bookmarkDbFixtures: DbTestFixtures<Prisma.bookmarkCreateInput> = {
         projectBookmark: {
             id: generatePK(),
             publicId: generatePublicId(),
-            by: { connect: { id: bookmarkDbIds.user1 } },
-            project: { connect: { id: bookmarkDbIds.project1 } },
+            by: { connect: { id: getBookmarkDbIds().user1 } },
+            project: { connect: { id: getBookmarkDbIds().project1 } },
         },
         routineBookmark: {
             id: generatePK(),
             publicId: generatePublicId(),
-            by: { connect: { id: bookmarkDbIds.user1 } },
-            routine: { connect: { id: bookmarkDbIds.routine1 } },
+            by: { connect: { id: getBookmarkDbIds().user1 } },
+            routine: { connect: { id: getBookmarkDbIds().routine1 } },
         },
         userBookmark: {
             id: generatePK(),
             publicId: generatePublicId(),
-            by: { connect: { id: bookmarkDbIds.user1 } },
-            user: { connect: { id: bookmarkDbIds.user2 } },
+            by: { connect: { id: getBookmarkDbIds().user1 } },
+            user: { connect: { id: getBookmarkDbIds().user2 } },
         },
         inListBookmark: {
             id: generatePK(),
             publicId: generatePublicId(),
-            by: { connect: { id: bookmarkDbIds.user1 } },
-            list: { connect: { id: bookmarkDbIds.bookmarkList1 } },
-            project: { connect: { id: bookmarkDbIds.project1 } },
+            by: { connect: { id: getBookmarkDbIds().user1 } },
+            list: { connect: { id: getBookmarkDbIds().bookmarkList1 } },
+            project: { connect: { id: getBookmarkDbIds().project1 } },
         },
     },
 };
@@ -103,13 +109,13 @@ export const bookmarkListDbFixtures: DbTestFixtures<Prisma.BookmarkListCreateInp
         id: generatePK(),
         publicId: generatePublicId(),
         isPrivate: false,
-        createdBy: { connect: { id: bookmarkDbIds.user1 } },
+        createdBy: { connect: { id: getBookmarkDbIds().user1 } },
     },
     complete: {
         id: generatePK(),
         publicId: generatePublicId(),
         isPrivate: false,
-        createdBy: { connect: { id: bookmarkDbIds.user1 } },
+        createdBy: { connect: { id: getBookmarkDbIds().user1 } },
         translations: {
             create: [
                 {
@@ -131,8 +137,8 @@ export const bookmarkListDbFixtures: DbTestFixtures<Prisma.BookmarkListCreateInp
                 {
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    by: { connect: { id: bookmarkDbIds.user1 } },
-                    project: { connect: { id: bookmarkDbIds.project1 } },
+                    by: { connect: { id: getBookmarkDbIds().user1 } },
+                    project: { connect: { id: getBookmarkDbIds().project1 } },
                 },
             ],
         },
@@ -155,13 +161,13 @@ export const bookmarkListDbFixtures: DbTestFixtures<Prisma.BookmarkListCreateInp
             id: generatePK(),
             publicId: generatePublicId(),
             isPrivate: true,
-            createdBy: { connect: { id: bookmarkDbIds.user1 } },
+            createdBy: { connect: { id: getBookmarkDbIds().user1 } },
         },
         emptyList: {
             id: generatePK(),
             publicId: generatePublicId(),
             isPrivate: false,
-            createdBy: { connect: { id: bookmarkDbIds.user1 } },
+            createdBy: { connect: { id: getBookmarkDbIds().user1 } },
             translations: {
                 create: [{
                     id: generatePK(),
@@ -174,7 +180,7 @@ export const bookmarkListDbFixtures: DbTestFixtures<Prisma.BookmarkListCreateInp
             id: generatePK(),
             publicId: generatePublicId(),
             isPrivate: false,
-            createdBy: { connect: { id: bookmarkDbIds.user1 } },
+            createdBy: { connect: { id: getBookmarkDbIds().user1 } },
             translations: {
                 create: [
                     { id: generatePK(), language: "en", name: "English List" },
@@ -191,7 +197,7 @@ export const bookmarkListDbFixtures: DbTestFixtures<Prisma.BookmarkListCreateInp
  * Enhanced factory for creating bookmark database fixtures
  */
 export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.bookmarkCreateInput> {
-    
+
     /**
      * Get the test fixtures for Bookmark model
      */
@@ -206,9 +212,9 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.bookmarkCreateIn
         return {
             constraints: {
                 uniqueViolation: {
-                    id: bookmarkDbIds.bookmark1, // Duplicate ID
+                    id: getBookmarkDbIds().bookmark1, // Duplicate ID
                     publicId: generatePublicId(),
-                    by: { connect: { id: bookmarkDbIds.user1 } },
+                    by: { connect: { id: getBookmarkDbIds().user1 } },
                 },
                 foreignKeyViolation: {
                     id: generatePK(),
@@ -218,7 +224,7 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.bookmarkCreateIn
                 checkConstraintViolation: {
                     id: generatePK(),
                     publicId: "", // Empty publicId
-                    by: { connect: { id: bookmarkDbIds.user1 } },
+                    by: { connect: { id: getBookmarkDbIds().user1 } },
                 },
             },
             validation: {
@@ -227,7 +233,7 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.bookmarkCreateIn
                 outOfRange: {
                     id: generatePK(),
                     publicId: "a".repeat(500), // PublicId too long
-                    by: { connect: { id: bookmarkDbIds.user1 } },
+                    by: { connect: { id: getBookmarkDbIds().user1 } },
                 },
             },
             businessLogic: {
@@ -236,8 +242,8 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.bookmarkCreateIn
                 selfBookmark: {
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    by: { connect: { id: bookmarkDbIds.user1 } },
-                    user: { connect: { id: bookmarkDbIds.user1 } }, // User bookmarking themselves
+                    by: { connect: { id: getBookmarkDbIds().user1 } },
+                    user: { connect: { id: getBookmarkDbIds().user1 } }, // User bookmarking themselves
                 },
             },
         };
@@ -257,7 +263,7 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.bookmarkCreateIn
         // Check business logic - must have exactly one bookmarkable object
         const bookmarkableFields = ["api", "code", "comment", "issue", "note", "post", "project", "prompt", "question", "quiz", "routine", "runProject", "runRoutine", "smartContract", "standard", "team", "user"];
         const connectedObjects = bookmarkableFields.filter(field => data[field as keyof Prisma.bookmarkCreateInput]);
-        
+
         if (connectedObjects.length === 0) {
             errors.push("Bookmark must reference exactly one bookmarkable object");
         } else if (connectedObjects.length > 1) {
@@ -265,7 +271,7 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.bookmarkCreateIn
         }
 
         // Check for self-bookmark
-        if (data.by && data.user && 
+        if (data.by && data.user &&
             typeof data.by === "object" && "connect" in data.by &&
             typeof data.user === "object" && "connect" in data.user &&
             data.by.connect.id === data.user.connect.id) {
@@ -294,7 +300,7 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.bookmarkCreateIn
         overrides?: Partial<Prisma.bookmarkCreateInput>,
     ): Prisma.bookmarkCreateInput {
         const baseBookmark = this.createMinimal(byId, overrides);
-        
+
         // Add the appropriate connection based on object type
         const connections: Record<string, any> = {
             // BookmarkFor enum values
@@ -348,7 +354,7 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.bookmarkCreateIn
  * Enhanced factory for creating bookmark list database fixtures
  */
 export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.BookmarkListCreateInput> {
-    
+
     /**
      * Get the test fixtures for BookmarkList model
      */
@@ -363,10 +369,10 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.BookmarkList
         return {
             constraints: {
                 uniqueViolation: {
-                    id: bookmarkDbIds.bookmarkList1, // Duplicate ID
+                    id: getBookmarkDbIds().bookmarkList1, // Duplicate ID
                     publicId: generatePublicId(),
                     isPrivate: false,
-                    createdBy: { connect: { id: bookmarkDbIds.user1 } },
+                    createdBy: { connect: { id: getBookmarkDbIds().user1 } },
                 },
                 foreignKeyViolation: {
                     id: generatePK(),
@@ -378,7 +384,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.BookmarkList
                     id: generatePK(),
                     publicId: "", // Empty publicId
                     isPrivate: false,
-                    createdBy: { connect: { id: bookmarkDbIds.user1 } },
+                    createdBy: { connect: { id: getBookmarkDbIds().user1 } },
                 },
             },
             validation: {
@@ -388,7 +394,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.BookmarkList
                     id: generatePK(),
                     publicId: "a".repeat(500), // PublicId too long
                     isPrivate: false,
-                    createdBy: { connect: { id: bookmarkDbIds.user1 } },
+                    createdBy: { connect: { id: getBookmarkDbIds().user1 } },
                 },
             },
             businessLogic: {},
@@ -453,7 +459,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.BookmarkList
                 overrides,
             ),
             bookmarks: {
-                create: bookmarks.map(b => 
+                create: bookmarks.map(b =>
                     BookmarkDbFactory.createForObject(createdById, b.objectId, b.objectType),
                 ),
             },

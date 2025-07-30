@@ -1,5 +1,5 @@
 // AI_CHECK: TYPE_SAFETY=server-factory-bigint-migration | LAST: 2025-06-29 - Migrated to BigInt IDs, snake_case tables, correct field names
-import { type Prisma, type PrismaClient } from "@prisma/client";
+import { type bookmark, type Prisma, type PrismaClient } from "@prisma/client";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 
 /**
@@ -20,7 +20,7 @@ import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
  * - Predefined test scenarios
  */
 export class BookmarkDbFactory extends EnhancedDatabaseFactory<
-    { id: bigint },
+    bookmark,
     Prisma.bookmarkCreateInput,
     Prisma.bookmarkInclude,
     Prisma.bookmarkUpdateInput

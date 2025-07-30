@@ -283,7 +283,66 @@ lsof() {
     return 1
 }
 
+#######################################
+# Logging function mocks
+# Standard logging interface used across all resources
+#######################################
+log::info() {
+    echo "INFO: $*" >&2
+    return 0
+}
+
+log::success() {
+    echo "SUCCESS: $*" >&2
+    return 0
+}
+
+log::error() {
+    echo "ERROR: $*" >&2
+    return 1
+}
+
+log::warn() {
+    echo "WARN: $*" >&2
+    return 0
+}
+
+log::header() {
+    echo "HEADER: $*" >&2
+    return 0
+}
+
+log::debug() {
+    # Only output if DEBUG mode is enabled
+    if [[ "${MOCK_DEBUG:-false}" == "true" ]]; then
+        echo "DEBUG: $*" >&2
+    fi
+    return 0
+}
+
+#######################################
+# System utility mocks
+#######################################
+system::is_command() {
+    local cmd="$1"
+    case "$cmd" in
+        # Always report these common commands as available in tests
+        docker|curl|jq|nc|systemctl|sudo|which|command|date|wc|tr|sed|cat|echo|grep|awk)
+            return 0
+            ;;
+        # For other commands, check if a mock override exists
+        *)
+            if [[ -f "$MOCK_RESPONSES_DIR/command_${cmd}_available" ]]; then
+                return 0
+            fi
+            return 1
+            ;;
+    esac
+}
+
 # Export functions for use in subshells
 export -f docker _handle_docker_ps _handle_docker_inspect _handle_docker_run
 export -f _handle_docker_exec _handle_docker_logs _handle_docker_lifecycle
 export -f curl which command systemctl nc ping sudo lsof
+export -f log::info log::success log::error log::warn log::header log::debug
+export -f system::is_command

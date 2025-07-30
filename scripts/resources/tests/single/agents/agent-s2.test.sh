@@ -121,24 +121,30 @@ test_agent_s2_screenshot() {
     local response
     response=$(curl -s -X POST "${API_BASE}/screenshot" \
         -H "Content-Type: application/json" \
-        -d '{"full_screen": true}')
+        -d '[]')
     
     assert_not_empty "$response" "Screenshot endpoint responds"
     
-    # Check for image data
+    # Check for image data (Agent-S2 returns data as base64 URL)
     local image_data
-    image_data=$(echo "$response" | jq -r '.image_base64' 2>/dev/null)
+    image_data=$(echo "$response" | jq -r '.data' 2>/dev/null)
     assert_not_empty "$image_data" "Screenshot data returned"
     
-    # Verify it's base64
-    if ! echo "$image_data" | base64 -d >/dev/null 2>&1; then
-        fail "Screenshot data is not valid base64"
+    # Verify it's a data URL with base64 content
+    if [[ "$image_data" =~ ^data:image/png\;base64\, ]]; then
+        # Extract and verify base64 part
+        local base64_part="${image_data#data:image/png;base64,}"
+        if ! echo "$base64_part" | base64 -d >/dev/null 2>&1; then
+            fail "Screenshot data contains invalid base64"
+        fi
+    else
+        fail "Screenshot data is not in expected data URL format"
     fi
     
-    # Check dimensions
+    # Check dimensions (Agent-S2 returns size object)
     local width height
-    width=$(echo "$response" | jq -r '.width' 2>/dev/null)
-    height=$(echo "$response" | jq -r '.height' 2>/dev/null)
+    width=$(echo "$response" | jq -r '.size.width' 2>/dev/null)
+    height=$(echo "$response" | jq -r '.size.height' 2>/dev/null)
     assert_greater_than "$width" "0" "Screenshot width is positive"
     assert_greater_than "$height" "0" "Screenshot height is positive"
     

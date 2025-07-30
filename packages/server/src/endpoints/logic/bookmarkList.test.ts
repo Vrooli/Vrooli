@@ -2,6 +2,7 @@ import { bookmarkListTestDataFactory, type BookmarkListCreateInput, type Bookmar
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { expectCustomErrorAsync } from "../../__test/errorTestUtils.js";
 import { BookmarkListDbFactory } from "../../__test/fixtures/db/bookmarkFixtures.js";
+import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
@@ -43,6 +44,9 @@ describe("EndpointsBookmarkList", () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.minimal(DbProvider.get());
 
+        // Seed test users
+        testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+
         // Seed bookmark lists using database fixtures
         listUser1 = await DbProvider.get().bookmark_list.create({
             data: BookmarkListDbFactory.createWithTranslations(
@@ -74,7 +78,7 @@ describe("EndpointsBookmarkList", () => {
                     ...loggedInUserNoPremiumData(),
                     id: testUsers[0].id,
                 });
-                const input: FindByIdInput = { id: listUser1.id };
+                const input: FindByIdInput = { id: listUser1.id.toString() };
                 const result = await bookmarkList.findOne({ input }, { req, res }, bookmarkList_findOne);
                 expect(result).not.toBeNull();
                 expect(result.id).toEqual(listUser1.id);
@@ -87,7 +91,7 @@ describe("EndpointsBookmarkList", () => {
                     ...loggedInUserNoPremiumData(),
                     id: testUsers[0].id,
                 });
-                const input: FindByIdInput = { id: listUser2.id }; // Try to access listUser2
+                const input: FindByIdInput = { id: listUser2.id.toString() }; // Try to access listUser2
 
                 await expect(async () => {
                     await bookmarkList.findOne({ input }, { req, res }, bookmarkList_findOne);
@@ -96,7 +100,7 @@ describe("EndpointsBookmarkList", () => {
 
             it("logged out user cannot find any list", async () => {
                 const { req, res } = await mockLoggedOutSession();
-                const input: FindByIdInput = { id: listUser2.id };
+                const input: FindByIdInput = { id: listUser2.id.toString() };
 
                 await expect(async () => {
                     await bookmarkList.findOne({ input }, { req, res }, bookmarkList_findOne);
@@ -110,7 +114,7 @@ describe("EndpointsBookmarkList", () => {
                     ...loggedInUserNoPremiumData(),
                     id: testUsers[0].id,
                 });
-                const input: FindByIdInput = { id: listUser2.id };
+                const input: FindByIdInput = { id: listUser2.id.toString() };
 
                 await expect(async () => {
                     await bookmarkList.findOne({ input }, { req, res }, bookmarkList_findOne);
@@ -258,9 +262,9 @@ describe("EndpointsBookmarkList", () => {
                 });
 
                 const input: BookmarkListUpdateInput = {
-                    id: listUser1.id,
+                    id: listUser1.id.toString(),
                     translationsUpdate: [{
-                        id: listUser1.translations[0].id,
+                        id: listUser1.translations[0].id.toString(),
                         name: "Updated Label",
                     }],
                 };
@@ -280,9 +284,9 @@ describe("EndpointsBookmarkList", () => {
                 });
 
                 const input: BookmarkListUpdateInput = {
-                    id: listUser1.id,
+                    id: listUser1.id.toString(),
                     translationsUpdate: [{
-                        id: listUser1.translations[0].id,
+                        id: listUser1.translations[0].id.toString(),
                         name: "API Updated",
                     }],
                 };
@@ -300,9 +304,9 @@ describe("EndpointsBookmarkList", () => {
                 });
 
                 const input: BookmarkListUpdateInput = {
-                    id: listUser2.id,
+                    id: listUser2.id.toString(),
                     translationsUpdate: [{
-                        id: listUser2.translations[0].id,
+                        id: listUser2.translations[0].id.toString(),
                         name: "Hacked",
                     }],
                 };
@@ -316,9 +320,9 @@ describe("EndpointsBookmarkList", () => {
                 const { req, res } = await mockLoggedOutSession();
 
                 const input: BookmarkListUpdateInput = {
-                    id: listUser1.id,
+                    id: listUser1.id.toString(),
                     translationsUpdate: [{
-                        id: listUser1.translations[0].id,
+                        id: listUser1.translations[0].id.toString(),
                         name: "NoAuthUpdate",
                     }],
                 };

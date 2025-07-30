@@ -252,10 +252,17 @@ describe("SwarmContextManager", () => {
 
                 const initialConfig: Partial<SwarmState> = {
                     chatConfig: {
+                        __version: "1.0",
                         goal: "Custom goal",
                         limits: {
                             maxCredits: "5000",
                             maxDurationMs: 1800000,
+                        },
+                        stats: {
+                            totalToolCalls: 0,
+                            totalCredits: "0",
+                            startedAt: null,
+                            lastProcessingCycleEndedAt: null,
                         },
                     },
                     metadata: {
@@ -439,7 +446,16 @@ describe("SwarmContextManager", () => {
                 mockRedisClient.get.mockResolvedValue(null);
 
                 const updates: Partial<SwarmState> = {
-                    chatConfig: { goal: "Updated goal" },
+                    chatConfig: {
+                        __version: "1.0",
+                        goal: "Updated goal",
+                        stats: {
+                            totalToolCalls: 0,
+                            totalCredits: "0",
+                            startedAt: null,
+                            lastProcessingCycleEndedAt: null,
+                        },
+                    },
                 };
 
                 await expect(contextManager.updateContext(testSwarmId, updates))
@@ -847,8 +863,8 @@ describe("SwarmContextManager", () => {
                 execution: {
                     ...createMockSwarmState("test-swarm-1").execution,
                     agents: [
-                        { id: "agent-1", config: {} }, // Missing agentSpec
-                        { id: "agent-2", config: { agentSpec: "valid-spec" } }, // Valid
+                        { id: "agent-1", config: { __version: "1.0", resources: [] } }, // Missing agentSpec
+                        { id: "agent-2", config: { __version: "1.0", resources: [], agentSpec: "valid-spec" } }, // Valid
                     ],
                 },
             });
@@ -1172,7 +1188,16 @@ describe("SwarmContextManager", () => {
 
             // Update should invalidate cache
             await contextManager.updateContext(testSwarmId, {
-                chatConfig: { goal: "Updated goal" },
+                chatConfig: {
+                    __version: "1.0",
+                    goal: "Updated goal",
+                    stats: {
+                        totalToolCalls: 0,
+                        totalCredits: "0",
+                        startedAt: null,
+                        lastProcessingCycleEndedAt: null,
+                    },
+                },
             });
 
             // Next get should hit Redis again
@@ -1310,8 +1335,30 @@ describe("SwarmContextManager", () => {
             mockRedisClient.keys.mockResolvedValue([]);
 
             // Simulate concurrent updates
-            const updates1 = { chatConfig: { goal: "Goal 1" } };
-            const updates2 = { chatConfig: { goal: "Goal 2" } };
+            const updates1 = {
+                chatConfig: {
+                    __version: "1.0",
+                    goal: "Goal 1",
+                    stats: {
+                        totalToolCalls: 0,
+                        totalCredits: "0",
+                        startedAt: null,
+                        lastProcessingCycleEndedAt: null,
+                    },
+                },
+            };
+            const updates2 = {
+                chatConfig: {
+                    __version: "1.0",
+                    goal: "Goal 2",
+                    stats: {
+                        totalToolCalls: 0,
+                        totalCredits: "0",
+                        startedAt: null,
+                        lastProcessingCycleEndedAt: null,
+                    },
+                },
+            };
 
             // Both should succeed (last one wins)
             const [result1, result2] = await Promise.all([
@@ -1428,8 +1475,14 @@ describe("SwarmContextManager", () => {
                 const updatePromises = Array.from({ length: 5 }, (_, i) => 
                     contextManager.updateContext(testSwarmId, {
                         chatConfig: {
-                            goal: `Concurrent goal update ${i}`,
                             __version: "1.0.0",
+                            goal: `Concurrent goal update ${i}`,
+                            stats: {
+                                totalToolCalls: 0,
+                                totalCredits: "0",
+                                startedAt: null,
+                                lastProcessingCycleEndedAt: null,
+                            },
                         },
                     }, `Update ${i}`),
                 );
@@ -1861,7 +1914,16 @@ describe("SwarmContextManager", () => {
                 mockRedisClient.set.mockRejectedValue(new Error("Redis write failed"));
                 
                 await expect(contextManager.updateContext(testSwarmId, {
-                    chatConfig: { goal: "Updated goal" },
+                    chatConfig: {
+                        __version: "1.0",
+                        goal: "Updated goal",
+                        stats: {
+                            totalToolCalls: 0,
+                            totalCredits: "0",
+                            startedAt: null,
+                            lastProcessingCycleEndedAt: null,
+                        },
+                    },
                 }, "Test update")).rejects.toThrow("Redis write failed");
                 
                 // Original context should remain unchanged
@@ -1950,9 +2012,42 @@ describe("SwarmContextManager", () => {
                 
                 // Perform multiple updates to test event publishing
                 const updates = [
-                    { chatConfig: { goal: "First update" } },
-                    { chatConfig: { goal: "Second update" } },
-                    { chatConfig: { goal: "Third update" } },
+                    {
+                        chatConfig: {
+                            __version: "1.0",
+                            goal: "First update",
+                            stats: {
+                                totalToolCalls: 0,
+                                totalCredits: "0",
+                                startedAt: null,
+                                lastProcessingCycleEndedAt: null,
+                            },
+                        },
+                    },
+                    {
+                        chatConfig: {
+                            __version: "1.0",
+                            goal: "Second update",
+                            stats: {
+                                totalToolCalls: 0,
+                                totalCredits: "0",
+                                startedAt: null,
+                                lastProcessingCycleEndedAt: null,
+                            },
+                        },
+                    },
+                    {
+                        chatConfig: {
+                            __version: "1.0",
+                            goal: "Third update",
+                            stats: {
+                                totalToolCalls: 0,
+                                totalCredits: "0",
+                                startedAt: null,
+                                lastProcessingCycleEndedAt: null,
+                            },
+                        },
+                    },
                 ];
                 
                 for (const update of updates) {
@@ -1996,7 +2091,16 @@ describe("SwarmContextManager", () => {
                 
                 // Update should still succeed even if event publishing fails
                 const result = await contextManager.updateContext(testSwarmId, {
-                    chatConfig: { goal: "Update despite event failure" },
+                    chatConfig: {
+                        __version: "1.0",
+                        goal: "Update despite event failure",
+                        stats: {
+                            totalToolCalls: 0,
+                            totalCredits: "0",
+                            startedAt: null,
+                            lastProcessingCycleEndedAt: null,
+                        },
+                    },
                 }, "Resilience test");
                 
                 expect(result).toBeDefined();
@@ -2022,7 +2126,16 @@ describe("SwarmContextManager", () => {
                 // Create contexts to populate cache
                 for (const contextId of contextIds) {
                     await contextManager.createContext(contextId, {
-                        chatConfig: { goal: `Goal for ${contextId}` },
+                        chatConfig: {
+                            __version: "1.0",
+                            goal: `Goal for ${contextId}`,
+                            stats: {
+                                totalToolCalls: 0,
+                                totalCredits: "0",
+                                startedAt: null,
+                                lastProcessingCycleEndedAt: null,
+                            },
+                        },
                     });
                 }
                 

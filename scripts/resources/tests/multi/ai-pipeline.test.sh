@@ -25,7 +25,7 @@ if [[ -n "${HEALTHY_RESOURCES_STR:-}" ]]; then
     HEALTHY_RESOURCES=($HEALTHY_RESOURCES_STR)
 fi
 
-# Source framework helpers
+# Source framework helpers  
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 source "$SCRIPT_DIR/framework/helpers/assertions.sh"
 source "$SCRIPT_DIR/framework/helpers/cleanup.sh"

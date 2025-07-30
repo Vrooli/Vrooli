@@ -5,13 +5,13 @@
  */
 
 // Core fixture types and utilities
-export * from "./types.js";
-export { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 export { DatabaseFactoryRegistry, getFactoryRegistry, resetFactoryRegistry } from "./DatabaseFactoryRegistry.js";
+export { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
+export * from "./types.js";
 
 // Enhanced database factories - Core Objects
-export { UserDbFactory, createUserDbFactory } from "./UserDbFactory.js";
 export { TeamDbFactory, createTeamDbFactory } from "./TeamDbFactory.js";
+export { UserDbFactory, createUserDbFactory } from "./UserDbFactory.js";
 
 // Content Objects
 export { BookmarkDbFactory, createBookmarkDbFactory } from "./BookmarkDbFactory.js";
@@ -23,8 +23,8 @@ export { TagDbFactory, createTagDbFactory } from "./TagDbFactory.js";
 // User Extension Objects
 export { AuthDbFactory, createAuthDbFactory } from "./AuthDbFactory.js";
 export { EmailDbFactory, createEmailDbFactory } from "./EmailDbFactory.js";
-export { PhoneDbFactory, createPhoneDbFactory } from "./PhoneDbFactory.js";
 export { PaymentDbFactory, createPaymentDbFactory } from "./PaymentDbFactory.js";
+export { PhoneDbFactory, createPhoneDbFactory } from "./PhoneDbFactory.js";
 export { SessionDbFactory, createSessionDbFactory } from "./SessionDbFactory.js";
 
 // Communication Objects
@@ -39,9 +39,9 @@ export { NotificationDbFactory, createNotificationDbFactory } from "./Notificati
 // Interaction Objects
 export { ReactionDbFactory, createReactionDbFactory } from "./ReactionDbFactory.js";
 export { ReactionSummaryDbFactory, createReactionSummaryDbFactory } from "./ReactionSummaryDbFactory.js";
-export { ViewDbFactory, createViewDbFactory } from "./ViewDbFactory.js";
 export { ReportDbFactory, createReportDbFactory } from "./ReportDbFactory.js";
 export { ReportResponseDbFactory, createReportResponseDbFactory } from "./ReportResponseDbFactory.js";
+export { ViewDbFactory, createViewDbFactory } from "./ViewDbFactory.js";
 
 // Billing Objects
 export { CreditAccountDbFactory, createCreditAccountDbFactory } from "./CreditAccountDbFactory.js";
@@ -50,19 +50,17 @@ export { CreditAccountDbFactory, createCreditAccountDbFactory } from "./CreditAc
 export { MemberDbFactory, createMemberDbFactory } from "./MemberDbFactory.js";
 
 // Resource management factories
+export { ProjectDbFactory, createProjectDbFactory } from "./ProjectDbFactory.js";
+export { ProjectVersionDbFactory, createProjectVersionDbFactory } from "./ProjectVersionDbFactory.js";
 export { ResourceDbFactory, createResourceDbFactory } from "./ResourceDbFactory.js";
 export { ResourceVersionDbFactory, createResourceVersionDbFactory } from "./ResourceVersionDbFactory.js";
 export { ResourceVersionRelationDbFactory, createResourceVersionRelationDbFactory } from "./ResourceVersionRelationDbFactory.js";
-export { ProjectDbFactory, createProjectDbFactory } from "./ProjectDbFactory.js";
-export { ProjectVersionDbFactory, createProjectVersionDbFactory } from "./ProjectVersionDbFactory.js";
 export { RoutineDbFactory, createRoutineDbFactory } from "./RoutineDbFactory.js";
 export { RoutineVersionDbFactory, createRoutineVersionDbFactory } from "./RoutineVersionDbFactory.js";
 
-export * from "./apiKeyFixtures.js";
 export * from "./apiKeyExternalFixtures.js";
+export * from "./apiKeyFixtures.js";
 export * from "./awardFixtures.js";
-export * from "./creditAccountFixtures.js";
-export * from "./creditLedgerEntryFixtures.js";
 export * from "./bookmarkFixtures.js";
 export * from "./bookmarkListFixtures.js";
 export * from "./chatFixtures.js";
@@ -70,6 +68,8 @@ export * from "./chatInviteFixtures.js";
 export * from "./chatMessageFixtures.js";
 export * from "./chatParticipantFixtures.js";
 export * from "./commentFixtures.js";
+export * from "./creditAccountFixtures.js";
+export * from "./creditLedgerEntryFixtures.js";
 export * from "./issueFixtures.js";
 export * from "./meetingFixtures.js";
 export * from "./meetingInviteFixtures.js";
@@ -94,18 +94,18 @@ export * from "./resourceVersionRelationFixtures.js";
 export * from "./runFixtures.js";
 export * from "./runIOFixtures.js";
 export * from "./runStepFixtures.js";
-export * from "./scheduleFixtures.js";
-export * from "./scheduleExceptionFixtures.js";
-export * from "./scheduleRecurrenceFixtures.js";
 export * from "./ScheduleExceptionDbFactory.js";
+export * from "./scheduleExceptionFixtures.js";
+export * from "./scheduleFixtures.js";
 export * from "./ScheduleRecurrenceDbFactory.js";
+export * from "./scheduleRecurrenceFixtures.js";
 
 // Schedule and Execution Objects
-export { ScheduleDbFactory, createScheduleDbFactory } from "./ScheduleDbFactory.js";
+export { ReminderDbFactory, createReminderDbFactory } from "./ReminderDbFactory.js";
 export { RunDbFactory, createRunDbFactory } from "./RunDbFactory.js";
 export { RunIODbFactory, createRunIODbFactory } from "./RunIODbFactory.js";
 export { RunStepDbFactory, createRunStepDbFactory } from "./RunStepDbFactory.js";
-export { ReminderDbFactory, createReminderDbFactory } from "./ReminderDbFactory.js";
+export { ScheduleDbFactory, createScheduleDbFactory } from "./ScheduleDbFactory.js";
 export * from "./sessionFixtures.js";
 export * from "./statsFixtures.js";
 export * from "./tagFixtures.js";
@@ -116,40 +116,40 @@ export * from "./viewFixtures.js";
 export * from "./walletFixtures.js";
 
 // Namespace exports for organized access
-import { 
-    userDbFixtures, 
-    UserDbFactory, 
-    seedTestUsers,
-    createSessionUser,
-    userDbIds,
-} from "./userFixtures.js";
+import { AuthDbFactory, createAuthDbFactory } from "./AuthDbFactory.js";
 import { BookmarkDbFactory, createBookmarkDbFactory } from "./BookmarkDbFactory.js";
 import { BookmarkListDbFactory, createBookmarkListDbFactory } from "./BookmarkListDbFactory.js";
 import { CommentDbFactory, createCommentDbFactory } from "./CommentDbFactory.js";
-import { IssueDbFactory, createIssueDbFactory } from "./IssueDbFactory.js";
-import { TagDbFactory, createTagDbFactory } from "./TagDbFactory.js";
-import { AuthDbFactory, createAuthDbFactory } from "./AuthDbFactory.js";
 import { EmailDbFactory, createEmailDbFactory } from "./EmailDbFactory.js";
-import { PhoneDbFactory, createPhoneDbFactory } from "./PhoneDbFactory.js";
+import { IssueDbFactory, createIssueDbFactory } from "./IssueDbFactory.js";
 import { PaymentDbFactory, createPaymentDbFactory } from "./PaymentDbFactory.js";
-import { SessionDbFactory, createSessionDbFactory } from "./SessionDbFactory.js";
+import { PhoneDbFactory, createPhoneDbFactory } from "./PhoneDbFactory.js";
+import { ProjectDbFactory, createProjectDbFactory } from "./ProjectDbFactory.js";
+import { ProjectVersionDbFactory, createProjectVersionDbFactory } from "./ProjectVersionDbFactory.js";
 import { ResourceDbFactory, createResourceDbFactory } from "./ResourceDbFactory.js";
 import { ResourceVersionDbFactory, createResourceVersionDbFactory } from "./ResourceVersionDbFactory.js";
 import { ResourceVersionRelationDbFactory, createResourceVersionRelationDbFactory } from "./ResourceVersionRelationDbFactory.js";
-import { ProjectDbFactory, createProjectDbFactory } from "./ProjectDbFactory.js";
-import { ProjectVersionDbFactory, createProjectVersionDbFactory } from "./ProjectVersionDbFactory.js";
 import { RoutineDbFactory, createRoutineDbFactory } from "./RoutineDbFactory.js";
 import { RoutineVersionDbFactory, createRoutineVersionDbFactory } from "./RoutineVersionDbFactory.js";
+import { SessionDbFactory, createSessionDbFactory } from "./SessionDbFactory.js";
+import { TagDbFactory, createTagDbFactory } from "./TagDbFactory.js";
+import {
+    UserDbFactory,
+    createSessionUser,
+    seedTestUsers,
+    userDbFixtures,
+    userDbIds,
+} from "./userFixtures.js";
 // Schedule and execution object imports
-import { ScheduleDbFactory, createScheduleDbFactory } from "./ScheduleDbFactory.js";
-import { ScheduleExceptionDbFactory, createScheduleExceptionDbFactory } from "./ScheduleExceptionDbFactory.js";
-import { ScheduleRecurrenceEnhancedDbFactory, createScheduleRecurrenceEnhancedDbFactory } from "./ScheduleRecurrenceEnhancedDbFactory.js";
+import { CreditAccountDbFactory, createCreditAccountDbFactory } from "./CreditAccountDbFactory.js";
+import { MemberDbFactory, createMemberDbFactory } from "./MemberDbFactory.js";
+import { ReminderDbFactory, ReminderListDbFactory, createReminderDbFactory, createReminderListDbFactory } from "./ReminderDbFactory.js";
 import { RunDbFactory, createRunDbFactory } from "./RunDbFactory.js";
 import { RunIODbFactory, createRunIODbFactory } from "./RunIODbFactory.js";
 import { RunStepDbFactory, createRunStepDbFactory } from "./RunStepDbFactory.js";
-import { ReminderDbFactory, createReminderDbFactory, ReminderListDbFactory, createReminderListDbFactory } from "./ReminderDbFactory.js";
-import { CreditAccountDbFactory, createCreditAccountDbFactory } from "./CreditAccountDbFactory.js";
-import { MemberDbFactory, createMemberDbFactory } from "./MemberDbFactory.js";
+import { ScheduleDbFactory, createScheduleDbFactory } from "./ScheduleDbFactory.js";
+import { ScheduleExceptionDbFactory, createScheduleExceptionDbFactory } from "./ScheduleExceptionDbFactory.js";
+import { ScheduleRecurrenceEnhancedDbFactory, createScheduleRecurrenceEnhancedDbFactory } from "./ScheduleRecurrenceEnhancedDbFactory.js";
 
 /**
  * Organized namespace exports for better developer experience
@@ -354,7 +354,7 @@ export const dbFixtureUtils = {
     validateFixture(modelName: string, data: any): boolean {
         const factories = this.getEnhancedFactories();
         const factory = factories[modelName];
-        
+
         if (!factory) {
             console.warn(`No enhanced factory found for model: ${modelName}`);
             return false;
@@ -362,7 +362,7 @@ export const dbFixtureUtils = {
 
         const instance = new factory();
         const validation = instance.validateFixture(data);
-        
+
         if (!validation.isValid) {
             console.error(`Fixture validation failed for ${modelName}:`, validation.errors);
         }
@@ -390,9 +390,9 @@ export const commonTestPatterns = {
      */
     createPermissionTestData() {
         const userFactory = new UserDbFactory();
-        
+
         return {
-            admin: userFactory.createWithRelationships({ 
+            admin: userFactory.createWithRelationships({
                 withAuth: true,
                 withRoles: [{ id: "admin-role", name: "Admin" }],
             }).data,
@@ -406,7 +406,7 @@ export const commonTestPatterns = {
      */
     createEdgeCaseData() {
         const userFactory = new UserDbFactory();
-        
+
         return {
             maxLengthUser: userFactory.createEdgeCase("maxLengthHandle"),
             lockedUser: userFactory.createEdgeCase("lockedAccount"),

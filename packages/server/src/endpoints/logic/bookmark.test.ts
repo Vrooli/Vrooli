@@ -224,8 +224,8 @@ describe("EndpointsBookmark", () => {
             });
 
             const input: BookmarkUpdateInput = {
-                id: bookmarkData.bookmarks[0].id,
-                listConnect: newList.id,
+                id: bookmarkData.bookmarks[0].id.toString(),
+                listConnect: newList.id.toString(),
             };
 
             const result = await bookmark.updateOne({ input }, { req, res }, bookmark_updateOne);

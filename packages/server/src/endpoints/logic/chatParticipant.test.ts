@@ -78,8 +78,8 @@ describe("EndpointsChatParticipant", () => {
         const chat1Participants = await seedChatParticipants(DbProvider.get(), {
             chatId: chat1.id,
             participants: [
-                { userId: testUsers[0].id, role: "admin" }, // User 0 is admin of chat1
-                { userId: testUsers[1].id, role: "member" }, // User 1 is member of chat1
+                { userId: testUsers[0].id }, // User 0 is participant of chat1
+                { userId: testUsers[1].id }, // User 1 is participant of chat1
             ],
         });
         participants.cp1 = chat1Participants[0]; // User 0 in chat1 (admin)
@@ -88,7 +88,7 @@ describe("EndpointsChatParticipant", () => {
         const chat2Participants = await seedChatParticipants(DbProvider.get(), {
             chatId: chat2.id,
             participants: [
-                { userId: testUsers[1].id, role: "admin" }, // User 1 is admin of chat2
+                { userId: testUsers[1].id }, // User 1 is participant of chat2
             ],
         });
         participants.cp3 = chat2Participants[0]; // User 1 in chat2 (admin)
@@ -97,7 +97,7 @@ describe("EndpointsChatParticipant", () => {
         const publicChatParticipants = await seedChatParticipants(DbProvider.get(), {
             chatId: publicChat.id,
             participants: [
-                { userId: testUsers[0].id, role: "admin" }, // User 0 is admin of publicChat
+                { userId: testUsers[0].id }, // User 0 is participant of publicChat
             ],
         });
         participants.cpPublic = publicChatParticipants[0];

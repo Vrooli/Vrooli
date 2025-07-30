@@ -543,7 +543,7 @@ describe("EndpointsAuth", () => {
                     name: u.name,
                     handle: u.handle,
                     session: {
-                        id: generatePK(),
+                        id: generatePK().toString(),
                         token: "test-token",
                     },
                 })),
@@ -563,12 +563,19 @@ describe("EndpointsAuth", () => {
         it("should revoke all sessions for user", async () => {
             const { records: testUser } = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
 
+            // Fetch user with auth to get auth_id
+            const userWithAuth = await DbProvider.get().user.findUnique({
+                where: { id: testUser[0].id },
+                include: { auths: true },
+            });
+
             // Create multiple sessions
             const sessions = await Promise.all([
                 DbProvider.get().session.create({
                     data: {
                         id: generatePK(),
                         user_id: testUser[0].id,
+                        auth_id: userWithAuth.auths[0].id,
                         device_info: "Device 1",
                         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
                         ip_address: "192.168.1.1",
@@ -578,6 +585,7 @@ describe("EndpointsAuth", () => {
                     data: {
                         id: generatePK(),
                         user_id: testUser[0].id,
+                        auth_id: userWithAuth.auths[0].id,
                         device_info: "Device 2",
                         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000),
                         ip_address: "192.168.1.2",
@@ -646,7 +654,7 @@ describe("EndpointsAuth", () => {
                     name: u.name,
                     handle: u.handle,
                     session: {
-                        id: generatePK(),
+                        id: generatePK().toString(),
                         token: `test-token-${idx}`,
                     },
                 })),

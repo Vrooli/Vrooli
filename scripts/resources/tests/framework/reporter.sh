@@ -88,6 +88,21 @@ generate_text_report() {
         echo
     fi
     
+    # Missing Test Coverage
+    if [[ ${#MISSING_TEST_RESOURCES[@]} -gt 0 ]]; then
+        echo "📝 RESOURCES WITHOUT TEST COVERAGE"
+        echo "─────────────────────────────────"
+        echo "The following ${#MISSING_TEST_RESOURCES[@]} healthy resources lack test files:"
+        for resource in "${MISSING_TEST_RESOURCES[@]}"; do
+            echo "  • $resource"
+        done
+        echo
+        echo "💡 To add test coverage, create files at:"
+        echo "   \$SCRIPT_DIR/single/<category>/<resource>.test.sh"
+        echo "   Example categories: ai/, storage/, automation/, agents/, search/"
+        echo
+    fi
+    
     # Recommendations
     echo "📝 RECOMMENDATIONS"
     echo "─────────────────"

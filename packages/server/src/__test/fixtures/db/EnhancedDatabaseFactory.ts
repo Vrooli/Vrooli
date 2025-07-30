@@ -1,8 +1,8 @@
 // AI_CHECK: TYPE_SAFETY=server-factory-bigint-migration | LAST: 2025-06-29 - Removed old interfaces, enforced BigInt IDs only
-import { generatePK, generatePublicId } from "./idHelpers.js";
 import { type PrismaClient } from "@prisma/client";
-import type { RelationConfig, DbFactoryConfig } from "./types.js";
 import { TestRecordTracker } from "../../helpers/testRecordTracker.js";
+import { generatePK, generatePublicId } from "./idHelpers.js";
+import type { DbFactoryConfig, RelationConfig } from "./types.js";
 
 /**
  * Modern database fixture factory with BigInt ID support
@@ -25,12 +25,12 @@ import { TestRecordTracker } from "../../helpers/testRecordTracker.js";
  * @template TPrismaUpdateInput - The snake_case Prisma update input type
  */
 export abstract class EnhancedDatabaseFactory<
-    TPrismaModel extends { id: bigint },
+    TPrismaModel extends { id: number | bigint },
     TPrismaCreateInput,
     TPrismaInclude = any,
     TPrismaUpdateInput = Partial<TPrismaCreateInput>
 > {
-    
+
     protected modelName: string;
     protected prisma: PrismaClient;
     private createdIds: Set<bigint> = new Set();
@@ -84,12 +84,12 @@ export abstract class EnhancedDatabaseFactory<
         if (!data) {
             throw new Error("Failed to generate minimal data");
         }
-        
+
         const delegate = this.getPrismaDelegate();
         if (!delegate) {
             throw new Error("No Prisma delegate available");
         }
-        
+
         const result = await delegate.create({ data });
         if (result && result.id) {
             this.createdIds.add(result.id);
@@ -133,20 +133,20 @@ export abstract class EnhancedDatabaseFactory<
         return await this.prisma.$transaction(async (tx) => {
             // Generate base data
             const baseData = this.generateMinimalData(config.overrides);
-            
+
             // Apply relationships if the subclass implements it
             let dataWithRelations = baseData;
             if (this.applyRelationships) {
                 dataWithRelations = await this.applyRelationships(baseData, config, tx);
             }
-            
+
             // Create the record with all relationships
             const delegate = this.getPrismaDelegate();
             const result = await delegate.create({
                 data: dataWithRelations,
                 ...(this.getDefaultInclude ? { include: this.getDefaultInclude() } : {}),
             });
-            
+
             this.createdIds.add(result.id);
             // Also track in global record tracker for coordinated cleanup
             TestRecordTracker.track(this.modelName.toLowerCase(), result.id);
@@ -308,21 +308,21 @@ export abstract class EnhancedDatabaseFactory<
      */
     async verifyConstraints(id: string): Promise<{ valid: boolean; violations: string[] }> {
         const violations: string[] = [];
-        
+
         try {
             const bigIntId = BigInt(id);
             const record = await this.findById(bigIntId);
-            
+
             if (!record) {
                 violations.push("Record not found");
             }
-            
+
             // Subclasses can override this method to add specific constraint checks
-            
+
         } catch (error) {
             violations.push(`Query error: ${error instanceof Error ? error.message : "Unknown error"}`);
         }
-        
+
         return {
             valid: violations.length === 0,
             violations,
@@ -336,7 +336,7 @@ export abstract class EnhancedDatabaseFactory<
     async setupRelationships(id: string, config: any): Promise<void> {
         // Default implementation - subclasses should override for specific relationship setup
         const bigIntId = BigInt(id);
-        
+
         if (this.applyRelationships) {
             // This would need additional implementation based on specific factory needs
             console.warn(`setupRelationships called on ${this.modelName} but not fully implemented`);
