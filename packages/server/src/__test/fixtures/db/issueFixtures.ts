@@ -278,7 +278,7 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.issueCreateInput> {
 
     // Static methods for backward compatibility
     static createMinimal(
-        createdById: string,
+        createdById: bigint,
         overrides?: Partial<Prisma.issueCreateInput>,
     ): Prisma.issueCreateInput {
         const factory = new IssueDbFactory();
@@ -289,8 +289,8 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.issueCreateInput> {
     }
 
     static createForObject(
-        createdById: string,
-        objectId: string,
+        createdById: bigint,
+        objectId: bigint,
         objectType: string,
         overrides?: Partial<Prisma.issueCreateInput>,
     ): Prisma.issueCreateInput {
@@ -314,7 +314,7 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.issueCreateInput> {
     }
 
     static createWithTranslations(
-        createdById: string,
+        createdById: bigint,
         translations: Array<{ language: string; name: string; description: string }>,
         overrides?: Partial<Prisma.issueCreateInput>,
     ): Prisma.issueCreateInput {
@@ -332,8 +332,8 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.issueCreateInput> {
     }
 
     static createWithLabels(
-        createdById: string,
-        labelIds: string[],
+        createdById: bigint,
+        labelIds: bigint[],
         overrides?: Partial<Prisma.issueCreateInput>,
     ): Prisma.issueCreateInput {
         return {
@@ -351,11 +351,11 @@ export class IssueDbFactory extends EnhancedDbFactory<Prisma.issueCreateInput> {
 export async function seedIssues(
     prisma: any,
     options: {
-        createdById: string;
+        createdById: bigint;
         count?: number;
-        forObject?: { id: string; type: string };
+        forObject?: { id: bigint; type: string };
         withTranslations?: boolean;
-        withLabels?: string[];
+        withLabels?: bigint[];
     },
 ): Promise<BulkSeedResult<any>> {
     const issues = [];

@@ -1,23 +1,43 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { generatePK } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
+import type { BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
 
 /**
  * Database fixtures for Reminder model - used for seeding test data
  * These follow Prisma's shape for database operations
  */
 
-// Consistent IDs for testing
+// Time constants to avoid magic numbers
+const SECONDS_PER_MINUTE = 60;
+const MS_PER_SECOND = 1000;
+const MINUTES_PER_HOUR = 60;
+const HOURS_PER_DAY = 24;
+// const DAYS_PER_YEAR = 365; // Unused for now
+
+const MINUTE_IN_MS = SECONDS_PER_MINUTE * MS_PER_SECOND;
+const HOUR_IN_MS = MINUTES_PER_HOUR * MINUTE_IN_MS;
+const DAY_IN_MS = HOURS_PER_DAY * HOUR_IN_MS;
+// const YEAR_IN_MS = DAYS_PER_YEAR * DAY_IN_MS; // Unused for now
+
+const MAX_DESCRIPTION_LENGTH = 2048;
+const MANY_ITEMS_COUNT = 20;
+const MANY_REMINDERS_COUNT = 50;
+const EVERY_NTH_COMPLETED = 3;
+const DEFAULT_SEED_COUNT = 3;
+const WORKDAY_START_HOURS = 8;
+const LONG_TERM_DAYS = 400;
+
+// Factory functions to generate IDs when needed
 export const reminderDbIds = {
-    reminder1: generatePK(),
-    reminder2: generatePK(),
-    reminder3: generatePK(),
-    list1: generatePK(),
-    list2: generatePK(),
-    item1: generatePK(),
-    item2: generatePK(),
-    item3: generatePK(),
+    reminder1: () => generatePK(),
+    reminder2: () => generatePK(),
+    reminder3: () => generatePK(),
+    list1: () => generatePK(),
+    list2: () => generatePK(),
+    item1: () => generatePK(),
+    item2: () => generatePK(),
+    item3: () => generatePK(),
 };
 
 /**
@@ -26,125 +46,121 @@ export const reminderDbIds = {
 export const reminderDbFixtures: DbTestFixtures<Prisma.reminderCreateInput> = {
     minimal: {
         id: generatePK(),
-        publicId: generatePublicId(),
-        user: { connect: { id: "user_placeholder_id" } },
-        reminderAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day from now
+        name: "Minimal Reminder",
+        description: null,
+        dueDate: new Date(Date.now() + DAY_IN_MS), // 1 day from now
+        index: 0,
+        reminderList: { connect: { id: generatePK() } },
     },
     complete: {
         id: generatePK(),
-        publicId: generatePublicId(),
-        user: { connect: { id: "user_placeholder_id" } },
-        reminderAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
         name: "Complete Reminder",
         description: "A comprehensive reminder with all features",
-        dueDate: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+        dueDate: new Date(Date.now() + 3 * DAY_IN_MS), // 3 days from now
         index: 0,
-        isComplete: false,
-        reminderList: { connect: { id: "list_placeholder_id" } },
+        completedAt: null,
+        reminderList: { connect: { id: generatePK() } },
         reminderItems: {
             create: [
                 {
                     id: generatePK(),
                     name: "Task 1",
                     description: "Complete the first task",
-                    dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
+                    dueDate: new Date(Date.now() + DAY_IN_MS),
                     index: 0,
-                    isComplete: false,
+                    completedAt: null,
                 },
                 {
                     id: generatePK(),
                     name: "Task 2",
                     description: "Complete the second task",
-                    dueDate: new Date(Date.now() + 48 * 60 * 60 * 1000),
+                    dueDate: new Date(Date.now() + 2 * DAY_IN_MS),
                     index: 1,
-                    isComplete: true,
+                    completedAt: new Date(),
                 },
             ],
         },
     },
     invalid: {
         missingRequired: {
-            // Missing required user and reminderAt
-            publicId: generatePublicId(),
+            // Missing required name and reminderList
+            id: generatePK(),
+            index: 0,
         },
         invalidTypes: {
-            id: "not-a-valid-snowflake",
-            publicId: 123, // Should be string
-            reminderAt: "not-a-date", // Should be Date
+            id: "not-a-valid-snowflake", // Should be bigint
+            name: 123, // Should be string
+            description: true, // Should be string or null
             dueDate: "not-a-date", // Should be Date
             index: "not-a-number", // Should be number
-            isComplete: "yes", // Should be boolean
-        },
-        invalidUserConnection: {
-            id: generatePK(),
-            publicId: generatePublicId(),
-            user: { connect: { id: "non-existent-user-id" } },
-            reminderAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            completedAt: "yes", // Should be Date or null
         },
         invalidListConnection: {
             id: generatePK(),
-            publicId: generatePublicId(),
-            user: { connect: { id: "user_placeholder_id" } },
-            reminderAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+            name: "Invalid List Connection",
+            index: 0,
             reminderList: { connect: { id: "non-existent-list-id" } },
+        },
+        duplicateIndex: {
+            id: generatePK(),
+            name: "Duplicate Index",
+            index: 0, // Same index as another reminder in the list
+            reminderList: { connect: { id: generatePK() } },
         },
     },
     edgeCases: {
-        pastReminder: {
+        pastDueDate: {
             id: generatePK(),
-            publicId: generatePublicId(),
-            user: { connect: { id: "user_placeholder_id" } },
-            reminderAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // 1 day ago
-            name: "Past Reminder",
-            description: "This reminder was scheduled in the past",
-            isComplete: false,
+            name: "Past Due Date",
+            description: "This reminder has a due date in the past",
+            dueDate: new Date(Date.now() - DAY_IN_MS), // 1 day ago
+            index: 0,
+            completedAt: null,
+            reminderList: { connect: { id: generatePK() } },
         },
         completedReminder: {
             id: generatePK(),
-            publicId: generatePublicId(),
-            user: { connect: { id: "user_placeholder_id" } },
-            reminderAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
             name: "Completed Reminder",
             description: "This reminder has been marked as complete",
-            isComplete: true,
+            dueDate: new Date(Date.now() + DAY_IN_MS),
+            index: 0,
+            completedAt: new Date(),
+            reminderList: { connect: { id: generatePK() } },
         },
         manyItemsReminder: {
             id: generatePK(),
-            publicId: generatePublicId(),
-            user: { connect: { id: "user_placeholder_id" } },
-            reminderAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
             name: "Reminder with Many Items",
+            description: "A reminder with many sub-items",
+            dueDate: new Date(Date.now() + DAY_IN_MS),
+            index: 0,
+            reminderList: { connect: { id: generatePK() } },
             reminderItems: {
-                create: Array.from({ length: 20 }, (_, i) => ({
+                create: Array.from({ length: MANY_ITEMS_COUNT }, (_, i) => ({
                     id: generatePK(),
                     name: `Task ${i + 1}`,
                     description: `Description for task ${i + 1}`,
                     index: i,
-                    isComplete: i % 3 === 0, // Every third item completed
+                    completedAt: i % EVERY_NTH_COMPLETED === 0 ? new Date() : null, // Every third item completed
                 })),
             },
         },
         urgentReminder: {
             id: generatePK(),
-            publicId: generatePublicId(),
-            user: { connect: { id: "user_placeholder_id" } },
-            reminderAt: new Date(Date.now() + 60 * 60 * 1000), // 1 hour from now
             name: "Urgent Reminder",
             description: "This reminder is due very soon",
-            dueDate: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
+            dueDate: new Date(Date.now() + 2 * HOUR_IN_MS), // 2 hours from now
             index: 0,
-            isComplete: false,
+            completedAt: null,
+            reminderList: { connect: { id: generatePK() } },
         },
         longTermReminder: {
             id: generatePK(),
-            publicId: generatePublicId(),
-            user: { connect: { id: "user_placeholder_id" } },
-            reminderAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
             name: "Long-term Reminder",
             description: "This reminder is set for the distant future",
-            dueDate: new Date(Date.now() + 400 * 24 * 60 * 60 * 1000), // 400 days from now
+            dueDate: new Date(Date.now() + LONG_TERM_DAYS * DAY_IN_MS), // 400 days from now
             index: 0,
-            isComplete: false,
+            completedAt: null,
+            reminderList: { connect: { id: generatePK() } },
         },
     },
 };
@@ -153,7 +169,7 @@ export const reminderDbFixtures: DbTestFixtures<Prisma.reminderCreateInput> = {
  * Enhanced factory for creating reminder database fixtures
  */
 export class ReminderDbFactory extends EnhancedDbFactory<Prisma.reminderCreateInput> {
-    
+
     /**
      * Get the test fixtures for Reminder model
      */
@@ -168,22 +184,22 @@ export class ReminderDbFactory extends EnhancedDbFactory<Prisma.reminderCreateIn
         return {
             constraints: {
                 uniqueViolation: {
-                    id: reminderDbIds.reminder1, // Duplicate ID
-                    publicId: generatePublicId(),
-                    user: { connect: { id: "user_placeholder_id" } },
-                    reminderAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+                    id: reminderDbIds.reminder1(), // Duplicate ID
+                    name: "Duplicate ID Reminder",
+                    index: 0,
+                    reminderList: { connect: { id: generatePK() } },
                 },
                 foreignKeyViolation: {
                     id: generatePK(),
-                    publicId: generatePublicId(),
-                    user: { connect: { id: "non-existent-user-id" } },
-                    reminderAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+                    name: "Foreign Key Violation",
+                    index: 0,
+                    reminderList: { connect: { id: generatePK() } }, // Non-existent list
                 },
                 checkConstraintViolation: {
                     id: generatePK(),
-                    publicId: "", // Empty publicId violates constraint
-                    user: { connect: { id: "user_placeholder_id" } },
-                    reminderAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
+                    name: "", // Empty name violates constraint
+                    index: 0,
+                    reminderList: { connect: { id: generatePK() } },
                 },
             },
             validation: {
@@ -191,32 +207,33 @@ export class ReminderDbFactory extends EnhancedDbFactory<Prisma.reminderCreateIn
                 invalidDataType: reminderDbFixtures.invalid.invalidTypes,
                 outOfRange: {
                     id: generatePK(),
-                    publicId: generatePublicId(),
-                    user: { connect: { id: "user_placeholder_id" } },
-                    reminderAt: new Date("1900-01-01"), // Too far in past
+                    name: "Out of Range",
+                    description: "A".repeat(MAX_DESCRIPTION_LENGTH + 1), // Too long (max 2048)
+                    dueDate: new Date("1900-01-01"), // Too far in past
                     index: -1, // Negative index
+                    reminderList: { connect: { id: generatePK() } },
                 },
             },
             businessLogic: {
-                dueDateBeforeReminder: {
+                completedWithoutDate: {
                     id: generatePK(),
-                    publicId: generatePublicId(),
-                    user: { connect: { id: "user_placeholder_id" } },
-                    reminderAt: new Date(Date.now() + 48 * 60 * 60 * 1000), // 2 days
-                    dueDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day - before reminder
+                    name: "Completed Without Date",
+                    index: 0,
+                    completedAt: new Date(), // Completed but no completedAt should be null if not complete
+                    reminderList: { connect: { id: generatePK() } },
                 },
                 completedWithIncompleteItems: {
                     id: generatePK(),
-                    publicId: generatePublicId(),
-                    user: { connect: { id: "user_placeholder_id" } },
-                    reminderAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
-                    isComplete: true, // Reminder complete
+                    name: "Completed With Incomplete Items",
+                    index: 0,
+                    completedAt: new Date(), // Reminder complete
+                    reminderList: { connect: { id: generatePK() } },
                     reminderItems: {
                         create: [{
                             id: generatePK(),
                             name: "Incomplete Task",
                             index: 0,
-                            isComplete: false, // But has incomplete items
+                            completedAt: null, // But has incomplete items
                         }],
                     },
                 },
@@ -225,19 +242,19 @@ export class ReminderDbFactory extends EnhancedDbFactory<Prisma.reminderCreateIn
     }
 
     /**
-     * Add user association to a reminder fixture
+     * Add list association to a reminder fixture
      */
-    protected addUserAssociation(data: Prisma.reminderCreateInput, userId: string): Prisma.reminderCreateInput {
+    protected addListAssociation(data: Prisma.reminderCreateInput, listId: bigint): Prisma.reminderCreateInput {
         return {
             ...data,
-            user: { connect: { id: userId } },
+            reminderList: { connect: { id: listId } },
         };
     }
 
     /**
-     * Add list association to a reminder fixture
+     * Override list association in a reminder fixture
      */
-    protected addListAssociation(data: Prisma.reminderCreateInput, listId: string): Prisma.reminderCreateInput {
+    protected overrideListAssociation(data: Prisma.reminderCreateInput, listId: bigint): Prisma.reminderCreateInput {
         return {
             ...data,
             reminderList: { connect: { id: listId } },
@@ -263,7 +280,7 @@ export class ReminderDbFactory extends EnhancedDbFactory<Prisma.reminderCreateIn
                     description: item.description,
                     dueDate: item.dueDate,
                     index: item.index ?? i,
-                    isComplete: item.isComplete ?? false,
+                    completedAt: item.isComplete ? new Date() : null,
                 })),
             },
         };
@@ -277,16 +294,17 @@ export class ReminderDbFactory extends EnhancedDbFactory<Prisma.reminderCreateIn
         const warnings: string[] = [];
 
         // Check required fields specific to Reminder
-        if (!data.user) errors.push("Reminder must be associated with a user");
-        if (!data.reminderAt) errors.push("Reminder time is required");
+        if (!data.name) errors.push("Reminder name is required");
+        if (!data.reminderList) errors.push("Reminder must be associated with a list");
+        if (data.index === undefined) errors.push("Reminder index is required");
 
         // Check business logic
-        if (data.reminderAt && data.reminderAt < new Date()) {
-            warnings.push("Reminder is scheduled in the past");
+        if (data.dueDate && data.dueDate < new Date()) {
+            warnings.push("Due date is in the past");
         }
 
-        if (data.dueDate && data.reminderAt && data.dueDate < data.reminderAt) {
-            warnings.push("Due date is before reminder time");
+        if (data.completedAt && !data.dueDate) {
+            warnings.push("Reminder is marked complete but has no due date");
         }
 
         if (data.index !== undefined && data.index < 0) {
@@ -296,13 +314,13 @@ export class ReminderDbFactory extends EnhancedDbFactory<Prisma.reminderCreateIn
         // Check items logic
         if (data.reminderItems?.create) {
             const items = Array.isArray(data.reminderItems.create) ? data.reminderItems.create : [data.reminderItems.create];
-            const allItemsComplete = items.every(item => item.isComplete);
-            
-            if (data.isComplete && !allItemsComplete) {
+            const allItemsComplete = items.every(item => item.completedAt !== null && item.completedAt !== undefined);
+
+            if (data.completedAt && !allItemsComplete) {
                 warnings.push("Reminder is marked complete but has incomplete items");
             }
 
-            if (!data.isComplete && allItemsComplete && items.length > 0) {
+            if (!data.completedAt && allItemsComplete && items.length > 0) {
                 warnings.push("All items are complete but reminder is not marked as complete");
             }
         }
@@ -312,49 +330,47 @@ export class ReminderDbFactory extends EnhancedDbFactory<Prisma.reminderCreateIn
 
     // Static methods for backward compatibility
     static createMinimal(
-        userId: string,
+        listId: bigint,
         overrides?: Partial<Prisma.reminderCreateInput>,
     ): Prisma.reminderCreateInput {
         const factory = new ReminderDbFactory();
         const data = factory.createMinimal(overrides);
-        return factory.addUserAssociation(data, userId);
+        return factory.addListAssociation(data, listId);
     }
 
     static createWithName(
-        userId: string,
+        listId: bigint,
         name: string,
         overrides?: Partial<Prisma.reminderCreateInput>,
     ): Prisma.reminderCreateInput {
         const factory = new ReminderDbFactory();
         const data = factory.createMinimal({ name, ...overrides });
-        return factory.addUserAssociation(data, userId);
+        return factory.addListAssociation(data, listId);
     }
 
     static createInList(
-        userId: string,
-        listId: string,
+        listId: bigint,
         overrides?: Partial<Prisma.reminderCreateInput>,
     ): Prisma.reminderCreateInput {
         const factory = new ReminderDbFactory();
-        let data = factory.createMinimal(overrides);
-        data = factory.addUserAssociation(data, userId);
+        const data = factory.createMinimal(overrides);
         return factory.addListAssociation(data, listId);
     }
 
     static createWithItem(
-        userId: string,
-        itemData: Partial<Prisma.ReminderItemCreateWithoutReminderInput>,
+        listId: bigint,
+        itemData: Partial<Prisma.reminder_itemCreateWithoutReminderInput>,
         overrides?: Partial<Prisma.reminderCreateInput>,
     ): Prisma.reminderCreateInput {
         const factory = new ReminderDbFactory();
         let data = factory.createMinimal(overrides);
-        data = factory.addUserAssociation(data, userId);
+        data = factory.addListAssociation(data, listId);
         return factory.addItems(data, [{
             name: itemData.name || "Reminder Item",
             description: itemData.description,
-            dueDate: itemData.dueDate,
+            dueDate: itemData.dueDate instanceof Date ? itemData.dueDate : undefined,
             index: itemData.index || 0,
-            isComplete: itemData.isComplete || false,
+            isComplete: Boolean(itemData.completedAt),
         }]);
     }
 }
@@ -362,35 +378,29 @@ export class ReminderDbFactory extends EnhancedDbFactory<Prisma.reminderCreateIn
 /**
  * Enhanced test fixtures for ReminderList model
  */
-export const reminderListDbFixtures: DbTestFixtures<Prisma.ReminderListCreateInput> = {
+export const reminderListDbFixtures: DbTestFixtures<Prisma.reminder_listCreateInput> = {
     minimal: {
         id: generatePK(),
-        publicId: generatePublicId(),
-        user: { connect: { id: "user_placeholder_id" } },
+        user: { connect: { id: generatePK() } },
     },
     complete: {
         id: generatePK(),
-        publicId: generatePublicId(),
-        user: { connect: { id: "user_placeholder_id" } },
-        name: "Personal Reminders",
-        description: "My personal reminder list for daily tasks",
+        user: { connect: { id: generatePK() } },
         reminders: {
             create: [
                 {
                     id: generatePK(),
-                    publicId: generatePublicId(),
                     name: "Morning Meeting",
-                    reminderAt: new Date(Date.now() + 8 * 60 * 60 * 1000), // 8 hours from now
+                    description: "Daily standup meeting",
+                    dueDate: new Date(Date.now() + WORKDAY_START_HOURS * HOUR_IN_MS), // 8 hours from now
                     index: 0,
-                    user: { connect: { id: "user_placeholder_id" } },
                 },
                 {
                     id: generatePK(),
-                    publicId: generatePublicId(),
                     name: "Project Deadline",
-                    reminderAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
+                    description: "Final project submission",
+                    dueDate: new Date(Date.now() + 2 * DAY_IN_MS), // 2 days from now
                     index: 1,
-                    user: { connect: { id: "user_placeholder_id" } },
                 },
             ],
         },
@@ -398,42 +408,32 @@ export const reminderListDbFixtures: DbTestFixtures<Prisma.ReminderListCreateInp
     invalid: {
         missingRequired: {
             // Missing required user
-            publicId: generatePublicId(),
+            id: generatePK(),
         },
         invalidTypes: {
-            id: "not-a-valid-snowflake",
-            publicId: 123, // Should be string
-            name: 456, // Should be string
-            description: true, // Should be string
+            id: "not-a-valid-snowflake", // Should be bigint
+            user: "not-a-connection", // Should be connection object
         },
         invalidUserConnection: {
             id: generatePK(),
-            publicId: generatePublicId(),
-            user: { connect: { id: "non-existent-user-id" } },
+            user: { connect: { id: generatePK() } }, // Non-existent user
         },
     },
     edgeCases: {
         emptyList: {
             id: generatePK(),
-            publicId: generatePublicId(),
-            user: { connect: { id: "user_placeholder_id" } },
-            name: "Empty List",
-            description: "A list with no reminders",
+            user: { connect: { id: generatePK() } },
         },
         manyReminders: {
             id: generatePK(),
-            publicId: generatePublicId(),
-            user: { connect: { id: "user_placeholder_id" } },
-            name: "Busy Schedule",
-            description: "A list with many reminders",
+            user: { connect: { id: generatePK() } },
             reminders: {
-                create: Array.from({ length: 50 }, (_, i) => ({
+                create: Array.from({ length: MANY_REMINDERS_COUNT }, (_, i) => ({
                     id: generatePK(),
-                    publicId: generatePublicId(),
                     name: `Reminder ${i + 1}`,
-                    reminderAt: new Date(Date.now() + (i + 1) * 60 * 60 * 1000), // Each hour apart
+                    description: `Description for reminder ${i + 1}`,
+                    dueDate: new Date(Date.now() + (i + 1) * HOUR_IN_MS), // Each hour apart
                     index: i,
-                    user: { connect: { id: "user_placeholder_id" } },
                 })),
             },
         },
@@ -443,12 +443,12 @@ export const reminderListDbFixtures: DbTestFixtures<Prisma.ReminderListCreateInp
 /**
  * Enhanced factory for creating reminder list database fixtures
  */
-export class ReminderListDbFactory extends EnhancedDbFactory<Prisma.ReminderListCreateInput> {
-    
+export class ReminderListDbFactory extends EnhancedDbFactory<Prisma.reminder_listCreateInput> {
+
     /**
      * Get the test fixtures for ReminderList model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.ReminderListCreateInput> {
+    protected getFixtures(): DbTestFixtures<Prisma.reminder_listCreateInput> {
         return reminderListDbFixtures;
     }
 
@@ -459,19 +459,16 @@ export class ReminderListDbFactory extends EnhancedDbFactory<Prisma.ReminderList
         return {
             constraints: {
                 uniqueViolation: {
-                    id: reminderDbIds.list1, // Duplicate ID
-                    publicId: generatePublicId(),
-                    user: { connect: { id: "user_placeholder_id" } },
+                    id: reminderDbIds.list1(), // Duplicate ID
+                    user: { connect: { id: generatePK() } },
                 },
                 foreignKeyViolation: {
                     id: generatePK(),
-                    publicId: generatePublicId(),
-                    user: { connect: { id: "non-existent-user-id" } },
+                    user: { connect: { id: generatePK() } }, // Non-existent user
                 },
                 checkConstraintViolation: {
-                    id: generatePK(),
-                    publicId: "", // Empty publicId violates constraint
-                    user: { connect: { id: "user_placeholder_id" } },
+                    id: BigInt("0"), // Invalid ID (should be positive)
+                    user: { connect: { id: generatePK() } },
                 },
             },
             validation: {
@@ -479,9 +476,8 @@ export class ReminderListDbFactory extends EnhancedDbFactory<Prisma.ReminderList
                 invalidDataType: reminderListDbFixtures.invalid.invalidTypes,
                 outOfRange: {
                     id: generatePK(),
-                    publicId: generatePublicId(),
-                    user: { connect: { id: "user_placeholder_id" } },
-                    name: "A".repeat(256), // Name too long
+                    user: { connect: { id: generatePK() } },
+                    // No specific out of range scenario for reminder_list
                 },
             },
             businessLogic: {},
@@ -491,7 +487,7 @@ export class ReminderListDbFactory extends EnhancedDbFactory<Prisma.ReminderList
     /**
      * Add user association to a reminder list fixture
      */
-    protected addUserAssociation(data: Prisma.ReminderListCreateInput, userId: string): Prisma.ReminderListCreateInput {
+    protected addUserAssociation(data: Prisma.reminder_listCreateInput, userId: bigint): Prisma.reminder_listCreateInput {
         return {
             ...data,
             user: { connect: { id: userId } },
@@ -501,17 +497,16 @@ export class ReminderListDbFactory extends EnhancedDbFactory<Prisma.ReminderList
     /**
      * Add reminders to a reminder list fixture
      */
-    protected addReminders(data: Prisma.ReminderListCreateInput, reminders: Array<{ name: string; reminderAt: Date }>, userId: string): Prisma.ReminderListCreateInput {
+    protected addReminders(data: Prisma.reminder_listCreateInput, reminders: Array<{ name: string; dueDate: Date }>): Prisma.reminder_listCreateInput {
         return {
             ...data,
             reminders: {
                 create: reminders.map((r, index) => ({
                     id: generatePK(),
-                    publicId: generatePublicId(),
                     name: r.name,
-                    reminderAt: r.reminderAt,
+                    description: null,
+                    dueDate: r.dueDate,
                     index,
-                    user: { connect: { id: userId } },
                 })),
             },
         };
@@ -520,7 +515,7 @@ export class ReminderListDbFactory extends EnhancedDbFactory<Prisma.ReminderList
     /**
      * ReminderList-specific validation
      */
-    protected validateSpecific(data: Prisma.ReminderListCreateInput): { errors: string[]; warnings: string[] } {
+    protected validateSpecific(data: Prisma.reminder_listCreateInput): { errors: string[]; warnings: string[] } {
         const errors: string[] = [];
         const warnings: string[] = [];
 
@@ -530,7 +525,7 @@ export class ReminderListDbFactory extends EnhancedDbFactory<Prisma.ReminderList
         // Check business logic
         if (data.reminders?.create) {
             const reminders = Array.isArray(data.reminders.create) ? data.reminders.create : [data.reminders.create];
-            
+
             if (reminders.length === 0) {
                 warnings.push("Reminder list has no reminders");
             }
@@ -548,31 +543,40 @@ export class ReminderListDbFactory extends EnhancedDbFactory<Prisma.ReminderList
 
     // Static methods for backward compatibility
     static createMinimal(
-        userId: string,
-        overrides?: Partial<Prisma.ReminderListCreateInput>,
-    ): Prisma.ReminderListCreateInput {
+        userId: bigint,
+        overrides?: Partial<Prisma.reminder_listCreateInput>,
+    ): Prisma.reminder_listCreateInput {
         const factory = new ReminderListDbFactory();
         const data = factory.createMinimal(overrides);
         return factory.addUserAssociation(data, userId);
     }
 
     static createWithReminders(
-        userId: string,
-        reminders: Array<{ name: string; reminderAt: Date }>,
-        overrides?: Partial<Prisma.ReminderListCreateInput>,
-    ): Prisma.ReminderListCreateInput {
+        userId: bigint,
+        reminders: Array<{ name: string; dueDate: Date }>,
+        overrides?: Partial<Prisma.reminder_listCreateInput>,
+    ): Prisma.reminder_listCreateInput {
         const factory = new ReminderListDbFactory();
         let data = factory.createMinimal(overrides);
         data = factory.addUserAssociation(data, userId);
-        return factory.addReminders(data, reminders, userId);
+        return factory.addReminders(data, reminders);
     }
 }
 
 /**
  * Enhanced helper to seed multiple test reminders with comprehensive options
  */
+interface PrismaClient {
+    reminder_list: {
+        create: (args: { data: Prisma.reminder_listCreateInput; include?: Record<string, boolean> }) => Promise<{ id: bigint; user: unknown }>;
+    };
+    reminder: {
+        create: (args: { data: Prisma.reminderCreateInput; include?: Record<string, boolean> }) => Promise<unknown>;
+    };
+}
+
 export async function seedReminders(
-    prisma: any,
+    prisma: PrismaClient,
     options: {
         userId: string;
         count?: number;
@@ -580,11 +584,11 @@ export async function seedReminders(
         withItems?: boolean;
         datesFrom?: Date;
     },
-): Promise<BulkSeedResult<any>> {
-    const reminderFactory = new ReminderDbFactory();
-    const listFactory = new ReminderListDbFactory();
+): Promise<BulkSeedResult<unknown>> {
+    // const reminderFactory = new ReminderDbFactory();
+    // const listFactory = new ReminderListDbFactory();
     const reminders = [];
-    const count = options.count || 3;
+    const count = options.count || DEFAULT_SEED_COUNT;
     const startDate = options.datesFrom || new Date();
     let itemCount = 0;
     let completedCount = 0;
@@ -593,71 +597,68 @@ export async function seedReminders(
     // Create list if requested
     let list = null;
     if (options.withList) {
-        list = await prisma.reminderList.create({
-            data: ReminderListDbFactory.createMinimal(options.userId, {
-                name: "Test Reminder List",
-                description: "Seeded reminder list for testing",
+        list = await prisma.reminder_list.create({
+            data: ReminderListDbFactory.createMinimal(BigInt(options.userId), {
+                // reminder_list doesn't have name or description fields
             }),
             include: { user: true },
         });
     }
 
     for (let i = 0; i < count; i++) {
-        const reminderAt = new Date(startDate.getTime() + (i + 1) * 24 * 60 * 60 * 1000);
-        
+        const dueDate = new Date(startDate.getTime() + (i + 1) * DAY_IN_MS);
+
         let reminderData: Prisma.reminderCreateInput;
-        
+
         if (options.withItems) {
             reminderData = ReminderDbFactory.createWithItem(
-                options.userId,
+                list ? list.id : generatePK(),
                 {
                     name: `Task ${i + 1}`,
                     description: `Description for task ${i + 1}`,
-                    dueDate: reminderAt,
+                    dueDate,
                 },
                 {
                     name: `Reminder ${i + 1}`,
-                    reminderAt,
+                    dueDate,
                     description: `Reminder ${i + 1} description`,
-                    ...(list && { reminderList: { connect: { id: list.id } } }),
                 },
             );
             itemCount++;
         } else {
             reminderData = list
                 ? ReminderDbFactory.createInList(
-                    options.userId,
                     list.id,
                     {
                         name: `Reminder ${i + 1}`,
-                        reminderAt,
+                        dueDate,
                         description: `Description for reminder ${i + 1}`,
                     },
                 )
                 : ReminderDbFactory.createWithName(
-                    options.userId,
+                    generatePK(), // Create a new list ID if no list exists
                     `Reminder ${i + 1}`,
-                    { 
-                        reminderAt,
+                    {
+                        dueDate,
                         description: `Description for reminder ${i + 1}`,
                     },
                 );
         }
 
         // Mark some as completed
-        if (i % 3 === 0) {
-            reminderData.isComplete = true;
+        if (i % EVERY_NTH_COMPLETED === 0) {
+            reminderData.completedAt = new Date();
             completedCount++;
         }
 
         // Count past reminders
-        if (reminderAt < new Date()) {
+        if (dueDate < new Date()) {
             pastCount++;
         }
 
         const reminder = await prisma.reminder.create({
             data: reminderData,
-            include: { 
+            include: {
                 reminderItems: true,
                 reminderList: true,
                 user: true,
@@ -666,15 +667,21 @@ export async function seedReminders(
         reminders.push(reminder);
     }
 
+    // Include list in records if created
+    const allRecords = list ? [list, ...reminders] : reminders;
+
     return {
-        records: { reminders, list },
+        records: allRecords,
         summary: {
-            total: reminders.length + (list ? 1 : 0),
+            total: allRecords.length,
+            withAuth: 0, // No auth in reminders
+            bots: 0, // No bots in reminders
+            teams: 0, // No teams in reminders
             reminders: reminders.length,
+            lists: list ? 1 : 0,
             withItems: itemCount,
             completed: completedCount,
             past: pastCount,
-            withList: list ? 1 : 0,
         },
     };
 }

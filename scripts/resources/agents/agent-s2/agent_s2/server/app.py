@@ -94,57 +94,28 @@ async def lifespan(app: FastAPI):
             "suggestions": ["Set AGENTS2_ENABLE_AI=true to enable AI features"]
         }
     
-    # Initialize security proxy if enabled (fully asynchronous)
+    # Initialize security proxy if enabled (detect existing proxy)
     if os.environ.get("AGENT_S2_ENABLE_PROXY", "true").lower() == "true":
-        logger.info("Initializing security proxy service...")
+        logger.info("Detecting security proxy service...")
         try:
             proxy_manager = ProxyManager()
             proxy_service = proxy_manager.get_proxy_service()
             app_state["proxy_service"] = proxy_service
             
-            # Start proxy initialization in background (completely non-blocking)
-            async def initialize_proxy():
-                try:
-                    logger.info("Starting security proxy service in background...")
-                    
-                    # Check if we have root for iptables (in Docker we might)
-                    if os.geteuid() == 0:
-                        try:
-                            proxy_service.setup_transparent_proxy()
-                            logger.info("Transparent proxy configured with iptables")
-                        except Exception as e:
-                            logger.warning(f"Failed to setup transparent proxy: {e}")
-                    else:
-                        logger.warning("Running without root - transparent proxy disabled")
-                        logger.info("Security checks will only apply to AI-driven navigation")
-                    
-                    # Install CA certificate for HTTPS interception
-                    try:
-                        if proxy_service.install_ca_certificate():
-                            logger.info("mitmproxy CA certificate installed")
-                        else:
-                            logger.info("Continuing without CA certificate installation")
-                    except Exception as e:
-                        logger.warning(f"CA certificate installation failed: {e}")
-                    
-                    # Start the proxy service
-                    try:
-                        await proxy_manager.ensure_proxy_running()
-                        logger.info("Security proxy service started successfully")
-                    except Exception as e:
-                        logger.warning(f"Failed to start security proxy service: {e}")
-                        logger.info("AI-level security validation remains active")
-                        
-                except Exception as e:
-                    logger.error(f"Proxy background initialization failed: {e}")
-                    logger.info("Continuing with AI-level security only")
-            
-            # Start proxy initialization task without awaiting
-            asyncio.create_task(initialize_proxy())
-            logger.info("Security proxy initialization started in background")
+            # Check if proxy is already running (started by supervisor)
+            if proxy_service.running:
+                logger.info(f"Security proxy detected running on port {proxy_service.port}")
+                
+                # Check transparent proxy configuration
+                if proxy_service.is_proxy_configured():
+                    logger.info("Transparent proxy iptables rules detected")
+                else:
+                    logger.info("Transparent proxy not configured (iptables rules missing)")
+            else:
+                logger.warning("Security proxy not detected - AI-level security only")
             
         except Exception as e:
-            logger.error(f"Security proxy setup failed: {e}")
+            logger.error(f"Security proxy detection failed: {e}")
             logger.info("Continuing without network-level security")
     else:
         logger.info("Security proxy disabled by configuration")

@@ -1,5 +1,7 @@
+/* eslint-disable no-magic-numbers */
 import { type chat_message, type Prisma, type PrismaClient } from "@prisma/client";
-import { messageConfigFixtures } from "@vrooli/shared/test-fixtures/config.js";
+// eslint-disable-next-line import/extensions
+import { messageConfigFixtures } from "@vrooli/shared/test-fixtures/config";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type {
     DbTestFixtures,

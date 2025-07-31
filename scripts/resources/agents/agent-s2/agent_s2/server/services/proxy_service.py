@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 class ProxyService:
     """Manages the mitmproxy transparent proxy for URL security"""
     
-    def __init__(self, port: int = 8080):
+    def __init__(self, port: int = 8085):
         self.port = port
         self.master: Optional[DumpMaster] = None
         self.proxy_task: Optional[asyncio.Task] = None
@@ -31,6 +31,9 @@ class ProxyService:
         
         if not MITMPROXY_AVAILABLE:
             logger.warning("mitmproxy not available - proxy service disabled")
+        else:
+            # Check if proxy is already running (e.g., started by supervisor)
+            self.running = self._check_proxy_running()
             
     async def start(self):
         """Start the proxy service"""
@@ -49,8 +52,6 @@ class ProxyService:
                 mode=["transparent"],  # Transparent proxy mode
                 ssl_insecure=True,  # Accept self-signed certificates
                 confdir=os.path.expanduser("~/.mitmproxy"),
-                # Use compatible options for mitmproxy 10.x
-                stream_large_bodies="1m",  # Stream large bodies
             )
             
             # Create master with our security addon
@@ -189,6 +190,36 @@ class ProxyService:
         except Exception as e:
             logger.error(f"Failed to cleanup iptables: {e}")
     
+    def _check_proxy_running(self) -> bool:
+        """Check if mitmdump is already running on our port"""
+        try:
+            result = subprocess.run(
+                ["pgrep", "-f", f"mitmdump.*--listen-port {self.port}"],
+                capture_output=True,
+                text=True
+            )
+            is_running = result.returncode == 0
+            if is_running:
+                logger.info(f"Detected mitmdump already running on port {self.port}")
+            return is_running
+        except Exception as e:
+            logger.debug(f"Failed to check proxy status: {e}")
+            return False
+    
+    def is_proxy_configured(self) -> bool:
+        """Check if system is configured for transparent proxy (iptables rules)"""
+        try:
+            # Check if redirect rules exist
+            result = subprocess.run(
+                ["sudo", "iptables", "-t", "nat", "-L", "OUTPUT", "-n"],
+                capture_output=True,
+                text=True
+            )
+            # Look for redirect rules to our proxy port
+            return f"redir ports {self.port}" in result.stdout and "dpt:80" in result.stdout
+        except Exception:
+            return False
+    
     def install_ca_certificate(self) -> bool:
         """Install mitmproxy CA certificate in Firefox"""
         try:
@@ -267,7 +298,7 @@ class ProxyService:
             
             return f"REDIRECT tcp -- 0.0.0.0/0 0.0.0.0/0 tcp dpt:80 redir ports {self.port}" in result.stdout
             
-        except:
+        except (subprocess.CalledProcessError, FileNotFoundError, PermissionError):
             return False
 
 

@@ -1,14 +1,12 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
-import { nanoid } from "@vrooli/shared";
-import { type chat } from "@prisma/client";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+import { type chat, type Prisma, type PrismaClient } from "@prisma/client";
+import { chatConfigFixtures } from "@vrooli/shared/test-fixtures/config";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type {
     DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
-import { chatConfigFixtures } from "@vrooli/shared/test-fixtures/config.js";
 
 interface ChatRelationConfig extends RelationConfig {
     withCreator?: { userId: bigint };
@@ -117,7 +115,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
                     publicId: this.generatePublicId(),
                     isPrivate: false,
                     openToAnyoneWithInvite: true,
-                    config: { 
+                    config: {
                         ...chatConfigFixtures.complete,
                         limits: {
                             ...chatConfigFixtures.complete.limits,
@@ -281,7 +279,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         isPrivate: true,
                         openToAnyoneWithInvite: false,
-                        config: { 
+                        config: {
                             ...chatConfigFixtures.complete,
                             swarmLeader: "support-bot",
                         } as unknown as Prisma.InputJsonValue,

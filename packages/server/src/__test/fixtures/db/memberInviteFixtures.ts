@@ -1,5 +1,5 @@
-import { generatePK, generatePublicId } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { generatePK, generatePublicId } from "@vrooli/shared";
 
 /**
  * Database fixtures for MemberInvite model - used for seeding test data
@@ -7,8 +7,8 @@ import { type Prisma } from "@prisma/client";
 
 export class MemberInviteDbFactory {
     static createMinimal(
-        teamId: string,
-        userId: string,
+        teamId: bigint,
+        userId: bigint,
         overrides?: Partial<Prisma.member_inviteCreateInput>,
     ): Prisma.member_inviteCreateInput {
         return {
@@ -22,8 +22,8 @@ export class MemberInviteDbFactory {
     }
 
     static createWithMessage(
-        teamId: string,
-        userId: string,
+        teamId: bigint,
+        userId: bigint,
         message: string,
         overrides?: Partial<Prisma.member_inviteCreateInput>,
     ): Prisma.member_inviteCreateInput {
@@ -34,8 +34,8 @@ export class MemberInviteDbFactory {
     }
 
     static createAccepted(
-        teamId: string,
-        userId: string,
+        teamId: bigint,
+        userId: bigint,
         overrides?: Partial<Prisma.member_inviteCreateInput>,
     ): Prisma.member_inviteCreateInput {
         return this.createMinimal(teamId, userId, {
@@ -45,8 +45,8 @@ export class MemberInviteDbFactory {
     }
 
     static createDeclined(
-        teamId: string,
-        userId: string,
+        teamId: bigint,
+        userId: bigint,
         overrides?: Partial<Prisma.member_inviteCreateInput>,
     ): Prisma.member_inviteCreateInput {
         return this.createMinimal(teamId, userId, {
@@ -62,8 +62,8 @@ export class MemberInviteDbFactory {
 export async function seedMemberInvites(
     prisma: any,
     options: {
-        teamId: string;
-        userIds: string[];
+        teamId: bigint;
+        userIds: bigint[];
         status?: "Pending" | "Accepted" | "Declined";
         withCustomMessages?: boolean;
         messagePrefix?: string;
@@ -90,7 +90,7 @@ export async function seedMemberInvites(
             inviteData = MemberInviteDbFactory.createMinimal(options.teamId, userId);
         }
 
-        const invite = await prisma.memberInvite.create({ 
+        const invite = await prisma.memberInvite.create({
             data: inviteData,
             include: {
                 team: true,
@@ -110,7 +110,7 @@ export async function createTeamWithInvites(
     prisma: any,
     options: {
         teamData: Prisma.TeamCreateInput;
-        invitedUserIds: string[];
+        invitedUserIds: bigint[];
         inviteStatus?: "Pending" | "Accepted" | "Declined";
         withCustomMessages?: boolean;
     },

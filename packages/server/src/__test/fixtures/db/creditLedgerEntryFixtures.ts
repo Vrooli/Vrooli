@@ -1,6 +1,7 @@
+/* eslint-disable no-magic-numbers */
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
-import { generatePK } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK } from "@vrooli/shared";
 
 /**
  * Database fixtures for CreditLedgerEntry model - used for seeding transaction history test data
@@ -234,6 +235,7 @@ export class CreditLedgerEntryDbFactory {
             amount: 0n,
             type: "Purchase",
             source: "Other",
+            account: { connect: { id: generatePK() } },
             ...overrides,
         };
     }
@@ -303,7 +305,7 @@ export class CreditLedgerEntryDbFactory {
         overrides?: Partial<Prisma.credit_ledger_entryCreateInput>,
     ): Prisma.credit_ledger_entryCreateInput {
         const transferId = `tf_${Date.now()}`;
-        
+
         return {
             id: generatePK(),
             idempotencyKey: `transfer_${direction}_${transferId}`,
@@ -388,7 +390,7 @@ export class CreditLedgerEntryDbFactory {
     ): Prisma.credit_ledger_entryCreateInput[] {
         return transactions.map((tx, index) => {
             const baseKey = `seq_${Date.now()}_${index}`;
-            
+
             switch (tx.type) {
                 case "purchase":
                     return this.createPurchase(accountId, tx.amount, Number(tx.amount) / 100000, undefined, {
@@ -470,7 +472,7 @@ export async function seedTransactionHistory(db: PrismaClient, accountId: bigint
     ]);
 
     const entries = await Promise.all(
-        sequence.map(entry => db.creditLedgerEntry.create({ data: entry })),
+        sequence.map(entry => db.credit_ledger_entry.create({ data: entry })),
     );
 
     return entries;

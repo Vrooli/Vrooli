@@ -10,13 +10,13 @@ import type { RoutineTestData } from "../../types.js";
 
 export class RoutineDbFactory {
     async create(routineData: RoutineTestData): Promise<RoutineTestData> {
-        const userId = routineData.created_by || generatePK();
-        
+        const userId = routineData.created_by || generatePK().toString();
+
         // First ensure the user exists
         const existingUser = await DbProvider.get().user.findUnique({
             where: { id: BigInt(userId) },
         });
-        
+
         if (!existingUser) {
             await DbProvider.get().user.create({
                 data: {
@@ -29,7 +29,7 @@ export class RoutineDbFactory {
                 },
             });
         }
-        
+
         // Create routine as resource with resourceType: "Routine"
         const resource = await DbProvider.get().resource.create({
             data: {
@@ -50,7 +50,7 @@ export class RoutineDbFactory {
         if (!version) {
             throw new Error("Routine must have at least one version");
         }
-        
+
         const resourceVersion = await DbProvider.get().resource_version.create({
             data: {
                 id: BigInt(version.id),
@@ -93,20 +93,44 @@ export class RoutineDbFactory {
     }
 
     async update(id: string, data: Partial<RoutineTestData>): Promise<any> {
-        return DbProvider.get().resource.update({
+        // First update the resource if needed
+        const resource = await DbProvider.get().resource.update({
             where: { id: BigInt(id) },
             data: {
-                translations: data.name || data.description ? {
-                    update: {
-                        where: { language: "en" },
-                        data: {
-                            name: data.name,
-                            description: data.description,
-                        },
-                    },
-                } : undefined,
+                // Resource doesn't have many fields that can be updated from RoutineTestData
+                // Most routine-specific data is in the version
             },
         });
+
+        // If name or description are being updated, update the resource_version's translations
+        if (data.name || data.description) {
+            // Find the latest version for this resource
+            const latestVersion = await DbProvider.get().resource_version.findFirst({
+                where: {
+                    rootId: BigInt(id),
+                    isLatest: true,
+                },
+                include: {
+                    translations: true,
+                },
+            });
+
+            if (latestVersion) {
+                // Update the translation
+                await DbProvider.get().resource_translation.updateMany({
+                    where: {
+                        resourceVersionId: latestVersion.id,
+                        language: "en",
+                    },
+                    data: {
+                        ...(data.name && { name: data.name }),
+                        ...(data.description && { description: data.description }),
+                    },
+                });
+            }
+        }
+
+        return resource;
     }
 
     async delete(id: string): Promise<void> {

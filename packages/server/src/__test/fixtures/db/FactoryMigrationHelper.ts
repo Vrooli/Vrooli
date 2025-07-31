@@ -1,6 +1,4 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient in generated code
-import { generatePK, generatePublicId } from "@vrooli/shared";
-import { DatabaseFixtureFactory } from "./DatabaseFixtureFactory.js";
 import type { DbTestFixtures } from "./types.js";
 
 /**
@@ -88,7 +86,7 @@ export const ${modelName.toLowerCase()}DbFactory = (prisma: PrismaClient) => new
     private static formatObjectProperties(obj: any, indentLevel: number): string {
         const indent = " ".repeat(indentLevel * 4);
         const entries = Object.entries(obj);
-        
+
         return entries.map(([key, value]) => {
             if (typeof value === "string") {
                 return `${indent}${key}: "${value}",`;
@@ -109,23 +107,23 @@ export const ${modelName.toLowerCase()}DbFactory = (prisma: PrismaClient) => new
      */
     private static generateConfigImports(fixtures: DbTestFixtures<any>): string {
         const imports: Set<string> = new Set();
-        
+
         // Check for config usage in fixtures
-        const checkForConfigs = (obj: any) => {
+        function checkForConfigs(obj: any) {
             if (!obj || typeof obj !== "object") return;
-            
+
             Object.entries(obj).forEach(([key, value]) => {
                 if (key.endsWith("Settings") || key.endsWith("Config")) {
                     const configName = key.replace("Settings", "").replace("Config", "");
-                    imports.add(`import { ${configName}ConfigFixtures } from "../../../../../shared/src/__test/fixtures/config/${configName}ConfigFixtures.js";`);
+                    imports.add(`import { ${configName}ConfigFixtures } from "@vrooli/shared";`);
                 } else if (typeof value === "object") {
                     checkForConfigs(value);
                 }
             });
-        };
-        
+        }
+
         checkForConfigs(fixtures);
-        
+
         return Array.from(imports).join("\n");
     }
 
@@ -141,7 +139,7 @@ export const ${modelName.toLowerCase()}DbFactory = (prisma: PrismaClient) => new
             Chat: ["participants", "messages { take: 10 }", "translations", "team"],
             // Add more as needed
         };
-        
+
         const includes = includeMap[modelName] || [];
         return includes.join(",\n            ");
     }
@@ -203,7 +201,7 @@ export const ${modelName.toLowerCase()}DbFactory = (prisma: PrismaClient) => new
         }`,
             // Add more as needed
         };
-        
+
         return handlers[modelName] || "// TODO: Add relationship handlers";
     }
 
@@ -214,7 +212,7 @@ export const ${modelName.toLowerCase()}DbFactory = (prisma: PrismaClient) => new
         if (!edgeCases || Object.keys(edgeCases).length === 0) {
             return "";
         }
-        
+
         const scenarios = Object.entries(edgeCases).map(([name, data]) => {
             return `
     async create${this.capitalize(name)}(): Promise<any> {
@@ -223,7 +221,7 @@ export const ${modelName.toLowerCase()}DbFactory = (prisma: PrismaClient) => new
         });
     }`;
         }).join("\n");
-        
+
         return `
     // Scenario creation methods
     ${scenarios}`;
@@ -269,7 +267,7 @@ export const ${modelName.toLowerCase()}DbFactory = (prisma: PrismaClient) => new
         }`,
             // Add more as needed
         };
-        
+
         return constraints[modelName] || "// No specific constraints";
     }
 

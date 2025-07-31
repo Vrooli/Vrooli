@@ -73,12 +73,11 @@ class ScreenshotClient:
             
         Returns:
             Screenshot data dictionary
-            
-        Note:
-            This requires window detection support in the API
         """
-        # TODO: Implement window detection when API supports it
-        raise NotImplementedError("Window capture not yet implemented in API")
+        params = {"format": format, "window_title": window_title}
+        response = self.client._request('POST', '/screenshot/window', params=params)
+        response.raise_for_status()
+        return response.json()
     
     def save(self, 
              filename: Optional[str] = None,
@@ -116,32 +115,48 @@ class ScreenshotClient:
         )
     
     def compare(self, screenshot1: Dict[str, Any], 
-                screenshot2: Dict[str, Any]) -> float:
+                screenshot2: Dict[str, Any], 
+                method: str = "mse") -> Dict[str, Any]:
         """Compare two screenshots for similarity
         
         Args:
             screenshot1: First screenshot data
             screenshot2: Second screenshot data
+            method: Comparison method (mse, histogram, pixel_diff)
             
         Returns:
-            Similarity score (0.0 to 1.0)
+            Comparison results with similarity score
         """
-        # TODO: Implement image comparison
-        raise NotImplementedError("Screenshot comparison not yet implemented")
+        data = {
+            "screenshot1": screenshot1,
+            "screenshot2": screenshot2,
+            "method": method
+        }
+        response = self.client._request('POST', '/screenshot/compare', json=data)
+        response.raise_for_status()
+        return response.json()
     
     def find_changes(self, interval: float = 1.0, 
-                    timeout: float = 30.0) -> List[Dict[str, Any]]:
+                    timeout: float = 30.0,
+                    threshold: float = 0.05) -> List[Dict[str, Any]]:
         """Monitor screen for changes
         
         Args:
             interval: Check interval in seconds
             timeout: Maximum monitoring time in seconds
+            threshold: Change detection threshold (0-1, lower = more sensitive)
             
         Returns:
             List of detected changes with timestamps
         """
-        # TODO: Implement change detection
-        raise NotImplementedError("Change detection not yet implemented")
+        data = {
+            "interval": interval,
+            "timeout": timeout,
+            "threshold": threshold
+        }
+        response = self.client._request('POST', '/screenshot/detect-changes', json=data)
+        response.raise_for_status()
+        return response.json()
     
     def capture_series(self, count: int, interval: float = 1.0,
                       format: str = "png", quality: int = 95) -> List[Dict[str, Any]]:
@@ -168,6 +183,69 @@ class ScreenshotClient:
                 
         return screenshots
     
+    def capture_window_by_id(self, window_id: str, format: str = "png") -> Dict[str, Any]:
+        """Capture specific window by ID
+        
+        Args:
+            window_id: Window ID to capture
+            format: Image format (png or jpeg)
+            
+        Returns:
+            Screenshot data dictionary
+        """
+        params = {"format": format, "window_id": window_id}
+        response = self.client._request('POST', '/screenshot/window-by-id', params=params)
+        response.raise_for_status()
+        return response.json()
+    
+    def create_difference_image(self, screenshot1: Dict[str, Any], 
+                               screenshot2: Dict[str, Any]) -> Dict[str, Any]:
+        """Create visual difference image between two screenshots
+        
+        Args:
+            screenshot1: First screenshot data
+            screenshot2: Second screenshot data
+            
+        Returns:
+            Difference image data
+        """
+        data = {
+            "screenshot1": screenshot1,
+            "screenshot2": screenshot2
+        }
+        response = self.client._request('POST', '/screenshot/difference', json=data)
+        response.raise_for_status()
+        return response.json()
+    
+    def get_pixel_colors_region(self, x: int, y: int, width: int, height: int) -> List[List[Tuple[int, int, int]]]:
+        """Get colors of all pixels in a region
+        
+        Args:
+            x: Starting X coordinate
+            y: Starting Y coordinate
+            width: Region width
+            height: Region height
+            
+        Returns:
+            2D list of RGB color tuples [row][col] = (r, g, b)
+        """
+        params = {"x": x, "y": y, "width": width, "height": height}
+        response = self.client._request('GET', '/screenshot/pixel-colors-region', params=params)
+        response.raise_for_status()
+        result = response.json()
+        return result["colors"]
+    
+    def stop_change_detection(self) -> bool:
+        """Stop active change detection
+        
+        Returns:
+            True if successfully stopped
+        """
+        response = self.client._request('POST', '/screenshot/stop-change-detection')
+        response.raise_for_status()
+        result = response.json()
+        return result.get("success", False)
+    
     def get_pixel_color(self, x: int, y: int) -> Tuple[int, int, int]:
         """Get color of specific pixel
         
@@ -178,9 +256,8 @@ class ScreenshotClient:
         Returns:
             RGB color tuple
         """
-        # Capture 1x1 region
-        data = self.capture_region(x, y, 1, 1)
-        
-        # Extract pixel color from image data
-        # TODO: Implement pixel color extraction
-        raise NotImplementedError("Pixel color extraction not yet implemented")
+        params = {"x": x, "y": y}
+        response = self.client._request('GET', '/screenshot/pixel-color', params=params)
+        response.raise_for_status()
+        result = response.json()
+        return tuple(result["color"])

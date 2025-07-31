@@ -23,6 +23,13 @@ export function getMeetingDbIds() {
             translation1: generatePK(),
             translation2: generatePK(),
             translation3: generatePK(),
+            team1: generatePK(),
+            team2: generatePK(),
+            user1: generatePK(),
+            user2: generatePK(),
+            user3: generatePK(),
+            createdBy1: generatePK(),
+            createdBy2: generatePK(),
         };
     }
     return _meetingDbIds;
@@ -33,30 +40,29 @@ export function getMeetingDbIds() {
  */
 export const meetingDbFixtures: DbTestFixtures<Prisma.meetingCreateInput> = {
     minimal: {
-        id: generatePK(),
+        id: getMeetingDbIds().meeting1,
         publicId: generatePublicId(),
-        team: { connect: { id: "team_placeholder_id" } },
+        team: { connect: { id: getMeetingDbIds().team1 } },
         openToAnyoneWithInvite: false,
         showOnTeamProfile: true,
     },
     complete: {
-        id: generatePK(),
+        id: getMeetingDbIds().meeting2,
         publicId: generatePublicId(),
-        team: { connect: { id: "team_placeholder_id" } },
+        team: { connect: { id: getMeetingDbIds().team1 } },
         openToAnyoneWithInvite: true,
         showOnTeamProfile: true,
-        scheduledFor: new Date(Date.now() + 24 * 60 * 60 * 1000),
         translations: {
             create: [
                 {
-                    id: generatePK(),
+                    id: getMeetingDbIds().translation1,
                     language: "en",
                     name: "Team Weekly Sync",
                     description: "Weekly team synchronization meeting to discuss progress and blockers",
                     link: "https://meet.example.com/team-sync",
                 },
                 {
-                    id: generatePK(),
+                    id: getMeetingDbIds().translation2,
                     language: "es",
                     name: "Sincronización Semanal del Equipo",
                     description: "Reunión semanal de sincronización del equipo para discutir el progreso y los bloqueos",
@@ -67,9 +73,8 @@ export const meetingDbFixtures: DbTestFixtures<Prisma.meetingCreateInput> = {
         invites: {
             create: [
                 {
-                    id: generatePK(),
-                    user: { connect: { id: "user_placeholder_id_1" } },
-                    createdBy: { connect: { id: "user_placeholder_id_2" } },
+                    id: getMeetingDbIds().invite1,
+                    user: { connect: { id: getMeetingDbIds().user1 } },
                 },
             ],
         },
@@ -88,23 +93,22 @@ export const meetingDbFixtures: DbTestFixtures<Prisma.meetingCreateInput> = {
             scheduledFor: "not-a-date", // Should be Date
         },
         invalidTeamConnection: {
-            id: generatePK(),
+            id: getMeetingDbIds().meeting3,
             publicId: generatePublicId(),
-            team: { connect: { id: "non-existent-team-id" } },
+            team: { connect: { id: BigInt("999999999999999") } }, // Non-existent bigint ID
             openToAnyoneWithInvite: false,
             showOnTeamProfile: true,
         },
         invalidInviteUser: {
             id: generatePK(),
             publicId: generatePublicId(),
-            team: { connect: { id: "team_placeholder_id" } },
+            team: { connect: { id: getMeetingDbIds().team1 } },
             openToAnyoneWithInvite: false,
             showOnTeamProfile: true,
             invites: {
                 create: [{
                     id: generatePK(),
-                    user: { connect: { id: "non-existent-user-id" } },
-                    createdBy: { connect: { id: "user_placeholder_id" } },
+                    user: { connect: { id: BigInt("999999999999998") } }, // Non-existent bigint ID
                 }],
             },
         },
@@ -113,10 +117,9 @@ export const meetingDbFixtures: DbTestFixtures<Prisma.meetingCreateInput> = {
         pastMeeting: {
             id: generatePK(),
             publicId: generatePublicId(),
-            team: { connect: { id: "team_placeholder_id" } },
+            team: { connect: { id: getMeetingDbIds().team1 } },
             openToAnyoneWithInvite: false,
             showOnTeamProfile: true,
-            scheduledFor: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 1 week ago
             translations: {
                 create: [{
                     id: generatePK(),
@@ -129,21 +132,20 @@ export const meetingDbFixtures: DbTestFixtures<Prisma.meetingCreateInput> = {
         manyInvites: {
             id: generatePK(),
             publicId: generatePublicId(),
-            team: { connect: { id: "team_placeholder_id" } },
+            team: { connect: { id: getMeetingDbIds().team1 } },
             openToAnyoneWithInvite: false,
             showOnTeamProfile: true,
             invites: {
                 create: Array.from({ length: 50 }, (_, i) => ({
                     id: generatePK(),
-                    user: { connect: { id: `user_${i}_id` } },
-                    createdBy: { connect: { id: "creator_user_id" } },
+                    user: { connect: { id: generatePK() } }, // Generate unique user IDs
                 })),
             },
         },
         multiLanguageTranslations: {
             id: generatePK(),
             publicId: generatePublicId(),
-            team: { connect: { id: "team_placeholder_id" } },
+            team: { connect: { id: getMeetingDbIds().team1 } },
             openToAnyoneWithInvite: true,
             showOnTeamProfile: true,
             translations: {
@@ -159,10 +161,9 @@ export const meetingDbFixtures: DbTestFixtures<Prisma.meetingCreateInput> = {
         privateTeamMeeting: {
             id: generatePK(),
             publicId: generatePublicId(),
-            team: { connect: { id: "private_team_id" } },
+            team: { connect: { id: getMeetingDbIds().team2 } }, // Use team2 for private meetings
             openToAnyoneWithInvite: false,
             showOnTeamProfile: false,
-            scheduledFor: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours from now
             translations: {
                 create: [{
                     id: generatePK(),
@@ -196,21 +197,21 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.meetingCreateInpu
                 uniqueViolation: {
                     id: getMeetingDbIds().meeting1, // Duplicate ID
                     publicId: generatePublicId(),
-                    team: { connect: { id: "team_placeholder_id" } },
+                    team: { connect: { id: getMeetingDbIds().team1 } },
                     openToAnyoneWithInvite: false,
                     showOnTeamProfile: true,
                 },
                 foreignKeyViolation: {
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    team: { connect: { id: "non-existent-team-id" } },
+                    team: { connect: { id: BigInt("999999999999997") } }, // Non-existent bigint ID
                     openToAnyoneWithInvite: false,
                     showOnTeamProfile: true,
                 },
                 checkConstraintViolation: {
                     id: generatePK(),
                     publicId: "", // Empty publicId violates constraint
-                    team: { connect: { id: "team_placeholder_id" } },
+                    team: { connect: { id: getMeetingDbIds().team1 } },
                     openToAnyoneWithInvite: false,
                     showOnTeamProfile: true,
                 },
@@ -221,32 +222,29 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.meetingCreateInpu
                 outOfRange: {
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    team: { connect: { id: "team_placeholder_id" } },
+                    team: { connect: { id: getMeetingDbIds().team1 } },
                     openToAnyoneWithInvite: false,
                     showOnTeamProfile: true,
-                    scheduledFor: new Date("invalid-date"),
                 },
             },
             businessLogic: {
                 pastMeetingWithInvites: {
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    team: { connect: { id: "team_placeholder_id" } },
+                    team: { connect: { id: getMeetingDbIds().team1 } },
                     openToAnyoneWithInvite: false,
                     showOnTeamProfile: true,
-                    scheduledFor: new Date(Date.now() - 24 * 60 * 60 * 1000), // Past date
                     invites: {
                         create: [{
                             id: generatePK(),
-                            user: { connect: { id: "user_placeholder_id" } },
-                            createdBy: { connect: { id: "creator_user_id" } },
+                            user: { connect: { id: getMeetingDbIds().user1 } },
                         }],
                     },
                 },
                 hiddenMeetingWithPublicInvites: {
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    team: { connect: { id: "team_placeholder_id" } },
+                    team: { connect: { id: getMeetingDbIds().team1 } },
                     openToAnyoneWithInvite: true, // Public invites
                     showOnTeamProfile: false, // But hidden from team profile
                 },
@@ -257,7 +255,7 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.meetingCreateInpu
     /**
      * Add team association to a meeting fixture
      */
-    protected addTeamAssociation(data: Prisma.meetingCreateInput, teamId: string): Prisma.meetingCreateInput {
+    protected addTeamAssociation(data: Prisma.meetingCreateInput, teamId: bigint): Prisma.meetingCreateInput {
         return {
             ...data,
             team: { connect: { id: teamId } },
@@ -267,14 +265,13 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.meetingCreateInpu
     /**
      * Add invites to a meeting fixture
      */
-    protected addInvites(data: Prisma.meetingCreateInput, invites: Array<{ userId: string; createdById: string }>): Prisma.meetingCreateInput {
+    protected addInvites(data: Prisma.meetingCreateInput, invites: Array<{ userId: bigint }>): Prisma.meetingCreateInput {
         return {
             ...data,
             invites: {
                 create: invites.map(invite => ({
                     id: generatePK(),
                     user: { connect: { id: invite.userId } },
-                    createdBy: { connect: { id: invite.createdById } },
                 })),
             },
         };
@@ -293,9 +290,7 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.meetingCreateInpu
         if (data.showOnTeamProfile === undefined) errors.push("showOnTeamProfile is required");
 
         // Check business logic
-        if (data.scheduledFor && data.scheduledFor < new Date()) {
-            warnings.push("Meeting is scheduled in the past");
-        }
+        // Note: Schedule validation would be handled at the schedule level, not here
 
         if (data.openToAnyoneWithInvite && !data.showOnTeamProfile) {
             warnings.push("Meeting allows public invites but is hidden from team profile");
@@ -311,7 +306,7 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.meetingCreateInpu
 
     // Static methods for backward compatibility
     static createMinimal(
-        teamId: string,
+        teamId: bigint,
         overrides?: Partial<Prisma.meetingCreateInput>,
     ): Prisma.meetingCreateInput {
         const factory = new MeetingDbFactory();
@@ -320,7 +315,7 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.meetingCreateInpu
     }
 
     static createWithTranslations(
-        teamId: string,
+        teamId: bigint,
         translations: Array<{ language: string; name: string; description?: string; link?: string }>,
         overrides?: Partial<Prisma.meetingCreateInput>,
     ): Prisma.meetingCreateInput {
@@ -341,8 +336,7 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.meetingCreateInpu
     }
 
     static createScheduled(
-        teamId: string,
-        scheduledFor: Date,
+        teamId: bigint,
         overrides?: Partial<Prisma.meetingCreateInput>,
     ): Prisma.meetingCreateInput {
         return this.createWithTranslations(
@@ -353,15 +347,14 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.meetingCreateInpu
                 description: "Team sync meeting",
             }],
             {
-                scheduledFor,
                 ...overrides,
             },
         );
     }
 
     static createWithInvites(
-        teamId: string,
-        invitedByIds: Array<{ userId: string; createdById: string }>,
+        teamId: bigint,
+        invitedByIds: Array<{ userId: bigint }>,
         overrides?: Partial<Prisma.meetingCreateInput>,
     ): Prisma.meetingCreateInput {
         const factory = new MeetingDbFactory();
@@ -379,16 +372,14 @@ export class MeetingDbFactory extends EnhancedDbFactory<Prisma.meetingCreateInpu
  */
 export class MeetingInviteDbFactory {
     static createMinimal(
-        userId: string,
-        meetingId: string,
-        createdById: string,
-        overrides?: Partial<Prisma.MeetingInviteCreateInput>,
-    ): Prisma.MeetingInviteCreateInput {
+        userId: bigint,
+        meetingId: bigint,
+        overrides?: Partial<Prisma.meeting_inviteCreateInput>,
+    ): Prisma.meeting_inviteCreateInput {
         return {
             id: generatePK(),
             user: { connect: { id: userId } },
             meeting: { connect: { id: meetingId } },
-            createdBy: { connect: { id: createdById } },
             ...overrides,
         };
     }
@@ -400,10 +391,9 @@ export class MeetingInviteDbFactory {
 export async function seedMeetings(
     prisma: any,
     options: {
-        teamId: string;
-        createdById: string;
+        teamId: bigint;
         count?: number;
-        withInvites?: Array<{ userId: string }>;
+        withInvites?: Array<{ userId: bigint }>;
         scheduleDates?: Date[];
     },
 ): Promise<BulkSeedResult<any>> {
@@ -411,11 +401,8 @@ export async function seedMeetings(
     const meetings = [];
     const count = options.count || 1;
     let inviteCount = 0;
-    let scheduledCount = 0;
 
     for (let i = 0; i < count; i++) {
-        const scheduledFor = options.scheduleDates?.[i] || new Date(Date.now() + (i + 1) * 24 * 60 * 60 * 1000);
-
         let meetingData: Prisma.meetingCreateInput;
 
         if (options.withInvites) {
@@ -423,13 +410,11 @@ export async function seedMeetings(
                 options.teamId,
                 options.withInvites.map(inv => ({
                     userId: inv.userId,
-                    createdById: options.createdById,
                 })),
-                { scheduledFor },
             );
             inviteCount += options.withInvites.length;
         } else {
-            meetingData = MeetingDbFactory.createScheduled(options.teamId, scheduledFor, {
+            meetingData = MeetingDbFactory.createScheduled(options.teamId, {
                 translations: {
                     create: [{
                         id: generatePK(),
@@ -439,10 +424,6 @@ export async function seedMeetings(
                     }],
                 },
             });
-        }
-
-        if (scheduledFor > new Date()) {
-            scheduledCount++;
         }
 
         const meeting = await prisma.meeting.create({
@@ -460,9 +441,10 @@ export async function seedMeetings(
         records: meetings,
         summary: {
             total: meetings.length,
-            withInvites: inviteCount,
-            scheduled: scheduledCount,
+            withAuth: 0,
+            bots: 0,
             teams: 1,
+            withInvites: inviteCount,
         },
     };
 }

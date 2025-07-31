@@ -30,6 +30,7 @@ class HealthResponse(BaseModel):
     ai_status: Dict[str, Any]
     mode_info: Optional[Dict[str, Any]] = None
     proxy_status: Optional[Dict[str, Any]] = None
+    browser_status: Optional[Dict[str, Any]] = None
 
 
 class CapabilitiesResponse(BaseModel):
@@ -47,6 +48,7 @@ class ScreenshotResponse(BaseModel):
     format: str
     size: Dict[str, int]
     data: str = Field(..., description="Base64 encoded image data")
+    window_info: Optional[Dict[str, Any]] = Field(default=None, description="Window information if captured from specific window")
 
 
 class MousePositionResponse(BaseModel):

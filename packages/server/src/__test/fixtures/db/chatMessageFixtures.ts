@@ -2,6 +2,7 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with proper types
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { generatePK } from "@vrooli/shared";
+// eslint-disable-next-line import/extensions
 import { messageConfigFixtures } from "@vrooli/shared/test-fixtures/config";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
 import type { BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
@@ -34,7 +35,7 @@ export const chatMessageDbFixtures: DbTestFixtures<Prisma.chat_messageCreateInpu
         text: "Test message",
         chatId: BigInt(chatMessageDbIds.chat1),
         userId: BigInt(chatMessageDbIds.user1),
-        config: messageConfigFixtures.minimal as any,
+        config: messageConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
     },
     complete: {
         id: generatePK(),
@@ -44,7 +45,7 @@ export const chatMessageDbFixtures: DbTestFixtures<Prisma.chat_messageCreateInpu
         chatId: BigInt(chatMessageDbIds.chat1),
         userId: BigInt(chatMessageDbIds.user1),
         parentId: BigInt(chatMessageDbIds.message1),
-        config: messageConfigFixtures.complete as any,
+        config: messageConfigFixtures.complete as unknown as Prisma.InputJsonValue,
         score: 5,
     },
     invalid: {
@@ -68,7 +69,7 @@ export const chatMessageDbFixtures: DbTestFixtures<Prisma.chat_messageCreateInpu
             text: "Invalid version index",
             chatId: BigInt(chatMessageDbIds.chat1),
             userId: BigInt(chatMessageDbIds.user1),
-            config: messageConfigFixtures.minimal as any,
+            config: messageConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
         },
         emptyText: {
             id: generatePK(),
@@ -77,7 +78,7 @@ export const chatMessageDbFixtures: DbTestFixtures<Prisma.chat_messageCreateInpu
             text: "", // Empty text
             chatId: BigInt(chatMessageDbIds.chat1),
             userId: BigInt(chatMessageDbIds.user1),
-            config: messageConfigFixtures.minimal as any,
+            config: messageConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
         },
     },
     edgeCases: {
@@ -88,7 +89,7 @@ export const chatMessageDbFixtures: DbTestFixtures<Prisma.chat_messageCreateInpu
             text: "Root message without parent",
             chatId: BigInt(chatMessageDbIds.chat1),
             userId: BigInt(chatMessageDbIds.user1),
-            config: messageConfigFixtures.variants.userMessage as any,
+            config: messageConfigFixtures.variants.userMessage as unknown as Prisma.InputJsonValue,
         },
         replyMessage: {
             id: generatePK(),
@@ -98,7 +99,7 @@ export const chatMessageDbFixtures: DbTestFixtures<Prisma.chat_messageCreateInpu
             chatId: BigInt(chatMessageDbIds.chat1),
             userId: BigInt(chatMessageDbIds.user2),
             parentId: BigInt(chatMessageDbIds.message1),
-            config: messageConfigFixtures.minimal as any,
+            config: messageConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
         },
         botMessage: {
             id: generatePK(),
@@ -107,7 +108,7 @@ export const chatMessageDbFixtures: DbTestFixtures<Prisma.chat_messageCreateInpu
             text: "This is an automated bot response with helpful information.",
             chatId: BigInt(chatMessageDbIds.chat1),
             userId: BigInt(chatMessageDbIds.bot1),
-            config: messageConfigFixtures.variants.assistantWithTools as any,
+            config: messageConfigFixtures.variants.assistantWithTools as unknown as Prisma.InputJsonValue,
         },
         longMessage: {
             id: generatePK(),
@@ -116,7 +117,7 @@ export const chatMessageDbFixtures: DbTestFixtures<Prisma.chat_messageCreateInpu
             text: "This is a very long message that contains a lot of text to test how the system handles messages with substantial content. ".repeat(10),
             chatId: BigInt(chatMessageDbIds.chat1),
             userId: BigInt(chatMessageDbIds.user1),
-            config: messageConfigFixtures.minimal as any,
+            config: messageConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
         },
         multiLanguageMessage: {
             id: generatePK(),
@@ -125,7 +126,7 @@ export const chatMessageDbFixtures: DbTestFixtures<Prisma.chat_messageCreateInpu
             text: "Hello world",
             chatId: BigInt(chatMessageDbIds.chat1),
             userId: BigInt(chatMessageDbIds.user1),
-            config: messageConfigFixtures.minimal as any,
+            config: messageConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
         },
         highVersionIndex: {
             id: generatePK(),
@@ -134,7 +135,7 @@ export const chatMessageDbFixtures: DbTestFixtures<Prisma.chat_messageCreateInpu
             text: "Message with high version index",
             chatId: BigInt(chatMessageDbIds.chat1),
             userId: BigInt(chatMessageDbIds.user1),
-            config: messageConfigFixtures.minimal as any,
+            config: messageConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
         },
         specialCharactersMessage: {
             id: generatePK(),
@@ -143,7 +144,7 @@ export const chatMessageDbFixtures: DbTestFixtures<Prisma.chat_messageCreateInpu
             text: "Message with special chars: !@#$%^&*()_+{}|:<>?[]\\;'\",./ and emojis 😀😁😂",
             chatId: BigInt(chatMessageDbIds.chat1),
             userId: BigInt(chatMessageDbIds.user1),
-            config: messageConfigFixtures.minimal as any,
+            config: messageConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
         },
         pendingMessage: {
             id: generatePK(),
@@ -152,7 +153,7 @@ export const chatMessageDbFixtures: DbTestFixtures<Prisma.chat_messageCreateInpu
             text: "Message still pending delivery",
             chatId: BigInt(chatMessageDbIds.chat1),
             userId: BigInt(chatMessageDbIds.user1),
-            config: messageConfigFixtures.minimal as any,
+            config: messageConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
             score: -1, // Could indicate pending state
         },
         failedMessage: {
@@ -162,7 +163,7 @@ export const chatMessageDbFixtures: DbTestFixtures<Prisma.chat_messageCreateInpu
             text: "Message failed to send",
             chatId: BigInt(chatMessageDbIds.chat1),
             userId: BigInt(chatMessageDbIds.user1),
-            config: messageConfigFixtures.minimal as any,
+            config: messageConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
             score: -2, // Could indicate failed state
         },
         threadedConversation: {
@@ -173,7 +174,7 @@ export const chatMessageDbFixtures: DbTestFixtures<Prisma.chat_messageCreateInpu
             chatId: BigInt(chatMessageDbIds.chat1),
             userId: BigInt(chatMessageDbIds.user1),
             parentId: BigInt(chatMessageDbIds.message2),
-            config: messageConfigFixtures.minimal as any,
+            config: messageConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
         },
     },
 };
@@ -203,7 +204,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
                     text: "Duplicate message",
                     chatId: BigInt(chatMessageDbIds.chat1),
                     userId: BigInt(chatMessageDbIds.user1),
-                    config: messageConfigFixtures.minimal as any,
+                    config: messageConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
                 },
                 foreignKeyViolation: {
                     id: generatePK(),
@@ -212,7 +213,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
                     text: "Foreign key violation",
                     chat: { connect: { id: "non-existent-chat-id" } },
                     user: { connect: { id: chatMessageDbIds.user1 } },
-                    config: messageConfigFixtures.minimal as any,
+                    config: messageConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
                 },
                 checkConstraintViolation: {
                     id: generatePK(),
@@ -221,7 +222,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
                     text: "Check constraint violation",
                     chatId: BigInt(chatMessageDbIds.chat1),
                     userId: BigInt(chatMessageDbIds.user1),
-                    config: messageConfigFixtures.minimal as any,
+                    config: messageConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
                 },
             },
             validation: {
@@ -234,7 +235,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
                     text: "a".repeat(50000), // Text too long (max 32768)
                     chatId: BigInt(chatMessageDbIds.chat1),
                     userId: BigInt(chatMessageDbIds.user1),
-                    config: messageConfigFixtures.minimal as any,
+                    config: messageConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
                 },
             },
             businessLogic: {
@@ -246,7 +247,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
                     chatId: BigInt(chatMessageDbIds.chat1),
                     userId: BigInt(chatMessageDbIds.user1),
                     parentId: BigInt(chatMessageDbIds.message1), // Would create circular reference
-                    config: messageConfigFixtures.minimal as any,
+                    config: messageConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
                 },
                 emptyText: chatMessageDbFixtures.invalid.emptyText,
             },
@@ -311,7 +312,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
             versionIndex: 0,
             language: "en",
             text: "Test message",
-            config: messageConfigFixtures.minimal as any,
+            config: messageConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
             ...overrides,
         });
     }
@@ -334,7 +335,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
         overrides?: Partial<Prisma.chat_messageCreateInput>,
     ): Prisma.chat_messageCreateInput {
         return this.createMinimal(chatId, botId, {
-            config: messageConfigFixtures.variants.assistantWithTools as any,
+            config: messageConfigFixtures.variants.assistantWithTools as unknown as Prisma.InputJsonValue,
             text: "This is an automated bot response.",
             ...overrides,
         });
@@ -351,7 +352,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
         overrides?: Partial<Prisma.chat_messageCreateInput>,
     ): Prisma.chat_messageCreateInput {
         return this.createMinimal(chatId, userId, {
-            config: messageConfigFixtures.variants.userMessage as any,
+            config: messageConfigFixtures.variants.userMessage as unknown as Prisma.InputJsonValue,
             text,
             score,
             ...overrides,
@@ -376,7 +377,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
             : messageConfigFixtures.variants.assistantWithTools;
 
         return this.createMinimal(chatId, botId, {
-            config,
+            config: config as unknown as Prisma.InputJsonValue,
             text,
             ...overrides,
         });
@@ -447,7 +448,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
                 text: msg.text,
                 chatId: BigInt(chatId),
                 userId: BigInt(senderId),
-                config,
+                config: config as unknown as Prisma.InputJsonValue,
                 score: msg.score || 0,
             };
 
@@ -474,7 +475,7 @@ export class ChatMessageDbFactory extends EnhancedDbFactory<Prisma.chat_messageC
                 ...messageConfigFixtures.minimal,
                 role: "system",
                 eventTopic: "typing-indicator",
-            },
+            } as unknown as Prisma.InputJsonValue,
             text: "...",
             score: -1,
             ...overrides,
@@ -510,7 +511,7 @@ export async function seedChatMessages(
             text: msg.text || "Test message",
             chatId: BigInt(options.chatId),
             userId: BigInt(msg.userId),
-            config: messageConfigFixtures.minimal as any,
+            config: messageConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
         };
 
         if (msg.parentId) {
@@ -525,11 +526,11 @@ export async function seedChatMessages(
             botCount++;
         }
 
-        const message = await prisma.chatMessage.create({
+        const message = await prisma.chat_message.create({
             data: messageData,
             include: {
-                translations: true,
                 user: true,
+                chat: true,
             },
         });
         createdMessages.push(message);
@@ -549,7 +550,7 @@ export async function seedChatMessages(
 }
 
 type ConversationNode = {
-    id?: string;
+    id?: string | bigint;
     userId: string;
     text: string;
     parentId?: string;
@@ -571,7 +572,7 @@ export async function seedConversationTree(
     let botCount = 0;
 
     async function createNode(node: ConversationNode, parentId?: string) {
-        const messageId = node.id || generatePK();
+        const messageId = node.id ? (typeof node.id === "string" ? BigInt(node.id) : node.id) : generatePK();
         const messageData: Prisma.chat_messageCreateInput = {
             id: messageId,
             versionIndex: 0,
@@ -579,7 +580,7 @@ export async function seedConversationTree(
             text: node.text,
             chatId: BigInt(options.chatId),
             userId: BigInt(node.userId),
-            config: messageConfigFixtures.minimal as any,
+            config: messageConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
         };
 
         if (parentId) {
@@ -591,11 +592,11 @@ export async function seedConversationTree(
             botCount++;
         }
 
-        const message = await prisma.chatMessage.create({
+        const message = await prisma.chat_message.create({
             data: messageData,
             include: {
-                translations: true,
                 user: true,
+                chat: true,
             },
         });
         createdMessages[messageId] = message;

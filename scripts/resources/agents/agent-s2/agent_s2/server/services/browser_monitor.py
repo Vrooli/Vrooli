@@ -31,7 +31,7 @@ class NavigationEvent:
         try:
             parsed = urlparse(url)
             return parsed.netloc.lower()
-        except:
+        except (ValueError, AttributeError):
             return ""
             
     def to_dict(self) -> Dict[str, Any]:
@@ -221,7 +221,7 @@ class BrowserSecurityMonitor:
                 try:
                     with open(log_file, 'r') as f:
                         incidents = json.load(f)
-                except:
+                except (FileNotFoundError, json.JSONDecodeError, PermissionError):
                     incidents = []
                     
             # Add new incident

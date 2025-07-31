@@ -50,7 +50,7 @@ class AgentS2Client:
         try:
             response = self._request('GET', '/health')
             return response.ok
-        except:
+        except (requests.RequestException, ConnectionError, TimeoutError):
             return False
     
     def screenshot(self, 

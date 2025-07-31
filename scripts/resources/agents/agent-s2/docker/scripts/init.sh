@@ -112,7 +112,7 @@ if [ "${AGENT_S2_ENABLE_PROXY:-true}" = "true" ]; then
     fi
     
     # Setup iptables rules for transparent proxy
-    PROXY_PORT="${PROXY_PORT:-8080}"
+    PROXY_PORT="${PROXY_PORT:-8085}"
     PROXY_USER="agents2"
     
     log_info "Setting up iptables rules for transparent proxy on port $PROXY_PORT..."

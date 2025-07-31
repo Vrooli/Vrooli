@@ -5,7 +5,7 @@
  */
 
 import { type Prisma } from "@prisma/client";
-import { BotConfig, generatePublicId, type BotConfigObject } from "@vrooli/shared";
+import { BotConfig, generatePublicId, ModelStrategy, type BotConfigObject, type EmitAction, type InvokeAction, type RoutineAction } from "@vrooli/shared";
 import { DbProvider } from "../../../../db/provider.js";
 import { logger } from "../../../../events/logger.js";
 import type { AgentTestData } from "../../types.js";
@@ -16,7 +16,11 @@ export class AgentDbFactory {
         const botConfig: BotConfigObject = {
             __version: "1.0",
             resources: [],
-            model: agentData.resources?.preferredModel,
+            modelConfig: agentData.resources?.preferredModel ? {
+                strategy: ModelStrategy.FIXED,
+                preferredModel: agentData.resources.preferredModel,
+                offlineOnly: false,
+            } : undefined,
             maxTokens: undefined, // Can be added to AgentTestData if needed
             agentSpec: agentData.behaviors && agentData.behaviors.length > 0 ? {
                 goal: agentData.goal,
@@ -25,13 +29,36 @@ export class AgentDbFactory {
                         topic: b.trigger.topic,
                         when: JSON.stringify(b.trigger.conditions),
                     },
-                    action: {
-                        type: b.action.type,
-                        routineId: b.action.id,
-                        label: b.action.label,
-                        topic: b.action.topic,
-                        outputOperations: b.action.outputOperations,
-                    },
+                    action: ((): RoutineAction | InvokeAction | EmitAction => {
+                        // Map invalid test action types to valid BehaviourSpec action types
+                        const actionType = b.action.type;
+                        if (actionType === "decision" || actionType === "accumulate") {
+                            // Map to InvokeAction
+                            return {
+                                type: "invoke",
+                                purpose: b.action.label || `Agent ${actionType} reasoning`,
+                            };
+                        } else if (actionType === "routine") {
+                            // RoutineAction
+                            return {
+                                type: "routine",
+                                routineId: b.action.id,
+                                label: b.action.label || "Routine action",
+                            };
+                        } else if (actionType === "emit") {
+                            // EmitAction
+                            return {
+                                type: "emit",
+                                eventType: b.action.topic || "default.event",
+                            };
+                        } else {
+                            // Fallback to invoke for unknown types
+                            return {
+                                type: "invoke",
+                                purpose: b.action.label || "Agent reasoning",
+                            };
+                        }
+                    })(),
                 })),
                 subscriptions: agentData.subscriptions, // Already an array of strings
             } : undefined,
@@ -86,8 +113,12 @@ export class AgentDbFactory {
             const currentBotConfig = BotConfig.parse({ botSettings: currentUser?.botSettings as unknown as BotConfigObject }, logger);
 
             const updatedBotConfig: BotConfigObject = {
-                ...currentBotConfig,
-                model: data.resources?.preferredModel || currentBotConfig.model,
+                ...currentBotConfig.export(),
+                modelConfig: data.resources?.preferredModel ? {
+                    strategy: ModelStrategy.FIXED,
+                    preferredModel: data.resources.preferredModel,
+                    offlineOnly: false,
+                } : currentBotConfig.modelConfig,
                 agentSpec: {
                     goal: data.goal || currentBotConfig.agentSpec?.goal || "",
                     behaviors: data.behaviors ? data.behaviors.map(b => ({
@@ -95,13 +126,36 @@ export class AgentDbFactory {
                             topic: b.trigger.topic,
                             when: JSON.stringify(b.trigger.conditions),
                         },
-                        action: {
-                            type: b.action.type,
-                            routineId: b.action.id,
-                            label: b.action.label,
-                            topic: b.action.topic,
-                            outputOperations: b.action.outputOperations,
-                        },
+                        action: ((): RoutineAction | InvokeAction | EmitAction => {
+                            // Map invalid test action types to valid BehaviourSpec action types
+                            const actionType = b.action.type;
+                            if (actionType === "decision" || actionType === "accumulate") {
+                                // Map to InvokeAction
+                                return {
+                                    type: "invoke",
+                                    purpose: b.action.label || `Agent ${actionType} reasoning`,
+                                };
+                            } else if (actionType === "routine") {
+                                // RoutineAction
+                                return {
+                                    type: "routine",
+                                    routineId: b.action.id,
+                                    label: b.action.label || "Routine action",
+                                };
+                            } else if (actionType === "emit") {
+                                // EmitAction
+                                return {
+                                    type: "emit",
+                                    eventType: b.action.topic || "default.event",
+                                };
+                            } else {
+                                // Fallback to invoke for unknown types
+                                return {
+                                    type: "invoke",
+                                    purpose: b.action.label || "Agent reasoning",
+                                };
+                            }
+                        })(),
                     })) : currentBotConfig.agentSpec?.behaviors || [],
                     subscriptions: data.subscriptions || currentBotConfig.agentSpec?.subscriptions || [],
                 },

@@ -1,5 +1,5 @@
-import { generatePK, generatePublicId } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { generatePK, generatePublicId } from "@vrooli/shared";
 
 /**
  * Database fixtures for MeetingInvite model - used for seeding test data
@@ -7,8 +7,8 @@ import { type Prisma } from "@prisma/client";
 
 export class MeetingInviteDbFactory {
     static createMinimal(
-        meetingId: string,
-        userId: string,
+        meetingId: bigint,
+        userId: bigint,
         overrides?: Partial<Prisma.meeting_inviteCreateInput>,
     ): Prisma.meeting_inviteCreateInput {
         return {
@@ -22,8 +22,8 @@ export class MeetingInviteDbFactory {
     }
 
     static createWithMessage(
-        meetingId: string,
-        userId: string,
+        meetingId: bigint,
+        userId: bigint,
         message: string,
         overrides?: Partial<Prisma.meeting_inviteCreateInput>,
     ): Prisma.meeting_inviteCreateInput {
@@ -34,8 +34,8 @@ export class MeetingInviteDbFactory {
     }
 
     static createAccepted(
-        meetingId: string,
-        userId: string,
+        meetingId: bigint,
+        userId: bigint,
         overrides?: Partial<Prisma.meeting_inviteCreateInput>,
     ): Prisma.meeting_inviteCreateInput {
         return this.createMinimal(meetingId, userId, {
@@ -45,8 +45,8 @@ export class MeetingInviteDbFactory {
     }
 
     static createDeclined(
-        meetingId: string,
-        userId: string,
+        meetingId: bigint,
+        userId: bigint,
         overrides?: Partial<Prisma.meeting_inviteCreateInput>,
     ): Prisma.meeting_inviteCreateInput {
         return this.createMinimal(meetingId, userId, {
@@ -62,8 +62,8 @@ export class MeetingInviteDbFactory {
 export async function seedMeetingInvites(
     prisma: any,
     options: {
-        meetingId: string;
-        userIds: string[];
+        meetingId: bigint;
+        userIds: bigint[];
         status?: "Pending" | "Accepted" | "Declined";
         withCustomMessages?: boolean;
         messagePrefix?: string;
@@ -90,7 +90,7 @@ export async function seedMeetingInvites(
             inviteData = MeetingInviteDbFactory.createMinimal(options.meetingId, userId);
         }
 
-        const invite = await prisma.meetingInvite.create({ 
+        const invite = await prisma.meetingInvite.create({
             data: inviteData,
             include: {
                 meeting: true,
@@ -109,8 +109,8 @@ export async function seedMeetingInvites(
 export async function createMeetingWithInvites(
     prisma: any,
     options: {
-        meetingData: Prisma.MeetingCreateInput;
-        invitedUserIds: string[];
+        meetingData: Prisma.meetingCreateInput;
+        invitedUserIds: bigint[];
         inviteStatus?: "Pending" | "Accepted" | "Declined";
         withCustomMessages?: boolean;
     },

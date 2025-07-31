@@ -21,6 +21,9 @@ mitmproxy==10.1.6
 # Async support
 aiohttp==3.9.1
 
+# System monitoring
+psutil==5.9.8
+
 # Optional AI Dependencies (install separately if needed)
 # gui-agents-s2
 # anthropic

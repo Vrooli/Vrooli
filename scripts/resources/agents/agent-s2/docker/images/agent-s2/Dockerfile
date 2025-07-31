@@ -70,6 +70,7 @@ COPY docker/scripts/init.sh /opt/agent-s2/
 COPY --chown=agents2:agents2 docker/scripts/startup.sh /opt/agent-s2/
 COPY --chown=agents2:agents2 docker/scripts/vnc-password.sh /opt/agent-s2/
 COPY --chown=agents2:agents2 docker/scripts/setup-proxy.sh /opt/agent-s2/
+COPY --chown=agents2:agents2 docker/scripts/firefox-monitor.sh /opt/agent-s2/
 
 # Copy Python package
 COPY --chown=agents2:agents2 agent_s2 /opt/agent-s2/agent_s2/
@@ -96,6 +97,10 @@ ENV AGENT_S2_USER=agents2
 ENV HOME=/home/agents2
 ENV XDG_RUNTIME_DIR=/tmp/runtime-agents2
 ENV PYTHONPATH=/opt/agent-s2:$PYTHONPATH
+# Firefox crash prevention
+ENV MOZ_CRASHREPORTER_DISABLE=1
+ENV MOZ_DISABLE_CONTENT_SANDBOX=1
+ENV MOZ_FORCE_DISABLE_E10S=1
 
 # AI Configuration environment variables
 ENV AGENT_S2_AI_PROVIDER=ollama

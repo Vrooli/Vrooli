@@ -73,6 +73,23 @@ user_pref("browser.cache.disk.enable", false);
 user_pref("browser.cache.memory.enable", true);
 user_pref("browser.cache.memory.capacity", 524288);
 
+// Memory and stability optimizations
+user_pref("browser.sessionhistory.max_entries", 10);
+user_pref("browser.sessionhistory.max_total_viewers", 0);
+user_pref("browser.sessionstore.interval", 300000);
+user_pref("browser.sessionstore.max_tabs_undo", 5);
+user_pref("browser.sessionstore.max_windows_undo", 2);
+user_pref("browser.tabs.max_tabs_undo", 10);
+user_pref("browser.tabs.unloadOnLowMemory", true);
+user_pref("browser.tabs.min_inactive_duration_before_unload", 300000);
+user_pref("javascript.options.mem.max", 512000);
+user_pref("javascript.options.mem.gc_incremental_slice_ms", 10);
+user_pref("dom.ipc.processCount", 4);
+user_pref("dom.ipc.processCount.webIsolated", 1);
+user_pref("layers.acceleration.disabled", false);
+user_pref("gfx.webrender.all", false);
+user_pref("gfx.webrender.enabled", false);
+
 // Disable password manager prompts
 user_pref("signon.rememberSignons", false);
 user_pref("signon.autofillForms", false);
@@ -240,10 +257,9 @@ chown -R agents2:agents2 /home/agents2/.mozilla
 # Note: Security proxy setup (iptables) is now handled by init.sh during container startup
 # The mitmproxy service itself is started by the Python application
 
-# Start Firefox in the background (minimized)
-echo "Starting Firefox..."
-DISPLAY=:99 firefox-esr --new-window "about:blank" > /var/log/supervisor/firefox.log 2>&1 &
-sleep 3
+# Firefox is now managed by the firefox-monitor supervisor process
+# This prevents crashes and provides automatic recovery
+echo "Firefox will be managed by supervisor process..."
 
 # Start xterm terminal (for emergency access)
 echo "Starting terminal..."

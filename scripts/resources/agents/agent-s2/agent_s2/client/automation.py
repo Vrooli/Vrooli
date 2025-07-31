@@ -293,6 +293,8 @@ class AutomationClient:
             if 'x' in result and 'y' in result:
                 self.click(result['x'], result['y'])
                 return True
-        except:
-            pass
+        except (requests.RequestException, KeyError, ValueError) as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.debug(f"Failed to find and click element: {e}")
         return False

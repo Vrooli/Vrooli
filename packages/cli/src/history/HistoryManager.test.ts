@@ -37,6 +37,7 @@ describe("HistoryManager", () => {
         mockConfig = {
             getActiveProfileName: vi.fn().mockReturnValue("default"),
             getActiveProfile: vi.fn().mockReturnValue({ userId: "user123" }),
+            getConfigDir: vi.fn().mockReturnValue("/tmp/.vrooli"),
         } as unknown as ConfigManager;
 
         historyManager = new HistoryManager(mockConfig);

@@ -1,7 +1,8 @@
-import { generatePK } from "@vrooli/shared";
+/* eslint-disable no-magic-numbers */
 import { type Prisma } from "@prisma/client";
+import { generatePK } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
+import type { BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
 
 /**
  * Database fixtures for Award model - used for seeding test data
@@ -24,91 +25,91 @@ export function getAwardDbIds() {
  */
 export function getAwardDbFixtures(): DbTestFixtures<Prisma.awardCreateInput> {
     return {
-    minimal: {
-        id: generatePK(),
-        user: { connect: { id: getAwardDbIds().user1 } },
-        category: "TestCategory",
-        progress: 0,
-    },
-    complete: {
-        id: generatePK(),
-        user: { connect: { id: getAwardDbIds().user1 } },
-        category: "CompleteCategory",
-        progress: 100,
-        timeCompleted: new Date(),
-    },
-    invalid: {
-        missingRequired: {
-            // Missing required user and category
+        minimal: {
+            id: generatePK(),
+            user: { connect: { id: getAwardDbIds().user1 } },
+            category: "TestCategory",
             progress: 0,
         },
-        invalidTypes: {
-            id: "not-a-valid-snowflake",
-            user: "invalid-user-reference", // Should be connect object
-            category: 123, // Should be string
-            progress: "invalid", // Should be number
-            timeCompleted: "not-a-date", // Should be Date
-        },
-        invalidProgress: {
+        complete: {
             id: generatePK(),
             user: { connect: { id: getAwardDbIds().user1 } },
-            category: "InvalidProgress",
-            progress: -10, // Negative progress
-        },
-        progressTooHigh: {
-            id: generatePK(),
-            user: { connect: { id: getAwardDbIds().user1 } },
-            category: "TooHighProgress",
-            progress: 150, // Progress over 100
-        },
-    },
-    edgeCases: {
-        zeroProgress: {
-            id: generatePK(),
-            user: { connect: { id: getAwardDbIds().user1 } },
-            category: "ZeroProgress",
-            progress: 0,
-        },
-        maxProgress: {
-            id: generatePK(),
-            user: { connect: { id: getAwardDbIds().user1 } },
-            category: "MaxProgress",
+            category: "CompleteCategory",
             progress: 100,
             timeCompleted: new Date(),
         },
-        partialProgress: {
-            id: generatePK(),
-            user: { connect: { id: getAwardDbIds().user1 } },
-            category: "PartialProgress",
-            progress: 50,
+        invalid: {
+            missingRequired: {
+                // Missing required user and category
+                progress: 0,
+            },
+            invalidTypes: {
+                id: "not-a-valid-snowflake",
+                user: "invalid-user-reference", // Should be connect object
+                category: 123, // Should be string
+                progress: "invalid", // Should be number
+                timeCompleted: "not-a-date", // Should be Date
+            },
+            invalidProgress: {
+                id: generatePK(),
+                user: { connect: { id: getAwardDbIds().user1 } },
+                category: "InvalidProgress",
+                progress: -10, // Negative progress
+            },
+            progressTooHigh: {
+                id: generatePK(),
+                user: { connect: { id: getAwardDbIds().user1 } },
+                category: "TooHighProgress",
+                progress: 150, // Progress over 100
+            },
         },
-        longCategoryName: {
-            id: generatePK(),
-            user: { connect: { id: getAwardDbIds().user1 } },
-            category: "A".repeat(100), // Very long category name
-            progress: 25,
+        edgeCases: {
+            zeroProgress: {
+                id: generatePK(),
+                user: { connect: { id: getAwardDbIds().user1 } },
+                category: "ZeroProgress",
+                progress: 0,
+            },
+            maxProgress: {
+                id: generatePK(),
+                user: { connect: { id: getAwardDbIds().user1 } },
+                category: "MaxProgress",
+                progress: 100,
+                timeCompleted: new Date(),
+            },
+            partialProgress: {
+                id: generatePK(),
+                user: { connect: { id: getAwardDbIds().user1 } },
+                category: "PartialProgress",
+                progress: 50,
+            },
+            longCategoryName: {
+                id: generatePK(),
+                user: { connect: { id: getAwardDbIds().user1 } },
+                category: "A".repeat(100), // Very long category name
+                progress: 25,
+            },
+            specialCharacters: {
+                id: generatePK(),
+                user: { connect: { id: getAwardDbIds().user1 } },
+                category: "Special!@#$%^&*()_+{}|:<>?[]\\/.,;'\"Category",
+                progress: 75,
+            },
+            completedRecently: {
+                id: generatePK(),
+                user: { connect: { id: getAwardDbIds().user1 } },
+                category: "RecentlyCompleted",
+                progress: 100,
+                timeCompleted: new Date(Date.now() - 1000), // 1 second ago
+            },
+            completedLongAgo: {
+                id: generatePK(),
+                user: { connect: { id: getAwardDbIds().user1 } },
+                category: "LongAgoCompleted",
+                progress: 100,
+                timeCompleted: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), // 1 year ago
+            },
         },
-        specialCharacters: {
-            id: generatePK(),
-            user: { connect: { id: getAwardDbIds().user1 } },
-            category: "Special!@#$%^&*()_+{}|:<>?[]\\/.,;'\"Category",
-            progress: 75,
-        },
-        completedRecently: {
-            id: generatePK(),
-            user: { connect: { id: getAwardDbIds().user1 } },
-            category: "RecentlyCompleted",
-            progress: 100,
-            timeCompleted: new Date(Date.now() - 1000), // 1 second ago
-        },
-        completedLongAgo: {
-            id: generatePK(),
-            user: { connect: { id: getAwardDbIds().user1 } },
-            category: "LongAgoCompleted",
-            progress: 100,
-            timeCompleted: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), // 1 year ago
-        },
-    },
     };
 }
 
@@ -116,7 +117,7 @@ export function getAwardDbFixtures(): DbTestFixtures<Prisma.awardCreateInput> {
  * Enhanced factory for creating award database fixtures
  */
 export class AwardDbFactory extends EnhancedDbFactory<Prisma.awardCreateInput> {
-    
+
     /**
      * Get the test fixtures for Award model
      */
@@ -229,7 +230,7 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.awardCreateInput> {
 
     // Static methods for backward compatibility
     static createMinimal(
-        userId: string,
+        userId: bigint,
         category: string,
         overrides?: Partial<Prisma.awardCreateInput>,
     ): Prisma.awardCreateInput {
@@ -242,7 +243,7 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.awardCreateInput> {
     }
 
     static createCompleted(
-        userId: string,
+        userId: bigint,
         category: string,
         timeCompleted: Date,
         overrides?: Partial<Prisma.awardCreateInput>,
@@ -255,7 +256,7 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.awardCreateInput> {
     }
 
     static createInProgress(
-        userId: string,
+        userId: bigint,
         category: string,
         progress: number,
         overrides?: Partial<Prisma.awardCreateInput>,
@@ -273,7 +274,7 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.awardCreateInput> {
 export async function seedAwards(
     prisma: any,
     options: {
-        userId: string;
+        userId: bigint;
         categories: Array<{ name: string; progress?: number; completed?: boolean }>;
     },
 ): Promise<BulkSeedResult<any>> {

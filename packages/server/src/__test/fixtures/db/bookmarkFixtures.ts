@@ -1,5 +1,5 @@
 import { type Prisma } from "@prisma/client";
-import { BookmarkFor, generatePK, generatePublicId } from "@vrooli/shared";
+import { generatePK } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
 import type { BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
 
@@ -23,8 +23,12 @@ export function getBookmarkDbIds() {
             bookmarkList2: generatePK(),
             user1: generatePK(),
             user2: generatePK(),
-            project1: generatePK(),
-            routine1: generatePK(),
+            resource1: generatePK(),
+            resource2: generatePK(),
+            team1: generatePK(),
+            comment1: generatePK(),
+            issue1: generatePK(),
+            tag1: generatePK(),
         };
     }
     return _bookmarkDbIds;
@@ -36,159 +40,63 @@ export function getBookmarkDbIds() {
 export const bookmarkDbFixtures: DbTestFixtures<Prisma.bookmarkCreateInput> = {
     minimal: {
         id: generatePK(),
-        publicId: generatePublicId(),
-        by: { connect: { id: getBookmarkDbIds().user1 } },
+        resource: { connect: { id: getBookmarkDbIds().resource1 } },
     },
     complete: {
         id: generatePK(),
-        publicId: generatePublicId(),
-        by: { connect: { id: getBookmarkDbIds().user1 } },
         list: { connect: { id: getBookmarkDbIds().bookmarkList1 } },
-        project: { connect: { id: getBookmarkDbIds().project1 } },
+        resource: { connect: { id: getBookmarkDbIds().resource1 } },
     },
     invalid: {
         missingRequired: {
-            // Missing required by (user)
-            publicId: generatePublicId(),
+            // Missing required id and object connection
+            id: undefined,
         },
         invalidTypes: {
             id: "not-a-valid-snowflake",
-            publicId: 123, // Should be string
-            by: "invalid-user-reference", // Should be connect object
+            resource: "invalid-resource-reference", // Should be connect object
             list: "invalid-list-reference", // Should be connect object
         },
         noBookmarkableObject: {
             id: generatePK(),
-            publicId: generatePublicId(),
-            by: { connect: { id: getBookmarkDbIds().user1 } },
             // No bookmarkable object connected
         },
         multipleObjects: {
             id: generatePK(),
-            publicId: generatePublicId(),
-            by: { connect: { id: getBookmarkDbIds().user1 } },
-            project: { connect: { id: getBookmarkDbIds().project1 } },
-            routine: { connect: { id: getBookmarkDbIds().routine1 } },
+            resource: { connect: { id: getBookmarkDbIds().resource1 } },
+            team: { connect: { id: getBookmarkDbIds().team1 } },
             // Multiple objects connected (business logic violation)
         },
     },
     edgeCases: {
-        projectBookmark: {
+        resourceBookmark: {
             id: generatePK(),
-            publicId: generatePublicId(),
-            by: { connect: { id: getBookmarkDbIds().user1 } },
-            project: { connect: { id: getBookmarkDbIds().project1 } },
+            resource: { connect: { id: getBookmarkDbIds().resource1 } },
         },
-        routineBookmark: {
+        teamBookmark: {
             id: generatePK(),
-            publicId: generatePublicId(),
-            by: { connect: { id: getBookmarkDbIds().user1 } },
-            routine: { connect: { id: getBookmarkDbIds().routine1 } },
+            team: { connect: { id: getBookmarkDbIds().team1 } },
         },
         userBookmark: {
             id: generatePK(),
-            publicId: generatePublicId(),
-            by: { connect: { id: getBookmarkDbIds().user1 } },
             user: { connect: { id: getBookmarkDbIds().user2 } },
+        },
+        commentBookmark: {
+            id: generatePK(),
+            comment: { connect: { id: getBookmarkDbIds().comment1 } },
+        },
+        issueBookmark: {
+            id: generatePK(),
+            issue: { connect: { id: getBookmarkDbIds().issue1 } },
+        },
+        tagBookmark: {
+            id: generatePK(),
+            tag: { connect: { id: getBookmarkDbIds().tag1 } },
         },
         inListBookmark: {
             id: generatePK(),
-            publicId: generatePublicId(),
-            by: { connect: { id: getBookmarkDbIds().user1 } },
             list: { connect: { id: getBookmarkDbIds().bookmarkList1 } },
-            project: { connect: { id: getBookmarkDbIds().project1 } },
-        },
-    },
-};
-
-/**
- * Enhanced test fixtures for BookmarkList model following standard structure
- */
-export const bookmarkListDbFixtures: DbTestFixtures<Prisma.BookmarkListCreateInput> = {
-    minimal: {
-        id: generatePK(),
-        publicId: generatePublicId(),
-        isPrivate: false,
-        createdBy: { connect: { id: getBookmarkDbIds().user1 } },
-    },
-    complete: {
-        id: generatePK(),
-        publicId: generatePublicId(),
-        isPrivate: false,
-        createdBy: { connect: { id: getBookmarkDbIds().user1 } },
-        translations: {
-            create: [
-                {
-                    id: generatePK(),
-                    language: "en",
-                    name: "My Bookmarks",
-                    description: "A collection of my favorite items",
-                },
-                {
-                    id: generatePK(),
-                    language: "es",
-                    name: "Mis Marcadores",
-                    description: "Una colección de mis elementos favoritos",
-                },
-            ],
-        },
-        bookmarks: {
-            create: [
-                {
-                    id: generatePK(),
-                    publicId: generatePublicId(),
-                    by: { connect: { id: getBookmarkDbIds().user1 } },
-                    project: { connect: { id: getBookmarkDbIds().project1 } },
-                },
-            ],
-        },
-    },
-    invalid: {
-        missingRequired: {
-            // Missing required createdBy
-            publicId: generatePublicId(),
-            isPrivate: false,
-        },
-        invalidTypes: {
-            id: "not-a-valid-snowflake",
-            publicId: 123, // Should be string
-            isPrivate: "yes", // Should be boolean
-            createdBy: "invalid-user-reference", // Should be connect object
-        },
-    },
-    edgeCases: {
-        privateList: {
-            id: generatePK(),
-            publicId: generatePublicId(),
-            isPrivate: true,
-            createdBy: { connect: { id: getBookmarkDbIds().user1 } },
-        },
-        emptyList: {
-            id: generatePK(),
-            publicId: generatePublicId(),
-            isPrivate: false,
-            createdBy: { connect: { id: getBookmarkDbIds().user1 } },
-            translations: {
-                create: [{
-                    id: generatePK(),
-                    language: "en",
-                    name: "Empty List",
-                }],
-            },
-        },
-        multiLanguageList: {
-            id: generatePK(),
-            publicId: generatePublicId(),
-            isPrivate: false,
-            createdBy: { connect: { id: getBookmarkDbIds().user1 } },
-            translations: {
-                create: [
-                    { id: generatePK(), language: "en", name: "English List" },
-                    { id: generatePK(), language: "es", name: "Lista Española" },
-                    { id: generatePK(), language: "fr", name: "Liste Française" },
-                    { id: generatePK(), language: "de", name: "Deutsche Liste" },
-                ],
-            },
+            resource: { connect: { id: getBookmarkDbIds().resource1 } },
         },
     },
 };
@@ -213,18 +121,15 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.bookmarkCreateIn
             constraints: {
                 uniqueViolation: {
                     id: getBookmarkDbIds().bookmark1, // Duplicate ID
-                    publicId: generatePublicId(),
-                    by: { connect: { id: getBookmarkDbIds().user1 } },
+                    resource: { connect: { id: getBookmarkDbIds().resource1 } },
                 },
                 foreignKeyViolation: {
                     id: generatePK(),
-                    publicId: generatePublicId(),
-                    by: { connect: { id: "non-existent-user-id" } },
+                    resource: { connect: { id: "non-existent-resource-id" } },
                 },
                 checkConstraintViolation: {
                     id: generatePK(),
-                    publicId: "", // Empty publicId
-                    by: { connect: { id: getBookmarkDbIds().user1 } },
+                    // No object connected violates check constraint
                 },
             },
             validation: {
@@ -232,20 +137,23 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.bookmarkCreateIn
                 invalidDataType: bookmarkDbFixtures.invalid.invalidTypes,
                 outOfRange: {
                     id: generatePK(),
-                    publicId: "a".repeat(500), // PublicId too long
-                    by: { connect: { id: getBookmarkDbIds().user1 } },
+                    resource: { connect: { id: getBookmarkDbIds().resource1 } },
+                    // No specific out-of-range scenario for bookmark
                 },
             },
             businessLogic: {
                 multipleObjects: bookmarkDbFixtures.invalid.multipleObjects,
                 noBookmarkableObject: bookmarkDbFixtures.invalid.noBookmarkableObject,
-                selfBookmark: {
-                    id: generatePK(),
-                    publicId: generatePublicId(),
-                    by: { connect: { id: getBookmarkDbIds().user1 } },
-                    user: { connect: { id: getBookmarkDbIds().user1 } }, // User bookmarking themselves
-                },
             },
+        };
+    }
+
+    /**
+     * Generate fresh identifiers for Bookmark (no publicId)
+     */
+    protected generateFreshIdentifiers(): Record<string, any> {
+        return {
+            id: generatePK(),
         };
     }
 
@@ -256,12 +164,8 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.bookmarkCreateIn
         const errors: string[] = [];
         const warnings: string[] = [];
 
-        // Check required fields specific to Bookmark
-        if (!data.by) errors.push("Bookmark by (user) is required");
-        if (!data.publicId) errors.push("Bookmark publicId is required");
-
-        // Check business logic - must have exactly one bookmarkable object
-        const bookmarkableFields = ["api", "code", "comment", "issue", "note", "post", "project", "prompt", "question", "quiz", "routine", "runProject", "runRoutine", "smartContract", "standard", "team", "user"];
+        // Check that exactly one bookmarkable object is connected
+        const bookmarkableFields = ["comment", "issue", "resource", "tag", "team", "user"];
         const connectedObjects = bookmarkableFields.filter(field => data[field as keyof Prisma.bookmarkCreateInput]);
 
         if (connectedObjects.length === 0) {
@@ -270,232 +174,53 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.bookmarkCreateIn
             errors.push("Bookmark cannot reference multiple objects");
         }
 
-        // Check for self-bookmark
-        if (data.by && data.user &&
-            typeof data.by === "object" && "connect" in data.by &&
-            typeof data.user === "object" && "connect" in data.user &&
-            data.by.connect.id === data.user.connect.id) {
-            warnings.push("User is bookmarking themselves");
-        }
-
         return { errors, warnings };
     }
 
     // Static methods for backward compatibility
     static createMinimal(
-        byId: string,
+        objectId: bigint,
+        objectType: "Resource" | "Comment" | "Issue" | "Tag" | "Team" | "User",
         overrides?: Partial<Prisma.bookmarkCreateInput>,
     ): Prisma.bookmarkCreateInput {
         const factory = new BookmarkDbFactory();
-        return factory.createMinimal({
-            by: { connect: { id: byId } },
-            ...overrides,
-        });
-    }
-
-    static createForObject(
-        byId: string,
-        objectId: string,
-        objectType: BookmarkFor | string,
-        overrides?: Partial<Prisma.bookmarkCreateInput>,
-    ): Prisma.bookmarkCreateInput {
-        const baseBookmark = this.createMinimal(byId, overrides);
-
-        // Add the appropriate connection based on object type
         const connections: Record<string, any> = {
-            // BookmarkFor enum values
-            [BookmarkFor.Comment]: { comment: { connect: { id: objectId } } },
-            [BookmarkFor.Issue]: { issue: { connect: { id: objectId } } },
-            [BookmarkFor.Resource]: { resource: { connect: { id: objectId } } },
-            [BookmarkFor.Tag]: { tag: { connect: { id: objectId } } },
-            [BookmarkFor.Team]: { team: { connect: { id: objectId } } },
-            [BookmarkFor.User]: { user: { connect: { id: objectId } } },
-            // Additional supported types not in BookmarkFor enum
-            Api: { api: { connect: { id: objectId } } },
-            Code: { code: { connect: { id: objectId } } },
-            Note: { note: { connect: { id: objectId } } },
-            Post: { post: { connect: { id: objectId } } },
-            Project: { project: { connect: { id: objectId } } },
-            Prompt: { prompt: { connect: { id: objectId } } },
-            Question: { question: { connect: { id: objectId } } },
-            Quiz: { quiz: { connect: { id: objectId } } },
-            Routine: { routine: { connect: { id: objectId } } },
-            RunProject: { runProject: { connect: { id: objectId } } },
-            RunRoutine: { runRoutine: { connect: { id: objectId } } },
-            SmartContract: { smartContract: { connect: { id: objectId } } },
-            Standard: { standard: { connect: { id: objectId } } },
+            Resource: { resource: { connect: { id: objectId } } },
+            Comment: { comment: { connect: { id: objectId } } },
+            Issue: { issue: { connect: { id: objectId } } },
+            Tag: { tag: { connect: { id: objectId } } },
+            Team: { team: { connect: { id: objectId } } },
+            User: { user: { connect: { id: objectId } } },
         };
 
         if (!connections[objectType]) {
             throw new Error(`Invalid bookmark object type: ${objectType}`);
         }
 
-        return {
-            ...baseBookmark,
+        return factory.createMinimal({
             ...connections[objectType],
-        };
+            ...overrides,
+        });
+    }
+
+    static createForObject(
+        objectId: bigint,
+        objectType: "Resource" | "Comment" | "Issue" | "Tag" | "Team" | "User",
+        overrides?: Partial<Prisma.bookmarkCreateInput>,
+    ): Prisma.bookmarkCreateInput {
+        return this.createMinimal(objectId, objectType, overrides);
     }
 
     static createInList(
-        byId: string,
-        listId: string,
-        objectId: string,
-        objectType: string,
+        listId: bigint,
+        objectId: bigint,
+        objectType: "Resource" | "Comment" | "Issue" | "Tag" | "Team" | "User",
         overrides?: Partial<Prisma.bookmarkCreateInput>,
     ): Prisma.bookmarkCreateInput {
         return {
-            ...this.createForObject(byId, objectId, objectType, overrides),
+            ...this.createForObject(objectId, objectType, overrides),
             list: { connect: { id: listId } },
         };
-    }
-}
-
-/**
- * Enhanced factory for creating bookmark list database fixtures
- */
-export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.BookmarkListCreateInput> {
-
-    /**
-     * Get the test fixtures for BookmarkList model
-     */
-    protected getFixtures(): DbTestFixtures<Prisma.BookmarkListCreateInput> {
-        return bookmarkListDbFixtures;
-    }
-
-    /**
-     * Get BookmarkList-specific error scenarios
-     */
-    protected getErrorScenarios(): DbErrorScenarios {
-        return {
-            constraints: {
-                uniqueViolation: {
-                    id: getBookmarkDbIds().bookmarkList1, // Duplicate ID
-                    publicId: generatePublicId(),
-                    isPrivate: false,
-                    createdBy: { connect: { id: getBookmarkDbIds().user1 } },
-                },
-                foreignKeyViolation: {
-                    id: generatePK(),
-                    publicId: generatePublicId(),
-                    isPrivate: false,
-                    createdBy: { connect: { id: "non-existent-user-id" } },
-                },
-                checkConstraintViolation: {
-                    id: generatePK(),
-                    publicId: "", // Empty publicId
-                    isPrivate: false,
-                    createdBy: { connect: { id: getBookmarkDbIds().user1 } },
-                },
-            },
-            validation: {
-                requiredFieldMissing: bookmarkListDbFixtures.invalid.missingRequired,
-                invalidDataType: bookmarkListDbFixtures.invalid.invalidTypes,
-                outOfRange: {
-                    id: generatePK(),
-                    publicId: "a".repeat(500), // PublicId too long
-                    isPrivate: false,
-                    createdBy: { connect: { id: getBookmarkDbIds().user1 } },
-                },
-            },
-            businessLogic: {},
-        };
-    }
-
-    /**
-     * BookmarkList-specific validation
-     */
-    protected validateSpecific(data: Prisma.BookmarkListCreateInput): { errors: string[]; warnings: string[] } {
-        const errors: string[] = [];
-        const warnings: string[] = [];
-
-        // Check required fields specific to BookmarkList
-        if (!data.createdBy) errors.push("BookmarkList createdBy is required");
-        if (!data.publicId) errors.push("BookmarkList publicId is required");
-        if (data.isPrivate === undefined) errors.push("BookmarkList isPrivate is required");
-
-        return { errors, warnings };
-    }
-
-    // Static methods for backward compatibility
-    static createMinimal(
-        createdById: string,
-        overrides?: Partial<Prisma.BookmarkListCreateInput>,
-    ): Prisma.BookmarkListCreateInput {
-        const factory = new BookmarkListDbFactory();
-        return factory.createMinimal({
-            createdBy: { connect: { id: createdById } },
-            isPrivate: false,
-            ...overrides,
-        });
-    }
-
-    static createWithTranslations(
-        createdById: string,
-        translations: Array<{ language: string; name: string; description?: string }>,
-        overrides?: Partial<Prisma.BookmarkListCreateInput>,
-    ): Prisma.BookmarkListCreateInput {
-        return {
-            ...this.createMinimal(createdById, overrides),
-            translations: {
-                create: translations.map(t => ({
-                    id: generatePK(),
-                    language: t.language,
-                    name: t.name,
-                    description: t.description,
-                })),
-            },
-        };
-    }
-
-    static createWithBookmarks(
-        createdById: string,
-        bookmarks: Array<{ objectId: string; objectType: BookmarkFor | string }>,
-        overrides?: Partial<Prisma.BookmarkListCreateInput>,
-    ): Prisma.BookmarkListCreateInput {
-        return {
-            ...this.createWithTranslations(
-                createdById,
-                [{ language: "en", name: "Test Bookmark List" }],
-                overrides,
-            ),
-            bookmarks: {
-                create: bookmarks.map(b =>
-                    BookmarkDbFactory.createForObject(createdById, b.objectId, b.objectType),
-                ),
-            },
-        };
-    }
-
-    /**
-     * Create a private bookmark list
-     */
-    static createPrivateList(
-        createdById: string,
-        overrides?: Partial<Prisma.BookmarkListCreateInput>,
-    ): Prisma.BookmarkListCreateInput {
-        return this.createMinimal(createdById, {
-            isPrivate: true,
-            ...overrides,
-        });
-    }
-
-    /**
-     * Create a shared bookmark list with collaborators
-     */
-    static createSharedList(
-        createdById: string,
-        name: string,
-        collaboratorIds: string[],
-        overrides?: Partial<Prisma.BookmarkListCreateInput>,
-    ): Prisma.BookmarkListCreateInput {
-        return this.createWithTranslations(
-            createdById,
-            [{ language: "en", name }],
-            {
-                isPrivate: false,
-                ...overrides,
-            },
-        );
     }
 }
 
@@ -505,31 +230,29 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.BookmarkList
 export async function seedBookmarks(
     prisma: any,
     options: {
-        userId: string;
-        objects: Array<{ id: string; type: string }>;
+        objects: Array<{ id: bigint; type: "Resource" | "Comment" | "Issue" | "Tag" | "Team" | "User" }>;
         withList?: boolean;
-        listName?: string;
+        listId?: bigint;
+        listLabel?: string;
+        listUserId?: bigint;
     },
 ): Promise<BulkSeedResult<any>> {
     const bookmarks = [];
     let listCount = 0;
 
-    if (options.withList) {
+    if (options.withList && options.listUserId) {
         // Create a bookmark list with all bookmarks
-        const list = await prisma.bookmarkList.create({
-            data: BookmarkListDbFactory.createWithBookmarks(
-                options.userId,
-                options.objects.map(o => ({ objectId: o.id, objectType: o.type })),
-                {
-                    translations: {
-                        create: [{
-                            id: generatePK(),
-                            language: "en",
-                            name: options.listName || "My Bookmarks",
-                        }],
-                    },
+        const list = await prisma.bookmark_list.create({
+            data: {
+                id: options.listId || generatePK(),
+                label: options.listLabel || "My Bookmarks",
+                user: { connect: { id: options.listUserId } },
+                bookmarks: {
+                    create: options.objects.map(o =>
+                        BookmarkDbFactory.createForObject(o.id, o.type),
+                    ),
                 },
-            ),
+            },
             include: { bookmarks: true },
         });
         listCount = 1;
@@ -548,11 +271,7 @@ export async function seedBookmarks(
         // Create individual bookmarks
         for (const obj of options.objects) {
             const bookmark = await prisma.bookmark.create({
-                data: BookmarkDbFactory.createForObject(
-                    options.userId,
-                    obj.id,
-                    obj.type,
-                ),
+                data: BookmarkDbFactory.createForObject(obj.id, obj.type),
             });
             bookmarks.push(bookmark);
         }

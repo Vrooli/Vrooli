@@ -1,7 +1,7 @@
-import { generatePK, nanoid } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { generatePK } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
+import type { BulkSeedOptions, BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
 
 /**
  * Database fixtures for BookmarkList model - used for seeding test data
@@ -66,7 +66,7 @@ export const bookmarkListDbFixtures: DbTestFixtures<Prisma.bookmark_listCreateIn
         duplicateLabel: {
             id: generatePK(),
             label: "duplicate_label", // Same label for same user
-            user: { connect: { id: "same-user-id" } },
+            user: { connect: { id: generatePK() } },
         },
         invalidBookmarkReference: {
             id: generatePK(),
@@ -147,7 +147,7 @@ export const bookmarkListDbFixtures: DbTestFixtures<Prisma.bookmark_listCreateIn
  * Enhanced factory for creating bookmark list database fixtures
  */
 export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.bookmark_listCreateInput> {
-    
+
     /**
      * Get the test fixtures for BookmarkList model
      */
@@ -169,7 +169,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.bookmark_lis
                 foreignKeyViolation: {
                     id: generatePK(),
                     label: "Foreign Key Violation List",
-                    user: { connect: { id: "non-existent-user-id" } },
+                    user: { connect: { id: generatePK() } },
                 },
                 checkConstraintViolation: {
                     id: generatePK(),
@@ -190,7 +190,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.bookmark_lis
                 duplicateLabelSameUser: {
                     id: generatePK(),
                     label: "same_label", // Same label for same user (business rule violation)
-                    user: { connect: { id: "same-user-id" } },
+                    user: { connect: { id: generatePK() } },
                 },
                 bookmarkWithoutObject: {
                     id: generatePK(),
@@ -282,7 +282,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.bookmark_lis
 
     // Static methods for backward compatibility
     static createMinimal(
-        userId: string,
+        userId: bigint,
         overrides?: Partial<Prisma.bookmark_listCreateInput>,
     ): Prisma.bookmark_listCreateInput {
         const factory = new BookmarkListDbFactory();
@@ -297,7 +297,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.bookmark_lis
      * Create bookmark list with custom label
      */
     static createWithLabel(
-        userId: string,
+        userId: bigint,
         label: string,
         overrides?: Partial<Prisma.bookmark_listCreateInput>,
     ): Prisma.bookmark_listCreateInput {
@@ -308,14 +308,14 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.bookmark_lis
      * Create bookmark list with bookmarks
      */
     static createWithBookmarks(
-        userId: string,
+        userId: bigint,
         bookmarks: Array<{
-            objectId: string;
+            objectId: bigint;
             objectType: "Resource" | "Comment" | "Issue" | "Tag" | "Team" | "User";
         }>,
         overrides?: Partial<Prisma.bookmark_listCreateInput>,
     ): Prisma.bookmark_listCreateInput {
-        const bookmarkConnections: Record<string, (id: string) => any> = {
+        const bookmarkConnections: Record<string, (id: bigint) => any> = {
             Resource: (id) => ({ resource: { connect: { id } } }),
             Comment: (id) => ({ comment: { connect: { id } } }),
             Issue: (id) => ({ issue: { connect: { id } } }),
@@ -339,7 +339,7 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.bookmark_lis
      * Create multiple bookmark lists for a user
      */
     static createMultiple(
-        userId: string,
+        userId: bigint,
         count: number,
         baseLabel = "List",
     ): Array<Prisma.bookmark_listCreateInput> {
@@ -359,8 +359,8 @@ export class BookmarkListDbFactory extends EnhancedDbFactory<Prisma.bookmark_lis
      * Create bookmark list with existing bookmarks
      */
     static createWithExistingBookmarks(
-        userId: string,
-        bookmarkIds: string[],
+        userId: bigint,
+        bookmarkIds: bigint[],
         overrides?: Partial<Prisma.bookmark_listCreateInput>,
     ): Prisma.bookmark_listCreateInput {
         return this.createMinimal(userId, {
@@ -394,7 +394,7 @@ export const bookmarkListScenarios = {
     /**
      * Empty bookmark list
      */
-    empty: (userId: string): Prisma.bookmark_listCreateInput => ({
+    empty: (userId: bigint): Prisma.bookmark_listCreateInput => ({
         id: generatePK(),
         label: "Empty List",
         user: { connect: { id: userId } },
@@ -403,10 +403,10 @@ export const bookmarkListScenarios = {
     /**
      * Research collection with multiple types
      */
-    researchCollection: (userId: string, objectIds: {
-        resourceId?: string;
-        teamId?: string;
-        tagId?: string;
+    researchCollection: (userId: bigint, objectIds: {
+        resourceId?: bigint;
+        teamId?: bigint;
+        tagId?: bigint;
     }): Prisma.bookmark_listCreateInput => {
         const bookmarks = [];
         if (objectIds.resourceId) {
@@ -418,7 +418,7 @@ export const bookmarkListScenarios = {
         if (objectIds.tagId) {
             bookmarks.push({ objectId: objectIds.tagId, objectType: "Tag" as const });
         }
-        
+
         return BookmarkListDbFactory.createWithBookmarks(
             userId,
             bookmarks,
@@ -429,7 +429,7 @@ export const bookmarkListScenarios = {
     /**
      * Tutorial resources list
      */
-    tutorials: (userId: string, resourceIds: string[]): Prisma.bookmark_listCreateInput => {
+    tutorials: (userId: bigint, resourceIds: bigint[]): Prisma.bookmark_listCreateInput => {
         return BookmarkListDbFactory.createWithBookmarks(
             userId,
             resourceIds.map(id => ({ objectId: id, objectType: "Resource" as const })),
@@ -440,26 +440,26 @@ export const bookmarkListScenarios = {
     /**
      * Team resources list
      */
-    teamResources: (userId: string, teamId: string, resourceIds: {
-        resourceIds?: string[];
-        commentIds?: string[];
+    teamResources: (userId: bigint, teamId: bigint, resourceIds: {
+        resourceIds?: bigint[];
+        commentIds?: bigint[];
     }): Prisma.bookmark_listCreateInput => {
         const bookmarks = [];
-        
+
         if (resourceIds.resourceIds) {
             bookmarks.push(...resourceIds.resourceIds.map(id => ({
                 objectId: id,
                 objectType: "Resource" as const,
             })));
         }
-        
+
         if (resourceIds.commentIds) {
             bookmarks.push(...resourceIds.commentIds.map(id => ({
                 objectId: id,
                 objectType: "Comment" as const,
             })));
         }
-        
+
         return BookmarkListDbFactory.createWithBookmarks(
             userId,
             bookmarks,
@@ -473,11 +473,11 @@ export const bookmarkListScenarios = {
  */
 export async function seedBookmarkLists(
     prisma: any,
-    userId: string,
+    userId: bigint,
     count = 3,
     options?: BulkSeedOptions & {
         withBookmarks?: boolean;
-        bookmarkObjects?: Array<{ id: string; type: string }>;
+        bookmarkObjects?: Array<{ id: bigint; type: string }>;
         labels?: string[];
     },
 ): Promise<BulkSeedResult<any>> {
@@ -492,9 +492,9 @@ export async function seedBookmarkLists(
             ...baseOverrides,
             user: { connect: { id: userId } },
         };
-        
+
         let listData: Prisma.bookmark_listCreateInput;
-        
+
         if (options?.withBookmarks && options.bookmarkObjects) {
             // Create list with bookmarks
             listData = BookmarkListDbFactory.createWithBookmarks(
@@ -534,7 +534,7 @@ export async function seedBookmarkLists(
                 user: true,
             },
         });
-        
+
         lists.push(list);
     }
 
@@ -554,21 +554,21 @@ export async function seedBookmarkLists(
  */
 export async function cleanupBookmarkLists(
     prisma: any,
-    listIds: string[],
+    listIds: bigint[],
 ) {
     if (listIds.length === 0) return;
-    
+
     try {
         // Delete bookmarks first (if not cascade deleted)
         await prisma.bookmark.deleteMany({
             where: { listId: { in: listIds } },
         });
-        
+
         // Then delete lists
         const result = await prisma.bookmark_list.deleteMany({
             where: { id: { in: listIds } },
         });
-        
+
         return result;
     } catch (error) {
         console.error("Error cleaning up bookmark lists:", error);

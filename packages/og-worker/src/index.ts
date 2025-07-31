@@ -329,7 +329,7 @@ export default {
             } catch (error) {
                 return new Response("Invalid URL", { status: 400 });
             }
-            
+
             const baseHost = `${urlObj.protocol}//${urlObj.host}`;
             const pathname = urlObj.pathname;
             const ua = req.headers.get("user-agent") ?? "";
@@ -344,82 +344,82 @@ export default {
                 return proxyToOrigin(req, env);
             }
 
-        /* Crawlers → Check cache first -------------------------------------- */
-        const cache = caches.default;
-        // Create cache key without query params for better cache efficiency
-        const cacheUrl = `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`;
-        const cacheKey = new Request(cacheUrl);
+            /* Crawlers → Check cache first -------------------------------------- */
+            const cache = caches.default;
+            // Create cache key without query params for better cache efficiency
+            const cacheUrl = `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`;
+            const cacheKey = new Request(cacheUrl);
 
-        // Try to get from cache
-        let response = await cache.match(cacheKey);
-        if (response) {
-            return response;
-        }
-
-        /* Generate metadata if not cached ----------------------------------- */
-        const cleanPath = pathname.replace(/\/+$/, "");   // drop trailing slash
-        const barePath = cleanPath.split("?")[0];
-
-        // Handle root path "/"
-        if (barePath === "/") {
-            const html = render(
-                { ...BASE_META, url: baseHost + "/" },
-                baseHost
-            );
-            response = createCachedHtmlResponse(html);
-            // Cache with error handling
-            ctx.waitUntil(
-                cache.put(cacheKey, response.clone()).catch(err => 
-                    console.error('[OG-Worker] Cache put failed:', err)
-                )
-            );
-            return response;
-        }
-
-        // Handle static routes
-        if (STATIC_META[barePath]) {
-            const staticMeta = {
-                ...BASE_META, // Start with base
-                ...STATIC_META[barePath], // Override with static specifics
-                url: baseHost + barePath, // Set dynamic URL
-            };
-            const html = render(staticMeta, baseHost);
-            response = createCachedHtmlResponse(html);
-            // Cache with error handling
-            ctx.waitUntil(
-                cache.put(cacheKey, response.clone()).catch(err => 
-                    console.error('[OG-Worker] Cache put failed:', err)
-                )
-            );
-            return response;
-        }
-
-        // Handle dynamic routes with rate limiting
-        for (const { routeInfo, api, typeLabel } of flatRoutes) {
-            const m = routeInfo.pattern.exec(barePath);
-            if (!m) continue;
-
-            try {
-                // Fetch meta, providing baseHost and typeLabel
-                const meta = await api(env, baseHost, typeLabel, barePath, req);
-                const html = render(meta, baseHost);
-                response = createCachedHtmlResponse(html);
-                ctx.waitUntil(cache.put(cacheKey, response.clone()));
+            // Try to get from cache
+            let response = await cache.match(cacheKey);
+            if (response) {
                 return response;
-            } catch (error) {
-                // Don't cache errors
-                const meta = fallbackMeta(baseHost, baseHost + barePath, typeLabel);
-                const html = render(meta, baseHost);
-                return createHtmlResponse(html);
             }
-        }
+
+            /* Generate metadata if not cached ----------------------------------- */
+            const cleanPath = pathname.replace(/\/+$/, "");   // drop trailing slash
+            const barePath = cleanPath.split("?")[0];
+
+            // Handle root path "/"
+            if (barePath === "/") {
+                const html = render(
+                    { ...BASE_META, url: baseHost + "/" },
+                    baseHost
+                );
+                response = createCachedHtmlResponse(html);
+                // Cache with error handling
+                ctx.waitUntil(
+                    cache.put(cacheKey, response.clone()).catch(err =>
+                        console.error("[OG-Worker] Cache put failed:", err)
+                    )
+                );
+                return response;
+            }
+
+            // Handle static routes
+            if (STATIC_META[barePath]) {
+                const staticMeta = {
+                    ...BASE_META, // Start with base
+                    ...STATIC_META[barePath], // Override with static specifics
+                    url: baseHost + barePath, // Set dynamic URL
+                };
+                const html = render(staticMeta, baseHost);
+                response = createCachedHtmlResponse(html);
+                // Cache with error handling
+                ctx.waitUntil(
+                    cache.put(cacheKey, response.clone()).catch(err =>
+                        console.error("[OG-Worker] Cache put failed:", err)
+                    )
+                );
+                return response;
+            }
+
+            // Handle dynamic routes with rate limiting
+            for (const { routeInfo, api, typeLabel } of flatRoutes) {
+                const m = routeInfo.pattern.exec(barePath);
+                if (!m) continue;
+
+                try {
+                    // Fetch meta, providing baseHost and typeLabel
+                    const meta = await api(env, baseHost, typeLabel, barePath, req);
+                    const html = render(meta, baseHost);
+                    response = createCachedHtmlResponse(html);
+                    ctx.waitUntil(cache.put(cacheKey, response.clone()));
+                    return response;
+                } catch (error) {
+                    // Don't cache errors
+                    const meta = fallbackMeta(baseHost, baseHost + barePath, typeLabel);
+                    const html = render(meta, baseHost);
+                    return createHtmlResponse(html);
+                }
+            }
 
             // If no route matched, proxy (could also return a generic 404 meta page)
             return proxyToOrigin(req, env);
-            
+
         } catch (error) {
             // FAIL-OPEN: If worker fails for ANY reason, proxy to origin
-            console.error('[OG-Worker] Failed, proxying to origin:', error);
+            console.error("[OG-Worker] Failed, proxying to origin:", error);
             return proxyToOrigin(req, env);
         }
     },
@@ -664,7 +664,7 @@ function esc(s: string) {
         ">": "&gt;",
         "\"": "&quot;",
         "'": "&#39;",
-        "`": "&#96;"  // Also escape backticks
+        "`": "&#96;",  // Also escape backticks
     };
     return s ? s.replace(/[&<>"'`]/g, (c) => escapeMap[c] || c) : "";
 }

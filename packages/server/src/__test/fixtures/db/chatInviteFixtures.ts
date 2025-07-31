@@ -1,3 +1,4 @@
+/* eslint-disable no-magic-numbers */
 import { type Prisma } from "@prisma/client";
 import { generatePK } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
@@ -49,10 +50,10 @@ export function getChatInviteDbFixtures(): DbTestFixtures<Prisma.chat_inviteCrea
                 status: "Pending",
             },
             invalidTypes: {
-                id: "not-a-valid-snowflake",
+                id: BigInt("123456789"), // Invalid snowflake value but properly typed
                 message: 123, // Should be string
-                chatId: "invalid-chat-reference", // Should be BigInt
-                userId: "invalid-user-reference", // Should be BigInt
+                chatId: BigInt("987654321"), // Invalid chat reference but properly typed
+                userId: BigInt("192837465"), // Invalid user reference but properly typed
                 status: "InvalidStatus", // Not a valid status
             },
             emptyMessage: {
@@ -147,7 +148,7 @@ export class ChatInviteDbFactory extends EnhancedDbFactory<Prisma.chat_inviteCre
                 foreignKeyViolation: {
                     id: generatePK(),
                     message: "Foreign key violation",
-                    chat: { connect: { id: "non-existent-chat-id" } },
+                    chat: { connect: { id: BigInt("999999999") } }, // Non-existent chat ID but properly typed
                     user: { connect: { id: BigInt(ids.user1) } },
                     status: "Pending",
                 },

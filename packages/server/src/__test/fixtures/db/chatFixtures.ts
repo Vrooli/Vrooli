@@ -1,9 +1,11 @@
+/* eslint-disable no-magic-numbers */
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced as any with proper type cast for Prisma.chatUpsertArgs["create"]
-import { generatePK, generatePublicId } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { generatePK, generatePublicId } from "@vrooli/shared";
+// eslint-disable-next-line import/extensions
 import { chatConfigFixtures } from "@vrooli/shared/test-fixtures/config";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
+import type { BulkSeedOptions, BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
 
 /**
  * Database fixtures for Chat model - used for seeding test data
@@ -144,17 +146,17 @@ export function getChatDbFixtures(): DbTestFixtures<Prisma.chatUpsertArgs["creat
                 ],
             },
         },
-    invalid: {
-        missingRequired: {
-            // Missing required id and publicId
-            isPrivate: false,
-        },
-        invalidTypes: {
-            id: "not-a-valid-snowflake",
-            publicId: 123, // Should be string
-            isPrivate: "yes", // Should be boolean
-            openToAnyoneWithInvite: "no", // Should be boolean
-        },
+        invalid: {
+            missingRequired: {
+                // Missing required id and publicId
+                isPrivate: false,
+            },
+            invalidTypes: {
+                id: "not-a-valid-snowflake",
+                publicId: 123, // Should be string
+                isPrivate: "yes", // Should be boolean
+                openToAnyoneWithInvite: "no", // Should be boolean
+            },
             invalidTeamConnection: {
                 id: generatePK(),
                 publicId: generatePublicId(),
@@ -168,8 +170,8 @@ export function getChatDbFixtures(): DbTestFixtures<Prisma.chatUpsertArgs["creat
                 isPrivate: true,
                 openToAnyoneWithInvite: true, // Business logic violation
             },
-    },
-    edgeCases: {
+        },
+        edgeCases: {
             emptyPrivateChat: {
                 id: generatePK(),
                 publicId: generatePublicId(),
@@ -247,7 +249,7 @@ export function getChatDbFixtures(): DbTestFixtures<Prisma.chatUpsertArgs["creat
  * Enhanced factory for creating chat database fixtures
  */
 export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["create"]> {
-    
+
     /**
      * Get the test fixtures for Chat model
      */
@@ -379,7 +381,7 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
      * Create chat with participants - requires user connections
      */
     static createWithParticipants(
-        userIds: string[], 
+        userIds: string[],
         overrides?: Partial<Prisma.chatUpsertArgs["create"]>,
     ): Prisma.chatUpsertArgs["create"] {
         const factory = new ChatDbFactory();
@@ -448,9 +450,9 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
         overrides?: Partial<Prisma.chatUpsertArgs["create"]>,
     ): Prisma.chatUpsertArgs["create"] {
         const factory = new ChatDbFactory();
-        return factory.createWithRelationships({ 
-            withTeams: [{ teamId, role: "Member" }], 
-            overrides, 
+        return factory.createWithRelationships({
+            withTeams: [{ teamId, role: "Member" }],
+            overrides,
         }).data;
     }
 
@@ -505,7 +507,7 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
         overrides?: Partial<Prisma.chatCreateInput>,
     ): Prisma.chatCreateInput {
         const factory = new ChatDbFactory();
-        const chatConfig = config.withHighLimits 
+        const chatConfig = config.withHighLimits
             ? chatConfigFixtures.variants.highLimitSwarm
             : chatConfigFixtures.variants.restrictedTeamSwarm;
 
@@ -625,13 +627,13 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
         overrides?: Partial<Prisma.chatCreateInput>,
     ): Prisma.chatCreateInput {
         const factory = new ChatDbFactory();
-        
+
         // Build the overrides with team relation if provided
         const finalOverrides: Partial<Prisma.chatCreateInput> = {
             ...overrides,
             ...(options.teamId ? { team: { connect: { id: BigInt(options.teamId) } } } : {}),
         };
-        
+
         const baseData = factory.createMinimal(finalOverrides) as Prisma.chatCreateInput;
 
         if (options.userIds && options.userIds.length > 0) {
@@ -703,9 +705,9 @@ export async function seedTestChats(
 
     for (let i = 0; i < count; i++) {
         const overrides = options?.overrides?.[i] || {};
-        
+
         let chatData: Prisma.chatUpsertArgs["create"];
-        
+
         if (options?.isPrivate) {
             chatData = factory.createMinimal({
                 isPrivate: true,

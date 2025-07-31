@@ -1,10 +1,11 @@
-import axios, { type AxiosInstance, type AxiosError, type AxiosRequestConfig } from "axios";
+import { SERVER_VERSION, type EndpointDef } from "@vrooli/shared";
+import axios, { type AxiosError, type AxiosInstance, type AxiosRequestConfig } from "axios";
+import FormData from "form-data";
 import { io, type Socket } from "socket.io-client";
 import { type ConfigManager } from "./config.js";
-import { logger } from "./logger.js";
-import FormData from "form-data";
 import { HTTP_STATUS, LIMITS } from "./constants.js";
 import { formatErrorWithTrace } from "./errorMessages.js";
+import { logger } from "./logger.js";
 
 export interface ApiError {
     message: string;
@@ -88,19 +89,19 @@ export class ApiClient {
     private formatError(error: AxiosError): Error {
         if (error.response) {
             // Handle the server's error response structure
-            const data = error.response.data as { 
+            const data = error.response.data as {
                 errors?: Array<{ trace?: string; code?: string }>;
-                message?: string; 
-                error?: string; 
-                code?: string; 
-                details?: unknown 
+                message?: string;
+                error?: string;
+                code?: string;
+                details?: unknown
             };
-            
+
             // Extract error information from the errors array if present
             let errorCode: string | undefined;
             let errorTrace: string | undefined;
             let fallbackMessage = error.message;
-            
+
             if (data?.errors && Array.isArray(data.errors) && data.errors.length > 0) {
                 const firstError = data.errors[0];
                 errorCode = firstError.code;
@@ -110,7 +111,7 @@ export class ApiClient {
                 errorCode = data?.code;
                 fallbackMessage = data?.message || data?.error || error.message;
             }
-            
+
             // Create error with formatted message
             const formattedMessage = formatErrorWithTrace(errorCode, errorTrace, fallbackMessage);
             const err = new Error(formattedMessage);
@@ -268,14 +269,69 @@ export class ApiClient {
         // Convert operation name to REST endpoint path
         // e.g., "routine_findMany" -> "/routine/findMany"  
         const endpoint = operationName.replace(/_/g, "/");
-        
+
         // Send as POST request with variables as body
         const response = await this.axios.post<{ data: T } | T>(`/api/${endpoint}`, variables, config);
-        
+
         // Return just the data portion
         if (response.data && typeof response.data === "object" && "data" in response.data) {
             return (response.data as { data: T }).data;
         }
         return response.data as T;
+    }
+
+    /**
+     * Execute a request using an endpoint definition from pairs.ts
+     */
+    public async requestWithEndpoint<T = unknown>(
+        endpointDef: EndpointDef,
+        variables?: Record<string, unknown>,
+        config?: AxiosRequestConfig,
+    ): Promise<T> {
+        // Replace path parameters (e.g., :id, :publicId) with values from variables
+        let path = endpointDef.endpoint;
+        const pathParams: Record<string, unknown> = {};
+        const queryParams: Record<string, unknown> = {};
+
+        if (variables) {
+            // Extract path parameters
+            const paramMatches = path.matchAll(/:([\w]+)/g);
+            for (const match of paramMatches) {
+                const paramName = match[1];
+                if (paramName in variables) {
+                    path = path.replace(`:${paramName}`, String(variables[paramName]));
+                    pathParams[paramName] = variables[paramName];
+                }
+            }
+
+            // Remaining variables are query params for GET or body for POST/PUT/DELETE
+            Object.entries(variables).forEach(([key, value]) => {
+                if (!(key in pathParams)) {
+                    queryParams[key] = value;
+                }
+            });
+        }
+
+        // Add /api/v2 prefix if not present
+        if (!path.startsWith("/api")) {
+            path = `/api/${SERVER_VERSION}${path}`;
+        }
+
+        // Execute request based on method
+        const method = endpointDef.method.toLowerCase() as "get" | "post" | "put" | "delete";
+        const requestConfig: AxiosRequestConfig = {
+            ...config,
+            method,
+            url: path,
+        };
+
+        if (method === "get") {
+            requestConfig.params = queryParams;
+        } else {
+            requestConfig.data = queryParams;
+        }
+
+        const response = await this.axios.request<T>(requestConfig);
+        return response.data;
     }
 }

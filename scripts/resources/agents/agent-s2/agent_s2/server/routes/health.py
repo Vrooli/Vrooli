@@ -9,6 +9,7 @@ from ..models.responses import HealthResponse, CapabilitiesResponse
 from ...config import Config, AgentMode
 from ...environment import ModeContext
 from ..services.proxy_service import ProxyManager
+from ..services.browser_health import browser_monitor
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -75,16 +76,29 @@ async def health_check(request: Request):
                         proxy_status["stats"] = addon.get_stats()
         except Exception as e:
             logger.debug(f"Failed to get proxy status: {e}")
+            
+        # Get browser health status
+        browser_status = None
+        try:
+            browser_status = browser_monitor.get_browser_info()
+        except Exception as e:
+            logger.debug(f"Failed to get browser status: {e}")
 
+        # Determine overall health status
+        overall_status = "healthy"
+        if browser_status and not browser_status.get("health", {}).get("healthy", True):
+            overall_status = "degraded"
+            
         return HealthResponse(
-            status="healthy",
+            status=overall_status,
             display=os.environ.get("DISPLAY", ":99"),
             screen_size={"width": screen_width, "height": screen_height},
             startup_time=app_state["startup_time"],
             tasks_processed=app_state["task_counter"],
             ai_status=ai_status,
             mode_info=mode_info,
-            proxy_status=proxy_status
+            proxy_status=proxy_status,
+            browser_status=browser_status
         )
     except Exception as e:
         logger.error(f"Health check failed: {e}")

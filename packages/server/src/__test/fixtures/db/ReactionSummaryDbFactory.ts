@@ -51,13 +51,17 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
                 emoji: "👍",
                 count: 1,
                 // Must have at least one target
-                resourceId: this.generateId(),
+                resource: {
+                    connect: { id: this.generateId() },
+                },
             },
             complete: {
                 id: this.generateId(),
                 emoji: "❤️",
                 count: 42,
-                resourceId: this.generateId(),
+                resource: {
+                    connect: { id: this.generateId() },
+                },
                 createdAt: new Date(),
                 updatedAt: new Date(),
             },
@@ -69,7 +73,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
                     id: 123 as any, // Should be bigint/string, not number
                     emoji: 123, // Should be string
                     count: "not-a-number", // Should be number
-                    resourceId: true, // Should be string
+                    resource: true as any, // Should be relation object
                 },
                 noTarget: {
                     id: this.generateId(),
@@ -81,20 +85,28 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
                     id: this.generateId(),
                     emoji: "👍",
                     count: 1,
-                    resourceId: this.generateId(),
-                    chatMessageId: this.generateId(), // Multiple targets not allowed
+                    resource: {
+                        connect: { id: this.generateId() },
+                    },
+                    chatMessage: {
+                        connect: { id: this.generateId() },
+                    }, // Multiple targets not allowed
                 },
                 negativeCount: {
                     id: this.generateId(),
                     emoji: "👍",
                     count: -1, // Count should not be negative
-                    resourceId: this.generateId(),
+                    resource: {
+                        connect: { id: this.generateId() },
+                    },
                 },
                 invalidEmoji: {
                     id: this.generateId(),
                     emoji: "not_an_emoji", // Invalid emoji format
                     count: 1,
-                    resourceId: this.generateId(),
+                    resource: {
+                        connect: { id: this.generateId() },
+                    },
                 },
             },
             edgeCases: {
@@ -102,43 +114,57 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
                     id: this.generateId(),
                     emoji: "👍",
                     count: 0, // Zero reactions
-                    resourceId: this.generateId(),
+                    resource: {
+                        connect: { id: this.generateId() },
+                    },
                 },
                 largeCount: {
                     id: this.generateId(),
                     emoji: "❤️",
                     count: 999999, // Very large count
-                    resourceId: this.generateId(),
+                    resource: {
+                        connect: { id: this.generateId() },
+                    },
                 },
                 unicodeEmoji: {
                     id: this.generateId(),
                     emoji: "🏳️‍🌈", // Complex unicode emoji
                     count: 10,
-                    resourceId: this.generateId(),
+                    resource: {
+                        connect: { id: this.generateId() },
+                    },
                 },
                 summaryForComment: {
                     id: this.generateId(),
                     emoji: "💬",
                     count: 5,
-                    commentId: this.generateId(),
+                    comment: {
+                        connect: { id: this.generateId() },
+                    },
                 },
                 summaryForIssue: {
                     id: this.generateId(),
                     emoji: "🐛",
                     count: 3,
-                    issueId: this.generateId(),
+                    issue: {
+                        connect: { id: this.generateId() },
+                    },
                 },
                 summaryForChatMessage: {
                     id: this.generateId(),
                     emoji: "👋",
                     count: 7,
-                    chatMessageId: this.generateId(),
+                    chatMessage: {
+                        connect: { id: this.generateId() },
+                    },
                 },
                 multipleEmojisForSameTarget: {
                     id: this.generateId(),
                     emoji: "🎉",
                     count: 15,
-                    resourceId: this.generateId(),
+                    resource: {
+                        connect: { id: this.generateId() },
+                    },
                 },
             },
             updates: {
@@ -158,7 +184,9 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
             id: this.generateId(),
             emoji: "👍",
             count: 1,
-            resourceId: this.generateId(), // Default to resource
+            resource: {
+                connect: { id: this.generateId() },
+            }, // Default to resource
             ...overrides,
         };
     }
@@ -168,7 +196,9 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
             id: this.generateId(),
             emoji: "❤️",
             count: 10,
-            resourceId: this.generateId(),
+            resource: {
+                connect: { id: this.generateId() },
+            },
             createdAt: new Date(),
             updatedAt: new Date(),
             ...overrides,
@@ -251,19 +281,19 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
             resource: {
                 select: {
                     id: true,
-                    index: true,
+                    publicId: true,
                 },
             },
             chatMessage: {
                 select: {
                     id: true,
-                    publicId: true,
+                    text: true,
                 },
             },
             comment: {
                 select: {
                     id: true,
-                    publicId: true,
+                    score: true,
                 },
             },
             issue: {
@@ -285,24 +315,32 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
         // Handle target type
         if (config.targetType && config.targetId) {
             // Clear any existing targets
-            delete data.resourceId;
-            delete data.chatMessageId;
-            delete data.commentId;
-            delete data.issueId;
+            delete data.resource;
+            delete data.chatMessage;
+            delete data.comment;
+            delete data.issue;
 
             // Set the appropriate target
             switch (config.targetType) {
                 case "resource":
-                    data.resourceId = config.targetId;
+                    data.resource = {
+                        connect: { id: config.targetId },
+                    };
                     break;
                 case "chatMessage":
-                    data.chatMessageId = config.targetId;
+                    data.chatMessage = {
+                        connect: { id: config.targetId },
+                    };
                     break;
                 case "comment":
-                    data.commentId = config.targetId;
+                    data.comment = {
+                        connect: { id: config.targetId },
+                    };
                     break;
                 case "issue":
-                    data.issueId = config.targetId;
+                    data.issue = {
+                        connect: { id: config.targetId },
+                    };
                     break;
             }
         }
@@ -318,7 +356,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
         targetId: bigint,
         emoji: string,
         count: number,
-    ): Promise<Prisma.reaction_summary> {
+    ): Promise<reaction_summary> {
         return await this.createWithRelations({
             overrides: { emoji, count },
             targetType,
@@ -333,8 +371,8 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
         targetType: "resource" | "chatMessage" | "comment" | "issue",
         targetId: bigint,
         reactionCounts: Array<{ emoji: string; count: number }>,
-    ): Promise<Prisma.reaction_summary[]> {
-        const summaries: Prisma.reaction_summary[] = [];
+    ): Promise<reaction_summary[]> {
+        const summaries: reaction_summary[] = [];
 
         for (const { emoji, count } of reactionCounts) {
             const summary = await this.createSummaryFor(targetType, targetId, emoji, count);
@@ -349,8 +387,8 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
      */
     async createCompleteSummarySet(
         targetType: "resource" | "chatMessage" | "comment" | "issue",
-        targetId: string,
-    ): Promise<Prisma.reaction_summary[]> {
+        targetId: bigint,
+    ): Promise<reaction_summary[]> {
         const defaultCounts = [
             { emoji: "👍", count: 25 },
             { emoji: "❤️", count: 15 },
@@ -366,9 +404,9 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
      * Update reaction count (increment/decrement)
      */
     async updateReactionCount(
-        summaryId: string,
+        summaryId: bigint,
         delta: number,
-    ): Promise<Prisma.reaction_summary> {
+    ): Promise<reaction_summary> {
         const summary = await this.prisma.reaction_summary.findUnique({
             where: { id: summaryId },
         });
@@ -384,7 +422,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    protected async checkModelConstraints(record: Prisma.reaction_summary): Promise<string[]> {
+    protected async checkModelConstraints(record: reaction_summary): Promise<string[]> {
         const violations: string[] = [];
 
         // Check that only one target is specified
@@ -440,7 +478,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.reaction_summary,
+        record: reaction_summary,
         remainingDepth: number,
         tx: any,
         includeOnly?: string[],
@@ -453,9 +491,9 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
      */
     async synchronizeWithReactions(
         targetType: "resource" | "chatMessage" | "comment" | "issue",
-        targetId: string,
+        targetId: bigint,
         emoji: string,
-    ): Promise<Prisma.reaction_summary | null> {
+    ): Promise<reaction_summary | null> {
         const where: any = {};
         where[`${targetType}Id`] = targetId;
         where.emoji = emoji;
@@ -482,12 +520,12 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
                 });
             } else {
                 // Create new summary
-                const data: any = {
+                const data = {
                     id: this.generateId(),
                     emoji,
                     count: actualCount,
+                    [targetType]: { connect: { id: targetId } },
                 };
-                data[`${targetType}Id`] = targetId;
 
                 return await this.prisma.reaction_summary.create({
                     data,
@@ -504,7 +542,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
      */
     async getTotalReactionCount(
         targetType: "resource" | "chatMessage" | "comment" | "issue",
-        targetId: string,
+        targetId: bigint,
     ): Promise<number> {
         const where: any = {};
         where[`${targetType}Id`] = targetId;

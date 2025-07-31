@@ -277,13 +277,158 @@ class SecurityMonitor:
     
     def _notify_security_team(self, event: SecurityEvent) -> None:
         """Notify security team of high-risk events"""
-        # Placeholder for security team notification
-        # Could integrate with:
-        # - Email alerts
-        # - Slack/Teams notifications  
-        # - SIEM systems (Splunk, ELK, etc.)
-        # - Security orchestration platforms
-        pass
+        try:
+            # Log security event with structured data
+            security_log_entry = {
+                "timestamp": event.timestamp.isoformat(),
+                "event_type": event.event_type,
+                "severity": event.severity,
+                "source": event.source,
+                "details": event.details
+            }
+            
+            # Log to security-specific logger
+            security_logger = logging.getLogger("agent_s2.security")
+            security_logger.warning(f"Security Event: {event.event_type} - {event.details}", extra=security_log_entry)
+            
+            # Send email notification if configured
+            self._send_email_notification(event)
+            
+            # Send webhook notification if configured
+            self._send_webhook_notification(event)
+            
+            # Write to security incident file
+            self._write_security_incident(event)
+            
+        except Exception as e:
+            logger.error(f"Failed to notify security team: {e}")
+    
+    def _send_email_notification(self, event: SecurityEvent) -> None:
+        """Send email notification for security events"""
+        try:
+            import smtplib
+            from email.mime.text import MIMEText
+            from email.mime.multipart import MIMEMultipart
+            import os
+            
+            # Check if email is configured
+            smtp_server = os.getenv("AGENT_S2_SMTP_SERVER")
+            smtp_port = int(os.getenv("AGENT_S2_SMTP_PORT", "587"))
+            smtp_user = os.getenv("AGENT_S2_SMTP_USER")
+            smtp_password = os.getenv("AGENT_S2_SMTP_PASSWORD")
+            security_email = os.getenv("AGENT_S2_SECURITY_EMAIL")
+            
+            if not all([smtp_server, smtp_user, smtp_password, security_email]):
+                logger.debug("Email notification not configured, skipping")
+                return
+            
+            # Create email message
+            msg = MIMEMultipart()
+            msg["From"] = smtp_user
+            msg["To"] = security_email
+            msg["Subject"] = f"Agent S2 Security Alert: {event.event_type}"
+            
+            # Email body
+            body = f"""
+            Security Event Detected
+            
+            Time: {event.timestamp.isoformat()}
+            Event Type: {event.event_type}
+            Severity: {event.severity}
+            Source: {event.source}
+            
+            Details:
+            {event.details}
+            
+            This is an automated notification from Agent S2 Security Monitor.
+            """
+            
+            msg.attach(MIMEText(body, "plain"))
+            
+            # Send email
+            with smtplib.SMTP(smtp_server, smtp_port) as server:
+                server.starttls()
+                server.login(smtp_user, smtp_password)
+                server.send_message(msg)
+                
+            logger.info(f"Security email notification sent for event: {event.event_type}")
+            
+        except Exception as e:
+            logger.error(f"Failed to send email notification: {e}")
+    
+    def _send_webhook_notification(self, event: SecurityEvent) -> None:
+        """Send webhook notification for security events"""
+        try:
+            import requests
+            import json
+            import os
+            
+            webhook_url = os.getenv("AGENT_S2_SECURITY_WEBHOOK_URL")
+            if not webhook_url:
+                logger.debug("Webhook notification not configured, skipping")
+                return
+            
+            # Prepare webhook payload
+            payload = {
+                "timestamp": event.timestamp.isoformat(),
+                "event_type": event.event_type,
+                "severity": event.severity,
+                "source": event.source,
+                "details": event.details,
+                "service": "agent-s2",
+                "host": os.getenv("HOSTNAME", "unknown")
+            }
+            
+            # Send webhook
+            response = requests.post(
+                webhook_url,
+                json=payload,
+                headers={"Content-Type": "application/json"},
+                timeout=10
+            )
+            
+            if response.status_code == 200:
+                logger.info(f"Security webhook notification sent for event: {event.event_type}")
+            else:
+                logger.warning(f"Webhook notification failed with status {response.status_code}")
+                
+        except Exception as e:
+            logger.error(f"Failed to send webhook notification: {e}")
+    
+    def _write_security_incident(self, event: SecurityEvent) -> None:
+        """Write security incident to file for audit trail"""
+        try:
+            import json
+            import os
+            from pathlib import Path
+            
+            # Create security incidents directory
+            incidents_dir = Path("/tmp/agent-s2-security-incidents")
+            incidents_dir.mkdir(exist_ok=True)
+            
+            # Create incident file with timestamp
+            incident_file = incidents_dir / f"incident_{event.timestamp.strftime('%Y%m%d_%H%M%S')}.json"
+            
+            # Prepare incident data
+            incident_data = {
+                "timestamp": event.timestamp.isoformat(),
+                "event_type": event.event_type,
+                "severity": event.severity,
+                "source": event.source,
+                "details": event.details,
+                "session_id": getattr(self, 'session_id', 'unknown'),
+                "user_agent": getattr(self, 'user_agent', 'unknown'),
+                "host": os.getenv("HOSTNAME", "unknown")
+            }
+            
+            # Write incident to file
+            with open(incident_file, 'w') as f:
+                json.dump(incident_data, f, indent=2)
+                
+            logger.info(f"Security incident written to: {incident_file}")
+            
+        except Exception as e:
+            logger.error(f"Failed to write security incident: {e}")
     
     def get_security_summary(self) -> Dict[str, Any]:
         """Get security summary for current session"""

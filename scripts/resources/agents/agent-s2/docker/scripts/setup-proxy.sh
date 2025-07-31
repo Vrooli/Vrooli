@@ -43,7 +43,7 @@ setup_ip_forwarding() {
 
 # Setup iptables rules for transparent proxy
 setup_iptables() {
-    local proxy_port="${PROXY_PORT:-8080}"
+    local proxy_port="${PROXY_PORT:-8085}"
     local proxy_user="agents2"
     
     log_info "Setting up iptables rules for transparent proxy on port $proxy_port..."
@@ -141,13 +141,13 @@ verify_setup() {
     log_info "Verifying proxy setup..."
     
     # Check iptables rules
-    if iptables -t nat -L OUTPUT -n | grep -q "REDIRECT.*tcp.*dpt:80.*redir ports ${PROXY_PORT:-8080}"; then
+    if iptables -t nat -L OUTPUT -n | grep -q "REDIRECT.*tcp.*dpt:80.*redir ports ${PROXY_PORT:-8085}"; then
         log_info "✓ HTTP redirect rule found"
     else
         log_warn "✗ HTTP redirect rule not found"
     fi
     
-    if iptables -t nat -L OUTPUT -n | grep -q "REDIRECT.*tcp.*dpt:443.*redir ports ${PROXY_PORT:-8080}"; then
+    if iptables -t nat -L OUTPUT -n | grep -q "REDIRECT.*tcp.*dpt:443.*redir ports ${PROXY_PORT:-8085}"; then
         log_info "✓ HTTPS redirect rule found"
     else
         log_warn "✗ HTTPS redirect rule not found"
@@ -166,10 +166,10 @@ cleanup_proxy() {
     log_info "Cleaning up proxy configuration..."
     
     # Remove iptables rules
-    iptables -t nat -D OUTPUT -p tcp --dport 80 -m owner ! --uid-owner agents2 -j REDIRECT --to-port ${PROXY_PORT:-8080} 2>/dev/null || true
-    iptables -t nat -D OUTPUT -p tcp --dport 443 -m owner ! --uid-owner agents2 -j REDIRECT --to-port ${PROXY_PORT:-8080} 2>/dev/null || true
-    iptables -t nat -D OUTPUT -p tcp --dport 8080 -m owner ! --uid-owner agents2 -j REDIRECT --to-port ${PROXY_PORT:-8080} 2>/dev/null || true
-    iptables -t nat -D OUTPUT -p tcp --dport 8443 -m owner ! --uid-owner agents2 -j REDIRECT --to-port ${PROXY_PORT:-8080} 2>/dev/null || true
+    iptables -t nat -D OUTPUT -p tcp --dport 80 -m owner ! --uid-owner agents2 -j REDIRECT --to-port ${PROXY_PORT:-8085} 2>/dev/null || true
+    iptables -t nat -D OUTPUT -p tcp --dport 443 -m owner ! --uid-owner agents2 -j REDIRECT --to-port ${PROXY_PORT:-8085} 2>/dev/null || true
+    iptables -t nat -D OUTPUT -p tcp --dport 8080 -m owner ! --uid-owner agents2 -j REDIRECT --to-port ${PROXY_PORT:-8085} 2>/dev/null || true
+    iptables -t nat -D OUTPUT -p tcp --dport 8443 -m owner ! --uid-owner agents2 -j REDIRECT --to-port ${PROXY_PORT:-8085} 2>/dev/null || true
     iptables -t nat -D OUTPUT -o lo -j RETURN 2>/dev/null || true
     
     log_info "Proxy cleanup complete"
