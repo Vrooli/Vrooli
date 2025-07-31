@@ -1,4 +1,5 @@
-import { type FindByIdInput, type RunCreateInput, type RunSearchInput, type RunUpdateInput, generatePK, RunStatus, runTestDataFactory } from "@vrooli/shared";
+import { type FindByIdInput, type RunCreateInput, type RunSearchInput, type RunUpdateInput, generatePK, RunStatus } from "@vrooli/shared";
+import { runTestDataFactory } from "@vrooli/shared/test-fixtures/api-inputs";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertRequiresApiKeyReadPermissions, assertRequiresApiKeyWritePermissions, assertRequiresAuth } from "../../__test/authTestUtils.js";
 import { mockApiSession, mockAuthenticatedSession, mockReadPrivatePermissions } from "../../__test/session.js";
@@ -59,7 +60,7 @@ describe("EndpointsRun", () => {
 
         // Create test projects and routines (all stored as resources)
         const project1 = await DbProvider.get().resource.create({
-            data: resourceFactory.createWithVersion({
+            data: resourceFactory.createWithVersions({
                 resourceType: "Project",
                 createdById: testUsers[0].id,
                 isPrivate: false,
@@ -68,7 +69,7 @@ describe("EndpointsRun", () => {
         });
 
         const project2 = await DbProvider.get().resource.create({
-            data: resourceFactory.createWithVersion({
+            data: resourceFactory.createWithVersions({
                 resourceType: "Project",
                 createdById: testUsers[1].id,
                 isPrivate: true,
@@ -77,7 +78,7 @@ describe("EndpointsRun", () => {
         });
 
         const routine1 = await DbProvider.get().resource.create({
-            data: resourceFactory.createWithVersion({
+            data: resourceFactory.createWithVersions({
                 resourceType: "Routine",
                 createdById: testUsers[0].id,
                 isPrivate: false,
@@ -88,40 +89,50 @@ describe("EndpointsRun", () => {
         // Create test runs
         const runs = await Promise.all([
             // User 1's project run
-            DbProvider.get().runProject.create({
-                data: RunDbFactory.createForProject({
-                    userId: testUsers[0].id,
-                    projectVersionId: project1.versions[0].id,
-                    status: "InProgress",
-                    isPrivate: false,
-                }),
+            DbProvider.get().run.create({
+                data: RunDbFactory.createWithResourceVersion(
+                    project1.versions[0].id.toString(),
+                    {
+                        user: { connect: { id: testUsers[0].id } },
+                        status: "InProgress",
+                        isPrivate: false,
+                    },
+                ),
             }),
             // User 1's completed project run
-            DbProvider.get().runProject.create({
-                data: RunDbFactory.createForProject({
-                    userId: testUsers[0].id,
-                    projectVersionId: project1.versions[0].id,
-                    status: "Completed",
-                    isPrivate: false,
-                }),
+            DbProvider.get().run.create({
+                data: RunDbFactory.createWithResourceVersion(
+                    project1.versions[0].id.toString(),
+                    {
+                        user: { connect: { id: testUsers[0].id } },
+                        status: "Completed",
+                        isPrivate: false,
+                        completedComplexity: 10,
+                        timeElapsed: 3600,
+                    },
+                ),
             }),
             // User 2's private project run
-            DbProvider.get().runProject.create({
-                data: RunDbFactory.createForProject({
-                    userId: testUsers[1].id,
-                    projectVersionId: project2.versions[0].id,
-                    status: "InProgress",
-                    isPrivate: true,
-                }),
+            DbProvider.get().run.create({
+                data: RunDbFactory.createWithResourceVersion(
+                    project2.versions[0].id.toString(),
+                    {
+                        user: { connect: { id: testUsers[1].id } },
+                        status: "InProgress",
+                        isPrivate: true,
+                    },
+                ),
             }),
             // User 1's routine run
-            DbProvider.get().runRoutine.create({
-                data: RunDbFactory.createForRoutine({
-                    userId: testUsers[0].id,
-                    routineVersionId: routine1.versions[0].id,
-                    status: "Scheduled",
-                    isPrivate: false,
-                }),
+            DbProvider.get().run.create({
+                data: RunDbFactory.createWithResourceVersion(
+                    routine1.versions[0].id.toString(),
+                    {
+                        user: { connect: { id: testUsers[0].id } },
+                        status: "Scheduled",
+                        isPrivate: false,
+                    },
+                ),
             }),
         ]);
 
@@ -133,7 +144,7 @@ describe("EndpointsRun", () => {
             it("not logged in", async () => {
                 await assertRequiresAuth(
                     run.findOne,
-                    { id: generatePK() },
+                    { id: generatePK().toString() },
                     run_findOne,
                 );
             });
@@ -141,7 +152,7 @@ describe("EndpointsRun", () => {
             it("API key - no read permissions", async () => {
                 await assertRequiresApiKeyReadPermissions(
                     run.findOne,
-                    { id: generatePK() },
+                    { id: generatePK().toString() },
                     run_findOne,
                     ["Run"],
                 );
@@ -197,11 +208,35 @@ describe("EndpointsRun", () => {
 
             it("returns run via API key with read permissions", async () => {
                 const { testUsers, runs } = await createTestData();
-                const { req, res } = await mockApiSession({
-                    userId: testUsers[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockReadPrivatePermissions(["Run"]),
-                });
+                const { req, res } = await mockApiSession(
+                    generatePK().toString(), // apiToken
+                    mockReadPrivatePermissions(), // permissions
+                    {
+                        id: testUsers[0].id,
+                        handle: "test-user",
+                        lastLoginAttempt: new Date(),
+                        logInAttempts: 0,
+                        name: "Test User",
+                        profileImage: null,
+                        publicId: "test-public-id",
+                        theme: "dark",
+                        status: "Unlocked" as const,
+                        updatedAt: new Date(),
+                        auths: [{
+                            id: generatePK(),
+                            provider: "Password" as const,
+                            hashed_password: "dummy-hash",
+                        }],
+                        emails: [{
+                            emailAddress: "test-user@example.com",
+                        }],
+                        phones: [],
+                        plan: null,
+                        creditAccount: null,
+                        languages: ["en"],
+                        sessions: [],
+                    }, // userData
+                );
 
                 const input: FindByIdInput = { id: runs[0].id.toString() };
                 const result = await run.findOne({ input }, { req, res }, run_findOne);
@@ -230,7 +265,7 @@ describe("EndpointsRun", () => {
                     id: testUsers[0].id.toString(),
                 });
 
-                const input: FindByIdInput = { id: generatePK() };
+                const input: FindByIdInput = { id: generatePK().toString() };
                 const result = await run.findOne({ input }, { req, res }, run_findOne);
 
                 expect(result).toBeNull();
@@ -316,9 +351,9 @@ describe("EndpointsRun", () => {
                 const result = await run.findMany({ input }, { req, res }, run_findMany);
 
                 // Verify results are sorted by update date (newest first)
-                for (let i = 1; i < result.results.length; i++) {
-                    const prevDate = new Date(result.results[i - 1].updated_at);
-                    const currDate = new Date(result.results[i].updated_at);
+                for (let i = 1; i < result.edges.length; i++) {
+                    const prevDate = new Date(result.edges[i - 1].node.updated_at);
+                    const currDate = new Date(result.edges[i].node.updated_at);
                     expect(prevDate.getTime()).toBeGreaterThanOrEqual(currDate.getTime());
                 }
             });
@@ -351,8 +386,8 @@ describe("EndpointsRun", () => {
                 };
                 const result1 = await run.findMany({ input: input1 }, { req, res }, run_findMany);
 
-                expect(result1.results).toHaveLength(2);
-                expect(result1.totalCount).toBe(3);
+                expect(result1.edges).toHaveLength(2);
+                expect(result1.pageInfo.totalCount).toBe(3);
 
                 // Second page
                 const input2: RunSearchInput = {
@@ -361,12 +396,12 @@ describe("EndpointsRun", () => {
                 };
                 const result2 = await run.findMany({ input: input2 }, { req, res }, run_findMany);
 
-                expect(result2.results).toHaveLength(1);
-                expect(result2.totalCount).toBe(3);
+                expect(result2.edges).toHaveLength(1);
+                expect(result2.pageInfo.totalCount).toBe(3);
 
                 // Ensure no overlap
-                const ids1 = result1.results.map(r => r.id);
-                const ids2 = result2.results.map(r => r.id);
+                const ids1 = result1.edges.map(edge => edge.node.id);
+                const ids2 = result2.edges.map(edge => edge.node.id);
                 expect(ids1.some(id => ids2.includes(id))).toBe(false);
             });
 
@@ -455,7 +490,7 @@ describe("EndpointsRun", () => {
                 });
 
                 const input: RunCreateInput = runTestDataFactory.createMinimal({
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     name: "Test Project Run",
                     status: RunStatus.InProgress,
                     isPrivate: false,
@@ -484,7 +519,7 @@ describe("EndpointsRun", () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
 
                 // Create routine for the run
-                const routine = await DbProvider.get().routine.create({
+                const routine = await DbProvider.get().resource.create({
                     data: RoutineDbFactory.createWithVersion({
                         createdById: testUser[0].id,
                         isPrivate: false,
@@ -497,7 +532,7 @@ describe("EndpointsRun", () => {
                 });
 
                 const input: RunCreateInput = runTestDataFactory.createMinimal({
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     name: "Test Routine Run",
                     status: RunStatus.Scheduled,
                     isPrivate: false,
@@ -508,7 +543,7 @@ describe("EndpointsRun", () => {
 
                 expect(result.name).toBe("Test Routine Run");
                 expect(result.status).toBe("Scheduled");
-                expect(result.routineVersion?.id).toBe(routine.versions[0].id.toString());
+                expect(result.resourceVersion?.id).toBe(routine.versions[0].id.toString());
             });
 
             it("creates run with steps and IO", async () => {
@@ -526,7 +561,7 @@ describe("EndpointsRun", () => {
                 });
 
                 const input: RunCreateInput = runTestDataFactory.createComplete({
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     name: "Complete Run",
                     status: RunStatus.InProgress,
                     isPrivate: false,
@@ -537,14 +572,14 @@ describe("EndpointsRun", () => {
                     data: JSON.stringify({ config: { setting: true }, progress: 50 }),
                     stepsCreate: [
                         {
-                            id: generatePK(),
+                            id: generatePK().toString(),
                             name: "Step 1",
                             order: 0,
                             status: "Completed",
                             timeElapsed: 1800,
                         },
                         {
-                            id: generatePK(),
+                            id: generatePK().toString(),
                             name: "Step 2",
                             order: 1,
                             status: "InProgress",
@@ -553,12 +588,12 @@ describe("EndpointsRun", () => {
                     ],
                     ioCreate: [
                         {
-                            id: generatePK(),
+                            id: generatePK().toString(),
                             name: "input1",
                             data: JSON.stringify({ value: "test input" }),
                         },
                         {
-                            id: generatePK(),
+                            id: generatePK().toString(),
                             name: "output1",
                             data: JSON.stringify({ result: "test output" }),
                         },
@@ -588,10 +623,10 @@ describe("EndpointsRun", () => {
                 });
 
                 const input: RunCreateInput = runTestDataFactory.createMinimal({
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     name: "Invalid Run",
                     status: RunStatus.InProgress,
-                    resourceVersionConnect: generatePK(), // Non-existent
+                    resourceVersionConnect: generatePK().toString(), // Non-existent
                 });
 
                 await expect(run.createOne({ input }, { req, res }, run_createOne))
@@ -616,7 +651,7 @@ describe("EndpointsRun", () => {
                 });
 
                 const input: RunCreateInput = runTestDataFactory.createMinimal({
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     name: "Unauthorized Run",
                     status: RunStatus.InProgress,
                     resourceVersionConnect: privateProject.versions[0].id.toString(),
@@ -629,9 +664,12 @@ describe("EndpointsRun", () => {
             it("rejects invalid data format", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
 
-                const project = await DbProvider.get().project.create({
-                    data: ProjectDbFactory.createWithVersion({
+                const resourceFactory = createResourceDbFactory(DbProvider.get());
+                const project = await DbProvider.get().resource.create({
+                    data: resourceFactory.createWithVersions({
+                        resourceType: "Project",
                         createdById: testUser[0].id,
+                        isPrivate: false,
                     }),
                     include: { versions: true },
                 });
@@ -641,7 +679,7 @@ describe("EndpointsRun", () => {
                 });
 
                 const input: RunCreateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     name: "Invalid Data Run",
                     status: RunStatus.InProgress,
                     isPrivate: false,
@@ -660,7 +698,7 @@ describe("EndpointsRun", () => {
             it("not logged in", async () => {
                 await assertRequiresAuth(
                     run.updateOne,
-                    { id: generatePK() },
+                    { id: generatePK().toString() },
                     run_updateOne,
                 );
             });
@@ -668,7 +706,7 @@ describe("EndpointsRun", () => {
             it("API key - no write permissions", async () => {
                 await assertRequiresApiKeyWritePermissions(
                     run.updateOne,
-                    { id: generatePK() },
+                    { id: generatePK().toString() },
                     run_updateOne,
                     ["Run"],
                 );
@@ -711,7 +749,7 @@ describe("EndpointsRun", () => {
                     id: runs[0].id.toString(),
                     stepsCreate: [
                         {
-                            id: generatePK(),
+                            id: generatePK().toString(),
                             name: "New Step",
                             order: 0,
                             status: "Completed",
@@ -738,7 +776,7 @@ describe("EndpointsRun", () => {
                     id: runs[0].id.toString(),
                     ioCreate: [
                         {
-                            id: generatePK(),
+                            id: generatePK().toString(),
                             name: "final_result",
                             data: JSON.stringify({ value: "completed successfully" }),
                         },
@@ -804,7 +842,7 @@ describe("EndpointsRun", () => {
                 });
 
                 const input: RunUpdateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     status: RunStatus.Completed,
                 };
 

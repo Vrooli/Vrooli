@@ -1,6 +1,7 @@
+/* eslint-disable no-magic-numbers */
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
-import { generatePK, TransferStatus } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK, TransferStatus } from "@vrooli/shared";
 
 /**
  * Database fixtures for Transfer model - used for seeding test data
@@ -23,9 +24,9 @@ export const minimalTransferDb: Prisma.transferCreateInput = {
     id: transferDbIds.transfer1,
     status: TransferStatus.Pending,
     initializedByReceiver: false,
-    resource: { connect: { id: "resource_123" } },
-    fromUser: { connect: { id: "user_from_123" } },
-    toUser: { connect: { id: "user_to_123" } },
+    resource: { connect: { id: BigInt(123) } },
+    fromUser: { connect: { id: BigInt(456) } },
+    toUser: { connect: { id: BigInt(789) } },
 };
 
 /**
@@ -36,9 +37,9 @@ export const completeTransferDb: Prisma.transferCreateInput = {
     status: TransferStatus.Pending,
     initializedByReceiver: false,
     message: "I would like to transfer this resource to you",
-    resource: { connect: { id: "resource_456" } },
-    fromUser: { connect: { id: "user_from_456" } },
-    toUser: { connect: { id: "user_to_456" } },
+    resource: { connect: { id: BigInt(234) } },
+    fromUser: { connect: { id: BigInt(567) } },
+    toUser: { connect: { id: BigInt(890) } },
 };
 
 /**
@@ -49,9 +50,9 @@ export const teamToUserTransferDb: Prisma.transferCreateInput = {
     status: TransferStatus.Pending,
     initializedByReceiver: false,
     message: "Transferring resource from team to user",
-    resource: { connect: { id: "resource_789" } },
-    fromTeam: { connect: { id: "team_from_789" } },
-    toUser: { connect: { id: "user_to_789" } },
+    resource: { connect: { id: BigInt(345) } },
+    fromTeam: { connect: { id: BigInt(678) } },
+    toUser: { connect: { id: BigInt(901) } },
 };
 
 /**
@@ -62,9 +63,9 @@ export const userToTeamTransferDb: Prisma.transferCreateInput = {
     status: TransferStatus.Pending,
     initializedByReceiver: false,
     message: "Transferring resource from user to team",
-    resource: { connect: { id: "resource_012" } },
-    fromUser: { connect: { id: "user_from_012" } },
-    toTeam: { connect: { id: "team_to_012" } },
+    resource: { connect: { id: BigInt(456) } },
+    fromUser: { connect: { id: BigInt(789) } },
+    toTeam: { connect: { id: BigInt(12) } },
 };
 
 /**
@@ -76,9 +77,9 @@ export const acceptedTransferDb: Prisma.transferCreateInput = {
     initializedByReceiver: false,
     message: "Successfully accepted transfer",
     closedAt: new Date(),
-    resource: { connect: { id: "resource_345" } },
-    fromUser: { connect: { id: "user_from_345" } },
-    toUser: { connect: { id: "user_to_345" } },
+    resource: { connect: { id: BigInt(567) } },
+    fromUser: { connect: { id: BigInt(890) } },
+    toUser: { connect: { id: BigInt(123) } },
 };
 
 /**
@@ -102,9 +103,9 @@ export class TransferDbFactory {
     }
 
     static createTeamToUser(
-        fromTeamId: string,
-        toUserId: string,
-        resourceId: string,
+        fromTeamId: bigint,
+        toUserId: bigint,
+        resourceId: bigint,
         overrides?: Partial<Prisma.transferCreateInput>,
     ): Prisma.transferCreateInput {
         return {
@@ -118,9 +119,9 @@ export class TransferDbFactory {
     }
 
     static createUserToTeam(
-        fromUserId: string,
-        toTeamId: string,
-        resourceId: string,
+        fromUserId: bigint,
+        toTeamId: bigint,
+        resourceId: bigint,
         overrides?: Partial<Prisma.transferCreateInput>,
     ): Prisma.transferCreateInput {
         return {
@@ -134,9 +135,9 @@ export class TransferDbFactory {
     }
 
     static createUserToUser(
-        fromUserId: string,
-        toUserId: string,
-        resourceId: string,
+        fromUserId: bigint,
+        toUserId: bigint,
+        resourceId: bigint,
         overrides?: Partial<Prisma.transferCreateInput>,
     ): Prisma.transferCreateInput {
         return {
@@ -154,19 +155,19 @@ export class TransferDbFactory {
      */
     static createWithStatus(
         status: TransferStatus,
-        fromUserId: string,
-        toUserId: string,
-        resourceId: string,
+        fromUserId: bigint,
+        toUserId: bigint,
+        resourceId: bigint,
         overrides?: Partial<Prisma.transferCreateInput>,
     ): Prisma.transferCreateInput {
         const baseData = this.createUserToUser(fromUserId, toUserId, resourceId);
-        
+
         const statusSpecificData: Partial<Prisma.transferCreateInput> = {};
-        
+
         if (status === TransferStatus.Accepted || status === TransferStatus.Denied) {
             statusSpecificData.closedAt = new Date();
         }
-        
+
         if (status === TransferStatus.Denied) {
             statusSpecificData.denyReason = "Transfer request was denied";
         }
@@ -183,9 +184,9 @@ export class TransferDbFactory {
      * Create transfer initialized by receiver (incoming request)
      */
     static createInitializedByReceiver(
-        fromUserId: string,
-        toUserId: string,
-        resourceId: string,
+        fromUserId: bigint,
+        toUserId: bigint,
+        resourceId: bigint,
         overrides?: Partial<Prisma.transferCreateInput>,
     ): Prisma.transferCreateInput {
         return {
@@ -200,9 +201,9 @@ export class TransferDbFactory {
      * Create denied transfer with reason
      */
     static createDenied(
-        fromUserId: string,
-        toUserId: string,
-        resourceId: string,
+        fromUserId: bigint,
+        toUserId: bigint,
+        resourceId: bigint,
         denyReason: string,
         overrides?: Partial<Prisma.transferCreateInput>,
     ): Prisma.transferCreateInput {
@@ -222,21 +223,21 @@ export class TransferDbFactory {
 export async function seedTransfers(
     prisma: any,
     options: {
-        fromUserId?: string;
-        fromTeamId?: string;
-        toUserId?: string;
-        toTeamId?: string;
-        resourceIds: string[];
+        fromUserId?: bigint;
+        fromTeamId?: bigint;
+        toUserId?: bigint;
+        toTeamId?: bigint;
+        resourceIds: bigint[];
         status?: TransferStatus;
         count?: number;
     },
 ) {
-    const transfers = [];
+    const transfers: any[] = [];
     const count = options.count || options.resourceIds.length;
 
     for (let i = 0; i < count; i++) {
         const resourceId = options.resourceIds[i % options.resourceIds.length];
-        
+
         let transferData: Prisma.transferCreateInput;
 
         // Determine transfer type based on provided IDs
@@ -293,7 +294,7 @@ export async function seedTransfers(
 /**
  * Helper to clean up test transfers
  */
-export async function cleanupTransfers(prisma: PrismaClient, transferIds: string[]) {
+export async function cleanupTransfers(prisma: PrismaClient, transferIds: bigint[]) {
     return prisma.transfer.deleteMany({
         where: {
             id: {

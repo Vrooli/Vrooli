@@ -1,4 +1,4 @@
-import { type FindByIdInput, type MemberSearchInput, type MemberUpdateInput, generatePK } from "@vrooli/shared";
+import { type FindByPublicIdInput, type MemberSearchInput, type MemberUpdateInput, SEEDED_PUBLIC_IDS, generatePK, generatePublicId } from "@vrooli/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
@@ -10,7 +10,7 @@ import { member_updateOne } from "../generated/member_updateOne.js";
 import { member } from "./member.js";
 // Import database fixtures for seeding
 import { seedTeamWithMembers } from "../../__test/fixtures/db/memberFixtures.js";
-import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
+import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
@@ -21,12 +21,25 @@ describe("EndpointsMember", () => {
         // Use Vitest spies to suppress logger output during tests
         vi.spyOn(logger, "error").mockImplementation(() => logger);
         vi.spyOn(logger, "info").mockImplementation(() => logger);
+
+        // Create admin user for system operations
+        await DbProvider.get().user.upsert({
+            where: { publicId: SEEDED_PUBLIC_IDS.Admin },
+            update: {},
+            create: {
+                id: generatePK(),
+                publicId: SEEDED_PUBLIC_IDS.Admin,
+                handle: "admin",
+                name: "Admin User",
+                isPrivate: false,
+            },
+        });
     });
 
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["team","member","member_invite","meeting","user"],
+            tables: ["team", "member", "member_invite", "meeting", "user"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
@@ -37,6 +50,19 @@ describe("EndpointsMember", () => {
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.team(DbProvider.get());
+
+        // Ensure admin user exists for each test
+        await DbProvider.get().user.upsert({
+            where: { publicId: SEEDED_PUBLIC_IDS.Admin },
+            update: {},
+            create: {
+                id: generatePK(),
+                publicId: SEEDED_PUBLIC_IDS.Admin,
+                handle: "admin",
+                name: "Admin User",
+                isPrivate: false,
+            },
+        });
     });
 
     afterAll(async () => {
@@ -47,14 +73,18 @@ describe("EndpointsMember", () => {
     describe("findOne", () => {
         it("returns member by id for team member", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsersResult = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsers = testUsersResult.records;
 
             // Create a team
             const team = await DbProvider.get().team.create({
                 data: {
                     id: generatePK(),
-                    publicId: UserDbFactory.createMinimal().publicId,
+                    publicId: generatePublicId(),
                     isPrivate: false,
+                    handle: `team_test_${Date.now()}`,
+                    isOpenToNewMembers: true,
+                    createdBy: { connect: { id: testUsers[0].id } },
                     translations: {
                         create: {
                             id: generatePK(),
@@ -63,7 +93,6 @@ describe("EndpointsMember", () => {
                             bio: "A team for testing",
                         },
                     },
-                    owner: { connect: { id: testUsers[0].id } },
                 },
             });
 
@@ -80,23 +109,31 @@ describe("EndpointsMember", () => {
                 ...loggedInUserNoPremiumData(),
                 id: testUsers[0].id.toString(),
             });
-            const input: FindByIdInput = { id: memberData.members[0].id };
+            const input: FindByPublicIdInput = { publicId: memberData.members[0].publicId };
             const result = await member.findOne({ input }, { req, res }, member_findOne);
             expect(result).not.toBeNull();
             expect(result.id).toEqual(memberData.members[0].id);
-            expect(result.role).toBe("Owner");
+            expect(result.isAdmin).toBe(true);
+            expect(result.permissions).toEqual(expect.objectContaining({
+                manageTeam: true,
+                manageMembers: true,
+            }));
         });
 
         it("returns member by id for another team member", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsersResult = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsers = testUsersResult.records;
 
             // Create a team
             const team = await DbProvider.get().team.create({
                 data: {
                     id: generatePK(),
-                    publicId: UserDbFactory.createMinimal().publicId,
+                    publicId: generatePublicId(),
                     isPrivate: false,
+                    handle: `team_test_${Date.now()}`,
+                    isOpenToNewMembers: true,
+                    createdBy: { connect: { id: testUsers[0].id } },
                     translations: {
                         create: {
                             id: generatePK(),
@@ -105,7 +142,6 @@ describe("EndpointsMember", () => {
                             bio: "A team for testing",
                         },
                     },
-                    owner: { connect: { id: testUsers[0].id } },
                 },
             });
 
@@ -122,23 +158,28 @@ describe("EndpointsMember", () => {
                 ...loggedInUserNoPremiumData(),
                 id: testUsers[1].id.toString(),
             });
-            const input: FindByIdInput = { id: memberData.members[1].id };
+            const input: FindByPublicIdInput = { publicId: memberData.members[1].publicId };
             const result = await member.findOne({ input }, { req, res }, member_findOne);
             expect(result).not.toBeNull();
             expect(result.id).toEqual(memberData.members[1].id);
-            expect(result.role).toBe("Member");
+            expect(result.isAdmin).toBe(false);
+            expect(result.permissions).toEqual({});
         });
 
         it("returns member by id with API key public read", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsersResult = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsers = testUsersResult.records;
 
             // Create a team
             const team = await DbProvider.get().team.create({
                 data: {
                     id: generatePK(),
-                    publicId: UserDbFactory.createMinimal().publicId,
+                    publicId: generatePublicId(),
                     isPrivate: false,
+                    handle: `team_test_${Date.now()}`,
+                    isOpenToNewMembers: true,
+                    createdBy: { connect: { id: testUsers[0].id } },
                     translations: {
                         create: {
                             id: generatePK(),
@@ -147,7 +188,6 @@ describe("EndpointsMember", () => {
                             bio: "A team for testing",
                         },
                     },
-                    owner: { connect: { id: testUsers[0].id } },
                 },
             });
 
@@ -166,22 +206,26 @@ describe("EndpointsMember", () => {
                 ...loggedInUserNoPremiumData(),
                 id: testUsers[0].id.toString(),
             });
-            const input: FindByIdInput = { id: memberData.members[0].id };
+            const input: FindByPublicIdInput = { publicId: memberData.members[0].publicId };
             const result = await member.findOne({ input }, { req, res }, member_findOne);
             expect(result).not.toBeNull();
             expect(result.id).toEqual(memberData.members[0].id);
         });
 
-        it("throws error for not authenticated user", async () => {
+        it("returns member data for public team even without authentication", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsersResult = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsers = testUsersResult.records;
 
             // Create a team
             const team = await DbProvider.get().team.create({
                 data: {
                     id: generatePK(),
-                    publicId: UserDbFactory.createMinimal().publicId,
+                    publicId: generatePublicId(),
                     isPrivate: false,
+                    handle: `team_test_${Date.now()}`,
+                    isOpenToNewMembers: true,
+                    createdBy: { connect: { id: testUsers[0].id } },
                     translations: {
                         create: {
                             id: generatePK(),
@@ -190,7 +234,6 @@ describe("EndpointsMember", () => {
                             bio: "A team for testing",
                         },
                     },
-                    owner: { connect: { id: testUsers[0].id } },
                 },
             });
 
@@ -204,25 +247,29 @@ describe("EndpointsMember", () => {
             });
 
             const { req, res } = await mockLoggedOutSession();
-            const input: FindByIdInput = { id: memberData.members[0].id };
+            const input: FindByPublicIdInput = { publicId: memberData.members[0].publicId };
 
-            await expect(async () => {
-                await member.findOne({ input }, { req, res }, member_findOne);
-            }).rejects.toThrow();
+            const result = await member.findOne({ input }, { req, res }, member_findOne);
+            expect(result).not.toBeNull();
+            expect(result.id).toEqual(memberData.members[0].id);
         });
     });
 
     describe("findMany", () => {
         it("returns members for a team", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsersResult = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsers = testUsersResult.records;
 
             // Create a team
             const team = await DbProvider.get().team.create({
                 data: {
                     id: generatePK(),
-                    publicId: UserDbFactory.createMinimal().publicId,
+                    publicId: generatePublicId(),
                     isPrivate: false,
+                    handle: `team_test_${Date.now()}`,
+                    isOpenToNewMembers: true,
+                    createdBy: { connect: { id: testUsers[0].id } },
                     translations: {
                         create: {
                             id: generatePK(),
@@ -231,7 +278,6 @@ describe("EndpointsMember", () => {
                             bio: "A team for testing",
                         },
                     },
-                    owner: { connect: { id: testUsers[0].id } },
                 },
             });
 
@@ -249,7 +295,7 @@ describe("EndpointsMember", () => {
                 id: testUsers[0].id.toString(),
             });
             const input: MemberSearchInput = {
-                teamIds: [team.id],
+                teamId: team.id.toString(),
                 take: 10,
             };
             const result = await member.findMany({ input }, { req, res }, member_findMany);
@@ -257,23 +303,36 @@ describe("EndpointsMember", () => {
             expect(result.edges).toBeInstanceOf(Array);
             expect(result.edges.length).toBe(3); // Owner, Member, Admin
 
-            // Check roles
-            const roles = result.edges.map((edge: any) => edge.node.role);
-            expect(roles).toContain("Owner");
-            expect(roles).toContain("Member");
-            expect(roles).toContain("Admin");
+            // Check admin statuses and permissions
+            const members = result.edges.map((edge: any) => edge.node);
+
+            // Should have an owner (isAdmin: true with manageTeam permission)
+            const owner = members.find((m: any) => m.isAdmin && m.permissions?.manageTeam);
+            expect(owner).toBeDefined();
+
+            // Should have a regular member (isAdmin: false)
+            const regularMember = members.find((m: any) => !m.isAdmin);
+            expect(regularMember).toBeDefined();
+
+            // Should have an admin (isAdmin: true with manageMembers but not manageTeam)
+            const admin = members.find((m: any) => m.isAdmin && m.permissions?.manageMembers && !m.permissions?.manageTeam);
+            expect(admin).toBeDefined();
         });
 
         it("returns members for non-member with public team", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsersResult = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsers = testUsersResult.records;
 
             // Create a team
             const team = await DbProvider.get().team.create({
                 data: {
                     id: generatePK(),
-                    publicId: UserDbFactory.createMinimal().publicId,
+                    publicId: generatePublicId(),
                     isPrivate: false,
+                    handle: `team_test_${Date.now()}`,
+                    isOpenToNewMembers: true,
+                    createdBy: { connect: { id: testUsers[0].id } },
                     translations: {
                         create: {
                             id: generatePK(),
@@ -282,7 +341,6 @@ describe("EndpointsMember", () => {
                             bio: "A team for testing",
                         },
                     },
-                    owner: { connect: { id: testUsers[0].id } },
                 },
             });
 
@@ -300,7 +358,7 @@ describe("EndpointsMember", () => {
                 id: testUsers[3].id.toString(),
             });
             const input: MemberSearchInput = {
-                teamIds: [team.id],
+                teamId: team.id.toString(),
                 take: 10,
             };
             const result = await member.findMany({ input }, { req, res }, member_findMany);
@@ -311,14 +369,18 @@ describe("EndpointsMember", () => {
 
         it("returns members with API key public read", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsersResult = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsers = testUsersResult.records;
 
             // Create a team
             const team = await DbProvider.get().team.create({
                 data: {
                     id: generatePK(),
-                    publicId: UserDbFactory.createMinimal().publicId,
+                    publicId: generatePublicId(),
                     isPrivate: false,
+                    handle: `team_test_${Date.now()}`,
+                    isOpenToNewMembers: true,
+                    createdBy: { connect: { id: testUsers[0].id } },
                     translations: {
                         create: {
                             id: generatePK(),
@@ -327,7 +389,6 @@ describe("EndpointsMember", () => {
                             bio: "A team for testing",
                         },
                     },
-                    owner: { connect: { id: testUsers[0].id } },
                 },
             });
 
@@ -356,14 +417,18 @@ describe("EndpointsMember", () => {
     describe("updateOne", () => {
         it("team owner can update member role", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsersResult = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsers = testUsersResult.records;
 
             // Create a team
             const team = await DbProvider.get().team.create({
                 data: {
                     id: generatePK(),
-                    publicId: UserDbFactory.createMinimal().publicId,
+                    publicId: generatePublicId(),
                     isPrivate: false,
+                    handle: `team_test_${Date.now()}`,
+                    isOpenToNewMembers: true,
+                    createdBy: { connect: { id: testUsers[0].id } },
                     translations: {
                         create: {
                             id: generatePK(),
@@ -372,7 +437,6 @@ describe("EndpointsMember", () => {
                             bio: "A team for testing",
                         },
                     },
-                    owner: { connect: { id: testUsers[0].id } },
                 },
             });
 
@@ -392,25 +456,33 @@ describe("EndpointsMember", () => {
 
             // Use validation fixtures for update
             const input: MemberUpdateInput = {
-                id: memberData.members[1].id, // Regular member
-                role: "Admin",
+                id: memberData.members[1].id.toString(), // Regular member
+                isAdmin: true,
+                permissions: JSON.stringify({ manageMembers: true }),
             };
 
             const result = await member.updateOne({ input }, { req, res }, member_updateOne);
             expect(result).not.toBeNull();
-            expect(result.role).toBe("Admin");
+            expect(result.isAdmin).toBe(true);
+            expect(result.permissions).toEqual(expect.objectContaining({
+                manageMembers: true,
+            }));
         });
 
         it("team admin can update member permissions", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsersResult = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsers = testUsersResult.records;
 
             // Create a team
             const team = await DbProvider.get().team.create({
                 data: {
                     id: generatePK(),
-                    publicId: UserDbFactory.createMinimal().publicId,
+                    publicId: generatePublicId(),
                     isPrivate: false,
+                    handle: `team_test_${Date.now()}`,
+                    isOpenToNewMembers: true,
+                    createdBy: { connect: { id: testUsers[0].id } },
                     translations: {
                         create: {
                             id: generatePK(),
@@ -419,7 +491,6 @@ describe("EndpointsMember", () => {
                             bio: "A team for testing",
                         },
                     },
-                    owner: { connect: { id: testUsers[0].id } },
                 },
             });
 
@@ -438,8 +509,8 @@ describe("EndpointsMember", () => {
             });
 
             const input: MemberUpdateInput = {
-                id: memberData.members[1].id,
-                permissions: ["CanComment", "CanUpdate"],
+                id: memberData.members[1].id.toString(),
+                permissions: JSON.stringify(["CanComment", "CanUpdate"]),
             };
 
             const result = await member.updateOne({ input }, { req, res }, member_updateOne);
@@ -449,14 +520,18 @@ describe("EndpointsMember", () => {
 
         it("regular member cannot update other members", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsersResult = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsers = testUsersResult.records;
 
             // Create a team
             const team = await DbProvider.get().team.create({
                 data: {
                     id: generatePK(),
-                    publicId: UserDbFactory.createMinimal().publicId,
+                    publicId: generatePublicId(),
                     isPrivate: false,
+                    handle: `team_test_${Date.now()}`,
+                    isOpenToNewMembers: true,
+                    createdBy: { connect: { id: testUsers[0].id } },
                     translations: {
                         create: {
                             id: generatePK(),
@@ -465,7 +540,6 @@ describe("EndpointsMember", () => {
                             bio: "A team for testing",
                         },
                     },
-                    owner: { connect: { id: testUsers[0].id } },
                 },
             });
 
@@ -484,8 +558,9 @@ describe("EndpointsMember", () => {
             });
 
             const input: MemberUpdateInput = {
-                id: memberData.members[2].id, // Try to update admin
-                role: "Member",
+                id: memberData.members[2].id.toString(), // Try to update admin
+                isAdmin: false,
+                permissions: JSON.stringify({}),
             };
 
             await expect(async () => {
@@ -495,14 +570,18 @@ describe("EndpointsMember", () => {
 
         it("throws error for not authenticated user", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsersResult = await seedTestUsers(DbProvider.get(), 4, { withAuth: true });
+            const testUsers = testUsersResult.records;
 
             // Create a team
             const team = await DbProvider.get().team.create({
                 data: {
                     id: generatePK(),
-                    publicId: UserDbFactory.createMinimal().publicId,
+                    publicId: generatePublicId(),
                     isPrivate: false,
+                    handle: `team_test_${Date.now()}`,
+                    isOpenToNewMembers: true,
+                    createdBy: { connect: { id: testUsers[0].id } },
                     translations: {
                         create: {
                             id: generatePK(),
@@ -511,7 +590,6 @@ describe("EndpointsMember", () => {
                             bio: "A team for testing",
                         },
                     },
-                    owner: { connect: { id: testUsers[0].id } },
                 },
             });
 
@@ -527,8 +605,9 @@ describe("EndpointsMember", () => {
             const { req, res } = await mockLoggedOutSession();
 
             const input: MemberUpdateInput = {
-                id: memberData.members[0].id,
-                role: "Member",
+                id: memberData.members[0].id.toString(),
+                isAdmin: false,
+                permissions: JSON.stringify({}),
             };
 
             await expect(async () => {

@@ -164,6 +164,19 @@ These commands can be invoked by using the keywords listed for each:
 3. [ ] Check git status for uncommitted changes
 4. [ ] Review `/docs/scratch/` for previous session notes
 
+## 🔧 Local Resources Setup
+**Default Behavior**: Setup now automatically installs resources marked as `"enabled": true` in `.vrooli/resources.local.json`
+- **First Run**: If no config exists, Ollama is installed by default
+- **Subsequent Runs**: Only installs resources explicitly enabled in configuration
+- **Skip Resources**: Use `--resources none` to skip all resource installation
+- **CI/CD**: Automatically defaults to `none` to prevent unwanted installations
+
+**Resource Management**:
+- Enable/disable resources by editing `.vrooli/resources.local.json`
+- Resources marked as enabled will be installed on next setup run
+- Use `--resources <specific>` to override and install specific resources
+
+
 ## 🚢 Kubernetes Deployment Notes
 
 ### Local Development

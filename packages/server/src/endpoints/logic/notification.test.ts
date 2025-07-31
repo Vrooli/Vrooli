@@ -27,7 +27,7 @@ describe("EndpointsNotification", () => {
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","session"],
+            tables: ["user", "user_auth", "email", "session"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
@@ -48,7 +48,7 @@ describe("EndpointsNotification", () => {
     describe("findOne", () => {
         it("returns own notification for authenticated user", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+            const { records: testUsers } = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
 
             // Seed notifications using database fixtures
             const notificationData = await seedNotifications(DbProvider.get(), {
@@ -63,16 +63,16 @@ describe("EndpointsNotification", () => {
                 ...loggedInUserNoPremiumData(),
                 id: testUsers[0].id.toString(),
             });
-            const input: FindByIdInput = { id: notificationData.notifications[0].id };
+            const input: FindByIdInput = { id: notificationData.notifications[0].id.toString() };
             const result = await notification.findOne({ input }, { req, res }, notification_findOne);
             expect(result).not.toBeNull();
-            expect(result.id).toEqual(notificationData.notifications[0].id);
-            expect(result.userId).toEqual(testUsers[0].id);
+            expect(result.id).toEqual(notificationData.notifications[0].id.toString());
+            expect(result.userId).toEqual(testUsers[0].id.toString());
         });
 
         it("does not return another user's notification", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+            const { records: testUsers } = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
 
             // Seed notifications using database fixtures
             const notificationData = await seedNotifications(DbProvider.get(), {
@@ -87,7 +87,7 @@ describe("EndpointsNotification", () => {
                 ...loggedInUserNoPremiumData(),
                 id: testUsers[1].id.toString(),
             });
-            const input: FindByIdInput = { id: notificationData.notifications[0].id };
+            const input: FindByIdInput = { id: notificationData.notifications[0].id.toString() };
 
             await expect(async () => {
                 await notification.findOne({ input }, { req, res }, notification_findOne);
@@ -96,7 +96,7 @@ describe("EndpointsNotification", () => {
 
         it("throws error when not authenticated", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+            const { records: testUsers } = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
 
             // Seed notifications using database fixtures
             const notificationData = await seedNotifications(DbProvider.get(), {
@@ -108,7 +108,7 @@ describe("EndpointsNotification", () => {
             });
 
             const { req, res } = await mockLoggedOutSession();
-            const input: FindByIdInput = { id: notificationData.notifications[0].id };
+            const input: FindByIdInput = { id: notificationData.notifications[0].id.toString() };
 
             await expect(async () => {
                 await notification.findOne({ input }, { req, res }, notification_findOne);
@@ -119,7 +119,7 @@ describe("EndpointsNotification", () => {
     describe("findMany", () => {
         it("returns own notifications for authenticated user", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+            const { records: testUsers } = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
 
             // Seed notifications using database fixtures
             const notificationData = await seedNotifications(DbProvider.get(), {
@@ -142,13 +142,13 @@ describe("EndpointsNotification", () => {
 
             // Verify all returned notifications belong to the user
             result.edges.forEach((edge: any) => {
-                expect(edge.node.userId).toEqual(testUsers[0].id);
+                expect(edge.node.userId).toEqual(testUsers[0].id.toString());
             });
         });
 
         it("filters by read status", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+            const { records: testUsers } = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
 
             // Seed notifications using database fixtures
             const notificationData = await seedNotifications(DbProvider.get(), {
@@ -190,7 +190,7 @@ describe("EndpointsNotification", () => {
     describe("markAsRead", () => {
         it("marks notification as read for authenticated user", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+            const { records: testUsers } = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
 
             // Seed notifications using database fixtures
             const notificationData = await seedNotifications(DbProvider.get(), {
@@ -208,16 +208,16 @@ describe("EndpointsNotification", () => {
 
             // Find an unread notification
             const unreadNotification = notificationData.notifications.find((n: any) => !n.isRead);
-            const input: FindByIdInput = { id: unreadNotification.id };
+            const input: FindByIdInput = { id: unreadNotification.id.toString() };
 
             const result = await notification.markAsRead({ input }, { req, res }, notification_markAsRead);
             expect(result).not.toBeNull();
-            expect(result.isRead).toBe(true);
+            expect(result.success).toBe(true);
         });
 
         it("does not mark another user's notification", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+            const { records: testUsers } = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
 
             // Seed notifications using database fixtures
             const notificationData = await seedNotifications(DbProvider.get(), {
@@ -232,7 +232,7 @@ describe("EndpointsNotification", () => {
                 ...loggedInUserNoPremiumData(),
                 id: testUsers[1].id.toString(),
             });
-            const input: FindByIdInput = { id: notificationData.notifications[0].id };
+            const input: FindByIdInput = { id: notificationData.notifications[0].id.toString() };
 
             await expect(async () => {
                 await notification.markAsRead({ input }, { req, res }, notification_markAsRead);
@@ -241,7 +241,7 @@ describe("EndpointsNotification", () => {
 
         it("throws error when not authenticated", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+            const { records: testUsers } = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
 
             // Seed notifications using database fixtures
             const notificationData = await seedNotifications(DbProvider.get(), {
@@ -253,7 +253,7 @@ describe("EndpointsNotification", () => {
             });
 
             const { req, res } = await mockLoggedOutSession();
-            const input: FindByIdInput = { id: notificationData.notifications[0].id };
+            const input: FindByIdInput = { id: notificationData.notifications[0].id.toString() };
 
             await expect(async () => {
                 await notification.markAsRead({ input }, { req, res }, notification_markAsRead);
@@ -264,7 +264,7 @@ describe("EndpointsNotification", () => {
     describe("markAllAsRead", () => {
         it("marks all notifications as read for authenticated user", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+            const { records: testUsers } = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
 
             // Seed notifications using database fixtures
             const notificationData = await seedNotifications(DbProvider.get(), {
@@ -295,7 +295,7 @@ describe("EndpointsNotification", () => {
 
         it("does not affect other users' notifications", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+            const { records: testUsers } = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
 
             // Seed notifications using database fixtures for user 1
             const notificationData = await seedNotifications(DbProvider.get(), {
@@ -342,7 +342,7 @@ describe("EndpointsNotification", () => {
     describe("getSettings", () => {
         it("returns notification settings for authenticated user", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+            const { records: testUsers } = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
 
             // Seed notifications using database fixtures
             const notificationData = await seedNotifications(DbProvider.get(), {
@@ -367,9 +367,9 @@ describe("EndpointsNotification", () => {
         it("returns default settings if user has none", async () => {
             // Create a new user without settings
             const newUser = await DbProvider.get().user.create({
-                data: UserDbFactory.createMinimal({ 
+                data: UserDbFactory.createMinimal({
                     id: generatePK(),
-                    name: "New User", 
+                    name: "New User",
                 }),
             });
 
@@ -395,7 +395,7 @@ describe("EndpointsNotification", () => {
     describe("updateSettings", () => {
         it("updates notification settings for authenticated user", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+            const { records: testUsers } = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
 
             // Seed notifications using database fixtures
             const notificationData = await seedNotifications(DbProvider.get(), {
@@ -431,7 +431,7 @@ describe("EndpointsNotification", () => {
 
         it("partially updates settings", async () => {
             // Seed test users using database fixtures
-            const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+            const { records: testUsers } = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
 
             // Seed notifications using database fixtures
             const notificationData = await seedNotifications(DbProvider.get(), {

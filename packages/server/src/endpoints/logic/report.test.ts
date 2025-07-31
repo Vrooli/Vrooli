@@ -1,4 +1,4 @@
-import { type FindByIdInput, type ReportCreateInput, ReportFor, type ReportSearchInput, ReportStatus, type ReportUpdateInput, generatePK, generatePublicId } from "@vrooli/shared";
+import { type FindByPublicIdInput, type ReportCreateInput, ReportFor, type ReportSearchInput, ReportStatus, type ReportUpdateInput, generatePK, generatePublicId } from "@vrooli/shared";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 import { loggedInUserNoPremiumData, mockAuthenticatedSession, mockLoggedOutSession, seedMockAdminUser } from "../../__test/session.js";
@@ -47,7 +47,7 @@ describe("EndpointsReport", () => {
     });
 
     // Helper function to create test data
-    const createTestData = async () => {
+    async function createTestData() {
         // Note: CacheService.get().flushAll() removed - not needed with transactions
 
         // Seed admin user and test users using database fixtures
@@ -84,7 +84,7 @@ describe("EndpointsReport", () => {
         const seededReport2 = report2;
 
         return { adminUser, testUsers, seededReport1, seededReport2 };
-    };
+    }
 
     describe("findOne", () => {
         it("returns a report by id for authenticated user", async () => {
@@ -93,7 +93,7 @@ describe("EndpointsReport", () => {
                 ...loggedInUserNoPremiumData(),
                 id: testUsers[0].id,
             });
-            const input: FindByIdInput = { id: seededReport1.id.toString() };
+            const input: FindByPublicIdInput = { publicId: seededReport1.publicId };
             const result = await report.findOne({ input }, { req, res }, report_findOne);
             expect(result).not.toBeNull();
             expect(result.id).toEqual(seededReport1.id.toString());
@@ -103,7 +103,7 @@ describe("EndpointsReport", () => {
         it("returns a report by id when not authenticated", async () => {
             const { seededReport2 } = await createTestData();
             const { req, res } = await mockLoggedOutSession();
-            const input: FindByIdInput = { id: seededReport2.id.toString() };
+            const input: FindByPublicIdInput = { publicId: seededReport2.publicId };
             const result = await report.findOne({ input }, { req, res }, report_findOne);
             expect(result).not.toBeNull();
             expect(result.id).toEqual(seededReport2.id.toString());
@@ -112,7 +112,7 @@ describe("EndpointsReport", () => {
         it("throws error for non-existent report", async () => {
             await createTestData();
             const { req, res } = await mockLoggedOutSession();
-            const input: FindByIdInput = { id: generatePK().toString() };
+            const input: FindByPublicIdInput = { publicId: generatePublicId() };
 
             await expect(async () => {
                 await report.findOne({ input }, { req, res }, report_findOne);

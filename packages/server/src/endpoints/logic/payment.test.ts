@@ -1,7 +1,8 @@
 import { type FindByIdInput, type PaymentSearchInput, generatePK } from "@vrooli/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertRequiresApiKeyReadPermissions, assertRequiresAuth } from "../../__test/authTestUtils.js";
-import { mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions } from "../../__test/session.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions } from "../../__test/session.js";
+import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { payment_findMany } from "../generated/payment_findMany.js";
@@ -163,10 +164,11 @@ describe("EndpointsPayment", () => {
 
             it("returns payment via API key with read permissions", async () => {
                 const { testUsers, payments } = await createTestData();
-                const { req, res } = await mockApiSession({
-                    userId: testUsers[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockReadPrivatePermissions(["Payment"]),
+                const permissions = mockReadPrivatePermissions(["Payment"]);
+                const apiToken = ApiKeyEncryptionService.generateSiteKey();
+                const { req, res } = await mockApiSession(apiToken, permissions, {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[0].id,
                 });
 
                 const input: FindByIdInput = { id: payments[0].id.toString() };

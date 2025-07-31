@@ -21,7 +21,7 @@ import { auth } from "./auth.js";
 // Import database fixtures for seeding
 import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
-import { emailLogInFixtures, emailRequestPasswordChangeFixtures, emailResetPasswordFixtures, switchCurrentAccountFixtures, validateSessionFixtures } from "@vrooli/shared/test-fixtures/api-inputs";
+import { emailLogInFixtures, emailRequestPasswordChangeFixtures, emailResetPasswordFixtures, switchCurrentAccountFixtures, validateSessionFixtures } from "@vrooli/shared/test-fixtures/api-inputs.js";
 import { expectCustomErrorAsync } from "../../__test/errorTestUtils.js";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";

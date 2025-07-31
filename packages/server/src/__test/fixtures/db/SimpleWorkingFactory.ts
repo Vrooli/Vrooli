@@ -1,3 +1,4 @@
+/* eslint-disable no-magic-numbers */
 /**
  * Simple Working Factory Template
  * This bypasses the complex EnhancedDatabaseFactory to focus on core functionality

@@ -1,6 +1,7 @@
+/* eslint-disable no-magic-numbers */
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
-import { generatePK } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK } from "@vrooli/shared";
 
 /**
  * Database fixtures for Payment model - used for seeding transaction test data
@@ -8,7 +9,7 @@ import { type Prisma, type PrismaClient } from "@prisma/client";
  */
 
 // Cached IDs for consistent testing - lazy initialization pattern
-let _paymentDbIds: Record<string, string> | null = null;
+let _paymentDbIds: Record<string, bigint> | null = null;
 export function getPaymentDbIds() {
     if (!_paymentDbIds) {
         _paymentDbIds = {
@@ -51,7 +52,7 @@ export const successfulTeamPaymentDb: Prisma.paymentCreateInput = {
     currency: "USD",
     description: "Team Premium Annual Subscription",
     paymentMethod: "card_mastercard",
-    paymentType: "PremiumAnnual",
+    paymentType: "PremiumYearly",
     status: "Paid",
     team: {
         connect: { id: generatePK() },
@@ -119,7 +120,7 @@ export const canceledTeamPaymentDb: Prisma.paymentCreateInput = {
     currency: "USD",
     description: "Team Enterprise Monthly (Canceled)",
     paymentMethod: "invoice",
-    paymentType: "TeamAnnual",
+    paymentType: "PremiumYearly",
     status: "Failed", // Note: PaymentStatus enum doesn't have Canceled
     team: {
         connect: { id: generatePK() },
@@ -136,7 +137,7 @@ export const enterprisePaymentDb: Prisma.paymentCreateInput = {
     currency: "USD",
     description: "Enterprise Annual Subscription - 100 seats",
     paymentMethod: "wire_transfer",
-    paymentType: "TeamAnnual",
+    paymentType: "PremiumYearly",
     status: "Paid",
     team: {
         connect: { id: generatePK() },
@@ -169,18 +170,18 @@ export class PaymentDbFactory {
      */
     static createUserSubscription(
         userId: bigint,
-        type: "PremiumMonthly" | "PremiumAnnual" = "PremiumMonthly",
-        status: "Pending" | "Succeeded" | "Failed" | "Refunded" | "Canceled" = "Succeeded",
+        type: "PremiumMonthly" | "PremiumYearly" = "PremiumMonthly",
+        status: "Pending" | "Paid" | "Failed" = "Paid",
         overrides?: Partial<Prisma.paymentCreateInput>,
     ): Prisma.paymentCreateInput {
         const amounts = {
             PremiumMonthly: 999,
-            PremiumAnnual: 9999,
+            PremiumYearly: 9999,
         };
 
         const descriptions = {
             PremiumMonthly: "Premium Monthly Subscription",
-            PremiumAnnual: "Premium Annual Subscription",
+            PremiumYearly: "Premium Annual Subscription",
         };
 
         return {
@@ -202,14 +203,14 @@ export class PaymentDbFactory {
      */
     static createTeamSubscription(
         teamId: bigint,
-        type: "TeamMonthly" | "TeamAnnual" = "TeamMonthly",
-        status: "Pending" | "Succeeded" | "Failed" | "Refunded" | "Canceled" = "Succeeded",
+        type: "PremiumMonthly" | "PremiumYearly" = "PremiumMonthly",
+        status: "Pending" | "Paid" | "Failed" = "Paid",
         seats = 10,
         overrides?: Partial<Prisma.paymentCreateInput>,
     ): Prisma.paymentCreateInput {
         const baseAmounts = {
-            TeamMonthly: 1999, // $19.99 base
-            TeamAnnual: 19999, // $199.99 base
+            PremiumMonthly: 1999, // $19.99 base
+            PremiumYearly: 19999, // $199.99 base
         };
 
         const seatMultiplier = Math.max(1, Math.floor(seats / 5)); // Every 5 seats increases cost
@@ -220,7 +221,7 @@ export class PaymentDbFactory {
             amount,
             checkoutId: `cs_team_${type.toLowerCase()}_${Date.now()}`,
             currency: "USD",
-            description: `Team ${type.replace("Team", "")} Subscription - ${seats} seats`,
+            description: `Team ${type.replace("Premium", "")} Subscription - ${seats} seats`,
             paymentMethod: "card_mastercard",
             paymentType: type,
             status,
@@ -237,7 +238,7 @@ export class PaymentDbFactory {
         entityType: "user" | "team",
         dollarAmount: number,
         creditsAmount: number,
-        status: "Pending" | "Succeeded" | "Failed" | "Refunded" | "Canceled" = "Succeeded",
+        status: "Pending" | "Paid" | "Failed" = "Paid",
         overrides?: Partial<Prisma.paymentCreateInput>,
     ): Prisma.paymentCreateInput {
         return {
@@ -249,7 +250,7 @@ export class PaymentDbFactory {
             paymentMethod: "card_visa",
             paymentType: "Credits",
             status,
-            ...(entityType === "user" 
+            ...(entityType === "user"
                 ? { user: { connect: { id: entityId } } }
                 : { team: { connect: { id: entityId } } }
             ),
@@ -275,7 +276,7 @@ export class PaymentDbFactory {
             paymentMethod: failureReason,
             paymentType: "PremiumMonthly",
             status: "Failed",
-            ...(entityType === "user" 
+            ...(entityType === "user"
                 ? { user: { connect: { id: entityId } } }
                 : { team: { connect: { id: entityId } } }
             ),
@@ -308,7 +309,7 @@ export class PaymentDbFactory {
             paymentMethod: "card_visa",
             paymentType: "PremiumMonthly",
             status: "Paid",
-            ...(entityType === "user" 
+            ...(entityType === "user"
                 ? { user: { connect: { id: entityId } } }
                 : { team: { connect: { id: entityId } } }
             ),
@@ -334,7 +335,7 @@ export class PaymentDbFactory {
             currency: "USD",
             description: `Enterprise Annual Subscription - ${seats} seats`,
             paymentMethod: "wire_transfer",
-            paymentType: "TeamAnnual",
+            paymentType: "PremiumYearly",
             status: "Paid",
             team: { connect: { id: teamId } },
             ...overrides,
@@ -395,7 +396,7 @@ export async function seedTestPayments(db: PrismaClient) {
             data: PaymentDbFactory.createFailed(user2.id, "user", "card_declined"),
         }),
         db.payment.create({
-            data: PaymentDbFactory.createTeamSubscription(team1.id, "TeamAnnual", "Succeeded", 25),
+            data: PaymentDbFactory.createTeamSubscription(team1.id, "PremiumYearly", "Paid", 25),
         }),
         db.payment.create({
             data: PaymentDbFactory.createCreditPurchase(user1.id, "user", 50.00, 5000000),

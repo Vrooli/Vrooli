@@ -2,13 +2,14 @@ import { CopyType, DeleteType, generatePK, generatePublicId, type CopyInput, typ
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertRequiresApiKeyWritePermissions, assertRequiresAuth } from "../../__test/authTestUtils.js";
 import { expectCustomErrorAsync } from "../../__test/errorTestUtils.js";
-import { mockApiSession, mockAuthenticatedSession, mockWriteAuthPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockWriteAuthPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { CacheService } from "../../redisConn.js";
 import { actions_copy } from "../generated/actions_copy.js";
 import { actions_deleteAccount } from "../generated/actions_deleteAccount.js";
 import { actions_deleteAll } from "../generated/actions_deleteAll.js";
+import { actions_deleteMany } from "../generated/actions_deleteMany.js";
 import { actions_deleteOne } from "../generated/actions_deleteOne.js";
 import { actions } from "./actions.js";
 // Import database fixtures
@@ -401,7 +402,7 @@ describe("EndpointsActions", () => {
             it("not logged in", async () => {
                 await assertRequiresAuth(
                     actions.deleteMany,
-                    { objectType: DeleteType.Note, ids: [generatePK()] },
+                    { objects: [{ objectType: DeleteType.Note, id: generatePK().toString() }] },
                     actions_deleteMany,
                 );
             });
@@ -409,7 +410,7 @@ describe("EndpointsActions", () => {
             it("API key - no write permissions", async () => {
                 await assertRequiresApiKeyWritePermissions(
                     actions.deleteMany,
-                    { objectType: DeleteType.Note, ids: [generatePK()] },
+                    { objects: [{ objectType: DeleteType.Note, id: generatePK().toString() }] },
                     actions_deleteMany,
                 );
             });
@@ -438,8 +439,7 @@ describe("EndpointsActions", () => {
                 });
 
                 const input: DeleteManyInput = {
-                    objectType: DeleteType.Note,
-                    ids: notes.map(n => n.id.toString()),
+                    objects: notes.map(n => ({ objectType: DeleteType.Note, id: n.id.toString() })),
                 };
 
                 const result = await actions.deleteMany({ input }, { req, res }, actions_deleteMany);
@@ -479,8 +479,7 @@ describe("EndpointsActions", () => {
                 });
 
                 const input: DeleteManyInput = {
-                    objectType: DeleteType.Note,
-                    ids: notes.map(n => n.id.toString()),
+                    objects: notes.map(n => ({ objectType: DeleteType.Note, id: n.id.toString() })),
                 };
 
                 const result = await actions.deleteMany({ input }, { req, res }, actions_deleteMany);
@@ -516,8 +515,7 @@ describe("EndpointsActions", () => {
                 });
 
                 const input: DeleteManyInput = {
-                    objectType: DeleteType.Note,
-                    ids: notes.map(n => n.id.toString()),
+                    objects: notes.map(n => ({ objectType: DeleteType.Note, id: n.id.toString() })),
                 };
 
                 const result = await actions.deleteMany({ input }, { req, res }, actions_deleteMany);
@@ -539,11 +537,15 @@ describe("EndpointsActions", () => {
 
             it("requires API key with auth write permissions", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWritePrivatePermissions(["Run"]), // Wrong permission type
-                });
+                const testUserData = {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser[0].id,
+                };
+                const { req, res } = await mockApiSession(
+                    generatePK().toString(),
+                    mockWritePrivatePermissions(), // Wrong permission type
+                    testUserData,
+                );
 
                 const input: DeleteAllInput = {
                     objectTypes: [DeleteType.RunProject],
@@ -565,7 +567,7 @@ describe("EndpointsActions", () => {
                 const resourceFactory = createResourceDbFactory(DbProvider.get());
                 const runFactory = createRunDbFactory(DbProvider.get());
 
-                const { resource: _project, versions: _versions } = await resourceFactory.createWithVersions(1, {
+                const { resource: _project, versions } = await resourceFactory.createWithVersions(1, {
                     resourceType: "Project",
                     ownedByUser: { connect: { id: testUser[0].id } },
                 });
@@ -593,11 +595,15 @@ describe("EndpointsActions", () => {
                     }),
                 ]);
 
-                const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
-                });
+                const testUserData = {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser[0].id,
+                };
+                const { req, res } = await mockApiSession(
+                    generatePK().toString(),
+                    mockWriteAuthPermissions(),
+                    testUserData,
+                );
 
                 const input: DeleteAllInput = {
                     objectTypes: [DeleteType.Run],
@@ -655,11 +661,15 @@ describe("EndpointsActions", () => {
                     timeElapsed: 0,
                 });
 
-                const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
-                });
+                const testUserData = {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser[0].id,
+                };
+                const { req, res } = await mockApiSession(
+                    generatePK().toString(),
+                    mockWriteAuthPermissions(),
+                    testUserData,
+                );
 
                 const input: DeleteAllInput = {
                     objectTypes: [DeleteType.Run],
@@ -684,11 +694,15 @@ describe("EndpointsActions", () => {
 
             it("requires auth write permissions", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWritePrivatePermissions(["User"]), // Wrong permission type
-                });
+                const testUserData = {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser[0].id,
+                };
+                const { req, res } = await mockApiSession(
+                    generatePK().toString(),
+                    mockWritePrivatePermissions(), // Wrong permission type
+                    testUserData,
+                );
 
                 const input: DeleteAccountInput = {
                     password: "password123",
@@ -721,11 +735,15 @@ describe("EndpointsActions", () => {
                     }),
                 });
 
-                const { req, res } = await mockApiSession({
-                    userId: testUser.id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
-                });
+                const testUserData = {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser.id,
+                };
+                const { req, res } = await mockApiSession(
+                    generatePK().toString(),
+                    mockWriteAuthPermissions(),
+                    testUserData,
+                );
 
                 const input: DeleteAccountInput = {
                     password,
@@ -764,11 +782,15 @@ describe("EndpointsActions", () => {
                     }),
                 });
 
-                const { req, res } = await mockApiSession({
-                    userId: testUser.id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
-                });
+                const testUserData = {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser.id,
+                };
+                const { req, res } = await mockApiSession(
+                    generatePK().toString(),
+                    mockWriteAuthPermissions(),
+                    testUserData,
+                );
 
                 const input: DeleteAccountInput = {
                     password: "WrongPassword123!",
@@ -794,11 +816,15 @@ describe("EndpointsActions", () => {
                     data: UserDbFactory.createMinimal(),
                 });
 
-                const { req, res } = await mockApiSession({
-                    userId: testUser.id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
-                });
+                const testUserData = {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser.id,
+                };
+                const { req, res } = await mockApiSession(
+                    generatePK().toString(),
+                    mockWriteAuthPermissions(),
+                    testUserData,
+                );
 
                 const input: DeleteAccountInput = {
                     password: "AnyPassword123!",

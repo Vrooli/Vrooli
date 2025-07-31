@@ -1,8 +1,9 @@
-import { generatePublicId, nanoid } from "@vrooli/shared";
-import { type Prisma, type PrismaClient, ScheduleRecurrenceType } from "@prisma/client";
+/* eslint-disable no-magic-numbers */
+import { type Prisma, type PrismaClient, ScheduleRecurrenceType, type schedule } from "@prisma/client";
+import { generatePublicId } from "@vrooli/shared";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
@@ -10,8 +11,7 @@ import type {
 interface ScheduleRelationConfig extends RelationConfig {
     withExceptions?: boolean | number;
     withRecurrences?: boolean | number;
-    withUser?: { userId: string };
-    withTeam?: { teamId: string };
+    withUser?: { userId: bigint };
     withRuns?: number;
     withMeetings?: number;
 }
@@ -24,7 +24,7 @@ interface ScheduleRelationConfig extends RelationConfig {
  * - Type-safe Prisma integration
  * - Support for complex recurrence patterns
  * - Exception handling for schedule modifications
- * - User and team associations
+ * - User associations
  * - Timezone support
  * - Predefined test scenarios
  * - Temporal validation
@@ -62,7 +62,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                 endTime: new Date(tomorrow.getTime() + 60 * 60 * 1000), // 1 hour later
                 timezone: "UTC",
                 user: {
-                    connect: { id: "user_id" },
+                    connect: { id: BigInt(1) },
                 },
             },
             complete: {
@@ -72,7 +72,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                 endTime: new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000), // 2 hours later
                 timezone: "America/New_York",
                 user: {
-                    connect: { id: "user_id" },
+                    connect: { id: BigInt(1) },
                 },
                 exceptions: {
                     create: [
@@ -107,7 +107,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     startTime: "tomorrow", // Should be Date
                     endTime: "later", // Should be Date
                     timezone: null, // Should be string
-                    user: { connect: { id: this.generateId() } }, // Should be BigInt
+                    user: { connect: { id: BigInt(123) } }, // BigInt type
                 },
                 invalidTimeRange: {
                     id: this.generateId(),
@@ -116,7 +116,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     endTime: now, // End time before start time
                     timezone: "UTC",
                     user: {
-                        connect: { id: "user_id" },
+                        connect: { id: BigInt(1) },
                     },
                 },
                 invalidTimezone: {
@@ -126,7 +126,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     endTime: new Date(tomorrow.getTime() + 60 * 60 * 1000),
                     timezone: "Invalid/Timezone",
                     user: {
-                        connect: { id: "user_id" },
+                        connect: { id: BigInt(1) },
                     },
                 },
                 conflictingOwnership: {
@@ -137,10 +137,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     timezone: "UTC",
                     // Both user and team ownership
                     user: {
-                        connect: { id: "user_id" },
-                    },
-                    team: {
-                        connect: { id: "team_id" },
+                        connect: { id: BigInt(1) },
                     },
                 },
             },
@@ -152,7 +149,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     endTime: new Date(tomorrow.setHours(23, 59, 59, 999)),
                     timezone: "UTC",
                     user: {
-                        connect: { id: "user_id" },
+                        connect: { id: BigInt(1) },
                     },
                 },
                 multiTimezoneEvent: {
@@ -162,7 +159,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     endTime: new Date(tomorrow.getTime() + 3 * 60 * 60 * 1000),
                     timezone: "Asia/Tokyo",
                     user: {
-                        connect: { id: "user_id" },
+                        connect: { id: BigInt(1) },
                     },
                 },
                 complexRecurrence: {
@@ -172,7 +169,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     endTime: new Date(tomorrow.getTime() + 90 * 60 * 1000),
                     timezone: "UTC",
                     user: {
-                        connect: { id: "user_id" },
+                        connect: { id: BigInt(1) },
                     },
                     recurrences: {
                         create: [
@@ -202,7 +199,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     endTime: new Date(tomorrow.getTime() + 60 * 60 * 1000),
                     timezone: "UTC",
                     user: {
-                        connect: { id: "user_id" },
+                        connect: { id: BigInt(1) },
                     },
                     exceptions: {
                         create: Array.from({ length: 10 }, (_, i) => ({
@@ -220,7 +217,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     endTime: new Date(tomorrow.getTime() + 4 * 60 * 60 * 1000),
                     timezone: "UTC",
                     user: {
-                        connect: { id: "user_id" },
+                        connect: { id: BigInt(1) },
                     },
                     recurrences: {
                         create: [
@@ -233,16 +230,6 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                                 duration: 240,
                             },
                         ],
-                    },
-                },
-                teamSchedule: {
-                    id: this.generateId(),
-                    publicId: generatePublicId(),
-                    startTime: tomorrow,
-                    endTime: new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000),
-                    timezone: "UTC",
-                    team: {
-                        connect: { id: "team_id" },
                     },
                 },
             },
@@ -269,7 +256,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.scheduleCreateInput>): Prisma.scheduleCreateInput {
         const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-        
+
         return {
             id: this.generateId(),
             publicId: generatePublicId(),
@@ -277,7 +264,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
             endTime: new Date(tomorrow.getTime() + 60 * 60 * 1000),
             timezone: "UTC",
             user: {
-                connect: { id: "default_user_id" },
+                connect: { id: BigInt(1) },
             },
             ...overrides,
         };
@@ -285,7 +272,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
 
     protected generateCompleteData(overrides?: Partial<Prisma.scheduleCreateInput>): Prisma.scheduleCreateInput {
         const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
-        
+
         return {
             id: this.generateId(),
             publicId: generatePublicId(),
@@ -293,7 +280,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
             endTime: new Date(tomorrow.getTime() + 2 * 60 * 60 * 1000),
             timezone: "America/New_York",
             user: {
-                connect: { id: "default_user_id" },
+                connect: { id: BigInt(1) },
             },
             exceptions: {
                 create: [
@@ -392,10 +379,10 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create specific schedule types
      */
-    async createDailySchedule(userId: string): Promise<Prisma.schedule> {
+    async createDailySchedule(userId: bigint): Promise<schedule> {
         const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
         tomorrow.setHours(9, 0, 0, 0);
-        
+
         return await this.createWithRelations({
             overrides: {
                 startTime: tomorrow,
@@ -406,9 +393,9 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    async createWeeklySchedule(userId: string, dayOfWeek = 1): Promise<Prisma.schedule> {
+    async createWeeklySchedule(userId: bigint, dayOfWeek = 1): Promise<schedule> {
         const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-        
+
         return await this.createComplete({
             startTime: nextWeek,
             endTime: new Date(nextWeek.getTime() + 2 * 60 * 60 * 1000),
@@ -425,17 +412,11 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    async createTeamSchedule(teamId: string): Promise<Prisma.schedule> {
-        return await this.createMinimal({
-            user: undefined,
-            team: { connect: { id: teamId } },
-        });
-    }
+    // createTeamSchedule removed - team relationship not in schema
 
     protected getDefaultInclude(): Prisma.scheduleInclude {
         return {
             user: true,
-            team: true,
             exceptions: true,
             recurrences: true,
             meetings: {
@@ -477,20 +458,12 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
             };
         }
 
-        // Handle team relationship
-        if (config.withTeam) {
-            data.team = {
-                connect: { id: config.withTeam.teamId },
-            };
-            // Remove user if team is set
-            delete data.user;
-        }
 
         // Handle exceptions
         if (config.withExceptions) {
             const exceptionCount = typeof config.withExceptions === "number" ? config.withExceptions : 1;
             const startTime = data.startTime as Date;
-            
+
             data.exceptions = {
                 create: Array.from({ length: exceptionCount }, (_, i) => ({
                     id: this.generateId(),
@@ -509,7 +482,7 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                 ScheduleRecurrenceType.Weekly,
                 ScheduleRecurrenceType.Monthly,
             ];
-            
+
             data.recurrences = {
                 create: Array.from({ length: recurrenceCount }, (_, i) => ({
                     id: this.generateId(),
@@ -524,9 +497,9 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
         return data;
     }
 
-    protected async checkModelConstraints(record: Prisma.schedule): Promise<string[]> {
+    protected async checkModelConstraints(record: schedule): Promise<string[]> {
         const violations: string[] = [];
-        
+
         // Check time validity
         if (record.startTime >= record.endTime) {
             violations.push("Start time must be before end time");
@@ -539,19 +512,15 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
             violations.push("Invalid timezone");
         }
 
-        // Check ownership (must have either user or team, not both)
-        if (record.userId && record.teamId) {
-            violations.push("Schedule cannot belong to both user and team");
-        }
-
-        if (!record.userId && !record.teamId) {
-            violations.push("Schedule must belong to either user or team");
+        // Check ownership (must have user)
+        if (!record.userId) {
+            violations.push("Schedule must belong to a user");
         }
 
         // Check exceptions
         if (record.exceptions) {
             for (const exception of record.exceptions) {
-                if (exception.newStartTime && exception.newEndTime && 
+                if (exception.newStartTime && exception.newEndTime &&
                     exception.newStartTime >= exception.newEndTime) {
                     violations.push("Exception new start time must be before new end time");
                 }
@@ -565,17 +534,17 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
                     violations.push("Recurrence interval must be positive");
                 }
 
-                if (recurrence.recurrenceType === ScheduleRecurrenceType.Weekly && 
+                if (recurrence.recurrenceType === ScheduleRecurrenceType.Weekly &&
                     (recurrence.dayOfWeek === null || recurrence.dayOfWeek < 0 || recurrence.dayOfWeek > 6)) {
                     violations.push("Weekly recurrence must have valid day of week (0-6)");
                 }
 
-                if (recurrence.recurrenceType === ScheduleRecurrenceType.Monthly && 
+                if (recurrence.recurrenceType === ScheduleRecurrenceType.Monthly &&
                     (recurrence.dayOfMonth === null || recurrence.dayOfMonth < 1 || recurrence.dayOfMonth > 31)) {
                     violations.push("Monthly recurrence must have valid day of month (1-31)");
                 }
 
-                if (recurrence.recurrenceType === ScheduleRecurrenceType.Yearly && 
+                if (recurrence.recurrenceType === ScheduleRecurrenceType.Yearly &&
                     (recurrence.month === null || recurrence.month < 1 || recurrence.month > 12)) {
                     violations.push("Yearly recurrence must have valid month (1-12)");
                 }
@@ -596,12 +565,12 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.schedule,
+        record: schedule,
         remainingDepth: number,
         tx: any,
         includeOnly?: string[],
     ): Promise<void> {
-        const shouldDelete = (relation: string) => 
+        const shouldDelete = (relation: string) =>
             !includeOnly || includeOnly.includes(relation);
 
         // Delete exceptions
@@ -647,8 +616,8 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
         type: ScheduleRecurrenceType,
         interval: number,
         duration: number,
-        userId: string,
-    ): Promise<Prisma.schedule> {
+        userId: bigint,
+    ): Promise<schedule> {
         return await this.createComplete({
             user: { connect: { id: userId } },
             recurrences: {
@@ -666,12 +635,12 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create test schedules for different scenarios
      */
-    async createTestSchedules(userId: string): Promise<{
-        daily: Prisma.schedule;
-        weekly: Prisma.schedule;
-        monthly: Prisma.schedule;
-        oneTime: Prisma.schedule;
-        withExceptions: Prisma.schedule;
+    async createTestSchedules(userId: bigint): Promise<{
+        daily: schedule;
+        weekly: schedule;
+        monthly: schedule;
+        oneTime: schedule;
+        withExceptions: schedule;
     }> {
         const [daily, weekly, monthly, oneTime, withExceptions] = await Promise.all([
             this.createDailySchedule(userId),
@@ -686,13 +655,13 @@ export class ScheduleDbFactory extends EnhancedDatabaseFactory<
             weekly,
             monthly,
             oneTime,
-            withExceptions: withExceptions as unknown as Prisma.schedule,
+            withExceptions: withExceptions as unknown as schedule,
         };
     }
 }
 
 // Export factory creator function
-export const createScheduleDbFactory = (prisma: PrismaClient) => 
+export const createScheduleDbFactory = (prisma: PrismaClient) =>
     new ScheduleDbFactory(prisma);
 
 // Export the class for type usage

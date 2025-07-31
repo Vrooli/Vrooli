@@ -1,12 +1,16 @@
-import { generatePK } from "@vrooli/shared";
+/* eslint-disable no-magic-numbers */
 import { type Prisma } from "@prisma/client";
+import { generatePK } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { DbTestFixtures, DbErrorScenarios } from "./types.js";
+import type { DbErrorScenarios, DbTestFixtures } from "./types.js";
 
 /**
  * Enhanced test fixtures for ScheduleRecurrence model following standard structure
  */
-export const scheduleRecurrenceDbFixtures: DbTestFixtures<Prisma.schedule_recurrenceCreateInput> = {
+export const scheduleRecurrenceDbFixtures: DbTestFixtures<
+    Prisma.schedule_recurrenceCreateInput,
+    Prisma.schedule_recurrenceUpdateInput
+> = {
     minimal: {
         id: generatePK(),
         recurrenceType: "Daily",
@@ -140,12 +144,18 @@ export const scheduleRecurrenceDbFixtures: DbTestFixtures<Prisma.schedule_recurr
 /**
  * Enhanced factory for creating schedule recurrence database fixtures
  */
-export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<Prisma.schedule_recurrenceCreateInput> {
-    
+export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<
+    Prisma.schedule_recurrenceCreateInput,
+    Prisma.schedule_recurrenceUpdateInput
+> {
+
     /**
      * Get the test fixtures for ScheduleRecurrence model
      */
-    protected getFixtures(): DbTestFixtures<Prisma.schedule_recurrenceCreateInput> {
+    protected getFixtures(): DbTestFixtures<
+        Prisma.schedule_recurrenceCreateInput,
+        Prisma.schedule_recurrenceUpdateInput
+    > {
         return scheduleRecurrenceDbFixtures;
     }
 
@@ -405,12 +415,12 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<Prisma.schedu
             acc[key] = value;
             return acc;
         }, {} as Record<string, string>);
-        
+
         const factory = new ScheduleRecurrenceDbFactory();
         const baseData: Partial<Prisma.schedule_recurrenceCreateInput> = {
             interval: parseInt(parts.INTERVAL || "1"),
         };
-        
+
         // Map frequency
         switch (parts.FREQ) {
             case "DAILY":
@@ -450,7 +460,7 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<Prisma.schedu
             default:
                 baseData.recurrenceType = "Daily"; // Default
         }
-        
+
         // Handle end conditions
         if (parts.UNTIL) {
             const year = parts.UNTIL.substring(0, 4);
@@ -458,7 +468,7 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<Prisma.schedu
             const day = parts.UNTIL.substring(6, 8);
             baseData.endDate = new Date(`${year}-${month}-${day}`);
         }
-        
+
         return factory.createMinimal({
             ...baseData,
             schedule: { connect: { id: scheduleId } },
@@ -474,7 +484,7 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<Prisma.schedu
         daysOfWeek: number[],
         overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
     ): Prisma.schedule_recurrenceCreateInput[] {
-        return daysOfWeek.map(day => 
+        return daysOfWeek.map(day =>
             ScheduleRecurrenceDbFactory.createWeekly(scheduleId, day, 1, overrides),
         );
     }

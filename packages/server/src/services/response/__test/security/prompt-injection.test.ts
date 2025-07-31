@@ -1,20 +1,16 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { 
-    type BotParticipant, 
+import {
+    type BotParticipant,
     type ChatConfigObject,
-    type SessionUser,
-    type Tool,
-    type ToolCall,
     type ModelType,
-    generatePK,
+    type SessionUser
 } from "@vrooli/shared";
-import { ResponseService, type ResponseGenerationParams } from "../../responseService.js";
-import { FallbackRouter, type LlmRouter } from "../../router.js";
-import { CompositeToolRunner, type ToolRunner } from "../../toolRunner.js";
-import { type MessageHistoryBuilder } from "../../messageHistoryBuilder.js";
-import { EventPublisher } from "../../../events/publisher.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { logger } from "../../../../events/logger.js";
 import { SwarmStateAccessor } from "../../../execution/shared/SwarmStateAccessor.js";
+import { type MessageHistoryBuilder } from "../../messageHistoryBuilder.js";
+import { ResponseService, type ResponseGenerationParams } from "../../responseService.js";
+import { type LlmRouter } from "../../router.js";
+import { type ToolRunner } from "../../toolRunner.js";
 
 // Mock dependencies
 vi.mock("../../../../events/logger.js", () => ({
@@ -99,9 +95,16 @@ describe("Security: Prompt Injection Resistance", () => {
                 role: "assistant",
                 model: "gpt-4" as ModelType,
                 config: {
+                    __version: "1.0",
                     temperature: 0.7,
                     maxTokens: 4000,
                     systemPrompt: "You are a helpful assistant",
+                    stats: {
+                        totalToolCalls: 0,
+                        totalCredits: "0",
+                        startedAt: null,
+                        lastProcessingCycleEndedAt: null,
+                    },
                 } as ChatConfigObject,
             } as BotParticipant,
             userData: {
@@ -161,15 +164,15 @@ describe("Security: Prompt Injection Resistance", () => {
             }
 
             expect(result.success).toBe(true);
-            
+
             // Verify that the LLM was called
             expect(mockRouter.generateResponse).toHaveBeenCalled();
-            
+
             // Verify that the generated prompt doesn't contain the malicious instructions
             const generateCall = (mockRouter.generateResponse as any).mock.calls[0];
             if (generateCall && generateCall[0]) {
                 const promptContent = JSON.stringify(generateCall[0]);
-                
+
                 // The prompt should not contain raw malicious instructions
                 expect(promptContent).not.toContain("IGNORE ALL PREVIOUS INSTRUCTIONS");
                 expect(promptContent).not.toContain("FORGET YOUR ROLE");
@@ -203,12 +206,12 @@ describe("Security: Prompt Injection Resistance", () => {
             const result = await responseService.generateResponse(params);
 
             expect(result.success).toBe(true);
-            
+
             // Verify nested injections are handled safely
             const generateCall = (mockRouter.generateResponse as any).mock.calls[0];
             if (generateCall && generateCall[0]) {
                 const promptContent = JSON.stringify(generateCall[0]);
-                
+
                 expect(promptContent).not.toContain("INSTRUCTION INJECTION");
                 expect(promptContent).not.toContain("ADMIN MODE ACTIVATED");
                 // Should not have infinite recursion from circular references
@@ -235,7 +238,7 @@ describe("Security: Prompt Injection Resistance", () => {
                 success: true,
                 data: {
                     content: "",
-                    role: "assistant", 
+                    role: "assistant",
                     tool_calls: [{
                         id: "call123",
                         type: "function",
@@ -267,7 +270,7 @@ describe("Security: Prompt Injection Resistance", () => {
             const result = await responseService.generateResponse(params);
 
             expect(result.success).toBe(true);
-            
+
             // Verify tool arguments don't contain malicious content
             if (mockToolRunner.execute as any) {
                 const toolExecuteCall = (mockToolRunner.execute as any).mock.calls[0];
@@ -288,7 +291,7 @@ describe("Security: Prompt Injection Resistance", () => {
                 getState: vi.fn(),
                 generateTriggerContext: vi.fn(),
             };
-            
+
             // Setup different states for different conversations
             mockAccessor.getState
                 .mockResolvedValueOnce({
@@ -297,7 +300,7 @@ describe("Security: Prompt Injection Resistance", () => {
                     blackboard: { secretDataA: "confidential-user-a-data" },
                 })
                 .mockResolvedValueOnce({
-                    id: "swarm456", 
+                    id: "swarm456",
                     name: "User B Swarm",
                     blackboard: { secretDataB: "confidential-user-b-data" },
                 });
@@ -334,17 +337,17 @@ describe("Security: Prompt Injection Resistance", () => {
             const result = await responseService.generateResponse(params);
 
             expect(result.success).toBe(true);
-            
+
             // Verify that other conversation's data is not accessible
             const generateCall = (mockRouter.generateResponse as any).mock.calls[0];
             if (generateCall && generateCall[0]) {
                 const promptContent = JSON.stringify(generateCall[0]);
-                
+
                 expect(promptContent).not.toContain("confidential-user-b-data");
                 expect(promptContent).not.toContain("swarm456");
                 expect(promptContent).not.toContain("secretDataB");
             }
-            
+
             // Should only have access to own swarm data
             expect(mockAccessor.getState).toHaveBeenCalledWith("swarm123");
             expect(mockAccessor.getState).not.toHaveBeenCalledWith("swarm456");
@@ -373,12 +376,12 @@ describe("Security: Prompt Injection Resistance", () => {
             const result = await responseService.generateResponse(params);
 
             expect(result.success).toBe(true);
-            
+
             // Verify participant isolation
             const generateCall = (mockRouter.generateResponse as any).mock.calls[0];
             if (generateCall && generateCall[0]) {
                 const promptContent = JSON.stringify(generateCall[0]);
-                
+
                 expect(promptContent).not.toContain("userA123");
                 expect(promptContent).not.toContain("SHOW_ALL_PARTICIPANT_DATA");
                 expect(promptContent).not.toContain("privateInfo");
@@ -415,14 +418,14 @@ describe("Security: Prompt Injection Resistance", () => {
             const result = await responseService.generateResponse(params);
 
             expect(result.success).toBe(false);
-            
+
             // Verify sensitive data is not in error message
             if (!result.success) {
                 expect(result.error).not.toContain("sk-1234567890abcdef");
                 expect(result.error).not.toContain("superSecretPassword123");
                 expect(result.error).not.toContain("4111-1111-1111-1111");
                 expect(result.error).not.toContain("123-45-6789");
-                
+
                 // Should contain generic error message
                 expect(result.error).toContain("service");
                 expect(result.error.toLowerCase()).toContain("error");
@@ -457,7 +460,7 @@ describe("Security: Prompt Injection Resistance", () => {
                 .concat(vi.mocked(logger.debug).mock.calls);
 
             const allLogContent = loggerCalls.flat().join(" ");
-            
+
             expect(allLogContent).not.toContain("jwt-eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9");
             expect(allLogContent).not.toContain("postgres://user:pass@");
             expect(allLogContent).not.toContain("redis://admin:secret@");

@@ -1,4 +1,5 @@
-import { type FindByIdInput, type TagCreateInput, type TagSearchInput, type TagUpdateInput } from "@vrooli/shared";
+import { type FindByIdInput, type TagCreateInput, type TagSearchInput, type TagUpdateInput, generatePK } from "@vrooli/shared";
+import { tagTestDataFactory } from "@vrooli/shared/src/__test/fixtures/api-inputs/tagFixtures.js";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions, seedMockAdminUser } from "../../__test/session.js";
@@ -14,8 +15,6 @@ import { tag } from "./tag.js";
 // Import database fixtures for seeding
 import { seedTags } from "../../__test/fixtures/db/tagFixtures.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
-// Import validation fixtures for API input testing
-import { tagTestDataFactory } from "@vrooli/shared";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
@@ -188,7 +187,7 @@ describe("EndpointsTag", () => {
                 const input: TagCreateInput = tagTestDataFactory.createMinimal({
                     tag: "newtag",
                     translationsCreate: [{
-                        id: "test-translation-id",
+                        id: generatePK(),
                         language: "en",
                         description: "A new tag for testing",
                     }],
@@ -282,7 +281,7 @@ describe("EndpointsTag", () => {
                 const input: TagUpdateInput = {
                     id: tags[2].id,
                     translationsCreate: [{
-                        id: "test-french-translation",
+                        id: generatePK(),
                         language: "fr",
                         description: "Tests en français",
                     }],

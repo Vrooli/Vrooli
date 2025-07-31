@@ -1,7 +1,7 @@
 /* eslint-disable no-magic-numbers */
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
 import { type Prisma, type PrismaClient, type user } from "@prisma/client";
-import { AccountStatus, botConfigFixtures, generatePublicId, nanoid } from "@vrooli/shared";
+import { AccountStatus, generatePublicId, nanoid } from "@vrooli/shared";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type {
     DbTestFixtures,
@@ -12,7 +12,7 @@ import type {
 interface UserRelationConfig extends RelationConfig {
     withAuth?: boolean;
     withEmails?: boolean | number;
-    teams?: Array<{ teamId: string | (() => string); role: string }>;
+    teams?: Array<{ teamId: bigint | (() => bigint); role: string }>;
     withBotSettings?: boolean;
     translations?: Array<{ language: string; bio: string }>;
 }
@@ -174,10 +174,11 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                     isBot: true,
                     isBotDepictingPerson: false,
                     isPrivate: false,
-                    botSettings: {
-                        ...botConfigFixtures.complete,
+                    botSettings: JSON.stringify({
+                        model: "gpt-4",
+                        temperature: 0.7,
                         maxTokens: 4096,
-                    },
+                    }),
                 },
                 multiLanguageTranslations: {
                     id: this.generateId(),
@@ -282,7 +283,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                     withAuth: true,
                     withEmails: true,
                     teams: [{
-                        teamId: () => this.generateId().toString(), // Generate at runtime
+                        teamId: () => this.generateId(), // Generate at runtime
                         role: "Owner",
                     }],
                 },
@@ -305,7 +306,10 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         name: "AI Assistant",
                         isBot: true,
-                        botSettings: botConfigFixtures.complete,
+                        botSettings: JSON.stringify({
+                            model: "gpt-4",
+                            temperature: 0.7,
+                        }),
                     },
                 },
             },
@@ -330,9 +334,9 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                     withAuth: true,
                     withEmails: 3,
                     teams: [
-                        { teamId: () => this.generateId().toString(), role: "Owner" },
-                        { teamId: () => this.generateId().toString(), role: "Admin" },
-                        { teamId: () => this.generateId().toString(), role: "Member" },
+                        { teamId: () => this.generateId(), role: "Owner" },
+                        { teamId: () => this.generateId(), role: "Admin" },
+                        { teamId: () => this.generateId(), role: "Member" },
                     ],
                 },
             },
@@ -342,7 +346,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a bot user with settings
      */
-    async createBot(overrides?: Partial<Prisma.userCreateInput>): Promise<Prisma.User> {
+    async createBot(overrides?: Partial<Prisma.userCreateInput>): Promise<user> {
         const botHandle = `bot_${nanoid()}`;
 
         const data: Prisma.userCreateInput = {
@@ -350,7 +354,10 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
             handle: botHandle,
             name: "Test Bot",
             isBot: true,
-            botSettings: botConfigFixtures.complete,
+            botSettings: JSON.stringify({
+                model: "gpt-4",
+                temperature: 0.7,
+            }),
             ...overrides,
         };
 
@@ -360,25 +367,29 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create specific user personas
      */
-    async createAdminUser(): Promise<Prisma.User> {
-        return await this.seedScenario("admin");
+    async createAdminUser(): Promise<user> {
+        const scenario = this.scenarios["admin"];
+        if (!scenario) {
+            throw new Error("Admin scenario not found");
+        }
+        return await this.createWithRelations(scenario.config as UserRelationConfig);
     }
 
-    async createSuspendedUser(): Promise<Prisma.User> {
+    async createSuspendedUser(): Promise<user> {
         return await this.createMinimal({
             status: AccountStatus.SoftLocked,
             handle: `suspended_${nanoid()}`,
         });
     }
 
-    async createPrivateUser(): Promise<Prisma.User> {
+    async createPrivateUser(): Promise<user> {
         return await this.createMinimal({
             isPrivate: true,
             handle: `private_${nanoid()}`,
         });
     }
 
-    async createBotDepictingPerson(): Promise<Prisma.User> {
+    async createBotDepictingPerson(): Promise<user> {
         return await this.createBot({
             isBotDepictingPerson: true,
             handle: `bot_person_${nanoid()}`,
@@ -394,12 +405,19 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
             memberships: {
                 select: {
                     id: true,
-                    role: true,
+                    isAdmin: true,
+                    permissions: true,
                     team: {
                         select: {
                             id: true,
                             publicId: true,
-                            name: true,
+                            handle: true,
+                            translations: {
+                                select: {
+                                    language: true,
+                                    name: true,
+                                },
+                            },
                         },
                     },
                 },
@@ -409,7 +427,6 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
                     emails: true,
                     auths: true,
                     memberships: true,
-                    projects: true,
                     comments: true,
                 },
             },
@@ -449,28 +466,36 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
         // Handle team memberships
         if (config.teams && Array.isArray(config.teams)) {
             data.memberships = {
-                create: config.teams.map(team => ({
-                    id: this.generateId(),
-                    publicId: generatePublicId(),
-                    teamId: typeof team.teamId === "function" ? team.teamId() : team.teamId,
-                    isAdmin: team.role === "Owner" || team.role === "Admin",
-                    permissions: team.role === "Owner" ? JSON.stringify({
-                        canInvite: true,
-                        canEdit: true,
-                        canDelete: true,
-                        canManageRoles: true,
-                    }) : team.role === "Admin" ? JSON.stringify({
-                        canInvite: true,
-                        canEdit: true,
-                    }) : "{}",
-                })),
+                create: config.teams.map(team => {
+                    const teamId = typeof team.teamId === "function" ? team.teamId() : team.teamId;
+                    return {
+                        id: this.generateId(),
+                        publicId: generatePublicId(),
+                        team: {
+                            connect: { id: teamId },
+                        },
+                        isAdmin: team.role === "Owner" || team.role === "Admin",
+                        permissions: team.role === "Owner" ? JSON.stringify({
+                            canInvite: true,
+                            canEdit: true,
+                            canDelete: true,
+                            canManageRoles: true,
+                        }) : team.role === "Admin" ? JSON.stringify({
+                            canInvite: true,
+                            canEdit: true,
+                        }) : "{}",
+                    };
+                }),
             };
         }
 
         // Handle bot settings
         if (config.withBotSettings && !data.isBot) {
             data.isBot = true;
-            data.botSettings = botConfigFixtures.complete;
+            data.botSettings = JSON.stringify({
+                model: "gpt-4",
+                temperature: 0.7,
+            });
         }
 
         // Handle translations
@@ -486,7 +511,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
         return data;
     }
 
-    protected async checkModelConstraints(record: Prisma.User): Promise<string[]> {
+    protected async checkModelConstraints(record: user): Promise<string[]> {
         const violations: string[] = [];
 
         // Check handle uniqueness
@@ -531,17 +556,16 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
             memberships: true,
             translations: true,
             comments: true,
-            projects: true,
-            bookmarks: true,
+            bookmarkedBy: true,
             chats: true,
             sessions: true,
-            views: true,
-            reactions: true,
+            viewed: true,
+            reacted: true,
         };
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.User,
+        record: user,
         remainingDepth: number,
         tx: PrismaClient,
         includeOnly?: string[],
@@ -553,71 +577,71 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
         // Delete in order of dependencies
 
         // Delete views
-        if (shouldDelete("views") && record.views?.length) {
+        if (shouldDelete("viewed")) {
             await tx.view.deleteMany({
                 where: { byId: record.id },
             });
         }
 
         // Delete reactions
-        if (shouldDelete("reactions") && record.reactions?.length) {
+        if (shouldDelete("reacted")) {
             await tx.reaction.deleteMany({
                 where: { byId: record.id },
             });
         }
 
         // Delete comments
-        if (shouldDelete("comments") && record.comments?.length) {
+        if (shouldDelete("comments")) {
             await tx.comment.deleteMany({
                 where: { userId: record.id },
             });
         }
 
         // Delete bookmarks
-        if (shouldDelete("bookmarks") && record.bookmarks?.length) {
+        if (shouldDelete("bookmarkedBy")) {
             await tx.bookmark.deleteMany({
                 where: { byId: record.id },
             });
         }
 
         // Delete chat participations
-        if (shouldDelete("chats") && record.chats?.length) {
+        if (shouldDelete("chats")) {
             await tx.chat_participants.deleteMany({
                 where: { userId: record.id },
             });
         }
 
         // Delete team memberships
-        if (shouldDelete("memberships") && record.memberships?.length) {
+        if (shouldDelete("memberships")) {
             await tx.member.deleteMany({
                 where: { userId: record.id },
             });
         }
 
         // Delete sessions
-        if (shouldDelete("sessions") && record.sessions?.length) {
+        if (shouldDelete("sessions")) {
             await tx.session.deleteMany({
                 where: { userId: record.id },
             });
         }
 
         // Delete translations
-        if (shouldDelete("translations") && record.translations?.length) {
-            await tx.userTranslation.deleteMany({
+        if (shouldDelete("translations")) {
+            await tx.user_translation.deleteMany({
                 where: { userId: record.id },
             });
         }
 
         // Delete emails
-        if (shouldDelete("emails") && record.emails?.length) {
+        if (shouldDelete("emails")) {
             await tx.email.deleteMany({
                 where: { userId: record.id },
             });
         }
 
         // Delete auth records
-        if (shouldDelete("auths") && record.auths?.length) {
-            await tx.auth.deleteMany({
+        if (shouldDelete("auths")) {
+            await tx.user_auth.deleteMany({
                 where: { userId: record.id },
             });
         }
@@ -627,8 +651,8 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
      * Create a user with session for testing authenticated requests
      */
     async createWithSession(overrides?: Partial<Prisma.userCreateInput>): Promise<{
-        user: Prisma.User;
-        sessionToken: string;
+        user: user;
+        sessionId: bigint;
     }> {
         const user = await this.createWithRelations({
             overrides,
@@ -636,42 +660,54 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
             withEmails: true,
         });
 
-        const sessionToken = `test_session_${nanoid()}`;
-        await this.prisma.session.create({
+        // Get the user's auth record
+        const auth = await this.prisma.user_auth.findFirst({
+            where: { user_id: user.id },
+        });
+
+        if (!auth) {
+            throw new Error("User auth record not found");
+        }
+
+        const session = await this.prisma.session.create({
             data: {
                 id: this.generateId(),
-                publicId: generatePublicId(),
-                token: sessionToken,
-                userId: user.id,
-                deviceId: `test_device_${nanoid()}`,
-                expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+                user_id: user.id,
+                auth_id: auth.id,
+                device_info: JSON.stringify({ device: "test_device", browser: "test_browser" }),
+                ip_address: "127.0.0.1",
+                expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
             },
         });
 
-        return { user, sessionToken };
+        return { user, sessionId: session.id };
     }
 
     /**
      * Create users with different permission levels
      */
     async createPermissionTestUsers(): Promise<{
-        admin: Prisma.User;
-        member: Prisma.User;
-        guest: Prisma.User;
-        suspended: Prisma.User;
+        admin: user;
+        member: user;
+        guest: user;
+        suspended: user;
     }> {
+        const adminScenario = this.scenarios["admin"];
+        const memberScenario = this.scenarios["regularMember"];
+        const suspendedScenario = this.scenarios["suspendedUser"];
+
         const [admin, member, guest, suspended] = await Promise.all([
-            this.seedScenario("admin"),
-            this.seedScenario("regularMember"),
+            this.createWithRelations(adminScenario.config as UserRelationConfig),
+            this.createWithRelations(memberScenario.config as UserRelationConfig),
             this.createMinimal({ name: "Guest User" }),
-            this.seedScenario("suspendedUser"),
+            this.createWithRelations(suspendedScenario.config as UserRelationConfig),
         ]);
 
         return {
-            admin: admin as unknown as Prisma.User,
-            member: member as unknown as Prisma.User,
+            admin,
+            member,
             guest,
-            suspended: suspended as unknown as Prisma.User,
+            suspended,
         };
     }
 }

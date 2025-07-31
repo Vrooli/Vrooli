@@ -1,4 +1,4 @@
-import { type ChatCreateInput, type ChatSearchInput, type FindByPublicIdInput, generatePK, generatePublicId, SEEDED_PUBLIC_IDS } from "@vrooli/shared";
+import { type ChatCreateInput, type ChatSearchInput, type FindByPublicIdInput, generatePK, SEEDED_PUBLIC_IDS } from "@vrooli/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { seedTestChat } from "../../__test/fixtures/db/chatFixtures.js";
 import { UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
@@ -87,7 +87,7 @@ describe("EndpointsChat", () => {
 
             // Create a private chat
             const privateChat = await seedTestChat(DbProvider.get(), {
-                userIds: [testUser1.id, testUser2.id],
+                userIds: [testUser1.id.toString(), testUser2.id.toString()],
                 isPrivate: true,
                 withMessages: true,
             });
@@ -140,7 +140,7 @@ describe("EndpointsChat", () => {
 
             // Create a public chat
             const publicChat = await seedTestChat(DbProvider.get(), {
-                userIds: [testUser.id],
+                userIds: [testUser.id.toString()],
                 isPrivate: false,
                 withInvites: true,
             });
@@ -173,12 +173,12 @@ describe("EndpointsChat", () => {
 
             // Create chats
             const privateChat = await seedTestChat(DbProvider.get(), {
-                userIds: [testUser1.id, testUser2.id],
+                userIds: [testUser1.id.toString(), testUser2.id.toString()],
                 isPrivate: true,
                 withMessages: true,
             });
             const publicChat = await seedTestChat(DbProvider.get(), {
-                userIds: [testUser2.id],
+                userIds: [testUser2.id.toString()],
                 isPrivate: false,
                 withInvites: true,
             });

@@ -102,10 +102,13 @@ describe("Concurrent Access and Performance Tests", () => {
                 participants: [],
                 status: "in_progress",
                 config: {
+                    __version: "1.0",
                     model: "gpt-4o",
                     stats: {
                         totalToolCalls: 0,
-                        totalCredits: 0,
+                        totalCredits: "0",
+                        startedAt: null,
+                        lastProcessingCycleEndedAt: null,
                     },
                 } as ChatConfigObject,
             };
@@ -166,10 +169,13 @@ describe("Concurrent Access and Performance Tests", () => {
                 participants: [],
                 status: "in_progress",
                 config: {
+                    __version: "1.0",
                     model: "gpt-4o",
                     stats: {
                         totalToolCalls: 0,
-                        totalCredits: 100,
+                        totalCredits: "100",
+                        startedAt: null,
+                        lastProcessingCycleEndedAt: null,
                     },
                 } as ChatConfigObject,
             };
@@ -237,8 +243,14 @@ describe("Concurrent Access and Performance Tests", () => {
                 return {
                     id: conversationId,
                     config: {
+                        __version: "1.0",
                         model: "gpt-4o",
-                        stats: { totalToolCalls: 0, totalCredits: 0 },
+                        stats: {
+                            totalToolCalls: 0,
+                            totalCredits: "0",
+                            startedAt: null,
+                            lastProcessingCycleEndedAt: null,
+                        },
                     },
                 };
             });
@@ -358,8 +370,14 @@ describe("Concurrent Access and Performance Tests", () => {
                 participants: [],
                 status: "in_progress",
                 config: {
+                    __version: "1.0",
                     model: "gpt-4o",
-                    stats: { totalToolCalls: 0, totalCredits: 0 },
+                    stats: {
+                        totalToolCalls: 0,
+                        totalCredits: "0",
+                        startedAt: null,
+                        lastProcessingCycleEndedAt: null,
+                    },
                 } as ChatConfigObject,
             };
 
@@ -397,8 +415,14 @@ describe("Concurrent Access and Performance Tests", () => {
                     participants: [],
                     status: "in_progress",
                     config: {
+                        __version: "1.0",
                         model: "gpt-4o",
-                        stats: { totalToolCalls: i, totalCredits: i * 100 },
+                        stats: {
+                            totalToolCalls: i,
+                            totalCredits: String(i * 100),
+                            startedAt: null,
+                            lastProcessingCycleEndedAt: null,
+                        },
                     } as ChatConfigObject,
                 };
 
@@ -471,11 +495,12 @@ describe("Concurrent Access and Performance Tests", () => {
                     participants: [{
                         id: `bot_${convIdx}`,
                         name: `Bot ${convIdx}`,
-                        config: { model: "gpt-4o" },
+                        config: { __version: "1.0", resources: [], model: "gpt-4o" },
                         state: "ready",
                     } as BotParticipant],
                     status: "in_progress",
                     config: {
+                        __version: "1.0",
                         model: "gpt-4o",
                         stats: {
                             totalToolCalls: 0,
@@ -550,8 +575,14 @@ describe("Concurrent Access and Performance Tests", () => {
                 mockDb.chat.findUniqueOrThrow.mockResolvedValue({
                     id: conversationId,
                     config: {
+                        __version: "1.0",
                         model: "gpt-4o",
-                        stats: { totalToolCalls: 0, totalCredits: 0 },
+                        stats: {
+                            totalToolCalls: 0,
+                            totalCredits: "0",
+                            startedAt: null,
+                            lastProcessingCycleEndedAt: null,
+                        },
                     },
                 });
 

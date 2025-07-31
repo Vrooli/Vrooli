@@ -1,4 +1,4 @@
-import { type FindByIdInput, type MemberInviteCreateInput, type MemberInviteSearchInput, type MemberInviteUpdateInput } from "@vrooli/shared";
+import { type FindByIdInput, type MemberInviteCreateInput, type MemberInviteSearchInput, type MemberInviteUpdateInput, generatePK } from "@vrooli/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPrivatePermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
@@ -38,7 +38,7 @@ describe("EndpointsMemberInvite", () => {
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","session"],
+            tables: ["user", "user_auth", "email", "session"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
@@ -50,10 +50,13 @@ describe("EndpointsMemberInvite", () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.minimal(DbProvider.get());
 
+        // Seed test users using database fixtures
+        testUsers = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
+
         // Create teams for member invites
         team1 = await DbProvider.get().team.create({
             data: {
-                id: testUsers[0].id + "team1",
+                id: generatePK(),
                 publicId: "team1-" + Math.random(),
                 handle: "test-team-1",
                 name: "Test Team 1",
@@ -62,7 +65,7 @@ describe("EndpointsMemberInvite", () => {
                 created_by: { connect: { id: testUsers[0].id } },
                 members: {
                     create: [{
-                        id: testUsers[0].id + "member1",
+                        id: generatePK(),
                         publicId: "member1-" + Math.random(),
                         user: { connect: { id: testUsers[0].id } },
                         permissions: JSON.stringify({ canEdit: true, canInvite: true }),
@@ -73,7 +76,7 @@ describe("EndpointsMemberInvite", () => {
 
         team2 = await DbProvider.get().team.create({
             data: {
-                id: testUsers[1].id + "team2",
+                id: generatePK(),
                 publicId: "team2-" + Math.random(),
                 handle: "test-team-2",
                 name: "Test Team 2",
@@ -82,7 +85,7 @@ describe("EndpointsMemberInvite", () => {
                 created_by: { connect: { id: testUsers[1].id } },
                 members: {
                     create: [{
-                        id: testUsers[1].id + "member2",
+                        id: generatePK(),
                         publicId: "member2-" + Math.random(),
                         user: { connect: { id: testUsers[1].id } },
                         permissions: JSON.stringify({ canEdit: true, canInvite: true }),
@@ -93,7 +96,7 @@ describe("EndpointsMemberInvite", () => {
 
         publicTeam = await DbProvider.get().team.create({
             data: {
-                id: testUsers[0].id + "publicteam",
+                id: generatePK(),
                 publicId: "publicteam-" + Math.random(),
                 handle: "public-team",
                 name: "Public Team",
@@ -102,7 +105,7 @@ describe("EndpointsMemberInvite", () => {
                 created_by: { connect: { id: testUsers[0].id } },
                 members: {
                     create: [{
-                        id: testUsers[0].id + "publicmember",
+                        id: generatePK(),
                         publicId: "publicmember-" + Math.random(),
                         user: { connect: { id: testUsers[0].id } },
                         permissions: JSON.stringify({ canEdit: true, canInvite: true }),

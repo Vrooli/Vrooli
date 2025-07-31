@@ -1,4 +1,4 @@
-import { type ChatMessageSearchTreeInput, type ChatMessageSearchTreeResult, type FindByIdInput, generatePK } from "@vrooli/shared";
+import { type ChatMessageSearchTreeInput, type ChatMessageSearchTreeResult, type FindByIdInput, generatePK, generatePublicId } from "@vrooli/shared";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
@@ -48,13 +48,14 @@ describe("EndpointsChatMessage", () => {
     // Helper function to create complex test data structure
     async function createTestData() {
         // Seed test users using database fixtures
-        const testUsers = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
+        const seedResult = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
+        const testUsers = seedResult.records;
 
         // Create a bot user
         const testBot = await DbProvider.get().user.create({
             data: {
                 id: generatePK(),
-                publicId: "bot-" + Math.random(),
+                publicId: generatePublicId(),
                 handle: "test-bot-" + Math.floor(Math.random() * 1000),
                 name: "Test Bot",
                 isBot: true,
@@ -64,92 +65,84 @@ describe("EndpointsChatMessage", () => {
 
         // Create test chats using database fixtures
         const normalChat = await seedTestChat(DbProvider.get(), {
-            createdById: testUsers[0].id,
+            userIds: [testUsers[0].id.toString(), testUsers[1].id.toString()],
             isPrivate: false,
-            openToAnyoneWithInvite: false,
-            participantIds: [testUsers[0].id, testUsers[1].id],
         });
 
         const publicChat = await seedTestChat(DbProvider.get(), {
-            createdById: testUsers[1].id,
+            userIds: [testUsers[1].id.toString()],
             isPrivate: false,
-            openToAnyoneWithInvite: true,
-            participantIds: [testUsers[1].id],
         });
 
         const privateChat = await seedTestChat(DbProvider.get(), {
-            createdById: testUsers[1].id,
+            userIds: [testUsers[1].id.toString()],
             isPrivate: true,
-            openToAnyoneWithInvite: false,
-            participantIds: [testUsers[1].id],
         });
 
         const seqChat = await seedTestChat(DbProvider.get(), {
-            createdById: testUsers[0].id,
+            userIds: [testUsers[0].id.toString()],
             isPrivate: false,
-            openToAnyoneWithInvite: false,
-            participantIds: [testUsers[0].id],
         });
 
         const branchChat = await seedTestChat(DbProvider.get(), {
-            createdById: testUsers[0].id,
+            userIds: [testUsers[0].id.toString(), testUsers[1].id.toString()],
             isPrivate: false,
-            openToAnyoneWithInvite: false,
-            participantIds: [testUsers[0].id, testUsers[1].id],
         });
 
         // Seed messages for normal chat
-        const normalChatMessages = await seedChatMessages(DbProvider.get(), {
-            chatId: normalChat.id,
+        const normalChatMessagesResult = await seedChatMessages(DbProvider.get(), {
+            chatId: normalChat.id.toString(),
             messages: [
-                { userId: testUsers[0].id, text: "Hello, this is User 1's first message" },
-                { userId: testBot.id, text: "Hello User 1, this is the bot's response", parentId: null },
-                { userId: testUsers[1].id, text: "This is User 2 joining the conversation", parentId: null },
+                { userId: testUsers[0].id.toString(), text: "Hello, this is User 1's first message" },
+                { userId: testBot.id.toString(), text: "Hello User 1, this is the bot's response", parentId: undefined },
+                { userId: testUsers[1].id.toString(), text: "This is User 2 joining the conversation", parentId: undefined },
             ],
         });
+        const normalChatMessages = normalChatMessagesResult.records;
         const messages: any = {};
         messages.user1Message1 = normalChatMessages[0];
         messages.botMessage1 = normalChatMessages[1];
         messages.user2Message1 = normalChatMessages[2];
 
         // Set parent relationships after creation
-        await DbProvider.get().chatMessage.update({
+        await DbProvider.get().chat_message.update({
             where: { id: messages.botMessage1.id },
             data: { parentId: messages.user1Message1.id },
         });
-        await DbProvider.get().chatMessage.update({
+        await DbProvider.get().chat_message.update({
             where: { id: messages.user2Message1.id },
             data: { parentId: messages.botMessage1.id },
         });
 
         // Seed messages for public chat
-        const publicChatMessages = await seedChatMessages(DbProvider.get(), {
-            chatId: publicChat.id,
+        const publicChatMessagesResult = await seedChatMessages(DbProvider.get(), {
+            chatId: publicChat.id.toString(),
             messages: [
-                { userId: testUsers[1].id, text: "This is a message in a public chat" },
+                { userId: testUsers[1].id.toString(), text: "This is a message in a public chat" },
             ],
         });
-        messages.publicChatMessage = publicChatMessages[0];
+        messages.publicChatMessage = publicChatMessagesResult.records[0];
 
         // Seed messages for private chat
-        const privateChatMessages = await seedChatMessages(DbProvider.get(), {
-            chatId: privateChat.id,
+        const privateChatMessagesResult = await seedChatMessages(DbProvider.get(), {
+            chatId: privateChat.id.toString(),
             messages: [
-                { userId: testUsers[1].id, text: "This is a message in a private chat" },
+                { userId: testUsers[1].id.toString(), text: "This is a message in a private chat" },
             ],
         });
-        messages.privateChatMessage = privateChatMessages[0];
+        messages.privateChatMessage = privateChatMessagesResult.records[0];
 
         // Seed sequential messages
-        const seqMessages = await seedChatMessages(DbProvider.get(), {
-            chatId: seqChat.id,
+        const seqMessagesResult = await seedChatMessages(DbProvider.get(), {
+            chatId: seqChat.id.toString(),
             messages: [
-                { userId: testUsers[0].id, text: "Seq A", versionIndex: 0 },
-                { userId: testUsers[0].id, text: "Seq B", versionIndex: 1 },
-                { userId: testUsers[0].id, text: "Seq C", versionIndex: 2 },
-                { userId: testUsers[0].id, text: "Seq D", versionIndex: 3 },
+                { userId: testUsers[0].id.toString(), text: "Seq A", versionIndex: 0 },
+                { userId: testUsers[0].id.toString(), text: "Seq B", versionIndex: 1 },
+                { userId: testUsers[0].id.toString(), text: "Seq C", versionIndex: 2 },
+                { userId: testUsers[0].id.toString(), text: "Seq D", versionIndex: 3 },
             ],
         });
+        const seqMessages = seqMessagesResult.records;
         messages.seqMsgA = seqMessages[0];
         messages.seqMsgB = seqMessages[1];
         messages.seqMsgC = seqMessages[2];
@@ -165,38 +158,38 @@ describe("EndpointsChatMessage", () => {
 
         // Seed branching conversation tree
         const branchTree = await seedConversationTree(DbProvider.get(), {
-            chatId: branchChat.id,
+            chatId: branchChat.id.toString(),
             structure: [
                 {
-                    id: rootId,
-                    userId: testUsers[0].id,
+                    id: rootId.toString(),
+                    userId: testUsers[0].id.toString(),
                     text: "Root message",
                     children: [
                         {
-                            id: branch1AId,
-                            userId: testUsers[1].id,
+                            id: branch1AId.toString(),
+                            userId: testUsers[1].id.toString(),
                             text: "Branch 1A",
                             children: [
                                 {
-                                    id: leaf1A1Id,
-                                    userId: testUsers[0].id,
+                                    id: leaf1A1Id.toString(),
+                                    userId: testUsers[0].id.toString(),
                                     text: "Leaf 1A1",
                                 },
                             ],
                         },
                         {
-                            id: branch1BId,
-                            userId: testUsers[1].id,
+                            id: branch1BId.toString(),
+                            userId: testUsers[1].id.toString(),
                             text: "Branch 1B",
                             children: [
                                 {
-                                    id: leaf1B1Id,
-                                    userId: testUsers[0].id,
+                                    id: leaf1B1Id.toString(),
+                                    userId: testUsers[0].id.toString(),
                                     text: "Leaf 1B1",
                                 },
                                 {
-                                    id: leaf1B2Id,
-                                    userId: testUsers[0].id,
+                                    id: leaf1B2Id.toString(),
+                                    userId: testUsers[0].id.toString(),
                                     text: "Leaf 1B2",
                                 },
                             ],
@@ -241,7 +234,7 @@ describe("EndpointsChatMessage", () => {
                 const result = await chatMessage.findOne({ input }, { req, res }, chatMessage_findOne);
 
                 expect(result).not.toBeNull();
-                expect(result.id).toBe(messages.user1Message1.id);
+                expect(result.id).toBe(messages.user1Message1.id.toString());
                 expect(result.translations).toBeInstanceOf(Array);
                 expect(result.translations[0].text).toBe("Hello, this is User 1's first message");
             });
@@ -339,7 +332,7 @@ describe("EndpointsChatMessage", () => {
                     id: testUsers[0].id.toString(),
                 });
 
-                const input = { chatId: normalChat.id, take: 10 };
+                const input = { chatId: normalChat.id.toString(), take: 10 };
                 const result = await chatMessage.findMany({ input }, { req, res }, chatMessage_findMany);
 
                 expect(result).not.toBeNull();
@@ -353,12 +346,15 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("returns messages from user", async () => {
+                const testData = await createTestData();
+                const { testUsers, normalChat, messages } = testData;
+
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id,
+                    id: testUsers[0].id.toString(),
                 });
 
-                const input = { chatId: normalChat.id, userId: testUsers[0].id, take: 10 };
+                const input = { chatId: normalChat.id.toString(), userId: testUsers[0].id.toString(), take: 10 };
                 const result = await chatMessage.findMany({ input }, { req, res }, chatMessage_findMany);
 
                 expect(result).not.toBeNull();
@@ -368,12 +364,15 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("returns messages for public chat with API key", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
+                const testData = await createTestData();
+                const { testUsers, publicChat } = testData;
+
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id.toString() };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
-                const input = { chatId: publicChat.id, take: 10 };
+                const input = { chatId: publicChat.id.toString(), take: 10 };
                 const result = await chatMessage.findMany({ input }, { req, res }, chatMessage_findMany);
 
                 expect(result).not.toBeNull();
@@ -384,12 +383,15 @@ describe("EndpointsChatMessage", () => {
 
         describe("invalid", () => {
             it("non-participant cannot view messages", async () => {
+                const testData = await createTestData();
+                const { testUsers, normalChat } = testData;
+
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[2].id, // User 2 is not in normalChat
+                    id: testUsers[2].id.toString(), // User 2 is not in normalChat
                 });
 
-                const input = { chatId: normalChat.id, take: 10 };
+                const input = { chatId: normalChat.id.toString(), take: 10 };
 
                 await expect(async () => {
                     await chatMessage.findMany({ input }, { req, res }, chatMessage_findMany);
@@ -397,9 +399,12 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("logged out user cannot view messages", async () => {
+                const testData = await createTestData();
+                const { normalChat } = testData;
+
                 const { req, res } = await mockLoggedOutSession();
 
-                const input = { chatId: normalChat.id, take: 10 };
+                const input = { chatId: normalChat.id.toString(), take: 10 };
 
                 await expect(async () => {
                     await chatMessage.findMany({ input }, { req, res }, chatMessage_findMany);
@@ -411,9 +416,12 @@ describe("EndpointsChatMessage", () => {
     describe("findTree", () => {
         describe("valid", () => {
             it("returns full conversation tree for participant", async () => {
+                const testData = await createTestData();
+                const { testUsers, branchChat, messages } = testData;
+
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id,
+                    id: testUsers[0].id.toString(),
                 });
 
                 const input: ChatMessageSearchTreeInput = {
@@ -433,9 +441,12 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("returns sequential messages in order", async () => {
+                const testData = await createTestData();
+                const { testUsers, seqChat } = testData;
+
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id,
+                    id: testUsers[0].id.toString(),
                 });
 
                 const input: ChatMessageSearchTreeInput = {
@@ -457,9 +468,12 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("handles branching conversations correctly", async () => {
+                const testData = await createTestData();
+                const { testUsers, branchChat, messages } = testData;
+
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id,
+                    id: testUsers[0].id.toString(),
                 });
 
                 const input: ChatMessageSearchTreeInput = {
@@ -483,9 +497,12 @@ describe("EndpointsChatMessage", () => {
 
         describe("invalid", () => {
             it("non-participant cannot view tree", async () => {
+                const testData = await createTestData();
+                const { testUsers, branchChat } = testData;
+
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[2].id, // User 2 is not in branchChat
+                    id: testUsers[2].id.toString(), // User 2 is not in branchChat
                 });
 
                 const input: ChatMessageSearchTreeInput = {
@@ -499,6 +516,9 @@ describe("EndpointsChatMessage", () => {
             });
 
             it("logged out user cannot view tree", async () => {
+                const testData = await createTestData();
+                const { branchChat } = testData;
+
                 const { req, res } = await mockLoggedOutSession();
 
                 const input: ChatMessageSearchTreeInput = {

@@ -153,15 +153,20 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                 privateClosedTeam: {
                     id: this.generateId(),
                     publicId: generatePublicId(),
-                    name: "Private Closed Team",
                     handle: `private_closed_${nanoid()}`,
                     isPrivate: true,
                     isOpenToNewMembers: false,
+                    translations: {
+                        create: [{
+                            id: this.generateId(),
+                            language: "en",
+                            name: "Private Closed Team",
+                        }],
+                    },
                 },
                 multiLanguageTeam: {
                     id: this.generateId(),
                     publicId: generatePublicId(),
-                    name: "Multilingual Team",
                     handle: `multilang_team_${nanoid()}`,
                     isPrivate: false,
                     isOpenToNewMembers: true,
@@ -177,16 +182,15 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
             },
             updates: {
                 minimal: {
-                    name: "Updated Team Name",
+                    isOpenToNewMembers: false,
                 },
                 complete: {
-                    name: "Completely Updated Team",
                     isOpenToNewMembers: false,
                     bannerImage: "https://example.com/new-banner.jpg",
                     profileImage: "https://example.com/new-logo.jpg",
                     translations: {
                         update: [{
-                            where: { id: "translation_id" },
+                            where: { id: BigInt(1) },
                             data: { bio: "Updated team bio" },
                         }],
                     },
@@ -202,9 +206,15 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
             id: this.generateId(),
             publicId: generatePublicId(),
             handle: uniqueHandle,
-            name: "Test Team",
             isOpenToNewMembers: true,
             isPrivate: false,
+            translations: {
+                create: [{
+                    id: this.generateId(),
+                    language: "en",
+                    name: "Test Team",
+                }],
+            },
             ...overrides,
         };
     }
@@ -216,7 +226,6 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
             id: this.generateId(),
             publicId: generatePublicId(),
             handle: uniqueHandle,
-            name: "Complete Test Team",
             isOpenToNewMembers: true,
             isPrivate: false,
             bannerImage: "https://example.com/team-banner.jpg",
@@ -378,14 +387,13 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                     },
                 },
             },
-            projects: {
+            issues: {
                 select: {
                     id: true,
                     publicId: true,
-                    name: true,
                 },
             },
-            resourceLists: {
+            meetings: {
                 select: {
                     id: true,
                     publicId: true,
@@ -394,9 +402,9 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
             _count: {
                 select: {
                     members: true,
-                    projects: true,
-                    resourceLists: true,
+                    meetings: true,
                     chats: true,
+                    issues: true,
                 },
             },
         };
@@ -414,8 +422,10 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
             data.members = {
                 create: [{
                     id: this.generateId(),
-                    userId: config.owner.userId,
-                    role: "Owner",
+                    publicId: generatePublicId(),
+                    user: { connect: { id: BigInt(config.owner.userId) } },
+                    isAdmin: true,
+                    permissions: { manageTeam: true, manageMembers: true },
                 }],
             };
         }
@@ -424,18 +434,21 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
         if (config.members && Array.isArray(config.members)) {
             const memberCreates = config.members.map(member => ({
                 id: this.generateId(),
-                userId: member.userId,
-                role: member.role || "Member",
+                publicId: generatePublicId(),
+                user: { connect: { id: BigInt(member.userId) } },
+                isAdmin: member.role === "Admin" || member.role === "Owner",
+                permissions: member.role === "Owner" ? { manageTeam: true, manageMembers: true } :
+                    member.role === "Admin" ? { manageMembers: true } : {},
             }));
 
             if (data.members?.create) {
                 // Append to existing members (owner)
-                data.members.create = [
-                    ...(Array.isArray(data.members.create) ? data.members.create : [data.members.create]),
-                    ...memberCreates,
-                ];
+                const existingMembers = Array.isArray(data.members.create) ? data.members.create : [data.members.create];
+                data.members = {
+                    create: [...existingMembers, ...memberCreates] as Prisma.memberCreateWithoutTeamInput[],
+                };
             } else {
-                data.members = { create: memberCreates };
+                data.members = { create: memberCreates as Prisma.memberCreateWithoutTeamInput[] };
             }
         }
 
@@ -480,7 +493,13 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
             isPrivate: true,
             isOpenToNewMembers: false,
             handle: `private_team_${nanoid()}`,
-            name: "Private Team",
+            translations: {
+                create: [{
+                    id: this.generateId(),
+                    language: "en",
+                    name: "Private Team",
+                }],
+            },
         });
     }
 
@@ -540,13 +559,13 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
     protected getCascadeInclude(): any {
         return {
             members: true,
-            projects: true,
-            resourceLists: true,
             chats: true,
             translations: true,
-            bookmarkLists: true,
-            schedules: true,
             meetings: true,
+            issues: true,
+            emails: true,
+            memberInvites: true,
+            reports: true,
         };
     }
 
@@ -563,58 +582,56 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
         // Delete in order of dependencies
 
         // Delete chats
-        if (shouldDelete("chats") && record.chats?.length) {
+        if (shouldDelete("chats")) {
             await tx.chat.deleteMany({
                 where: { teamId: record.id },
             });
         }
 
         // Delete meetings
-        if (shouldDelete("meetings") && record.meetings?.length) {
+        if (shouldDelete("meetings")) {
             await tx.meeting.deleteMany({
                 where: { teamId: record.id },
             });
         }
 
-        // Delete schedules
-        if (shouldDelete("schedules") && record.schedules?.length) {
-            await tx.schedule.deleteMany({
+        // Delete issues
+        if (shouldDelete("issues")) {
+            await tx.issue.deleteMany({
                 where: { teamId: record.id },
             });
         }
 
-        // Delete bookmark lists
-        if (shouldDelete("bookmarkLists") && record.bookmarkLists?.length) {
-            await tx.bookmark_list.deleteMany({
+        // Delete emails
+        if (shouldDelete("emails")) {
+            await tx.email.deleteMany({
                 where: { teamId: record.id },
             });
         }
 
-        // Delete projects (if they're team-owned)
-        if (shouldDelete("projects") && record.projects?.length) {
-            // First remove team association
-            await tx.project.updateMany({
+        // Delete reports
+        if (shouldDelete("reports")) {
+            await tx.report.deleteMany({
                 where: { teamId: record.id },
-                data: { teamId: null },
             });
         }
 
-        // Delete resource lists
-        if (shouldDelete("resourceLists") && record.resourceLists?.length) {
-            await tx.resourceList.deleteMany({
+        // Delete member invites
+        if (shouldDelete("memberInvites")) {
+            await tx.member_invite.deleteMany({
                 where: { teamId: record.id },
             });
         }
 
         // Delete members
-        if (shouldDelete("members") && record.members?.length) {
+        if (shouldDelete("members")) {
             await tx.member.deleteMany({
                 where: { teamId: record.id },
             });
         }
 
         // Delete translations
-        if (shouldDelete("translations") && record.translations?.length) {
+        if (shouldDelete("translations")) {
             await tx.team_translation.deleteMany({
                 where: { teamId: record.id },
             });
@@ -660,8 +677,14 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
 
         // Create root team
         const rootTeam = await this.createComplete({
-            name: "Root Organization",
             handle: `root_org_${nanoid()}`,
+            translations: {
+                create: [{
+                    id: this.generateId(),
+                    language: "en",
+                    name: "Root Organization",
+                }],
+            },
         });
         teams.push(rootTeam);
 
@@ -669,8 +692,14 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
         // Note: This is a placeholder - actual implementation would depend on schema
         for (let i = 0; i < levels - 1; i++) {
             const subTeam = await this.createMinimal({
-                name: `Sub Team Level ${i + 1}`,
                 handle: `sub_team_${i}_${nanoid()}`,
+                translations: {
+                    create: [{
+                        id: this.generateId(),
+                        language: "en",
+                        name: `Sub Team Level ${i + 1}`,
+                    }],
+                },
             });
             teams.push(subTeam);
         }
@@ -688,7 +717,16 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
         communityTeam: team;
     }> {
         const [publicTeam, privateTeam, organizationTeam, communityTeam] = await Promise.all([
-            this.createMinimal({ name: "Public Team", isPrivate: false }),
+            this.createMinimal({
+                isPrivate: false,
+                translations: {
+                    create: [{
+                        id: this.generateId(),
+                        language: "en",
+                        name: "Public Team",
+                    }],
+                },
+            }),
             this.createPrivateTeam(),
             this.createOrganizationTeam(),
             this.createOpenCommunity(),

@@ -1,5 +1,5 @@
 import { ScheduleRecurrenceType } from "@prisma/client";
-import { type FindVersionInput, type ScheduleCreateInput, type ScheduleSearchInput, type ScheduleUpdateInput } from "@vrooli/shared";
+import { type FindVersionInput, type ScheduleCreateInput, type ScheduleSearchInput, type ScheduleUpdateInput, generatePK, generatePublicId } from "@vrooli/shared";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
@@ -28,24 +28,9 @@ describe("EndpointsSchedule", () => {
     let meetingUser1: any;
     let meetingUser2: any;
 
-    // Define schedule data
-    const scheduleUser1Data = {
-        id: "schedule-1-" + Date.now(),
-        publicId: "pub-schedule-1-" + Date.now(),
-        startTime: new Date("2024-01-10T09:00:00Z"),
-        endTime: new Date("2024-01-10T10:00:00Z"),
-        timezone: "UTC",
-        isDefault: false,
-    };
-
-    const scheduleUser2Data = {
-        id: "schedule-2-" + Date.now(),
-        publicId: "pub-schedule-2-" + Date.now(),
-        startTime: new Date("2024-01-11T14:00:00Z"),
-        endTime: new Date("2024-01-11T15:00:00Z"),
-        timezone: "America/New_York",
-        isDefault: false,
-    };
+    // Define schedule data - IDs will be generated in beforeEach
+    let scheduleUser1Data: any;
+    let scheduleUser2Data: any;
 
     beforeAll(() => {
         // Use Vitest spies to suppress logger output during tests
@@ -70,6 +55,31 @@ describe("EndpointsSchedule", () => {
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.userAuth(DbProvider.get());
+
+        // Create test users
+        testUsers = await Promise.all([
+            DbProvider.get().user.create({ data: UserDbFactory.createMinimal() }),
+            DbProvider.get().user.create({ data: UserDbFactory.createMinimal() }),
+        ]);
+
+        // Initialize schedule data with proper bigint IDs
+        scheduleUser1Data = {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            startTime: new Date("2024-01-10T09:00:00Z"),
+            endTime: new Date("2024-01-10T10:00:00Z"),
+            timezone: "UTC",
+            isDefault: false,
+        };
+
+        scheduleUser2Data = {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            startTime: new Date("2024-01-11T14:00:00Z"),
+            endTime: new Date("2024-01-11T15:00:00Z"),
+            timezone: "America/New_York",
+            isDefault: false,
+        };
 
         // Create teams and meetings for schedule testing
         teamUser1 = await DbProvider.get().team.create({
@@ -141,6 +151,7 @@ describe("EndpointsSchedule", () => {
         scheduleUser1 = await DbProvider.get().schedule.create({
             data: {
                 ...scheduleUser1Data,
+                userId: testUsers[0].id,
                 meetings: {
                     connect: {
                         id: meetingUser1.id,
@@ -151,6 +162,7 @@ describe("EndpointsSchedule", () => {
         await DbProvider.get().schedule_exception.createMany({
             data: [
                 {
+                    id: generatePK(),
                     scheduleId: scheduleUser1.id,
                     originalStartTime: scheduleUser1Data.startTime,
                     newStartTime: new Date("2024-01-10T09:15:00Z"),
@@ -161,6 +173,7 @@ describe("EndpointsSchedule", () => {
         await DbProvider.get().schedule_recurrence.createMany({
             data: [
                 {
+                    id: generatePK(),
                     scheduleId: scheduleUser1.id,
                     recurrenceType: ScheduleRecurrenceType.Weekly,
                     interval: 1,
@@ -173,6 +186,7 @@ describe("EndpointsSchedule", () => {
         scheduleUser2 = await DbProvider.get().schedule.create({
             data: {
                 ...scheduleUser2Data,
+                userId: testUsers[1].id,
                 meetings: {
                     connect: {
                         id: meetingUser2.id,
@@ -224,7 +238,7 @@ describe("EndpointsSchedule", () => {
                 const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                const input: FindVersionInput = { id: "non-existent-id" };
+                const input: FindVersionInput = { id: generatePK() }; // Non-existent ID
 
                 try {
                     await schedule.findOne({ input }, { req, res }, schedule_findOne);
@@ -408,7 +422,7 @@ describe("EndpointsSchedule", () => {
                 const { req, res } = await mockLoggedOutSession();
 
                 const input: ScheduleCreateInput = {
-                    id: "test-id-" + Date.now(),
+                    id: generatePK(),
                     startTime: new Date("2024-02-03T10:00:00Z"),
                     endTime: new Date("2024-02-03T11:00:00Z"),
                     timezone: "UTC",
@@ -457,7 +471,7 @@ describe("EndpointsSchedule", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const newTimezone = "America/Los_Angeles";
-                const newRecurrenceId = "test-id-" + Date.now();
+                const newRecurrenceId = generatePK();
                 const input: ScheduleUpdateInput = {
                     id: scheduleUser1.id,
                     timezone: newTimezone,
@@ -552,7 +566,7 @@ describe("EndpointsSchedule", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: ScheduleUpdateInput = {
-                    id: "test-id-" + Date.now(), // Non-existent ID
+                    id: generatePK(), // Non-existent ID
                     timezone: "Asia/Tokyo",
                 };
 

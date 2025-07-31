@@ -19,10 +19,6 @@ export interface CoordinationPattern {
     config: any;
 }
 
-declare module "vitest" {
-    type Assertion<T> = CoordinationAssertions
-    type AsymmetricMatchersContaining = CoordinationAssertions
-}
 
 export function extendCoordinationAssertions() {
     expect.extend({
@@ -36,19 +32,19 @@ export function extendCoordinationAssertions() {
                     pass = retryResult.pass;
                     message = retryResult.message;
                     break;
-                    
+
                 case "parallel":
                     const parallelResult = checkParallelPattern(received, pattern.config);
                     pass = parallelResult.pass;
                     message = parallelResult.message;
                     break;
-                    
+
                 case "sequential":
                     const sequentialResult = checkSequentialPattern(received, pattern.config);
                     pass = sequentialResult.pass;
                     message = sequentialResult.message;
                     break;
-                    
+
                 case "pipeline":
                     const pipelineResult = checkPipelinePattern(received, pattern.config);
                     pass = pipelineResult.pass;
@@ -76,7 +72,7 @@ export function extendCoordinationAssertions() {
                 if (calls.length > 1) {
                     foundRetry = true;
                     retryDetails += `${routine}: ${calls.length} attempts\n`;
-                    
+
                     // Check if retries stopped after success
                     const successIndex = calls.findIndex(c => c.success);
                     if (successIndex >= 0 && successIndex < calls.length - 1) {
@@ -97,7 +93,7 @@ export function extendCoordinationAssertions() {
 
         toHaveParallelExecution(received: RoutineCall[], routines: string[]) {
             const relevantCalls = received.filter(c => routines.includes(c.routineLabel));
-            
+
             if (relevantCalls.length < 2) {
                 return {
                     pass: false,
@@ -113,7 +109,7 @@ export function extendCoordinationAssertions() {
                     const call2 = relevantCalls[j];
                     const endTime1 = new Date(call1.timestamp.getTime() + call1.duration);
                     const endTime2 = new Date(call2.timestamp.getTime() + call2.duration);
-                    
+
                     // Check if calls overlap
                     if (call1.timestamp <= endTime2 && call2.timestamp <= endTime1) {
                         hasOverlap = true;
@@ -133,11 +129,11 @@ export function extendCoordinationAssertions() {
 
         toHaveSequentialExecution(received: RoutineCall[], routines: string[]) {
             const relevantCalls = received.filter(c => routines.includes(c.routineLabel));
-            
+
             // Check if routines were called in the specified order
             let currentIndex = 0;
             const executionOrder: string[] = [];
-            
+
             for (const call of relevantCalls) {
                 executionOrder.push(call.routineLabel);
                 const expectedRoutine = routines[currentIndex % routines.length];
@@ -153,7 +149,7 @@ export function extendCoordinationAssertions() {
                 message: () => pass
                     ? "Expected not to have sequential execution"
                     : `Expected sequential execution: ${routines.join(" → ")}\n` +
-                      `Actual order: ${executionOrder.join(" → ")}`,
+                    `Actual order: ${executionOrder.join(" → ")}`,
             };
         },
     });
@@ -162,7 +158,7 @@ export function extendCoordinationAssertions() {
 function checkRetryPattern(calls: RoutineCall[], config: any): { pass: boolean; message: string } {
     const { routine, maxAttempts, successRequired } = config;
     const routineCalls = calls.filter(c => c.routineLabel === routine);
-    
+
     if (routineCalls.length === 0) {
         return {
             pass: false,

@@ -161,6 +161,11 @@ temp/
 .DS_*
 **/*.backup.*
 **/*.back.*
+**/*.backup
+
+# Editor lock files
+.~lock.*
+**/.~lock.*
 
 node_modules
 

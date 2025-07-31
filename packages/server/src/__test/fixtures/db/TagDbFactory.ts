@@ -1,8 +1,9 @@
-import { generatePublicId, nanoid } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+/* eslint-disable no-magic-numbers */
+import { type Prisma, type PrismaClient, type tag } from "@prisma/client";
+import { nanoid } from "@vrooli/shared";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
@@ -191,8 +192,8 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
                             description: "Description mise à jour",
                         }],
                         update: [{
-                            where: { 
-                                tagId_language: {
+                            where: {
+                                tag_translation_tagId_language_unique: {
                                     tagId: this.generateId(),
                                     language: "en",
                                 },
@@ -209,7 +210,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
 
     protected generateMinimalData(overrides?: Partial<Prisma.tagCreateInput>): Prisma.tagCreateInput {
         const uniqueTag = `tag_${nanoid()}`.toLowerCase();
-        
+
         return {
             id: this.generateId(),
             tag: uniqueTag,
@@ -219,7 +220,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
 
     protected generateCompleteData(overrides?: Partial<Prisma.tagCreateInput>): Prisma.tagCreateInput {
         const uniqueTag = `complete_${nanoid()}`.toLowerCase();
-        
+
         return {
             id: this.generateId(),
             tag: uniqueTag,
@@ -336,7 +337,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create tags for specific contexts
      */
-    async createCategoryTag(name: string, description?: string): Promise<Prisma.tag> {
+    async createCategoryTag(name: string, description?: string): Promise<tag> {
         return await this.createMinimal({
             tag: name.toLowerCase().replace(/\s+/g, "-"),
             translations: description ? {
@@ -349,7 +350,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    async createTechnologyTag(tech: string): Promise<Prisma.tag> {
+    async createTechnologyTag(tech: string): Promise<tag> {
         return await this.createMinimal({
             tag: tech.toLowerCase(),
             translations: {
@@ -362,7 +363,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    async createLanguageTag(language: string): Promise<Prisma.tag> {
+    async createLanguageTag(language: string): Promise<tag> {
         return await this.createMinimal({
             tag: language.toLowerCase(),
             translations: {
@@ -378,9 +379,9 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create multiple related tags
      */
-    async createTagSet(baseName: string, count = 5): Promise<Prisma.tag[]> {
-        const tags: Prisma.tag[] = [];
-        
+    async createTagSet(baseName: string, count = 5): Promise<tag[]> {
+        const tags: tag[] = [];
+
         for (let i = 0; i < count; i++) {
             const tag = await this.createMinimal({
                 tag: `${baseName}_${i + 1}`.toLowerCase(),
@@ -394,31 +395,31 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
             });
             tags.push(tag);
         }
-        
+
         return tags;
     }
 
     /**
      * Create common tags
      */
-    async createCommonTags(): Promise<Record<string, Prisma.tag>> {
-        const tags: Record<string, Prisma.tag> = {};
-        
+    async createCommonTags(): Promise<Record<string, tag>> {
+        const tags: Record<string, tag> = {};
+
         // Programming languages
         tags.javascript = await this.createLanguageTag("javascript");
         tags.typescript = await this.createLanguageTag("typescript");
         tags.python = await this.createLanguageTag("python");
-        
+
         // Categories
         tags.tutorial = await this.createCategoryTag("tutorial", "Educational tutorials and guides");
         tags.documentation = await this.createCategoryTag("documentation", "Documentation and references");
         tags.opensource = await this.createCategoryTag("open-source", "Open source projects and contributions");
-        
+
         // Topics
         tags.webdev = await this.createCategoryTag("web-development", "Web development related");
         tags.mobile = await this.createCategoryTag("mobile", "Mobile development");
         tags.ai = await this.createCategoryTag("artificial-intelligence", "AI and machine learning");
-        
+
         return tags;
     }
 
@@ -428,15 +429,9 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
             translations: true,
             resources: {
                 take: 10,
-                include: {
-                    resource: true,
-                },
             },
             teams: {
                 take: 10,
-                include: {
-                    team: true,
-                },
             },
             _count: {
                 select: {
@@ -451,14 +446,14 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.tagCreateInput,
         config: TagRelationConfig,
-        tx: any,
+        _tx: any,
     ): Promise<Prisma.tagCreateInput> {
         const data = { ...baseData };
 
         // Handle createdBy relationship
         if (config.withCreatedBy) {
             const createdById = typeof config.withCreatedBy === "string" ? config.withCreatedBy : this.generateId();
-            data.createdById = createdById;
+            data.createdBy = { connect: { id: BigInt(createdById) } };
         }
 
         // Handle translations
@@ -477,9 +472,9 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
         return data;
     }
 
-    protected async checkModelConstraints(record: Prisma.tag): Promise<string[]> {
+    protected async checkModelConstraints(record: tag): Promise<string[]> {
         const violations: string[] = [];
-        
+
         // Check tag length
         if (record.tag && record.tag.length > 128) {
             violations.push("Tag exceeds maximum length of 128 characters");
@@ -493,7 +488,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
                     id: { not: record.id },
                 },
             });
-            
+
             if (duplicate) {
                 violations.push("Tag name must be unique");
             }
@@ -527,45 +522,45 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.tag,
+        record: tag,
         remainingDepth: number,
         tx: any,
         includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
-        const shouldDelete = (relation: string) => 
+        const shouldDelete = (relation: string) =>
             !includeOnly || includeOnly.includes(relation);
 
         // Delete translations
-        if (shouldDelete("translations") && record.translations?.length) {
+        if (shouldDelete("translations")) {
             await tx.tag_translation.deleteMany({
                 where: { tagId: record.id },
             });
         }
 
         // Delete resource associations
-        if (shouldDelete("resources") && record.resources?.length) {
+        if (shouldDelete("resources")) {
             await tx.resource_tag.deleteMany({
-                where: { tagId: record.id },
+                where: { tagTag: record.tag },
             });
         }
 
         // Delete team associations
-        if (shouldDelete("teams") && record.teams?.length) {
+        if (shouldDelete("teams")) {
             await tx.team_tag.deleteMany({
-                where: { tagId: record.id },
+                where: { tagTag: record.tag },
             });
         }
 
         // Delete bookmarks
-        if (shouldDelete("bookmarkedBy") && record.bookmarkedBy?.length) {
+        if (shouldDelete("bookmarkedBy")) {
             await tx.bookmark.deleteMany({
                 where: { tagId: record.id },
             });
         }
 
         // Delete reports
-        if (shouldDelete("reports") && record.reports?.length) {
+        if (shouldDelete("reports")) {
             await tx.report.deleteMany({
                 where: { tagId: record.id },
             });
@@ -575,30 +570,30 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
     /**
      * Find or create a tag
      */
-    async findOrCreate(tagName: string, createdById?: string): Promise<Prisma.tag> {
+    async findOrCreate(tagName: string, createdById?: string): Promise<tag> {
         const normalizedTag = tagName.toLowerCase().trim();
-        
+
         // Try to find existing tag
         const existing = await this.prisma.tag.findUnique({
             where: { tag: normalizedTag },
             include: this.getDefaultInclude(),
         });
-        
+
         if (existing) {
             return existing;
         }
-        
+
         // Create new tag
         return await this.createMinimal({
             tag: normalizedTag,
-            createdById,
+            ...(createdById && { createdBy: { connect: { id: BigInt(createdById) } } }),
         });
     }
 
     /**
      * Search tags by prefix
      */
-    async searchTags(prefix: string, limit = 10): Promise<Prisma.tag[]> {
+    async searchTags(prefix: string, limit = 10): Promise<tag[]> {
         return await this.prisma.tag.findMany({
             where: {
                 tag: {
@@ -626,7 +621,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get popular tags
      */
-    async getPopularTags(limit = 20): Promise<Prisma.tag[]> {
+    async getPopularTags(limit = 20): Promise<tag[]> {
         return await this.prisma.tag.findMany({
             where: {
                 bookmarks: { gt: 0 },
@@ -640,45 +635,45 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
     /**
      * Associate tag with resources
      */
-    async addToResources(tagId: string, resourceIds: string[]): Promise<number> {
+    async addToResources(tagTag: string, resourceIds: string[]): Promise<number> {
         const data = resourceIds.map(resourceId => ({
             id: this.generateId(),
-            tagId,
-            resourceId,
+            tagTag,
+            taggedId: BigInt(resourceId),
         }));
-        
+
         const result = await this.prisma.resource_tag.createMany({
             data,
             skipDuplicates: true,
         });
-        
+
         return result.count;
     }
 
     /**
      * Associate tag with teams
      */
-    async addToTeams(tagId: string, teamIds: string[]): Promise<number> {
+    async addToTeams(tagTag: string, teamIds: string[]): Promise<number> {
         const data = teamIds.map(teamId => ({
             id: this.generateId(),
-            tagId,
-            teamId,
+            tagTag,
+            taggedId: BigInt(teamId),
         }));
-        
+
         const result = await this.prisma.team_tag.createMany({
             data,
             skipDuplicates: true,
         });
-        
+
         return result.count;
     }
 
     /**
      * Increment bookmark count
      */
-    async incrementBookmarks(tagId: string): Promise<Prisma.tag> {
+    async incrementBookmarks(tagId: string): Promise<tag> {
         return await this.prisma.tag.update({
-            where: { id: tagId },
+            where: { id: BigInt(tagId) },
             data: {
                 bookmarks: { increment: 1 },
             },
@@ -689,9 +684,9 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
     /**
      * Decrement bookmark count
      */
-    async decrementBookmarks(tagId: string): Promise<Prisma.tag> {
+    async decrementBookmarks(tagId: string): Promise<tag> {
         return await this.prisma.tag.update({
-            where: { id: tagId },
+            where: { id: BigInt(tagId) },
             data: {
                 bookmarks: { decrement: 1 },
             },
@@ -701,7 +696,7 @@ export class TagDbFactory extends EnhancedDatabaseFactory<
 }
 
 // Export factory creator function
-export const createTagDbFactory = (prisma: PrismaClient) => 
+export const createTagDbFactory = (prisma: PrismaClient) =>
     new TagDbFactory(prisma);
 
 // Export the class for type usage

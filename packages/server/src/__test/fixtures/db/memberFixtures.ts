@@ -1,12 +1,12 @@
-import { generatePK } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK, generatePublicId } from "@vrooli/shared";
 
 /**
  * Database fixtures for Member model - used for seeding test data
  */
 
 // Cached IDs for consistent testing - lazy initialization pattern
-let _memberDbIds: Record<string, string> | null = null;
+let _memberDbIds: Record<string, bigint> | null = null;
 export function getMemberDbIds() {
     if (!_memberDbIds) {
         _memberDbIds = {
@@ -25,17 +25,19 @@ export function getMemberDbIds() {
 
 export class MemberDbFactory {
     static createMinimal(
-        userId: string,
-        teamId: string,
+        userId: string | bigint,
+        teamId: string | bigint,
         overrides?: Partial<Prisma.memberCreateInput>,
     ): Prisma.memberCreateInput {
         // Generate ID only when method is called, not at module load
         const id = overrides?.id || generatePK();
+        const userIdBigint = typeof userId === "string" ? BigInt(userId) : userId;
+        const teamIdBigint = typeof teamId === "string" ? BigInt(teamId) : teamId;
         return {
             id,
-            publicId: generatePK(),
-            user: { connect: { id: userId } },
-            team: { connect: { id: teamId } },
+            publicId: generatePublicId(),
+            user: { connect: { id: userIdBigint } },
+            team: { connect: { id: teamIdBigint } },
             isAdmin: false,
             permissions: {},
             ...overrides,
@@ -43,8 +45,8 @@ export class MemberDbFactory {
     }
 
     static createOwner(
-        userId: string,
-        teamId: string,
+        userId: string | bigint,
+        teamId: string | bigint,
         overrides?: Partial<Prisma.memberCreateInput>,
     ): Prisma.memberCreateInput {
         return this.createMinimal(userId, teamId, {
@@ -55,8 +57,8 @@ export class MemberDbFactory {
     }
 
     static createAdmin(
-        userId: string,
-        teamId: string,
+        userId: string | bigint,
+        teamId: string | bigint,
         overrides?: Partial<Prisma.memberCreateInput>,
     ): Prisma.memberCreateInput {
         return this.createMinimal(userId, teamId, {
@@ -67,8 +69,8 @@ export class MemberDbFactory {
     }
 
     static createWithPermissions(
-        userId: string,
-        teamId: string,
+        userId: string | bigint,
+        teamId: string | bigint,
         permissions: string[],
         overrides?: Partial<Prisma.memberCreateInput>,
     ): Prisma.memberCreateInput {
@@ -84,18 +86,18 @@ export class MemberDbFactory {
  */
 export class MemberInviteDbFactory {
     static createMinimal(
-        userId: string,
-        teamId: string,
-        createdById: string,
-        overrides?: Partial<Prisma.MemberInviteCreateInput>,
-    ): Prisma.MemberInviteCreateInput {
+        userId: string | bigint,
+        teamId: string | bigint,
+        overrides?: Partial<Prisma.member_inviteCreateInput>,
+    ): Prisma.member_inviteCreateInput {
         // Generate ID only when method is called, not at module load
         const id = overrides?.id || generatePK();
+        const userIdBigint = typeof userId === "string" ? BigInt(userId) : userId;
+        const teamIdBigint = typeof teamId === "string" ? BigInt(teamId) : teamId;
         return {
             id,
-            user: { connect: { id: userId } },
-            team: { connect: { id: teamId } },
-            createdBy: { connect: { id: createdById } },
+            user: { connect: { id: userIdBigint } },
+            team: { connect: { id: teamIdBigint } },
             message: "You're invited to join our team!",
             willBeAdmin: false,
             willHavePermissions: [],
@@ -104,12 +106,11 @@ export class MemberInviteDbFactory {
     }
 
     static createAdminInvite(
-        userId: string,
-        teamId: string,
-        createdById: string,
-        overrides?: Partial<Prisma.MemberInviteCreateInput>,
-    ): Prisma.MemberInviteCreateInput {
-        return this.createMinimal(userId, teamId, createdById, {
+        userId: string | bigint,
+        teamId: string | bigint,
+        overrides?: Partial<Prisma.member_inviteCreateInput>,
+    ): Prisma.member_inviteCreateInput {
+        return this.createMinimal(userId, teamId, {
             willBeAdmin: true,
             message: "You're invited to join as an admin!",
             ...overrides,
@@ -117,13 +118,12 @@ export class MemberInviteDbFactory {
     }
 
     static createWithPermissions(
-        userId: string,
-        teamId: string,
-        createdById: string,
+        userId: string | bigint,
+        teamId: string | bigint,
         permissions: string[],
-        overrides?: Partial<Prisma.MemberInviteCreateInput>,
-    ): Prisma.MemberInviteCreateInput {
-        return this.createMinimal(userId, teamId, createdById, {
+        overrides?: Partial<Prisma.member_inviteCreateInput>,
+    ): Prisma.member_inviteCreateInput {
+        return this.createMinimal(userId, teamId, {
             willHavePermissions: permissions,
             ...overrides,
         });
@@ -134,19 +134,19 @@ export class MemberInviteDbFactory {
  * Predefined member fixtures for testing - lazy initialization
  */
 const _minimalMemberDb: Prisma.memberCreateInput | null = null;
-export function getMinimalMemberDb(userId: string, teamId: string): Prisma.memberCreateInput {
+export function getMinimalMemberDb(userId: string | bigint, teamId: string | bigint): Prisma.memberCreateInput {
     // Create new instance each time to avoid shared state issues
     return MemberDbFactory.createMinimal(userId, teamId);
 }
 
 const _ownerMemberDb: Prisma.memberCreateInput | null = null;
-export function getOwnerMemberDb(userId: string, teamId: string): Prisma.memberCreateInput {
+export function getOwnerMemberDb(userId: string | bigint, teamId: string | bigint): Prisma.memberCreateInput {
     // Create new instance each time to avoid shared state issues
     return MemberDbFactory.createOwner(userId, teamId);
 }
 
 const _adminMemberDb: Prisma.memberCreateInput | null = null;
-export function getAdminMemberDb(userId: string, teamId: string): Prisma.memberCreateInput {
+export function getAdminMemberDb(userId: string | bigint, teamId: string | bigint): Prisma.memberCreateInput {
     // Create new instance each time to avoid shared state issues
     return MemberDbFactory.createAdmin(userId, teamId);
 }
@@ -154,16 +154,16 @@ export function getAdminMemberDb(userId: string, teamId: string): Prisma.memberC
 /**
  * Predefined member invite fixtures for testing - lazy initialization
  */
-const _minimalMemberInviteDb: Prisma.MemberInviteCreateInput | null = null;
-export function getMinimalMemberInviteDb(userId: string, teamId: string, createdById: string): Prisma.MemberInviteCreateInput {
+const _minimalMemberInviteDb: Prisma.member_inviteCreateInput | null = null;
+export function getMinimalMemberInviteDb(userId: string | bigint, teamId: string | bigint): Prisma.member_inviteCreateInput {
     // Create new instance each time to avoid shared state issues
-    return MemberInviteDbFactory.createMinimal(userId, teamId, createdById);
+    return MemberInviteDbFactory.createMinimal(userId, teamId);
 }
 
-const _adminMemberInviteDb: Prisma.MemberInviteCreateInput | null = null;
-export function getAdminMemberInviteDb(userId: string, teamId: string, createdById: string): Prisma.MemberInviteCreateInput {
+const _adminMemberInviteDb: Prisma.member_inviteCreateInput | null = null;
+export function getAdminMemberInviteDb(userId: string | bigint, teamId: string | bigint): Prisma.member_inviteCreateInput {
     // Create new instance each time to avoid shared state issues
-    return MemberInviteDbFactory.createAdminInvite(userId, teamId, createdById);
+    return MemberInviteDbFactory.createAdminInvite(userId, teamId);
 }
 
 /**
@@ -172,11 +172,11 @@ export function getAdminMemberInviteDb(userId: string, teamId: string, createdBy
 export async function seedTeamWithMembers(
     prisma: PrismaClient,
     options: {
-        teamId: string;
-        ownerId: string;
-        memberIds?: string[];
-        adminIds?: string[];
-        withInvites?: Array<{ userId: string; willBeAdmin?: boolean }>;
+        teamId: string | bigint;
+        ownerId: string | bigint;
+        memberIds?: (string | bigint)[];
+        adminIds?: (string | bigint)[];
+        withInvites?: Array<{ userId: string | bigint; willBeAdmin?: boolean }>;
     },
 ) {
     const members = [];
@@ -215,15 +215,13 @@ export async function seedTeamWithMembers(
                 ? MemberInviteDbFactory.createAdminInvite(
                     invite.userId,
                     options.teamId,
-                    options.ownerId,
                 )
                 : MemberInviteDbFactory.createMinimal(
                     invite.userId,
                     options.teamId,
-                    options.ownerId,
                 );
-            
-            const createdInvite = await prisma.memberInvite.create({ data: inviteData });
+
+            const createdInvite = await prisma.member_invite.create({ data: inviteData });
             invites.push(createdInvite);
         }
     }

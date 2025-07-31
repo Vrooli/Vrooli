@@ -3,14 +3,13 @@
  * This file defines all type mappings and relationships for complete type safety.
  */
 
-import type { 
-    DeploymentType,
+import type {
     BaseResourceConfig,
-    IResource,
+    IAgentResource,
     IAIResource,
     IAutomationResource,
-    IAgentResource,
-    IStorageResource,
+    IResource,
+    IStorageResource
 } from "./types.js";
 import { ResourceCategory } from "./types.js";
 
@@ -21,31 +20,23 @@ import { ResourceCategory } from "./types.js";
 /**
  * All AI resource IDs
  */
-export type AIResourceId = 
-    | "ollama" 
-    | "localai" 
-    | "llamacpp" 
-    | "vllm" 
-    | "tgi"
-    | "onnx"
+export type AIResourceId =
+    | "ollama"
     | "whisper"
     | "comfyui"
-    | "stablediffusion"
     | "cloudflare"
-    | "openrouter";
+    | "openrouter"
+    | "unstructured-io";
 
 /**
  * All automation resource IDs
  */
 export type AutomationResourceId =
     | "n8n"
-    | "nodered"
+    | "node-red"
     | "windmill"
-    | "automatisch"
     | "activepieces"
     | "huginn"
-    | "kestra"
-    | "beehive"
     | "airflow"
     | "temporal";
 
@@ -54,26 +45,32 @@ export type AutomationResourceId =
  */
 export type AgentResourceId =
     | "browserless"
-    | "claude-code";
+    | "claude-code"
+    | "agent-s2";
 
 /**
  * All storage resource IDs
  */
 export type StorageResourceId =
     | "minio"
-    | "seaweedfs"
-    | "glusterfs"
     | "ipfs"
     | "rclone";
 
 /**
+ * All execution resource IDs
+ */
+export type ExecutionResourceId =
+    | "judge0";
+
+/**
  * Union of all resource IDs
  */
-export type ResourceId = 
-    | AIResourceId 
-    | AutomationResourceId 
-    | AgentResourceId 
-    | StorageResourceId;
+export type ResourceId =
+    | AIResourceId
+    | AutomationResourceId
+    | AgentResourceId
+    | StorageResourceId
+    | ExecutionResourceId;
 
 // ============================================================================
 // Configuration Types
@@ -137,6 +134,24 @@ export interface StorageResourceConfig extends TypedBaseResourceConfig {
     useSSL?: boolean;
 }
 
+/**
+ * Execution-specific configuration
+ */
+export interface ExecutionResourceConfig extends TypedBaseResourceConfig {
+    baseUrl: string;
+    apiKey?: string;
+    workers?: number;
+    securityLimits?: {
+        cpuTime?: number;
+        wallTime?: number;
+        memoryLimit?: number;
+        maxProcesses?: number;
+        fileSize?: number;
+        stackLimit?: number;
+    };
+    enableNetwork?: boolean;
+}
+
 // ============================================================================
 // Specific Resource Configurations
 // ============================================================================
@@ -149,43 +164,6 @@ export interface OllamaConfig extends AIResourceConfig {
     keepAlive?: string; // e.g., "5m"
     numThread?: number;
     numGpu?: number;
-}
-
-export interface LocalAIConfig extends AIResourceConfig {
-    baseUrl: string;
-    apiKey?: string;
-    models?: string[];
-    galleries?: string[];
-}
-
-export interface LlamaCppConfig extends AIResourceConfig {
-    baseUrl: string;
-    modelPath?: string;
-    contextSize?: number;
-    threads?: number;
-    gpuLayers?: number;
-}
-
-export interface VLLMConfig extends AIResourceConfig {
-    baseUrl: string;
-    apiKey?: string;
-    models?: string[];
-    tensorParallelSize?: number;
-    pipelineParallelSize?: number;
-}
-
-export interface TGIConfig extends AIResourceConfig {
-    baseUrl: string;
-    apiKey?: string;
-    models?: string[];
-    maxBatchPrefillTokens?: number;
-    maxBatchTotalTokens?: number;
-}
-
-export interface ONNXConfig extends AIResourceConfig {
-    baseUrl: string;
-    modelPath?: string;
-    executionProviders?: string[];
 }
 
 export interface WhisperConfig extends AIResourceConfig {
@@ -202,13 +180,6 @@ export interface ComfyUIConfig extends AIResourceConfig {
     outputPath?: string;
 }
 
-export interface StableDiffusionConfig extends AIResourceConfig {
-    baseUrl: string;
-    apiKey?: string;
-    models?: string[];
-    samplers?: string[];
-}
-
 export interface CloudflareConfig extends AIResourceConfig {
     accountId: string;
     apiKey: string;
@@ -222,6 +193,18 @@ export interface OpenRouterConfig extends AIResourceConfig {
     models?: string[];
     siteUrl?: string;
     siteName?: string;
+}
+
+export interface UnstructuredIoConfig extends AIResourceConfig {
+    baseUrl: string;
+    processing?: {
+        defaultStrategy?: "fast" | "hi_res" | "auto";
+        ocrLanguages?: string[];
+        chunkingEnabled?: boolean;
+        maxChunkSize?: number;
+    };
+    maxFileSize?: number;
+    timeout?: number;
 }
 
 // Automation Resource Configurations
@@ -250,13 +233,6 @@ export interface WindmillConfig extends AutomationResourceConfig {
     defaultWorkerGroup?: string;
 }
 
-export interface AutomatischConfig extends AutomationResourceConfig {
-    baseUrl: string;
-    apiKey: string;
-    appKey?: string;
-    appSecret?: string;
-}
-
 export interface ActivePiecesConfig extends AutomationResourceConfig {
     baseUrl: string;
     apiKey: string;
@@ -269,19 +245,6 @@ export interface HuginnConfig extends AutomationResourceConfig {
     username: string;
     password: string;
     agentIdPrefix?: string;
-}
-
-export interface KestraConfig extends AutomationResourceConfig {
-    baseUrl: string;
-    apiKey?: string;
-    namespace?: string;
-    tenant?: string;
-}
-
-export interface BeehiveConfig extends AutomationResourceConfig {
-    baseUrl: string;
-    apiKey?: string;
-    hivePath?: string;
 }
 
 export interface AirflowConfig extends AutomationResourceConfig {
@@ -316,6 +279,25 @@ export interface ClaudeCodeConfig extends AgentResourceConfig {
     apiKey?: string;
 }
 
+export interface AgentS2Config extends AgentResourceConfig {
+    baseUrl: string;
+    vncUrl?: string;
+    apiKey?: string;
+    llmProvider?: "openai" | "anthropic" | "ollama";
+    llmModel?: string;
+    vncPassword?: string;
+    display?: {
+        virtual: boolean;
+        resolution?: string;
+        vncEnabled?: boolean;
+    };
+    security?: {
+        sandboxed?: boolean;
+        hostDisplayAccess?: boolean;
+        restrictedApps?: string[];
+    };
+}
+
 // Storage Resource Configurations
 
 export interface MinIOConfig extends StorageResourceConfig {
@@ -325,21 +307,6 @@ export interface MinIOConfig extends StorageResourceConfig {
     useSSL?: boolean;
     port?: number;
     region?: string;
-}
-
-export interface SeaweedFSConfig extends StorageResourceConfig {
-    masterUrl: string;
-    filerUrl?: string;
-    accessKey?: string;
-    secretKey?: string;
-    replication?: string;
-}
-
-export interface GlusterFSConfig extends StorageResourceConfig {
-    servers: string[];
-    volume: string;
-    mountPath?: string;
-    transport?: "tcp" | "rdma";
 }
 
 export interface IPFSConfig extends StorageResourceConfig {
@@ -356,45 +323,58 @@ export interface RcloneConfig extends StorageResourceConfig {
     transfers?: number;
 }
 
+// Execution Resource Configurations
+
+export interface Judge0Config extends ExecutionResourceConfig {
+    baseUrl: string;
+    apiKey?: string;
+    workers?: number;
+    securityLimits?: {
+        cpuTime?: number;
+        wallTime?: number;
+        memoryLimit?: number;
+        maxProcesses?: number;
+        fileSize?: number;
+        stackLimit?: number;
+    };
+    enableNetwork?: boolean;
+    enableCallbacks?: boolean;
+    enableBatchSubmissions?: boolean;
+}
+
 /**
  * Maps resource IDs to their specific configuration types
  */
 export interface ResourceConfigMap {
     // AI Resources
     ollama: OllamaConfig;
-    localai: LocalAIConfig;
-    llamacpp: LlamaCppConfig;
-    vllm: VLLMConfig;
-    tgi: TGIConfig;
-    onnx: ONNXConfig;
     whisper: WhisperConfig;
     comfyui: ComfyUIConfig;
-    stablediffusion: StableDiffusionConfig;
     cloudflare: CloudflareConfig;
     openrouter: OpenRouterConfig;
-    
+    "unstructured-io": UnstructuredIoConfig;
+
     // Automation Resources
     n8n: N8nConfig;
-    nodered: NodeREDConfig;
+    "node-red": NodeREDConfig;
     windmill: WindmillConfig;
-    automatisch: AutomatischConfig;
     activepieces: ActivePiecesConfig;
     huginn: HuginnConfig;
-    kestra: KestraConfig;
-    beehive: BeehiveConfig;
     airflow: AirflowConfig;
     temporal: TemporalConfig;
-    
+
     // Agent Resources
     browserless: BrowserlessConfig;
     "claude-code": ClaudeCodeConfig;
-    
+    "agent-s2": AgentS2Config;
+
     // Storage Resources
     minio: MinIOConfig;
-    seaweedfs: SeaweedFSConfig;
-    glusterfs: GlusterFSConfig;
     ipfs: IPFSConfig;
     rclone: RcloneConfig;
+
+    // Execution Resources
+    judge0: Judge0Config;
 }
 
 /**
@@ -483,6 +463,24 @@ export interface StorageMetadata extends BaseMetadata {
     objectCount?: number;
 }
 
+/**
+ * Execution-specific metadata
+ */
+export interface ExecutionMetadata extends BaseMetadata {
+    supportedLanguages?: number;
+    securityLimits?: {
+        cpuTime: number;
+        wallTime: number;
+        memory: number;
+        processes: number;
+        fileSize: number;
+    };
+    workers?: {
+        active: number;
+        configured: number;
+    };
+}
+
 // ============================================================================
 // Type Mappings
 // ============================================================================
@@ -498,6 +496,8 @@ export type ResourceCategoryMap = {
     [K in AgentResourceId]: ResourceCategory.Agents;
 } & {
     [K in StorageResourceId]: ResourceCategory.Storage;
+} & {
+    [K in ExecutionResourceId]: ResourceCategory.Execution;
 };
 
 /**
@@ -508,6 +508,7 @@ export interface CategoryConfigMap {
     [ResourceCategory.Automation]: AutomationResourceConfig;
     [ResourceCategory.Agents]: AgentResourceConfig;
     [ResourceCategory.Storage]: StorageResourceConfig;
+    [ResourceCategory.Execution]: ExecutionResourceConfig;
 }
 
 /**
@@ -518,6 +519,7 @@ export interface CategoryMetadataMap {
     [ResourceCategory.Automation]: AutomationMetadata;
     [ResourceCategory.Agents]: AgentMetadata;
     [ResourceCategory.Storage]: StorageMetadata;
+    [ResourceCategory.Execution]: ExecutionMetadata;
 }
 
 /**
@@ -537,6 +539,7 @@ export interface CategoryInterfaceMap {
     [ResourceCategory.Automation]: IAutomationResource;
     [ResourceCategory.Agents]: IAgentResource;
     [ResourceCategory.Storage]: IStorageResource;
+    [ResourceCategory.Execution]: IResource;
 }
 
 // ============================================================================
@@ -546,38 +549,39 @@ export interface CategoryInterfaceMap {
 /**
  * Extract category from resource ID
  */
-export type GetResourceCategory<TId extends ResourceId> = 
+export type GetResourceCategory<TId extends ResourceId> =
     TId extends keyof ResourceCategoryMap ? ResourceCategoryMap[TId] : never;
 
 /**
  * Extract config type from resource ID
  */
-export type GetResourceConfig<TId extends ResourceId> = 
+export type GetResourceConfig<TId extends ResourceId> =
     CategoryConfigMap[GetResourceCategory<TId>];
 
 /**
  * Extract metadata type from resource ID
  * Checks for provider-specific metadata first, then falls back to category metadata
  */
-export type GetResourceMetadata<TId extends ResourceId> = 
-    TId extends keyof ProviderMetadataMap 
-        ? ProviderMetadataMap[TId]
-        : CategoryMetadataMap[GetResourceCategory<TId>];
+export type GetResourceMetadata<TId extends ResourceId> =
+    TId extends keyof ProviderMetadataMap
+    ? ProviderMetadataMap[TId]
+    : CategoryMetadataMap[GetResourceCategory<TId>];
 
 /**
  * Extract interface type from resource ID
  */
-export type GetResourceInterface<TId extends ResourceId> = 
+export type GetResourceInterface<TId extends ResourceId> =
     CategoryInterfaceMap[GetResourceCategory<TId>];
 
 /**
  * Get all resource IDs for a specific category
  */
-export type GetResourceIdsByCategory<TCategory extends ResourceCategory> = 
+export type GetResourceIdsByCategory<TCategory extends ResourceCategory> =
     TCategory extends ResourceCategory.AI ? AIResourceId :
     TCategory extends ResourceCategory.Automation ? AutomationResourceId :
     TCategory extends ResourceCategory.Agents ? AgentResourceId :
     TCategory extends ResourceCategory.Storage ? StorageResourceId :
+    TCategory extends ResourceCategory.Execution ? ExecutionResourceId :
     never;
 
 // ============================================================================
@@ -596,16 +600,16 @@ export interface ResourceImplementationRegistry {
 /**
  * Helper type to check if a resource is implemented
  */
-export type IsResourceImplemented<TId extends ResourceId> = 
+export type IsResourceImplemented<TId extends ResourceId> =
     TId extends keyof ResourceImplementationRegistry ? true : false;
 
 /**
  * Get implementation type for a resource ID
  */
-export type GetResourceImplementation<TId extends ResourceId> = 
-    TId extends keyof ResourceImplementationRegistry 
-        ? ResourceImplementationRegistry[TId] 
-        : never;
+export type GetResourceImplementation<TId extends ResourceId> =
+    TId extends keyof ResourceImplementationRegistry
+    ? ResourceImplementationRegistry[TId]
+    : never;
 
 // ============================================================================
 // Type Guards
@@ -617,15 +621,16 @@ export type GetResourceImplementation<TId extends ResourceId> =
 export function isResourceId(id: string): id is ResourceId {
     const allIds: ResourceId[] = [
         // AI
-        "ollama", "localai", "llamacpp", "vllm", "tgi", "onnx", 
-        "whisper", "comfyui", "stablediffusion", "cloudflare", "openrouter",
+        "ollama", "whisper", "comfyui", "cloudflare", "openrouter",
         // Automation
-        "n8n", "nodered", "windmill", "automatisch", "activepieces",
-        "huginn", "kestra", "beehive", "airflow", "temporal",
+        "n8n", "node-red", "windmill", "activepieces",
+        "huginn", "airflow", "temporal",
         // Agents
-        "browserless", "claude-code",
+        "browserless", "claude-code", "agent-s2",
         // Storage
-        "minio", "seaweedfs", "glusterfs", "ipfs", "rclone",
+        "minio", "ipfs", "rclone",
+        // Execution
+        "judge0",
     ];
     return allIds.includes(id as ResourceId);
 }
@@ -639,21 +644,23 @@ export function isResourceInCategory<TCategory extends ResourceCategory>(
 ): id is GetResourceIdsByCategory<TCategory> {
     const categoryMap: Record<ResourceCategory, ResourceId[]> = {
         [ResourceCategory.AI]: [
-            "ollama", "localai", "llamacpp", "vllm", "tgi", "onnx",
-            "whisper", "comfyui", "stablediffusion", "cloudflare", "openrouter",
+            "ollama", "whisper", "comfyui", "cloudflare", "openrouter",
         ],
         [ResourceCategory.Automation]: [
-            "n8n", "nodered", "windmill", "automatisch", "activepieces",
-            "huginn", "kestra", "beehive", "airflow", "temporal",
+            "n8n", "node-red", "windmill", "activepieces",
+            "huginn", "airflow", "temporal",
         ],
         [ResourceCategory.Agents]: [
-            "browserless", "claude-code",
+            "browserless", "claude-code", "agent-s2",
         ],
         [ResourceCategory.Storage]: [
-            "minio", "seaweedfs", "glusterfs", "ipfs", "rclone",
+            "minio", "ipfs", "rclone",
+        ],
+        [ResourceCategory.Execution]: [
+            "judge0",
         ],
     };
-    
+
     return categoryMap[category]?.includes(id) ?? false;
 }
 
@@ -686,6 +693,13 @@ export function isStorageResource(resource: IResource): resource is IStorageReso
 }
 
 /**
+ * Type guard for execution resources
+ */
+export function isExecutionResource(resource: IResource): resource is IResource {
+    return resource.category === ResourceCategory.Execution;
+}
+
+/**
  * Type guard to check if a config object matches a specific resource config
  */
 export function isResourceConfig<TId extends keyof ResourceConfigMap>(
@@ -695,70 +709,63 @@ export function isResourceConfig<TId extends keyof ResourceConfigMap>(
     if (!config || typeof config !== "object") {
         return false;
     }
-    
+
     // Basic validation - check for required fields
     const c = config as Record<string, unknown>;
-    
+
     // All configs must have enabled field
     if (typeof c.enabled !== "boolean") {
         return false;
     }
-    
+
     // Category-specific validation
     switch (resourceId) {
         // AI resources typically need baseUrl
         case "ollama":
-        case "localai":
-        case "llamacpp":
-        case "vllm":
-        case "tgi":
-        case "onnx":
         case "whisper":
         case "comfyui":
-        case "stablediffusion":
             return typeof c.baseUrl === "string";
-            
+
         // Cloud AI resources need API keys
         case "cloudflare":
             return typeof c.accountId === "string" && typeof c.apiKey === "string";
         case "openrouter":
             return typeof c.apiKey === "string";
-            
+
         // Automation resources
         case "n8n":
-        case "nodered":
-        case "automatisch":
+        case "node-red":
         case "activepieces":
         case "huginn":
-        case "kestra":
-        case "beehive":
         case "airflow":
             return typeof c.baseUrl === "string";
         case "windmill":
             return typeof c.baseUrl === "string" && typeof c.token === "string" && typeof c.workspace === "string";
         case "temporal":
             return typeof c.address === "string";
-            
+
         // Agent resources
         case "browserless":
             return typeof c.baseUrl === "string";
         case "claude-code":
             return true; // Can work with defaults
-            
+        case "agent-s2":
+            return typeof c.baseUrl === "string";
+
         // Storage resources
         case "minio":
-            return typeof c.endpoint === "string" && 
-                   typeof c.accessKey === "string" && 
-                   typeof c.secretKey === "string";
-        case "seaweedfs":
-            return typeof c.masterUrl === "string";
-        case "glusterfs":
-            return Array.isArray(c.servers) && typeof c.volume === "string";
+            return typeof c.endpoint === "string" &&
+                typeof c.accessKey === "string" &&
+                typeof c.secretKey === "string";
         case "ipfs":
             return typeof c.apiUrl === "string";
         case "rclone":
             return typeof c.configPath === "string" && typeof c.remote === "string";
-            
+
+        // Execution resources
+        case "judge0":
+            return typeof c.baseUrl === "string";
+
         default:
             return false;
     }

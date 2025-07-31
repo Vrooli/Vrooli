@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { LlmServiceId, LATEST_CONFIG_VERSION, type MessageState } from "@vrooli/shared";
-import { LocalOllamaService } from "./LocalOllamaService.js";
+import { LATEST_CONFIG_VERSION, LlmServiceId, type MessageState } from "@vrooli/shared";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AIServiceErrorType } from "../registry.js";
 import { TokenEstimatorType } from "../tokenTypes.js";
+import { LocalOllamaService } from "./LocalOllamaService.js";
 
 // Mock the logger
 vi.mock("../../../events/logger.js", () => ({
@@ -54,7 +54,7 @@ describe("LocalOllamaService", () => {
             process.env.OLLAMA_BASE_URL = "http://env-ollama:11434";
             const envService = new LocalOllamaService();
             delete process.env.OLLAMA_BASE_URL;
-            
+
             // We can't directly test the private baseUrl, but we can test behavior
             expect(envService.defaultModel).toBe("llama3.1:8b");
         });
@@ -163,7 +163,7 @@ describe("LocalOllamaService", () => {
     describe("estimateTokens", () => {
         it("should estimate tokens correctly", () => {
             const result = service.estimateTokens({ aiModel: service.defaultModel, text: "Hello world" });
-            
+
             expect(result.tokens).toBe(6); // DefaultTokenEstimator: ceil(11 bytes / 2) = 6
             expect(result.estimationModel).toBe(TokenEstimatorType.Default);
             expect(result.encoding).toBe("default");
@@ -337,7 +337,7 @@ describe("LocalOllamaService", () => {
             };
 
             const params = (service as any).extractOllamaParams(serviceConfig);
-            
+
             expect(params).toEqual({
                 temperature: 0.5,
                 top_p: 0.8,
@@ -517,13 +517,13 @@ describe("LocalOllamaService", () => {
             }
 
             // Verify fetch was called with correct parameters
-            expect(mockFetch).toHaveBeenNthCalledWith(2, 
+            expect(mockFetch).toHaveBeenNthCalledWith(2,
                 "http://localhost:11434/api/chat",
                 expect.objectContaining({
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: expect.stringMatching(/"temperature":0.5/),
-                })
+                }),
             );
 
             // Parse the request body to verify all parameters
@@ -849,9 +849,9 @@ describe("LocalOllamaService", () => {
         it("should return function calling capabilities", () => {
             const tools = service.getNativeToolCapabilities();
             expect(tools).toEqual([
-                { 
-                    name: "function", 
-                    description: "Execute custom functions with structured parameters", 
+                {
+                    name: "function",
+                    description: "Execute custom functions with structured parameters",
                 },
             ]);
         });

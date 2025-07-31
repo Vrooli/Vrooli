@@ -1,12 +1,14 @@
 import { API_CREDITS_MULTIPLIER, LlmServiceId, type MessageState, type ThirdPartyModelInfo, type Tool } from "@vrooli/shared";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions.js";
 import { logger } from "../../../events/logger.js";
-import { AIServiceErrorType } from "../registry.js";
-import { TokenEstimatorType, type EstimateTokensResult } from "../tokenTypes.js";
-import { AIService, type ResponseStreamOptions, type ServiceStreamEvent, type GetOutputTokenLimitParams, type GetOutputTokenLimitResult, type GetResponseCostParams } from "../services.js";
+import type { ResourceRegistry } from "../../resources/ResourceRegistry.js";
+import { DiscoveryStatus, ResourceHealth } from "../../resources/types.js";
 import { generateContextFromMessages } from "../contextGeneration.js";
 import { hasHarmfulContent, hasPromptInjection } from "../messageValidation.js";
+import { AIServiceErrorType } from "../registry.js";
+import { AIService, type GetOutputTokenLimitParams, type GetOutputTokenLimitResult, type GetResponseCostParams, type ResponseStreamOptions, type ServiceStreamEvent } from "../services.js";
 import { withStreamTimeout } from "../streamTimeout.js";
+import { TokenEstimatorType, type EstimateTokensResult } from "../tokenTypes.js";
 
 /**
  * COST CALCULATION DOCUMENTATION
@@ -36,25 +38,38 @@ const FALLBACK_OUTPUT_COST_CENTS_PER_MILLION = 150; // $1.50 per 1M tokens
 const MAX_INPUT_LENGTH = 50000; // 50KB limit for Cloudflare Gateway
 
 /**
+ * Options for CloudflareGatewayService configuration
+ */
+export interface CloudflareGatewayServiceOptions {
+    apiToken?: string;
+    gatewayUrl?: string;
+    accountId?: string;
+    defaultModel?: string;
+    resourceRegistry?: ResourceRegistry; // Optional dependency injection
+}
+
+/**
  * CloudflareGatewayService - Service for communicating with Cloudflare AI Gateway
  */
 export class CloudflareGatewayService extends AIService<string, ThirdPartyModelInfo> {
     private readonly apiToken: string;
     private readonly gatewayUrl: string;
     private readonly accountId: string;
+    private resourceRegistry?: ResourceRegistry;
 
     __id: LlmServiceId = LlmServiceId.CloudflareGateway;
     featureFlags = { supportsStatefulConversations: false };
     defaultModel = "@cf/openai/gpt-4o-mini";
 
-    constructor(options?: { apiToken?: string; gatewayUrl?: string; accountId?: string; defaultModel?: string }) {
+    constructor(options?: CloudflareGatewayServiceOptions) {
         super();
         this.apiToken = options?.apiToken ?? process.env.CLOUDFLARE_GATEWAY_TOKEN ?? "";
-        this.gatewayUrl = options?.gatewayUrl ?? process.env.CLOUDFLARE_GATEWAY_URL ?? 
-                         "https://gateway.ai.cloudflare.com/v1";
+        this.gatewayUrl = options?.gatewayUrl ?? process.env.CLOUDFLARE_GATEWAY_URL ??
+            "https://gateway.ai.cloudflare.com/v1";
         this.accountId = options?.accountId ?? process.env.CLOUDFLARE_ACCOUNT_ID ?? "";
         this.defaultModel = options?.defaultModel ?? "@cf/openai/gpt-4o-mini";
-        
+        this.resourceRegistry = options?.resourceRegistry;
+
         // Validate required configuration
         if (!this.apiToken) {
             logger.warn("[CloudflareGatewayService] No API token configured - service will not function");
@@ -62,6 +77,21 @@ export class CloudflareGatewayService extends AIService<string, ThirdPartyModelI
         if (!this.accountId) {
             logger.warn("[CloudflareGatewayService] No account ID configured - service will not function");
         }
+
+        // Log ResourceRegistry integration status
+        logger.info("[CloudflareGatewayService] Initialized", {
+            hasResourceIntegration: !!this.resourceRegistry,
+        });
+    }
+
+    /**
+     * Updates the ResourceRegistry after initialization.
+     * This allows late-binding of the ResourceRegistry when it becomes available
+     * after the AI services have already been initialized.
+     */
+    public setResourceRegistry(resourceRegistry: ResourceRegistry): void {
+        this.resourceRegistry = resourceRegistry;
+        logger.info("[CloudflareGatewayService] ResourceRegistry updated - enhanced health checking now available");
     }
 
     /**
@@ -79,7 +109,7 @@ export class CloudflareGatewayService extends AIService<string, ThirdPartyModelI
     async *generateResponseStreaming(options: ResponseStreamOptions): AsyncGenerator<ServiceStreamEvent> {
         // Create inner generator for timeout wrapping
         const innerGenerator = this.generateResponseStreamingInternal(options);
-        
+
         // Wrap with timeout protection
         yield* withStreamTimeout(innerGenerator, {
             serviceName: "CloudflareGateway",
@@ -88,7 +118,7 @@ export class CloudflareGatewayService extends AIService<string, ThirdPartyModelI
             timeoutMs: TIMEOUT_MINUTES * SECONDS_PER_MINUTE * MS_PER_SECOND, // 5 minute timeout
         });
     }
-    
+
     private async *generateResponseStreamingInternal(options: ResponseStreamOptions): AsyncGenerator<ServiceStreamEvent> {
         if (!(await this.supportsModel(options.model))) {
             throw new Error(`Model ${options.model} not supported by Cloudflare Gateway`);
@@ -96,7 +126,7 @@ export class CloudflareGatewayService extends AIService<string, ThirdPartyModelI
 
         const url = `${this.gatewayUrl}/${this.accountId}/ai/run/${options.model}`;
         const messages = this.generateContext(options.input, options.systemMessage);
-        
+
         const requestBody: any = {
             messages,
             stream: true,
@@ -142,7 +172,7 @@ export class CloudflareGatewayService extends AIService<string, ThirdPartyModelI
                     try {
                         // Remove 'data: ' prefix
                         const dataContent = line.substring("data: ".length);
-                        
+
                         if (dataContent.trim() === "[DONE]") {
                             // Try to extract actual cost from AI Gateway headers, fallback to 0
                             const headerCost = this.extractAIGatewayCost(response.headers);
@@ -150,9 +180,9 @@ export class CloudflareGatewayService extends AIService<string, ThirdPartyModelI
                             yield { type: "done", cost };
                             return;
                         }
-                        
+
                         const data = JSON.parse(dataContent);
-                        
+
                         if (data.choices?.[0]?.delta?.content) {
                             yield { type: "text", content: data.choices[0].delta.content };
                         }
@@ -160,16 +190,16 @@ export class CloudflareGatewayService extends AIService<string, ThirdPartyModelI
                         // Handle tool calls (Cloudflare Gateway uses OpenAI-compatible format)
                         if (data.choices?.[0]?.delta?.tool_calls) {
                             for (const toolCall of data.choices[0].delta.tool_calls) {
-                                if (toolCall.function) { 
+                                if (toolCall.function) {
                                     let parsedArgs: Record<string, unknown> = {};
                                     try {
-                                        parsedArgs = typeof toolCall.function.arguments === "string" 
-                                            ? JSON.parse(toolCall.function.arguments) 
+                                        parsedArgs = typeof toolCall.function.arguments === "string"
+                                            ? JSON.parse(toolCall.function.arguments)
                                             : toolCall.function.arguments;
                                     } catch (e) {
                                         logger.warn(`Failed to parse tool call arguments for ${toolCall.function.name}`, { error: e });
                                     }
-                                    
+
                                     yield {
                                         type: "function_call",
                                         name: toolCall.function.name,
@@ -183,12 +213,12 @@ export class CloudflareGatewayService extends AIService<string, ThirdPartyModelI
                         if (data.choices?.[0]?.finish_reason) {
                             // Extract usage from response if available
                             const usage = data.usage || { prompt_tokens: 0, completion_tokens: 0 };
-                            
+
                             // First try to get actual cost from AI Gateway headers
                             const headerCost = this.extractAIGatewayCost(response.headers);
-                            const cost = headerCost !== null ? headerCost : 
-                                        this.calculateCloudflareGatewayCost(options.model, usage.prompt_tokens, usage.completion_tokens);
-                            
+                            const cost = headerCost !== null ? headerCost :
+                                this.calculateCloudflareGatewayCost(options.model, usage.prompt_tokens, usage.completion_tokens);
+
                             yield { type: "done", cost };
                             return;
                         }
@@ -213,7 +243,7 @@ export class CloudflareGatewayService extends AIService<string, ThirdPartyModelI
             const outputCredits = outputTokens * modelInfo.outputCost;
             return inputCredits + outputCredits;
         }
-        
+
         // Fallback pricing using default costs
         const fallbackInputCredits = inputTokens * FALLBACK_INPUT_COST_CENTS_PER_MILLION;
         const fallbackOutputCredits = outputTokens * FALLBACK_OUTPUT_COST_CENTS_PER_MILLION;
@@ -238,10 +268,10 @@ export class CloudflareGatewayService extends AIService<string, ThirdPartyModelI
 
         // Look for cost-related headers that AI Gateway might provide
         // Note: These headers may not be available in all AI Gateway responses
-        const costHeader = headers.get("cf-aig-cost") || 
-                          headers.get("x-cost") || 
-                          headers.get("cost");
-        
+        const costHeader = headers.get("cf-aig-cost") ||
+            headers.get("x-cost") ||
+            headers.get("cost");
+
         if (costHeader) {
             const costInDollars = parseFloat(costHeader);
             if (!isNaN(costInDollars)) {
@@ -367,7 +397,7 @@ export class CloudflareGatewayService extends AIService<string, ThirdPartyModelI
         // tokens = credits / cost_per_million_tokens_in_cents
         const maxOutputTokensFromCredits = remainingCredits / BigInt(modelInfo.outputCost);
         const modelMaxTokens = this.getMaxOutputTokens(model);
-        
+
         return Math.min(
             Number(maxOutputTokensFromCredits),
             modelMaxTokens,
@@ -408,12 +438,12 @@ export class CloudflareGatewayService extends AIService<string, ThirdPartyModelI
 
     getModel(model?: string | null): string {
         if (!model) return this.defaultModel;
-        
+
         // If it's a Cloudflare Gateway model, return as is
         if (model.startsWith("@cf/")) {
             return model;
         }
-        
+
         // Try to map common model names to Cloudflare Gateway equivalents
         const modelMapping: Record<string, string> = {
             "gpt-4o": "@cf/openai/gpt-4o",
@@ -426,31 +456,31 @@ export class CloudflareGatewayService extends AIService<string, ThirdPartyModelI
             "llama-3-8b": "@cf/meta/llama-3-8b-instruct",
             "llama-3-70b": "@cf/meta/llama-3-70b-instruct",
         };
-        
+
         return modelMapping[model] || this.defaultModel;
     }
 
     getErrorType(error: unknown): AIServiceErrorType {
         if (error instanceof Error) {
             const message = error.message.toLowerCase();
-            
+
             if (message.includes("unauthorized") || message.includes("authentication") || message.includes("401")) {
                 return AIServiceErrorType.Authentication;
             }
-            
+
             if (message.includes("rate limit") || message.includes("too many requests") || message.includes("429")) {
                 return AIServiceErrorType.RateLimit;
             }
-            
+
             if (message.includes("overload") || message.includes("capacity") || message.includes("503")) {
                 return AIServiceErrorType.Overloaded;
             }
-            
+
             if (message.includes("bad request") || message.includes("invalid") || message.includes("400")) {
                 return AIServiceErrorType.InvalidRequest;
             }
         }
-        
+
         return AIServiceErrorType.ApiError;
     }
 
@@ -458,9 +488,9 @@ export class CloudflareGatewayService extends AIService<string, ThirdPartyModelI
         // Check for harmful content
         const harmfulCheck = hasHarmfulContent(input);
         if (harmfulCheck.isHarmful) {
-            logger.warn("Cloudflare Gateway safety check flagged harmful content", { 
+            logger.warn("Cloudflare Gateway safety check flagged harmful content", {
                 pattern: harmfulCheck.pattern,
-                inputLength: input.length, 
+                inputLength: input.length,
             });
             return { cost: 0, isSafe: false };
         }
@@ -468,16 +498,16 @@ export class CloudflareGatewayService extends AIService<string, ThirdPartyModelI
         // Check for prompt injection attempts
         const injectionCheck = hasPromptInjection(input);
         if (injectionCheck.isInjection) {
-            logger.warn("Cloudflare Gateway safety check flagged potential prompt injection", { 
+            logger.warn("Cloudflare Gateway safety check flagged potential prompt injection", {
                 pattern: injectionCheck.pattern,
-                inputLength: input.length, 
+                inputLength: input.length,
             });
             return { cost: 0, isSafe: false };
         }
 
         // Check for excessive length (potential abuse)
         if (input.length > MAX_INPUT_LENGTH) {
-            logger.warn("Cloudflare Gateway safety check flagged excessive input length", { 
+            logger.warn("Cloudflare Gateway safety check flagged excessive input length", {
                 inputLength: input.length,
                 maxLength: MAX_INPUT_LENGTH,
             });
@@ -498,17 +528,52 @@ export class CloudflareGatewayService extends AIService<string, ThirdPartyModelI
 
     /**
      * Checks if the CloudflareGateway service is healthy and available.
+     * Enhanced with optional ResourceRegistry integration for better monitoring.
      * @returns true if the service is healthy and can accept requests, false otherwise
      */
-    isHealthy(): boolean {
+    async isHealthy(): Promise<boolean> {
         // Check if required configuration is present
         const hasRequiredConfig = Boolean(this.apiToken && this.accountId && this.gatewayUrl);
-        
+
         if (!hasRequiredConfig) {
             logger.warn("[CloudflareGatewayService] Health check failed: Missing required configuration");
             return false;
         }
 
+        // Enhanced check with ResourceRegistry if available
+        if (this.resourceRegistry) {
+            try {
+                // Try to get CloudflareGateway resource from registry
+                const resourceId = "cloudflare-gateway";
+                const resource = this.resourceRegistry.getResource(resourceId);
+
+                if (resource) {
+                    const resourceInfo = resource.getPublicInfo();
+                    const isResourceHealthy = resourceInfo.health === ResourceHealth.Healthy &&
+                        resourceInfo.status === DiscoveryStatus.Available;
+
+                    logger.debug("[CloudflareGatewayService] ResourceRegistry health check", {
+                        health: resourceInfo.health,
+                        status: resourceInfo.status,
+                        isHealthy: isResourceHealthy,
+                    });
+
+                    if (isResourceHealthy) {
+                        logger.debug("[CloudflareGatewayService] Resource system reports CloudflareGateway as healthy");
+                        return true;
+                    } else {
+                        logger.warn(`[CloudflareGatewayService] Resource system reports CloudflareGateway as unhealthy: ${resourceInfo.health}/${resourceInfo.status}`);
+                        return false;
+                    }
+                }
+
+                logger.debug("[CloudflareGatewayService] No CloudflareGateway resource found in registry, falling back to basic check");
+            } catch (error) {
+                logger.warn("[CloudflareGatewayService] ResourceRegistry health check failed, falling back to basic check", error);
+            }
+        }
+
+        // Basic health check - configuration validation only
         // For Cloudflare Gateway, we consider it healthy if the configuration is valid
         // since the actual API endpoint validation would require making requests with credits
         // The service will fail gracefully on actual requests if the endpoint is down

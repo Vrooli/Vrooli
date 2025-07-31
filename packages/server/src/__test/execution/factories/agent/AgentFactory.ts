@@ -5,6 +5,8 @@
  */
 
 import { generatePK } from "@vrooli/shared";
+import type { AgentSchema } from "../../schemas/agents/index.js";
+import type { AgentBehaviorTestData, AgentTestData } from "../../types.js";
 import { AgentBehaviorMocker } from "./AgentBehaviorMocker.js";
 import { AgentDbFactory } from "./AgentDbFactory.js";
 import { AgentSchemaLoader } from "./AgentSchemaLoader.js";
@@ -30,19 +32,19 @@ export class AgentFactory {
     async createFromSchema(
         schemaPath: string,
         options: AgentFactoryOptions = {},
-    ): Promise<any> {
+    ): Promise<AgentTestData> {
         const schema = await this.schemaLoader.load(schemaPath);
 
-        const agent = {
-            __typename: "Agent",
-            id: generatePK(),
+        const agent: AgentTestData = {
+            __typename: "Agent" as const,
+            id: generatePK().toString(),
             name: schema.identity.name,
             goal: schema.goal,
-            subscriptions: schema.subscriptions,
+            subscriptions: schema.subscriptions || [],
             behaviors: this.convertBehaviors(schema.behaviors),
             resources: schema.resources,
             teamId: options.teamId,
-            created_by: options.userId || generatePK(),
+            created_by: options.userId || generatePK().toString(),
             created_at: new Date(),
             updated_at: new Date(),
         };
@@ -67,22 +69,21 @@ export class AgentFactory {
     async createBatch(
         schemas: string[],
         options: AgentFactoryOptions = {},
-    ): Promise<any[]> {
+    ): Promise<AgentTestData[]> {
         return Promise.all(schemas.map(s => this.createFromSchema(s, options)));
     }
 
-    private convertBehaviors(behaviors: any[]): any[] {
+    private convertBehaviors(behaviors?: AgentSchema["behaviors"]): AgentBehaviorTestData[] {
         if (!behaviors || !Array.isArray(behaviors)) {
-            console.warn("[AgentFactory] No behaviors provided or behaviors is not an array");
             return [];
         }
 
         return behaviors.map(behavior => ({
-            id: generatePK(),
+            id: generatePK().toString(),
             trigger: behavior.trigger,
             action: {
                 ...behavior.action,
-                id: generatePK(),
+                id: generatePK().toString(),
             },
         }));
     }

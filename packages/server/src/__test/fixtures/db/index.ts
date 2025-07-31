@@ -51,7 +51,6 @@ export { MemberDbFactory, createMemberDbFactory } from "./MemberDbFactory.js";
 
 // Resource management factories
 export { ProjectDbFactory, createProjectDbFactory } from "./ProjectDbFactory.js";
-export { ProjectVersionDbFactory, createProjectVersionDbFactory } from "./ProjectVersionDbFactory.js";
 export { ResourceDbFactory, createResourceDbFactory } from "./ResourceDbFactory.js";
 export { ResourceVersionDbFactory, createResourceVersionDbFactory } from "./ResourceVersionDbFactory.js";
 export { ResourceVersionRelationDbFactory, createResourceVersionRelationDbFactory } from "./ResourceVersionRelationDbFactory.js";
@@ -125,7 +124,6 @@ import { IssueDbFactory, createIssueDbFactory } from "./IssueDbFactory.js";
 import { PaymentDbFactory, createPaymentDbFactory } from "./PaymentDbFactory.js";
 import { PhoneDbFactory, createPhoneDbFactory } from "./PhoneDbFactory.js";
 import { ProjectDbFactory, createProjectDbFactory } from "./ProjectDbFactory.js";
-import { ProjectVersionDbFactory, createProjectVersionDbFactory } from "./ProjectVersionDbFactory.js";
 import { ResourceDbFactory, createResourceDbFactory } from "./ResourceDbFactory.js";
 import { ResourceVersionDbFactory, createResourceVersionDbFactory } from "./ResourceVersionDbFactory.js";
 import { ResourceVersionRelationDbFactory, createResourceVersionRelationDbFactory } from "./ResourceVersionRelationDbFactory.js";
@@ -233,10 +231,6 @@ export const projectDb = {
     create: createProjectDbFactory,
 };
 
-export const projectVersionDb = {
-    factory: ProjectVersionDbFactory,
-    create: createProjectVersionDbFactory,
-};
 
 export const routineDb = {
     factory: RoutineDbFactory,
@@ -331,7 +325,6 @@ export const dbFixtureUtils = {
             resourceVersion: ResourceVersionDbFactory,
             resourceVersionRelation: ResourceVersionRelationDbFactory,
             project: ProjectDbFactory,
-            projectVersion: ProjectVersionDbFactory,
             routine: RoutineDbFactory,
             routineVersion: RoutineVersionDbFactory,
             // Schedule and execution objects

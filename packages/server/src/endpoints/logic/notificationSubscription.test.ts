@@ -14,9 +14,9 @@ import { notificationSubscription } from "./notificationSubscription.js";
 // TODO: Import from @vrooli/shared when factory is properly exported
 const notificationSubscriptionTestDataFactory = {
     createMinimal: (overrides?: any) => ({
-        id: generatePK(),
+        id: generatePK().toString(),
         objectType: SubscribableObject.Resource,
-        objectConnect: generatePK(),
+        objectConnect: generatePK().toString(),
         ...overrides,
     }),
 };
@@ -86,7 +86,7 @@ describe("EndpointsNotificationSubscription", () => {
     }
 
     // Helper function to create a resource for testing
-    async function createTestResource(userId: string) {
+    async function createTestResource(userId: bigint) {
         return await DbProvider.get().resource.create({
             data: {
                 id: generatePK(),
@@ -136,7 +136,7 @@ describe("EndpointsNotificationSubscription", () => {
                 isPrivate: false,
                 hasCompleteVersion: false,
                 isDeleted: false,
-                ownedByUser: { connect: { id: testUsers.records[0].id } },
+                ownedByUser: { connect: { id: testUsers[0].id } },
             },
         });
 
@@ -148,7 +148,7 @@ describe("EndpointsNotificationSubscription", () => {
                 isPrivate: false,
                 hasCompleteVersion: false,
                 isDeleted: false,
-                ownedByUser: { connect: { id: testUsers.records[0].id } },
+                ownedByUser: { connect: { id: testUsers[0].id } },
             },
         });
 
@@ -167,7 +167,7 @@ describe("EndpointsNotificationSubscription", () => {
             // User 1 subscriptions
             DbProvider.get().notification_subscription.create({
                 data: {
-                    ...NotificationSubscriptionDbFactory.createMinimal(testUsers.records[0].id.toString()),
+                    ...NotificationSubscriptionDbFactory.createMinimal(testUsers[0].id.toString()),
                     context: "Project updates subscription",
                     silent: false,
                     resource: { connect: { id: resource1.id } },
@@ -179,7 +179,7 @@ describe("EndpointsNotificationSubscription", () => {
             }),
             DbProvider.get().notification_subscription.create({
                 data: {
-                    ...NotificationSubscriptionDbFactory.createMinimal(testUsers.records[0].id.toString()),
+                    ...NotificationSubscriptionDbFactory.createMinimal(testUsers[0].id.toString()),
                     context: "Routine updates subscription",
                     silent: false,
                     resource: { connect: { id: resource2.id } },
@@ -192,7 +192,7 @@ describe("EndpointsNotificationSubscription", () => {
             // User 2 subscription
             DbProvider.get().notification_subscription.create({
                 data: {
-                    ...NotificationSubscriptionDbFactory.createMinimal(testUsers.records[1].id.toString()),
+                    ...NotificationSubscriptionDbFactory.createMinimal(testUsers[1].id.toString()),
                     context: "Team updates subscription",
                     silent: false,
                     team: { connect: { id: team.id } },
@@ -212,7 +212,7 @@ describe("EndpointsNotificationSubscription", () => {
             it("not logged in", async () => {
                 await assertRequiresAuth(
                     notificationSubscription.findOne,
-                    { id: generatePK() },
+                    { id: generatePK().toString() },
                     notificationSubscription_findOne,
                 );
             });
@@ -220,7 +220,7 @@ describe("EndpointsNotificationSubscription", () => {
             it("API key - no read permissions", async () => {
                 await assertRequiresApiKeyReadPermissions(
                     notificationSubscription.findOne,
-                    { id: generatePK() },
+                    { id: generatePK().toString() },
                     notificationSubscription_findOne,
                 );
             });
@@ -287,7 +287,7 @@ describe("EndpointsNotificationSubscription", () => {
                 const testUser = await createUserWithAuth();
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                const input: FindByIdInput = { id: generatePK() };
+                const input: FindByIdInput = { id: generatePK().toString() };
                 const result = await notificationSubscription.findOne({ input }, { req, res }, notificationSubscription_findOne);
 
                 expect(result).toBeNull();
@@ -417,7 +417,7 @@ describe("EndpointsNotificationSubscription", () => {
                 const result = await notificationSubscription.findMany({ input }, { req, res }, notificationSubscription_findMany);
 
                 expect(result.results).toHaveLength(1); // User 2 has 1 subscription
-                expect(result.results[0].subscriber?.id).toBe(testUsers.records[1].id.toString());
+                expect(result.results[0].subscriber?.id).toBe(testUsers[1].id.toString());
                 expect(result.results[0].object.__typename).toBe("Team");
             });
         });
@@ -466,7 +466,7 @@ describe("EndpointsNotificationSubscription", () => {
                 expect(result.id).toBe(input.id);
                 expect(result.context).toBe("Project notification subscription");
                 expect(result.silent).toBe(false);
-                expect(result.subscriber?.id).toBe(testUsers.records[0].id.toString());
+                expect(result.subscriber?.id).toBe(testUsers[0].id.toString());
 
                 // Verify in database
                 const created = await DbProvider.get().notification_subscription.findUnique({
@@ -605,9 +605,9 @@ describe("EndpointsNotificationSubscription", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: NotificationSubscriptionCreateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     objectType: "InvalidType" as any,
-                    objectId: generatePK(),
+                    objectId: generatePK().toString(),
                     condition: "CRUD",
                 };
 
@@ -620,8 +620,8 @@ describe("EndpointsNotificationSubscription", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: NotificationSubscriptionCreateInput = {
-                    id: generatePK(),
-                    objectConnect: generatePK(),
+                    id: generatePK().toString(),
+                    objectConnect: generatePK().toString(),
                     objectType: SubscribableObject.Resource,
                     context: null as any, // Invalid context
                     silent: "invalid" as any, // Invalid boolean
@@ -638,7 +638,7 @@ describe("EndpointsNotificationSubscription", () => {
             it("not logged in", async () => {
                 await assertRequiresAuth(
                     notificationSubscription.updateOne,
-                    { id: generatePK() },
+                    { id: generatePK().toString() },
                     notificationSubscription_updateOne,
                 );
             });
@@ -646,7 +646,7 @@ describe("EndpointsNotificationSubscription", () => {
             it("API key - no write permissions", async () => {
                 await assertRequiresApiKeyWritePermissions(
                     notificationSubscription.updateOne,
-                    { id: generatePK() },
+                    { id: generatePK().toString() },
                     notificationSubscription_updateOne,
                 );
             });

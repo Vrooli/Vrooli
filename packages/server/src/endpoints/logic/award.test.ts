@@ -1,6 +1,7 @@
-import { AwardCategory, type Award, type AwardSearchInput, type User } from "@vrooli/shared";
+import { AwardCategory, type Award, type AwardSearchInput } from "@vrooli/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { seedAwards } from "../../__test/fixtures/db/awardFixtures.js";
+import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
@@ -15,7 +16,7 @@ import { award } from "./award.js";
 // AI_CHECK: TYPE_SAFETY=phase1-test-4 | LAST: 2025-07-04 - Replaced any[] with proper User[] and Award types
 
 describe("EndpointsAward", () => {
-    let testUsers: User[];
+    let testUsers: any[]; // Database users have bigint IDs, not string IDs like the shared User type
     let userAward1: Award;
     let userAward2: Award;
 
@@ -40,9 +41,13 @@ describe("EndpointsAward", () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.minimal(DbProvider.get());
 
+        // Create test users
+        const seedResult = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+        testUsers = seedResult.records;
+
         // Seed awards using database fixtures
         const awards1 = await seedAwards(DbProvider.get(), {
-            userId: testUsers[0].id,
+            userId: testUsers[0].id.toString(),
             categories: [
                 { name: AwardCategory.RoutineCreate, progress: 75 },
             ],
@@ -50,7 +55,7 @@ describe("EndpointsAward", () => {
         userAward1 = awards1[0];
 
         const awards2 = await seedAwards(DbProvider.get(), {
-            userId: testUsers[1].id,
+            userId: testUsers[1].id.toString(),
             categories: [
                 { name: AwardCategory.ProjectCreate, progress: 25 },
             ],
@@ -88,7 +93,7 @@ describe("EndpointsAward", () => {
             it("returns awards without filters", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id,
+                    id: testUsers[0].id.toString(),
                 });
 
                 // When logged in as user1, should see user1's awards
@@ -104,7 +109,7 @@ describe("EndpointsAward", () => {
             it("filters by updated time frame", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id,
+                    id: testUsers[0].id.toString(),
                 });
 
                 // For the given time range, should only see awards updated in Feb-Mar that user1 has access to
