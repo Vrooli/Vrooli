@@ -1,4 +1,5 @@
-import { type TeamConfigObject } from "../../../shape/configs/team.js";
+import { ModelStrategy } from "../../../shape/configs/base.js";
+import { type TeamConfigObject, STANDARD_RESOURCE_QUOTAS } from "../../../shape/configs/team.js";
 import { LATEST_CONFIG_VERSION } from "../../../shape/configs/utils.js";
 import { type ConfigTestFixtures, mergeWithBaseDefaults } from "./baseConfigFixtures.js";
 
@@ -8,10 +9,97 @@ import { type ConfigTestFixtures, mergeWithBaseDefaults } from "./baseConfigFixt
 export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
     minimal: {
         __version: LATEST_CONFIG_VERSION,
+        deploymentType: "development",
+        goal: "Test team for development purposes",
+        businessPrompt: "A minimal test team configuration",
+        resourceQuota: STANDARD_RESOURCE_QUOTAS.light,
+        targetProfitPerMonth: "1000000", // $1 in micro-dollars (stringified bigint)
+        stats: {
+            totalInstances: 0,
+            totalProfit: "0",
+            totalCosts: "0",
+            averageKPIs: {},
+            activeInstances: 0,
+            lastUpdated: Date.now(),
+        },
     },
 
     complete: {
         __version: LATEST_CONFIG_VERSION,
+        deploymentType: "saas",
+        goal: "Build and manage software development teams with autonomous AI agents",
+        businessPrompt: "Optimize team productivity and code quality while maintaining cost efficiency. Focus on delivering high-quality software through collaborative AI-human teams.",
+        resourceQuota: STANDARD_RESOURCE_QUOTAS.standard,
+        targetProfitPerMonth: "50000000000", // $50k in micro-dollars (stringified bigint)
+        costLimit: "10000000000", // $10k monthly cost limit
+        verticalPackage: {
+            industry: "software-development",
+            complianceRequirements: ["SOC2", "ISO27001"],
+            defaultWorkflows: ["code-review", "testing", "deployment"],
+            dataPrivacyLevel: "standard",
+            terminology: {
+                "project": "repository",
+                "task": "issue",
+                "worker": "developer",
+            },
+            regulatoryBodies: ["ISO", "AICPA"],
+        },
+        marketSegment: "enterprise",
+        isolation: {
+            sandboxLevel: "full-container",
+            networkPolicy: "restricted",
+            secretsAccess: ["/secrets/github", "/secrets/aws"],
+            auditLogging: true,
+            securityPolicies: ["no-external-network", "code-signing-required"],
+        },
+        modelConfig: {
+            strategy: ModelStrategy.QUALITY_FIRST,
+            preferredModel: "gpt-4",
+            offlineOnly: false,
+        },
+        defaultLimits: {
+            maxToolCallsPerBotResponse: 10,
+            maxToolCalls: 50,
+            maxCreditsPerBotResponse: "1000000",
+            maxCredits: "5000000",
+            maxDurationPerBotResponseMs: 300000,
+            maxDurationMs: 3600000,
+            delayBetweenProcessingCyclesMs: 0,
+        },
+        defaultScheduling: {
+            defaultDelayMs: 0,
+            toolSpecificDelays: { "expensive-api": 1000 },
+            requiresApprovalTools: ["deploy", "delete"],
+            approvalTimeoutMs: 600000,
+            autoRejectOnTimeout: true,
+        },
+        defaultPolicy: {
+            visibility: "restricted",
+            acl: ["team-members", "project-managers"],
+        },
+        stats: {
+            totalInstances: 42,
+            totalProfit: "125000000000", // $125k
+            totalCosts: "25000000000", // $25k
+            averageKPIs: {
+                "code-quality": 0.92,
+                "delivery-speed": 0.85,
+                "cost-efficiency": 0.78,
+            },
+            activeInstances: 8,
+            lastUpdated: Date.now(),
+        },
+        blackboard: [
+            {
+                id: "insight-1",
+                value: {
+                    type: "optimization",
+                    data: { recommendation: "Increase parallel processing for code reviews" },
+                    confidence: 0.85,
+                },
+                created_at: new Date().toISOString(),
+            },
+        ],
         structure: {
             type: "MOISE+",
             version: "1.0",
@@ -64,6 +152,19 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
 
     withDefaults: {
         __version: LATEST_CONFIG_VERSION,
+        deploymentType: "development",
+        goal: "Default test team configuration",
+        businessPrompt: "A test team with default settings",
+        resourceQuota: STANDARD_RESOURCE_QUOTAS.light,
+        targetProfitPerMonth: "0", // No profit target for test
+        stats: {
+            totalInstances: 0,
+            totalProfit: "0",
+            totalCosts: "0",
+            averageKPIs: {},
+            activeInstances: 0,
+            lastUpdated: Date.now(),
+        },
         structure: {
             type: "MOISE+",
             version: "1.0",
@@ -74,6 +175,19 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
     invalid: {
         missingVersion: {
             // Missing __version
+            deploymentType: "development",
+            goal: "Test invalid config",
+            businessPrompt: "Testing missing version",
+            resourceQuota: STANDARD_RESOURCE_QUOTAS.light,
+            targetProfitPerMonth: "0",
+            stats: {
+                totalInstances: 0,
+                totalProfit: "0",
+                totalCosts: "0",
+                averageKPIs: {},
+                activeInstances: 0,
+                lastUpdated: Date.now(),
+            },
             structure: {
                 type: "MOISE+",
                 version: "1.0",
@@ -82,6 +196,19 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
         },
         invalidVersion: {
             __version: "0.1", // Invalid version
+            deploymentType: "development",
+            goal: "Test invalid version",
+            businessPrompt: "Testing invalid version",
+            resourceQuota: STANDARD_RESOURCE_QUOTAS.light,
+            targetProfitPerMonth: "0",
+            stats: {
+                totalInstances: 0,
+                totalProfit: "0",
+                totalCosts: "0",
+                averageKPIs: {},
+                activeInstances: 0,
+                lastUpdated: Date.now(),
+            },
             structure: {
                 type: "MOISE+",
                 version: "1.0",
@@ -90,10 +217,36 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
         },
         malformedStructure: {
             __version: LATEST_CONFIG_VERSION,
+            deploymentType: "development",
+            goal: "Test malformed structure",
+            businessPrompt: "Testing malformed structure",
+            resourceQuota: STANDARD_RESOURCE_QUOTAS.light,
+            targetProfitPerMonth: "0",
+            stats: {
+                totalInstances: 0,
+                totalProfit: "0",
+                totalCosts: "0",
+                averageKPIs: {},
+                activeInstances: 0,
+                lastUpdated: Date.now(),
+            },
             structure: "string instead of object", // Wrong type
         },
         invalidTypes: {
             __version: LATEST_CONFIG_VERSION,
+            deploymentType: "development",
+            goal: "Test invalid types",
+            businessPrompt: "Testing invalid types",
+            resourceQuota: STANDARD_RESOURCE_QUOTAS.light,
+            targetProfitPerMonth: "0",
+            stats: {
+                totalInstances: 0,
+                totalProfit: "0",
+                totalCosts: "0",
+                averageKPIs: {},
+                activeInstances: 0,
+                lastUpdated: Date.now(),
+            },
             structure: {
                 // @ts-expect-error - Intentionally invalid type for testing
                 type: 123, // Should be string
@@ -107,6 +260,19 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
         // Minimal team with just a leader and members
         simpleTeam: {
             __version: LATEST_CONFIG_VERSION,
+            deploymentType: "development",
+            goal: "Simple team structure for basic coordination",
+            businessPrompt: "Coordinate simple tasks between leader and team members",
+            resourceQuota: STANDARD_RESOURCE_QUOTAS.light,
+            targetProfitPerMonth: "5000000000", // $5k in micro-dollars
+            stats: {
+                totalInstances: 0,
+                totalProfit: "0",
+                totalCosts: "0",
+                averageKPIs: {},
+                activeInstances: 0,
+                lastUpdated: Date.now(),
+            },
             structure: {
                 type: "MOISE+",
                 version: "1.0",
@@ -123,6 +289,22 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
         // Startup team structure
         startupTeam: {
             __version: LATEST_CONFIG_VERSION,
+            deploymentType: "saas",
+            goal: "Build MVP and scale startup operations",
+            businessPrompt: "Optimize for rapid iteration and growth while maintaining lean operations",
+            resourceQuota: STANDARD_RESOURCE_QUOTAS.standard,
+            targetProfitPerMonth: "25000000000", // $25k in micro-dollars
+            stats: {
+                totalInstances: 3,
+                totalProfit: "15000000000",
+                totalCosts: "3000000000",
+                averageKPIs: {
+                    "velocity": 0.88,
+                    "burn-rate": 0.65,
+                },
+                activeInstances: 2,
+                lastUpdated: Date.now(),
+            },
             structure: {
                 type: "MOISE+",
                 version: "1.0",
@@ -152,6 +334,22 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
         // Research team structure
         researchTeam: {
             __version: LATEST_CONFIG_VERSION,
+            deploymentType: "appliance",
+            goal: "Conduct academic research and publish findings",
+            businessPrompt: "Focus on research quality and publication output while managing grants efficiently",
+            resourceQuota: STANDARD_RESOURCE_QUOTAS.heavy,
+            targetProfitPerMonth: "0", // Research teams typically don't target profit
+            stats: {
+                totalInstances: 1,
+                totalProfit: "0",
+                totalCosts: "8000000000",
+                averageKPIs: {
+                    "publications": 0.75,
+                    "grant-efficiency": 0.82,
+                },
+                activeInstances: 1,
+                lastUpdated: Date.now(),
+            },
             structure: {
                 type: "MOISE+",
                 version: "1.0",
@@ -174,6 +372,19 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
         // Flat organization (no hierarchy)
         flatOrganization: {
             __version: LATEST_CONFIG_VERSION,
+            deploymentType: "development",
+            goal: "Enable collaborative decision-making without hierarchy",
+            businessPrompt: "Foster autonomous collaboration with equal participation from all contributors",
+            resourceQuota: STANDARD_RESOURCE_QUOTAS.standard,
+            targetProfitPerMonth: "10000000000", // $10k in micro-dollars
+            stats: {
+                totalInstances: 0,
+                totalProfit: "0",
+                totalCosts: "0",
+                averageKPIs: {},
+                activeInstances: 0,
+                lastUpdated: Date.now(),
+            },
             structure: {
                 type: "MOISE+",
                 version: "1.0",
@@ -189,6 +400,19 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
         // Using FIPA ACL instead of MOISE+
         fipaTeam: {
             __version: LATEST_CONFIG_VERSION,
+            deploymentType: "saas",
+            goal: "Implement agent communication using FIPA ACL standards",
+            businessPrompt: "Use standardized agent communication protocols for interoperability",
+            resourceQuota: STANDARD_RESOURCE_QUOTAS.standard,
+            targetProfitPerMonth: "15000000000", // $15k in micro-dollars
+            stats: {
+                totalInstances: 0,
+                totalProfit: "0",
+                totalCosts: "0",
+                averageKPIs: {},
+                activeInstances: 0,
+                lastUpdated: Date.now(),
+            },
             structure: {
                 type: "FIPA ACL",
                 version: "2.0",
@@ -208,6 +432,24 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
         // Complex organization with multiple departments
         enterpriseTeam: {
             __version: LATEST_CONFIG_VERSION,
+            deploymentType: "appliance",
+            goal: "Manage complex enterprise operations across multiple departments",
+            businessPrompt: "Optimize enterprise-wide efficiency while maintaining departmental autonomy and compliance",
+            resourceQuota: STANDARD_RESOURCE_QUOTAS.ultra,
+            targetProfitPerMonth: "500000000000", // $500k in micro-dollars
+            costLimit: "100000000000", // $100k cost limit
+            stats: {
+                totalInstances: 25,
+                totalProfit: "750000000000",
+                totalCosts: "150000000000",
+                averageKPIs: {
+                    "operational-efficiency": 0.89,
+                    "compliance-score": 0.95,
+                    "roi": 0.8,
+                },
+                activeInstances: 20,
+                lastUpdated: Date.now(),
+            },
             structure: {
                 type: "MOISE+",
                 version: "1.0",
@@ -269,6 +511,19 @@ export const teamConfigFixtures: ConfigTestFixtures<TeamConfigObject> = {
         // Empty structure (team exists but no formal organization defined)
         unstructuredTeam: {
             __version: LATEST_CONFIG_VERSION,
+            deploymentType: "development",
+            goal: "Operate without formal organizational structure",
+            businessPrompt: "Allow organic team formation and task distribution",
+            resourceQuota: STANDARD_RESOURCE_QUOTAS.light,
+            targetProfitPerMonth: "1000000000", // $1k in micro-dollars
+            stats: {
+                totalInstances: 0,
+                totalProfit: "0",
+                totalCosts: "0",
+                averageKPIs: {},
+                activeInstances: 0,
+                lastUpdated: Date.now(),
+            },
             structure: {
                 type: "MOISE+",
                 version: "1.0",
@@ -287,6 +542,19 @@ export function createTeamConfigWithStructure(
     version?: string,
 ): TeamConfigObject {
     return mergeWithBaseDefaults<TeamConfigObject>({
+        deploymentType: "development",
+        goal: "Custom team structure for testing",
+        businessPrompt: "Test team with custom organizational structure",
+        resourceQuota: STANDARD_RESOURCE_QUOTAS.light,
+        targetProfitPerMonth: "1000000000", // $1k in micro-dollars
+        stats: {
+            totalInstances: 0,
+            totalProfit: "0",
+            totalCosts: "0",
+            averageKPIs: {},
+            activeInstances: 0,
+            lastUpdated: Date.now(),
+        },
         structure: {
             type,
             version: version ?? "1.0",

@@ -1,10 +1,12 @@
+/* eslint-disable no-magic-numbers */
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
-import { } from "@vrooli/shared";
 import { type Prisma, type PrismaClient, ScheduleRecurrenceType, type schedule_recurrence } from "@prisma/client";
+import { } from "@vrooli/shared";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
+    TestScenario,
 } from "./types.js";
 
 interface ScheduleRecurrenceRelationConfig extends RelationConfig {
@@ -33,7 +35,8 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
     // Store commonly used schedule IDs for fixtures
     private fixtureScheduleId: bigint;
     private defaultScheduleId: bigint;
-    
+    protected scenarios: Record<string, TestScenario> = {};
+
     constructor(prisma: PrismaClient) {
         super("ScheduleRecurrence", prisma);
         // Generate valid schedule IDs that can be reused in fixtures
@@ -79,7 +82,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     duration: 60,
                 },
                 invalidTypes: {
-                    id: 12345 as unknown as bigint, // Using number instead of bigint to test type validation
+                    id: BigInt("12345"), // Invalid ID value but properly typed as BigInt
                     recurrenceType: "InvalidType", // Should be enum value
                     interval: "1", // Should be number
                     dayOfWeek: "Monday", // Should be number
@@ -87,7 +90,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
                     month: "December", // Should be number
                     endDate: "next year", // Should be Date
                     duration: "one hour", // Should be number
-                    scheduleId: "string-not-bigint", // Should be BigInt
+                    scheduleId: BigInt("987654321"), // Invalid schedule ID but properly typed
                 },
                 invalidRanges: {
                     id: this.generateId(),
@@ -378,17 +381,17 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
     /**
      * Create specific recurrence patterns
      */
-    async createDaily(scheduleId: bigint, interval = 1, duration?: number): Promise<schedule_recurrence> {
+    async createDaily(scheduleId: bigint | string, interval = 1, duration?: number): Promise<schedule_recurrence> {
         return await this.createMinimal({
             recurrenceType: ScheduleRecurrenceType.Daily,
             interval,
             duration,
-            schedule: { connect: { id: scheduleId } },
+            schedule: { connect: { id: typeof scheduleId === "string" ? BigInt(scheduleId) : scheduleId } },
         });
     }
 
     async createWeekly(
-        scheduleId: string,
+        scheduleId: bigint | string,
         dayOfWeek: number,
         interval = 1,
         duration?: number,
@@ -398,12 +401,12 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
             interval,
             dayOfWeek,
             duration,
-            schedule: { connect: { id: scheduleId } },
+            schedule: { connect: { id: typeof scheduleId === "string" ? BigInt(scheduleId) : scheduleId } },
         });
     }
 
     async createMonthly(
-        scheduleId: string,
+        scheduleId: bigint | string,
         dayOfMonth: number,
         interval = 1,
         duration?: number,
@@ -413,12 +416,12 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
             interval,
             dayOfMonth,
             duration,
-            schedule: { connect: { id: scheduleId } },
+            schedule: { connect: { id: typeof scheduleId === "string" ? BigInt(scheduleId) : scheduleId } },
         });
     }
 
     async createYearly(
-        scheduleId: string,
+        scheduleId: bigint | string,
         month: number,
         dayOfMonth: number,
         interval = 1,
@@ -430,7 +433,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
             month,
             dayOfMonth,
             duration,
-            schedule: { connect: { id: scheduleId } },
+            schedule: { connect: { id: typeof scheduleId === "string" ? BigInt(scheduleId) : scheduleId } },
         });
     }
 
@@ -467,7 +470,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
 
     protected async checkModelConstraints(record: schedule_recurrence): Promise<string[]> {
         const violations: string[] = [];
-        
+
         // Check interval
         if (record.interval < 1) {
             violations.push("Interval must be at least 1");
@@ -545,27 +548,31 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
      * Create multiple recurrences for a schedule (e.g., MWF meetings)
      */
     async createMultiDayWeekly(
-        scheduleId: string,
+        scheduleId: bigint | string,
         daysOfWeek: number[],
         interval = 1,
         duration?: number,
     ): Promise<schedule_recurrence[]> {
-        return await this.createMany(
-            daysOfWeek.map(day => ({
+        const scheduleIdBigint = typeof scheduleId === "string" ? BigInt(scheduleId) : scheduleId;
+        const records: schedule_recurrence[] = [];
+        for (const day of daysOfWeek) {
+            const record = await this.createMinimal({
                 recurrenceType: ScheduleRecurrenceType.Weekly,
                 interval,
                 dayOfWeek: day,
                 duration,
-                schedule: { connect: { id: scheduleId } },
-            })),
-        );
+                schedule: { connect: { id: scheduleIdBigint } },
+            });
+            records.push(record);
+        }
+        return records;
     }
 
     /**
      * Create recurrence pattern from RRULE string
      */
     async createFromRRule(
-        scheduleId: string,
+        scheduleId: bigint | string,
         rrule: string,
         overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
     ): Promise<schedule_recurrence> {
@@ -574,11 +581,11 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
             acc[key] = value;
             return acc;
         }, {} as Record<string, string>);
-        
+
         const baseData: Partial<Prisma.schedule_recurrenceCreateInput> = {
             interval: parseInt(parts.INTERVAL || "1"),
         };
-        
+
         // Map frequency
         switch (parts.FREQ) {
             case "DAILY":
@@ -587,8 +594,8 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
             case "WEEKLY":
                 baseData.recurrenceType = ScheduleRecurrenceType.Weekly;
                 if (parts.BYDAY) {
-                    const dayMap: Record<string, number> = { 
-                        SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6, 
+                    const dayMap: Record<string, number> = {
+                        SU: 0, MO: 1, TU: 2, WE: 3, TH: 4, FR: 5, SA: 6,
                     };
                     const days = parts.BYDAY.split(",");
                     baseData.dayOfWeek = dayMap[days[0]] || 0;
@@ -612,7 +619,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
             default:
                 baseData.recurrenceType = ScheduleRecurrenceType.Daily;
         }
-        
+
         // Handle end conditions
         if (parts.UNTIL) {
             const year = parts.UNTIL.substring(0, 4);
@@ -620,10 +627,10 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
             const day = parts.UNTIL.substring(6, 8);
             baseData.endDate = new Date(`${year}-${month}-${day}`);
         }
-        
+
         return await this.createMinimal({
             ...baseData,
-            schedule: { connect: { id: scheduleId } },
+            schedule: { connect: { id: typeof scheduleId === "string" ? BigInt(scheduleId) : scheduleId } },
             ...overrides,
         });
     }
@@ -631,7 +638,7 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
     /**
      * Create test recurrences for various scenarios
      */
-    async createTestRecurrences(scheduleId: string): Promise<{
+    async createTestRecurrences(scheduleId: bigint | string): Promise<{
         daily: schedule_recurrence;
         weekly: schedule_recurrence;
         monthly: schedule_recurrence;
@@ -639,13 +646,14 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
         biweekly: schedule_recurrence;
         quarterly: schedule_recurrence;
     }> {
+        const scheduleIdBigint = typeof scheduleId === "string" ? BigInt(scheduleId) : scheduleId;
         const [daily, weekly, monthly, yearly, biweekly, quarterly] = await Promise.all([
-            this.createDaily(scheduleId, 1, 30),
-            this.createWeekly(scheduleId, 1, 1, 60), // Monday
-            this.createMonthly(scheduleId, 15, 1, 90),
-            this.createYearly(scheduleId, 12, 25, 1, 120), // Christmas
-            this.createWeekly(scheduleId, 5, 2, 90), // Every other Friday
-            this.seedScenario("quarterlyReview"),
+            this.createDaily(scheduleIdBigint, 1, 30),
+            this.createWeekly(scheduleIdBigint, 1, 1, 60), // Monday
+            this.createMonthly(scheduleIdBigint, 15, 1, 90),
+            this.createYearly(scheduleIdBigint, 12, 25, 1, 120), // Christmas
+            this.createWeekly(scheduleIdBigint, 5, 2, 90), // Every other Friday
+            this.createMonthly(scheduleIdBigint, 15, 3, 180), // Quarterly (every 3 months)
         ]);
 
         return {
@@ -654,40 +662,52 @@ export class ScheduleRecurrenceEnhancedDbFactory extends EnhancedDatabaseFactory
             monthly,
             yearly,
             biweekly,
-            quarterly: quarterly as unknown as schedule_recurrence,
+            quarterly,
         };
     }
 
     /**
      * Create business meeting patterns
      */
-    async createBusinessMeetingPatterns(_scheduleId: string): Promise<{
+    async createBusinessMeetingPatterns(scheduleId: bigint | string): Promise<{
         standup: schedule_recurrence;
         teamMeeting: schedule_recurrence;
         sprintPlanning: schedule_recurrence;
         allHands: schedule_recurrence;
         review: schedule_recurrence;
     }> {
+        const scheduleIdBigint = typeof scheduleId === "string" ? BigInt(scheduleId) : scheduleId;
         const [standup, teamMeeting, sprintPlanning, allHands, review] = await Promise.all([
-            this.seedScenario("dailyStandup"),
-            this.seedScenario("weeklyTeamMeeting"),
-            this.seedScenario("biWeeklySprintPlanning"),
-            this.seedScenario("monthlyAllHands"),
-            this.seedScenario("annualReview"),
+            this.createDaily(scheduleIdBigint, 1, 15), // Daily standup for 15 minutes
+            this.createWeekly(scheduleIdBigint, 3, 1, 60), // Weekly team meeting on Wednesday
+            this.createWeekly(scheduleIdBigint, 1, 2, 120), // Bi-weekly sprint planning on Monday
+            this.createMonthly(scheduleIdBigint, 1, 1, 90), // Monthly all-hands on the 1st
+            this.createYearly(scheduleIdBigint, 12, 15, 60), // Annual review
         ]);
 
         return {
-            standup: standup as unknown as schedule_recurrence,
-            teamMeeting: teamMeeting as unknown as schedule_recurrence,
-            sprintPlanning: sprintPlanning as unknown as schedule_recurrence,
-            allHands: allHands as unknown as schedule_recurrence,
-            review: review as unknown as schedule_recurrence,
+            standup,
+            teamMeeting,
+            sprintPlanning,
+            allHands,
+            review,
         };
+    }
+
+    /**
+     * Seed a specific test scenario
+     */
+    async seedScenario(scenarioName: string): Promise<schedule_recurrence> {
+        const scenario = this.scenarios[scenarioName];
+        if (!scenario) {
+            throw new Error(`Scenario ${scenarioName} not found`);
+        }
+        return await this.createMinimal(scenario.config.overrides);
     }
 }
 
 // Export factory creator function
-export const createScheduleRecurrenceEnhancedDbFactory = (prisma: PrismaClient) => 
+export const createScheduleRecurrenceEnhancedDbFactory = (prisma: PrismaClient) =>
     new ScheduleRecurrenceEnhancedDbFactory(prisma);
 
 // Export the class for type usage

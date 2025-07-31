@@ -82,6 +82,10 @@
     "./test-fixtures/api-inputs": {
       "import": "./test-dist/__test/fixtures/api-inputs/index.js",
       "types": "./src/__test/fixtures/api-inputs/index.ts"
+    },
+    "./test-fixtures/config": {
+      "import": "./test-dist/__test/fixtures/config/index.js",
+      "types": "./src/__test/fixtures/config/index.ts"
     }
   },
   "scripts": {

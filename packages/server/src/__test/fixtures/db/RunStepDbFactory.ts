@@ -11,7 +11,7 @@ import type {
 
 interface RunStepRelationConfig extends RelationConfig {
     withRun?: { runId: bigint };
-    withResourceVersion?: { resourceVersionId: string };
+    withResourceVersion?: { resourceVersionId: bigint };
 }
 
 /**
@@ -35,18 +35,18 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
 > {
     protected scenarios: Record<string, TestScenario> = {};
     // Store commonly used IDs for fixtures
-    private fixtureRunId: string;
-    private defaultRunId: string;
-    private fixtureResourceVersionId: string;
-    private defaultResourceVersionId: string;
+    private fixtureRunId: bigint;
+    private defaultRunId: bigint;
+    private fixtureResourceVersionId: bigint;
+    private defaultResourceVersionId: bigint;
 
     constructor(prisma: PrismaClient) {
         super("RunStep", prisma);
         // Generate valid IDs that can be reused in fixtures
-        this.fixtureRunId = this.generateId().toString();
-        this.defaultRunId = this.generateId().toString();
-        this.fixtureResourceVersionId = this.generateId().toString();
-        this.defaultResourceVersionId = this.generateId().toString();
+        this.fixtureRunId = this.generateId();
+        this.defaultRunId = this.generateId();
+        this.fixtureResourceVersionId = this.generateId();
+        this.defaultResourceVersionId = this.generateId();
         this.initializeScenarios();
     }
 
@@ -376,7 +376,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
                         status: RunStepStatus.InProgress,
                         startedAt: new Date(Date.now() - 600000), // 10 minutes ago
                     },
-                    withResourceVersion: { resourceVersionId: this.fixtureResourceVersionId.toString() },
+                    withResourceVersion: { resourceVersionId: this.fixtureResourceVersionId },
                 },
             },
             skippedStep: {
@@ -428,7 +428,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create specific step types
      */
-    async createNotStartedStep(runId: string, order: number): Promise<any> {
+    async createNotStartedStep(runId: bigint, order: number): Promise<any> {
         return await this.createMinimal({
             order,
             status: RunStepStatus.InProgress,
@@ -437,7 +437,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    async createInProgressStep(runId: string, order: number): Promise<any> {
+    async createInProgressStep(runId: bigint, order: number): Promise<any> {
         return await this.createMinimal({
             order,
             status: RunStepStatus.InProgress,
@@ -447,7 +447,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
     }
 
     async createCompletedStep(
-        runId: string,
+        runId: bigint,
         order: number,
         complexity = 10,
     ): Promise<any> {
@@ -465,7 +465,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    async createSkippedStep(runId: string, order: number): Promise<any> {
+    async createSkippedStep(runId: bigint, order: number): Promise<any> {
         return await this.createMinimal({
             order,
             status: RunStepStatus.Skipped,
@@ -495,7 +495,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.run_stepCreateInput,
         config: RunStepRelationConfig,
-        tx: PrismaClient,
+        _tx: PrismaClient,
     ): Promise<Prisma.run_stepCreateInput> {
         const data = { ...baseData };
 
@@ -605,7 +605,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
      * Create a sequence of steps for a run
      */
     async createStepSequence(
-        runId: string,
+        runId: bigint,
         stepConfigs: Array<{
             name: string;
             status: RunStepStatus;
@@ -615,34 +615,36 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
     ): Promise<Prisma.run_step[]> {
         const now = new Date();
 
-        return await this.createMany(
-            stepConfigs.map((config, i) => {
-                const startTime = new Date(now.getTime() - (stepConfigs.length - i) * 60000);
-                const endTime = config.status === RunStepStatus.Completed
-                    ? new Date(startTime.getTime() + 30000)
-                    : undefined;
+        const results: Prisma.run_step[] = [];
+        for (let i = 0; i < stepConfigs.length; i++) {
+            const config = stepConfigs[i];
+            const startTime = new Date(now.getTime() - (stepConfigs.length - i) * 60000);
+            const endTime = config.status === RunStepStatus.Completed
+                ? new Date(startTime.getTime() + 30000)
+                : undefined;
 
-                return {
-                    name: config.name,
-                    nodeId: nanoid(),
-                    resourceInId: nanoid(),
-                    order: i,
-                    status: config.status,
-                    complexity: config.complexity || 10,
-                    contextSwitches: config.contextSwitches || 0,
-                    startedAt: config.status === RunStepStatus.Completed || config.status === RunStepStatus.InProgress ? startTime : undefined,
-                    completedAt: endTime,
-                    timeElapsed: endTime ? endTime.getTime() - startTime.getTime() : undefined,
-                    run: { connect: { id: runId } },
-                };
-            }),
-        );
+            const result = await this.createMinimal({
+                name: config.name,
+                nodeId: nanoid(),
+                resourceInId: nanoid(),
+                order: i,
+                status: config.status,
+                complexity: config.complexity || 10,
+                contextSwitches: config.contextSwitches || 0,
+                startedAt: config.status === RunStepStatus.Completed || config.status === RunStepStatus.InProgress ? startTime : undefined,
+                completedAt: endTime,
+                timeElapsed: endTime ? endTime.getTime() - startTime.getTime() : undefined,
+                run: { connect: { id: runId } },
+            });
+            results.push(result);
+        }
+        return results;
     }
 
     /**
      * Create test steps for various scenarios
      */
-    async createTestSteps(runId: string): Promise<{
+    async createTestSteps(runId: bigint): Promise<{
         notStarted: any;
         inProgress: any;
         completed: any;
@@ -667,7 +669,7 @@ export class RunStepDbFactory extends EnhancedDatabaseFactory<
      * Create a step with specific timing
      */
     async createTimedStep(
-        runId: string,
+        runId: bigint,
         order: number,
         duration: number, // in milliseconds
         status: RunStepStatus = RunStepStatus.Completed,

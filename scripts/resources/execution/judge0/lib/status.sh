@@ -41,6 +41,9 @@ judge0::status::show() {
     # Recent submissions
     judge0::status::show_recent_submissions
     
+    # Functional test
+    judge0::status::functional_test
+    
     return 0
 }
 
@@ -254,4 +257,141 @@ judge0::status::get_health_json() {
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
 EOF
+}
+
+#######################################
+# Functional test to detect common issues
+#######################################
+judge0::status::functional_test() {
+    log::header "🧪 Functional Test"
+    echo "Testing core Judge0 functionality..."
+    echo
+    
+    # Get auth token from docker-compose config
+    local auth_token=$(grep "JUDGE0_AUTHENTICATION_TOKEN=" /home/matthalloran8/.vrooli/resources/judge0/config/docker-compose.yml | head -1 | cut -d'=' -f2)
+    
+    # Test 1: Simple echo test (should always work)
+    echo "1. Testing basic API connectivity..."
+    local echo_token=$(curl -s -X POST "http://localhost:${JUDGE0_PORT}/submissions" \
+        -H "X-Auth-Token: ${auth_token}" \
+        -H "Content-Type: application/json" \
+        -d '{"source_code": "echo \"Hello World\"", "language_id": 46}' | jq -r '.token // "error"')
+    
+    if [[ "$echo_token" == "error" ]] || [[ -z "$echo_token" ]]; then
+        log::error "❌ API connectivity test failed"
+        return 1
+    fi
+    
+    sleep 3
+    local echo_result=$(curl -s "http://localhost:${JUDGE0_PORT}/submissions/$echo_token" \
+        -H "X-Auth-Token: ${auth_token}" | jq -r '.status.id // "error"')
+    
+    case "$echo_result" in
+        "3")
+            log::success "✅ Basic execution working (Bash echo)"
+            ;;
+        "1"|"2")
+            log::warning "⏳ Submission still processing (this may indicate performance issues)"
+            ;;
+        "5")
+            log::error "❌ Time limit exceeded (performance issue detected)"
+            echo "   💡 Consider increasing time limits for containerized environments"
+            ;;
+        "13")
+            log::error "❌ Internal error (likely isolate/namespace issue)"
+            echo "   💡 Check kernel parameters and container privileges"
+            ;;
+        *)
+            log::warning "⚠️  Unexpected status: $echo_result"
+            ;;
+    esac
+    echo
+    
+    # Test 2: JavaScript/Node.js test (common bottleneck)
+    echo "2. Testing Node.js performance..."
+    local js_token=$(curl -s -X POST "http://localhost:${JUDGE0_PORT}/submissions" \
+        -H "X-Auth-Token: ${auth_token}" \
+        -H "Content-Type: application/json" \
+        -d '{"source_code": "console.log(\"Hello Node\");", "language_id": 63, "cpu_time_limit": 5, "wall_time_limit": 10}' | jq -r '.token // "error"')
+    
+    if [[ "$js_token" != "error" ]] && [[ -n "$js_token" ]]; then
+        sleep 5
+        local js_result=$(curl -s "http://localhost:${JUDGE0_PORT}/submissions/$js_token" \
+            -H "X-Auth-Token: ${auth_token}")
+        
+        local js_status=$(echo "$js_result" | jq -r '.status.id // "error"')
+        local js_time=$(echo "$js_result" | jq -r '.time // "0"')
+        local js_stderr=$(echo "$js_result" | jq -r '.stderr // ""')
+        
+        case "$js_status" in
+            "3")
+                log::success "✅ Node.js execution working (time: ${js_time}s)"
+                if (( $(echo "$js_time > 3" | bc -l) )); then
+                    log::warning "   ⚠️  Slow startup detected (${js_time}s) - consider optimizing"
+                fi
+                ;;
+            "5")
+                log::error "❌ Node.js timeout (containerization performance issue)"
+                echo "   💡 Increase wall_time_limit or optimize Node.js environment"
+                ;;
+            "13")
+                if echo "$js_stderr" | grep -q "clone failed"; then
+                    log::error "❌ Clone/namespace permission denied"
+                    echo "   💡 Enable unprivileged_userns_clone or use privileged containers"
+                else
+                    log::error "❌ Node.js internal error: $js_stderr"
+                fi
+                ;;
+            "1"|"2")
+                log::warning "⏳ Node.js submission still processing (worker issue?)"
+                ;;
+            *)
+                log::warning "⚠️  Node.js unexpected status: $js_status"
+                ;;
+        esac
+    else
+        log::error "❌ Failed to submit Node.js test"
+    fi
+    echo
+    
+    # Test 3: Worker health
+    echo "3. Testing worker health..."
+    local worker_count=0
+    local containers=$(docker ps --filter "name=judge0-workers" --format "{{.Names}}" 2>/dev/null)
+    
+    for container in $containers; do
+        ((worker_count++))
+        local processes=$(docker exec "$container" ps aux | grep -c "rake resque:work" 2>/dev/null || echo "0")
+        if [[ "$processes" -gt 10 ]]; then
+            log::warning "⚠️  Container $container has excessive worker processes ($processes)"
+            echo "   💡 Workers may be crashing and restarting - check isolate functionality"
+        elif [[ "$processes" -eq 0 ]]; then
+            log::error "❌ Container $container has no active workers"
+        else
+            log::success "✅ Container $container has $processes workers"
+        fi
+    done
+    
+    if [[ "$worker_count" -eq 0 ]]; then
+        log::error "❌ No worker containers found"
+        return 1
+    fi
+    echo
+    
+    # Test 4: Isolate direct test
+    echo "4. Testing isolate sandbox directly..."
+    if docker exec "${containers%% *}" /usr/local/bin/isolate --init >/dev/null 2>&1; then
+        if docker exec "${containers%% *}" timeout 5 /usr/local/bin/isolate --run -- /bin/echo "test" >/dev/null 2>&1; then
+            log::success "✅ Isolate sandbox working"
+        else
+            log::error "❌ Isolate execution fails (namespace/clone issue)"
+            echo "   💡 This is the root cause of Internal Error (13) submissions"
+        fi
+        docker exec "${containers%% *}" /usr/local/bin/isolate --cleanup >/dev/null 2>&1
+    else
+        log::error "❌ Isolate initialization fails"
+    fi
+    echo
+    
+    echo "Functional test complete. Check issues above for troubleshooting guidance."
 }

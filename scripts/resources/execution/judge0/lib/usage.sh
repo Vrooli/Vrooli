@@ -35,6 +35,7 @@ ACTIONS:
     languages                      List available programming languages
     usage                          Show resource usage statistics
     submit                         Submit code for execution
+    monitor                        Start security monitoring (runs in foreground)
 
 CODE EXECUTION OPTIONS:
     --code <CODE>                  Source code to execute (for submit action)

@@ -198,6 +198,11 @@ judge0::main() {
             fi
             judge0::api::submit "$code" "$language" "$stdin" "$expected_output"
             ;;
+        monitor)
+            log::info "Starting Judge0 security monitoring..."
+            log::warn "WARNING: Running with elevated privileges - monitor actively for security alerts"
+            "${SCRIPT_DIR}/lib/security-monitor.sh"
+            ;;
         *)
             log::error "Unknown action: $action"
             judge0::usage::show

@@ -30,8 +30,8 @@ export JUDGE0_BASE_URL="http://localhost:${JUDGE0_PORT}"
 # SECURITY CONFIGURATION
 # ============================================================================
 # Resource limits per submission
-export JUDGE0_CPU_TIME_LIMIT="5"         # seconds
-export JUDGE0_WALL_TIME_LIMIT="10"       # seconds
+export JUDGE0_CPU_TIME_LIMIT="10"        # seconds (increased for containerized Node.js)
+export JUDGE0_WALL_TIME_LIMIT="20"       # seconds (max allowed by API)
 export JUDGE0_MEMORY_LIMIT="262144"      # KB (256MB)
 export JUDGE0_MAX_PROCESSES="30"
 export JUDGE0_MAX_FILE_SIZE="4096"       # KB (4MB)

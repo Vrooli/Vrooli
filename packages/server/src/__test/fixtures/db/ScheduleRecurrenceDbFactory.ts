@@ -15,7 +15,7 @@ export const scheduleRecurrenceDbFixtures: DbTestFixtures<
         id: generatePK(),
         recurrenceType: "Daily",
         interval: 1,
-        schedule: { connect: { id: "schedule_placeholder_id" } },
+        schedule: { connect: { id: generatePK() } },
     },
     complete: {
         id: generatePK(),
@@ -26,7 +26,7 @@ export const scheduleRecurrenceDbFixtures: DbTestFixtures<
         month: null,
         endDate: new Date("2026-12-31T23:59:59Z"),
         duration: 90, // 90 minutes
-        schedule: { connect: { id: "schedule_placeholder_id" } },
+        schedule: { connect: { id: generatePK() } },
     },
     invalid: {
         missingRequired: {
@@ -50,7 +50,7 @@ export const scheduleRecurrenceDbFixtures: DbTestFixtures<
             recurrenceType: "Weekly",
             interval: 0, // Should be at least 1
             dayOfWeek: 8, // Should be 1-7
-            schedule: { connect: { id: "schedule_placeholder_id" } },
+            schedule: { connect: { id: generatePK() } },
         },
     },
     edgeCases: {
@@ -59,7 +59,7 @@ export const scheduleRecurrenceDbFixtures: DbTestFixtures<
             recurrenceType: "Daily",
             interval: 1,
             endDate: null, // No end date
-            schedule: { connect: { id: "schedule_placeholder_id" } },
+            schedule: { connect: { id: generatePK() } },
         },
         weeklyMWF: {
             id: generatePK(),
@@ -67,7 +67,7 @@ export const scheduleRecurrenceDbFixtures: DbTestFixtures<
             interval: 1,
             dayOfWeek: 1, // Monday (would need multiple recurrences for MWF)
             duration: 60,
-            schedule: { connect: { id: "schedule_placeholder_id" } },
+            schedule: { connect: { id: generatePK() } },
         },
         biWeekly: {
             id: generatePK(),
@@ -75,7 +75,7 @@ export const scheduleRecurrenceDbFixtures: DbTestFixtures<
             interval: 2,
             dayOfWeek: 3, // Wednesday
             duration: 120,
-            schedule: { connect: { id: "schedule_placeholder_id" } },
+            schedule: { connect: { id: generatePK() } },
         },
         monthlyFirstMonday: {
             id: generatePK(),
@@ -84,7 +84,7 @@ export const scheduleRecurrenceDbFixtures: DbTestFixtures<
             dayOfWeek: 1, // Monday (first of month logic would be handled elsewhere)
             dayOfMonth: null,
             duration: 180,
-            schedule: { connect: { id: "schedule_placeholder_id" } },
+            schedule: { connect: { id: generatePK() } },
         },
         monthlyLastDay: {
             id: generatePK(),
@@ -92,7 +92,7 @@ export const scheduleRecurrenceDbFixtures: DbTestFixtures<
             interval: 1,
             dayOfMonth: 31, // Will adjust to last day of month
             duration: 60,
-            schedule: { connect: { id: "schedule_placeholder_id" } },
+            schedule: { connect: { id: generatePK() } },
         },
         quarterly: {
             id: generatePK(),
@@ -100,7 +100,7 @@ export const scheduleRecurrenceDbFixtures: DbTestFixtures<
             interval: 3,
             dayOfMonth: 15,
             duration: 240, // 4 hours
-            schedule: { connect: { id: "schedule_placeholder_id" } },
+            schedule: { connect: { id: generatePK() } },
         },
         yearlyBirthday: {
             id: generatePK(),
@@ -109,7 +109,7 @@ export const scheduleRecurrenceDbFixtures: DbTestFixtures<
             month: 6, // June
             dayOfMonth: 15,
             duration: 1440, // All day (24 hours)
-            schedule: { connect: { id: "schedule_placeholder_id" } },
+            schedule: { connect: { id: generatePK() } },
         },
         leapYearEvent: {
             id: generatePK(),
@@ -118,7 +118,7 @@ export const scheduleRecurrenceDbFixtures: DbTestFixtures<
             month: 2, // February
             dayOfMonth: 29, // Only occurs on leap years
             duration: 60,
-            schedule: { connect: { id: "schedule_placeholder_id" } },
+            schedule: { connect: { id: generatePK() } },
         },
         everyThreeHours: {
             id: generatePK(),
@@ -126,7 +126,7 @@ export const scheduleRecurrenceDbFixtures: DbTestFixtures<
             interval: 1, // Daily recurrence, but duration implies multiple per day
             duration: 180, // 3 hours
             endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // One week
-            schedule: { connect: { id: "schedule_placeholder_id" } },
+            schedule: { connect: { id: generatePK() } },
         },
         longRunningEvent: {
             id: generatePK(),
@@ -136,7 +136,7 @@ export const scheduleRecurrenceDbFixtures: DbTestFixtures<
             dayOfMonth: 1,
             duration: 43200, // 30 days in minutes
             endDate: new Date("2050-12-31T23:59:59Z"),
-            schedule: { connect: { id: "schedule_placeholder_id" } },
+            schedule: { connect: { id: generatePK() } },
         },
     },
 };
@@ -166,65 +166,65 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<
         return {
             constraints: {
                 uniqueViolation: {
-                    id: this.generateId(),
+                    id: generatePK(),
                     recurrenceType: "Daily",
                     interval: 1,
-                    schedule: { connect: { id: "schedule_placeholder_id" } },
+                    schedule: { connect: { id: generatePK() } },
                 },
                 foreignKeyViolation: {
-                    id: this.generateId(),
+                    id: generatePK(),
                     recurrenceType: "Daily",
                     interval: 1,
-                    schedule: { connect: { id: "non-existent-schedule-id" } },
+                    schedule: { connect: { id: BigInt("999999999") } },
                 },
                 checkConstraintViolation: {
-                    id: this.generateId(),
+                    id: generatePK(),
                     recurrenceType: "Weekly",
                     interval: 1,
                     dayOfWeek: 0, // Invalid day (should be 1-7)
-                    schedule: { connect: { id: "schedule_placeholder_id" } },
+                    schedule: { connect: { id: generatePK() } },
                 },
             },
             validation: {
                 requiredFieldMissing: scheduleRecurrenceDbFixtures.invalid.missingRequired,
                 invalidDataType: scheduleRecurrenceDbFixtures.invalid.invalidTypes,
                 outOfRange: {
-                    id: this.generateId(),
+                    id: generatePK(),
                     recurrenceType: "Monthly",
                     interval: 1,
                     dayOfMonth: 32, // Invalid day of month
-                    schedule: { connect: { id: "schedule_placeholder_id" } },
+                    schedule: { connect: { id: generatePK() } },
                 },
             },
             businessLogic: {
                 invalidInterval: {
-                    id: this.generateId(),
+                    id: generatePK(),
                     recurrenceType: "Daily",
                     interval: 0, // Should be at least 1
-                    schedule: { connect: { id: "schedule_placeholder_id" } },
+                    schedule: { connect: { id: generatePK() } },
                 },
                 weeklyWithoutDayOfWeek: {
-                    id: this.generateId(),
+                    id: generatePK(),
                     recurrenceType: "Weekly",
                     interval: 1,
                     dayOfWeek: null, // Weekly needs day of week
-                    schedule: { connect: { id: "schedule_placeholder_id" } },
+                    schedule: { connect: { id: generatePK() } },
                 },
                 monthlyConflict: {
-                    id: this.generateId(),
+                    id: generatePK(),
                     recurrenceType: "Monthly",
                     interval: 1,
                     dayOfWeek: 1, // Both day of week and day of month specified
                     dayOfMonth: 15,
-                    schedule: { connect: { id: "schedule_placeholder_id" } },
+                    schedule: { connect: { id: generatePK() } },
                 },
                 yearlyWithoutMonthDay: {
-                    id: this.generateId(),
+                    id: generatePK(),
                     recurrenceType: "Yearly",
                     interval: 1,
                     month: null, // Yearly needs month
                     dayOfMonth: null, // And day
-                    schedule: { connect: { id: "schedule_placeholder_id" } },
+                    schedule: { connect: { id: generatePK() } },
                 },
             },
         };
@@ -235,7 +235,7 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<
      */
     protected generateFreshIdentifiers(): Record<string, any> {
         return {
-            id: this.generateId(),
+            id: generatePK(),
         };
     }
 
@@ -323,7 +323,7 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<
     protected addScheduleAssociation(data: Prisma.schedule_recurrenceCreateInput, scheduleId: string): Prisma.schedule_recurrenceCreateInput {
         return {
             ...data,
-            schedule: { connect: { id: scheduleId } },
+            schedule: { connect: { id: typeof scheduleId === "string" ? BigInt(scheduleId) : scheduleId } },
         };
     }
 
@@ -347,7 +347,7 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<
         return factory.createMinimal({
             recurrenceType: "Daily",
             interval,
-            schedule: { connect: { id: scheduleId } },
+            schedule: { connect: { id: typeof scheduleId === "string" ? BigInt(scheduleId) : scheduleId } },
             ...overrides,
         });
     }
@@ -363,7 +363,7 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<
             recurrenceType: "Weekly",
             interval,
             dayOfWeek,
-            schedule: { connect: { id: scheduleId } },
+            schedule: { connect: { id: typeof scheduleId === "string" ? BigInt(scheduleId) : scheduleId } },
             ...overrides,
         });
     }
@@ -379,7 +379,7 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<
             recurrenceType: "Monthly",
             interval,
             dayOfMonth,
-            schedule: { connect: { id: scheduleId } },
+            schedule: { connect: { id: typeof scheduleId === "string" ? BigInt(scheduleId) : scheduleId } },
             ...overrides,
         });
     }
@@ -397,7 +397,7 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<
             interval,
             month,
             dayOfMonth,
-            schedule: { connect: { id: scheduleId } },
+            schedule: { connect: { id: typeof scheduleId === "string" ? BigInt(scheduleId) : scheduleId } },
             ...overrides,
         });
     }
@@ -471,7 +471,7 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<
 
         return factory.createMinimal({
             ...baseData,
-            schedule: { connect: { id: scheduleId } },
+            schedule: { connect: { id: typeof scheduleId === "string" ? BigInt(scheduleId) : scheduleId } },
             ...overrides,
         });
     }

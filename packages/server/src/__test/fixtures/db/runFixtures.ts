@@ -2,6 +2,7 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { generatePK } from "@vrooli/shared";
+import { connectById } from "../../../utils/idTypes.js";
 
 /**
  * Database fixtures for Run model - used for seeding test data
@@ -102,6 +103,7 @@ export const completeRunDb: Prisma.runCreateInput = {
                 id: getRunDbIds().step1,
                 name: "Initialize",
                 nodeId: "node_1",
+                resourceInId: "resource_input_1",
                 status: "Completed",
                 order: 1,
                 complexity: 3,
@@ -113,6 +115,7 @@ export const completeRunDb: Prisma.runCreateInput = {
                 id: getRunDbIds().step2,
                 name: "Process",
                 nodeId: "node_2",
+                resourceInId: "resource_input_2",
                 status: "Completed",
                 order: 2,
                 complexity: 5,
@@ -124,6 +127,7 @@ export const completeRunDb: Prisma.runCreateInput = {
                 id: getRunDbIds().step3,
                 name: "Finalize",
                 nodeId: "node_3",
+                resourceInId: "resource_input_3",
                 status: "Completed",
                 order: 3,
                 complexity: 2,
@@ -195,9 +199,7 @@ export class RunDbFactory {
             ...runWithResourceVersionDb,
             id: generatePK(),
             name: `Run with Resource ${Date.now()}`,
-            resourceVersion: {
-                connect: { id: resourceVersionId },
-            },
+            resourceVersion: connectById(resourceVersionId),
             ...overrides,
         };
     }
@@ -213,6 +215,7 @@ export class RunDbFactory {
                         id: generatePK(),
                         name: "Initialize",
                         nodeId: "node_1",
+                        resourceInId: "resource_input_1",
                         status: "Completed",
                         order: 1,
                         complexity: 3,
@@ -224,6 +227,7 @@ export class RunDbFactory {
                         id: generatePK(),
                         name: "Process",
                         nodeId: "node_2",
+                        resourceInId: "resource_input_2",
                         status: "Completed",
                         order: 2,
                         complexity: 5,
@@ -235,6 +239,7 @@ export class RunDbFactory {
                         id: generatePK(),
                         name: "Finalize",
                         nodeId: "node_3",
+                        resourceInId: "resource_input_3",
                         status: "Completed",
                         order: 3,
                         complexity: 2,
@@ -314,8 +319,8 @@ export class RunDbFactory {
     ): Prisma.runCreateInput {
         return {
             ...this.createMinimal(overrides),
-            user: { connect: { id: userId } },
-            ...(teamId && { team: { connect: { id: teamId } } }),
+            user: connectById(userId),
+            ...(teamId && { team: connectById(teamId) }),
         };
     }
 
@@ -330,6 +335,7 @@ export class RunDbFactory {
             id: generatePK(),
             name: `Step ${index + 1}`,
             nodeId: `node_${index + 1}`,
+            resourceInId: `resource_input_${index + 1}`,
             status: "Completed" as const,
             order: index + 1,
             complexity: Math.floor(Math.random() * 5) + 1,
@@ -375,7 +381,7 @@ export class RunDbFactory {
             ...this.createMinimal(overrides),
             status: "Scheduled",
             wasRunAutomatically: true,
-            schedule: { connect: { id: scheduleId } },
+            schedule: connectById(scheduleId),
         };
     }
 }
@@ -415,13 +421,13 @@ export async function seedRuns(
 
         // Add ownership if provided
         if (userId) {
-            runData.user = { connect: { id: userId } };
+            runData.user = connectById(userId);
         }
         if (teamId) {
-            runData.team = { connect: { id: teamId } };
+            runData.team = connectById(teamId);
         }
         if (resourceVersionId) {
-            runData.resourceVersion = { connect: { id: resourceVersionId } };
+            runData.resourceVersion = connectById(resourceVersionId);
         }
 
         // Add steps if requested
@@ -432,6 +438,7 @@ export async function seedRuns(
                     id: generatePK(),
                     name: `Step ${stepIndex + 1}`,
                     nodeId: `node_${stepIndex + 1}`,
+                    resourceInId: `resource_input_${stepIndex + 1}`,
                     status: status === "Completed" ? "Completed" : "InProgress",
                     order: stepIndex + 1,
                     complexity: Math.floor(Math.random() * 5) + 1,
@@ -500,17 +507,20 @@ export function createApiResponseRun(overrides?: Partial<Prisma.runCreateInput>)
 /**
  * Helper to clean up test runs
  */
-export async function cleanupRuns(prisma: PrismaClient, runIds: string[]) {
+export async function cleanupRuns(prisma: PrismaClient, runIds: (string | bigint)[]) {
+    // Convert string IDs to bigint for database operations
+    const bigintRunIds = runIds.map(id => typeof id === "string" ? BigInt(id) : id);
+
     // Delete in correct order for foreign key constraints
-    await prisma.runIO.deleteMany({
-        where: { runId: { in: runIds } },
+    await prisma.run_io.deleteMany({
+        where: { runId: { in: bigintRunIds } },
     });
 
-    await prisma.runStep.deleteMany({
-        where: { runId: { in: runIds } },
+    await prisma.run_step.deleteMany({
+        where: { runId: { in: bigintRunIds } },
     });
 
     await prisma.run.deleteMany({
-        where: { id: { in: runIds } },
+        where: { id: { in: bigintRunIds } },
     });
 }

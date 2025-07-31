@@ -1,14 +1,15 @@
-import { nanoid } from "@vrooli/shared";
+/* eslint-disable no-magic-numbers */
 import { type Prisma, type PrismaClient, type run_io } from "@prisma/client";
+import { nanoid } from "@vrooli/shared";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
 
 interface RunIORelationConfig extends RelationConfig {
-    withRun?: { runId: string };
+    withRun?: { runId: bigint };
 }
 
 /**
@@ -33,7 +34,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
     // Store commonly used run IDs for fixtures
     private fixtureRunId: bigint;
     private defaultRunId: bigint;
-    
+
     constructor(prisma: PrismaClient) {
         super("RunIO", prisma);
         // Generate valid run IDs that can be reused in fixtures
@@ -92,11 +93,11 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     createdAt: new Date(),
                 },
                 invalidTypes: {
-                    id: 123456789, // Should be BigInt, not number
+                    id: BigInt("123456789"), // Should be BigInt, not number
                     nodeInputName: null, // Should be string
                     nodeName: 123, // Should be string
                     data: { object: "not-string" }, // Should be string
-                    runId: "string-not-bigint", // Should be BigInt
+                    runId: BigInt("987654321"), // Invalid run ID but properly typed
                 },
                 tooLongNodeInputName: {
                     id: this.generateId(),
@@ -375,7 +376,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
     /**
      * Create specific IO types
      */
-    async createInput(runId: string, nodeName: string, data: any): Promise<run_io> {
+    async createInput(runId: bigint, nodeName: string, data: any): Promise<run_io> {
         return await this.createMinimal({
             nodeInputName: "input",
             nodeName,
@@ -384,7 +385,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    async createOutput(runId: string, nodeName: string, data: any): Promise<run_io> {
+    async createOutput(runId: bigint, nodeName: string, data: any): Promise<run_io> {
         return await this.createMinimal({
             nodeInputName: "output",
             nodeName,
@@ -393,7 +394,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    async createError(runId: string, nodeName: string, error: Error): Promise<run_io> {
+    async createError(runId: bigint, nodeName: string, error: Error): Promise<run_io> {
         return await this.createMinimal({
             nodeInputName: "error",
             nodeName,
@@ -438,7 +439,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
 
     protected async checkModelConstraints(record: run_io): Promise<string[]> {
         const violations: string[] = [];
-        
+
         // Check name lengths
         if (record.nodeInputName.length > 128) {
             violations.push("Node input name exceeds 128 character limit");
@@ -485,24 +486,27 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
      * Create multiple IO records for a run
      */
     async createRunIOSet(
-        runId: string,
+        runId: bigint,
         ioData: Array<{ nodeInputName: string; nodeName: string; data: any }>,
     ): Promise<run_io[]> {
-        return await this.createMany(
-            ioData.map(io => ({
+        const results: run_io[] = [];
+        for (const io of ioData) {
+            const result = await this.createMinimal({
                 run: { connect: { id: runId } },
                 nodeInputName: io.nodeInputName,
                 nodeName: io.nodeName,
                 data: JSON.stringify(io.data),
-            })),
-        );
+            });
+            results.push(result);
+        }
+        return results;
     }
 
     /**
      * Create IO flow for a complete node execution
      */
     async createNodeExecutionIO(
-        runId: string,
+        runId: bigint,
         nodeName: string,
         input: any,
         output: any,
@@ -517,7 +521,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
 }
 
 // Export factory creator function
-export const createRunIODbFactory = (prisma: PrismaClient) => 
+export const createRunIODbFactory = (prisma: PrismaClient) =>
     new RunIODbFactory(prisma);
 
 // Export the class for type usage

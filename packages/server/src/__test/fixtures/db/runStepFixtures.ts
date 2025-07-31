@@ -1,6 +1,7 @@
+/* eslint-disable no-magic-numbers */
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
-import { generatePK } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK } from "@vrooli/shared";
 
 /**
  * Database fixtures for RunStep model - used for seeding test data
@@ -126,7 +127,7 @@ export const complexRunStepDb: Prisma.run_stepCreateInput = {
  */
 export class RunStepDbFactory {
     static createMinimal(
-        runId: string,
+        runId: bigint,
         overrides?: Partial<Prisma.run_stepCreateInput>,
     ): Prisma.run_stepCreateInput {
         return {
@@ -143,8 +144,8 @@ export class RunStepDbFactory {
     }
 
     static createWithResourceVersion(
-        runId: string,
-        resourceVersionId: string,
+        runId: bigint,
+        resourceVersionId: bigint,
         overrides?: Partial<Prisma.run_stepCreateInput>,
     ): Prisma.run_stepCreateInput {
         return {
@@ -164,7 +165,7 @@ export class RunStepDbFactory {
     }
 
     static createComplete(
-        runId: string,
+        runId: bigint,
         overrides?: Partial<Prisma.run_stepCreateInput>,
     ): Prisma.run_stepCreateInput {
         return {
@@ -181,7 +182,7 @@ export class RunStepDbFactory {
     }
 
     static createSkipped(
-        runId: string,
+        runId: bigint,
         overrides?: Partial<Prisma.run_stepCreateInput>,
     ): Prisma.run_stepCreateInput {
         return {
@@ -198,7 +199,7 @@ export class RunStepDbFactory {
     }
 
     static createComplex(
-        runId: string,
+        runId: bigint,
         overrides?: Partial<Prisma.run_stepCreateInput>,
     ): Prisma.run_stepCreateInput {
         return {
@@ -218,7 +219,7 @@ export class RunStepDbFactory {
      * Create run step with specific status
      */
     static createWithStatus(
-        runId: string,
+        runId: bigint,
         status: "InProgress" | "Completed" | "Skipped",
         overrides?: Partial<Prisma.run_stepCreateInput>,
     ): Prisma.run_stepCreateInput {
@@ -246,7 +247,7 @@ export class RunStepDbFactory {
      * Create run step with specific complexity and context switches
      */
     static createWithComplexity(
-        runId: string,
+        runId: bigint,
         complexity: number,
         contextSwitches = 0,
         overrides?: Partial<Prisma.run_stepCreateInput>,
@@ -262,7 +263,7 @@ export class RunStepDbFactory {
      * Create run step with specific order
      */
     static createWithOrder(
-        runId: string,
+        runId: bigint,
         order: number,
         overrides?: Partial<Prisma.run_stepCreateInput>,
     ): Prisma.run_stepCreateInput {
@@ -277,7 +278,7 @@ export class RunStepDbFactory {
      * Create a sequence of run steps for a run
      */
     static createSequence(
-        runId: string,
+        runId: bigint,
         stepCount = 3,
         options?: {
             allCompleted?: boolean;
@@ -294,7 +295,7 @@ export class RunStepDbFactory {
         return Array.from({ length: stepCount }, (_, index) => {
             const order = index + 1;
             const isLast = index === stepCount - 1;
-            
+
             let status: "InProgress" | "Completed" | "Skipped" = "InProgress";
             if (allCompleted) {
                 status = "Completed";
@@ -307,7 +308,7 @@ export class RunStepDbFactory {
             const complexity = Math.floor(
                 Math.random() * (complexityRange[1] - complexityRange[0] + 1),
             ) + complexityRange[0];
-            
+
             const contextSwitches = Math.floor(Math.random() * complexity);
 
             return this.createWithStatus(runId, status, {
@@ -328,11 +329,11 @@ export class RunStepDbFactory {
 export async function seedRunSteps(
     prisma: any,
     options: {
-        runId: string;
+        runId: bigint;
         stepCount?: number;
         statuses?: Array<"InProgress" | "Completed" | "Skipped">;
         withResourceVersions?: boolean;
-        resourceVersionIds?: string[];
+        resourceVersionIds?: bigint[];
         complexityRange?: [number, number];
     },
 ) {
@@ -353,7 +354,7 @@ export async function seedRunSteps(
         const complexity = Math.floor(
             Math.random() * (complexityRange[1] - complexityRange[0] + 1),
         ) + complexityRange[0];
-        
+
         const stepData = RunStepDbFactory.createWithStatus(runId, status, {
             order,
             name: `Seeded Step ${order}`,
@@ -388,7 +389,7 @@ export async function seedRunSteps(
  * Helper to create run step that matches the shape expected by API responses
  */
 export function createApiResponseRunStep(overrides?: Partial<Prisma.run_stepCreateInput>) {
-    const stepData = RunStepDbFactory.createComplete("run_123", overrides);
+    const stepData = RunStepDbFactory.createComplete(generatePK(), overrides);
     return {
         ...stepData,
         run: undefined, // Remove relation for API response
@@ -399,7 +400,7 @@ export function createApiResponseRunStep(overrides?: Partial<Prisma.run_stepCrea
 /**
  * Helper to clean up test run steps
  */
-export async function cleanupRunSteps(prisma: PrismaClient, stepIds: string[]) {
+export async function cleanupRunSteps(prisma: PrismaClient, stepIds: bigint[]) {
     await prisma.run_step.deleteMany({
         where: { id: { in: stepIds } },
     });
@@ -410,7 +411,7 @@ export async function cleanupRunSteps(prisma: PrismaClient, stepIds: string[]) {
  */
 export async function verifyRunStepState(
     prisma: any,
-    stepId: string,
+    stepId: bigint,
     expected: Partial<{
         status: "InProgress" | "Completed" | "Skipped";
         complexity: number;
@@ -434,11 +435,17 @@ export async function verifyRunStepState(
     // Check each expected field
     Object.entries(expected).forEach(([key, value]) => {
         if (key === "completedAt" && value === null) {
-            expect(actual[key]).toBeNull();
+            if (actual[key] !== null) {
+                throw new Error(`Expected ${key} to be null, but got ${actual[key]}`);
+            }
         } else if (key === "completedAt" && value instanceof Date) {
-            expect(actual[key]).toBeInstanceOf(Date);
+            if (!(actual[key] instanceof Date)) {
+                throw new Error(`Expected ${key} to be a Date instance`);
+            }
         } else {
-            expect(actual[key]).toBe(value);
+            if (actual[key] !== value) {
+                throw new Error(`Expected ${key} to be ${value}, but got ${actual[key]}`);
+            }
         }
     });
 
