@@ -54,6 +54,10 @@ setup() {
     
     mock::network::set_online() { return 0; }
     setup_standard_mocks() { 
+    
+    # Load the functions we are testing (required for bats isolation)
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    source "${SCRIPT_DIR}/api.sh"
         export FORCE="${FORCE:-no}"
         export YES="${YES:-no}"
         export OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"

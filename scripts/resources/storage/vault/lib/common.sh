@@ -55,7 +55,21 @@ vault::is_sealed() {
     fi
     
     local seal_status
-    seal_status=$(curl -sf "${VAULT_BASE_URL}/v1/sys/seal-status" 2>/dev/null | jq -r '.sealed // true' 2>/dev/null)
+    local api_response
+    api_response=$(curl -sf "${VAULT_BASE_URL}/v1/sys/seal-status" 2>/dev/null)
+    
+    # If API call failed, assume sealed for safety
+    if [[ $? -ne 0 ]] || [[ -z "$api_response" ]]; then
+        return 0  # Consider sealed if we can't determine status
+    fi
+    
+    seal_status=$(echo "$api_response" | jq -r '.sealed' 2>/dev/null)
+    
+    # If jq parsing failed, assume sealed for safety
+    if [[ $? -ne 0 ]] || [[ -z "$seal_status" ]]; then
+        return 0
+    fi
+    
     [[ "$seal_status" == "true" ]]
 }
 

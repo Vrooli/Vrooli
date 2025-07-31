@@ -7,7 +7,7 @@
 # Returns: 0 on success, 1 on failure
 #######################################
 postgres::docker::create_network() {
-    if ! docker network ls | grep -q "^${POSTGRES_NETWORK}"; then
+    if ! docker network ls | grep -q "\s${POSTGRES_NETWORK}\s"; then
         log::debug "Creating Docker network: ${POSTGRES_NETWORK}"
         if docker network create "${POSTGRES_NETWORK}" >/dev/null 2>&1; then
             log::debug "Docker network created successfully"
@@ -145,13 +145,13 @@ postgres::docker::create_container() {
         "-e" "POSTGRES_PASSWORD=${password}"
         "-e" "POSTGRES_DB=${POSTGRES_DEFAULT_DB}"
         "-e" "POSTGRES_INITDB_ARGS=--encoding=${POSTGRES_DEFAULT_ENCODING} --locale=${POSTGRES_DEFAULT_LOCALE}"
-        "-c" "config_file=/etc/postgresql/postgresql.conf"
         "--restart" "unless-stopped"
         "--health-cmd" "pg_isready -U ${POSTGRES_DEFAULT_USER} -d ${POSTGRES_DEFAULT_DB}"
         "--health-interval" "${POSTGRES_HEALTH_CHECK_INTERVAL}s"
         "--health-timeout" "${POSTGRES_HEALTH_CHECK_TIMEOUT}s"
         "--health-retries" "${POSTGRES_HEALTH_CHECK_RETRIES}"
         "${POSTGRES_IMAGE}"
+        "-c" "config_file=/etc/postgresql/postgresql.conf"
     )
     
     # Template configuration is now handled via mounted config file
@@ -287,14 +287,16 @@ postgres::docker::remove() {
     
     # Stop container if running
     if postgres::common::is_running "$instance_name"; then
-        postgres::docker::stop "$instance_name" || {
+        # Try graceful stop first, with timeout
+        if ! timeout 30 docker stop "${container_name}" >/dev/null 2>&1; then
             if [[ "$force" == "true" ]]; then
-                log::warn "Force stopping container"
+                log::warn "Graceful stop timed out, force stopping container"
                 docker kill "${container_name}" >/dev/null 2>&1 || true
             else
+                log::error "Failed to stop container within 30 seconds. Use --force yes to force removal."
                 return 1
             fi
-        }
+        fi
     fi
     
     log::info "Removing PostgreSQL instance '$instance_name'..."

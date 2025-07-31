@@ -53,6 +53,12 @@ postgres::instance::create() {
     
     log::info "Creating PostgreSQL instance '$instance_name' on port $port with template '$template'"
     
+    # Final port availability check before creating any configuration
+    if ! postgres::common::is_port_available "$port"; then
+        log::error "Port $port is no longer available (may have been claimed by another process)"
+        return 1
+    fi
+    
     # Save instance configuration
     postgres::instance::save_config "$instance_name" "$port" "$password" "$template"
     
@@ -72,6 +78,12 @@ postgres::instance::create() {
         fi
     else
         log::error "${MSG_CREATE_FAILED}"
+        # Clean up configuration on Docker container creation failure
+        local instance_dir="${POSTGRES_INSTANCES_DIR}/${instance_name}"
+        if [[ -d "$instance_dir" ]]; then
+            rm -rf "$instance_dir"
+            log::debug "Cleaned up instance configuration due to container creation failure"
+        fi
         return 1
     fi
 }

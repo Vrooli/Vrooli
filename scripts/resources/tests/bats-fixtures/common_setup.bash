@@ -58,14 +58,34 @@ source "$MOCKS_DIR/resource_mocks.bash"
 
 # Setup standard test environment with basic defaults
 setup_standard_mocks() {
-    # Set basic environment variables commonly used in tests
+    # Set standard environment variables first
     export FORCE="${FORCE:-no}"
     export YES="${YES:-no}"
     export SKIP_MODELS="${SKIP_MODELS:-no}"
-    
-    # Default output settings
     export OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"
     export QUIET="${QUIET:-no}"
+    
+    # Ensure mocks are loaded - use absolute path as fallback
+    if ! type -t mock::network::set_online &>/dev/null; then
+        # Try to find mocks directory relative to this script
+        local this_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        local mocks_dir="$this_dir/mocks"
+        
+        # If that doesn't work, use the known absolute path
+        if [[ ! -d "$mocks_dir" ]]; then
+            mocks_dir="/home/matthalloran8/Vrooli/scripts/resources/tests/bats-fixtures/mocks"
+        fi
+        
+        if [[ -d "$mocks_dir" ]]; then
+            source "$mocks_dir/system_mocks.bash"
+            source "$mocks_dir/mock_helpers.bash"
+            source "$mocks_dir/resource_mocks.bash"
+        else
+            echo "ERROR: Could not find mocks directory!" >&2
+            echo "Tried: $this_dir/mocks and /home/matthalloran8/Vrooli/scripts/resources/tests/bats-fixtures/mocks" >&2
+            return 1
+        fi
+    fi
     
     # Set up network as online by default
     mock::network::set_online

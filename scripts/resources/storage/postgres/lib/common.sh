@@ -184,8 +184,8 @@ postgres::common::health_check() {
         return 1
     fi
     
-    # Check if PostgreSQL is accepting connections
-    if docker exec "$container_name" pg_isready -U "${POSTGRES_DEFAULT_USER}" >/dev/null 2>&1; then
+    # Check if PostgreSQL is accepting connections (with timeout)
+    if timeout 5 docker exec "$container_name" pg_isready -U "${POSTGRES_DEFAULT_USER}" >/dev/null 2>&1; then
         return 0
     fi
     

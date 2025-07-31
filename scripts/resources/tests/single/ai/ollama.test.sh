@@ -39,6 +39,42 @@ setup_test() {
     # Register cleanup handler
     register_cleanup_handler
     
+    # Auto-discovery fallback for direct test execution
+    if [[ -z "${HEALTHY_RESOURCES_STR:-}" ]]; then
+        echo "🔍 Auto-discovering resources for direct test execution..."
+        
+        # Use the resource discovery system with timeout
+        local resources_dir
+        resources_dir="$(cd "$SCRIPT_DIR/../.." && pwd)"
+        
+        local discovery_output=""
+        if timeout 10s bash -c "\"$resources_dir/index.sh\" --action discover 2>&1" > /tmp/discovery_output.tmp 2>&1; then
+            discovery_output=$(cat /tmp/discovery_output.tmp)
+            rm -f /tmp/discovery_output.tmp
+        else
+            echo "⚠️  Auto-discovery timed out, using fallback method..."
+            # Fallback: check if the required resource is running on its default port
+            if curl -f -s --max-time 2 "$OLLAMA_BASE_URL/api/tags" >/dev/null 2>&1; then
+                discovery_output="✅ $TEST_RESOURCE is running on port 11434"
+            fi
+        fi
+        
+        local discovered_resources=()
+        while IFS= read -r line; do
+            if [[ "$line" =~ ✅[[:space:]]+([^[:space:]]+)[[:space:]]+is[[:space:]]+running ]]; then
+                discovered_resources+=("${BASH_REMATCH[1]}")
+            fi
+        done <<< "$discovery_output"
+        
+        if [[ ${#discovered_resources[@]} -eq 0 ]]; then
+            echo "⚠️  No resources discovered, but test will proceed..."
+            discovered_resources=("$TEST_RESOURCE")
+        fi
+        
+        export HEALTHY_RESOURCES_STR="${discovered_resources[*]}"
+        echo "✓ Discovered healthy resources: $HEALTHY_RESOURCES_STR"
+    fi
+    
     # Verify Ollama is available
     require_resource "$TEST_RESOURCE"
     

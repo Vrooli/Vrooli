@@ -219,10 +219,11 @@ postgres::multi::status() {
         return 0
     fi
     
+    
     log::info "Status of PostgreSQL instances:"
     log::info "==============================="
     printf "%-20s %-12s %-8s %-12s %s\\n" "Instance" "Status" "Health" "Port" "Template"
-    printf "%-20s %-12s %-8s %-12s %s\\n" "$(printf '%*s' 20 | tr ' ' '-')" "$(printf '%*s' 12 | tr ' ' '-')" "$(printf '%*s' 8 | tr ' ' '-')" "$(printf '%*s' 12 | tr ' ' '-')" "$(printf '%*s' 12 | tr ' ' '-')"
+    printf "%-20s %-12s %-8s %-12s %s\\n" "--------------------" "------------" "--------" "------------" "------------"
     
     local running_count=0
     local healthy_count=0
@@ -241,11 +242,11 @@ postgres::multi::status() {
             
             if postgres::common::is_running "$instance"; then
                 status="running"
-                ((running_count++))
+                running_count=$((running_count + 1))
                 
                 if postgres::common::health_check "$instance"; then
                     health="healthy"
-                    ((healthy_count++))
+                    healthy_count=$((healthy_count + 1))
                 else
                     health="unhealthy"
                 fi
@@ -436,7 +437,7 @@ postgres::multi::resource_usage() {
     log::info "Resource Usage for PostgreSQL instances:"
     log::info "========================================"
     printf "%-20s %-12s %-12s %-12s %s\\n" "Instance" "CPU %" "Memory" "Disk I/O" "Status"
-    printf "%-20s %-12s %-12s %-12s %s\\n" "$(printf '%*s' 20 | tr ' ' '-')" "$(printf '%*s' 12 | tr ' ' '-')" "$(printf '%*s' 12 | tr ' ' '-')" "$(printf '%*s' 12 | tr ' ' '-')" "$(printf '%*s' 12 | tr ' ' '-')"
+    printf "%-20s %-12s %-12s %-12s %s\\n" "--------------------" "------------" "------------" "------------" "------------"
     
     for instance in "${instances[@]}"; do
         instance=$(echo "$instance" | tr -d ' ')

@@ -40,6 +40,10 @@ setup() {
     # Setup standard mocks
     setup_standard_mocks
     
+    # Load the functions we are testing (required for bats isolation)
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    source "${SCRIPT_DIR}/install.sh"
+    
     # Set all required test environment variables (lightweight per-test)
     export VAULT_CONTAINER_NAME="vault-test"
     export VAULT_MODE="dev"

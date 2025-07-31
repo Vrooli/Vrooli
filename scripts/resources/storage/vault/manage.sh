@@ -187,6 +187,12 @@ vault::main() {
         "status")
             vault::show_status
             ;;
+        "auth-info")
+            vault::show_auth_info
+            ;;
+        "test-functional")
+            vault::test_functional
+            ;;
         "logs")
             if [[ "$FOLLOW_LOGS" == "yes" ]]; then
                 vault::docker::show_logs "$LOG_LINES" "follow"

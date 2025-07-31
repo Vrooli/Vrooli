@@ -22,7 +22,18 @@ fi
 
 # Discover all available resources from the resource scripts
 discover_all_resources() {
-    log_info "Discovering available resources..."
+    # If HEALTHY_RESOURCES_STR is already set (from index.sh), use it
+    if [[ -n "${HEALTHY_RESOURCES_STR:-}" ]]; then
+        log_info "Using pre-discovered healthy resources: $HEALTHY_RESOURCES_STR"
+        IFS=' ' read -ra HEALTHY_RESOURCES <<< "$HEALTHY_RESOURCES_STR"
+        ALL_RESOURCES=("${HEALTHY_RESOURCES[@]}")
+        ENABLED_RESOURCES=("${HEALTHY_RESOURCES[@]}")
+        log_success "Pre-discovered ${#ALL_RESOURCES[@]} healthy resources: ${ALL_RESOURCES[*]}"
+        return 0
+    fi
+    
+    # Fallback to original discovery method for direct test execution
+    log_info "Auto-discovering resources..."
     
     local discovery_output
     discovery_output=$("$RESOURCES_DIR/index.sh" --action list 2>&1) || {
@@ -126,6 +137,14 @@ filter_enabled_resources() {
 
 # Validate health of enabled resources
 validate_resource_health() {
+    # If resources were pre-discovered and validated, skip re-validation
+    if [[ -n "${HEALTHY_RESOURCES_STR:-}" ]]; then
+        log_info "Resources already validated by discovery system, skipping health checks"
+        # HEALTHY_RESOURCES was already populated in discover_all_resources
+        return 0
+    fi
+    
+    # Original validation logic for direct test execution
     log_info "Validating resource health..."
     
     for resource in "${ENABLED_RESOURCES[@]}"; do
@@ -293,6 +312,10 @@ check_resource_health() {
             else
                 echo "unreachable"
             fi
+            return
+            ;;
+        "postgres")
+            check_postgres_health
             return
             ;;
     esac
@@ -524,6 +547,45 @@ check_vault_health() {
     fi
 }
 
+check_postgres_health() {
+    # PostgreSQL doesn't expose HTTP endpoints, so we check via database connection
+    # First, try to find running postgres containers
+    local running_containers
+    running_containers=$(docker ps --format "{{.Names}}" 2>/dev/null | grep -E "(postgres|postgresql)" || echo "")
+    
+    if [[ -z "$running_containers" ]]; then
+        echo "unreachable"
+        return
+    fi
+    
+    # Try to connect to PostgreSQL instances on common ports
+    local ports=(5433 5434 5435 5436 5437 5438 5439)
+    local healthy_found=false
+    
+    for port in "${ports[@]}"; do
+        # Check if port is open
+        if timeout 3 bash -c "</dev/tcp/localhost/$port" 2>/dev/null; then
+            # Try a simple PostgreSQL connection test
+            if which pg_isready >/dev/null 2>&1; then
+                if pg_isready -h localhost -p "$port" -U postgres -t 3 >/dev/null 2>&1; then
+                    healthy_found=true
+                    break
+                fi
+            else
+                # Fallback: if port is open and we have containers, assume healthy
+                healthy_found=true
+                break
+            fi
+        fi
+    done
+    
+    if [[ "$healthy_found" == "true" ]]; then
+        echo "healthy"
+    else
+        echo "unreachable"
+    fi
+}
+
 check_generic_health() {
     local resource="$1"
     local port="$2"
@@ -576,6 +638,7 @@ get_resource_info() {
             "searxng") host_port="8100" ;;
             "huginn") host_port="4111" ;;
             "comfyui") host_port="8188" ;;
+            "postgres") host_port="5433" ;;
             *) host_port="" ;;
         esac
         

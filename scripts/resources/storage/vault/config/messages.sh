@@ -174,6 +174,8 @@ ACTIONS:
     stop             Stop Vault service
     restart          Restart Vault service
     status           Show Vault status and health
+    auth-info        Show authentication information and example commands
+    test-functional  Run comprehensive functional tests (CRUD operations)
     logs             Show Vault logs
     init-dev         Initialize Vault in development mode
     init-prod        Initialize Vault in production mode

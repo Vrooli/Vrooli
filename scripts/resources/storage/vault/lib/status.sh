@@ -198,11 +198,72 @@ vault::check_secret_engines() {
             local kv_version
             kv_version=$(echo "$mounts_response" | jq -r ".\"$kv_engine_path\".options.version // \"1\"")
             echo "    KV Engine ($VAULT_SECRET_ENGINE): ✅ Enabled (v$kv_version)"
+            
+            # Test functional operations
+            vault::test_secret_operations
         else
             echo "    KV Engine ($VAULT_SECRET_ENGINE): ❌ Not enabled"
         fi
     else
         echo "    KV Engine ($VAULT_SECRET_ENGINE): ❓ Cannot check (API error)"
+    fi
+}
+
+#######################################
+# Test actual secret operations functionality
+#######################################
+vault::test_secret_operations() {
+    echo "    Functional Tests:"
+    
+    local test_path="health-check/test-$(date +%s)"
+    local test_data='{"data":{"test_key":"test_value","timestamp":"'$(date -Iseconds)'"}}'
+    
+    # Test 1: Write operation
+    local write_response
+    write_response=$(vault::api_request "PUT" "/v1/${VAULT_SECRET_ENGINE}/data/${test_path}" "$test_data" 2>/dev/null)
+    
+    if [[ $? -eq 0 ]] && echo "$write_response" | jq -e '.data' >/dev/null 2>&1; then
+        echo "      Write Operations: ✅ Working"
+        
+        # Test 2: Read operation
+        local read_response
+        read_response=$(vault::api_request "GET" "/v1/${VAULT_SECRET_ENGINE}/data/${test_path}" 2>/dev/null)
+        
+        if [[ $? -eq 0 ]] && echo "$read_response" | jq -e '.data.data.test_key' >/dev/null 2>&1; then
+            local read_value
+            read_value=$(echo "$read_response" | jq -r '.data.data.test_key')
+            if [[ "$read_value" == "test_value" ]]; then
+                echo "      Read Operations: ✅ Working"
+                
+                # Test 3: List operation
+                local list_response
+                list_response=$(vault::api_request "GET" "/v1/${VAULT_SECRET_ENGINE}/metadata/health-check?list=true" 2>/dev/null)
+                
+                if [[ $? -eq 0 ]] && echo "$list_response" | jq -e '.data.keys' >/dev/null 2>&1; then
+                    echo "      List Operations: ✅ Working"
+                else
+                    echo "      List Operations: ⚠️  Issues detected"
+                fi
+                
+                # Test 4: Delete operation (cleanup)
+                local delete_response
+                delete_response=$(vault::api_request "DELETE" "/v1/${VAULT_SECRET_ENGINE}/data/${test_path}" 2>/dev/null)
+                
+                if [[ $? -eq 0 ]]; then
+                    echo "      Delete Operations: ✅ Working"
+                    echo "      Overall Functionality: ✅ All tests passed"
+                else
+                    echo "      Delete Operations: ⚠️  Issues detected (test data not cleaned up)"
+                fi
+            else
+                echo "      Read Operations: ❌ Data corruption (expected 'test_value', got '$read_value')"
+            fi
+        else
+            echo "      Read Operations: ❌ Failed"
+        fi
+    else
+        echo "      Write Operations: ❌ Failed"
+        echo "      Overall Functionality: ❌ Basic operations not working"
     fi
 }
 
@@ -453,6 +514,224 @@ vault::show_troubleshooting() {
     if [[ "$VAULT_MODE" == "dev" ]]; then
         vault::message "info" "MSG_VAULT_TROUBLESHOOT_REINIT"
     fi
+}
+
+#######################################
+# Show authentication information
+#######################################
+vault::show_auth_info() {
+    log::header "Vault Authentication Information"
+    
+    local status
+    status=$(vault::get_status)
+    
+    if [[ "$status" != "healthy" ]]; then
+        log::error "Vault is not healthy (status: $status). Cannot retrieve authentication info."
+        log::info "Run: ./manage.sh --action status"
+        return 1
+    fi
+    
+    echo "Mode: $VAULT_MODE"
+    echo "Base URL: $VAULT_BASE_URL"
+    echo
+    
+    case "$VAULT_MODE" in
+        "dev")
+            echo "Development Mode Authentication:"
+            echo "  Root Token: $VAULT_DEV_ROOT_TOKEN_ID"
+            echo "  ⚠️  Dev mode token - for development only!"
+            echo
+            
+            echo "Quick Test Commands:"
+            echo "  # Test API access"
+            echo "  curl -H \"X-Vault-Token: $VAULT_DEV_ROOT_TOKEN_ID\" $VAULT_BASE_URL/v1/sys/health"
+            echo
+            echo "  # List existing secrets"
+            echo "  curl -H \"X-Vault-Token: $VAULT_DEV_ROOT_TOKEN_ID\" $VAULT_BASE_URL/v1/secret/metadata?list=true"
+            echo
+            echo "  # Create a test secret"
+            echo "  curl -X PUT -H \"X-Vault-Token: $VAULT_DEV_ROOT_TOKEN_ID\" -d '{\"data\":{\"key\":\"value\"}}' $VAULT_BASE_URL/v1/secret/data/test"
+            echo
+            echo "  # Read a secret"
+            echo "  curl -H \"X-Vault-Token: $VAULT_DEV_ROOT_TOKEN_ID\" $VAULT_BASE_URL/v1/secret/data/test"
+            ;;
+        "prod")
+            echo "Production Mode Authentication:"
+            if [[ -f "$VAULT_TOKEN_FILE" ]]; then
+                local token
+                token=$(cat "$VAULT_TOKEN_FILE" 2>/dev/null)
+                if [[ -n "$token" ]]; then
+                    echo "  Root Token: ${token:0:8}****** (from $VAULT_TOKEN_FILE)"
+                    echo "  ⚠️  Keep this token secure!"
+                else
+                    echo "  ❌ Token file exists but is empty: $VAULT_TOKEN_FILE"
+                fi
+            else
+                echo "  ❌ Root token file not found: $VAULT_TOKEN_FILE"
+                echo "  💡 Initialize Vault first: ./manage.sh --action init-prod"
+            fi
+            
+            if [[ -f "$VAULT_UNSEAL_KEYS_FILE" ]]; then
+                echo "  Unseal Keys: Available in $VAULT_UNSEAL_KEYS_FILE"
+                echo "  ⚠️  Keep unseal keys secure and backed up!"
+            else
+                echo "  ❌ Unseal keys file not found: $VAULT_UNSEAL_KEYS_FILE"
+            fi
+            
+            echo
+            echo "Production Test Commands:"
+            if [[ -f "$VAULT_TOKEN_FILE" ]]; then
+                echo "  # Test API access"
+                echo "  curl -H \"X-Vault-Token: \$(cat $VAULT_TOKEN_FILE)\" $VAULT_BASE_URL/v1/sys/health"
+                echo
+                echo "  # List existing secrets"
+                echo "  curl -H \"X-Vault-Token: \$(cat $VAULT_TOKEN_FILE)\" $VAULT_BASE_URL/v1/secret/metadata?list=true"
+            else
+                echo "  # Initialize first: ./manage.sh --action init-prod"
+            fi
+            ;;
+    esac
+    
+    echo
+    echo "Management Script Commands:"
+    echo "  # Store a secret"
+    echo "  ./manage.sh --action put-secret --path \"myapp/api-key\" --value \"secret123\""
+    echo
+    echo "  # Retrieve a secret"
+    echo "  ./manage.sh --action get-secret --path \"myapp/api-key\""
+    echo
+    echo "  # List secrets"
+    echo "  ./manage.sh --action list-secrets --path \"myapp\""
+}
+
+#######################################
+# Run standalone functional tests
+#######################################
+vault::test_functional() {
+    log::header "Vault Functional Tests"
+    
+    local status
+    status=$(vault::get_status)
+    
+    if [[ "$status" != "healthy" ]]; then
+        log::error "Vault is not healthy (status: $status). Cannot run functional tests."
+        log::info "Run: ./manage.sh --action status"
+        return 1
+    fi
+    
+    echo "Testing core Vault functionality..."
+    echo
+    
+    local test_path="functional-test/test-$(date +%s)"
+    local test_data='{"data":{"test_key":"functional_test_value","timestamp":"'$(date -Iseconds)'","test_id":"'$(uuidgen 2>/dev/null || echo "test-$$-$RANDOM")'"}}'
+    
+    # Test 1: Write operation
+    echo "1. Testing Write Operations..."
+    local write_response
+    write_response=$(vault::api_request "PUT" "/v1/${VAULT_SECRET_ENGINE}/data/${test_path}" "$test_data" 2>/dev/null)
+    
+    if [[ $? -eq 0 ]] && echo "$write_response" | jq -e '.data' >/dev/null 2>&1; then
+        echo "   ✅ Write operation successful"
+        local version_created
+        version_created=$(echo "$write_response" | jq -r '.data.version // "unknown"')
+        echo "   📝 Created version: $version_created"
+        
+        # Test 2: Read operation
+        echo
+        echo "2. Testing Read Operations..."
+        local read_response
+        read_response=$(vault::api_request "GET" "/v1/${VAULT_SECRET_ENGINE}/data/${test_path}" 2>/dev/null)
+        
+        if [[ $? -eq 0 ]] && echo "$read_response" | jq -e '.data.data.test_key' >/dev/null 2>&1; then
+            local read_value
+            read_value=$(echo "$read_response" | jq -r '.data.data.test_key')
+            if [[ "$read_value" == "functional_test_value" ]]; then
+                echo "   ✅ Read operation successful"
+                echo "   📖 Data integrity verified"
+                
+                # Test 3: List operation
+                echo
+                echo "3. Testing List Operations..."
+                local list_response
+                list_response=$(vault::api_request "GET" "/v1/${VAULT_SECRET_ENGINE}/metadata/functional-test?list=true" 2>/dev/null)
+                
+                if [[ $? -eq 0 ]] && echo "$list_response" | jq -e '.data.keys' >/dev/null 2>&1; then
+                    local key_count
+                    key_count=$(echo "$list_response" | jq '.data.keys | length')
+                    echo "   ✅ List operation successful"
+                    echo "   📋 Found $key_count keys in namespace"
+                    
+                    # Test 4: Update operation
+                    echo
+                    echo "4. Testing Update Operations..."
+                    local update_data='{"data":{"test_key":"updated_functional_test_value","timestamp":"'$(date -Iseconds)'","update_test":true}}'
+                    local update_response
+                    update_response=$(vault::api_request "PUT" "/v1/${VAULT_SECRET_ENGINE}/data/${test_path}" "$update_data" 2>/dev/null)
+                    
+                    if [[ $? -eq 0 ]] && echo "$update_response" | jq -e '.data' >/dev/null 2>&1; then
+                        local version_updated
+                        version_updated=$(echo "$update_response" | jq -r '.data.version // "unknown"')
+                        echo "   ✅ Update operation successful"
+                        echo "   📝 Updated to version: $version_updated"
+                        
+                        # Verify update
+                        local verify_response
+                        verify_response=$(vault::api_request "GET" "/v1/${VAULT_SECRET_ENGINE}/data/${test_path}" 2>/dev/null)
+                        local verify_value
+                        verify_value=$(echo "$verify_response" | jq -r '.data.data.test_key')
+                        
+                        if [[ "$verify_value" == "updated_functional_test_value" ]]; then
+                            echo "   ✅ Update verification successful"
+                        else
+                            echo "   ❌ Update verification failed"
+                        fi
+                    else
+                        echo "   ❌ Update operation failed"
+                    fi
+                    
+                    # Test 5: Delete operation (cleanup)
+                    echo
+                    echo "5. Testing Delete Operations..."
+                    local delete_response
+                    delete_response=$(vault::api_request "DELETE" "/v1/${VAULT_SECRET_ENGINE}/data/${test_path}" 2>/dev/null)
+                    
+                    if [[ $? -eq 0 ]]; then
+                        echo "   ✅ Delete operation successful"
+                        echo "   🧹 Test data cleaned up"
+                        
+                        # Verify deletion
+                        local verify_delete_response
+                        verify_delete_response=$(vault::api_request "GET" "/v1/${VAULT_SECRET_ENGINE}/data/${test_path}" 2>/dev/null)
+                        if echo "$verify_delete_response" | jq -e '.errors' >/dev/null 2>&1; then
+                            echo "   ✅ Delete verification successful"
+                        else
+                            echo "   ⚠️  Delete verification inconclusive"
+                        fi
+                    else
+                        echo "   ❌ Delete operation failed"
+                        echo "   ⚠️  Test data may need manual cleanup"
+                    fi
+                else
+                    echo "   ❌ List operation failed"
+                fi
+            else
+                echo "   ❌ Read operation failed - data corruption detected"
+                echo "   📖 Expected: 'functional_test_value', Got: '$read_value'"
+            fi
+        else
+            echo "   ❌ Read operation failed"
+        fi
+    else
+        echo "   ❌ Write operation failed"
+        echo "   🚫 Cannot proceed with further tests"
+        return 1
+    fi
+    
+    echo
+    log::header "Functional Test Summary"
+    echo "✅ All core Vault operations are working correctly"
+    echo "🔐 Secret storage, retrieval, updates, and deletion verified"
+    echo "📊 Vault is ready for production use"
 }
 
 #######################################

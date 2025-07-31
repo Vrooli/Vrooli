@@ -7,6 +7,9 @@
 # Idempotent - safe to call multiple times
 #######################################
 postgres::messages::init() {
+    # Check if already initialized to prevent readonly conflicts
+    [[ -n "${POSTGRES_MESSAGES_INITIALIZED:-}" ]] && return 0
+    
     # Success messages
     [[ -z "${MSG_INSTALL_SUCCESS:-}" ]] && readonly MSG_INSTALL_SUCCESS="✅ PostgreSQL resource installed successfully"
     [[ -z "${MSG_CREATE_SUCCESS:-}" ]] && readonly MSG_CREATE_SUCCESS="✅ PostgreSQL instance created successfully"
@@ -62,6 +65,9 @@ postgres::messages::init() {
     [[ -z "${MSG_HELP_LIST:-}" ]] && readonly MSG_HELP_LIST="Use 'manage.sh --action list' to see all instances"
     [[ -z "${MSG_HELP_CREATE:-}" ]] && readonly MSG_HELP_CREATE="Use 'manage.sh --action create --instance <name>' to create a new instance"
     [[ -z "${MSG_HELP_CREDENTIALS:-}" ]] && readonly MSG_HELP_CREDENTIALS="Credentials saved to instance configuration"
+    
+    # Mark as initialized
+    readonly POSTGRES_MESSAGES_INITIALIZED=1
 }
 
 # Initialize messages when sourced
