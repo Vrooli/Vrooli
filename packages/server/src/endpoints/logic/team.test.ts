@@ -45,22 +45,22 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
         await cleanupGroups.team(DbProvider.get());
 
         // Clean teams before users to avoid FK constraints
-        await prisma.team.deleteMany();
+        await DbProvider.get().team.deleteMany();
 
         // Clean user-related data (all potential relationships created by seedTestUsers)
-        await prisma.session.deleteMany();
-        await prisma.user_auth.deleteMany();
-        await prisma.email.deleteMany();
-        await prisma.phone.deleteMany();
-        await prisma.user_translation.deleteMany();
-        await prisma.push_device.deleteMany();
-        await prisma.wallet.deleteMany();
-        await prisma.api_key.deleteMany();
-        await prisma.credit_account.deleteMany();
-        await prisma.award.deleteMany();
+        await DbProvider.get().session.deleteMany();
+        await DbProvider.get().user_auth.deleteMany();
+        await DbProvider.get().email.deleteMany();
+        await DbProvider.get().phone.deleteMany();
+        await DbProvider.get().user_translation.deleteMany();
+        await DbProvider.get().push_device.deleteMany();
+        await DbProvider.get().wallet.deleteMany();
+        await DbProvider.get().api_key.deleteMany();
+        await DbProvider.get().credit_account.deleteMany();
+        await DbProvider.get().award.deleteMany();
 
         // Finally clean users
-        await prisma.user.deleteMany();
+        await DbProvider.get().user.deleteMany();
 
         // Clear Redis cache
         await CacheService.get().flushAll();
@@ -75,7 +75,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
     function createAuthSessionData(user: any) {
         return {
             ...loggedInUserNoPremiumData(),
-            id: user.id,
+            id: user.id.toString(),
             handle: user.handle || `testuser_${user.id}`,
             name: user.name || `Test User ${user.id}`,
             publicId: user.publicId,
@@ -219,9 +219,9 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
             it("supports API key with read permissions", async function testApiKeyReadPermissions() {
                 const { testUsers, teams } = await createTestData();
                 const { req, res } = await mockApiSession(
-                    "test-api-key-" + generatePK(),
-                    mockReadPublicPermissions(["Team"]),
-                    { id: testUsers[0].id, emails: [{ emailAddress: "test@example.com" }], handle: "testuser" },
+                    "test-api-key-" + generatePK().toString(),
+                    mockReadPublicPermissions(),
+                    { id: testUsers[0].id.toString(), emails: [{ emailAddress: "test@example.com" }], handle: "testuser" },
                 );
 
                 const input: FindByPublicIdInput = { publicId: teams[0].publicId };
@@ -319,9 +319,9 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
             it("supports API key with read permissions", async function testApiKeyFindMany() {
                 const { testUsers } = await createTestData();
                 const { req, res } = await mockApiSession(
-                    "test-api-key-" + generatePK(),
-                    mockReadPublicPermissions(["Team"]),
-                    { id: testUsers[0].id, emails: [{ emailAddress: "test@example.com" }], handle: "testuser" },
+                    "test-api-key-" + generatePK().toString(),
+                    mockReadPublicPermissions(),
+                    { id: testUsers[0].id.toString(), emails: [{ emailAddress: "test@example.com" }], handle: "testuser" },
                 );
 
                 const input: TeamSearchInput = {};
@@ -426,7 +426,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
                 const userData = loggedInUserNoPremiumData();
                 const { req, res } = await mockApiSession(
                     "test-api-key",
-                    mockReadPublicPermissions(["Team"]), // Only read permissions, not write
+                    mockReadPublicPermissions(), // Only read permissions, not write
                     userData,
                 );
                 const input = teamTestDataFactory.createMinimal();
@@ -445,7 +445,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
                 const { req, res } = await mockAuthenticatedSession(createAuthSessionData(testUser[0]));
 
                 const input: TeamCreateInput = teamTestDataFactory.createMinimal({
-                    id: generatePK(),
+                    id: generatePK().toString(),
                 });
 
                 const result = await team.createOne({ input }, { req, res }, team_createOne);
@@ -480,7 +480,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
                 ]);
 
                 const input: TeamCreateInput = teamTestDataFactory.createComplete({
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     handle: "awesome-dev-team",
                     isPrivate: false,
                     isOpenToNewMembers: true,
@@ -502,9 +502,23 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
                 const { req, res } = await mockAuthenticatedSession(createAuthSessionData(testUser[0]));
 
                 const input: TeamCreateInput = teamTestDataFactory.createMinimal({
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     config: {
-                        __version: "1.0.0",
+                        __version: "1.0",
+                        resources: [],
+                        deploymentType: "development",
+                        goal: "Test team goal",
+                        businessPrompt: "Test business prompt",
+                        resourceQuota: { gpuPercentage: 10, ramGB: 8, cpuCores: 2, storageGB: 50 },
+                        targetProfitPerMonth: "0",
+                        stats: {
+                            totalInstances: 0,
+                            totalProfit: "0",
+                            totalCosts: "0",
+                            averageKPIs: {},
+                            activeInstances: 0,
+                            lastUpdated: Date.now(),
+                        },
                         structure: {
                             type: "MOISE+",
                             version: "1.0",
@@ -537,7 +551,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
                 const { req, res } = await mockAuthenticatedSession(createAuthSessionData(testUser[0]));
 
                 const input: TeamCreateInput = teamTestDataFactory.createMinimal({
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     handle: "existing-team", // Duplicate handle
                 });
 
@@ -551,7 +565,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
                 const { req, res } = await mockAuthenticatedSession(createAuthSessionData(testUser[0]));
 
                 const input: TeamCreateInput = teamTestDataFactory.createMinimal({
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     handle: "Invalid Handle!", // Invalid characters
                 });
 
@@ -565,7 +579,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
                 const { req, res } = await mockAuthenticatedSession(createAuthSessionData(testUser[0]));
 
                 const input: TeamCreateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     // Missing required translations
                 } as TeamCreateInput;
 
@@ -579,7 +593,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
         describe("authentication", function describeUpdateAuthentication() {
             it("not logged in", async function testUpdateNotLoggedIn() {
                 const { req, res } = await mockLoggedOutSession();
-                const input: TeamUpdateInput = { id: generatePK() };
+                const input: TeamUpdateInput = { id: generatePK().toString() };
                 await expect(team.updateOne({ input }, { req, res }, team_updateOne))
                     .rejects
                     .toThrow(expect.objectContaining({
@@ -591,10 +605,10 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
                 const userData = loggedInUserNoPremiumData();
                 const { req, res } = await mockApiSession(
                     "test-api-key",
-                    mockReadPublicPermissions(["Team"]), // Only read permissions, not write
+                    mockReadPublicPermissions(), // Only read permissions, not write
                     userData,
                 );
-                const input: TeamUpdateInput = { id: generatePK() };
+                const input: TeamUpdateInput = { id: generatePK().toString() };
                 await expect(team.updateOne({ input }, { req, res }, team_updateOne))
                     .rejects
                     .toThrow(expect.objectContaining({
@@ -635,7 +649,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
                     handle: "updated-team",
                     isOpenToNewMembers: false,
                     translationsUpdate: [{
-                        id: generatePK(),
+                        id: generatePK().toString(),
                         language: "en",
                         name: "Updated Team Name",
                     }],
@@ -680,7 +694,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
                     handle: "updated-handle",
                     isOpenToNewMembers: false,
                     translationsUpdate: [{
-                        id: generatePK(),
+                        id: generatePK().toString(),
                         language: "en",
                         name: "Updated Team Name",
                         bio: "Updated team description",
@@ -723,7 +737,7 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
                 const input: TeamUpdateInput = {
                     id: existingTeam.id.toString(),
                     memberInvitesCreate: [{
-                        id: generatePK(),
+                        id: generatePK().toString(),
                         message: "Please join our team!",
                         teamConnect: existingTeam.id.toString(),
                         userConnect: testUsers[1].id.toString(),

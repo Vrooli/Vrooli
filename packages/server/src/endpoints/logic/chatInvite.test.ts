@@ -17,6 +17,7 @@ import { chatInvite } from "./chatInvite.js";
 // Import database fixtures for seeding
 import { seedTestChat } from "../../__test/fixtures/db/chatFixtures.js";
 import { seedChatInvites } from "../../__test/fixtures/db/chatInviteFixtures.js";
+import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
 import { chatInviteTestDataFactory } from "../../../shared/src/__test/fixtures/api-inputs/chatInviteFixtures.js";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
@@ -51,6 +52,10 @@ describe("EndpointsChatInvite", () => {
     beforeEach(async () => {
         // Clean up using dependency-ordered cleanup helpers
         await cleanupGroups.userAuth(DbProvider.get());
+
+        // Seed test users using database fixtures
+        const { records: users } = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
+        testUsers = users;
 
         // Seed chats using database fixtures
         chat1 = await seedTestChat(DbProvider.get(), {
@@ -121,7 +126,8 @@ describe("EndpointsChatInvite", () => {
             });
 
             it("returns invite for API key with private read permissions", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
+                const testUser = loggedInUserNoPremiumData();
+                testUser.id = testUsers[0].id;
                 const permissions = mockReadPrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -174,8 +180,8 @@ describe("EndpointsChatInvite", () => {
 
                 // Use validation fixtures for API input
                 const input: ChatInviteCreateInput = chatInviteTestDataFactory.createMinimal({
-                    chatConnect: chat1.id,
-                    userConnect: testUsers[2].id,
+                    chatConnect: chat1.id.toString(),
+                    userConnect: testUsers[2].id.toString(),
                     message: "New Invite",
                 });
 
@@ -188,12 +194,14 @@ describe("EndpointsChatInvite", () => {
             it("API key with write permissions can create invite", async () => {
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: testUsers[0].id });
+                const userData = loggedInUserNoPremiumData();
+                userData.id = testUsers[0].id;
+                const { req, res } = await mockApiSession(apiToken, permissions, userData);
 
                 // Use validation fixtures for API input
                 const input: ChatInviteCreateInput = chatInviteTestDataFactory.createMinimal({
-                    chatConnect: chat1.id,
-                    userConnect: testUsers[2].id,
+                    chatConnect: chat1.id.toString(),
+                    userConnect: testUsers[2].id.toString(),
                 });
 
                 const result = await chatInvite.createOne({ input }, { req, res }, chatInvite_createOne);
@@ -229,10 +237,12 @@ describe("EndpointsChatInvite", () => {
             it("API key without write permissions cannot create invite", async () => {
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: testUsers[0].id });
+                const userData = loggedInUserNoPremiumData();
+                userData.id = testUsers[0].id;
+                const { req, res } = await mockApiSession(apiToken, permissions, userData);
                 const input: ChatInviteCreateInput = chatInviteTestDataFactory.createMinimal({
-                    chatConnect: chat2.id,
-                    userConnect: testUsers[2].id,
+                    chatConnect: chat2.id.toString(),
+                    userConnect: testUsers[2].id.toString(),
                 });
                 await expect(async () => {
                     await chatInvite.createOne({ input }, { req, res }, chatInvite_createOne);
@@ -248,8 +258,8 @@ describe("EndpointsChatInvite", () => {
                 // Only creates invite for chat1 which user0 owns
                 const input: ChatInviteCreateInput[] = [
                     chatInviteTestDataFactory.createMinimal({
-                        chatConnect: chat1.id,
-                        userConnect: testUsers[2].id,
+                        chatConnect: chat1.id.toString(),
+                        userConnect: testUsers[2].id.toString(),
                         message: "Bulk 1",
                     }),
                 ];
@@ -276,11 +286,13 @@ describe("EndpointsChatInvite", () => {
             it("API key without write permissions cannot create many invites", async () => {
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: testUsers[0].id });
+                const userData = loggedInUserNoPremiumData();
+                userData.id = testUsers[0].id;
+                const { req, res } = await mockApiSession(apiToken, permissions, userData);
                 const input: ChatInviteCreateInput[] = [
                     chatInviteTestDataFactory.createMinimal({
-                        chatConnect: chat2.id,
-                        userConnect: testUsers[2].id,
+                        chatConnect: chat2.id.toString(),
+                        userConnect: testUsers[2].id.toString(),
                     }),
                 ];
                 await expect(async () => {
@@ -312,7 +324,9 @@ describe("EndpointsChatInvite", () => {
             it("API key with write permissions can update an invite", async () => {
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: testUsers[0].id });
+                const userData = loggedInUserNoPremiumData();
+                userData.id = testUsers[0].id;
+                const { req, res } = await mockApiSession(apiToken, permissions, userData);
                 const input: ChatInviteUpdateInput = { id: invite1.id, message: "API Update" };
                 const result = await chatInvite.updateOne({ input }, { req, res }, chatInvite_updateOne);
                 expect(result).not.toBeNull();
@@ -347,7 +361,9 @@ describe("EndpointsChatInvite", () => {
             it("API key with write permissions can update many invites", async () => {
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, { ...loggedInUserNoPremiumData(), id: testUsers[0].id });
+                const userData = loggedInUserNoPremiumData();
+                userData.id = testUsers[0].id;
+                const { req, res } = await mockApiSession(apiToken, permissions, userData);
                 const input: ChatInviteUpdateInput[] = [{ id: invite1.id, message: "API Bulk" }];
                 const result = await chatInvite.updateMany({ input }, { req, res }, chatInvite_updateMany);
                 expect(result).toHaveLength(input.length);

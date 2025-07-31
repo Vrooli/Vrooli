@@ -114,7 +114,7 @@ describe("EndpointsReminder", () => {
                 });
 
                 const input: FindByIdInput = {
-                    id: userReminder1.id,
+                    id: userReminder1.id.toString(),
                 };
 
                 const result = await reminder.findOne({ input }, { req, res }, reminder_findOne);
@@ -134,7 +134,7 @@ describe("EndpointsReminder", () => {
                 });
 
                 const input: FindByIdInput = {
-                    id: userReminder1.id,
+                    id: userReminder1.id.toString(),
                 };
 
                 await expect(async () => {
@@ -166,7 +166,7 @@ describe("EndpointsReminder", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: FindByIdInput = {
-                    id: userReminder2.id, // Reminder belongs to user2
+                    id: userReminder2.id.toString(), // Reminder belongs to user2
                 };
 
                 await expect(async () => {
@@ -179,7 +179,7 @@ describe("EndpointsReminder", () => {
                 const { req, res } = await mockLoggedOutSession();
 
                 const input: FindByIdInput = {
-                    id: userReminder1.id,
+                    id: userReminder1.id.toString(),
                 };
 
                 await expect(async () => {
@@ -410,7 +410,7 @@ describe("EndpointsReminder", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: ReminderUpdateInput = {
-                    id: userReminder1.id,
+                    id: userReminder1.id.toString(),
                     name: "Updated Reminder Title",
                     description: "This reminder has been updated",
                     isComplete: true,
@@ -432,7 +432,7 @@ describe("EndpointsReminder", () => {
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
                 const input: ReminderUpdateInput = {
-                    id: userReminder1.id,
+                    id: userReminder1.id.toString(),
                     name: "API Updated Reminder",
                     isComplete: true,
                 };
@@ -452,7 +452,7 @@ describe("EndpointsReminder", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: ReminderUpdateInput = {
-                    id: userReminder2.id, // Belongs to user2
+                    id: userReminder2.id.toString(), // Belongs to user2
                     name: "Unauthorized Update",
                     isComplete: true,
                 };
@@ -468,8 +468,8 @@ describe("EndpointsReminder", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: ReminderUpdateInput = {
-                    id: userReminder1.id,
-                    reminderListConnect: reminderListUser2.id,
+                    id: userReminder1.id.toString(),
+                    reminderListConnect: reminderListUser2.id.toString(),
                 };
 
                 await expect(async () => {
@@ -482,7 +482,7 @@ describe("EndpointsReminder", () => {
                 const { req, res } = await mockLoggedOutSession();
 
                 const input: ReminderUpdateInput = {
-                    id: userReminder1.id,
+                    id: userReminder1.id.toString(),
                     name: "Unauthorized Update",
                     isComplete: true,
                 };
@@ -500,7 +500,7 @@ describe("EndpointsReminder", () => {
                 });
 
                 const input: ReminderUpdateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     name: "Update Non-existent Reminder",
                     isComplete: true,
                 };

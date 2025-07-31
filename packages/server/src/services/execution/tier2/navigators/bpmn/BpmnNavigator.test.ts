@@ -1,6 +1,6 @@
+import { type RoutineVersionConfigObject } from "@vrooli/shared";
 import { beforeEach, describe, expect, test } from "vitest";
 import { BpmnNavigator } from "./BpmnNavigator.js";
-import { type RoutineVersionConfigObject } from "@vrooli/shared";
 
 describe("BpmnNavigator", () => {
     let navigator: BpmnNavigator;
@@ -22,6 +22,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -43,6 +44,7 @@ describe("BpmnNavigator", () => {
             const invalidBpmn = {
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         data: "valid xml",
                     },
@@ -79,6 +81,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: null as unknown as string,
@@ -96,6 +99,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -124,7 +128,7 @@ describe("BpmnNavigator", () => {
         test("should handle exceptions gracefully", () => {
             const cyclicalObject = {} as Record<string, unknown>;
             cyclicalObject.self = cyclicalObject;
-            
+
             expect(navigator.canNavigate(cyclicalObject)).toBe(false);
         });
     });
@@ -135,6 +139,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -151,7 +156,7 @@ describe("BpmnNavigator", () => {
             };
 
             const location = navigator.getStartLocation(bpmnWithStartEvent);
-            
+
             expect(location.nodeId).toBe("StartEvent_1");
             expect(location.routineId).toBe("bpmn_1.0.0_TestProcess");
             expect(location.id).toBe("bpmn_1.0.0_TestProcess_StartEvent_1");
@@ -162,6 +167,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -179,7 +185,7 @@ describe("BpmnNavigator", () => {
             };
 
             const location = navigator.getStartLocation(bpmnWithoutStartEvent);
-            
+
             expect(location.nodeId).toBe("Task_1");
             expect(location.routineId).toBe("bpmn_1.0.0_TestProcess");
         });
@@ -189,6 +195,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -212,6 +219,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -235,6 +243,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -258,6 +267,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -284,6 +294,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -307,6 +318,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -368,7 +380,7 @@ describe("BpmnNavigator", () => {
             };
 
             const nextLocations = navigator.getNextLocations(sampleBpmn, startLocation);
-            
+
             expect(nextLocations).toHaveLength(1);
             expect(nextLocations[0].nodeId).toBe("Task_1");
             expect(nextLocations[0].routineId).toBe("bpmn_1.0.0_TestProcess");
@@ -382,7 +394,7 @@ describe("BpmnNavigator", () => {
             };
 
             const nextLocations = navigator.getNextLocations(sampleBpmn, taskLocation);
-            
+
             expect(nextLocations).toHaveLength(1);
             expect(nextLocations[0].nodeId).toBe("Task_2");
         });
@@ -403,6 +415,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -429,7 +442,7 @@ describe("BpmnNavigator", () => {
 
             const context = { shouldProceed: true };
             const nextLocations = navigator.getNextLocations(conditionalBpmn, location, context);
-            
+
             expect(nextLocations).toHaveLength(1);
             expect(nextLocations[0].nodeId).toBe("Task_2");
         });
@@ -439,6 +452,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -465,7 +479,7 @@ describe("BpmnNavigator", () => {
 
             const context = { shouldProceed: false };
             const nextLocations = navigator.getNextLocations(conditionalBpmn, location, context);
-            
+
             expect(nextLocations).toHaveLength(0);
         });
 
@@ -474,6 +488,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -500,7 +515,7 @@ describe("BpmnNavigator", () => {
 
             const context = { status: "approved" };
             const nextLocations = navigator.getNextLocations(conditionalBpmn, location, context);
-            
+
             expect(nextLocations).toHaveLength(1);
             expect(nextLocations[0].nodeId).toBe("Task_2");
         });
@@ -510,6 +525,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -536,7 +552,7 @@ describe("BpmnNavigator", () => {
 
             const context = { status: "approved" };
             const nextLocations = navigator.getNextLocations(conditionalBpmn, location, context);
-            
+
             expect(nextLocations).toHaveLength(1);
             expect(nextLocations[0].nodeId).toBe("Task_2");
         });
@@ -546,6 +562,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -571,7 +588,7 @@ describe("BpmnNavigator", () => {
             };
 
             const nextLocations = navigator.getNextLocations(multipleBpmn, location);
-            
+
             expect(nextLocations).toHaveLength(2);
             expect(nextLocations.map(l => l.nodeId)).toContain("Task_2");
             expect(nextLocations.map(l => l.nodeId)).toContain("Task_3");
@@ -582,6 +599,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -608,7 +626,7 @@ describe("BpmnNavigator", () => {
 
             // No context provided - BpmnNavigator returns true for unresolvable conditions (lines 151-153)
             const nextLocations = navigator.getNextLocations(conditionalBpmn, location);
-            
+
             expect(nextLocations).toHaveLength(1);
         });
 
@@ -617,6 +635,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -643,7 +662,7 @@ describe("BpmnNavigator", () => {
 
             const context = { complex: true };
             const nextLocations = navigator.getNextLocations(malformedBpmn, location, context);
-            
+
             // Should proceed with malformed conditions (default true behavior)
             expect(nextLocations).toHaveLength(1);
             expect(nextLocations[0].nodeId).toBe("Task_2");
@@ -654,6 +673,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -686,6 +706,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -714,6 +735,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -744,6 +766,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -774,6 +797,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -804,6 +828,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -831,7 +856,7 @@ describe("BpmnNavigator", () => {
             };
 
             const stepInfo = navigator.getStepInfo(bpmnWithNamedTask, location);
-            
+
             expect(stepInfo.id).toBe("Task_1");
             expect(stepInfo.name).toBe("Task_1"); // Current implementation falls back to nodeId when name parsing fails
             expect(stepInfo.type).toBe("task");
@@ -848,6 +873,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -869,7 +895,7 @@ describe("BpmnNavigator", () => {
             };
 
             const stepInfo = navigator.getStepInfo(bpmnWithUserTask, location);
-            
+
             expect(stepInfo.id).toBe("UserTask_1");
             expect(stepInfo.name).toBe("UserTask_1"); // Current implementation falls back to nodeId when name parsing fails
             expect(stepInfo.type).toBe("user");
@@ -881,6 +907,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -902,7 +929,7 @@ describe("BpmnNavigator", () => {
             };
 
             const stepInfo = navigator.getStepInfo(bpmnWithServiceTask, location);
-            
+
             expect(stepInfo.type).toBe("service");
         });
 
@@ -911,6 +938,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -932,7 +960,7 @@ describe("BpmnNavigator", () => {
             };
 
             const stepInfo = navigator.getStepInfo(bpmnWithCallActivity, location);
-            
+
             expect(stepInfo.type).toBe("subroutine");
         });
 
@@ -941,6 +969,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -962,7 +991,7 @@ describe("BpmnNavigator", () => {
             };
 
             const stepInfo = navigator.getStepInfo(bpmnWithGateway, location);
-            
+
             expect(stepInfo.type).toBe("decision");
         });
 
@@ -971,6 +1000,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -992,7 +1022,7 @@ describe("BpmnNavigator", () => {
             };
 
             const stepInfo = navigator.getStepInfo(bpmnWithParallelGateway, location);
-            
+
             expect(stepInfo.type).toBe("parallel");
         });
 
@@ -1001,6 +1031,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1022,7 +1053,7 @@ describe("BpmnNavigator", () => {
             };
 
             const stepInfo = navigator.getStepInfo(bpmnWithStartEvent, location);
-            
+
             expect(stepInfo.type).toBe("start");
         });
 
@@ -1031,6 +1062,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1052,7 +1084,7 @@ describe("BpmnNavigator", () => {
             };
 
             const stepInfo = navigator.getStepInfo(bpmnWithEndEvent, location);
-            
+
             expect(stepInfo.type).toBe("end");
         });
 
@@ -1061,6 +1093,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1082,7 +1115,7 @@ describe("BpmnNavigator", () => {
             };
 
             const stepInfo = navigator.getStepInfo(bpmnWithoutName, location);
-            
+
             expect(stepInfo.name).toBe("Task_1");
         });
 
@@ -1091,6 +1124,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1112,7 +1146,7 @@ describe("BpmnNavigator", () => {
             };
 
             const stepInfo = navigator.getStepInfo(bpmnWithUnknownType, location);
-            
+
             expect(stepInfo.type).toBe("task");
         });
 
@@ -1121,6 +1155,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1142,7 +1177,7 @@ describe("BpmnNavigator", () => {
             };
 
             const stepInfo = navigator.getStepInfo(simpleBpmn, location);
-            
+
             expect(stepInfo.id).toBe("NonExistent");
             expect(stepInfo.name).toBe("NonExistent");
             expect(stepInfo.type).toBe("task");
@@ -1155,6 +1190,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1176,7 +1212,7 @@ describe("BpmnNavigator", () => {
             };
 
             const stepInfo = navigator.getStepInfo(bpmnWithoutConfig, location);
-            
+
             expect(stepInfo.config).toBeUndefined();
         });
     });
@@ -1195,6 +1231,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: "<<invalid xml>>",
@@ -1213,6 +1250,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1237,6 +1275,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: "",
@@ -1255,6 +1294,7 @@ describe("BpmnNavigator", () => {
                 __version: "a".repeat(1000),
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1278,6 +1318,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1311,6 +1352,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1344,7 +1386,7 @@ describe("BpmnNavigator", () => {
             };
 
             const nextLocations = navigator.getNextLocations(parallelBpmn, forkLocation);
-            
+
             expect(nextLocations).toHaveLength(2);
             expect(nextLocations.map(l => l.nodeId)).toContain("task1");
             expect(nextLocations.map(l => l.nodeId)).toContain("task2");
@@ -1355,6 +1397,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1412,6 +1455,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1440,7 +1484,7 @@ describe("BpmnNavigator", () => {
             // Test with whitespace in condition (should be trimmed)
             const context = { validUser: true };
             const nextLocations = navigator.getNextLocations(complexConditionBpmn, location, context);
-            
+
             expect(nextLocations).toHaveLength(1);
             expect(nextLocations[0].nodeId).toBe("task2");
         });
@@ -1452,6 +1496,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1485,6 +1530,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1516,6 +1562,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1554,6 +1601,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1599,11 +1647,11 @@ describe("BpmnNavigator", () => {
 
             // Current implementation will only find normal sequence flows, ignoring boundary events
             const nextLocations = navigator.getNextLocations(timerBoundaryBpmn, taskLocation);
-            
+
             // SHOULD have 2 paths (normal + timeout), but current implementation only finds 1
             expect(nextLocations).toHaveLength(1);
             expect(nextLocations[0].nodeId).toBe("NormalTask");
-            
+
             // Timer boundary event is completely ignored
             expect(nextLocations.find(l => l.nodeId === "TimeoutTask")).toBeUndefined();
         });
@@ -1613,6 +1661,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1654,7 +1703,7 @@ describe("BpmnNavigator", () => {
             };
 
             const nextLocations = navigator.getNextLocations(errorBoundaryBpmn, riskyTaskLocation);
-            
+
             // Only finds success path, error handling is ignored
             expect(nextLocations).toHaveLength(1);
             expect(nextLocations[0].nodeId).toBe("SuccessTask");
@@ -1665,6 +1714,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1701,7 +1751,7 @@ describe("BpmnNavigator", () => {
             };
 
             const nextLocations = navigator.getNextLocations(messageBoundaryBpmn, waitingTaskLocation);
-            
+
             // Message interruption path is ignored
             expect(nextLocations).toHaveLength(1);
             expect(nextLocations.find(l => l.nodeId === "InterruptTask")).toBeUndefined();
@@ -1714,6 +1764,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1760,11 +1811,11 @@ describe("BpmnNavigator", () => {
             };
 
             const nextLocations = navigator.getNextLocations(eventGatewayBpmn, prepareTaskLocation);
-            
+
             // Should find EventGateway but won't understand its semantics
             expect(nextLocations).toHaveLength(1);
             expect(nextLocations[0].nodeId).toBe("EventGateway");
-            
+
             // Event gateway step info won't indicate special handling
             const gatewayStepInfo = navigator.getStepInfo(eventGatewayBpmn, nextLocations[0]);
             expect(gatewayStepInfo.type).toBe("task"); // Falls back to generic type
@@ -1777,6 +1828,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1811,7 +1863,7 @@ describe("BpmnNavigator", () => {
 
             const nextLocations = navigator.getNextLocations(intermediateThrowBpmn, processTaskLocation);
             expect(nextLocations[0].nodeId).toBe("NotifyEvent");
-            
+
             // Event is treated as generic element, not as message throw
             const eventStepInfo = navigator.getStepInfo(intermediateThrowBpmn, nextLocations[0]);
             expect(eventStepInfo.type).toBe("task"); // No special handling for intermediate events
@@ -1822,6 +1874,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1856,7 +1909,7 @@ describe("BpmnNavigator", () => {
 
             const nextLocations = navigator.getNextLocations(intermediateCatchBpmn, initTaskLocation);
             expect(nextLocations[0].nodeId).toBe("WaitForSignal");
-            
+
             // No understanding that this should wait for external signal
             const eventStepInfo = navigator.getStepInfo(intermediateCatchBpmn, nextLocations[0]);
             expect(eventStepInfo.type).toBe("task");
@@ -1869,6 +1922,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1922,7 +1976,7 @@ describe("BpmnNavigator", () => {
 
             const nextLocations = navigator.getNextLocations(inclusiveGatewayBpmn, evaluateLocation);
             expect(nextLocations[0].nodeId).toBe("InclusiveGateway");
-            
+
             // Inclusive gateway treated as unknown element
             const gatewayStepInfo = navigator.getStepInfo(inclusiveGatewayBpmn, nextLocations[0]);
             expect(gatewayStepInfo.type).toBe("task"); // No mapping for inclusiveGateway
@@ -1933,6 +1987,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -1973,7 +2028,7 @@ describe("BpmnNavigator", () => {
 
             const nextLocations = navigator.getNextLocations(complexGatewayBpmn, prepLocation);
             expect(nextLocations[0].nodeId).toBe("ComplexGateway");
-            
+
             // Complex gateway is not understood
             const gatewayStepInfo = navigator.getStepInfo(complexGatewayBpmn, nextLocations[0]);
             expect(gatewayStepInfo.type).toBe("task");
@@ -1986,6 +2041,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -2023,9 +2079,9 @@ describe("BpmnNavigator", () => {
 
             const startLocation = navigator.getStartLocation(embeddedSubprocessBpmn);
             const nextLocations = navigator.getNextLocations(embeddedSubprocessBpmn, startLocation);
-            
+
             expect(nextLocations[0].nodeId).toBe("EmbeddedSubprocess");
-            
+
             // Subprocess treated as single task, internal structure ignored
             const subprocessStepInfo = navigator.getStepInfo(embeddedSubprocessBpmn, nextLocations[0]);
             expect(subprocessStepInfo.type).toBe("task"); // No mapping for subProcess
@@ -2036,6 +2092,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -2071,9 +2128,9 @@ describe("BpmnNavigator", () => {
 
             const startLocation = navigator.getStartLocation(adHocSubprocessBpmn);
             const nextLocations = navigator.getNextLocations(adHocSubprocessBpmn, startLocation);
-            
+
             expect(nextLocations[0].nodeId).toBe("AdHocSubprocess");
-            
+
             // Ad-hoc subprocess not recognized
             const adHocStepInfo = navigator.getStepInfo(adHocSubprocessBpmn, nextLocations[0]);
             expect(adHocStepInfo.type).toBe("task");
@@ -2086,6 +2143,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -2120,20 +2178,20 @@ describe("BpmnNavigator", () => {
             };
 
             const startLocation = navigator.getStartLocation(eventSubprocessBpmn);
-            
+
             // Should start from Main_Start, event subprocess should not be start location
             expect(startLocation.nodeId).toBe("Main_Start");
-            
+
             // Event subprocess is completely ignored in navigation
             const nextLocations = navigator.getNextLocations(eventSubprocessBpmn, startLocation);
             expect(nextLocations[0].nodeId).toBe("Main_Task");
-            
+
             // Event subprocess never appears in navigation paths
             const allPossibleIds = ["EventSubprocess", "Error_Start", "ErrorCleanup", "Error_End"];
             const mainTaskLocation = nextLocations[0];
             const afterMainTask = navigator.getNextLocations(eventSubprocessBpmn, mainTaskLocation);
-            
-            expect(allPossibleIds.every(id => 
+
+            expect(allPossibleIds.every(id =>
                 !afterMainTask.find(loc => loc.nodeId === id),
             )).toBe(true);
         });
@@ -2145,6 +2203,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -2180,9 +2239,9 @@ describe("BpmnNavigator", () => {
 
             const startLocation = navigator.getStartLocation(multiInstanceBpmn);
             const nextLocations = navigator.getNextLocations(multiInstanceBpmn, startLocation);
-            
+
             expect(nextLocations[0].nodeId).toBe("MultiInstanceTask");
-            
+
             // Multi-instance characteristics are ignored, treated as single task
             const multiTaskStepInfo = navigator.getStepInfo(multiInstanceBpmn, nextLocations[0]);
             expect(multiTaskStepInfo.type).toBe("user");
@@ -2194,6 +2253,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -2233,9 +2293,9 @@ describe("BpmnNavigator", () => {
 
             const startLocation = navigator.getStartLocation(sequentialMultiInstanceBpmn);
             const nextLocations = navigator.getNextLocations(sequentialMultiInstanceBpmn, startLocation);
-            
+
             expect(nextLocations[0].nodeId).toBe("SequentialMultiSubprocess");
-            
+
             // Sequential multi-instance is not understood
             const sequentialStepInfo = navigator.getStepInfo(sequentialMultiInstanceBpmn, nextLocations[0]);
             expect(sequentialStepInfo.type).toBe("task");
@@ -2248,6 +2308,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -2281,9 +2342,9 @@ describe("BpmnNavigator", () => {
 
             const startLocation = navigator.getStartLocation(standardLoopBpmn);
             const nextLocations = navigator.getNextLocations(standardLoopBpmn, startLocation);
-            
+
             expect(nextLocations[0].nodeId).toBe("LoopTask");
-            
+
             // Loop characteristics are ignored
             const loopStepInfo = navigator.getStepInfo(standardLoopBpmn, nextLocations[0]);
             expect(loopStepInfo.type).toBe("task");
@@ -2297,6 +2358,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -2331,9 +2393,9 @@ describe("BpmnNavigator", () => {
 
             const startLocation = navigator.getStartLocation(dataObjectBpmn);
             const nextLocations = navigator.getNextLocations(dataObjectBpmn, startLocation);
-            
+
             expect(nextLocations[0].nodeId).toBe("ProcessData");
-            
+
             // Data objects and associations are completely ignored
             const processDataStepInfo = navigator.getStepInfo(dataObjectBpmn, nextLocations[0]);
             expect(processDataStepInfo.type).toBe("task");
@@ -2345,6 +2407,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -2381,7 +2444,7 @@ describe("BpmnNavigator", () => {
             // Data store references are ignored in navigation
             const startLocation = navigator.getStartLocation(dataStoreBpmn);
             const nextLocations = navigator.getNextLocations(dataStoreBpmn, startLocation);
-            
+
             expect(nextLocations[0].nodeId).toBe("ReadFromDB");
             // No awareness of data store connections
         });
@@ -2393,6 +2456,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -2426,7 +2490,7 @@ describe("BpmnNavigator", () => {
             // Should find the process elements but ignore conversation
             const startLocation = navigator.getStartLocation(conversationBpmn);
             expect(startLocation.nodeId).toBe("Start");
-            
+
             // Conversation elements are completely ignored
             const nextLocations = navigator.getNextLocations(conversationBpmn, startLocation);
             expect(nextLocations[0].nodeId).toBe("SimpleTask");
@@ -2437,6 +2501,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -2476,6 +2541,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -2523,9 +2589,9 @@ describe("BpmnNavigator", () => {
 
             const startLocation = navigator.getStartLocation(transactionBpmn);
             const nextLocations = navigator.getNextLocations(transactionBpmn, startLocation);
-            
+
             expect(nextLocations[0].nodeId).toBe("PaymentTransaction");
-            
+
             // Transaction semantics are ignored
             const transactionStepInfo = navigator.getStepInfo(transactionBpmn, nextLocations[0]);
             expect(transactionStepInfo.type).toBe("task"); // No mapping for transaction
@@ -2536,6 +2602,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -2570,19 +2637,19 @@ describe("BpmnNavigator", () => {
 
             const startLocation = navigator.getStartLocation(compensationBpmn);
             let currentLocation = startLocation;
-            
+
             // Navigate through normal flow
             let nextLocations = navigator.getNextLocations(compensationBpmn, currentLocation);
             expect(nextLocations[0].nodeId).toBe("BookFlight");
-            
+
             currentLocation = nextLocations[0];
             nextLocations = navigator.getNextLocations(compensationBpmn, currentLocation);
             expect(nextLocations[0].nodeId).toBe("BookHotel");
-            
+
             currentLocation = nextLocations[0];
             nextLocations = navigator.getNextLocations(compensationBpmn, currentLocation);
             expect(nextLocations[0].nodeId).toBe("TriggerCompensation");
-            
+
             // Compensation logic is not understood
             const compensationStepInfo = navigator.getStepInfo(compensationBpmn, nextLocations[0]);
             expect(compensationStepInfo.type).toBe("task");
@@ -2595,6 +2662,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -2640,11 +2708,11 @@ describe("BpmnNavigator", () => {
 
             // Current regex-based parsing may struggle with complex attributes
             const stepInfo = navigator.getStepInfo(complexAttributeBpmn, taskLocation);
-            
+
             // Name extraction likely fails due to quotes and special characters
             expect(stepInfo.name).toBe("Task1"); // Falls back to nodeId
             expect(stepInfo.type).toBe("task");
-            
+
             // Extension elements and documentation are completely ignored
         });
 
@@ -2653,6 +2721,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>
@@ -2684,7 +2753,7 @@ describe("BpmnNavigator", () => {
             // Current implementation specifically looks for "bpmn:" prefix
             expect(() => navigator.getStartLocation(namespacedBpmn))
                 .toThrow("No start location found in BPMN");
-                
+
             // Custom namespace elements are completely ignored
         });
 
@@ -2693,6 +2762,7 @@ describe("BpmnNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: `<?xml version="1.0" encoding="UTF-8"?>

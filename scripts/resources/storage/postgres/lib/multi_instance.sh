@@ -25,9 +25,34 @@ postgres::multi::execute() {
     local instances=()
     if [[ "$instance_pattern" == "all" ]]; then
         instances=($(postgres::common::list_instances))
-    else
-        # Split comma-separated instance names
+    elif [[ "$instance_pattern" == *[\*\?]* ]]; then
+        # Pattern contains wildcards - use pattern matching
+        local all_instances=($(postgres::common::list_instances))
+        for instance in "${all_instances[@]}"; do
+            # Use case statement for pattern matching
+            case "$instance" in
+                $instance_pattern)
+                    instances+=("$instance")
+                    ;;
+            esac
+        done
+    elif [[ "$instance_pattern" == *","* ]]; then
+        # Comma-separated instance names
         IFS=',' read -ra instances <<< "$instance_pattern"
+    else
+        # Single instance name or prefix matching
+        local all_instances=($(postgres::common::list_instances))
+        for instance in "${all_instances[@]}"; do
+            # Check if instance starts with the pattern (prefix matching)
+            if [[ "$instance" == "$instance_pattern"* ]]; then
+                instances+=("$instance")
+            fi
+        done
+        
+        # If no prefix matches found, treat as exact name
+        if [[ ${#instances[@]} -eq 0 ]]; then
+            instances=("$instance_pattern")
+        fi
     fi
     
     if [[ ${#instances[@]} -eq 0 ]]; then
@@ -210,8 +235,34 @@ postgres::multi::status() {
     local instances=()
     if [[ "$instance_pattern" == "all" ]]; then
         instances=($(postgres::common::list_instances))
-    else
+    elif [[ "$instance_pattern" == *[\*\?]* ]]; then
+        # Pattern contains wildcards - use pattern matching
+        local all_instances=($(postgres::common::list_instances))
+        for instance in "${all_instances[@]}"; do
+            # Use case statement for pattern matching
+            case "$instance" in
+                $instance_pattern)
+                    instances+=("$instance")
+                    ;;
+            esac
+        done
+    elif [[ "$instance_pattern" == *","* ]]; then
+        # Comma-separated instance names
         IFS=',' read -ra instances <<< "$instance_pattern"
+    else
+        # Single instance name or prefix matching
+        local all_instances=($(postgres::common::list_instances))
+        for instance in "${all_instances[@]}"; do
+            # Check if instance starts with the pattern (prefix matching)
+            if [[ "$instance" == "$instance_pattern"* ]]; then
+                instances+=("$instance")
+            fi
+        done
+        
+        # If no prefix matches found, treat as exact name
+        if [[ ${#instances[@]} -eq 0 ]]; then
+            instances=("$instance_pattern")
+        fi
     fi
     
     if [[ ${#instances[@]} -eq 0 ]]; then

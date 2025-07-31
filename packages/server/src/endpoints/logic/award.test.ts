@@ -64,14 +64,14 @@ describe("EndpointsAward", () => {
 
         // Update created/updated times for time filtering tests
         await DbProvider.get().award.update({
-            where: { id: userAward1.id },
+            where: { id: BigInt(userAward1.id) },
             data: {
                 createdAt: new Date("2023-03-01"),
                 updatedAt: new Date("2023-03-01"),
             },
         });
         await DbProvider.get().award.update({
-            where: { id: userAward2.id },
+            where: { id: BigInt(userAward2.id) },
             data: {
                 createdAt: new Date("2023-03-15"),
                 updatedAt: new Date("2023-03-15"),

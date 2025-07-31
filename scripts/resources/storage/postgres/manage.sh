@@ -44,6 +44,10 @@ source "${SCRIPT_DIR}/lib/backup.sh"
 source "${SCRIPT_DIR}/lib/migration.sh"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib/multi_instance.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/network.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/gui.sh"
 
 #######################################
 # Parse command line arguments
@@ -59,7 +63,7 @@ postgres::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|create|destroy|start|stop|restart|status|list|logs|connect|diagnose|monitor|upgrade|backup|restore|migrate|migrate-init|migrate-status|migrate-rollback|migrate-list|seed|create-db|drop-db|create-user|drop-user|db-stats|list-backups|delete-backup|verify-backup|cleanup-backups|multi-start|multi-stop|multi-restart|multi-status|multi-migrate|multi-backup|multi-health" \
+        --options "install|uninstall|create|destroy|start|stop|restart|status|list|logs|connect|diagnose|monitor|upgrade|backup|restore|migrate|migrate-init|migrate-status|migrate-rollback|migrate-list|seed|create-db|drop-db|create-user|drop-user|db-stats|list-backups|delete-backup|verify-backup|cleanup-backups|multi-start|multi-stop|multi-restart|multi-status|multi-migrate|multi-backup|multi-health|gui|gui-stop|gui-status|gui-list|network-update|network-migrate-all" \
         --default "status"
     
     args::register \
@@ -77,20 +81,32 @@ postgres::parse_arguments() {
         --default ""
     
     args::register \
+        --name "gui-port" \
+        --desc "Port number for GUI (auto-assigned if not specified)" \
+        --type "value" \
+        --default ""
+    
+    args::register \
         --name "template" \
         --flag "t" \
-        --desc "Configuration template (development, production, testing, minimal)" \
+        --desc "Configuration template (development, production, testing, minimal, real-estate, ecommerce, saas)" \
         --type "value" \
         --options "development|production|testing|minimal" \
         --default "development"
     
     args::register \
-        --name "force" \
-        --flag "f" \
-        --desc "Force operation (e.g., destroy without confirmation)" \
+        --name "networks" \
+        --desc "Additional Docker networks to join (comma-separated)" \
         --type "value" \
-        --options "yes|no" \
-        --default "no"
+        --default ""
+    
+    args::register \
+        --name "format" \
+        --desc "Output format for connection info (default, n8n, node-red, json)" \
+        --type "value" \
+        --options "default|n8n|node-red|json" \
+        --default "default"
+    
     
     args::register \
         --name "lines" \
@@ -176,8 +192,11 @@ postgres::parse_arguments() {
     export ACTION=$(args::get "action")
     export INSTANCE_NAME=$(args::get "instance")
     export PORT=$(args::get "port")
+    export GUI_PORT=$(args::get "gui-port")
     export TEMPLATE=$(args::get "template")
-    export FORCE=$(args::get "force")
+    export NETWORKS=$(args::get "networks")
+    export FORMAT=$(args::get "format")
+    export FORCE=$(args::get "yes")
     export LOG_LINES=$(args::get "lines")
     export MONITOR_INTERVAL=$(args::get "interval")
     export REMOVE_DATA=$(args::get "remove-data")
@@ -205,7 +224,7 @@ USAGE:
     $0 [OPTIONS]
 
 OPTIONS:
-$(args::show_help)
+$(args::usage)
 
 ACTIONS:
     Resource Management:
@@ -315,6 +334,9 @@ TEMPLATES:
     production      Optimized for production workloads
     testing         Fast, ephemeral settings for testing
     minimal         Minimal resource usage
+    real-estate     Optimized for real estate applications and lead management
+    ecommerce       Configured for ecommerce with transaction workloads
+    saas            Multi-tenant SaaS with row-level security and analytics
 
 NOTES:
     - Instances are isolated PostgreSQL databases in separate Docker containers
@@ -351,39 +373,164 @@ postgres::show_logs() {
 }
 
 #######################################
+# Get connection info with retry logic
+#######################################
+postgres::get_connection_info_with_retry() {
+    local instance_name="$1"
+    local max_attempts=3
+    local attempt=1
+    
+    while [[ $attempt -le $max_attempts ]]; do
+        # Try to get all required config values
+        local port=$(postgres::common::get_instance_config "$instance_name" "port" 2>/dev/null)
+        local password=$(postgres::common::get_instance_config "$instance_name" "password" 2>/dev/null)
+        local user=$(postgres::common::get_instance_config "$instance_name" "user" 2>/dev/null)
+        local database=$(postgres::common::get_instance_config "$instance_name" "database" 2>/dev/null)
+        local networks=$(postgres::common::get_instance_config "$instance_name" "networks" 2>/dev/null)
+        
+        # Check if we got the essential values
+        if [[ -n "$port" && -n "$password" ]]; then
+            # Export values so the calling function can use them
+            export CONN_PORT="$port"
+            export CONN_PASSWORD="$password"
+            export CONN_USER="${user:-vrooli}"
+            export CONN_DATABASE="${database:-vrooli_client}"
+            export CONN_NETWORKS="$networks"
+            return 0
+        fi
+        
+        log::debug "Connection attempt $attempt failed, retrying..."
+        sleep 1
+        ((attempt++))
+    done
+    
+    log::error "Failed to get connection info after $max_attempts attempts"
+    return 1
+}
+
+#######################################
 # Show connection information
 #######################################
 postgres::show_connection() {
     local instance_name="${1:-main}"
+    local format="${2:-default}"
     
     if ! postgres::common::container_exists "$instance_name"; then
         log::error "${MSG_INSTANCE_NOT_FOUND}: $instance_name"
         return 1
     fi
     
-    log::info "PostgreSQL Instance Connection Details: $instance_name"
-    log::info "=================================================="
-    
-    local port=$(postgres::common::get_instance_config "$instance_name" "port")
-    local password=$(postgres::common::get_instance_config "$instance_name" "password")
-    local user=$(postgres::common::get_instance_config "$instance_name" "user")
-    local database=$(postgres::common::get_instance_config "$instance_name" "database")
-    
-    if [[ -z "$port" || -z "$password" ]]; then
-        log::error "Instance configuration incomplete"
+    # Use retry logic to get connection info
+    if ! postgres::get_connection_info_with_retry "$instance_name"; then
         return 1
     fi
     
-    log::info "Host: localhost"
-    log::info "Port: $port"
-    log::info "Database: $database"
-    log::info "Username: $user"
-    log::info "Password: $password"
-    log::info ""
+    # Use the exported values from the retry function
+    local port="$CONN_PORT"
+    local password="$CONN_PASSWORD"
+    local user="$CONN_USER"
+    local database="$CONN_DATABASE"
+    local networks="$CONN_NETWORKS"
+    local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
     
-    local conn_string=$(postgres::instance::get_connection_string "$instance_name")
-    log::info "Connection String:"
-    log::info "$conn_string"
+    # Determine host based on network connectivity
+    local host="localhost"
+    if [[ -n "$networks" ]]; then
+        # If connected to resource networks, use container name for internal access
+        case "$format" in
+            "n8n"|"node-red"|"json")
+                host="$container_name"
+                ;;
+        esac
+    fi
+    
+    case "$format" in
+        "n8n")
+            # n8n-friendly JSON format
+            cat << EOF
+{
+  "credentials": {
+    "postgres": {
+      "host": "$host",
+      "port": 5432,
+      "database": "$database",
+      "user": "$user",
+      "password": "$password",
+      "ssl": false
+    }
+  }
+}
+
+Note: Use port 5432 when connecting from within Docker network.
+External connections should use port $port on localhost.
+EOF
+            ;;
+        
+        "node-red")
+            # Node-RED configuration format
+            cat << EOF
+PostgreSQL Configuration for Node-RED:
+
+Host: $host
+Port: 5432 (internal) / $port (external)
+Database: $database
+Username: $user
+Password: $password
+
+For node-red-contrib-postgresql:
+{
+  "host": "$host",
+  "port": 5432,
+  "database": "$database"
+}
+EOF
+            ;;
+        
+        "json")
+            # Generic JSON format
+            cat << EOF
+{
+  "host": "$host",
+  "port_internal": 5432,
+  "port_external": $port,
+  "database": "$database",
+  "username": "$user",
+  "password": "$password",
+  "connection_string": "postgresql://$user:$password@$host:5432/$database",
+  "connection_string_external": "postgresql://$user:$password@localhost:$port/$database",
+  "container_name": "$container_name",
+  "networks": "$networks"
+}
+EOF
+            ;;
+        
+        *)
+            # Default human-readable format
+            log::info "PostgreSQL Instance Connection Details: $instance_name"
+            log::info "=================================================="
+            log::info "Host: localhost"
+            log::info "Port: $port"
+            log::info "Database: $database"
+            log::info "Username: $user"
+            log::info "Password: $password"
+            
+            if [[ -n "$networks" ]]; then
+                log::info ""
+                log::info "Docker Networks: $networks"
+                log::info "Internal hostname: $container_name"
+            fi
+            
+            log::info ""
+            local conn_string
+            conn_string=$(postgres::instance::get_connection_string "$instance_name")
+            if [[ $? -eq 0 && -n "$conn_string" ]]; then
+                log::info "Connection String:"
+                log::info "$conn_string"
+            else
+                log::warn "Unable to generate connection string for instance: $instance_name"
+            fi
+            ;;
+    esac
     log::info ""
     
     if postgres::common::is_running "$instance_name"; then
@@ -454,7 +601,7 @@ postgres::main() {
             postgres::uninstall
             ;;
         "create")
-            postgres::instance::create "$INSTANCE_NAME" "$PORT" "$TEMPLATE"
+            postgres::instance::create "$INSTANCE_NAME" "$PORT" "$TEMPLATE" "$NETWORKS"
             ;;
         "destroy")
             postgres::instance::destroy "$INSTANCE_NAME" "$FORCE"
@@ -482,7 +629,7 @@ postgres::main() {
             postgres::show_logs "$INSTANCE_NAME" "$LOG_LINES"
             ;;
         "connect")
-            postgres::show_connection "$INSTANCE_NAME"
+            postgres::show_connection "$INSTANCE_NAME" "$FORMAT"
             ;;
         "diagnose")
             postgres::status::diagnose
@@ -510,7 +657,7 @@ postgres::main() {
                 log::info "Usage: $0 --action migrate --instance <name> --migrations-dir <path>"
                 exit 1
             fi
-            postgres::database::migrate "$INSTANCE_NAME" "$MIGRATIONS_DIR" "$DATABASE"
+            postgres::migration::run "$INSTANCE_NAME" "$MIGRATIONS_DIR" "$DATABASE"
             ;;
         "seed")
             if [[ -z "$SEED_PATH" ]]; then
@@ -600,16 +747,32 @@ postgres::main() {
             postgres::migration::list_available "$MIGRATIONS_DIR"
             ;;
         "multi-start")
-            postgres::multi::start "$INSTANCE_NAME"
+            local pattern="${INSTANCE_NAME}"
+            if [[ "$pattern" == "main" ]]; then
+                pattern="all"
+            fi
+            postgres::multi::start "$pattern"
             ;;
         "multi-stop")
-            postgres::multi::stop "$INSTANCE_NAME"
+            local pattern="${INSTANCE_NAME}"
+            if [[ "$pattern" == "main" ]]; then
+                pattern="all"
+            fi
+            postgres::multi::stop "$pattern"
             ;;
         "multi-restart")
-            postgres::multi::restart "$INSTANCE_NAME"
+            local pattern="${INSTANCE_NAME}"
+            if [[ "$pattern" == "main" ]]; then
+                pattern="all"
+            fi
+            postgres::multi::restart "$pattern"
             ;;
         "multi-status")
-            postgres::multi::status "$INSTANCE_NAME"
+            local pattern="${INSTANCE_NAME}"
+            if [[ "$pattern" == "main" ]]; then
+                pattern="all"
+            fi
+            postgres::multi::status "$pattern"
             ;;
         "multi-migrate")
             if [[ -z "$MIGRATIONS_DIR" ]]; then
@@ -617,13 +780,43 @@ postgres::main() {
                 log::info "Usage: $0 --action multi-migrate --instance <pattern> --migrations-dir <path>"
                 exit 1
             fi
-            postgres::multi::migrate "$INSTANCE_NAME" "$MIGRATIONS_DIR" "$DATABASE"
+            local pattern="${INSTANCE_NAME}"
+            if [[ "$pattern" == "main" ]]; then
+                pattern="all"
+            fi
+            postgres::multi::migrate "$pattern" "$MIGRATIONS_DIR" "$DATABASE"
             ;;
         "multi-backup")
-            postgres::multi::backup "$INSTANCE_NAME" "$BACKUP_NAME" "$BACKUP_TYPE"
+            local pattern="${INSTANCE_NAME}"
+            if [[ "$pattern" == "main" ]]; then
+                pattern="all"
+            fi
+            postgres::multi::backup "$pattern" "$BACKUP_NAME" "$BACKUP_TYPE"
             ;;
         "multi-health")
-            postgres::multi::health_check "$INSTANCE_NAME"
+            local pattern="${INSTANCE_NAME}"
+            if [[ "$pattern" == "main" ]]; then
+                pattern="all"
+            fi
+            postgres::multi::health_check "$pattern"
+            ;;
+        "gui")
+            postgres::gui::start "$INSTANCE_NAME" "$GUI_PORT"
+            ;;
+        "gui-stop")
+            postgres::gui::stop "$INSTANCE_NAME"
+            ;;
+        "gui-status")
+            postgres::gui::show_status "$INSTANCE_NAME"
+            ;;
+        "gui-list")
+            postgres::gui::list
+            ;;
+        "network-update")
+            postgres::network::update_instance "$INSTANCE_NAME"
+            ;;
+        "network-migrate-all")
+            postgres::network::migrate_all_instances
             ;;
         *)
             log::error "Unknown action: $ACTION"

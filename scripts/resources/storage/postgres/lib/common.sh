@@ -11,7 +11,24 @@
 postgres::common::container_exists() {
     local instance_name="${1:-main}"
     local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
-    docker ps -a --format "table {{.Names}}" | grep -q "^${container_name}$"
+    docker ps -a --format "{{.Names}}" | grep -q "^${container_name}$"
+}
+
+#######################################
+# Show helpful error when instance not found
+# Arguments:
+#   $1 - instance name that was not found
+#######################################
+postgres::common::show_instance_not_found_error() {
+    local instance_name="$1"
+    log::warn "PostgreSQL instance '$instance_name' does not exist"
+    local available_instances=($(postgres::common::list_instances 2>/dev/null))
+    if [[ ${#available_instances[@]} -gt 0 ]]; then
+        log::info "Available instances: $(printf '%s, ' "${available_instances[@]}" | sed 's/, $//')"
+    else
+        log::info "No instances are currently available"
+    fi
+    log::info "Use './manage.sh --action list' to see all instances"
 }
 
 #######################################
@@ -23,7 +40,7 @@ postgres::common::container_exists() {
 postgres::common::is_running() {
     local instance_name="${1:-main}"
     local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
-    docker ps --format "table {{.Names}}" | grep -q "^${container_name}$"
+    docker ps --format "{{.Names}}" | grep -q "^${container_name}$"
 }
 
 #######################################
@@ -35,11 +52,39 @@ postgres::common::is_running() {
 postgres::common::is_port_available() {
     local port=$1
     
-    if command -v lsof >/dev/null 2>&1; then
-        ! lsof -Pi :${port} -sTCP:LISTEN -t >/dev/null 2>&1
-    else
-        ! netstat -tuln 2>/dev/null | grep -q ":${port} "
+    # Try multiple methods to ensure accurate port detection
+    # Method 1: Use nc (netcat) - most reliable for checking if port accepts connections
+    if command -v nc >/dev/null 2>&1; then
+        if nc -z localhost ${port} 2>/dev/null; then
+            return 1  # Port is in use
+        fi
     fi
+    
+    # Method 2: Check with lsof (may require permissions)
+    if command -v lsof >/dev/null 2>&1; then
+        if lsof -Pi :${port} -sTCP:LISTEN >/dev/null 2>&1; then
+            return 1  # Port is in use
+        fi
+    fi
+    
+    # Method 3: Use netstat as fallback
+    if command -v netstat >/dev/null 2>&1; then
+        if netstat -tuln 2>/dev/null | grep -q ":${port} "; then
+            return 1  # Port is in use
+        fi
+    fi
+    
+    # Method 4: Try to bind to the port directly (most accurate but requires cleanup)
+    if command -v timeout >/dev/null 2>&1; then
+        if ! timeout 1 bash -c "exec 2>/dev/null; exec 3<>/dev/tcp/localhost/${port}" 2>/dev/null; then
+            return 0  # Port is available (connection failed)
+        else
+            return 1  # Port is in use (connection succeeded)
+        fi
+    fi
+    
+    # If we get here, assume port is available
+    return 0
 }
 
 #######################################

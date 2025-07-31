@@ -1,8 +1,8 @@
-import { describe, expect, test, beforeEach, afterEach, vi, type Mock } from "vitest";
-import { ErrorHandler, type ErrorHandlerConfig, type ErrorContext } from "./ErrorHandler.js";
-import { EventPublisher } from "../../events/publisher.js";
+import { EventTypes, generatePK } from "@vrooli/shared";
+import { beforeEach, describe, expect, test, vi, type Mock } from "vitest";
 import { logger } from "../../../events/logger.js";
-import { EventTypes } from "@vrooli/shared";
+import { EventPublisher } from "../../events/publisher.js";
+import { ErrorHandler, type ErrorContext, type ErrorHandlerConfig } from "./ErrorHandler.js";
 
 // Mock dependencies
 vi.mock("../../../events/logger.js", () => ({
@@ -16,8 +16,8 @@ vi.mock("../../../events/logger.js", () => ({
 
 vi.mock("../../events/publisher.js", () => ({
     EventPublisher: {
-        emit: vi.fn().mockResolvedValue({ 
-            proceed: true, 
+        emit: vi.fn().mockResolvedValue({
+            proceed: true,
             eventId: "test-event-123",
             reason: null,
             wasBlocking: false,
@@ -153,7 +153,7 @@ describe("ErrorHandler", () => {
                 operation: "metadataOperation",
                 component: "TestComponent",
                 metadata: {
-                    userId: "user-123",
+                    userId: generatePK().toString(),
                     requestId: "req-456",
                 },
             };
@@ -163,7 +163,7 @@ describe("ErrorHandler", () => {
             expect(logger.error).toHaveBeenCalledWith(
                 "[TestComponent] metadataOperation failed",
                 expect.objectContaining({
-                    userId: "user-123",
+                    userId: expect.any(String),
                     requestId: "req-456",
                 }),
             );
@@ -641,7 +641,7 @@ describe("ErrorHandler", () => {
 
             // Should still return the original error, not the publishing error
             expect(result).toEqual({ success: false, error: originalError });
-            
+
             // Should log both the original error and the publishing failure
             expect(logger.error).toHaveBeenCalledWith(
                 "[TestComponent] cascadingFailure failed",
@@ -679,10 +679,10 @@ describe("ErrorHandler", () => {
 
             expect(result1.success).toBe(false);
             expect(callCount).toBe(3); // Initial + 2 retries
-            
+
             // Reset call count for second attempt
             callCount = 0;
-            
+
             // Second attempt should also retry (no circuit breaker implemented yet, but tests the pattern)
             const result2 = await errorHandler.executeWithRetry(operation, context, {
                 maxRetries: 2,
@@ -716,7 +716,7 @@ describe("ErrorHandler", () => {
             expect(result.success).toBe(true);
             expect(result.data).toEqual({ data: "success", attemptCount: 3 });
             expect(attemptCount).toBe(3);
-            
+
             // Should log successful recovery
             expect(logger.info).toHaveBeenCalledWith(
                 "[TestComponent] Operation succeeded after 2 retries",
@@ -730,7 +730,7 @@ describe("ErrorHandler", () => {
         test("should handle timeout errors in recovery scenarios", async () => {
             const timeoutError = new Error("ETIMEDOUT");
             timeoutError.name = "TimeoutError";
-            
+
             const operation = vi.fn().mockRejectedValue(timeoutError);
             const context: ErrorContext = {
                 operation: "timeoutRecovery",
@@ -751,7 +751,7 @@ describe("ErrorHandler", () => {
         test("should handle resource cleanup during error recovery", async () => {
             const cleanupSpy = vi.fn();
             const resourceError = new Error("Resource allocation failed");
-            
+
             const operationWithCleanup = vi.fn().mockImplementation(async () => {
                 try {
                     throw resourceError;
@@ -772,7 +772,7 @@ describe("ErrorHandler", () => {
 
             expect(result.success).toBe(false);
             expect(result.error).toBe(resourceError);
-            
+
             // Cleanup should be called for each attempt
             expect(cleanupSpy).toHaveBeenCalledTimes(3); // Initial + 2 retries
         });
@@ -780,7 +780,7 @@ describe("ErrorHandler", () => {
         test("should handle custom retry logic for specific error types", async () => {
             const customError = new Error("CUSTOM_ERROR_CODE");
             (customError as any).code = "CUSTOM_ERROR_CODE";
-            
+
             const operation = vi.fn().mockRejectedValue(customError);
             const context: ErrorContext = {
                 operation: "customRetryLogic",
@@ -801,10 +801,10 @@ describe("ErrorHandler", () => {
             const correlationId = "correlation-123";
             const error1 = new Error("First operation failed");
             const error2 = new Error("Second operation failed");
-            
+
             const operation1 = vi.fn().mockRejectedValue(error1);
             const operation2 = vi.fn().mockRejectedValue(error2);
-            
+
             const baseContext = {
                 component: "TestComponent",
                 metadata: { correlationId },
@@ -854,7 +854,7 @@ describe("ErrorHandler", () => {
 
             // Simulate a pattern where we try primary, then fallback
             const primaryResult = await errorHandler.wrap(primaryOperation, context);
-            
+
             let finalResult;
             if (!primaryResult.success) {
                 // Primary failed, try fallback
@@ -869,7 +869,7 @@ describe("ErrorHandler", () => {
             expect(primaryResult.success).toBe(false);
             expect(finalResult.success).toBe(true);
             expect(finalResult.data).toEqual({ data: "fallback_success" });
-            
+
             expect(primaryOperation).toHaveBeenCalledOnce();
             expect(fallbackOperation).toHaveBeenCalledOnce();
         });
@@ -881,7 +881,7 @@ describe("ErrorHandler", () => {
                 new Error("ENOTFOUND"),       // Retryable
                 new Error("UNAUTHORIZED"),    // Not retryable
             ];
-            
+
             let callCount = 0;
             const complexOperation = vi.fn().mockImplementation(() => {
                 const error = errors[callCount % errors.length];

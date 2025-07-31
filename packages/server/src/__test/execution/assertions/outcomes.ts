@@ -14,10 +14,6 @@ export interface OutcomeAssertions {
     toUseCreditsWithin(maxCredits: number): void;
 }
 
-declare module "vitest" {
-    type Assertion<T> = OutcomeAssertions
-    type AsymmetricMatchersContaining = OutcomeAssertions
-}
 
 export function extendOutcomeAssertions() {
     expect.extend({

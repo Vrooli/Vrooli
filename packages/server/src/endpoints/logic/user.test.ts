@@ -468,7 +468,7 @@ describe("EndpointsUser", () => {
 
                 // Verify bot was created in database
                 const createdBot = await DbProvider.get().user.findUnique({
-                    where: { id: input.id },
+                    where: { id: BigInt(input.id) },
                 });
                 expect(createdBot).not.toBeNull();
                 expect(createdBot?.botSettings).toBe(input.botSettings);
@@ -674,7 +674,7 @@ describe("EndpointsUser", () => {
 
                 // Verify updates in database
                 const updatedBot = await DbProvider.get().user.findUnique({
-                    where: { id: botData.id },
+                    where: { id: BigInt(botData.id) },
                 });
                 expect(updatedBot).not.toBeNull();
                 expect(updatedBot?.isPrivate).toBe(true);

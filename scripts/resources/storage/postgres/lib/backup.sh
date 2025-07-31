@@ -314,7 +314,7 @@ postgres::backup::list() {
         log::info "Backups for instance '$instance_name':"
         log::info "===================================="
         
-        local backups=($(find "$backup_dir" -maxdepth 1 -type d -name "*[0-9]*" | sort -r))
+        local backups=($(find "$backup_dir" -maxdepth 1 -type d ! -path "$backup_dir" | sort -r))
         
         if [[ ${#backups[@]} -eq 0 ]]; then
             log::info "No backups found"
@@ -350,7 +350,7 @@ postgres::backup::list() {
             log::info "Instance: $instance_name"
             log::info "$(printf '%*s' ${#instance_name} | tr ' ' '-')--------"
             
-            local backups=($(find "$instance_dir" -maxdepth 1 -type d -name "*[0-9]*" | sort -r))
+            local backups=($(find "$instance_dir" -maxdepth 1 -type d ! -path "$instance_dir" | sort -r))
             
             if [[ ${#backups[@]} -eq 0 ]]; then
                 log::info "  No backups found"
@@ -485,8 +485,8 @@ postgres::backup::cleanup() {
     while IFS= read -r -d '' backup_path; do
         local backup_name=$(basename "$backup_path")
         
-        # Skip if not a backup directory (contains digits)
-        if [[ ! "$backup_name" =~ [0-9] ]]; then
+        # Skip if not a backup directory (should contain backup files or metadata)
+        if [[ ! -f "$backup_path/metadata.json" && ! -f "$backup_path/full.sql" && ! -f "$backup_path/schema.sql" && ! -f "$backup_path/data.sql" ]]; then
             continue
         fi
         
@@ -499,7 +499,7 @@ postgres::backup::cleanup() {
                 log::warn "Failed to remove backup: $backup_name"
             fi
         fi
-    done < <(find "$base_dir" -maxdepth 2 -type d -name "*[0-9]*" -print0)
+    done < <(find "$base_dir" -maxdepth 2 -type d -print0)
     
     if [[ $deleted_count -eq 0 ]]; then
         log::info "No old backups found to clean up"
@@ -650,15 +650,9 @@ postgres::backup::finalize_metadata() {
     if [[ -f "$metadata_file" ]]; then
         # Update status and add completion time
         local temp_file=$(mktemp)
-        sed "s/\"status\": \"in_progress\"/\"status\": \"$status\"/" "$metadata_file" > "$temp_file"
-        echo "    \"completed\": \"$(date -Iseconds)\"" >> "$temp_file"
-        echo "}" >> "$temp_file"
         
-        # Remove the last closing brace and add the new fields properly
-        head -n -1 "$metadata_file" > "$temp_file"
-        echo "    \"status\": \"$status\"," >> "$temp_file"
-        echo "    \"completed\": \"$(date -Iseconds)\"" >> "$temp_file"
-        echo "}" >> "$temp_file"
+        # Replace the in_progress status and add completion time before the closing brace
+        sed "s/\"status\": \"in_progress\"/\"status\": \"$status\",\\n    \"completed\": \"$(date -Iseconds)\"/" "$metadata_file" > "$temp_file"
         
         mv "$temp_file" "$metadata_file"
     fi

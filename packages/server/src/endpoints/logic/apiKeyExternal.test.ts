@@ -1,17 +1,16 @@
 import { type ApiKeyExternalCreateInput, type ApiKeyExternalUpdateInput, generatePK } from "@vrooli/shared";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { mockAuthenticatedSession, mockLoggedOutSession, mockApiSession, mockWriteAuthPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
-import { assertRequiresAuth, assertRequiresApiKeyWritePermissions } from "../../__test/authTestUtils.js";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { assertRequiresAuth } from "../../__test/authTestUtils.js";
+import { mockApiSession, mockWriteAuthPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
-import { CacheService } from "../../redisConn.js";
 import { apiKeyExternal_createOne } from "../generated/apiKeyExternal_createOne.js";
 import { apiKeyExternal_updateOne } from "../generated/apiKeyExternal_updateOne.js";
 import { apiKeyExternal } from "./apiKeyExternal.js";
 // Import database fixtures
-import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { ApiKeyExternalDbFactory } from "../../__test/fixtures/db/apiKeyExternalFixtures.js";
+import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
@@ -26,7 +25,7 @@ describe("EndpointsApiKeyExternal", () => {
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","session"],
+            tables: ["user", "user_auth", "email", "session"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
@@ -180,7 +179,7 @@ describe("EndpointsApiKeyExternal", () => {
                 });
 
                 const providers = ["github", "gitlab", "bitbucket", "openai", "anthropic"];
-                
+
                 for (const provider of providers) {
                     const input: ApiKeyExternalCreateInput = {
                         id: generatePK(),
@@ -229,7 +228,7 @@ describe("EndpointsApiKeyExternal", () => {
         describe("invalid", () => {
             it("rejects duplicate name for same user", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create existing API key
                 await DbProvider.get().apiKeyExternal.create({
                     data: ApiKeyExternalDbFactory.createMinimal({
@@ -301,7 +300,7 @@ describe("EndpointsApiKeyExternal", () => {
             it("not logged in", async () => {
                 await assertRequiresAuth(
                     apiKeyExternal.updateOne,
-                    { id: generatePK() },
+                    { id: generatePK().toString() },
                     apiKeyExternal_updateOne,
                 );
             });
@@ -327,7 +326,7 @@ describe("EndpointsApiKeyExternal", () => {
                 });
 
                 const input: ApiKeyExternalUpdateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     name: "Updated Name",
                 };
 
@@ -344,7 +343,7 @@ describe("EndpointsApiKeyExternal", () => {
                 });
 
                 const input: ApiKeyExternalUpdateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     name: "Updated Name",
                 };
 
@@ -356,7 +355,7 @@ describe("EndpointsApiKeyExternal", () => {
         describe("valid", () => {
             it("updates own API key", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create existing API key
                 const existingKey = await DbProvider.get().apiKeyExternal.create({
                     data: ApiKeyExternalDbFactory.createMinimal({
@@ -389,7 +388,7 @@ describe("EndpointsApiKeyExternal", () => {
 
             it("updates key data", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 const existingKey = await DbProvider.get().apiKeyExternal.create({
                     data: ApiKeyExternalDbFactory.createMinimal({
                         name: "Key to Update",
@@ -428,7 +427,7 @@ describe("EndpointsApiKeyExternal", () => {
 
             it("updates last used timestamp", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 const existingKey = await DbProvider.get().apiKeyExternal.create({
                     data: ApiKeyExternalDbFactory.createMinimal({
                         name: "Key with Usage",
@@ -458,7 +457,7 @@ describe("EndpointsApiKeyExternal", () => {
 
             it("can disable and re-enable API key", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 const existingKey = await DbProvider.get().apiKeyExternal.create({
                     data: ApiKeyExternalDbFactory.createMinimal({
                         name: "Toggle Key",
@@ -497,7 +496,7 @@ describe("EndpointsApiKeyExternal", () => {
         describe("invalid", () => {
             it("cannot update another user's API key", async () => {
                 const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
-                
+
                 // Create API key for user 1
                 const user1Key = await DbProvider.get().apiKeyExternal.create({
                     data: ApiKeyExternalDbFactory.createMinimal({
@@ -532,7 +531,7 @@ describe("EndpointsApiKeyExternal", () => {
                 });
 
                 const input: ApiKeyExternalUpdateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     name: "Non-existent Key",
                 };
 
@@ -542,7 +541,7 @@ describe("EndpointsApiKeyExternal", () => {
 
             it("rejects duplicate name update", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create two API keys
                 const key1 = await DbProvider.get().apiKeyExternal.create({
                     data: ApiKeyExternalDbFactory.createMinimal({

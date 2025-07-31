@@ -1,13 +1,7 @@
-import { generatePK, generatePublicId } from "./idHelpers.js";
-import { type session, type Prisma, type PrismaClient } from "@prisma/client";
+/* eslint-disable no-magic-numbers */
+import { type Prisma, type PrismaClient, type session } from "@prisma/client";
+import { DAYS_1_MS, generatePK } from "@vrooli/shared";
 import { DatabaseFixtureFactory } from "./DatabaseFixtureFactory.js";
-import type { RelationConfig } from "./DatabaseFixtureFactory.js";
-
-interface SessionRelationConfig extends RelationConfig {
-    withUser?: boolean;
-    userId?: bigint;
-    expired?: boolean;
-}
 
 /**
  * Enhanced database fixture factory for Session model
@@ -42,7 +36,7 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
     protected getMinimalData(overrides?: Partial<Prisma.sessionCreateInput>): Prisma.sessionCreateInput {
         return {
             id: generatePK(),
-            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+            expires_at: new Date(Date.now() + DAYS_1_MS),
             user: { connect: { id: generatePK() } },
             auth: { connect: { id: generatePK() } },
             ...overrides,
@@ -68,7 +62,7 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
     getFixtures() {
         const userId = generatePK();
         const authId = generatePK();
-        
+
         return {
             minimal: this.getMinimalData(),
             complete: this.getCompleteData(),
@@ -210,7 +204,9 @@ export class SessionDbFactory extends DatabaseFixtureFactory<
 }
 
 // Export factory creator function
-export const createSessionDbFactory = (prisma: PrismaClient) => new SessionDbFactory(prisma);
+export function createSessionDbFactory(prisma: PrismaClient) {
+    return new SessionDbFactory(prisma);
+}
 
 // Export the class for type usage
 export { SessionDbFactory as SessionDbFactoryClass };

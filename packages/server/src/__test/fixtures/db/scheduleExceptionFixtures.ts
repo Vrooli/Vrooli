@@ -1,6 +1,6 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
-import { generatePK } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK } from "@vrooli/shared";
 import { ScheduleExceptionDbFactory as EnhancedScheduleExceptionDbFactory } from "./ScheduleExceptionDbFactory.js";
 
 /**
@@ -64,7 +64,7 @@ export const cancelledScheduleExceptionDb: Prisma.schedule_exceptionCreateInput 
  */
 export class ScheduleExceptionDbFactory extends EnhancedScheduleExceptionDbFactory {
     static createMinimal(
-        scheduleId: string,
+        scheduleId: bigint,
         overrides?: Partial<Prisma.schedule_exceptionCreateInput>,
     ): Prisma.schedule_exceptionCreateInput {
         return {
@@ -80,7 +80,7 @@ export class ScheduleExceptionDbFactory extends EnhancedScheduleExceptionDbFacto
     }
 
     static createComplete(
-        scheduleId: string,
+        scheduleId: bigint,
         overrides?: Partial<Prisma.schedule_exceptionCreateInput>,
     ): Prisma.schedule_exceptionCreateInput {
         return {
@@ -96,7 +96,7 @@ export class ScheduleExceptionDbFactory extends EnhancedScheduleExceptionDbFacto
     }
 
     static createCancellation(
-        scheduleId: string,
+        scheduleId: bigint,
         originalTime: Date,
         overrides?: Partial<Prisma.schedule_exceptionCreateInput>,
     ): Prisma.schedule_exceptionCreateInput {
@@ -113,7 +113,7 @@ export class ScheduleExceptionDbFactory extends EnhancedScheduleExceptionDbFacto
     }
 
     static createRescheduled(
-        scheduleId: string,
+        scheduleId: bigint,
         originalTime: Date,
         newStartTime: Date,
         newEndTime: Date,
@@ -135,7 +135,7 @@ export class ScheduleExceptionDbFactory extends EnhancedScheduleExceptionDbFacto
      * Create schedule exception with time extension
      */
     static createExtended(
-        scheduleId: string,
+        scheduleId: bigint,
         originalTime: Date,
         extensionHours = 2,
         overrides?: Partial<Prisma.schedule_exceptionCreateInput>,
@@ -157,7 +157,7 @@ export class ScheduleExceptionDbFactory extends EnhancedScheduleExceptionDbFacto
      * Create schedule exception moved to different day
      */
     static createMovedToNextDay(
-        scheduleId: string,
+        scheduleId: bigint,
         originalTime: Date,
         durationHours = 8,
         overrides?: Partial<Prisma.schedule_exceptionCreateInput>,
@@ -165,7 +165,7 @@ export class ScheduleExceptionDbFactory extends EnhancedScheduleExceptionDbFacto
         const nextDay = new Date(originalTime);
         nextDay.setDate(nextDay.getDate() + 1);
         const newEndTime = new Date(nextDay.getTime() + (durationHours * 60 * 60 * 1000));
-        
+
         return {
             id: generatePK(),
             originalStartTime: originalTime,
@@ -185,7 +185,7 @@ export class ScheduleExceptionDbFactory extends EnhancedScheduleExceptionDbFacto
 export async function seedScheduleExceptions(
     prisma: any,
     options: {
-        scheduleId: string;
+        scheduleId: bigint;
         count?: number;
         type?: "minimal" | "complete" | "mixed" | "cancellation" | "rescheduled";
         baseDate?: Date;
@@ -259,7 +259,7 @@ export async function seedScheduleExceptions(
 /**
  * Helper to clean up schedule exceptions for testing
  */
-export async function cleanupScheduleExceptions(prisma: PrismaClient, exceptionIds: string[]) {
+export async function cleanupScheduleExceptions(prisma: PrismaClient, exceptionIds: bigint[]) {
     return prisma.schedule_exception.deleteMany({
         where: {
             id: {
@@ -274,12 +274,12 @@ export async function cleanupScheduleExceptions(prisma: PrismaClient, exceptionI
  */
 export async function verifyScheduleExceptionState(
     prisma: any,
-    exceptionId: string,
+    exceptionId: bigint,
     expected: Partial<{
         originalStartTime: Date;
         newStartTime: Date | null;
         newEndTime: Date | null;
-        scheduleId: string;
+        scheduleId: bigint;
     }>,
 ) {
     const actual = await prisma.schedule_exception.findUnique({
@@ -317,7 +317,7 @@ export async function verifyScheduleExceptionState(
     }
 
     if (expected.scheduleId) {
-        if (actual.scheduleId.toString() !== expected.scheduleId) {
+        if (actual.scheduleId !== expected.scheduleId) {
             throw new Error(`scheduleId mismatch: expected ${expected.scheduleId}, got ${actual.scheduleId}`);
         }
     }

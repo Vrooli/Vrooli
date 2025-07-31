@@ -1,5 +1,5 @@
-import { generatePK } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { generatePK } from "@vrooli/shared";
 
 /**
  * Database fixtures for ResourceVersionRelation model - used for seeding test data
@@ -80,8 +80,8 @@ export class ResourceVersionRelationDbFactory {
             id: generatePK(),
             relationType: "DEPENDENCY",
             labels: [],
-            fromVersion: { connect: { id: fromVersionId } },
-            toVersion: { connect: { id: toVersionId } },
+            fromVersion: { connect: { id: BigInt(fromVersionId) } },
+            toVersion: { connect: { id: BigInt(toVersionId) } },
             ...overrides,
         };
     }
@@ -100,8 +100,8 @@ export class ResourceVersionRelationDbFactory {
             id: generatePK(),
             relationType,
             labels,
-            fromVersion: { connect: { id: fromVersionId } },
-            toVersion: { connect: { id: toVersionId } },
+            fromVersion: { connect: { id: BigInt(fromVersionId) } },
+            toVersion: { connect: { id: BigInt(toVersionId) } },
             ...overrides,
         };
     }
@@ -186,7 +186,7 @@ export async function seedResourceVersionRelations(
     for (let i = 0; i < count; i++) {
         const fromVersionId = options.fromVersionIds[i % options.fromVersionIds.length];
         const toVersionId = options.toVersionIds[i % options.toVersionIds.length];
-        
+
         const relationData = ResourceVersionRelationDbFactory.createComplete(
             fromVersionId,
             toVersionId,
@@ -201,7 +201,7 @@ export async function seedResourceVersionRelations(
                 toVersion: true,
             },
         });
-        
+
         relations.push(relation);
     }
 

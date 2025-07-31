@@ -1,5 +1,5 @@
 import { type FindByPublicIdInput, type ResourceVersionCreateInput, type ResourceVersionSearchInput, type ResourceVersionUpdateInput, generatePK, resourceVersionTestDataFactory } from "@vrooli/shared";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertRequiresApiKeyWritePermissions, assertRequiresAuth } from "../../__test/authTestUtils.js";
 import { mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
@@ -597,7 +597,7 @@ describe("EndpointsResource", () => {
                 });
 
                 const input: ResourceVersionCreateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     versionLabel: "1.0.0",
                     resourceType: "Api",
                     root: {
@@ -619,7 +619,7 @@ describe("EndpointsResource", () => {
             it("not logged in", async () => {
                 await assertRequiresAuth(
                     resource.updateOne,
-                    { id: generatePK() },
+                    { id: generatePK().toString() },
                     resource_updateOne,
                 );
             });
@@ -627,7 +627,7 @@ describe("EndpointsResource", () => {
             it("API key - no write permissions", async () => {
                 await assertRequiresApiKeyWritePermissions(
                     resource.updateOne,
-                    { id: generatePK() },
+                    { id: generatePK().toString() },
                     resource_updateOne,
                     ["ResourceVersion"],
                 );
@@ -802,7 +802,7 @@ describe("EndpointsResource", () => {
                 });
 
                 const input: ResourceVersionUpdateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     versionNotes: "This should fail",
                 };
 

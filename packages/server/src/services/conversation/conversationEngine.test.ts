@@ -1,4 +1,3 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type {
     BotParticipant,
     ConversationContext,
@@ -6,16 +5,16 @@ import type {
     ConversationParams,
     ConversationTrigger,
     ExecutionStrategy,
-    MessageState,
     ResponseResult,
-    SwarmId,
-    UserData,
+    SessionUser,
+    SwarmId
 } from "@vrooli/shared";
-import { toTurnId } from "@vrooli/shared";
-import { ConversationEngine } from "./conversationEngine.js";
-import type { ResponseService } from "../response/responseService.js";
+import { generatePK, ModelStrategy } from "@vrooli/shared";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ISwarmContextManager } from "../execution/shared/SwarmContextManager.js";
+import type { ResponseService } from "../response/responseService.js";
 import type { AgentSelectionResult } from "./agentGraph.js";
+import { ConversationEngine } from "./conversationEngine.js";
 
 // Mock dependencies
 vi.mock("../../events/logger.js", () => ({
@@ -46,68 +45,99 @@ describe("ConversationEngine", () => {
         fallbackBehavior: "most_capable",
     };
 
-    const sampleUserData: UserData = {
-        id: "user-123",
-        name: "Test User",
-        email: "test@example.com",
-        language: "en",
-        timezone: "UTC",
-    };
+    function createSampleUserData(): SessionUser {
+        return {
+            __typename: "SessionUser",
+            id: generatePK().toString(),
+            name: "Test User",
+            credits: "1000",
+            creditAccountId: null,
+            creditSettings: null,
+            handle: "testuser",
+            hasPremium: false,
+            hasReceivedPhoneVerificationReward: false,
+            languages: ["en"],
+            phoneNumberVerified: false,
+            profileImage: null,
+            publicId: generatePK().toString(),
+            session: {
+                __typename: "SessionUserSession",
+                id: generatePK().toString(),
+                lastRefreshAt: new Date().toISOString(),
+            },
+            theme: null,
+        };
+    }
 
-    const sampleBotParticipant: BotParticipant = {
-        id: "bot-456",
-        name: "Test Bot",
-        handle: "testbot",
-        config: {
-            persona: "Helpful assistant",
-            role: "assistant",
-            capabilities: ["chat", "search"],
-            model: "gpt-4o",
-        },
-        state: "ready",
-        isBotDeprecated: false,
-        user: {
-            id: "bot-user-456",
-            name: "Test Bot User",
-        },
-        you: {
-            id: "rel-123",
-            isInvited: true,
-            isViewed: false,
-            canDelete: false,
-            canUpdate: false,
-            canRead: true,
-        },
-    };
-
-    const sampleConversationContext: ConversationContext = {
-        swarmId: "swarm-789" as SwarmId,
-        userData: sampleUserData,
-        participants: [sampleBotParticipant],
-        conversationHistory: [],
-        availableTools: [
-            {
-                name: "search",
-                description: "Search for information",
-                parameters: {
-                    type: "object",
-                    properties: {
-                        query: { type: "string" },
-                    },
-                    required: ["query"],
+    function createSampleBotParticipant(): BotParticipant {
+        return {
+            id: generatePK().toString(),
+            name: "Test Bot",
+            handle: "testbot",
+            config: {
+                __version: "1.0",
+                resources: [],
+                modelConfig: {
+                    strategy: ModelStrategy.FIXED,
+                    preferredModel: "gpt-4o",
+                    offlineOnly: false,
+                },
+                agentSpec: {
+                    role: "assistant",
                 },
             },
-        ],
-    };
+            state: "ready",
+            isBotDeprecated: false,
+            user: {
+                id: generatePK().toString(),
+                name: "Test Bot User",
+            },
+            you: {
+                id: generatePK().toString(),
+                isInvited: true,
+                isViewed: false,
+                canDelete: false,
+                canUpdate: false,
+                canRead: true,
+            },
+        };
+    }
 
-    const sampleTrigger: ConversationTrigger = {
-        type: "user_message",
-        data: {
-            messageId: "msg-123",
-            content: "Hello",
-            userId: sampleUserData.id,
-        },
-    };
+    function createSampleConversationContext(): ConversationContext {
+        const userData = createSampleUserData();
+        const botParticipant = createSampleBotParticipant();
+        return {
+            swarmId: generatePK().toString() as SwarmId,
+            userData,
+            timestamp: new Date(),
+            participants: [botParticipant],
+            conversationHistory: [],
+            availableTools: [
+                {
+                    name: "search",
+                    description: "Search for information",
+                    parameters: {
+                        type: "object",
+                        properties: {
+                            query: { type: "string" },
+                        },
+                        required: ["query"],
+                    },
+                },
+            ],
+        };
+    }
+
+    function createSampleTrigger(userData: SessionUser): ConversationTrigger {
+        return {
+            type: "user_message",
+            data: {
+                messageId: generatePK().toString(),
+                content: "Hello",
+                userId: userData.id,
+            },
+        };
+    }
 
     beforeEach(() => {
         // Reset all mocks
@@ -167,8 +197,17 @@ describe("ConversationEngine", () => {
 
     describe("orchestrateConversation", () => {
         let conversationParams: ConversationParams;
+        let sampleConversationContext: ConversationContext;
+        let sampleUserData: SessionUser;
+        let sampleBotParticipant: BotParticipant;
+        let sampleTrigger: ConversationTrigger;
 
         beforeEach(() => {
+            sampleConversationContext = createSampleConversationContext();
+            sampleUserData = sampleConversationContext.userData;
+            sampleBotParticipant = sampleConversationContext.participants[0];
+            sampleTrigger = createSampleTrigger(sampleUserData);
+
             conversationParams = {
                 context: sampleConversationContext,
                 strategy: "conversation" as ExecutionStrategy,
@@ -192,9 +231,9 @@ describe("ConversationEngine", () => {
             const mockResponseResult: ResponseResult = {
                 success: true,
                 message: {
-                    id: "response-msg-123",
+                    id: generatePK().toString(),
                     text: "Hello! How can I help you?",
-                    config: { role: "assistant" },
+                    config: { __version: "1.0", role: "assistant" },
                     userId: sampleBotParticipant.id,
                     language: "en",
                 },
@@ -246,7 +285,7 @@ describe("ConversationEngine", () => {
         it("should handle parallel execution with multiple bots", async () => {
             const secondBot: BotParticipant = {
                 ...sampleBotParticipant,
-                id: "bot-789",
+                id: generatePK().toString(),
                 name: "Second Bot",
             };
 
@@ -262,7 +301,7 @@ describe("ConversationEngine", () => {
                 .mockResolvedValueOnce({
                     success: true,
                     message: {
-                        id: "response-1",
+                        id: generatePK().toString(),
                         text: "Response from bot 1",
                         config: { role: "assistant" },
                         userId: sampleBotParticipant.id,
@@ -280,7 +319,7 @@ describe("ConversationEngine", () => {
                 .mockResolvedValueOnce({
                     success: true,
                     message: {
-                        id: "response-2",
+                        id: generatePK().toString(),
                         text: "Response from bot 2",
                         config: { role: "assistant" },
                         userId: secondBot.id,
@@ -321,9 +360,9 @@ describe("ConversationEngine", () => {
             const mockResponseWithTools: ResponseResult = {
                 success: true,
                 message: {
-                    id: "response-with-tools",
+                    id: generatePK().toString(),
                     text: "I'll search for that information.",
-                    config: { role: "assistant" },
+                    config: { __version: "1.0", role: "assistant" },
                     userId: sampleBotParticipant.id,
                     language: "en",
                 },
@@ -336,7 +375,7 @@ describe("ConversationEngine", () => {
                 },
                 toolCalls: [
                     {
-                        id: "tool-call-123",
+                        id: generatePK().toString(),
                         function: {
                             name: "search",
                             arguments: "{\"query\": \"test query\"}",
@@ -395,7 +434,7 @@ describe("ConversationEngine", () => {
         it("should calculate correct average confidence", async () => {
             const secondBot: BotParticipant = {
                 ...sampleBotParticipant,
-                id: "bot-789",
+                id: generatePK().toString(),
             };
 
             conversationParams.context.participants = [sampleBotParticipant, secondBot];
@@ -409,7 +448,7 @@ describe("ConversationEngine", () => {
                 .mockResolvedValueOnce({
                     success: true,
                     message: {
-                        id: "response-1",
+                        id: generatePK().toString(),
                         text: "Response 1",
                         config: { role: "assistant" },
                         userId: sampleBotParticipant.id,
@@ -427,7 +466,7 @@ describe("ConversationEngine", () => {
                 .mockResolvedValueOnce({
                     success: true,
                     message: {
-                        id: "response-2",
+                        id: generatePK().toString(),
                         text: "Response 2",
                         config: { role: "assistant" },
                         userId: secondBot.id,
@@ -451,7 +490,15 @@ describe("ConversationEngine", () => {
     });
 
     describe("selectRespondingBots", () => {
+        let sampleConversationContext: ConversationContext;
+        let sampleBotParticipant: BotParticipant;
+        let sampleTrigger: ConversationTrigger;
+
         beforeEach(() => {
+            sampleConversationContext = createSampleConversationContext();
+            sampleBotParticipant = sampleConversationContext.participants[0];
+            sampleTrigger = createSampleTrigger(sampleConversationContext.userData);
+
             mockContextManager.getContext.mockResolvedValue({
                 swarmId: sampleConversationContext.swarmId,
                 participants: [sampleBotParticipant],
@@ -508,8 +555,12 @@ describe("ConversationEngine", () => {
 
     describe("context validation", () => {
         let invalidContext: ConversationContext;
+        let sampleConversationContext: ConversationContext;
+        let sampleTrigger: ConversationTrigger;
 
         beforeEach(() => {
+            sampleConversationContext = createSampleConversationContext();
+            sampleTrigger = createSampleTrigger(sampleConversationContext.userData);
             invalidContext = { ...sampleConversationContext };
         });
 
@@ -529,7 +580,7 @@ describe("ConversationEngine", () => {
         });
 
         it("should throw error for missing userData", async () => {
-            invalidContext.swarmId = "valid-swarm" as SwarmId; // Keep valid swarmId
+            invalidContext.swarmId = generatePK().toString() as SwarmId; // Keep valid swarmId
             invalidContext.userData = undefined as any;
 
             const params: ConversationParams = {
@@ -545,7 +596,7 @@ describe("ConversationEngine", () => {
         });
 
         it("should throw error for invalid participants", async () => {
-            invalidContext.swarmId = "valid-swarm" as SwarmId; // Keep valid swarmId
+            invalidContext.swarmId = generatePK().toString() as SwarmId; // Keep valid swarmId
             invalidContext.userData = sampleUserData; // Keep valid userData
             invalidContext.participants = undefined as any;
 
@@ -562,7 +613,7 @@ describe("ConversationEngine", () => {
         });
 
         it("should throw error for invalid conversationHistory", async () => {
-            invalidContext.swarmId = "valid-swarm" as SwarmId; // Keep valid swarmId
+            invalidContext.swarmId = generatePK().toString() as SwarmId; // Keep valid swarmId
             invalidContext.userData = sampleUserData; // Keep valid userData
             invalidContext.participants = [sampleBotParticipant]; // Keep valid participants
             invalidContext.conversationHistory = undefined as any;
@@ -580,7 +631,7 @@ describe("ConversationEngine", () => {
         });
 
         it("should throw error for invalid availableTools", async () => {
-            invalidContext.swarmId = "valid-swarm" as SwarmId; // Keep valid swarmId
+            invalidContext.swarmId = generatePK().toString() as SwarmId; // Keep valid swarmId
             invalidContext.userData = sampleUserData; // Keep valid userData
             invalidContext.participants = [sampleBotParticipant]; // Keep valid participants
             invalidContext.conversationHistory = []; // Keep valid conversationHistory
@@ -601,8 +652,15 @@ describe("ConversationEngine", () => {
 
     describe("execution mode determination", () => {
         let conversationParams: ConversationParams;
+        let sampleConversationContext: ConversationContext;
+        let sampleBotParticipant: BotParticipant;
+        let sampleTrigger: ConversationTrigger;
 
         beforeEach(() => {
+            sampleConversationContext = createSampleConversationContext();
+            sampleBotParticipant = sampleConversationContext.participants[0];
+            sampleTrigger = createSampleTrigger(sampleConversationContext.userData);
+
             conversationParams = {
                 context: sampleConversationContext,
                 strategy: "conversation" as ExecutionStrategy,
@@ -620,7 +678,7 @@ describe("ConversationEngine", () => {
             mockResponseService.generateResponse.mockResolvedValue({
                 success: true,
                 message: {
-                    id: "response",
+                    id: generatePK().toString(),
                     text: "Test response",
                     config: { role: "assistant" },
                     userId: sampleBotParticipant.id,
@@ -640,7 +698,7 @@ describe("ConversationEngine", () => {
             conversationParams.strategy = "reasoning";
 
             mockSelectResponders.mockResolvedValue({
-                responders: [sampleBotParticipant, { ...sampleBotParticipant, id: "bot-2" }],
+                responders: [sampleBotParticipant, { ...sampleBotParticipant, id: generatePK().toString() }],
                 strategy: "reasoning",
             });
 
@@ -653,7 +711,7 @@ describe("ConversationEngine", () => {
             conversationParams.strategy = "deterministic";
 
             mockSelectResponders.mockResolvedValue({
-                responders: [sampleBotParticipant, { ...sampleBotParticipant, id: "bot-2" }],
+                responders: [sampleBotParticipant, { ...sampleBotParticipant, id: generatePK().toString() }],
                 strategy: "deterministic",
             });
 
@@ -677,7 +735,7 @@ describe("ConversationEngine", () => {
             conversationParams.strategy = "conversation";
 
             mockSelectResponders.mockResolvedValue({
-                responders: [sampleBotParticipant, { ...sampleBotParticipant, id: "bot-2" }],
+                responders: [sampleBotParticipant, { ...sampleBotParticipant, id: generatePK().toString() }],
                 strategy: "multi_bot",
             });
 
@@ -688,10 +746,20 @@ describe("ConversationEngine", () => {
     });
 
     describe("error handling", () => {
+        let sampleConversationContext: ConversationContext;
+        let sampleBotParticipant: BotParticipant;
+        let sampleTrigger: ConversationTrigger;
+
+        beforeEach(() => {
+            sampleConversationContext = createSampleConversationContext();
+            sampleBotParticipant = sampleConversationContext.participants[0];
+            sampleTrigger = createSampleTrigger(sampleConversationContext.userData);
+        });
+
         it("should handle partial failures in parallel execution", async () => {
             const secondBot: BotParticipant = {
                 ...sampleBotParticipant,
-                id: "bot-failure",
+                id: generatePK().toString(),
             };
 
             const conversationParams: ConversationParams = {
@@ -721,7 +789,7 @@ describe("ConversationEngine", () => {
                 .mockResolvedValueOnce({
                     success: true,
                     message: {
-                        id: "success-response",
+                        id: generatePK().toString(),
                         text: "Success response",
                         config: { role: "assistant" },
                         userId: sampleBotParticipant.id,
@@ -785,10 +853,20 @@ describe("ConversationEngine", () => {
     });
 
     describe("resource aggregation", () => {
+        let sampleConversationContext: ConversationContext;
+        let sampleBotParticipant: BotParticipant;
+        let sampleTrigger: ConversationTrigger;
+
+        beforeEach(() => {
+            sampleConversationContext = createSampleConversationContext();
+            sampleBotParticipant = sampleConversationContext.participants[0];
+            sampleTrigger = createSampleTrigger(sampleConversationContext.userData);
+        });
+
         it("should correctly aggregate resources from multiple bots", async () => {
             const secondBot: BotParticipant = {
                 ...sampleBotParticipant,
-                id: "bot-2",
+                id: generatePK().toString(),
             };
 
             const conversationParams: ConversationParams = {
@@ -817,7 +895,7 @@ describe("ConversationEngine", () => {
                 .mockResolvedValueOnce({
                     success: true,
                     message: {
-                        id: "response-1",
+                        id: generatePK().toString(),
                         text: "Response 1",
                         config: { role: "assistant" },
                         userId: sampleBotParticipant.id,
@@ -834,7 +912,7 @@ describe("ConversationEngine", () => {
                 .mockResolvedValueOnce({
                     success: true,
                     message: {
-                        id: "response-2",
+                        id: generatePK().toString(),
                         text: "Response 2",
                         config: { role: "assistant" },
                         userId: secondBot.id,

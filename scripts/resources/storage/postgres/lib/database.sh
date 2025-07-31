@@ -33,13 +33,20 @@ postgres::database::execute() {
     local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
     
     # Execute SQL command in container
-    docker exec -i "$container_name" psql \
+    local output
+    if output=$(docker exec -i "$container_name" psql \
         -U "$POSTGRES_DEFAULT_USER" \
         -d "$database" \
-        -c "$sql_command" 2>/dev/null || {
+        -c "$sql_command" 2>&1); then
+        echo "$output"
+        return 0
+    else
+        local exit_code=$?
         log::error "Failed to execute SQL command on instance '$instance_name'"
+        log::error "Exit code: $exit_code"
+        log::error "Output: $output"
         return 1
-    }
+    fi
 }
 
 #######################################
@@ -77,14 +84,18 @@ postgres::database::execute_file() {
     
     local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
     
-    # Execute SQL file in container
-    docker exec -i "$container_name" psql \
+    # Execute SQL file in container by piping content
+    if cat "$sql_file" | docker exec -i "$container_name" psql \
         -U "$POSTGRES_DEFAULT_USER" \
         -d "$database" \
-        -f <(cat "$sql_file") 2>/dev/null || {
+        -q 2>&1; then
+        return 0
+    else
+        local exit_code=$?
         log::error "Failed to execute SQL file '$sql_file' on instance '$instance_name'"
+        log::error "Exit code: $exit_code"
         return 1
-    }
+    fi
 }
 
 #######################################

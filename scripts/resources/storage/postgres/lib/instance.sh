@@ -14,6 +14,7 @@ postgres::instance::create() {
     local instance_name="${1:-main}"
     local port="${2:-}"
     local template="${3:-development}"
+    local networks="${4:-}"
     
     # Validate instance name
     if ! postgres::instance::validate_name "$instance_name"; then
@@ -41,15 +42,51 @@ postgres::instance::create() {
             log::error "${MSG_NO_AVAILABLE_PORT}"
             return 1
         fi
+        log::info "Found available port: $port"
     else
         # Validate specified port
         if ! postgres::instance::validate_port "$port"; then
+            return 1
+        fi
+        
+        # Double-check port availability for manually specified ports
+        if ! postgres::common::is_port_available "$port"; then
+            log::error "Port $port is not available"
+            # Show what's using the port if possible
+            if command -v lsof >/dev/null 2>&1; then
+                local port_user=$(lsof -i :${port} -sTCP:LISTEN -t 2>/dev/null | head -1)
+                if [[ -n "$port_user" ]]; then
+                    local process_info=$(ps -p "$port_user" -o comm= 2>/dev/null || echo "unknown")
+                    log::info "Port $port is being used by process: $process_info (PID: $port_user)"
+                fi
+            fi
             return 1
         fi
     fi
     
     # Generate secure credentials
     local password=$(postgres::common::generate_password)
+    
+    # Handle networks - merge template networks with manually specified ones
+    local template_networks=$(postgres::network::load_template_networks "$template")
+    local all_networks=""
+    
+    if [[ -n "$template_networks" ]] && [[ -n "$networks" ]]; then
+        # Merge both, removing duplicates
+        all_networks=$(echo "$template_networks,$networks" | tr ',' '\n' | sort -u | tr '\n' ',' | sed 's/,$//')
+    elif [[ -n "$template_networks" ]]; then
+        all_networks="$template_networks"
+    elif [[ -n "$networks" ]]; then
+        all_networks="$networks"
+    fi
+    
+    # Validate network names
+    if [[ -n "$all_networks" ]]; then
+        if ! postgres::network::validate_names "$all_networks"; then
+            return 1
+        fi
+        log::info "Instance will join additional networks: $all_networks"
+    fi
     
     log::info "Creating PostgreSQL instance '$instance_name' on port $port with template '$template'"
     
@@ -59,11 +96,19 @@ postgres::instance::create() {
         return 1
     fi
     
-    # Save instance configuration
-    postgres::instance::save_config "$instance_name" "$port" "$password" "$template"
+    # Save instance configuration (including networks)
+    postgres::instance::save_config "$instance_name" "$port" "$password" "$template" "$all_networks"
     
     # Create and start PostgreSQL container
     if postgres::docker::create_container "$instance_name" "$port" "$password" "$template"; then
+        # Connect to additional networks if specified
+        if [[ -n "$all_networks" ]]; then
+            local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
+            if ! postgres::network::connect_container "$container_name" "$all_networks"; then
+                log::warn "Some network connections failed, but container is running"
+            fi
+        fi
+        
         # Wait for container to be ready
         if postgres::common::wait_for_ready "$instance_name"; then
             log::success "${MSG_CREATE_SUCCESS}"
@@ -100,12 +145,12 @@ postgres::instance::destroy() {
     local force="${2:-false}"
     
     if ! postgres::common::container_exists "$instance_name"; then
-        log::warn "PostgreSQL instance '$instance_name' does not exist"
+        postgres::common::show_instance_not_found_error "$instance_name"
         return 0
     fi
     
     # Confirm destruction unless forced
-    if [[ "$force" != "true" ]]; then
+    if [[ "$force" != "true" && "$force" != "yes" ]]; then
         read -p "Are you sure you want to destroy instance '$instance_name'? (y/N): " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -118,11 +163,26 @@ postgres::instance::destroy() {
     
     # Remove Docker container
     if postgres::docker::remove "$instance_name" "$force"; then
-        # Remove instance directory
+        # Remove instance directory with proper permission handling
         local instance_dir="${POSTGRES_INSTANCES_DIR}/${instance_name}"
         if [[ -d "$instance_dir" ]]; then
-            rm -rf "$instance_dir"
-            log::debug "Removed instance directory: $instance_dir"
+            # First try normal removal
+            if rm -rf "$instance_dir" 2>/dev/null; then
+                log::debug "Removed instance directory: $instance_dir"
+            else
+                # If that fails, try using Docker to remove root-owned files
+                log::debug "Normal removal failed, using Docker to clean up root-owned files"
+                
+                # Use a temporary container to remove files with proper permissions
+                if docker run --rm -v "${instance_dir}:/cleanup" alpine:latest sh -c "rm -rf /cleanup/*" 2>/dev/null; then
+                    # Now remove the empty directory
+                    rmdir "$instance_dir" 2>/dev/null || rm -rf "$instance_dir"
+                    log::debug "Removed instance directory using Docker: $instance_dir"
+                else
+                    log::warn "Could not fully remove instance directory. Manual cleanup may be required: $instance_dir"
+                    log::warn "You can try: sudo rm -rf $instance_dir"
+                fi
+            fi
         fi
         
         log::success "${MSG_DESTROY_SUCCESS}"
@@ -335,6 +395,7 @@ postgres::instance::get_connection_string() {
     
     if ! postgres::common::container_exists "$instance_name"; then
         log::error "${MSG_INSTANCE_NOT_FOUND}: $instance_name"
+        echo ""  # Return empty string for command substitution
         return 1
     fi
     
@@ -343,6 +404,7 @@ postgres::instance::get_connection_string() {
     
     if [[ -z "$port" || -z "$password" ]]; then
         log::error "Instance configuration incomplete"
+        echo ""  # Return empty string for command substitution
         return 1
     fi
     
@@ -364,12 +426,14 @@ postgres::instance::find_available_port() {
 #   $2 - port
 #   $3 - password
 #   $4 - template
+#   $5 - networks (optional)
 #######################################
 postgres::instance::save_config() {
     local instance_name="$1"
     local port="$2"
     local password="$3"
     local template="$4"
+    local networks="${5:-}"
     local created=$(date -Iseconds)
     
     postgres::common::set_instance_config "$instance_name" "port" "$port"
@@ -378,6 +442,11 @@ postgres::instance::save_config() {
     postgres::common::set_instance_config "$instance_name" "created" "$created"
     postgres::common::set_instance_config "$instance_name" "user" "$POSTGRES_DEFAULT_USER"
     postgres::common::set_instance_config "$instance_name" "database" "$POSTGRES_DEFAULT_DB"
+    
+    # Save networks if specified
+    if [[ -n "$networks" ]]; then
+        postgres::common::set_instance_config "$instance_name" "networks" "$networks"
+    fi
 }
 
 #######################################

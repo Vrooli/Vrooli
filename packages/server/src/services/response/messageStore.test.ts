@@ -1,17 +1,15 @@
-import { describe, it, expect, vi, beforeEach, afterEach, beforeAll, afterAll } from "vitest";
-import { GenericContainer, type StartedTestContainer } from "testcontainers";
-import { Redis } from "ioredis";
-import { 
-    type MessageState, 
-    type MessageConfigObject,
+import {
+    DAYS_1_S,
     generatePK,
     WEEKS_1_DAYS,
-    DAYS_1_S,
+    type MessageConfigObject,
+    type MessageState,
 } from "@vrooli/shared";
+import { Redis } from "ioredis";
+import { GenericContainer, type StartedTestContainer } from "testcontainers";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { CacheService } from "../../redisConn.js";
-import { ChatContextCache, TokenCounter } from "./messageStore.js";
-import { AIServiceRegistry } from "./registry.js";
-import { logger } from "../../events/logger.js";
+import { RedisMessageStore, TokenCounter } from "./messageStore.js";
 
 // Mock dependencies
 vi.mock("../../events/logger.js", () => ({
@@ -41,10 +39,10 @@ vi.mock("../../redisConn.js", () => ({
     },
 }));
 
-describe("MessageStore (ChatContextCache)", () => {
+describe("MessageStore (RedisMessageStore)", () => {
     let container: StartedTestContainer;
     let redisClient: Redis;
-    let messageStore: ChatContextCache;
+    let messageStore: RedisMessageStore;
 
     beforeAll(async () => {
         // Start Redis test container
@@ -54,7 +52,7 @@ describe("MessageStore (ChatContextCache)", () => {
 
         const host = container.getHost();
         const port = container.getMappedPort(6379);
-        
+
         redisClient = new Redis({
             host,
             port,
@@ -62,7 +60,7 @@ describe("MessageStore (ChatContextCache)", () => {
         });
 
         // Mock CacheService to return our test Redis client
-        (CacheService.getInstance as any).mockReturnValue(redisClient);
+        (CacheService.get as any).mockReturnValue(redisClient);
     }, 30000);
 
     afterAll(async () => {
@@ -74,8 +72,8 @@ describe("MessageStore (ChatContextCache)", () => {
         // Clear Redis before each test
         await redisClient.flushall();
         // Reset singleton instance
-        ChatContextCache["instance"] = null;
-        messageStore = ChatContextCache.get();
+        RedisMessageStore["_instance"] = null;
+        messageStore = RedisMessageStore.get();
     });
 
     afterEach(() => {
@@ -84,13 +82,14 @@ describe("MessageStore (ChatContextCache)", () => {
 
     describe("addMessage", () => {
         it("should add a message to the cache", async () => {
-            const conversationId = generatePK();
+            const conversationId = generatePK().toString();
             const message: MessageState = {
-                id: generatePK(),
+                id: generatePK().toString(),
                 parent: null,
-                userId: "user123",
-                content: "Hello, world!",
+                user: { id: "user123" },
+                text: "Hello, world!",
                 config: {
+                    __version: "1.0",
                     modelType: "gpt-4",
                     role: "user",
                 } as MessageConfigObject,
@@ -107,17 +106,17 @@ describe("MessageStore (ChatContextCache)", () => {
             expect(cached).toBeTruthy();
             const parsedCached = JSON.parse(cached!);
             expect(parsedCached.id).toBe(message.id);
-            expect(parsedCached.content).toBe(message.content);
+            expect(parsedCached.text).toBe(message.text);
         });
 
         it("should add message to conversation order ZSET", async () => {
-            const conversationId = generatePK();
+            const conversationId = generatePK().toString();
             const message: MessageState = {
-                id: generatePK(),
+                id: generatePK().toString(),
                 parent: null,
-                userId: "user123",
-                content: "Test message",
-                config: { modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                user: { id: "user123" },
+                text: "Test message",
+                config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
                 language: "en",
                 createdAt: new Date().toISOString(),
             };
@@ -130,13 +129,13 @@ describe("MessageStore (ChatContextCache)", () => {
         });
 
         it("should calculate and store token size", async () => {
-            const conversationId = generatePK();
+            const conversationId = generatePK().toString();
             const message: MessageState = {
-                id: generatePK(),
+                id: generatePK().toString(),
                 parent: null,
-                userId: "user123",
-                content: "This is a test message for token counting",
-                config: { modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                user: { id: "user123" },
+                text: "This is a test message for token counting",
+                config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
                 language: "en",
                 createdAt: new Date().toISOString(),
             };
@@ -150,13 +149,13 @@ describe("MessageStore (ChatContextCache)", () => {
         });
 
         it("should set TTL on cache entries", async () => {
-            const conversationId = generatePK();
+            const conversationId = generatePK().toString();
             const message: MessageState = {
-                id: generatePK(),
+                id: generatePK().toString(),
                 parent: null,
-                userId: "user123",
-                content: "Expiring message",
-                config: { modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                user: { id: "user123" },
+                text: "Expiring message",
+                config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
                 language: "en",
                 createdAt: new Date().toISOString(),
             };
@@ -172,14 +171,14 @@ describe("MessageStore (ChatContextCache)", () => {
 
     describe("updateMessage", () => {
         it("should update an existing message", async () => {
-            const conversationId = generatePK();
-            const messageId = generatePK();
+            const conversationId = generatePK().toString();
+            const messageId = generatePK().toString();
             const originalMessage: MessageState = {
                 id: messageId,
                 parent: null,
-                userId: "user123",
-                content: "Original content",
-                config: { modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                user: { id: "user123" },
+                text: "Original content",
+                config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
                 language: "en",
                 createdAt: new Date().toISOString(),
             };
@@ -190,28 +189,28 @@ describe("MessageStore (ChatContextCache)", () => {
             // Update message
             const updatedMessage: MessageState = {
                 ...originalMessage,
-                content: "Updated content",
+                text: "Updated content",
             };
 
             const result = await messageStore.updateMessage(messageId, updatedMessage);
 
-            expect(result.content).toBe("Updated content");
+            expect(result.text).toBe("Updated content");
 
             // Verify update in cache
             const cached = await redisClient.hget(`chat:${conversationId}:messages`, messageId);
             const parsedCached = JSON.parse(cached!);
-            expect(parsedCached.content).toBe("Updated content");
+            expect(parsedCached.text).toBe("Updated content");
         });
 
         it("should recalculate token size on content update", async () => {
-            const conversationId = generatePK();
-            const messageId = generatePK();
+            const conversationId = generatePK().toString();
+            const messageId = generatePK().toString();
             const originalMessage: MessageState = {
                 id: messageId,
                 parent: null,
-                userId: "user123",
-                content: "Short",
-                config: { modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                user: { id: "user123" },
+                text: "Short",
+                config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
                 language: "en",
                 createdAt: new Date().toISOString(),
             };
@@ -225,7 +224,7 @@ describe("MessageStore (ChatContextCache)", () => {
             // Update with longer content
             const updatedMessage: MessageState = {
                 ...originalMessage,
-                content: "This is a much longer message with more tokens",
+                text: "This is a much longer message with more tokens",
             };
 
             await messageStore.updateMessage(messageId, updatedMessage);
@@ -237,13 +236,13 @@ describe("MessageStore (ChatContextCache)", () => {
         });
 
         it("should handle updating non-existent message", async () => {
-            const nonExistentId = generatePK();
+            const nonExistentId = generatePK().toString();
             const message: MessageState = {
                 id: nonExistentId,
                 parent: null,
-                userId: "user123",
-                content: "New message",
-                config: { modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                user: { id: "user123" },
+                text: "New message",
+                config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
                 language: "en",
                 createdAt: new Date().toISOString(),
             };
@@ -256,14 +255,14 @@ describe("MessageStore (ChatContextCache)", () => {
 
     describe("deleteMessage", () => {
         it("should delete a message from cache", async () => {
-            const conversationId = generatePK();
-            const messageId = generatePK();
+            const conversationId = generatePK().toString();
+            const messageId = generatePK().toString();
             const message: MessageState = {
                 id: messageId,
                 parent: null,
-                userId: "user123",
-                content: "To be deleted",
-                config: { modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                user: { id: "user123" },
+                text: "To be deleted",
+                config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
                 language: "en",
                 createdAt: new Date().toISOString(),
             };
@@ -284,8 +283,8 @@ describe("MessageStore (ChatContextCache)", () => {
         });
 
         it("should handle deleting non-existent message", async () => {
-            const nonExistentId = generatePK();
-            
+            const nonExistentId = generatePK().toString();
+
             // Should not throw
             await expect(messageStore.deleteMessage(nonExistentId))
                 .resolves.toBeUndefined();
@@ -294,14 +293,14 @@ describe("MessageStore (ChatContextCache)", () => {
 
     describe("getMessage", () => {
         it("should retrieve a cached message", async () => {
-            const conversationId = generatePK();
-            const messageId = generatePK();
+            const conversationId = generatePK().toString();
+            const messageId = generatePK().toString();
             const message: MessageState = {
                 id: messageId,
                 parent: null,
-                userId: "user123",
-                content: "Test retrieval",
-                config: { modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                user: { id: "user123" },
+                text: "Test retrieval",
+                config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
                 language: "en",
                 createdAt: new Date().toISOString(),
             };
@@ -312,32 +311,33 @@ describe("MessageStore (ChatContextCache)", () => {
 
             expect(retrieved).toBeTruthy();
             expect(retrieved?.id).toBe(messageId);
-            expect(retrieved?.content).toBe("Test retrieval");
+            expect(retrieved?.text).toBe("Test retrieval");
         });
 
         it("should return null for non-existent message", async () => {
-            const nonExistentId = generatePK();
-            
+            const nonExistentId = generatePK().toString();
+
             const result = await messageStore.getMessage(nonExistentId);
-            
+
             expect(result).toBeNull();
         });
     });
 
     describe("getConversationMessages", () => {
         it("should retrieve all messages for a conversation", async () => {
-            const conversationId = generatePK();
+            const conversationId = generatePK().toString();
             const messages: MessageState[] = [];
 
             // Add multiple messages
             for (let i = 0; i < 5; i++) {
                 const message: MessageState = {
-                    id: generatePK(),
-                    parent: i > 0 ? messages[i - 1].id : null,
-                    userId: i % 2 === 0 ? "user123" : "bot123",
-                    content: `Message ${i}`,
-                    config: { 
-                        modelType: "gpt-4", 
+                    id: generatePK().toString(),
+                    parent: i > 0 ? { id: messages[i - 1].id } : null,
+                    user: { id: i % 2 === 0 ? "user123" : "bot123" },
+                    text: `Message ${i}`,
+                    config: {
+                        __version: "1.0",
+                        modelType: "gpt-4",
                         role: i % 2 === 0 ? "user" : "assistant",
                     } as MessageConfigObject,
                     language: "en",
@@ -351,21 +351,21 @@ describe("MessageStore (ChatContextCache)", () => {
 
             expect(retrieved).toHaveLength(5);
             // Should be ordered by creation time
-            expect(retrieved[0].content).toBe("Message 0");
-            expect(retrieved[4].content).toBe("Message 4");
+            expect(retrieved[0].text).toBe("Message 0");
+            expect(retrieved[4].text).toBe("Message 4");
         });
 
         it("should respect limit option", async () => {
-            const conversationId = generatePK();
+            const conversationId = generatePK().toString();
 
             // Add 10 messages
             for (let i = 0; i < 10; i++) {
                 const message: MessageState = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     parent: null,
-                    userId: "user123",
-                    content: `Message ${i}`,
-                    config: { modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                    user: { id: "user123" },
+                    text: `Message ${i}`,
+                    config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
                     language: "en",
                     createdAt: new Date(Date.now() + i * 1000).toISOString(),
                 };
@@ -376,24 +376,24 @@ describe("MessageStore (ChatContextCache)", () => {
 
             expect(retrieved).toHaveLength(5);
             // Should get the most recent 5
-            expect(retrieved[0].content).toBe("Message 5");
-            expect(retrieved[4].content).toBe("Message 9");
+            expect(retrieved[0].text).toBe("Message 5");
+            expect(retrieved[4].text).toBe("Message 9");
         });
 
         it("should handle before/after options", async () => {
-            const conversationId = generatePK();
+            const conversationId = generatePK().toString();
             const messageIds: string[] = [];
 
             // Add messages with known IDs
             for (let i = 0; i < 10; i++) {
-                const messageId = generatePK();
+                const messageId = generatePK().toString();
                 messageIds.push(messageId);
                 const message: MessageState = {
                     id: messageId,
                     parent: null,
-                    userId: "user123",
-                    content: `Message ${i}`,
-                    config: { modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                    user: { id: "user123" },
+                    text: `Message ${i}`,
+                    config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
                     language: "en",
                     createdAt: new Date(Date.now() + i * 1000).toISOString(),
                 };
@@ -402,12 +402,12 @@ describe("MessageStore (ChatContextCache)", () => {
 
             // Get messages after index 3
             const afterResult = await messageStore.getConversationMessages(
-                conversationId, 
+                conversationId,
                 { after: messageIds[3] },
             );
 
             expect(afterResult.length).toBeGreaterThan(0);
-            expect(afterResult[0].content).toBe("Message 4");
+            expect(afterResult[0].text).toBe("Message 4");
 
             // Get messages before index 7
             const beforeResult = await messageStore.getConversationMessages(
@@ -416,35 +416,35 @@ describe("MessageStore (ChatContextCache)", () => {
             );
 
             expect(beforeResult.length).toBeGreaterThan(0);
-            expect(beforeResult[beforeResult.length - 1].content).toBe("Message 6");
+            expect(beforeResult[beforeResult.length - 1].text).toBe("Message 6");
         });
 
         it("should return empty array for conversation with no messages", async () => {
-            const emptyConversationId = generatePK();
-            
+            const emptyConversationId = generatePK().toString();
+
             const result = await messageStore.getConversationMessages(emptyConversationId);
-            
+
             expect(result).toEqual([]);
         });
     });
 
-    describe("getMessageWithSize", () => {
+    describe("getMessageWithTokenCount", () => {
         it("should return message with token count", async () => {
-            const conversationId = generatePK();
-            const messageId = generatePK();
+            const conversationId = generatePK().toString();
+            const messageId = generatePK().toString();
             const message: MessageState = {
                 id: messageId,
                 parent: null,
-                userId: "user123",
-                content: "Calculate my tokens",
-                config: { modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                user: { id: "user123" },
+                text: "Calculate my tokens",
+                config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
                 language: "en",
                 createdAt: new Date().toISOString(),
             };
 
             await messageStore.addMessage(conversationId, message);
 
-            const result = await messageStore.getMessageWithSize(messageId, "gpt-4");
+            const result = await messageStore.getMessageWithTokenCount(messageId, "gpt-4");
 
             expect(result?.message).toBeTruthy();
             expect(result?.message.id).toBe(messageId);
@@ -452,8 +452,8 @@ describe("MessageStore (ChatContextCache)", () => {
         });
 
         it("should return null for non-existent message", async () => {
-            const result = await messageStore.getMessageWithSize(generatePK(), "gpt-4");
-            
+            const result = await messageStore.getMessageWithTokenCount(generatePK().toString(), "gpt-4");
+
             expect(result).toBeNull();
         });
     });
@@ -461,15 +461,15 @@ describe("MessageStore (ChatContextCache)", () => {
     describe("cache expiration", () => {
         it("should handle expired cache entries", async () => {
             vi.useFakeTimers();
-            
-            const conversationId = generatePK();
-            const messageId = generatePK();
+
+            const conversationId = generatePK().toString();
+            const messageId = generatePK().toString();
             const message: MessageState = {
                 id: messageId,
                 parent: null,
-                userId: "user123",
-                content: "Will expire",
-                config: { modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                user: { id: "user123" },
+                text: "Will expire",
+                config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
                 language: "en",
                 createdAt: new Date().toISOString(),
             };
@@ -491,17 +491,17 @@ describe("MessageStore (ChatContextCache)", () => {
 
     describe("concurrent operations", () => {
         it("should handle concurrent message additions", async () => {
-            const conversationId = generatePK();
+            const conversationId = generatePK().toString();
             const promises: Promise<MessageState>[] = [];
 
             // Add 20 messages concurrently
             for (let i = 0; i < 20; i++) {
                 const message: MessageState = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     parent: null,
-                    userId: `user${i}`,
-                    content: `Concurrent message ${i}`,
-                    config: { modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                    user: { id: `user${i}` },
+                    text: `Concurrent message ${i}`,
+                    config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
                     language: "en",
                     createdAt: new Date(Date.now() + i).toISOString(),
                 };
@@ -518,14 +518,14 @@ describe("MessageStore (ChatContextCache)", () => {
         });
 
         it("should handle concurrent updates to same message", async () => {
-            const conversationId = generatePK();
-            const messageId = generatePK();
+            const conversationId = generatePK().toString();
+            const messageId = generatePK().toString();
             const originalMessage: MessageState = {
                 id: messageId,
                 parent: null,
-                userId: "user123",
-                content: "Original",
-                config: { modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                user: { id: "user123" },
+                text: "Original",
+                config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
                 language: "en",
                 createdAt: new Date().toISOString(),
             };
@@ -533,10 +533,10 @@ describe("MessageStore (ChatContextCache)", () => {
             await messageStore.addMessage(conversationId, originalMessage);
 
             // Update concurrently
-            const updates = Array(10).fill(0).map((_, i) => 
+            const updates = Array(10).fill(0).map((_, i) =>
                 messageStore.updateMessage(messageId, {
                     ...originalMessage,
-                    content: `Update ${i}`,
+                    text: `Update ${i}`,
                 }),
             );
 
@@ -544,100 +544,81 @@ describe("MessageStore (ChatContextCache)", () => {
 
             // One of the updates should have won
             const final = await messageStore.getMessage(messageId);
-            expect(final?.content).toMatch(/Update \d/);
+            expect(final?.text).toMatch(/Update \d/);
         });
     });
 });
 
 describe("TokenCounter", () => {
+    let mockService: any;
     let tokenCounter: TokenCounter;
 
     beforeEach(() => {
-        tokenCounter = TokenCounter.get();
+        mockService = {
+            getEstimationInfo: vi.fn().mockReturnValue({
+                estimationModel: "gpt-4",
+                encoding: "cl100k_base",
+            }),
+            estimateTokens: vi.fn().mockReturnValue({ tokens: 5 }),
+        };
+        tokenCounter = new TokenCounter(mockService, "gpt-4");
     });
 
-    describe("estimateTokens", () => {
-        it("should estimate tokens for simple text", () => {
-            const tokens = tokenCounter.estimateTokens("Hello, world!", "gpt-4");
-            
-            expect(tokens).toBeGreaterThan(0);
-            expect(tokens).toBeLessThan(10); // Simple greeting should be < 10 tokens
+    describe("ensure", () => {
+        it("should estimate tokens for simple message", () => {
+            const message: MessageState = {
+                id: "test-id",
+                text: "Hello, world!",
+                config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                language: "en",
+                createdAt: new Date().toISOString(),
+            };
+
+            const result = tokenCounter.ensure(message, {});
+
+            expect(result.size).toBe(5);
+            expect(mockService.estimateTokens).toHaveBeenCalledWith({
+                aiModel: "gpt-4",
+                text: expect.stringContaining("Hello, world!"),
+            });
         });
 
-        it("should handle empty string", () => {
-            const tokens = tokenCounter.estimateTokens("", "gpt-4");
-            
-            expect(tokens).toBe(0);
+        it("should cache token counts for same message", () => {
+            const message: MessageState = {
+                id: "test-id",
+                text: "Hello, world!",
+                config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                language: "en",
+                createdAt: new Date().toISOString(),
+            };
+
+            const counts = { "gpt-4-cl100k_base": 5 };
+            const result = tokenCounter.ensure(message, counts);
+
+            expect(result.size).toBe(5);
+            expect(mockService.estimateTokens).not.toHaveBeenCalled();
         });
 
-        it("should handle long text", () => {
-            const longText = "Lorem ipsum ".repeat(1000);
-            const tokens = tokenCounter.estimateTokens(longText, "gpt-4");
-            
-            expect(tokens).toBeGreaterThan(1000);
+        it("should parse stored token counts", () => {
+            const raw = "{\"gpt-4-cl100k_base\":10,\"gpt-3.5-cl100k_base\":8}";
+            const parsed = tokenCounter.parse(raw);
+
+            expect(parsed).toEqual({
+                "gpt-4-cl100k_base": 10,
+                "gpt-3.5-cl100k_base": 8,
+            });
         });
 
-        it("should handle special characters and emojis", () => {
-            const text = "Hello 👋 World! 🌍 Special chars: @#$%^&*()";
-            const tokens = tokenCounter.estimateTokens(text, "gpt-4");
-            
-            expect(tokens).toBeGreaterThan(0);
+        it("should handle invalid JSON gracefully", () => {
+            const parsed = tokenCounter.parse("invalid json");
+
+            expect(parsed).toEqual({});
         });
 
-        it("should handle different models", () => {
-            const text = "Test message for different models";
-            
-            const gpt4Tokens = tokenCounter.estimateTokens(text, "gpt-4");
-            const gpt35Tokens = tokenCounter.estimateTokens(text, "gpt-3.5-turbo");
-            
-            // Both should return reasonable estimates
-            expect(gpt4Tokens).toBeGreaterThan(0);
-            expect(gpt35Tokens).toBeGreaterThan(0);
-        });
+        it("should generate correct key", () => {
+            const key = tokenCounter.getKey();
 
-        it("should handle code snippets", () => {
-            const code = `
-                function fibonacci(n) {
-                    if (n <= 1) return n;
-                    return fibonacci(n - 1) + fibonacci(n - 2);
-                }
-            `;
-            
-            const tokens = tokenCounter.estimateTokens(code, "gpt-4");
-            
-            expect(tokens).toBeGreaterThan(20); // Code should use more tokens
-        });
-
-        it("should handle multi-language text", () => {
-            const multiLang = "Hello 你好 Bonjour こんにちは مرحبا";
-            const tokens = tokenCounter.estimateTokens(multiLang, "gpt-4");
-            
-            expect(tokens).toBeGreaterThan(5);
-        });
-    });
-
-    describe("token estimation accuracy", () => {
-        it("should provide consistent estimates for same text", () => {
-            const text = "The quick brown fox jumps over the lazy dog";
-            
-            const estimate1 = tokenCounter.estimateTokens(text, "gpt-4");
-            const estimate2 = tokenCounter.estimateTokens(text, "gpt-4");
-            
-            expect(estimate1).toBe(estimate2);
-        });
-
-        it("should scale linearly for repeated text", () => {
-            const baseText = "Test message. ";
-            
-            const single = tokenCounter.estimateTokens(baseText, "gpt-4");
-            const double = tokenCounter.estimateTokens(baseText.repeat(2), "gpt-4");
-            const triple = tokenCounter.estimateTokens(baseText.repeat(3), "gpt-4");
-            
-            // Should scale approximately linearly
-            expect(double).toBeGreaterThan(single * 1.8);
-            expect(double).toBeLessThan(single * 2.2);
-            expect(triple).toBeGreaterThan(single * 2.8);
-            expect(triple).toBeLessThan(single * 3.2);
+            expect(key).toBe("gpt-4-cl100k_base");
         });
     });
 });

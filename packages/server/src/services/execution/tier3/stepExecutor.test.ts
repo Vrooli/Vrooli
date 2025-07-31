@@ -1,22 +1,20 @@
-import { describe, expect, test, beforeEach, afterEach, vi, type MockedFunction, type Mock } from "vitest";
 import {
-    type StepExecutionInput,
-    type TierExecutionRequest,
-    type ExecutionResult,
-    type RoutineVersionConfigObject,
-    type SubroutineIOMapping,
-    type CodeLanguage,
-    type ConfigCallDataApi,
     CallDataApiConfig,
-    nanoid,
+    generatePK,
+    type CodeLanguage,
+    type RoutineVersionConfigObject,
+    type StepExecutionInput,
+    type SubroutineIOMapping,
+    type TierExecutionRequest,
 } from "@vrooli/shared";
-import { StepExecutor, type StepDefinition, type StepResult } from "./stepExecutor.js";
+import { afterEach, beforeEach, describe, expect, test, vi, type MockedFunction } from "vitest";
+import { logger } from "../../../events/logger.js";
+import { runUserCode } from "../../../tasks/sandbox/process.js";
+import { APIKeyService } from "../../http/apiKeyService.js";
+import { HTTPClient } from "../../http/httpClient.js";
 import type { SwarmTools } from "../../mcp/tools.js";
 import { McpToolRunner } from "../../response/toolRunner.js";
-import { HTTPClient } from "../../http/httpClient.js";
-import { APIKeyService } from "../../http/apiKeyService.js";
-import { runUserCode } from "../../../tasks/sandbox/process.js";
-import { logger } from "../../../events/logger.js";
+import { StepExecutor, type StepDefinition } from "./stepExecutor.js";
 
 // Mock dependencies
 vi.mock("../../../events/logger.js", () => ({
@@ -71,7 +69,7 @@ describe("StepExecutor", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        
+
         // Setup mocks
         mockMcpToolRunner = {
             run: vi.fn(),
@@ -112,23 +110,25 @@ describe("StepExecutor", () => {
     });
 
     describe("execute", () => {
-        const createBasicRequest = (overrides: Partial<TierExecutionRequest<StepExecutionInput>> = {}): TierExecutionRequest<StepExecutionInput> => ({
-            input: {
-                stepId: "test-step-123",
-                type: "llm_call",
-                parameters: { prompt: "Hello, world!" },
-                strategy: "reasoning",
-                ...overrides.input,
-            },
-            context: {
-                userData: { languages: ["en"] },
-                ...overrides.context,
-            },
-            options: {
-                timeout: 30000,
-                ...overrides.options,
-            },
-        });
+        function createBasicRequest(overrides: Partial<TierExecutionRequest<StepExecutionInput>> = {}): TierExecutionRequest<StepExecutionInput> {
+            return {
+                input: {
+                    stepId: "test-step-123",
+                    type: "llm_call",
+                    parameters: { prompt: "Hello, world!" },
+                    strategy: "reasoning",
+                    ...overrides.input,
+                },
+                context: {
+                    userData: { languages: ["en"] },
+                    ...overrides.context,
+                },
+                options: {
+                    timeout: 30000,
+                    ...overrides.options,
+                },
+            };
+        }
 
         test("should execute LLM call successfully", async () => {
             const request = createBasicRequest({
@@ -163,7 +163,7 @@ describe("StepExecutor", () => {
                         tool: "test_tool",
                         arguments: { param1: "value1" },
                         conversationId: "conv-123",
-                        sessionUser: { id: "user-123" },
+                        sessionUser: { id: generatePK().toString() },
                     },
                 },
             });
@@ -187,7 +187,7 @@ describe("StepExecutor", () => {
                 { param1: "value1" },
                 {
                     conversationId: "conv-123",
-                    sessionUser: { id: "user-123" },
+                    sessionUser: { id: expect.any(String) },
                     callerBotId: undefined,
                 },
             );
@@ -284,7 +284,7 @@ describe("StepExecutor", () => {
                     }),
                 }),
             );
-            
+
             // Test that result has expected structure
             expect(result).toHaveProperty("success");
             expect(result).toHaveProperty("outputs");

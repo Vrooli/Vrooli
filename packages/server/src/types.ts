@@ -1,7 +1,7 @@
 import { type ApiKeyPermission, type ModelType, type SessionUser } from "@vrooli/shared";
+import type winston from "winston";
 import { type PartialApiInfo } from "./builders/types.js";
 import { type Context } from "./middleware/context.js";
-import type winston from "winston";
 
 /**
  * Information required in any JWT token
@@ -127,7 +127,7 @@ export type ReplaceTypes<ObjType extends object, FromType, ToType> = {
 }
 
 // Export admin endpoint types
-export type { AdminSiteStatsOutput, AdminUserListInput, AdminUserListOutput, AdminUserUpdateStatusInput, AdminUserResetPasswordInput } from "./endpoints/logic/admin.js";
+export type { AdminSiteStatsOutput, AdminUserListInput, AdminUserListOutput, AdminUserResetPasswordInput, AdminUserUpdateStatusInput } from "./endpoints/logic/admin.js";
 
 // Module augmentations
 declare module "socket.io" {

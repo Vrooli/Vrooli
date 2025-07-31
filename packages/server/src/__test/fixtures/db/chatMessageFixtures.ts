@@ -605,7 +605,7 @@ export async function seedConversationTree(
         // Create children recursively
         if (node.children) {
             for (const child of node.children) {
-                await createNode(child, messageId);
+                await createNode(child, messageId.toString());
             }
         }
 

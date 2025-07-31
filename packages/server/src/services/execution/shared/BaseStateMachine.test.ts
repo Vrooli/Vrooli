@@ -1,5 +1,5 @@
 import type { StopOptions } from "@vrooli/shared";
-import { EventTypes, RunState, type SessionUser } from "@vrooli/shared";
+import { EventTypes, generatePK, RunState, type SessionUser } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, test, vi, type MockedFunction } from "vitest";
 import type { ServiceEvent } from "../../events/types.js";
 import { BaseStateMachine, type StateMachineCoordinationConfig } from "./BaseStateMachine.js";
@@ -33,7 +33,7 @@ vi.mock("@vrooli/shared", async () => {
     const actual = await vi.importActual("@vrooli/shared");
     return {
         ...actual,
-        generatePK: vi.fn(() => "test-pk-123"),
+        generatePK: vi.fn(() => BigInt(123456789)),
     };
 });
 
@@ -181,14 +181,14 @@ describe("BaseStateMachine", () => {
 
         test("should initialize with custom state and config", () => {
             const config: StateMachineCoordinationConfig = {
-                chatId: "chat-123",
-                swarmId: "swarm-456",
-                contextId: "context-789",
+                chatId: generatePK().toString(),
+                swarmId: generatePK().toString(),
+                contextId: generatePK().toString(),
             };
             const customMachine = new TestStateMachine(RunState.READY, "CustomMachine", config);
 
             expect(customMachine.getState()).toBe(RunState.READY);
-            expect(customMachine.getCoordinationStatus().chatId).toBe("chat-123");
+            expect(customMachine.getCoordinationStatus().chatId).toBe(config.chatId);
         });
 
         test("should create ErrorHandler with correct config", () => {
@@ -492,7 +492,7 @@ describe("BaseStateMachine", () => {
             await stateMachine.testApplyStateTransition(RunState.CONFIGURING, "setup2");
             await stateMachine.testApplyStateTransition(RunState.READY, "setup3");
             await stateMachine.testApplyStateTransition(RunState.RUNNING, "setup4");
-            const user: SessionUser = { id: "user-123" } as SessionUser;
+            const user: SessionUser = { id: generatePK().toString() } as SessionUser;
             const options: StopOptions = {
                 mode: "force",
                 reason: "system shutdown",
@@ -953,14 +953,14 @@ describe("BaseStateMachine", () => {
     describe("Coordination Status", () => {
         test("should return coordination status", () => {
             const config: StateMachineCoordinationConfig = {
-                chatId: "chat-123",
-                swarmId: "swarm-456",
+                chatId: generatePK().toString(),
+                swarmId: generatePK().toString(),
             };
             const machine = new TestStateMachine(RunState.UNINITIALIZED, "TestMachine", config);
 
             const status = machine.getCoordinationStatus();
 
-            expect(status.chatId).toBe("chat-123");
+            expect(status.chatId).toBe(config.chatId);
             expect(status.currentLock).toBeNull();
         });
     });

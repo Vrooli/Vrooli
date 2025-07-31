@@ -1,10 +1,10 @@
-import { describe, expect, test, beforeEach, afterEach, vi, type Mock } from "vitest";
 import { EventTypes, generatePK, type ExecutionResourceUsage } from "@vrooli/shared";
-import { RunContextManager, type IRunContextManager } from "./runContextManager.js";
-import type { ISwarmContextManager } from "../shared/SwarmContextManager.js";
+import { afterEach, beforeEach, describe, expect, test, vi, type Mock } from "vitest";
 import { logger } from "../../../events/logger.js";
 import { CacheService } from "../../../redisConn.js";
 import { EventPublisher } from "../../events/publisher.js";
+import type { ISwarmContextManager } from "../shared/SwarmContextManager.js";
+import { RunContextManager, type IRunContextManager } from "./runContextManager.js";
 import type { RunAllocationRequest, RunExecutionContext, StepAllocationRequest } from "./types.js";
 
 // Mock dependencies
@@ -29,8 +29,8 @@ vi.mock("../../../redisConn.js", () => ({
 
 vi.mock("../../events/publisher.js", () => ({
     EventPublisher: {
-        emit: vi.fn(async () => ({ 
-            proceed: true, 
+        emit: vi.fn(async () => ({
+            proceed: true,
             reason: null,
             eventId: "test-event-123",
             wasBlocking: false,
@@ -712,7 +712,7 @@ describe("RunContextManager", () => {
 
         describe("allocateForStep", () => {
             const stepRequest: StepAllocationRequest = {
-                stepId: "step-1",
+                stepId: "1",
                 stepType: "llm_call",
                 estimatedRequirements: {
                     credits: "200",
@@ -726,7 +726,7 @@ describe("RunContextManager", () => {
 
                 expect(result).toEqual({
                     allocationId: "test-pk-123",
-                    stepId: "step-1",
+                    stepId: "1",
                     runId: "test-run-456",
                     allocated: {
                         credits: "200",
@@ -742,7 +742,7 @@ describe("RunContextManager", () => {
                     "Allocated resources for step from run",
                     expect.objectContaining({
                         runId: "test-run-456",
-                        stepId: "step-1",
+                        stepId: "1",
                         credits: "200",
                         durationMs: 10000,
                     }),
@@ -796,7 +796,7 @@ describe("RunContextManager", () => {
             test("should successfully release step resources", async () => {
                 // First allocate for step
                 const stepRequest: StepAllocationRequest = {
-                    stepId: "step-1",
+                    stepId: "1",
                     stepType: "llm_call",
                     estimatedRequirements: {
                         credits: "200",
@@ -807,13 +807,13 @@ describe("RunContextManager", () => {
                 await runContextManager.allocateForStep("test-run-456", stepRequest);
                 vi.clearAllMocks();
 
-                await runContextManager.releaseFromStep("test-run-456", "step-1", stepUsage);
+                await runContextManager.releaseFromStep("test-run-456", "1", stepUsage);
 
                 expect(mockLogger.debug).toHaveBeenCalledWith(
                     "Released step resources back to run",
                     expect.objectContaining({
                         runId: "test-run-456",
-                        stepId: "step-1",
+                        stepId: "1",
                         creditsUsed: "150",
                         durationMs: 8000,
                     }),
@@ -821,11 +821,11 @@ describe("RunContextManager", () => {
             });
 
             test("should handle missing run allocation gracefully", async () => {
-                await runContextManager.releaseFromStep("non-existent-run", "step-1", stepUsage);
+                await runContextManager.releaseFromStep("non-existent-run", "1", stepUsage);
 
                 expect(mockLogger.warn).toHaveBeenCalledWith(
                     "No run allocation found for step release",
-                    { runId: "non-existent-run", stepId: "step-1" },
+                    { runId: "non-existent-run", stepId: "1" },
                 );
             });
         });

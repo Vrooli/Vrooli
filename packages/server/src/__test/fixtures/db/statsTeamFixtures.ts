@@ -1,5 +1,5 @@
-import { generatePK, type StatPeriodType } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { generatePK, type StatPeriodType } from "@vrooli/shared";
 
 /**
  * Database fixtures for StatsTeam model - used for seeding test data
@@ -21,7 +21,6 @@ export const statsTeamDbIds = {
  */
 export const minimalStatsTeamDb: Prisma.stats_teamCreateInput = {
     id: statsTeamDbIds.statsTeam1,
-    teamId: statsTeamDbIds.team1,
     periodStart: new Date("2024-01-01T00:00:00Z"),
     periodEnd: new Date("2024-01-31T23:59:59Z"),
     periodType: "Monthly",
@@ -41,7 +40,6 @@ export const minimalStatsTeamDb: Prisma.stats_teamCreateInput = {
  */
 export const completeStatsTeamDb: Prisma.stats_teamCreateInput = {
     id: statsTeamDbIds.statsTeam2,
-    teamId: statsTeamDbIds.team2,
     periodStart: new Date("2024-02-01T00:00:00Z"),
     periodEnd: new Date("2024-02-29T23:59:59Z"),
     periodType: "Monthly",
@@ -61,7 +59,6 @@ export const completeStatsTeamDb: Prisma.stats_teamCreateInput = {
  */
 export const highPerformanceStatsTeamDb: Prisma.stats_teamCreateInput = {
     id: statsTeamDbIds.statsTeam3,
-    teamId: statsTeamDbIds.team3,
     periodStart: new Date("2024-03-01T00:00:00Z"),
     periodEnd: new Date("2024-03-31T23:59:59Z"),
     periodType: "Monthly",
@@ -84,9 +81,8 @@ export class StatsTeamDbFactory {
         return {
             ...minimalStatsTeamDb,
             id: generatePK(),
-            teamId: generatePK(),
-            team: {
-                connect: { id: overrides?.teamId || generatePK() },
+            team: overrides?.team || {
+                connect: { id: generatePK() },
             },
             ...overrides,
         };
@@ -96,9 +92,8 @@ export class StatsTeamDbFactory {
         return {
             ...completeStatsTeamDb,
             id: generatePK(),
-            teamId: generatePK(),
-            team: {
-                connect: { id: overrides?.teamId || generatePK() },
+            team: overrides?.team || {
+                connect: { id: generatePK() },
             },
             ...overrides,
         };
@@ -108,9 +103,8 @@ export class StatsTeamDbFactory {
         return {
             ...highPerformanceStatsTeamDb,
             id: generatePK(),
-            teamId: generatePK(),
-            team: {
-                connect: { id: overrides?.teamId || generatePK() },
+            team: overrides?.team || {
+                connect: { id: generatePK() },
             },
             ...overrides,
         };
@@ -129,12 +123,11 @@ export class StatsTeamDbFactory {
         return {
             ...minimalStatsTeamDb,
             id: generatePK(),
-            teamId,
             periodType,
             periodStart,
             periodEnd,
             team: {
-                connect: { id: teamId },
+                connect: { id: BigInt(teamId) },
             },
             ...overrides,
         };
@@ -158,7 +151,6 @@ export class StatsTeamDbFactory {
         return {
             ...minimalStatsTeamDb,
             id: generatePK(),
-            teamId,
             resources: metrics.resources ?? 5,
             members: metrics.members ?? 3,
             runsStarted: metrics.runsStarted ?? 10,
@@ -166,7 +158,7 @@ export class StatsTeamDbFactory {
             runCompletionTimeAverage: metrics.runCompletionTimeAverage ?? 120.5,
             runContextSwitchesAverage: metrics.runContextSwitchesAverage ?? 2.3,
             team: {
-                connect: { id: teamId },
+                connect: { id: BigInt(teamId) },
             },
             ...overrides,
         };
@@ -179,7 +171,6 @@ export class StatsTeamDbFactory {
         return {
             ...minimalStatsTeamDb,
             id: generatePK(),
-            teamId,
             resources: 0,
             members: 1,
             runsStarted: 0,
@@ -187,7 +178,7 @@ export class StatsTeamDbFactory {
             runCompletionTimeAverage: 0,
             runContextSwitchesAverage: 0,
             team: {
-                connect: { id: teamId },
+                connect: { id: BigInt(teamId) },
             },
             ...overrides,
         };
@@ -247,7 +238,7 @@ export async function seedStatsTeams(
     },
 ) {
     const statsTeams = [];
-    const periodType = options?.periodType || "Monthly";
+    const periodType = (options?.periodType || "Monthly") as StatPeriodType;
     const periodsPerTeam = options?.periodsPerTeam || 3;
 
     for (const teamId of teamIds) {
@@ -258,7 +249,7 @@ export async function seedStatsTeams(
                 statsTeams.push(created);
             }
         } else {
-            const stats = StatsTeamDbFactory.createMinimal({ teamId });
+            const stats = StatsTeamDbFactory.createMinimal({ team: { connect: { id: BigInt(teamId) } } });
             const created = await prisma.stats_team.create({ data: stats });
             statsTeams.push(created);
         }

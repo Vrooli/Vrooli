@@ -1,6 +1,6 @@
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
-import { generatePK } from "@vrooli/shared";
 import { type Prisma, type PrismaClient } from "@prisma/client";
+import { generatePK } from "@vrooli/shared";
 
 /**
  * Database fixtures for Wallet model - used for seeding test data
@@ -140,7 +140,7 @@ export class WalletDbFactory {
     ): Prisma.walletCreateInput {
         return {
             ...this.createComplete(overrides),
-            user: { connect: { id: userId } },
+            user: { connect: { id: BigInt(userId) } },
         };
     }
 
@@ -153,7 +153,7 @@ export class WalletDbFactory {
     ): Prisma.walletCreateInput {
         return {
             ...this.createComplete(overrides),
-            team: { connect: { id: teamId } },
+            team: { connect: { id: BigInt(teamId) } },
         };
     }
 
@@ -167,8 +167,8 @@ export class WalletDbFactory {
     ): Prisma.walletCreateInput {
         return {
             ...this.createComplete(overrides),
-            user: { connect: { id: userId } },
-            team: { connect: { id: teamId } },
+            user: { connect: { id: BigInt(userId) } },
+            team: { connect: { id: BigInt(teamId) } },
         };
     }
 
@@ -254,10 +254,10 @@ export async function seedTestWallets(
 
         // Add user/team associations if provided
         if (options?.userId) {
-            walletData.user = { connect: { id: options.userId } };
+            walletData.user = { connect: { id: BigInt(options.userId) } };
         }
         if (options?.teamId) {
-            walletData.team = { connect: { id: options.teamId } };
+            walletData.team = { connect: { id: BigInt(options.teamId) } };
         }
 
         wallets.push(await prisma.wallet.create({ data: walletData }));
@@ -273,7 +273,7 @@ export async function cleanupTestWallets(prisma: PrismaClient, walletIds: string
     await prisma.wallet.deleteMany({
         where: {
             id: {
-                in: walletIds,
+                in: walletIds.map(id => BigInt(id)),
             },
         },
     });

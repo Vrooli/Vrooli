@@ -1,20 +1,15 @@
-import { describe, expect, test, beforeEach, afterEach, vi, type MockedFunction, type Mock } from "vitest";
 import {
     RunState,
-    EventTypes,
-    generatePK,
-    type ExecutionResourceUsage,
-    type RunExecutionContext,
     type RunAllocation,
+    type RunExecutionContext,
     type ServiceEvent,
-    type SessionUser,
 } from "@vrooli/shared";
-import { RoutineStateMachine } from "./routineStateMachine.js";
-import type { ISwarmContextManager } from "../shared/SwarmContextManager.js";
-import type { IRunContextManager } from "./runContextManager.js";
+import { afterEach, beforeEach, describe, expect, test, vi, type Mock } from "vitest";
 import { DbProvider } from "../../../db/provider.js";
-import { EventPublisher } from "../../events/publisher.js";
 import { logger } from "../../../events/logger.js";
+import type { ISwarmContextManager } from "../shared/SwarmContextManager.js";
+import { RoutineStateMachine } from "./routineStateMachine.js";
+import type { IRunContextManager } from "./runContextManager.js";
 
 // Mock dependencies
 vi.mock("../../../events/logger.js", () => ({
@@ -120,8 +115,8 @@ function createMockRunContextManager(): IRunContextManager {
 function createMockAllocation(): RunAllocation {
     return {
         allocationId: "alloc-123",
-        runId: "test-run-123",
-        swarmId: "test-swarm-123",
+        runId: "123456789012345680",
+        swarmId: "123456789012345679",
         allocated: { credits: 1000, durationMs: 300000, memoryMB: 512 },
         remaining: { credits: 9000, durationMs: 3300000, memoryMB: 7680 },
         expiresAt: new Date(Date.now() + 3600000),
@@ -181,13 +176,13 @@ describe("RoutineStateMachine", () => {
                 // Ignore cleanup errors in tests
             }
         }
-        
+
         // Clear all mocks to prevent state leakage between tests
         vi.clearAllMocks();
-        
+
         // Clear all timers to prevent timeout issues
         vi.clearAllTimers();
-        
+
         // Restore real timers
         vi.useRealTimers();
     });
@@ -209,7 +204,7 @@ describe("RoutineStateMachine", () => {
 
         test("should work without optional parameters", () => {
             stateMachine = new RoutineStateMachine(contextId, undefined, undefined);
-            
+
             expect(stateMachine.getState()).toBe(RunState.UNINITIALIZED);
             expect(stateMachine.getTaskId()).toBe(contextId);
             expect(stateMachine.getAssociatedUserId()).toBeUndefined();
@@ -288,7 +283,7 @@ describe("RoutineStateMachine", () => {
 
             // Can resume from paused
             await stateMachine.transitionTo(RunState.RUNNING);
-            
+
             // Can suspend
             await stateMachine.transitionTo(RunState.SUSPENDED);
             expect(stateMachine.getState()).toBe(RunState.SUSPENDED);
@@ -319,7 +314,7 @@ describe("RoutineStateMachine", () => {
                 userId,
                 parentSwarmId,
             );
-            
+
             await stateMachine.transitionTo(RunState.LOADING);
 
             // Should call updateRunContext as part of state persistence
@@ -351,9 +346,9 @@ describe("RoutineStateMachine", () => {
         });
 
         test("should initialize new execution with resource allocation", async () => {
-            const executionId = "exec-123";
-            const resourceVersionId = "resource-123";
-            const swarmId = "swarm-123";
+            const executionId = "123456789012345684";
+            const resourceVersionId = "123456789012345685";
+            const swarmId = "123456789012345686";
 
             await stateMachine.initializeExecution(executionId, resourceVersionId, swarmId);
 
@@ -387,7 +382,7 @@ describe("RoutineStateMachine", () => {
         test("should handle resource allocation failure", async () => {
             (mockRunContextManager.allocateFromSwarm as Mock).mockRejectedValueOnce(new Error("No resources"));
 
-            await expect(stateMachine.initializeExecution("exec-123", "resource-123", "swarm-123"))
+            await expect(stateMachine.initializeExecution("123456789012345684", "123456789012345685", "123456789012345686"))
                 .rejects.toThrow("No resources");
 
             expect(stateMachine.getState()).toBe(RunState.FAILED);
@@ -401,7 +396,7 @@ describe("RoutineStateMachine", () => {
             // Ensure RunContextManager returns valid context for resumption
             (mockRunContextManager.getRunContext as Mock).mockResolvedValueOnce({
                 runId,
-                routineId: "test-routine-123",
+                routineId: "123456789012345681",
                 variables: {},
                 resourceUsage: {
                     creditsUsed: "0",
@@ -412,7 +407,7 @@ describe("RoutineStateMachine", () => {
                 },
             });
 
-            await stateMachine.initializeExecution("exec-123", "resource-123", "swarm-123", runId);
+            await stateMachine.initializeExecution("123456789012345684", "123456789012345685", "123456789012345686", runId);
 
             expect(mockDbInstance.run.findUnique).toHaveBeenCalledWith({
                 where: { id: BigInt(runId) },
@@ -426,18 +421,18 @@ describe("RoutineStateMachine", () => {
             const runId = "123";
             const mockRun = createMockRunData({ status: "Completed" });
             const mockDbProvider = DbProvider.get() as ReturnType<typeof vi.fn>;
-            
+
             vi.clearAllMocks();
             (mockDbProvider.run.findUnique as Mock).mockResolvedValueOnce(mockRun);
 
-            await expect(stateMachine.initializeExecution("exec-123", "resource-123", "swarm-123", runId))
+            await expect(stateMachine.initializeExecution("123456789012345684", "123456789012345685", "123456789012345686", runId))
                 .rejects.toThrow(`Cannot resume run ${runId} - status: Completed`);
         });
 
         test("should work without RunContextManager", async () => {
             stateMachine = new RoutineStateMachine(contextId, mockSwarmContextManager);
 
-            await stateMachine.initializeExecution("exec-123", "resource-123");
+            await stateMachine.initializeExecution("123456789012345684", "123456789012345685");
             expect(stateMachine.getState()).toBe(RunState.READY);
         });
     });
@@ -452,7 +447,7 @@ describe("RoutineStateMachine", () => {
                 parentSwarmId,
             );
             // Initialize to READY state
-            await stateMachine.initializeExecution("exec-123", "resource-123", "swarm-123");
+            await stateMachine.initializeExecution("123456789012345684", "123456789012345685", "123456789012345686");
         });
 
         describe("start", () => {
@@ -478,7 +473,7 @@ describe("RoutineStateMachine", () => {
             test("should pause running execution", async () => {
                 await stateMachine.start();
                 const result = await stateMachine.pause();
-                
+
                 expect(result).toBe(true);
                 expect(stateMachine.getState()).toBe(RunState.PAUSED);
                 expect(logger.info).toHaveBeenCalledWith("[RoutineStateMachine] Pausing execution", expect.any(Object));
@@ -581,7 +576,7 @@ describe("RoutineStateMachine", () => {
                 await stateMachine.start();
                 // Set allocation
                 stateMachine["currentAllocation"] = allocation;
-                
+
                 await stateMachine.fail("Test error");
 
                 expect(mockRunContextManager.releaseToSwarm).toHaveBeenCalledWith(
@@ -723,7 +718,7 @@ describe("RoutineStateMachine", () => {
                 userId,
                 parentSwarmId,
             );
-            await stateMachine.initializeExecution("exec-123", "resource-123", "swarm-123");
+            await stateMachine.initializeExecution("123456789012345684", "123456789012345685", "123456789012345686");
         });
 
         test("should track credits usage", () => {
@@ -744,13 +739,13 @@ describe("RoutineStateMachine", () => {
 
         test("should track execution duration", async () => {
             await stateMachine.start();
-            
+
             // Mock time passing
             vi.advanceTimersByTime(5000);
-            
+
             // Force update resource usage
             stateMachine["updateResourceUsage"]();
-            
+
             const usage = stateMachine.getResourceUsage();
             expect(usage.durationMs).toBe(5000);
         });
@@ -772,12 +767,12 @@ describe("RoutineStateMachine", () => {
                 userId,
                 parentSwarmId,
             );
-            await stateMachine.initializeExecution("exec-123", "resource-123", "swarm-123");
+            await stateMachine.initializeExecution("123456789012345684", "123456789012345685", "123456789012345686");
         });
 
         test("should handle emergency stop event", async () => {
             await stateMachine.start();
-            
+
             const event: ServiceEvent = {
                 id: "event-123",
                 type: "safety/emergency_stop",
@@ -827,7 +822,7 @@ describe("RoutineStateMachine", () => {
 
         test("should get event patterns", () => {
             const patterns = stateMachine["getEventPatterns"]();
-            
+
             expect(patterns).toContainEqual({ pattern: `run/${contextId}/*` });
             expect(patterns).toContainEqual({ pattern: `step/${contextId}/*` });
             expect(patterns).toContainEqual({ pattern: `chat/${contextId}/safety/*` });
@@ -847,7 +842,7 @@ describe("RoutineStateMachine", () => {
         });
 
         test("canProceed should return true for non-terminal states", async () => {
-            await stateMachine.initializeExecution("exec-123", "resource-123");
+            await stateMachine.initializeExecution("123456789012345684", "123456789012345685");
             expect(await stateMachine.canProceed()).toBe(true);
 
             await stateMachine.start();
@@ -855,7 +850,7 @@ describe("RoutineStateMachine", () => {
         });
 
         test("canProceed should return false for terminal states", async () => {
-            await stateMachine.initializeExecution("exec-123", "resource-123");
+            await stateMachine.initializeExecution("123456789012345684", "123456789012345685");
             await stateMachine.start();
             await stateMachine.complete();
 
@@ -887,12 +882,12 @@ describe("RoutineStateMachine", () => {
         test("should handle missing run when resuming", async () => {
             (mockDbInstance.run.findUnique as Mock).mockResolvedValueOnce(null);
 
-            await expect(stateMachine.initializeExecution("exec-123", "resource-123", "swarm-123", "123"))
+            await expect(stateMachine.initializeExecution("123456789012345684", "123456789012345685", "123456789012345686", "123"))
                 .rejects.toThrow("Run 123 not found in database");
         });
 
         test("should determine if error is fatal", async () => {
-            await stateMachine.initializeExecution("exec-123", "resource-123");
+            await stateMachine.initializeExecution("123456789012345684", "123456789012345685");
             await stateMachine.start();
 
             const event: ServiceEvent = {
@@ -908,8 +903,8 @@ describe("RoutineStateMachine", () => {
         });
 
         test("should handle idle state", async () => {
-            await stateMachine.initializeExecution("exec-123", "resource-123");
-            
+            await stateMachine.initializeExecution("123456789012345684", "123456789012345685");
+
             // Call onIdle when in READY state
             await stateMachine["onIdle"]();
 
@@ -932,7 +927,7 @@ describe("RoutineStateMachine", () => {
 
         test("should handle full execution lifecycle", async () => {
             // Initialize
-            await stateMachine.initializeExecution("exec-123", "resource-123", "swarm-123");
+            await stateMachine.initializeExecution("123456789012345684", "123456789012345685", "123456789012345686");
             expect(stateMachine.getState()).toBe(RunState.READY);
 
             // Start
@@ -963,9 +958,9 @@ describe("RoutineStateMachine", () => {
 
         test("should handle execution failure and cleanup", async () => {
             const allocation = createMockAllocation();
-            
+
             // Initialize with allocation
-            await stateMachine.initializeExecution("exec-123", "resource-123", "swarm-123");
+            await stateMachine.initializeExecution("123456789012345684", "123456789012345685", "123456789012345686");
             stateMachine["currentAllocation"] = allocation;
 
             // Start and fail
@@ -979,7 +974,7 @@ describe("RoutineStateMachine", () => {
         });
 
         test("should handle concurrent events", async () => {
-            await stateMachine.initializeExecution("exec-123", "resource-123", "swarm-123");
+            await stateMachine.initializeExecution("123456789012345684", "123456789012345685", "123456789012345686");
             await stateMachine.start();
 
             // Simulate concurrent events
@@ -1031,7 +1026,7 @@ describe("RoutineStateMachine", () => {
             // Ensure RunContextManager returns valid context for resumption
             (mockRunContextManager.getRunContext as Mock).mockResolvedValueOnce({
                 runId: "123",
-                routineId: "test-routine-123",
+                routineId: "123456789012345681",
                 variables: {},
                 resourceUsage: {
                     creditsUsed: "50",
@@ -1042,7 +1037,7 @@ describe("RoutineStateMachine", () => {
                 },
             });
 
-            await stateMachine.initializeExecution("exec-123", "resource-123", "swarm-123", "123");
+            await stateMachine.initializeExecution("123456789012345684", "123456789012345685", "123456789012345686", "123");
 
             // Verify context was loaded
             const usage = stateMachine.getResourceUsage();

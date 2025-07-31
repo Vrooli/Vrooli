@@ -1,18 +1,18 @@
-import { generatePK } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { generatePK } from "@vrooli/shared";
 
 /**
  * Database fixtures for RunIO model - used for seeding test data
  * These follow Prisma's shape for database operations
  */
 
-// Consistent IDs for testing
+// Consistent IDs for testing - using hardcoded bigint values
 export const runIODbIds = {
-    runIO1: generatePK(),
-    runIO2: generatePK(),
-    runIO3: generatePK(),
-    runIO4: generatePK(),
-    runIO5: generatePK(),
+    runIO1: BigInt("123456789012345670"),
+    runIO2: BigInt("123456789012345671"),
+    runIO3: BigInt("123456789012345672"),
+    runIO4: BigInt("123456789012345673"),
+    runIO5: BigInt("123456789012345674"),
 };
 
 /**
@@ -76,7 +76,7 @@ export class RunIODbFactory {
         return {
             ...minimalRunIODb,
             id: generatePK(),
-            run: { connect: { id: runId } },
+            run: { connect: { id: BigInt(runId) } },
             ...overrides,
         };
     }
@@ -88,7 +88,7 @@ export class RunIODbFactory {
         return {
             ...completeRunIODb,
             id: generatePK(),
-            run: { connect: { id: runId } },
+            run: { connect: { id: BigInt(runId) } },
             ...overrides,
         };
     }
@@ -102,7 +102,7 @@ export class RunIODbFactory {
             ...jsonRunIODb,
             id: generatePK(),
             data: JSON.stringify(jsonData),
-            run: { connect: { id: runId } },
+            run: { connect: { id: BigInt(runId) } },
             ...overrides,
         };
     }
@@ -116,7 +116,7 @@ export class RunIODbFactory {
             ...largeDataRunIODb,
             id: generatePK(),
             data: textData,
-            run: { connect: { id: runId } },
+            run: { connect: { id: BigInt(runId) } },
             ...overrides,
         };
     }
@@ -136,7 +136,7 @@ export class RunIODbFactory {
             data: typeof data === "string" ? data : JSON.stringify(data),
             nodeInputName,
             nodeName,
-            run: { connect: { id: runId } },
+            run: { connect: { id: BigInt(runId) } },
             ...overrides,
         };
     }
@@ -153,7 +153,7 @@ export class RunIODbFactory {
             overrides?: Partial<Prisma.run_ioCreateInput>;
         }>,
     ): Prisma.run_ioCreateInput[] {
-        return ioData.map(item => 
+        return ioData.map(item =>
             this.createForNode(
                 runId,
                 item.nodeName,
@@ -183,7 +183,7 @@ export async function seedRunIO(
     },
 ) {
     const runIOs = [];
-    
+
     if (options.customData) {
         // Create custom RunIO entries
         for (const item of options.customData) {
@@ -200,10 +200,10 @@ export async function seedRunIO(
     } else {
         // Create standard test RunIO entries
         const count = options.count || 3;
-        
+
         for (let i = 0; i < count; i++) {
             let runIOData;
-            
+
             if (options.withJsonData && i === 0) {
                 runIOData = RunIODbFactory.createWithJsonData(
                     options.runId,
@@ -221,12 +221,12 @@ export async function seedRunIO(
                     data: `test data ${i}`,
                 });
             }
-            
+
             const runIO = await prisma.run_io.create({ data: runIOData });
             runIOs.push(runIO);
         }
     }
-    
+
     return runIOs;
 }
 
@@ -244,9 +244,9 @@ export async function seedRoutineExecutionIO(
             data: { message: "Starting routine execution" },
         },
         {
-            nodeName: "DataProcessingNode", 
+            nodeName: "DataProcessingNode",
             nodeInputName: "dataInput",
-            data: { 
+            data: {
                 rawData: [1, 2, 3, 4, 5],
                 processedData: [2, 4, 6, 8, 10],
             },
@@ -259,7 +259,7 @@ export async function seedRoutineExecutionIO(
         {
             nodeName: "OutputNode",
             nodeInputName: "finalInput",
-            data: { 
+            data: {
                 success: true,
                 message: "Routine completed successfully",
                 results: { count: 5, total: 30 },

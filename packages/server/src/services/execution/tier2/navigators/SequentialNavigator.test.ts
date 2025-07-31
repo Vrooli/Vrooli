@@ -20,6 +20,7 @@ describe("SequentialNavigator", () => {
             __version: version,
             graph: {
                 __type: "Sequential" as const,
+                __version: "1.0",
                 schema: {
                     steps,
                     rootContext: {
@@ -100,6 +101,7 @@ describe("SequentialNavigator", () => {
                 __version: "1.0.0",
                 graph: {
                     __type: "BPMN-2.0",
+                    __version: "1.0",
                     schema: {
                         __format: "xml",
                         data: "<xml></xml>",

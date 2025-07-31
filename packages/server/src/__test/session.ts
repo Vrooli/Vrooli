@@ -5,6 +5,7 @@ import { type UserDataForPasswordAuth } from "../auth/email.js";
 import { JsonWebToken } from "../auth/jwt.js";
 import { SessionService } from "../auth/session.js";
 import { DbProvider } from "../db/provider.js";
+import { type SessionData } from "../types.js";
 
 export function loggedInUserNoPremiumData(): UserDataForPasswordAuth {
     return {
@@ -171,7 +172,7 @@ export function mockResponse(): Response {
  * @param userData User data to authenticate with - can be full UserDataForPasswordAuth or simple object with id
  * @returns Object containing req and res objects ready for use in tests
  */
-export async function mockAuthenticatedSession(userData: UserDataForPasswordAuth | { id: string; [key: string]: any }) {
+export async function mockAuthenticatedSession(userData: UserDataForPasswordAuth | { id: string | bigint; [key: string]: any }) {
     const req = mockRequest();
     const res = mockResponse();
 
@@ -182,14 +183,16 @@ export async function mockAuthenticatedSession(userData: UserDataForPasswordAuth
         fullUserData = userData as UserDataForPasswordAuth;
     } else {
         // It's a simple object, create a full UserDataForPasswordAuth object
+        const convertedId = typeof userData.id === "bigint" ? userData.id : BigInt(userData.id);
         fullUserData = {
             ...loggedInUserNoPremiumData(),
-            id: BigInt(userData.id),
             publicId: userData.publicId || generatePublicId(),
             name: userData.name || "Test User",
             handle: userData.handle || "test-user",
-            // Override any other properties provided
-            ...userData,
+            // Override any other properties provided, but exclude id to prevent type issues
+            ...Object.fromEntries(Object.entries(userData).filter(([key]) => key !== "id")),
+            // Set the properly converted id last
+            id: convertedId,
         };
     }
 
@@ -339,4 +342,58 @@ export async function seedMockAdminUser() {
         },
     });
     return admin;
+}
+
+/**
+ * Creates a mock SessionData object for testing
+ * @param overrides Optional properties to override default values
+ * @returns A valid SessionData object
+ */
+export function createMockSessionData(overrides?: Partial<SessionData>): SessionData {
+    return {
+        isLoggedIn: true,
+        fromSafeOrigin: true,
+        languages: ["en"],
+        validToken: true,
+        ...overrides,
+    };
+}
+
+/**
+ * Creates a mock SessionData object for API token authentication
+ * @param apiToken The API token
+ * @param permissions The permissions for the API token
+ * @param userId The user ID for the API token
+ * @param overrides Optional properties to override default values
+ * @returns A valid SessionData object for API authentication
+ */
+export function createMockApiSessionData(
+    apiToken: string,
+    permissions: Record<ApiKeyPermission, boolean>,
+    userId: string,
+    overrides?: Partial<SessionData>,
+): SessionData {
+    return {
+        apiToken,
+        permissions,
+        userId,
+        isLoggedIn: false, // API tokens are not "logged in"
+        fromSafeOrigin: false, // API requests typically not from safe origin
+        validToken: true,
+        ...overrides,
+    };
+}
+
+/**
+ * Creates a mock SessionData object for guest/unauthenticated users
+ * @param overrides Optional properties to override default values
+ * @returns A valid SessionData object for guests
+ */
+export function createMockGuestSessionData(overrides?: Partial<SessionData>): SessionData {
+    return {
+        isLoggedIn: false,
+        fromSafeOrigin: true,
+        languages: ["en"],
+        ...overrides,
+    };
 }

@@ -37,7 +37,18 @@ export interface SessionToken extends AccessToken {
     users: SessionUser[];
 }
 
-/** All data stored in session */
+/** 
+ * All data stored in Express session (req.session)
+ * 
+ * IMPORTANT: This is the server-side session type used internally by Express.
+ * It is NOT the same as the Session type from @vrooli/shared, which is the 
+ * GraphQL type returned to clients.
+ * 
+ * - Use SessionData for server-side session management, authentication, and authorization
+ * - Use Session from @vrooli/shared for GraphQL responses and client-facing APIs
+ * 
+ * @see Session from @vrooli/shared for the client-facing GraphQL type
+ */
 export type SessionData = {
     /** When we need to check the database to see if the token is still valid. */
     accessExpiresAt?: number | null;

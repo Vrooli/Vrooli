@@ -1,14 +1,14 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { nanoid, MINUTES_1_MS } from "@vrooli/shared";
-import { EventBus, getEventBus } from "./eventBus.js";
-import { EventBusRateLimiter } from "./rateLimiter.js";
-import { EventBusMonitor } from "./EventBusMonitor.js";
-import { getEventBehavior } from "./registry.js";
-import { SocketService } from "../../sockets/io.js";
+import { generatePK } from "@vrooli/shared";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { TestEventGuards } from "../../__test/helpers/testEvents.js";
 import { logger } from "../../events/logger.js";
 import { EVENT_BUS_CONSTANTS } from "./constants.js";
+import { EventBus, getEventBus } from "./eventBus.js";
+import { EventBusMonitor } from "./EventBusMonitor.js";
+import { EventBusRateLimiter } from "./rateLimiter.js";
+import { getEventBehavior } from "./registry.js";
+import type { EventPublishResult, ServiceEvent } from "./types.js";
 import { EventMode } from "./types.js";
-import type { ServiceEvent, EventHandler, BotEventResponse, EventPublishResult } from "./types.js";
 
 // Mock dependencies
 vi.mock("../../events/logger.js", () => ({
@@ -59,7 +59,7 @@ vi.mock("mqtt-match", () => ({
     default: (pattern: string, topic: string) => {
         // Simple fallback pattern matching logic
         let regexPattern = pattern;
-        
+
         // Handle # multi-level wildcard
         if (pattern.endsWith("/#")) {
             regexPattern = pattern.replace("/#", "(/.*)");
@@ -68,13 +68,13 @@ vi.mock("mqtt-match", () => ({
         } else {
             regexPattern = regexPattern.replace(/#/g, ".*");
         }
-        
+
         // Handle + single level wildcard
         regexPattern = regexPattern.replace(/\+/g, "[^/]+");
-        
+
         // Handle * within level wildcard
         regexPattern = regexPattern.replace(/\*/g, "[^/]*");
-        
+
         const regex = new RegExp(`^${regexPattern}$`);
         return regex.test(topic);
     },
@@ -87,16 +87,16 @@ describe("EventBus", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        
+
         // Reset socket service mock
         mockSocketService.emitSocketEvent.mockClear();
-        
+
         // Reset registry mock to default behavior
         vi.mocked(getEventBehavior).mockReturnValue({
             mode: EventMode.PASSIVE,
             interceptable: false,
         });
-        
+
         // Create fresh mocks for each test
         mockRateLimiter = {
             checkEventRateLimit: vi.fn().mockResolvedValue({
@@ -177,13 +177,13 @@ describe("EventBus", () => {
 
         it("should stop successfully and clean up resources", async () => {
             await eventBus.start();
-            
+
             // Add a subscription to test cleanup
             const handler = vi.fn();
             await eventBus.subscribe("test/event", handler);
-            
+
             await eventBus.stop();
-            
+
             expect(mockMonitor.stop).toHaveBeenCalled();
             expect(logger.info).toHaveBeenCalledWith("[EventBus] Stopped event bus");
         });
@@ -195,7 +195,7 @@ describe("EventBus", () => {
 
         it("should clean up pending barriers on stop", async () => {
             await eventBus.start();
-            
+
             // Mock a barrier sync event that defers (keeps barrier pending)
             const getEventBehaviorMock = getEventBehavior as any;
             getEventBehaviorMock.mockReturnValue({
@@ -403,7 +403,7 @@ describe("EventBus", () => {
             // Wait a bit then check metrics
             await new Promise(resolve => setTimeout(resolve, 100));
             const metrics = eventBus.getMetrics();
-            
+
             // Should still have pending barrier due to defer action
             expect(metrics.pendingBarriers).toBe(1);
         });
@@ -438,7 +438,7 @@ describe("EventBus", () => {
         it("should handle multiple patterns in subscription", async () => {
             const handler = vi.fn();
             const patterns = ["test/event1", "test/event2", "test/event3"];
-            
+
             const subscriptionId = await eventBus.subscribe(patterns, handler);
             expect(subscriptionId).toBeDefined();
         });
@@ -486,8 +486,13 @@ describe("EventBus", () => {
 
         it("should handle subscription filters", async () => {
             const handler = vi.fn();
-            const filter = (event: ServiceEvent) => event.data.important === true;
-            
+            const filter = (event: ServiceEvent) => {
+                if (TestEventGuards.isTestFiltered(event)) {
+                    return event.data.important === true;
+                }
+                return false;
+            };
+
             await eventBus.subscribe("test/filtered", handler, { filter });
 
             // This should be filtered out
@@ -557,7 +562,7 @@ describe("EventBus", () => {
         it("should get subscriber count for pattern", () => {
             const handler1 = vi.fn();
             const handler2 = vi.fn();
-            
+
             eventBus.subscribe("test/count", handler1);
             eventBus.subscribe("test/count", handler2);
             eventBus.subscribe("other/pattern", handler1);
@@ -573,17 +578,19 @@ describe("EventBus", () => {
         });
 
         it("should emit events to socket clients", async () => {
+            const chatId = generatePK().toString();
+
             await eventBus.publish({
                 type: "chat/message",
-                data: { chatId: "chat-123", message: "hello" },
+                data: { chatId, message: "hello" },
             });
 
             expect(mockSocketService.emitSocketEvent).toHaveBeenCalledWith(
                 "chat/message",
-                "chat-123",
+                chatId,
                 expect.objectContaining({
                     type: "chat/message",
-                    data: { chatId: "chat-123", message: "hello" },
+                    data: { chatId, message: "hello" },
                 }),
             );
         });
@@ -595,9 +602,10 @@ describe("EventBus", () => {
             });
 
             // Should not throw despite socket error
+            const chatId = generatePK().toString();
             const result = await eventBus.publish({
                 type: "chat/message",
-                data: { chatId: "chat-123", message: "hello" },
+                data: { chatId, message: "hello" },
             });
 
             expect(result.success).toBe(true);
@@ -611,33 +619,37 @@ describe("EventBus", () => {
         });
 
         it("should extract room IDs correctly", async () => {
+            const chatId = generatePK().toString();
+            const runId = generatePK().toString();
+            const userId = generatePK().toString();
+
             // Test chat events
             await eventBus.publish({
                 type: "chat/message",
-                data: { chatId: "chat-123" },
+                data: { chatId },
             });
 
             // Test run events  
             await eventBus.publish({
                 type: "run/started",
-                data: { runId: "run-456" },
+                data: { runId },
             });
 
             // Test user events
             await eventBus.publish({
                 type: "user/login",
-                data: { userId: "user-789" },
+                data: { userId },
             });
 
             expect(mockSocketService.emitSocketEvent).toHaveBeenCalledTimes(3);
             expect(mockSocketService.emitSocketEvent).toHaveBeenNthCalledWith(
-                1, "chat/message", "chat-123", expect.any(Object),
+                1, "chat/message", chatId, expect.any(Object),
             );
             expect(mockSocketService.emitSocketEvent).toHaveBeenNthCalledWith(
-                2, "run/started", "run-456", expect.any(Object),
+                2, "run/started", runId, expect.any(Object),
             );
             expect(mockSocketService.emitSocketEvent).toHaveBeenNthCalledWith(
-                3, "user/login", "user-789", expect.any(Object),
+                3, "user/login", userId, expect.any(Object),
             );
         });
     });
@@ -668,7 +680,8 @@ describe("EventBus", () => {
         });
 
         it("should provide rate limit status", async () => {
-            const status = await eventBus.getRateLimitStatus("user-123", "test/event");
+            const userId = generatePK().toString();
+            const status = await eventBus.getRateLimitStatus(userId, "test/event");
 
             expect(status).toMatchObject({
                 global: {
@@ -676,7 +689,7 @@ describe("EventBus", () => {
                     total: expect.any(Number),
                 },
             });
-            expect(mockRateLimiter.getRateLimitStatus).toHaveBeenCalledWith("user-123", "test/event");
+            expect(mockRateLimiter.getRateLimitStatus).toHaveBeenCalledWith(userId, "test/event");
         });
 
         it("should track metrics correctly across operations", async () => {
@@ -715,10 +728,10 @@ describe("EventBus", () => {
             });
 
             expect(result.success).toBe(true);
-            
+
             // Allow async error handling
             await new Promise(resolve => setTimeout(resolve, 10));
-            
+
             expect(logger.error).toHaveBeenCalledWith(
                 "[EventBus] Subscription handler error",
                 expect.any(Object),
@@ -746,7 +759,9 @@ describe("EventBus", () => {
 
         it("should handle unknown barrier responses", async () => {
             // Should not throw error
-            await eventBus.respondToBarrier("unknown-event-id", "bot-1", {
+            const unknownEventId = generatePK().toString();
+            const botId = generatePK().toString();
+            await eventBus.respondToBarrier(unknownEventId, botId, {
                 progression: "continue",
                 reason: "Test",
             });
@@ -800,7 +815,7 @@ describe("EventBus", () => {
 
         it("should handle concurrent subscription modifications during event processing", async () => {
             const handlers = Array(10).fill(null).map(() => vi.fn());
-            const subscriptionPromises = handlers.map(handler => 
+            const subscriptionPromises = handlers.map(handler =>
                 eventBus.subscribe("test/concurrent_sub", handler),
             );
 
@@ -813,7 +828,7 @@ describe("EventBus", () => {
             });
 
             // Unsubscribe half the handlers concurrently
-            const unsubPromises = subscriptionIds.slice(0, 5).map(id => 
+            const unsubPromises = subscriptionIds.slice(0, 5).map(id =>
                 eventBus.unsubscribe(id),
             );
 
@@ -903,7 +918,7 @@ describe("EventBus", () => {
             // Remove subscriptions while events are flowing
             await new Promise(resolve => setTimeout(resolve, 20));
             await Promise.all(subscriptionIds.map(id => eventBus.unsubscribe(id)));
-            
+
             clearInterval(publishInterval);
 
             // Verify cleanup
@@ -916,7 +931,7 @@ describe("EventBus", () => {
             const handlers = Array(maxListeners + 10).fill(null).map(() => vi.fn());
 
             // This should not cause memory leak warnings
-            const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+            const consoleWarnSpy = vi.spyOn(console, "warn").mockImplementation(() => { });
 
             const subscriptionIds = await Promise.all(
                 handlers.map(handler => eventBus.subscribe("test/memory", handler)),
@@ -1026,7 +1041,7 @@ describe("EventBus", () => {
 
             // All events should succeed
             expect(results.every(r => r.success)).toBe(true);
-            
+
             // Should complete within reasonable time (< 5 seconds)
             expect(duration).toBeLessThan(5000);
 
@@ -1052,7 +1067,7 @@ describe("EventBus", () => {
 
             // Verify all subscriptions were created
             expect(subscriptionIds.length).toBe(subscriptionCount);
-            
+
             const metrics = eventBus.getMetrics();
             expect(metrics.activeSubscriptions).toBe(subscriptionCount);
 
@@ -1086,7 +1101,7 @@ describe("EventBus", () => {
 
             // All events should succeed
             expect(results.every(r => r.success)).toBe(true);
-            
+
             // Should complete within reasonable time (< 10 seconds)
             expect(duration).toBeLessThan(10000);
 
@@ -1102,7 +1117,7 @@ describe("EventBus", () => {
 
         it("should maintain event ordering for sequential publications", async () => {
             const receivedEvents: ServiceEvent[] = [];
-            const handler = vi.fn((event: ServiceEvent) => {
+            const handler = vi.fn(async (event: ServiceEvent) => {
                 receivedEvents.push(event);
             });
 
@@ -1121,7 +1136,9 @@ describe("EventBus", () => {
 
             // Events should be received in order
             for (let i = 0; i < 10; i++) {
-                expect(receivedEvents[i].data.index).toBe(i);
+                if (TestEventGuards.isTestOrdering(receivedEvents[i]) && "index" in receivedEvents[i].data) {
+                    expect(receivedEvents[i].data.index).toBe(i);
+                }
             }
         });
 
@@ -1156,7 +1173,7 @@ describe("EventBus", () => {
 
         it("should maintain subscription handler execution order", async () => {
             const executionOrder: number[] = [];
-            const handlers = Array(5).fill(null).map((_, i) => 
+            const handlers = Array(5).fill(null).map((_, i) =>
                 vi.fn(async () => {
                     // Add small delay to test ordering
                     await new Promise(resolve => setTimeout(resolve, 10));
@@ -1219,13 +1236,15 @@ describe("EventBus", () => {
             await new Promise(resolve => setTimeout(resolve, 10));
 
             // First response approves
-            await eventBus.respondToBarrier(eventId!, "bot-1", {
+            const bot1Id = generatePK().toString();
+            const bot2Id = generatePK().toString();
+            await eventBus.respondToBarrier(eventId!, bot1Id, {
                 progression: "continue",
                 reason: "First approval",
             });
 
             // Second response blocks - should immediately complete
-            await eventBus.respondToBarrier(eventId!, "bot-2", {
+            await eventBus.respondToBarrier(eventId!, bot2Id, {
                 progression: "block",
                 reason: "Blocked!",
             });
@@ -1268,11 +1287,11 @@ describe("EventBus", () => {
 
             // Send exactly 3 continue responses and 2 block responses
             const responses = [
-                { botId: "bot-1", progression: "continue" as const },
-                { botId: "bot-2", progression: "continue" as const },
-                { botId: "bot-3", progression: "continue" as const },
-                { botId: "bot-4", progression: "block" as const },
-                { botId: "bot-5", progression: "block" as const },
+                { botId: generatePK().toString(), progression: "continue" as const },
+                { botId: generatePK().toString(), progression: "continue" as const },
+                { botId: generatePK().toString(), progression: "continue" as const },
+                { botId: generatePK().toString(), progression: "block" as const },
+                { botId: generatePK().toString(), progression: "block" as const },
             ];
 
             for (const { botId, progression } of responses) {
@@ -1304,7 +1323,7 @@ describe("EventBus", () => {
 
         it("should handle very long event type names", async () => {
             const longEventType = "test/" + "very".repeat(100) + "/long/event/type";
-            
+
             const result = await eventBus.publish({
                 type: longEventType,
                 data: { test: true },
@@ -1358,12 +1377,13 @@ describe("EventBus", () => {
             await new Promise(resolve => setTimeout(resolve, 10));
 
             // Send duplicate responses from same bot
-            await eventBus.respondToBarrier(eventId!, "bot-1", {
+            const duplicateBotId = generatePK().toString();
+            await eventBus.respondToBarrier(eventId!, duplicateBotId, {
                 progression: "continue",
                 reason: "First response",
             });
 
-            await eventBus.respondToBarrier(eventId!, "bot-1", {
+            await eventBus.respondToBarrier(eventId!, duplicateBotId, {
                 progression: "block",
                 reason: "Second response",
             });

@@ -1,24 +1,21 @@
-import { describe, expect, test, beforeEach, afterEach, vi, type MockedFunction, type Mock } from "vitest";
 import {
     EventTypes,
     RunState,
-    generatePK,
-    type ExecutionResult,
-    type RoutineExecutionInput,
-    type TierExecutionRequest,
-    type StepExecutionInput,
-    type ExecutionStrategy,
     type CoreResourceAllocation,
-    type SessionUser,
+    type ExecutionStrategy,
+    type RoutineExecutionInput,
     type RunContext,
+    type SessionUser,
+    type TierExecutionRequest
 } from "@vrooli/shared";
-import { RoutineExecutor } from "./routineExecutor.js";
-import type { ISwarmContextManager } from "../shared/SwarmContextManager.js";
-import type { StepExecutor } from "../tier3/stepExecutor.js";
-import type { IRunContextManager } from "./runContextManager.js";
-import type { INavigator, Location, StepInfo, StepAllocationRequest, RunAllocationRequest } from "./types.js";
+import { afterEach, beforeEach, describe, expect, test, vi, type Mock, type MockedFunction } from "vitest";
 import { logger } from "../../../events/logger.js";
 import { EventPublisher } from "../../events/publisher.js";
+import type { ISwarmContextManager } from "../shared/SwarmContextManager.js";
+import type { StepExecutor } from "../tier3/stepExecutor.js";
+import { RoutineExecutor } from "./routineExecutor.js";
+import type { IRunContextManager } from "./runContextManager.js";
+import type { INavigator, StepInfo } from "./types.js";
 
 // Mock dependencies
 vi.mock("../../../events/logger.js", () => ({
@@ -100,10 +97,28 @@ const mockGetNavigator = getNavigator as MockedFunction<typeof getNavigator>;
 
 // Test data factories
 function createMockUser(partial: Partial<SessionUser> = {}): SessionUser {
+    const now = new Date().toISOString();
     return {
+        __typename: "SessionUser" as const,
         id: "test-user-123",
-        name: "Test User",
+        publicId: "pub_test-user-123",
+        credits: "1000",
+        creditAccountId: "credit_test-user-123",
+        creditSettings: null,
+        handle: "testuser",
+        hasPremium: false,
+        hasReceivedPhoneVerificationReward: false,
         languages: ["en"],
+        name: "Test User",
+        phoneNumberVerified: false,
+        profileImage: null,
+        theme: "light",
+        updatedAt: now,
+        session: {
+            __typename: "SessionUserSession" as const,
+            id: "session_test-user-123",
+            lastRefreshAt: now,
+        },
         ...partial,
     } as SessionUser;
 }
@@ -112,20 +127,20 @@ function createMockSwarmContextManager(): ISwarmContextManager {
     return {
         updateContext: vi.fn().mockResolvedValue(undefined),
         getSwarmState: vi.fn().mockResolvedValue({
-            swarmId: "test-swarm-123",
+            swarmId: "123456789012345679",
             version: 1,
             chatConfig: { __version: "1.0.0" },
             execution: { status: RunState.RUNNING, agents: [], activeRuns: [] },
-            resources: { 
-                allocated: [], 
-                consumed: { credits: 0, tokens: 0, time: 0 }, 
-                remaining: { credits: 10000, tokens: 10000, time: 3600 }, 
+            resources: {
+                allocated: [],
+                consumed: { credits: 0, tokens: 0, time: 0 },
+                remaining: { credits: 10000, tokens: 10000, time: 3600 },
             },
-            metadata: { 
-                createdAt: new Date(), 
-                lastUpdated: new Date(), 
-                updatedBy: "system", 
-                subscribers: new Set(), 
+            metadata: {
+                createdAt: new Date(),
+                lastUpdated: new Date(),
+                updatedBy: "system",
+                subscribers: new Set(),
             },
         }),
         isSwarmActive: vi.fn().mockResolvedValue(true),
@@ -152,11 +167,11 @@ function createMockStepExecutor(): StepExecutor {
 function createMockRunContextManager(): IRunContextManager {
     return {
         getRunContext: vi.fn().mockResolvedValue({
-            runId: "test-run-123",
-            routineId: "test-routine-123",
-            swarmId: "test-swarm-123",
+            runId: "123456789012345680",
+            routineId: "123456789012345681",
+            swarmId: "123456789012345679",
             navigator: null,
-            currentLocation: { id: "start", routineId: "test-routine-123", nodeId: "start" },
+            currentLocation: { id: "start", routineId: "123456789012345681", nodeId: "start" },
             visitedLocations: [],
             variables: {},
             outputs: {},
@@ -171,18 +186,18 @@ function createMockRunContextManager(): IRunContextManager {
         }),
         updateRunContext: vi.fn().mockResolvedValue(undefined),
         allocateFromSwarm: vi.fn().mockResolvedValue({
-            allocationId: "alloc-123",
-            runId: "test-run-123",
-            swarmId: "test-swarm-123",
+            allocationId: "123",
+            runId: "123456789012345680",
+            swarmId: "123456789012345679",
             allocated: { credits: "1000", timeoutMs: 300000, memoryMB: 512, concurrentExecutions: 1 },
             remaining: { credits: "1000", timeoutMs: 300000, memoryMB: 512, concurrentExecutions: 1 },
             allocatedAt: new Date(),
             expiresAt: new Date(Date.now() + 300000),
         }),
         allocateForStep: vi.fn().mockResolvedValue({
-            allocationId: "step-alloc-123",
-            stepId: "test-step-123",
-            runId: "test-run-123",
+            allocationId: "456",
+            stepId: "789",
+            runId: "123456789012345680",
             allocated: { credits: "50", timeoutMs: 60000, memoryMB: 128, concurrentExecutions: 1 },
             allocatedAt: new Date(),
             expiresAt: new Date(Date.now() + 60000),
@@ -197,7 +212,7 @@ function createMockRunContextManager(): IRunContextManager {
         emitRunCompleted: vi.fn().mockResolvedValue(undefined),
         emitRunFailed: vi.fn().mockResolvedValue(undefined),
         allocateStep: vi.fn().mockResolvedValue({
-            stepId: "step-123",
+            stepId: "321",
             allocated: { credits: "100", timeoutMs: 60000, memoryMB: 128, concurrentExecutions: 1 },
         }),
         releaseStep: vi.fn().mockResolvedValue(undefined),
@@ -211,12 +226,12 @@ function createMockNavigator(): INavigator {
         canNavigate: vi.fn().mockReturnValue(true),
         getStartLocation: vi.fn().mockReturnValue({
             id: "start",
-            routineId: "test-routine-123",
+            routineId: "123456789012345681",
             nodeId: "0",
         }),
         getNextLocations: vi.fn().mockReturnValue([{
-            id: "step-1",
-            routineId: "test-routine-123", 
+            id: "1",
+            routineId: "123456789012345681",
             nodeId: "1",
         }]),
         isEndLocation: vi.fn().mockReturnValue(false),
@@ -237,14 +252,14 @@ function createMockNavigator(): INavigator {
 function createMockTierExecutionRequest(): TierExecutionRequest<RoutineExecutionInput> {
     return {
         context: {
-            swarmId: "test-swarm-123",
+            swarmId: "123456789012345679",
             userData: createMockUser(),
             parentSwarmId: "parent-swarm-123",
             timestamp: new Date(),
         },
         input: {
-            resourceVersionId: "test-routine-123",
-            runId: "test-run-123",
+            resourceVersionId: "123456789012345681",
+            runId: "123456789012345680",
             inputs: { inputParam: "test value" },
             metadata: { testKey: "testValue" },
         },
@@ -272,10 +287,10 @@ describe("RoutineExecutor", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        
+
         // Reset the mock state machine instance
         mockStateMachineInstance = undefined;
-        
+
         contextManager = createMockSwarmContextManager();
         stepExecutor = createMockStepExecutor();
         runContextManager = createMockRunContextManager();
@@ -292,7 +307,7 @@ describe("RoutineExecutor", () => {
             "test-user-123",
             "parent-swarm-123",
         );
-        
+
         // Directly replace the state machine with our mock
         (routineExecutor as any).stateMachine = mockStateMachineInstance || {
             initializeExecution: vi.fn().mockResolvedValue(undefined),
@@ -354,17 +369,17 @@ describe("RoutineExecutor", () => {
             expect(result.resourcesUsed).toBeDefined();
             expect(result.duration).toBeGreaterThan(0);
             expect(result.metadata).toEqual({
-                swarmId: "test-swarm-123",
+                swarmId: "123456789012345679",
                 strategy: "lean",
                 componentCount: 2,
             });
 
             // Verify state machine calls
             expect(mockStateMachine.initializeExecution).toHaveBeenCalledWith(
-                "test-swarm-123",
-                "test-routine-123",
-                "test-swarm-123",
-                "test-run-123",
+                "123456789012345679",
+                "123456789012345681",
+                "123456789012345679",
+                "123456789012345680",
             );
             expect(mockStateMachine.start).toHaveBeenCalled();
             expect(mockStateMachine.complete).toHaveBeenCalled();
@@ -373,7 +388,7 @@ describe("RoutineExecutor", () => {
         test("should handle execution failure", async () => {
             const request = createMockTierExecutionRequest();
             const mockStateMachine = routineExecutor.getStateMachine();
-            
+
             // Mock state machine to throw error
             mockStateMachine.initializeExecution = vi.fn().mockRejectedValue(new Error("Initialization failed"));
 
@@ -394,7 +409,7 @@ describe("RoutineExecutor", () => {
         test("should handle missing navigator", async () => {
             const request = createMockTierExecutionRequest();
             const mockStateMachine = routineExecutor.getStateMachine();
-            
+
             // Mock navigator factory to return null
             mockGetNavigator.mockReturnValue(null);
 
@@ -409,7 +424,7 @@ describe("RoutineExecutor", () => {
     describe("executeRoutineSteps()", () => {
         test("should execute sequential steps successfully", async () => {
             const request = createMockTierExecutionRequest();
-            
+
             // Mock navigator behavior for multi-step execution
             (navigator.isEndLocation as Mock)
                 .mockReturnValueOnce(false)  // Step 0
@@ -417,8 +432,8 @@ describe("RoutineExecutor", () => {
                 .mockReturnValueOnce(true);  // End at step 2
 
             (navigator.getNextLocations as Mock)
-                .mockReturnValueOnce([{ id: "step-1", routineId: "test-routine-123", nodeId: "1" }])
-                .mockReturnValueOnce([{ id: "step-2", routineId: "test-routine-123", nodeId: "2" }])
+                .mockReturnValueOnce([{ id: "step-1", routineId: "123456789012345681", nodeId: "1" }])
+                .mockReturnValueOnce([{ id: "step-2", routineId: "123456789012345681", nodeId: "2" }])
                 .mockReturnValueOnce([]);  // No more steps
 
             (navigator.getStepInfo as Mock)
@@ -429,7 +444,7 @@ describe("RoutineExecutor", () => {
                     config: { prompt: "First prompt" },
                 })
                 .mockReturnValueOnce({
-                    id: "step-1", 
+                    id: "step-1",
                     name: "Second Step",
                     type: "tool_call",
                     config: { tool: "calculator" },
@@ -454,7 +469,7 @@ describe("RoutineExecutor", () => {
                     allocated: { credits: "25", timeoutMs: 30000, memoryMB: 64, concurrentExecutions: 1 },
                 })
                 .mockResolvedValueOnce({
-                    allocationId: "step-1-alloc", 
+                    allocationId: "step-1-alloc",
                     stepId: "step-1",
                     allocated: { credits: "25", timeoutMs: 30000, memoryMB: 64, concurrentExecutions: 1 },
                 });
@@ -474,12 +489,12 @@ describe("RoutineExecutor", () => {
 
         test("should handle step execution failure", async () => {
             const request = createMockTierExecutionRequest();
-            
+
             // Mock navigator for single step that fails
             (navigator.isEndLocation as Mock).mockReturnValue(false);
             (navigator.getStepInfo as Mock).mockReturnValue({
                 id: "failing-step",
-                name: "Failing Step", 
+                name: "Failing Step",
                 type: "llm_call",
                 config: { prompt: "This will fail" },
             });
@@ -498,12 +513,12 @@ describe("RoutineExecutor", () => {
 
         test("should handle infinite loop protection", async () => {
             const request = createMockTierExecutionRequest();
-            
+
             // Mock navigator to never end (infinite loop scenario)
             (navigator.isEndLocation as Mock).mockReturnValue(false);
             (navigator.getNextLocations as Mock).mockReturnValue([{
                 id: "infinite-step",
-                routineId: "test-routine-123", 
+                routineId: "123456789012345681",
                 nodeId: "infinite",
             }]);
             (navigator.getStepInfo as Mock).mockReturnValue({
@@ -543,7 +558,7 @@ describe("RoutineExecutor", () => {
             await routineExecutor.execute(request);
 
             // Verify resource allocation and release were called
-            expect(runContextManager?.allocateForStep).toHaveBeenCalledWith("test-swarm-123", {
+            expect(runContextManager?.allocateForStep).toHaveBeenCalledWith("123456789012345679", {
                 stepId: "test-step-123",
                 stepType: "llm_call",
                 estimatedRequirements: {
@@ -576,11 +591,11 @@ describe("RoutineExecutor", () => {
             const result = await routineExecutor.execute(request);
 
             expect(result.success).toBe(false);
-            
+
             // Verify resource cleanup on failure
             expect(runContextManager?.allocateForStep).toHaveBeenCalled();
             expect(runContextManager?.releaseFromStep).toHaveBeenCalledWith(
-                "test-swarm-123",
+                "123456789012345679",
                 "failing-step",
                 expect.objectContaining({
                     creditsUsed: "15", // Partial usage on failure
@@ -593,7 +608,7 @@ describe("RoutineExecutor", () => {
         test("should handle permission denial", async () => {
             const stepInfo: StepInfo = {
                 id: "restricted-step",
-                name: "Restricted Step", 
+                name: "Restricted Step",
                 type: "subroutine", // This type is not allowed for regular users
                 config: {},
             };
@@ -652,7 +667,7 @@ describe("RoutineExecutor", () => {
                     toolName: undefined,
                     parameters: expect.objectContaining({
                         stepName: "LLM Step",
-                        stepDescription: "Generate response", 
+                        stepDescription: "Generate response",
                         prompt: "Hello world",
                         model: "gpt-4",
                         temperature: 0.7,
@@ -732,7 +747,7 @@ describe("RoutineExecutor", () => {
         test("should extract tool name from config.tool", () => {
             const stepInfo: StepInfo = {
                 id: "test",
-                name: "Test", 
+                name: "Test",
                 type: "tool_call",
                 config: { tool: "calculator" },
             };
@@ -786,7 +801,7 @@ describe("RoutineExecutor", () => {
         test("should determine strategy from step type", () => {
             const testCases: Array<[string, ExecutionStrategy]> = [
                 ["llm_call", "reasoning"],
-                ["tool_call", "deterministic"], 
+                ["tool_call", "deterministic"],
                 ["api_call", "deterministic"],
                 ["code_execution", "deterministic"],
                 ["unknown_type", "reasoning"],
@@ -856,7 +871,7 @@ describe("RoutineExecutor", () => {
             const routineExecutorAny = routineExecutor as any;
             const allowed = await routineExecutorAny.checkStepPermission(
                 "test-run",
-                "test-step", 
+                "test-step",
                 runContext,
             );
 
@@ -865,10 +880,10 @@ describe("RoutineExecutor", () => {
 
         test("should allow agent to execute allowed steps", async () => {
             const allowedSteps = ["action", "decision", "subroutine", "parallel", "loop"];
-            
+
             for (const stepType of allowedSteps) {
                 const runContext: RunContext = {
-                    variables: { 
+                    variables: {
                         userRole: "agent",
                         ["step_test-step_type"]: stepType,
                     },
@@ -888,7 +903,7 @@ describe("RoutineExecutor", () => {
 
         test("should deny guest any step execution", async () => {
             const runContext: RunContext = {
-                variables: { 
+                variables: {
                     userRole: "guest",
                     ["step_test-step_type"]: "action",
                 },
@@ -907,7 +922,7 @@ describe("RoutineExecutor", () => {
 
         test("should deny user restricted step types", async () => {
             const runContext: RunContext = {
-                variables: { 
+                variables: {
                     userRole: "user",
                     ["step_test-step_type"]: "subroutine", // Not allowed for user
                 },
@@ -977,7 +992,7 @@ describe("RoutineExecutor", () => {
                 expect.any(Object),
             );
             expect(logger.warn).toHaveBeenCalledWith(
-                "[RoutineExecutor] Step completion event blocked", 
+                "[RoutineExecutor] Step completion event blocked",
                 expect.any(Object),
             );
         });

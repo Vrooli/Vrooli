@@ -109,7 +109,7 @@ describe("AuthTokensService", () => {
                             id: generatePK().toString(),
                             session: {
                                 id: nonExistingSessionId.toString(),
-                                lastRefreshAt,
+                                lastRefreshAt: lastRefreshAt.toISOString(),
                             },
                         },
                     ] as unknown as SessionUser[],
@@ -142,7 +142,7 @@ describe("AuthTokensService", () => {
                             id: generatePK().toString(),
                             session: {
                                 id: revokedSessionId.toString(),
-                                lastRefreshAt,
+                                lastRefreshAt: lastRefreshAt.toISOString(),
                             },
                         },
                     ] as unknown as SessionUser[],
@@ -184,7 +184,7 @@ describe("AuthTokensService", () => {
                             id: generatePK().toString(),
                             session: {
                                 id: expiredSessionId.toString(),
-                                lastRefreshAt,
+                                lastRefreshAt: lastRefreshAt.toISOString(),
                             },
                         },
                     ] as unknown as SessionUser[],
@@ -226,7 +226,7 @@ describe("AuthTokensService", () => {
                             id: generatePK().toString(),
                             session: {
                                 id: mismatchSessionId.toString(),
-                                lastRefreshAt,
+                                lastRefreshAt: lastRefreshAt.toISOString(),
                             },
                         },
                     ] as unknown as SessionUser[],
@@ -270,7 +270,7 @@ describe("AuthTokensService", () => {
                             id: generatePK().toString(),
                             session: {
                                 id: validSessionId.toString(),
-                                lastRefreshAt,
+                                lastRefreshAt: lastRefreshAt.toISOString(),
                             },
                         },
                     ] as unknown as SessionUser[],
@@ -484,15 +484,27 @@ describe("AuthTokensService", () => {
             });
 
             const sessionUserData = {
+                __typename: "SessionUser" as const,
                 id: userId,
+                publicId: `pub_${userId}`,
+                credits: "1000",
+                creditAccountId: `credit_${userId}`,
+                creditSettings: null,
+                handle: "testuser",
+                hasPremium: false,
+                hasReceivedPhoneVerificationReward: false,
+                languages: ["en"],
                 name: "Test User",
+                phoneNumberVerified: false,
+                profileImage: null,
                 theme: "dark",
+                updatedAt: new Date().toISOString(),
                 session: {
+                    __typename: "SessionUserSession" as const,
                     id: sessionId,
                     lastRefreshAt: lastRefreshAt.toISOString(),
                 },
-                role: "user",
-            } as unknown as SessionUser;
+            } as SessionUser;
 
             const payload: SessionToken = {
                 ...JsonWebToken.get().basicToken(),

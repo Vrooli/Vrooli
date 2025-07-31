@@ -158,8 +158,14 @@ postgres::docker::create_container() {
     # This provides more comprehensive and maintainable configuration
     log::debug "Using template configuration: $template"
     
-    # Run the container
-    if "${docker_cmd[@]}" >/dev/null 2>&1; then
+    # Run the container and capture any errors
+    local docker_output
+    local docker_exit_code
+    
+    docker_output=$("${docker_cmd[@]}" 2>&1)
+    docker_exit_code=$?
+    
+    if [[ $docker_exit_code -eq 0 ]]; then
         log::debug "PostgreSQL container created successfully"
         
         # Wait a moment for container to initialize
@@ -168,6 +174,36 @@ postgres::docker::create_container() {
         return 0
     else
         log::error "Failed to create PostgreSQL container"
+        
+        # Parse and display specific error messages
+        if echo "$docker_output" | grep -qi "bind.*failed.*port is already allocated"; then
+            log::error "Port $port is already in use by another service"
+            log::info "Try using a different port or stop the conflicting service"
+            # Try to show what's using the port
+            if command -v lsof >/dev/null 2>&1; then
+                local port_user=$(lsof -i :${port} -sTCP:LISTEN 2>/dev/null | grep -v "^COMMAND" | head -1)
+                if [[ -n "$port_user" ]]; then
+                    log::info "Port $port is currently used by: $(echo "$port_user" | awk '{print $1}')"
+                fi
+            fi
+        elif echo "$docker_output" | grep -qi "bind.*address already in use"; then
+            log::error "Port $port is already in use by another service"
+            log::info "Try using a different port or stop the conflicting service"
+        elif echo "$docker_output" | grep -qi "conflict.*already in use by container"; then
+            log::error "Container name '$container_name' is already in use"
+            log::info "This usually means the instance wasn't properly cleaned up"
+            log::info "Try: docker rm -f $container_name"
+        elif echo "$docker_output" | grep -qi "permission denied"; then
+            log::error "Permission denied - ensure Docker daemon is accessible"
+            log::info "You may need to run: sudo usermod -aG docker \$USER && newgrp docker"
+        elif echo "$docker_output" | grep -qi "no such image"; then
+            log::error "PostgreSQL Docker image not found: ${POSTGRES_IMAGE}"
+            log::info "Run: ./manage.sh --action install"
+        else
+            # Show the actual Docker error for debugging
+            log::debug "Docker error output: $docker_output"
+        fi
+        
         return 1
     fi
 }
@@ -289,7 +325,7 @@ postgres::docker::remove() {
     if postgres::common::is_running "$instance_name"; then
         # Try graceful stop first, with timeout
         if ! timeout 30 docker stop "${container_name}" >/dev/null 2>&1; then
-            if [[ "$force" == "true" ]]; then
+            if [[ "$force" == "true" || "$force" == "yes" ]]; then
                 log::warn "Graceful stop timed out, force stopping container"
                 docker kill "${container_name}" >/dev/null 2>&1 || true
             else

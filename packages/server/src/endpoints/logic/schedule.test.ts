@@ -384,7 +384,7 @@ describe("EndpointsSchedule", () => {
 
                 // Verify creation in DB
                 const createdSchedule = await DbProvider.get().schedule.findUnique({
-                    where: { id: creationResult.id },
+                    where: { id: BigInt(creationResult.id) },
                 });
                 expect(createdSchedule).not.toBeNull();
                 expect(createdSchedule?.timezone).toBe("Europe/London");
@@ -410,7 +410,7 @@ describe("EndpointsSchedule", () => {
                 expect(result.id).toBeDefined();
                 // Verify creation in DB
                 const createdSchedule = await DbProvider.get().schedule.findUnique({
-                    where: { id: result.id },
+                    where: { id: BigInt(result.id) },
                 });
                 expect(createdSchedule).not.toBeNull();
                 expect(createdSchedule?.timezone).toBe("UTC"); // Check a basic field
@@ -422,7 +422,7 @@ describe("EndpointsSchedule", () => {
                 const { req, res } = await mockLoggedOutSession();
 
                 const input: ScheduleCreateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     startTime: new Date("2024-02-03T10:00:00Z"),
                     endTime: new Date("2024-02-03T11:00:00Z"),
                     timezone: "UTC",
@@ -473,11 +473,11 @@ describe("EndpointsSchedule", () => {
                 const newTimezone = "America/Los_Angeles";
                 const newRecurrenceId = generatePK();
                 const input: ScheduleUpdateInput = {
-                    id: scheduleUser1.id,
+                    id: scheduleUser1.id.toString(),
                     timezone: newTimezone,
                     // Example of adding a new recurrence during update
                     recurrencesCreate: [{
-                        id: newRecurrenceId,
+                        id: newRecurrenceId.toString(),
                         recurrenceType: ScheduleRecurrenceType.Monthly,
                         dayOfMonth: 15,
                         interval: 1,
@@ -566,7 +566,7 @@ describe("EndpointsSchedule", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: ScheduleUpdateInput = {
-                    id: generatePK(), // Non-existent ID
+                    id: generatePK().toString(), // Non-existent ID
                     timezone: "Asia/Tokyo",
                 };
 
