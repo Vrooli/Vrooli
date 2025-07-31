@@ -86,6 +86,24 @@ async def ai_action(request: AIActionRequest, req: Request):
         )
         
         
+        # Format debug_info for management script compatibility
+        debug_info = result.get("debug_info", {})
+        formatted_debug_info = {}
+        
+        if "from_planner" in debug_info:
+            planner_debug = debug_info["from_planner"]
+            formatted_debug_info["from_handler"] = {
+                "system_prompt": planner_debug.get("system_prompt"),
+                "user_prompt": planner_debug.get("user_prompt"),
+                "screenshot_included": planner_debug.get("screenshot_included"),
+                "context": planner_debug.get("context")
+            }
+        
+        # Include other debug info
+        for key, value in debug_info.items():
+            if key != "from_planner":
+                formatted_debug_info[key] = value
+        
         return AIActionResponse(
             success=result.get("success", False),
             task=request.task,
@@ -93,7 +111,7 @@ async def ai_action(request: AIActionRequest, req: Request):
             actions_taken=result.get("actions_taken", []),
             reasoning=result.get("reasoning"),
             error=result.get("error"),
-            debug_info=result.get("debug_info")
+            debug_info=formatted_debug_info
         )
     except Exception as e:
         logger.error(f"AI action failed: {e}")
@@ -267,124 +285,152 @@ async def ai_diagnostics(req: Request):
     from ...config import Config
     import requests
     
-    app_state = req.app.state.app_state
-    ai_handler = app_state.get("ai_handler")
-    init_error = app_state.get("ai_init_error", {})
-    
-    # Basic status
-    diagnostics = {
-        "service_status": {
-            "ai_enabled": Config.AI_ENABLED,
-            "handler_created": ai_handler is not None,
-            "handler_initialized": ai_handler.initialized if ai_handler else False,
-            "initialization_attempted": ai_handler is not None or init_error.get("timestamp") is not None
-        },
-        "configuration": {
-            "enable_ai": Config.AI_ENABLED,
-            "api_url": Config.AI_API_URL,
-            "model": Config.AI_MODEL,
-            "timeout": Config.AI_TIMEOUT,
-            "provider": ai_handler.provider if ai_handler else "ollama"
-        },
-        "initialization_error": init_error if init_error else None
-    }
+    try:
+        app_state = req.app.state.app_state
+        ai_handler = app_state.get("ai_handler")
+        init_error = app_state.get("ai_init_error", {})
+        
+        # Basic status
+        diagnostics = {
+            "service_status": {
+                "ai_enabled": Config.AI_ENABLED,
+                "handler_created": ai_handler is not None,
+                "handler_initialized": ai_handler.initialized if ai_handler else False,
+                "initialization_attempted": ai_handler is not None or init_error.get("timestamp") is not None
+            },
+            "configuration": {
+                "enable_ai": Config.AI_ENABLED,
+                "api_url": Config.AI_API_URL,
+                "model": Config.AI_MODEL,
+                "timeout": Config.AI_TIMEOUT,
+                "provider": ai_handler.provider if ai_handler and hasattr(ai_handler, 'provider') else "ollama"
+            },
+            "initialization_error": init_error if init_error else None
+        }
+    except Exception as e:
+        # If we can't even get basic status, return minimal diagnostics
+        return {
+            "error": "Failed to gather basic diagnostics",
+            "error_detail": str(e),
+            "quick_fixes": [
+                "Restart Agent-S2: docker restart agent-s2",
+                "Check logs: docker logs agent-s2 --tail 50",
+                "Verify Ollama is running: curl http://localhost:11434/api/tags"
+            ]
+        }
     
     # Connectivity tests
     connectivity_results = []
     
     # Test Ollama connectivity
-    ollama_base_url = Config.AI_API_URL.split("/api/")[0] if "/api/" in Config.AI_API_URL else "http://localhost:11434"
-    
-    # Test 1: Basic connectivity
     try:
-        response = requests.get(f"{ollama_base_url}/api/tags", timeout=5)
-        connectivity_results.append({
-            "test": "Ollama API connectivity",
-            "endpoint": f"{ollama_base_url}/api/tags",
-            "status": "success" if response.status_code == 200 else "failed",
-            "status_code": response.status_code,
+        ollama_base_url = Config.AI_API_URL.split("/api/")[0] if "/api/" in Config.AI_API_URL else "http://localhost:11434"
+        
+        # Test 1: Basic connectivity
+        try:
+            response = requests.get(f"{ollama_base_url}/api/tags", timeout=5)
+            connectivity_results.append({
+                "test": "Ollama API connectivity",
+                "endpoint": f"{ollama_base_url}/api/tags",
+                "status": "success" if response.status_code == 200 else "failed",
+                "status_code": response.status_code,
             "response_time_ms": int(response.elapsed.total_seconds() * 1000)
         })
         
-        # If successful, check models
-        if response.status_code == 200:
-            models = response.json().get("models", [])
-            model_names = [m["name"] for m in models]
+            # If successful, check models
+            if response.status_code == 200:
+                models = response.json().get("models", [])
+                model_names = [m["name"] for m in models]
+                connectivity_results.append({
+                    "test": "Available models",
+                    "status": "success",
+                    "models": model_names,
+                    "count": len(models),
+                    "has_vision_model": any("vision" in m or "llava" in m for m in model_names)
+                })
+        except Exception as e:
             connectivity_results.append({
-                "test": "Available models",
-                "status": "success",
-                "models": model_names,
-                "count": len(models),
-                "has_vision_model": any("vision" in m or "llava" in m for m in model_names)
+                "test": "Ollama API connectivity", 
+                "endpoint": f"{ollama_base_url}/api/tags",
+                "status": "error",
+                "error": str(e),
+                "suggestion": "Check if Ollama is running: ollama serve"
             })
+        
+        # Test 2: Network reachability (different approaches)
+        alternative_urls = [
+            "http://localhost:11434",
+            "http://ollama:11434",  # Docker service name
+            "http://host.docker.internal:11434"  # Docker Desktop
+        ]
+        
+        for url in alternative_urls:
+            if url != ollama_base_url:
+                try:
+                    response = requests.get(f"{url}/api/tags", timeout=1)
+                    if response.status_code == 200:
+                        connectivity_results.append({
+                            "test": f"Alternative endpoint",
+                            "endpoint": url,
+                            "status": "reachable",
+                            "suggestion": f"Consider using AGENTS2_OLLAMA_BASE_URL={url}"
+                        })
+                except:
+                    pass  # Silent fail for alternatives
     except Exception as e:
         connectivity_results.append({
-            "test": "Ollama API connectivity",
-            "endpoint": f"{ollama_base_url}/api/tags",
-            "status": "failed",
+            "test": "Connectivity tests",
+            "status": "error",
             "error": str(e),
-            "error_type": type(e).__name__
+            "suggestion": "Check network connectivity and firewall settings"
         })
-    
-    # Test 2: Network reachability (different approaches)
-    alternative_urls = [
-        "http://localhost:11434",
-        "http://ollama:11434",  # Docker service name
-        "http://host.docker.internal:11434"  # Docker Desktop
-    ]
-    
-    for url in alternative_urls:
-        if url != ollama_base_url:
-            try:
-                response = requests.get(f"{url}/api/tags", timeout=1)
-                if response.status_code == 200:
-                    connectivity_results.append({
-                        "test": f"Alternative endpoint",
-                        "endpoint": url,
-                        "status": "reachable",
-                        "suggestion": f"Consider using AGENTS2_OLLAMA_BASE_URL={url}"
-                    })
-            except:
-                pass  # Silent fail for alternatives
     
     diagnostics["connectivity_tests"] = connectivity_results
     
     # Generate recommendations
     recommendations = []
     
-    if not Config.AI_ENABLED:
-        recommendations.append({
-            "issue": "AI is disabled",
-            "solution": "Set environment variable: AGENTS2_ENABLE_AI=true",
-            "priority": "high"
+    try:
+        if not Config.AI_ENABLED:
+            recommendations.append({
+                "issue": "AI is disabled",
+                "solution": "Set environment variable: AGENTS2_ENABLE_AI=true",
+                "priority": "high"
+            })
+        
+        if init_error and init_error.get("category") == "connection_failed":
+            recommendations.append({
+                "issue": "Cannot connect to Ollama",
+                "solution": "Install and start Ollama: curl -fsSL https://ollama.com/install.sh | sh && ollama serve",
+                "priority": "high"
+            })
+            recommendations.append({
+                "issue": "Docker network isolation",
+                "solution": "If running in Docker, use --network host or set OLLAMA_HOST=0.0.0.0 on the Ollama container",
+                "priority": "medium"
+            })
+        
+        if init_error and init_error.get("category") == "model_not_found":
+            recommendations.append({
+                "issue": f"Model {Config.AI_MODEL} not found",
+                "solution": f"Pull the model: ollama pull {Config.AI_MODEL}",
+                "priority": "high"
         })
     
-    if init_error.get("category") == "connection_failed":
+        # Check if any alternative endpoints were found
+        alt_endpoints = [r for r in connectivity_results if r.get("test") == "Alternative endpoint" and r.get("status") == "reachable"]
+        if alt_endpoints and not (ai_handler and ai_handler.initialized):
+            recommendations.append({
+                "issue": "Ollama found at different endpoint",
+                "solution": alt_endpoints[0]["suggestion"],
+                "priority": "high"
+            })
+    except Exception as e:
         recommendations.append({
-            "issue": "Cannot connect to Ollama",
-            "solution": "Install and start Ollama: curl -fsSL https://ollama.com/install.sh | sh && ollama serve",
-            "priority": "high"
-        })
-        recommendations.append({
-            "issue": "Docker network isolation",
-            "solution": "If running in Docker, use --network host or set OLLAMA_HOST=0.0.0.0 on the Ollama container",
-            "priority": "medium"
-        })
-    
-    if init_error.get("category") == "model_not_found":
-        recommendations.append({
-            "issue": f"Model {Config.AI_MODEL} not found",
-            "solution": f"Pull the model: ollama pull {Config.AI_MODEL}",
-            "priority": "high"
-        })
-    
-    # Check if any alternative endpoints were found
-    alt_endpoints = [r for r in connectivity_results if r.get("test") == "Alternative endpoint" and r.get("status") == "reachable"]
-    if alt_endpoints and not (ai_handler and ai_handler.initialized):
-        recommendations.append({
-            "issue": "Ollama found at different endpoint",
-            "solution": alt_endpoints[0]["suggestion"],
-            "priority": "high"
+            "issue": "Error generating recommendations",
+            "solution": "Check diagnostics error details",
+            "priority": "low",
+            "error": str(e)
         })
     
     diagnostics["recommendations"] = recommendations

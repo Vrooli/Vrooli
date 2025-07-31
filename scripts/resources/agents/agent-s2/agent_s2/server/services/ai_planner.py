@@ -267,6 +267,185 @@ Common actions: click, type, scroll, drag, key presses"""
                 "error": str(e)
             }
     
+    def _parse_markdown_response(self, ai_text: str) -> Dict[str, Any]:
+        """Parse markdown-formatted AI response and extract action plan
+        
+        Args:
+            ai_text: Raw AI response text in markdown format
+            
+        Returns:
+            Parsed plan dictionary with actions
+        """
+        plan_actions = []
+        reasoning = ""
+        estimated_duration = "Unknown"
+        
+        try:
+            # Extract reasoning/explanation from the response
+            reasoning_match = re.search(r'\*\*(?:Task|Plan|Approach):\s*([^*]+)\*\*', ai_text, re.IGNORECASE)
+            if reasoning_match:
+                reasoning = reasoning_match.group(1).strip()
+            else:
+                reasoning = ai_text[:200] + "..." if len(ai_text) > 200 else ai_text
+            
+            # Look for numbered action items in various markdown formats
+            action_patterns = [
+                r'(\d+)\.\s*\*\*([^*]+)\*\*[:\s]*\n?\s*-\s*(?:Action|Type):\s*([^\n]+)\n?\s*-\s*(?:Parameters?|Args?):\s*([^\n]+)',
+                r'(\d+)\.\s*\*\*([^*]+)\*\*[:\s]*\n?\s*-\s*Action:\s*([^\n]+)',
+                r'(\d+)\.\s*([^:\n]+):\s*([^\n]+)',
+                r'\*\*(\d+)\.\s*([^*]+)\*\*[:\s]*([^\n]+)',
+                r'(\d+)\.\s*([^\n]+)'
+            ]
+            
+            for pattern in action_patterns:
+                matches = re.findall(pattern, ai_text, re.IGNORECASE | re.MULTILINE)
+                for match in matches:
+                    try:
+                        if len(match) >= 4:  # Full format with parameters
+                            step_num, description, action_type, parameters = match
+                            action_dict = self._parse_action_parameters(action_type, parameters)
+                        elif len(match) >= 3:  # Action specified
+                            step_num, description, action_or_details = match
+                            if any(keyword in action_or_details.lower() for keyword in ['launch_app', 'click', 'type', 'key']):
+                                action_dict = self._parse_action_string(action_or_details)
+                            else:
+                                action_dict = self._infer_action_from_description(description + " " + action_or_details)
+                        else:  # Just step description
+                            step_num, description = match
+                            action_dict = self._infer_action_from_description(description)
+                        
+                        action_dict["description"] = description.strip()
+                        plan_actions.append(action_dict)
+                        
+                    except Exception as e:
+                        logger.warning(f"Failed to parse action from match {match}: {e}")
+                        continue
+                
+                if plan_actions:  # Found actions with this pattern, stop trying others
+                    break
+            
+            # If no actions found, try to extract key action verbs
+            if not plan_actions:
+                action_verbs = ['launch', 'open', 'click', 'type', 'press', 'scroll', 'navigate', 'go to']
+                for verb in action_verbs:
+                    verb_pattern = rf'{verb}\s+([^\n.]+)'
+                    matches = re.findall(verb_pattern, ai_text, re.IGNORECASE)
+                    for match in matches:
+                        action_dict = self._infer_action_from_description(f"{verb} {match}")
+                        plan_actions.append(action_dict)
+            
+            # Extract estimated duration if mentioned
+            duration_match = re.search(r'(?:duration|time|takes?)[:\s]*([^\n]+)', ai_text, re.IGNORECASE)
+            if duration_match:
+                estimated_duration = duration_match.group(1).strip()
+            
+        except Exception as e:
+            logger.error(f"Error parsing markdown response: {e}")
+            reasoning = f"Markdown parsing failed: {e}"
+        
+        # Ensure we have at least one action
+        if not plan_actions:
+            plan_actions = [{
+                "action": "manual_review",
+                "parameters": {},
+                "description": "Could not parse AI response - manual review needed"
+            }]
+        
+        return {
+            "plan": plan_actions,
+            "reasoning": reasoning,
+            "estimated_duration": estimated_duration
+        }
+    
+    def _parse_action_parameters(self, action_type: str, parameters_str: str) -> Dict[str, Any]:
+        """Parse action parameters from string"""
+        action_type = action_type.strip().lower()
+        
+        # Try to parse JSON-like parameters
+        try:
+            # Clean up the parameters string
+            params_cleaned = parameters_str.strip()
+            if params_cleaned.startswith('{') and params_cleaned.endswith('}'):
+                params = json.loads(params_cleaned)
+            else:
+                # Parse key-value pairs
+                params = {}
+                for item in params_cleaned.split(','):
+                    if ':' in item:
+                        key, value = item.split(':', 1)
+                        params[key.strip().strip('"')] = value.strip().strip('"')
+        except:
+            params = {}
+        
+        return {"action": action_type, "parameters": params}
+    
+    def _parse_action_string(self, action_str: str) -> Dict[str, Any]:
+        """Parse action from a descriptive string"""
+        action_str = action_str.lower().strip()
+        
+        if 'launch_app' in action_str or 'launch' in action_str:
+            app_match = re.search(r'(?:launch|open)\s+([^\s,]+)', action_str)
+            app_name = app_match.group(1) if app_match else "Firefox ESR"
+            return {"action": "launch_app", "parameters": {"app_name": app_name}}
+            
+        elif 'click' in action_str:
+            # Try to extract coordinates
+            coord_match = re.search(r'(\d+)[,\s]+(\d+)', action_str)
+            if coord_match:
+                x, y = int(coord_match.group(1)), int(coord_match.group(2))
+            else:
+                x, y = 500, 300  # Default center
+            return {"action": "click", "parameters": {"x": x, "y": y}}
+            
+        elif 'type' in action_str:
+            text_match = re.search(r'["\']([^"\']+)["\']', action_str)
+            text = text_match.group(1) if text_match else action_str.replace('type', '').strip()
+            return {"action": "type", "parameters": {"text": text}}
+            
+        elif 'key' in action_str or 'press' in action_str:
+            key_match = re.search(r'(?:key|press)\s+([^\s,]+)', action_str)
+            key = key_match.group(1) if key_match else "Enter"
+            return {"action": "key", "parameters": {"key": key}}
+        
+        return {"action": "manual_review", "parameters": {}}
+    
+    def _infer_action_from_description(self, description: str) -> Dict[str, Any]:
+        """Infer action type from natural language description"""
+        desc_lower = description.lower()
+        
+        if any(word in desc_lower for word in ['launch', 'open', 'start']):
+            if 'firefox' in desc_lower:
+                return {"action": "launch_app", "parameters": {"app_name": "Firefox ESR"}}
+            elif 'browser' in desc_lower:
+                return {"action": "launch_app", "parameters": {"app_name": "Firefox ESR"}}
+            else:
+                return {"action": "launch_app", "parameters": {"app_name": "Firefox ESR"}}
+                
+        elif any(word in desc_lower for word in ['click', 'press', 'tap']):
+            if 'address' in desc_lower or 'url' in desc_lower:
+                return {"action": "click", "parameters": {"x": 960, "y": 100}}  # Address bar area
+            else:
+                return {"action": "click", "parameters": {"x": 500, "y": 300}}
+                
+        elif any(word in desc_lower for word in ['type', 'enter', 'input']):
+            if 'reddit' in desc_lower:
+                return {"action": "type", "parameters": {"text": "https://reddit.com"}}
+            elif 'url' in desc_lower or 'address' in desc_lower:
+                return {"action": "type", "parameters": {"text": "https://reddit.com"}}
+            else:
+                return {"action": "type", "parameters": {"text": "text to type"}}
+                
+        elif any(word in desc_lower for word in ['wait', 'pause']):
+            return {"action": "wait", "parameters": {"seconds": 2}}
+            
+        elif any(word in desc_lower for word in ['navigate', 'go to', 'visit']):
+            if 'reddit' in desc_lower:
+                return {"action": "type", "parameters": {"text": "https://reddit.com"}}
+            else:
+                return {"action": "manual_review", "parameters": {}}
+        
+        return {"action": "manual_review", "parameters": {}}
+    
     def parse_command_fallback(self, command: str, target_app: Optional[str] = None) -> Tuple[List[Dict[str, Any]], str]:
         """Fallback command parsing when AI fails
         
@@ -307,15 +486,64 @@ Common actions: click, type, scroll, drag, key presses"""
         reasoning = f"Used fallback command parsing (AI parsing failed){f' with target app: {target_app}' if target_app else ''}"
         return actions, reasoning
     
-    async def plan_task_execution(self, task: str, context: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _validate_plan_completeness(self, task: str, plan: List[Dict[str, Any]]) -> bool:
+        """Validate if a plan is complete for the given task
+        
+        Args:
+            task: The original task description
+            plan: The generated plan
+            
+        Returns:
+            True if plan appears complete, False otherwise
+        """
+        task_lower = task.lower()
+        
+        # Check for navigation tasks
+        if any(phrase in task_lower for phrase in ['go to', 'navigate to', 'visit', 'open website']):
+            # For navigation tasks, we need more than just launching a browser
+            has_launch = any(step.get('action') == 'launch_app' for step in plan)
+            has_url_entry = any(step.get('action') == 'type' and 
+                              ('http' in str(step.get('parameters', {}).get('text', '')) or
+                               '.com' in str(step.get('parameters', {}).get('text', '')))
+                              for step in plan)
+            has_navigation = any(step.get('action') == 'key' and 
+                               step.get('parameters', {}).get('key') == 'Enter' 
+                               for step in plan)
+            
+            if has_launch and not (has_url_entry or has_navigation):
+                logger.warning(f"Navigation task '{task}' has incomplete plan - missing URL entry/navigation steps")
+                return False
+                
+        # Check for search tasks
+        elif any(phrase in task_lower for phrase in ['search for', 'look up', 'find']):
+            has_search_entry = any(step.get('action') == 'type' for step in plan)
+            has_submit = any(step.get('action') == 'key' and 
+                           step.get('parameters', {}).get('key') == 'Enter' 
+                           for step in plan)
+            
+            if not (has_search_entry and has_submit):
+                logger.warning(f"Search task '{task}' has incomplete plan - missing search entry/submit steps")
+                return False
+        
+        # Check minimum steps - most real tasks need at least 2-3 steps
+        if len(plan) < 2 and not any(word in task_lower for word in ['screenshot', 'capture', 'analyze']):
+            logger.warning(f"Task '{task}' has suspiciously few steps ({len(plan)})")
+            return False
+            
+        return True
+    
+    async def plan_task_execution(self, task: str, context: Optional[Dict[str, Any]] = None, 
+                                 screenshot: Optional[str] = None, window_context: Optional[str] = None) -> Dict[str, Any]:
         """Plan the execution of a task
         
         Args:
             task: Task description
             context: Optional context information
+            screenshot: Optional screenshot data (base64 encoded)
+            window_context: Optional window context information
             
         Returns:
-            Task execution plan
+            Task execution plan with debug information
         """
         if not self.service_manager.is_ready():
             raise RuntimeError("AI service manager not initialized")
@@ -324,12 +552,21 @@ Common actions: click, type, scroll, drag, key presses"""
         context_str = ""
         if context:
             context_str = f"\nContext: {json.dumps(context, indent=2)}"
+            
+        # Add window context if available
+        if window_context:
+            context_str += f"\n\nWindow Information:\n{window_context}"
         
         # Create AI prompt for task planning
         system_prompt = f"""You are an AI assistant that helps with computer automation tasks. 
 You can analyze screen content and provide step-by-step instructions for automating tasks.
 Always provide specific, actionable steps with clear parameters for mouse clicks, keyboard input, etc.
 Be precise about coordinates and text to type.
+
+CRITICAL: YOUR PLAN MUST BE COMPLETE AND ACHIEVE THE FULL TASK OBJECTIVE!
+- DO NOT stop after just launching an application
+- Include ALL steps needed to complete the task from start to finish
+- For "go to website" tasks, you MUST include steps to navigate to the actual website
 
 APPLICATION LAUNCHING:
 - To open/launch applications, ALWAYS use the "launch_app" action type
@@ -348,55 +585,146 @@ IMPORTANT WINDOW FOCUS RULES:
 1. The ACTIVE WINDOW receives keyboard input
 2. To interact with a different window, you MUST click on its Focus Point coordinates (shown above)
 3. NEVER guess window positions - always use the exact Focus Point coordinates provided
-4. Each window shows "Focus Point: (x, y)" - these are the exact coordinates to click for focusing that window"""
+4. Each window shows "Focus Point: (x, y)" - these are the exact coordinates to click for focusing that window
+
+EXAMPLE COMPLETE PLANS:
+For "go to reddit":
+1. Launch Firefox ESR (if not already open)
+2. Click on the address bar (specific coordinates)
+3. Clear address bar (Ctrl+A)
+4. Type "https://reddit.com"
+5. Press Enter
+6. Wait for page to load
+
+For "search for news":
+1. Launch Firefox ESR (if not already open)
+2. Click on the address bar
+3. Clear address bar (Ctrl+A)
+4. Type search query or navigate to search engine
+5. Press Enter
+6. Review results
+
+REMEMBER: A plan that only launches an application is INCOMPLETE for navigation tasks!"""
 
         user_prompt = f"""Task: {task}
         
 Current screen context available (screenshot was taken).{context_str}
 
-Please provide a step-by-step plan to accomplish this task. Format your response as a JSON object with:
-- "plan": Array of steps, each with "action", "parameters", and "description"
-- "reasoning": Brief explanation of the approach
-- "estimated_duration": Time estimate
+CRITICAL REQUIREMENTS:
+1. You MUST respond with ONLY valid JSON. No markdown, no explanations outside the JSON, no code blocks. Start your response with {{ and end with }}.
+2. Your plan MUST be COMPLETE and achieve the FULL task objective
+3. For navigation tasks like "go to [website]", you MUST include ALL steps to actually navigate there, not just launch the browser
 
-Example action types: "click", "type", "key", "scroll", "wait", "launch_app"
-Example parameters: {{"x": 100, "y": 200}}, {{"text": "hello"}}, {{"key": "Enter"}}, {{"app_name": "Firefox ESR"}}
+Required JSON format:
+{{
+  "plan": [
+    {{
+      "action": "action_type",
+      "parameters": {{}},
+      "description": "What this step does"
+    }}
+  ],
+  "reasoning": "Brief explanation of the approach",
+  "estimated_duration": "Time estimate like '30 seconds'"
+}}
 
-For launching applications: {{"action": "launch_app", "parameters": {{"app_name": "ApplicationName"}}, "description": "Launch application"}}"""
+Valid action types: "click", "type", "key", "scroll", "wait", "launch_app"
+Example parameters: 
+- click: {{"x": 100, "y": 200}}
+- type: {{"text": "hello"}}
+- key: {{"key": "Enter"}}
+- launch_app: {{"app_name": "Firefox ESR"}}
+- wait: {{"seconds": 2}}
+
+EXAMPLE COMPLETE PLAN for "go to reddit":
+{{
+  "plan": [
+    {{"action": "launch_app", "parameters": {{"app_name": "Firefox ESR"}}, "description": "Launch Firefox browser"}},
+    {{"action": "wait", "parameters": {{"seconds": 2}}, "description": "Wait for Firefox to fully load"}},
+    {{"action": "click", "parameters": {{"x": 700, "y": 100}}, "description": "Click on address bar"}},
+    {{"action": "key", "parameters": {{"key": "Ctrl+A"}}, "description": "Select all text in address bar"}},
+    {{"action": "type", "parameters": {{"text": "https://reddit.com"}}, "description": "Type Reddit URL"}},
+    {{"action": "key", "parameters": {{"key": "Enter"}}, "description": "Press Enter to navigate"}},
+    {{"action": "wait", "parameters": {{"seconds": 3}}, "description": "Wait for page to load"}}
+  ],
+  "reasoning": "Navigate to Reddit by launching Firefox, clearing the address bar, typing the URL, and pressing Enter",
+  "estimated_duration": "10 seconds"
+}}
+
+Respond with the JSON object only - no other text before or after."""
 
         try:
-            # Call AI for task planning
-            ai_response = self.service_manager.call_ollama(user_prompt, system=system_prompt)
+            # Prepare images list for AI call if screenshot provided
+            images = []
+            if screenshot and screenshot.startswith('data:image'):
+                # Extract base64 part from data URL
+                base64_data = screenshot.split(',')[1]
+                images = [base64_data]
+            
+            # Call AI for task planning with screenshot if available
+            ai_response = self.service_manager.call_ollama(
+                user_prompt, 
+                system=system_prompt,
+                images=images if images else None
+            )
             ai_text = ai_response.get("response", "")
             
-            # Try to parse AI response as JSON, fallback to text analysis
+            # Try to parse AI response as JSON, fallback to markdown parsing
             try:
                 # Look for JSON in the response
                 json_match = re.search(r'\{.*\}', ai_text, re.DOTALL)
                 if json_match:
                     ai_plan = json.loads(json_match.group())
                 else:
-                    # Fallback: create plan from text response
-                    ai_plan = {
-                        "plan": [{"action": "manual_review", "parameters": {}, "description": ai_text[0:200] if len(ai_text) > 200 else ai_text}],
-                        "reasoning": "AI provided text response instead of structured plan",
-                        "estimated_duration": "Manual review needed"
-                    }
-            except (json.JSONDecodeError, AttributeError):
-                # Fallback for unparseable responses
-                ai_plan = {
-                    "plan": [{"action": "manual_review", "parameters": {}, "description": "AI response parsing failed"}],
-                    "reasoning": f"Raw AI response: {ai_text[0:100] if len(ai_text) > 100 else ai_text}...",
-                    "estimated_duration": "Manual review needed"
-                }
+                    # Enhanced fallback: parse markdown-formatted response
+                    logger.info("JSON not found, attempting markdown parsing")
+                    ai_plan = self._parse_markdown_response(ai_text)
+            except (json.JSONDecodeError, AttributeError) as e:
+                # Enhanced fallback for unparseable JSON - try markdown parsing
+                logger.warning(f"JSON parsing failed: {e}, attempting markdown parsing")
+                ai_plan = self._parse_markdown_response(ai_text)
+            
+            # Validate plan completeness
+            plan = ai_plan.get("plan", [])
+            if not self._validate_plan_completeness(task, plan):
+                logger.warning(f"Plan appears incomplete for task '{task}', attempting to enhance...")
+                
+                # If the plan is incomplete, add common missing steps
+                if any(phrase in task.lower() for phrase in ['go to', 'navigate to', 'visit']):
+                    # Add missing navigation steps
+                    enhanced_plan = []
+                    for step in plan:
+                        enhanced_plan.append(step)
+                        # After launching browser, add navigation steps if missing
+                        if step.get('action') == 'launch_app' and len(plan) <= 2:
+                            enhanced_plan.extend([
+                                {"action": "wait", "parameters": {"seconds": 2}, "description": "Wait for browser to load"},
+                                {"action": "click", "parameters": {"x": 700, "y": 100}, "description": "Click on address bar"},
+                                {"action": "key", "parameters": {"key": "Ctrl+A"}, "description": "Select all text in address bar"},
+                                {"action": "type", "parameters": {"text": f"https://{task.split()[-1].replace('reddit', 'reddit.com')}"}, "description": "Type URL"},
+                                {"action": "key", "parameters": {"key": "Enter"}, "description": "Press Enter to navigate"},
+                                {"action": "wait", "parameters": {"seconds": 3}, "description": "Wait for page to load"}
+                            ])
+                    plan = enhanced_plan
+                    ai_plan["plan"] = plan
+                    logger.info(f"Enhanced plan from {len(ai_plan.get('plan', []))} to {len(plan)} steps")
             
             return {
                 "task": task,
-                "plan": ai_plan.get("plan", []),
+                "plan": plan,
                 "reasoning": ai_plan.get("reasoning", "AI provided task analysis"),
                 "estimated_duration": ai_plan.get("estimated_duration", "Unknown"),
                 "ai_model": self.service_manager.model,
-                "raw_ai_response": ai_text
+                "raw_ai_response": ai_text,
+                "debug_info": {
+                    "system_prompt": system_prompt,
+                    "user_prompt": user_prompt,
+                    "screenshot_included": bool(images),
+                    "context": context_str if context_str else None,
+                    "window_context_included": bool(window_context),
+                    "plan_validated": self._validate_plan_completeness(task, plan),
+                    "plan_enhanced": len(plan) > len(ai_plan.get("plan", []))
+                }
             }
             
         except Exception as e:
@@ -406,5 +734,13 @@ For launching applications: {{"action": "launch_app", "parameters": {{"app_name"
                 "plan": [{"action": "error", "parameters": {}, "description": f"Planning failed: {e}"}],
                 "reasoning": "Task planning encountered an error",
                 "estimated_duration": "Unknown",
-                "error": str(e)
+                "error": str(e),
+                "debug_info": {
+                    "system_prompt": system_prompt if 'system_prompt' in locals() else None,
+                    "user_prompt": user_prompt if 'user_prompt' in locals() else None,
+                    "screenshot_included": bool(screenshot),
+                    "context": context_str if 'context_str' in locals() else None,
+                    "window_context_included": bool(window_context),
+                    "error": str(e)
+                }
             }

@@ -128,7 +128,7 @@ agents2::export_config() {
         readonly AGENTS2_HEALTH_CHECK_RETRIES=3
     fi
     if [[ -z "${AGENTS2_API_TIMEOUT:-}" ]]; then
-        readonly AGENTS2_API_TIMEOUT=10
+        readonly AGENTS2_API_TIMEOUT=120
     fi
 
     # Wait timeouts (only set if not already defined)

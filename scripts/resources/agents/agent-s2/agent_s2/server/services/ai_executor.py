@@ -23,6 +23,7 @@ from .ai_planner import AIPlanner
 from .ai_security_validator import AISecurityValidator
 from ...environment.context import ModeContext
 from ...environment.discovery import EnvironmentDiscovery
+from .browser_health import browser_monitor
 
 # Import shortcut detector if available
 try:
@@ -100,33 +101,103 @@ class AIExecutor:
             
         logger.info(f"execute_action called with task: {task}")
         
+        # Ensure clean browser state before starting task
+        logger.info("Checking browser state before task execution...")
+        try:
+            clean_state = browser_monitor.ensure_clean_state()
+            if not clean_state:
+                logger.warning("Failed to ensure clean browser state, proceeding anyway")
+        except Exception as e:
+            logger.error(f"Error during browser state cleanup: {e}")
+            # Continue anyway - don't block task execution
+        
         debug_info = {}
+        screenshot_included = False
         
         try:
             # Take screenshot if not provided
+            screenshot_data = None
             if not screenshot:
                 screenshot_data = self.screenshot_service.capture()
                 screenshot = screenshot_data["data"]
+                screenshot_included = True
+                
+                # Validate screenshot before proceeding
+                screenshot_valid = self._validate_screenshot(screenshot)
+                
+                debug_info["screenshot_capture"] = {
+                    "captured": True,
+                    "format": screenshot_data.get("format", "unknown"),
+                    "size": screenshot_data.get("size", {}),
+                    "data_length": len(screenshot) if screenshot else 0,
+                    "valid": screenshot_valid
+                }
+                
+                if not screenshot_valid:
+                    logger.warning("Screenshot validation failed - proceeding without visual context")
+                    screenshot = None
+                    screenshot_included = False
+            else:
+                screenshot_included = True
+                debug_info["screenshot_capture"] = {
+                    "captured": False,
+                    "provided": True,
+                    "data_length": len(screenshot) if screenshot else 0
+                }
                 
             # Get window context
             window_context = self._get_window_context()
             logger.info(f"Window context in execute_action: {window_context[:200]}...")
+            debug_info["window_context"] = window_context
             
             # Use planner to create task execution plan
-            plan_result = await self.planner.plan_task_execution(task, context)
+            logger.info(f"Calling planner with task='{task}', screenshot_included={screenshot_included}")
+            plan_result = await self.planner.plan_task_execution(task, context, screenshot, window_context)
+            logger.info(f"Planner returned: keys={list(plan_result.keys())}")
+            
+            # Collect debug information from planner
+            if "debug_info" in plan_result:
+                logger.info("Debug info found in plan_result")
+                debug_info["from_planner"] = plan_result["debug_info"]
+            else:
+                # Fallback: create basic debug info if planner didn't provide it
+                logger.warning("Planner did not return debug_info, creating fallback debug info")
+                debug_info["from_planner"] = {
+                    "system_prompt": "Planner debug info not available",
+                    "user_prompt": f"Task: {task}",
+                    "screenshot_included": screenshot_included,
+                    "context": str(context) if context else None,
+                    "window_context_included": bool(window_context),
+                    "planner_error": "Debug info not returned by planner"
+                }
+            
+            # Always log what debug_info contains at this point
+            logger.info(f"Debug info after planner: keys={list(debug_info.keys())}")
             
             # Execute the plan if we have valid actions
             actions_taken = []
             if plan_result.get("plan"):
-                # Convert plan format to actions format if needed
+                # Validate and convert plan format to actions format
                 ai_actions = []
-                for step in plan_result.get("plan", []):
-                    if "action" in step and "parameters" in step:
-                        action_dict = {"type": step["action"]}
-                        action_dict.update(step.get("parameters", {}))
-                        if "description" in step:
-                            action_dict["description"] = step["description"]
-                        ai_actions.append(action_dict)
+                validation_errors = []
+                
+                for i, step in enumerate(plan_result.get("plan", [])):
+                    try:
+                        validated_action = self._validate_and_convert_action(step, i)
+                        if validated_action:
+                            ai_actions.append(validated_action)
+                        else:
+                            validation_errors.append(f"Step {i+1}: Invalid action structure")
+                    except Exception as e:
+                        validation_errors.append(f"Step {i+1}: {str(e)}")
+                        logger.warning(f"Action validation failed for step {i+1}: {e}")
+                
+                # Log validation results
+                if validation_errors:
+                    logger.warning(f"Action validation errors: {validation_errors}")
+                    debug_info["validation_errors"] = validation_errors
+                
+                logger.info(f"Validated {len(ai_actions)} actions out of {len(plan_result.get('plan', []))} planned steps")
                 
                 # Execute the actions
                 if ai_actions:
@@ -146,6 +217,11 @@ class AIExecutor:
                             "result": f"Failed to execute actions: {exec_error}",
                             "status": "failed"
                         }]
+            
+            # Log final debug_info before returning
+            logger.info(f"Final debug_info being returned: keys={list(debug_info.keys())}")
+            if "from_planner" in debug_info:
+                logger.info(f"from_planner debug_info keys: {list(debug_info['from_planner'].keys())}")
             
             return {
                 "success": True,
@@ -331,6 +407,92 @@ Analyze the screenshot and provide specific automation actions to execute this c
             task_record["status"] = "failed"
             task_record["error"] = str(e)
             task_record["completed_at"] = datetime.utcnow().isoformat()
+    
+    def _validate_and_convert_action(self, step: Dict[str, Any], step_index: int) -> Optional[Dict[str, Any]]:
+        """Validate and convert a plan step to an executable action
+        
+        Args:
+            step: Plan step from AI response
+            step_index: Index of the step for error reporting
+            
+        Returns:
+            Validated action dictionary or None if invalid
+            
+        Raises:
+            ValueError: If step is malformed
+        """
+        if not isinstance(step, dict):
+            raise ValueError(f"Step must be a dictionary, got {type(step)}")
+        
+        # Check for required fields
+        if "action" not in step:
+            raise ValueError("Missing required 'action' field")
+        
+        action_type = step["action"]
+        parameters = step.get("parameters", {})
+        description = step.get("description", f"Step {step_index + 1}")
+        
+        # Validate action type
+        valid_actions = ["click", "type", "key", "scroll", "wait", "launch_app", "screenshot", "manual_review"]
+        if action_type not in valid_actions:
+            logger.warning(f"Unknown action type '{action_type}' in step {step_index + 1}, using manual_review")
+            action_type = "manual_review"
+            parameters = {}
+        
+        # Validate parameters based on action type
+        if action_type == "click":
+            if not isinstance(parameters, dict):
+                parameters = {"x": 500, "y": 300}  # Default center click
+            else:
+                # Ensure x, y are integers
+                try:
+                    parameters["x"] = int(parameters.get("x", 500))
+                    parameters["y"] = int(parameters.get("y", 300))
+                except (ValueError, TypeError):
+                    parameters = {"x": 500, "y": 300}
+                    
+        elif action_type == "type":
+            if not isinstance(parameters, dict) or "text" not in parameters:
+                raise ValueError("Type action requires 'text' parameter")
+            if not isinstance(parameters["text"], str):
+                parameters["text"] = str(parameters["text"])
+                
+        elif action_type == "key":
+            if not isinstance(parameters, dict) or "key" not in parameters:
+                parameters = {"key": "Enter"}  # Default key
+            
+        elif action_type == "launch_app":
+            if not isinstance(parameters, dict) or "app_name" not in parameters:
+                parameters = {"app_name": "Firefox ESR"}  # Default app
+                
+        elif action_type == "wait":
+            if not isinstance(parameters, dict):
+                parameters = {"seconds": 2}
+            else:
+                try:
+                    parameters["seconds"] = float(parameters.get("seconds", 2))
+                except (ValueError, TypeError):
+                    parameters["seconds"] = 2
+                    
+        elif action_type == "scroll":
+            if not isinstance(parameters, dict):
+                parameters = {"direction": "down", "amount": 3}
+            else:
+                parameters["direction"] = parameters.get("direction", "down")
+                try:
+                    parameters["amount"] = int(parameters.get("amount", 3))
+                except (ValueError, TypeError):
+                    parameters["amount"] = 3
+        
+        # Create validated action
+        validated_action = {
+            "type": action_type,
+            "description": description
+        }
+        validated_action.update(parameters)
+        
+        logger.debug(f"Validated step {step_index + 1}: {action_type} with parameters {parameters}")
+        return validated_action
     
     async def _execute_ai_actions(self, ai_actions: List[Dict[str, Any]], 
                                  target_app: Optional[str] = None,
@@ -1088,3 +1250,75 @@ Be specific about what you see and provide EXACT ABSOLUTE screen coordinates!
             "results": results,
             "timestamp": datetime.utcnow().isoformat()
         }
+    
+    def _validate_screenshot(self, screenshot: Optional[str]) -> bool:
+        """Validate that screenshot data is valid
+        
+        Args:
+            screenshot: Screenshot data (data URL or base64)
+            
+        Returns:
+            True if screenshot is valid, False otherwise
+        """
+        if not screenshot:
+            logger.warning("Screenshot validation failed: no screenshot data")
+            return False
+        
+        try:
+            # Check if it's a data URL
+            if screenshot.startswith('data:image'):
+                # Extract base64 part
+                if ',' not in screenshot:
+                    logger.warning("Screenshot validation failed: malformed data URL")
+                    return False
+                
+                mime_type, base64_data = screenshot.split(',', 1)
+                
+                # Validate MIME type
+                if 'image' not in mime_type.lower():
+                    logger.warning(f"Screenshot validation failed: invalid MIME type {mime_type}")
+                    return False
+                
+                # Validate base64 data
+                if len(base64_data) < 100:  # Minimum reasonable size
+                    logger.warning("Screenshot validation failed: base64 data too small")
+                    return False
+                
+                # Try to decode base64 to verify it's valid
+                import base64
+                try:
+                    decoded = base64.b64decode(base64_data)
+                    if len(decoded) < 1000:  # Minimum reasonable image size
+                        logger.warning("Screenshot validation failed: decoded image too small")
+                        return False
+                except Exception as e:
+                    logger.warning(f"Screenshot validation failed: invalid base64 data - {e}")
+                    return False
+                
+                # Check for PNG/JPEG magic bytes
+                if decoded.startswith(b'\x89PNG'):
+                    logger.debug("Screenshot validation: valid PNG detected")
+                    return True
+                elif decoded.startswith(b'\xff\xd8\xff'):
+                    logger.debug("Screenshot validation: valid JPEG detected")
+                    return True
+                else:
+                    logger.warning("Screenshot validation failed: no valid image magic bytes")
+                    return False
+            
+            else:
+                # Assume it's raw base64
+                import base64
+                try:
+                    decoded = base64.b64decode(screenshot)
+                    if len(decoded) < 1000:
+                        logger.warning("Screenshot validation failed: raw base64 image too small")
+                        return False
+                    return True
+                except Exception as e:
+                    logger.warning(f"Screenshot validation failed: invalid raw base64 - {e}")
+                    return False
+                    
+        except Exception as e:
+            logger.error(f"Screenshot validation error: {e}")
+            return False

@@ -42,7 +42,9 @@ services:
       - ../../testing/test-outputs:/tmp/agent-s2-outputs
       
       # Optional: Mount local code for development
-      # - ../../agent_s2:/opt/agent-s2/agent_s2:ro
+      - ../../agent_s2:/opt/agent-s2/agent_s2:ro
+      # Mount scripts for development (includes firefox-monitor.sh fixes)
+      - ../../docker/scripts/firefox-monitor.sh:/opt/agent-s2/firefox-monitor.sh:ro
       
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:4113/health"]

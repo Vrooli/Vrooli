@@ -2,7 +2,7 @@
 # Firefox monitoring and recovery script for Agent S2
 
 # Configuration
-FIREFOX_CMD="firefox-esr --new-window about:blank"
+FIREFOX_CMD="firefox-esr --profile /home/agents2/.mozilla/firefox/agent-s2 --new-window about:blank"
 LOG_FILE="/var/log/supervisor/firefox.log"
 CRASH_LOG="/var/log/firefox-crashes.log"
 MAX_RESTARTS=5
@@ -39,12 +39,81 @@ check_memory_usage() {
     return 0
 }
 
+validate_profile() {
+    local profile_dir="/home/agents2/.mozilla/firefox/agent-s2"
+    local profiles_ini="/home/agents2/.mozilla/firefox/profiles.ini"
+    local user_js="$profile_dir/user.js"
+    
+    log_message "Validating Firefox profile integrity..."
+    
+    # Check if profile directory exists
+    if [ ! -d "$profile_dir" ]; then
+        log_message "Profile directory missing, will be recreated by startup script"
+        return 1
+    fi
+    
+    # Check if profiles.ini exists
+    if [ ! -f "$profiles_ini" ]; then
+        log_message "profiles.ini missing, will be recreated by startup script"
+        return 1
+    fi
+    
+    # Check if user.js exists and is readable
+    if [ ! -f "$user_js" ] || [ ! -r "$user_js" ]; then
+        log_message "user.js missing or unreadable, will be recreated by startup script"
+        return 1
+    fi
+    
+    log_message "Firefox profile validation passed"
+    return 0
+}
+
+graceful_firefox_shutdown() {
+    local firefox_pid=$(pgrep -f "firefox-esr" | head -1)
+    if [ -n "$firefox_pid" ]; then
+        log_message "Gracefully shutting down Firefox (PID: $firefox_pid)"
+        # Send TERM signal for graceful shutdown
+        kill -TERM "$firefox_pid" 2>/dev/null
+        
+        # Wait up to 5 seconds for graceful shutdown
+        local wait_count=0
+        while [ $wait_count -lt 5 ] && ps -p "$firefox_pid" > /dev/null 2>&1; do
+            sleep 1
+            wait_count=$((wait_count + 1))
+        done
+        
+        # Force kill if still running
+        if ps -p "$firefox_pid" > /dev/null 2>&1; then
+            log_message "Firefox not responding to TERM, force killing..."
+            kill -KILL "$firefox_pid" 2>/dev/null
+            sleep 1
+        else
+            log_message "Firefox shut down gracefully"
+        fi
+    fi
+}
+
 start_firefox() {
     log_message "Starting Firefox..."
     
-    # Clean up any existing Firefox processes
-    pkill -f firefox-esr 2>/dev/null
-    sleep 2
+    # Validate Firefox profile before starting
+    if ! validate_profile; then
+        log_message "Profile validation failed, running startup script to recreate profile..."
+        /opt/agent-s2/startup.sh
+        if ! validate_profile; then
+            log_message "ERROR: Profile recreation failed, Firefox may show profile dialog"
+        fi
+    fi
+    
+    # Clean up any existing Firefox processes gracefully
+    graceful_firefox_shutdown
+    
+    # Clean up Firefox profile lock files to prevent profile dialog
+    local profile_dir="/home/agents2/.mozilla/firefox/agent-s2"
+    rm -f "$profile_dir/.parentlock" 2>/dev/null
+    rm -f "$profile_dir/lock" 2>/dev/null
+    rm -f "$profile_dir/.lock" 2>/dev/null
+    log_message "Cleaned up Firefox profile lock files"
     
     # Clear Firefox cache to prevent memory bloat
     rm -rf /home/agents2/.cache/mozilla/firefox/*/cache2/* 2>/dev/null
@@ -113,8 +182,7 @@ monitor_firefox() {
             if [ $mem_status -eq 2 ]; then
                 # Memory usage too high, restart Firefox
                 log_message "Restarting Firefox due to high memory usage"
-                pkill -f firefox-esr
-                sleep 2
+                graceful_firefox_shutdown
                 firefox_pid=$(start_firefox)
             fi
         fi

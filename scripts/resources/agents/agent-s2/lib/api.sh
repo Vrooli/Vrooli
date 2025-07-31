@@ -311,6 +311,20 @@ agents2::execute_ai_task() {
     
     log::info "Executing AI task: $task"
     
+    # Check browser health before starting task
+    log::info "Checking browser state..."
+    local cleanup_response
+    if cleanup_response=$(agents2::api_request "POST" "/browser/cleanup" 2>/dev/null); then
+        if system::is_command "jq"; then
+            local processes_killed=$(echo "$cleanup_response" | jq -r '.processes_killed // 0')
+            local locks_cleared=$(echo "$cleanup_response" | jq -r '.locks_cleared // false')
+            if [[ "$processes_killed" -gt 0 ]] || [[ "$locks_cleared" == "true" ]]; then
+                log::info "Browser cleanup performed: $processes_killed processes killed, locks cleared: $locks_cleared"
+                sleep 2  # Give time for cleanup to settle
+            fi
+        fi
+    fi
+    
     # Show what we're sending to the AI
     log::info "=== AI REQUEST DEBUG ==="
     log::info "Task: $task"
@@ -364,13 +378,13 @@ agents2::execute_ai_task() {
             echo "$response" | jq .
             
             # Extract and display key information
-            local success status actions_count
+            local success task_status actions_count
             success=$(echo "$response" | jq -r '.success // false')
-            status=$(echo "$response" | jq -r '.status // "unknown"')
+            task_status=$(echo "$response" | jq -r 'if .success then "completed" else "failed" end')
             actions_count=$(echo "$response" | jq -r '.actions_taken | length // 0')
             
             echo
-            log::info "Task Status: $status"
+            log::info "Task Status: $task_status"
             log::info "Actions Executed: $actions_count"
             
             # Display debug info if available in response

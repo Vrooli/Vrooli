@@ -15,6 +15,40 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+@router.post("/browser/cleanup")
+async def cleanup_browser():
+    """Force cleanup of browser state
+    
+    This endpoint manually triggers Firefox cleanup to resolve:
+    - Profile lock issues
+    - Crashed processes
+    - Session restore problems
+    """
+    try:
+        logger.info("Manual browser cleanup requested")
+        
+        # Perform cleanup
+        cleanup_result = browser_monitor.cleanup_firefox_state()
+        
+        # Return detailed results
+        return {
+            "success": cleanup_result.get("success", False),
+            "processes_killed": cleanup_result.get("processes_killed", 0),
+            "session_cleared": cleanup_result.get("session_cleared", False),
+            "locks_cleared": cleanup_result.get("locks_cleared", False),
+            "cleanup_time": cleanup_result.get("cleanup_time", 0),
+            "errors": cleanup_result.get("errors", []),
+            "message": "Browser cleanup completed successfully" if cleanup_result.get("success") else "Browser cleanup encountered errors"
+        }
+        
+    except Exception as e:
+        logger.error(f"Browser cleanup failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to cleanup browser: {str(e)}"
+        )
+
+
 @router.get("/health", response_model=HealthResponse)
 async def health_check(request: Request):
     """Check service health and display status"""

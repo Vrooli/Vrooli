@@ -238,6 +238,203 @@ class BrowserHealthMonitor:
                 'cpu_percent': self.cpu_threshold_percent
             }
         }
+    
+    def cleanup_firefox_state(self) -> Dict[str, Any]:
+        """Clean up Firefox state before starting a new task
+        
+        This method:
+        1. Kills all Firefox processes
+        2. Clears session restore data
+        3. Resets crash logs
+        4. Ensures clean state for next task
+        
+        Returns:
+            Dictionary with cleanup results
+        """
+        logger.info("Starting Firefox state cleanup...")
+        cleanup_results = {
+            'processes_killed': 0,
+            'session_cleared': False,
+            'errors': [],
+            'cleanup_time': None
+        }
+        
+        start_time = time.time()
+        
+        try:
+            # Step 1: Kill all Firefox processes
+            firefox_pids = []
+            for proc in psutil.process_iter(['pid', 'name']):
+                try:
+                    if 'firefox' in proc.info['name'].lower():
+                        firefox_pids.append(proc.info['pid'])
+                        proc.terminate()  # Try graceful termination first
+                except (psutil.NoSuchProcess, psutil.AccessDenied) as e:
+                    cleanup_results['errors'].append(f"Failed to terminate PID {proc.info['pid']}: {e}")
+                    continue
+            
+            # Wait a moment for graceful termination
+            time.sleep(1)
+            
+            # Force kill any remaining processes
+            for pid in firefox_pids:
+                try:
+                    proc = psutil.Process(pid)
+                    if proc.is_running():
+                        proc.kill()  # Force kill if still running
+                        cleanup_results['processes_killed'] += 1
+                        logger.info(f"Force killed Firefox process: {pid}")
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    # Process already gone or no permission
+                    cleanup_results['processes_killed'] += 1
+            
+            # Step 2: Clear Firefox session data and profile locks
+            try:
+                # Look for Firefox profile directories
+                home_dir = os.path.expanduser("~")
+                firefox_dirs = [
+                    os.path.join(home_dir, ".mozilla", "firefox"),
+                    os.path.join(home_dir, ".cache", "mozilla", "firefox"),
+                    "/tmp/firefox-*"
+                ]
+                
+                for firefox_dir in firefox_dirs:
+                    if os.path.exists(firefox_dir):
+                        # Clear session restore files
+                        import glob
+                        session_files = glob.glob(os.path.join(firefox_dir, "*", "sessionstore*"))
+                        session_files.extend(glob.glob(os.path.join(firefox_dir, "*", "recovery*")))
+                        
+                        for session_file in session_files:
+                            try:
+                                os.remove(session_file)
+                                logger.debug(f"Removed session file: {session_file}")
+                                cleanup_results['session_cleared'] = True
+                            except Exception as e:
+                                cleanup_results['errors'].append(f"Failed to remove {session_file}: {e}")
+                        
+                        # CRITICAL: Remove profile lock files
+                        profile_dirs = glob.glob(os.path.join(firefox_dir, "*"))
+                        for profile_dir in profile_dirs:
+                            if os.path.isdir(profile_dir):
+                                # Remove lock files that prevent Firefox from starting
+                                lock_files = ["lock", ".parentlock", "parent.lock"]
+                                for lock_file in lock_files:
+                                    lock_path = os.path.join(profile_dir, lock_file)
+                                    if os.path.exists(lock_path):
+                                        try:
+                                            # Handle both files and symlinks
+                                            if os.path.islink(lock_path):
+                                                os.unlink(lock_path)
+                                            else:
+                                                os.remove(lock_path)
+                                            logger.info(f"Removed Firefox lock file: {lock_path}")
+                                            cleanup_results['locks_cleared'] = True
+                                        except Exception as e:
+                                            cleanup_results['errors'].append(f"Failed to remove lock {lock_path}: {e}")
+                
+            except Exception as e:
+                cleanup_results['errors'].append(f"Failed to clear session data: {e}")
+            
+            # Step 3: Reset internal state
+            self.crash_log = []
+            self.restart_count = 0
+            self.last_restart_time = None
+            
+            # Step 4: Give system time to release resources
+            time.sleep(0.5)
+            
+            cleanup_results['cleanup_time'] = round(time.time() - start_time, 2)
+            cleanup_results['success'] = True
+            
+            logger.info(f"Firefox cleanup completed: {cleanup_results['processes_killed']} processes killed, "
+                       f"session cleared: {cleanup_results['session_cleared']}, "
+                       f"time: {cleanup_results['cleanup_time']}s")
+            
+            return cleanup_results
+            
+        except Exception as e:
+            cleanup_results['errors'].append(f"Unexpected error during cleanup: {e}")
+            cleanup_results['success'] = False
+            cleanup_results['cleanup_time'] = round(time.time() - start_time, 2)
+            logger.error(f"Firefox cleanup failed: {e}")
+            return cleanup_results
+    
+    def ensure_clean_state(self) -> bool:
+        """Ensure Firefox is in a clean state for task execution
+        
+        Returns:
+            True if state is clean and ready, False otherwise
+        """
+        try:
+            # Check current health
+            health = self.check_firefox_health()
+            
+            # Check for multiple Firefox processes (indicates problems)
+            process_count = health.get('process_count', 0)
+            if process_count > 5:  # More than 5 processes suggests issues
+                logger.warning(f"Too many Firefox processes detected ({process_count}), performing cleanup...")
+                cleanup_result = self.cleanup_firefox_state()
+                return cleanup_result.get('success', False)
+            
+            # If Firefox is running with issues or has crashed windows, clean it up
+            if (health['running'] and not health['healthy']) or health.get('crash_log_entries', 0) > 0:
+                logger.info("Firefox in unhealthy state, performing cleanup...")
+                cleanup_result = self.cleanup_firefox_state()
+                return cleanup_result.get('success', False)
+            
+            # Check if profile is locked (common issue)
+            if self._check_profile_locked():
+                logger.warning("Firefox profile is locked, performing cleanup...")
+                cleanup_result = self.cleanup_firefox_state()
+                return cleanup_result.get('success', False)
+            
+            # If Firefox is running healthy, leave it alone
+            if health['running'] and health['healthy']:
+                logger.info("Firefox is running and healthy, no cleanup needed")
+                return True
+            
+            # If Firefox is not running, we're good to go
+            if not health['running']:
+                logger.info("Firefox not running, state is clean")
+                return True
+                
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error ensuring clean state: {e}")
+            # Try cleanup as last resort
+            self.cleanup_firefox_state()
+            return False
+    
+    def _check_profile_locked(self) -> bool:
+        """Check if Firefox profile is locked
+        
+        Returns:
+            True if profile is locked, False otherwise
+        """
+        try:
+            home_dir = os.path.expanduser("~")
+            firefox_dir = os.path.join(home_dir, ".mozilla", "firefox")
+            
+            if os.path.exists(firefox_dir):
+                import glob
+                # Check all profile directories
+                profile_dirs = glob.glob(os.path.join(firefox_dir, "*"))
+                for profile_dir in profile_dirs:
+                    if os.path.isdir(profile_dir):
+                        # Check for lock files
+                        lock_path = os.path.join(profile_dir, "lock")
+                        parent_lock_path = os.path.join(profile_dir, ".parentlock")
+                        
+                        if os.path.exists(lock_path) or os.path.exists(parent_lock_path):
+                            logger.debug(f"Found Firefox lock in profile: {profile_dir}")
+                            return True
+            
+            return False
+        except Exception as e:
+            logger.warning(f"Error checking profile lock: {e}")
+            return False
 
 
 # Global instance
