@@ -48,10 +48,23 @@ n8n::is_running() {
 }
 
 #######################################
-# Check if n8n API is responsive
+# Check if n8n API is responsive with enhanced diagnostics
 # Returns: 0 if responsive, 1 otherwise
 #######################################
 n8n::is_healthy() {
+    # Check if container is running first
+    if ! n8n::is_running; then
+        return 1
+    fi
+    
+    # Check for database corruption indicators in logs
+    local recent_logs
+    recent_logs=$(docker logs "$N8N_CONTAINER_NAME" --tail 50 2>&1 || echo "")
+    if echo "$recent_logs" | grep -qi "SQLITE_READONLY\|database.*locked\|database.*corrupted"; then
+        log::warn "Database corruption detected in logs"
+        return 1
+    fi
+    
     # n8n uses /healthz endpoint for health checks
     if system::is_command "curl"; then
         # Try multiple times as n8n takes time to fully initialize
@@ -83,15 +96,172 @@ n8n::generate_password() {
 }
 
 #######################################
-# Create n8n data directory
+# Detect filesystem corruption in n8n data directory
+# Returns: 0 if healthy, 1 if corrupted
+#######################################
+n8n::detect_filesystem_corruption() {
+    if [[ ! -d "$N8N_DATA_DIR" ]]; then
+        log::warn "n8n data directory does not exist: $N8N_DATA_DIR"
+        return 1
+    fi
+    
+    # Check if directory has zero links (corruption indicator)
+    local links
+    links=$(stat -c '%h' "$N8N_DATA_DIR" 2>/dev/null || echo "0")
+    if [[ "$links" == "0" ]]; then
+        log::error "Filesystem corruption detected: directory has 0 links"
+        return 1
+    fi
+    
+    # Check for deleted but open database files (if container is running)
+    if n8n::is_running; then
+        local n8n_pid
+        n8n_pid=$(docker exec "$N8N_CONTAINER_NAME" pgrep -f 'node.*n8n' 2>/dev/null | head -1)
+        if [[ -n "$n8n_pid" ]]; then
+            local deleted_files
+            deleted_files=$(docker exec "$N8N_CONTAINER_NAME" lsof -p "$n8n_pid" 2>/dev/null | grep -c '(deleted)' 2>/dev/null || echo "0")
+            if [[ "$deleted_files" =~ ^[0-9]+$ ]] && [[ "$deleted_files" -gt 0 ]]; then
+                log::error "Database corruption detected: $deleted_files deleted files still open"
+                return 1
+            fi
+        fi
+    fi
+    
+    return 0
+}
+
+#######################################
+# Check database health and integrity
+# Returns: 0 if healthy, 1 if corrupted
+#######################################
+n8n::check_database_health() {
+    local db_file="$N8N_DATA_DIR/database.sqlite"
+    
+    if [[ ! -f "$db_file" ]]; then
+        log::warn "Database file does not exist: $db_file"
+        return 1
+    fi
+    
+    # Check file permissions
+    if [[ ! -r "$db_file" ]] || [[ ! -w "$db_file" ]]; then
+        log::error "Database file has incorrect permissions"
+        return 1
+    fi
+    
+    # Check if SQLite can open the database
+    if system::is_command "sqlite3"; then
+        if ! echo "PRAGMA integrity_check;" | sqlite3 "$db_file" >/dev/null 2>&1; then
+            log::error "Database integrity check failed"
+            return 1
+        fi
+    fi
+    
+    return 0
+}
+
+#######################################
+# Find best available backup
+# Returns: path to best backup or empty string
+#######################################
+n8n::find_best_backup() {
+    local backup_pattern="${HOME}/n8n-backup-*/database.sqlite"
+    local best_backup=""
+    local best_size=0
+    
+    # Find largest, most recent backup
+    for backup in $backup_pattern; do
+        if [[ -f "$backup" ]]; then
+            local size
+            size=$(stat -c '%s' "$backup" 2>/dev/null || echo "0")
+            if [[ "$size" -gt "$best_size" ]]; then
+                best_backup="$backup"
+                best_size="$size"
+            fi
+        fi
+    done
+    
+    echo "$best_backup"
+}
+
+#######################################
+# Automatically recover from filesystem corruption
+# Returns: 0 if recovered, 1 if recovery failed
+#######################################
+n8n::auto_recover() {
+    log::warn "Attempting automatic recovery..."
+    
+    # Stop container if running
+    if n8n::is_running; then
+        log::info "Stopping corrupted n8n container..."
+        docker stop "$N8N_CONTAINER_NAME" >/dev/null 2>&1 || true
+        docker rm "$N8N_CONTAINER_NAME" >/dev/null 2>&1 || true
+    fi
+    
+    # Recreate data directory
+    log::info "Recreating data directory..."
+    rm -rf "$N8N_DATA_DIR" 2>/dev/null || true
+    if ! n8n::create_directories; then
+        log::error "Failed to recreate data directory"
+        return 1
+    fi
+    
+    # Restore from backup if available
+    local best_backup
+    best_backup=$(n8n::find_best_backup)
+    if [[ -n "$best_backup" ]]; then
+        log::info "Restoring database from backup: $best_backup"
+        cp "$best_backup" "$N8N_DATA_DIR/database.sqlite" || {
+            log::error "Failed to restore database from backup"
+            return 1
+        }
+        
+        # Fix permissions
+        chown "$(whoami):$(whoami)" "$N8N_DATA_DIR/database.sqlite" 2>/dev/null || true
+        chmod 644 "$N8N_DATA_DIR/database.sqlite" || true
+        
+        log::success "Database restored from backup"
+    else
+        log::warn "No backup found - starting with fresh database"
+    fi
+    
+    return 0
+}
+
+#######################################
+# Create n8n data directory with enhanced validation
 #######################################
 n8n::create_directories() {
     log::info "Creating n8n data directory..."
     
+    # Check if directory already exists and is corrupted
+    if [[ -d "$N8N_DATA_DIR" ]] && ! n8n::detect_filesystem_corruption; then
+        log::info "Data directory already exists and appears healthy"
+        return 0
+    fi
+    
+    # Remove any corrupted directory
+    if [[ -d "$N8N_DATA_DIR" ]]; then
+        log::warn "Removing potentially corrupted directory"
+        rm -rf "$N8N_DATA_DIR" 2>/dev/null || true
+    fi
+    
+    # Create fresh directory
     mkdir -p "$N8N_DATA_DIR" || {
         log::error "Failed to create n8n data directory"
         return 1
     }
+    
+    # Set proper ownership and permissions
+    local current_user
+    current_user=$(whoami)
+    chown "$current_user:$current_user" "$N8N_DATA_DIR" 2>/dev/null || true
+    chmod 755 "$N8N_DATA_DIR" || true
+    
+    # Verify directory is healthy
+    if ! n8n::detect_filesystem_corruption; then
+        log::error "Created directory is still corrupted"
+        return 1
+    fi
     
     # Add rollback action
     resources::add_rollback_action \
@@ -99,7 +269,7 @@ n8n::create_directories() {
         "rm -rf $N8N_DATA_DIR 2>/dev/null || true" \
         10
     
-    log::success "n8n directories created"
+    log::success "n8n directories created with proper permissions"
     return 0
 }
 
@@ -210,6 +380,39 @@ n8n::validate_workflow_id() {
 }
 
 #######################################
+# Comprehensive health check with automatic recovery
+# Returns: 0 if healthy, 1 if issues detected
+#######################################
+n8n::comprehensive_health_check() {
+    log::info "Running comprehensive n8n health check..."
+    
+    local issues_found=0
+    
+    # Check filesystem corruption
+    if ! n8n::detect_filesystem_corruption; then
+        log::error "Filesystem corruption detected"
+        if [[ "${AUTO_RECOVER:-yes}" == "yes" ]]; then
+            if n8n::auto_recover; then
+                log::success "Automatic recovery completed"
+            else
+                log::error "Automatic recovery failed"
+                issues_found=1
+            fi
+        else
+            issues_found=1
+        fi
+    fi
+    
+    # Check database health
+    if ! n8n::check_database_health; then
+        log::warn "Database health issues detected"
+        issues_found=1
+    fi
+    
+    return $issues_found
+}
+
+#######################################
 # Check for required commands
 # Returns: 0 if all present, 1 if any missing
 #######################################
@@ -227,7 +430,7 @@ n8n::check_requirements() {
     done
     
     # Optional but recommended commands
-    local optional_commands=("jq" "openssl")
+    local optional_commands=("jq" "openssl" "sqlite3")
     
     for cmd in "${optional_commands[@]}"; do
         if ! system::is_command "$cmd"; then

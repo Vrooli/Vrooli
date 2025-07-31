@@ -25,6 +25,10 @@ setup() {
     # Setup standard mocks
     setup_standard_mocks
     
+    # Load the functions we're testing (required for bats isolation)
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    source "${SCRIPT_DIR}/install.sh"
+    
     # Set test environment (lightweight per-test)
     export BROWSERLESS_CUSTOM_PORT="9999"
     export BROWSERLESS_CONTAINER_NAME="browserless-test"

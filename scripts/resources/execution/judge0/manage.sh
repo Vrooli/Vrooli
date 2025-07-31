@@ -130,19 +130,19 @@ judge0::main() {
     judge0::parse_arguments "$@"
     
     # Get parsed values
-    local action=$(args::get_value "action")
-    local force=$(args::get_value "force")
-    local workers=$(args::get_value "workers")
-    local cpu_limit=$(args::get_value "cpu-limit")
-    local memory_limit=$(args::get_value "memory-limit")
-    local api_key=$(args::get_value "api-key")
-    local code=$(args::get_value "code")
-    local language=$(args::get_value "language")
-    local stdin=$(args::get_value "stdin")
-    local expected_output=$(args::get_value "expected-output")
+    local action=$(args::get "action")
+    local force=$(args::get "force")
+    local workers=$(args::get "workers")
+    local cpu_limit=$(args::get "cpu-limit")
+    local memory_limit=$(args::get "memory-limit")
+    local api_key=$(args::get "api-key")
+    local code=$(args::get "code")
+    local language=$(args::get "language")
+    local stdin=$(args::get "stdin")
+    local expected_output=$(args::get "expected-output")
     
     # Handle help
-    if args::is_help; then
+    if args::is_enabled "help"; then
         judge0::usage::show
         return 0
     fi

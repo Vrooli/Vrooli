@@ -134,12 +134,12 @@ ollama::validate_model_list() {
     done
     
     if [[ ${#invalid_models[@]} -gt 0 ]]; then
-        log::warn "$MSG_UNKNOWN_MODELS"
+        log::warn "$(MSG_UNKNOWN_MODELS "${invalid_models[@]}")"
         log::info "$MSG_USE_AVAILABLE_MODELS"
         return 1
     fi
     
-    log::info "$MSG_MODELS_VALIDATED"
+    log::info "$(MSG_MODELS_VALIDATED "${models[@]}")"
     return 0
 }
 
@@ -364,7 +364,7 @@ ollama::install_models() {
     local available_space_gb
     if available_space_gb=$(df "$HOME" --output=avail --block-size=1G | tail -n1 | tr -d ' '); then
         if [[ $available_space_gb -lt 10 ]]; then
-            log::warn "$MSG_LOW_DISK_SPACE"
+            log::warn "$(MSG_LOW_DISK_SPACE "$available_space_gb")"
             log::info "Each model typically requires 2-8GB. Consider freeing up space if downloads fail."
         fi
     fi

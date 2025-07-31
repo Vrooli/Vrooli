@@ -31,11 +31,24 @@ n8n::status() {
                 log::info "Resource usage: $stats"
             fi
             
-            # Check health
+            # Check health with comprehensive diagnostics
             if n8n::is_healthy; then
                 log::success "✅ n8n API is healthy"
+                
+                # Run comprehensive health check
+                if n8n::comprehensive_health_check; then
+                    log::success "✅ Comprehensive health check passed"
+                else
+                    log::warn "⚠️  Some health issues detected (check logs)"
+                fi
             else
                 log::warn "⚠️  n8n API health check failed"
+                
+                # Try to diagnose the issue
+                if ! n8n::detect_filesystem_corruption; then
+                    log::error "❌ Filesystem corruption detected"
+                    log::info "Run with --action restart to attempt automatic recovery"
+                fi
             fi
             
             # Additional details
@@ -236,18 +249,46 @@ n8n::stats() {
 }
 
 #######################################
-# Check all n8n components
+# Check all n8n components with enhanced diagnostics
 #######################################
 n8n::check_all() {
-    log::header "🔍 n8n Health Check"
+    log::header "🔍 n8n Comprehensive Health Check"
     
     local all_good=true
+    local recovery_attempted=false
     
     # Docker check
     if n8n::check_docker; then
         log::success "✅ Docker is ready"
     else
         log::error "❌ Docker issues detected"
+        all_good=false
+    fi
+    
+    # Filesystem corruption check
+    if ! n8n::detect_filesystem_corruption; then
+        log::error "❌ Filesystem corruption detected"
+        if [[ "${AUTO_RECOVER:-yes}" == "yes" ]] && [[ "$recovery_attempted" == "false" ]]; then
+            log::info "Attempting automatic recovery..."
+            if n8n::auto_recover; then
+                log::success "✅ Automatic recovery completed"
+                recovery_attempted=true
+            else
+                log::error "❌ Automatic recovery failed"
+                all_good=false
+            fi
+        else
+            all_good=false
+        fi
+    else
+        log::success "✅ Filesystem is healthy"
+    fi
+    
+    # Database health check
+    if n8n::check_database_health; then
+        log::success "✅ Database is healthy"
+    else
+        log::error "❌ Database issues detected"
         all_good=false
     fi
     
@@ -266,12 +307,24 @@ n8n::check_all() {
         all_good=false
     fi
     
-    # API check
+    # API check with enhanced diagnostics
     if n8n::is_healthy; then
         log::success "✅ n8n API is healthy"
     else
         log::error "❌ n8n API is not responding"
         all_good=false
+        
+        # Check for common issues
+        if n8n::is_running; then
+            local recent_logs
+            recent_logs=$(docker logs "$N8N_CONTAINER_NAME" --tail 20 2>&1 || echo "")
+            if echo "$recent_logs" | grep -qi "SQLITE_READONLY"; then
+                log::info "💡 Detected SQLite readonly errors - restart may help"
+            fi
+            if echo "$recent_logs" | grep -qi "EACCES\|permission denied"; then
+                log::info "💡 Detected permission errors - check data directory permissions"
+            fi
+        fi
     fi
     
     # Database check
@@ -301,8 +354,14 @@ n8n::check_all() {
     echo
     if [[ "$all_good" == "true" ]]; then
         log::success "✅ All checks passed!"
+        if [[ "$recovery_attempted" == "true" ]]; then
+            log::info "💡 Recovery was performed - consider running a backup"
+        fi
     else
         log::error "❌ Some checks failed"
+        if [[ "$recovery_attempted" == "false" ]]; then
+            log::info "💡 Try running: $0 --action restart (with automatic recovery)"
+        fi
         return 1
     fi
 }

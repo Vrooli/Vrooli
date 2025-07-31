@@ -11,6 +11,10 @@ setup() {
     # Setup standard mocks
     setup_standard_mocks
     
+    # Load the functions we are testing (required for bats isolation)
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    source "${SCRIPT_DIR}/session.sh"
+    
     # Set up paths
     export BATS_TEST_DIRNAME="${BATS_TEST_DIRNAME:-$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)}"
     export CLAUDE_CODE_DIR="$BATS_TEST_DIRNAME/.."

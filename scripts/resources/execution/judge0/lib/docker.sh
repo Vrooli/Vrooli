@@ -251,3 +251,23 @@ judge0::docker::scale_workers() {
         return 1
     fi
 }
+
+#######################################
+# Check if Judge0 container exists
+# Returns: 0 if exists, 1 if not
+#######################################
+judge0::docker::container_exists() {
+    docker ps -a --format "{{.Names}}" | grep -q "^${JUDGE0_CONTAINER_NAME}$"
+}
+
+#######################################
+# Check if Judge0 container is running
+# Returns: 0 if running, 1 if not
+#######################################
+judge0::docker::is_running() {
+    docker ps --format "{{.Names}}" | grep -q "^${JUDGE0_CONTAINER_NAME}$"
+}
+
+# Export functions for use by other modules
+export -f judge0::docker::container_exists
+export -f judge0::docker::is_running

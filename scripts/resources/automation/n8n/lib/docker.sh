@@ -106,6 +106,9 @@ n8n::build_docker_command() {
     docker_cmd+=" -e EXECUTIONS_DATA_SAVE_ON_PROGRESS=true"
     docker_cmd+=" -e EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS=true"
     
+    # Enable public API access
+    docker_cmd+=" -e N8N_PUBLIC_API_DISABLED=false"
+    
     # Use custom image if available
     local image_to_use="$N8N_IMAGE"
     if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${N8N_CUSTOM_IMAGE}$"; then
@@ -181,15 +184,39 @@ n8n::stop() {
 }
 
 #######################################
-# Start n8n
+# Start n8n with enhanced health checks and recovery
 #######################################
 n8n::start() {
     if n8n::is_running && [[ "$FORCE" != "yes" ]]; then
         log::info "n8n is already running on port $N8N_PORT"
-        return 0
+        
+        # Still run health check to ensure it's working properly
+        if n8n::comprehensive_health_check; then
+            log::success "Running instance is healthy"
+            return 0
+        else
+            log::warn "Running instance has health issues, restarting..."
+            n8n::stop
+        fi
     fi
     
     log::info "Starting n8n..."
+    
+    # Pre-flight health checks and recovery
+    log::info "Running pre-flight health checks..."
+    if ! n8n::detect_filesystem_corruption; then
+        log::warn "Filesystem corruption detected during startup"
+        if ! n8n::auto_recover; then
+            log::error "Failed to recover from filesystem corruption"
+            return 1
+        fi
+    fi
+    
+    # Ensure directories are properly created
+    if ! n8n::create_directories; then
+        log::error "Failed to create required directories"
+        return 1
+    fi
     
     # Check if container exists
     if ! n8n::container_exists; then
@@ -208,29 +235,75 @@ n8n::start() {
     
     # Start n8n container
     if docker start "$N8N_CONTAINER_NAME" >/dev/null 2>&1; then
-        log::success "n8n started"
+        log::success "n8n container started"
         
-        # Wait for service to be ready
-        if resources::wait_for_service "n8n" "$N8N_PORT" 30; then
-            log::success "✅ n8n is running on port $N8N_PORT"
-            log::info "Access n8n at: $N8N_BASE_URL"
-        else
-            log::warn "n8n started but may not be fully ready yet"
-        fi
+        # Wait for service to be ready with enhanced monitoring
+        log::info "Waiting for n8n to be ready (this may take a moment)..."
+        local wait_attempts=0
+        local max_wait_attempts=60
+        
+        while [ $wait_attempts -lt $max_wait_attempts ]; do
+            if n8n::is_healthy; then
+                log::success "✅ n8n is healthy and ready on port $N8N_PORT"
+                log::info "Access n8n at: $N8N_BASE_URL"
+                
+                # Final comprehensive health check
+                if n8n::comprehensive_health_check; then
+                    log::success "✅ All systems operational"
+                else
+                    log::warn "⚠️  Minor health issues detected but service is running"
+                fi
+                return 0
+            fi
+            
+            # Check for corruption during startup
+            local recent_logs
+            recent_logs=$(docker logs "$N8N_CONTAINER_NAME" --tail 10 2>&1 || echo "")
+            if echo "$recent_logs" | grep -qi "SQLITE_READONLY\|database.*locked"; then
+                log::error "Database corruption detected during startup"
+                log::info "Stopping container and attempting recovery..."
+                docker stop "$N8N_CONTAINER_NAME" >/dev/null 2>&1 || true
+                if n8n::auto_recover; then
+                    log::info "Recovery completed, restarting..."
+                    docker start "$N8N_CONTAINER_NAME" >/dev/null 2>&1
+                    wait_attempts=0  # Reset wait counter after recovery
+                else
+                    log::error "Recovery failed"
+                    return 1
+                fi
+            fi
+            
+            wait_attempts=$((wait_attempts + 1))
+            echo -n "."
+            sleep 2
+        done
+        
+        echo
+        log::error "n8n failed to become ready within $((max_wait_attempts * 2)) seconds"
+        log::info "Check logs with: $0 --action logs"
+        return 1
     else
-        log::error "Failed to start n8n"
+        log::error "Failed to start n8n container"
         return 1
     fi
 }
 
 #######################################
-# Restart n8n
+# Restart n8n with automatic recovery
 #######################################
 n8n::restart() {
-    log::info "Restarting n8n..."
+    log::info "Restarting n8n with health checks..."
+    
+    # Run pre-restart diagnostics
+    if ! n8n::detect_filesystem_corruption; then
+        log::warn "Filesystem corruption detected before restart"
+    fi
+    
     n8n::stop
     sleep 2
-    n8n::start
+    
+    # Enable automatic recovery during restart
+    AUTO_RECOVER="yes" n8n::start
 }
 
 #######################################

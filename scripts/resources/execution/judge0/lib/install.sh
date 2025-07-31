@@ -60,7 +60,7 @@ judge0::install::check_requirements() {
     fi
     
     # Check port availability
-    if network::is_port_in_use "$JUDGE0_PORT"; then
+    if ports::is_port_in_use "$JUDGE0_PORT"; then
         log::error "$JUDGE0_MSG_ERR_PORT"
         return 1
     fi
@@ -139,8 +139,6 @@ judge0::install::create_compose_file() {
     local compose_file="${JUDGE0_CONFIG_DIR}/docker-compose.yml"
     
     cat > "$compose_file" << EOF
-version: '3.8'
-
 services:
   judge0-server:
     image: ${JUDGE0_IMAGE}:${JUDGE0_VERSION}
@@ -189,7 +187,6 @@ services:
 
   judge0-workers:
     image: ${JUDGE0_IMAGE}:${JUDGE0_VERSION}
-    container_name: ${JUDGE0_WORKERS_NAME}
     command: ["./scripts/workers"]
     restart: unless-stopped
     environment:

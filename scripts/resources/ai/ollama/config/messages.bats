@@ -128,18 +128,18 @@ setup() {
 }
 
 @test "ollama::export_messages function works" {
-    # Clear some message variables
-    unset MSG_OLLAMA_INSTALLING MSG_OLLAMA_INSTALL_SUCCESS
-    unset MSG_MODELS_HEADER MSG_PROMPT_SENDING
-    
-    # Call export function
+    # Call export function (variables are already readonly, can't unset them)
     ollama::export_messages
     
-    # Verify key messages are exported
+    # Verify key messages are exported and defined
     [ -n "$MSG_OLLAMA_INSTALLING" ]
     [ -n "$MSG_OLLAMA_INSTALL_SUCCESS" ]
     [ -n "$MSG_MODELS_HEADER" ]
     [ -n "$MSG_PROMPT_SENDING" ]
+    
+    # Test that variables are actually exported to the environment
+    run bash -c 'echo "$MSG_OLLAMA_INSTALLING"'
+    [ -n "$output" ]
 }
 
 @test "messages are readonly constants" {

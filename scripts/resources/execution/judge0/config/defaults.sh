@@ -34,8 +34,8 @@ export JUDGE0_CPU_TIME_LIMIT="5"         # seconds
 export JUDGE0_WALL_TIME_LIMIT="10"       # seconds
 export JUDGE0_MEMORY_LIMIT="262144"      # KB (256MB)
 export JUDGE0_MAX_PROCESSES="30"
-export JUDGE0_MAX_FILE_SIZE="5120"       # KB (5MB)
-export JUDGE0_STACK_LIMIT="262144"       # KB (256MB)
+export JUDGE0_MAX_FILE_SIZE="4096"       # KB (4MB)
+export JUDGE0_STACK_LIMIT="128000"       # KB (125MB)
 
 # Security features
 export JUDGE0_ENABLE_NETWORK="false"     # Disable network in execution containers
@@ -57,7 +57,7 @@ export JUDGE0_WORKER_MEMORY_LIMIT="1G"   # Memory per worker
 # ============================================================================
 # HEALTH CHECK CONFIGURATION
 # ============================================================================
-export JUDGE0_HEALTH_ENDPOINT="/system_info"
+export JUDGE0_HEALTH_ENDPOINT="/version"
 export JUDGE0_HEALTH_INTERVAL="60000"    # milliseconds
 export JUDGE0_HEALTH_TIMEOUT="5000"      # milliseconds
 export JUDGE0_STARTUP_WAIT="30"          # seconds to wait for startup
@@ -89,9 +89,9 @@ export JUDGE0_LOG_MAX_FILES="5"
 # ============================================================================
 # These are enabled by default - full list available via API
 export JUDGE0_DEFAULT_LANGUAGES=(
-    "javascript:93"      # JavaScript (Node.js 18.15.0)
+    "javascript:63"      # JavaScript (Node.js 12.14.0)
     "typescript:94"      # TypeScript (5.0.3)
-    "python:92"          # Python (3.11.2)
+    "python:71"          # Python (3.8.1)
     "python2:70"         # Python (2.7.18)
     "go:95"              # Go (1.20.2)
     "rust:73"            # Rust (1.68.2)

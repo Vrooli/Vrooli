@@ -47,7 +47,8 @@ judge0::api::request() {
 judge0::api::health_check() {
     local response=$(judge0::api::request "GET" "$JUDGE0_HEALTH_ENDPOINT" 2>/dev/null)
     
-    if [[ -n "$response" ]] && echo "$response" | jq -e '.version' >/dev/null 2>&1; then
+    # Check if we got a non-empty response (version endpoint returns plain text)
+    if [[ -n "$response" ]] && [[ "$response" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
         return 0
     else
         return 1

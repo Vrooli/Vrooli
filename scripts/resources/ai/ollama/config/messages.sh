@@ -13,8 +13,8 @@ readonly MSG_OLLAMA_INSTALL_FAILED="❌ Ollama installation failed"
 
 readonly MSG_BINARY_INSTALL_SUCCESS="✅ Ollama binary installed successfully"
 readonly MSG_BINARY_INSTALL_FAILED="Ollama installation failed - binary not found after installation"
-readonly MSG_USER_CREATE_SUCCESS="✅ User $OLLAMA_USER created"
-readonly MSG_USER_CREATE_FAILED="Failed to create user $OLLAMA_USER"
+readonly MSG_USER_CREATE_SUCCESS='✅ User $OLLAMA_USER created'
+readonly MSG_USER_CREATE_FAILED='Failed to create user $OLLAMA_USER'
 readonly MSG_SERVICE_INSTALL_SUCCESS="✅ Ollama systemd service installed successfully"
 
 readonly MSG_DOWNLOAD_FAILED="Failed to download Ollama installer"
@@ -22,22 +22,22 @@ readonly MSG_INSTALLER_EMPTY="Downloaded installer is empty"
 readonly MSG_INSTALLER_SUCCESS="Ollama installer completed successfully"
 readonly MSG_INSTALLER_FAILED="Ollama installer failed"
 readonly MSG_SUDO_REQUIRED="Sudo privileges required to install Ollama"
-readonly MSG_USER_SUDO_REQUIRED="Sudo privileges required to create $OLLAMA_USER user"
+readonly MSG_USER_SUDO_REQUIRED='Sudo privileges required to create $OLLAMA_USER user'
 
 #######################################
 # Status Messages
 #######################################
-readonly MSG_OLLAMA_RUNNING="✅ Ollama is running and healthy on port $OLLAMA_PORT"
+readonly MSG_OLLAMA_RUNNING='✅ Ollama is running and healthy on port $OLLAMA_PORT'
 readonly MSG_OLLAMA_STARTED_NO_API="⚠️  Ollama service started but API is not responding"
 readonly MSG_OLLAMA_NOT_INSTALLED="Ollama binary not found"
 readonly MSG_OLLAMA_API_UNAVAILABLE="Ollama API is not available"
 
 readonly MSG_STATUS_BINARY_OK="✅ Ollama binary installed"
-readonly MSG_STATUS_USER_OK="✅ Ollama user '$OLLAMA_USER' exists"
+readonly MSG_STATUS_USER_OK='✅ Ollama user '"'"'$OLLAMA_USER'"'"' exists'
 readonly MSG_STATUS_SERVICE_OK="✅ Ollama systemd service installed"
 readonly MSG_STATUS_SERVICE_ENABLED="✅ Ollama service enabled for auto-start"
 readonly MSG_STATUS_SERVICE_ACTIVE="✅ Ollama service is active"
-readonly MSG_STATUS_PORT_OK="✅ Ollama listening on port $OLLAMA_PORT"
+readonly MSG_STATUS_PORT_OK='✅ Ollama listening on port $OLLAMA_PORT'
 readonly MSG_STATUS_API_OK="✅ Ollama API is healthy and responsive"
 
 #######################################
@@ -55,9 +55,7 @@ readonly MSG_MODEL_NOT_INSTALLED="Model '\$model' is not installed"
 readonly MSG_MODEL_VALIDATION_FAILED="Model validation failed"
 readonly MSG_MODEL_NONE_SPECIFIED="No models specified for installation"
 
-readonly MSG_MODELS_VALIDATED="Validated \${#models[@]} models, total size: \$(printf \"%.1f\" \"\$total_size\")GB"
-readonly MSG_MODELS_INSTALLED="• Installed models: \${installed_models[*]}"
-readonly MSG_MODELS_FAILED="• Failed models: \${failed_models[*]}"
+# Dynamic messages - moved to functions section
 readonly MSG_MODELS_COUNT="✅ \$model_count model(s) installed and available"
 
 #######################################
@@ -69,8 +67,7 @@ readonly MSG_PROMPT_NO_TEXT="No prompt text provided"
 readonly MSG_PROMPT_USAGE="Use: \$0 --action prompt --text 'your prompt here'"
 readonly MSG_PROMPT_API_ERROR="Ollama returned error: \$error_msg"
 readonly MSG_PROMPT_NO_RESPONSE="No response text received"
-readonly MSG_PROMPT_RESPONSE_TIME="⏱️  Response time: \${duration}s"
-readonly MSG_PROMPT_TOKEN_COUNT="📊 Tokens: \${prompt_eval_count} prompt + \${eval_count} generated"
+# Dynamic messages - moved to functions section
 readonly MSG_PROMPT_PARAMETERS="🎛️  Parameters: \$params_info"
 
 readonly MSG_MODEL_SELECTING="Selecting best available model for type: \$use_case"
@@ -82,9 +79,9 @@ readonly MSG_MODEL_INSTALL_FIRST="Install a model first with: ollama pull llama3
 #######################################
 # Warning Messages
 #######################################
-readonly MSG_UNKNOWN_MODELS="Unknown models (not in catalog): \${invalid_models[*]}"
+# Dynamic messages - moved to functions section
 readonly MSG_USE_AVAILABLE_MODELS="Use 'ollama::show_available_models' to see available models"
-readonly MSG_LOW_DISK_SPACE="⚠️  Low disk space detected: \${available_space_gb}GB available"
+# Dynamic messages - moved to functions section
 readonly MSG_JQ_UNAVAILABLE="jq not available, showing raw response"
 readonly MSG_MODELS_INSTALL_FAILED="Model installation failed, but Ollama service is running"
 readonly MSG_CONFIG_UPDATE_FAILED="Failed to update Vrooli configuration, but Ollama is installed"
@@ -108,6 +105,54 @@ readonly MSG_FAILED_API_REQUEST="Failed to send request to Ollama API"
 readonly MSG_LIST_MODELS_FAILED="Could not list models (this is usually temporary)"
 
 #######################################
+# Dynamic Message Functions
+# These functions generate messages with runtime values
+#######################################
+
+# Model validation message with count and size
+MSG_MODELS_VALIDATED() {
+    local models=("$@")
+    echo "Validated ${#models[@]} models, total size: $(printf "%.1f" "$total_size")GB"
+}
+
+# Installed models list
+MSG_MODELS_INSTALLED() {
+    local installed_models=("$@")
+    echo "• Installed models: ${installed_models[*]}"
+}
+
+# Failed models list
+MSG_MODELS_FAILED() {
+    local failed_models=("$@")
+    echo "• Failed models: ${failed_models[*]}"
+}
+
+# Prompt response time
+MSG_PROMPT_RESPONSE_TIME() {
+    local duration="$1"
+    echo "⏱️  Response time: ${duration}s"
+}
+
+# Token count information
+MSG_PROMPT_TOKEN_COUNT() {
+    local prompt_eval_count="$1"
+    local eval_count="$2"
+    echo "📊 Tokens: ${prompt_eval_count} prompt + ${eval_count} generated"
+}
+
+# Unknown models warning
+MSG_UNKNOWN_MODELS() {
+    local invalid_models=("$@")
+    echo "Unknown models (not in catalog): ${invalid_models[*]}"
+}
+
+# Low disk space warning
+MSG_LOW_DISK_SPACE() {
+    local available_space_gb="$1"
+    echo "⚠️  Low disk space detected: ${available_space_gb}GB available"
+}
+
+#######################################
 # Export messages function
 #######################################
 ollama::export_messages() {
@@ -129,8 +174,12 @@ ollama::export_messages() {
     export MSG_MODELS_HEADER MSG_MODELS_LEGEND MSG_MODELS_TOTAL_SIZE
     export MSG_MODEL_INSTALL_SUCCESS MSG_MODEL_INSTALL_FAILED MSG_MODEL_PULL_SUCCESS
     export MSG_MODEL_PULL_FAILED MSG_MODEL_NOT_INSTALLED MSG_MODEL_VALIDATION_FAILED
-    export MSG_MODEL_NONE_SPECIFIED MSG_MODELS_VALIDATED MSG_MODELS_INSTALLED
-    export MSG_MODELS_FAILED MSG_MODELS_COUNT
+    export MSG_MODEL_NONE_SPECIFIED MSG_MODELS_COUNT
+    
+    # Export dynamic message functions
+    export -f MSG_MODELS_VALIDATED MSG_MODELS_INSTALLED MSG_MODELS_FAILED
+    export -f MSG_PROMPT_RESPONSE_TIME MSG_PROMPT_TOKEN_COUNT
+    export -f MSG_UNKNOWN_MODELS MSG_LOW_DISK_SPACE
     
     # API/Prompt messages
     export MSG_PROMPT_SENDING MSG_PROMPT_RESPONSE_HEADER MSG_PROMPT_NO_TEXT
