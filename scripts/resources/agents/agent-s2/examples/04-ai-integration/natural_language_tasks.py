@@ -8,8 +8,13 @@ import requests
 import json
 import time
 import os
+import sys
 
-API_BASE_URL = "http://localhost:4113"
+# Add parent directory to path to import constants
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from constants import AGENT_S2_BASE_URL
+
+API_BASE_URL = AGENT_S2_BASE_URL
 
 def check_ai_status():
     """Check if AI is available and properly configured"""

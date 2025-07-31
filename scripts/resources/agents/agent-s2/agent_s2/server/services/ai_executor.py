@@ -27,7 +27,7 @@ from ...environment.discovery import EnvironmentDiscovery
 # Import shortcut detector if available
 try:
     # Use configurable path or default
-    shortcuts_path = Path(os.environ.get('AGENT_S2_SHORTCUTS_PATH', '/home/agents2/shortcuts'))
+    shortcuts_path = Path(Config.SHORTCUTS_PATH)
     if shortcuts_path.exists():
         sys.path.insert(0, str(shortcuts_path))
         from detector import ShortcutDetector
@@ -65,7 +65,7 @@ class AIExecutor:
         self.shortcut_detector = None
         if ShortcutDetector:
             try:
-                shortcuts_path = os.environ.get('AGENT_S2_SHORTCUTS_PATH', '/home/agents2/shortcuts')
+                shortcuts_path = Config.SHORTCUTS_PATH
                 self.shortcut_detector = ShortcutDetector(shortcuts_path)
                 logger.info("Keyboard shortcut detector initialized in executor")
             except Exception as e:
@@ -194,13 +194,17 @@ class AIExecutor:
             screenshot = self.screenshot_service.capture()
             
             # Also save screenshot to file for user reference
-            screenshot_filename = f"/tmp/agent-s2-screenshot-{int(time.time())}.png"
+            screenshot_filename = f"{Config.TEMP_DIR}/agent-s2-screenshot-{int(time.time())}.png"
             try:
                 self.screenshot_service.capture_to_file(screenshot_filename, format="png")
                 screenshot_saved = True
                 screenshot_path = screenshot_filename
-            except Exception as e:
+            except (OSError, PermissionError, ValueError) as e:
                 logger.warning(f"Failed to save screenshot to file: {e}")
+                screenshot_saved = False
+                screenshot_path = None
+            except Exception as e:
+                logger.error(f"Unexpected error saving screenshot: {e}")
                 screenshot_saved = False
                 screenshot_path = None
             
@@ -524,9 +528,9 @@ Analyze the screenshot and provide specific automation actions to execute this c
     async def _execute_screenshot_action(self, action: Dict[str, Any], custom_filename: Optional[str] = None) -> Dict[str, Any]:
         """Execute a screenshot save action"""
         if custom_filename:
-            save_path = f"/tmp/{custom_filename}"
+            save_path = f"{Config.SCREENSHOT_SAVE_DIR}/{custom_filename}"
         else:
-            save_path = f"/tmp/agent-s2-user-screenshot-{int(time.time())}.png"
+            save_path = f"{Config.SCREENSHOT_SAVE_DIR}/agent-s2-user-screenshot-{int(time.time())}.png"
         
         try:
             self.screenshot_service.capture_to_file(save_path, format="png")
@@ -821,24 +825,266 @@ Be specific about what you see and provide EXACT ABSOLUTE screen coordinates!
     
     def _log_ai_input_debug(self, system_prompt: str, user_prompt: str, screenshot_base64: str):
         """Log AI input for debugging"""
-        logger.info("=" * 80)
-        logger.info("AI INPUT DEBUG - SYSTEM PROMPT:")
-        logger.info("-" * 40)
-        logger.info(system_prompt[:1000] + "..." if len(system_prompt) > 1000 else system_prompt)
-        logger.info("-" * 40)
-        logger.info("AI INPUT DEBUG - USER PROMPT:")
-        logger.info("-" * 40)
-        logger.info(user_prompt)
-        logger.info("-" * 40)
-        logger.info(f"AI INPUT DEBUG - SCREENSHOT: {'Included' if screenshot_base64 else 'Not included'}")
-        logger.info(f"AI INPUT DEBUG - MODEL: {self.service_manager.model}")
-        logger.info("=" * 80)
+        logger.debug(f"AI Input - System prompt length: {len(system_prompt)}, User prompt length: {len(user_prompt)}")
+        logger.debug(f"Screenshot included: {'Yes' if screenshot_base64 else 'No'}")
+        logger.debug(f"Using model: {self.service_manager.model}")
     
     def _log_ai_output_debug(self, ai_text: str):
         """Log AI output for debugging"""
-        logger.info("=" * 80)
-        logger.info("AI OUTPUT DEBUG - RESPONSE:")
-        logger.info("-" * 40)
-        logger.info(ai_text[:1000] + "..." if len(ai_text) > 1000 else ai_text)
-        logger.info("-" * 40)
-        logger.info("=" * 80)
+        logger.debug(f"AI Response length: {len(ai_text)} characters")
+        if logger.isEnabledFor(logging.DEBUG):
+            logger.debug(f"AI Response preview: {ai_text[:200]}..." if len(ai_text) > 200 else ai_text)
+    
+    # Task Executor compatibility methods
+    async def execute_task(self, task_id: str, task) -> Dict[str, Any]:
+        """Execute a task (compatibility method for TaskExecutor replacement)
+        
+        Args:
+            task_id: Task identifier
+            task: Task request with task_type and parameters
+            
+        Returns:
+            Task execution result
+        """
+        logger.info(f"Executing task {task_id}: {task.task_type}")
+        
+        try:
+            # Route to appropriate handler
+            if task.task_type == "screenshot":
+                return await self._execute_task_screenshot(task.parameters)
+            elif task.task_type == "click":
+                return await self._execute_task_click(task.parameters)
+            elif task.task_type == "double_click":
+                return await self._execute_task_double_click(task.parameters)
+            elif task.task_type == "right_click":
+                return await self._execute_task_right_click(task.parameters)
+            elif task.task_type == "type_text":
+                return await self._execute_task_type_text(task.parameters)
+            elif task.task_type == "key_press":
+                return await self._execute_task_key_press(task.parameters)
+            elif task.task_type == "mouse_move":
+                return await self._execute_task_mouse_move(task.parameters)
+            elif task.task_type == "drag_drop":
+                return await self._execute_task_drag_drop(task.parameters)
+            elif task.task_type == "scroll":
+                return await self._execute_task_scroll(task.parameters)
+            elif task.task_type == "automation_sequence":
+                return await self._execute_task_automation_sequence(task.parameters)
+            else:
+                # Use AI to interpret unknown task types
+                return await self.execute_action(
+                    task=f"Execute {task.task_type} with parameters: {task.parameters}",
+                    context={"task_type": task.task_type, "parameters": task.parameters}
+                )
+                    
+        except Exception as e:
+            logger.error(f"Task execution failed: {e}")
+            raise
+            
+    async def execute_task_async(self, task_id: str, task, task_record: Dict[str, Any]):
+        """Execute task asynchronously and update record"""
+        try:
+            result = await self.execute_task(task_id, task)
+            task_record["status"] = "completed"
+            task_record["result"] = result
+            task_record["completed_at"] = datetime.utcnow().isoformat()
+        except Exception as e:
+            task_record["status"] = "failed"
+            task_record["error"] = str(e)
+            task_record["completed_at"] = datetime.utcnow().isoformat()
+    
+    async def _execute_task_screenshot(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute screenshot task"""
+        logger.info("Taking screenshot")
+        
+        screenshot = self.screenshot_service.capture()
+        
+        return {
+            "task_type": "screenshot",
+            "status": "completed",
+            "screenshot": screenshot,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    async def _execute_task_click(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute click task"""
+        x = params.get("x", 0)
+        y = params.get("y", 0)
+        button = params.get("button", "left")
+        
+        logger.info(f"Clicking at ({x}, {y}) with {button} button")
+        self.automation_service.click(x, y, button)
+        
+        return {
+            "task_type": "click",
+            "status": "completed",
+            "x": x,
+            "y": y,
+            "button": button,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    async def _execute_task_double_click(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute double click task"""
+        x = params.get("x", 0)
+        y = params.get("y", 0)
+        
+        logger.info(f"Double clicking at ({x}, {y})")
+        self.automation_service.double_click(x, y)
+        
+        return {
+            "task_type": "double_click",
+            "status": "completed",
+            "x": x,
+            "y": y,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    async def _execute_task_right_click(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute right click task"""
+        x = params.get("x", 0)
+        y = params.get("y", 0)
+        
+        logger.info(f"Right clicking at ({x}, {y})")
+        self.automation_service.click(x, y, "right")
+        
+        return {
+            "task_type": "right_click",
+            "status": "completed",
+            "x": x,
+            "y": y,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    async def _execute_task_type_text(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute type text task"""
+        text = params.get("text", "")
+        
+        logger.info(f"Typing text: {text[:50]}...")
+        self.automation_service.type_text(text)
+        
+        return {
+            "task_type": "type_text",
+            "status": "completed",
+            "text": text,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    async def _execute_task_key_press(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute key press task"""
+        key = params.get("key", "")
+        modifiers = params.get("modifiers", [])
+        
+        logger.info(f"Pressing key: {key} with modifiers: {modifiers}")
+        
+        if modifiers:
+            self.automation_service.key_combination(modifiers + [key])
+        else:
+            self.automation_service.key_press(key)
+        
+        return {
+            "task_type": "key_press",
+            "status": "completed",
+            "key": key,
+            "modifiers": modifiers,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    async def _execute_task_mouse_move(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute mouse move task"""
+        x = params.get("x", 0)
+        y = params.get("y", 0)
+        duration = params.get("duration", 0)
+        
+        logger.info(f"Moving mouse to ({x}, {y})")
+        
+        if duration > 0:
+            self.automation_service.mouse_move_smooth(x, y, duration)
+        else:
+            self.automation_service.mouse_move(x, y)
+        
+        return {
+            "task_type": "mouse_move",
+            "status": "completed",
+            "x": x,
+            "y": y,
+            "duration": duration,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    async def _execute_task_drag_drop(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute drag and drop task"""
+        start_x = params.get("start_x", 0)
+        start_y = params.get("start_y", 0)
+        end_x = params.get("end_x", 0)
+        end_y = params.get("end_y", 0)
+        duration = params.get("duration", 1.0)
+        
+        logger.info(f"Dragging from ({start_x}, {start_y}) to ({end_x}, {end_y})")
+        self.automation_service.drag_drop(start_x, start_y, end_x, end_y, duration)
+        
+        return {
+            "task_type": "drag_drop",
+            "status": "completed",
+            "start_x": start_x,
+            "start_y": start_y,
+            "end_x": end_x,
+            "end_y": end_y,
+            "duration": duration,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    async def _execute_task_scroll(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute scroll task"""
+        direction = params.get("direction", "down")
+        amount = params.get("amount", 3)
+        
+        logger.info(f"Scrolling {direction} by {amount}")
+        self.automation_service.scroll(direction, amount)
+        
+        return {
+            "task_type": "scroll",
+            "status": "completed",
+            "direction": direction,
+            "amount": amount,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    
+    async def _execute_task_automation_sequence(self, params: Dict[str, Any]) -> Dict[str, Any]:
+        """Execute automation sequence task"""
+        actions = params.get("actions", [])
+        
+        logger.info(f"Executing automation sequence with {len(actions)} actions")
+        
+        results = []
+        for i, action in enumerate(actions):
+            action_type = action.get("type")
+            action_params = action.get("parameters", {})
+            
+            logger.info(f"Executing action {i+1}/{len(actions)}: {action_type}")
+            
+            # Route to appropriate action handler
+            if action_type == "click":
+                await self._execute_task_click(action_params)
+            elif action_type == "type_text":
+                await self._execute_task_type_text(action_params)
+            elif action_type == "key_press":
+                await self._execute_task_key_press(action_params)
+            elif action_type == "mouse_move":
+                await self._execute_task_mouse_move(action_params)
+            elif action_type == "wait":
+                wait_time = action_params.get("duration", 1)
+                await asyncio.sleep(wait_time)
+            
+            results.append({
+                "action": action_type,
+                "status": "completed"
+            })
+        
+        return {
+            "task_type": "automation_sequence",
+            "status": "completed",
+            "actions_executed": len(actions),
+            "results": results,
+            "timestamp": datetime.utcnow().isoformat()
+        }

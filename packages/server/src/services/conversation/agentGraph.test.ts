@@ -343,11 +343,21 @@ describe("ActiveBotGraph", () => {
             graph = new ActiveBotGraph();
             const trigger: ConversationTrigger = { type: "start" };
 
-            // Modify bot role to have different casing
-            mockSwarmState.execution.agents[1].config = BotConfig.parse({
-                ...mockSwarmState.execution.agents[1].config,
-                agentSpec: { role: "ARBITRATOR" },
-            });
+            // Create a fresh copy of the bot with uppercase role
+            const modifiedBot = {
+                ...mockSwarmState.execution.agents[1],
+                config: BotConfig.parse({
+                    ...mockSwarmState.execution.agents[1].config,
+                    agentSpec: { role: "ARBITRATOR" },
+                }),
+            };
+
+            // Replace the bot in the agents array
+            mockSwarmState.execution.agents = [
+                mockSwarmState.execution.agents[0], // bot1 - assistant
+                modifiedBot, // bot2 - arbitrator with uppercase role
+                mockSwarmState.execution.agents[2], // bot3 - leader
+            ];
 
             const result = await graph.selectResponders(mockSwarmState, trigger);
 
@@ -359,10 +369,21 @@ describe("ActiveBotGraph", () => {
             graph = new ActiveBotGraph();
             const trigger: ConversationTrigger = { type: "start" };
 
-            mockSwarmState.execution.agents[1].config = BotConfig.parse({
-                ...mockSwarmState.execution.agents[1].config,
-                agentSpec: { role: "  arbitrator  " },
-            });
+            // Create a fresh copy of the bot with whitespace in role
+            const modifiedBot = {
+                ...mockSwarmState.execution.agents[1],
+                config: BotConfig.parse({
+                    ...mockSwarmState.execution.agents[1].config,
+                    agentSpec: { role: "  arbitrator  " },
+                }),
+            };
+
+            // Replace the bot in the agents array
+            mockSwarmState.execution.agents = [
+                mockSwarmState.execution.agents[0], // bot1 - assistant
+                modifiedBot, // bot2 - arbitrator with whitespace
+                mockSwarmState.execution.agents[2], // bot3 - leader
+            ];
 
             const result = await graph.selectResponders(mockSwarmState, trigger);
 
@@ -768,6 +789,7 @@ describe("AgentGraph integration scenarios", () => {
             type: "user_message",
             message: {
                 config: {
+                    __version: "1.0",
                     respondingBots: ["coordinator"],
                 },
             },
@@ -799,6 +821,7 @@ describe("AgentGraph integration scenarios", () => {
             type: "user_message",
             message: {
                 config: {
+                    __version: "1.0",
                     respondingBots: ["researcher", "writer"],
                 },
             },

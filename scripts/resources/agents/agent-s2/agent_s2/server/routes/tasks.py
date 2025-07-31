@@ -7,7 +7,6 @@ from fastapi import APIRouter, Request, HTTPException, BackgroundTasks, Query
 
 from ..models.requests import TaskRequest
 from ..models.responses import TaskResponse
-from ..services.task_executor import TaskExecutor
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -45,8 +44,12 @@ async def execute_task(
     }
     app_state["tasks"][task_id] = task_record
     
-    # Initialize task executor
-    executor = TaskExecutor(app_state)
+    # Get AI executor from AI handler
+    ai_handler = app_state.get("ai_handler")
+    if not ai_handler or not ai_handler.initialized:
+        raise HTTPException(status_code=503, detail="AI handler not initialized")
+    
+    executor = ai_handler.executor
     
     if task.async_execution:
         # Execute in background
@@ -189,7 +192,7 @@ async def cancel_task(task_id: str, request: Request):
     }
 
 
-@router.delete("")
+@router.delete("/")
 async def clear_tasks(
     request: Request,
     status: Optional[str] = Query(default=None, description="Clear only tasks with this status")

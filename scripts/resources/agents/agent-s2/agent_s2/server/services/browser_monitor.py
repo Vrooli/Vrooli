@@ -129,26 +129,6 @@ class BrowserSecurityMonitor:
         # In a real implementation, the proxy would call this method
         # with captured navigation events
         return
-                
-            # New navigation detected
-            logger.info(f"Navigation detected: {current_url}")
-            event = NavigationEvent(
-                url=current_url,
-                timestamp=datetime.now()
-            )
-            
-            # Add to history
-            self.navigation_history.append(event)
-            if len(self.navigation_history) > self.max_history:
-                self.navigation_history.pop(0)
-                
-            # Validate navigation
-            await self._validate_navigation(event)
-            
-            self.last_url = current_url
-            
-        except Exception as e:
-            logger.debug(f"Failed to check navigation: {e}")
             
     async def _validate_navigation(self, event: NavigationEvent):
         """Validate a navigation event"""

@@ -94,14 +94,14 @@ describe("formatNotificationEmail edge cases", () => {
         expect(result).toContain("<h1></h1>");
         expect(result).toContain("Body text");
     });
-    
+
     it("should handle empty body gracefully", () => {
         const result = formatNotificationEmail(mockTemplate, "Title", "");
         expect(result).toContain("<h1>Title</h1>");
         expect(result).toContain("<p style=");
         expect(result).toContain("</p>");
     });
-    
+
     it("should throw on missing template", () => {
         expect(() => formatNotificationEmail("", "Title", "Body"))
             .toThrow("Email template is required");
@@ -134,12 +134,12 @@ describe("formatNotificationEmail edge cases", () => {
 
 describe("validateEmailTemplate", () => {
     it("should validate template with all placeholders", () => {
-        const template = "<html>\${TITLE}\${BODY}\${ACTION_BUTTON}\${YEAR}</html>";
+        const template = "<html>${TITLE}${BODY}${ACTION_BUTTON}${YEAR}</html>";
         const validation = validateEmailTemplate(template);
         expect(validation.isValid).toBe(true);
         expect(validation.missingPlaceholders).toHaveLength(0);
     });
-    
+
     it("should identify missing placeholders", () => {
         const badTemplate = "<html><body>Missing placeholders</body></html>";
         const validation = validateEmailTemplate(badTemplate);
@@ -151,7 +151,7 @@ describe("validateEmailTemplate", () => {
     });
 
     it("should identify partially missing placeholders", () => {
-        const partialTemplate = "<html>\${TITLE}Only title</html>";
+        const partialTemplate = "<html>${TITLE}Only title</html>";
         const validation = validateEmailTemplate(partialTemplate);
         expect(validation.isValid).toBe(false);
         expect(validation.missingPlaceholders).toHaveLength(3);

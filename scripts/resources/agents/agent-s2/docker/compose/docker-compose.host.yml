@@ -24,6 +24,18 @@ services:
       # Application restrictions
       - AGENT_S2_HOST_APPS=${AGENT_S2_HOST_APPS:-*}
       
+      # Inherit user environment
+      - USER=${USER:-agents2}
+      - HOME=/home/agents2
+      - XDG_RUNTIME_DIR=/tmp/runtime-agents2
+      
+      # X11 authentication  
+      - XAUTHORITY=/tmp/.Xauthority
+      
+      # Desktop integration
+      - XDG_CURRENT_DESKTOP=${XDG_CURRENT_DESKTOP:-}
+      - DESKTOP_SESSION=${DESKTOP_SESSION:-}
+      
     volumes:
       # X11 socket for host display access (when enabled)
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
@@ -64,19 +76,6 @@ services:
     # Network configuration
     network_mode: host  # Use host networking for full access
     
-    # Additional environment variables for host integration
-    environment:
-      # Inherit user environment
-      - USER=${USER:-agents2}
-      - HOME=/home/agents2
-      - XDG_RUNTIME_DIR=/tmp/runtime-agents2
-      
-      # X11 authentication  
-      - XAUTHORITY=/tmp/.Xauthority
-      
-      # Desktop integration
-      - XDG_CURRENT_DESKTOP=${XDG_CURRENT_DESKTOP:-}
-      - DESKTOP_SESSION=${DESKTOP_SESSION:-}
       
     # Override healthcheck for host mode
     healthcheck:

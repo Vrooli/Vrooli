@@ -251,3 +251,10 @@ agents2::get_status_json() {
 }
 EOF
 }
+
+# Export functions for subshell availability
+export -f agents2::show_status
+export -f agents2::show_access_info
+export -f agents2::check_ports
+export -f agents2::show_info
+export -f agents2::get_status_json

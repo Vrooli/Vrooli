@@ -14,13 +14,15 @@ from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
 import base64
 import logging
 
+from ..config import Config
+
 logger = logging.getLogger(__name__)
 
 
 class SessionManager:
     """Manages browser session data and state persistence"""
     
-    def __init__(self, storage_path: str = "/home/agents2/.agent-s2/sessions", 
+    def __init__(self, storage_path: Optional[str] = None, 
                  encryption_enabled: bool = True,
                  ttl_days: int = 30):
         """Initialize session manager
@@ -30,7 +32,7 @@ class SessionManager:
             encryption_enabled: Whether to encrypt session data
             ttl_days: Time to live for sessions in days
         """
-        self.storage_path = Path(storage_path)
+        self.storage_path = Path(storage_path if storage_path is not None else Config.SESSION_STORAGE_PATH)
         self.encryption_enabled = encryption_enabled
         self.ttl_days = ttl_days
         

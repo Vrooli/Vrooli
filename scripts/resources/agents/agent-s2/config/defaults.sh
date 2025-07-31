@@ -167,3 +167,6 @@ agents2::export_config() {
     export AGENTS2_INITIALIZATION_WAIT
     export AGENTS2_MEMORY_LIMIT AGENTS2_CPU_LIMIT AGENTS2_SHM_SIZE
 }
+
+# Export function for subshell availability
+export -f agents2::export_config

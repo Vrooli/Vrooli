@@ -52,14 +52,14 @@ class EnvironmentDiscovery:
             },
             "window_manager": {
                 "type": "fluxbox",
-                "config_path": "/home/agents2/.fluxbox",
+                "config_path": Config.FLUXBOX_CONFIG_PATH,
                 "shortcuts": self._get_fluxbox_shortcuts(),
                 "menu_system": "minimal"
             },
             "applications": self._discover_sandbox_applications(),
             "filesystem": {
                 "access_level": "container_only",
-                "writable_dirs": ["/tmp", "/home/agents2", "/opt/agent-s2"],
+                "writable_dirs": [Config.TEMP_DIR, Config.HOME_DIR, "/opt/agent-s2"],
                 "output_dir": Config.OUTPUT_DIR
             },
             "network": {

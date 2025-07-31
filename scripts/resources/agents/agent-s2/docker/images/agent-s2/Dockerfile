@@ -92,17 +92,17 @@ WORKDIR /home/agents2
 
 # Environment variables
 ENV DISPLAY=:99
-ENV AGENTS2_USER=agents2
+ENV AGENT_S2_USER=agents2
 ENV HOME=/home/agents2
 ENV XDG_RUNTIME_DIR=/tmp/runtime-agents2
 ENV PYTHONPATH=/opt/agent-s2:$PYTHONPATH
 
 # AI Configuration environment variables
-ENV AGENTS2_LLM_PROVIDER=ollama
-ENV AGENTS2_LLM_MODEL=llama3.2-vision:11b
-ENV AGENTS2_ENABLE_AI=true
-ENV AGENTS2_ENABLE_SEARCH=false
-ENV AGENTS2_TIMEOUT=300
+ENV AGENT_S2_AI_PROVIDER=ollama
+ENV AGENT_S2_AI_MODEL=llama3.2-vision:11b
+ENV AGENT_S2_AI_ENABLED=true
+ENV AGENT_S2_SEARCH_ENABLED=false
+ENV AGENT_S2_AI_TIMEOUT=300
 
 # Create runtime directory
 RUN mkdir -p /tmp/runtime-agents2 && chmod 700 /tmp/runtime-agents2

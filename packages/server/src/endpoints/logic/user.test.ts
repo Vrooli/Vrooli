@@ -1,16 +1,16 @@
-import { type FindByIdOrHandleInput, type UserSearchInput, type UserUpdateInput, SEEDED_PUBLIC_IDS, generatePK } from "@vrooli/shared";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi, test } from "vitest";
-import { assertRequiresAuth, AUTH_SCENARIOS, assertApiKeyRequired } from "../../__test/authTestUtils.js";
+import { type BotUpdateInput, type FindByPublicIdInput, generatePK, ModelStrategy, type ProfileUpdateInput, SEEDED_PUBLIC_IDS, type UserSearchInput } from "@vrooli/shared";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, test, vi } from "vitest";
+import { assertRequiresAuth } from "../../__test/authTestUtils.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
-import { CacheService } from "../../redisConn.js";
 import { logger } from "../../events/logger.js";
+import { CacheService } from "../../redisConn.js";
+import { user_botCreateOne } from "../generated/user_botCreateOne.js";
+import { user_botUpdateOne } from "../generated/user_botUpdateOne.js";
 import { user_findMany } from "../generated/user_findMany.js";
 import { user_findOne } from "../generated/user_findOne.js";
 import { user_profileUpdate } from "../generated/user_profileUpdate.js";
-import { user_botCreateOne } from "../generated/user_botCreateOne.js";
-import { user_botUpdateOne } from "../generated/user_botUpdateOne.js";
 import { user } from "./user.js";
 // Import database fixtures for seeding
 import { UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
@@ -51,7 +51,7 @@ describe("EndpointsUser", () => {
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","session"],
+            tables: ["user", "user_auth", "email", "session"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
@@ -79,7 +79,7 @@ describe("EndpointsUser", () => {
 
                 const { req, res } = await mockLoggedOutSession();
 
-                const input = { id: testUser.id.toString() };
+                const input = { publicId: testUser.publicId };
                 const result = await user.findOne({ input }, { req, res }, user_findOne);
 
                 expect(result).not.toBeNull();
@@ -103,7 +103,7 @@ describe("EndpointsUser", () => {
                     id: testUser.id.toString(),
                 });
 
-                const input: FindByIdOrHandleInput = { id: testUser.id.toString() };
+                const input: FindByPublicIdInput = { publicId: testUser.publicId };
                 const result = await user.findOne({ input }, { req, res }, user_findOne);
 
                 expect(result).not.toBeNull();
@@ -128,7 +128,7 @@ describe("EndpointsUser", () => {
                     id: privateUser.id.toString(),
                 });
 
-                const input: FindByIdOrHandleInput = { id: privateUser.id.toString() };
+                const input: FindByPublicIdInput = { publicId: privateUser.publicId };
                 const result = await user.findOne({ input }, { req, res }, user_findOne);
 
                 expect(result).not.toBeNull();
@@ -158,7 +158,7 @@ describe("EndpointsUser", () => {
                     id: testUser1.id.toString(),
                 });
 
-                const input: FindByIdOrHandleInput = { id: testUser2.id.toString() };
+                const input: FindByPublicIdInput = { publicId: testUser2.publicId };
                 const result = await user.findOne({ input }, { req, res }, user_findOne);
 
                 expect(result).not.toBeNull();
@@ -189,7 +189,7 @@ describe("EndpointsUser", () => {
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 
-                const input = { id: testUser2.id.toString() };
+                const input = { publicId: testUser2.publicId };
                 const result = await user.findOne({ input }, { req, res }, user_findOne);
 
                 expect(result).not.toBeNull();
@@ -222,7 +222,7 @@ describe("EndpointsUser", () => {
                 const testUser = { ...loggedInUserNoPremiumData(), id: testUser1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                const input = { id: testUser2.id.toString() };
+                const input = { publicId: testUser2.publicId };
 
                 await expect(async () => {
                     await user.findOne({ input }, { req, res }, user_findOne);
@@ -368,8 +368,12 @@ describe("EndpointsUser", () => {
                     handle: "test-bot-" + Math.floor(Math.random() * 1000),
                     botSettings: {
                         __version: "1.0",
-                        model: "gpt-3.5-turbo",
-                        systemPrompt: "You are a helpful assistant.",
+                        modelConfig: {
+                            strategy: ModelStrategy.FIXED,
+                            preferredModel: "gpt-3.5-turbo",
+                            offlineOnly: false,
+                        },
+                        resources: [],
                     },
                 });
                 await assertRequiresAuth(user.botCreateOne, input, user_botCreateOne);
@@ -403,8 +407,12 @@ describe("EndpointsUser", () => {
                     isPrivate: true,
                     botSettings: {
                         __version: "1.0",
-                        model: "gpt-4",
-                        systemPrompt: "You are a specialized bot created via API.",
+                        modelConfig: {
+                            strategy: ModelStrategy.FIXED,
+                            preferredModel: "gpt-4",
+                            offlineOnly: false,
+                        },
+                        resources: [],
                     },
                 });
 
@@ -440,8 +448,12 @@ describe("EndpointsUser", () => {
                     handle: "test-bot-" + Math.floor(Math.random() * 1000),
                     botSettings: {
                         __version: "1.0",
-                        model: "gpt-3.5-turbo",
-                        systemPrompt: "You are a helpful assistant.",
+                        modelConfig: {
+                            strategy: ModelStrategy.FIXED,
+                            preferredModel: "gpt-3.5-turbo",
+                            offlineOnly: false,
+                        },
+                        resources: [],
                     },
                 });
 
@@ -490,7 +502,12 @@ describe("EndpointsUser", () => {
                     handle: "test-bot-" + Math.floor(Math.random() * 1000),
                     botSettings: {
                         __version: "1.0",
-                        model: "gpt-3.5-turbo",
+                        modelConfig: {
+                            strategy: ModelStrategy.FIXED,
+                            preferredModel: "gpt-3.5-turbo",
+                            offlineOnly: false,
+                        },
+                        resources: [],
                     },
                 });
 
@@ -502,7 +519,7 @@ describe("EndpointsUser", () => {
             it("rejects admin ID", async () => {
                 // Create test admin user
                 const adminUser = await createTestAdminUser();
-                
+
                 // Create test user
                 const testUserRecord = await DbProvider.get().user.create({
                     data: UserDbFactory.createWithAuth({
@@ -521,7 +538,12 @@ describe("EndpointsUser", () => {
                     handle: "admin-bot-" + Math.floor(Math.random() * 1000),
                     botSettings: {
                         __version: "1.0",
-                        model: "gpt-3.5-turbo",
+                        modelConfig: {
+                            strategy: ModelStrategy.FIXED,
+                            preferredModel: "gpt-3.5-turbo",
+                            offlineOnly: false,
+                        },
+                        resources: [],
                     },
                 });
 
@@ -597,8 +619,8 @@ describe("EndpointsUser", () => {
         describe("authentication", () => {
             // Hybrid approach: use direct assertion for simple auth check
             it("not logged in", async () => {
-                const input: UserUpdateInput = {
-                    id: generatePK(),
+                const input: BotUpdateInput = {
+                    id: generatePK().toString(),
                     name: "Updated Bot Name",
                 };
                 await assertRequiresAuth(user.botUpdateOne, input, user_botUpdateOne);
@@ -633,7 +655,7 @@ describe("EndpointsUser", () => {
                 await user.botCreateOne({ input: botData }, { req, res }, user_botCreateOne);
 
                 // Update the bot
-                const updateInput: UserUpdateInput = {
+                const updateInput: BotUpdateInput = {
                     id: botData.id,
                     name: "Updated Bot Name",
                     isPrivate: true,
@@ -649,7 +671,7 @@ describe("EndpointsUser", () => {
                 expect(result.id).toBe(botData.id);
                 expect(result.name).toBe("Updated Bot Name");
                 expect(result.isBot).toBe(true);
-                
+
                 // Verify updates in database
                 const updatedBot = await DbProvider.get().user.findUnique({
                     where: { id: botData.id },
@@ -700,7 +722,7 @@ describe("EndpointsUser", () => {
                 const user2Session = { ...loggedInUserNoPremiumData(), id: testUser2.id.toString() };
                 const { req: req2, res: res2 } = await mockAuthenticatedSession(user2Session);
 
-                const updateInput: UserUpdateInput = {
+                const updateInput: BotUpdateInput = {
                     id: botData.id,
                     name: "Hacked Bot Name",
                 };
@@ -716,8 +738,8 @@ describe("EndpointsUser", () => {
         describe("authentication", () => {
             // Hybrid approach: use direct assertion for simple auth check
             it("not logged in", async () => {
-                const input: UserUpdateInput = {
-                    id: generatePK(),
+                const input: ProfileUpdateInput = {
+                    id: generatePK().toString(),
                     name: "Updated Name",
                 };
                 await assertRequiresAuth(user.profileUpdate, input, user_profileUpdate);
@@ -738,7 +760,7 @@ describe("EndpointsUser", () => {
                 const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                const updateInput: UserUpdateInput = {
+                const updateInput: ProfileUpdateInput = {
                     id: testUserRecord.id.toString(),
                     name: "Updated Name",
                     bio: "Updated bio",
@@ -776,7 +798,7 @@ describe("EndpointsUser", () => {
                 const testUser = { ...loggedInUserNoPremiumData(), id: testUser1.id.toString() };
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
-                const updateInput: UserUpdateInput = {
+                const updateInput: ProfileUpdateInput = {
                     id: testUser2.id.toString(), // Trying to update user2
                     name: "Hacked Name",
                 };

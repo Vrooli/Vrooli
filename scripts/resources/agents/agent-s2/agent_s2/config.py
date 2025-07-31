@@ -5,8 +5,11 @@ All configuration values can be overridden via environment variables.
 """
 
 import os
+import logging
 from typing import Optional, Dict, List, Any
 from enum import Enum
+
+logger = logging.getLogger(__name__)
 
 
 class AgentMode(Enum):
@@ -34,19 +37,59 @@ class Config:
     VNC_PORT: int = int(os.getenv("AGENT_S2_VNC_PORT", "5900"))
     
     # AI Configuration
-    AI_ENABLED: bool = os.getenv("AGENTS2_ENABLE_AI", "true").lower() == "true"
-    AI_PROVIDER: str = os.getenv("AGENTS2_LLM_PROVIDER", "ollama")
-    AI_API_URL: str = os.getenv("AGENTS2_OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/") + "/api/generate"
-    AI_MODEL: str = os.getenv("AGENTS2_LLM_MODEL", "llama3.2-vision:11b")
-    AI_TIMEOUT: int = int(os.getenv("AGENTS2_TIMEOUT", "120"))
+    AI_ENABLED: bool = os.getenv("AGENT_S2_AI_ENABLED", "true").lower() == "true"
+    AI_PROVIDER: str = os.getenv("AGENT_S2_AI_PROVIDER", "ollama")
+    AI_API_URL: str = os.getenv("AGENT_S2_AI_API_URL", "http://localhost:11434").rstrip("/")
+    AI_MODEL: str = os.getenv("AGENT_S2_AI_MODEL", "llama3.2-vision:11b")
+    AI_TIMEOUT: int = int(os.getenv("AGENT_S2_AI_TIMEOUT", "120"))
     
     # Output Configuration
     OUTPUT_DIR: str = os.getenv("AGENT_S2_OUTPUT_DIR", "/tmp/agent-s2-outputs")
     MAX_OUTPUT_SIZE_MB: int = int(os.getenv("AGENT_S2_MAX_OUTPUT_SIZE_MB", "100"))
+    TEMP_DIR: str = os.getenv("AGENT_S2_TEMP_DIR", "/tmp")
+    SCREENSHOT_SAVE_DIR: str = os.getenv("AGENT_S2_SCREENSHOT_SAVE_DIR", "/tmp")
     
     # Security Configuration
     ENABLE_CORS: bool = os.getenv("AGENT_S2_ENABLE_CORS", "true").lower() == "true"
     CORS_ORIGINS: list = os.getenv("AGENT_S2_CORS_ORIGINS", "*").split(",")
+    
+    # Advanced Security Configuration
+    VIRUSTOTAL_API_KEY: Optional[str] = os.getenv("AGENT_S2_VIRUSTOTAL_API_KEY", None)
+    SECURITY_PROFILE: str = os.getenv("AGENT_S2_SECURITY_PROFILE", "moderate")
+    CACHE_REPUTATION_RESULTS: bool = os.getenv("AGENT_S2_CACHE_REPUTATION_RESULTS", "true").lower() == "true"
+    REPUTATION_CACHE_TTL_HOURS: int = int(os.getenv("AGENT_S2_REPUTATION_CACHE_TTL", "24"))
+    ENABLE_BROWSER_MONITORING: bool = os.getenv("AGENT_S2_ENABLE_BROWSER_MONITORING", "true").lower() == "true"
+    BLOCK_UNSAFE_NAVIGATION: bool = os.getenv("AGENT_S2_BLOCK_UNSAFE_NAVIGATION", "true").lower() == "true"
+    INCIDENT_LOG_RETENTION_DAYS: int = int(os.getenv("AGENT_S2_INCIDENT_LOG_RETENTION_DAYS", "30"))
+    
+    # Security Profiles
+    SECURITY_PROFILES: Dict[str, Dict[str, Any]] = {
+        "strict": {
+            "allowed_domains": [
+                "wikipedia.org", "*.wikipedia.org",
+                "github.com", "*.github.com",
+                "stackoverflow.com", "docs.python.org",
+                "developer.mozilla.org", "google.com"
+            ],
+            "blocked_domains": ["*"],
+            "require_https": True,
+            "check_reputation": True
+        },
+        "moderate": {
+            "blocked_domains": [
+                "*.tk", "*.ml", "*.ga", "*.cf",
+                "bit.ly", "tinyurl.com", "goo.gl",
+                "*.click", "*.download", "*.loan"
+            ],
+            "require_https": False,
+            "check_reputation": True
+        },
+        "permissive": {
+            "blocked_domains": [],
+            "require_https": False,
+            "check_reputation": False
+        }
+    }
     
     # Performance Configuration
     SCREENSHOT_CACHE_TTL: int = int(os.getenv("AGENT_S2_SCREENSHOT_CACHE_TTL", "0"))  # seconds
@@ -80,6 +123,12 @@ class Config:
     HOST_FORBIDDEN_PATHS: List[str] = ["/etc", "/var", "/usr", "/boot", "/sys", "/proc"]
     HOST_MAX_MOUNT_SIZE_GB: int = int(os.getenv("AGENT_S2_HOST_MAX_MOUNT_SIZE_GB", "10"))
     HOST_AUDIT_LOGGING: bool = os.getenv("AGENT_S2_HOST_AUDIT_LOGGING", "true").lower() == "true"
+    
+    # Path Configuration
+    HOME_DIR: str = os.getenv("AGENT_S2_HOME_DIR", "/home/agents2")
+    SHORTCUTS_PATH: str = os.getenv("AGENT_S2_SHORTCUTS_PATH", "/home/agents2/shortcuts")
+    FIREFOX_USER_JS_PATH: str = os.getenv("AGENT_S2_FIREFOX_USER_JS_PATH", "/home/agents2/.mozilla/firefox/agent-s2/user.js")
+    FLUXBOX_CONFIG_PATH: str = os.getenv("AGENT_S2_FLUXBOX_CONFIG_PATH", "/home/agents2/.fluxbox")
     
     # Stealth Mode Configuration
     STEALTH_MODE_ENABLED: bool = os.getenv("AGENT_S2_STEALTH_MODE_ENABLED", "true").lower() == "true"
@@ -229,10 +278,41 @@ class Config:
         # Update environment variable for persistence across restarts
         os.environ["AGENT_S2_MODE"] = new_mode.value
         cls.CURRENT_MODE = new_mode
+    
+    @classmethod
+    def get_security_profile(cls, profile_name: Optional[str] = None) -> Dict[str, Any]:
+        """Get security profile configuration"""
+        profile_name = profile_name or cls.SECURITY_PROFILE
+        
+        if profile_name not in cls.SECURITY_PROFILES:
+            import warnings
+            warnings.warn(f"Unknown profile '{profile_name}', using 'moderate'", UserWarning)
+            profile_name = "moderate"
+            
+        return cls.SECURITY_PROFILES[profile_name].copy()
+    
+    @classmethod
+    def get_reputation_config(cls) -> Dict[str, Any]:
+        """Get reputation checking configuration"""
+        return {
+            "api_key": cls.VIRUSTOTAL_API_KEY,
+            "cache_enabled": cls.CACHE_REPUTATION_RESULTS,
+            "cache_ttl_hours": cls.REPUTATION_CACHE_TTL_HOURS,
+            "check_reputation": True  # Can be overridden by profile
+        }
+    
+    @classmethod
+    def get_monitoring_config(cls) -> Dict[str, Any]:
+        """Get browser monitoring configuration"""
+        return {
+            "enabled": cls.ENABLE_BROWSER_MONITORING,
+            "block_unsafe": cls.BLOCK_UNSAFE_NAVIGATION,
+            "log_retention_days": cls.INCIDENT_LOG_RETENTION_DAYS
+        }
 
 
 # Validate configuration on module import
 try:
     Config.validate()
 except ValueError as e:
-    print(f"Warning: {e}")
+    logger.warning(f"Configuration validation failed: {e}")

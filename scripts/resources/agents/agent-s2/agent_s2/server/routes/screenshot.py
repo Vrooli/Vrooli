@@ -15,7 +15,6 @@ router = APIRouter()
 screenshot_service = ScreenshotService()
 
 
-@router.post("")
 @router.post("/")
 async def take_screenshot(
     format: str = Query(default="png", description="Image format (png or jpeg)"),

@@ -6,6 +6,8 @@ from typing import Dict, Any, Optional, List
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
+from ..config import Config
+
 
 @dataclass
 class StealthConfig:
@@ -25,7 +27,7 @@ class StealthConfig:
     # Session persistence
     session_data_persistence: bool = True
     session_state_persistence: bool = False
-    session_storage_path: str = "/home/agents2/.agent-s2/sessions"
+    session_storage_path: str = Config.SESSION_STORAGE_PATH if 'Config' in globals() else "/home/agents2/.agent-s2/sessions"
     session_encryption: bool = True
     session_ttl_days: int = 30
     

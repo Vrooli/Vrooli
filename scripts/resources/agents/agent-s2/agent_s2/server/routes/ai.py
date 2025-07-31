@@ -2,6 +2,7 @@
 
 import os
 import logging
+from datetime import datetime
 from fastapi import APIRouter, Request, HTTPException, BackgroundTasks
 
 from ..models.requests import AICommandRequest, AIPlanRequest, AIAnalyzeRequest, AIActionRequest
@@ -10,8 +11,6 @@ from ..models.responses import AICommandResponse, AIPlanResponse, AIAnalyzeRespo
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Store last AI interaction for debugging
-last_ai_debug = {}
 
 
 def get_ai_handler(request: Request):
@@ -60,11 +59,6 @@ def get_ai_handler(request: Request):
     return ai_handler
 
 
-@router.get("/debug/last")
-async def get_last_debug():
-    """Get debug info from last AI interaction"""
-    global last_ai_debug
-    return {"debug": last_ai_debug}
 
 
 @router.post("/action", response_model=AIActionResponse)
@@ -91,14 +85,6 @@ async def ai_action(request: AIActionRequest, req: Request):
             context=context
         )
         
-        # Store debug info globally
-        global last_ai_debug
-        last_ai_debug = {
-            "task": request.task,
-            "context": context,
-            "result_debug": result.get("debug_info", {}),
-            "timestamp": os.popen("date").read().strip()
-        }
         
         return AIActionResponse(
             success=result.get("success", False),
@@ -423,5 +409,3 @@ async def ai_diagnostics(req: Request):
     return diagnostics
 
 
-# Import datetime for task timestamps
-from datetime import datetime

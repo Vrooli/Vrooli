@@ -14,7 +14,7 @@ try:
     # Try relative imports first (when loaded as module)
     from .url_security import URLValidator, ValidationResult, TypeActionType, get_security_config
     from .reputation import DomainReputationService, ReputationResult
-    from ..config.security_config import SecurityConfig
+    from ...config import Config
 except ImportError:
     # Fall back to absolute imports (when loaded as mitmproxy script)
     import sys
@@ -23,7 +23,7 @@ except ImportError:
     sys.path.insert(0, '/opt/agent-s2')
     from agent_s2.server.services.url_security import URLValidator, ValidationResult, TypeActionType, get_security_config
     from agent_s2.server.services.reputation import DomainReputationService, ReputationResult
-    from agent_s2.server.config.security_config import SecurityConfig
+    from agent_s2.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +34,11 @@ class SecurityProxyAddon:
     def __init__(self):
         """Initialize the security proxy addon"""
         self.validator = URLValidator()
-        self.security_config = SecurityConfig()
+        # Use the main Config class for security configuration
+        self.config = Config
         
         # Initialize reputation service with API key from env/config
-        api_key = os.environ.get("AGENT_S2_VIRUSTOTAL_API_KEY") or \
-                  self.security_config.get_api_key("virustotal")
+        api_key = self.config.VIRUSTOTAL_API_KEY
         
         self.reputation_service = DomainReputationService(
             virustotal_api_key=api_key,

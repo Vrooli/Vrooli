@@ -5,11 +5,12 @@
  * This is critical infrastructure for bot selection and event handling.
  */
 
-import { describe, it, expect, beforeEach, vi, beforeAll } from "vitest";
-import { BotPriorityCalculator, DefaultDecisionMaker } from "./BotPriority.js";
-import { PRIORITY_WEIGHTS, ROLE_WEIGHTS, PATTERN_SCORING } from "./constants.js";
-import type { BotParticipant, ServiceEvent, BotDecisionContext } from "./types.js";
 import type { BotConfigObject } from "@vrooli/shared";
+import { generatePK } from "@vrooli/shared";
+import { beforeAll, describe, expect, it, vi } from "vitest";
+import { BotPriorityCalculator, DefaultDecisionMaker } from "./BotPriority.js";
+import { PATTERN_SCORING, PRIORITY_WEIGHTS, ROLE_WEIGHTS } from "./constants.js";
+import type { BotDecisionContext, BotParticipant, ServiceEvent } from "./types.js";
 
 // Mock logger to suppress output during tests
 vi.mock("../../events/logger.js", () => ({
@@ -39,26 +40,32 @@ describe("BotPriority", () => {
     });
 
     // Helper function to create test bot participants
-    const createTestBot = (overrides: Partial<BotParticipant> = {}): BotParticipant => ({
-        id: "bot-123",
-        name: "Test Bot",
-        state: "ready",
-        config: {
-            agentSpec: {
-                behaviors: [],
-            },
-        } as BotConfigObject,
-        ...overrides,
-    });
+    function createTestBot(overrides: Partial<BotParticipant> = {}): BotParticipant {
+        return {
+            id: generatePK().toString(),
+            name: "Test Bot",
+            state: "ready",
+            config: {
+                __version: "1.0",
+                resources: [],
+                agentSpec: {
+                    behaviors: [],
+                },
+            } as BotConfigObject,
+            ...overrides,
+        };
+    }
 
     // Helper function to create test events
-    const createTestEvent = (overrides: Partial<ServiceEvent> = {}): ServiceEvent => ({
-        id: "event-123",
-        type: "finance/transaction/completed",
-        timestamp: new Date(),
-        data: { test: "data" },
-        ...overrides,
-    });
+    function createTestEvent(overrides: Partial<ServiceEvent> = {}): ServiceEvent {
+        return {
+            id: generatePK().toString(),
+            type: "finance/transaction/completed",
+            timestamp: new Date(),
+            data: { test: "data" },
+            ...overrides,
+        };
+    }
 
     describe("BotPriorityCalculator", () => {
         describe("calculatePriority", () => {
@@ -237,7 +244,7 @@ describe("BotPriority", () => {
 
                 const priority = calculator.calculatePriority(bot, event);
 
-                const expectedBase = 
+                const expectedBase =
                     3 * PRIORITY_WEIGHTS.CONFIG_PRIORITY +
                     ROLE_WEIGHTS.LEADER * PRIORITY_WEIGHTS.ROLE_WEIGHT;
 
@@ -321,6 +328,8 @@ describe("BotPriority", () => {
                 const bot = createTestBot({
                     role: "arbitrator",
                     config: {
+                        __version: "1.0",
+                        resources: [],
                         agentSpec: {
                             behaviors: [],
                         },
@@ -535,7 +544,7 @@ describe("BotPriority", () => {
         });
 
         describe("pattern matching", () => {
-            const testPatternMatching = async (pattern: string, eventType: string, shouldMatch: boolean) => {
+            async function testPatternMatching(pattern: string, eventType: string, shouldMatch: boolean) {
                 const bot = createTestBot({
                     config: {
                         agentSpec: {
@@ -553,7 +562,7 @@ describe("BotPriority", () => {
                 const decision = await decisionMaker.decide(context);
 
                 expect(decision.shouldHandle).toBe(shouldMatch);
-            };
+            }
 
             it("should match exact patterns", async () => {
                 await testPatternMatching("finance/transaction/completed", "finance/transaction/completed", true);

@@ -10,18 +10,19 @@ import json
 import time
 from PIL import Image
 import io
+import sys
+import os
 
-API_BASE_URL = "http://localhost:4113"
+# Add parent directory to path to import constants
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+from constants import AGENT_S2_BASE_URL, SCREENSHOTS_DIR
+
+API_BASE_URL = AGENT_S2_BASE_URL
 
 def save_screenshot(image_data, filename):
     """Save base64 image data to file"""
-    # Ensure test-outputs directory exists
-    import os
-    output_dir = "../../testing/test-outputs/screenshots"
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # Create full path
-    filepath = os.path.join(output_dir, filename)
+    # Create full path using constants
+    filepath = os.path.join(SCREENSHOTS_DIR, filename)
     
     if image_data.startswith("data:image"):
         # Remove data URL prefix
@@ -204,7 +205,7 @@ def main():
     
     print("\n" + "="*60)
     print("✅ Screenshot examples completed!")
-    print("Check the generated image files in ../../testing/test-outputs/screenshots/")
+    print(f"Check the generated image files in {SCREENSHOTS_DIR}")
     print("="*60)
 
 if __name__ == "__main__":

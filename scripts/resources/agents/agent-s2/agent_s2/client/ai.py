@@ -5,10 +5,13 @@ Specialized client for AI-driven automation.
 
 from typing import Optional, List, Dict, Any, Union
 import json
+import logging
 
 from .base import AgentS2Client
 from .screenshot import ScreenshotClient
 from .automation import AutomationClient
+
+logger = logging.getLogger(__name__)
 
 
 class AIClient:
@@ -146,7 +149,7 @@ class AIClient:
         context = {"previous_steps": []}
         
         for i, step in enumerate(steps):
-            print(f"Step {i+1}/{len(steps)}: {step}")
+            logger.info(f"Executing step {i+1}/{len(steps)}: {step}")
             result = self.perform_task(step, context)
             results.append(result)
             

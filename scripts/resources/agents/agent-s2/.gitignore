@@ -71,3 +71,6 @@ config/local.sh
 # Logs
 *.log
 logs/
+
+# Backup files
+*.backup.auto

@@ -188,3 +188,14 @@ agents2::get_info() {
 }
 EOF
 }
+
+# Export functions for subshell availability
+export -f agents2::container_exists
+export -f agents2::is_running
+export -f agents2::image_exists
+export -f agents2::is_healthy
+export -f agents2::get_health_status
+export -f agents2::create_directories
+export -f agents2::save_env_config
+export -f agents2::wait_for_ready
+export -f agents2::get_info

@@ -21,6 +21,14 @@ setup() {
     # Setup standard mocks
     setup_standard_mocks
     
+    # Load messages.sh for each test (required for bats isolation)
+    AGENTS2_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
+    source "${AGENTS2_DIR}/config/messages.sh"
+    
+    # Load messages.sh for each test (required for bats isolation)
+    AGENTS2_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
+    source "${AGENTS2_DIR}/config/messages.sh"
+    
     # Clear any existing messages to test defaults (lightweight per-test)
     unset MSG_INSTALLING MSG_ALREADY_INSTALLED MSG_USE_FORCE
     unset MSG_INSTALL_SUCCESS MSG_INSTALL_FAILED

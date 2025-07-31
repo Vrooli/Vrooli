@@ -7,6 +7,8 @@ from typing import Dict, Any, Optional, List
 from enum import Enum
 from urllib.parse import urlparse, urlunparse
 
+from ...config import Config
+
 logger = logging.getLogger(__name__)
 
 
@@ -297,35 +299,7 @@ class TypeAction:
         return ValidationResult(valid=True)
 
 
-# Security profile configurations
-SECURITY_PROFILES = {
-    "strict": {
-        "allowed_domains": [
-            "wikipedia.org", "*.wikipedia.org",
-            "github.com", "*.github.com", 
-            "stackoverflow.com", "*.stackoverflow.com",
-            "docs.python.org", "developer.mozilla.org",
-            "google.com", "*.google.com"
-        ],
-        "blocked_domains": ["*"],  # Block all except allowed
-        "require_https": True,
-        "check_reputation": True
-    },
-    "moderate": {
-        "blocked_domains": [
-            "*.tk", "*.ml", "*.ga", "*.cf",  # Free TLDs
-            "bit.ly", "tinyurl.com", "goo.gl",  # URL shorteners
-            "*.click", "*.download", "*.loan"  # Suspicious TLDs
-        ],
-        "require_https": False,
-        "check_reputation": True
-    },
-    "permissive": {
-        "blocked_domains": [],
-        "require_https": False,
-        "check_reputation": False
-    }
-}
+# Use security profiles from Config - removed duplicate definition
 
 
 def get_security_config(profile_name: str = "moderate",
@@ -341,7 +315,8 @@ def get_security_config(profile_name: str = "moderate",
     Returns:
         Security configuration dict
     """
-    base_config = SECURITY_PROFILES.get(profile_name, SECURITY_PROFILES["moderate"]).copy()
+    # Get base config from the Config class
+    base_config = Config.get_security_profile(profile_name)
     
     # Merge custom lists
     if custom_allowed:

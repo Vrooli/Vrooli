@@ -114,8 +114,8 @@ class SecurityValidator:
     def _validate_sandbox_path(self, path: str, operation: str) -> Tuple[bool, Optional[str]]:
         """Validate path access for sandbox mode"""
         allowed_prefixes = [
-            "/home/agents2",
-            "/tmp",
+            Config.HOME_DIR,
+            Config.TEMP_DIR,
             "/opt/agent-s2",
             "/usr/share/applications",  # For reading desktop files
             "/usr/share/pixmaps",       # For icons
@@ -151,8 +151,8 @@ class SecurityValidator:
         
         # Allow container paths
         container_paths = [
-            "/home/agents2",
-            "/tmp", 
+            Config.HOME_DIR,
+            Config.TEMP_DIR, 
             "/opt/agent-s2"
         ]
         
