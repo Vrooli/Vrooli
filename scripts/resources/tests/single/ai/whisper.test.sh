@@ -124,9 +124,8 @@ test_whisper_transcription() {
     echo "Sending transcription request..."
     local response
     response=$(curl -s --max-time 30 \
-        -X POST "$WHISPER_BASE_URL/transcribe" \
-        -F "audio=@$test_audio_file" \
-        -F "model=base" 2>/dev/null || echo '{"error":"request_failed"}')
+        -X POST "$WHISPER_BASE_URL/asr?output=json&task=transcribe&language=en" \
+        -F "audio_file=@$test_audio_file" 2>/dev/null || echo '{"error":"request_failed"}')
     
     assert_http_success "$response" "Transcription request successful"
     
@@ -175,8 +174,8 @@ test_whisper_formats() {
             
             local response
             response=$(curl -s --max-time 20 \
-                -X POST "$WHISPER_BASE_URL/transcribe" \
-                -F "audio=@$test_file" 2>/dev/null || echo "failed")
+                -X POST "$WHISPER_BASE_URL/asr?output=json&task=transcribe" \
+                -F "audio_file=@$test_file" 2>/dev/null || echo "failed")
             
             if [[ "$response" != "failed" && -n "$response" ]]; then
                 echo "✓ Format $format supported"
@@ -199,8 +198,8 @@ test_whisper_error_handling() {
     echo "Testing with invalid file..."
     local invalid_response
     invalid_response=$(curl -s --max-time 10 \
-        -X POST "$WHISPER_BASE_URL/transcribe" \
-        -F "audio=invalid-data" 2>/dev/null || echo "connection_failed")
+        -X POST "$WHISPER_BASE_URL/asr" \
+        -F "audio_file=invalid-data" 2>/dev/null || echo "connection_failed")
     
     # Should get some kind of error response
     if [[ "$invalid_response" == "connection_failed" ]]; then
@@ -236,8 +235,8 @@ test_whisper_performance() {
     
     local response
     response=$(curl -s --max-time 45 \
-        -X POST "$WHISPER_BASE_URL/transcribe" \
-        -F "audio=@$test_file" 2>/dev/null || echo "timeout")
+        -X POST "$WHISPER_BASE_URL/asr?output=json&task=transcribe" \
+        -F "audio_file=@$test_file" 2>/dev/null || echo "timeout")
     
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))

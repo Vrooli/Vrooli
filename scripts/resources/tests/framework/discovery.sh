@@ -15,9 +15,26 @@
 #
 # ====================================================================
 
+# Source logging functions first
+SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+RESOURCES_DIR="${RESOURCES_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+if [[ -f "$SCRIPT_DIR/framework/helpers/logging.sh" ]]; then
+    source "$SCRIPT_DIR/framework/helpers/logging.sh"
+fi
+
 # Source helper functions early
 if [[ -f "$SCRIPT_DIR/framework/helpers/metadata.sh" ]]; then
     source "$SCRIPT_DIR/framework/helpers/metadata.sh"
+fi
+
+# Source configuration manager
+if [[ -f "$SCRIPT_DIR/framework/helpers/config-manager.sh" ]]; then
+    source "$SCRIPT_DIR/framework/helpers/config-manager.sh"
+fi
+
+# Source standardized health checker
+if [[ -f "$SCRIPT_DIR/framework/helpers/health-checker.sh" ]]; then
+    source "$SCRIPT_DIR/framework/helpers/health-checker.sh"
 fi
 
 # Discover all available resources from the resource scripts
@@ -36,22 +53,46 @@ discover_all_resources() {
     log_info "Auto-discovering resources..."
     
     local discovery_output
-    discovery_output=$("$RESOURCES_DIR/index.sh" --action list 2>&1) || {
-        log_error "Failed to discover resources"
-        exit 1
-    }
+    local discovery_exit_code
     
-    # Parse the discovery output to extract resource names and status
+    # Use timeout to prevent hanging during discovery
+    local discovery_timeout="${MAX_TOTAL_HEALTH_CHECK_TIME:-60}"
+    if ! discovery_output=$(timeout "$discovery_timeout" "$RESOURCES_DIR/index.sh" --action discover 2>&1); then
+        discovery_exit_code=$?
+        if [[ $discovery_exit_code -eq 124 ]]; then
+            log_error "Discovery process timed out after ${discovery_timeout}s"
+            log_error "This indicates one or more resources are not responding"
+            exit 1
+        fi
+    else
+        discovery_exit_code=0
+    fi
+    
+    # Note: discovery may exit with code 1 due to MCP warnings, but still find resources successfully
+    
+    # Parse the discovery output to extract resource names from running resources
     while IFS= read -r line; do
-        if [[ "$line" =~ ^[[:space:]]*-[[:space:]]+([^:]+):[[:space:]]*(.+)$ ]]; then
+        # Match pattern: [SUCCESS] ✅ resource_name is running on port XXXX
+        if [[ "$line" =~ \[SUCCESS\][[:space:]]*✅[[:space:]]+([^[:space:]]+)[[:space:]]+is[[:space:]]+running ]]; then
             local resource_name="${BASH_REMATCH[1]}"
-            local resource_status="${BASH_REMATCH[2]}"
             
             ALL_RESOURCES+=("$resource_name")
             
-            log_debug "Found resource: $resource_name ($resource_status)"
+            log_debug "Found resource: $resource_name (running)"
         fi
     done <<< "$discovery_output"
+    
+    # Check if we actually discovered any resources
+    if [[ ${#ALL_RESOURCES[@]} -eq 0 ]]; then
+        log_error "Failed to discover resources (discovery exit code: $discovery_exit_code)"
+        log_debug "Discovery output was: $discovery_output"
+        exit 1
+    fi
+    
+    # Log warning if discovery had non-zero exit code but we found resources
+    if [[ $discovery_exit_code -ne 0 ]]; then
+        log_warning "Discovery completed with warnings (exit code: $discovery_exit_code) but found ${#ALL_RESOURCES[@]} resources"
+    fi
     
     log_success "Discovered ${#ALL_RESOURCES[@]} total resources: ${ALL_RESOURCES[*]}"
 }
@@ -62,8 +103,9 @@ filter_enabled_resources() {
     
     local config_file="$HOME/.vrooli/resources.local.json"
     
-    if [[ ! -f "$config_file" ]]; then
-        log_warning "Configuration file not found: $config_file"
+    # Use configuration manager to ensure valid config exists
+    if ! ensure_config_exists "$config_file"; then
+        log_warning "Could not ensure valid configuration"
         log_info "Treating all discovered resources as enabled"
         ENABLED_RESOURCES=("${ALL_RESOURCES[@]}")
         return
@@ -261,8 +303,40 @@ check_resource_running() {
 check_resource_health() {
     local resource="$1"
     
-    # Redirect debug output to stderr so it doesn't interfere with return value
-    log_debug "Checking health of $resource..." >&2
+    # Use standardized health checker if enabled, but skip resources that need special handling
+    if [[ "${USE_STANDARDIZED_HEALTH_CHECKER:-true}" == "true" ]] && command -v check_resource_health_standardized >/dev/null 2>&1; then
+        # Skip resources that require non-HTTP health checks
+        case "$resource" in
+            "agent-s2"|"postgres"|"claude-code"|"questdb")
+                log_debug "Using original health checker for special resource: $resource..." >&2
+                ;;
+            *)
+                # Use standardized health checker for HTTP-based resources
+                log_debug "Using standardized health checker for $resource..." >&2
+                
+                # Get resource info to extract port
+                local resource_info
+                resource_info=$(get_resource_info "$resource")
+                local port
+                port=$(echo "$resource_info" | jq -r '.port // empty' 2>/dev/null)
+                
+                # If no port found, try known defaults
+                if [[ -z "$port" ]]; then
+                    port=$(get_default_port "$resource")
+                fi
+                
+                if [[ -n "$port" ]]; then
+                    check_resource_health_standardized "$resource" "$port"
+                    return
+                else
+                    log_debug "No port found for $resource, falling back to original health checker" >&2
+                fi
+                ;;
+        esac
+    fi
+    
+    # Original health check implementation (fallback)
+    log_debug "Using original health checker for $resource..." >&2
     
     # Special case handling for resources without standard port mappings
     case "$resource" in
@@ -304,10 +378,10 @@ check_resource_health() {
             return
             ;;
         "questdb")
-            # QuestDB uses port 9009 and exposes HTTP API
-            if curl -s --max-time 5 "http://localhost:9009/status" >/dev/null 2>&1; then
+            # QuestDB uses port 9010 and exposes HTTP API
+            if curl -s --max-time 5 "http://localhost:9010/status" >/dev/null 2>&1; then
                 echo "healthy"
-            elif curl -s --max-time 5 "http://localhost:9009/" >/dev/null 2>&1; then
+            elif curl -s --max-time 5 "http://localhost:9010/" >/dev/null 2>&1; then
                 echo "healthy"
             else
                 echo "unreachable"
@@ -635,7 +709,7 @@ get_resource_info() {
             "minio") host_port="9000" ;;
             "vault") host_port="8200" ;;
             "qdrant") host_port="6333" ;;
-            "searxng") host_port="8100" ;;
+            "searxng") host_port="9200" ;;
             "huginn") host_port="4111" ;;
             "comfyui") host_port="8188" ;;
             "postgres") host_port="5433" ;;
@@ -875,4 +949,220 @@ list_scenarios() {
                 "${revenue:-unknown}"
         done
     fi
+}
+
+# ====================================================================
+# Configuration Validation and Generation Functions
+# ====================================================================
+
+# Validate configuration file format and structure
+validate_config_file() {
+    local config_file="$1"
+    
+    # Check if file exists and is readable
+    if [[ ! -r "$config_file" ]]; then
+        log_debug "Config file not readable: $config_file" >&2
+        return 1
+    fi
+    
+    # Check if file is valid JSON
+    if ! jq . "$config_file" >/dev/null 2>&1; then
+        log_debug "Config file is not valid JSON: $config_file" >&2
+        return 1
+    fi
+    
+    # Check if file has expected structure
+    if ! jq -e '.services' "$config_file" >/dev/null 2>&1; then
+        log_debug "Config file missing 'services' section: $config_file" >&2
+        return 1
+    fi
+    
+    # Validate that services section is an object
+    if ! jq -e '.services | type == "object"' "$config_file" >/dev/null 2>&1; then
+        log_debug "Config file 'services' section is not an object: $config_file" >&2
+        return 1
+    fi
+    
+    log_debug "Config file validation passed: $config_file" >&2
+    return 0
+}
+
+# Generate fallback configuration file
+generate_fallback_config() {
+    local config_file="$1"
+    
+    log_debug "Generating fallback configuration file: $config_file" >&2
+    
+    # Ensure directory exists
+    local config_dir
+    config_dir=$(dirname "$config_file")
+    mkdir -p "$config_dir" 2>/dev/null || true
+    
+    # Generate configuration based on discovered resources
+    local config_content='{
+  "services": {
+    "ai": {},
+    "automation": {},
+    "agents": {},
+    "search": {},
+    "storage": {}
+  }
+}'
+    
+    # Add discovered resources to configuration
+    if [[ ${#ALL_RESOURCES[@]} -gt 0 ]]; then
+        for resource in "${ALL_RESOURCES[@]}"; do
+            local category
+            category=$(determine_resource_category "$resource")
+            
+            # Add resource to appropriate category
+            config_content=$(echo "$config_content" | jq \
+                --arg category "$category" \
+                --arg resource "$resource" \
+                --argjson enabled true \
+                --arg baseUrl "http://localhost:$(get_default_port "$resource")" \
+                '.services[$category][$resource] = {
+                    "enabled": $enabled,
+                    "baseUrl": $baseUrl
+                }')
+        done
+    fi
+    
+    # Write configuration file
+    if echo "$config_content" | jq . > "$config_file" 2>/dev/null; then
+        log_debug "Successfully generated fallback configuration: $config_file" >&2
+        return 0
+    else
+        log_debug "Failed to write fallback configuration: $config_file" >&2
+        return 1
+    fi
+}
+
+# Determine resource category for configuration
+determine_resource_category() {
+    local resource="$1"
+    
+    case "$resource" in
+        "ollama"|"whisper"|"unstructured-io"|"comfyui")
+            echo "ai"
+            ;;
+        "n8n"|"node-red"|"windmill"|"huginn")
+            echo "automation"
+            ;;
+        "agent-s2"|"browserless"|"claude-code")
+            echo "agents"
+            ;;
+        "searxng")
+            echo "search"
+            ;;
+        "minio"|"vault"|"qdrant"|"questdb"|"postgres")
+            echo "storage"
+            ;;
+        *)
+            echo "other"
+            ;;
+    esac
+}
+
+# Get default port for a resource
+get_default_port() {
+    local resource="$1"
+    
+    case "$resource" in
+        "ollama") echo "11434" ;;
+        "whisper") echo "8090" ;;
+        "unstructured-io") echo "11450" ;;
+        "n8n") echo "5678" ;;
+        "node-red") echo "1880" ;;
+        "windmill") echo "5681" ;;
+        "huginn") echo "4111" ;;
+        "comfyui") echo "8188" ;;
+        "agent-s2") echo "4113" ;;
+        "browserless") echo "4110" ;;
+        "searxng") echo "9200" ;;
+        "minio") echo "9000" ;;
+        "vault") echo "8200" ;;
+        "qdrant") echo "6333" ;;
+        "questdb") echo "9009" ;;
+        "postgres") echo "5433" ;;
+        *) echo "8080" ;;
+    esac
+}
+
+# Update configuration with discovered resources
+update_config_with_discovered_resources() {
+    local config_file="$1"
+    
+    if [[ ! -f "$config_file" ]] || [[ ${#ALL_RESOURCES[@]} -eq 0 ]]; then
+        return 0
+    fi
+    
+    log_debug "Updating configuration with discovered resources..." >&2
+    
+    local updated_config
+    updated_config=$(cat "$config_file")
+    
+    for resource in "${ALL_RESOURCES[@]}"; do
+        local category
+        category=$(determine_resource_category "$resource")
+        
+        # Check if resource already exists in config
+        if ! echo "$updated_config" | jq -e ".services.$category.$resource" >/dev/null 2>&1; then
+            # Add new resource to configuration
+            updated_config=$(echo "$updated_config" | jq \
+                --arg category "$category" \
+                --arg resource "$resource" \
+                --argjson enabled false \
+                --arg baseUrl "http://localhost:$(get_default_port "$resource")" \
+                '.services[$category][$resource] = {
+                    "enabled": $enabled,
+                    "baseUrl": $baseUrl
+                }')
+            
+            log_debug "Added $resource to configuration in category $category" >&2
+        fi
+    done
+    
+    # Write updated configuration
+    if echo "$updated_config" | jq . > "$config_file" 2>/dev/null; then
+        log_debug "Successfully updated configuration with discovered resources" >&2
+    else
+        log_debug "Failed to update configuration file" >&2
+    fi
+}
+
+# Print configuration validation report
+print_config_validation_report() {
+    local config_file="$HOME/.vrooli/resources.local.json"
+    
+    echo
+    echo "Configuration Validation Report:"
+    echo "==============================="
+    
+    if [[ -f "$config_file" ]]; then
+        echo "✓ Configuration file exists: $config_file"
+        
+        if validate_config_file "$config_file"; then
+            echo "✓ Configuration file is valid"
+            
+            # Count enabled resources
+            local enabled_count
+            enabled_count=$(jq '[.services[][] | select(.enabled == true)] | length' "$config_file" 2>/dev/null || echo "0")
+            echo "📊 Enabled resources in config: $enabled_count"
+            
+            # List enabled resources
+            local enabled_resources
+            enabled_resources=$(jq -r '.services | to_entries[] | .value | to_entries[] | select(.value.enabled == true) | .key' "$config_file" 2>/dev/null | tr '\n' ' ')
+            if [[ -n "$enabled_resources" ]]; then
+                echo "📋 Enabled: ${enabled_resources% }"
+            fi
+        else
+            echo "❌ Configuration file has validation errors"
+        fi
+    else
+        echo "⚠️  Configuration file not found: $config_file"
+        echo "💡 Will generate fallback configuration on next test run"
+    fi
+    
+    echo
 }

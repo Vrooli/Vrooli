@@ -51,9 +51,8 @@ run_single_resource_tests() {
         log_info "Testing $resource..."
         log_debug "About to execute test file: $test_file"
         
-        # Execute the test file
-        local test_result
-        test_result=$(execute_test_file "$test_file" "$resource")
+        # Execute the test file (no command substitution to allow real-time output)
+        execute_test_file "$test_file" "$resource"
         local exit_code=$?
         
         tests_run=$((tests_run + 1))
@@ -63,11 +62,16 @@ run_single_resource_tests() {
             tests_passed=$((tests_passed + 1))
             PASSED_TESTS=$((PASSED_TESTS + 1))
             log_success "✅ $resource tests passed"
+        elif [[ $exit_code -eq 77 ]]; then
+            # Skipped test - don't count as failure
+            SKIPPED_TESTS=$((SKIPPED_TESTS + 1))
+            SKIPPED_TEST_NAMES+=("$resource: required resources unavailable")
+            log_info "⏭️  $resource tests skipped"
         else
             tests_failed=$((tests_failed + 1))
             FAILED_TESTS=$((FAILED_TESTS + 1))
-            FAILED_TEST_NAMES+=("$resource: $test_result")
-            log_error "❌ $resource tests failed: $test_result"
+            FAILED_TEST_NAMES+=("$resource")
+            log_error "❌ $resource tests failed"
             
             if [[ "$FAIL_FAST" == "true" ]]; then
                 log_error "Stopping due to --fail-fast option"
@@ -131,9 +135,8 @@ run_multi_resource_tests() {
         
         log_info "Testing $test_name (requires: $required_resources)..."
         
-        # Execute the test file
-        local test_result
-        test_result=$(execute_test_file "$test_file" "multi:$test_name")
+        # Execute the test file (no command substitution to allow real-time output)
+        execute_test_file "$test_file" "multi:$test_name"
         local exit_code=$?
         
         tests_run=$((tests_run + 1))
@@ -143,11 +146,16 @@ run_multi_resource_tests() {
             tests_passed=$((tests_passed + 1))
             PASSED_TESTS=$((PASSED_TESTS + 1))
             log_success "✅ $test_name integration test passed"
+        elif [[ $exit_code -eq 77 ]]; then
+            # Skipped test - don't count as failure
+            SKIPPED_TESTS=$((SKIPPED_TESTS + 1))
+            SKIPPED_TEST_NAMES+=("$test_name: required resources unavailable")
+            log_info "⏭️  $test_name integration test skipped"
         else
             tests_failed=$((tests_failed + 1))
             FAILED_TESTS=$((FAILED_TESTS + 1))
-            FAILED_TEST_NAMES+=("$test_name: $test_result")
-            log_error "❌ $test_name integration test failed: $test_result"
+            FAILED_TEST_NAMES+=("$test_name")
+            log_error "❌ $test_name integration test failed"
             
             if [[ "$FAIL_FAST" == "true" ]]; then
                 log_error "Stopping due to --fail-fast option"
@@ -170,6 +178,15 @@ execute_test_file() {
     local test_identifier="$2"
     local start_time=$(date +%s)
     
+    # Generate unique test ID for isolation
+    local test_id=$(generate_test_id)
+    
+    # Show test execution start
+    echo "  🚀 Executing: $(basename "$test_file")"
+    
+    # Setup isolated test environment
+    setup_test_environment "$test_id"
+    
     # Source discovery functions for get_resource_info
     source "$SCRIPT_DIR/framework/discovery.sh" 2>/dev/null || true
     
@@ -187,19 +204,31 @@ execute_test_file() {
     # Create test-specific environment
     local test_env_file="/tmp/vrooli_test_env_$$"
     cat > "$test_env_file" << EOF
-export TEST_ID="${test_identifier}_$(date +%s)"
+export TEST_ID="$test_id"
 export TEST_TIMEOUT="$TEST_TIMEOUT"
-export TEST_VERBOSE="$VERBOSE"
+export TEST_VERBOSE="${TEST_VERBOSE:-$VERBOSE}"
 export TEST_CLEANUP="$CLEANUP"
 export SCRIPT_DIR="$SCRIPT_DIR"
 export RESOURCES_DIR="$RESOURCES_DIR"
 # Export healthy resources as a space-separated string
 export HEALTHY_RESOURCES_STR="${HEALTHY_RESOURCES[*]}"
+# Add progress indicator support
+export TEST_PROGRESS_ENABLED="${TEST_PROGRESS_ENABLED:-true}"
+# Export debug settings
+export TEST_DEBUG="${TEST_DEBUG:-false}"
+export HTTP_LOG_ENABLED="${HTTP_LOG_ENABLED:-false}"
+# Test isolation directories
+export TEST_DIR="\${TEST_DIR:-/tmp/vrooli_integration_test_$test_id}"
+export TEST_LOGS_DIR="\${TEST_LOGS_DIR:-\$TEST_DIR/logs}"
+export TEST_ARTIFACTS_DIR="\${TEST_ARTIFACTS_DIR:-\$TEST_DIR/artifacts}"
+export TEST_TEMP_DIR="\${TEST_TEMP_DIR:-\$TEST_DIR/temp}"
 EOF
     
     # Add resource-specific port if available
     if [[ -n "$resource_port" ]]; then
-        local port_var_name="${test_identifier^^}_PORT"
+        # Convert dashes to underscores for valid shell variable names
+        local port_var_name="${test_identifier^^}"
+        port_var_name="${port_var_name//-/_}_PORT"
         echo "export ${port_var_name}=\"$resource_port\"" >> "$test_env_file"
     fi
     
@@ -219,53 +248,158 @@ EOF
         cat "$test_env_file" | sed 's/^/    /'
     fi
     
-    # Execute test with timeout
-    local test_output
+    # Execute test with timeout and real-time output
     local exit_code
     
-    log_debug "About to run test in subshell with timeout $TEST_TIMEOUT"
+    echo "  ⏱️  Timeout: ${TEST_TIMEOUT}s"
     
-    # Run test in subshell with timeout
+    # Create a named pipe for real-time output with error handling
+    local output_pipe="/tmp/vrooli_test_pipe_$$"
+    if ! mkfifo "$output_pipe" 2>/dev/null; then
+        log_debug "Failed to create named pipe, falling back to file-based output" >&2
+        output_pipe="$test_log_file"
+    fi
+    
+    local reader_pid=""
+    # Start output reader in background only if we have a real pipe
+    if [[ "$output_pipe" != "$test_log_file" ]]; then
+        (
+            while IFS= read -r line; do
+                echo "$line" >> "$test_log_file"
+                if [[ "$VERBOSE" == "true" ]] || [[ "$line" =~ ^[[:space:]]*[✓✗⚠️🔧🎤→🤖📊] ]] || [[ "$line" =~ ERROR|FAIL|WARN ]]; then
+                    echo "    $line"
+                fi
+            done < "$output_pipe"
+        ) &
+        reader_pid=$!
+    fi
+    
+    # Run test with timeout, sending output to pipe
     (
+        exec 2>&1  # Redirect stderr to stdout
         source "$test_env_file"
         cd "$(dirname "$test_file")"
-        timeout "$TEST_TIMEOUT" bash "$test_file"
-    ) > "$test_log_file" 2>&1
+        
+        # Add trap to handle timeout gracefully
+        trap 'echo "⚠️ Test interrupted by timeout"; exit 124' TERM
+        
+        # Run the test
+        timeout --preserve-status "$TEST_TIMEOUT" bash "$test_file"
+    ) > "$output_pipe" 2>&1 &
+    
+    local test_pid=$!
+    
+    # Monitor test execution with progress indicator
+    local elapsed=0
+    while kill -0 "$test_pid" 2>/dev/null; do
+        if [[ $((elapsed % 10)) -eq 0 ]] && [[ $elapsed -gt 0 ]]; then
+            echo "  ⏳ Still running... (${elapsed}s elapsed)"
+        fi
+        sleep 1
+        elapsed=$((elapsed + 1))
+        
+        # Safety timeout - kill test if it exceeds timeout + grace period
+        if [[ $elapsed -gt $((TEST_TIMEOUT + 30)) ]]; then
+            log_debug "Force killing test process after timeout + grace period" >&2
+            kill -KILL "$test_pid" 2>/dev/null || true
+            break
+        fi
+    done
+    
+    # Get exit code
+    wait "$test_pid" 2>/dev/null
     exit_code=$?
+    
+    # Cleanup pipe and reader process with timeout
+    if [[ "$output_pipe" != "$test_log_file" ]]; then
+        # Kill reader process first to break pipe dependency
+        if [[ -n "$reader_pid" ]]; then
+            kill -TERM "$reader_pid" 2>/dev/null || true
+            # Give it 2 seconds to terminate gracefully
+            local cleanup_timeout=2
+            while [[ $cleanup_timeout -gt 0 ]] && kill -0 "$reader_pid" 2>/dev/null; do
+                sleep 0.5
+                cleanup_timeout=$((cleanup_timeout - 1))
+            done
+            # Force kill if still running
+            kill -KILL "$reader_pid" 2>/dev/null || true
+            wait "$reader_pid" 2>/dev/null || true
+        fi
+        
+        # Remove pipe file (this will break any remaining pipe connections)
+        rm -f "$output_pipe" 2>/dev/null || true
+    fi
     
     log_debug "Test execution completed with exit code: $exit_code"
     
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
     
-    # Read test output
-    test_output=$(cat "$test_log_file" 2>/dev/null || echo "No test output")
+    # Read test output for error reporting
+    local test_output=$(cat "$test_log_file" 2>/dev/null || echo "No test output")
     
     # Handle different exit codes
     case $exit_code in
         0)
-            log_debug "Test passed in ${duration}s"
-            if [[ "$VERBOSE" == "true" ]]; then
-                echo "$test_output" | sed 's/^/    /'
-            fi
+            echo "  ✅ Test passed in ${duration}s"
+            ;;
+        77)
+            echo "  ⏭️  Test skipped - required resources unavailable (duration: ${duration}s)"
+            echo "  💡 Suggestion: Check resource health with './scripts/resources/index.sh --action discover'"
+            # Don't change exit_code - return 77 to indicate skip
             ;;
         124)
-            echo "Test timed out after ${TEST_TIMEOUT}s"
+            echo "  ❌ Test timed out after ${TEST_TIMEOUT}s"
+            echo "  💡 Suggestions:"
+            echo "     • Increase timeout with TEST_TIMEOUT environment variable"
+            echo "     • Check if resources are responding slowly"
+            echo "     • Review test logic for infinite loops"
+            echo "  📄 Last output:"
+            echo "$test_output" | tail -n 10 | sed 's/^/    /'
             exit_code=1
             ;;
+        1)
+            echo "  ❌ Test failed with assertion errors (duration: ${duration}s)"
+            echo "  💡 Suggestions:"
+            echo "     • Check assertion failures in the output above"
+            echo "     • Verify resource endpoints are responding correctly"
+            echo "     • Run with --verbose for detailed assertion logs"
+            if [[ "$VERBOSE" != "true" ]]; then
+                echo "  📄 Last output:"
+                echo "$test_output" | tail -n 10 | sed 's/^/    /'
+            fi
+            ;;
+        2)
+            echo "  ❌ Test failed with configuration error (duration: ${duration}s)"
+            echo "  💡 Suggestions:"
+            echo "     • Check test file syntax and imports"
+            echo "     • Verify required environment variables are set"
+            echo "     • Ensure all dependencies are available"
+            if [[ "$VERBOSE" != "true" ]]; then
+                echo "  📄 Last output:"
+                echo "$test_output" | tail -n 10 | sed 's/^/    /'
+            fi
+            ;;
         *)
-            echo "Test failed with exit code $exit_code"
-            if [[ "$VERBOSE" == "true" ]]; then
-                echo "$test_output" | sed 's/^/    /'
-            else
-                # Show last few lines of output for failed tests
-                echo "$test_output" | tail -n 5 | sed 's/^/    /'
+            echo "  ❌ Test failed with exit code $exit_code (duration: ${duration}s)"
+            echo "  💡 Suggestions:"
+            echo "     • Check test logs for specific error messages"
+            echo "     • Verify resource connectivity and health"
+            echo "     • Run test individually for detailed debugging"
+            echo "     • See exit code documentation in README.md"
+            if [[ "$VERBOSE" != "true" ]]; then
+                echo "  📄 Last output:"
+                echo "$test_output" | tail -n 10 | sed 's/^/    /'
+                echo "  🔍 Run with --verbose for complete output"
             fi
             ;;
     esac
     
-    # Cleanup test environment
+    # Cleanup test environment files
     rm -f "$test_env_file" "$test_log_file" 2>/dev/null || true
+    
+    # Cleanup isolated test environment
+    cleanup_test_environment "$test_id"
     
     return $exit_code
 }
@@ -471,9 +605,8 @@ run_scenario_tests() {
         log_info "   Category: $category | Complexity: $complexity"
         log_info "   Business Value: $business_value | Revenue: $revenue_potential"
         
-        # Execute the scenario test
-        local test_result
-        test_result=$(execute_test_file "$scenario_file" "scenario:$scenario")
+        # Execute the scenario test (no command substitution to allow real-time output)
+        execute_test_file "$scenario_file" "scenario:$scenario"
         local exit_code=$?
         
         tests_run=$((tests_run + 1))
@@ -484,11 +617,16 @@ run_scenario_tests() {
             PASSED_TESTS=$((PASSED_TESTS + 1))
             PASSED_TEST_NAMES+=("$scenario")
             log_success "✅ Scenario $scenario passed"
+        elif [[ $exit_code -eq 77 ]]; then
+            # Skipped test - don't count as failure
+            SKIPPED_TESTS=$((SKIPPED_TESTS + 1))
+            SKIPPED_TEST_NAMES+=("$scenario: required resources unavailable")
+            log_info "⏭️  Scenario $scenario skipped"
         else
             tests_failed=$((tests_failed + 1))
             FAILED_TESTS=$((FAILED_TESTS + 1))
-            FAILED_TEST_NAMES+=("$scenario: $test_result")
-            log_error "❌ Scenario $scenario failed: $test_result"
+            FAILED_TEST_NAMES+=("$scenario")
+            log_error "❌ Scenario $scenario failed"
             
             if [[ "$FAIL_FAST" == "true" ]]; then
                 log_error "Stopping due to --fail-fast option"

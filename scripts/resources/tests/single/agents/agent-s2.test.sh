@@ -19,6 +19,11 @@ TEST_RESOURCE="agent-s2"
 REQUIRED_RESOURCES=("agent-s2")
 API_BASE="http://localhost:4113"
 
+# Recreate HEALTHY_RESOURCES array from exported string
+if [[ -n "${HEALTHY_RESOURCES_STR:-}" ]]; then
+    HEALTHY_RESOURCES=($HEALTHY_RESOURCES_STR)
+fi
+
 # Script directory for imports
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 

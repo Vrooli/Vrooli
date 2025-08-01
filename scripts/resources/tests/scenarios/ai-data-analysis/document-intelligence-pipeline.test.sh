@@ -168,7 +168,7 @@ test_intelligent_data_structuring() {
         return
     fi
     
-    local sample_document="Business Intelligence Report: Q3 Performance Analysis. Revenue increased 15% to $2.4M. Customer acquisition cost decreased by 8%. Key metrics: 1,250 new customers, 92% retention rate, 4.2 customer satisfaction score. Recommendations: invest in digital marketing, expand product line, improve customer support response time."
+    local sample_document="Business Intelligence Report: Q3 Performance Analysis. Revenue increased 15% to \$2.4M. Customer acquisition cost decreased by 8%. Key metrics: 1,250 new customers, 92% retention rate, 4.2 customer satisfaction score. Recommendations: invest in digital marketing, expand product line, improve customer support response time."
     
     log_step "1/4" "Extracting key entities"
     
@@ -459,7 +459,7 @@ test_end_to_end_workflow() {
     echo "  ⚙️ Processing with Unstructured.io: Text extraction, structure analysis"
     
     # Step 3: AI enhancement (real)
-    local sample_document="Invoice INV-2024-001: Amount $15,000. Client: TechCorp Inc. Services: AI consulting, system integration. Payment terms: Net 30. Due date: February 15, 2024."
+    local sample_document="Invoice INV-2024-001: Amount \$15,000. Client: TechCorp Inc. Services: AI consulting, system integration. Payment terms: Net 30. Due date: February 15, 2024."
     
     local available_model
     available_model=$(curl -s "$OLLAMA_BASE_URL/api/tags" | jq -r '.models[0].name' 2>/dev/null)

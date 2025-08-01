@@ -109,6 +109,27 @@ generate_text_report() {
     generate_recommendations
     echo
     
+    # Debug Information (if enabled)
+    if [[ "${TEST_DEBUG:-false}" == "true" ]] || [[ "${DEBUG:-false}" == "true" ]]; then
+        echo "🔍 DEBUG INFORMATION"
+        echo "──────────────────"
+        
+        # Show HTTP log summary if available
+        if [[ "$(type -t show_http_summary)" == "function" ]]; then
+            show_http_summary
+            echo
+        fi
+        
+        # Show test log locations
+        echo "📁 Test Logs:"
+        ls -la /tmp/vrooli_test_*.log 2>/dev/null | tail -5 || echo "   No test logs found"
+        
+        # Show HTTP log locations
+        echo -e "\n📁 HTTP Logs:"
+        ls -la /tmp/vrooli_http_*.log 2>/dev/null | tail -5 || echo "   No HTTP logs found"
+        echo
+    fi
+    
     # Final Status
     echo "🎯 FINAL STATUS"
     echo "──────────────"
@@ -239,14 +260,21 @@ generate_recommendations() {
     # Check for failed tests
     if [[ $FAILED_TESTS -gt 0 ]]; then
         recommendations+=("🐛 Investigate failed tests:")
-        recommendations+=("   Run with --verbose for detailed output")
-        recommendations+=("   Check resource logs: ./scripts/resources/<category>/<resource>/manage.sh --action logs")
+        recommendations+=("   • Run with --verbose for detailed output")
+        recommendations+=("   • Check individual test: bash single/<category>/<resource>.test.sh")
+        recommendations+=("   • Verify resource connectivity: curl http://localhost:<port>/health")
+        recommendations+=("   • Check resource logs: ./scripts/resources/<category>/<resource>/manage.sh --action logs")
+        recommendations+=("   • Review test requirements in test file headers")
+        recommendations+=("   • Validate test file compliance: ./framework/helpers/test-validator.sh --path <test>")
     fi
     
     # Check for skipped tests
     if [[ $SKIPPED_TESTS -gt 0 ]]; then
-        recommendations+=("📦 Install missing dependencies to reduce skipped tests")
-        recommendations+=("   Review skipped test requirements above")
+        recommendations+=("📦 Reduce skipped tests by addressing missing resources:")
+        recommendations+=("   • Check resource health: ./scripts/resources/index.sh --action discover")
+        recommendations+=("   • Install missing resources: ./scripts/resources/index.sh --action install --resources <name>")
+        recommendations+=("   • Enable resources in config: ~/.vrooli/resources.local.json")
+        recommendations+=("   • Review skipped test requirements in test file headers")
     fi
     
     # Performance recommendations

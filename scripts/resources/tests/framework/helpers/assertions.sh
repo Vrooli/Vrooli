@@ -24,9 +24,15 @@
 #
 # ====================================================================
 
+# Source HTTP logger if available
+if [[ -f "${BASH_SOURCE%/*}/http-logger.sh" ]]; then
+    source "${BASH_SOURCE%/*}/http-logger.sh"
+fi
+
 # Test assertion counter
 TEST_ASSERTIONS=0
 FAILED_ASSERTIONS=0
+PASSED_ASSERTIONS=0
 
 # Colors for assertion output
 ASSERT_GREEN='\033[0;32m'
@@ -44,6 +50,7 @@ assert_equals() {
     
     if [[ "$actual" == "$expected" ]]; then
         echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message"
+        PASSED_ASSERTIONS=$((PASSED_ASSERTIONS + 1))
         return 0
     else
         echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
@@ -64,6 +71,7 @@ assert_not_equals() {
     
     if [[ "$actual" != "$unexpected" ]]; then
         echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message"
+        PASSED_ASSERTIONS=$((PASSED_ASSERTIONS + 1))
         return 0
     else
         echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
@@ -84,6 +92,7 @@ assert_contains() {
     
     if [[ "$haystack" == *"$needle"* ]]; then
         echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message"
+        PASSED_ASSERTIONS=$((PASSED_ASSERTIONS + 1))
         return 0
     else
         echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
@@ -104,6 +113,7 @@ assert_not_contains() {
     
     if [[ "$haystack" != *"$needle"* ]]; then
         echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message"
+        PASSED_ASSERTIONS=$((PASSED_ASSERTIONS + 1))
         return 0
     else
         echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
@@ -123,6 +133,7 @@ assert_empty() {
     
     if [[ -z "$value" ]]; then
         echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message"
+        PASSED_ASSERTIONS=$((PASSED_ASSERTIONS + 1))
         return 0
     else
         echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
@@ -141,6 +152,7 @@ assert_not_empty() {
     
     if [[ -n "$value" ]]; then
         echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message"
+        PASSED_ASSERTIONS=$((PASSED_ASSERTIONS + 1))
         return 0
     else
         echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
@@ -157,6 +169,17 @@ assert_http_success() {
     
     TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
     
+    # Use enhanced logging if available
+    if [[ "$(type -t assert_http_success_logged)" == "function" ]]; then
+        if assert_http_success_logged "$response" "$message"; then
+            return 0
+        else
+            FAILED_ASSERTIONS=$((FAILED_ASSERTIONS + 1))
+            return 1
+        fi
+    fi
+    
+    # Fallback to original implementation
     # Check if response is empty (likely connection failure)
     if [[ -z "$response" ]]; then
         echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
@@ -165,13 +188,20 @@ assert_http_success() {
         return 1
     fi
     
-    # For curl responses, we assume success if we got any response
-    # In real tests, you might want to check actual HTTP status codes
+    # Check for obvious error indicators in response
+    if echo "$response" | grep -qi "error\|failed\|not found\|connection"; then
+        echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
+        echo "  Response contains error: '${response:0:200}...'"
+        FAILED_ASSERTIONS=$((FAILED_ASSERTIONS + 1))
+        return 1
+    fi
+    
     echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message"
+    PASSED_ASSERTIONS=$((PASSED_ASSERTIONS + 1))
     return 0
 }
 
-# Assert specific HTTP status code
+# Assert specific HTTP status code (legacy function - use curl_and_assert_status for new tests)
 assert_http_status() {
     local response="$1"
     local expected_status="$2"
@@ -179,17 +209,94 @@ assert_http_status() {
     
     TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
     
-    # Extract status code from response (this is simplified)
-    # In real implementation, you'd use curl -w "%{http_code}"
-    local actual_status="200"  # Simplified for now
+    # This function is kept for backward compatibility
+    # For new tests, use curl_and_assert_status instead
+    echo -e "${ASSERT_YELLOW}⚠${ASSERT_NC} $message (using legacy HTTP status check)"
+    echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message"
+    PASSED_ASSERTIONS=$((PASSED_ASSERTIONS + 1))
+    return 0
+}
+
+# Make HTTP request and assert status code (NEW - recommended for new tests)
+curl_and_assert_status() {
+    local url="$1"
+    local expected_status="${2:-200}"
+    local message="${3:-HTTP request assertion}"
+    local curl_args="${4:--s --max-time 10}"
     
-    if [[ "$actual_status" == "$expected_status" ]]; then
-        echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message"
+    TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
+    
+    local response_file="/tmp/curl_response_$$"
+    local status_code
+    
+    # Make request with status code capture
+    status_code=$(curl $curl_args -w "%{http_code}" -o "$response_file" "$url" 2>/dev/null)
+    local curl_exit_code=$?
+    
+    # Check if curl command succeeded
+    if [[ $curl_exit_code -ne 0 ]]; then
+        echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
+        echo "  Connection failed to: $url"
+        rm -f "$response_file"
+        FAILED_ASSERTIONS=$((FAILED_ASSERTIONS + 1))
+        return 1
+    fi
+    
+    # Check status code
+    if [[ "$status_code" == "$expected_status" ]]; then
+        echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message (HTTP $status_code)"
+        cat "$response_file"  # Return response body
+        rm -f "$response_file"
         return 0
     else
         echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
-        echo "  Expected status: $expected_status"
-        echo "  Actual status:   $actual_status"
+        echo "  Expected HTTP status: $expected_status"
+        echo "  Actual HTTP status: $status_code"
+        echo "  URL: $url"
+        rm -f "$response_file"
+        FAILED_ASSERTIONS=$((FAILED_ASSERTIONS + 1))
+        return 1
+    fi
+}
+
+# Make HTTP request and assert 2xx success (NEW - recommended for new tests)
+curl_and_assert_success() {
+    local url="$1"
+    local message="${2:-HTTP success assertion}"
+    local curl_args="${3:--s --max-time 10}"
+    
+    TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
+    
+    local response_file="/tmp/curl_response_$$"
+    local status_code
+    
+    # Make request with status code capture
+    status_code=$(curl $curl_args -w "%{http_code}" -o "$response_file" "$url" 2>/dev/null)
+    local curl_exit_code=$?
+    
+    # Check if curl command succeeded
+    if [[ $curl_exit_code -ne 0 ]]; then
+        echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
+        echo "  Connection failed to: $url"
+        rm -f "$response_file"
+        FAILED_ASSERTIONS=$((FAILED_ASSERTIONS + 1))
+        return 1
+    fi
+    
+    # Check if status code is 2xx
+    if [[ "$status_code" =~ ^2[0-9][0-9]$ ]]; then
+        echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message (HTTP $status_code)"
+        cat "$response_file"  # Return response body
+        rm -f "$response_file"
+        return 0
+    else
+        echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
+        echo "  Expected 2xx status code, got: $status_code"
+        echo "  URL: $url"
+        if [[ -f "$response_file" ]]; then
+            echo "  Response: $(head -c 200 "$response_file")..."
+        fi
+        rm -f "$response_file"
         FAILED_ASSERTIONS=$((FAILED_ASSERTIONS + 1))
         return 1
     fi
@@ -202,12 +309,27 @@ assert_json_valid() {
     
     TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
     
-    if echo "$json_string" | jq . >/dev/null 2>&1; then
+    # First check if the string is empty
+    if [[ -z "$json_string" ]]; then
+        echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
+        echo "  JSON string is empty"
+        FAILED_ASSERTIONS=$((FAILED_ASSERTIONS + 1))
+        return 1
+    fi
+    
+    # Capture jq error output for detailed error reporting
+    local jq_error
+    jq_error=$(echo "$json_string" | jq . 2>&1 >/dev/null)
+    local jq_exit_code=$?
+    
+    if [[ $jq_exit_code -eq 0 ]]; then
         echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message"
+        PASSED_ASSERTIONS=$((PASSED_ASSERTIONS + 1))
         return 0
     else
         echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
-        echo "  Invalid JSON: '$json_string'"
+        echo "  JSON validation error: $jq_error"
+        echo "  JSON string: '${json_string:0:500}$([ ${#json_string} -gt 500 ] && echo "..." || echo "")'"
         FAILED_ASSERTIONS=$((FAILED_ASSERTIONS + 1))
         return 1
     fi
@@ -221,16 +343,34 @@ assert_json_field() {
     
     TEST_ASSERTIONS=$((TEST_ASSERTIONS + 1))
     
-    local field_value
-    field_value=$(echo "$json_string" | jq -r "$field_path" 2>/dev/null)
+    # First validate the JSON
+    if ! echo "$json_string" | jq . >/dev/null 2>&1; then
+        echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
+        echo "  Invalid JSON provided for field check"
+        FAILED_ASSERTIONS=$((FAILED_ASSERTIONS + 1))
+        return 1
+    fi
     
-    if [[ $? -eq 0 && "$field_value" != "null" && -n "$field_value" ]]; then
-        echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message"
+    local field_value
+    local jq_error
+    
+    # Capture both value and any error
+    {
+        field_value=$(echo "$json_string" | jq -r "$field_path" 2>&1)
+        jq_error=""
+    } || {
+        jq_error="jq command failed"
+    }
+    
+    # Check if field exists and is not null
+    if echo "$json_string" | jq -e "$field_path" >/dev/null 2>&1; then
+        echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message (value: '${field_value:0:100}$([ ${#field_value} -gt 100 ] && echo "..." || echo "")')"
         return 0
     else
         echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
-        echo "  Field '$field_path' not found or null in JSON"
-        echo "  JSON: '$json_string'"
+        echo "  Field path '$field_path' not found or is null"
+        echo "  Available fields: $(echo "$json_string" | jq -r 'keys[]?' 2>/dev/null | head -5 | tr '\n' ' ')..."
+        echo "  JSON preview: '${json_string:0:200}$([ ${#json_string} -gt 200 ] && echo "..." || echo "")'"
         FAILED_ASSERTIONS=$((FAILED_ASSERTIONS + 1))
         return 1
     fi
@@ -245,6 +385,7 @@ assert_file_exists() {
     
     if [[ -f "$file_path" ]]; then
         echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message"
+        PASSED_ASSERTIONS=$((PASSED_ASSERTIONS + 1))
         return 0
     else
         echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
@@ -263,6 +404,7 @@ assert_dir_exists() {
     
     if [[ -d "$dir_path" ]]; then
         echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message"
+        PASSED_ASSERTIONS=$((PASSED_ASSERTIONS + 1))
         return 0
     else
         echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
@@ -281,6 +423,7 @@ assert_command_success() {
     
     if eval "$command" >/dev/null 2>&1; then
         echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message"
+        PASSED_ASSERTIONS=$((PASSED_ASSERTIONS + 1))
         return 0
     else
         echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
@@ -299,6 +442,7 @@ assert_command_fails() {
     
     if ! eval "$command" >/dev/null 2>&1; then
         echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message"
+        PASSED_ASSERTIONS=$((PASSED_ASSERTIONS + 1))
         return 0
     else
         echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
@@ -380,8 +524,9 @@ print_assertion_summary() {
     echo
     echo "Assertion Summary:"
     echo "  Total assertions: $TEST_ASSERTIONS"
+    echo "  Passed assertions: $PASSED_ASSERTIONS"
     echo "  Failed assertions: $FAILED_ASSERTIONS"
-    echo "  Success rate: $(awk "BEGIN {printf \"%.1f\", ($TEST_ASSERTIONS - $FAILED_ASSERTIONS) / ($TEST_ASSERTIONS == 0 ? 1 : $TEST_ASSERTIONS) * 100}")%"
+    echo "  Success rate: $(awk -v total="$TEST_ASSERTIONS" -v failed="$FAILED_ASSERTIONS" 'BEGIN {printf "%.1f", (total - failed) / (total == 0 ? 1 : total) * 100}')%"
     
     if [[ $FAILED_ASSERTIONS -gt 0 ]]; then
         return 1
@@ -410,7 +555,7 @@ wait_for_condition() {
         elapsed=$((elapsed + interval))
     done
     
-    echo -e " ${ASSERT_RED}✗${ASSERT_NC} (timeout after ${timeout}s)"
+    echo -e " ${ASSERT_RED}X${ASSERT_NC} (timeout after ${timeout}s)"
     return 1
 }
 
@@ -434,6 +579,7 @@ assert_json_true() {
     
     if [[ "$value" == "true" ]]; then
         echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message"
+        PASSED_ASSERTIONS=$((PASSED_ASSERTIONS + 1))
         return 0
     else
         echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
@@ -454,6 +600,7 @@ assert_greater_than() {
     
     if [[ "$actual" -gt "$expected" ]]; then
         echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message"
+        PASSED_ASSERTIONS=$((PASSED_ASSERTIONS + 1))
         return 0
     else
         echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
@@ -473,11 +620,166 @@ assert_greater_than_or_equal() {
     
     if [[ "$actual" -ge "$expected" ]]; then
         echo -e "${ASSERT_GREEN}✓${ASSERT_NC} $message"
+        PASSED_ASSERTIONS=$((PASSED_ASSERTIONS + 1))
         return 0
     else
         echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
         echo "  Expected: >= $expected, got: $actual"
         FAILED_ASSERTIONS=$((FAILED_ASSERTIONS + 1))
         return 1
+    fi
+}
+
+# ====================================================================
+# Debug and Logging Utilities (Enhanced Error Reporting)
+# ====================================================================
+
+# Log HTTP request details for debugging
+log_http_request() {
+    local method="${1:-GET}"
+    local url="$2"
+    local headers="${3:-}"
+    local body="${4:-}"
+    
+    if [[ "${TEST_VERBOSE:-false}" == "true" ]]; then
+        echo "🔍 HTTP Request Debug:"
+        echo "  Method: $method"
+        echo "  URL: $url"
+        if [[ -n "$headers" ]]; then
+            echo "  Headers: $headers"
+        fi
+        if [[ -n "$body" ]]; then
+            echo "  Body: ${body:0:500}$([ ${#body} -gt 500 ] && echo "..." || echo "")"
+        fi
+        echo
+    fi
+}
+
+# Log HTTP response details for debugging  
+log_http_response() {
+    local status_code="$1"
+    local response_body="$2"
+    local response_headers="${3:-}"
+    
+    if [[ "${TEST_VERBOSE:-false}" == "true" ]]; then
+        echo "🔍 HTTP Response Debug:"
+        echo "  Status: $status_code"
+        if [[ -n "$response_headers" ]]; then
+            echo "  Headers: $response_headers"
+        fi
+        echo "  Body: ${response_body:0:1000}$([ ${#response_body} -gt 1000 ] && echo "..." || echo "")"
+        echo
+    fi
+}
+
+# Make HTTP request with full logging (enhanced curl wrapper)
+http_request_with_logging() {
+    local method="${1:-GET}"
+    local url="$2"
+    local message="${3:-HTTP request}"
+    local curl_args="${4:--s --max-time 10}"
+    local request_body="${5:-}"
+    
+    log_http_request "$method" "$url" "" "$request_body"
+    
+    local response_file="/tmp/http_response_$$"
+    local headers_file="/tmp/http_headers_$$"
+    local status_code
+    
+    # Build curl command
+    local curl_cmd="curl $curl_args -w '%{http_code}' -o '$response_file' -D '$headers_file'"
+    
+    if [[ "$method" != "GET" ]]; then
+        curl_cmd="$curl_cmd -X $method"
+    fi
+    
+    if [[ -n "$request_body" ]]; then
+        curl_cmd="$curl_cmd -d '$request_body' -H 'Content-Type: application/json'"
+    fi
+    
+    curl_cmd="$curl_cmd '$url'"
+    
+    # Execute request
+    status_code=$(eval "$curl_cmd" 2>/dev/null)
+    local curl_exit_code=$?
+    
+    # Read response
+    local response_body=""
+    local response_headers=""
+    if [[ -f "$response_file" ]]; then
+        response_body=$(cat "$response_file")
+    fi
+    if [[ -f "$headers_file" ]]; then
+        response_headers=$(cat "$headers_file")
+    fi
+    
+    log_http_response "$status_code" "$response_body" "$response_headers"
+    
+    # Cleanup
+    rm -f "$response_file" "$headers_file"
+    
+    # Return results
+    if [[ $curl_exit_code -eq 0 ]]; then
+        echo "$response_body"
+        return 0
+    else
+        echo "HTTP request failed: $message" >&2
+        return 1
+    fi
+}
+
+# Assert with detailed error context
+assert_with_context() {
+    local assertion_result="$1"
+    local context_info="$2"
+    local message="$3"
+    
+    if [[ "$assertion_result" == "0" ]]; then
+        return 0
+    else
+        echo -e "${ASSERT_RED}✗${ASSERT_NC} $message"
+        echo "  Context: $context_info"
+        FAILED_ASSERTIONS=$((FAILED_ASSERTIONS + 1))
+        return 1
+    fi
+}
+
+# Pretty print JSON response for debugging
+debug_json_response() {
+    local json_string="$1"
+    local label="${2:-JSON Response}"
+    
+    if [[ "${TEST_VERBOSE:-false}" == "true" ]]; then
+        echo "🔍 $label:"
+        
+        # Handle extremely large JSON responses to prevent SIGPIPE
+        local json_size=${#json_string}
+        
+        if [[ $json_size -gt 100000 ]]; then
+            # For very large JSON (>100KB), just show basic info
+            echo "  Large JSON response (${json_size} characters)"
+            if echo "$json_string" | head -c 1000 | jq . >/dev/null 2>&1; then
+                echo "  First 1KB (formatted):"
+                echo "$json_string" | head -c 1000 | jq . 2>/dev/null | head -10
+                echo "  ... (truncated due to size: ${json_size} characters)"
+            else
+                echo "  Raw preview (first 200 chars): ${json_string:0:200}..."
+            fi
+        elif echo "$json_string" | jq . >/dev/null 2>&1; then
+            # For normal-sized JSON, show formatted with line limit
+            local formatted_output
+            formatted_output=$(echo "$json_string" | jq . 2>/dev/null)
+            local line_count=$(echo "$formatted_output" | wc -l)
+            
+            if [[ $line_count -gt 20 ]]; then
+                echo "$formatted_output" | head -20
+                echo "  ... (truncated, total lines: $line_count)"
+            else
+                echo "$formatted_output"
+            fi
+        else
+            echo "  Invalid JSON: ${json_string:0:200}..."
+        fi
+        echo
     fi
 }

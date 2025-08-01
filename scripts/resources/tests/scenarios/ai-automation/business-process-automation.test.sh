@@ -136,7 +136,7 @@ test_workflow_creation() {
     available_model=$(curl -s "$OLLAMA_BASE_URL/api/tags" | jq -r '.models[0].name' 2>/dev/null)
     
     if [[ -n "$available_model" && "$available_model" != "null" ]]; then
-        local integration_test_prompt="Generate a business process decision: Should this invoice be approved? Amount: $1,500, Vendor: TechSupplies Inc, Category: Office Equipment, Budget remaining: $5,000"
+        local integration_test_prompt="Generate a business process decision: Should this invoice be approved? Amount: \$1,500, Vendor: TechSupplies Inc, Category: Office Equipment, Budget remaining: \$5,000"
         local integration_request
         integration_request=$(jq -n \
             --arg model "$available_model" \
@@ -187,9 +187,9 @@ test_ai_decision_making() {
     
     # Business decision scenarios
     local decision_scenarios=(
-        "Expense Approval: $800 travel expense for client meeting, policy limit $1000, manager approval required for $500+"
-        "Purchase Order: New laptop request $2400, IT budget $50000 remaining, employee has 4-year-old laptop"
-        "Customer Credit: Credit limit increase request from good customer, current limit $10000, requesting $25000"
+        "Expense Approval: \$800 travel expense for client meeting, policy limit \$1000, manager approval required for \$500+"
+        "Purchase Order: New laptop request \$2400, IT budget \$50000 remaining, employee has 4-year-old laptop"
+        "Customer Credit: Credit limit increase request from good customer, current limit \$10000, requesting \$25000"
         "Project Priority: New feature request estimated 40 hours, current sprint capacity 30 hours, customer priority high"
     )
     
@@ -287,7 +287,7 @@ test_data_processing_automation() {
     log_step "1/4" "Testing data validation workflows"
     
     # Sample business data for validation
-    local sample_data="Customer: John Smith, Email: john@company.com, Phone: 555-0123, Purchase Amount: $1,250.00, Date: 2024-01-15, Product: Software License, Category: Technology"
+    local sample_data="Customer: John Smith, Email: john@company.com, Phone: 555-0123, Purchase Amount: \$1,250.00, Date: 2024-01-15, Product: Software License, Category: Technology"
     
     local validation_prompt="Validate this business data entry and identify any issues or inconsistencies. Data: $sample_data"
     local validation_request
@@ -512,7 +512,7 @@ test_enterprise_integration() {
         echo "  Step 1: Process initiation ✓"
         
         # Step 2: AI decision making
-        local process_prompt="A purchase order for $3,500 office furniture needs approval. Budget: $25,000 remaining, Department: Marketing, Urgency: Normal. Make approval decision."
+        local process_prompt="A purchase order for \$3,500 office furniture needs approval. Budget: \$25,000 remaining, Department: Marketing, Urgency: Normal. Make approval decision."
         local process_request
         process_request=$(jq -n \
             --arg model "$available_model" \

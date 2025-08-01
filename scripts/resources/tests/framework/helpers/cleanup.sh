@@ -28,6 +28,24 @@ CLEANUP_YELLOW='\033[1;33m'
 CLEANUP_RED='\033[0;31m'
 CLEANUP_NC='\033[0m'
 
+# Add a cleanup command to be executed on exit
+add_cleanup_command() {
+    local command="$1"
+    CLEANUP_TASKS+=("$command")
+}
+
+# Add a file to be cleaned up on exit
+add_cleanup_file() {
+    local file="$1"
+    CLEANUP_FILES+=("$file")
+}
+
+# Add a directory to be cleaned up on exit
+add_cleanup_dir() {
+    local dir="$1"
+    CLEANUP_DIRS+=("$dir")
+}
+
 # Register cleanup handler for exit
 register_cleanup_handler() {
     trap 'perform_cleanup' EXIT

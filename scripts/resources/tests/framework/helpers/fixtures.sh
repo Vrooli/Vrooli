@@ -29,9 +29,18 @@ generate_test_audio() {
     mkdir -p "$(dirname "$output_path")"
     
     # Generate a simple test audio file using ffmpeg if available
+    local ffmpeg_success=false
     if command -v ffmpeg >/dev/null 2>&1; then
-        ffmpeg -f lavfi -i "sine=frequency=440:duration=$duration" -y "$output_path" >/dev/null 2>&1
-    else
+        # Use timeout to prevent hanging
+        if timeout 5s ffmpeg -f lavfi -i "sine=frequency=440:duration=$duration" -y "$output_path" </dev/null >/dev/null 2>&1; then
+            ffmpeg_success=true
+        else
+            echo "Warning: ffmpeg timed out or failed, using fallback" >&2
+            rm -f "$output_path" 2>/dev/null
+        fi
+    fi
+    
+    if [[ "$ffmpeg_success" != "true" ]]; then
         # Create a minimal WAV header for testing (silent audio)
         {
             # WAV header for a simple silent audio file
