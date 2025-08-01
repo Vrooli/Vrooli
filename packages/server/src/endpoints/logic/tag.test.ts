@@ -281,7 +281,7 @@ describe("EndpointsTag", () => {
                 const input: TagUpdateInput = {
                     id: tags[2].id,
                     translationsCreate: [{
-                        id: generatePK(),
+                        id: generatePK().toString(),
                         language: "fr",
                         description: "Tests en français",
                     }],

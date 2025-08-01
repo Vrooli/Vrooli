@@ -399,7 +399,7 @@ export class BrowserlessResource extends ResourceProvider<"browserless", Browser
             };
 
             const result = await this.httpClient!.makeRequest({
-                url: `${this.config!.baseUrl}/function`,
+                url: `${this.config!.baseUrl}/chrome/function`,
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body,
@@ -458,7 +458,7 @@ export class BrowserlessResource extends ResourceProvider<"browserless", Browser
             };
 
             const result = await this.httpClient!.makeRequest({
-                url: `${this.config!.baseUrl}/screenshot`,
+                url: `${this.config!.baseUrl}/chrome/screenshot`,
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body,

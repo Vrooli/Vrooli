@@ -58,6 +58,11 @@ export class SwarmStateMachine extends BaseStateMachine<ServiceEvent> {
         this.eventInterceptor = new EventInterceptor(
             new InMemoryLockService(),
             this.contextManager,
+            // RoutineExecutor factory function with dynamic import to avoid circular dependency
+            async (contextManager, stepExecutor, contextId, runContextManager, botId) => {
+                const { RoutineExecutor } = await import("../tier2/routineExecutor.js");
+                return new RoutineExecutor(contextManager, stepExecutor, contextId, runContextManager as any, botId);
+            },
         );
     }
 

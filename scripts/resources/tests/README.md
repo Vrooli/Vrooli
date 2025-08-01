@@ -13,6 +13,33 @@ This framework provides true integration testing for Vrooli resources by:
 
 ## 🚀 Quick Start
 
+### From Project Root (Recommended)
+
+```bash
+# Using npm/pnpm scripts from project root
+cd /home/matthalloran8/Vrooli
+
+# Run all resource tests
+pnpm test:resources
+
+# Run single-resource tests only
+pnpm test:resources:single
+
+# Run business scenarios only
+pnpm test:resources:scenarios
+
+# Quick test (30s timeout)
+pnpm test:resources:quick
+
+# Debug mode with HTTP logging
+pnpm test:resources:debug
+
+# Test specific resource
+pnpm test:resources -- --resource qdrant
+```
+
+### From Test Directory
+
 ```bash
 # Run all available tests
 ./run.sh
@@ -20,17 +47,13 @@ This framework provides true integration testing for Vrooli resources by:
 # Test specific resource
 ./run.sh --resource ollama
 
-# Verbose output with detailed logging
-./run.sh --verbose
+# Debug mode with verbose output and HTTP logging
+./run.sh --debug --resource qdrant
 
-# JSON output for CI/CD integration
-./run.sh --output-format json
-
-# Test only single resources (no multi-resource tests)
-./run.sh --single-only
-
-# Test only multi-resource integration workflows
-./run.sh --multi-only
+# Use Makefile shortcuts
+make test-debug R=qdrant
+make test-quick
+make clean
 ```
 
 ## 📁 Directory Structure
@@ -173,6 +196,53 @@ test_workflow() {
     assert_not_equals "$result1" "$result2" "Data transformation occurred"
 }
 ```
+
+### Standard Exit Codes
+
+The testing framework uses standard exit codes to communicate test results:
+
+| Exit Code | Status | Description | Framework Action |
+|-----------|--------|-------------|------------------|
+| `0` | **PASS** | Test completed successfully | Count as passed test |
+| `1` | **FAIL** | Test failed due to assertion failures or errors | Count as failed test, show error output |
+| `77` | **SKIP** | Test skipped (e.g., required resources unavailable) | Count as skipped, don't treat as failure |
+| `124` | **TIMEOUT** | Test exceeded time limit | Convert to failure, show timeout message |
+
+#### Using Exit Codes in Tests
+
+```bash
+# Proper test termination
+main() {
+    setup_test
+    test_functionality
+    
+    # Exit based on assertion results
+    if [[ ${ASSERTION_FAILURES:-0} -gt 0 ]]; then
+        echo "❌ Test failed"
+        exit 1
+    else
+        echo "✅ Test passed"
+        exit 0
+    fi
+}
+
+# Skip test when resources unavailable
+if ! check_resource_available; then
+    echo "⏭️  Skipping test - resource unavailable"
+    exit 77
+fi
+
+# Handle timeouts (automatically handled by framework)
+timeout 300 run_long_test || exit 124
+```
+
+#### Best Practices
+
+- **Always exit explicitly** with appropriate codes
+- **Use exit 77** for skipped tests, not exit 1
+- **Leverage `require_resource()`** for automatic skip handling
+- **Test timeout logic** in long-running tests
+- **Provide descriptive messages** for each exit scenario
 
 ## 🏥 Health Checks
 

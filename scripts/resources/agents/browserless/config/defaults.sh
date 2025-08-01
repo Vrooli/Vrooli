@@ -82,3 +82,6 @@ browserless::export_config() {
     export BROWSERLESS_STARTUP_WAIT_INTERVAL BROWSERLESS_INITIALIZATION_WAIT
     export BROWSERLESS_DOCKER_SHM_SIZE BROWSERLESS_DOCKER_CAPS BROWSERLESS_DOCKER_SECCOMP
 }
+
+# Export function for subshell availability
+export -f browserless::export_config

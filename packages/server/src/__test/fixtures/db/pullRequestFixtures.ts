@@ -1,35 +1,41 @@
-import { generatePK, generatePublicId, PullRequestStatus } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { generatePK, generatePublicId, PullRequestStatus } from "@vrooli/shared";
 
 /**
  * Database fixtures for PullRequest model - used for seeding test data
  * These follow Prisma's shape for database operations
  */
 
-// Consistent IDs for testing
-export const pullRequestDbIds = {
-    pr1: generatePK(),
-    pr2: generatePK(),
-    pr3: generatePK(),
-    pr4: generatePK(),
-    pr5: generatePK(),
-    translation1: generatePK(),
-    translation2: generatePK(),
-    translation3: generatePK(),
-    translation4: generatePK(),
-    translation5: generatePK(),
-};
+// Consistent IDs for testing - using lazy initialization to avoid module-level generatePK() calls
+let _pullRequestDbIds: Record<string, bigint> | null = null;
+export function getPullRequestDbIds() {
+    if (!_pullRequestDbIds) {
+        _pullRequestDbIds = {
+            pr1: generatePK(),
+            pr2: generatePK(),
+            pr3: generatePK(),
+            pr4: generatePK(),
+            pr5: generatePK(),
+            translation1: generatePK(),
+            translation2: generatePK(),
+            translation3: generatePK(),
+            translation4: generatePK(),
+            translation5: generatePK(),
+        };
+    }
+    return _pullRequestDbIds;
+}
 
 /**
  * Minimal pull request data for database creation
  */
 export const minimalPullRequestDb: Prisma.pull_requestCreateInput = {
-    id: pullRequestDbIds.pr1,
+    id: getPullRequestDbIds().pr1,
     publicId: generatePublicId(),
     status: PullRequestStatus.Open,
     translations: {
         create: [{
-            id: pullRequestDbIds.translation1,
+            id: getPullRequestDbIds().translation1,
             language: "en",
             text: "Simple pull request for changes",
         }],
@@ -40,12 +46,12 @@ export const minimalPullRequestDb: Prisma.pull_requestCreateInput = {
  * Draft pull request with basic fields
  */
 export const draftPullRequestDb: Prisma.pull_requestCreateInput = {
-    id: pullRequestDbIds.pr2,
+    id: getPullRequestDbIds().pr2,
     publicId: generatePublicId(),
     status: PullRequestStatus.Draft,
     translations: {
         create: [{
-            id: pullRequestDbIds.translation2,
+            id: getPullRequestDbIds().translation2,
             language: "en",
             text: "Work in progress - implementing new feature",
         }],
@@ -56,7 +62,7 @@ export const draftPullRequestDb: Prisma.pull_requestCreateInput = {
  * Complete pull request with all relationships
  */
 export const completePullRequestDb: Prisma.pull_requestCreateInput = {
-    id: pullRequestDbIds.pr3,
+    id: getPullRequestDbIds().pr3,
     publicId: generatePublicId(),
     status: PullRequestStatus.Open,
     createdAt: new Date("2024-01-15T10:00:00Z"),
@@ -64,12 +70,12 @@ export const completePullRequestDb: Prisma.pull_requestCreateInput = {
     translations: {
         create: [
             {
-                id: pullRequestDbIds.translation3,
+                id: getPullRequestDbIds().translation3,
                 language: "en",
                 text: "Feature implementation: Add support for advanced search filters. This PR includes comprehensive tests and documentation updates.",
             },
             {
-                id: pullRequestDbIds.translation4,
+                id: getPullRequestDbIds().translation4,
                 language: "es",
                 text: "Implementación de funciones: Agregar soporte para filtros de búsqueda avanzados. Este PR incluye pruebas completas y actualizaciones de documentación.",
             },
@@ -81,7 +87,7 @@ export const completePullRequestDb: Prisma.pull_requestCreateInput = {
  * Merged pull request
  */
 export const mergedPullRequestDb: Prisma.pull_requestCreateInput = {
-    id: pullRequestDbIds.pr4,
+    id: getPullRequestDbIds().pr4,
     publicId: generatePublicId(),
     status: PullRequestStatus.Merged,
     createdAt: new Date("2024-01-10T09:00:00Z"),
@@ -89,7 +95,7 @@ export const mergedPullRequestDb: Prisma.pull_requestCreateInput = {
     closedAt: new Date("2024-01-12T16:45:00Z"),
     translations: {
         create: [{
-            id: pullRequestDbIds.translation5,
+            id: getPullRequestDbIds().translation5,
             language: "en",
             text: "Bug fix: Resolved issue with data validation in forms",
         }],
@@ -147,7 +153,7 @@ export class PullRequestDbFactory {
     ): Prisma.pull_requestCreateInput {
         const baseData = this.createMinimal(overrides);
         const closedStatuses = [PullRequestStatus.Merged, PullRequestStatus.Rejected, PullRequestStatus.Canceled];
-        
+
         return {
             ...baseData,
             status,
@@ -159,12 +165,12 @@ export class PullRequestDbFactory {
      * Create pull request with user connection
      */
     static createWithUser(
-        userId: string,
+        userId: string | bigint,
         overrides?: Partial<Prisma.pull_requestCreateInput>,
     ): Prisma.pull_requestCreateInput {
         return {
             ...this.createMinimal(overrides),
-            createdBy: { connect: { id: userId } },
+            createdBy: { connect: { id: typeof userId === "string" ? BigInt(userId) : userId } },
         };
     }
 
@@ -172,14 +178,14 @@ export class PullRequestDbFactory {
      * Create pull request with resource connections
      */
     static createWithResources(
-        fromResourceVersionId: string,
-        toResourceId: string,
+        fromResourceVersionId: string | bigint,
+        toResourceId: string | bigint,
         overrides?: Partial<Prisma.pull_requestCreateInput>,
     ): Prisma.pull_requestCreateInput {
         return {
             ...this.createComplete(overrides),
-            fromResourceVersion: { connect: { id: fromResourceVersionId } },
-            toResource: { connect: { id: toResourceId } },
+            fromResourceVersion: { connect: { id: typeof fromResourceVersionId === "string" ? BigInt(fromResourceVersionId) : fromResourceVersionId } },
+            toResource: { connect: { id: typeof toResourceId === "string" ? BigInt(toResourceId) : toResourceId } },
         };
     }
 
@@ -188,13 +194,13 @@ export class PullRequestDbFactory {
      */
     static createWithComments(
         commentCount = 2,
-        userId: string,
+        userId: string | bigint,
         overrides?: Partial<Prisma.pull_requestCreateInput>,
     ): Prisma.pull_requestCreateInput {
         const comments = Array.from({ length: commentCount }, (_, i) => ({
             id: generatePK(),
             publicId: generatePublicId(),
-            createdBy: { connect: { id: userId } },
+            createdBy: { connect: { id: typeof userId === "string" ? BigInt(userId) : userId } },
             translations: {
                 create: [{
                     id: generatePK(),
@@ -206,7 +212,7 @@ export class PullRequestDbFactory {
 
         return {
             ...this.createComplete(overrides),
-            createdBy: { connect: { id: userId } },
+            createdBy: { connect: { id: typeof userId === "string" ? BigInt(userId) : userId } },
             comments: { create: comments },
         };
     }
@@ -217,8 +223,8 @@ export class PullRequestDbFactory {
     static createBatch(
         count: number,
         options?: {
-            userId?: string;
-            toResourceId?: string;
+            userId?: string | bigint;
+            toResourceId?: string | bigint;
             statuses?: PullRequestStatus[];
         },
     ): Prisma.pull_requestCreateInput[] {
@@ -243,14 +249,14 @@ export class PullRequestDbFactory {
             if (options?.userId) {
                 data = {
                     ...data,
-                    createdBy: { connect: { id: options.userId } },
+                    createdBy: { connect: { id: typeof options.userId === "string" ? BigInt(options.userId) : options.userId } },
                 };
             }
 
             if (options?.toResourceId) {
                 data = {
                     ...data,
-                    toResource: { connect: { id: options.toResourceId } },
+                    toResource: { connect: { id: typeof options.toResourceId === "string" ? BigInt(options.toResourceId) : options.toResourceId } },
                 };
             }
 
@@ -266,9 +272,9 @@ export async function seedPullRequests(
     prisma: any,
     options: {
         count?: number;
-        userId?: string;
-        fromResourceVersionId?: string;
-        toResourceId?: string;
+        userId?: string | bigint;
+        fromResourceVersionId?: string | bigint;
+        toResourceId?: string | bigint;
         withComments?: boolean;
         statuses?: PullRequestStatus[];
     } = {},
@@ -283,7 +289,7 @@ export async function seedPullRequests(
                 options.fromResourceVersionId,
                 options.toResourceId,
                 {
-                    createdBy: options.userId ? { connect: { id: options.userId } } : undefined,
+                    createdBy: options.userId ? { connect: { id: typeof options.userId === "string" ? BigInt(options.userId) : options.userId } } : undefined,
                     status: options.statuses ? options.statuses[i % options.statuses.length] : PullRequestStatus.Open,
                 },
             );
@@ -329,13 +335,13 @@ export async function seedPullRequests(
  */
 export async function linkPullRequestToResourceVersion(
     prisma: any,
-    pullRequestId: string,
-    resourceVersionId: string,
+    pullRequestId: string | bigint,
+    resourceVersionId: string | bigint,
 ) {
     return await prisma.resource_version.update({
-        where: { id: resourceVersionId },
+        where: { id: typeof resourceVersionId === "string" ? BigInt(resourceVersionId) : resourceVersionId },
         data: {
-            pullRequestId,
+            pullRequestId: typeof pullRequestId === "string" ? BigInt(pullRequestId) : pullRequestId,
             intendToPullRequest: true,
         },
     });

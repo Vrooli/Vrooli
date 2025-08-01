@@ -595,7 +595,7 @@ export async function seedReminders(
     let pastCount = 0;
 
     // Create list if requested
-    let list = null;
+    let list: { id: bigint; user: unknown } | null = null;
     if (options.withList) {
         list = await prisma.reminder_list.create({
             data: ReminderListDbFactory.createMinimal(BigInt(options.userId), {

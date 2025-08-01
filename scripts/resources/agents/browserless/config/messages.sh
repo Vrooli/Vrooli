@@ -90,3 +90,6 @@ browserless::export_messages() {
     export MSG_USAGE_SCRAPE MSG_USAGE_PRESSURE MSG_USAGE_ALL MSG_DOCKER_INSTALL_HINT
     export MSG_DOCKER_START_HINT MSG_DOCKER_PERMISSIONS_HINT MSG_DOCKER_LOGOUT_HINT
 }
+
+# Export function for subshell availability
+export -f browserless::export_messages

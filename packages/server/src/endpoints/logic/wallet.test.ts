@@ -1,11 +1,10 @@
 import { type WalletUpdateInput, generatePK } from "@vrooli/shared";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { mockAuthenticatedSession, mockLoggedOutSession, mockApiSession, mockWriteAuthPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { assertRequiresAuth } from "../../__test/authTestUtils.js";
+import { mockApiSession, mockWriteAuthPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
-import { CacheService } from "../../redisConn.js";
 import { wallet_updateOne } from "../generated/wallet_updateOne.js";
 import { wallet } from "./wallet.js";
 // Import database fixtures
@@ -25,7 +24,7 @@ describe("EndpointsWallet", () => {
     afterEach(async () => {
         // Validate cleanup to detect any missed records
         const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","session"],
+            tables: ["user", "user_auth", "email", "session"],
             logOrphans: true,
         });
         if (orphans.length > 0) {
@@ -48,7 +47,7 @@ describe("EndpointsWallet", () => {
             it("not logged in", async () => {
                 await assertRequiresAuth(
                     wallet.updateOne,
-                    { id: generatePK() },
+                    { id: generatePK().toString() },
                     wallet_updateOne,
                 );
             });
@@ -62,7 +61,7 @@ describe("EndpointsWallet", () => {
                 });
 
                 const input: WalletUpdateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     name: "Updated Wallet",
                 };
 
@@ -74,7 +73,7 @@ describe("EndpointsWallet", () => {
         describe("valid", () => {
             it("updates own wallet", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create wallet for the user
                 const userWallet = await DbProvider.get().wallet.create({
                     data: WalletDbFactory.createMinimal({
@@ -115,7 +114,7 @@ describe("EndpointsWallet", () => {
 
             it("updates wallet with description", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 const userWallet = await DbProvider.get().wallet.create({
                     data: WalletDbFactory.createMinimal({
                         name: "Hardware Wallet",
@@ -144,7 +143,7 @@ describe("EndpointsWallet", () => {
 
             it("allows updating multiple wallet properties", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 const userWallet = await DbProvider.get().wallet.create({
                     data: WalletDbFactory.createMinimal({
                         name: "Multi-sig Wallet",
@@ -177,7 +176,7 @@ describe("EndpointsWallet", () => {
 
             it("preserves verification status", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 const userWallet = await DbProvider.get().wallet.create({
                     data: WalletDbFactory.createMinimal({
                         name: "Verified Wallet",
@@ -207,7 +206,7 @@ describe("EndpointsWallet", () => {
 
             it("handles wallet name normalization", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 const userWallet = await DbProvider.get().wallet.create({
                     data: WalletDbFactory.createMinimal({
                         name: "original name",
@@ -236,7 +235,7 @@ describe("EndpointsWallet", () => {
 
             it("allows updating unverified wallet", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 const userWallet = await DbProvider.get().wallet.create({
                     data: WalletDbFactory.createMinimal({
                         name: "Unverified Wallet",
@@ -267,7 +266,7 @@ describe("EndpointsWallet", () => {
         describe("invalid", () => {
             it("cannot update another user's wallet", async () => {
                 const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
-                
+
                 // Create wallet for user 1
                 const user1Wallet = await DbProvider.get().wallet.create({
                     data: WalletDbFactory.createMinimal({
@@ -303,7 +302,7 @@ describe("EndpointsWallet", () => {
                 });
 
                 const input: WalletUpdateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     name: "Non-existent Wallet",
                 };
 
@@ -313,7 +312,7 @@ describe("EndpointsWallet", () => {
 
             it("rejects duplicate wallet name for same user", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 // Create two wallets for the same user
                 const wallet1 = await DbProvider.get().wallet.create({
                     data: WalletDbFactory.createMinimal({
@@ -351,7 +350,7 @@ describe("EndpointsWallet", () => {
 
             it("rejects empty wallet name", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 const userWallet = await DbProvider.get().wallet.create({
                     data: WalletDbFactory.createMinimal({
                         name: "Valid Wallet",
@@ -378,7 +377,7 @@ describe("EndpointsWallet", () => {
 
             it("rejects wallet name that's too long", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 const userWallet = await DbProvider.get().wallet.create({
                     data: WalletDbFactory.createMinimal({
                         name: "Valid Wallet",
@@ -405,7 +404,7 @@ describe("EndpointsWallet", () => {
 
             it("prevents updating wallet addresses", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 const userWallet = await DbProvider.get().wallet.create({
                     data: WalletDbFactory.createMinimal({
                         name: "Secure Wallet",
@@ -437,7 +436,7 @@ describe("EndpointsWallet", () => {
 
             it("rejects update with profane wallet name", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                
+
                 const userWallet = await DbProvider.get().wallet.create({
                     data: WalletDbFactory.createMinimal({
                         name: "Clean Wallet",

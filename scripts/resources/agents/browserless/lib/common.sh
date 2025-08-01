@@ -148,3 +148,14 @@ browserless::backup_data() {
         log::info "Backup created for: $reason"
     fi
 }
+
+# Export functions for subshell availability
+export -f browserless::check_docker
+export -f browserless::container_exists
+export -f browserless::is_running
+export -f browserless::check_port
+export -f browserless::validate_prerequisites
+export -f browserless::check_existing_installation
+export -f browserless::wait_for_ready
+export -f browserless::show_resource_usage
+export -f browserless::backup_data

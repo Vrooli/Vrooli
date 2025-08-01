@@ -65,7 +65,7 @@ export class ConfigurationManager {
     private readonly activeLocks = new Map<string, FileLock>();
 
     constructor(configPath?: string, options: { lockTimeout?: number } = {}) {
-        this.configPath = configPath || resolve(process.env.HOME || process.cwd(), ".vrooli", "resources.local.json");
+        this.configPath = configPath || resolve(process.cwd(), ".vrooli", "resources.local.json");
         this.lockTimeout = options.lockTimeout || SECONDS_30_MS;
 
         logger.debug("[ConfigurationManager] Initialized", {

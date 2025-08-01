@@ -1,31 +1,24 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { EventInterceptor } from "./EventInterceptor.js";
-import { DefaultDecisionMaker } from "./BotPriority.js";
+import type {
+    BotParticipant,
+    ServiceEvent,
+    SwarmState
+} from "@vrooli/shared";
+import { generatePK } from "@vrooli/shared";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { logger } from "../../events/logger.js";
 import { SwarmStateAccessor } from "../execution/shared/SwarmStateAccessor.js";
 import { RoutineExecutor } from "../execution/tier2/routineExecutor.js";
 import { StepExecutor } from "../execution/tier3/stepExecutor.js";
-import { getEventBehavior } from "./registry.js";
+import { DefaultDecisionMaker } from "./BotPriority.js";
+import { EventInterceptor } from "./EventInterceptor.js";
 import { aggregateProgression, aggregateReasons } from "./publisher.js";
-import { logger } from "../../events/logger.js";
-import { extractChatId } from "./types.js";
-import type { 
-    BotParticipant, 
-    ServiceEvent, 
-    SwarmState, 
-    BehaviourSpec,
-    RoutineAction,
-    InvokeAction,
-    TierExecutionRequest,
-    RoutineExecutionInput,
-} from "@vrooli/shared";
-import { generatePK } from "@vrooli/shared";
-import type { 
-    ILockService, 
-    ISwarmContextManager, 
-    BotEventResponse,
-    InterceptionResult,
+import { getEventBehavior } from "./registry.js";
+import type {
     BotDecisionContext,
+    ILockService,
+    ISwarmContextManager
 } from "./types.js";
+import { extractChatId } from "./types.js";
 
 // Mock dependencies
 vi.mock("../../events/logger.js", () => ({
@@ -89,6 +82,8 @@ describe("EventInterceptor", () => {
         name: "Test Bot",
         role: "participant",
         config: {
+            __version: "1.0",
+            resources: [],
             agentSpec: {
                 role: "coordinator",
                 behaviors: [
@@ -118,7 +113,7 @@ describe("EventInterceptor", () => {
     const eventId = generatePK().toString();
     const chatId = generatePK().toString();
     const swarmId = generatePK().toString();
-    
+
     const sampleEvent: ServiceEvent = {
         id: eventId,
         type: "chat/message",
@@ -272,6 +267,8 @@ describe("EventInterceptor", () => {
             const botWithoutBehaviors: BotParticipant = {
                 ...sampleBot,
                 config: {
+                    __version: "1.0",
+                    resources: [],
                     agentSpec: {
                         role: "coordinator",
                         behaviors: [],
@@ -289,6 +286,8 @@ describe("EventInterceptor", () => {
             const coordinatorBot: BotParticipant = {
                 ...sampleBot,
                 config: {
+                    __version: "1.0",
+                    resources: [],
                     agentSpec: {
                         role: "coordinator",
                         behaviors: [],
@@ -306,6 +305,8 @@ describe("EventInterceptor", () => {
             const monitorBot: BotParticipant = {
                 ...sampleBot,
                 config: {
+                    __version: "1.0",
+                    resources: [],
                     agentSpec: {
                         role: "monitor",
                         behaviors: [],
@@ -443,6 +444,8 @@ describe("EventInterceptor", () => {
             const chatBot: BotParticipant = {
                 ...sampleBot,
                 config: {
+                    __version: "1.0",
+                    resources: [],
                     agentSpec: {
                         role: "specialist",
                         behaviors: [
@@ -465,6 +468,8 @@ describe("EventInterceptor", () => {
             const wildcardBot: BotParticipant = {
                 ...sampleBot,
                 config: {
+                    __version: "1.0",
+                    resources: [],
                     agentSpec: {
                         role: "monitor",
                         behaviors: [
@@ -487,6 +492,8 @@ describe("EventInterceptor", () => {
             const multiLevelBot: BotParticipant = {
                 ...sampleBot,
                 config: {
+                    __version: "1.0",
+                    resources: [],
                     agentSpec: {
                         role: "monitor",
                         behaviors: [
@@ -509,6 +516,8 @@ describe("EventInterceptor", () => {
             const nonMatchingBot: BotParticipant = {
                 ...sampleBot,
                 config: {
+                    __version: "1.0",
+                    resources: [],
                     agentSpec: {
                         role: "specialist",
                         behaviors: [
@@ -534,6 +543,8 @@ describe("EventInterceptor", () => {
                 ...sampleBot,
                 id: "coordinator-bot",
                 config: {
+                    __version: "1.0",
+                    resources: [],
                     agentSpec: {
                         role: "coordinator",
                         behaviors: [
@@ -550,6 +561,8 @@ describe("EventInterceptor", () => {
                 ...sampleBot,
                 id: "specialist-bot",
                 config: {
+                    __version: "1.0",
+                    resources: [],
                     agentSpec: {
                         role: "specialist",
                         behaviors: [
@@ -585,6 +598,8 @@ describe("EventInterceptor", () => {
                 ...sampleBot,
                 id: "exact-match-bot",
                 config: {
+                    __version: "1.0",
+                    resources: [],
                     agentSpec: {
                         role: "specialist",
                         behaviors: [
@@ -643,6 +658,8 @@ describe("EventInterceptor", () => {
             const routineBot: BotParticipant = {
                 ...sampleBot,
                 config: {
+                    __version: "1.0",
+                    resources: [],
                     agentSpec: {
                         role: "coordinator",
                         behaviors: [
@@ -674,6 +691,8 @@ describe("EventInterceptor", () => {
             const invokeBot: BotParticipant = {
                 ...sampleBot,
                 config: {
+                    __version: "1.0",
+                    resources: [],
                     agentSpec: {
                         role: "specialist",
                         behaviors: [
@@ -711,6 +730,8 @@ describe("EventInterceptor", () => {
             const invalidRoutineBot: BotParticipant = {
                 ...sampleBot,
                 config: {
+                    __version: "1.0",
+                    resources: [],
                     agentSpec: {
                         role: "coordinator",
                         behaviors: [
@@ -758,6 +779,8 @@ describe("EventInterceptor", () => {
             const blockingBot: BotParticipant = {
                 ...sampleBot,
                 config: {
+                    __version: "1.0",
+                    resources: [],
                     agentSpec: {
                         role: "coordinator",
                         behaviors: [
@@ -788,6 +811,8 @@ describe("EventInterceptor", () => {
             const exclusiveBot: BotParticipant = {
                 ...sampleBot,
                 config: {
+                    __version: "1.0",
+                    resources: [],
                     agentSpec: {
                         role: "coordinator",
                         behaviors: [
@@ -935,10 +960,10 @@ describe("EventInterceptor", () => {
                 getState: vi.fn().mockReturnValue("READY"),
                 getStateMachine: vi.fn().mockReturnValue(failingStateMachine),
             });
-            
+
             // Create new interceptor with failing factory
             const testInterceptor = new EventInterceptor(mockLockService, mockContextManager, mockRoutineExecutorFactory);
-            
+
             await testInterceptor.checkInterception(sampleEvent, sampleSwarmState);
             await testInterceptor.stopAllActiveExecutions();
 
@@ -990,6 +1015,8 @@ describe("EventInterceptor", () => {
             const botWithEmptyBehaviors: BotParticipant = {
                 ...sampleBot,
                 config: {
+                    __version: "1.0",
+                    resources: [],
                     agentSpec: {
                         role: "specialist",
                         behaviors: [],

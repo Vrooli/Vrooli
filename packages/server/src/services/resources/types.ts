@@ -1,11 +1,12 @@
-import type { ResourcesConfig, TypedResourcesConfig } from "./resourcesConfig.js";
-import type { 
-    ResourceId, 
-    GetConfig, 
-    GetResourceMetadata,
-    AIResourceId,
-    AutomationResourceId, 
+import type { TypedResourcesConfig } from "./resourcesConfig.js";
+import type {
     AgentResourceId,
+    AIResourceId,
+    AutomationResourceId,
+    ExecutionResourceId,
+    GetConfig,
+    GetResourceMetadata,
+    ResourceId,
     StorageResourceId,
 } from "./typeRegistry.js";
 
@@ -17,6 +18,7 @@ export enum ResourceCategory {
     Automation = "automation",
     Agents = "agents",
     Storage = "storage",
+    Execution = "execution",
 }
 
 /**
@@ -100,7 +102,7 @@ export interface InternalResourceInfo extends PublicResourceInfo {
 /**
  * Fully typed public resource information with category-specific metadata
  */
-export interface TypedPublicResourceInfo<TId extends ResourceId = ResourceId> 
+export interface TypedPublicResourceInfo<TId extends ResourceId = ResourceId>
     extends Omit<PublicResourceInfo, "metadata"> {
     metadata?: GetResourceMetadata<TId>;
 }
@@ -109,7 +111,7 @@ export interface TypedPublicResourceInfo<TId extends ResourceId = ResourceId>
  * Fully typed internal resource information with category-specific metadata and config
  * @internal WARNING: Contains sensitive configuration data including API keys
  */
-export interface TypedInternalResourceInfo<TId extends ResourceId = ResourceId> 
+export interface TypedInternalResourceInfo<TId extends ResourceId = ResourceId>
     extends Omit<InternalResourceInfo, "metadata" | "config"> {
     config?: GetConfig<TId>;
     metadata?: GetResourceMetadata<TId>;
@@ -118,11 +120,12 @@ export interface TypedInternalResourceInfo<TId extends ResourceId = ResourceId>
 /**
  * Union type for all possible typed resource info (for runtime collections)
  */
-export type AnyTypedResourceInfo = 
+export type AnyTypedResourceInfo =
     | TypedPublicResourceInfo<AIResourceId>
     | TypedPublicResourceInfo<AutomationResourceId>
     | TypedPublicResourceInfo<AgentResourceId>
-    | TypedPublicResourceInfo<StorageResourceId>;
+    | TypedPublicResourceInfo<StorageResourceId>
+    | TypedPublicResourceInfo<ExecutionResourceId>;
 
 // ============================================================================
 // Health Check Detail Types
@@ -179,6 +182,22 @@ export interface StorageHealthDetails {
 }
 
 /**
+ * Health details specific to execution resources
+ */
+export interface ExecutionHealthDetails {
+    supportedLanguages?: number;
+    activeWorkers?: number;
+    configuredWorkers?: number;
+    queuedSubmissions?: number;
+    securityLimits?: {
+        cpuTime: number;
+        memory: number;
+        processes: number;
+    };
+    version?: string;
+}
+
+/**
  * Result of a health check with untyped details (legacy)
  */
 export interface HealthCheckResult {
@@ -191,13 +210,14 @@ export interface HealthCheckResult {
 /**
  * Fully typed health check result with category-specific details
  */
-export interface TypedHealthCheckResult<TCategory extends ResourceCategory = ResourceCategory> 
+export interface TypedHealthCheckResult<TCategory extends ResourceCategory = ResourceCategory>
     extends Omit<HealthCheckResult, "details"> {
     details?: TCategory extends ResourceCategory.AI ? AIHealthDetails :
-             TCategory extends ResourceCategory.Automation ? AutomationHealthDetails :
-             TCategory extends ResourceCategory.Agents ? AgentHealthDetails :
-             TCategory extends ResourceCategory.Storage ? StorageHealthDetails :
-             Record<string, unknown>;
+    TCategory extends ResourceCategory.Automation ? AutomationHealthDetails :
+    TCategory extends ResourceCategory.Agents ? AgentHealthDetails :
+    TCategory extends ResourceCategory.Storage ? StorageHealthDetails :
+    TCategory extends ResourceCategory.Execution ? ExecutionHealthDetails :
+    Record<string, unknown>;
 }
 
 /**
@@ -239,22 +259,22 @@ export interface IResource {
     readonly isSupported: boolean;
     /** Deployment type of this resource */
     readonly deploymentType: DeploymentType;
-    
+
     /** Initialize the resource with configuration */
     initialize(options: ResourceInitOptions): Promise<void>;
-    
+
     /** Check if the resource is healthy and available */
     healthCheck(): Promise<HealthCheckResult>;
-    
+
     /** Discover if this resource is running locally */
     discover(): Promise<boolean>;
-    
+
     /** Get public resource information (safe to expose) */
     getPublicInfo(): PublicResourceInfo;
-    
+
     /** Get internal resource information (includes sensitive config) */
     getInternalInfo(): InternalResourceInfo;
-    
+
     /** Cleanup and shutdown the resource */
     shutdown(): Promise<void>;
 }

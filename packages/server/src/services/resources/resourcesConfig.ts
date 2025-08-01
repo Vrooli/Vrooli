@@ -5,6 +5,7 @@ import type {
     AgentResourceId,
     AIResourceId,
     AutomationResourceId,
+    ExecutionResourceId,
     GetConfig,
     ResourceConfigMap,
     ResourceId,
@@ -84,6 +85,7 @@ export interface TypedResourcesConfig extends Omit<ResourcesConfig, "services" |
         automation?: Partial<Pick<ResourceConfigMap, AutomationResourceId>>;
         agents?: Partial<Pick<ResourceConfigMap, AgentResourceId>>;
         storage?: Partial<Pick<ResourceConfigMap, StorageResourceId>>;
+        execution?: Partial<Pick<ResourceConfigMap, ExecutionResourceId>>;
     };
     /** Documentation field for JSON configs - ignored during processing */
     _documentation?: Record<string, unknown>;
@@ -100,6 +102,7 @@ const DEFAULT_CONFIG: TypedResourcesConfig = {
         automation: {},
         agents: {},
         storage: {},
+        execution: {},
     },
     security: {
         network: {
@@ -306,6 +309,9 @@ function getResourceCategory(resourceId: ResourceId): keyof NonNullable<TypedRes
     }
     if (isResourceInCategory(resourceId, ResourceCategory.Storage)) {
         return "storage";
+    }
+    if (isResourceInCategory(resourceId, ResourceCategory.Execution)) {
+        return "execution";
     }
 
     // This should never happen if typeRegistry is properly maintained

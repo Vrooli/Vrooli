@@ -452,7 +452,7 @@ describe("EndpointsNotificationSubscription", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: NotificationSubscriptionCreateInput = notificationSubscriptionTestDataFactory.createMinimal({
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     objectConnect: resource.id.toString(), // ID of object to subscribe to
                     objectType: SubscribableObject.Resource, // Type of object
                     context: "Project notification subscription",
@@ -494,7 +494,7 @@ describe("EndpointsNotificationSubscription", () => {
 
                 for (let i = 0; i < contexts.length; i++) {
                     const input: NotificationSubscriptionCreateInput = notificationSubscriptionTestDataFactory.createMinimal({
-                        id: generatePK(),
+                        id: generatePK().toString(),
                         objectConnect: resources[i].id.toString(),
                         objectType: SubscribableObject.Resource,
                         context: contexts[i],
@@ -518,7 +518,7 @@ describe("EndpointsNotificationSubscription", () => {
                 for (const silent of silentSettings) {
                     const resource = await createTestResource(testUser.id.toString());
                     const input: NotificationSubscriptionCreateInput = notificationSubscriptionTestDataFactory.createMinimal({
-                        id: generatePK(),
+                        id: generatePK().toString(),
                         objectConnect: resource.id.toString(),
                         objectType: SubscribableObject.Resource,
                         context: "Project notifications",
@@ -540,7 +540,7 @@ describe("EndpointsNotificationSubscription", () => {
 
                 // Create two subscriptions with different contexts
                 const input1: NotificationSubscriptionCreateInput = notificationSubscriptionTestDataFactory.createMinimal({
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     objectConnect: resource.id.toString(),
                     objectType: SubscribableObject.Resource,
                     context: "Project updates",
@@ -548,7 +548,7 @@ describe("EndpointsNotificationSubscription", () => {
                 });
 
                 const input2: NotificationSubscriptionCreateInput = notificationSubscriptionTestDataFactory.createMinimal({
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     objectConnect: team.id.toString(),
                     objectType: SubscribableObject.Team,
                     context: "Project comments",
@@ -589,7 +589,7 @@ describe("EndpointsNotificationSubscription", () => {
 
                 // Try to create subscription with invalid data
                 const input: NotificationSubscriptionCreateInput = notificationSubscriptionTestDataFactory.createMinimal({
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     objectConnect: resource.id.toString(),
                     objectType: SubscribableObject.Resource,
                     context: "", // Empty context should be invalid
@@ -727,7 +727,7 @@ describe("EndpointsNotificationSubscription", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 const input: NotificationSubscriptionUpdateInput = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     context: "Updated context",
                 };
 

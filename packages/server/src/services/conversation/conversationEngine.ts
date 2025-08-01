@@ -18,7 +18,7 @@
  * - Strategy-agnostic conversation handling
  */
 
-import type { BotId, BotParticipant, ChatMessage, ConversationContext, ConversationEngineConfig, ConversationParams, ConversationResult, ConversationTrigger, ExecutionResourceUsage, ExecutionStrategy, MessageState, ResponseContext, ResponseResult, SwarmId, TurnExecutionParams, TurnExecutionResult, TurnId } from "@vrooli/shared";
+import type { BotId, BotParticipant, ConversationContext, ConversationEngineConfig, ConversationParams, ConversationResult, ConversationTrigger, ExecutionResourceUsage, ExecutionStrategy, MessageState, ResponseContext, ResponseResult, SwarmId, TurnExecutionParams, TurnExecutionResult, TurnId } from "@vrooli/shared";
 import { toTurnId } from "@vrooli/shared";
 import { logger } from "../../events/logger.js";
 import type { ISwarmContextManager } from "../execution/shared/SwarmContextManager.js";
@@ -73,17 +73,17 @@ export class ConversationEngine {
         const startTime = Date.now();
         const turnId = toTurnId(`turn_${params.context.swarmId}_${Date.now()}`);
 
-        logger.info("[ConversationEngine] Starting conversation orchestration", {
-            swarmId: params.context.swarmId,
-            strategy: params.strategy,
-            triggerType: params.trigger.type,
-            participantCount: params.context.participants.length,
-            turnId,
-        });
-
         try {
-            // 1. Validate conversation context
+            // 1. Validate conversation context first
             this.validateConversationContext(params.context);
+
+            logger.info("[ConversationEngine] Starting conversation orchestration", {
+                swarmId: params.context.swarmId,
+                strategy: params.strategy,
+                triggerType: params.trigger.type,
+                participantCount: params.context.participants.length,
+                turnId,
+            });
 
             // 2. Select responding bots (replaces missing findLeaderBot)
             const selectionResult = await this.selectRespondingBots(params.trigger, params.context);

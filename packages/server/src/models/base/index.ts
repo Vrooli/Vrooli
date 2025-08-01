@@ -97,6 +97,7 @@ export class ModelMap {
                     import(importPath),
                     timeoutPromise,
                 ]);
+                
                 const modelExport = module[`${modelName}Model`];
                 if (modelExport && typeof modelExport === "object") {
                     this.map[modelName] = modelExport as BaseModelLogic;

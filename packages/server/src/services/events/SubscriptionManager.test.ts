@@ -1,6 +1,7 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SubscriptionManager } from "./SubscriptionManager.js";
 import { generatePK } from "@vrooli/shared";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockedFunction } from "vitest";
+import { TestEventGuards } from "../../__test/helpers/testEvents.js";
+import { SubscriptionManager } from "./SubscriptionManager.js";
 import type {
     EventHandler,
     EventSubscriptionId,
@@ -20,7 +21,7 @@ vi.mock("../../events/logger.js", () => ({
 
 describe("SubscriptionManager", () => {
     let subscriptionManager: SubscriptionManager;
-    let mockHandler: jest.MockedFunction<EventHandler>;
+    let mockHandler: MockedFunction<EventHandler>;
     let sampleEvent: ServiceEvent;
 
     beforeEach(() => {
@@ -30,9 +31,8 @@ describe("SubscriptionManager", () => {
         sampleEvent = {
             id: generatePK().toString(),
             type: "test/event",
-            data: { message: "test" },
+            data: { id: "test-id", message: "test" } as any,
             timestamp: new Date(),
-            source: "test-service",
         };
     });
 
@@ -44,7 +44,7 @@ describe("SubscriptionManager", () => {
         it("should add a subscription successfully", () => {
             const patterns = ["test/*", "user/login"];
             const options: SubscriptionOptions = {
-                priority: "high",
+                batchSize: 10,
             };
 
             const id = subscriptionManager.addSubscription(patterns, mockHandler, options);
@@ -85,9 +85,9 @@ describe("SubscriptionManager", () => {
         });
 
         it("should index subscriptions by pattern", () => {
-            const id1 = subscriptionManager.addSubscription(["user/*"], mockHandler);
-            const id2 = subscriptionManager.addSubscription(["user/login"], mockHandler);
-            const id3 = subscriptionManager.addSubscription(["chat/*"], mockHandler);
+            const _id1 = subscriptionManager.addSubscription(["user/*"], mockHandler);
+            const _id2 = subscriptionManager.addSubscription(["user/login"], mockHandler);
+            const _id3 = subscriptionManager.addSubscription(["chat/*"], mockHandler);
 
             const userSubscriptions = subscriptionManager.findSubscriptionsByPattern("user/*");
             const loginSubscriptions = subscriptionManager.findSubscriptionsByPattern("user/login");
@@ -103,7 +103,7 @@ describe("SubscriptionManager", () => {
             const handler2 = vi.fn();
 
             const id1 = subscriptionManager.addSubscription(["test/*"], handler1);
-            const id2 = subscriptionManager.addSubscription(["user/*"], handler2);
+            const _id2 = subscriptionManager.addSubscription(["user/*"], handler2);
             const id3 = subscriptionManager.addSubscription(["chat/*"], handler1);
 
             const handler1Subscriptions = subscriptionManager.getSubscriptionsByHandler(handler1);
@@ -113,7 +113,7 @@ describe("SubscriptionManager", () => {
             expect(handler2Subscriptions).toHaveLength(1);
             expect(handler1Subscriptions).toContain(id1);
             expect(handler1Subscriptions).toContain(id3);
-            expect(handler2Subscriptions).toContain(id2);
+            expect(handler2Subscriptions).toContain(_id2);
         });
     });
 
@@ -138,20 +138,31 @@ describe("SubscriptionManager", () => {
                 ["test/*"],
                 mockHandler,
                 {
-                    filter: (event) => event.data.message === "allowed",
+                    filter: (event) => {
+                        if (TestEventGuards.isTestChatMessage(event)) {
+                            return event.data.message === "allowed";
+                        }
+                        return false;
+                    },
                 },
             );
 
             const filteredSubscription = subscriptionManager["subscriptions"].get(filterId)!;
 
-            // Event should be filtered out
-            await subscriptionManager.deliverEvent(filteredSubscription, sampleEvent);
+            // Event should be filtered out - using test/chat/message type
+            const blockedEvent = {
+                ...sampleEvent,
+                type: "test/chat/message",
+                data: { message: "blocked", chatId: "test" },
+            };
+            await subscriptionManager.deliverEvent(filteredSubscription, blockedEvent);
             expect(mockHandler).not.toHaveBeenCalled();
 
             // Event should pass filter
             const allowedEvent = {
                 ...sampleEvent,
-                data: { message: "allowed" },
+                type: "test/chat/message",
+                data: { message: "allowed", chatId: "test" },
             };
             await subscriptionManager.deliverEvent(filteredSubscription, allowedEvent);
             expect(mockHandler).toHaveBeenCalledWith(allowedEvent);
@@ -330,7 +341,7 @@ describe("SubscriptionManager", () => {
     });
 
     describe("batch processing", () => {
-        let batchHandler: jest.MockedFunction<EventHandler>;
+        let batchHandler: MockedFunction<EventHandler>;
         let subscriptionId: EventSubscriptionId;
 
         beforeEach(() => {
@@ -556,7 +567,7 @@ describe("SubscriptionManager", () => {
     describe("index management", () => {
         it("should maintain pattern index integrity", async () => {
             const id1 = subscriptionManager.addSubscription(["user/*", "chat/*"], mockHandler);
-            const id2 = subscriptionManager.addSubscription(["user/*"], mockHandler);
+            const _id2 = subscriptionManager.addSubscription(["user/*"], mockHandler);
 
             // Verify patterns are indexed
             expect(subscriptionManager.findSubscriptionsByPattern("user/*")).toHaveLength(2);
@@ -575,8 +586,8 @@ describe("SubscriptionManager", () => {
             const handler2 = vi.fn();
 
             const id1 = subscriptionManager.addSubscription(["test/*"], handler1);
-            const id2 = subscriptionManager.addSubscription(["user/*"], handler1);
-            const id3 = subscriptionManager.addSubscription(["chat/*"], handler2);
+            const _id2 = subscriptionManager.addSubscription(["user/*"], handler1);
+            const _id3 = subscriptionManager.addSubscription(["chat/*"], handler2);
 
             expect(subscriptionManager.getSubscriptionsByHandler(handler1)).toHaveLength(2);
             expect(subscriptionManager.getSubscriptionsByHandler(handler2)).toHaveLength(1);

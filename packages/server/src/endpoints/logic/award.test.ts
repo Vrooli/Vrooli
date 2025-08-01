@@ -98,7 +98,7 @@ describe("EndpointsAward", () => {
 
                 // When logged in as user1, should see user1's awards
                 const expectedIds = [
-                    userAward1.id,   // User1's award
+                    BigInt(userAward1.id),   // User1's award
                 ];
 
                 const input: AwardSearchInput = { take: 10 };
@@ -114,13 +114,13 @@ describe("EndpointsAward", () => {
 
                 // For the given time range, should only see awards updated in Feb-Mar that user1 has access to
                 const expectedIds = [
-                    userAward1.id,   // Updated in March and belongs to user1
+                    BigInt(userAward1.id),   // Updated in March and belongs to user1
                 ];
 
                 const input: AwardSearchInput = {
                     updatedTimeFrame: {
-                        after: new Date("2023-02-01"),
-                        before: new Date("2023-04-01"),
+                        after: new Date("2023-02-01").toISOString(),
+                        before: new Date("2023-04-01").toISOString(),
                     },
                 };
                 const result = await award.findMany({ input }, { req, res }, award_findMany);
@@ -170,8 +170,8 @@ describe("EndpointsAward", () => {
                     updatedTimeFrame: {
                         // Invalid date objects - NaN dates should not cause errors,
                         // they just won't match any records
-                        after: new Date("invalid-date"),
-                        before: new Date("invalid-date"),
+                        after: new Date("invalid-date").toISOString(),
+                        before: new Date("invalid-date").toISOString(),
                     },
                 };
 

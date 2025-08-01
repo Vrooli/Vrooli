@@ -215,3 +215,9 @@ curl -X POST $BROWSERLESS_BASE_URL/chrome/scrape \\
   }'
 EOF
 }
+
+# Export functions for subshell availability
+export -f browserless::show_usage_help
+export -f browserless::run_usage_example
+export -f browserless::show_api_reference
+export -f browserless::show_curl_examples

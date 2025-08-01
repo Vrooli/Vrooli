@@ -1,5 +1,5 @@
-import { generatePK, ReportSuggestedAction } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { generatePK, ReportSuggestedAction } from "@vrooli/shared";
 
 /**
  * Database fixtures for ReportResponse model - used for seeding test data
@@ -9,79 +9,89 @@ import { type Prisma } from "@prisma/client";
 
 // Consistent IDs for testing
 export const reportResponseDbIds = {
-    response1: generatePK(),
-    response2: generatePK(),
-    response3: generatePK(),
-    response4: generatePK(),
-    response5: generatePK(),
+    response1: () => generatePK(),
+    response2: () => generatePK(),
+    response3: () => generatePK(),
+    response4: () => generatePK(),
+    response5: () => generatePK(),
 };
 
 /**
  * Minimal report response data for database creation
  */
-export const minimalReportResponseDb: Prisma.report_responseCreateInput = {
-    id: reportResponseDbIds.response1,
-    actionSuggested: ReportSuggestedAction.NonIssue,
-    language: "en",
-    createdBy: { connect: { id: "user_123" } },
-    report: { connect: { id: "report_123" } },
-};
+export function minimalReportResponseDb(): Prisma.report_responseCreateInput {
+    return {
+        id: reportResponseDbIds.response1(),
+        actionSuggested: ReportSuggestedAction.NonIssue,
+        language: "en",
+        createdBy: { connect: { id: generatePK() } },
+        report: { connect: { id: generatePK() } },
+    };
+}
 
 /**
  * Report response with details
  */
-export const reportResponseWithDetailsDb: Prisma.report_responseCreateInput = {
-    id: reportResponseDbIds.response2,
-    actionSuggested: ReportSuggestedAction.Delete,
-    details: "This content violates community guidelines and should be removed immediately.",
-    language: "en",
-    createdBy: { connect: { id: "user_456" } },
-    report: { connect: { id: "report_456" } },
-};
+export function reportResponseWithDetailsDb(): Prisma.report_responseCreateInput {
+    return {
+        id: reportResponseDbIds.response2(),
+        actionSuggested: ReportSuggestedAction.Delete,
+        details: "This content violates community guidelines and should be removed immediately.",
+        language: "en",
+        createdBy: { connect: { id: generatePK() } },
+        report: { connect: { id: generatePK() } },
+    };
+}
 
 /**
  * Complete report response with all features
  */
-export const completeReportResponseDb: Prisma.report_responseCreateInput = {
-    id: reportResponseDbIds.response3,
-    actionSuggested: ReportSuggestedAction.SuspendUser,
-    details: "User has repeatedly posted inappropriate content. Previous warnings have been ignored. Recommend temporary suspension.",
-    language: "en",
-    createdBy: { connect: { id: "user_789" } },
-    report: { connect: { id: "report_789" } },
-};
+export function completeReportResponseDb(): Prisma.report_responseCreateInput {
+    return {
+        id: reportResponseDbIds.response3(),
+        actionSuggested: ReportSuggestedAction.SuspendUser,
+        details: "User has repeatedly posted inappropriate content. Previous warnings have been ignored. Recommend temporary suspension.",
+        language: "en",
+        createdBy: { connect: { id: generatePK() } },
+        report: { connect: { id: generatePK() } },
+    };
+}
 
 /**
  * False report response
  */
-export const falseReportResponseDb: Prisma.report_responseCreateInput = {
-    id: reportResponseDbIds.response4,
-    actionSuggested: ReportSuggestedAction.FalseReport,
-    details: "This report appears to be made in bad faith. The content does not violate any guidelines.",
-    language: "en",
-    createdBy: { connect: { id: "user_mod1" } },
-    report: { connect: { id: "report_false" } },
-};
+export function falseReportResponseDb(): Prisma.report_responseCreateInput {
+    return {
+        id: reportResponseDbIds.response4(),
+        actionSuggested: ReportSuggestedAction.FalseReport,
+        details: "This report appears to be made in bad faith. The content does not violate any guidelines.",
+        language: "en",
+        createdBy: { connect: { id: generatePK() } },
+        report: { connect: { id: generatePK() } },
+    };
+}
 
 /**
  * Hide until fixed response
  */
-export const hideUntilFixedResponseDb: Prisma.report_responseCreateInput = {
-    id: reportResponseDbIds.response5,
-    actionSuggested: ReportSuggestedAction.HideUntilFixed,
-    details: "Content has minor issues that can be corrected. Hide temporarily until author fixes.",
-    language: "en",
-    createdBy: { connect: { id: "user_mod2" } },
-    report: { connect: { id: "report_fixable" } },
-};
+export function hideUntilFixedResponseDb(): Prisma.report_responseCreateInput {
+    return {
+        id: reportResponseDbIds.response5(),
+        actionSuggested: ReportSuggestedAction.HideUntilFixed,
+        details: "Content has minor issues that can be corrected. Hide temporarily until author fixes.",
+        language: "en",
+        createdBy: { connect: { id: generatePK() } },
+        report: { connect: { id: generatePK() } },
+    };
+}
 
 /**
  * Factory for creating report response database fixtures with overrides
  */
 export class ReportResponseDbFactory {
     static createMinimal(
-        createdById: string,
-        reportId: string,
+        createdById: bigint,
+        reportId: bigint,
         overrides?: Partial<Prisma.report_responseCreateInput>,
     ): Prisma.report_responseCreateInput {
         return {
@@ -95,8 +105,8 @@ export class ReportResponseDbFactory {
     }
 
     static createWithDetails(
-        createdById: string,
-        reportId: string,
+        createdById: bigint,
+        reportId: bigint,
         actionSuggested: ReportSuggestedAction,
         details: string,
         overrides?: Partial<Prisma.report_responseCreateInput>,
@@ -113,8 +123,8 @@ export class ReportResponseDbFactory {
     }
 
     static createComplete(
-        createdById: string,
-        reportId: string,
+        createdById: bigint,
+        reportId: bigint,
         overrides?: Partial<Prisma.report_responseCreateInput>,
     ): Prisma.report_responseCreateInput {
         return {
@@ -132,8 +142,8 @@ export class ReportResponseDbFactory {
      * Create response for specific action types
      */
     static createDelete(
-        createdById: string,
-        reportId: string,
+        createdById: bigint,
+        reportId: bigint,
         details?: string,
         overrides?: Partial<Prisma.report_responseCreateInput>,
     ): Prisma.report_responseCreateInput {
@@ -147,8 +157,8 @@ export class ReportResponseDbFactory {
     }
 
     static createSuspendUser(
-        createdById: string,
-        reportId: string,
+        createdById: bigint,
+        reportId: bigint,
         details?: string,
         overrides?: Partial<Prisma.report_responseCreateInput>,
     ): Prisma.report_responseCreateInput {
@@ -162,8 +172,8 @@ export class ReportResponseDbFactory {
     }
 
     static createFalseReport(
-        createdById: string,
-        reportId: string,
+        createdById: bigint,
+        reportId: bigint,
         details?: string,
         overrides?: Partial<Prisma.report_responseCreateInput>,
     ): Prisma.report_responseCreateInput {
@@ -177,8 +187,8 @@ export class ReportResponseDbFactory {
     }
 
     static createHideUntilFixed(
-        createdById: string,
-        reportId: string,
+        createdById: bigint,
+        reportId: bigint,
         details?: string,
         overrides?: Partial<Prisma.report_responseCreateInput>,
     ): Prisma.report_responseCreateInput {
@@ -192,8 +202,8 @@ export class ReportResponseDbFactory {
     }
 
     static createNonIssue(
-        createdById: string,
-        reportId: string,
+        createdById: bigint,
+        reportId: bigint,
         details?: string,
         overrides?: Partial<Prisma.report_responseCreateInput>,
     ): Prisma.report_responseCreateInput {
@@ -210,8 +220,8 @@ export class ReportResponseDbFactory {
      * Create response in different languages
      */
     static createMultiLanguage(
-        createdById: string,
-        reportId: string,
+        createdById: bigint,
+        reportId: bigint,
         language: string,
         overrides?: Partial<Prisma.report_responseCreateInput>,
     ): Prisma.report_responseCreateInput {
@@ -238,9 +248,9 @@ export class ReportResponseDbFactory {
 export async function seedReportResponses(
     prisma: any,
     options: {
-        reportId: string;
+        reportId: bigint;
         responses: Array<{
-            responderId: string;
+            responderId: bigint;
             action: ReportSuggestedAction;
             details?: string;
             language?: string;
@@ -289,8 +299,8 @@ export async function seedReportResponses(
 export async function seedModerationScenario(
     prisma: any,
     options: {
-        reportId: string;
-        moderators: Array<{ id: string; name: string }>;
+        reportId: bigint;
+        moderators: Array<{ id: bigint; name: string }>;
         scenario: "consensus" | "disagreement" | "escalation";
     },
 ) {
@@ -311,7 +321,7 @@ export async function seedModerationScenario(
             }
             break;
 
-        case "disagreement":
+        case "disagreement": {
             // Moderators have different opinions
             const actions = [
                 ReportSuggestedAction.Delete,
@@ -332,6 +342,7 @@ export async function seedModerationScenario(
                 responses.push(response);
             }
             break;
+        }
 
         case "escalation":
             // Escalate to suspension

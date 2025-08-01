@@ -129,8 +129,8 @@ describe("EndpointsReport", () => {
             });
             const input: ReportSearchInput = { take: 10 };
             const expectedIds = [
-                seededReport1.id.toString(),
-                seededReport2.id.toString(),
+                seededReport1.id,
+                seededReport2.id,
             ];
             const result = await report.findMany({ input }, { req, res }, report_findMany);
             expect(result).not.toBeNull();
@@ -146,7 +146,7 @@ describe("EndpointsReport", () => {
             });
             const input: ReportSearchInput = { take: 10, userId: testUsers[0].id.toString() };
             const expectedIds = [
-                seededReport1.id.toString(),
+                seededReport1.id,
             ];
             const result = await report.findMany({ input }, { req, res }, report_findMany);
             assertFindManyResultIds(expect, result, expectedIds);
@@ -159,7 +159,7 @@ describe("EndpointsReport", () => {
             await DbProvider.get().report.update({ where: { id: seededReport1.id }, data: { updatedAt: old } });
             const input: ReportSearchInput = {
                 take: 10,
-                updatedTimeFrame: { after: new Date("2019-12-31"), before: new Date("2020-01-02") },
+                updatedTimeFrame: { after: new Date("2019-12-31").toISOString(), before: new Date("2020-01-02").toISOString() },
             };
             const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id });
             const result = await report.findMany({ input }, { req, res }, report_findMany);

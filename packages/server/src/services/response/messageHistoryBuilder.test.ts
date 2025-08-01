@@ -1,8 +1,8 @@
 import {
     generatePK,
     ModelType,
+    type BotConfigObject,
     type BotParticipant,
-    type ChatConfigObject,
     type MessageConfigObject,
     type MessageState,
     type ResponseContext,
@@ -92,7 +92,7 @@ describe("MessageHistoryBuilder", () => {
         });
 
         // Mock CacheService to return our test Redis client
-        (CacheService.getInstance as any).mockReturnValue(redisClient);
+        (CacheService.get as any).mockReturnValue(redisClient);
     }, 30000);
 
     afterAll(async () => {
@@ -128,20 +128,28 @@ describe("MessageHistoryBuilder", () => {
                 id: "bot123",
                 name: "TestBot",
                 role: "assistant",
-                model: ModelType.Gpt4o as ModelType,
+                state: "ready",
                 config: {
-                    temperature: 0.7,
-                    maxTokens: 4000,
-                    systemPrompt: "You are a helpful assistant",
-                } as ChatConfigObject,
+                    __version: "1.0",
+                    resources: [],
+                    modelConfig: {
+                        preferredModel: "gpt-4o",
+                        temperature: 0.7,
+                        maxTokens: 4000,
+                    },
+                    agentSpec: {
+                        goal: "You are a helpful assistant",
+                    },
+                } as BotConfigObject,
             } as BotParticipant,
             userData: {
                 id: "user123",
-                role: "User",
+                name: "Test User",
+                languages: ["en"],
             } as SessionUser,
             messages: [],
             availableTools: [],
-            strategy: { type: "standard" },
+            strategy: "conversational",
             resourceLimits: {
                 maxCredits: "1000",
                 maxTokens: 4000,
@@ -167,29 +175,29 @@ describe("MessageHistoryBuilder", () => {
             // Add messages to cache
             const historicalMessages: MessageState[] = [
                 {
-                    id: generatePK(),
+                    id: String(generatePK()),
                     parent: null,
-                    userId: "user123",
-                    content: "Hello",
-                    config: { modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                    user: { id: "user123" },
+                    text: "Hello",
+                    config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
                     language: "en",
                     createdAt: new Date(Date.now() - 5000).toISOString(),
                 },
                 {
-                    id: generatePK(),
+                    id: String(generatePK()),
                     parent: null,
-                    userId: "bot123",
-                    content: "Hi there! How can I help?",
-                    config: { modelType: "gpt-4", role: "assistant" } as MessageConfigObject,
+                    user: { id: "bot123" },
+                    text: "Hi there! How can I help?",
+                    config: { __version: "1.0", modelType: "gpt-4", role: "assistant" } as MessageConfigObject,
                     language: "en",
                     createdAt: new Date(Date.now() - 4000).toISOString(),
                 },
                 {
-                    id: generatePK(),
+                    id: String(generatePK()),
                     parent: null,
-                    userId: "user123",
-                    content: "What's the weather?",
-                    config: { modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                    user: { id: "user123" },
+                    text: "What's the weather?",
+                    config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
                     language: "en",
                     createdAt: new Date(Date.now() - 3000).toISOString(),
                 },
@@ -217,11 +225,12 @@ describe("MessageHistoryBuilder", () => {
             // Add many messages to exceed token budget
             for (let i = 0; i < 50; i++) {
                 const message: MessageState = {
-                    id: generatePK(),
+                    id: String(generatePK()),
                     parent: null,
-                    userId: i % 2 === 0 ? "user123" : "bot123",
-                    content: `This is message number ${i} with some content to consume tokens`,
+                    user: { id: i % 2 === 0 ? "user123" : "bot123" },
+                    text: `This is message number ${i} with some content to consume tokens`,
                     config: {
+                        __version: "1.0",
                         modelType: "gpt-4",
                         role: i % 2 === 0 ? "user" : "assistant",
                     } as MessageConfigObject,
@@ -244,16 +253,16 @@ describe("MessageHistoryBuilder", () => {
         it("should handle messages with parent-child relationships", async () => {
             const context = createTestContext();
 
-            const parentId = generatePK();
-            const childId = generatePK();
+            const parentId = String(generatePK());
+            const childId = String(generatePK());
 
             // Add parent message
             await cache.addMessage(context.conversationId, {
                 id: parentId,
                 parent: null,
-                userId: "user123",
-                content: "Parent message",
-                config: { modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                user: { id: "user123" },
+                text: "Parent message",
+                config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
                 language: "en",
                 createdAt: new Date(Date.now() - 2000).toISOString(),
             });
@@ -261,10 +270,10 @@ describe("MessageHistoryBuilder", () => {
             // Add child message
             await cache.addMessage(context.conversationId, {
                 id: childId,
-                parent: parentId,
-                userId: "bot123",
-                content: "Child response",
-                config: { modelType: "gpt-4", role: "assistant" } as MessageConfigObject,
+                parent: { id: parentId },
+                user: { id: "bot123" },
+                text: "Child response",
+                config: { __version: "1.0", modelType: "gpt-4", role: "assistant" } as MessageConfigObject,
                 language: "en",
                 createdAt: new Date(Date.now() - 1000).toISOString(),
             });
@@ -317,11 +326,12 @@ describe("MessageHistoryBuilder", () => {
             const messageCount = 20;
             for (let i = 0; i < messageCount; i++) {
                 await cache.addMessage(context.conversationId, {
-                    id: generatePK(),
+                    id: String(generatePK()),
                     parent: null,
-                    userId: i % 2 === 0 ? "user123" : "bot123",
-                    content: `Message ${i}`,
+                    user: { id: i % 2 === 0 ? "user123" : "bot123" },
+                    text: `Message ${i}`,
                     config: {
+                        __version: "1.0",
                         modelType: "gpt-4",
                         role: i % 2 === 0 ? "user" : "assistant",
                     } as MessageConfigObject,
@@ -348,11 +358,11 @@ describe("MessageHistoryBuilder", () => {
             const veryLongContent = "Lorem ipsum ".repeat(1000); // ~2000 tokens
 
             await cache.addMessage(context.conversationId, {
-                id: generatePK(),
+                id: String(generatePK()),
                 parent: null,
-                userId: "user123",
-                content: veryLongContent,
-                config: { modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                user: { id: "user123" },
+                text: veryLongContent,
+                config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
                 language: "en",
                 createdAt: new Date().toISOString(),
             });
@@ -372,11 +382,12 @@ describe("MessageHistoryBuilder", () => {
             // Add a moderate amount of history
             for (let i = 0; i < 10; i++) {
                 await cache.addMessage(context.conversationId, {
-                    id: generatePK(),
+                    id: String(generatePK()),
                     parent: null,
-                    userId: i % 2 === 0 ? "user123" : "bot123",
-                    content: `Moderate length message ${i}`,
+                    user: { id: i % 2 === 0 ? "user123" : "bot123" },
+                    text: `Moderate length message ${i}`,
                     config: {
+                        __version: "1.0",
                         modelType: "gpt-4",
                         role: i % 2 === 0 ? "user" : "assistant",
                     } as MessageConfigObject,
@@ -431,11 +442,11 @@ describe("MessageHistoryBuilder", () => {
             // Add different messages to each conversation
             for (let i = 0; i < contexts.length; i++) {
                 await cache.addMessage(contexts[i].conversationId, {
-                    id: generatePK(),
+                    id: String(generatePK()),
                     parent: null,
-                    userId: "user123",
-                    content: `Conversation ${i} message`,
-                    config: { modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                    user: { id: "user123" },
+                    text: `Conversation ${i} message`,
+                    config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
                     language: "en",
                     createdAt: new Date().toISOString(),
                 });
@@ -458,11 +469,12 @@ describe("MessageHistoryBuilder", () => {
 
             // Add message with special config
             await cache.addMessage(context.conversationId, {
-                id: generatePK(),
+                id: String(generatePK()),
                 parent: null,
-                userId: "user123",
-                content: "Message with metadata",
+                user: { id: "user123" },
+                text: "Message with metadata",
                 config: {
+                    __version: "1.0",
                     modelType: "gpt-4",
                     role: "user",
                     metadata: {
@@ -524,17 +536,17 @@ describe("MessageHistoryBuilder", () => {
             const context = createTestContext();
 
             // Create a complex conversation tree
-            const rootId = generatePK();
-            const branch1Id = generatePK();
-            const branch2Id = generatePK();
+            const rootId = String(generatePK());
+            const branch1Id = String(generatePK());
+            const branch2Id = String(generatePK());
 
             // Root message
             await cache.addMessage(context.conversationId, {
                 id: rootId,
                 parent: null,
-                userId: "user123",
-                content: "Root question",
-                config: { modelType: "gpt-4", role: "user" } as MessageConfigObject,
+                user: { id: "user123" },
+                text: "Root question",
+                config: { __version: "1.0", modelType: "gpt-4", role: "user" } as MessageConfigObject,
                 language: "en",
                 createdAt: new Date(Date.now() - 5000).toISOString(),
             });
@@ -542,20 +554,20 @@ describe("MessageHistoryBuilder", () => {
             // Two parallel responses
             await cache.addMessage(context.conversationId, {
                 id: branch1Id,
-                parent: rootId,
-                userId: "bot123",
-                content: "Branch 1 response",
-                config: { modelType: "gpt-4", role: "assistant" } as MessageConfigObject,
+                parent: { id: rootId },
+                user: { id: "bot123" },
+                text: "Branch 1 response",
+                config: { __version: "1.0", modelType: "gpt-4", role: "assistant" } as MessageConfigObject,
                 language: "en",
                 createdAt: new Date(Date.now() - 4000).toISOString(),
             });
 
             await cache.addMessage(context.conversationId, {
                 id: branch2Id,
-                parent: rootId,
-                userId: "bot456",
-                content: "Branch 2 response",
-                config: { modelType: "gpt-4", role: "assistant" } as MessageConfigObject,
+                parent: { id: rootId },
+                user: { id: "bot456" },
+                text: "Branch 2 response",
+                config: { __version: "1.0", modelType: "gpt-4", role: "assistant" } as MessageConfigObject,
                 language: "en",
                 createdAt: new Date(Date.now() - 3000).toISOString(),
             });

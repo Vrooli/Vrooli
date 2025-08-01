@@ -9,7 +9,7 @@ import type {
     IAIResource,
     IAutomationResource,
     IResource,
-    IStorageResource
+    IStorageResource,
 } from "./types.js";
 import { ResourceCategory } from "./types.js";
 

@@ -6,7 +6,7 @@ import {
     type RoutineExecutionInput,
     type RunContext,
     type SessionUser,
-    type TierExecutionRequest
+    type TierExecutionRequest,
 } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, test, vi, type Mock, type MockedFunction } from "vitest";
 import { logger } from "../../../events/logger.js";
@@ -236,7 +236,7 @@ function createMockNavigator(): INavigator {
         }]),
         isEndLocation: vi.fn().mockReturnValue(false),
         getStepInfo: vi.fn().mockReturnValue({
-            id: "test-step-123",
+            id: "123456789012345680",
             name: "Test Step",
             type: "llm_call",
             description: "Test step description",
@@ -432,19 +432,19 @@ describe("RoutineExecutor", () => {
                 .mockReturnValueOnce(true);  // End at step 2
 
             (navigator.getNextLocations as Mock)
-                .mockReturnValueOnce([{ id: "step-1", routineId: "123456789012345681", nodeId: "1" }])
-                .mockReturnValueOnce([{ id: "step-2", routineId: "123456789012345681", nodeId: "2" }])
+                .mockReturnValueOnce([{ id: "123456789012345684", routineId: "123456789012345681", nodeId: "1" }])
+                .mockReturnValueOnce([{ id: "123456789012345686", routineId: "123456789012345681", nodeId: "2" }])
                 .mockReturnValueOnce([]);  // No more steps
 
             (navigator.getStepInfo as Mock)
                 .mockReturnValueOnce({
-                    id: "step-0",
+                    id: "123456789012345681",
                     name: "First Step",
                     type: "llm_call",
                     config: { prompt: "First prompt" },
                 })
                 .mockReturnValueOnce({
-                    id: "step-1",
+                    id: "123456789012345684",
                     name: "Second Step",
                     type: "tool_call",
                     config: { tool: "calculator" },
@@ -464,13 +464,13 @@ describe("RoutineExecutor", () => {
             // Mock resource allocation for steps
             (runContextManager?.allocateForStep as Mock)
                 .mockResolvedValueOnce({
-                    allocationId: "step-0-alloc",
-                    stepId: "step-0",
+                    allocationId: "123456789012345683",
+                    stepId: "123456789012345681",
                     allocated: { credits: "25", timeoutMs: 30000, memoryMB: 64, concurrentExecutions: 1 },
                 })
                 .mockResolvedValueOnce({
-                    allocationId: "step-1-alloc",
-                    stepId: "step-1",
+                    allocationId: "123456789012345685",
+                    stepId: "123456789012345684",
                     allocated: { credits: "25", timeoutMs: 30000, memoryMB: 64, concurrentExecutions: 1 },
                 });
 
@@ -541,7 +541,7 @@ describe("RoutineExecutor", () => {
     describe("executeSingleStep()", () => {
         test("should execute step with resource allocation", async () => {
             const stepInfo: StepInfo = {
-                id: "test-step-123",
+                id: "123456789012345682",
                 name: "Test Step",
                 type: "llm_call",
                 config: { prompt: "Test prompt" },
@@ -559,7 +559,7 @@ describe("RoutineExecutor", () => {
 
             // Verify resource allocation and release were called
             expect(runContextManager?.allocateForStep).toHaveBeenCalledWith("123456789012345679", {
-                stepId: "test-step-123",
+                stepId: "123456789012345682",
                 stepType: "llm_call",
                 estimatedRequirements: {
                     credits: "50",

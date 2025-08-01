@@ -81,7 +81,7 @@ describe("EndpointsReportResponse", () => {
                 id: adminUser.id,
             });
 
-            const input: FindByIdInput = { id: reportResponses[0].id };
+            const input: FindByIdInput = { id: reportResponses[0].id.toString() };
             const result = await reportResponse.findOne({ input }, { req, res }, reportResponse_findOne);
 
             expect(result).not.toBeNull();
@@ -95,7 +95,7 @@ describe("EndpointsReportResponse", () => {
             const token = ApiKeyEncryptionService.generateSiteKey();
             const { req, res } = await mockApiSession(token, perms, loggedInUserNoPremiumData());
 
-            const input: FindByIdInput = { id: reportResponses[0].id };
+            const input: FindByIdInput = { id: reportResponses[0].id.toString() };
             const result = await reportResponse.findOne({ input }, { req, res }, reportResponse_findOne);
 
             expect(result).not.toBeNull();
@@ -109,7 +109,7 @@ describe("EndpointsReportResponse", () => {
                 id: testUsers[0].id,
             });
 
-            const input: FindByIdInput = { id: reportResponses[0].id };
+            const input: FindByIdInput = { id: reportResponses[0].id.toString() };
 
             await expect(async () => {
                 await reportResponse.findOne({ input }, { req, res }, reportResponse_findOne);
@@ -127,7 +127,7 @@ describe("EndpointsReportResponse", () => {
 
             const input: ReportResponseSearchInput = {
                 take: 10,
-                reportId: reports[0].id,
+                reportId: reports[0].id.toString(),
             };
             const result = await reportResponse.findMany({ input }, { req, res }, reportResponse_findMany);
 
@@ -145,7 +145,7 @@ describe("EndpointsReportResponse", () => {
 
             const input: ReportResponseSearchInput = {
                 take: 10,
-                reportId: reports[0].id,
+                reportId: reports[0].id.toString(),
             };
 
             await expect(async () => {
@@ -163,9 +163,9 @@ describe("EndpointsReportResponse", () => {
             });
 
             const input: ReportResponseCreateInput = reportResponseTestDataFactory.createMinimal({
-                id: generatePK(),
+                id: generatePK().toString(),
                 details: "New admin response",
-                reportConnect: reports[0].id,
+                reportConnect: reports[0].id.toString(),
                 actionSuggested: ReportSuggestedAction.NonIssue,
             });
 
@@ -186,7 +186,7 @@ describe("EndpointsReportResponse", () => {
 
             const input: ReportResponseCreateInput = reportResponseTestDataFactory.createMinimal({
                 details: "User response",
-                reportConnect: reports[0].id,
+                reportConnect: reports[0].id.toString(),
                 actionSuggested: ReportSuggestedAction.NonIssue,
             });
 
@@ -205,7 +205,7 @@ describe("EndpointsReportResponse", () => {
             // Test missing required fields
             const invalidInput = {
                 // details is missing
-                reportConnect: reports[0].id,
+                reportConnect: reports[0].id.toString(),
                 actionSuggested: ReportSuggestedAction.NonIssue,
             } as ReportResponseCreateInput;
 
@@ -224,7 +224,7 @@ describe("EndpointsReportResponse", () => {
             });
 
             const input: ReportResponseUpdateInput = {
-                id: reportResponses[0].id,
+                id: reportResponses[0].id.toString(),
                 details: "Updated admin response",
                 actionSuggested: ReportSuggestedAction.Resolved,
             };
@@ -245,7 +245,7 @@ describe("EndpointsReportResponse", () => {
             });
 
             const input: ReportResponseUpdateInput = {
-                id: reportResponses[0].id,
+                id: reportResponses[0].id.toString(),
                 details: "User updated response",
             };
 
@@ -262,7 +262,7 @@ describe("EndpointsReportResponse", () => {
             });
 
             const input: ReportResponseUpdateInput = {
-                id: generatePK(), // Non-existent ID
+                id: generatePK().toString(), // Non-existent ID
                 details: "Updated response",
             };
 

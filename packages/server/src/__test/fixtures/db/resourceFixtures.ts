@@ -47,7 +47,7 @@ export const resourceWithOwnerDb: Prisma.resourceCreateInput = {
     isPrivate: false,
     resourceType: ResourceType.Project,
     ownedByUser: {
-        connect: { id: BigInt("user_owner_id") }, // Will be replaced in factory
+        connect: { id: generatePK() }, // Will be replaced in factory
     },
 };
 
@@ -62,7 +62,7 @@ export const completeResourceDb: Prisma.resourceCreateInput = {
     resourceType: ResourceType.Routine,
     permissions: "{}",
     ownedByUser: {
-        connect: { id: BigInt("user_owner_id") }, // Will be replaced in factory
+        connect: { id: generatePK() }, // Will be replaced in factory
     },
     versions: {
         create: [{
@@ -120,7 +120,7 @@ export const resourceDbFixtures: DbTestFixtures<Prisma.resourceCreateInput> = {
             canDelete: ["Owner"],
         }),
         ownedByUser: {
-            connect: { id: BigInt("user_placeholder_id") },
+            connect: { id: generatePK() },
         },
         versions: {
             create: [{
@@ -161,7 +161,7 @@ export const resourceDbFixtures: DbTestFixtures<Prisma.resourceCreateInput> = {
             isPrivate: false,
         },
         invalidTypes: {
-            id: BigInt("123456789012345678"), // Invalid but properly typed bigint
+            id: 123456789012345678n, // Invalid but properly typed bigint
             publicId: 123, // Should be string
             isPrivate: "yes", // Should be boolean
             isInternal: "no", // Should be boolean
@@ -173,8 +173,8 @@ export const resourceDbFixtures: DbTestFixtures<Prisma.resourceCreateInput> = {
             publicId: generatePublicId(),
             isPrivate: false,
             resourceType: ResourceType.Code,
-            ownedByUser: { connect: { id: BigInt("non-existent-user-id") } },
-            ownedByTeam: { connect: { id: BigInt("non-existent-team-id") } }, // Both owners
+            ownedByUser: { connect: { id: generatePK() } },
+            ownedByTeam: { connect: { id: generatePK() } }, // Both owners
         },
         invalidVersionData: {
             id: generatePK(),
@@ -199,8 +199,8 @@ export const resourceDbFixtures: DbTestFixtures<Prisma.resourceCreateInput> = {
             id: generatePK(),
             publicId: generatePublicId(),
             isPrivate: false,
-            resourceType: ResourceType.SmartContract,
-            ownedByUser: { connect: { id: "user_placeholder_id" } },
+            resourceType: ResourceType.Code,
+            ownedByUser: { connect: { id: generatePK() } },
             versions: {
                 create: [{
                     id: generatePK(),
@@ -226,7 +226,7 @@ export const resourceDbFixtures: DbTestFixtures<Prisma.resourceCreateInput> = {
             publicId: generatePublicId(),
             isPrivate: false,
             resourceType: ResourceType.Api,
-            ownedByUser: { connect: { id: "user_placeholder_id" } },
+            ownedByUser: { connect: { id: generatePK() } },
             versions: {
                 create: [
                     {
@@ -271,8 +271,8 @@ export const resourceDbFixtures: DbTestFixtures<Prisma.resourceCreateInput> = {
             publicId: generatePublicId(),
             isPrivate: true,
             isInternal: true,
-            resourceType: ResourceType.DataStructure,
-            ownedByTeam: { connect: { id: "team_placeholder_id" } },
+            resourceType: ResourceType.Standard,
+            ownedByTeam: { connect: { id: generatePK() } },
             permissions: JSON.stringify({
                 canEdit: ["TeamOwner", "TeamAdmin"],
                 canView: ["TeamMember"],
@@ -284,7 +284,7 @@ export const resourceDbFixtures: DbTestFixtures<Prisma.resourceCreateInput> = {
             publicId: generatePublicId(),
             isPrivate: false,
             resourceType: ResourceType.Project,
-            ownedByUser: { connect: { id: "user_placeholder_id" } },
+            ownedByUser: { connect: { id: generatePK() } },
             versions: {
                 create: [{
                     id: generatePK(),
@@ -338,7 +338,7 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.resourceCreateIn
                     publicId: generatePublicId(),
                     isPrivate: false,
                     resourceType: ResourceType.Code,
-                    ownedByUser: { connect: { id: "non-existent-user-id" } },
+                    ownedByUser: { connect: { id: generatePK() } },
                 },
                 checkConstraintViolation: {
                     id: generatePK(),
@@ -374,8 +374,8 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.resourceCreateIn
                     publicId: generatePublicId(),
                     isPrivate: false,
                     resourceType: ResourceType.Code,
-                    ownedByUser: { connect: { id: "user_placeholder_id" } },
-                    ownedByTeam: { connect: { id: "team_placeholder_id" } }, // Should have only one owner
+                    ownedByUser: { connect: { id: generatePK() } },
+                    ownedByTeam: { connect: { id: generatePK() } }, // Should have only one owner
                 },
                 privateResourceWithoutOwner: {
                     id: generatePK(),
@@ -407,7 +407,7 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.resourceCreateIn
     /**
      * Add owner to a resource fixture
      */
-    protected addOwner(data: Prisma.resourceCreateInput, ownerId: string, ownerType: "user" | "team" = "user"): Prisma.resourceCreateInput {
+    protected addOwner(data: Prisma.resourceCreateInput, ownerId: bigint, ownerType: "user" | "team" = "user"): Prisma.resourceCreateInput {
         return {
             ...data,
             ...(ownerType === "user"
@@ -501,7 +501,7 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.resourceCreateIn
     }
 
     static createWithOwner(
-        ownerId: string,
+        ownerId: bigint,
         resourceType: ResourceType = ResourceType.Code,
         overrides?: Partial<Prisma.resourceCreateInput>,
     ): Prisma.resourceCreateInput {
@@ -511,7 +511,7 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.resourceCreateIn
     }
 
     static createWithTeamOwner(
-        teamId: string,
+        teamId: bigint,
         resourceType: ResourceType = ResourceType.Project,
         overrides?: Partial<Prisma.resourceCreateInput>,
     ): Prisma.resourceCreateInput {
@@ -521,7 +521,7 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.resourceCreateIn
     }
 
     static createComplete(
-        ownerId: string,
+        ownerId: bigint,
         resourceType: ResourceType = ResourceType.Routine,
         overrides?: Partial<Prisma.resourceCreateInput>,
     ): Prisma.resourceCreateInput {
@@ -531,7 +531,7 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.resourceCreateIn
     }
 
     static createWithVersion(
-        ownerId: string,
+        ownerId: bigint,
         versionData: {
             name: string;
             description?: string;
@@ -555,7 +555,7 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.resourceCreateIn
     }
 
     static createWithMultipleVersions(
-        ownerId: string,
+        ownerId: bigint,
         versions: Array<{
             name: string;
             versionLabel: string;
@@ -583,7 +583,7 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.resourceCreateIn
      * Create resource with specific permissions
      */
     static createWithPermissions(
-        ownerId: string,
+        ownerId: bigint,
         permissions: Record<string, any>,
         overrides?: Partial<Prisma.resourceCreateInput>,
     ): Prisma.resourceCreateInput {
@@ -600,7 +600,7 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.resourceCreateIn
      * Create private resource
      */
     static createPrivate(
-        ownerId: string,
+        ownerId: bigint,
         resourceType: ResourceType = ResourceType.Code,
         overrides?: Partial<Prisma.resourceCreateInput>,
     ): Prisma.resourceCreateInput {
@@ -617,7 +617,7 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.resourceCreateIn
      * Create internal resource
      */
     static createInternal(
-        ownerId: string,
+        ownerId: bigint,
         resourceType: ResourceType = ResourceType.Api,
         overrides?: Partial<Prisma.resourceCreateInput>,
     ): Prisma.resourceCreateInput {
@@ -636,10 +636,10 @@ export class ResourceDbFactory extends EnhancedDbFactory<Prisma.resourceCreateIn
  */
 export class ResourceVersionDbFactory {
     static createMinimal(
-        resourceId: string,
+        resourceId: bigint,
         name: string,
-        overrides?: Partial<Prisma.ResourceVersionCreateInput>,
-    ): Prisma.ResourceVersionCreateInput {
+        overrides?: Partial<Prisma.resource_versionCreateInput>,
+    ): Prisma.resource_versionCreateInput {
         return {
             id: generatePK(),
             publicId: generatePublicId(),
@@ -662,10 +662,10 @@ export class ResourceVersionDbFactory {
     }
 
     static createComplete(
-        resourceId: string,
+        resourceId: bigint,
         name: string,
-        overrides?: Partial<Prisma.ResourceVersionCreateInput>,
-    ): Prisma.ResourceVersionCreateInput {
+        overrides?: Partial<Prisma.resource_versionCreateInput>,
+    ): Prisma.resource_versionCreateInput {
         return {
             ...this.createMinimal(resourceId, name, overrides),
             isComplete: true,
@@ -690,14 +690,14 @@ export class ResourceVersionDbFactory {
  */
 export async function seedTestResources(
     prisma: any,
-    ownerId: string,
+    ownerId: bigint,
     count = 3,
     options?: {
         resourceType?: ResourceType;
         withVersions?: boolean;
         isPrivate?: boolean;
         isInternal?: boolean;
-        teamOwnerId?: string;
+        teamOwnerId?: bigint;
     },
 ): Promise<BulkSeedResult<any>> {
     const factory = new ResourceDbFactory();
@@ -773,6 +773,9 @@ export async function seedTestResources(
             private: privateCount,
             internal: internalCount,
             teamOwned: teamOwnedCount,
+            withAuth: 0,
+            bots: 0,
+            teams: teamOwnedCount,
         },
     };
 }
@@ -780,9 +783,9 @@ export async function seedTestResources(
 /**
  * Helper to clean up test resources
  */
-export async function cleanupTestResources(prisma: PrismaClient, resourceIds: string[]) {
+export async function cleanupTestResources(prisma: PrismaClient, resourceIds: bigint[]) {
     // Clean up in correct order for foreign keys
-    await prisma.resourceVersionTranslation.deleteMany({
+    await prisma.resource_version_translation.deleteMany({
         where: {
             resourceVersion: {
                 root: {
@@ -792,7 +795,7 @@ export async function cleanupTestResources(prisma: PrismaClient, resourceIds: st
         },
     });
 
-    await prisma.resourceVersion.deleteMany({
+    await prisma.resource_version.deleteMany({
         where: {
             root: {
                 id: { in: resourceIds },

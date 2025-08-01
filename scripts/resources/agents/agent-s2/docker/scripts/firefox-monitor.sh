@@ -12,6 +12,7 @@ MEMORY_LIMIT_MB=1500
 # Initialize
 RESTART_COUNT=0
 LAST_RESTART_TIME=0
+LAST_LOG_TIME=0
 
 log_message() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$CRASH_LOG"
@@ -150,29 +151,13 @@ monitor_firefox() {
         firefox_pid=$(pgrep -f "firefox-esr" | head -1)
         
         if [ -z "$firefox_pid" ]; then
-            log_message "Firefox not running, attempting restart..."
-            
-            # Check restart limits
+            # Don't auto-restart Firefox - let Agent-S2 manage it
+            # This prevents conflicts with Agent-S2's browser management
+            # Only log once per minute to avoid log spam
             current_time=$(date +%s)
-            time_since_last_restart=$((current_time - LAST_RESTART_TIME))
-            
-            # Reset counter if enough time has passed
-            if [ $time_since_last_restart -gt 300 ]; then  # 5 minutes
-                RESTART_COUNT=0
-            fi
-            
-            if [ $RESTART_COUNT -ge $MAX_RESTARTS ]; then
-                log_message "ERROR: Maximum restart attempts reached ($MAX_RESTARTS)"
-                sleep 60  # Wait longer before trying again
-                RESTART_COUNT=0  # Reset counter
-            else
-                firefox_pid=$(start_firefox)
-                if [ $? -eq 0 ]; then
-                    RESTART_COUNT=$((RESTART_COUNT + 1))
-                    LAST_RESTART_TIME=$current_time
-                else
-                    log_message "ERROR: Failed to restart Firefox"
-                fi
+            if [ $((current_time - LAST_LOG_TIME)) -gt 60 ]; then
+                log_message "Firefox not running (normal when no tasks active)"
+                LAST_LOG_TIME=$current_time
             fi
         else
             # Firefox is running, check its health
@@ -201,8 +186,9 @@ monitor_firefox() {
 # Main execution
 log_message "Firefox monitor started"
 
-# Initial Firefox start
-firefox_pid=$(start_firefox)
+# DO NOT auto-start Firefox - let Agent-S2 manage Firefox lifecycle
+# This prevents profile lock conflicts when Agent-S2 tries to use Firefox
+log_message "Waiting for Firefox to be started by Agent-S2..."
 
-# Start monitoring loop
+# Start monitoring loop without initial Firefox start
 monitor_firefox

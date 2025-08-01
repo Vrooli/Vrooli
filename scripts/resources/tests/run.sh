@@ -13,6 +13,7 @@
 # Options:
 #   --help                 Show help message
 #   --verbose              Enable verbose logging
+#   --debug                Enable debug mode (verbose + HTTP logging + extended output)
 #   --single-only          Run only single-resource tests
 #   --scenarios-only       Run only business scenario tests
 #   --scenarios <filter>   Run scenarios matching criteria (e.g., category=ai,complexity=intermediate)
@@ -43,8 +44,14 @@ source "$SCRIPT_DIR/framework/discovery.sh"
 source "$SCRIPT_DIR/framework/runner.sh"
 source "$SCRIPT_DIR/framework/reporter.sh"
 
+# Source enhanced debug functionality
+if [[ -f "$SCRIPT_DIR/framework/helpers/debug-enhanced.sh" ]]; then
+    source "$SCRIPT_DIR/framework/helpers/debug-enhanced.sh"
+fi
+
 # Default configuration
 VERBOSE=false
+DEBUG=false
 SINGLE_ONLY=false
 SCENARIOS_ONLY=false
 SCENARIO_FILTER=""
@@ -55,6 +62,7 @@ OUTPUT_FORMAT="text"
 FAIL_FAST=false
 CLEANUP=true
 BUSINESS_REPORT=false
+HTTP_LOG_ENABLED=false
 
 # Test counters
 TOTAL_TESTS=0
@@ -129,6 +137,7 @@ USAGE:
 OPTIONS:
     --help                 Show this help message
     --verbose              Enable verbose logging
+    --debug                Enable debug mode (verbose + HTTP logging + extended output)
     --single-only          Run only single-resource tests
     --scenarios-only       Run only business scenario tests
     --scenarios <filter>   Run scenarios matching criteria (e.g., category=ai,complexity=intermediate)
@@ -139,16 +148,19 @@ OPTIONS:
     --fail-fast            Stop on first test failure
     --cleanup              Clean up test artifacts after run (default: true)
     --business-report      Generate business readiness assessment
+    --validate-tests       Run test file compliance validation before tests
 
 EXAMPLES:
     $0                                              # Run all available tests
     $0 --verbose --single-only                     # Single resource tests with verbose output
+    $0 --debug --resource qdrant                   # Debug mode for specific resource
     $0 --resource ollama                           # Test only Ollama resource
     $0 --scenarios-only                            # Run only business scenarios
     $0 --scenarios "category=customer-service"     # Run customer service scenarios
     $0 --scenarios "complexity=intermediate"       # Run intermediate complexity scenarios
     $0 --list-scenarios                            # List all available scenarios
     $0 --business-report                           # Generate business readiness report
+    $0 --validate-tests --verbose                  # Validate test files with detailed output
     $0 --output-format json --timeout 600          # JSON output with 10min timeout
 
 RESOURCE SELECTION:
@@ -174,6 +186,12 @@ parse_args() {
                 ;;
             --verbose|-v)
                 VERBOSE=true
+                shift
+                ;;
+            --debug|-d)
+                DEBUG=true
+                VERBOSE=true
+                HTTP_LOG_ENABLED=true
                 shift
                 ;;
             --single-only)
@@ -224,6 +242,10 @@ parse_args() {
                 BUSINESS_REPORT=true
                 shift
                 ;;
+            --validate-tests)
+                VALIDATE_TESTS=true
+                shift
+                ;;
             *)
                 log_error "Unknown option: $1"
                 show_help
@@ -269,7 +291,20 @@ main() {
     log_header "🧪 Vrooli Resource Integration Tests"
     echo "Test run started: $(date)"
     echo "Configuration: timeout=${TEST_TIMEOUT}s, format=${OUTPUT_FORMAT}, cleanup=${CLEANUP}"
+    if [[ "$DEBUG" == "true" ]]; then
+        echo "Debug mode: ENABLED (verbose + HTTP logging)"
+    fi
     echo
+    
+    # Export debug settings for tests
+    export TEST_VERBOSE="$VERBOSE"
+    export HTTP_LOG_ENABLED="$HTTP_LOG_ENABLED"
+    export TEST_DEBUG="$DEBUG"
+    
+    # Initialize enhanced debug mode
+    if command -v init_enhanced_debug >/dev/null 2>&1; then
+        init_enhanced_debug
+    fi
     
     # Validate environment
     validate_prerequisites
@@ -301,35 +336,46 @@ main() {
         exit 1
     fi
     
-    # Phase 2: Single Resource Tests
+    # Phase 2: Test File Validation (optional)
+    if [[ "${VALIDATE_TESTS:-false}" == "true" ]]; then
+        log_header "🔍 Phase 2: Test File Validation"
+        run_test_validation
+    fi
+    
+    # Phase 3: Single Resource Tests
     if [[ "$SCENARIOS_ONLY" != "true" ]]; then
-        log_header "📦 Phase 2: Single Resource Tests"
+        log_header "📦 Phase 3: Single Resource Tests"
         run_single_resource_tests
     fi
     
-    # Phase 3: Business Scenario Tests  
+    # Phase 4: Business Scenario Tests  
     if [[ "$SINGLE_ONLY" != "true" ]]; then
-        log_header "🎯 Phase 3: Business Scenario Tests"
+        log_header "🎯 Phase 4: Business Scenario Tests"
         run_scenario_tests
     fi
     
-    # Phase 4: Generate Report
+    # Phase 5: Generate Report
     local end_time=$(date +%s)
     local duration=$((end_time - start_time))
     
-    log_header "📊 Phase 4: Test Results"
+    log_header "📊 Phase 5: Test Results"
     generate_final_report "$duration"
     
-    # Phase 5: Business Readiness Assessment (if requested)
+    # Phase 6: Business Readiness Assessment (if requested)
     if [[ "$BUSINESS_REPORT" == "true" && ${#ALL_SCENARIOS[@]} -gt 0 ]]; then
-        log_header "💼 Phase 5: Business Readiness Assessment"
+        log_header "💼 Phase 6: Business Readiness Assessment"
         generate_business_readiness_report "$SCRIPT_DIR/scenarios" "${HEALTHY_RESOURCES[*]}" "${PASSED_TEST_NAMES[*]:-}" "${FAILED_TEST_NAMES[*]:-}"
     fi
     
     # Cleanup if requested
     if [[ "$CLEANUP" == "true" ]]; then
-        log_header "🧹 Phase 5: Cleanup"
+        log_header "🧹 Phase 7: Cleanup"
         cleanup_test_artifacts
+    fi
+    
+    # Finalize enhanced debug mode
+    if command -v finalize_enhanced_debug >/dev/null 2>&1; then
+        finalize_enhanced_debug
     fi
     
     # Exit with appropriate code
@@ -338,6 +384,59 @@ main() {
     else
         exit 0
     fi
+}
+
+# Run test file validation
+run_test_validation() {
+    log_info "Validating test file compliance..."
+    
+    # Check if validator exists
+    local validator_script="$SCRIPT_DIR/framework/helpers/test-validator.sh"
+    if [[ ! -f "$validator_script" ]]; then
+        log_warning "Test validator not found at $validator_script"
+        log_info "Skipping validation phase"
+        return 0
+    fi
+    
+    # Run validation
+    local validation_output
+    local validation_exit_code
+    
+    if [[ "${VERBOSE:-false}" == "true" ]]; then
+        validation_output=$("$validator_script" --verbose 2>&1)
+    else
+        validation_output=$("$validator_script" 2>&1)
+    fi
+    validation_exit_code=$?
+    
+    # Report results
+    case $validation_exit_code in
+        0)
+            log_success "✅ All test files are compliant"
+            if [[ "${VERBOSE:-false}" == "true" ]]; then
+                echo "$validation_output" | sed 's/^/  /'
+            fi
+            ;;
+        1)
+            log_warning "⚠️  Test file compliance issues found"
+            echo "$validation_output" | sed 's/^/  /'
+            echo
+            log_info "💡 Consider running: $validator_script --fix"
+            echo
+            ;;
+        2)
+            log_error "❌ Critical validation errors"
+            echo "$validation_output" | sed 's/^/  /'
+            echo
+            log_error "Fix critical issues before running tests"
+            exit 2
+            ;;
+        *)
+            log_warning "⚠️  Test validation completed with warnings (exit code: $validation_exit_code)"
+            ;;
+    esac
+    
+    echo
 }
 
 # Run main function with all arguments

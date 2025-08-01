@@ -1,5 +1,6 @@
-import { generatePK } from "@vrooli/shared";
+/* eslint-disable no-magic-numbers */
 import { type Prisma } from "@prisma/client";
+import { generatePK } from "@vrooli/shared";
 
 /**
  * Database fixtures for ReminderItem model - used for seeding test data
@@ -72,7 +73,7 @@ export const completeReminderItemDb: Omit<Prisma.reminder_itemCreateInput, "remi
  */
 export class ReminderItemDbFactory {
     static createMinimal(
-        reminderId: string,
+        reminderId: bigint,
         overrides?: Partial<Prisma.reminder_itemCreateInput>,
     ): Prisma.reminder_itemCreateInput {
         return {
@@ -84,7 +85,7 @@ export class ReminderItemDbFactory {
     }
 
     static createWithDescription(
-        reminderId: string,
+        reminderId: bigint,
         overrides?: Partial<Prisma.reminder_itemCreateInput>,
     ): Prisma.reminder_itemCreateInput {
         return {
@@ -96,7 +97,7 @@ export class ReminderItemDbFactory {
     }
 
     static createWithDueDate(
-        reminderId: string,
+        reminderId: bigint,
         daysFromNow = 7,
         overrides?: Partial<Prisma.reminder_itemCreateInput>,
     ): Prisma.reminder_itemCreateInput {
@@ -110,7 +111,7 @@ export class ReminderItemDbFactory {
     }
 
     static createCompleted(
-        reminderId: string,
+        reminderId: bigint,
         overrides?: Partial<Prisma.reminder_itemCreateInput>,
     ): Prisma.reminder_itemCreateInput {
         return {
@@ -123,7 +124,7 @@ export class ReminderItemDbFactory {
     }
 
     static createComplete(
-        reminderId: string,
+        reminderId: bigint,
         overrides?: Partial<Prisma.reminder_itemCreateInput>,
     ): Prisma.reminder_itemCreateInput {
         return {
@@ -138,7 +139,7 @@ export class ReminderItemDbFactory {
      * Create multiple reminder items for a reminder
      */
     static createMultiple(
-        reminderId: string,
+        reminderId: bigint,
         count: number,
         options?: {
             withDescriptions?: boolean;
@@ -191,7 +192,7 @@ export class ReminderItemDbFactory {
  */
 export async function seedReminderItems(
     prisma: any,
-    reminderId: string,
+    reminderId: bigint,
     options: {
         count?: number;
         withDescriptions?: boolean;
@@ -247,11 +248,11 @@ export async function seedReminderItems(
  */
 export async function createChecklistReminder(
     prisma: any,
-    reminderId: string,
+    reminderId: bigint,
     checklist: string[],
 ) {
     const items = [];
-    
+
     for (let i = 0; i < checklist.length; i++) {
         const item = await prisma.reminder_item.create({
             data: ReminderItemDbFactory.createMinimal(reminderId, {

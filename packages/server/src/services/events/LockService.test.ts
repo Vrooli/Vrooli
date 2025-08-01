@@ -5,9 +5,9 @@
  * Critical infrastructure for data integrity across the system.
  */
 
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { RedisLockService, InMemoryLockService } from "./LockService.js";
 import type { Redis } from "ioredis";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockedFunction } from "vitest";
+import { InMemoryLockService, RedisLockService } from "./LockService.js";
 import type { LockOptions } from "./types.js";
 
 // Mock logger to suppress output during tests
@@ -23,7 +23,10 @@ vi.mock("../../events/logger.js", () => ({
 
 describe("LockService", () => {
     describe("RedisLockService", () => {
-        let mockRedis: jest.Mocked<Redis>;
+        let mockRedis: {
+            set: MockedFunction<any>;
+            eval: MockedFunction<any>;
+        };
         let lockService: RedisLockService;
 
         beforeEach(() => {
@@ -32,8 +35,8 @@ describe("LockService", () => {
                 set: vi.fn(),
                 eval: vi.fn(),
             } as any;
-            
-            lockService = new RedisLockService(mockRedis);
+
+            lockService = new RedisLockService(mockRedis as any as Redis);
         });
 
         afterEach(() => {
@@ -43,7 +46,7 @@ describe("LockService", () => {
         describe("acquire", () => {
             it("should acquire lock successfully on first attempt", async () => {
                 mockRedis.set.mockResolvedValue("OK");
-                
+
                 const options: LockOptions = { ttl: 5000 };
                 const lock = await lockService.acquire("test-key", options);
 
@@ -64,7 +67,7 @@ describe("LockService", () => {
                     .mockResolvedValueOnce("OK"); // Lock acquired
 
                 const options: LockOptions = { ttl: 5000, retries: 1 };
-                
+
                 // Mock setTimeout to resolve immediately for testing
                 vi.spyOn(global, "setTimeout").mockImplementation((fn: any) => {
                     fn();
@@ -83,7 +86,7 @@ describe("LockService", () => {
                 mockRedis.set.mockResolvedValue(null); // Always fails
 
                 const options: LockOptions = { ttl: 5000, retries: 2 };
-                
+
                 // Mock setTimeout to resolve immediately for testing
                 vi.spyOn(global, "setTimeout").mockImplementation((fn: any) => {
                     fn();
@@ -105,7 +108,7 @@ describe("LockService", () => {
                     .mockResolvedValueOnce("OK");
 
                 const options: LockOptions = { ttl: 5000, retries: 1 };
-                
+
                 // Mock setTimeout to resolve immediately for testing
                 vi.spyOn(global, "setTimeout").mockImplementation((fn: any) => {
                     fn();
@@ -125,7 +128,7 @@ describe("LockService", () => {
                 mockRedis.set.mockRejectedValue(redisError);
 
                 const options: LockOptions = { ttl: 5000, retries: 1 };
-                
+
                 // Mock setTimeout to resolve immediately for testing
                 vi.spyOn(global, "setTimeout").mockImplementation((fn: any) => {
                     fn();
@@ -154,15 +157,15 @@ describe("LockService", () => {
                 mockRedis.set.mockResolvedValue("OK");
 
                 const options: LockOptions = { ttl: 5000 };
-                
+
                 await lockService.acquire("test-key-1", options);
                 await lockService.acquire("test-key-2", options);
 
                 expect(mockRedis.set).toHaveBeenCalledTimes(2);
-                
+
                 const firstCall = mockRedis.set.mock.calls[0];
                 const secondCall = mockRedis.set.mock.calls[1];
-                
+
                 // Lock values should be different
                 expect(firstCall[1]).not.toBe(secondCall[1]);
             });
@@ -228,14 +231,14 @@ describe("LockService", () => {
 
                 // Mock setInterval to capture the renewal function
                 let renewalFn: () => void;
-                vi.spyOn(global, "setInterval").mockImplementation((fn: any, interval: number) => {
+                vi.spyOn(global, "setInterval").mockImplementation((fn: any, interval?: number | undefined) => {
                     renewalFn = fn;
                     expect(interval).toBe(Math.floor(15000 / 3)); // Should be 1/3 of TTL
                     return {} as any;
                 });
 
                 const options: LockOptions = { ttl: 15000 }; // Long-lived lock
-                const lock = await lockService.acquire("test-key", options);
+                const _lock = await lockService.acquire("test-key", options);
 
                 expect(setInterval).toHaveBeenCalled();
 
@@ -272,7 +275,7 @@ describe("LockService", () => {
                 mockRedis.eval.mockResolvedValue(1);
 
                 let intervalId: any;
-                vi.spyOn(global, "setInterval").mockImplementation((fn: any, interval: number) => {
+                vi.spyOn(global, "setInterval").mockImplementation((_fn: any, _interval?: number | undefined) => {
                     intervalId = { id: "test-interval" };
                     return intervalId;
                 });
@@ -307,9 +310,9 @@ describe("LockService", () => {
 
             it("should prevent concurrent locks on same key", async () => {
                 const options: LockOptions = { ttl: 5000, retries: 0 };
-                
+
                 const lock1 = await lockService.acquire("test-key", options);
-                
+
                 await expect(lockService.acquire("test-key", options))
                     .rejects.toThrow("Failed to acquire lock after 1 attempts: test-key");
 
@@ -323,7 +326,7 @@ describe("LockService", () => {
 
             it("should allow concurrent locks on different keys", async () => {
                 const options: LockOptions = { ttl: 5000 };
-                
+
                 const lock1 = await lockService.acquire("test-key-1", options);
                 const lock2 = await lockService.acquire("test-key-2", options);
 
@@ -337,7 +340,7 @@ describe("LockService", () => {
 
                 // Mock setTimeout to advance time and resolve quickly
                 const timeoutCallbacks: (() => void)[] = [];
-                vi.spyOn(global, "setTimeout").mockImplementation((fn: any, delay: number) => {
+                vi.spyOn(global, "setTimeout").mockImplementation((fn: any, delay?: number | undefined) => {
                     if (delay === 100) {
                         // This is the retry delay, execute immediately
                         fn();
@@ -365,7 +368,7 @@ describe("LockService", () => {
 
             it("should clean up expired locks", async () => {
                 const options: LockOptions = { ttl: 1 }; // Very short TTL
-                
+
                 await lockService.acquire("test-key", options);
 
                 // Wait for lock to expire
@@ -437,7 +440,7 @@ describe("LockService", () => {
                 );
 
                 expect(locks).toHaveLength(10);
-                
+
                 // All locks should be independent
                 for (let i = 0; i < locks.length; i++) {
                     await locks[i].release();
@@ -446,15 +449,15 @@ describe("LockService", () => {
 
             it("should handle lock contention properly", async () => {
                 const options: LockOptions = { ttl: 100, retries: 5 };
-                
+
                 // Start multiple acquisition attempts
-                const acquisitions = Array.from({ length: 5 }, () => 
+                const acquisitions = Array.from({ length: 5 }, () =>
                     lockService.acquire("contended-key", options),
                 );
 
                 // Only one should succeed, others should fail or retry
                 const results = await Promise.allSettled(acquisitions);
-                
+
                 const successful = results.filter(r => r.status === "fulfilled");
                 const failed = results.filter(r => r.status === "rejected");
 
@@ -481,9 +484,9 @@ describe("LockService", () => {
         it("should return locks that implement Lock interface", async () => {
             const memoryService = new InMemoryLockService();
             const options: LockOptions = { ttl: 5000 };
-            
+
             const lock = await memoryService.acquire("test-key", options);
-            
+
             expect(typeof lock.release).toBe("function");
         });
     });

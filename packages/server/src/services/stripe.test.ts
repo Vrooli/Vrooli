@@ -814,7 +814,7 @@ describe("getVerifiedCustomerInfo", () => {
 
     it("should return null if the user does not have a valid subscription", async () => {
         const { user3Id } = await createStripeTestUsers();
-        const result = await getVerifiedCustomerInfo({ userId: user3Id, stripe, validateSubscription: true });
+        const result = await getVerifiedCustomerInfo({ userId: user3Id.toString(), stripe, validateSubscription: true });
         expect(result.stripeCustomerId).toBeNull();
         expect(result.subscriptionInfo).toBeNull();
     });
@@ -839,7 +839,7 @@ describe("createStripeCustomerId", () => {
     it("creates a new Stripe customer and updates the user with the customer ID", async () => {
         const { userId: user1Id } = await createSimpleTestUser();
         const customerInfo = {
-            userId: user1Id,
+            userId: user1Id.toString(),
             emails: [{ emailAddress: "user@example.com" }],
             hasPremium: false,
             subscriptionInfo: null,

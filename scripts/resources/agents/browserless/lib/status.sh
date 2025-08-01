@@ -218,3 +218,11 @@ curl -X POST $BROWSERLESS_BASE_URL/chrome/content \\
 For more information, visit: https://www.browserless.io/docs/
 EOF
 }
+
+# Export functions for subshell availability
+export -f browserless::is_healthy
+export -f browserless::get_pressure
+export -f browserless::show_detailed_status
+export -f browserless::show_status
+export -f browserless::wait_for_healthy
+export -f browserless::show_info

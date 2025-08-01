@@ -1,29 +1,25 @@
-import { describe, expect, test, beforeEach, afterEach, vi, type MockedFunction, type Mock } from "vitest";
-import { 
-    RunState, 
-    EventTypes, 
-    generatePK,
-    toSwarmId,
+import {
     ChatConfig,
-    type SessionUser, 
-    type SwarmState,
-    type SwarmId,
-    type ServiceEvent,
-    type SwarmExecutionTask,
-    type ConversationContext,
-    type ConversationTrigger,
-    type SocketEventPayloads,
-    type StateMachineState,
+    EventTypes,
+    generatePK,
+    RunState,
     type BotParticipant,
     type ChatMessage,
     type RunEventData,
+    type ServiceEvent,
+    type SessionUser,
+    type StateMachineState,
+    type SwarmExecutionTask,
+    type SwarmId,
+    type SwarmState
 } from "@vrooli/shared";
-import { SwarmStateMachine } from "./swarmStateMachine.js";
-import type { ISwarmContextManager } from "../shared/SwarmContextManager.js";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { ConversationEngine, ConversationResult } from "../../conversation/conversationEngine.js";
-import type { CachedConversationStateStore } from "../../response/chatStore.js";
 import { EventInterceptor } from "../../events/EventInterceptor.js";
 import { EventPublisher } from "../../events/publisher.js";
+import type { CachedConversationStateStore } from "../../response/chatStore.js";
+import type { ISwarmContextManager } from "../shared/SwarmContextManager.js";
+import { SwarmStateMachine } from "./swarmStateMachine.js";
 
 // Mock dependencies
 vi.mock("../../../events/logger.js", () => ({
@@ -43,8 +39,8 @@ vi.mock("../../events/publisher.js", () => ({
 
 vi.mock("../../events/EventInterceptor.js", () => ({
     EventInterceptor: vi.fn().mockImplementation(() => ({
-        checkInterception: vi.fn().mockResolvedValue({ 
-            intercepted: false, 
+        checkInterception: vi.fn().mockResolvedValue({
+            intercepted: false,
             progression: "continue",
             responses: [],
         }),
@@ -69,10 +65,28 @@ vi.mock("@vrooli/shared", async () => {
 
 // Test data factories
 function createMockUser(partial: Partial<SessionUser> = {}): SessionUser {
+    const now = new Date().toISOString();
     return {
-        id: "test-user-123",
-        name: "Test User",
+        __typename: "SessionUser" as const,
+        id: generatePK().toString(),
+        publicId: "pub_test-user-123",
+        credits: "1000",
+        creditAccountId: "credit_test-user-123",
+        creditSettings: null,
+        handle: "testuser",
+        hasPremium: false,
+        hasReceivedPhoneVerificationReward: false,
         languages: ["en"],
+        name: "Test User",
+        phoneNumberVerified: false,
+        profileImage: null,
+        theme: "light",
+        updatedAt: now,
+        session: {
+            __typename: "SessionUserSession" as const,
+            id: "session_test-user-123",
+            lastRefreshAt: now,
+        },
         ...partial,
     } as SessionUser;
 }
@@ -248,15 +262,15 @@ describe("SwarmStateMachine", () => {
     describe("start() method", () => {
         test("should start successfully with valid request", async () => {
             const request = createMockSwarmExecutionTask();
-            
+
             const result = await stateMachine.start(request);
-            
+
             expect(result.success).toBe(true);
             expect(result.error).toBeUndefined();
             expect(stateMachine.getState()).toBe(RunState.READY);
             expect(stateMachine.getTaskId()).toBe("test-swarm-123");
             expect(stateMachine.getAssociatedUserId()).toBe("test-user-123");
-            
+
             // Verify context creation
             expect(mockContextManager.createContext).toHaveBeenCalledWith(
                 "test-swarm-123",
@@ -269,19 +283,19 @@ describe("SwarmStateMachine", () => {
                     }),
                 }),
             );
-            
+
             // Verify conversation engine orchestration
             expect(mockConversationEngine.orchestrateConversation).toHaveBeenCalledWith({
                 context: expect.any(Object),
                 trigger: { type: "start" },
                 strategy: "conversational",
             });
-            
+
             // Verify state change event
             expect(EventPublisher.emit).toHaveBeenCalledWith(
                 EventTypes.SWARM.STATE_CHANGED,
                 expect.objectContaining({
-                    chatId: "test-swarm-123",
+                    chatId: "1234567890",
                     oldState: "UNINITIALIZIALIZED",
                     newState: RunState.READY,
                 }),
@@ -296,9 +310,9 @@ describe("SwarmStateMachine", () => {
                     // No swarmId provided
                 },
             });
-            
+
             const result = await stateMachine.start(request);
-            
+
             expect(result.success).toBe(true);
             expect(generatePK).toHaveBeenCalled();
             expect(stateMachine.getTaskId()).toBe("test-pk-123");
@@ -308,12 +322,12 @@ describe("SwarmStateMachine", () => {
             const chatConfig = {
                 ...ChatConfig.default().export(),
                 goal: "Chat-specific goal",
-                activeBotId: "bot-123",
+                activeBotId: "123",
             };
             vi.mocked(mockChatStore.get).mockResolvedValueOnce({
                 config: chatConfig,
             });
-            
+
             const request = createMockSwarmExecutionTask({
                 input: {
                     goal: "Test goal",
@@ -321,16 +335,16 @@ describe("SwarmStateMachine", () => {
                     chatId: "existing-chat-123",
                 },
             });
-            
+
             await stateMachine.start(request);
-            
+
             expect(mockChatStore.get).toHaveBeenCalledWith("existing-chat-123");
             expect(mockContextManager.createContext).toHaveBeenCalledWith(
                 expect.any(String),
                 expect.objectContaining({
                     chatConfig: expect.objectContaining({
                         goal: "Test goal", // Request goal overrides chat config goal
-                        activeBotId: "bot-123",
+                        activeBotId: "123",
                     }),
                 }),
             );
@@ -338,13 +352,13 @@ describe("SwarmStateMachine", () => {
 
         test("should fail if already started", async () => {
             const request = createMockSwarmExecutionTask();
-            
+
             // First start should succeed
             await stateMachine.start(request);
-            
+
             // Second start should fail
             const result = await stateMachine.start(request);
-            
+
             expect(result.success).toBe(false);
             expect(result.error).toContain("Already started");
         });
@@ -352,17 +366,17 @@ describe("SwarmStateMachine", () => {
         test("should handle context creation failure", async () => {
             const error = new Error("Context creation failed");
             vi.mocked(mockContextManager.createContext).mockRejectedValueOnce(error);
-            
+
             const request = createMockSwarmExecutionTask();
             const result = await stateMachine.start(request);
-            
+
             expect(result.success).toBe(false);
             expect(result.error).toMatchObject({
                 message: "Context creation failed",
                 name: "Error",
             });
             expect(stateMachine.getState()).toBe(RunState.FAILED);
-            
+
             // Verify failure event
             expect(EventPublisher.emit).toHaveBeenCalledWith(
                 EventTypes.SWARM.STATE_CHANGED,
@@ -377,33 +391,33 @@ describe("SwarmStateMachine", () => {
             vi.mocked(mockConversationEngine.orchestrateConversation).mockResolvedValueOnce(
                 createMockConversationResult({ success: false, error: "Orchestration failed" }),
             );
-            
+
             const request = createMockSwarmExecutionTask();
             const result = await stateMachine.start(request);
-            
+
             expect(result.success).toBe(false); // Start fails when conversation engine fails
             expect(stateMachine.getState()).toBe(RunState.FAILED);
         });
 
         test("should handle missing context after creation", async () => {
             vi.mocked(mockContextManager.getContext).mockResolvedValueOnce(null);
-            
+
             const request = createMockSwarmExecutionTask();
             const result = await stateMachine.start(request);
-            
+
             expect(result.success).toBe(false);
             expect(result.error?.message).toBe("Failed to get swarm context");
         });
 
         test("should handle event publisher blocking", async () => {
-            vi.mocked(EventPublisher.emit).mockResolvedValueOnce({ 
-                proceed: false, 
-                reason: "Rate limited", 
+            vi.mocked(EventPublisher.emit).mockResolvedValueOnce({
+                proceed: false,
+                reason: "Rate limited",
             });
-            
+
             const request = createMockSwarmExecutionTask();
             const result = await stateMachine.start(request);
-            
+
             // Should continue despite blocking
             expect(result.success).toBe(true);
             expect(stateMachine.getState()).toBe(RunState.READY);
@@ -419,13 +433,13 @@ describe("SwarmStateMachine", () => {
         describe("handleEvent validation", () => {
             test("should validate SWARM.STARTED events", async () => {
                 const validEvent = createServiceEvent(EventTypes.SWARM.STARTED, {
-                    chatId: "test-swarm-123",
+                    chatId: "1234567890",
                 });
-                
+
                 await stateMachine.handleEvent(validEvent);
                 // Should be queued (no error)
                 expect((stateMachine as any).eventQueue.length).toBe(1);
-                
+
                 // Invalid event (missing chatId)
                 const invalidEvent = createServiceEvent(EventTypes.SWARM.STARTED, {});
                 await stateMachine.handleEvent(invalidEvent);
@@ -437,21 +451,21 @@ describe("SwarmStateMachine", () => {
         describe("processEvent routing", () => {
             test("should route CHAT.MESSAGE_ADDED to handleExternalMessage", async () => {
                 const message: ChatMessage = {
-                    id: "msg-123",
+                    id: generatePK().toString(),
                     text: "Test message",
-                    userId: "user-123",
-                    chatId: "test-swarm-123",
+                    userId: generatePK().toString(),
+                    chatId: "1234567890",
                     role: "user",
                     timestamp: new Date().toISOString(),
                 };
-                
+
                 const event = createServiceEvent(EventTypes.CHAT.MESSAGE_ADDED, {
-                    chatId: "test-swarm-123",
+                    chatId: "1234567890",
                     messages: [message],
                 });
-                
+
                 await (stateMachine as any).processEvent(event);
-                
+
                 expect(mockConversationEngine.orchestrateConversation).toHaveBeenCalledWith({
                     context: expect.any(Object),
                     trigger: {
@@ -465,12 +479,12 @@ describe("SwarmStateMachine", () => {
             test("should route TOOL.APPROVAL_GRANTED to handleApprovedTool", async () => {
                 const event = createServiceEvent(EventTypes.TOOL.APPROVAL_GRANTED, {
                     toolName: "test_tool",
-                    toolCallId: "call-123",
-                    pendingId: "pending-123",
-                    callerBotId: "bot-123",
-                    chatId: "test-swarm-123",
+                    toolCallId: "123",
+                    pendingId: "456",
+                    callerBotId: "789",
+                    chatId: "1234567890",
                 });
-                
+
                 // Add original tool call context
                 event.execution = {
                     originalToolCall: {
@@ -478,9 +492,9 @@ describe("SwarmStateMachine", () => {
                         arguments: { param: "value" },
                     },
                 };
-                
+
                 await (stateMachine as any).processEvent(event);
-                
+
                 expect(mockEventInterceptor.checkInterception).toHaveBeenCalledWith(
                     event,
                     expect.any(Object),
@@ -491,14 +505,14 @@ describe("SwarmStateMachine", () => {
             test("should route TOOL.APPROVAL_REJECTED to handleRejectedTool", async () => {
                 const event = createServiceEvent(EventTypes.TOOL.APPROVAL_REJECTED, {
                     toolName: "test_tool",
-                    toolCallId: "call-123",
-                    pendingId: "pending-123",
+                    toolCallId: "123",
+                    pendingId: "456",
                     reason: "Not allowed",
-                    chatId: "test-swarm-123",
+                    chatId: "1234567890",
                 });
-                
+
                 await (stateMachine as any).processEvent(event);
-                
+
                 expect(mockConversationEngine.orchestrateConversation).toHaveBeenCalledWith({
                     context: expect.any(Object),
                     trigger: {
@@ -511,13 +525,13 @@ describe("SwarmStateMachine", () => {
 
             test("should route CHAT.CANCELLATION_REQUESTED to handleCancellationRequest", async () => {
                 const stopSpy = vi.spyOn(stateMachine, "stop");
-                
+
                 const event = createServiceEvent(EventTypes.CHAT.CANCELLATION_REQUESTED, {
-                    chatId: "test-swarm-123",
+                    chatId: "1234567890",
                 });
-                
+
                 await (stateMachine as any).processEvent(event);
-                
+
                 expect(stopSpy).toHaveBeenCalledWith({
                     mode: "graceful",
                     reason: "User requested cancellation",
@@ -526,15 +540,15 @@ describe("SwarmStateMachine", () => {
 
             test("should route RUN.COMPLETED to handleInternalStatusUpdate", async () => {
                 const runData: RunEventData = {
-                    runId: "run-123",
+                    runId: "987654321",
                     status: RunState.COMPLETED,
                     executionTime: 1000,
                 };
-                
+
                 const event = createServiceEvent(EventTypes.RUN.COMPLETED, runData);
-                
+
                 await (stateMachine as any).processEvent(event);
-                
+
                 expect(mockConversationEngine.orchestrateConversation).toHaveBeenCalledWith({
                     context: expect.any(Object),
                     trigger: {
@@ -547,18 +561,18 @@ describe("SwarmStateMachine", () => {
 
             test("should route RUN.FAILED to handleInternalStatusUpdate with reasoning", async () => {
                 const runData: RunEventData = {
-                    runId: "run-123",
+                    runId: "987654321",
                     status: RunState.FAILED,
                     error: "Execution failed",
                 };
-                
+
                 const event = createServiceEvent(EventTypes.RUN.FAILED, runData);
-                
+
                 // Set state to RUNNING to test state transition
                 (stateMachine as any).state = RunState.RUNNING;
-                
+
                 await (stateMachine as any).processEvent(event);
-                
+
                 expect(mockConversationEngine.orchestrateConversation).toHaveBeenCalledWith({
                     context: expect.any(Object),
                     trigger: {
@@ -567,7 +581,7 @@ describe("SwarmStateMachine", () => {
                     },
                     strategy: "reasoning", // Uses reasoning for failures
                 });
-                
+
                 expect(stateMachine.getState()).toBe(RunState.READY);
             });
 
@@ -578,20 +592,20 @@ describe("SwarmStateMachine", () => {
                     newState: "COMPLETED" as StateMachineState,
                     message: "Child swarm completed",
                 });
-                
+
                 await (stateMachine as any).processEvent(event);
                 // Should log but not error
             });
 
             test("should route safety/security events to handleSafetyEvent", async () => {
                 const stopSpy = vi.spyOn(stateMachine, "stop");
-                
+
                 const event = createServiceEvent(EventTypes.SECURITY.EMERGENCY_STOP, {
                     reason: "Security threat detected",
                 });
-                
+
                 await (stateMachine as any).processEvent(event);
-                
+
                 expect(stopSpy).toHaveBeenCalledWith({
                     mode: "force",
                     reason: "Emergency stop requested",
@@ -603,7 +617,7 @@ describe("SwarmStateMachine", () => {
             test("should filter events by swarmId", () => {
                 const ourEvent = createServiceEvent("test/event", { swarmId: "test-swarm-123" });
                 const otherEvent = createServiceEvent("test/event", { swarmId: "other-swarm-456" });
-                
+
                 expect((stateMachine as any).shouldHandleEvent(ourEvent)).toBe(true);
                 expect((stateMachine as any).shouldHandleEvent(otherEvent)).toBe(false);
             });
@@ -611,14 +625,14 @@ describe("SwarmStateMachine", () => {
             test("should filter user events by userId", () => {
                 const ourUserEvent = createServiceEvent("user/test-user-123/credits", {});
                 const otherUserEvent = createServiceEvent("user/other-user-456/credits", {});
-                
+
                 expect((stateMachine as any).shouldHandleEvent(ourUserEvent)).toBe(true);
                 expect((stateMachine as any).shouldHandleEvent(otherUserEvent)).toBe(false);
             });
 
             test("should handle events without filtering data", () => {
                 const genericEvent = createServiceEvent("system/heartbeat", {});
-                
+
                 expect((stateMachine as any).shouldHandleEvent(genericEvent)).toBe(true);
             });
         });
@@ -626,7 +640,7 @@ describe("SwarmStateMachine", () => {
         describe("getEventPatterns", () => {
             test("should return comprehensive event patterns", () => {
                 const patterns = (stateMachine as any).getEventPatterns();
-                
+
                 expect(patterns).toContainEqual({ pattern: "chat/*" });
                 expect(patterns).toContainEqual({ pattern: "tool/*" });
                 expect(patterns).toContainEqual({ pattern: "swarm/*" });
@@ -648,27 +662,27 @@ describe("SwarmStateMachine", () => {
         test("should handle approved tool with successful execution", async () => {
             const event = createServiceEvent(EventTypes.TOOL.APPROVAL_GRANTED, {
                 toolName: "resource_manage",
-                toolCallId: "call-123",
-                pendingId: "pending-123",
-                callerBotId: "bot-123",
+                toolCallId: "111",
+                pendingId: "222",
+                callerBotId: "333",
                 chatId: "test-swarm-123",
             });
-            
+
             event.execution = {
                 originalToolCall: {
                     name: "resource_manage",
                     arguments: { action: "find", type: "routine" },
                 },
             };
-            
+
             await (stateMachine as any).handleApprovedTool(event);
-            
+
             // Verify interception check
             expect(mockEventInterceptor.checkInterception).toHaveBeenCalledWith(
                 event,
                 expect.any(Object),
             );
-            
+
             // Verify conversation engine routing
             expect(mockConversationEngine.orchestrateConversation).toHaveBeenCalledWith({
                 context: expect.any(Object),
@@ -686,34 +700,34 @@ describe("SwarmStateMachine", () => {
                 progression: "blocked",
                 responses: ["Security violation detected"],
             });
-            
+
             const event = createServiceEvent(EventTypes.TOOL.APPROVAL_GRANTED, {
                 toolName: "dangerous_tool",
-                toolCallId: "call-123",
-                pendingId: "pending-123",
-                callerBotId: "bot-123",
+                toolCallId: "444",
+                pendingId: "555",
+                callerBotId: "666",
                 chatId: "test-swarm-123",
             });
-            
+
             event.execution = {
                 originalToolCall: {
                     name: "dangerous_tool",
                     arguments: { action: "harm" },
                 },
             };
-            
+
             await (stateMachine as any).handleApprovedTool(event);
-            
+
             // Should emit TOOL.FAILED event
             expect(EventPublisher.emit).toHaveBeenCalledWith(
                 EventTypes.TOOL.FAILED,
                 expect.objectContaining({
-                    toolCallId: "call-123",
+                    toolCallId: "444",
                     toolName: "dangerous_tool",
                     error: expect.stringContaining("blocked by security system"),
                 }),
             );
-            
+
             // Should not route to conversation engine
             expect(mockConversationEngine.orchestrateConversation).not.toHaveBeenCalled();
         });
@@ -721,16 +735,16 @@ describe("SwarmStateMachine", () => {
         test("should handle approved tool missing original call context", async () => {
             const event = createServiceEvent(EventTypes.TOOL.APPROVAL_GRANTED, {
                 toolName: "test_tool",
-                toolCallId: "call-123",
-                pendingId: "pending-123",
-                callerBotId: "bot-123",
+                toolCallId: "777",
+                pendingId: "888",
+                callerBotId: "999",
                 chatId: "test-swarm-123",
             });
-            
+
             // No execution.originalToolCall
-            
+
             await (stateMachine as any).handleApprovedTool(event);
-            
+
             // Should log error but not throw
             expect(mockConversationEngine.orchestrateConversation).not.toHaveBeenCalled();
         });
@@ -738,13 +752,13 @@ describe("SwarmStateMachine", () => {
         test("should handle approved tool with missing required data", async () => {
             const event = createServiceEvent(EventTypes.TOOL.APPROVAL_GRANTED, {
                 // Missing toolName
-                toolCallId: "call-123",
-                pendingId: "pending-123",
+                toolCallId: "1010",
+                pendingId: "1111",
                 chatId: "test-swarm-123",
             });
-            
+
             await (stateMachine as any).handleApprovedTool(event);
-            
+
             // Should log error but not throw
             expect(mockEventInterceptor.checkInterception).not.toHaveBeenCalled();
         });
@@ -752,14 +766,14 @@ describe("SwarmStateMachine", () => {
         test("should handle rejected tool with fallback strategy", async () => {
             const event = createServiceEvent(EventTypes.TOOL.APPROVAL_REJECTED, {
                 toolName: "expensive_tool",
-                toolCallId: "call-123",
-                pendingId: "pending-123",
+                toolCallId: "1212",
+                pendingId: "1313",
                 reason: "Insufficient credits",
                 chatId: "test-swarm-123",
             });
-            
+
             await (stateMachine as any).handleRejectedTool(event);
-            
+
             expect(mockConversationEngine.orchestrateConversation).toHaveBeenCalledWith({
                 context: expect.any(Object),
                 trigger: {
@@ -773,13 +787,13 @@ describe("SwarmStateMachine", () => {
         test("should handle rejected tool with missing data", async () => {
             const event = createServiceEvent(EventTypes.TOOL.APPROVAL_REJECTED, {
                 // Missing toolName
-                toolCallId: "call-123",
+                toolCallId: "1414",
                 reason: "Invalid tool",
                 chatId: "test-swarm-123",
             });
-            
+
             await (stateMachine as any).handleRejectedTool(event);
-            
+
             // Should log error but not throw
             expect(mockConversationEngine.orchestrateConversation).not.toHaveBeenCalled();
         });
@@ -788,15 +802,15 @@ describe("SwarmStateMachine", () => {
     describe("State Management", () => {
         test("should support pause and resume", async () => {
             await stateMachine.start(createMockSwarmExecutionTask());
-            
+
             // Transition to RUNNING
             (stateMachine as any).state = RunState.RUNNING;
-            
+
             // Pause
             const pauseResult = await stateMachine.pause();
             expect(pauseResult).toBe(true);
             expect(stateMachine.getState()).toBe(RunState.PAUSED);
-            
+
             // Resume
             const resumeResult = await stateMachine.resume();
             expect(resumeResult).toBe(true);
@@ -805,13 +819,13 @@ describe("SwarmStateMachine", () => {
 
         test("should stop gracefully with statistics", async () => {
             await stateMachine.start(createMockSwarmExecutionTask());
-            
+
             // Update context with some statistics
             const mockContext = createMockSwarmState("test-swarm-123" as SwarmId, {
                 chatConfig: {
                     subtasks: [
-                        { id: "task-1", description: "Task 1", status: "done" },
-                        { id: "task-2", description: "Task 2", status: "pending" },
+                        { id: "1", description: "Task 1", status: "done" },
+                        { id: "2", description: "Task 2", status: "pending" },
                     ],
                     stats: {
                         totalToolCalls: 5,
@@ -822,9 +836,9 @@ describe("SwarmStateMachine", () => {
                 },
             });
             vi.mocked(mockContextManager.getContext).mockResolvedValueOnce(mockContext);
-            
+
             const result = await stateMachine.stop({ mode: "graceful", reason: "Test complete" });
-            
+
             expect(result.success).toBe(true);
             expect(result.finalState).toMatchObject({
                 mode: "graceful",
@@ -834,7 +848,7 @@ describe("SwarmStateMachine", () => {
                 totalCreditsUsed: "100",
                 totalToolCalls: 5,
             });
-            
+
             expect(EventPublisher.emit).toHaveBeenCalledWith(
                 EventTypes.SWARM.STATE_CHANGED,
                 expect.objectContaining({
@@ -847,12 +861,12 @@ describe("SwarmStateMachine", () => {
 
         test("should stop forcefully", async () => {
             await stateMachine.start(createMockSwarmExecutionTask());
-            
+
             const result = await stateMachine.stop({ mode: "force", reason: "Emergency" });
-            
+
             expect(result.success).toBe(true);
             expect(stateMachine.getState()).toBe(RunState.CANCELLED);
-            
+
             expect(EventPublisher.emit).toHaveBeenCalledWith(
                 EventTypes.SWARM.STATE_CHANGED,
                 expect.objectContaining({
@@ -863,33 +877,33 @@ describe("SwarmStateMachine", () => {
 
         test("should handle stop with requesting user", async () => {
             await stateMachine.start(createMockSwarmExecutionTask());
-            
-            const requestingUser = createMockUser({ id: "admin-user" });
+
+            const requestingUser = createMockUser({ id: generatePK().toString() });
             const result = await stateMachine.stop({ mode: "graceful", reason: "Admin stopped", requestingUser });
-            
+
             expect(result.success).toBe(true);
         });
 
         test("should handle stop with options object", async () => {
             await stateMachine.start(createMockSwarmExecutionTask());
-            
+
             const result = await stateMachine.stop({
                 mode: "force",
                 reason: "System shutdown",
-                requestingUser: createMockUser({ id: "system" }),
+                requestingUser: createMockUser({ id: generatePK().toString() }),
             });
-            
+
             expect(result.success).toBe(true);
             expect(result.finalState?.mode).toBe("force");
         });
 
         test("should handle stop when context not found", async () => {
             await stateMachine.start(createMockSwarmExecutionTask());
-            
+
             vi.mocked(mockContextManager.getContext).mockResolvedValueOnce(null);
-            
+
             const result = await stateMachine.stop();
-            
+
             expect(result.success).toBe(true);
             expect(result.finalState).toMatchObject({
                 totalSubTasks: 0,
@@ -903,17 +917,17 @@ describe("SwarmStateMachine", () => {
     describe("Error Handling", () => {
         test("should determine fatal errors correctly", async () => {
             await stateMachine.start(createMockSwarmExecutionTask());
-            
+
             const event = createServiceEvent("test/event", {});
-            
+
             // Network errors are non-fatal
             const networkError = new Error("ECONNREFUSED: Connection refused");
             expect(await (stateMachine as any).isErrorFatal(networkError, event)).toBe(false);
-            
+
             // Configuration errors are fatal
             const configError = new Error("No leader bot configured");
             expect(await (stateMachine as any).isErrorFatal(configError, event)).toBe(true);
-            
+
             // Unknown errors default to non-fatal
             const unknownError = new Error("Something went wrong");
             expect(await (stateMachine as any).isErrorFatal(unknownError, event)).toBe(false);
@@ -921,55 +935,55 @@ describe("SwarmStateMachine", () => {
 
         test("should handle errors in handleExternalMessage", async () => {
             await stateMachine.start(createMockSwarmExecutionTask());
-            
+
             // Make conversation engine return failure (not throw)
             vi.mocked(mockConversationEngine.orchestrateConversation).mockResolvedValueOnce(
                 createMockConversationResult({ success: false, error: "Orchestration failed" }),
             );
-            
+
             const event = createServiceEvent(EventTypes.CHAT.MESSAGE_ADDED, {
                 chatId: "test-swarm-123",
                 messages: [{
-                    id: "msg-123",
+                    id: generatePK().toString(),
                     text: "Test",
-                    userId: "user-123",
-                    chatId: "test-swarm-123",
+                    userId: generatePK().toString(),
+                    chatId: "1234567890",
                     role: "user",
                     timestamp: new Date().toISOString(),
                 }],
             });
-            
+
             // Set to RUNNING to test state transition
             (stateMachine as any).state = RunState.RUNNING;
-            
+
             await (stateMachine as any).handleExternalMessage(event);
-            
+
             // Should transition to READY for non-fatal error
             expect(stateMachine.getState()).toBe(RunState.READY);
         });
 
         test("should handle fatal errors in handleExternalMessage", async () => {
             await stateMachine.start(createMockSwarmExecutionTask());
-            
+
             // Make conversation engine throw fatal error
             vi.mocked(mockConversationEngine.orchestrateConversation).mockRejectedValueOnce(
                 new Error("Invalid configuration"),
             );
-            
+
             const event = createServiceEvent(EventTypes.CHAT.MESSAGE_ADDED, {
                 chatId: "test-swarm-123",
                 messages: [{
-                    id: "msg-123",
+                    id: generatePK().toString(),
                     text: "Test",
-                    userId: "user-123",
-                    chatId: "test-swarm-123",
+                    userId: generatePK().toString(),
+                    chatId: "1234567890",
                     role: "user",
                     timestamp: new Date().toISOString(),
                 }],
             });
-            
+
             await (stateMachine as any).handleExternalMessage(event);
-            
+
             // Should transition to FAILED for fatal error
             expect(stateMachine.getState()).toBe(RunState.FAILED);
         });
@@ -981,12 +995,12 @@ describe("SwarmStateMachine", () => {
                 mockConversationEngine,
                 mockChatStore,
             );
-            
+
             const event = createServiceEvent(EventTypes.CHAT.MESSAGE_ADDED, {
                 chatId: "test-swarm-123",
-                messages: [{ id: "msg-123" }],
+                messages: [{ id: generatePK().toString() }],
             });
-            
+
             // Should log error but not throw
             await (newStateMachine as any).handleExternalMessage(event);
             expect(mockConversationEngine.orchestrateConversation).not.toHaveBeenCalled();
@@ -996,11 +1010,11 @@ describe("SwarmStateMachine", () => {
     describe("ConversationContext Transformation", () => {
         test("should transform SwarmState to ConversationContext correctly", async () => {
             await stateMachine.start(createMockSwarmExecutionTask());
-            
+
             const mockAgents: BotParticipant[] = [
-                { id: "bot-1", name: "Bot 1", roles: ["assistant"] } as BotParticipant,
+                { id: generatePK().toString(), name: "Bot 1", roles: ["assistant"] } as BotParticipant,
             ];
-            
+
             const swarmState = createMockSwarmState("test-swarm-123" as SwarmId, {
                 execution: {
                     agents: mockAgents,
@@ -1012,9 +1026,9 @@ describe("SwarmStateMachine", () => {
                     ],
                 },
             });
-            
+
             const context = await (stateMachine as any).transformToConversationContext(swarmState);
-            
+
             expect(context).toMatchObject({
                 swarmId: "test-swarm-123",
                 userData: expect.objectContaining({ id: "test-user-123" }),
@@ -1028,10 +1042,10 @@ describe("SwarmStateMachine", () => {
 
         test("should handle empty blackboard in transformation", async () => {
             await stateMachine.start(createMockSwarmExecutionTask());
-            
+
             const swarmState = createMockSwarmState("test-swarm-123" as SwarmId);
             const context = await (stateMachine as any).transformToConversationContext(swarmState);
-            
+
             expect(context.sharedState).toEqual({});
         });
     });
@@ -1039,32 +1053,32 @@ describe("SwarmStateMachine", () => {
     describe("Event Pattern Subscriptions", () => {
         test("should subscribe to all required event patterns", () => {
             const patterns = (stateMachine as any).getEventPatterns();
-            
+
             // Verify comprehensive coverage
             const patternStrings = patterns.map(p => p.pattern);
-            
+
             // Chat events
             expect(patternStrings).toContain("chat/*");
             expect(patternStrings).toContain("chat/message/*");
             expect(patternStrings).toContain("chat/cancellation/*");
-            
+
             // Tool events
             expect(patternStrings).toContain("tool/*");
             expect(patternStrings).toContain("tool/approval/*");
-            
+
             // Swarm events
             expect(patternStrings).toContain("swarm/*");
             expect(patternStrings).toContain("swarm/state/*");
             expect(patternStrings).toContain("swarm/goal/*");
-            
+
             // Run events
             expect(patternStrings).toContain("run/*");
-            
+
             // User events
             expect(patternStrings).toContain("user/*");
             expect(patternStrings).toContain("user/credits/*");
             expect(patternStrings).toContain("user/permissions/*");
-            
+
             // Safety/security events
             expect(patternStrings).toContain("safety/*");
             expect(patternStrings).toContain("security/*");
@@ -1074,23 +1088,23 @@ describe("SwarmStateMachine", () => {
     describe("Integration Scenarios", () => {
         test("should handle complete tool approval and execution flow", async () => {
             await stateMachine.start(createMockSwarmExecutionTask());
-            
+
             // Step 1: Tool approval granted
             const approvalEvent = createServiceEvent(EventTypes.TOOL.APPROVAL_GRANTED, {
                 toolName: "spawn_swarm",
-                toolCallId: "call-123",
-                pendingId: "pending-123",
-                callerBotId: "bot-123",
+                toolCallId: "1515",
+                pendingId: "1616",
+                callerBotId: "1717",
                 chatId: "test-swarm-123",
             });
-            
+
             approvalEvent.execution = {
                 originalToolCall: {
                     name: "spawn_swarm",
                     arguments: { goal: "Sub-task goal" },
                 },
             };
-            
+
             // Mock successful tool execution
             vi.mocked(mockConversationEngine.orchestrateConversation).mockResolvedValueOnce(
                 createMockConversationResult({
@@ -1101,9 +1115,9 @@ describe("SwarmStateMachine", () => {
                     }],
                 }),
             );
-            
+
             await (stateMachine as any).processEvent(approvalEvent);
-            
+
             // Verify complete flow
             expect(mockEventInterceptor.checkInterception).toHaveBeenCalled();
             expect(mockConversationEngine.orchestrateConversation).toHaveBeenCalled();
@@ -1111,14 +1125,14 @@ describe("SwarmStateMachine", () => {
 
         test("should handle security event leading to emergency stop", async () => {
             await stateMachine.start(createMockSwarmExecutionTask());
-            
+
             const securityEvent = createServiceEvent(EventTypes.SECURITY.EMERGENCY_STOP, {
                 reason: "Critical security threat",
                 severity: "critical",
             });
-            
+
             await (stateMachine as any).processEvent(securityEvent);
-            
+
             expect(stateMachine.getState()).toBe(RunState.CANCELLED);
         });
     });

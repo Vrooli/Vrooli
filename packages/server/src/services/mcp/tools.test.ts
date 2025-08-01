@@ -4,7 +4,7 @@
  */
 
 import type { SessionUser } from "@vrooli/shared";
-import { DEFAULT_LANGUAGE, generatePK, McpToolName, ResourceSubType, ResourceType } from "@vrooli/shared";
+import { DEFAULT_LANGUAGE, generatePK, generatePublicId, McpToolName, ResourceSubType, ResourceType } from "@vrooli/shared";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
@@ -44,15 +44,15 @@ const mockConversationStore = {
 };
 
 // Mock imports from process run
-let mockProcessRun: any;
-let mockProcessNewSwarmExecution: any;
-let mockActiveSwarmRegistry: any;
+let mockProcessRun: { processRun: ReturnType<typeof vi.fn> };
+let mockProcessNewSwarmExecution: { processNewSwarmExecution: ReturnType<typeof vi.fn> };
+let mockActiveSwarmRegistry: { activeSwarmRegistry: { get: ReturnType<typeof vi.fn>; getOrderedRecords: ReturnType<typeof vi.fn> } };
 
 describe("BuiltInTools", () => {
     let testUser: SessionUser;
     let adminUser: SessionUser;
     let tools: BuiltInTools;
-    let adminTools: BuiltInTools;
+    let _adminTools: BuiltInTools;
 
     beforeAll(async () => {
         // Create test users
@@ -219,11 +219,11 @@ describe("BuiltInTools", () => {
             const chat = await DbProvider.get().chat.create({
                 data: {
                     id: generatePK(),
-                    publicId: generatePK().toString(),
+                    publicId: generatePublicId(),
                     isPrivate: false,
                     openToAnyoneWithInvite: true,
                     config: {},
-                    createdById: testUser.id,
+                    createdById: BigInt(testUser.id),
                 },
             });
             testChatId = chat.id.toString();
@@ -329,17 +329,17 @@ describe("BuiltInTools", () => {
             const resource = await DbProvider.get().resource.create({
                 data: {
                     id: generatePK(),
-                    publicId: generatePK().toString(),
+                    publicId: generatePublicId(),
                     resourceType: ResourceType.Note,
                     isPrivate: false,
-                    createdById: testUser.id,
+                    createdById: BigInt(testUser.id),
                     versions: {
                         create: {
                             id: generatePK(),
-                            publicId: generatePK().toString(),
+                            publicId: generatePublicId(),
                             versionLabel: "1.0.0",
                             isComplete: true,
-                            createdById: testUser.id,
+                            createdById: BigInt(testUser.id),
                             translations: {
                                 create: {
                                     id: generatePK(),
@@ -365,11 +365,11 @@ describe("BuiltInTools", () => {
             const team = await DbProvider.get().team.create({
                 data: {
                     id: generatePK(),
-                    publicId: generatePK().toString(),
+                    publicId: generatePublicId(),
                     handle: "test-team",
                     isPrivate: false,
                     config: {},
-                    createdById: testUser.id,
+                    createdById: BigInt(testUser.id),
                 },
             });
             testTeamId = team.id.toString();
@@ -902,7 +902,13 @@ describe("SwarmTools", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        swarmTools = new SwarmTools(mockConversationStore);
+        // Mock swarm registry
+        const mockSwarmRegistry = {
+            getOrderedRecords: vi.fn().mockReturnValue([]),
+            get: vi.fn().mockReturnValue(null),
+        } as any;
+
+        swarmTools = new SwarmTools(mockConversationStore, mockSwarmRegistry);
 
         // Reset conversation store mocks
         mockConversationStore.get.mockResolvedValue(mockConversationState);

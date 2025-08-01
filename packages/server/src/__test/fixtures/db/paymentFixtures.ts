@@ -25,6 +25,18 @@ export function getPaymentDbIds() {
     return _paymentDbIds;
 }
 
+// Cached IDs for consistent user/team relationships
+const _paymentRelationIds: { [key: string]: bigint | undefined } = {};
+export const paymentRelationIds = {
+    get user1() { return _paymentRelationIds.user1 ??= generatePK(); },
+    get user2() { return _paymentRelationIds.user2 ??= generatePK(); },
+    get user3() { return _paymentRelationIds.user3 ??= generatePK(); },
+    get user4() { return _paymentRelationIds.user4 ??= generatePK(); },
+    get team1() { return _paymentRelationIds.team1 ??= generatePK(); },
+    get team2() { return _paymentRelationIds.team2 ??= generatePK(); },
+    get team3() { return _paymentRelationIds.team3 ??= generatePK(); },
+};
+
 /**
  * Successful user payment - Premium Monthly
  */
@@ -38,7 +50,7 @@ export const successfulUserPaymentDb: Prisma.paymentCreateInput = {
     paymentType: "PremiumMonthly",
     status: "Paid",
     user: {
-        connect: { id: generatePK() },
+        connect: { id: paymentRelationIds.user1 },
     },
 };
 
@@ -55,7 +67,7 @@ export const successfulTeamPaymentDb: Prisma.paymentCreateInput = {
     paymentType: "PremiumYearly",
     status: "Paid",
     team: {
-        connect: { id: generatePK() },
+        connect: { id: paymentRelationIds.team1 },
     },
 };
 
@@ -72,7 +84,7 @@ export const pendingUserPaymentDb: Prisma.paymentCreateInput = {
     paymentType: "PremiumMonthly",
     status: "Pending",
     user: {
-        connect: { id: generatePK() },
+        connect: { id: paymentRelationIds.user2 },
     },
 };
 
@@ -89,7 +101,7 @@ export const failedUserPaymentDb: Prisma.paymentCreateInput = {
     paymentType: "PremiumMonthly",
     status: "Failed",
     user: {
-        connect: { id: generatePK() },
+        connect: { id: paymentRelationIds.user3 },
     },
 };
 
@@ -106,7 +118,7 @@ export const refundedUserPaymentDb: Prisma.paymentCreateInput = {
     paymentType: "PremiumMonthly",
     status: "Failed", // Note: PaymentStatus enum doesn't have Refunded
     user: {
-        connect: { id: generatePK() },
+        connect: { id: paymentRelationIds.user4 },
     },
 };
 
@@ -123,7 +135,7 @@ export const canceledTeamPaymentDb: Prisma.paymentCreateInput = {
     paymentType: "PremiumYearly",
     status: "Failed", // Note: PaymentStatus enum doesn't have Canceled
     team: {
-        connect: { id: generatePK() },
+        connect: { id: paymentRelationIds.team2 },
     },
 };
 
@@ -140,7 +152,7 @@ export const enterprisePaymentDb: Prisma.paymentCreateInput = {
     paymentType: "PremiumYearly",
     status: "Paid",
     team: {
-        connect: { id: generatePK() },
+        connect: { id: paymentRelationIds.team3 },
     },
 };
 

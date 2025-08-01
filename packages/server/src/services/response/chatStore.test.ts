@@ -1,22 +1,18 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { 
-    type ChatConfigObject, 
-    type ConversationState,
+import {
     type BotParticipant,
-    generatePK,
-    MINUTES_1_S,
     ChatConfig,
-    LRUCache,
+    type ChatConfigObject,
+    type ConversationState
 } from "@vrooli/shared";
-import { 
-    ChatStore, 
-    PrismaChatStore, 
-    CachedConversationStateStore,
-    type ConversationStatsPatch, 
-} from "./chatStore.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { CacheService } from "../../redisConn.js";
+import {
+    CachedConversationStateStore,
+    ChatStore,
+    PrismaChatStore
+} from "./chatStore.js";
 
 // Mock dependencies
 vi.mock("../../events/logger.js", () => ({
@@ -84,9 +80,9 @@ describe("ChatStore (abstract base)", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.useFakeTimers();
-        
+
         store = new TestChatStore(100); // Use short debounce for testing
-        
+
         mockState = {
             id: "chat123",
             participants: [
@@ -99,10 +95,13 @@ describe("ChatStore (abstract base)", () => {
             ],
             status: "in_progress",
             config: {
+                __version: "1.0",
                 model: "gpt-4o",
                 stats: {
                     totalToolCalls: 0,
-                    totalCredits: 0,
+                    totalCredits: "0",
+                    startedAt: null,
+                    lastProcessingCycleEndedAt: null,
                 },
             } as ChatConfigObject,
         };
@@ -122,7 +121,7 @@ describe("ChatStore (abstract base)", () => {
             expect(store.mockFetchState).toHaveBeenCalledWith("chat123");
             expect(result).toEqual(mockState);
             expect(result).not.toBe(mockState); // Should be a clone
-            
+
             // Check that state is cached
             const internalState = store.getInternalState();
             expect(internalState.has("chat123")).toBe(true);
@@ -133,7 +132,7 @@ describe("ChatStore (abstract base)", () => {
 
             // First load
             await store.loadState("chat123");
-            
+
             // Second load
             const result = await store.loadState("chat123");
 
@@ -159,7 +158,7 @@ describe("ChatStore (abstract base)", () => {
     describe("saveState", () => {
         it("should schedule debounced writes", async () => {
             store.mockFetchState.mockResolvedValue(mockState);
-            
+
             // Load initial state
             await store.loadState("chat123");
 
@@ -170,7 +169,9 @@ describe("ChatStore (abstract base)", () => {
                     ...mockState.config,
                     stats: {
                         totalToolCalls: 5,
-                        totalCredits: 100,
+                        totalCredits: "100",
+                        startedAt: null,
+                        lastProcessingCycleEndedAt: null,
                     },
                 },
             };
@@ -219,7 +220,9 @@ describe("ChatStore (abstract base)", () => {
                 config: expect.objectContaining({
                     stats: {
                         totalToolCalls: 5,
-                        totalCredits: 50,
+                        totalCredits: "50",
+                        startedAt: null,
+                        lastProcessingCycleEndedAt: null,
                     },
                 }),
             }));
@@ -249,7 +252,7 @@ describe("ChatStore (abstract base)", () => {
 
             // Wait for flush to start
             await vi.advanceTimersByTimeAsync(150);
-            
+
             // Second update while first is still flushing
             const update2 = { ...mockState, config: { ...mockState.config, stats: { totalToolCalls: 2, totalCredits: 20 } } };
             store.saveState("chat123", update2);
@@ -269,11 +272,11 @@ describe("ChatStore (abstract base)", () => {
     describe("finalizeSave", () => {
         it("should wait for all pending writes to complete", async () => {
             store.mockFetchState.mockResolvedValue(mockState);
-            
+
             // Create multiple conversations with pending writes
             await store.loadState("chat1");
             await store.loadState("chat2");
-            
+
             store.saveState("chat1", { ...mockState, id: "chat1" });
             store.saveState("chat2", { ...mockState, id: "chat2" });
 
@@ -294,17 +297,17 @@ describe("ChatStore (abstract base)", () => {
             await store.loadState("chat123");
 
             // Make upsertState hang indefinitely
-            store.mockUpsertState.mockImplementation(() => new Promise(() => {}));
+            store.mockUpsertState.mockImplementation(() => new Promise(() => { }));
 
             store.saveState("chat123", mockState);
 
             // Use real timers for this test
             vi.useRealTimers();
-            
+
             const result = await store.finalizeSave(100);
 
             expect(result).toBe(false);
-            
+
             vi.useFakeTimers();
         });
 
@@ -316,8 +319,8 @@ describe("ChatStore (abstract base)", () => {
 
     describe("error handling", () => {
         it("should handle flush errors gracefully", async () => {
-            const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-            
+            const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => { });
+
             store.mockFetchState.mockResolvedValue(mockState);
             store.mockUpsertState.mockRejectedValue(new Error("DB error"));
 
@@ -335,7 +338,7 @@ describe("ChatStore (abstract base)", () => {
             // Store should continue to function
             const internalState = store.getInternalState();
             expect(internalState.get("chat123")?.storeInProgress).toBe(false);
-            
+
             consoleErrorSpy.mockRestore();
         });
     });
@@ -348,7 +351,7 @@ describe("PrismaChatStore (concrete implementation)", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         vi.useFakeTimers();
-        
+
         mockDb = DbProvider.get();
         store = new PrismaChatStore();
     });
@@ -391,7 +394,9 @@ describe("PrismaChatStore (concrete implementation)", () => {
             expect(result?.id).toBe("123");
             expect(result?.config.stats).toEqual({
                 totalToolCalls: 5,
-                totalCredits: 100,
+                totalCredits: "100",
+                startedAt: null,
+                lastProcessingCycleEndedAt: null,
             });
             expect(result?.participants).toHaveLength(1);
             expect(result?.participants[0].name).toBe("TestBot");
@@ -425,10 +430,13 @@ describe("PrismaChatStore (concrete implementation)", () => {
                 id: "123",
                 participants: [],
                 config: {
+                    __version: "1.0",
                     model: "gpt-4o",
                     stats: {
                         totalToolCalls: 0,
-                        totalCredits: 0,
+                        totalCredits: "0",
+                        startedAt: null,
+                        lastProcessingCycleEndedAt: null,
                     },
                 } as ChatConfigObject,
                 availableTools: [],
@@ -442,7 +450,9 @@ describe("PrismaChatStore (concrete implementation)", () => {
                     ...initialState.config,
                     stats: {
                         totalToolCalls: 5,
-                        totalCredits: 100,
+                        totalCredits: "100",
+                        startedAt: null,
+                        lastProcessingCycleEndedAt: null,
                     },
                 } as ChatConfigObject,
             };
@@ -453,7 +463,7 @@ describe("PrismaChatStore (concrete implementation)", () => {
             // Call public API
             await store.loadState("123");
             store.saveState("123", updatedState);
-            
+
             // Trigger flush
             await vi.advanceTimersByTimeAsync(2500);
 
@@ -474,8 +484,8 @@ describe("PrismaChatStore (concrete implementation)", () => {
         });
 
         it("should handle database errors during update", async () => {
-            const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
-            
+            const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => { });
+
             const state: ConversationState = {
                 id: "123",
                 participants: [],
@@ -490,11 +500,11 @@ describe("PrismaChatStore (concrete implementation)", () => {
 
             await store.loadState("123");
             store.saveState("123", state);
-            
+
             await vi.advanceTimersByTimeAsync(2500);
 
             expect(consoleErrorSpy).toHaveBeenCalled();
-            
+
             consoleErrorSpy.mockRestore();
         });
     });
@@ -507,7 +517,7 @@ describe("CachedConversationStateStore (L1/L2 cache integration)", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        
+
         mockChatStore = new PrismaChatStore();
         mockCache = CacheService.get();
         store = new CachedConversationStateStore(mockChatStore, 100);
@@ -527,10 +537,10 @@ describe("CachedConversationStateStore (L1/L2 cache integration)", () => {
             // Manually populate L1 cache by calling get method first
             mockChatStore.getConversation = vi.fn().mockResolvedValue(mockState);
             mockCache.get.mockResolvedValue(null); // L2 miss
-            
+
             // First call to populate L1
             await store.get("123");
-            
+
             // Second call should hit L1
             mockChatStore.getConversation = vi.fn(); // Reset mock
             const result = await store.get("123");

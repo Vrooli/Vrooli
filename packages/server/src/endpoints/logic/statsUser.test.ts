@@ -14,7 +14,7 @@ import { statsUser } from "./statsUser.js";
 
 // Helper to extract stats info from results
 async function extractStattedObjectInfoFromStats(result: RecursivePartial<StatsUserSearchResult>) {
-    const resultsStatIds = result.edges!.map(edge => edge!.node!.id) as string[];
+    const resultsStatIds = result.edges!.map(edge => BigInt(edge!.node!.id)) as bigint[];
     const withStattedIds = await DbProvider.get().stats_user.findMany({
         where: { id: { in: resultsStatIds } },
         select: { userId: true },

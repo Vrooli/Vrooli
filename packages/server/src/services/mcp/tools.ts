@@ -1,5 +1,5 @@
 import type { BotCreateInput, BotUpdateInput, ResourceVersionCreateInput, ResourceVersionUpdateInput, SessionUser, SwarmSubTask, TeamCreateInput, TeamUpdateInput } from "@vrooli/shared";
-import { DEFAULT_LANGUAGE, DeleteType, InputGenerationStrategy, McpToolName, ModelType, PathSelectionStrategy, ResourceSubType, ResourceType, RunTriggeredFrom, SubroutineExecutionStrategy, TeamConfig, generatePK, type ChatMessage, type ChatMessageCreateInput, type MessageConfigObject, type TaskContextInfo, type TeamConfigObject } from "@vrooli/shared";
+import { DEFAULT_LANGUAGE, DeleteType, InputGenerationStrategy, McpToolName, ModelType, PathSelectionStrategy, ResourceSubType, ResourceType, RunTriggeredFrom, SubroutineExecutionStrategy, TeamConfig, generatePK, type ChatMessage, type ChatMessageCreateInput, type CoreResourceAllocation, type MessageConfigObject, type TaskContextInfo, type TeamConfigObject } from "@vrooli/shared";
 import fs from "fs";
 import { fileURLToPath } from "node:url";
 import * as path from "path";
@@ -11,9 +11,8 @@ import type { RequestService } from "../../auth/request.js";
 import type { PartialApiInfo } from "../../builders/types.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
-import { activeSwarmRegistry } from "../../tasks/swarm/process.js";
+import type { BaseActiveTaskRegistry } from "../../tasks/activeTaskRegistry.js";
 import { QueueTaskType, type RunTask, type SwarmExecutionTask } from "../../tasks/taskTypes.js";
-import { type CoreResourceAllocation } from "@vrooli/shared";
 import { type ConversationStateStore } from "../response/chatStore.js";
 import type { BotAddAttributes, BotUpdateAttributes, NoteAddAttributes, NoteUpdateAttributes, ProjectAddAttributes, ProjectUpdateAttributes, RoutineApiAddAttributes, RoutineApiUpdateAttributes, RoutineCodeAddAttributes, RoutineCodeUpdateAttributes, RoutineDataAddAttributes, RoutineDataUpdateAttributes, RoutineGenerateAddAttributes, RoutineGenerateUpdateAttributes, RoutineInformationalAddAttributes, RoutineInformationalUpdateAttributes, RoutineMultiStepAddAttributes, RoutineMultiStepUpdateAttributes, RoutineSmartContractAddAttributes, RoutineSmartContractUpdateAttributes, RoutineWebAddAttributes, RoutineWebUpdateAttributes, StandardDataStructureAddAttributes, StandardDataStructureUpdateAttributes, StandardPromptAddAttributes, StandardPromptUpdateAttributes, TeamAddAttributes, TeamUpdateAttributes } from "../types/resources.js";
 import { type DefineToolParams, type EndSwarmParams, type Recipient, type ResourceManageParams, type RunRoutineParams, type SendMessageParams, type SpawnSwarmParams, type UpdateSwarmSharedStateParams } from "../types/tools.js";
@@ -335,9 +334,11 @@ function createDefaultMessageConfig(): MessageConfigObject {
 export class BuiltInTools {
     private readonly user: SessionUser;
     private readonly req: Parameters<typeof RequestService.assertRequestFrom>[0];
+    private swarmRegistry?: BaseActiveTaskRegistry<any, any>;
 
-    constructor(user: SessionUser, req?: Parameters<typeof RequestService.assertRequestFrom>[0]) {
+    constructor(user: SessionUser, req?: Parameters<typeof RequestService.assertRequestFrom>[0], swarmRegistry?: BaseActiveTaskRegistry<any, any>) {
         this.user = user;
+        this.swarmRegistry = swarmRegistry;
         this.req = req ?? {
             session: {
                 fromSafeOrigin: true,
@@ -689,7 +690,7 @@ export class BuiltInTools {
         try {
             // Detect parent swarm context
             const parentSwarmId = await this.getParentSwarmContext();
-            
+
             if (parentSwarmId) {
                 logger.info("[runRoutine] Running in swarm-integrated mode", {
                     routineId: args.routineId,
@@ -716,9 +717,11 @@ export class BuiltInTools {
      * Uses the same pattern as spawnSwarm for consistency
      */
     private async getParentSwarmContext(): Promise<string | null> {
-        const activeRecords = activeSwarmRegistry.getOrderedRecords();
+        if (!this.swarmRegistry) return null;
+
+        const activeRecords = this.swarmRegistry.getOrderedRecords();
         for (const record of activeRecords) {
-            const swarmInstance = activeSwarmRegistry.get(record.id);
+            const swarmInstance = this.swarmRegistry.get(record.id);
             if (swarmInstance && swarmInstance.getAssociatedUserId() === this.user.id) {
                 return record.id;
             }
@@ -736,17 +739,17 @@ export class BuiltInTools {
     ): Promise<ToolResponse> {
         const { routineId, inputs = {}, mode = "sync", priority = "normal" } = args;
         const runId = generatePK().toString();
-        
+
         // Allocate resources from parent swarm
         const allocation = await this.allocateFromParentSwarm(parentSwarmId);
-        
+
         // Convert priority to RunTriggeredFrom
         const runFrom = RunTriggeredFrom.Api;
-        
+
         // Lazy imports
         const { processRun } = await import("../../tasks/run/queue.js");
         const { QueueService } = await import("../../tasks/queues.js");
-        
+
         // Create RunTask with parent context
         const runTaskForQueue: Omit<RunTask, "status"> = {
             id: generatePK().toString(),
@@ -781,9 +784,9 @@ export class BuiltInTools {
             },
             allocation, // Resources allocated from parent
         };
-        
+
         const result = await processRun(runTaskForQueue, QueueService.get());
-        
+
         if (result.success) {
             const actionText = mode === "sync" ? "started" : "scheduled";
             return {
@@ -808,13 +811,16 @@ export class BuiltInTools {
         const CHILD_DURATION_RATIO = 0.5; // 50% of parent time
         const CHILD_MEMORY_RATIO = 0.3; // 30% of parent memory
         const CHILD_MAX_CONCURRENT_STEPS = 3;
-        
+
         // Get parent swarm from registry to verify it exists
-        const parentSwarm = activeSwarmRegistry.get(parentSwarmId);
+        if (!this.swarmRegistry) {
+            throw new Error("Swarm registry not available");
+        }
+        const parentSwarm = this.swarmRegistry.get(parentSwarmId);
         if (!parentSwarm) {
             throw new Error("Parent swarm not found");
         }
-        
+
         // For now, use conservative default allocations
         // In a full implementation, this would query the SwarmContextManager
         // or the parent swarm's actual resource allocation
@@ -824,7 +830,7 @@ export class BuiltInTools {
             maxMemoryMB: 1024,
             maxConcurrentSteps: 10,
         };
-        
+
         return {
             maxCredits: (BigInt(defaultParentAllocation.maxCredits) / CHILD_CREDITS_DIVISOR).toString(),
             maxDurationMs: Math.floor(defaultParentAllocation.maxDurationMs * CHILD_DURATION_RATIO),
@@ -838,7 +844,7 @@ export class BuiltInTools {
      */
     private async _handleStandaloneRoutine(args: Extract<RunRoutineParams, { action: "start" }>): Promise<ToolResponse> {
         const { routineId, inputs = {}, mode = "sync", priority = "normal" } = args;
-        
+
         // Generate a unique run ID
         const runId = generatePK().toString();
 
@@ -850,7 +856,7 @@ export class BuiltInTools {
         // Lazy import to avoid circular dependency
         const { processRun } = await import("../../tasks/run/queue.js");
         const { QueueService } = await import("../../tasks/queues.js");
-        
+
         // Create proper RunTask structure
         const runTaskForQueue: Omit<RunTask, "status"> = {
             id: generatePK().toString(), // Required for BaseTaskData
@@ -890,7 +896,7 @@ export class BuiltInTools {
                 maxConcurrentSteps: 5,
             },
         };
-        
+
         const result = await processRun(runTaskForQueue, QueueService.get());
 
         if (result.success) {
@@ -1042,11 +1048,11 @@ export class BuiltInTools {
             // Get parent swarm ID from active swarm registry if not provided
             // This is a temporary solution - ideally we'd get this from MCP context
             let actualParentSwarmId = parentSwarmId;
-            if (!actualParentSwarmId) {
+            if (!actualParentSwarmId && this.swarmRegistry) {
                 // Try to find an active swarm for this user
-                const activeRecords = activeSwarmRegistry.getOrderedRecords();
+                const activeRecords = this.swarmRegistry.getOrderedRecords();
                 for (const record of activeRecords) {
-                    const swarmInstance = activeSwarmRegistry.get(record.id);
+                    const swarmInstance = this.swarmRegistry.get(record.id);
                     if (swarmInstance) {
                         const associatedUserId = swarmInstance.getAssociatedUserId();
                         if (associatedUserId === this.user.id) {
@@ -1654,9 +1660,11 @@ export class BuiltInTools {
  */
 export class SwarmTools {
     private conversationStore: ConversationStateStore;
+    private swarmRegistry: BaseActiveTaskRegistry<any, any>;
 
-    constructor(conversationStore: ConversationStateStore) {
+    constructor(conversationStore: ConversationStateStore, swarmRegistry: BaseActiveTaskRegistry<any, any>) {
         this.conversationStore = conversationStore;
+        this.swarmRegistry = swarmRegistry;
     }
 
     /**
@@ -1789,7 +1797,7 @@ export class SwarmTools {
                 }
 
                 // Parse current team config - ensure it has __version property
-                const teamConfigData = (currentTeam.config && typeof currentTeam.config === "object") 
+                const teamConfigData = (currentTeam.config && typeof currentTeam.config === "object")
                     ? currentTeam.config as Record<string, unknown>
                     : {};
                 const configWithVersion = {
@@ -1888,7 +1896,7 @@ export class SwarmTools {
                     currentScratchpad[item.id] = item.value;
                 }
             }
-            
+
             // Append to arrays
             if (args.blackboard.append) {
                 for (const op of args.blackboard.append) {
@@ -1908,7 +1916,7 @@ export class SwarmTools {
                     }
                 }
             }
-            
+
             // Increment numeric values
             if (args.blackboard.increment) {
                 for (const op of args.blackboard.increment) {
@@ -1928,7 +1936,7 @@ export class SwarmTools {
                     }
                 }
             }
-            
+
             // Merge objects (shallow)
             if (args.blackboard.merge) {
                 for (const op of args.blackboard.merge) {
@@ -1948,7 +1956,7 @@ export class SwarmTools {
                     }
                 }
             }
-            
+
             // Deep merge objects (recursive)
             if (args.blackboard.deepMerge) {
                 for (const op of args.blackboard.deepMerge) {
@@ -1968,7 +1976,7 @@ export class SwarmTools {
                     }
                 }
             }
-            
+
             // Remove
             if (args.blackboard.delete) {
                 for (const keyToRemove of args.blackboard.delete) {
@@ -2039,7 +2047,7 @@ export class SwarmTools {
         }
 
         // Try to get the active SwarmStateMachine instance for additional authorization
-        const activeSwarmInstance = activeSwarmRegistry.get(conversationId);
+        const activeSwarmInstance = this.swarmRegistry?.get(conversationId);
         if (activeSwarmInstance) {
             // Check if user is authorized - they should be the swarm initiator or an admin
             const swarmInitiatorId = activeSwarmInstance.getAssociatedUserId?.();

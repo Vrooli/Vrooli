@@ -394,10 +394,15 @@ class BrowserHealthMonitor:
                 logger.info("Firefox is running and healthy, no cleanup needed")
                 return True
             
-            # If Firefox is not running, we're good to go
+            # If Firefox is not running, start it
             if not health['running']:
-                logger.info("Firefox not running, state is clean")
-                return True
+                logger.info("Firefox not running, starting it...")
+                if self.start_firefox():
+                    logger.info("Firefox started successfully")
+                    return True
+                else:
+                    logger.error("Failed to start Firefox")
+                    return False
                 
             return True
             
@@ -434,6 +439,83 @@ class BrowserHealthMonitor:
             return False
         except Exception as e:
             logger.warning(f"Error checking profile lock: {e}")
+            return False
+    
+    def start_firefox(self) -> bool:
+        """Start Firefox browser
+        
+        Returns:
+            True if Firefox started successfully, False otherwise
+        """
+        try:
+            import subprocess
+            
+            logger.info("Starting Firefox...")
+            
+            # Ensure profile directory exists
+            profile_dir = os.path.expanduser("~/.mozilla/firefox/agent-s2")
+            if not os.path.exists(profile_dir):
+                logger.warning(f"Profile directory missing: {profile_dir}")
+                # Run startup script to create profile
+                try:
+                    subprocess.run(["/opt/agent-s2/startup.sh"], check=True)
+                except subprocess.CalledProcessError as e:
+                    logger.error(f"Failed to run startup script: {e}")
+                    return False
+            
+            # Clean up any lock files before starting
+            for lock_file in ["lock", ".parentlock", "parent.lock"]:
+                lock_path = os.path.join(profile_dir, lock_file)
+                if os.path.exists(lock_path):
+                    try:
+                        if os.path.islink(lock_path):
+                            os.unlink(lock_path)
+                        else:
+                            os.remove(lock_path)
+                        logger.debug(f"Removed lock file: {lock_path}")
+                    except Exception as e:
+                        logger.warning(f"Failed to remove lock file {lock_path}: {e}")
+            
+            # Set environment variables
+            env = os.environ.copy()
+            env.update({
+                "DISPLAY": ":99",
+                "MOZ_CRASHREPORTER_DISABLE": "1",
+                "MOZ_DISABLE_CONTENT_SANDBOX": "1",
+                "MOZ_FORCE_DISABLE_E10S": "1",
+                "MOZ_DISABLE_GMP_SANDBOX": "1",
+                "MOZ_DISABLE_NPAPI_SANDBOX": "1", 
+                "MOZ_DISABLE_GPU_SANDBOX": "1"
+            })
+            
+            # Start Firefox
+            firefox_cmd = [
+                "firefox-esr",
+                "--profile", profile_dir,
+                "--new-window", "about:blank"
+            ]
+            
+            process = subprocess.Popen(
+                firefox_cmd,
+                env=env,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            
+            # Wait a moment for Firefox to start
+            time.sleep(3)
+            
+            # Check if process is still running
+            if process.poll() is None:
+                logger.info(f"Firefox started successfully (PID: {process.pid})")
+                self.log_restart()
+                return True
+            else:
+                logger.error("Firefox process terminated immediately")
+                return False
+                
+        except Exception as e:
+            logger.error(f"Failed to start Firefox: {e}")
             return False
 
 

@@ -1,4 +1,5 @@
 import { type member, type Prisma, type PrismaClient } from "@prisma/client";
+import { AccountStatus, generatePublicId } from "@vrooli/shared";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type { DbTestFixtures, RelationConfig } from "./types.js";
 // Removed generatePK import - using this.generateId() instead
@@ -40,7 +41,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
     protected generateMinimalData(overrides?: Partial<Prisma.memberCreateInput>): Prisma.memberCreateInput {
         return {
             id: this.generateId(),
-            publicId: this.generateId().toString(),
+            publicId: generatePublicId(),
             user: { connect: { id: this.generateId() } },
             team: { connect: { id: this.generateId() } },
             isAdmin: false,
@@ -71,7 +72,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
             edgeCases: {
                 owner: {
                     id: this.generateId(),
-                    publicId: this.generateId().toString(),
+                    publicId: generatePublicId(),
                     user: { connect: { id: userId } },
                     team: { connect: { id: teamId } },
                     isAdmin: true,
@@ -80,7 +81,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
 
                 admin: {
                     id: this.generateId(),
-                    publicId: this.generateId().toString(),
+                    publicId: generatePublicId(),
                     user: { connect: { id: userId } },
                     team: { connect: { id: teamId } },
                     isAdmin: true,
@@ -89,7 +90,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
 
                 regularMember: {
                     id: this.generateId(),
-                    publicId: this.generateId().toString(),
+                    publicId: generatePublicId(),
                     user: { connect: { id: userId } },
                     team: { connect: { id: teamId } },
                     isAdmin: false,
@@ -100,7 +101,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
             invalid: {
                 missingRequired: {
                     id: this.generateId(),
-                    publicId: this.generateId().toString(),
+                    publicId: generatePublicId(),
                     team: { connect: { id: teamId } },
                     isAdmin: false,
                     permissions: {},
@@ -109,7 +110,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
 
                 invalidTypes: {
                     id: "not-a-bigint" as any,
-                    publicId: this.generateId().toString(),
+                    publicId: generatePublicId(),
                     user: { connect: { id: userId } },
                     team: { connect: { id: teamId } },
                     isAdmin: "not-boolean" as any,
@@ -159,7 +160,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
     ) {
         const data = {
             id: this.generateId(),
-            publicId: this.generateId().toString(),
+            publicId: generatePublicId(),
             user: { connect: { id: userId } },
             team: { connect: { id: teamId } },
             isAdmin,
@@ -204,10 +205,10 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
                 const user = await tx.user.create({
                     data: {
                         id: this.generateId(),
-                        publicId: this.generateId().toString(),
+                        publicId: generatePublicId(),
                         name: "Test User",
                         handle: `test_user_${this.generateId().toString().slice(-6)}`,
-                        status: "Unlocked",
+                        status: AccountStatus.Unlocked,
                         isBot: false,
                         isBotDepictingPerson: false,
                         isPrivate: false,
@@ -221,11 +222,10 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
                 const team = await tx.team.create({
                     data: {
                         id: this.generateId(),
-                        publicId: this.generateId().toString(),
-                        name: "Test Team",
+                        publicId: generatePublicId(),
                         handle: `test_team_${this.generateId().toString().slice(-6)}`,
                         isPrivate: false,
-                        createdBy: { connect: { id: userId || this.generateId() } },
+                        isOpenToNewMembers: true,
                     },
                 });
                 teamId = team.id;
@@ -238,7 +238,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
             return tx.member.create({
                 data: {
                     id: this.generateId(),
-                    publicId: this.generateId().toString(),
+                    publicId: generatePublicId(),
                     user: { connect: { id: userId } },
                     team: { connect: { id: teamId } },
                     isAdmin: config.isAdmin || false,
@@ -266,7 +266,7 @@ export class MemberDbFactory extends EnhancedDatabaseFactory<
                 const created = await tx.member.create({
                     data: {
                         id: this.generateId(),
-                        publicId: this.generateId().toString(),
+                        publicId: generatePublicId(),
                         user: { connect: { id: member.userId } },
                         team: { connect: { id: teamId } },
                         isAdmin: member.isAdmin || false,

@@ -9,7 +9,7 @@ import type {
 } from "./types.js";
 
 interface NotificationRelationConfig extends RelationConfig {
-    user: { userId: string };
+    user: { userId: bigint };
 }
 
 /**
@@ -72,7 +72,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
                     count: 1,
                 },
                 invalidTypes: {
-                    id: "not-a-snowflake",
+                    id: BigInt("123456789"), // Invalid snowflake value but properly typed
                     category: 123, // Should be string
                     isRead: "no", // Should be boolean
                     title: null, // Should be string
@@ -357,7 +357,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
         // Handle user connection (required)
         if (config.user) {
             data.user = {
-                connect: { id: BigInt(config.user.userId) },
+                connect: { id: config.user.userId },
             };
         } else {
             throw new Error("Notification requires a user connection");
@@ -370,7 +370,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
      * Create a notification
      */
     async createNotification(
-        userId: string,
+        userId: bigint,
         category: string,
         title: string,
         options?: {
@@ -399,7 +399,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
      * Create a grouped notification
      */
     async createGroupedNotification(
-        userId: string,
+        userId: bigint,
         category: string,
         title: string,
         count: number,
@@ -414,9 +414,9 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     /**
      * Mark notification as read
      */
-    async markAsRead(notificationId: string): Promise<notification> {
+    async markAsRead(notificationId: bigint): Promise<notification> {
         return await this.prisma.notification.update({
-            where: { id: BigInt(notificationId) },
+            where: { id: notificationId },
             data: { isRead: true },
             include: this.getDefaultInclude(),
         });
@@ -425,10 +425,10 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     /**
      * Mark multiple notifications as read
      */
-    async markMultipleAsRead(notificationIds: string[]): Promise<void> {
+    async markMultipleAsRead(notificationIds: bigint[]): Promise<void> {
         await this.prisma.notification.updateMany({
             where: {
-                id: { in: notificationIds.map(id => BigInt(id)) },
+                id: { in: notificationIds },
             },
             data: { isRead: true },
         });
@@ -437,10 +437,10 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     /**
      * Mark all user notifications as read
      */
-    async markAllAsRead(userId: string): Promise<void> {
+    async markAllAsRead(userId: bigint): Promise<void> {
         await this.prisma.notification.updateMany({
             where: {
-                userId: BigInt(userId),
+                userId,
                 isRead: false,
             },
             data: { isRead: true },
@@ -450,9 +450,9 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     /**
      * Increment notification count
      */
-    async incrementCount(notificationId: string, increment = 1): Promise<notification> {
+    async incrementCount(notificationId: bigint, increment = 1): Promise<notification> {
         return await this.prisma.notification.update({
-            where: { id: BigInt(notificationId) },
+            where: { id: notificationId },
             data: { count: { increment } },
             include: this.getDefaultInclude(),
         });
@@ -512,10 +512,10 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get unread notifications for user
      */
-    async getUnreadNotifications(userId: string, limit?: number): Promise<notification[]> {
+    async getUnreadNotifications(userId: bigint, limit?: number): Promise<notification[]> {
         return await this.prisma.notification.findMany({
             where: {
-                userId: BigInt(userId),
+                userId,
                 isRead: false,
             },
             include: this.getDefaultInclude(),
@@ -528,12 +528,12 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
      * Get notifications by category
      */
     async getNotificationsByCategory(
-        userId: string,
+        userId: bigint,
         category: string,
         options?: { isRead?: boolean; limit?: number },
     ): Promise<notification[]> {
         const where: Prisma.notificationWhereInput = {
-            userId: BigInt(userId),
+            userId,
             category,
         };
 
@@ -553,7 +553,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
      * Create bulk notifications for multiple users
      */
     async createBulkNotifications(
-        userIds: string[],
+        userIds: bigint[],
         category: string,
         title: string,
         description?: string,
@@ -569,13 +569,13 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     /**
      * Delete old read notifications
      */
-    async deleteOldReadNotifications(userId: string, daysOld = 30): Promise<number> {
+    async deleteOldReadNotifications(userId: bigint, daysOld = 30): Promise<number> {
         const cutoffDate = new Date();
         cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
         const result = await this.prisma.notification.deleteMany({
             where: {
-                userId: BigInt(userId),
+                userId,
                 isRead: true,
                 updatedAt: { lt: cutoffDate },
             },
@@ -587,7 +587,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create notification set for testing
      */
-    async createTestNotificationSet(userId: string): Promise<{
+    async createTestNotificationSet(userId: bigint): Promise<{
         unread: notification[];
         read: notification[];
         grouped: notification;
@@ -607,7 +607,7 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
         const readNotif = await this.createNotification(userId, "system", "Update complete", {
             description: "System update completed successfully",
         });
-        const read = [await this.markAsRead(readNotif.id.toString())];
+        const read = [await this.markAsRead(readNotif.id)];
 
         const grouped = await this.createGroupedNotification(
             userId,
@@ -634,13 +634,13 @@ export class NotificationDbFactory extends EnhancedDatabaseFactory<
     /**
      * Get notification statistics for user
      */
-    async getNotificationStats(userId: string): Promise<{
+    async getNotificationStats(userId: bigint): Promise<{
         total: number;
         unread: number;
         byCategory: Record<string, number>;
     }> {
         const notifications = await this.prisma.notification.findMany({
-            where: { userId: BigInt(userId) },
+            where: { userId },
             select: {
                 category: true,
                 isRead: true,
