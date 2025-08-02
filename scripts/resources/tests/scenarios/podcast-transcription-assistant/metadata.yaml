@@ -1,0 +1,59 @@
+# Podcast Transcription Assistant scenario metadata
+scenario:
+  id: "podcast-transcription-assistant"
+  name: "Podcast Transcription Assistant"
+  description: "AI-powered podcast transcription with summaries, key points extraction, and show notes generation"
+  version: "1.0.0"
+  
+categories:
+  - ai-content-creation
+  
+complexity: "intermediate"
+
+resources:
+  required:
+    - whisper      # Audio transcription
+    - ollama       # Content analysis and generation
+  optional:
+    - qdrant       # Vector storage for episode search
+    - windmill     # UI deployment (if using UI)
+    
+business:
+  value_proposition: "Automated podcast content processing for creators and media companies"
+  revenue_potential:
+    min: 2000
+    max: 5000
+    currency: "USD"
+  market_demand: "very-high"
+  target_markets:
+    - "Podcast creators and networks"
+    - "Media production companies"
+    - "Content marketing agencies"
+    - "Educational platforms"
+  
+testing:
+  duration_minutes: 8
+  timeout_seconds: 480
+  requires_display: false
+  requires_ui: true        # Has optional Windmill UI
+  
+upwork_examples:
+  - "Transcribe podcast episodes and generate summaries"
+  - "AI podcast content assistant"
+  - "Automated show notes generator"
+  - "Podcast SEO optimization tool"
+  
+success_criteria:
+  - "Transcribe audio accurately with Whisper"
+  - "Generate episode summaries"
+  - "Extract key points and topics"
+  - "Create formatted show notes"
+  - "Identify speakers (if multi-speaker)"
+  - "Generate timestamps for key moments"
+
+tags:
+  - audio-processing
+  - content-automation
+  - transcription
+  - windmill-ui
+  - media-production

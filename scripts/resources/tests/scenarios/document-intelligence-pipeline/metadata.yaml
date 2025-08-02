@@ -1,0 +1,61 @@
+# Document Intelligence Pipeline scenario metadata
+scenario:
+  id: "document-intelligence-pipeline"
+  name: "Document Intelligence Pipeline"
+  description: "AI-powered document processing system for extraction, analysis, and semantic search"
+  version: "1.0.0"
+  
+categories:
+  - ai-data-analysis
+  
+complexity: "advanced"
+
+resources:
+  required:
+    - unstructured-io  # Document parsing and extraction
+    - qdrant           # Vector storage for semantic search
+    - ollama           # AI analysis and insights
+  optional:
+    - browserless      # Web document fetching
+    
+business:
+  value_proposition: "Enterprise document processing automation with AI-powered extraction and search"
+  revenue_potential:
+    min: 4000
+    max: 12000
+    currency: "USD"
+  market_demand: "very-high"
+  target_markets:
+    - "Legal firms and departments"
+    - "Financial services"
+    - "Healthcare organizations"
+    - "Government agencies"
+    - "Research institutions"
+  
+testing:
+  duration_minutes: 15
+  timeout_seconds: 900
+  requires_display: false
+  requires_ui: false
+  
+upwork_examples:
+  - "Extract data from PDF documents"
+  - "Build document processing pipeline"
+  - "AI document analysis system"
+  - "Intelligent document search platform"
+  
+success_criteria:
+  - "Parse various document formats (PDF, DOCX, etc.)"
+  - "Extract structured data accurately"
+  - "Store document embeddings in vector database"
+  - "Perform semantic search queries"
+  - "Generate AI insights from documents"
+  - "Handle large document volumes"
+
+tags:
+  - document-processing
+  - data-extraction
+  - semantic-search
+  - enterprise-ready
+  - legal-tech
+  - fintech

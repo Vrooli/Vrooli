@@ -81,7 +81,7 @@ common_setup() {
                 windmill) echo "5681" ;;
                 browserless) echo "4110" ;;
                 agent-s2) echo "4113" ;;
-                searxng) echo "8100" ;;
+                searxng) echo "9200" ;;
                 qdrant) echo "6333" ;;
                 questdb) echo "9000" ;;
                 vault) echo "8200" ;;

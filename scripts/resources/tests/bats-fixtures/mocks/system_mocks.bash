@@ -27,6 +27,19 @@ docker() {
         "inspect")
             _handle_docker_inspect "$@"
             ;;
+        "container")
+            # Handle docker container subcommands
+            case "$2" in
+                "inspect")
+                    shift # remove "container"
+                    _handle_docker_inspect "$@"
+                    ;;
+                *)
+                    echo "Mock docker container: $*" >&2
+                    return 0
+                    ;;
+            esac
+            ;;
         "run")
             _handle_docker_run "$@"
             ;;
@@ -63,45 +76,113 @@ docker() {
 _handle_docker_ps() {
     local show_all=false
     local filter=""
+    local format=""
     
     # Parse arguments
-    while [[ $# -gt 1 ]]; do
-        case "$2" in
-            -a|--all) show_all=true; shift ;;
-            --filter) filter="$3"; shift 2 ;;
-            *) shift ;;
+    shift # skip "ps"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -a|--all) 
+                show_all=true
+                shift 
+                ;;
+            --filter) 
+                filter="$2"
+                shift 2 
+                ;;
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            *)
+                shift 
+                ;;
         esac
     done
     
-    # Check for container-specific mocks
-    if [[ -n "$filter" ]] && [[ "$filter" =~ name=([^[:space:]]+) ]]; then
-        local container_name="${BASH_REMATCH[1]}"
-        local container_state_file="$MOCK_RESPONSES_DIR/container_${container_name}_state"
-        
-        if [[ -f "$container_state_file" ]]; then
-            local state=$(cat "$container_state_file")
-            if [[ "$state" == "running" ]]; then
-                echo "$container_name"
+    # List all containers based on their state files
+    for state_file in "$MOCK_RESPONSES_DIR"/container_*_state; do
+        if [[ -f "$state_file" ]]; then
+            local container_name=$(basename "$state_file" | sed 's/container_//; s/_state$//')
+            local state=$(cat "$state_file")
+            
+            # Show container if running, or if show_all is true and it exists
+            if [[ "$state" == "running" ]] || ([[ "$show_all" == "true" ]] && [[ "$state" != "missing" ]]); then
+                if [[ -n "$format" ]]; then
+                    # Handle format strings
+                    case "$format" in
+                        "{{.Names}}")
+                            echo "$container_name"
+                            ;;
+                        *)
+                            # Default to showing container name for other formats
+                            echo "$container_name"
+                            ;;
+                    esac
+                else
+                    # Default table format
+                    echo "CONTAINER ID   IMAGE         COMMAND   CREATED   STATUS    PORTS   NAMES"
+                    echo "abc123def456   agent-s2:latest   \"\"   1 hour ago   Up 1 hour   4113/tcp   $container_name"
+                fi
             fi
         fi
-    fi
+    done
     
     return 0
 }
 
 # Docker inspect handler
 _handle_docker_inspect() {
-    local container="${2:-}"
-    local inspect_file="$MOCK_RESPONSES_DIR/container_${container}_inspect"
+    local container=""
+    local format=""
     
+    # Parse arguments
+    shift # skip "inspect"
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --format=*)
+                format="${1#--format=}"
+                shift
+                ;;
+            --format)
+                format="$2"
+                shift 2
+                ;;
+            *)
+                container="$1"
+                shift
+                ;;
+        esac
+    done
+    
+    # Check if container exists
+    local state_file="$MOCK_RESPONSES_DIR/container_${container}_state"
+    if [[ ! -f "$state_file" ]]; then
+        echo "Error: No such object: $container" >&2
+        return 1
+    fi
+    
+    # Handle format string for health status
+    if [[ "$format" == "{{.State.Health.Status}}" ]]; then
+        local health_file="$MOCK_RESPONSES_DIR/container_${container}_health"
+        if [[ -f "$health_file" ]]; then
+            cat "$health_file"
+        else
+            echo "unknown"
+        fi
+        return 0
+    fi
+    
+    # Check for custom inspect file
+    local inspect_file="$MOCK_RESPONSES_DIR/container_${container}_inspect"
     if [[ -f "$inspect_file" ]]; then
         cat "$inspect_file"
         return 0
     fi
     
-    # Default response for unknown container
-    echo "Error: No such object: $container" >&2
-    return 1
+    # Default full inspect output
+    echo '[{"State": {"Running": true, "Health": {"Status": "healthy"}}}]'
+    return 0
 }
 
 # Docker run handler
@@ -155,12 +236,17 @@ _handle_docker_lifecycle() {
 # Docker images handler
 _handle_docker_images() {
     local image_filter=""
+    local format=""
     
     # Parse arguments for image filtering
     while [[ $# -gt 1 ]]; do
         case "$2" in
             --filter) 
                 image_filter="$3"
+                shift 2
+                ;;
+            --format)
+                format="$3"
                 shift 2
                 ;;
             *) 
@@ -171,21 +257,36 @@ _handle_docker_images() {
         esac
     done
     
-    # Check for image-specific mock
-    if [[ -n "$image_filter" ]]; then
-        local image_exists_file="$MOCK_RESPONSES_DIR/image_${image_filter}_exists"
-        if [[ -f "$image_exists_file" ]]; then
-            echo "REPOSITORY    TAG       IMAGE ID       CREATED        SIZE"
-            echo "$image_filter   latest    abc123def456   2 hours ago    1.2GB"
-            return 0
-        else
-            # Image not found
-            return 0
+    # Check all images that should exist
+    local has_images=false
+    for mock_file in "$MOCK_RESPONSES_DIR"/image_*_exists; do
+        if [[ -f "$mock_file" ]]; then
+            has_images=true
+            local image_name=$(basename "$mock_file" | sed 's/image_//; s/_exists$//')
+            # Replace underscores back to colons for image names like agent-s2:latest
+            image_name="${image_name//__/:}"
+            
+            if [[ -n "$format" ]]; then
+                # Handle format option - just output the formatted string
+                echo "$image_name"
+            else
+                # Default table format
+                if [[ "$has_images" == "true" ]]; then
+                    echo "REPOSITORY    TAG       IMAGE ID       CREATED        SIZE"
+                    has_images="header_printed"
+                fi
+                local repo="${image_name%:*}"
+                local tag="${image_name#*:}"
+                echo "$repo   $tag    abc123def456   2 hours ago    1.2GB"
+            fi
         fi
+    done
+    
+    # If no images exist and not using format, show headers
+    if [[ "$has_images" == "false" && -z "$format" ]]; then
+        echo "REPOSITORY    TAG       IMAGE ID       CREATED        SIZE"
     fi
     
-    # Default empty response
-    echo "REPOSITORY    TAG       IMAGE ID       CREATED        SIZE"
     return 0
 }
 

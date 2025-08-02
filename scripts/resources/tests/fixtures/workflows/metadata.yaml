@@ -1,0 +1,472 @@
+# Workflow Test Fixture Metadata
+# This file provides metadata for workflow test fixtures to enable data-driven testing
+
+version: 1.0
+type: workflows
+description: "Test workflow definitions for automation platform integration tests"
+
+# Metadata schema
+schema:
+  commonProperties:
+    - path              # Relative path from workflows directory
+    - tags              # Test categories
+    - testData          # Test-specific configuration
+  typeProperties:
+    - platform          # Automation platform (n8n, node-red, windmill, huginn, comfyui)
+    - integration       # List of resources being tested
+    - complexity        # basic, intermediate, advanced
+    - expectedDuration  # Expected execution time in seconds
+    - resourceReqs      # Resource requirements
+
+# Workflow entries organized by platform
+workflows:
+  # N8N Workflows
+  n8n:
+    - path: n8n/n8n-workflow.json
+      platform: n8n
+      integration: [ollama]
+      complexity: basic
+      expectedDuration: 15
+      resourceReqs:
+        cpu: low
+        memory: low
+        network: true
+      tags: [smoke-test, ai-integration, basic-integration]
+      testData:
+        name: "Integration Test Workflow"
+        expectedOutput: "response from Ollama"
+        model: "llama3.1:8b"
+        prompt: "Hello from integration test"
+        successCriteria:
+          - status: "success"
+          - responseTime: "< 30s"
+          - outputNotEmpty: true
+    
+    - path: n8n/n8n-whisper-transcription.json
+      platform: n8n
+      integration: [whisper]
+      complexity: basic
+      expectedDuration: 45
+      resourceReqs:
+        cpu: medium
+        memory: medium
+        network: true
+      tags: [audio-processing, transcription, whisper-integration]
+      testData:
+        name: "Whisper Transcription Test"
+        expectedOutput: "transcription text"
+        model: "base"
+        inputFile: "test_audio.mp3"
+        successCriteria:
+          - status: "success"
+          - responseTime: "< 60s"
+          - textNotEmpty: true
+
+  # Node-RED Workflows  
+  node_red:
+    - path: node-red/node-red-workflow.json
+      platform: node-red
+      integration: [ollama]
+      complexity: basic
+      expectedDuration: 12
+      resourceReqs:
+        cpu: low
+        memory: low
+        network: true
+      tags: [smoke-test, ai-integration, basic-integration]
+      testData:
+        flowName: "Ollama Integration Test"
+        expectedOutput: "AI response"
+        model: "llama3.1:8b"
+        inputPayload: "Hello from integration test"
+        successCriteria:
+          - debugOutput: "not empty"
+          - httpStatus: 200
+          - responseTime: "< 25s"
+    
+    - path: node-red/node-red-minio-storage.json
+      platform: node-red
+      integration: [minio]
+      complexity: basic
+      expectedDuration: 20
+      resourceReqs:
+        cpu: low
+        memory: low
+        network: true
+      tags: [storage-integration, minio-integration, file-operations]
+      testData:
+        flowName: "MinIO Storage Test"
+        expectedOutput: "storage confirmation"
+        bucket: "test-bucket"
+        fileName: "test-file.txt"
+        successCriteria:
+          - uploadStatus: "success"
+          - verifyStatus: "success"
+          - responseTime: "< 30s"
+
+  # Windmill Workflows
+  windmill:
+    - path: windmill/windmill-secure-processing.json
+      platform: windmill
+      integration: [vault, ollama, minio]
+      complexity: advanced
+      expectedDuration: 90
+      resourceReqs:
+        cpu: high
+        memory: high
+        network: true
+      tags: [security-integration, multi-resource, vault-secured]
+      testData:
+        workflowName: "Secure Data Processing Workflow"
+        expectedOutput: "encrypted storage confirmation"
+        inputData: "sensitive test data"
+        successCriteria:
+          - vaultAccess: "success"
+          - aiProcessing: "success"
+          - secureStorage: "success"
+          - responseTime: "< 120s"
+
+  # ComfyUI Workflows
+  comfyui:
+    - path: comfyui/comfyui-text-to-image.json
+      platform: comfyui
+      integration: [comfyui]
+      complexity: basic
+      expectedDuration: 60
+      resourceReqs:
+        cpu: high
+        memory: high
+        network: false
+      tags: [image-generation, ai-art, basic-comfyui]
+      testData:
+        workflowName: "Basic Text-to-Image Generation"
+        expectedOutput: "generated image file"
+        prompt: "a beautiful landscape with mountains and a lake"
+        resolution: "512x512"
+        successCriteria:
+          - imageGenerated: true
+          - fileExists: true
+          - responseTime: "< 90s"
+    
+    - path: comfyui/comfyui-ollama-guided.json
+      platform: comfyui
+      integration: [comfyui, ollama, minio]
+      complexity: advanced
+      expectedDuration: 120
+      resourceReqs:
+        cpu: high
+        memory: high
+        network: true
+      tags: [ai-guided-generation, multi-resource, ollama-integration]
+      testData:
+        workflowName: "Ollama-Guided Image Generation"
+        expectedOutput: "AI-enhanced generated image"
+        inputDescription: "a serene garden scene"
+        resolution: "768x768"
+        successCriteria:
+          - promptGenerated: true
+          - imageGenerated: true
+          - uploadedToMinio: true
+          - responseTime: "< 180s"
+
+  # Huginn Workflows
+  huginn:
+    - path: huginn/huginn-content-monitoring.json
+      platform: huginn
+      integration: [huginn, searxng, ollama, questdb, redis]
+      complexity: advanced
+      expectedDuration: 300
+      resourceReqs:
+        cpu: medium
+        memory: medium
+        network: true
+      tags: [content-monitoring, sentiment-analysis, multi-resource]
+      testData:
+        scenarioName: "Content Monitoring and Analysis"
+        expectedOutput: "analyzed content with sentiment"
+        monitorUrl: "https://example.com/news"
+        successCriteria:
+          - contentExtracted: true
+          - searchCompleted: true
+          - aiAnalysisCompleted: true
+          - dataStored: true
+          - responseTime: "< 360s"
+    
+    - path: huginn/huginn-web-automation.json
+      platform: huginn
+      integration: [huginn, browserless, agent-s2, searxng, ollama, minio, qdrant]
+      complexity: advanced
+      expectedDuration: 240
+      resourceReqs:
+        cpu: high
+        memory: high
+        network: true
+      tags: [web-automation, research-pipeline, browser-automation]
+      testData:
+        scenarioName: "Automated Web Research Pipeline"
+        expectedOutput: "comprehensive research summary"
+        targetUrl: "https://example.com/article"
+        successCriteria:
+          - screenshotTaken: true
+          - dataExtracted: true
+          - searchCompleted: true
+          - aiAnalysisCompleted: true
+          - resultsStored: true
+          - vectorUpdated: true
+          - responseTime: "< 300s"
+
+  # Integration Workflows (Cross-platform)
+  integration:
+    - path: integration/multi-ai-pipeline.json
+      platform: integration
+      integration: [unstructured, ollama, qdrant, minio]
+      complexity: advanced
+      expectedDuration: 120
+      resourceReqs:
+        cpu: high
+        memory: high
+        network: true
+      tags: [multi-ai, document-processing, vector-storage, cross-platform]
+      testData:
+        pipelineName: "Multi-AI Processing Pipeline"
+        expectedOutput: "complete pipeline results"
+        inputDocument: "test_document.pdf"
+        successCriteria:
+          - documentParsing: "success"
+          - aiAnalysis: "success"
+          - vectorStorage: "success"
+          - artifactStorage: "success"
+          - responseTime: "< 180s"
+
+# Test suite mappings - which workflows to use for specific test types
+testSuites:
+  smokeTests:
+    - n8n/n8n-workflow.json         # Basic N8N functionality
+    - node-red/node-red-workflow.json    # Basic Node-RED functionality
+    - comfyui/comfyui-text-to-image.json  # Basic ComfyUI functionality
+  
+  aiIntegration:
+    - n8n/n8n-workflow.json         # N8N + Ollama
+    - node-red/node-red-workflow.json    # Node-RED + Ollama
+    - n8n/n8n-whisper-transcription.json  # N8N + Whisper
+    - integration/multi-ai-pipeline.json  # Multi-AI pipeline
+    - comfyui/comfyui-ollama-guided.json  # ComfyUI + Ollama
+    - huginn/huginn-content-monitoring.json  # Huginn + Ollama + SearXNG
+    - huginn/huginn-web-automation.json   # Huginn + Ollama + Agent S2
+  
+  basicIntegration:
+    - n8n/n8n-workflow.json         # N8N basic connectivity
+    - node-red/node-red-workflow.json    # Node-RED basic connectivity
+  
+  performanceTest:
+    - n8n/n8n-workflow.json         # N8N performance baseline
+    - node-red/node-red-workflow.json    # Node-RED performance baseline
+    
+  storageIntegration:
+    - node-red/node-red-minio-storage.json  # MinIO storage operations
+    - windmill/windmill-secure-processing.json  # Vault + MinIO secured storage
+    
+  securityIntegration:
+    - windmill/windmill-secure-processing.json  # Vault-secured workflow
+    
+  advancedIntegration:
+    - integration/multi-ai-pipeline.json    # Complex multi-resource pipeline
+    - windmill/windmill-secure-processing.json  # Advanced security workflow
+    - huginn/huginn-content-monitoring.json  # Advanced content monitoring
+    - huginn/huginn-web-automation.json     # Advanced web automation
+    
+  imageGeneration:
+    - comfyui/comfyui-text-to-image.json    # Basic image generation
+    - comfyui/comfyui-ollama-guided.json    # AI-guided image generation
+    
+  webAutomation:
+    - huginn/huginn-web-automation.json     # Comprehensive web automation
+    
+  contentMonitoring:
+    - huginn/huginn-content-monitoring.json # Content monitoring and analysis
+
+# Platform-specific configuration
+platforms:
+  n8n:
+    port: 5678
+    api_endpoint: "/api/v1"
+    import_method: "POST /workflows/import"
+    execute_method: "POST /workflows/{id}/execute"
+    health_check: "/healthz"
+    supported_formats: [json]
+    
+  node-red:
+    port: 1880
+    api_endpoint: "/flows"
+    import_method: "POST /flows"
+    execute_method: "POST /inject/{node-id}"
+    health_check: "/"
+    supported_formats: [json]
+    
+  windmill:
+    port: 5681
+    api_endpoint: "/api"
+    import_method: "POST /w/{workspace}/flows"
+    execute_method: "POST /w/{workspace}/jobs/run/f/{path}"
+    health_check: "/api/version"
+    supported_formats: [json, yaml]
+    
+  huginn:
+    port: 4111
+    api_endpoint: "/api/v1"
+    import_method: "POST /scenarios"
+    execute_method: "POST /agents/{id}/run"
+    health_check: "/api/v1/info"
+    supported_formats: [json]
+    
+  comfyui:
+    port: 8188
+    api_endpoint: "/api"
+    import_method: "POST /prompt"
+    execute_method: "POST /prompt"
+    health_check: "/system_stats"
+    supported_formats: [json]
+    
+  integration:
+    port: null
+    api_endpoint: null
+    import_method: "Multi-platform"
+    execute_method: "Multi-platform"
+    health_check: null
+    supported_formats: [json]
+
+# Integration test expectations
+integrationExpectations:
+  ollama:
+    endpoint: "http://localhost:11434/api/generate"
+    expectedModels: ["llama3.1:8b", "llama3.2:3b"]
+    responseFormat: "json"
+    timeoutSeconds: 30
+    requiredFields: ["response", "model", "done"]
+    
+  whisper:
+    endpoint: "http://localhost:8090/transcribe"
+    supportedFormats: ["wav", "mp3", "ogg", "flac"]
+    responseFormat: "json" 
+    timeoutSeconds: 60
+    requiredFields: ["text", "language"]
+    
+  unstructured:
+    endpoint: "http://localhost:11450/general/v0/general"
+    supportedFormats: ["pdf", "docx", "txt", "html"]
+    responseFormat: "json"
+    timeoutSeconds: 45
+    requiredFields: ["elements"]
+    
+  minio:
+    endpoint: "http://localhost:9000"
+    operations: ["upload", "download", "list", "delete"]
+    authRequired: true
+    timeoutSeconds: 30
+    
+  vault:
+    endpoint: "http://localhost:8200"
+    operations: ["read", "write", "delete", "list"]
+    authRequired: true
+    timeoutSeconds: 15
+    
+  qdrant:
+    endpoint: "http://localhost:6333"
+    operations: ["search", "upsert", "delete", "info"]
+    responseFormat: "json"
+    timeoutSeconds: 20
+    
+  questdb:
+    endpoint: "http://localhost:9009"
+    operations: ["insert", "select", "create"]
+    protocol: "http"
+    timeoutSeconds: 25
+    
+  postgresql:
+    endpoint: "localhost:5433"
+    operations: ["select", "insert", "update", "delete"]
+    protocol: "sql"
+    timeoutSeconds: 20
+    
+  redis:
+    endpoint: "localhost:6380"
+    operations: ["get", "set", "del", "ping"]
+    protocol: "redis"
+    timeoutSeconds: 10
+    
+  agent_s2:
+    endpoint: "http://localhost:4113"
+    operations: ["navigate", "click", "type", "screenshot"]
+    responseFormat: "json"
+    timeoutSeconds: 60
+    
+  browserless:
+    endpoint: "http://localhost:4110"
+    operations: ["screenshot", "pdf", "scrape"]
+    responseFormat: varies
+    timeoutSeconds: 45
+    
+  searxng:
+    endpoint: "http://localhost:9200"
+    operations: ["search"]
+    responseFormat: "json"
+    timeoutSeconds: 30
+    
+  judge0:
+    endpoint: "http://localhost:2358"
+    operations: ["submit", "get"]
+    supportedLanguages: ["python", "javascript", "bash"]
+    timeoutSeconds: 30
+
+# Error scenarios and expected behaviors
+errorScenarios:
+  resource_unavailable:
+    description: "Resource is not running or unreachable"
+    expectedBehavior: "workflow fails with connection error"
+    testCondition: "stop target resource before test"
+    
+  invalid_credentials:
+    description: "Authentication fails"
+    expectedBehavior: "workflow fails with auth error"
+    testCondition: "use invalid credentials"
+    
+  timeout:
+    description: "Operation exceeds timeout"
+    expectedBehavior: "workflow fails with timeout error"
+    testCondition: "set very low timeout values"
+    
+  malformed_input:
+    description: "Invalid input data provided"
+    expectedBehavior: "workflow fails with validation error"
+    testCondition: "provide malformed JSON/data"
+    
+  resource_overload:
+    description: "Resource is overwhelmed with requests"
+    expectedBehavior: "workflow retries or fails gracefully"
+    testCondition: "concurrent high-load requests"
+
+# Performance benchmarks
+performanceBenchmarks:
+  basic_integration:
+    target_duration: 30      # seconds
+    max_duration: 60        # seconds
+    memory_limit: "256MB"
+    cpu_limit: "0.5 cores"
+    
+  ai_processing:
+    target_duration: 45     # seconds
+    max_duration: 120      # seconds  
+    memory_limit: "512MB"
+    cpu_limit: "1.0 cores"
+    
+  data_processing:
+    target_duration: 25     # seconds
+    max_duration: 90       # seconds
+    memory_limit: "256MB"
+    cpu_limit: "0.5 cores"
+    
+  multi_resource:
+    target_duration: 60     # seconds
+    max_duration: 180      # seconds
+    memory_limit: "1GB"
+    cpu_limit: "2.0 cores"

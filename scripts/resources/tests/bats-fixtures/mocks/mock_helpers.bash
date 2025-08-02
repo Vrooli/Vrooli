@@ -115,10 +115,13 @@ mock::docker::set_image_exists() {
     
     _ensure_mock_dir
     
+    # Replace colons with double underscores for safe filenames
+    local safe_image="${image//:/__}"
+    
     if [[ "$exists" == "true" ]]; then
-        echo "true" > "$MOCK_RESPONSES_DIR/image_${image}_exists"
+        echo "true" > "$MOCK_RESPONSES_DIR/image_${safe_image}_exists"
     else
-        rm -f "$MOCK_RESPONSES_DIR/image_${image}_exists"
+        rm -f "$MOCK_RESPONSES_DIR/image_${safe_image}_exists"
     fi
 }
 
@@ -392,3 +395,16 @@ mock::debug::show_mock() {
         echo "Mock file not found: $mock_file"
     fi
 }
+
+# Export mock helper functions for use in subshells and tests
+export -f _ensure_mock_dir
+export -f mock::set_response mock::set_curl_response
+export -f mock::docker::set_container_state mock::docker::set_container_health
+export -f mock::docker::set_exec_response mock::docker::set_container_logs mock::docker::set_image_exists
+export -f mock::http::set_endpoint_state mock::http::set_endpoint_response
+export -f mock::http::set_endpoint_sequence mock::http::set_endpoint_delay
+export -f mock::systemctl::set_service_state
+export -f mock::network::set_offline mock::network::set_online
+export -f mock::port::set_in_use mock::port::set_available
+export -f mock::resource::setup mock::cleanup mock::clean
+export -f mock::debug::list_mocks mock::debug::show_mock

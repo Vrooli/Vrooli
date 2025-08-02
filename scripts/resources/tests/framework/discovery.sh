@@ -37,6 +37,11 @@ if [[ -f "$SCRIPT_DIR/framework/helpers/health-checker.sh" ]]; then
     source "$SCRIPT_DIR/framework/helpers/health-checker.sh"
 fi
 
+# Source modular health checks
+if [[ -f "$SCRIPT_DIR/framework/resources/health-checks/index.sh" ]]; then
+    source "$SCRIPT_DIR/framework/resources/health-checks/index.sh"
+fi
+
 # Discover all available resources from the resource scripts
 discover_all_resources() {
     # If HEALTHY_RESOURCES_STR is already set (from index.sh), use it
@@ -308,7 +313,7 @@ check_resource_health() {
         # Skip resources that require non-HTTP health checks
         case "$resource" in
             "agent-s2"|"postgres"|"claude-code"|"questdb")
-                log_debug "Using original health checker for special resource: $resource..." >&2
+                log_debug "Using modular health checker for special resource: $resource..." >&2
                 ;;
             *)
                 # Use standardized health checker for HTTP-based resources
@@ -322,399 +327,64 @@ check_resource_health() {
                 
                 # If no port found, try known defaults
                 if [[ -z "$port" ]]; then
-                    port=$(get_default_port "$resource")
+                    port=$(get_resource_default_port "$resource" 2>/dev/null || get_default_port "$resource" 2>/dev/null)
                 fi
                 
                 if [[ -n "$port" ]]; then
                     check_resource_health_standardized "$resource" "$port"
                     return
                 else
-                    log_debug "No port found for $resource, falling back to original health checker" >&2
+                    log_debug "No port found for $resource, falling back to modular health checker" >&2
                 fi
                 ;;
         esac
     fi
     
-    # Original health check implementation (fallback)
-    log_debug "Using original health checker for $resource..." >&2
+    # Use modular health check implementation
+    log_debug "Using modular health checker for $resource..." >&2
     
-    # Special case handling for resources without standard port mappings
-    case "$resource" in
-        "agent-s2")
-            check_agent_s2_health
-            return
-            ;;
-        "windmill")
-            # Windmill uses port 5681 and exposes /api/version endpoint
-            if curl -s --max-time 5 "http://localhost:5681/api/version" >/dev/null 2>&1; then
-                echo "healthy"
-            else
-                echo "unreachable"
-            fi
-            return
-            ;;
-        "unstructured-io")
-            # Unstructured-IO uses port 11450 and exposes /healthcheck endpoint
-            if curl -s --max-time 5 "http://localhost:11450/healthcheck" >/dev/null 2>&1; then
-                echo "healthy"
-            else
-                echo "unreachable"
-            fi
-            return
-            ;;
-        "claude-code")
-            # Claude Code is a CLI tool, check if it responds to basic commands
-            if which claude-code >/dev/null 2>&1; then
-                if timeout 5 claude-code --version >/dev/null 2>&1; then
-                    echo "healthy"
-                else
-                    echo "unreachable"
-                fi
-            elif timeout 10 npx claude-code --version >/dev/null 2>&1; then
-                echo "healthy"
-            else
-                echo "unreachable"
-            fi
-            return
-            ;;
-        "questdb")
-            # QuestDB uses port 9010 and exposes HTTP API
-            if curl -s --max-time 5 "http://localhost:9010/status" >/dev/null 2>&1; then
-                echo "healthy"
-            elif curl -s --max-time 5 "http://localhost:9010/" >/dev/null 2>&1; then
-                echo "healthy"
-            else
-                echo "unreachable"
-            fi
-            return
-            ;;
-        "postgres")
-            check_postgres_health
-            return
-            ;;
-    esac
+    # Check if we have a specific health check function for this resource
+    local health_check_func="check_${resource//-/_}_health"
     
-    # Get resource info from discovery
-    local resource_info
-    resource_info=$(get_resource_info "$resource")
-    
-    if [[ -z "$resource_info" ]]; then
-        echo "unknown"
-        return
-    fi
-    
-    # Extract port and health endpoint information
-    local port
-    port=$(echo "$resource_info" | jq -r '.port // empty' 2>/dev/null)
-    
-    if [[ -z "$port" ]]; then
-        # Try to get port from docker if not in discovery
-        port=$(docker port "$resource" 2>/dev/null | head -n1 | cut -d':' -f2)
-    fi
-    
-    if [[ -z "$port" ]]; then
-        log_debug "No port information found for $resource" >&2
-        echo "unreachable"
-        return
-    fi
-    
-    # Perform health check based on resource type
-    case "$resource" in
-        "ollama")
-            check_ollama_health "$port"
-            ;;
-        "whisper")
-            check_whisper_health "$port"
-            ;;
-        "n8n")
-            check_n8n_health "$port"
-            ;;
-        "browserless")
-            check_browserless_health "$port"
-            ;;
-        "minio")
-            check_minio_health "$port"
-            ;;
-        "qdrant")
-            check_qdrant_health "$port"
-            ;;
-        "searxng")
-            check_searxng_health "$port"
-            ;;
-        "node-red")
-            check_node_red_health "$port"
-            ;;
-        "huginn")
-            check_huginn_health "$port"
-            ;;
-        "comfyui")
-            check_comfyui_health "$port"
-            ;;
-        "vault")
-            check_vault_health "$port"
-            ;;
-        "redis")
-            check_redis_health "$port"
-            ;;
-        *)
-            # Generic HTTP health check
-            check_generic_health "$resource" "$port"
-            ;;
-    esac
-}
-
-# Resource-specific health check functions
-check_ollama_health() {
-    local port="$1"
-    local response
-    
-    response=$(curl -s --max-time 10 "http://localhost:${port}/api/tags" 2>/dev/null)
-    if [[ $? -eq 0 && -n "$response" ]]; then
-        if echo "$response" | jq -e '.models' >/dev/null 2>&1; then
-            echo "healthy"
-        else
-            echo "unhealthy"
-        fi
+    if command -v "$health_check_func" >/dev/null 2>&1; then
+        # Call resource-specific health check
+        "$health_check_func"
     else
-        echo "unreachable"
-    fi
-}
-
-check_whisper_health() {
-    local port="$1"
-    local response
-    
-    response=$(curl -s --max-time 10 "http://localhost:${port}/health" 2>/dev/null)
-    if [[ $? -eq 0 ]]; then
-        echo "healthy"
-    else
-        echo "unreachable"
-    fi
-}
-
-check_n8n_health() {
-    local port="$1"
-    local response
-    
-    response=$(curl -s --max-time 10 "http://localhost:${port}/healthz" 2>/dev/null)
-    if [[ $? -eq 0 ]]; then
-        echo "healthy"
-    else
-        echo "unreachable"
-    fi
-}
-
-check_browserless_health() {
-    local port="$1"
-    local response
-    
-    # Browserless provides a /pressure endpoint for health checks
-    response=$(curl -s --max-time 10 "http://localhost:${port}/pressure" 2>/dev/null)
-    if [[ $? -eq 0 && -n "$response" ]]; then
-        # Check if response contains expected fields
-        if echo "$response" | jq -e '.pressure' >/dev/null 2>&1; then
-            echo "healthy"
-        else
-            echo "unhealthy"
-        fi
-    else
-        echo "unreachable"
-    fi
-}
-
-check_agent_s2_health() {
-    # Agent-S2 doesn't expose a port, check docker health
-    local health_status
-    health_status=$(docker inspect agent-s2 --format='{{.State.Health.Status}}' 2>/dev/null)
-    
-    case "$health_status" in
-        "healthy")
-            echo "healthy"
-            ;;
-        "starting")
-            echo "starting"
-            ;;
-        *)
-            echo "unhealthy"
-            ;;
-    esac
-}
-
-check_minio_health() {
-    local port="$1"
-    local response
-    
-    response=$(curl -s --max-time 10 "http://localhost:${port}/minio/health/live" 2>/dev/null)
-    if [[ $? -eq 0 ]]; then
-        echo "healthy"
-    else
-        echo "unreachable"
-    fi
-}
-
-check_qdrant_health() {
-    local port="$1"
-    local response
-    
-    response=$(curl -s --max-time 10 "http://localhost:${port}/" 2>/dev/null)
-    if [[ $? -eq 0 && -n "$response" ]]; then
-        echo "healthy"
-    else
-        echo "unreachable"
-    fi
-}
-
-check_searxng_health() {
-    local port="$1"
-    local response
-    
-    response=$(curl -s --max-time 10 "http://localhost:${port}/healthz" 2>/dev/null)
-    if [[ $? -eq 0 ]]; then
-        echo "healthy"
-    else
-        echo "unreachable"
-    fi
-}
-
-check_node_red_health() {
-    local port="$1"
-    local response
-    
-    response=$(curl -s --max-time 10 "http://localhost:${port}/" 2>/dev/null)
-    if [[ $? -eq 0 && -n "$response" ]]; then
-        echo "healthy"
-    else
-        echo "unreachable"
-    fi
-}
-
-check_huginn_health() {
-    local port="$1"
-    local response
-    
-    response=$(curl -s --max-time 10 "http://localhost:${port}/" 2>/dev/null)
-    if [[ $? -eq 0 && -n "$response" ]]; then
-        echo "healthy"
-    else
-        echo "unreachable"
-    fi
-}
-
-check_comfyui_health() {
-    local port="$1"
-    local response
-    
-    response=$(curl -s --max-time 10 "http://localhost:${port}/" 2>/dev/null)
-    if [[ $? -eq 0 && -n "$response" ]]; then
-        echo "healthy"
-    else
-        echo "unreachable"
-    fi
-}
-
-check_vault_health() {
-    local port="$1"
-    local response
-    
-    response=$(curl -s --max-time 10 "http://localhost:${port}/v1/sys/health" 2>/dev/null)
-    if [[ $? -eq 0 && -n "$response" ]]; then
-        echo "healthy"
-    else
-        echo "unreachable"
-    fi
-}
-
-check_redis_health() {
-    local port="$1"
-    local response
-    
-    # If no port provided, try to find Redis container and get its port
-    if [[ -z "$port" ]]; then
-        # Find Redis container (might be named differently like vrooli-redis-resource)
-        local redis_container
-        redis_container=$(docker ps --format "{{.Names}}" 2>/dev/null | grep -E "(redis|^redis$)" | head -1)
+        # Fall back to generic health check
+        local resource_info
+        resource_info=$(get_resource_info "$resource")
         
-        if [[ -n "$redis_container" ]]; then
-            # Get the port mapping
-            local port_mapping
-            port_mapping=$(docker port "$redis_container" 2>/dev/null | head -1)
-            if [[ -n "$port_mapping" ]]; then
-                # Extract host port from format: 6379/tcp -> 0.0.0.0:6380
-                port=$(echo "$port_mapping" | sed 's/.*://g')
-            fi
+        if [[ -z "$resource_info" ]]; then
+            echo "unknown"
+            return
         fi
         
-        # Fallback to default Redis port
+        # Extract port and health endpoint information
+        local port
+        port=$(echo "$resource_info" | jq -r '.port // empty' 2>/dev/null)
+        
         if [[ -z "$port" ]]; then
-            port="6380"  # Vrooli's default Redis port
+            # Try to get port from docker if not in discovery
+            port=$(docker port "$resource" 2>/dev/null | head -n1 | cut -d':' -f2)
         fi
-    fi
-    
-    # Redis uses its own protocol, not HTTP. Test with Redis PING command
-    # Using netcat to send Redis protocol PING command
-    response=$(timeout 5 bash -c 'echo -e "*1\r\n\$4\r\nPING\r\n" | nc localhost '"$port"' 2>/dev/null' | head -1 | tr -d '\r\n')
-    if [[ "$response" == "+PONG" ]]; then
-        echo "healthy"
-    else
-        echo "unreachable"
-    fi
-}
-
-check_postgres_health() {
-    # PostgreSQL doesn't expose HTTP endpoints, so we check via database connection
-    # First, try to find running postgres containers
-    local running_containers
-    running_containers=$(docker ps --format "{{.Names}}" 2>/dev/null | grep -E "(postgres|postgresql)" || echo "")
-    
-    if [[ -z "$running_containers" ]]; then
-        echo "unreachable"
-        return
-    fi
-    
-    # Try to connect to PostgreSQL instances on common ports
-    local ports=(5433 5434 5435 5436 5437 5438 5439)
-    local healthy_found=false
-    
-    for port in "${ports[@]}"; do
-        # Check if port is open
-        if timeout 3 bash -c "</dev/tcp/localhost/$port" 2>/dev/null; then
-            # Try a simple PostgreSQL connection test
-            if which pg_isready >/dev/null 2>&1; then
-                if pg_isready -h localhost -p "$port" -U postgres -t 3 >/dev/null 2>&1; then
-                    healthy_found=true
-                    break
-                fi
-            else
-                # Fallback: if port is open and we have containers, assume healthy
-                healthy_found=true
-                break
-            fi
+        
+        if [[ -z "$port" ]]; then
+            # Try default port
+            port=$(get_resource_default_port "$resource" 2>/dev/null || get_default_port "$resource" 2>/dev/null)
         fi
-    done
-    
-    if [[ "$healthy_found" == "true" ]]; then
-        echo "healthy"
-    else
-        echo "unreachable"
-    fi
-}
-
-check_generic_health() {
-    local resource="$1"
-    local port="$2"
-    local response
-    
-    # Try common health endpoints
-    for endpoint in "/" "/health" "/healthz" "/ping"; do
-        response=$(curl -s --max-time 10 "http://localhost:${port}${endpoint}" 2>/dev/null)
-        if [[ $? -eq 0 && -n "$response" ]]; then
-            echo "healthy"
+        
+        if [[ -z "$port" ]]; then
+            log_debug "No port information found for $resource" >&2
+            echo "unreachable"
             return
         fi
-    done
-    
-    echo "unreachable"
+        
+        # Use generic health check
+        check_generic_health "$resource" "$port"
+    fi
 }
+
+# Resource-specific health check functions are now in framework/resources/health-checks/
 
 # Get detailed resource information
 get_resource_info() {

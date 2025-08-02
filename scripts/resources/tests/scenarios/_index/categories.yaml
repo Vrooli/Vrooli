@@ -1,0 +1,119 @@
+# categories.yaml - Flexible category and tag system for test scenarios
+#
+# This file maps scenarios to categories and tags, allowing scenarios to:
+# - Belong to multiple categories
+# - Be discovered by various criteria
+# - Evolve without being locked to a single category
+
+categories:
+  ai-assistance:
+    description: "AI-powered assistance and automation"
+    scenarios:
+      - multi-modal-ai-assistant
+      - intelligent-desktop-assistant
+      
+  ai-content-creation:
+    description: "Content generation using AI"
+    scenarios:
+      - image-generation-pipeline
+      - podcast-transcription-assistant
+      - multi-modal-ai-assistant  # Can belong to multiple categories
+      
+  ai-automation:
+    description: "Business process automation with AI"
+    scenarios:
+      - business-process-automation
+      
+  ai-data-analysis:
+    description: "Data processing and analysis"
+    scenarios:
+      - document-intelligence-pipeline
+      - multi-resource-pipeline
+      
+  ai-recruitment:
+    description: "HR and recruitment automation"
+    scenarios:
+      - resume-screening-assistant
+      
+  ai-research:
+    description: "Research and information gathering"
+    scenarios:
+      - research-assistant
+      
+  real-time-monitoring:
+    description: "Live monitoring and analytics"
+    scenarios:
+      - analytics-dashboard
+      
+  security:
+    description: "Security and compliance scenarios"
+    scenarios:
+      - secure-document-processing
+      - vault-secrets-integration
+
+# Tags for cross-cutting concerns and resource groupings
+tags:
+  # UI-enabled scenarios
+  windmill-ui:
+    - multi-modal-ai-assistant
+    - image-generation-pipeline
+    - podcast-transcription-assistant
+    - research-assistant
+    - analytics-dashboard
+    
+  # Resource-based tags
+  requires-ollama:
+    - multi-modal-ai-assistant
+    - business-process-automation
+    - document-intelligence-pipeline
+    - image-generation-pipeline
+    - podcast-transcription-assistant
+    - research-assistant
+    - resume-screening-assistant
+    - intelligent-desktop-assistant
+    
+  requires-whisper:
+    - multi-modal-ai-assistant
+    - podcast-transcription-assistant
+    - multi-resource-pipeline
+    - image-generation-pipeline
+    
+  requires-vault:
+    - secure-document-processing
+    - vault-secrets-integration
+    
+  # Complexity tags
+  advanced-scenarios:
+    - multi-modal-ai-assistant
+    - secure-document-processing
+    - image-generation-pipeline
+    
+  basic-scenarios:
+    - intelligent-desktop-assistant
+    - vault-secrets-integration
+    
+  # Business value tags
+  enterprise-ready:
+    - secure-document-processing
+    - multi-modal-ai-assistant
+    - image-generation-pipeline
+    - business-process-automation
+    
+  high-revenue-potential:  # >$10k projects
+    - multi-modal-ai-assistant
+    - secure-document-processing
+    - image-generation-pipeline
+    
+  # Special requirements
+  requires-display:
+    - multi-modal-ai-assistant
+    - intelligent-desktop-assistant
+    - analytics-dashboard
+    
+  multimodal:
+    - multi-modal-ai-assistant
+    - image-generation-pipeline
+    
+  compliance-focused:
+    - secure-document-processing
+    - vault-secrets-integration

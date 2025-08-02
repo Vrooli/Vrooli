@@ -28,6 +28,7 @@ fi
 SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)}"
 source "$SCRIPT_DIR/framework/helpers/assertions.sh"
 source "$SCRIPT_DIR/framework/helpers/cleanup.sh"
+source "$SCRIPT_DIR/framework/interface-compliance.sh"
 
 # Ollama configuration
 OLLAMA_BASE_URL="http://localhost:11434"
@@ -82,6 +83,51 @@ setup_test() {
     require_tools "curl" "jq"
     
     echo "✓ Test setup complete"
+}
+
+# Test Ollama interface compliance
+test_ollama_interface_compliance() {
+    echo "🔧 Testing Ollama interface compliance..."
+    
+    # Find the manage.sh script for ollama
+    local manage_script=""
+    local potential_paths=(
+        "$SCRIPT_DIR/../ai/ollama/manage.sh"
+        "$SCRIPT_DIR/../../ai/ollama/manage.sh"
+        "$(cd "$SCRIPT_DIR/../.." && pwd)/ai/ollama/manage.sh"
+    )
+    
+    for path in "${potential_paths[@]}"; do
+        if [[ -f "$path" ]]; then
+            manage_script="$path"
+            break
+        fi
+    done
+    
+    if [[ -z "$manage_script" ]]; then
+        # Try to find it dynamically
+        manage_script=$(find "$(cd "$SCRIPT_DIR/../.." && pwd)" -name "manage.sh" -path "*/ollama/*" -type f 2>/dev/null | head -1)
+    fi
+    
+    if [[ -z "$manage_script" || ! -f "$manage_script" ]]; then
+        echo "⚠️  Could not find ollama manage.sh script - skipping interface compliance test"
+        return 0
+    fi
+    
+    echo "📍 Using manage script: $manage_script"
+    
+    # Run interface compliance test
+    if test_resource_interface_compliance "$TEST_RESOURCE" "$manage_script"; then
+        echo "✅ Ollama interface compliance test passed"
+        return 0
+    else
+        echo "❌ Ollama interface compliance test failed"
+        echo "💡 The manage.sh script should be updated to pass interface compliance:"
+        echo "   • Ensure all required actions are implemented: install, start, stop, status, logs"
+        echo "   • Handle no arguments by showing usage (not running install)"
+        echo "   • Provide proper help/usage with --help and -h flags"
+        return 1
+    fi
 }
 
 # Test Ollama health and basic connectivity
@@ -310,6 +356,16 @@ main() {
     setup_test
     
     # Run test suite
+    echo "📋 Running Ollama test suite..."
+    echo
+    
+    # Phase 1: Interface Compliance (should be first)
+    echo "Phase 1: Interface Compliance"
+    test_ollama_interface_compliance
+    echo
+    
+    # Phase 2: Functional Tests
+    echo "Phase 2: Functional Tests"
     test_ollama_health
     test_ollama_models
     test_ollama_generation

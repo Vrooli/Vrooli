@@ -54,6 +54,8 @@ VERBOSE=false
 DEBUG=false
 SINGLE_ONLY=false
 SCENARIOS_ONLY=false
+INTERFACE_ONLY=false
+SKIP_INTERFACE=false
 SCENARIO_FILTER=""
 LIST_SCENARIOS=false
 SPECIFIC_RESOURCE=""
@@ -140,6 +142,8 @@ OPTIONS:
     --debug                Enable debug mode (verbose + HTTP logging + extended output)
     --single-only          Run only single-resource tests
     --scenarios-only       Run only business scenario tests
+    --interface-only       Run only interface compliance tests
+    --skip-interface       Skip mandatory interface compliance validation
     --scenarios <filter>   Run scenarios matching criteria (e.g., category=ai,complexity=intermediate)
     --list-scenarios       List all available scenarios and exit
     --resource <name>      Test specific resource only
@@ -153,6 +157,7 @@ OPTIONS:
 EXAMPLES:
     $0                                              # Run all available tests
     $0 --verbose --single-only                     # Single resource tests with verbose output
+    $0 --interface-only                            # Run only interface compliance tests
     $0 --debug --resource qdrant                   # Debug mode for specific resource
     $0 --resource ollama                           # Test only Ollama resource
     $0 --scenarios-only                            # Run only business scenarios
@@ -200,6 +205,14 @@ parse_args() {
                 ;;
             --scenarios-only)
                 SCENARIOS_ONLY=true
+                shift
+                ;;
+            --interface-only)
+                INTERFACE_ONLY=true
+                shift
+                ;;
+            --skip-interface)
+                SKIP_INTERFACE=true
                 shift
                 ;;
             --scenarios)
@@ -342,14 +355,24 @@ main() {
         run_test_validation
     fi
     
+    # Phase 2b: Interface Compliance Validation (mandatory unless --skip-interface)
+    if [[ "${SKIP_INTERFACE:-false}" != "true" && "$INTERFACE_ONLY" != "true" ]]; then
+        log_header "🔧 Phase 2b: Interface Compliance Validation"
+        run_interface_compliance_validation
+    fi
+    
+    # Phase 3: Interface Compliance Tests (if requested)
+    if [[ "$INTERFACE_ONLY" == "true" ]]; then
+        log_header "🔧 Phase 3: Interface Compliance Tests"
+        run_interface_compliance_tests
     # Phase 3: Single Resource Tests
-    if [[ "$SCENARIOS_ONLY" != "true" ]]; then
+    elif [[ "$SCENARIOS_ONLY" != "true" ]]; then
         log_header "📦 Phase 3: Single Resource Tests"
         run_single_resource_tests
     fi
     
     # Phase 4: Business Scenario Tests  
-    if [[ "$SINGLE_ONLY" != "true" ]]; then
+    if [[ "$SINGLE_ONLY" != "true" && "$INTERFACE_ONLY" != "true" ]]; then
         log_header "🎯 Phase 4: Business Scenario Tests"
         run_scenario_tests
     fi
@@ -435,6 +458,197 @@ run_test_validation() {
             log_warning "⚠️  Test validation completed with warnings (exit code: $validation_exit_code)"
             ;;
     esac
+    
+    echo
+}
+
+# Run interface compliance tests only
+run_interface_compliance_tests() {
+    log_info "Running interface compliance tests for discovered resources..."
+    
+    # Source the interface compliance framework
+    if [[ ! -f "$SCRIPT_DIR/framework/interface-compliance.sh" ]]; then
+        log_error "Interface compliance framework not found: $SCRIPT_DIR/framework/interface-compliance.sh"
+        exit 1
+    fi
+    
+    source "$SCRIPT_DIR/framework/interface-compliance.sh"
+    
+    local tests_run=0
+    local tests_passed=0
+    local tests_failed=0
+    local failed_resources=()
+    
+    # Test each discovered resource
+    for resource in "${HEALTHY_RESOURCES[@]}"; do
+        if [[ -n "$SPECIFIC_RESOURCE" && "$resource" != "$SPECIFIC_RESOURCE" ]]; then
+            continue
+        fi
+        
+        # Find the manage.sh script for this resource
+        local manage_script=""
+        local categories=("ai" "automation" "agents" "search" "storage" "browser" "visual")
+        
+        # First, try to find it using the resource directory structure
+        for category in "${categories[@]}"; do
+            local potential_path="$RESOURCES_DIR/$category/$resource/manage.sh"
+            if [[ -f "$potential_path" ]]; then
+                manage_script="$potential_path"
+                break
+            fi
+        done
+        
+        # If not found in categorized structure, try direct search
+        if [[ -z "$manage_script" ]]; then
+            manage_script=$(find "$RESOURCES_DIR" -name "manage.sh" -path "*/$resource/*" -type f 2>/dev/null | head -1)
+        fi
+        
+        if [[ -z "$manage_script" || ! -f "$manage_script" ]]; then
+            log_warning "⚠️  No manage.sh found for $resource (skipping interface compliance test)"
+            SKIPPED_TESTS=$((SKIPPED_TESTS + 1))
+            SKIPPED_TEST_NAMES+=("$resource: no manage.sh script available")
+            continue
+        fi
+        
+        log_info "Testing interface compliance for $resource..."
+        log_debug "Using manage script: $manage_script"
+        
+        tests_run=$((tests_run + 1))
+        TOTAL_TESTS=$((TOTAL_TESTS + 1))
+        
+        # Run interface compliance test
+        if test_resource_interface_compliance "$resource" "$manage_script"; then
+            tests_passed=$((tests_passed + 1))
+            PASSED_TESTS=$((PASSED_TESTS + 1))
+            log_success "✅ $resource passes interface compliance"
+        else
+            tests_failed=$((tests_failed + 1))
+            FAILED_TESTS=$((FAILED_TESTS + 1))
+            FAILED_TEST_NAMES+=("$resource")
+            failed_resources+=("$resource")
+            log_error "❌ $resource fails interface compliance"
+            
+            if [[ "$FAIL_FAST" == "true" ]]; then
+                log_error "Stopping due to --fail-fast option"
+                return 1
+            fi
+        fi
+        
+        echo "========================================"
+    done
+    
+    # Print interface compliance summary
+    log_info "Interface compliance tests complete:"
+    echo "  Resources tested: $tests_run"
+    echo "  Passed: $tests_passed" 
+    echo "  Failed: $tests_failed"
+    
+    if [[ $tests_failed -gt 0 ]]; then
+        log_error "Resources failing interface compliance:"
+        for resource in "${failed_resources[@]}"; do
+            echo "    • $resource"
+        done
+        return 1
+    else
+        if [[ $tests_run -gt 0 ]]; then
+            log_success "All tested resources pass interface compliance!"
+        else
+            log_warning "No resources were tested for interface compliance"
+        fi
+        return 0
+    fi
+}
+
+# Run interface compliance validation (mandatory phase)
+run_interface_compliance_validation() {
+    log_info "Running mandatory interface compliance validation..."
+    log_info "💡 Use --skip-interface to skip this phase if needed"
+    
+    # Source the interface compliance framework
+    if [[ ! -f "$SCRIPT_DIR/framework/interface-compliance.sh" ]]; then
+        log_warning "Interface compliance framework not found - skipping validation"
+        return 0
+    fi
+    
+    source "$SCRIPT_DIR/framework/interface-compliance.sh"
+    
+    local resources_tested=0
+    local resources_passed=0
+    local resources_failed=0
+    local failed_resources=()
+    
+    # Test interface compliance for all healthy resources
+    for resource in "${HEALTHY_RESOURCES[@]}"; do
+        if [[ -n "$SPECIFIC_RESOURCE" && "$resource" != "$SPECIFIC_RESOURCE" ]]; then
+            continue
+        fi
+        
+        # Find the manage.sh script for this resource
+        local manage_script=""
+        local categories=("ai" "automation" "agents" "search" "storage" "browser" "visual")
+        
+        # Try to find it using the resource directory structure
+        for category in "${categories[@]}"; do
+            local potential_path="$RESOURCES_DIR/$category/$resource/manage.sh"
+            if [[ -f "$potential_path" ]]; then
+                manage_script="$potential_path"
+                break
+            fi
+        done
+        
+        # If not found in categorized structure, try direct search
+        if [[ -z "$manage_script" ]]; then
+            manage_script=$(find "$RESOURCES_DIR" -name "manage.sh" -path "*/$resource/*" -type f 2>/dev/null | head -1)
+        fi
+        
+        if [[ -z "$manage_script" || ! -f "$manage_script" ]]; then
+            log_warning "⚠️  No manage.sh found for $resource (skipping interface validation)"
+            continue
+        fi
+        
+        resources_tested=$((resources_tested + 1))
+        log_debug "Validating interface compliance for $resource..."
+        
+        # Run interface compliance test (capture output to avoid cluttering)
+        local compliance_output
+        if compliance_output=$(test_resource_interface_compliance "$resource" "$manage_script" 2>&1); then
+            resources_passed=$((resources_passed + 1))
+            log_success "✅ $resource passes interface compliance"
+        else
+            resources_failed=$((resources_failed + 1))
+            failed_resources+=("$resource")
+            log_warning "⚠️  $resource fails interface compliance"
+            
+            # Show brief summary of failures
+            if [[ "$VERBOSE" == "true" ]]; then
+                echo "$compliance_output" | grep -E "\[INTERFACE\].*❌" | head -3 | sed 's/^/    /'
+            fi
+        fi
+    done
+    
+    # Report validation summary
+    echo
+    log_info "Interface compliance validation summary:"
+    echo "  Resources tested: $resources_tested"
+    echo "  Passed: $resources_passed"
+    echo "  Failed: $resources_failed"
+    
+    if [[ $resources_failed -gt 0 ]]; then
+        log_warning "Resources with interface compliance issues:"
+        for resource in "${failed_resources[@]}"; do
+            echo "    • $resource"
+        done
+        echo
+        log_info "💡 These resources have interface compliance issues but tests will continue."
+        log_info "   Run --interface-only to see detailed compliance issues."
+        log_info "   See: scripts/resources/tests/INTERFACE_COMPLIANCE_INTEGRATION.md"
+    else
+        if [[ $resources_tested -gt 0 ]]; then
+            log_success "All tested resources pass interface compliance! 🎉"
+        else
+            log_warning "No resources were tested for interface compliance"
+        fi
+    fi
     
     echo
 }

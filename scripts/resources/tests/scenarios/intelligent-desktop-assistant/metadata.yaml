@@ -1,0 +1,60 @@
+# Intelligent Desktop Assistant scenario metadata
+scenario:
+  id: "intelligent-desktop-assistant"
+  name: "Intelligent Desktop Assistant"
+  description: "AI-powered desktop automation assistant that understands screen content and executes complex workflows"
+  version: "1.0.0"
+  
+categories:
+  - ai-assistance
+  - ai-automation
+  
+complexity: "advanced"
+
+resources:
+  required:
+    - agent-s2     # Screen analysis and automation
+    - ollama       # AI reasoning and task planning
+  optional:
+    - qdrant       # Knowledge base for commands
+    - whisper      # Voice command input
+    
+business:
+  value_proposition: "Intelligent automation assistant for business workflows and customer service tasks"
+  revenue_potential:
+    min: 3000
+    max: 8000
+    currency: "USD"
+  market_demand: "high"
+  target_markets:
+    - "Customer service automation"
+    - "Business process automation"
+    - "Desktop workflow optimization"
+    - "Support desk automation"
+  
+testing:
+  duration_minutes: 12
+  timeout_seconds: 720
+  requires_display: true   # Agent-S2 needs display
+  requires_ui: false
+  
+upwork_examples:
+  - "Build AI assistant for task automation"
+  - "Intelligent desktop helper for business workflows"
+  - "Automated customer service assistant"
+  - "Smart screen automation tool"
+  
+success_criteria:
+  - "Analyze screen content with Agent-S2"
+  - "Plan tasks using AI reasoning"
+  - "Execute desktop automation commands"
+  - "Simulate customer interactions"
+  - "Handle multi-step workflows"
+  - "Provide intelligent responses"
+
+tags:
+  - desktop-automation
+  - screen-analysis
+  - customer-service
+  - task-automation
+  - basic-scenario
