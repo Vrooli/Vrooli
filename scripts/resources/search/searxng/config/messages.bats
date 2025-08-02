@@ -4,19 +4,26 @@
 # Setup for each test
 setup() {
     # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../tests/bats-fixtures/common_setup.bash"
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
     
     # Setup standard mocks
     setup_standard_mocks
     
+    # Load messages.sh for each test (required for bats isolation)
+    SEARXNG_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
+    source "${SEARXNG_DIR}/config/messages.sh"
+    
     # Set mock environment for message templates
-    export SEARXNG_BASE_URL="http://localhost:8100"
-    export SEARXNG_PORT="8100"
+    export SEARXNG_BASE_URL="http://localhost:9200"
+    export SEARXNG_PORT="9200"
     export SEARXNG_DATA_DIR="/test/data"
     export SEARXNG_CONTAINER_NAME="searxng-test"
     export SEARXNG_DEFAULT_ENGINES="google,duckduckgo,bing"
     export SEARXNG_REQUEST_TIMEOUT="10"
     export SEARXNG_POOL_MAXSIZE="20"
+    
+    # Call export_messages to initialize message variables
+    searxng::export_messages
     export SEARXNG_RATE_LIMIT="10"
     
     # Mock log functions to avoid dependency issues
@@ -53,9 +60,9 @@ setup() {
 # ============================================================================
 
 @test "information messages contain correct URLs and paths" {
-    [[ "$MSG_SEARXNG_ACCESS_INFO" =~ "http://localhost:8100" ]]
-    [[ "$MSG_SEARXNG_API_INFO" =~ "http://localhost:8100/search" ]]
-    [[ "$MSG_SEARXNG_STATS_INFO" =~ "http://localhost:8100/stats" ]]
+    [[ "$MSG_SEARXNG_ACCESS_INFO" =~ "http://localhost:9200" ]]
+    [[ "$MSG_SEARXNG_API_INFO" =~ "http://localhost:9200/search" ]]
+    [[ "$MSG_SEARXNG_STATS_INFO" =~ "http://localhost:9200/stats" ]]
     [[ "$MSG_SEARXNG_CONFIG_INFO" =~ "/test/data/settings.yml" ]]
 }
 
@@ -72,8 +79,8 @@ setup() {
 # ============================================================================
 
 @test "warning messages contain correct parameters" {
-    [[ "$MSG_SEARXNG_ALREADY_RUNNING" =~ "port 8100" ]]
-    [[ "$MSG_SEARXNG_PORT_CONFLICT" =~ "Port 8100" ]]
+    [[ "$MSG_SEARXNG_ALREADY_RUNNING" =~ "port 9200" ]]
+    [[ "$MSG_SEARXNG_PORT_CONFLICT" =~ "Port 9200" ]]
     [[ "$MSG_SEARXNG_PUBLIC_ACCESS_WARNING" =~ "⚠️" ]]
     [[ "$MSG_SEARXNG_PUBLIC_ACCESS_WARNING" =~ "security measures" ]]
 }
@@ -172,7 +179,7 @@ setup() {
 @test "troubleshooting messages contain correct commands and paths" {
     [[ "$MSG_SEARXNG_TROUBLESHOOT_LOGS" =~ "docker logs searxng-test" ]]
     [[ "$MSG_SEARXNG_TROUBLESHOOT_CONFIG" =~ "/test/data/settings.yml" ]]
-    [[ "$MSG_SEARXNG_TROUBLESHOOT_PORT" =~ "ss -tlnp | grep 8100" ]]
+    [[ "$MSG_SEARXNG_TROUBLESHOOT_PORT" =~ "ss -tlnp | grep 9200" ]]
     [[ "$MSG_SEARXNG_TROUBLESHOOT_RESTART" =~ "./manage.sh --action restart" ]]
 }
 

@@ -203,3 +203,17 @@ whisper::cleanup() {
     
     $success
 }
+
+# Export functions for subshell availability
+export -f whisper::check_docker
+export -f whisper::container_exists
+export -f whisper::is_running
+export -f whisper::is_port_available
+export -f whisper::validate_model
+export -f whisper::get_model_size
+export -f whisper::create_directories
+export -f whisper::wait_for_health
+export -f whisper::is_healthy
+export -f whisper::is_gpu_available
+export -f whisper::get_docker_image
+export -f whisper::cleanup

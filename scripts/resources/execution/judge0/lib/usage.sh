@@ -108,7 +108,7 @@ EOF
 #######################################
 # Show resource usage statistics
 #######################################
-judge0::usage::show() {
+judge0::usage::show_stats() {
     if ! judge0::is_running; then
         log::error "Judge0 is not running"
         return 1

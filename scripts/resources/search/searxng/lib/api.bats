@@ -81,8 +81,8 @@ setup() {
     
     # Set up test environment
     export SEARXNG_TEST_MODE=yes
-    export SEARXNG_PORT=8100
-    export SEARXNG_BASE_URL='http://localhost:8100'
+    export SEARXNG_PORT=9200
+    export SEARXNG_BASE_URL='http://localhost:9200'
     export SEARXNG_DATA_DIR="$HOME/.searxng"
     
     # Mock variables

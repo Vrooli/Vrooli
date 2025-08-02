@@ -4,7 +4,7 @@ SearXNG is a privacy-respecting metasearch engine that aggregates results from m
 
 ## Quick Reference
 - **Category**: Search
-- **Port**: 8100
+- **Port**: 9200
 - **Container**: searxng
 - **API Docs**: [Complete API Reference](docs/API.md)
 - **Status**: Production Ready
@@ -39,10 +39,10 @@ SearXNG is a privacy-respecting metasearch engine that aggregates results from m
 
 ```bash
 # Simple search
-curl "http://localhost:8100/search?q=artificial+intelligence&format=json"
+curl "http://localhost:9200/search?q=artificial+intelligence&format=json"
 
 # Search with specific parameters
-curl "http://localhost:8100/search?q=tech+news&format=json&categories=general&language=en"
+curl "http://localhost:9200/search?q=tech+news&format=json&categories=general&language=en"
 ```
 
 ## 📚 Documentation
@@ -76,9 +76,9 @@ curl "http://localhost:8100/search?q=tech+news&format=json&categories=general&la
 ## Access Points
 
 After installation:
-- **Web Interface**: http://localhost:8100 (search interface)
-- **API Endpoint**: http://localhost:8100/search (JSON API)
-- **Stats/Health**: http://localhost:8100/stats (service statistics)
+- **Web Interface**: http://localhost:9200 (search interface)
+- **API Endpoint**: http://localhost:9200/search (JSON API)
+- **Stats/Health**: http://localhost:9200/stats (service statistics)
 
 ## Integration Examples
 
@@ -91,7 +91,7 @@ echo "$RESULTS" | curl -X POST http://localhost:11434/api/generate -d @-
 
 ### With n8n Workflows
 ```bash
-# HTTP Request Node URL: http://localhost:8100/search
+# HTTP Request Node URL: http://localhost:9200/search
 # Parameters: q={{ $json.query }}, format=json
 ```
 

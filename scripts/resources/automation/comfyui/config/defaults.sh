@@ -4,20 +4,29 @@
 
 # Resource identification
 readonly COMFYUI_RESOURCE_NAME="comfyui"
+readonly COMFYUI_SERVICE_NAME="comfyui"  # Added for test compatibility
 readonly COMFYUI_CATEGORY="automation"
 
 # Container configuration
 readonly COMFYUI_CONTAINER_NAME="comfyui"
-readonly COMFYUI_DEFAULT_IMAGE="ghcr.io/ai-dock/comfyui:latest"
+readonly COMFYUI_DEFAULT_IMAGE="zhangp365/comfyui:latest"
+readonly COMFYUI_CUDA_IMAGE="zhangp365/comfyui:latest"
+readonly COMFYUI_CPU_IMAGE="zhangp365/comfyui:latest"
+readonly COMFYUI_ROCM_IMAGE="zhangp365/comfyui:latest"
 readonly COMFYUI_DATA_DIR="${HOME}/.comfyui"
+readonly COMFYUI_MODELS_DIR="${COMFYUI_DATA_DIR}/models"
+readonly COMFYUI_OUTPUT_DIR="${COMFYUI_DATA_DIR}/output"
+readonly COMFYUI_INPUT_DIR="${COMFYUI_DATA_DIR}/input"
+readonly COMFYUI_WORKFLOWS_DIR="${COMFYUI_DATA_DIR}/workflows"
 
-# Port configuration
-readonly COMFYUI_DEFAULT_PORT="5679"
-readonly COMFYUI_PROXY_PORT="1111"  # ai-dock proxy port
-readonly COMFYUI_DIRECT_PORT="8188"  # ComfyUI direct port
+# Port configuration  
+readonly COMFYUI_DEFAULT_PORT="8188"  # ComfyUI main port (vanilla setup)
+readonly COMFYUI_DIRECT_PORT="8188"   # ComfyUI direct port
+readonly COMFYUI_JUPYTER_PORT="8889"  # Jupyter notebook port
 
 # API configuration
-readonly COMFYUI_API_BASE="http://localhost:${COMFYUI_DIRECT_PORT}"
+readonly COMFYUI_BASE_URL="http://localhost:${COMFYUI_DIRECT_PORT}"
+readonly COMFYUI_API_BASE="http://localhost:${COMFYUI_DIRECT_PORT}/api"
 readonly COMFYUI_HEALTH_ENDPOINT="/system_stats"
 readonly COMFYUI_HEALTH_TIMEOUT=30
 

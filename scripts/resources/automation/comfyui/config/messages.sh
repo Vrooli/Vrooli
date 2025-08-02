@@ -70,15 +70,15 @@ For NVIDIA GPU issues:
 
 API USAGE
 ---------
-The ComfyUI API is available at http://localhost:5679 (or custom port).
+The ComfyUI API is available at http://localhost:8188 (or custom port).
 
 Submit workflow:
-  curl -X POST http://localhost:5679/prompt \
+  curl -X POST http://localhost:8188/prompt \
     -H "Content-Type: application/json" \
     -d @workflow.json
 
 Check status:
-  curl http://localhost:5679/history/{prompt_id}
+  curl http://localhost:8188/history/{prompt_id}
 
 Python example:
   import requests
@@ -86,7 +86,7 @@ Python example:
   with open('workflow.json') as f:
       workflow = json.load(f)
   
-  response = requests.post('http://localhost:5679/prompt', 
+  response = requests.post('http://localhost:8188/prompt', 
                           json={'prompt': workflow, 'client_id': 'my-client'})
   prompt_id = response.json()['prompt_id']
 
@@ -101,7 +101,7 @@ The resource configuration is stored in ~/.vrooli/resources.local.json
 
 ENVIRONMENT VARIABLES
 --------------------
-COMFYUI_CUSTOM_PORT      - Override default port (5679)
+COMFYUI_CUSTOM_PORT      - Override default port (8188)
 COMFYUI_GPU_TYPE         - Force GPU type: auto|nvidia|amd|cpu
 COMFYUI_CUSTOM_IMAGE     - Use custom Docker image
 COMFYUI_VRAM_LIMIT       - Limit VRAM usage in GB
@@ -156,7 +156,7 @@ comfyui::show_quickstart() {
    ./manage.sh --action install
 
 2. Access the Web UI:
-   http://localhost:5679
+   http://localhost:8188
 
 3. Download models (if not done during install):
    ./manage.sh --action download-models
@@ -307,7 +307,7 @@ with open('workflow.json', 'r') as f:
     workflow = json.load(f)
 
 # Submit to ComfyUI
-api_url = "http://localhost:5679"
+api_url = "http://localhost:8188"
 payload = {
     "prompt": workflow,
     "client_id": "python-client"
@@ -336,7 +336,7 @@ const fs = require('fs');
 async function executeWorkflow() {
     const workflow = JSON.parse(fs.readFileSync('workflow.json'));
     
-    const response = await axios.post('http://localhost:5679/prompt', {
+    const response = await axios.post('http://localhost:8188/prompt', {
         prompt: workflow,
         client_id: 'nodejs-client'
     });
@@ -347,7 +347,7 @@ async function executeWorkflow() {
     // Poll for completion
     let completed = false;
     while (!completed) {
-        const history = await axios.get(`http://localhost:5679/history/${promptId}`);
+        const history = await axios.get(`http://localhost:8188/history/${promptId}`);
         if (history.data[promptId]?.status?.status_str === 'success') {
             completed = true;
             console.log('Workflow completed!');
@@ -360,7 +360,7 @@ N8N WORKFLOW
 -----------
 1. HTTP Request Node:
    - Method: POST
-   - URL: http://localhost:5679/prompt
+   - URL: http://localhost:8188/prompt
    - Body: { "prompt": {workflow}, "client_id": "n8n" }
 
 2. Wait Node:
@@ -368,7 +368,7 @@ N8N WORKFLOW
 
 3. HTTP Request Node:
    - Method: GET  
-   - URL: http://localhost:5679/history/{{prompt_id}}
+   - URL: http://localhost:8188/history/{{prompt_id}}
 
 4. IF Node:
    - Check if status is "success"
@@ -376,7 +376,7 @@ N8N WORKFLOW
 WEBSOCKET MONITORING
 -------------------
 const WebSocket = require('ws');
-const ws = new WebSocket('ws://localhost:5679/ws');
+const ws = new WebSocket('ws://localhost:8188/ws');
 
 ws.on('message', (data) => {
     const message = JSON.parse(data);
@@ -385,3 +385,61 @@ ws.on('message', (data) => {
 
 EOF
 }
+
+#######################################
+# Message Variables for Status/Logging
+#######################################
+
+# Installation messages
+export MSG_COMFYUI_INSTALLING="🎨 Installing ComfyUI..."
+export MSG_COMFYUI_ALREADY_INSTALLED="✅ ComfyUI is already installed"
+export MSG_COMFYUI_NOT_FOUND="❌ ComfyUI not found or not running"
+export MSG_COMFYUI_NOT_RUNNING="⏹️  ComfyUI is not running"
+
+# Status messages
+export MSG_STATUS_CHECKING="🔍 Checking ComfyUI status..."
+export MSG_STATUS_CONTAINER_OK="✅ Container is healthy"
+export MSG_STATUS_CONTAINER_RUNNING="🟢 Container is running"
+export MSG_STATUS_CONTAINER_STOPPED="⏹️  Container is stopped"
+export MSG_STATUS_CONTAINER_MISSING="❌ Container not found"
+
+# Model messages
+export MSG_MODEL_DOWNLOADING="⬇️  Downloading model..."
+export MSG_MODEL_INSTALLED="✅ Model installed successfully"
+export MSG_MODEL_FAILED="❌ Model download failed"
+
+# Workflow messages
+export MSG_WORKFLOW_EXECUTING="🔄 Executing workflow..."
+export MSG_WORKFLOW_COMPLETE="✅ Workflow completed successfully"
+export MSG_WORKFLOW_COMPLETED="✅ Workflow completed successfully"
+export MSG_WORKFLOW_FAILED="❌ Workflow execution failed"
+
+# GPU messages
+export MSG_GPU_DETECTED="🎮 GPU detected"
+export MSG_GPU_NOT_DETECTED="⚠️  No GPU detected, using CPU"
+export MSG_GPU_CUDA_OK="✅ CUDA is available"
+export MSG_GPU_ROCM_OK="✅ ROCm is available"
+
+# Docker messages
+export MSG_DOCKER_STARTING="🚀 Starting ComfyUI container..."
+export MSG_DOCKER_STOPPING="⏹️  Stopping ComfyUI container..."
+export MSG_DOCKER_REMOVING="🗑️  Removing ComfyUI container..."
+
+# Processing messages
+export MSG_PROCESSING_COMPLETE="✅ Processing completed"
+export MSG_PROCESSING_FAILED="❌ Processing failed"
+export MSG_PROCESSING_QUEUE="📋 Added to processing queue"
+
+# Export function for consistency
+comfyui::export_messages() {
+    export MSG_COMFYUI_INSTALLING MSG_COMFYUI_ALREADY_INSTALLED MSG_COMFYUI_NOT_FOUND MSG_COMFYUI_NOT_RUNNING
+    export MSG_STATUS_CHECKING MSG_STATUS_CONTAINER_OK MSG_STATUS_CONTAINER_RUNNING MSG_STATUS_CONTAINER_STOPPED MSG_STATUS_CONTAINER_MISSING
+    export MSG_MODEL_DOWNLOADING MSG_MODEL_INSTALLED MSG_MODEL_FAILED
+    export MSG_WORKFLOW_EXECUTING MSG_WORKFLOW_COMPLETE MSG_WORKFLOW_COMPLETED MSG_WORKFLOW_FAILED
+    export MSG_GPU_DETECTED MSG_GPU_NOT_DETECTED MSG_GPU_CUDA_OK MSG_GPU_ROCM_OK
+    export MSG_DOCKER_STARTING MSG_DOCKER_STOPPING MSG_DOCKER_REMOVING
+    export MSG_PROCESSING_COMPLETE MSG_PROCESSING_FAILED MSG_PROCESSING_QUEUE
+}
+
+# Auto-export when sourced
+comfyui::export_messages

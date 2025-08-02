@@ -78,6 +78,14 @@ minio::common::create_directories() {
         log::debug "Created config directory: ${MINIO_CONFIG_DIR}"
     fi
     
+    # Fix Docker volume permissions if setup was run with sudo
+    docker::fix_volume_permissions "${MINIO_DATA_DIR}" 2>/dev/null || {
+        log::debug "Could not fix Docker volume permissions for ${MINIO_DATA_DIR}, continuing..."
+    }
+    docker::fix_volume_permissions "${MINIO_CONFIG_DIR}" 2>/dev/null || {
+        log::debug "Could not fix Docker volume permissions for ${MINIO_CONFIG_DIR}, continuing..."
+    }
+    
     # Set appropriate permissions
     chmod 700 "${MINIO_DATA_DIR}" "${MINIO_CONFIG_DIR}"
 }

@@ -17,8 +17,7 @@ comfyui::start_container() {
         "run"
         "-d"
         "--name" "$COMFYUI_CONTAINER_NAME"
-        "-p" "${port}:${COMFYUI_PROXY_PORT}"
-        "-p" "${COMFYUI_DIRECT_PORT}:8188"
+        "-p" "${port}:8188"
         "--restart" "unless-stopped"
     )
     

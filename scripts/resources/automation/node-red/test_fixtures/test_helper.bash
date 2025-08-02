@@ -526,6 +526,36 @@ source_node_red_scripts() {
     source "$NODE_RED_TEST_DIR/lib/status.sh"
     source "$NODE_RED_TEST_DIR/lib/api.sh"
     source "$NODE_RED_TEST_DIR/lib/testing.sh"
+    
+    # Create timeout wrapper function for tests that need external timeout
+    node_red_timeout_wrapper() {
+        local timeout_duration="$1"
+        local function_name="$2"
+        shift 2
+        local args="$*"
+        
+        # Create complete environment recreation script
+        local env_script="
+        export SCRIPT_DIR='$SCRIPT_DIR'
+        export RESOURCES_DIR='$RESOURCES_DIR'
+        export RESOURCE_PORT='$RESOURCE_PORT'
+        export CONTAINER_NAME='$CONTAINER_NAME'
+        source '$RESOURCES_DIR/common.sh'
+        source '$NODE_RED_TEST_DIR/config/defaults.sh'
+        source '$NODE_RED_TEST_DIR/config/messages.sh'
+        node_red::export_config
+        source '$NODE_RED_TEST_DIR/lib/common.sh'
+        source '$NODE_RED_TEST_DIR/lib/docker.sh'
+        source '$NODE_RED_TEST_DIR/lib/install.sh'
+        source '$NODE_RED_TEST_DIR/lib/status.sh'
+        source '$NODE_RED_TEST_DIR/lib/api.sh'
+        source '$NODE_RED_TEST_DIR/lib/testing.sh'
+        $function_name $args
+        "
+        
+        timeout "$timeout_duration" bash -c "$env_script"
+    }
+    export -f node_red_timeout_wrapper
 }
 
 # Initialize test environment

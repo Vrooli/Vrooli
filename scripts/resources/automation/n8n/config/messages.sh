@@ -196,3 +196,52 @@ n8n::prompt_password_reset() {
     fi
     return 0
 }
+
+#######################################
+# Message Variables for Status/Logging  
+#######################################
+
+# Installation messages
+export MSG_N8N_INSTALLING="🔧 Installing n8n..."
+export MSG_N8N_ALREADY_INSTALLED="✅ n8n is already installed"
+export MSG_N8N_NOT_FOUND="❌ n8n not found or not running"
+
+# Status messages  
+export MSG_STATUS_CHECKING="🔍 Checking n8n status..."
+export MSG_STATUS_CONTAINER_OK="✅ Container is healthy"
+export MSG_STATUS_CONTAINER_RUNNING="🟢 Container is running"
+export MSG_STATUS_CONTAINER_STOPPED="⏹️  Container is stopped"
+export MSG_STATUS_CONTAINER_MISSING="❌ Container not found"
+
+# Database messages
+export MSG_DATABASE_STARTING="🗄️  Starting database..."
+export MSG_DATABASE_OK="✅ Database is healthy"
+export MSG_DATABASE_FAILED="❌ Database connection failed"
+
+# Authentication messages
+export MSG_AUTH_SETUP="🔐 Setting up authentication..."
+export MSG_AUTH_DISABLED="⚠️  Authentication disabled"
+export MSG_PASSWORD_RESET="🔑 Resetting password..."
+
+# Workflow messages
+export MSG_WORKFLOW_IMPORTING="📥 Importing workflows..."
+export MSG_WORKFLOW_EXPORTED="📤 Workflows exported"
+export MSG_WORKFLOW_BACKUP="💾 Creating workflow backup..."
+
+# Docker messages
+export MSG_DOCKER_STARTING="🚀 Starting n8n container..."
+export MSG_DOCKER_STOPPING="⏹️  Stopping n8n container..."
+export MSG_DOCKER_REMOVING="🗑️  Removing n8n container..."
+
+# Export function for consistency
+n8n::export_messages() {
+    export MSG_N8N_INSTALLING MSG_N8N_ALREADY_INSTALLED MSG_N8N_NOT_FOUND
+    export MSG_STATUS_CHECKING MSG_STATUS_CONTAINER_OK MSG_STATUS_CONTAINER_RUNNING MSG_STATUS_CONTAINER_STOPPED MSG_STATUS_CONTAINER_MISSING
+    export MSG_DATABASE_STARTING MSG_DATABASE_OK MSG_DATABASE_FAILED
+    export MSG_AUTH_SETUP MSG_AUTH_DISABLED MSG_PASSWORD_RESET
+    export MSG_WORKFLOW_IMPORTING MSG_WORKFLOW_EXPORTED MSG_WORKFLOW_BACKUP
+    export MSG_DOCKER_STARTING MSG_DOCKER_STOPPING MSG_DOCKER_REMOVING
+}
+
+# Auto-export when sourced
+n8n::export_messages

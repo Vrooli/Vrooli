@@ -150,7 +150,7 @@ run_manage() {
 @test "Judge0: Security limits configuration" {
     run bash -c "source ${BATS_TEST_DIRNAME}/config/defaults.sh && echo \$JUDGE0_CPU_TIME_LIMIT"
     assert_success
-    assert_output "5"
+    assert_output "10"
     
     run bash -c "source ${BATS_TEST_DIRNAME}/config/defaults.sh && echo \$JUDGE0_MEMORY_LIMIT"
     assert_success

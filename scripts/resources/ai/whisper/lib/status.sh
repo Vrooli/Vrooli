@@ -243,3 +243,10 @@ whisper::show_resource_usage() {
     echo "Resource Usage:"
     docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}" "$WHISPER_CONTAINER_NAME"
 }
+
+# Export functions for subshell availability
+export -f whisper::show_status
+export -f whisper::get_current_model
+export -f whisper::quick_status
+export -f whisper::is_ready
+export -f whisper::show_resource_usage

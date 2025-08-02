@@ -1,5 +1,7 @@
 # QuestDB - Ultra-Fast Time-Series Database
 
+**✅ RESOLVED**: QuestDB port conflict has been fixed. Service is now running on port 9010 (HTTP), 9011 (InfluxDB Line Protocol), and 8812 (PostgreSQL Wire Protocol).
+
 Ultra-high-performance time-series database for AI metrics, resource monitoring, and analytics. QuestDB provides SQL with time-series extensions, achieving 4M+ rows/second ingestion rates with minimal latency queries.
 
 ## 🚀 Quick Start
@@ -34,14 +36,14 @@ Store and analyze high-frequency events from Vrooli's three-tier AI system.
 
 ## 🔌 Multiple Ingestion Protocols
 
-### 1. HTTP REST API (Port 9009)
+### 1. HTTP REST API (Port 9010)
 ```bash
 # Execute SQL query
-curl -G "http://localhost:9009/exec" \
+curl -G "http://localhost:9010/exec" \
   --data-urlencode "query=SELECT * FROM ai_inference WHERE timestamp > now() - 1h"
 
 # Bulk import CSV
-curl -F "data=@metrics.csv" "http://localhost:9009/imp?name=metrics"
+curl -F "data=@metrics.csv" "http://localhost:9010/imp?name=metrics"
 ```
 
 ### 2. PostgreSQL Wire Protocol (Port 8812)
@@ -52,13 +54,13 @@ psql -h localhost -p 8812 -U admin -d qdb
 # Use with BI tools, ORMs, or any PostgreSQL-compatible library
 ```
 
-### 3. InfluxDB Line Protocol (Port 9003)
+### 3. InfluxDB Line Protocol (Port 9011)
 ```bash
 # High-speed metric ingestion
-echo "cpu,host=server1 usage=45.2 $(date +%s)000000000" | nc localhost 9003
+echo "cpu,host=server1 usage=45.2 $(date +%s)000000000" | nc localhost 9011
 
 # Batch ingestion
-cat metrics.txt | nc localhost 9003
+cat metrics.txt | nc localhost 9011
 ```
 
 ## 📊 Default Tables
@@ -103,7 +105,7 @@ QuestDB comes pre-configured with tables optimized for Vrooli monitoring:
 // n8n HTTP Request node
 {
   "method": "GET",
-  "url": "http://localhost:9009/exec",
+  "url": "http://localhost:9010/exec",
   "qs": {
     "query": "SELECT avg(response_time_ms) FROM ai_inference WHERE timestamp > now() - 1h",
     "fmt": "json"
@@ -115,7 +117,7 @@ QuestDB comes pre-configured with tables optimized for Vrooli monitoring:
 ```javascript
 // Function node for metric ingestion
 msg.payload = `metric,source=nodered value=${msg.payload} ${Date.now()}000000`;
-msg.url = "http://localhost:9003/write";
+msg.url = "http://localhost:9011/write";
 return msg;
 ```
 
@@ -125,13 +127,13 @@ import requests
 import time
 
 # REST API
-response = requests.get('http://localhost:9009/exec', 
+response = requests.get('http://localhost:9010/exec', 
     params={'query': 'SELECT * FROM resource_health ORDER BY timestamp DESC LIMIT 10'})
 data = response.json()
 
 # InfluxDB Line Protocol
 metric = f"ai_inference,model=gpt4 response_time=250 {int(time.time())}000000000"
-requests.post('http://localhost:9003/write', data=metric)
+requests.post('http://localhost:9011/write', data=metric)
 ```
 
 ## ⚡ Performance Tips
@@ -205,9 +207,9 @@ SAMPLE BY 5m;
 ### Environment Variables
 ```bash
 # Port configuration
-export QUESTDB_HTTP_PORT=9009
+export QUESTDB_HTTP_PORT=9010
 export QUESTDB_PG_PORT=8812
-export QUESTDB_ILP_PORT=9003
+export QUESTDB_ILP_PORT=9011
 
 # Performance tuning
 export QUESTDB_SHARED_WORKER_COUNT=2
@@ -229,9 +231,9 @@ export QUESTDB_PG_PASSWORD=quest
 ### Container Won't Start
 ```bash
 # Check port availability
-lsof -i :9009
+lsof -i :9010
 lsof -i :8812
-lsof -i :9003
+lsof -i :9011
 
 # Check Docker logs
 ./manage.sh --action logs --tail 50
@@ -256,8 +258,8 @@ docker stats questdb
 
 ## 📚 Resources
 
-- **Web Console**: http://localhost:9009
-- **API Documentation**: http://localhost:9009/docs
+- **Web Console**: http://localhost:9010
+- **API Documentation**: http://localhost:9010/docs
 - **Official Docs**: https://questdb.io/docs/
 - **SQL Reference**: https://questdb.io/docs/reference/sql/
 

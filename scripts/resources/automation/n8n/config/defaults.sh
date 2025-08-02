@@ -2,14 +2,27 @@
 # n8n Configuration Defaults
 # All configuration constants and default values
 
-# n8n port configuration
-readonly N8N_PORT="${N8N_CUSTOM_PORT:-$(resources::get_default_port "n8n")}"
-readonly N8N_BASE_URL="http://localhost:${N8N_PORT}"
+# n8n port configuration - check if already set to avoid readonly conflicts in tests
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* N8N_PORT="; then
+    readonly N8N_PORT="${N8N_CUSTOM_PORT:-$(resources::get_default_port "n8n")}"
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* N8N_BASE_URL="; then
+    readonly N8N_BASE_URL="http://localhost:${N8N_PORT}"
+fi
 
-# Container configuration
-readonly N8N_CONTAINER_NAME="n8n"
-readonly N8N_DATA_DIR="${HOME}/.n8n"
-readonly N8N_IMAGE="docker.n8n.io/n8nio/n8n:latest"
+# Container configuration - check for readonly conflicts
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* N8N_SERVICE_NAME="; then
+    readonly N8N_SERVICE_NAME="n8n"
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* N8N_CONTAINER_NAME="; then
+    readonly N8N_CONTAINER_NAME="n8n"
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* N8N_DATA_DIR="; then
+    readonly N8N_DATA_DIR="/data/n8n"
+fi
+if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* N8N_IMAGE="; then
+    readonly N8N_IMAGE="docker.n8n.io/n8nio/n8n:latest"
+fi
 
 # Custom image configuration
 readonly N8N_CUSTOM_IMAGE="${N8N_CUSTOM_IMAGE:-n8n-vrooli:latest}"
@@ -17,8 +30,14 @@ readonly N8N_USE_CUSTOM_IMAGE="${N8N_USE_CUSTOM_IMAGE:-no}"
 
 # Database configuration
 readonly N8N_DB_TYPE="${N8N_DB_TYPE:-sqlite}"
-readonly N8N_DB_CONTAINER_NAME="n8n-postgres"
+readonly N8N_DB_CONTAINER_NAME="vrooli-n8n-postgres"
+readonly N8N_DB_IMAGE="postgres:13-alpine"
 readonly N8N_DB_PORT="5432"
+readonly N8N_DB_POSTGRESDB_HOST="localhost"
+readonly N8N_DB_POSTGRESDB_PORT="5432"
+readonly N8N_DB_POSTGRESDB_DATABASE="n8n"
+readonly N8N_DB_POSTGRESDB_USER="n8n"
+readonly N8N_DB_POSTGRESDB_PASSWORD="n8n-secure-password"
 readonly N8N_DB_PASSWORD="n8n-secure-password-$(date +%s | sha256sum | head -c 16)"
 
 # Network configuration

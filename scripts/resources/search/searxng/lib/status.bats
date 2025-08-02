@@ -72,7 +72,7 @@ setup() {
                             echo "$MOCK_HEALTH_STATUS"
                             ;;
                         "--format={{.Config.Image}}")
-                            echo "searxng/searxng:latest"
+                            echo "searxng/searxng:2025.1.31-157c9267e"
                             ;;
                     esac
                     return 0
@@ -262,7 +262,7 @@ setup() {
     [[ "$output" =~ "Docker Status: running" ]]
     [[ "$output" =~ "Started At: 2024-01-01T10:00:00Z" ]]
     [[ "$output" =~ "Health Status: healthy" ]]
-    [[ "$output" =~ "Image: searxng/searxng:latest" ]]
+    [[ "$output" =~ "Image: searxng/searxng:2025.1.31-157c9267e" ]]
 }
 
 @test "searxng::show_detailed_status shows network status" {

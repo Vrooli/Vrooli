@@ -14,6 +14,8 @@ RESOURCES_DIR="${SCRIPT_DIR}/../.."
 source "${RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/../helpers/utils/args.sh"
+# shellcheck disable=SC1091
+source "${RESOURCES_DIR}/../helpers/utils/docker.sh"
 
 # Source configuration
 # shellcheck disable=SC1091

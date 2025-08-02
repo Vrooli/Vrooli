@@ -202,3 +202,161 @@ Ports: {{range $p, $conf := .NetworkSettings.Ports}}{{$p}} -> {{(index $conf 0).
 Mounts: {{range .Mounts}}{{.Source}} -> {{.Destination}} {{end}}
 Environment: {{range .Config.Env}}{{.}} {{end}}'
 }
+
+#######################################
+# Check if GPU is available
+#######################################
+whisper::is_gpu_available() {
+    command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1
+}
+
+#######################################
+# Remove container
+#######################################
+whisper::remove_container() {
+    if ! whisper::container_exists; then
+        echo "Container does not exist"
+        return 0
+    fi
+    
+    log::info "Removing Whisper container..."
+    docker rm -f "$WHISPER_CONTAINER_NAME"
+}
+
+#######################################
+# Get container logs (alias for show_logs)
+#######################################
+whisper::get_logs() {
+    local follow="${1:-no}"
+    if [[ "$follow" == "yes" ]]; then
+        docker logs -f "$WHISPER_CONTAINER_NAME"
+    else
+        docker logs "$WHISPER_CONTAINER_NAME"
+    fi
+}
+
+#######################################
+# Inspect container
+#######################################
+whisper::inspect_container() {
+    if ! whisper::container_exists; then
+        echo "Container does not exist"
+        return 1
+    fi
+    
+    docker inspect "$WHISPER_CONTAINER_NAME"
+}
+
+#######################################
+# Check GPU support
+#######################################
+whisper::check_gpu_support() {
+    if whisper::is_gpu_available; then
+        echo "GPU support available"
+        return 0
+    else
+        echo "No GPU support"
+        return 1
+    fi
+}
+
+#######################################
+# Get appropriate Docker image
+#######################################
+whisper::get_docker_image() {
+    local use_gpu="${WHISPER_USE_GPU:-auto}"
+    
+    if [[ "$use_gpu" == "yes" ]] || [[ "$use_gpu" == "auto" && $(whisper::is_gpu_available) ]]; then
+        echo "${WHISPER_IMAGE_GPU:-openai/whisper:gpu}"
+    else
+        echo "${WHISPER_IMAGE_CPU:-openai/whisper:cpu}"
+    fi
+}
+
+#######################################
+# Check container health
+#######################################
+whisper::check_container_health() {
+    if ! whisper::container_exists; then
+        echo "Container does not exist"
+        return 1
+    fi
+    
+    local health_status
+    health_status=$(docker inspect "$WHISPER_CONTAINER_NAME" --format '{{.State.Health.Status}}')
+    
+    if [[ "$health_status" == "healthy" ]]; then
+        echo "Container is healthy"
+        return 0
+    else
+        echo "Container is not healthy: $health_status"
+        return 1
+    fi
+}
+
+#######################################
+# Setup container volumes
+#######################################
+whisper::setup_volumes() {
+    echo "Setting up Whisper volumes"
+    # Volume setup logic here
+    return 0
+}
+
+#######################################
+# Setup container networking
+#######################################
+whisper::setup_network() {
+    echo "Setting up Whisper networking"
+    # Network setup logic here
+    return 0
+}
+
+#######################################
+# Setup container environment
+#######################################
+whisper::setup_environment() {
+    echo "Setting up Whisper environment"
+    # Environment setup logic here
+    return 0
+}
+
+#######################################
+# Set resource limits
+#######################################
+whisper::set_resource_limits() {
+    echo "Setting Whisper resource limits"
+    # Resource limits logic here
+    return 0
+}
+
+#######################################
+# Cleanup container and resources
+#######################################
+whisper::cleanup_container() {
+    echo "Cleaning up Whisper container"
+    whisper::remove_container
+    return 0
+}
+
+# Export functions for subshell availability
+export -f whisper::pull_image
+export -f whisper::start_container
+export -f whisper::stop_container
+export -f whisper::restart_container
+export -f whisper::show_logs
+export -f whisper::show_stats
+export -f whisper::exec
+export -f whisper::container_info
+export -f whisper::is_gpu_available
+export -f whisper::remove_container
+export -f whisper::get_logs
+export -f whisper::inspect_container
+export -f whisper::check_gpu_support
+export -f whisper::get_docker_image
+export -f whisper::check_container_health
+export -f whisper::setup_volumes
+export -f whisper::setup_network
+export -f whisper::setup_environment
+export -f whisper::set_resource_limits
+export -f whisper::cleanup_container

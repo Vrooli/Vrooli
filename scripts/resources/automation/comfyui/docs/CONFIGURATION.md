@@ -137,17 +137,16 @@ export COMFYUI_MODEL_DIR=/custom/models     # Custom model directory
 
 ## Docker Configuration
 
-### AI-Dock Image Features
+### Container Architecture
 
-ComfyUI uses the AI-Dock image which includes:
+ComfyUI uses a vanilla container setup with optional Jupyter support:
 
 ```dockerfile
-# Based on ghcr.io/ai-dock/comfyui
+# Based on zhangp365/comfyui:latest
 # Includes:
 # - ComfyUI (Port 8188)
-# - Jupyter Notebook (Port 8888)  
-# - Syncthing (Port 8384)
-# - Service Portal (Port 1111/5679)
+# Optional separate container:
+# - Jupyter Notebook (Port 8889)
 ```
 
 ### Volume Mounts

@@ -149,8 +149,8 @@ setup_searxng_test_env_no_defaults() {
     source "$SCRIPT_PATH"
     
     # Set minimal required variables
-    SEARXNG_PORT="8100"
-    SEARXNG_BASE_URL="http://localhost:8100"
+    SEARXNG_PORT="9200"
+    SEARXNG_BASE_URL="http://localhost:9200"
     SEARXNG_CONTAINER_NAME="searxng"
     SEARXNG_DATA_DIR="/tmp/searxng-test"
     SEARXNG_LOG_LINES="50"

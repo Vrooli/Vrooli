@@ -61,6 +61,11 @@ qdrant::docker::create_directories() {
             return 1
         fi
         
+        # Fix Docker volume permissions if setup was run with sudo
+        docker::fix_volume_permissions "$dir" 2>/dev/null || {
+            log::debug "Could not fix Docker volume permissions for $dir, continuing..."
+        }
+        
         # Set appropriate permissions
         chmod 755 "$dir" 2>/dev/null || true
     done

@@ -1,0 +1,18 @@
+# Real Estate Template Network Profile
+# Networks optimized for real estate automation workflows
+# One network per line, comments start with #
+
+# Core automation for lead generation and follow-up
+n8n-network
+
+# Real-time monitoring and dashboards
+node-red-network
+
+# Web scraping for property data and market analysis
+browserless-network
+
+# AI integration for lead qualification and chatbots
+# (requires ollama or cloud AI services)
+
+# Search capabilities for property research
+searxng-network

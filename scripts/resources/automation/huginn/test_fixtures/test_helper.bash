@@ -476,12 +476,12 @@ source_huginn_scripts() {
     # Export configuration
     huginn::export_config
     
-    # Source library modules
-    source "$HUGINN_TEST_DIR/lib/common.sh"
-    source "$HUGINN_TEST_DIR/lib/docker.sh"
-    source "$HUGINN_TEST_DIR/lib/install.sh"
-    source "$HUGINN_TEST_DIR/lib/status.sh"
-    source "$HUGINN_TEST_DIR/lib/api.sh"
+    # Source library modules from the actual huginn directory
+    source "$HUGINN_ROOT_DIR/lib/common.sh"
+    source "$HUGINN_ROOT_DIR/lib/docker.sh"
+    source "$HUGINN_ROOT_DIR/lib/install.sh"
+    source "$HUGINN_ROOT_DIR/lib/status.sh"
+    source "$HUGINN_ROOT_DIR/lib/api.sh"
 }
 
 # Initialize test environment

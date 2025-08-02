@@ -89,7 +89,7 @@ comfyui::parse_arguments() {
         echo "  $0 --action execute-workflow --workflow my-workflow.json"
         echo
         echo "Environment Variables:"
-        echo "  COMFYUI_CUSTOM_PORT      Override default port (default: 5679)"
+        echo "  COMFYUI_CUSTOM_PORT      Override default port (default: 8188)"
         echo "  COMFYUI_GPU_TYPE         Force GPU type (auto/nvidia/amd/cpu)"
         echo "  COMFYUI_CUSTOM_IMAGE     Use custom Docker image"
         echo "  COMFYUI_VRAM_LIMIT       Limit VRAM usage in GB"

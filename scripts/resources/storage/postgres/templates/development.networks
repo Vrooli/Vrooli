@@ -1,0 +1,9 @@
+# Development Template Network Profile
+# Networks that development instances should join by default
+# One network per line, comments start with #
+
+# Join n8n network for workflow development
+n8n-network
+
+# Join Node-RED network for monitoring and debugging
+node-red-network

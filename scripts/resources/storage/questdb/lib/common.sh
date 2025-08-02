@@ -32,6 +32,11 @@ questdb::create_dirs() {
             echo_error "Failed to create directory: $dir"
             return 1
         fi
+        
+        # Fix Docker volume permissions if setup was run with sudo
+        docker::fix_volume_permissions "$dir" 2>/dev/null || {
+            echo_debug "Could not fix Docker volume permissions for $dir, continuing..."
+        }
     done
     
     return 0

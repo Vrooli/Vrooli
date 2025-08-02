@@ -2,6 +2,36 @@
 # Judge0 Status Module
 # Handles status checking and health monitoring
 
+# Load dependencies if not already loaded
+if [[ -z "${JUDGE0_WORKERS_COUNT:-}" ]]; then
+    # Try to load config from relative path
+    SCRIPT_DIR_STATUS=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+    if [[ -f "${SCRIPT_DIR_STATUS}/config/defaults.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "${SCRIPT_DIR_STATUS}/config/defaults.sh"
+        judge0::export_config
+    fi
+fi
+
+# Define fallback functions if not loaded
+if ! declare -f judge0::is_running >/dev/null 2>&1; then
+    judge0::is_running() {
+        if declare -f judge0::docker::is_running >/dev/null 2>&1; then
+            judge0::docker::is_running
+        else
+            # Fallback check
+            docker ps --format "{{.Names}}" | grep -q "^${JUDGE0_CONTAINER_NAME:-vrooli-judge0-server}$"
+        fi
+    }
+fi
+
+if ! declare -f judge0::api::health_check >/dev/null 2>&1; then
+    judge0::api::health_check() {
+        local port="${JUDGE0_PORT:-2358}"
+        curl -f -s --max-time 5 "http://localhost:${port}/version" >/dev/null 2>&1
+    }
+fi
+
 #######################################
 # Show comprehensive Judge0 status
 #######################################

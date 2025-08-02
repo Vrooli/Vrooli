@@ -6,9 +6,9 @@ services:
     container_name: ${QUESTDB_CONTAINER_NAME:-questdb}
     hostname: questdb
     ports:
-      - "${QUESTDB_HTTP_PORT:-9009}:9009"         # HTTP/REST API & Web Console
+      - "${QUESTDB_HTTP_PORT:-9010}:9000"         # HTTP/REST API & Web Console
       - "${QUESTDB_PG_PORT:-8812}:8812"           # PostgreSQL wire protocol
-      - "${QUESTDB_ILP_PORT:-9003}:9003"          # InfluxDB line protocol (TCP)
+      - "${QUESTDB_ILP_PORT:-9011}:9009"          # InfluxDB line protocol (TCP)
     volumes:
       - "${QUESTDB_DATA_DIR}:/var/lib/questdb"
       - "${QUESTDB_CONFIG_DIR}:/questdb/conf"
@@ -26,9 +26,9 @@ services:
       - QDB_PG_PASSWORD=${QUESTDB_PG_PASSWORD:-quest}
       
       # Network settings
-      - QDB_HTTP_BIND_TO=0.0.0.0:9009
+      - QDB_HTTP_BIND_TO=0.0.0.0:9000
       - QDB_PG_BIND_TO=0.0.0.0:8812
-      - QDB_LINE_TCP_BIND_TO=0.0.0.0:9003
+      - QDB_LINE_TCP_BIND_TO=0.0.0.0:9009
       
       # Memory settings
       - QDB_CAIRO_PAGE_FRAME_COUNT=256
@@ -41,7 +41,7 @@ services:
       
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9009/status"]
+      test: ["CMD", "curl", "-f", "http://localhost:9000/status"]
       interval: 30s
       timeout: 10s
       retries: 3

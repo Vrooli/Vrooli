@@ -17,7 +17,7 @@ setup() {
     
     # Mock resources function
     resources::get_default_port() {
-        echo "8100"
+        echo "9200"
     }
     
     # Load the defaults
@@ -36,7 +36,7 @@ setup() {
     [ "$SEARXNG_PORT" = "8200" ]  # Custom port should override default
     [ "$SEARXNG_BASE_URL" = "http://localhost:8200" ]
     [ "$SEARXNG_CONTAINER_NAME" = "searxng" ]
-    [ "$SEARXNG_IMAGE" = "searxng/searxng:latest" ]
+    [ "$SEARXNG_IMAGE" = "searxng/searxng:2025.1.31-157c9267e" ]
     [ "$SEARXNG_NETWORK_NAME" = "searxng-network" ]
 }
 
@@ -44,8 +44,8 @@ setup() {
     unset SEARXNG_CUSTOM_PORT
     searxng::export_config
     
-    [ "$SEARXNG_PORT" = "8100" ]  # Should use default from mock function
-    [ "$SEARXNG_BASE_URL" = "http://localhost:8100" ]
+    [ "$SEARXNG_PORT" = "9200" ]  # Should use default from mock function
+    [ "$SEARXNG_BASE_URL" = "http://localhost:9200" ]
 }
 
 @test "searxng::export_config sets data directory correctly" {

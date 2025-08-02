@@ -1,0 +1,4 @@
+# Minimal Template Network Profile
+# Minimal instances have no default network connections
+# This provides maximum isolation
+# Add networks manually with --networks if needed

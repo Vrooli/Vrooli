@@ -1,0 +1,9 @@
+# Production Template Network Profile
+# Networks that production instances should join by default
+# One network per line, comments start with #
+
+# Production typically only needs n8n for workflows
+n8n-network
+
+# Uncomment if monitoring is needed in production
+# node-red-network

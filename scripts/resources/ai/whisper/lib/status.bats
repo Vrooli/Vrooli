@@ -23,6 +23,14 @@ setup() {
     
     # Mock system functions
     
+    # Mock resources functions that are called during config loading
+    resources::get_default_port() {
+        case "$1" in
+            "whisper") echo "8090" ;;
+            *) echo "8080" ;;
+        esac
+    }
+    
     # Mock Docker functions
     
     # Mock curl for health checks

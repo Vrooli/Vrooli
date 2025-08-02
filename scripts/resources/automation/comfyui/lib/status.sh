@@ -197,7 +197,7 @@ comfyui::status() {
             echo "  • View logs: $0 --action logs"
             echo "  • Stop service: $0 --action stop"
             echo "  • Access ComfyUI: http://localhost:$COMFYUI_DIRECT_PORT"
-            echo "  • Access AI-Dock Portal: http://localhost:$port"
+            echo "  • Access Jupyter Notebook: http://localhost:$COMFYUI_JUPYTER_PORT"
         else
             echo "  • Start service: $0 --action start"
         fi
@@ -246,7 +246,7 @@ comfyui::info() {
     log::info "=== Access Information ==="
     local port="${COMFYUI_CUSTOM_PORT:-$COMFYUI_DEFAULT_PORT}"
     echo "  ComfyUI Interface: http://localhost:$COMFYUI_DIRECT_PORT"
-    echo "  AI-Dock Portal: http://localhost:$port"
+    echo "  Jupyter Notebook: http://localhost:$COMFYUI_JUPYTER_PORT"
     echo "  API Endpoint: http://localhost:$COMFYUI_DIRECT_PORT"
     echo
     

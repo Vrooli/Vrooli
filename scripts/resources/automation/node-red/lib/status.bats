@@ -281,7 +281,7 @@ teardown_file() {
     }
     export -f docker
     
-    run timeout 1 node_red::view_logs
+    run node_red_timeout_wrapper 1 node_red::view_logs
     # Should timeout but that's expected for following logs
     assert_output_contains "Following logs"
 }
@@ -381,7 +381,7 @@ teardown_file() {
     export -f date
     
     # Run for a very short time
-    run timeout 2 node_red::monitor 1
+    run node_red_timeout_wrapper 2 node_red::monitor 1
     # Should timeout, which is expected
     assert_output_contains "Monitoring Node-RED"
 }

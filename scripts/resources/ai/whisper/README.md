@@ -64,26 +64,65 @@ curl -X POST "http://localhost:8090/asr?output=json" \
   -F "task=translate"
 ```
 
-### Response Format
+### Language Detection Endpoint
 
+```bash
+# Detect the language of an audio file
+curl -X POST "http://localhost:8090/detect-language" \
+  -F "audio_file=@audio.mp3"
+```
+
+### Response Formats
+
+#### Transcription Response
 ```json
 {
   "text": "Hello, this is a transcription of the audio file.",
   "segments": [
     {
+      "id": 0,
+      "seek": 0,
       "start": 0.0,
       "end": 3.5,
-      "text": "Hello, this is a transcription"
-    },
-    {
-      "start": 3.5,
-      "end": 5.2,
-      "text": "of the audio file."
+      "text": "Hello, this is a transcription",
+      "tokens": [50365, 25674, 50563],
+      "temperature": 0.0,
+      "avg_logprob": -0.4147,
+      "compression_ratio": 0.333,
+      "no_speech_prob": 0.551
     }
   ],
   "language": "en"
 }
 ```
+
+#### Language Detection Response
+```json
+{
+  "detected_language": "english",
+  "language_code": "en",
+  "confidence": 0.9987
+}
+```
+
+## Technical Notes
+
+### API Health Check
+
+The Whisper service uses a 307 redirect pattern for its health check:
+
+- **Root endpoint** (`/`) returns HTTP 307 redirect to `/docs`
+- This is normal behavior and indicates the service is healthy
+- The Vrooli resource provider accepts both 200 and 307 status codes
+- Interactive API documentation is available at `/docs`
+- OpenAPI specification is available at `/openapi.json`
+
+### Model Management
+
+The Whisper service currently loads a single model at startup:
+- Model size is specified via the `ASR_MODEL` environment variable
+- Changing models requires restarting the container
+- The `/models` endpoint is not available in the current implementation
 
 ## Management Commands
 
@@ -101,6 +140,9 @@ curl -X POST "http://localhost:8090/asr?output=json" \
 
 # Show detailed information
 ./manage.sh --action info
+
+# Clean up old upload files (older than 1 day by default)
+./manage.sh --action cleanup
 
 # Uninstall
 ./manage.sh --action uninstall
@@ -171,7 +213,12 @@ Once installed, Whisper is automatically configured in Vrooli's resource registr
 ## Security Considerations
 
 - Audio files are temporarily stored in `~/.whisper/uploads/`
-- Files are not automatically cleaned (implement cleanup in production)
+- Use `./manage.sh --action cleanup` to remove old upload files
+- Consider scheduling cleanup via cron for production deployments:
+  ```bash
+  # Add to crontab to run daily at 3 AM
+  0 3 * * * /path/to/whisper/manage.sh --action cleanup
+  ```
 - Container runs in isolated environment
 - No external network access required after model download
 

@@ -45,7 +45,7 @@ server:
 ```yaml
 server:
   bind_address: "127.0.0.1"   # Local access only
-  port: 8100                  # Default port
+  port: 9200                  # Default port
   secret_key: "auto-generated" # Session security
   limiter: false              # Disable for local use
 

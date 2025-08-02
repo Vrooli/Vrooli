@@ -12,18 +12,17 @@ http://localhost:8090
 
 ### Health Check
 
-**GET** `/health`
+**GET** `/`
 
 Check if the Whisper service is running and healthy.
 
+**Note:** The root endpoint returns a 307 redirect to `/docs` when healthy.
+
 **Response:**
-```json
-{
-  "status": "healthy",
-  "model": "large",
-  "version": "1.0.0"
-}
-```
+- Status: 307 Temporary Redirect
+- Location header: `/docs`
+
+For API documentation, visit `/docs` for the interactive Swagger UI or `/openapi.json` for the OpenAPI specification.
 
 ### Transcribe Audio
 
@@ -81,6 +80,30 @@ Translate audio from any language to English.
 curl -X POST "http://localhost:8090/asr?output=json" \
   -F "audio_file=@spanish.mp3" \
   -F "task=translate"
+```
+
+### Detect Language
+
+**POST** `/detect-language`
+
+Detect the language of an audio file without transcribing the full content.
+
+**Parameters:**
+- `audio_file` (file, required): Audio file to analyze
+
+**Example Request:**
+```bash
+curl -X POST "http://localhost:8090/detect-language" \
+  -F "audio_file=@audio.mp3"
+```
+
+**Response:**
+```json
+{
+  "detected_language": "english",
+  "language_code": "en",
+  "confidence": 0.95
+}
 ```
 
 ## Supported Audio Formats

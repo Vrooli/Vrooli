@@ -102,7 +102,7 @@ teardown() {
 @test "node_red::wait_for_ready succeeds when service becomes available quickly" {
     mock_curl "success"
     
-    run timeout 10 node_red::wait_for_ready
+    run node_red::wait_for_ready
     assert_success
     assert_output_contains "ready"
 }

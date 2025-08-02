@@ -252,10 +252,16 @@ node_red::validate_docker_setup() {
     
     # Check port availability
     if ! node_red::check_port "$RESOURCE_PORT"; then
-        log::error "Port $RESOURCE_PORT is already in use"
-        log::info "Stop the service using port $RESOURCE_PORT or use a different port"
-        log::info "Example: NODE_RED_CUSTOM_PORT=1881 $0 --action install"
-        return 1
+        # Check if it's our own container using the port
+        if node_red::is_running; then
+            log::info "Node-RED is already running on port $RESOURCE_PORT"
+            return 0  # Not an error if it's our container
+        else
+            log::error "Port $RESOURCE_PORT is already in use by another service"
+            log::info "Stop the service using port $RESOURCE_PORT or use a different port"
+            log::info "Example: NODE_RED_CUSTOM_PORT=1881 $0 --action install"
+            return 1
+        fi
     fi
     
     return 0

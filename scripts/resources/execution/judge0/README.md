@@ -12,6 +12,16 @@ Judge0 is the most advanced open-source code execution system, providing:
 
 ## 🚀 Quick Start
 
+### System Requirements
+
+**Ubuntu 24.04 / Modern Linux**: Judge0's isolate sandbox requires unprivileged user namespaces, which are restricted by default on Ubuntu 24.04. During Vrooli setup with sudo, the following kernel parameter is automatically configured:
+
+```bash
+kernel.apparmor_restrict_unprivileged_userns = 0
+```
+
+This allows the isolate sandbox to create secure isolated environments for code execution. The setting is made persistent in `/etc/sysctl.d/99-vrooli.conf`.
+
 ### Installation
 ```bash
 # Install Judge0 (auto-detects system and configures)

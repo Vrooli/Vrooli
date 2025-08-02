@@ -760,7 +760,7 @@ Before seeking help, collect this information:
 2. **Community support**:
    - ComfyUI GitHub: https://github.com/comfyanonymous/ComfyUI
    - ComfyUI Reddit: https://reddit.com/r/comfyui/
-   - AI-Dock GitHub: https://github.com/ai-dock/comfyui
+   - Docker Image: https://hub.docker.com/r/zhangp365/comfyui
 
 3. **Create detailed bug reports**:
    - Include diagnostic information

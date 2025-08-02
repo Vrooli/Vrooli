@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  whisper:
+    image: ${WHISPER_IMAGE:-onerahmet/openai-whisper-asr-webservice:latest-gpu}
+    container_name: ${WHISPER_CONTAINER_NAME:-whisper}
+    hostname: whisper
+    restart: unless-stopped
+    ports:
+      - "${WHISPER_BIND_ADDRESS:-127.0.0.1}:${WHISPER_PORT:-8090}:9000"
+    volumes:
+      - whisper_models:/root/.cache/whisper:rw
+      - whisper_uploads:/app/uploads:rw
+    environment:
+      - ASR_MODEL=${WHISPER_MODEL_SIZE:-large}
+      - ASR_ENGINE=${WHISPER_ENGINE:-openai_whisper}
+    networks:
+      - whisper-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # GPU support
+    deploy:
+      resources:
+        limits:
+          memory: ${WHISPER_MEMORY_LIMIT:-16G}
+        reservations:
+          memory: ${WHISPER_MEMORY_RESERVATION:-8G}
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    # Required for GPU support
+    runtime: nvidia
+
+volumes:
+  whisper_models:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: "${WHISPER_MODELS_DIR:-$HOME/.whisper/models}"
+  whisper_uploads:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: "${WHISPER_UPLOADS_DIR:-$HOME/.whisper/uploads}"
+
+networks:
+  whisper-network:
+    name: ${WHISPER_NETWORK_NAME:-whisper-network}
+    driver: bridge

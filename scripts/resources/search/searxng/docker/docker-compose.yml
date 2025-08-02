@@ -2,15 +2,15 @@ version: "3.8"
 
 services:
   searxng:
-    image: ${SEARXNG_IMAGE:-searxng/searxng:latest}
+    image: ${SEARXNG_IMAGE:-searxng/searxng:2025.1.31-157c9267e}
     container_name: ${SEARXNG_CONTAINER_NAME:-searxng}
     hostname: searxng
     ports:
-      - "${SEARXNG_BIND_ADDRESS:-127.0.0.1}:${SEARXNG_PORT:-8100}:8080"
+      - "${SEARXNG_BIND_ADDRESS:-127.0.0.1}:${SEARXNG_PORT:-9200}:8080"
     volumes:
       - "${SEARXNG_DATA_DIR:-${HOME}/.searxng}:/etc/searxng:rw"
     environment:
-      - SEARXNG_BASE_URL=${SEARXNG_BASE_URL:-http://localhost:8100}
+      - SEARXNG_BASE_URL=${SEARXNG_BASE_URL:-http://localhost:9200}
       - SEARXNG_SECRET=${SEARXNG_SECRET_KEY}
     cap_drop:
       - ALL

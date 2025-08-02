@@ -43,6 +43,14 @@ node_red::handle_existing_installation() {
 # Complete Node-RED installation
 #######################################
 node_red::install() {
+    # Check if already installed and running
+    if node_red::is_installed && node_red::is_running && [[ "$FORCE" != "yes" ]]; then
+        log::info "Node-RED is already installed and running"
+        log::info "Use --force yes to reinstall, or --action status to check current state"
+        node_red::update_resource_config  # Ensure config is up to date
+        return 0
+    fi
+    
     node_red::show_installing
     
     # Pre-installation checks

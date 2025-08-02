@@ -4,7 +4,7 @@
 
 # Initialize all variables early to prevent unbound variable errors in messages.sh
 # These are set with default values and will be overridden by export_config function
-SEARXNG_PORT="${SEARXNG_CUSTOM_PORT:-8100}"
+SEARXNG_PORT="${SEARXNG_CUSTOM_PORT:-9200}"
 SEARXNG_BASE_URL="http://localhost:${SEARXNG_PORT}"
 SEARXNG_DATA_DIR="${HOME}/.searxng"
 SEARXNG_CONTAINER_NAME="searxng"
@@ -35,12 +35,12 @@ searxng::make_config_readonly() {
 searxng::export_config() {
     # Set all configuration variables (allows for dynamic reconfiguration)
     # SearXNG port configuration
-    SEARXNG_PORT="${SEARXNG_CUSTOM_PORT:-8100}"
+    SEARXNG_PORT="${SEARXNG_CUSTOM_PORT:-9200}"
     SEARXNG_BASE_URL="${SEARXNG_BASE_URL:-http://localhost:${SEARXNG_PORT}}"
     
     # Container configuration
     SEARXNG_CONTAINER_NAME="searxng"
-    SEARXNG_IMAGE="${SEARXNG_CUSTOM_IMAGE:-searxng/searxng:latest}"
+    SEARXNG_IMAGE="${SEARXNG_CUSTOM_IMAGE:-searxng/searxng:2025.1.31-157c9267e}"
     SEARXNG_DATA_DIR="${HOME}/.searxng"
     
     # Network configuration

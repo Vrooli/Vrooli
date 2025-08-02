@@ -89,9 +89,9 @@ export JUDGE0_LOG_MAX_FILES="5"
 # ============================================================================
 # These are enabled by default - full list available via API
 export JUDGE0_DEFAULT_LANGUAGES=(
-    "javascript:63"      # JavaScript (Node.js 12.14.0)
+    "javascript:93"      # JavaScript (Node.js 18.15.0)
     "typescript:94"      # TypeScript (5.0.3)
-    "python:71"          # Python (3.8.1)
+    "python:92"          # Python (3.11.2)
     "python2:70"         # Python (2.7.18)
     "go:95"              # Go (1.20.2)
     "rust:73"            # Rust (1.68.2)

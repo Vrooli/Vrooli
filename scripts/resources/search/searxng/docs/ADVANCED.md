@@ -17,7 +17,7 @@ def search_searxng(query, **kwargs):
         **kwargs
     }
     
-    response = requests.get('http://localhost:8100/search', params=params)
+    response = requests.get('http://localhost:9200/search', params=params)
     return response.json()
 
 # Example usage
@@ -40,7 +40,7 @@ async function searchSearXNG(query, options = {}) {
         ...options
     };
     
-    const response = await axios.get('http://localhost:8100/search', { params });
+    const response = await axios.get('http://localhost:9200/search', { params });
     return response.data;
 }
 
@@ -63,7 +63,7 @@ searchSearXNG('climate change', { categories: 'news', language: 'en' })
 # Function to search and format results
 search_web() {
     local query="$1"
-    local results=$(curl -s "http://localhost:8100/search?q=${query// /+}&format=json")
+    local results=$(curl -s "http://localhost:9200/search?q=${query// /+}&format=json")
     
     echo "$results" | jq -r '.results[:5] | .[] | "📰 \(.title)\n   🔗 \(.url)\n   📝 \(.content[:100])...\n"'
 }
@@ -121,7 +121,7 @@ SearXNG can be easily integrated with n8n workflows:
 
 1. **HTTP Request Node Configuration**:
    - Method: GET
-   - URL: `http://localhost:8100/search`
+   - URL: `http://localhost:9200/search`
    - Query Parameters:
      - q: `{{ $json.searchQuery }}`
      - format: `json`
@@ -160,7 +160,7 @@ SearXNG can be easily integrated with n8n workflows:
       "name": "Search Web",
       "type": "n8n-nodes-base.httpRequest",
       "parameters": {
-        "url": "http://localhost:8100/search",
+        "url": "http://localhost:9200/search",
         "qs": {
           "q": "={{ $json.topic }}",
           "format": "json",
@@ -348,7 +348,7 @@ async def parallel_search(queries):
         tasks = []
         for query in queries:
             task = session.get(
-                'http://localhost:8100/search',
+                'http://localhost:9200/search',
                 params={'q': query, 'format': 'json'}
             )
             tasks.append(task)
@@ -422,7 +422,7 @@ def track_search_metrics(query, results, response_time):
 
 while true; do
     # Test basic functionality
-    RESPONSE=$(curl -s -w "%{http_code}" "http://localhost:8100/search?q=test&format=json")
+    RESPONSE=$(curl -s -w "%{http_code}" "http://localhost:9200/search?q=test&format=json")
     HTTP_CODE="${RESPONSE: -3}"
     
     if [ "$HTTP_CODE" != "200" ]; then

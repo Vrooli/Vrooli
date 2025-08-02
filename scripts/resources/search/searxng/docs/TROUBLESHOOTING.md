@@ -31,7 +31,7 @@ docker ps -a | grep searxng
 
 **Common Causes & Solutions**:
 - **Invalid config syntax**: Verify YAML syntax in `~/.searxng/settings.yml`
-- **Port conflicts**: Check if port 8100 is already in use with `lsof -i :8100`
+- **Port conflicts**: Check if port 9200 is already in use with `lsof -i :9200`
 - **Memory issues**: Ensure sufficient Docker memory allocation
 
 ### 3. 403 Forbidden on API Calls
@@ -61,13 +61,13 @@ echo 'search:
 **Diagnosis Steps**:
 ```bash
 # Test basic connectivity
-curl -s "http://localhost:8100/search?q=test&format=json" | jq -r '.query'
+curl -s "http://localhost:9200/search?q=test&format=json" | jq -r '.query'
 
 # Check if SearXNG is accessible
-curl -s http://localhost:8100/stats | jq .
+curl -s http://localhost:9200/stats | jq .
 
 # Test specific search engines
-curl -s "http://localhost:8100/search?q=test&format=json&engines=google"
+curl -s "http://localhost:9200/search?q=test&format=json&engines=google"
 ```
 
 **Common Solutions**:
@@ -200,10 +200,10 @@ logging:
 ### Debug API Calls
 ```bash
 # Test with verbose output
-curl -v "http://localhost:8100/search?q=test&format=json"
+curl -v "http://localhost:9200/search?q=test&format=json"
 
 # Time API responses
-time curl -s "http://localhost:8100/search?q=performance+test&format=json" > /dev/null
+time curl -s "http://localhost:9200/search?q=performance+test&format=json" > /dev/null
 
 # Monitor network activity
 docker exec searxng netstat -tuln

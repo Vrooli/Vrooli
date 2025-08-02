@@ -100,3 +100,6 @@ whisper::export_messages() {
     export MSG_USAGE_MODELS MSG_USAGE_HEALTH MSG_USAGE_ALL MSG_DOCKER_INSTALL_HINT
     export MSG_DOCKER_START_HINT MSG_DOCKER_PERMISSIONS_HINT MSG_DOCKER_LOGOUT_HINT
 }
+
+# Export function for subshell availability
+export -f whisper::export_messages

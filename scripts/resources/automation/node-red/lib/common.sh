@@ -137,64 +137,48 @@ node_red::create_directories() {
 
 #######################################
 # Update Vrooli resource configuration
+# SAFE VERSION - Uses proper ConfigurationManager to prevent data loss
 #######################################
 node_red::update_resource_config() {
-    local config_file="$HOME/.vrooli/resources.local.json"
+    log::info "Updating Node-RED resource configuration..."
     
-    # Create config directory if it doesn't exist
-    mkdir -p "$(dirname "$config_file")"
-    
-    # Create or update configuration
-    if [[ -f "$config_file" ]]; then
-        # Update existing config
-        local tmp_file=$(mktemp)
-        jq --arg url "http://localhost:$RESOURCE_PORT" \
-           '.services.automation."node-red" = {
-                "enabled": true,
-                "baseUrl": $url,
-                "adminUrl": ($url + "/admin"),
-                "healthCheck": {
-                    "endpoint": "/",
-                    "intervalMs": 60000,
-                    "timeoutMs": 5000
-                },
-                "flows": {
-                    "directory": "/data/flows",
-                    "autoBackup": true,
-                    "backupInterval": "1h"
-                }
-            }' "$config_file" > "$tmp_file" && mv "$tmp_file" "$config_file"
+    # Source the common resources functions for safe config management
+    local resources_common_script="$(cd "$SCRIPT_DIR/../.." && pwd)/common.sh"
+    if [[ -f "$resources_common_script" ]]; then
+        source "$resources_common_script"
     else
-        # Create new config
-        cat > "$config_file" << EOF
+        log::error "Cannot find resources common.sh script for safe configuration management"
+        return 1
+    fi
+    
+    # Create Node-RED specific configuration
+    local node_red_config=$(cat << EOF
 {
-    "version": "1.0.0",
     "enabled": true,
-    "services": {
-        "automation": {
-            "node-red": {
-                "enabled": true,
-                "baseUrl": "http://localhost:$RESOURCE_PORT",
-                "adminUrl": "http://localhost:$RESOURCE_PORT/admin",
-                "healthCheck": {
-                    "endpoint": "/",
-                    "intervalMs": 60000,
-                    "timeoutMs": 5000
-                },
-                "flows": {
-                    "directory": "/data/flows",
-                    "autoBackup": true,
-                    "backupInterval": "1h"
-                }
-            }
-        }
+    "baseUrl": "http://localhost:$RESOURCE_PORT",
+    "adminUrl": "http://localhost:$RESOURCE_PORT/admin",
+    "healthCheck": {
+        "endpoint": "/flows",
+        "intervalMs": 60000,
+        "timeoutMs": 5000
+    },
+    "flows": {
+        "directory": "/data/flows",
+        "autoBackup": true,
+        "backupInterval": "1h"
     }
 }
 EOF
-    fi
+    )
     
-    # Set appropriate permissions
-    chmod 600 "$config_file"
+    # Use the safe configuration update function from common.sh
+    if resources::update_config "automation" "node-red" "http://localhost:$RESOURCE_PORT" "$node_red_config"; then
+        log::success "Node-RED configuration updated safely"
+        return 0
+    else
+        log::error "Failed to update Node-RED configuration using safe method"
+        return 1
+    fi
 }
 
 #######################################

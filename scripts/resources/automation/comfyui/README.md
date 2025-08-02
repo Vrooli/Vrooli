@@ -5,7 +5,7 @@ ComfyUI is a powerful, node-based AI image generation workflow platform that ena
 ## 🎯 Quick Reference
 
 - **Category**: Automation (AI Image Generation)
-- **Ports**: 8188 (ComfyUI), 5679 (AI-Dock Portal)
+- **Ports**: 8188 (ComfyUI Web UI & API), 8889 (Jupyter Notebook)
 - **Container**: comfyui
 - **API Docs**: [Complete API Reference](docs/API.md)
 - **Status**: Production Ready
@@ -56,11 +56,11 @@ ComfyUI is a powerful, node-based AI image generation workflow platform that ena
 ./manage.sh --action status
 
 # Test API connectivity
-curl -f http://localhost:8188/system_stats
+curl -f http://localhost:8188/
 
 # Access interfaces:
-# ComfyUI Editor: http://localhost:8188
-# AI-Dock Portal: http://localhost:5679
+# ComfyUI Web UI: http://localhost:8188
+# Jupyter Notebook: http://localhost:8889
 ```
 
 ## 🔧 Core Features
@@ -71,7 +71,7 @@ curl -f http://localhost:8188/system_stats
 - **📡 API Integration**: Execute workflows programmatically via REST API and WebSocket
 - **🔄 Workflow Automation**: Integrate with n8n and other automation tools
 - **💾 Model Management**: Download and organize AI models automatically
-- **🐳 Docker-based**: Isolated, reproducible environment with AI-Dock
+- **🐳 Docker-based**: Isolated, reproducible environment
 
 ## 📖 Documentation
 
@@ -126,10 +126,10 @@ curl -f http://localhost:8188/system_stats
 
 ### API Integration
 ```bash
-# Test API connectivity (recommended)
-curl -f http://localhost:8188/system_stats
+# Test API connectivity
+curl -f http://localhost:8188/
 
-# Submit workflow via API
+# Submit workflow via ComfyUI API (port 8188 required for API)
 curl -X POST http://localhost:8188/prompt \
   -H "Content-Type: application/json" \
   -d @workflow.json
@@ -137,6 +137,8 @@ curl -X POST http://localhost:8188/prompt \
 # Get execution history
 curl http://localhost:8188/history
 ```
+
+**Note**: ComfyUI runs on port 8188 for both web UI and API access. Jupyter Notebook runs separately on port 8889.
 
 ### With Other Vrooli Resources
 ```javascript
@@ -158,15 +160,13 @@ return msg;
 
 ## ⚡ Key Architecture
 
-### AI-Dock Container Features
-ComfyUI runs in an AI-Dock container that provides:
+### Container Architecture
+ComfyUI runs in a vanilla container with optional Jupyter support:
 
 ```
-AI-Dock Container → Multiple Services
-├── ComfyUI (Port 8188) - Main image generation interface
-├── Service Portal (Port 5679) - Container management
-├── Jupyter Notebook (Port 8888) - Interactive development
-└── Syncthing (Port 8384) - File synchronization
+Vanilla Setup → Clean Architecture
+├── ComfyUI (Port 8188) - Web UI & API for image generation
+└── Jupyter (Port 8889) - Optional notebook for custom development
 ```
 
 ### GPU Support Matrix

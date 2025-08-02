@@ -2,6 +2,48 @@
 # Judge0 Common Utilities
 # Shared functions used across Judge0 management modules
 
+# Load dependencies if not already loaded (but preserve test environment)
+if [[ -z "${JUDGE0_API_KEY_LENGTH:-}" ]]; then
+    # Try to load config from relative path
+    SCRIPT_DIR_COMMON=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+    if [[ -f "${SCRIPT_DIR_COMMON}/config/defaults.sh" ]]; then
+        # Store test environment variables
+        _test_config_dir="${JUDGE0_CONFIG_DIR:-}"
+        _test_data_dir="${JUDGE0_DATA_DIR:-}"
+        
+        # shellcheck disable=SC1091
+        source "${SCRIPT_DIR_COMMON}/config/defaults.sh"
+        judge0::export_config
+        
+        # Restore test environment if it was set
+        if [[ -n "$_test_config_dir" ]]; then
+            export JUDGE0_CONFIG_DIR="$_test_config_dir"
+        fi
+        if [[ -n "$_test_data_dir" ]]; then
+            export JUDGE0_DATA_DIR="$_test_data_dir"
+        fi
+        
+        # Clean up temporary variables
+        unset _test_config_dir _test_data_dir
+    fi
+fi
+
+# Load logging utilities if not available
+if ! declare -f log::info >/dev/null 2>&1; then
+    # Try to source log utilities
+    RESOURCES_DIR_COMMON="${SCRIPT_DIR_COMMON}/../.."
+    if [[ -f "${RESOURCES_DIR_COMMON}/../helpers/utils/log.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "${RESOURCES_DIR_COMMON}/../helpers/utils/log.sh"
+    else
+        # Fallback logging functions
+        log::info() { echo "[INFO] $*"; }
+        log::success() { echo "[SUCCESS] $*"; }
+        log::warning() { echo "[WARNING] $*"; }
+        log::error() { echo "[ERROR] $*"; }
+    fi
+fi
+
 #######################################
 # Check if Judge0 is installed
 # Returns:
@@ -58,7 +100,9 @@ judge0::save_api_key() {
 #   Generated API key
 #######################################
 judge0::generate_api_key() {
-    openssl rand -hex "$JUDGE0_API_KEY_LENGTH" 2>/dev/null || \
+    # Generate hex string of the specified length (not bytes)
+    local hex_length=$((JUDGE0_API_KEY_LENGTH / 2))
+    openssl rand -hex "$hex_length" 2>/dev/null || \
         cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w "$JUDGE0_API_KEY_LENGTH" | head -n 1
 }
 

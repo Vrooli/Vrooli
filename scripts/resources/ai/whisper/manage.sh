@@ -28,7 +28,7 @@ readonly WHISPER_CPU_IMAGE="${WHISPER_CPU_IMAGE:-onerahmet/openai-whisper-asr-we
 
 # Model configuration
 readonly WHISPER_MODEL_SIZES=("tiny" "base" "small" "medium" "large" "large-v2" "large-v3")
-readonly WHISPER_DEFAULT_MODEL="${WHISPER_DEFAULT_MODEL:-large}"
+readonly WHISPER_DEFAULT_MODEL="${WHISPER_DEFAULT_MODEL:-medium}"
 
 # Model size information (approximate in GB)
 declare -A MODEL_SIZES=(
@@ -55,8 +55,8 @@ whisper::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|transcribe|models|info|test" \
-        --default "install"
+        --options "install|uninstall|start|stop|restart|status|logs|transcribe|models|info|test|cleanup" \
+        --default ""
     
     args::register \
         --name "force" \
@@ -104,6 +104,14 @@ whisper::parse_arguments() {
         exit 0
     fi
     
+    # Handle version request (check arguments manually)
+    for arg in "$@"; do
+        if [[ "$arg" == "--version" ]]; then
+            whisper::version
+            exit 0
+        fi
+    done
+    
     args::parse "$@"
     
     export ACTION=$(args::get "action")
@@ -129,12 +137,33 @@ whisper::usage() {
     echo "  $0 --action status                       # Check Whisper status"
     echo "  $0 --action transcribe --file audio.mp3  # Transcribe an audio file"
     echo "  $0 --action models                       # List available models"
+    echo "  $0 --action cleanup                      # Clean up old upload files"
     echo "  $0 --action uninstall                    # Remove Whisper"
     echo
     echo "Model Sizes:"
     for model in "${WHISPER_MODEL_SIZES[@]}"; do
         printf "  %-10s : %s GB\n" "$model" "${MODEL_SIZES[$model]}"
     done
+}
+
+#######################################
+# Display version information
+#######################################
+whisper::version() {
+    echo "whisper resource manager v1.0"
+    echo "Vrooli AI resource for speech-to-text transcription"
+    
+    # Show service version if container is running
+    if whisper::is_healthy; then
+        echo "Service status: Running"
+        local service_info
+        if service_info=$(whisper::get_service_info 2>/dev/null); then
+            echo "$service_info"
+        fi
+    else
+        echo "Service status: Not running or not installed"
+        echo "Run '$0 --action install' to install Whisper"
+    fi
 }
 
 #######################################
@@ -154,15 +183,54 @@ whisper::is_running() {
 }
 
 #######################################
-# Check if Whisper API is healthy
-# Returns: 0 if responsive, 1 otherwise
+# Check if Whisper API is healthy and validate service identity
+# Returns: 0 if responsive and valid, 1 otherwise
 #######################################
 whisper::is_healthy() {
-    # The Whisper API doesn't have a /health endpoint, so we check the root
-    # which returns a 307 redirect to /docs when healthy
+    # Check the OpenAPI endpoint which returns 200 when the service is ready
     local response_code
-    response_code=$(curl -s -o /dev/null -w "%{http_code}" "$WHISPER_BASE_URL/")
-    [[ "$response_code" == "307" ]] || [[ "$response_code" == "200" ]]
+    response_code=$(curl -s -o /dev/null -w "%{http_code}" "$WHISPER_BASE_URL/openapi.json")
+    
+    if [[ "$response_code" != "200" ]]; then
+        return 1
+    fi
+    
+    # Validate that this is actually the Whisper service by checking the API spec
+    local service_title
+    service_title=$(curl -s "$WHISPER_BASE_URL/openapi.json" 2>/dev/null | jq -r '.info.title // empty' 2>/dev/null)
+    
+    if [[ "$service_title" =~ ^Whisper.*Webservice$ ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+#######################################
+# Get detailed service information for validation
+# Returns: service info or empty string if not available
+#######################################
+whisper::get_service_info() {
+    if ! whisper::is_healthy; then
+        return 1
+    fi
+    
+    local openapi_response
+    openapi_response=$(curl -s "$WHISPER_BASE_URL/openapi.json" 2>/dev/null)
+    
+    if [[ -n "$openapi_response" ]] && echo "$openapi_response" | jq . >/dev/null 2>&1; then
+        local title version description
+        title=$(echo "$openapi_response" | jq -r '.info.title // "Unknown"')
+        version=$(echo "$openapi_response" | jq -r '.info.version // "Unknown"')
+        description=$(echo "$openapi_response" | jq -r '.info.description // "Unknown"')
+        
+        echo "Service: $title"
+        echo "Version: $version"
+        echo "Description: $description"
+        return 0
+    else
+        return 1
+    fi
 }
 
 #######################################
@@ -176,6 +244,73 @@ whisper::validate_model() {
         fi
     done
     return 1
+}
+
+#######################################
+# Comprehensive GPU validation
+# Returns: 0 if GPU is available and compatible, 1 otherwise
+#######################################
+whisper::validate_gpu() {
+    log::info "Validating GPU support..."
+    
+    # Check if nvidia-smi is available
+    if ! system::is_command "nvidia-smi"; then
+        log::error "nvidia-smi command not found"
+        log::info "Install NVIDIA drivers: https://developer.nvidia.com/cuda-downloads"
+        return 1
+    fi
+    
+    # Check if NVIDIA drivers are loaded
+    if ! nvidia-smi >/dev/null 2>&1; then
+        log::error "NVIDIA drivers not loaded or GPU not detected"
+        log::info "Check: sudo modprobe nvidia"
+        return 1
+    fi
+    
+    # Get GPU information
+    local gpu_count gpu_memory gpu_driver_version
+    gpu_count=$(nvidia-smi --query-gpu=count --format=csv,noheader,nounits 2>/dev/null | head -1 || echo "0")
+    gpu_memory=$(nvidia-smi --query-gpu=memory.total --format=csv,noheader,nounits 2>/dev/null | head -1 || echo "0")
+    gpu_driver_version=$(nvidia-smi --query-gpu=driver_version --format=csv,noheader 2>/dev/null | head -1 || echo "unknown")
+    
+    if [[ "$gpu_count" == "0" ]]; then
+        log::error "No NVIDIA GPUs detected"
+        return 1
+    fi
+    
+    log::success "✅ Found $gpu_count NVIDIA GPU(s)"
+    log::info "GPU memory: ${gpu_memory}MB, Driver: $gpu_driver_version"
+    
+    # Check minimum memory requirement (2GB recommended for Whisper)
+    if [[ "$gpu_memory" -lt 2048 ]]; then
+        log::warn "⚠️  GPU has less than 2GB memory (${gpu_memory}MB). Performance may be limited."
+    fi
+    
+    # Check if Docker can access GPU
+    if ! docker run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi >/dev/null 2>&1; then
+        log::error "Docker cannot access GPU. Check nvidia-docker installation"
+        log::info "Install nvidia-docker: https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html"
+        return 1
+    fi
+    
+    log::success "✅ Docker GPU access confirmed"
+    return 0
+}
+
+#######################################
+# Get GPU system information for diagnostics
+#######################################
+whisper::get_gpu_info() {
+    if ! system::is_command "nvidia-smi"; then
+        echo "NVIDIA drivers not installed"
+        return 1
+    fi
+    
+    echo "=== GPU Information ==="
+    nvidia-smi --query-gpu=name,memory.total,memory.used,memory.free,temperature.gpu,utilization.gpu --format=csv 2>/dev/null || echo "GPU query failed"
+    echo
+    echo "=== Driver Information ==="
+    nvidia-smi --query-gpu=driver_version,cuda_version --format=csv 2>/dev/null || echo "Driver query failed"
 }
 
 #######################################
@@ -207,19 +342,58 @@ whisper::create_directories() {
 }
 
 #######################################
-# Pull Docker image
+# Pull Docker image with progress indicators
 #######################################
 whisper::pull_image() {
     local image="$1"
     
     log::info "Pulling Whisper Docker image: $image"
-    log::info "This may take several minutes..."
     
-    if docker pull "$image"; then
-        log::success "Docker image pulled successfully"
+    # Check if image already exists locally
+    if docker image inspect "$image" >/dev/null 2>&1; then
+        log::info "Image already exists locally, checking for updates..."
+    fi
+    
+    # Estimate download size based on image type
+    local estimated_size="1-2GB"
+    if [[ "$image" == *"gpu"* ]]; then
+        estimated_size="2-3GB"
+    fi
+    
+    log::info "Estimated download size: $estimated_size"
+    log::info "This may take 5-15 minutes depending on your internet connection..."
+    echo "Progress will be shown below:"
+    echo
+    
+    # Pull with progress output
+    local pull_start_time=$(date +%s)
+    if docker pull "$image" 2>&1 | while IFS= read -r line; do
+        # Show progress lines but filter out redundant info
+        if [[ "$line" =~ (Pulling|Downloading|Extracting|Pull complete) ]]; then
+            echo "  $line"
+        elif [[ "$line" =~ (Status:|Digest:|already exists) ]]; then
+            echo "  $line"
+        fi
+    done; then
+        local pull_end_time=$(date +%s)
+        local pull_duration=$((pull_end_time - pull_start_time))
+        echo
+        log::success "✅ Docker image pulled successfully in ${pull_duration}s"
+        
+        # Show final image info
+        local image_size
+        image_size=$(docker image inspect "$image" --format='{{.Size}}' 2>/dev/null | numfmt --to=iec || echo "unknown")
+        log::info "Final image size: $image_size"
         return 0
     else
+        echo
         log::error "Failed to pull Docker image"
+        log::info "This could be due to:"
+        log::info "  - Network connectivity issues"
+        log::info "  - Docker Hub rate limiting"
+        log::info "  - Insufficient disk space"
+        log::info "  - Docker daemon issues"
+        log::info "Check: docker system df (for disk space)"
         return 1
     fi
 }
@@ -248,11 +422,12 @@ whisper::start_container() {
     # Determine which image to use
     local image="$WHISPER_CPU_IMAGE"
     if [[ "$USE_GPU" == "yes" ]]; then
-        if ! system::is_command "nvidia-smi"; then
-            log::warn "GPU requested but nvidia-smi not found. Using CPU image instead."
-        else
+        if whisper::validate_gpu; then
             image="$WHISPER_IMAGE"
-            log::info "Using GPU-accelerated image"
+            log::success "✅ GPU validation passed - using GPU-accelerated image"
+        else
+            log::warn "⚠️  GPU validation failed - falling back to CPU image"
+            log::info "For GPU support, ensure NVIDIA drivers and nvidia-docker are properly installed"
         fi
     fi
     
@@ -336,6 +511,98 @@ whisper::show_logs() {
 }
 
 #######################################
+# Validate audio file before processing
+#######################################
+whisper::validate_audio_file() {
+    local file="$1"
+    local max_size_mb=100
+    
+    # Check file exists
+    if [[ ! -f "$file" ]]; then
+        log::error "Audio file not found: $file"
+        return 1
+    fi
+    
+    # Check file size
+    local file_size_mb
+    file_size_mb=$(du -m "$file" | cut -f1)
+    if [[ $file_size_mb -gt $max_size_mb ]]; then
+        log::error "File too large: ${file_size_mb}MB (maximum: ${max_size_mb}MB)"
+        log::info "For large files, consider splitting into smaller segments"
+        return 1
+    fi
+    
+    # Check file format by extension
+    local file_ext="${file##*.}"
+    file_ext="${file_ext,,}"  # Convert to lowercase
+    local supported_formats=("wav" "mp3" "ogg" "m4a" "flac" "aac" "wma" "opus" "webm")
+    if [[ ! " ${supported_formats[@]} " =~ " ${file_ext} " ]]; then
+        log::error "Unsupported file format: '$file_ext'"
+        log::info "Supported formats: ${supported_formats[*]}"
+        log::info "Convert your file using: ffmpeg -i input.$file_ext -acodec pcm_s16le -ar 16000 output.wav"
+        return 1
+    fi
+    
+    # Check if file is actually audio using file command (if available)
+    if system::is_command "file"; then
+        local file_type
+        file_type=$(file -b --mime-type "$file" 2>/dev/null)
+        if [[ -n "$file_type" && ! "$file_type" =~ ^(audio/|video/) ]]; then
+            log::error "File does not appear to be audio/video: $file_type"
+            log::info "Expected MIME types: audio/* or video/*"
+            return 1
+        fi
+    fi
+    
+    return 0
+}
+
+#######################################
+# Parse API error response for better error messages
+#######################################
+whisper::parse_api_error() {
+    local response="$1"
+    
+    # Try to parse as JSON error
+    if echo "$response" | jq . >/dev/null 2>&1; then
+        local error_detail
+        error_detail=$(echo "$response" | jq -r '.detail // empty' 2>/dev/null)
+        if [[ -n "$error_detail" && "$error_detail" != "null" ]]; then
+            # Handle FastAPI validation errors
+            if echo "$error_detail" | jq -e 'type == "array"' >/dev/null 2>&1; then
+                log::error "API validation error:"
+                echo "$error_detail" | jq -r '.[] | "  - \(.loc | join(".")): \(.msg)"'
+            else
+                log::error "API error: $error_detail"
+            fi
+            return 0
+        fi
+    fi
+    
+    # Handle common error patterns
+    case "$response" in
+        *"Internal Server Error"*)
+            log::error "Internal server error - the audio file may be corrupted or in an unsupported format"
+            log::info "Try converting to WAV: ffmpeg -i input.audio -acodec pcm_s16le -ar 16000 output.wav"
+            ;;
+        *"413"*|*"Request Entity Too Large"*)
+            log::error "File too large for server processing"
+            ;;
+        *"timeout"*|*"timed out"*)
+            log::error "Processing timeout - file may be too long or server overloaded"
+            ;;
+        *"503"*|*"Service Unavailable"*)
+            log::error "Whisper service temporarily unavailable"
+            log::info "Check service status: $0 --action status"
+            ;;
+        *)
+            log::error "Whisper API error"
+            log::info "Raw response: $response"
+            ;;
+    esac
+}
+
+#######################################
 # Transcribe audio file
 #######################################
 whisper::transcribe() {
@@ -344,22 +611,30 @@ whisper::transcribe() {
         return 1
     fi
     
-    if [[ ! -f "$AUDIO_FILE" ]]; then
-        log::error "Audio file not found: $AUDIO_FILE"
+    # Validate audio file
+    if ! whisper::validate_audio_file "$AUDIO_FILE"; then
         return 1
     fi
     
+    # Get file info for logging (validation already passed)
+    local file_size_mb
+    file_size_mb=$(du -m "$AUDIO_FILE" | cut -f1)
+    local file_ext="${AUDIO_FILE##*.}"
+    file_ext="${file_ext,,}"
+    
     if ! whisper::is_healthy; then
         log::error "Whisper service is not available"
+        log::info "Start it with: $0 --action start"
         return 1
     fi
     
     log::info "Transcribing file: $AUDIO_FILE"
-    log::info "Model: $MODEL_SIZE, Task: $TASK"
+    log::info "Model: $MODEL_SIZE, Task: $TASK, Language: $LANGUAGE"
+    log::info "File size: ${file_size_mb}MB, Format: $file_ext"
     
     # Prepare curl command - output must be query parameter
     local curl_cmd=(
-        curl -X POST
+        curl -s -X POST
         "${WHISPER_BASE_URL}/asr?output=json"
         -F "audio_file=@${AUDIO_FILE}"
         -F "task=${TASK}"
@@ -370,17 +645,52 @@ whisper::transcribe() {
         curl_cmd+=(-F "language=${LANGUAGE}")
     fi
     
-    # Execute transcription
+    # Execute transcription with progress
+    log::info "Processing... (this may take a few minutes for longer files)"
     local response
+    local start_time=$(date +%s)
+    
     if response=$("${curl_cmd[@]}" 2>/dev/null); then
-        # Check if response is valid JSON
+        local end_time=$(date +%s)
+        local duration=$((end_time - start_time))
+        
+        # Check if response is valid JSON and contains transcription
         if echo "$response" | jq . >/dev/null 2>&1; then
-            echo "$response" | jq .
+            # Check if this is an error response
+            if echo "$response" | jq -e '.detail' >/dev/null 2>&1; then
+                whisper::parse_api_error "$response"
+                return 1
+            fi
+            
+            # Check if response contains expected transcription fields
+            if echo "$response" | jq -e '.text' >/dev/null 2>&1; then
+                log::success "✅ Transcription completed in ${duration}s"
+                echo "$response" | jq .
+                
+                # Show summary
+                local text_length
+                text_length=$(echo "$response" | jq -r '.text' | wc -c)
+                log::info "Transcribed text length: ${text_length} characters"
+                
+                # Check for silent audio indication
+                local no_speech_prob
+                no_speech_prob=$(echo "$response" | jq -r '.segments[0].no_speech_prob // 0' 2>/dev/null)
+                if (( $(echo "$no_speech_prob > 0.8" | bc -l 2>/dev/null || echo 0) )); then
+                    log::warn "⚠️  High probability of no speech detected (${no_speech_prob})"
+                    log::info "This may be a silent file or very quiet audio"
+                fi
+            else
+                log::error "Unexpected response format from Whisper API"
+                echo "Raw response: $response"
+                return 1
+            fi
         else
-            echo "$response"
+            whisper::parse_api_error "$response"
+            return 1
         fi
     else
-        log::error "Transcription failed"
+        log::error "Failed to connect to Whisper service"
+        log::info "Check if Whisper is running: $0 --action status"
         return 1
     fi
 }
@@ -395,19 +705,97 @@ whisper::update_config() {
     "supportedFormats": ["wav", "mp3", "ogg", "m4a", "flac", "aac", "wma"],
     "api": {
         "transcribe": "/asr",
-        "health": "/health"
+        "detectLanguage": "/detect-language",
+        "openapi": "/openapi.json",
+        "docs": "/docs"
     },
     "capabilities": {
         "transcription": true,
         "translation": true,
         "timestamps": true,
-        "multiLanguage": true
+        "multiLanguage": true,
+        "languageDetection": true
     }
 }
 EOF
 )
     
     resources::update_config "ai" "whisper" "$WHISPER_BASE_URL" "$additional_config"
+}
+
+#######################################
+# Setup automatic cleanup scheduling
+#######################################
+whisper::setup_automatic_cleanup() {
+    local script_path="$(realpath "${BASH_SOURCE[0]}")"
+    local cleanup_schedule="0 */6 * * *"  # Every 6 hours
+    local cron_command="$script_path --action cleanup"
+    local cron_entry="$cleanup_schedule $cron_command # Whisper automatic cleanup"
+    
+    log::info "Setting up automatic cleanup schedule..."
+    
+    # Check if cron is available
+    if ! system::is_command "crontab"; then
+        log::warn "crontab not available - skipping automatic cleanup setup"
+        log::info "You can manually run cleanup with: $script_path --action cleanup"
+        return 1
+    fi
+    
+    # Get current crontab (may be empty)
+    local current_crontab
+    current_crontab=$(crontab -l 2>/dev/null || echo "")
+    
+    # Check if cleanup job already exists
+    if echo "$current_crontab" | grep -q "Whisper automatic cleanup"; then
+        log::info "Automatic cleanup already scheduled"
+        return 0
+    fi
+    
+    # Add the new cron job
+    {
+        echo "$current_crontab"
+        echo "$cron_entry"
+    } | crontab -
+    
+    if [[ $? -eq 0 ]]; then
+        log::success "✅ Automatic cleanup scheduled (every 6 hours)"
+        log::info "Cleanup command: $cron_command"
+        log::info "View schedule: crontab -l | grep Whisper"
+        return 0
+    else
+        log::error "Failed to setup automatic cleanup"
+        return 1
+    fi
+}
+
+#######################################
+# Remove automatic cleanup scheduling
+#######################################
+whisper::remove_automatic_cleanup() {
+    log::info "Removing automatic cleanup schedule..."
+    
+    if ! system::is_command "crontab"; then
+        log::info "crontab not available - nothing to remove"
+        return 0
+    fi
+    
+    # Get current crontab
+    local current_crontab
+    current_crontab=$(crontab -l 2>/dev/null || echo "")
+    
+    # Remove Whisper cleanup entries
+    local new_crontab
+    new_crontab=$(echo "$current_crontab" | grep -v "Whisper automatic cleanup" || echo "")
+    
+    # Update crontab
+    if [[ -n "$new_crontab" ]]; then
+        echo "$new_crontab" | crontab -
+    else
+        # If no cron jobs left, remove crontab entirely
+        crontab -r 2>/dev/null || true
+    fi
+    
+    log::success "✅ Automatic cleanup schedule removed"
 }
 
 #######################################
@@ -584,6 +972,11 @@ whisper::install() {
         log::info "Whisper is installed but may need manual configuration"
     fi
     
+    # Setup automatic cleanup scheduling
+    if ! whisper::setup_automatic_cleanup; then
+        log::warn "Failed to setup automatic cleanup - you may want to run cleanup manually"
+    fi
+    
     log::success "✅ Whisper installation completed successfully"
     
     # Show status
@@ -631,6 +1024,9 @@ whisper::uninstall() {
     # Remove from Vrooli config
     resources::remove_config "ai" "whisper"
     
+    # Remove automatic cleanup scheduling
+    whisper::remove_automatic_cleanup
+    
     log::success "✅ Whisper uninstalled successfully"
 }
 
@@ -664,11 +1060,22 @@ whisper::status() {
                 echo "$stats"
             fi
             
-            # Check health
+            # Check health and validate service
             if whisper::is_healthy; then
                 log::success "✅ API is healthy and responding"
+                
+                # Show detailed service information
+                echo
+                log::info "Service Details:"
+                if service_info=$(whisper::get_service_info 2>/dev/null); then
+                    echo "$service_info" | while IFS= read -r line; do
+                        log::info "  $line"
+                    done
+                else
+                    log::info "  Service information unavailable"
+                fi
             else
-                log::warn "⚠️  API health check failed"
+                log::warn "⚠️  API health check failed or service identity could not be verified"
             fi
             
             # Show port
@@ -687,7 +1094,9 @@ whisper::status() {
             log::info "API Endpoints:"
             log::info "  Base URL: $WHISPER_BASE_URL"
             log::info "  Transcription: $WHISPER_BASE_URL/asr"
+            log::info "  Language Detection: $WHISPER_BASE_URL/detect-language"
             log::info "  API Docs: $WHISPER_BASE_URL/docs"
+            log::info "  OpenAPI Spec: $WHISPER_BASE_URL/openapi.json"
             
             echo
             log::info "Configuration:"
@@ -695,6 +1104,34 @@ whisper::status() {
             log::info "  GPU Enabled: $USE_GPU"
             log::info "  Models Directory: $WHISPER_MODELS_DIR"
             log::info "  Uploads Directory: $WHISPER_UPLOADS_DIR"
+            
+            # Show GPU information if available
+            if [[ "$USE_GPU" == "yes" ]] && system::is_command "nvidia-smi"; then
+                echo
+                log::info "GPU Information:"
+                if gpu_info=$(whisper::get_gpu_info 2>/dev/null); then
+                    echo "$gpu_info" | while IFS= read -r line; do
+                        if [[ "$line" =~ ^=== ]]; then
+                            log::info "  $line"
+                        elif [[ -n "$line" ]]; then
+                            log::info "    $line"
+                        fi
+                    done
+                else
+                    log::info "  GPU information unavailable"
+                fi
+            fi
+            
+            # Show model files if they exist
+            if [[ -d "$WHISPER_MODELS_DIR" ]]; then
+                local model_count
+                model_count=$(find "$WHISPER_MODELS_DIR" -name "*.pt" 2>/dev/null | wc -l)
+                if [[ $model_count -gt 0 ]]; then
+                    echo
+                    log::info "Downloaded Models:"
+                    find "$WHISPER_MODELS_DIR" -name "*.pt" -printf "  - %f (%s bytes)\n" 2>/dev/null | sort
+                fi
+            fi
             
         else
             log::warn "⚠️  Whisper container exists but is not running"
@@ -763,7 +1200,9 @@ Docker Images:
 
 Endpoints:
 - Transcription: POST $WHISPER_BASE_URL/asr
-- Health Check: GET $WHISPER_BASE_URL/health
+- Language Detection: POST $WHISPER_BASE_URL/detect-language
+- API Documentation: GET $WHISPER_BASE_URL/docs
+- OpenAPI Spec: GET $WHISPER_BASE_URL/openapi.json
 
 Configuration:
 - Default Model: $WHISPER_DEFAULT_MODEL
@@ -809,68 +1248,64 @@ whisper::test() {
         return 1
     fi
     
-    # Check if espeak is available
-    if ! system::is_command "espeak"; then
-        log::warn "espeak not found. Installing it..."
-        local pm
-        pm=$(system::detect_pm)
-        
-        case "$pm" in
-            "apt-get")
-                sudo apt-get update && sudo apt-get install -y espeak || {
-                    log::error "Failed to install espeak"
-                    return 1
-                }
-                ;;
-            *)
-                log::error "Please install espeak manually to run tests"
-                return 1
-                ;;
-        esac
+    # Check for test audio files
+    local test_audio_dir="${SCRIPT_DIR}/tests/audio"
+    if [[ ! -d "$test_audio_dir" ]]; then
+        log::error "Test audio directory not found: $test_audio_dir"
+        log::info "Please ensure test audio files are available"
+        return 1
     fi
     
-    # Create test directory
-    local test_dir="/tmp/whisper-test-$$"
-    mkdir -p "$test_dir"
+    # Find test audio files
+    local test_files=()
+    while IFS= read -r -d '' file; do
+        test_files+=("$file")
+    done < <(find "$test_audio_dir" -type f \( -name "*.mp3" -o -name "*.wav" \) -print0 | sort -z)
     
-    log::info "Creating test audio files..."
+    if [[ ${#test_files[@]} -eq 0 ]]; then
+        log::error "No test audio files found in $test_audio_dir"
+        return 1
+    fi
     
-    # Create various test files
-    echo "Hello, this is a test of the Whisper speech recognition system." | \
-        espeak --stdout > "$test_dir/test1.wav" 2>/dev/null
-    
-    echo "The quick brown fox jumps over the lazy dog." | \
-        espeak --stdout -s 150 > "$test_dir/test2.wav" 2>/dev/null
-    
-    echo "Testing numbers: one two three four five six seven eight nine ten." | \
-        espeak --stdout > "$test_dir/test3.wav" 2>/dev/null
+    log::info "Found ${#test_files[@]} test audio file(s)"
+    echo
     
     # Test each file
-    local test_files=("test1.wav" "test2.wav" "test3.wav")
     local all_passed=true
     
     for test_file in "${test_files[@]}"; do
-        local full_path="$test_dir/$test_file"
+        local basename=$(basename "$test_file")
         
         echo
-        log::info "Testing transcription of: $test_file"
-        log::info "Expected content varies slightly from espeak pronunciation"
+        log::info "Testing transcription of: $basename"
         
         # Run transcription
         local result
         # Temporarily set AUDIO_FILE for the transcribe function
         local original_audio_file="$AUDIO_FILE"
-        export AUDIO_FILE="$full_path"
+        export AUDIO_FILE="$test_file"
         
-        if result=$(whisper::transcribe 2>/dev/null); then
-            # Extract just the text field
+        if result=$(whisper::transcribe 2>&1); then
+            # Extract just the text field from JSON output
             local transcribed_text
-            transcribed_text=$(echo "$result" | jq -r '.text' 2>/dev/null || echo "$result")
+            # Filter out ALL log lines (anything starting with [) and extract JSON
+            local json_result
+            json_result=$(echo "$result" | grep -v "^\[" | jq -s '.[0] // empty' 2>/dev/null)
+            if [[ -n "$json_result" ]] && echo "$json_result" | jq -e '.text' >/dev/null 2>&1; then
+                transcribed_text=$(echo "$json_result" | jq -r '.text' 2>/dev/null)
+            else
+                transcribed_text="Failed to parse JSON response"
+            fi
             
             log::success "✅ Transcription successful"
             log::info "Result: $transcribed_text"
+            
+            # Check for empty or minimal transcription
+            if [[ -z "$transcribed_text" ]] || [[ "$transcribed_text" =~ ^[[:space:]]*$ ]]; then
+                log::warn "⚠️  Transcription returned empty or whitespace only"
+            fi
         else
-            log::error "❌ Transcription failed for $test_file"
+            log::error "❌ Transcription failed for $basename"
             all_passed=false
         fi
         
@@ -881,20 +1316,49 @@ whisper::test() {
     # Test API directly
     echo
     log::info "Testing direct API access..."
-    local api_response
-    api_response=$(curl -s -X POST "${WHISPER_BASE_URL}/asr?output=json" \
-        -F "audio_file=@$test_dir/test1.wav" \
-        -F "task=transcribe" 2>/dev/null)
-    
-    if [[ -n "$api_response" ]] && echo "$api_response" | jq . >/dev/null 2>&1; then
-        log::success "✅ Direct API access working"
-    else
-        log::error "❌ Direct API access failed"
-        all_passed=false
+    if [[ ${#test_files[@]} -gt 0 ]]; then
+        local first_test_file="${test_files[0]}"
+        local api_response
+        api_response=$(curl -s -X POST "${WHISPER_BASE_URL}/asr?output=json" \
+            -F "audio_file=@$first_test_file" \
+            -F "task=transcribe" 2>/dev/null)
+        
+        if [[ -n "$api_response" ]] && echo "$api_response" | jq . >/dev/null 2>&1; then
+            log::success "✅ Direct API access working"
+        else
+            log::error "❌ Direct API access failed"
+            all_passed=false
+        fi
     fi
     
-    # Cleanup
-    rm -rf "$test_dir"
+    # Test language detection
+    echo
+    log::info "Testing language detection..."
+    if [[ ${#test_files[@]} -gt 0 ]]; then
+        local test_speech_file
+        # Try to find a speech file for better language detection
+        for f in "${test_files[@]}"; do
+            if [[ "$f" =~ speech ]]; then
+                test_speech_file="$f"
+                break
+            fi
+        done
+        test_speech_file="${test_speech_file:-${test_files[0]}}"
+        
+        local lang_response
+        lang_response=$(curl -s -X POST "${WHISPER_BASE_URL}/detect-language" \
+            -F "audio_file=@$test_speech_file" 2>/dev/null)
+        
+        if [[ -n "$lang_response" ]] && echo "$lang_response" | jq . >/dev/null 2>&1; then
+            log::success "✅ Language detection working"
+            local detected_lang
+            detected_lang=$(echo "$lang_response" | jq -r '.language_code' 2>/dev/null)
+            log::info "Detected language: $detected_lang"
+        else
+            log::error "❌ Language detection failed"
+            all_passed=false
+        fi
+    fi
     
     # Summary
     echo
@@ -911,10 +1375,63 @@ whisper::test() {
 }
 
 #######################################
+# Clean up old upload files
+# Arguments:
+#   $1: Age in days (default: 1)
+#######################################
+whisper::cleanup_uploads() {
+    local age_days="${1:-1}"
+    
+    log::info "Cleaning up upload files older than $age_days day(s)..."
+    
+    if [[ ! -d "$WHISPER_UPLOADS_DIR" ]]; then
+        log::info "Upload directory does not exist, nothing to clean"
+        return 0
+    fi
+    
+    # Count files before cleanup
+    local file_count_before
+    file_count_before=$(find "$WHISPER_UPLOADS_DIR" -type f 2>/dev/null | wc -l)
+    
+    # Find and delete old files
+    local deleted_count=0
+    while IFS= read -r file; do
+        if rm -f "$file" 2>/dev/null; then
+            ((deleted_count++))
+            log::info "Removed: $(basename "$file")"
+        fi
+    done < <(find "$WHISPER_UPLOADS_DIR" -type f -mtime +"$age_days" 2>/dev/null)
+    
+    # Count files after cleanup
+    local file_count_after
+    file_count_after=$(find "$WHISPER_UPLOADS_DIR" -type f 2>/dev/null | wc -l)
+    
+    if [[ $deleted_count -gt 0 ]]; then
+        log::success "✅ Cleaned up $deleted_count old upload file(s)"
+        log::info "Files remaining: $file_count_after (was: $file_count_before)"
+    else
+        log::info "No old files to clean up"
+        log::info "Current files: $file_count_after"
+    fi
+    
+    # Show disk usage
+    local disk_usage
+    disk_usage=$(du -sh "$WHISPER_UPLOADS_DIR" 2>/dev/null | cut -f1)
+    log::info "Upload directory size: $disk_usage"
+}
+
+#######################################
 # Main execution function
 #######################################
 whisper::main() {
     whisper::parse_arguments "$@"
+    
+    # If no action specified, show usage
+    if [[ -z "$ACTION" ]]; then
+        log::error "No action specified"
+        whisper::usage
+        exit 1
+    fi
     
     case "$ACTION" in
         "install")
@@ -951,6 +1468,9 @@ whisper::main() {
             ;;
         "test")
             whisper::test
+            ;;
+        "cleanup")
+            whisper::cleanup_uploads
             ;;
         *)
             log::error "Unknown action: $ACTION"

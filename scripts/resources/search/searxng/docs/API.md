@@ -7,10 +7,10 @@ SearXNG provides a powerful JSON API for programmatic access, perfect for integr
 ### Simple Search
 ```bash
 # Basic search
-curl "http://localhost:8100/search?q=artificial+intelligence&format=json"
+curl "http://localhost:9200/search?q=artificial+intelligence&format=json"
 
 # Search with specific parameters
-curl "http://localhost:8100/search?q=tech+news&format=json&categories=general&language=en"
+curl "http://localhost:9200/search?q=tech+news&format=json&categories=general&language=en"
 ```
 
 ### API Parameters
@@ -205,34 +205,34 @@ The script validates all parameters and provides helpful error messages:
 ### Category-Specific Searches
 ```bash
 # News only
-curl "http://localhost:8100/search?q=AI&format=json&categories=news"
+curl "http://localhost:9200/search?q=AI&format=json&categories=news"
 
 # Images
-curl "http://localhost:8100/search?q=sunset&format=json&categories=images"
+curl "http://localhost:9200/search?q=sunset&format=json&categories=images"
 
 # Scientific papers
-curl "http://localhost:8100/search?q=quantum&format=json&categories=science"
+curl "http://localhost:9200/search?q=quantum&format=json&categories=science"
 ```
 
 ### Time-Range Filtering
 ```bash
 # Last 24 hours
-curl "http://localhost:8100/search?q=breaking+news&format=json&time_range=day"
+curl "http://localhost:9200/search?q=breaking+news&format=json&time_range=day"
 
 # Last week
-curl "http://localhost:8100/search?q=tech+updates&format=json&time_range=week"
+curl "http://localhost:9200/search?q=tech+updates&format=json&time_range=week"
 
 # Last month
-curl "http://localhost:8100/search?q=research+papers&format=json&time_range=month"
+curl "http://localhost:9200/search?q=research+papers&format=json&time_range=month"
 ```
 
 ### Language-Specific Results
 ```bash
 # Spanish results
-curl "http://localhost:8100/search?q=tecnología&format=json&language=es"
+curl "http://localhost:9200/search?q=tecnología&format=json&language=es"
 
 # French results  
-curl "http://localhost:8100/search?q=intelligence+artificielle&format=json&language=fr"
+curl "http://localhost:9200/search?q=intelligence+artificielle&format=json&language=fr"
 ```
 
 ## 📊 Monitoring & Health
@@ -243,10 +243,10 @@ curl "http://localhost:8100/search?q=intelligence+artificielle&format=json&langu
 ./manage.sh --action status
 
 # Direct health check
-curl -s http://localhost:8100/stats | jq .
+curl -s http://localhost:9200/stats | jq .
 
 # Check if API is responding
-curl -s "http://localhost:8100/search?q=test&format=json" | jq -r '.query'
+curl -s "http://localhost:9200/search?q=test&format=json" | jq -r '.query'
 ```
 
 ### View Logs

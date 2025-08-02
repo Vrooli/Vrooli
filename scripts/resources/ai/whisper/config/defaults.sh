@@ -97,3 +97,6 @@ whisper::export_config() {
     export WHISPER_GPU_ENABLED WHISPER_MODEL_SIZE_TINY WHISPER_MODEL_SIZE_BASE
     export WHISPER_MODEL_SIZE_SMALL WHISPER_MODEL_SIZE_MEDIUM WHISPER_MODEL_SIZE_LARGE
 }
+
+# Export function for subshell availability
+export -f whisper::export_config
