@@ -242,6 +242,28 @@ resources::script_exists() {
 }
 
 #######################################
+# Check if a resource is API-based (external service)
+# Arguments:
+#   $1 - resource name
+# Returns: 0 if API-based, 1 otherwise
+#######################################
+resources::is_api_based() {
+    local resource="$1"
+    
+    # Common API-based resources that don't need local installation
+    case "$resource" in
+        cloudflare|openrouter|openai|anthropic|cohere|huggingface)
+            return 0
+            ;;
+        *)
+            # Check if resource configuration indicates it's API-based
+            # This would require parsing the config file, but for now we'll use the known list
+            return 1
+            ;;
+    esac
+}
+
+#######################################
 # Execute action on a single resource
 # Arguments:
 #   $1 - resource name
@@ -253,6 +275,21 @@ resources::execute_action() {
     local action="$2"
     local script_path
     script_path=$(resources::get_script_path "$resource")
+    
+    # Check if this is an API-based resource that doesn't need local installation
+    if resources::is_api_based "$resource"; then
+        if [[ "$action" == "install" ]]; then
+            log::info "🌐 $resource: API-based service (no local installation needed)"
+            log::info "   Configure API keys in environment variables and enable in resources.local.json"
+            return 0  # Success - no installation needed
+        elif [[ "$action" == "status" ]]; then
+            log::info "🌐 $resource: API-based service (check configuration and API keys)"
+            return 0
+        else
+            log::info "🌐 $resource: API-based service (action '$action' not applicable)"
+            return 0
+        fi
+    fi
     
     if ! resources::script_exists "$resource"; then
         log::warn "⚠️  Resource script not found: $script_path"

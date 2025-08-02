@@ -99,6 +99,32 @@ mock::http::set_endpoint_sequence() {
 }
 
 #######################################
+# Set endpoint as unreachable (connection refused)
+# Arguments: $1 - endpoint URL or base URL
+#######################################
+mock::http::set_endpoint_unreachable() {
+    local endpoint="$1"
+    
+    # If it's a base URL, mark all common endpoints as unreachable
+    if [[ "$endpoint" =~ ^https?://[^/]+/?$ ]]; then
+        # Remove trailing slash if present
+        endpoint="${endpoint%/}"
+        
+        # Mark common endpoints as unreachable
+        local common_endpoints=("/" "/health" "/api" "/api/v1" "/status")
+        for path in "${common_endpoints[@]}"; do
+            mock::http::set_endpoint_state "${endpoint}${path}" "unavailable"
+        done
+        
+        # Also mark the base URL itself
+        mock::http::set_endpoint_state "$endpoint" "unavailable"
+    else
+        # Mark specific endpoint as unreachable
+        mock::http::set_endpoint_state "$endpoint" "unavailable"
+    fi
+}
+
+#######################################
 # Main curl command mock
 #######################################
 curl() {
@@ -562,6 +588,7 @@ nc() {
 export -f curl wget nc
 export -f mock::http::set_endpoint_state mock::http::set_endpoint_response
 export -f mock::http::set_endpoint_delay mock::http::set_endpoint_sequence
+export -f mock::http::set_endpoint_unreachable
 export -f curl_get_mock_response curl_match_url_pattern
 export -f curl_ollama_response curl_whisper_response curl_n8n_response
 export -f curl_qdrant_response curl_minio_response

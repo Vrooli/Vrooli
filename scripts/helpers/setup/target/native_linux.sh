@@ -45,10 +45,21 @@ native_linux::setup_native_linux() {
         
         local resources_script="${SETUP_TARGET_DIR}/../../../resources/index.sh"
         if [[ -f "$resources_script" ]]; then
+            # Run resource installation with error handling - don't let failures stop the main setup
+            local resource_exit_code=0
             bash "$resources_script" \
                 --action install \
                 --resources "$RESOURCES" \
-                --yes "${YES:-no}"
+                --yes "${YES:-no}" || resource_exit_code=$?
+            
+            if [[ $resource_exit_code -ne 0 ]]; then
+                log::warn "⚠️  Resource installation completed with some failures (exit code: $resource_exit_code)"
+                log::info "💡 This is expected if some resources failed to install"
+                log::info "   Failed resources can be installed individually later if needed"
+                log::info "   The main application setup will continue regardless"
+            else
+                log::success "✅ All requested resources installed successfully"
+            fi
                 
             # Auto-register Vrooli MCP server with Claude Code if both are available
             native_linux::setup_mcp_integration

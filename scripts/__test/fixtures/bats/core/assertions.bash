@@ -53,7 +53,8 @@ assert_output_empty() {
 # Assert output line count
 assert_output_line_count() {
     local expected_count="$1"
-    local actual_count=$(echo "$output" | wc -l)
+    local actual_count
+    actual_count=$(echo "$output" | wc -l)
     
     if [[ "$actual_count" -ne "$expected_count" ]]; then
         echo "Expected $expected_count lines, but got $actual_count" >&2
@@ -147,7 +148,8 @@ assert_file_permissions() {
         return 1
     fi
     
-    local actual_perms=$(stat -c "%a" "$file" 2>/dev/null || stat -f "%A" "$file" 2>/dev/null)
+    local actual_perms
+    actual_perms=$(stat -c "%a" "$file" 2>/dev/null || stat -f "%A" "$file" 2>/dev/null)
     if [[ "$actual_perms" != "$expected_perms" ]]; then
         echo "File $file permissions:" >&2
         echo "  Expected: $expected_perms" >&2
@@ -303,8 +305,8 @@ assert_json_field_equals() {
     local field="$2"
     local expected="$3"
     
-    local actual=$(echo "$json" | jq -r "$field" 2>/dev/null)
-    if [[ $? -ne 0 ]]; then
+    local actual
+    if ! actual=$(echo "$json" | jq -r "$field" 2>/dev/null); then
         echo "Failed to parse JSON or extract field: $field" >&2
         echo "JSON: $json" >&2
         return 1
@@ -323,7 +325,8 @@ assert_json_field_exists() {
     local json="$1"
     local field="$2"
     
-    local result=$(echo "$json" | jq -r "$field // \"__FIELD_NOT_FOUND__\"" 2>/dev/null)
+    local result
+    result=$(echo "$json" | jq -r "$field // \"__FIELD_NOT_FOUND__\"" 2>/dev/null)
     if [[ "$result" == "__FIELD_NOT_FOUND__" ]] || [[ "$result" == "null" ]]; then
         echo "JSON field does not exist: $field" >&2
         echo "JSON: $json" >&2
@@ -385,7 +388,8 @@ assert_http_status() {
     local expected_status="$2"
     local timeout="${3:-5}"
     
-    local actual_status=$(curl -s -o /dev/null -w "%{http_code}" --max-time "$timeout" "$url" 2>/dev/null)
+    local actual_status
+    actual_status=$(curl -s -o /dev/null -w "%{http_code}" --max-time "$timeout" "$url" 2>/dev/null)
     if [[ "$actual_status" != "$expected_status" ]]; then
         echo "HTTP status for $url:" >&2
         echo "  Expected: $expected_status" >&2
@@ -441,7 +445,8 @@ assert_docker_container_running() {
 assert_docker_container_healthy() {
     local container_name="$1"
     
-    local health_status=$(docker inspect --format='{{.State.Health.Status}}' "$container_name" 2>/dev/null)
+    local health_status
+    health_status=$(docker inspect --format='{{.State.Health.Status}}' "$container_name" 2>/dev/null)
     if [[ "$health_status" != "healthy" ]]; then
         echo "Docker container not healthy: $container_name" >&2
         echo "Health status: $health_status" >&2
@@ -455,7 +460,8 @@ assert_api_response_valid() {
     local expected_fields="${2:-}"
     local timeout="${3:-5}"
     
-    local response=$(curl -s --max-time "$timeout" "$endpoint" 2>/dev/null)
+    local response
+    response=$(curl -s --max-time "$timeout" "$endpoint" 2>/dev/null)
     
     # Check if response is valid JSON
     assert_json_valid "$response"
@@ -477,7 +483,7 @@ assert_api_response_valid() {
 assert_resource_chain_working() {
     local source_resource="$1"
     local target_resource="$2"
-    local test_data="${3:-test_data}"
+    # local test_data="${3:-test_data}" # Future use for data flow validation
     
     echo "Testing resource chain: $source_resource -> $target_resource" >&2
     

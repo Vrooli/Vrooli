@@ -64,7 +64,7 @@ claude_code::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|status|info|run|batch|session|settings|logs|register-mcp|unregister-mcp|mcp-status|mcp-test|parse-result|extract|session-manage|health-check|run-automation|batch-automation|batch-simple|batch-config|batch-multi|batch-parallel|error-report|error-validate|safe-execute|template-list|template-load|template-run|template-create|template-info|template-validate|session-extract|session-analytics|session-recover|session-cleanup|session-list-enhanced|sandbox|help" \
+        --options "install|uninstall|status|info|run|batch|session|settings|logs|register-mcp|unregister-mcp|mcp-status|mcp-test|parse-result|extract|session-manage|health-check|run-automation|batch-automation|batch-simple|batch-config|batch-multi|batch-parallel|error-report|error-validate|safe-execute|template-list|template-load|template-run|template-create|template-info|template-validate|session-extract|session-analytics|session-recover|session-cleanup|session-list-enhanced|sandbox|test-safe|help" \
         --default "help"
     
     args::register \
@@ -450,6 +450,42 @@ claude_code::main() {
             # Run claude-code in sandboxed environment
             export SANDBOX_COMMAND="${SANDBOX_COMMAND:-interactive}"
             "${SCRIPT_DIR}/sandbox/claude-sandbox.sh" "${SANDBOX_COMMAND}" "${PROMPT:-}"
+            ;;
+        "test-safe")
+            # Safe test mode - only checks status, no prompt execution
+            log::header "🧪 Claude Code Test Mode (Safe)"
+            log::info "This mode only verifies installation and configuration"
+            log::info "No prompts will be executed to avoid file system changes"
+            
+            # Check installation
+            if claude_code::is_installed; then
+                log::success "Claude Code is installed"
+                
+                # Get version if possible
+                local version
+                version=$(claude_code::get_version 2>/dev/null || echo "unknown")
+                log::info "Version: $version"
+                
+                # Check for config directory
+                if [[ -d "$HOME/.claude-code" ]] || [[ -d "$HOME/.claude" ]]; then
+                    log::success "Configuration directory exists"
+                else
+                    log::warn "Configuration directory not found"
+                fi
+                
+                # Report sandbox availability
+                if [[ -f "${SCRIPT_DIR}/sandbox/claude-sandbox.sh" ]]; then
+                    log::success "Sandbox is available for safe testing"
+                    log::info "Use --action sandbox for isolated testing"
+                else
+                    log::warn "Sandbox not available"
+                fi
+                
+                exit 0
+            else
+                log::error "Claude Code is not installed"
+                exit 1
+            fi
             ;;
         "safe-execute")
             if [[ -z "$PROMPT" ]]; then

@@ -52,7 +52,8 @@ Data storage and management services.
 # Template for testing any Vrooli resource
 
 bats_require_minimum_version 1.5.0
-source "/home/matthalloran8/Vrooli/scripts/tests/bats-fixtures/core/common_setup.bash"
+# Source from environment variable or relative path
+source "${VROOLI_TEST_FIXTURES_DIR:-./fixtures/bats}/core/common_setup.bash"
 
 setup() {
     setup_resource_test "RESOURCE_NAME"
@@ -88,7 +89,8 @@ teardown() {
 #!/usr/bin/env bats
 # Ollama LLM Service Testing
 
-source "/home/matthalloran8/Vrooli/scripts/tests/bats-fixtures/core/common_setup.bash"
+# Source from environment variable or relative path
+source "${VROOLI_TEST_FIXTURES_DIR:-./fixtures/bats}/core/common_setup.bash"
 
 setup() {
     setup_resource_test "ollama"

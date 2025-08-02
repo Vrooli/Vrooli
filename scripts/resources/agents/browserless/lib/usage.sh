@@ -74,14 +74,34 @@ browserless::show_usage_help() {
 browserless::run_usage_example() {
     local usage_type="${1:-${USAGE_TYPE:-help}}"
     
+    # Track files to clean up (only default output files, not user-specified ones)
+    local cleanup_files=()
+    local should_cleanup=false
+    
+    # If OUTPUT is not set by user, we'll clean up the default files
+    if [[ -z "${OUTPUT:-}" ]]; then
+        should_cleanup=true
+        # Set up cleanup trap
+        trap 'browserless::cleanup_usage_files "${cleanup_files[@]}"' EXIT
+    fi
+    
     case "$usage_type" in
         "screenshot")
+            if [[ "$should_cleanup" == "true" ]]; then
+                cleanup_files+=("${BROWSERLESS_TEST_OUTPUT_DIR:-./testing/test-outputs/browserless}/screenshot_test.png")
+            fi
             browserless::test_screenshot "$URL" "$OUTPUT"
             ;;
         "pdf")
+            if [[ "$should_cleanup" == "true" ]]; then
+                cleanup_files+=("${BROWSERLESS_TEST_OUTPUT_DIR:-./testing/test-outputs/browserless}/document_test.pdf")
+            fi
             browserless::test_pdf "$URL" "$OUTPUT"
             ;;
         "scrape")
+            if [[ "$should_cleanup" == "true" ]]; then
+                cleanup_files+=("${BROWSERLESS_TEST_OUTPUT_DIR:-./testing/test-outputs/browserless}/scrape_test.html")
+            fi
             browserless::test_scrape "$URL" "$OUTPUT"
             ;;
         "pressure")
@@ -91,12 +111,42 @@ browserless::run_usage_example() {
             browserless::test_function "$URL"
             ;;
         "all")
+            if [[ "$should_cleanup" == "true" ]]; then
+                cleanup_files+=("${BROWSERLESS_TEST_OUTPUT_DIR:-./testing/test-outputs/browserless}/screenshot_test.png")
+                cleanup_files+=("${BROWSERLESS_TEST_OUTPUT_DIR:-./testing/test-outputs/browserless}/document_test.pdf") 
+                cleanup_files+=("${BROWSERLESS_TEST_OUTPUT_DIR:-./testing/test-outputs/browserless}/scrape_test.html")
+            fi
             browserless::test_all_apis "$URL"
             ;;
         "help"|*)
             browserless::show_usage_help
             ;;
     esac
+}
+
+#######################################
+# Clean up usage example files
+# Arguments:
+#   $@ - List of files to clean up
+#######################################
+browserless::cleanup_usage_files() {
+    local files=("$@")
+    
+    if [[ ${#files[@]} -eq 0 ]]; then
+        return 0
+    fi
+    
+    log::debug "Cleaning up browserless usage example files..."
+    
+    for file in "${files[@]}"; do
+        if [[ -f "$file" ]]; then
+            if rm -f "$file" 2>/dev/null; then
+                log::debug "✓ Cleaned up: $file"
+            else
+                log::debug "⚠ Failed to clean up: $file"
+            fi
+        fi
+    done
 }
 
 #######################################

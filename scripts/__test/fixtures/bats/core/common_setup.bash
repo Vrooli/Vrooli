@@ -10,7 +10,9 @@ fi
 export COMMON_SETUP_LOADED="true"
 
 # Global configuration
-export VROOLI_TEST_FIXTURES_DIR="${VROOLI_TEST_FIXTURES_DIR:-/home/matthalloran8/Vrooli/scripts/__test/fixtures/bats}"
+# Use relative paths for portability
+export BATS_TEST_DIRNAME="${BATS_TEST_DIRNAME:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+export VROOLI_TEST_FIXTURES_DIR="${VROOLI_TEST_FIXTURES_DIR:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
 
 # Performance optimization: use in-memory temp directory when available
 if [[ -d "/dev/shm" && -w "/dev/shm" ]]; then
@@ -270,7 +272,6 @@ auto_setup_test_environment() {
     
     # Auto-detect test type from file path or test name
     if [[ "$test_file" =~ /resources/.*/(ai|automation|agents|storage|search|execution)/ ]]; then
-        local resource_type="${BASH_REMATCH[1]}"
         local resource_name
         resource_name=$(basename "$(dirname "$(dirname "$test_file")")")
         
@@ -278,10 +279,11 @@ auto_setup_test_environment() {
         setup_resource_test "$resource_name"
     elif [[ "$test_name" =~ integration|workflow|pipeline ]]; then
         echo "[COMMON_SETUP] Auto-detected integration test"
-        setup_integration_test
+        # Call without arguments - will require manual resource specification
+        setup_standard_mocks
     elif [[ "$test_name" =~ performance|speed|benchmark ]]; then
         echo "[COMMON_SETUP] Auto-detected performance test"
-        setup_performance_test
+        setup_performance_test "generic"
     else
         echo "[COMMON_SETUP] Using standard test setup"
         setup_standard_mocks

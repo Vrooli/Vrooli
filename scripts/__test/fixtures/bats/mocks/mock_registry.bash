@@ -10,11 +10,13 @@ export MOCK_REGISTRY_LOADED="true"
 
 # Mock registry state
 declare -A LOADED_MOCKS
-declare -A MOCK_STATES
-declare -A MOCK_CONFIGS
+# declare -A MOCK_STATES    # Future use for state tracking
+# declare -A MOCK_CONFIGS   # Future use for configuration management
 
 # Global configuration
-export VROOLI_TEST_FIXTURES_DIR="${VROOLI_TEST_FIXTURES_DIR:-/home/matthalloran8/Vrooli/scripts/__test/fixtures/bats}"
+# Use relative paths for portability
+export BATS_TEST_DIRNAME="${BATS_TEST_DIRNAME:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+export VROOLI_TEST_FIXTURES_DIR="${VROOLI_TEST_FIXTURES_DIR:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
 
 #######################################
 # Load a specific mock module
@@ -243,8 +245,8 @@ mock::cleanup() {
     
     # Reset mock state
     unset LOADED_MOCKS
-    unset MOCK_STATES
-    unset MOCK_CONFIGS
+    # unset MOCK_STATES    # Future use
+    # unset MOCK_CONFIGS   # Future use
     
     # Kill any background processes
     jobs -p | xargs -r kill 2>/dev/null || true

@@ -103,6 +103,14 @@ bats::install_core() {
     bats::determine_prefix # Determine prefix just before installation
 
     cd "$BATS_DEPENDENCIES_DIR"
+    
+    # Fix permissions on the dependencies directory if running under sudo
+    # This ensures the original user can write to it when cloning
+    if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+        log::info "Fixing permissions on $BATS_DEPENDENCIES_DIR for user $SUDO_USER"
+        chown -R "$SUDO_USER:$(id -gn "$SUDO_USER")" "$BATS_DEPENDENCIES_DIR"
+    fi
+    
     if [ ! -d "bats-core" ]; then
         # Handle git clone with TLS compatibility
         # If running under sudo, use the original user's git config

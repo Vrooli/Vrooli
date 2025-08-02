@@ -61,6 +61,7 @@ claude_code::usage() {
     echo ""
     echo "Sandbox Actions:"
     echo "  sandbox      Run Claude Code in isolated sandbox environment"
+    echo "  test-safe    Safe test mode (no prompt execution, status only)"
     echo ""
     echo "  help         Show this help message"
     echo

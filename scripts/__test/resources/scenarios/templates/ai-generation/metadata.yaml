@@ -1,0 +1,93 @@
+# AI-Generation Optimized Template
+# This template is specifically designed for reliable AI consumption and generation
+
+scenario:
+  id: "SCENARIO_ID_PLACEHOLDER"                    # AI: Replace with kebab-case identifier
+  name: "SCENARIO_NAME_PLACEHOLDER"                # AI: Replace with business-friendly name
+  description: "SCENARIO_DESCRIPTION_PLACEHOLDER"  # AI: One sentence problem + solution
+  version: "1.0.0"
+
+# AI Guidance: Choose complexity based on resource count and integration complexity
+# basic: 1-2 resources, simple integration
+# intermediate: 3-4 resources, moderate integration  
+# advanced: 5+ resources, complex orchestration
+complexity: intermediate
+
+# AI Guidance: Select categories that match business use case
+categories:
+  - "PRIMARY_CATEGORY_PLACEHOLDER"     # AI: Choose from ai-assistance, ai-content-creation, etc.
+  - "SECONDARY_CATEGORY_PLACEHOLDER"   # AI: Optional secondary categorization
+
+# CRITICAL: Resource selection drives deployment efficiency
+resources:
+  required:                            # AI: Minimal set for core functionality
+    - "REQUIRED_RESOURCE_1"           # AI: Choose from ollama, postgres, n8n, etc.
+    - "REQUIRED_RESOURCE_2"           # AI: Add only what's essential
+  optional:                           # AI: Enhancement features
+    - "OPTIONAL_RESOURCE_1"           # AI: Add capabilities that enhance value
+  conflicts:                          # AI: Prevent resource conflicts
+    - "CONFLICTING_RESOURCE"          # AI: e.g., agent-s2 conflicts with browserless
+
+# BUSINESS MODEL: This drives pricing and market positioning
+business:
+  # AI: Create specific, quantified value proposition
+  value_proposition: "VALUE_PROPOSITION_PLACEHOLDER"  # AI: Include specific metrics/outcomes
+  
+  # AI: Target specific industries/roles
+  target_market:
+    - "PRIMARY_MARKET_PLACEHOLDER"     # AI: e.g., "e-commerce-businesses"
+    - "SECONDARY_MARKET_PLACEHOLDER"   # AI: e.g., "saas-companies"
+  
+  # AI: List specific problems this solves
+  pain_points:
+    - "PAIN_POINT_1_PLACEHOLDER"      # AI: Specific customer problem
+    - "PAIN_POINT_2_PLACEHOLDER"      # AI: Additional problem solved
+  
+  # AI: Realistic project pricing based on scope and value
+  revenue_range:
+    min: 15000                        # AI: Adjust based on scenario complexity
+    max: 30000                        # AI: Adjust based on business value
+    currency: "USD"
+    pricing_model: "fixed-project"    # AI: or "monthly-saas", "hourly-consulting"
+  
+  # AI: What makes this better than alternatives
+  competitive_advantage: "COMPETITIVE_ADVANTAGE_PLACEHOLDER"
+  
+  # AI: Measurable customer benefits
+  roi_metrics:
+    - "ROI_METRIC_1_PLACEHOLDER"      # AI: e.g., "50% reduction in processing time"
+    - "ROI_METRIC_2_PLACEHOLDER"      # AI: e.g., "24/7 availability"
+
+# TESTING CONFIGURATION: Ensures reliability
+testing:
+  timeout: 600                        # AI: Adjust based on complexity (300-1800 seconds)
+  requires_display: false             # AI: Set true if GUI interaction needed
+  
+  # AI: Define measurable success criteria
+  success_criteria:
+    - "SUCCESS_CRITERION_1"           # AI: e.g., "AI responds within 3 seconds"
+    - "SUCCESS_CRITERION_2"           # AI: e.g., "Database operations complete successfully"
+
+# AI: Add relevant tags for discovery and filtering
+tags:
+  - "TAG_1_PLACEHOLDER"               # AI: e.g., "enterprise-ready"
+  - "TAG_2_PLACEHOLDER"               # AI: e.g., "high-revenue-potential"
+  - "requires-RESOURCE"               # AI: Add resource requirement tags
+
+# PERFORMANCE EXPECTATIONS: Set realistic performance targets
+performance:
+  latency: "< 3 seconds"              # AI: Expected response time
+  throughput: "100 concurrent users"  # AI: Expected scale
+  resource_usage: "< 4GB RAM"         # AI: Resource consumption estimate
+
+# CUSTOMIZATION FRAMEWORK: Enable customer-specific adaptations
+customization:
+  branding:                           # AI: Visual customization options
+    - "company_logo"
+    - "color_scheme"
+  business_logic:                     # AI: Workflow customization points
+    - "CUSTOMIZATION_POINT_1"         # AI: e.g., "escalation_rules"
+    - "CUSTOMIZATION_POINT_2"         # AI: e.g., "approval_workflows"
+  integrations:                       # AI: External system connections
+    - "INTEGRATION_1"                 # AI: e.g., "crm_connector"
+    - "INTEGRATION_2"                 # AI: e.g., "notification_channels"

@@ -44,6 +44,36 @@ Chrome-as-a-Service providing headless browser automation via REST API. Browserl
 | `./manage.sh --action restart` | Restart service |
 | `./manage.sh --action uninstall` | Remove service completely |
 
+## 📁 Test Output Files
+
+When running usage examples, output files are managed automatically:
+
+- **Default Location**: `./testing/test-outputs/browserless/`
+- **Files Created**:
+  - `screenshot_test.png` - Test screenshot captures
+  - `document_test.pdf` - Test PDF generation
+  - `scrape_test.html` - Test web scraping output
+- **Automatic Cleanup**: Files are removed after usage examples complete
+- **Custom Output**: Use `--output /path/to/file` to specify custom location (no cleanup)
+
+### Examples
+
+```bash
+# Uses default location, auto-cleanup after completion
+./manage.sh --action usage --usage-type screenshot --url https://example.com
+
+# Custom output location, no cleanup
+./manage.sh --action usage --usage-type screenshot --url https://example.com --output /tmp/my-screenshot.png
+
+# Configure custom test output directory
+export BROWSERLESS_TEST_OUTPUT_DIR="/tmp/browserless-tests"
+./manage.sh --action usage --usage-type all
+```
+
+### Environment Variables
+
+- `BROWSERLESS_TEST_OUTPUT_DIR` - Override default test output directory (default: `./testing/test-outputs/browserless`)
+
 ## 💡 Common Use Cases
 
 ### 1. Capture Dashboard Screenshot

@@ -2,6 +2,17 @@
 # Browserless API Functions
 # API testing, examples, and usage demonstrations
 
+# Test output directory configuration
+BROWSERLESS_TEST_OUTPUT_DIR="${BROWSERLESS_TEST_OUTPUT_DIR:-./testing/test-outputs/browserless}"
+
+# Ensure test output directory exists
+browserless::ensure_test_output_dir() {
+    if [[ ! -d "$BROWSERLESS_TEST_OUTPUT_DIR" ]]; then
+        mkdir -p "$BROWSERLESS_TEST_OUTPUT_DIR"
+        log::debug "Created test output directory: $BROWSERLESS_TEST_OUTPUT_DIR"
+    fi
+}
+
 #######################################
 # Test screenshot API endpoint
 # Arguments:
@@ -11,7 +22,11 @@
 #######################################
 browserless::test_screenshot() {
     local test_url="${1:-${URL:-https://example.com}}"
-    local output_file="${2:-${OUTPUT:-screenshot_test.png}}"
+    
+    # Ensure test output directory exists
+    browserless::ensure_test_output_dir
+    
+    local output_file="${2:-${OUTPUT:-$BROWSERLESS_TEST_OUTPUT_DIR/screenshot_test.png}}"
     local temp_file="/tmp/browserless_screenshot_$$"
     
     log::header "${MSG_USAGE_SCREENSHOT}"
@@ -108,6 +123,9 @@ browserless::safe_screenshot() {
     local url="${1:?URL required}"
     local output="${2:?Output filename required}"
     
+    # Ensure test output directory exists
+    browserless::ensure_test_output_dir
+    
     # Use the validated screenshot function
     if ! browserless::test_screenshot "$url" "$output"; then
         log::error "Screenshot capture failed for: $url"
@@ -152,7 +170,11 @@ browserless::safe_screenshot() {
 #######################################
 browserless::test_pdf() {
     local test_url="${1:-${URL:-https://example.com}}"
-    local output_file="${2:-${OUTPUT:-document_test.pdf}}"
+    
+    # Ensure test output directory exists
+    browserless::ensure_test_output_dir
+    
+    local output_file="${2:-${OUTPUT:-$BROWSERLESS_TEST_OUTPUT_DIR/document_test.pdf}}"
     
     log::header "${MSG_USAGE_PDF}"
     
@@ -204,7 +226,11 @@ browserless::test_pdf() {
 #######################################
 browserless::test_scrape() {
     local test_url="${1:-${URL:-https://example.com}}"
-    local output_file="${2:-${OUTPUT:-scrape_test.html}}"
+    
+    # Ensure test output directory exists
+    browserless::ensure_test_output_dir
+    
+    local output_file="${2:-${OUTPUT:-$BROWSERLESS_TEST_OUTPUT_DIR/scrape_test.html}}"
     
     log::header "${MSG_USAGE_SCRAPE}"
     
