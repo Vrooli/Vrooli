@@ -42,8 +42,8 @@ readonly MSG_PROCESSING_FILE="Processing document: \$filename"
 readonly MSG_PROCESSING_SUCCESS="✅ Document processed successfully"
 readonly MSG_PROCESSING_FAILED="❌ Document processing failed"
 readonly MSG_PROCESSING_TIMEOUT="⏱️  Processing timed out after $UNSTRUCTURED_IO_TIMEOUT_SECONDS seconds"
-readonly MSG_FILE_TOO_LARGE="❌ File exceeds maximum size limit of $UNSTRUCTURED_IO_MAX_FILE_SIZE"
-readonly MSG_UNSUPPORTED_FORMAT="❌ Unsupported file format: \$format"
+readonly MSG_FILE_TOO_LARGE="❌ File size exceeds maximum limit of $UNSTRUCTURED_IO_MAX_FILE_SIZE ($(echo $UNSTRUCTURED_IO_MAX_FILE_SIZE_BYTES | numfmt --to=iec-i --suffix=B 2>/dev/null || echo '52428800 bytes'))"
+readonly MSG_UNSUPPORTED_FORMAT="❌ Unsupported file format: \$format. Supported formats: ${UNSTRUCTURED_IO_SUPPORTED_FORMATS[*]}"
 readonly MSG_BATCH_PROCESSING="Processing \$count documents in batch mode..."
 
 #######################################
@@ -53,7 +53,7 @@ readonly MSG_API_ENDPOINT_INFO="API endpoints available:"
 readonly MSG_API_PROCESS="  - POST $UNSTRUCTURED_IO_PROCESS_ENDPOINT - Process single document"
 readonly MSG_API_BATCH="  - POST $UNSTRUCTURED_IO_BATCH_ENDPOINT - Batch processing"
 readonly MSG_API_HEALTH="  - GET $UNSTRUCTURED_IO_HEALTH_ENDPOINT - Health check"
-readonly MSG_API_METRICS="  - GET $UNSTRUCTURED_IO_METRICS_ENDPOINT - Processing metrics"
+readonly MSG_API_METRICS="  - GET /metrics - Processing metrics (if available)"
 
 #######################################
 # Configuration Messages
@@ -72,6 +72,11 @@ readonly MSG_ERROR_PORT_IN_USE="❌ Port $UNSTRUCTURED_IO_PORT is already in use
 readonly MSG_ERROR_CONTAINER_CONFLICT="❌ Container name conflict: $UNSTRUCTURED_IO_CONTAINER_NAME"
 readonly MSG_ERROR_NETWORK_ISSUE="❌ Unable to connect to Unstructured.io API"
 readonly MSG_ERROR_INVALID_STRATEGY="❌ Invalid processing strategy: \$strategy"
+readonly MSG_ERROR_HTTP_413="❌ File too large. Maximum file size is $UNSTRUCTURED_IO_MAX_FILE_SIZE"
+readonly MSG_ERROR_HTTP_415="❌ Unsupported media type. Check that the file format is supported"
+readonly MSG_ERROR_HTTP_422="❌ Invalid processing parameters. Check strategy and language settings"
+readonly MSG_ERROR_HTTP_500="❌ Server error. The document may be corrupted or contain unsupported content"
+readonly MSG_ERROR_HTTP_GENERIC="❌ Request failed with HTTP status: \$http_code"
 
 #######################################
 # Uninstall Messages
@@ -115,3 +120,6 @@ unstructured_io::export_messages() {
     export MSG_UNINSTALLING MSG_CONTAINER_STOP_SUCCESS MSG_CONTAINER_REMOVE_SUCCESS
     export MSG_IMAGE_REMOVE_SUCCESS MSG_UNINSTALL_SUCCESS MSG_UNINSTALL_FAILED
 }
+
+# Export function for subshell availability
+export -f unstructured_io::export_messages

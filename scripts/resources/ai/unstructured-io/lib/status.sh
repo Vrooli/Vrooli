@@ -170,3 +170,10 @@ unstructured_io::resource_usage() {
     docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}" \
         "$UNSTRUCTURED_IO_CONTAINER_NAME"
 }
+
+#######################################
+# Export functions for subshell availability
+#######################################
+export -f unstructured_io::status
+export -f unstructured_io::check_health
+export -f unstructured_io::resource_usage

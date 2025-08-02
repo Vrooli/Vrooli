@@ -1,0 +1,1956 @@
+{
+  "value": {
+    "type": "tabscomponent",
+    "tabs": [
+      {
+        "id": "research_dashboard",
+        "value": "Research Dashboard"
+      },
+      {
+        "id": "search_interface",
+        "value": "Search & Discovery"
+      },
+      {
+        "id": "ai_analysis",
+        "value": "AI Analysis & Insights"
+      },
+      {
+        "id": "knowledge_base",
+        "value": "Knowledge Management"
+      },
+      {
+        "id": "report_generation",
+        "value": "Report Generation"
+      },
+      {
+        "id": "project_management",
+        "value": "Project Management"
+      },
+      {
+        "id": "administration",
+        "value": "Administration"
+      }
+    ],
+    "configuration": {
+      "research_dashboard": {
+        "type": "containercomponent",
+        "components": [
+          {
+            "id": "dashboard_header",
+            "type": "textcomponent",
+            "configuration": {
+              "text": "# 🔍 Enterprise Research Assistant\n## AI-Powered Intelligence Platform\n**Revenue Potential:** $12,000 - $20,000 per project | **Target:** Strategic Consultants, Market Analysts",
+              "style": {
+                "fontSize": "16px",
+                "fontWeight": "600",
+                "color": "#1a365d",
+                "backgroundColor": "#e6fffa",
+                "padding": "20px",
+                "borderRadius": "8px",
+                "marginBottom": "20px"
+              }
+            }
+          },
+          {
+            "id": "active_projects_overview",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "display": "grid",
+                "gridTemplateColumns": "repeat(auto-fit, minmax(300px, 1fr))",
+                "gap": "20px",
+                "marginBottom": "30px"
+              }
+            },
+            "components": [
+              {
+                "id": "projects_summary_card",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "backgroundColor": "#f0fff4",
+                    "border": "2px solid #68d391",
+                    "borderRadius": "12px",
+                    "padding": "20px",
+                    "textAlign": "center"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "projects_title",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "## 📊 Active Projects\n**7 Projects Running**\n**3 Completed This Month**\n\n2 High Priority\n3 Medium Priority\n2 Low Priority",
+                      "style": {"marginBottom": "15px", "color": "#2d5016"}
+                    }
+                  },
+                  {
+                    "id": "projects_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "Manage Projects",
+                      "color": "success",
+                      "size": "md",
+                      "fillContainer": true
+                    },
+                    "eventHandlers": [
+                      {
+                        "event": "click",
+                        "action": {
+                          "type": "settab",
+                          "tab": "project_management"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "search_activity_card",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "backgroundColor": "#ebf8ff",
+                    "border": "2px solid #63b3ed",
+                    "borderRadius": "12px",
+                    "padding": "20px",
+                    "textAlign": "center"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "search_title",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "## 🔍 Search Activity\n**247 Searches Today**\n**89% Success Rate**\n\n15 Privacy-Protected Engines\n1,834 Results Analyzed\n342 Insights Generated",
+                      "style": {"marginBottom": "15px", "color": "#1e40af"}
+                    }
+                  },
+                  {
+                    "id": "search_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "Start New Search",
+                      "color": "blue",
+                      "size": "md",
+                      "fillContainer": true
+                    },
+                    "eventHandlers": [
+                      {
+                        "event": "click",
+                        "action": {
+                          "type": "settab",
+                          "tab": "search_interface"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "ai_insights_card",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "backgroundColor": "#faf5ff",
+                    "border": "2px solid #b794f6",
+                    "borderRadius": "12px",
+                    "padding": "20px",
+                    "textAlign": "center"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "insights_title",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "## 🤖 AI Insights\n**92% Analysis Confidence**\n**18 High-Priority Insights**\n\n5 Market Trends Identified\n12 Competitive Intelligence\n23 Strategic Recommendations",
+                      "style": {"marginBottom": "15px", "color": "#553c9a"}
+                    }
+                  },
+                  {
+                    "id": "insights_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "View AI Analysis",
+                      "color": "purple",
+                      "size": "md",
+                      "fillContainer": true
+                    },
+                    "eventHandlers": [
+                      {
+                        "event": "click",
+                        "action": {
+                          "type": "settab",
+                          "tab": "ai_analysis"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "knowledge_base_card",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "backgroundColor": "#fffaf0",
+                    "border": "2px solid #f6ad55",
+                    "borderRadius": "12px",
+                    "padding": "20px",
+                    "textAlign": "center"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "knowledge_title",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "## 🗄️ Knowledge Base\n**2.3M Documents Indexed**\n**98.7% Retrieval Accuracy**\n\n847 Research Collections\n15K Vector Embeddings\n234 Knowledge Graphs",
+                      "style": {"marginBottom": "15px", "color": "#c05621"}
+                    }
+                  },
+                  {
+                    "id": "knowledge_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "Explore Knowledge",
+                      "color": "orange",
+                      "size": "md",
+                      "fillContainer": true
+                    },
+                    "eventHandlers": [
+                      {
+                        "event": "click",
+                        "action": {
+                          "type": "settab",
+                          "tab": "knowledge_base"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "recent_activity_section",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "backgroundColor": "#ffffff",
+                "border": "1px solid #e2e8f0",
+                "borderRadius": "8px",
+                "padding": "20px",
+                "marginBottom": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "activity_title",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "### 📈 Recent Research Activity",
+                  "style": {"marginBottom": "20px", "color": "#2d3748"}
+                }
+              },
+              {
+                "id": "activity_timeline",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "#### **Today's Highlights:**\n\n🔍 **11:45 AM** - Market research on \"AI adoption in healthcare 2024\" completed\n- 47 sources analyzed, 12 key insights extracted\n- Executive summary generated (96% confidence)\n- 5 follow-up queries suggested\n\n📊 **10:22 AM** - Competitive analysis for \"Financial services automation\" updated\n- 3 new competitors identified\n- Market position analysis refined\n- Strategic recommendations updated\n\n🤖 **09:15 AM** - AI trend analysis on \"Machine learning enterprise adoption\" finished\n- 8 major trends identified\n- Impact assessment completed\n- Investment recommendations generated\n\n📝 **08:45 AM** - Research report \"Q4 Technology Investment Landscape\" published\n- 45-page comprehensive analysis\n- Executive summary distributed\n- Client presentation scheduled\n\n🗄️ **08:30 AM** - Knowledge base updated with 247 new research documents\n- Vector embeddings processed\n- Cross-references established\n- Search index optimized",
+                  "style": {
+                    "fontSize": "14px",
+                    "color": "#4a5568",
+                    "backgroundColor": "#f8f9fa",
+                    "padding": "15px",
+                    "borderRadius": "6px"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "quick_actions_section",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "backgroundColor": "#f7fafc",
+                "padding": "20px",
+                "borderRadius": "8px",
+                "border": "1px solid #e2e8f0"
+              }
+            },
+            "components": [
+              {
+                "id": "quick_actions_title",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "## ⚡ Quick Actions",
+                  "style": {"marginBottom": "20px", "color": "#2d3748"}
+                }
+              },
+              {
+                "id": "actions_grid",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "display": "grid",
+                    "gridTemplateColumns": "repeat(auto-fit, minmax(200px, 1fr))",
+                    "gap": "15px"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "new_project_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "🚀 Start New Project",
+                      "color": "success",
+                      "size": "md",
+                      "fillContainer": true
+                    }
+                  },
+                  {
+                    "id": "quick_search_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "🔍 Quick Search",
+                      "color": "blue",
+                      "size": "md",
+                      "fillContainer": true
+                    },
+                    "eventHandlers": [
+                      {
+                        "event": "click",
+                        "action": {
+                          "type": "settab",
+                          "tab": "search_interface"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "ai_analysis_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "🤖 AI Analysis",
+                      "color": "purple",
+                      "size": "md",
+                      "fillContainer": true
+                    },
+                    "eventHandlers": [
+                      {
+                        "event": "click",
+                        "action": {
+                          "type": "settab",
+                          "tab": "ai_analysis"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "generate_report_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "📄 Generate Report",
+                      "color": "orange",
+                      "size": "md",
+                      "fillContainer": true
+                    },
+                    "eventHandlers": [
+                      {
+                        "event": "click",
+                        "action": {
+                          "type": "settab",
+                          "tab": "report_generation"
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "search_interface": {
+        "type": "containercomponent",
+        "components": [
+          {
+            "id": "search_header",
+            "type": "textcomponent",
+            "configuration": {
+              "text": "# 🔍 Privacy-Respecting Research Search\n## Multi-engine aggregation with intelligent result analysis",
+              "style": {
+                "fontSize": "16px",
+                "fontWeight": "600",
+                "color": "#1e40af",
+                "backgroundColor": "#ebf8ff",
+                "padding": "15px",
+                "borderRadius": "8px",
+                "marginBottom": "20px"
+              }
+            }
+          },
+          {
+            "id": "search_form",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "backgroundColor": "#ffffff",
+                "border": "1px solid #e2e8f0",
+                "borderRadius": "8px",
+                "padding": "20px",
+                "marginBottom": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "search_form_title",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "### 🎯 Research Query Builder",
+                  "style": {"marginBottom": "20px", "color": "#2d3748"}
+                }
+              },
+              {
+                "id": "search_controls",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "display": "grid",
+                    "gridTemplateColumns": "1fr",
+                    "gap": "15px",
+                    "marginBottom": "20px"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "search_query_input",
+                    "type": "textinputcomponent",
+                    "configuration": {
+                      "label": "Research Query",
+                      "placeholder": "Enter your research question or topic (e.g., 'AI adoption trends in healthcare 2024')",
+                      "required": true
+                    }
+                  },
+                  {
+                    "id": "search_options_row",
+                    "type": "containercomponent",
+                    "configuration": {
+                      "style": {
+                        "display": "grid",
+                        "gridTemplateColumns": "repeat(auto-fit, minmax(200px, 1fr))",
+                        "gap": "15px"
+                      }
+                    },
+                    "components": [
+                      {
+                        "id": "search_engines_select",
+                        "type": "selectcomponent",
+                        "configuration": {
+                          "label": "Search Engines",
+                          "placeholder": "All engines",
+                          "items": [
+                            {"value": "all", "label": "All Engines (Recommended)"},
+                            {"value": "google,bing", "label": "Google + Bing"},
+                            {"value": "google,duckduckgo", "label": "Google + DuckDuckGo"},
+                            {"value": "scholar,arxiv", "label": "Academic Sources"},
+                            {"value": "duckduckgo", "label": "Privacy-First Only"}
+                          ],
+                          "defaultValue": "all"
+                        }
+                      },
+                      {
+                        "id": "search_category_select",
+                        "type": "selectcomponent",
+                        "configuration": {
+                          "label": "Content Category",
+                          "placeholder": "General",
+                          "items": [
+                            {"value": "general", "label": "General Web"},
+                            {"value": "news", "label": "News & Current Events"},
+                            {"value": "science", "label": "Scientific Papers"},
+                            {"value": "scholar", "label": "Academic Research"},
+                            {"value": "it", "label": "Technology"},
+                            {"value": "social media", "label": "Social Media"}
+                          ],
+                          "defaultValue": "general"
+                        }
+                      },
+                      {
+                        "id": "time_range_select",
+                        "type": "selectcomponent",
+                        "configuration": {
+                          "label": "Time Range",
+                          "placeholder": "Any time",
+                          "items": [
+                            {"value": "", "label": "Any Time"},
+                            {"value": "day", "label": "Past 24 Hours"},
+                            {"value": "week", "label": "Past Week"},
+                            {"value": "month", "label": "Past Month"},
+                            {"value": "year", "label": "Past Year"}
+                          ]
+                        }
+                      },
+                      {
+                        "id": "result_limit_select",
+                        "type": "selectcomponent",
+                        "configuration": {
+                          "label": "Results Limit",
+                          "items": [
+                            {"value": "25", "label": "25 Results"},
+                            {"value": "50", "label": "50 Results"},
+                            {"value": "100", "label": "100 Results"}
+                          ],
+                          "defaultValue": "50"
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "advanced_options",
+                    "type": "containercomponent",
+                    "configuration": {
+                      "style": {
+                        "display": "grid",
+                        "gridTemplateColumns": "repeat(auto-fit, minmax(250px, 1fr))",
+                        "gap": "15px"
+                      }
+                    },
+                    "components": [
+                      {
+                        "id": "domain_filter_input",
+                        "type": "textinputcomponent",
+                        "configuration": {
+                          "label": "Include Domains (optional)",
+                          "placeholder": "e.g., edu, gov, org"
+                        }
+                      },
+                      {
+                        "id": "exclude_domains_input",
+                        "type": "textinputcomponent",
+                        "configuration": {
+                          "label": "Exclude Domains (optional)",
+                          "placeholder": "e.g., facebook.com, twitter.com"
+                        }
+                      },
+                      {
+                        "id": "project_id_select",
+                        "type": "selectcomponent",
+                        "configuration": {
+                          "label": "Associate with Project",
+                          "placeholder": "None",
+                          "items": [
+                            {"value": "", "label": "No Project"},
+                            {"value": "proj_healthcare_ai", "label": "Healthcare AI Analysis"},
+                            {"value": "proj_fintech_trends", "label": "FinTech Market Trends"},
+                            {"value": "proj_competitor_intel", "label": "Competitive Intelligence"}
+                          ]
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "search_actions",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "display": "flex",
+                    "gap": "15px",
+                    "flexWrap": "wrap"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "execute_search_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "🔍 Execute Search",
+                      "color": "blue",
+                      "size": "lg"
+                    },
+                    "eventHandlers": [
+                      {
+                        "event": "click",
+                        "action": {
+                          "type": "runscript",
+                          "path": "research_search_engine",
+                          "args": {
+                            "action": "search",
+                            "searchQuery": {
+                              "query": "{{search_query_input.value}}",
+                              "engines": "{{search_engines_select.value}}",
+                              "category": "{{search_category_select.value}}",
+                              "time_range": "{{time_range_select.value}}",
+                              "result_limit": "{{result_limit_select.value}}",
+                              "domain_filter": "{{domain_filter_input.value}}",
+                              "exclude_domains": "{{exclude_domains_input.value}}",
+                              "project_id": "{{project_id_select.value}}"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "get_suggestions_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "💡 Get Suggestions",
+                      "color": "purple",
+                      "size": "md"
+                    },
+                    "eventHandlers": [
+                      {
+                        "event": "click",
+                        "action": {
+                          "type": "runscript",
+                          "path": "research_search_engine",
+                          "args": {
+                            "action": "search_suggestions",
+                            "queryText": "{{search_query_input.value}}"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "analyze_query_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "🔍 Analyze Query",
+                      "color": "orange",
+                      "size": "md"
+                    },
+                    "eventHandlers": [
+                      {
+                        "event": "click",
+                        "action": {
+                          "type": "runscript",
+                          "path": "research_search_engine",
+                          "args": {
+                            "action": "analyze_query",
+                            "queryText": "{{search_query_input.value}}"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "search_results_section",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "backgroundColor": "#ffffff",
+                "border": "1px solid #e2e8f0",
+                "borderRadius": "8px",
+                "padding": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "results_header",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "### 📊 Search Results & Analysis",
+                  "style": {"marginBottom": "20px", "color": "#2d3748"}
+                }
+              },
+              {
+                "id": "search_results_placeholder",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "**Search results will appear here after executing a search.**\n\n**Expected Output:**\n- Privacy-protected multi-engine results\n- Source credibility scoring\n- Content relevance ranking\n- Related query suggestions\n- Source diversity analysis\n\n**Privacy Features:**\n✅ No user tracking or logging\n✅ IP address protection\n✅ No cookies required\n✅ Multi-engine aggregation\n✅ Results anonymization\n\n**Sample Results Format:**\n\n📄 **Result Title** (Credibility: 92%)\n- **Source:** example.com\n- **Published:** 2024-07-15\n- **Relevance Score:** 0.89\n- **Content Preview:** Research findings show...\n\n🔗 **View Full Content** | 📊 **Analyze with AI** | 💾 **Save to Project**",
+                  "style": {
+                    "fontSize": "14px",
+                    "color": "#6b7280",
+                    "backgroundColor": "#f9fafb",
+                    "padding": "20px",
+                    "border": "2px dashed #d1d5db",
+                    "borderRadius": "6px",
+                    "textAlign": "center"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "ai_analysis": {
+        "type": "containercomponent",
+        "components": [
+          {
+            "id": "analysis_header",
+            "type": "textcomponent",
+            "configuration": {
+              "text": "# 🤖 AI Analysis & Strategic Insights\n## Advanced content analysis with intelligent pattern recognition",
+              "style": {
+                "fontSize": "16px",
+                "fontWeight": "600",
+                "color": "#553c9a",
+                "backgroundColor": "#faf5ff",
+                "padding": "15px",
+                "borderRadius": "8px",
+                "marginBottom": "20px"
+              }
+            }
+          },
+          {
+            "id": "analysis_input_section",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "backgroundColor": "#ffffff",
+                "border": "1px solid #e2e8f0",
+                "borderRadius": "8px",
+                "padding": "20px",
+                "marginBottom": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "analysis_input_title",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "### 📝 Content Analysis Input",
+                  "style": {"marginBottom": "20px", "color": "#2d3748"}
+                }
+              },
+              {
+                "id": "analysis_form",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "display": "grid",
+                    "gridTemplateColumns": "1fr",
+                    "gap": "15px"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "content_input",
+                    "type": "textareacomponent",
+                    "configuration": {
+                      "label": "Research Content to Analyze",
+                      "placeholder": "Paste your research content, articles, or data here for AI analysis...",
+                      "required": true,
+                      "rows": 8
+                    }
+                  },
+                  {
+                    "id": "analysis_options_row",
+                    "type": "containercomponent",
+                    "configuration": {
+                      "style": {
+                        "display": "grid",
+                        "gridTemplateColumns": "repeat(auto-fit, minmax(200px, 1fr))",
+                        "gap": "15px"
+                      }
+                    },
+                    "components": [
+                      {
+                        "id": "analysis_type_select",
+                        "type": "selectcomponent",
+                        "configuration": {
+                          "label": "Analysis Type",
+                          "items": [
+                            {"value": "comprehensive", "label": "Comprehensive Analysis"},
+                            {"value": "insights", "label": "Key Insights Extraction"},
+                            {"value": "summary", "label": "Executive Summary"},
+                            {"value": "trends", "label": "Trend Analysis"},
+                            {"value": "competitive", "label": "Competitive Intelligence"},
+                            {"value": "gaps", "label": "Knowledge Gap Analysis"}
+                          ],
+                          "defaultValue": "comprehensive"
+                        }
+                      },
+                      {
+                        "id": "output_format_select",
+                        "type": "selectcomponent",
+                        "configuration": {
+                          "label": "Output Format",
+                          "items": [
+                            {"value": "executive", "label": "Executive Summary"},
+                            {"value": "structured", "label": "Structured Analysis"},
+                            {"value": "narrative", "label": "Narrative Report"},
+                            {"value": "technical", "label": "Technical Deep-dive"}
+                          ],
+                          "defaultValue": "executive"
+                        }
+                      },
+                      {
+                        "id": "confidence_threshold",
+                        "type": "numberinputcomponent",
+                        "configuration": {
+                          "label": "Confidence Threshold",
+                          "min": 0.5,
+                          "max": 1.0,
+                          "step": 0.1,
+                          "defaultValue": 0.7
+                        }
+                      },
+                      {
+                        "id": "max_insights",
+                        "type": "numberinputcomponent",
+                        "configuration": {
+                          "label": "Max Insights",
+                          "min": 5,
+                          "max": 50,
+                          "step": 5,
+                          "defaultValue": 15
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "focus_areas_input",
+                    "type": "textinputcomponent",
+                    "configuration": {
+                      "label": "Focus Areas (optional)",
+                      "placeholder": "e.g., market trends, competitive landscape, financial impact"
+                    }
+                  },
+                  {
+                    "id": "context_input",
+                    "type": "textinputcomponent",
+                    "configuration": {
+                      "label": "Analysis Context (optional)",
+                      "placeholder": "e.g., Strategic planning for Q1 2025, Investment decision support"
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "analysis_actions",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "display": "flex",
+                    "gap": "15px",
+                    "marginTop": "20px",
+                    "flexWrap": "wrap"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "start_analysis_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "🚀 Start AI Analysis",
+                      "color": "purple",
+                      "size": "lg"
+                    },
+                    "eventHandlers": [
+                      {
+                        "event": "click",
+                        "action": {
+                          "type": "runscript",
+                          "path": "ai_research_analyzer",
+                          "args": {
+                            "action": "analyze_content",
+                            "analysisRequest": {
+                              "content": "{{content_input.value}}",
+                              "analysis_type": "{{analysis_type_select.value}}",
+                              "output_format": "{{output_format_select.value}}",
+                              "confidence_threshold": "{{confidence_threshold.value}}",
+                              "max_insights": "{{max_insights.value}}",
+                              "focus_areas": "{{focus_areas_input.value}}",
+                              "context": "{{context_input.value}}"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "extract_insights_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "💡 Extract Insights",
+                      "color": "blue",
+                      "size": "md"
+                    },
+                    "eventHandlers": [
+                      {
+                        "event": "click",
+                        "action": {
+                          "type": "runscript",
+                          "path": "ai_research_analyzer",
+                          "args": {
+                            "action": "extract_insights",
+                            "content": "{{content_input.value}}",
+                            "analysisType": "insights"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "trend_analysis_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "📈 Trend Analysis",
+                      "color": "green",
+                      "size": "md"
+                    },
+                    "eventHandlers": [
+                      {
+                        "event": "click",
+                        "action": {
+                          "type": "runscript",
+                          "path": "ai_research_analyzer",
+                          "args": {
+                            "action": "trend_analysis",
+                            "content": "{{content_input.value}}"
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "competitive_analysis_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "⚔️ Competitive Intel",
+                      "color": "red",
+                      "size": "md"
+                    },
+                    "eventHandlers": [
+                      {
+                        "event": "click",
+                        "action": {
+                          "type": "runscript",
+                          "path": "ai_research_analyzer",
+                          "args": {
+                            "action": "competitive_analysis", 
+                            "content": "{{content_input.value}}"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "analysis_results_section",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "backgroundColor": "#ffffff",
+                "border": "1px solid #e2e8f0",
+                "borderRadius": "8px",
+                "padding": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "results_title",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "### 📊 AI Analysis Results",
+                  "style": {"marginBottom": "20px", "color": "#2d3748"}
+                }
+              },
+              {
+                "id": "analysis_results_placeholder",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "**AI analysis results will appear here after processing.**\n\n**Expected Analysis Components:**\n\n🎯 **Executive Summary**\n- High-level strategic overview\n- Key findings and implications\n- Recommended actions\n- Risk assessment\n\n💡 **Strategic Insights** (Confidence: 92%)\n- Market opportunity identification\n- Competitive positioning analysis\n- Trend pattern recognition\n- Investment recommendations\n\n📈 **Trend Analysis**\n- Rising/declining patterns\n- Market direction indicators\n- Time horizon projections\n- Impact assessments\n\n⚔️ **Competitive Intelligence**\n- Market position analysis\n- Strength/vulnerability mapping\n- Strategic move identification\n- Threat level assessment\n\n🔍 **Knowledge Gaps**\n- Missing information identification\n- Research priority suggestions\n- Follow-up query recommendations\n- Data collection strategies\n\n📋 **Action Items**\n- Strategic recommendations\n- Tactical next steps\n- Research priorities\n- Timeline suggestions",
+                  "style": {
+                    "fontSize": "14px",
+                    "color": "#6b7280",
+                    "backgroundColor": "#f9fafb",
+                    "padding": "20px",
+                    "border": "2px dashed #d1d5db",
+                    "borderRadius": "6px",
+                    "textAlign": "center"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "knowledge_base": {
+        "type": "containercomponent",
+        "components": [
+          {
+            "id": "knowledge_header",
+            "type": "textcomponent",
+            "configuration": {
+              "text": "# 🗄️ Knowledge Base Management\n## Intelligent information organization and retrieval system",
+              "style": {
+                "fontSize": "16px",
+                "fontWeight": "600",
+                "color": "#c05621",
+                "backgroundColor": "#fffaf0",
+                "padding": "15px",
+                "borderRadius": "8px",
+                "marginBottom": "20px"
+              }
+            }
+          },
+          {
+            "id": "knowledge_stats",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "display": "grid",
+                "gridTemplateColumns": "repeat(auto-fit, minmax(200px, 1fr))",
+                "gap": "15px",
+                "marginBottom": "30px"
+              }
+            },
+            "components": [
+              {
+                "id": "documents_stat",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "backgroundColor": "#f0f9ff",
+                    "border": "1px solid #0ea5e9",
+                    "borderRadius": "8px",
+                    "padding": "15px",
+                    "textAlign": "center"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "docs_count",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "### 📄 2.3M\n**Documents Indexed**",
+                      "style": {"color": "#0369a1"}
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "collections_stat",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "backgroundColor": "#f0fdf4",
+                    "border": "1px solid #22c55e",
+                    "borderRadius": "8px",
+                    "padding": "15px",
+                    "textAlign": "center"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "collections_count",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "### 📚 847\n**Research Collections**",
+                      "style": {"color": "#15803d"}
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "embeddings_stat",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "backgroundColor": "#fefce8",
+                    "border": "1px solid #eab308",
+                    "borderRadius": "8px",
+                    "padding": "15px",
+                    "textAlign": "center"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "embeddings_count",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "### 🧠 15K\n**Vector Embeddings**",
+                      "style": {"color": "#a16207"}
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "accuracy_stat",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "backgroundColor": "#fdf2f8",
+                    "border": "1px solid #ec4899",
+                    "borderRadius": "8px",
+                    "padding": "15px",
+                    "textAlign": "center"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "accuracy_score",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "### 🎯 98.7%\n**Retrieval Accuracy**",
+                      "style": {"color": "#be185d"}
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "knowledge_search_section",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "backgroundColor": "#ffffff",
+                "border": "1px solid #e2e8f0",
+                "borderRadius": "8px",
+                "padding": "20px",
+                "marginBottom": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "search_title",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "### 🔍 Knowledge Base Search",
+                  "style": {"marginBottom": "20px", "color": "#2d3748"}
+                }
+              },
+              {
+                "id": "knowledge_search_form",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "display": "grid",
+                    "gridTemplateColumns": "1fr auto",
+                    "gap": "15px",
+                    "alignItems": "end"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "knowledge_query_input",
+                    "type": "textinputcomponent",
+                    "configuration": {
+                      "label": "Search Knowledge Base",
+                      "placeholder": "Search for insights, patterns, or specific topics..."
+                    }
+                  },
+                  {
+                    "id": "knowledge_search_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "🔍 Search",
+                      "color": "blue",
+                      "size": "md"
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "knowledge_collections",
+            "type": "containercomponent", 
+            "configuration": {
+              "style": {
+                "backgroundColor": "#ffffff",
+                "border": "1px solid #e2e8f0",
+                "borderRadius": "8px",
+                "padding": "20px",
+                "marginBottom": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "collections_title",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "### 📚 Research Collections",
+                  "style": {"marginBottom": "20px", "color": "#2d3748"}
+                }
+              },
+              {
+                "id": "collections_grid",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "display": "grid",
+                    "gridTemplateColumns": "repeat(auto-fit, minmax(300px, 1fr))",
+                    "gap": "20px"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "ai_trends_collection",
+                    "type": "containercomponent",
+                    "configuration": {
+                      "style": {
+                        "backgroundColor": "#f8fafc",
+                        "border": "1px solid #e2e8f0",
+                        "borderRadius": "8px",
+                        "padding": "15px"
+                      }
+                    },
+                    "components": [
+                      {
+                        "id": "ai_trends_title",
+                        "type": "textcomponent",
+                        "configuration": {
+                          "text": "#### 🤖 AI Market Trends\n**Documents:** 1,247\n**Last Updated:** 2 hours ago\n**Relevance:** 94%",
+                          "style": {"marginBottom": "10px", "fontSize": "14px"}
+                        }
+                      },
+                      {
+                        "id": "ai_trends_btn",
+                        "type": "buttoncomponent",
+                        "configuration": {
+                          "text": "Explore Collection",
+                          "color": "blue",
+                          "size": "sm",
+                          "fillContainer": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "healthcare_collection",
+                    "type": "containercomponent",
+                    "configuration": {
+                      "style": {
+                        "backgroundColor": "#f8fafc",
+                        "border": "1px solid #e2e8f0",
+                        "borderRadius": "8px",
+                        "padding": "15px"
+                      }
+                    },
+                    "components": [
+                      {
+                        "id": "healthcare_title",
+                        "type": "textcomponent",
+                        "configuration": {
+                          "text": "#### 🏥 Healthcare Innovation\n**Documents:** 892\n**Last Updated:** 5 hours ago\n**Relevance:** 89%",
+                          "style": {"marginBottom": "10px", "fontSize": "14px"}
+                        }
+                      },
+                      {
+                        "id": "healthcare_btn",
+                        "type": "buttoncomponent",
+                        "configuration": {
+                          "text": "Explore Collection",
+                          "color": "green",
+                          "size": "sm",
+                          "fillContainer": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "fintech_collection",
+                    "type": "containercomponent",
+                    "configuration": {
+                      "style": {
+                        "backgroundColor": "#f8fafc",
+                        "border": "1px solid #e2e8f0",
+                        "borderRadius": "8px",
+                        "padding": "15px"
+                      }
+                    },
+                    "components": [
+                      {
+                        "id": "fintech_title",
+                        "type": "textcomponent",
+                        "configuration": {
+                          "text": "#### 💰 FinTech Disruption\n**Documents:** 634\n**Last Updated:** 1 day ago\n**Relevance:** 91%",
+                          "style": {"marginBottom": "10px", "fontSize": "14px"}
+                        }
+                      },
+                      {
+                        "id": "fintech_btn",
+                        "type": "buttoncomponent",
+                        "configuration": {
+                          "text": "Explore Collection",
+                          "color": "purple",
+                          "size": "sm",
+                          "fillContainer": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "competitive_collection",
+                    "type": "containercomponent",
+                    "configuration": {
+                      "style": {
+                        "backgroundColor": "#f8fafc",
+                        "border": "1px solid #e2e8f0",
+                        "borderRadius": "8px",
+                        "padding": "15px"
+                      }
+                    },
+                    "components": [
+                      {
+                        "id": "competitive_title",
+                        "type": "textcomponent",
+                        "configuration": {
+                          "text": "#### ⚔️ Competitive Intelligence\n**Documents:** 1,089\n**Last Updated:** 3 hours ago\n**Relevance:** 96%",
+                          "style": {"marginBottom": "10px", "fontSize": "14px"}
+                        }
+                      },
+                      {
+                        "id": "competitive_btn",
+                        "type": "buttoncomponent",
+                        "configuration": {
+                          "text": "Explore Collection",
+                          "color": "red",
+                          "size": "sm",
+                          "fillContainer": true
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "knowledge_management_tools",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "backgroundColor": "#f7fafc",
+                "padding": "20px",
+                "borderRadius": "8px",
+                "border": "1px solid #e2e8f0"
+              }
+            },
+            "components": [
+              {
+                "id": "management_title",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "### ⚙️ Knowledge Management Tools",
+                  "style": {"marginBottom": "20px", "color": "#2d3748"}
+                }
+              },
+              {
+                "id": "tools_grid",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "display": "grid",
+                    "gridTemplateColumns": "repeat(auto-fit, minmax(200px, 1fr))",
+                    "gap": "15px"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "create_collection_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "➕ Create Collection",
+                      "color": "success",
+                      "size": "md",
+                      "fillContainer": true
+                    }
+                  },
+                  {
+                    "id": "import_documents_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "📥 Import Documents",
+                      "color": "blue",
+                      "size": "md",
+                      "fillContainer": true
+                    }
+                  },
+                  {
+                    "id": "export_knowledge_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "📤 Export Knowledge",
+                      "color": "purple",
+                      "size": "md",
+                      "fillContainer": true
+                    }
+                  },
+                  {
+                    "id": "optimize_index_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "🔧 Optimize Index",
+                      "color": "orange",
+                      "size": "md",
+                      "fillContainer": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "report_generation": {
+        "type": "containercomponent",
+        "components": [
+          {
+            "id": "report_header",
+            "type": "textcomponent",
+            "configuration": {
+              "text": "# 📄 Research Report Generation\n## Professional report creation with AI-powered content synthesis",
+              "style": {
+                "fontSize": "16px",
+                "fontWeight": "600",
+                "color": "#7c2d12",
+                "backgroundColor": "#fef7ed",
+                "padding": "15px",
+                "borderRadius": "8px",
+                "marginBottom": "20px"
+              }
+            }
+          },
+          {
+            "id": "report_templates",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "backgroundColor": "#ffffff",
+                "border": "1px solid #e2e8f0",
+                "borderRadius": "8px",
+                "padding": "20px",
+                "marginBottom": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "templates_title",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "### 📋 Report Templates",
+                  "style": {"marginBottom": "20px", "color": "#2d3748"}
+                }
+              },
+              {
+                "id": "templates_grid",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "display": "grid",
+                    "gridTemplateColumns": "repeat(auto-fit, minmax(250px, 1fr))",
+                    "gap": "15px"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "executive_template",
+                    "type": "containercomponent",
+                    "configuration": {
+                      "style": {
+                        "backgroundColor": "#f0f9ff",
+                        "border": "1px solid #0ea5e9",
+                        "borderRadius": "6px",
+                        "padding": "15px",
+                        "textAlign": "center"
+                      }
+                    },
+                    "components": [
+                      {
+                        "id": "exec_template_info",
+                        "type": "textcomponent",
+                        "configuration": {
+                          "text": "#### 👔 Executive Summary\n**Best for:** C-level briefings\n**Length:** 5-10 pages\n**Sections:** Key findings, strategic implications, recommendations",
+                          "style": {"marginBottom": "15px", "fontSize": "14px", "color": "#0369a1"}
+                        }
+                      },
+                      {
+                        "id": "exec_template_btn",
+                        "type": "buttoncomponent",
+                        "configuration": {
+                          "text": "Use Template",
+                          "color": "blue",
+                          "size": "sm",
+                          "fillContainer": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "market_template",
+                    "type": "containercomponent",
+                    "configuration": {
+                      "style": {
+                        "backgroundColor": "#f0fdf4",
+                        "border": "1px solid #22c55e",
+                        "borderRadius": "6px",
+                        "padding": "15px",
+                        "textAlign": "center"
+                      }
+                    },
+                    "components": [
+                      {
+                        "id": "market_template_info",
+                        "type": "textcomponent",
+                        "configuration": {
+                          "text": "#### 📊 Market Analysis\n**Best for:** Investment decisions\n**Length:** 15-25 pages\n**Sections:** Market size, trends, competition, opportunities",
+                          "style": {"marginBottom": "15px", "fontSize": "14px", "color": "#15803d"}
+                        }
+                      },
+                      {
+                        "id": "market_template_btn",
+                        "type": "buttoncomponent",
+                        "configuration": {
+                          "text": "Use Template",
+                          "color": "green",
+                          "size": "sm",
+                          "fillContainer": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "competitive_template",
+                    "type": "containercomponent",
+                    "configuration": {
+                      "style": {
+                        "backgroundColor": "#fef2f2",
+                        "border": "1px solid #ef4444",
+                        "borderRadius": "6px",
+                        "padding": "15px",
+                        "textAlign": "center"
+                      }
+                    },
+                    "components": [
+                      {
+                        "id": "comp_template_info",
+                        "type": "textcomponent",
+                        "configuration": {
+                          "text": "#### ⚔️ Competitive Intelligence\n**Best for:** Strategic planning\n**Length:** 20-30 pages\n**Sections:** Competitor profiles, SWOT, positioning",
+                          "style": {"marginBottom": "15px", "fontSize": "14px", "color": "#dc2626"}
+                        }
+                      },
+                      {
+                        "id": "comp_template_btn",
+                        "type": "buttoncomponent",
+                        "configuration": {
+                          "text": "Use Template",
+                          "color": "red",
+                          "size": "sm",
+                          "fillContainer": true
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "technical_template",
+                    "type": "containercomponent",
+                    "configuration": {
+                      "style": {
+                        "backgroundColor": "#fefce8",
+                        "border": "1px solid #eab308",
+                        "borderRadius": "6px",
+                        "padding": "15px",
+                        "textAlign": "center"
+                      }
+                    },
+                    "components": [
+                      {
+                        "id": "tech_template_info",
+                        "type": "textcomponent",
+                        "configuration": {
+                          "text": "#### 🔬 Technical Deep-dive\n**Best for:** Implementation teams\n**Length:** 30-50 pages\n**Sections:** Methodology, data analysis, appendices",
+                          "style": {"marginBottom": "15px", "fontSize": "14px", "color": "#a16207"}
+                        }
+                      },
+                      {
+                        "id": "tech_template_btn",
+                        "type": "buttoncomponent",
+                        "configuration": {
+                          "text": "Use Template",
+                          "color": "yellow",
+                          "size": "sm",
+                          "fillContainer": true
+                        }
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "report_builder_section",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "backgroundColor": "#ffffff",
+                "border": "1px solid #e2e8f0",
+                "borderRadius": "8px",
+                "padding": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "builder_title",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "### 🏗️ Report Builder",
+                  "style": {"marginBottom": "20px", "color": "#2d3748"}
+                }
+              },
+              {
+                "id": "report_placeholder",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "**Professional report generation interface will be displayed here.**\n\n**Report Builder Features:**\n\n📋 **Template Selection**\n- Executive Summary (5-10 pages)\n- Market Analysis (15-25 pages)\n- Competitive Intelligence (20-30 pages)\n- Technical Deep-dive (30-50 pages)\n\n🎨 **Customization Options**\n- Company branding integration\n- Custom section organization\n- Visual chart and graph inclusion\n- Executive summary automation\n\n📊 **Data Integration**\n- Automatic research synthesis\n- AI-generated insights inclusion\n- Supporting evidence compilation\n- Citation and source management\n\n📄 **Output Formats**\n- Professional PDF with branding\n- Microsoft Word document\n- PowerPoint presentation\n- HTML web report\n\n🚀 **Generation Process**\n1. Select report template\n2. Choose data sources and projects\n3. Customize sections and branding\n4. AI-powered content generation\n5. Review and refinement\n6. Professional formatting\n7. Export and distribution\n\n**Sample Report Sections:**\n- Executive Summary\n- Market Overview  \n- Key Findings\n- Strategic Recommendations\n- Risk Assessment\n- Implementation Roadmap\n- Appendices and Sources",
+                  "style": {
+                    "fontSize": "14px",
+                    "color": "#6b7280",
+                    "backgroundColor": "#f9fafb",
+                    "padding": "20px",
+                    "border": "2px dashed #d1d5db",
+                    "borderRadius": "6px",
+                    "textAlign": "center"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "project_management": {
+        "type": "containercomponent",
+        "components": [
+          {
+            "id": "project_header",
+            "type": "textcomponent",
+            "configuration": {
+              "text": "# 📊 Research Project Management\n## End-to-end project tracking and team collaboration",
+              "style": {
+                "fontSize": "16px",
+                "fontWeight": "600",
+                "color": "#2563eb",
+                "backgroundColor": "#dbeafe",
+                "padding": "15px",
+                "borderRadius": "8px",
+                "marginBottom": "20px"
+              }
+            }
+          },
+          {
+            "id": "projects_overview",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "backgroundColor": "#ffffff",
+                "border": "1px solid #e2e8f0",
+                "borderRadius": "8px",
+                "padding": "20px",
+                "marginBottom": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "projects_title",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "### 📁 Active Research Projects",
+                  "style": {"marginBottom": "20px", "color": "#2d3748"}
+                }
+              },
+              {
+                "id": "projects_list",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "#### **High Priority Projects:**\n\n🔴 **Healthcare AI Market Analysis**\n- **Status:** In Progress (75% complete)\n- **Team:** Sarah Johnson (Lead), Mike Chen, Lisa Park\n- **Deadline:** August 15, 2024\n- **Budget:** $18,500 / $20,000\n- **Next Milestone:** Final report review\n\n🟡 **FinTech Competitive Intelligence**\n- **Status:** Analysis Phase (45% complete) \n- **Team:** David Wilson (Lead), Alex Kim\n- **Deadline:** September 1, 2024\n- **Budget:** $12,800 / $15,000\n- **Next Milestone:** Competitive mapping\n\n#### **Medium Priority Projects:**\n\n🟢 **Renewable Energy Investment Trends**\n- **Status:** Data Collection (30% complete)\n- **Team:** Emma Rodriguez (Lead), Tom Bradley\n- **Deadline:** September 30, 2024\n- **Budget:** $8,200 / $12,000\n- **Next Milestone:** Market sizing analysis\n\n🔵 **Consumer Behavior Post-COVID**\n- **Status:** Planning (15% complete)\n- **Team:** Jennifer Walsh (Lead)\n- **Deadline:** October 15, 2024\n- **Budget:** $5,500 / $8,000\n- **Next Milestone:** Research methodology approval\n\n#### **Recently Completed:**\n\n✅ **Q2 Technology Investment Landscape** - Delivered July 28\n✅ **Automotive Industry Disruption Analysis** - Delivered July 22\n✅ **Social Media Platform Market Share Study** - Delivered July 18",
+                  "style": {
+                    "fontSize": "14px",
+                    "color": "#4a5568",
+                    "backgroundColor": "#f8f9fa",
+                    "padding": "15px",
+                    "borderRadius": "6px"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "project_actions",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "backgroundColor": "#f7fafc",
+                "padding": "20px",
+                "borderRadius": "8px",
+                "border": "1px solid #e2e8f0"
+              }
+            },
+            "components": [
+              {
+                "id": "actions_title",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "### ⚡ Project Actions",
+                  "style": {"marginBottom": "20px", "color": "#2d3748"}
+                }
+              },
+              {
+                "id": "project_actions_grid",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "display": "grid",
+                    "gridTemplateColumns": "repeat(auto-fit, minmax(200px, 1fr))",
+                    "gap": "15px"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "new_project_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "➕ New Project",
+                      "color": "success",
+                      "size": "md",
+                      "fillContainer": true
+                    }
+                  },
+                  {
+                    "id": "view_timeline_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "📅 View Timeline",
+                      "color": "blue",
+                      "size": "md",
+                      "fillContainer": true
+                    }
+                  },
+                  {
+                    "id": "team_workload_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "👥 Team Workload",
+                      "color": "purple",
+                      "size": "md",
+                      "fillContainer": true
+                    }
+                  },
+                  {
+                    "id": "budget_tracking_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "💰 Budget Tracking",
+                      "color": "orange",
+                      "size": "md",
+                      "fillContainer": true
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "administration": {
+        "type": "containercomponent",
+        "components": [
+          {
+            "id": "admin_header",
+            "type": "textcomponent",
+            "configuration": {
+              "text": "# ⚙️ Research Platform Administration\n## System configuration, user management, and performance monitoring",
+              "style": {
+                "fontSize": "16px",
+                "fontWeight": "600",
+                "color": "#4a5568",
+                "backgroundColor": "#f7fafc",
+                "padding": "15px",
+                "borderRadius": "8px",
+                "marginBottom": "20px"
+              }
+            }
+          },
+          {
+            "id": "admin_overview",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "display": "grid",
+                "gridTemplateColumns": "repeat(auto-fit, minmax(250px, 1fr))",
+                "gap": "20px",
+                "marginBottom": "30px"
+              }
+            },
+            "components": [
+              {
+                "id": "system_status_card",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "backgroundColor": "#ffffff",
+                    "border": "2px solid #10b981",
+                    "borderRadius": "12px",
+                    "padding": "20px",
+                    "textAlign": "center"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "system_status_title",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "### 🟢 System Status\n**All Services Online**\n**Uptime:** 99.97%\n**Response Time:** 1.2s",
+                      "style": {"marginBottom": "15px", "color": "#065f46"}
+                    }
+                  },
+                  {
+                    "id": "system_status_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "View Details",
+                      "color": "success",
+                      "size": "md",
+                      "fillContainer": true
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "users_card",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "backgroundColor": "#ffffff",
+                    "border": "2px solid #3b82f6",
+                    "borderRadius": "12px",
+                    "padding": "20px",
+                    "textAlign": "center"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "users_title",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "### 👥 Active Users\n**47 Researchers**\n**12 Analysts**\n**8 Administrators**",
+                      "style": {"marginBottom": "15px", "color": "#1d4ed8"}
+                    }
+                  },
+                  {
+                    "id": "users_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "Manage Users",
+                      "color": "blue",
+                      "size": "md",
+                      "fillContainer": true
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "usage_stats_card",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "backgroundColor": "#ffffff",
+                    "border": "2px solid #f59e0b",
+                    "borderRadius": "12px",
+                    "padding": "20px",
+                    "textAlign": "center"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "usage_title",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "### 📊 Usage Statistics\n**2,847 Searches Today**\n**342 AI Analyses**\n**89 Reports Generated**",
+                      "style": {"marginBottom": "15px", "color": "#d97706"}
+                    }
+                  },
+                  {
+                    "id": "usage_btn",
+                    "type": "buttoncomponent",
+                    "configuration": {
+                      "text": "View Analytics",
+                      "color": "yellow",
+                      "size": "md",
+                      "fillContainer": true
+                    }
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "id": "enterprise_features_section",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "backgroundColor": "#ffffff",
+                "border": "1px solid #e2e8f0",
+                "borderRadius": "8px",
+                "padding": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "enterprise_title",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "### 🏢 Enterprise Features & Revenue Model",
+                  "style": {"marginBottom": "20px", "color": "#2d3748"}
+                }
+              },
+              {
+                "id": "enterprise_info",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "#### 💰 **Revenue Potential: $12,000 - $20,000 per project**\n\n**Target Market:**\n- Strategic Consulting Firms\n- Market Research Agencies\n- Investment Analysis Teams\n- Corporate Strategy Departments\n- Competitive Intelligence Units\n\n**Enterprise Capabilities:**\n- 🔍 **Privacy-Respecting Search:** Anonymous multi-engine aggregation\n- 🤖 **AI-Powered Analysis:** Advanced content synthesis and insight extraction\n- 🗄️ **Knowledge Management:** Intelligent information organization and retrieval\n- 📄 **Professional Reports:** Automated generation with custom branding\n- 👥 **Multi-Project Management:** Team collaboration and workflow tracking\n- 🔒 **Enterprise Security:** Role-based access, audit trails, data encryption\n- 📊 **Custom Dashboards:** Tailored interfaces for different user roles\n- 🌐 **API Integration:** Connect with existing business intelligence tools\n\n**Implementation Services:**\n- Initial Setup: 100 hours @ $200/hour = $20,000\n- Custom Research Domains: $5,000 per specialized domain\n- Team Training: 5 days @ $2,500/day = $12,500\n- Go-Live Support: 8 weeks included\n\n**Licensing Options:**\n- Researcher: $150/month (5 projects, 100 AI analyses)\n- Professional: $750/month (25 projects, 500 AI analyses) \n- Enterprise: $2,500/month (unlimited projects and analyses)\n\n**Support & Maintenance:** 25% annual fee with dedicated research support specialist\n\n**Success Metrics:**\n- 10x faster research completion\n- 85% improvement in insight quality\n- 60% reduction in manual research overhead\n- 2-4 month payback period",
+                  "style": {
+                    "fontSize": "14px",
+                    "color": "#4a5568",
+                    "backgroundColor": "#e6fffa",
+                    "padding": "20px",
+                    "borderRadius": "8px",
+                    "border": "2px solid #38b2ac"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "summary": "Enterprise Research Assistant - AI-powered intelligence platform with privacy-respecting search, advanced content analysis, and professional report generation. Revenue potential: $12K-20K per project targeting strategic consultants and market analysts.",
+  "path": "enterprise-research-assistant",
+  "policy": {},
+  "draft_only": false,
+  "deployment": {
+    "environment": "production",
+    "revenue_potential": "$12K-20K",
+    "target_market": "Strategic Consultants, Market Research Agencies, Investment Analysts",
+    "enterprise_features": [
+      "Privacy-respecting multi-engine search aggregation",
+      "AI-powered content analysis and insight extraction",
+      "Intelligent knowledge base management with vector search",
+      "Professional report generation with custom branding",
+      "Multi-project management and team collaboration",
+      "Enterprise security with role-based access controls",
+      "Custom dashboard builder for different user roles",
+      "API integration with existing business intelligence tools"
+    ]
+  }
+}

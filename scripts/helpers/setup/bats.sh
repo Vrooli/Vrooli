@@ -67,7 +67,30 @@ bats::install_dependency() {
     local dir_name=$2
     cd "$BATS_DEPENDENCIES_DIR"
     if [ ! -d "$dir_name" ]; then
-        git clone "$repo_url" "$dir_name"
+        # Handle git clone with TLS compatibility
+        # If running under sudo, use the original user's git config
+        if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+            # Run git as the original user to inherit their config
+            sudo -u "$SUDO_USER" git -c http.sslVersion=tlsv1.2 clone "$repo_url" "$dir_name"
+        else
+            # Set git config for TLS compatibility to handle GnuTLS handshake issues
+            local original_ssl_version
+            original_ssl_version=$(git config --global http.sslVersion 2>/dev/null || echo "")
+            
+            # Temporarily set TLS version
+            git config --global http.sslVersion tlsv1.2
+            
+            # Clone the repository
+            git clone "$repo_url" "$dir_name"
+            
+            # Restore original config or unset if it wasn't set
+            if [ -n "$original_ssl_version" ]; then
+                git config --global http.sslVersion "$original_ssl_version"
+            else
+                git config --global --unset http.sslVersion 2>/dev/null || true
+            fi
+        fi
+        
         log::success "$dir_name installed successfully at $(pwd)/$dir_name"
     else
         log::info "$dir_name is already installed"
@@ -81,7 +104,15 @@ bats::install_core() {
 
     cd "$BATS_DEPENDENCIES_DIR"
     if [ ! -d "bats-core" ]; then
-        git clone https://github.com/bats-core/bats-core.git
+        # Handle git clone with TLS compatibility
+        # If running under sudo, use the original user's git config
+        if [ -n "${SUDO_USER:-}" ] && [ "$SUDO_USER" != "root" ]; then
+            # Run git as the original user to inherit their config
+            sudo -u "$SUDO_USER" git -c http.sslVersion=tlsv1.2 clone https://github.com/bats-core/bats-core.git
+        else
+            # Set git config for TLS compatibility to handle GnuTLS handshake issues
+            git -c http.sslVersion=tlsv1.2 clone https://github.com/bats-core/bats-core.git
+        fi
         cd bats-core
         # Ensure the BATS installation prefix exists (use sudo if required for system paths)
         # Check if we need sudo for system paths

@@ -22,7 +22,7 @@ The Unstructured.io service provides a REST API for document processing at `http
      - `strategy`: Processing strategy - `fast`, `hi_res`, or `auto` (default: `hi_res`)
      - `languages`: Comma-separated language codes for OCR (default: `eng`)
      - `include_page_breaks`: Include page break elements (default: `true`)
-     - `pdf_infer_table_structure`: Enable table detection in PDFs (default: `true`)
+     - `skip_infer_table_types`: Skip specific table inference types (default: `[]` - infer all tables)
      - `encoding`: Text encoding (default: `utf-8`)
 
 ## 📁 Supported Formats
@@ -106,7 +106,7 @@ curl -X POST http://localhost:11450/general/v0/general \
   -F "strategy=hi_res" \
   -F "languages=eng,fra" \
   -F "include_page_breaks=true" \
-  -F "pdf_infer_table_structure=true"
+  -F "skip_infer_table_types=[]"
 ```
 
 ## 📊 Response Format

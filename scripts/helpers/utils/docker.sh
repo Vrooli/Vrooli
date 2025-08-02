@@ -777,3 +777,144 @@ docker::tag_and_push_images() {
   
     log::success "Finished tagging and pushing images."
 }
+
+# Additional Docker utility functions for Judge0 and other resources
+
+#######################################
+# Check if Docker is available and running
+# Returns: 0 if Docker is ready, 1 if not
+#######################################
+docker::check() {
+    docker::_is_running
+}
+
+#######################################
+# Create Docker network if it doesn't exist
+# Arguments:
+#   $1 - network name
+# Returns: 0 on success, 1 on failure
+#######################################
+docker::create_network() {
+    local network_name="$1"
+    
+    if [[ -z "$network_name" ]]; then
+        return 1
+    fi
+    
+    # Check if network already exists
+    if docker::run network ls --format "{{.Name}}" | grep -q "^${network_name}$"; then
+        return 0
+    fi
+    
+    # Create the network
+    docker::run network create "$network_name" >/dev/null 2>&1
+}
+
+#######################################
+# Remove Docker network if it exists
+# Arguments:
+#   $1 - network name
+# Returns: 0 on success or if network doesn't exist
+#######################################
+docker::remove_network() {
+    local network_name="$1"
+    
+    if [[ -z "$network_name" ]]; then
+        return 0
+    fi
+    
+    # Remove network if it exists (ignore errors if it doesn't exist)
+    docker::run network rm "$network_name" >/dev/null 2>&1 || return 0
+}
+
+#######################################
+# Check if container is running
+# Arguments:
+#   $1 - container name
+# Returns: 0 if running, 1 if not
+#######################################
+docker::is_running() {
+    local container_name="$1"
+    
+    if [[ -z "$container_name" ]]; then
+        return 1
+    fi
+    
+    docker::run ps --format "{{.Names}}" | grep -q "^${container_name}$"
+}
+
+#######################################
+# Check if container has Docker socket exposed
+# Arguments:
+#   $1 - container name
+# Returns: 0 if socket is exposed, 1 if not
+#######################################
+docker::is_socket_exposed() {
+    local container_name="$1"
+    
+    if [[ -z "$container_name" ]]; then
+        return 1
+    fi
+    
+    # Check if container exists first
+    if ! docker::run inspect "$container_name" >/dev/null 2>&1; then
+        return 1
+    fi
+    
+    # Check if Docker socket is mounted
+    docker::run inspect "$container_name" --format '{{.HostConfig.Binds}}' 2>/dev/null | grep -q "/var/run/docker.sock"
+}
+
+#######################################
+# Fix Docker volume permissions when setup is run with sudo
+# Arguments:
+#   $1 - directory path to fix
+#   $2 - optional: specific user to own the directory (defaults to SUDO_USER)
+# Returns: 0 on success, 1 on failure
+#######################################
+docker::fix_volume_permissions() {
+    local dir_path="$1"
+    local target_user="${2:-${SUDO_USER:-$USER}}"
+    
+    if [[ -z "$dir_path" ]]; then
+        log::error "Directory path is required for permission fix"
+        return 1
+    fi
+    
+    if [[ ! -d "$dir_path" ]]; then
+        log::warn "Directory does not exist: $dir_path"
+        return 1
+    fi
+    
+    # If not running with sudo, no action needed
+    if [[ -z "${SUDO_USER:-}" ]]; then
+        log::debug "Not running with sudo, no permission fix needed"
+        return 0
+    fi
+    
+    # Check if directory is owned by root (common when created during sudo setup)
+    local current_owner
+    current_owner=$(stat -c '%U' "$dir_path" 2>/dev/null)
+    
+    if [[ "$current_owner" == "root" ]]; then
+        log::info "Fixing Docker volume permissions for: $dir_path"
+        log::info "Changing ownership from root to user: $target_user"
+        
+        if chown -R "${target_user}:${target_user}" "$dir_path" 2>/dev/null; then
+            log::success "✅ Fixed ownership: $dir_path now owned by $target_user"
+            
+            # Also ensure proper permissions for Docker containers
+            chmod -R 755 "$dir_path" 2>/dev/null || {
+                log::warn "Could not set directory permissions to 755"
+            }
+            
+            return 0
+        else
+            log::error "Failed to change ownership of $dir_path to $target_user"
+            return 1
+        fi
+    else
+        log::debug "Directory $dir_path already owned by $current_owner, no fix needed"
+        return 0
+    fi
+}

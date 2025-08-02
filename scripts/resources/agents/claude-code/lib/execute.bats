@@ -77,7 +77,25 @@ setup() {
 @test "claude_code::run builds basic command correctly" {
     # Set up environment
     claude_code::is_installed() { return 0; }
-    eval() { echo "Command: $*"; }
+    
+    # Better eval mock that only captures claude commands
+    eval() { 
+        local cmd="$*"
+        # Skip log color variables and BATS debug info
+        if [[ "$cmd" =~ ^(RED|GREEN|YELLOW|BLUE|MAGENTA|CYAN|WHITE)= ]] || \
+           [[ "$cmd" =~ ^color_value= ]] || \
+           [[ "$cmd" =~ ^stack_trace= ]] || \
+           [[ "$cmd" =~ BATS_DEBUG ]]; then
+            # Execute the actual command for log functions
+            builtin eval "$cmd" 2>/dev/null || true
+            return 0
+        fi
+        # Only show commands that look like claude commands
+        if [[ "$cmd" =~ ^claude ]]; then
+            echo "Command: $cmd"
+        fi
+        return 0
+    }
     
     # Set variables
     export PROMPT='Test prompt'
@@ -85,6 +103,7 @@ setup() {
     export OUTPUT_FORMAT='text'
     export ALLOWED_TOOLS=''
     export TIMEOUT=600
+    export SKIP_PERMISSIONS='no'
     
     # Run and capture output
     run claude_code::run
@@ -97,13 +116,32 @@ setup() {
 @test "claude_code::run handles stream-json format" {
     # Set up environment
     claude_code::is_installed() { return 0; }
-    eval() { echo "Command: $*"; }
+    
+    # Better eval mock that only captures claude commands
+    eval() { 
+        local cmd="$*"
+        # Skip log color variables and BATS debug info
+        if [[ "$cmd" =~ ^(RED|GREEN|YELLOW|BLUE|MAGENTA|CYAN|WHITE)= ]] || \
+           [[ "$cmd" =~ ^color_value= ]] || \
+           [[ "$cmd" =~ ^stack_trace= ]] || \
+           [[ "$cmd" =~ BATS_DEBUG ]]; then
+            # Execute the actual command for log functions
+            builtin eval "$cmd" 2>/dev/null || true
+            return 0
+        fi
+        # Only show commands that look like claude commands
+        if [[ "$cmd" =~ ^claude ]]; then
+            echo "Command: $cmd"
+        fi
+        return 0
+    }
     
     # Set variables
     export PROMPT='Test'
     export OUTPUT_FORMAT='stream-json'
     export ALLOWED_TOOLS=''
     export TIMEOUT=600
+    export SKIP_PERMISSIONS='no'
     
     # Run and capture output
     run claude_code::run
@@ -116,12 +154,31 @@ setup() {
 @test "claude_code::run adds allowed tools" {
     # Set up environment
     claude_code::is_installed() { return 0; }
-    eval() { echo "Command: $*"; }
+    
+    # Better eval mock that only captures claude commands
+    eval() { 
+        local cmd="$*"
+        # Skip log color variables and BATS debug info
+        if [[ "$cmd" =~ ^(RED|GREEN|YELLOW|BLUE|MAGENTA|CYAN|WHITE)= ]] || \
+           [[ "$cmd" =~ ^color_value= ]] || \
+           [[ "$cmd" =~ ^stack_trace= ]] || \
+           [[ "$cmd" =~ BATS_DEBUG ]]; then
+            # Execute the actual command for log functions
+            builtin eval "$cmd" 2>/dev/null || true
+            return 0
+        fi
+        # Only show commands that look like claude commands
+        if [[ "$cmd" =~ ^claude ]]; then
+            echo "Command: $cmd"
+        fi
+        return 0
+    }
     
     # Set variables
     export PROMPT='Test'
     export ALLOWED_TOOLS='tool1,tool2'
     export TIMEOUT=600
+    export SKIP_PERMISSIONS='no'
     
     # Run and capture output
     run claude_code::run
@@ -135,16 +192,35 @@ setup() {
 @test "claude_code::run sets timeout environment variables" {
     # Set up environment
     claude_code::is_installed() { return 0; }
+    
+    # Better eval mock that only captures claude commands and shows env vars
     eval() { 
-        echo "BASH_DEFAULT_TIMEOUT_MS=$BASH_DEFAULT_TIMEOUT_MS"
-        echo "BASH_MAX_TIMEOUT_MS=$BASH_MAX_TIMEOUT_MS"
-        echo "MCP_TOOL_TIMEOUT=$MCP_TOOL_TIMEOUT"
+        local cmd="$*"
+        # Skip log color variables and BATS debug info
+        if [[ "$cmd" =~ ^(RED|GREEN|YELLOW|BLUE|MAGENTA|CYAN|WHITE)= ]] || \
+           [[ "$cmd" =~ ^color_value= ]] || \
+           [[ "$cmd" =~ ^stack_trace= ]] || \
+           [[ "$cmd" =~ BATS_DEBUG ]]; then
+            # Execute the actual command for log functions
+            builtin eval "$cmd" 2>/dev/null || true
+            return 0
+        fi
+        # Only show commands that look like claude commands
+        if [[ "$cmd" =~ ^claude ]]; then
+            # For this test, also show the environment variables that were set
+            echo "BASH_DEFAULT_TIMEOUT_MS=$BASH_DEFAULT_TIMEOUT_MS"
+            echo "BASH_MAX_TIMEOUT_MS=$BASH_MAX_TIMEOUT_MS"
+            echo "MCP_TOOL_TIMEOUT=$MCP_TOOL_TIMEOUT"
+            echo "Command: $cmd"
+        fi
+        return 0
     }
     
     # Set variables
     export PROMPT='Test'
     export TIMEOUT=300
     export ALLOWED_TOOLS=''
+    export SKIP_PERMISSIONS='no'
     
     # Run and capture output
     run claude_code::run
@@ -178,13 +254,32 @@ setup() {
 @test "claude_code::batch uses stream-json and no-interactive" {
     # Set up environment
     claude_code::is_installed() { return 0; }
-    eval() { echo "Command: $*"; }
+    
+    # Better eval mock that only captures claude commands
+    eval() { 
+        local cmd="$*"
+        # Skip log color variables and BATS debug info
+        if [[ "$cmd" =~ ^(RED|GREEN|YELLOW|BLUE|MAGENTA|CYAN|WHITE)= ]] || \
+           [[ "$cmd" =~ ^color_value= ]] || \
+           [[ "$cmd" =~ ^stack_trace= ]] || \
+           [[ "$cmd" =~ BATS_DEBUG ]]; then
+            # Execute the actual command for log functions
+            builtin eval "$cmd" 2>/dev/null || true
+            return 0
+        fi
+        # Only show commands that look like claude commands
+        if [[ "$cmd" =~ ^claude ]]; then
+            echo "Command: $cmd"
+        fi
+        return 0
+    }
     
     # Set variables
     export PROMPT='Test batch'
     export MAX_TURNS=10
     export ALLOWED_TOOLS=''
     export TIMEOUT=600
+    export SKIP_PERMISSIONS='no'
     
     # Run and capture output
     run claude_code::batch
@@ -201,9 +296,18 @@ setup() {
     
     # Mock eval to create the output file that the function expects
     eval() {
+        local cmd="$*"
+        # Skip log color variables and BATS debug info
+        if [[ "$cmd" =~ ^(RED|GREEN|YELLOW|BLUE|MAGENTA|CYAN|WHITE)= ]] || \
+           [[ "$cmd" =~ ^color_value= ]] || \
+           [[ "$cmd" =~ ^stack_trace= ]] || \
+           [[ "$cmd" =~ BATS_DEBUG ]]; then
+            # Execute the actual command for log functions
+            builtin eval "$cmd" 2>/dev/null || true
+            return 0
+        fi
         # The command will be something like: claude ... > /tmp/claude-batch-12345.json 2>&1
         # We need to extract the output file path and create it
-        local cmd="$*"
         if [[ "$cmd" =~ \>.*(/tmp/claude-batch-[0-9]+\.json) ]]; then
             local output_file="${BASH_REMATCH[1]}"
             echo 'mock batch output' > "$output_file"
@@ -215,6 +319,7 @@ setup() {
     export PROMPT='Test batch'
     export ALLOWED_TOOLS=''
     export TIMEOUT=600
+    export SKIP_PERMISSIONS='no'
     
     # Run and capture output
     run claude_code::batch
@@ -241,6 +346,7 @@ setup() {
     export ALLOWED_TOOLS=''
     export TIMEOUT=600
     export MAX_TURNS=5
+    export SKIP_PERMISSIONS='no'
     
     # Override the claude_code::batch function to simulate failure
     claude_code::batch() {

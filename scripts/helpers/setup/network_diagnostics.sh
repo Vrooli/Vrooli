@@ -1870,6 +1870,10 @@ network_diagnostics::run() {
         log::info "2. SearXNG now accepts standard HTTP requests"
     fi
     
+    # 10. UFW Firewall Check and Fix
+    log::subheader "Firewall (UFW) Analysis"
+    network_diagnostics::check_ufw_blocking
+    
     # Provide helpful guidance based on results
     log::info "Proceeding to setup readiness assessment..."
     log::subheader "Setup Readiness Assessment"
@@ -2060,6 +2064,120 @@ network_diagnostics::run() {
     fi
     
     return 0
+}
+
+# Check if UFW is blocking outbound HTTP/HTTPS traffic
+network_diagnostics::check_ufw_blocking() {
+    log::info "Checking UFW firewall configuration..."
+    
+    # Skip if ufw not installed
+    if ! command -v ufw >/dev/null 2>&1; then
+        log::info "  UFW not installed - skipping firewall checks"
+        return 0
+    fi
+    
+    # Check if UFW is active
+    local ufw_status
+    if flow::can_run_sudo "check UFW status"; then
+        ufw_status=$(sudo ufw status 2>/dev/null || echo "inactive")
+        
+        if [[ "$ufw_status" == "inactive" ]] || echo "$ufw_status" | grep -q "inactive"; then
+            log::info "  UFW is inactive - not affecting network traffic"
+            return 0
+        fi
+        
+        log::info "  UFW is active - checking for blocking rules..."
+        
+        # Check default outgoing policy
+        local default_policy
+        default_policy=$(sudo ufw status verbose 2>/dev/null | grep "Default:" || echo "")
+        
+        if echo "$default_policy" | grep -q "deny (outgoing)"; then
+            log::error "  ⚠️  UFW default policy DENIES outgoing traffic!"
+            network_diagnostics::fix_ufw_blocking
+            return
+        fi
+        
+        # Check if we have explicit outbound rules for HTTP/HTTPS
+        local has_http_out=false
+        local has_https_out=false
+        local ufw_numbered
+        ufw_numbered=$(sudo ufw status numbered 2>/dev/null || echo "")
+        
+        if echo "$ufw_numbered" | grep -E "80/tcp.*ALLOW OUT" >/dev/null 2>&1; then
+            has_http_out=true
+        fi
+        if echo "$ufw_numbered" | grep -E "443/tcp.*ALLOW OUT" >/dev/null 2>&1; then
+            has_https_out=true
+        fi
+        
+        # If we're having IPv4 HTTPS issues and no explicit outbound rules exist
+        if [[ "${TEST_RESULTS["HTTPS_GOOGLE"]:-}" == "FAIL" ]] && [[ "$has_https_out" == "false" ]]; then
+            log::warning "  ⚠️  No explicit outbound HTTPS rule found"
+            log::info "  This may cause issues if default policy changes"
+            network_diagnostics::fix_ufw_blocking
+        elif [[ "$has_http_out" == "true" ]] && [[ "$has_https_out" == "true" ]]; then
+            log::success "  ✓ UFW has proper outbound HTTP/HTTPS rules"
+        else
+            log::info "  UFW appears properly configured"
+        fi
+    else
+        log::warning "  Cannot check UFW status (no sudo access)"
+        log::info "  To check manually: sudo ufw status verbose"
+    fi
+}
+
+# Fix UFW blocking issues
+network_diagnostics::fix_ufw_blocking() {
+    log::info "Attempting to fix UFW firewall issues..."
+    
+    if ! flow::can_run_sudo "fix UFW blocking"; then
+        log::warning "Cannot fix UFW automatically (no sudo access)"
+        log::info ""
+        log::info "🔧 MANUAL FIX REQUIRED:"
+        log::info "Run these commands to fix UFW blocking:"
+        log::info ""
+        log::info "  # Allow outbound HTTP/HTTPS:"
+        log::info "  sudo ufw allow out 80/tcp"
+        log::info "  sudo ufw allow out 443/tcp"
+        log::info "  sudo ufw allow out 53"
+        log::info "  sudo ufw allow out 53/udp"
+        log::info ""
+        log::info "  # Or reset UFW defaults:"
+        log::info "  sudo ufw default allow outgoing"
+        log::info "  sudo ufw reload"
+        log::info ""
+        return 1
+    fi
+    
+    log::info "  Adding explicit outbound rules for HTTP/HTTPS..."
+    
+    # Add outbound rules
+    sudo ufw allow out 80/tcp >/dev/null 2>&1
+    sudo ufw allow out 443/tcp >/dev/null 2>&1
+    sudo ufw allow out 53 >/dev/null 2>&1
+    sudo ufw allow out 53/udp >/dev/null 2>&1
+    
+    # Ensure default policy allows outgoing
+    sudo ufw default allow outgoing >/dev/null 2>&1
+    
+    # Reload UFW
+    sudo ufw reload >/dev/null 2>&1
+    
+    log::success "  ✓ Added UFW outbound rules for HTTP/HTTPS/DNS"
+    log::info "  → Testing if this fixed the issue..."
+    
+    # Re-test HTTPS
+    set +e
+    if curl -4 https://www.google.com -o /dev/null -s --connect-timeout 3; then
+        log::success "  ✓ IPv4 HTTPS now works! UFW fix successful."
+        TEST_RESULTS["UFW_FIX"]="SUCCESS"
+    else
+        log::warning "  → UFW rules added but IPv4 HTTPS still failing"
+        log::info "  → May need to restart networking or check other firewall layers"
+        TEST_RESULTS["UFW_FIX"]="PARTIAL"
+    fi
+    set -e
 }
 
 # If run directly, execute diagnostics

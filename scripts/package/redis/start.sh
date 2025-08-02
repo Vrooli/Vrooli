@@ -21,4 +21,17 @@ rm -f ${PROJECT_DIR}/data/redis/dump.rdb
 # --requirepass your_password: Set a password for Redis
 # --maxclients 50000: Increase max client connections (default is 10000)
 # --timeout 0: Disable idle client timeout
-redis-server --maxmemory 2gb --maxmemory-policy noeviction --appendonly yes --dbfilename dump.rdb --dir ${PROJECT_DIR}/data/redis/ --requirepass ${REDIS_PASSWORD} --maxclients 50000 --timeout 0 --tcp-keepalive 5
+
+# Build Redis command with proper password handling
+REDIS_CMD="redis-server --maxmemory 2gb --maxmemory-policy noeviction --appendonly yes --dbfilename dump.rdb --dir ${PROJECT_DIR}/data/redis/"
+
+# Only add requirepass if REDIS_PASSWORD is not empty
+if [ -n "${REDIS_PASSWORD}" ]; then
+    REDIS_CMD="${REDIS_CMD} --requirepass ${REDIS_PASSWORD}"
+fi
+
+# Add remaining options
+REDIS_CMD="${REDIS_CMD} --maxclients 50000 --timeout 0 --tcp-keepalive 5"
+
+# Execute the command
+exec ${REDIS_CMD}

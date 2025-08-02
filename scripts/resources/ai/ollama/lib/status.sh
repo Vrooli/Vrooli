@@ -153,3 +153,46 @@ ollama::status() {
         fi
     fi
 }
+
+#######################################
+# Show Ollama service logs
+#######################################
+ollama::logs() {
+    if ! ollama::is_installed; then
+        log::error "Ollama is not installed"
+        return 1
+    fi
+    
+    # Check if we have systemd service
+    if systemctl list-unit-files | grep -q "^${OLLAMA_SERVICE_NAME}.service"; then
+        log::info "Showing Ollama service logs (last 50 lines):"
+        log::info "Use 'journalctl -u $OLLAMA_SERVICE_NAME -f' to follow logs in real-time"
+        echo
+        journalctl -u "$OLLAMA_SERVICE_NAME" -n 50 --no-pager
+    else
+        log::warn "Ollama systemd service not found. Checking for running process..."
+        
+        # Try to find Ollama process logs
+        local ollama_pid
+        ollama_pid=$(pgrep -f "ollama" 2>/dev/null | head -1)
+        
+        if [[ -n "$ollama_pid" ]]; then
+            log::info "Ollama process found (PID: $ollama_pid)"
+            log::info "Process details:"
+            ps -p "$ollama_pid" -o pid,ppid,cmd --no-headers 2>/dev/null || true
+        else
+            log::warn "No Ollama process found"
+            log::info "Try starting Ollama with: $0 --action start"
+        fi
+    fi
+}
+
+# Export functions for subshell availability
+export -f ollama::is_installed
+export -f ollama::is_running
+export -f ollama::is_healthy
+export -f ollama::start
+export -f ollama::stop
+export -f ollama::restart
+export -f ollama::status
+export -f ollama::logs

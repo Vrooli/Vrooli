@@ -33,7 +33,7 @@ develop::parse_arguments() {
     args::register_environment
     args::register_target
     args::register_detached
-
+    
     # Register instance management arguments
     args::register \
         --name "skip-instance-check" \
@@ -73,14 +73,14 @@ develop::parse_arguments() {
     export LOCATION=$(args::get "location")
     export ENVIRONMENT=$(args::get "environment")
     export DETACHED=$(args::get "detached")
-export SKIP_INSTANCE_CHECK=$(args::get "skip-instance-check")
+    export SKIP_INSTANCE_CHECK=$(args::get "skip-instance-check")
     export INSTANCE_ACTION=$(args::get "instance-action")
     export CLEAN_INSTANCES=$(args::get "clean-instances")
 }
 
 develop::main() {
     develop::parse_arguments "$@"
-
+    
     # Export parsed arguments so they survive the subshell
     export TARGET SUDO_MODE YES LOCATION ENVIRONMENT DETACHED SKIP_INSTANCE_CHECK INSTANCE_ACTION CLEAN_INSTANCES
     
@@ -115,13 +115,57 @@ develop::main() {
     # Save the target before setup overwrites it
     local saved_target="$TARGET"
     
-    source "${MAIN_DIR}/setup.sh"
-    setup::parse_arguments "$@"
+    # Run setup in a subshell to prevent it from exiting our script
+    log::info "Running setup..."
+    if ! bash "${MAIN_DIR}/setup.sh" "$@"; then
+        log::error "Setup failed"
+        exit 1
+    fi
     
     # Restore the correct target
     export TARGET="$saved_target"
     
-    setup::main "$@"
+    # Re-source all necessary utilities after setup completes
+    # (setup was run in a subshell, so we lost our functions)
+    source "${MAIN_DIR}/../helpers/utils/var.sh"
+    source "${MAIN_DIR}/../helpers/utils/log.sh"
+    source "${MAIN_DIR}/../helpers/utils/flow.sh"
+    source "${MAIN_DIR}/../helpers/develop/index.sh"
+    source "${MAIN_DIR}/../helpers/develop/port_manager.sh"
+    source "${MAIN_DIR}/../helpers/develop/instance_manager.sh"
+    
+    # Source environment file directly to get variables
+    if [[ -f "${var_ROOT_DIR}/.env-dev" ]]; then
+        source "${var_ROOT_DIR}/.env-dev"
+    fi
+    
+    # Source environment utilities
+    if [[ -f "${MAIN_DIR}/../helpers/utils/env.sh" ]]; then
+        source "${MAIN_DIR}/../helpers/utils/env.sh"
+    fi
+    
+    # Source proxy utilities if needed for remote locations
+    if [[ -f "${MAIN_DIR}/../helpers/utils/proxy.sh" ]]; then
+        source "${MAIN_DIR}/../helpers/utils/proxy.sh"
+    fi
+    
+    # Check for existing instances and handle conflicts
+    if ! instance::should_skip_check; then
+        local instance_result
+        instance::handle_conflicts "$TARGET" "${INSTANCE_ACTION:-}"
+        instance_result=$?
+        log::debug "Instance conflict check returned: $instance_result"
+        
+        if [[ $instance_result -eq 2 ]]; then
+            # User chose to keep existing instances and exit
+            exit 0
+        elif [[ $instance_result -ne 0 ]]; then
+            log::error "Failed to handle instance conflicts"
+            exit "${ERROR_INSTANCE_CONFLICT:-1}"
+        fi
+    else
+        log::debug "Skipping instance check"
+    fi
     
     # Resolve port conflicts before starting services
     develop::resolve_port_conflicts "$TARGET"

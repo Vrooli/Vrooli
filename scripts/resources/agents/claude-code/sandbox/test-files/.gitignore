@@ -1,0 +1,17 @@
+# Ignore all files in test-files except examples and README
+*
+!.gitignore
+!README.md
+!example.js
+!test-patterns.py
+
+# But still ignore these patterns even if explicitly added
+*.log
+*.tmp
+*.bak
+.env
+.env.*
+*api*key*
+*secret*
+*password*
+*credential*

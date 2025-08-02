@@ -20,13 +20,13 @@ source "${RESOURCES_DIR}/../helpers/utils/args.sh"
 declare -A AVAILABLE_RESOURCES=(
     ["ai"]="ollama whisper unstructured-io"
     ["automation"]="n8n comfyui node-red windmill huginn"
-    ["storage"]="minio vault qdrant"
+    ["storage"]="minio vault qdrant questdb postgres redis"
     ["agents"]="browserless claude-code agent-s2"
     ["search"]="searxng"
 )
 
 # All available resources as a flat list
-ALL_RESOURCES="ollama whisper unstructured-io n8n comfyui node-red windmill huginn minio vault qdrant browserless claude-code agent-s2 searxng"
+ALL_RESOURCES="ollama whisper unstructured-io n8n comfyui node-red windmill huginn minio vault qdrant questdb postgres redis browserless claude-code agent-s2 searxng"
 
 #######################################
 # Parse command line arguments
@@ -42,7 +42,7 @@ resources::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|list|discover" \
+        --options "install|uninstall|start|stop|restart|status|list|discover|test" \
         --default "install"
     
     args::register \
@@ -75,6 +75,13 @@ resources::parse_arguments() {
         --options "yes|no" \
         --default "no"
     
+    args::register \
+        --name "test-type" \
+        --desc "Type of test to run" \
+        --type "value" \
+        --options "single|multi|scenarios|all" \
+        --default "all"
+    
     if args::is_asking_for_help "$@"; then
         resources::usage
         exit 0
@@ -88,6 +95,7 @@ resources::parse_arguments() {
     export FORCE=$(args::get "force")
     export YES=$(args::get "yes")
     export AUTO_CONFIGURE=$(args::get "auto-configure")
+    export TEST_TYPE=$(args::get "test-type")
 }
 
 #######################################
@@ -106,6 +114,10 @@ resources::usage() {
     echo "  $0 --action list                                      # List available resources"
     echo "  $0 --action discover                                  # Discover running resources"
     echo "  $0 --action discover --auto-configure yes             # Discover and configure resources"
+    echo "  $0 --action test --resources ollama                   # Test specific resource"
+    echo "  $0 --action test --resources ai-only                  # Test AI resources"
+    echo "  $0 --action test --resources all                      # Test all healthy resources"
+    echo "  $0 --action test --resources all --test-type single   # Run only single-resource tests"
     echo
     echo "Resource Categories:"
     for category in "${!AVAILABLE_RESOURCES[@]}"; do
@@ -324,7 +336,9 @@ resources::check_mcp_integration() {
         
         # Check MCP registration status
         local mcp_status
-        if mcp_status=$(bash "$claude_code_script" --action mcp-status --format json 2>/dev/null); then
+        # Use || true to prevent script exit on error due to set -e
+        mcp_status=$(bash "$claude_code_script" --action mcp-status --format json 2>/dev/null || true)
+        if [[ -n "$mcp_status" ]]; then
             # Parse JSON status (simple approach)
             if echo "$mcp_status" | grep -q '"registered":true'; then
                 log::success "✅ Vrooli MCP server is registered with Claude Code"
@@ -366,16 +380,20 @@ resources::get_health_endpoint() {
         "agent-s2") echo "/health" ;;
         "browserless") echo "/pressure" ;;
         "ollama") echo "/api/tags" ;;
-        "comfyui") echo "/system_stats" ;;
+        "comfyui") echo "/" ;;  # ComfyUI root endpoint works better than system_stats
         "n8n") echo "/healthz" ;;
         "huginn") echo "/" ;;
-        "whisper") echo "/health" ;;
+        "whisper") echo "/docs" ;;  # Whisper has docs endpoint, not health
         "node-red") echo "/flows" ;;
-        "windmill") echo "/api/health" ;;
+        "windmill") echo "/api/version" ;;
         "minio") echo "/minio/health/live" ;;  # MinIO health endpoint
         "searxng") echo "/stats" ;;
         "claude-code") echo "/mcp/health" ;;
         "unstructured-io") echo "/healthcheck" ;;
+        "qdrant") echo "/" ;;  # Qdrant root endpoint returns version info
+        "vault") echo "/v1/sys/health" ;;  # HashiCorp Vault health endpoint
+        "questdb") echo "/status" ;;  # QuestDB status endpoint
+        "postgres") echo "/health" ;;  # PostgreSQL health endpoint (custom endpoint)
         *) echo "" ;;  # Return empty for unknown resources
     esac
 }
@@ -390,23 +408,89 @@ resources::discover_running() {
     local discovered_resources=()
     
     for resource in $ALL_RESOURCES; do
-        local port
-        port=$(resources::get_default_port "$resource")
+        local resource_type
+        resource_type=$(resources::get_resource_type "$resource")
         
-        if resources::is_service_running "$port"; then
-            log::success "✅ $resource is running on port $port"
-            found_any=true
-            discovered_resources+=("$resource")
+        if [[ "$resource_type" == "cli" ]]; then
+            # Handle CLI tools
+            if resources::is_cli_resource_healthy "$resource"; then
+                log::success "✅ $resource is available (CLI tool)"
+                log::info "   Service validation: ✅ Validated as CLI tool"
+                
+                found_any=true
+                discovered_resources+=("$resource")
+                
+                # Get detailed health information for CLI tools
+                local script_path="${RESOURCES_DIR}/agents/$resource/manage.sh"
+                if [[ -x "$script_path" ]]; then
+                    local health_output
+                    health_output=$("$script_path" --action health-check --check-type basic --format text 2>/dev/null | head -5)
+                    if [[ -n "$health_output" ]]; then
+                        echo "$health_output" | while IFS= read -r line; do
+                            if [[ "$line" =~ ^(Overall Status|Version|Authentication): ]]; then
+                                log::info "   $line"
+                            fi
+                        done
+                    fi
+                fi
+            else
+                continue
+            fi
+        else
+            # Handle service-based resources
+            local port
+            port=$(resources::get_default_port "$resource")
             
-            # Check if it responds to HTTP with resource-specific health endpoint
-            local base_url="http://localhost:$port"
-            local health_endpoint
-            health_endpoint=$(resources::get_health_endpoint "$resource")
-            local health_status
-            health_status=$(resources::get_detailed_health_status "$base_url" "$health_endpoint")
-            log::info "   HTTP health check: $health_status"
-            
-            # Check model integrity for AI resources
+            if resources::is_service_running "$port"; then
+                # Validate it's actually the expected service
+                local validation_status
+                validation_status=$(resources::validate_service_identity "$resource" "$port")
+                
+                if [[ $? -eq 0 ]]; then
+                    log::success "✅ $resource is running on port $port"
+                    log::info "   Service validation: $validation_status"
+                else
+                    log::warn "⚠️  Port $port is in use but not by $resource"
+                    log::info "   Service validation: $validation_status"
+                    continue
+                fi
+                
+                found_any=true
+                discovered_resources+=("$resource")
+                
+                # Check health based on resource type
+                if [[ "$resource" == "redis" ]]; then
+                # Redis health check via TCP ping
+                local redis_health
+                if docker exec vrooli-redis-resource redis-cli ping 2>/dev/null | grep -q "PONG"; then
+                    redis_health="✅ Healthy (Redis PING successful)"
+                else
+                    redis_health="❌ Unhealthy (Redis PING failed)"
+                fi
+                log::info "   Redis health check: $redis_health"
+            elif [[ "$resource" == "postgres" ]]; then
+                # PostgreSQL health check via pg_isready - find any healthy vrooli-postgres container
+                local postgres_health
+                local postgres_container
+                postgres_container=$(docker ps --format "{{.Names}}" | grep "^vrooli-postgres-" | head -1)
+                
+                if [[ -n "$postgres_container" ]] && docker exec "$postgres_container" pg_isready -h localhost -p 5432 2>/dev/null; then
+                    postgres_health="✅ Healthy (PostgreSQL ready)"
+                else
+                    postgres_health="❌ Unhealthy (PostgreSQL not ready)"
+                fi
+                log::info "   PostgreSQL health check: $postgres_health"
+            else
+                # HTTP health check for other resources
+                local base_url="http://localhost:$port"
+                local health_endpoint
+                health_endpoint=$(resources::get_health_endpoint "$resource")
+                local health_status
+                health_status=$(resources::get_detailed_health_status "$base_url" "$health_endpoint")
+                    log::info "   HTTP health check: $health_status"
+                fi
+                
+                # Check model integrity for AI resources
             case "$resource" in
                 "comfyui")
                     # Check if ComfyUI models are valid
@@ -440,7 +524,10 @@ resources::discover_running() {
                         log::info "   Run: ollama pull llama3.1:8b"
                     fi
                     ;;
-            esac
+                esac
+            else
+                continue
+            fi
         fi
     done
     
@@ -513,7 +600,79 @@ resources::discover_running() {
     fi
     
     # Check Claude Code MCP integration status
-    resources::check_mcp_integration
+    # Temporarily disabled to debug hanging issue
+    # resources::check_mcp_integration
+}
+
+#######################################
+# Run integration tests with auto-discovery
+#######################################
+resources::run_tests() {
+    log::header "🧪 Resource Integration Tests"
+    
+    # Step 1: Auto-discover healthy resources
+    log::info "Auto-discovering healthy resources..."
+    local healthy_resources=()
+    
+    for resource in $ALL_RESOURCES; do
+        local port
+        port=$(resources::get_default_port "$resource")
+        
+        if resources::is_service_running "$port"; then
+            local base_url="http://localhost:$port"
+            local health_endpoint
+            health_endpoint=$(resources::get_health_endpoint "$resource")
+            
+            if resources::check_http_health "$base_url" "$health_endpoint"; then
+                healthy_resources+=("$resource")
+                log::success "✅ $resource is healthy and ready for testing"
+            else
+                log::warn "⚠️  $resource is running but not responding to health checks"
+            fi
+        fi
+    done
+    
+    if [[ ${#healthy_resources[@]} -eq 0 ]]; then
+        log::error "No healthy resources found for testing"
+        log::info "Start resources first, then run tests"
+        return 1
+    fi
+    
+    # Step 2: Filter resources if specific resource requested
+    local test_resources=("${healthy_resources[@]}")
+    if [[ -n "$RESOURCES_INPUT" && "$RESOURCES_INPUT" != "all" ]]; then
+        local resource_list
+        resource_list=$(resources::resolve_list)
+        
+        local filtered_resources=()
+        for resource in $resource_list; do
+            if [[ " ${healthy_resources[*]} " =~ " $resource " ]]; then
+                filtered_resources+=("$resource")
+            else
+                log::warn "⚠️  Requested resource $resource is not healthy, skipping"
+            fi
+        done
+        test_resources=("${filtered_resources[@]}")
+    fi
+    
+    # Step 3: Execute tests with proper environment
+    local tests_dir="${RESOURCES_DIR}/tests"
+    export HEALTHY_RESOURCES_STR="${test_resources[*]}"
+    export SCRIPT_DIR="$tests_dir"
+    export RESOURCES_DIR="$RESOURCES_DIR"
+    
+    log::info "Testing resources: ${test_resources[*]}"
+    log::info "Executing test runner..."
+    
+    # Check if test runner exists
+    if [[ ! -f "$tests_dir/run.sh" ]]; then
+        log::error "Test runner not found at: $tests_dir/run.sh"
+        log::info "Make sure you're running from the correct directory"
+        return 1
+    fi
+    
+    # Execute the test runner with populated environment
+    bash "$tests_dir/run.sh" "$@"
 }
 
 #######################################
@@ -529,6 +688,10 @@ resources::main() {
             ;;
         "discover")
             resources::discover_running
+            return 0
+            ;;
+        "test")
+            resources::run_tests
             return 0
             ;;
     esac

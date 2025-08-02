@@ -10,6 +10,9 @@ from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime
 
 from .ai_service_manager import AIServiceManager
+from .search_engine_service import search_service
+from .task_classifier import task_classifier
+from .semantic_validator import semantic_validator
 
 logger = logging.getLogger(__name__)
 
@@ -410,15 +413,17 @@ Common actions: click, type, scroll, drag, key presses"""
         return {"action": "manual_review", "parameters": {}}
     
     def _infer_action_from_description(self, description: str) -> Dict[str, Any]:
-        """Infer action type from natural language description"""
+        """Infer action type from natural language description using intelligent classification"""
         desc_lower = description.lower()
         
+        # Use task classifier to understand intent
+        classification = task_classifier.classify_task(description)
+        
         if any(word in desc_lower for word in ['launch', 'open', 'start']):
-            if 'firefox' in desc_lower:
-                return {"action": "launch_app", "parameters": {"app_name": "Firefox ESR"}}
-            elif 'browser' in desc_lower:
+            if 'firefox' in desc_lower or 'browser' in desc_lower:
                 return {"action": "launch_app", "parameters": {"app_name": "Firefox ESR"}}
             else:
+                # Default to Firefox for web-related tasks
                 return {"action": "launch_app", "parameters": {"app_name": "Firefox ESR"}}
                 
         elif any(word in desc_lower for word in ['click', 'press', 'tap']):
@@ -428,10 +433,24 @@ Common actions: click, type, scroll, drag, key presses"""
                 return {"action": "click", "parameters": {"x": 500, "y": 300}}
                 
         elif any(word in desc_lower for word in ['type', 'enter', 'input']):
-            if 'reddit' in desc_lower:
-                return {"action": "type", "parameters": {"text": "https://reddit.com"}}
+            # Use intelligent search/navigation logic instead of hardcoded URLs
+            if classification["task_type"].value in ["search", "image_search"]:
+                # Generate appropriate search URL
+                search_url, _ = search_service.get_appropriate_search_url(description)
+                return {"action": "type", "parameters": {"text": search_url}}
+            elif classification["task_type"].value == "navigation":
+                # Extract target and validate
+                target = classification["metadata"].get("target")
+                if target and semantic_validator.validate_url_for_task(f"https://{target}", description)["is_valid"]:
+                    return {"action": "type", "parameters": {"text": f"https://{target}"}}
+                else:
+                    # Fallback to search if navigation target is unclear/unsafe
+                    search_url, _ = search_service.get_appropriate_search_url(description)
+                    return {"action": "type", "parameters": {"text": search_url}}
             elif 'url' in desc_lower or 'address' in desc_lower:
-                return {"action": "type", "parameters": {"text": "https://reddit.com"}}
+                # Generate appropriate search URL as safe default
+                search_url, _ = search_service.get_appropriate_search_url(description)
+                return {"action": "type", "parameters": {"text": search_url}}
             else:
                 return {"action": "type", "parameters": {"text": "text to type"}}
                 
@@ -439,10 +458,15 @@ Common actions: click, type, scroll, drag, key presses"""
             return {"action": "wait", "parameters": {"seconds": 2}}
             
         elif any(word in desc_lower for word in ['navigate', 'go to', 'visit']):
-            if 'reddit' in desc_lower:
-                return {"action": "type", "parameters": {"text": "https://reddit.com"}}
-            else:
-                return {"action": "manual_review", "parameters": {}}
+            # Use intelligent navigation with validation
+            if classification["task_type"].value == "navigation":
+                target = classification["metadata"].get("target")
+                if target and semantic_validator.validate_url_for_task(f"https://{target}", description)["is_valid"]:
+                    return {"action": "type", "parameters": {"text": f"https://{target}"}}
+            
+            # Fallback to search for ambiguous navigation requests
+            search_url, _ = search_service.get_appropriate_search_url(description)
+            return {"action": "type", "parameters": {"text": search_url}}
         
         return {"action": "manual_review", "parameters": {}}
     
@@ -532,6 +556,62 @@ Common actions: click, type, scroll, drag, key presses"""
             
         return True
     
+    def _validate_and_fix_plan_urls(self, task: str, plan: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """Validate and fix URLs in the plan using semantic validation
+        
+        Args:
+            task: Original task description
+            plan: List of plan steps
+            
+        Returns:
+            Updated plan with validated/fixed URLs
+        """
+        fixed_plan = []
+        url_fixes_applied = 0
+        
+        for step in plan:
+            # Create a copy of the step
+            fixed_step = step.copy()
+            
+            # Check if this step contains a URL to validate
+            if step.get("action") == "type":
+                text_to_type = step.get("parameters", {}).get("text", "")
+                
+                # Check if the text looks like a URL
+                if (text_to_type.startswith("http") or 
+                    ("." in text_to_type and 
+                     any(tld in text_to_type for tld in [".com", ".org", ".net", ".edu", ".gov", ".io"]))):
+                    
+                    # Validate the URL semantically
+                    validation = semantic_validator.validate_url_for_task(text_to_type, task)
+                    
+                    if not validation["is_valid"] or validation["confidence"] < 0.7:
+                        logger.warning(f"Invalid/inappropriate URL detected: {text_to_type} for task '{task}'")
+                        logger.warning(f"Issues: {', '.join(validation['issues'])}")
+                        
+                        # Use the suggested alternative if available
+                        if validation["alternative_url"]:
+                            logger.info(f"Replacing with safer alternative: {validation['alternative_url']}")
+                            fixed_step["parameters"]["text"] = validation["alternative_url"]
+                            fixed_step["description"] = f"Type appropriate URL (replaced suspicious/inappropriate URL)"
+                            url_fixes_applied += 1
+                        else:
+                            # Generate a search URL as fallback
+                            search_url, _ = search_service.get_appropriate_search_url(task)
+                            logger.info(f"Generating search fallback: {search_url}")
+                            fixed_step["parameters"]["text"] = search_url
+                            fixed_step["description"] = f"Type search URL (replaced inappropriate URL)"
+                            url_fixes_applied += 1
+                    else:
+                        logger.info(f"URL validation passed: {text_to_type} (confidence: {validation['confidence']:.2f})")
+            
+            fixed_plan.append(fixed_step)
+        
+        if url_fixes_applied > 0:
+            logger.info(f"Applied {url_fixes_applied} URL fixes to plan for task '{task}'")
+        
+        return fixed_plan
+    
     async def plan_task_execution(self, task: str, context: Optional[Dict[str, Any]] = None, 
                                  screenshot: Optional[str] = None, window_context: Optional[str] = None) -> Dict[str, Any]:
         """Plan the execution of a task
@@ -557,7 +637,16 @@ Common actions: click, type, scroll, drag, key presses"""
         if window_context:
             context_str += f"\n\nWindow Information:\n{window_context}"
         
-        # Create AI prompt for task planning
+        # Use intelligent task classification before creating prompt
+        task_classification = task_classifier.classify_task(task)
+        search_url = None
+        
+        # Pre-generate appropriate URL if this is a search/navigation task
+        if task_classification["task_type"].value in ["search", "image_search"]:
+            search_url, search_intent = search_service.get_appropriate_search_url(task)
+            logger.info(f"Pre-generated search URL for '{task}': {search_url}")
+        
+        # Create intelligent, bias-free AI prompt for task planning
         system_prompt = f"""You are an AI assistant that helps with computer automation tasks. 
 You can analyze screen content and provide step-by-step instructions for automating tasks.
 Always provide specific, actionable steps with clear parameters for mouse clicks, keyboard input, etc.
@@ -566,19 +655,27 @@ Be precise about coordinates and text to type.
 CRITICAL: YOUR PLAN MUST BE COMPLETE AND ACHIEVE THE FULL TASK OBJECTIVE!
 - DO NOT stop after just launching an application
 - Include ALL steps needed to complete the task from start to finish
-- For "go to website" tasks, you MUST include steps to navigate to the actual website
+- For search tasks, use appropriate search engines or websites
+- For navigation tasks, validate that URLs make sense for the task
 
 APPLICATION LAUNCHING:
 - To open/launch applications, ALWAYS use the "launch_app" action type
 - DO NOT type launcher commands like "Alt+F1 → firefox" - use launch_app instead
 - Example: To open Firefox, use action "launch_app" with parameters {{"app_name": "Firefox ESR"}}
 
+INTELLIGENT URL SELECTION:
+- For SEARCH queries (like "show me puppies", "find tutorials"), use search engines
+- For IMAGE searches, prefer image search engines or photo sites
+- For specific WEBSITES, use the actual domain (e.g., "go to YouTube" → "https://youtube.com")
+- NEVER generate suspicious or nonsensical domain names
+- When unsure, default to search engines for safety
+
 SECURITY GUIDELINES FOR WEB NAVIGATION:
 - ALWAYS use full URLs with https:// protocol when navigating to websites
-- For example: use "https://reddit.com" not "reddit.com"
-- Double-check typed URLs for typos before pressing Enter
-- Verify the URL in address bar matches the intended destination
-- NEVER type a domain name if it's already in the address bar (to avoid duplicates like reddit.comreddit.com)
+- Only navigate to legitimate, well-known domains
+- For ambiguous requests, use search engines instead of guessing domains
+- Verify the URL makes semantic sense for the task
+- NEVER type a domain name if it's already in the address bar
 - When navigating to a new site, first click on the address bar, then clear it (Ctrl+A), then type the full URL
 
 IMPORTANT WINDOW FOCUS RULES:
@@ -588,32 +685,48 @@ IMPORTANT WINDOW FOCUS RULES:
 4. Each window shows "Focus Point: (x, y)" - these are the exact coordinates to click for focusing that window
 
 EXAMPLE COMPLETE PLANS:
-For "go to reddit":
+For "go to YouTube":
 1. Launch Firefox ESR (if not already open)
 2. Click on the address bar (specific coordinates)
 3. Clear address bar (Ctrl+A)
-4. Type "https://reddit.com"
+4. Type "https://youtube.com"
 5. Press Enter
 6. Wait for page to load
 
-For "search for news":
+For "show me puppies" (SEARCH task):
 1. Launch Firefox ESR (if not already open)
 2. Click on the address bar
 3. Clear address bar (Ctrl+A)
-4. Type search query or navigate to search engine
+4. Type appropriate search URL (e.g., DuckDuckGo or image search)
+5. Press Enter
+6. Wait for results
+
+For "search for tutorials":
+1. Launch Firefox ESR (if not already open)
+2. Click on the address bar
+3. Clear address bar (Ctrl+A)
+4. Type search engine URL with query
 5. Press Enter
 6. Review results
 
-REMEMBER: A plan that only launches an application is INCOMPLETE for navigation tasks!"""
+REMEMBER: A plan that only launches an application is INCOMPLETE for navigation/search tasks!
+TASK CLASSIFICATION: {task_classification["task_type"].value} - {task_classification["reasoning"]}"""
+
+        # Add intelligent URL suggestion to user prompt if available
+        url_guidance = ""
+        if search_url:
+            url_guidance = f"\nSUGGESTED URL FOR THIS TASK: {search_url}\n- This URL was intelligently selected based on task classification\n- Use this URL instead of guessing domain names\n- This ensures safe and appropriate navigation\n"
 
         user_prompt = f"""Task: {task}
         
 Current screen context available (screenshot was taken).{context_str}
-
+{url_guidance}
 CRITICAL REQUIREMENTS:
 1. You MUST respond with ONLY valid JSON. No markdown, no explanations outside the JSON, no code blocks. Start your response with {{ and end with }}.
 2. Your plan MUST be COMPLETE and achieve the FULL task objective
-3. For navigation tasks like "go to [website]", you MUST include ALL steps to actually navigate there, not just launch the browser
+3. For search tasks, use the suggested URL above if provided
+4. For navigation tasks, only use legitimate, well-known domains
+5. NEVER generate suspicious or nonsensical domain names
 
 Required JSON format:
 {{
@@ -636,18 +749,18 @@ Example parameters:
 - launch_app: {{"app_name": "Firefox ESR"}}
 - wait: {{"seconds": 2}}
 
-EXAMPLE COMPLETE PLAN for "go to reddit":
+EXAMPLE COMPLETE PLAN for "go to YouTube":
 {{
   "plan": [
     {{"action": "launch_app", "parameters": {{"app_name": "Firefox ESR"}}, "description": "Launch Firefox browser"}},
     {{"action": "wait", "parameters": {{"seconds": 2}}, "description": "Wait for Firefox to fully load"}},
     {{"action": "click", "parameters": {{"x": 700, "y": 100}}, "description": "Click on address bar"}},
     {{"action": "key", "parameters": {{"key": "Ctrl+A"}}, "description": "Select all text in address bar"}},
-    {{"action": "type", "parameters": {{"text": "https://reddit.com"}}, "description": "Type Reddit URL"}},
+    {{"action": "type", "parameters": {{"text": "https://youtube.com"}}, "description": "Type YouTube URL"}},
     {{"action": "key", "parameters": {{"key": "Enter"}}, "description": "Press Enter to navigate"}},
     {{"action": "wait", "parameters": {{"seconds": 3}}, "description": "Wait for page to load"}}
   ],
-  "reasoning": "Navigate to Reddit by launching Firefox, clearing the address bar, typing the URL, and pressing Enter",
+  "reasoning": "Navigate to YouTube by launching Firefox, clearing the address bar, typing the URL, and pressing Enter",
   "estimated_duration": "10 seconds"
 }}
 
@@ -684,24 +797,34 @@ Respond with the JSON object only - no other text before or after."""
                 logger.warning(f"JSON parsing failed: {e}, attempting markdown parsing")
                 ai_plan = self._parse_markdown_response(ai_text)
             
-            # Validate plan completeness
+            # Validate plan completeness and URLs
             plan = ai_plan.get("plan", [])
+            
+            # First, validate URLs in the plan for semantic appropriateness
+            plan = self._validate_and_fix_plan_urls(task, plan)
+            
             if not self._validate_plan_completeness(task, plan):
                 logger.warning(f"Plan appears incomplete for task '{task}', attempting to enhance...")
                 
-                # If the plan is incomplete, add common missing steps
+                # If the plan is incomplete, add common missing steps with intelligent URL selection
                 if any(phrase in task.lower() for phrase in ['go to', 'navigate to', 'visit']):
-                    # Add missing navigation steps
+                    # Add missing navigation steps with intelligent URL
                     enhanced_plan = []
                     for step in plan:
                         enhanced_plan.append(step)
                         # After launching browser, add navigation steps if missing
                         if step.get('action') == 'launch_app' and len(plan) <= 2:
+                            # Use intelligent URL generation instead of hardcoded fallback
+                            if search_url:
+                                intelligent_url = search_url
+                            else:
+                                intelligent_url, _ = search_service.get_appropriate_search_url(task)
+                            
                             enhanced_plan.extend([
                                 {"action": "wait", "parameters": {"seconds": 2}, "description": "Wait for browser to load"},
                                 {"action": "click", "parameters": {"x": 700, "y": 100}, "description": "Click on address bar"},
                                 {"action": "key", "parameters": {"key": "Ctrl+A"}, "description": "Select all text in address bar"},
-                                {"action": "type", "parameters": {"text": f"https://{task.split()[-1].replace('reddit', 'reddit.com')}"}, "description": "Type URL"},
+                                {"action": "type", "parameters": {"text": intelligent_url}, "description": "Type appropriate URL"},
                                 {"action": "key", "parameters": {"key": "Enter"}, "description": "Press Enter to navigate"},
                                 {"action": "wait", "parameters": {"seconds": 3}, "description": "Wait for page to load"}
                             ])

@@ -8,7 +8,6 @@ from datetime import datetime
 from urllib.parse import urlparse
 
 from mitmproxy import http, ctx
-from mitmproxy.script import concurrent
 
 try:
     # Try relative imports first (when loaded as module)
@@ -48,7 +47,7 @@ class SecurityProxyAddon:
         
         # Load security profile
         profile_name = os.environ.get("AGENT_S2_SECURITY_PROFILE", "moderate")
-        self.security_profile = self.security_config.get_profile(profile_name)
+        self.security_profile = get_security_config().get_profile(profile_name)
         
         # Stats
         self.requests_checked = 0
@@ -62,7 +61,6 @@ class SecurityProxyAddon:
         """Called when addon is first loaded"""
         ctx.log.info("Agent S2 Security Proxy loaded")
     
-    @concurrent
     async def request(self, flow: http.HTTPFlow) -> None:
         """Intercept and validate outgoing requests"""
         try:

@@ -1,0 +1,111 @@
+{
+  "metadata": {
+    "title": "Sistema de Orquestación de Recursos de IA - Test Document",
+    "description": "Documento de prueba multiidioma para validación de sistemas",
+    "languages": ["english", "spanish", "french", "german", "japanese", "korean"],
+    "created": "2025-07-29T14:30:00Z"
+  },
+  "content": {
+    "english": {
+      "title": "AI Resource Orchestration System",
+      "description": "A comprehensive platform for managing artificial intelligence resources across distributed environments.",
+      "features": [
+        "Dynamic resource discovery",
+        "Intelligent load balancing", 
+        "Fault-tolerant operation",
+        "Real-time monitoring"
+      ]
+    },
+    "spanish": {
+      "title": "Sistema de Orquestación de Recursos de IA",
+      "description": "Una plataforma integral para gestionar recursos de inteligencia artificial en entornos distribuidos.",
+      "features": [
+        "Descubrimiento dinámico de recursos",
+        "Balanceado inteligente de carga",
+        "Operación tolerante a fallos", 
+        "Monitoreo en tiempo real"
+      ]
+    },
+    "french": {
+      "title": "Système d'Orchestration de Ressources IA",
+      "description": "Une plateforme complète pour gérer les ressources d'intelligence artificielle dans des environnements distribués.",
+      "features": [
+        "Découverte dynamique des ressources",
+        "Équilibrage intelligent de charge",
+        "Fonctionnement tolérant aux pannes",
+        "Surveillance en temps réel"
+      ]
+    },
+    "german": {
+      "title": "KI-Ressourcen-Orchestrierungssystem",
+      "description": "Eine umfassende Plattform zur Verwaltung von Ressourcen für künstliche Intelligenz in verteilten Umgebungen.",
+      "features": [
+        "Dynamische Ressourcenerkennung",
+        "Intelligente Lastverteilung",
+        "Fehlertoleranter Betrieb",
+        "Echtzeitüberwachung"
+      ]
+    },
+    "japanese": {
+      "title": "AIリソースオーケストレーションシステム",
+      "description": "分散環境における人工知能リソースを管理するための包括的なプラットフォーム。",
+      "features": [
+        "動的リソース発見",
+        "インテリジェントロードバランシング",
+        "耐障害性オペレーション",
+        "リアルタイムモニタリング"
+      ]
+    },
+    "korean": {
+      "title": "AI 리소스 오케스트레이션 시스템",
+      "description": "분산 환경에서 인공지능 리소스를 관리하기 위한 포괄적인 플랫폼입니다.",
+      "features": [
+        "동적 리소스 발견",
+        "지능형 로드 밸런싱",
+        "내결함성 운영",
+        "실시간 모니터링"
+      ]
+    }
+  },
+  "technical_terms": {
+    "orchestration": {
+      "en": "orchestration",
+      "es": "orquestación", 
+      "fr": "orchestration",
+      "de": "Orchestrierung",
+      "ja": "オーケストレーション",
+      "ko": "오케스트레이션"
+    },
+    "artificial_intelligence": {
+      "en": "artificial intelligence",
+      "es": "inteligencia artificial",
+      "fr": "intelligence artificielle", 
+      "de": "künstliche Intelligenz",
+      "ja": "人工知能",
+      "ko": "인공지능"
+    },
+    "load_balancing": {
+      "en": "load balancing",
+      "es": "balanceado de carga",
+      "fr": "équilibrage de charge",
+      "de": "Lastverteilung", 
+      "ja": "ロードバランシング",
+      "ko": "로드 밸런싱"
+    }
+  },
+  "unicode_test": {
+    "emojis": "🤖 🔧 ⚡ 🌐 📊 🔍 🛠️ 💻",
+    "mathematical_symbols": "∑∏∫∞≈≠≤≥±√∂∇",
+    "currency_symbols": "$ € £ ¥ ₩ ₹ ₽ ₿",
+    "special_characters": "«»„"‚'…–—©®™°±×÷",
+    "diacritics": "àáâãäåæçèéêëìíîïñòóôõöøùúûüýÿ"
+  },
+  "character_encoding_test": {
+    "utf8_bom": "\\ufeff",
+    "zero_width_space": "\\u200b",
+    "right_to_left_mark": "\\u200f",
+    "left_to_right_mark": "\\u200e",
+    "combining_characters": "a\\u0300e\\u0301i\\u0302o\\u0303u\\u0308"
+  },
+  "notes": "Este documento contiene texto en múltiples idiomas para probar capacidades de procesamiento internacional. This document contains text in multiple languages to test international processing capabilities. Ce document contient du texte dans plusieurs langues pour tester les capacités de traitement international."
+}

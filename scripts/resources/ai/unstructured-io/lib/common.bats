@@ -28,6 +28,14 @@ setup() {
         return 1
     }
     
+    # Mock resources functions that are called during config loading
+    resources::get_default_port() {
+        case "$1" in
+            "unstructured-io") echo "8000" ;;
+            *) echo "8080" ;;
+        esac
+    }
+    
     # Mock Docker functions
     
     # Mock log functions
@@ -41,6 +49,15 @@ setup() {
     args::register() { return 0; }
     args::is_asking_for_help() { return 1; }
     args::parse() { return 0; }
+    args::get() {
+        # Default mock implementation - individual tests can override
+        case "$1" in
+            "action") echo "install" ;;
+            "force") echo "no" ;;
+            "yes") echo "no" ;;
+            *) echo "" ;;
+        esac
+    }
     args::usage() {
         echo "USAGE_CALLED"
         return 0

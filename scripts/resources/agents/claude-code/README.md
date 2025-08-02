@@ -7,15 +7,20 @@ Claude Code is a powerful command-line interface that brings Claude's capabiliti
 - **Type**: CLI Tool
 - **Installation**: npm package (`@anthropic-ai/claude-code`)
 - **API Docs**: [Complete API Reference](docs/API.md)
-- **Status**: Production Ready
+- **Status**: Functional (requires TTY for some operations)
 
 ## When to Use
 - **AI pair programming** and code review assistance
-- **Automated code analysis** and refactoring
+- **Automated code analysis** and refactoring  
 - **Development workflow** assistance and automation
 - **Code documentation** generation and maintenance
 
 **Alternative**: Direct IDE integration, manual code review, other AI development tools
+
+## Important Notes
+- **TTY Requirements**: Some operations require interactive terminal access
+- **Authentication**: Requires Claude Pro or Max subscription and login
+- **Automation**: Use `--print` mode and health-check actions for non-interactive environments
 
 ## 🚀 Quick Start
 

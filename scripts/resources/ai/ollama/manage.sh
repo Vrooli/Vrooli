@@ -48,6 +48,13 @@ ollama::main() {
     # Parse command line arguments
     ollama::parse_arguments "$@"
     
+    # If no action specified, show usage
+    if [[ -z "$ACTION" ]]; then
+        log::error "No action specified"
+        ollama::usage
+        exit 1
+    fi
+    
     # Route to appropriate action
     case "$ACTION" in
         install)
@@ -67,6 +74,9 @@ ollama::main() {
             ;;
         status)
             ollama::status
+            ;;
+        logs)
+            ollama::logs
             ;;
         models)
             ollama::list_models

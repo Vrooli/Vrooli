@@ -476,3 +476,11 @@ ollama::uninstall() {
     
     log::success "✅ Ollama uninstalled successfully"
 }
+
+# Export functions for subshell availability
+export -f ollama::install_binary
+export -f ollama::create_user
+export -f ollama::install_service
+export -f ollama::install
+export -f ollama::verify_installation
+export -f ollama::uninstall

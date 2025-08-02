@@ -1,0 +1,555 @@
+{
+  "name": "Multi-Modal AI Assistant",
+  "description": "Complete multi-modal AI assistant with voice, visual, and automation capabilities",
+  "version": "1.0.0",
+  "app_structure": {
+    "layout": {
+      "type": "container",
+      "configuration": {
+        "direction": "column",
+        "gap": 4
+      },
+      "components": [
+        {
+          "id": "header",
+          "type": "text",
+          "configuration": {
+            "text": "# Multi-Modal AI Assistant",
+            "style": {
+              "textAlign": "center",
+              "marginBottom": "20px",
+              "fontSize": "24px",
+              "fontWeight": "bold"
+            }
+          }
+        },
+        {
+          "id": "main_container",
+          "type": "container",
+          "configuration": {
+            "direction": "row",
+            "gap": 4
+          },
+          "components": [
+            {
+              "id": "input_panel",
+              "type": "container",
+              "configuration": {
+                "direction": "column",
+                "gap": 3,
+                "width": "400px"
+              },
+              "components": [
+                {
+                  "id": "input_section_header",
+                  "type": "text",
+                  "configuration": {
+                    "text": "## Input Methods",
+                    "style": {
+                      "marginBottom": "15px"
+                    }
+                  }
+                },
+                {
+                  "id": "text_input",
+                  "type": "textarea",
+                  "configuration": {
+                    "placeholder": "Type your request here... (e.g., 'Create a professional logo for TechCorp')",
+                    "rows": 4,
+                    "label": "Text Input"
+                  }
+                },
+                {
+                  "id": "audio_upload",
+                  "type": "file",
+                  "configuration": {
+                    "label": "Audio File Upload",
+                    "accept": "audio/*",
+                    "placeholder": "Upload audio file for transcription"
+                  }
+                },
+                {
+                  "id": "processing_options",
+                  "type": "container",
+                  "configuration": {
+                    "direction": "column",
+                    "gap": 2
+                  },
+                  "components": [
+                    {
+                      "id": "options_header",
+                      "type": "text",
+                      "configuration": {
+                        "text": "### Processing Options",
+                        "style": {
+                          "marginTop": "15px",
+                          "marginBottom": "10px"
+                        }
+                      }
+                    },
+                    {
+                      "id": "temperature_slider",
+                      "type": "slider",
+                      "configuration": {
+                        "label": "AI Creativity (Temperature)",
+                        "min": 0,
+                        "max": 1,
+                        "step": 0.1,
+                        "value": 0.7
+                      }
+                    },
+                    {
+                      "id": "image_size_select",
+                      "type": "select",
+                      "configuration": {
+                        "label": "Image Size",
+                        "options": [
+                          {"value": "512x512", "label": "Square (512x512)"},
+                          {"value": "768x512", "label": "Landscape (768x512)"},
+                          {"value": "512x768", "label": "Portrait (512x768)"}
+                        ],
+                        "value": "512x512"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "action_buttons",
+                  "type": "container",
+                  "configuration": {
+                    "direction": "row",
+                    "gap": 2,
+                    "justifyContent": "space-between"
+                  },
+                  "components": [
+                    {
+                      "id": "process_button",
+                      "type": "button",
+                      "configuration": {
+                        "text": "Process Request",
+                        "color": "blue",
+                        "size": "md",
+                        "disabled": "${state.processing}",
+                        "loading": "${state.processing}",
+                        "onClickScript": "process_multimodal_request"
+                      }
+                    },
+                    {
+                      "id": "screenshot_button",
+                      "type": "button",
+                      "configuration": {
+                        "text": "Take Screenshot",
+                        "color": "gray",
+                        "size": "md",
+                        "onClickScript": "take_screenshot"
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "results_panel",
+              "type": "container",
+              "configuration": {
+                "direction": "column",
+                "gap": 3,
+                "flex": 1
+              },
+              "components": [
+                {
+                  "id": "results_header",
+                  "type": "text",
+                  "configuration": {
+                    "text": "## Results & Progress",
+                    "style": {
+                      "marginBottom": "15px"
+                    }
+                  }
+                },
+                {
+                  "id": "progress_section",
+                  "type": "container",
+                  "configuration": {
+                    "direction": "column",
+                    "gap": 2,
+                    "visible": "${state.processing || state.last_result}"
+                  },
+                  "components": [
+                    {
+                      "id": "progress_header",
+                      "type": "text",
+                      "configuration": {
+                        "text": "### Processing Progress",
+                        "style": {
+                          "marginBottom": "10px"
+                        }
+                      }
+                    },
+                    {
+                      "id": "transcription_status",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "row",
+                        "alignItems": "center",
+                        "gap": 2
+                      },
+                      "components": [
+                        {
+                          "id": "transcription_icon",
+                          "type": "icon",
+                          "configuration": {
+                            "icon": "${state.transcription_complete ? 'check' : (state.transcription_processing ? 'clock' : 'circle')}",
+                            "color": "${state.transcription_complete ? 'green' : (state.transcription_processing ? 'yellow' : 'gray')}"
+                          }
+                        },
+                        {
+                          "id": "transcription_text",
+                          "type": "text",
+                          "configuration": {
+                            "text": "Audio Transcription"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "analysis_status",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "row",
+                        "alignItems": "center",
+                        "gap": 2
+                      },
+                      "components": [
+                        {
+                          "id": "analysis_icon",
+                          "type": "icon",
+                          "configuration": {
+                            "icon": "${state.analysis_complete ? 'check' : (state.analysis_processing ? 'clock' : 'circle')}",
+                            "color": "${state.analysis_complete ? 'green' : (state.analysis_processing ? 'yellow' : 'gray')}"
+                          }
+                        },
+                        {
+                          "id": "analysis_text",
+                          "type": "text",
+                          "configuration": {
+                            "text": "Intent Analysis"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "generation_status",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "row",
+                        "alignItems": "center",
+                        "gap": 2
+                      },
+                      "components": [
+                        {
+                          "id": "generation_icon",
+                          "type": "icon",
+                          "configuration": {
+                            "icon": "${state.generation_complete ? 'check' : (state.generation_processing ? 'clock' : 'circle')}",
+                            "color": "${state.generation_complete ? 'green' : (state.generation_processing ? 'yellow' : 'gray')}"
+                          }
+                        },
+                        {
+                          "id": "generation_text",
+                          "type": "text",
+                          "configuration": {
+                            "text": "Visual Generation"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "automation_status",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "row",
+                        "alignItems": "center",
+                        "gap": 2
+                      },
+                      "components": [
+                        {
+                          "id": "automation_icon",
+                          "type": "icon",
+                          "configuration": {
+                            "icon": "${state.automation_complete ? 'check' : (state.automation_processing ? 'clock' : 'circle')}",
+                            "color": "${state.automation_complete ? 'green' : (state.automation_processing ? 'yellow' : 'gray')}"
+                          }
+                        },
+                        {
+                          "id": "automation_text",
+                          "type": "text",
+                          "configuration": {
+                            "text": "Screen Automation"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "transcription_result",
+                  "type": "container",
+                  "configuration": {
+                    "direction": "column",
+                    "gap": 2,
+                    "visible": "${state.transcription_result}"
+                  },
+                  "components": [
+                    {
+                      "id": "transcription_result_header",
+                      "type": "text",
+                      "configuration": {
+                        "text": "### Transcription Result",
+                        "style": {
+                          "marginTop": "15px",
+                          "marginBottom": "10px"
+                        }
+                      }
+                    },
+                    {
+                      "id": "transcription_result_text",
+                      "type": "text",
+                      "configuration": {
+                        "text": "${state.transcription_result}",
+                        "style": {
+                          "backgroundColor": "#f5f5f5",
+                          "padding": "10px",
+                          "borderRadius": "5px",
+                          "fontStyle": "italic"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "analysis_result",
+                  "type": "container",
+                  "configuration": {
+                    "direction": "column",
+                    "gap": 2,
+                    "visible": "${state.analysis_result}"
+                  },
+                  "components": [
+                    {
+                      "id": "analysis_result_header",
+                      "type": "text",
+                      "configuration": {
+                        "text": "### AI Analysis",
+                        "style": {
+                          "marginTop": "15px",
+                          "marginBottom": "10px"
+                        }
+                      }
+                    },
+                    {
+                      "id": "intent_display",
+                      "type": "text",
+                      "configuration": {
+                        "text": "**Intent:** ${state.analysis_result?.intent?.primary_action || 'Unknown'}",
+                        "style": {
+                          "marginBottom": "5px"
+                        }
+                      }
+                    },
+                    {
+                      "id": "capabilities_display",
+                      "type": "text",
+                      "configuration": {
+                        "text": "**Required Capabilities:** ${state.analysis_result?.intent?.required_capabilities?.join(', ') || 'None'}",
+                        "style": {
+                          "marginBottom": "10px"
+                        }
+                      }
+                    },
+                    {
+                      "id": "ai_response_display",
+                      "type": "text",
+                      "configuration": {
+                        "text": "${state.analysis_result?.response}",
+                        "style": {
+                          "backgroundColor": "#e8f4f8",
+                          "padding": "10px",
+                          "borderRadius": "5px",
+                          "borderLeft": "3px solid #2196F3"
+                        }
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "generated_images",
+                  "type": "container",
+                  "configuration": {
+                    "direction": "column",
+                    "gap": 2,
+                    "visible": "${state.generated_images && state.generated_images.length > 0}"
+                  },
+                  "components": [
+                    {
+                      "id": "images_header",
+                      "type": "text",
+                      "configuration": {
+                        "text": "### Generated Images",
+                        "style": {
+                          "marginTop": "15px",
+                          "marginBottom": "10px"
+                        }
+                      }
+                    },
+                    {
+                      "id": "image_gallery",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "row",
+                        "gap": 2,
+                        "flexWrap": "wrap"
+                      },
+                      "components": [
+                        {
+                          "id": "image_placeholder",
+                          "type": "text",
+                          "configuration": {
+                            "text": "Images will appear here after generation...",
+                            "style": {
+                              "color": "#666",
+                              "fontStyle": "italic"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "screenshot_result",
+                  "type": "container",
+                  "configuration": {
+                    "direction": "column",
+                    "gap": 2,
+                    "visible": "${state.screenshot_data}"
+                  },
+                  "components": [
+                    {
+                      "id": "screenshot_header",
+                      "type": "text",
+                      "configuration": {
+                        "text": "### Screen Capture",
+                        "style": {
+                          "marginTop": "15px",
+                          "marginBottom": "10px"
+                        }
+                      }
+                    },
+                    {
+                      "id": "screenshot_display",
+                      "type": "image",
+                      "configuration": {
+                        "src": "data:image/png;base64,${state.screenshot_data}",
+                        "alt": "Screen capture",
+                        "style": {
+                          "maxWidth": "100%",
+                          "height": "auto",
+                          "border": "1px solid #ddd",
+                          "borderRadius": "5px"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "id": "session_info",
+          "type": "container",
+          "configuration": {
+            "direction": "row",
+            "justifyContent": "space-between",
+            "alignItems": "center",
+            "style": {
+              "marginTop": "20px",
+              "padding": "10px",
+              "backgroundColor": "#f9f9f9",
+              "borderRadius": "5px"
+            }
+          },
+          "components": [
+            {
+              "id": "session_status",
+              "type": "text",
+              "configuration": {
+                "text": "Status: ${state.processing ? 'Processing...' : 'Ready'}",
+                "style": {
+                  "fontSize": "14px",
+                  "color": "${state.processing ? '#ff9800' : '#4caf50'}"
+                }
+              }
+            },
+            {
+              "id": "clear_button",
+              "type": "button",
+              "configuration": {
+                "text": "Clear Session",
+                "color": "red",
+                "size": "sm",
+                "onClickScript": "clear_session"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "state": {
+      "processing": false,
+      "transcription_processing": false,
+      "transcription_complete": false,
+      "transcription_result": "",
+      "analysis_processing": false,
+      "analysis_complete": false,
+      "analysis_result": null,
+      "generation_processing": false,
+      "generation_complete": false,
+      "generated_images": [],
+      "automation_processing": false,
+      "automation_complete": false,
+      "screenshot_data": "",
+      "last_result": null,
+      "session_id": ""
+    },
+    "scripts": {
+      "process_multimodal_request": {
+        "language": "typescript",
+        "content": "// This script orchestrates the multi-modal processing workflow"
+      },
+      "take_screenshot": {
+        "language": "typescript", 
+        "content": "// This script takes a screenshot using Agent-S2"
+      },
+      "clear_session": {
+        "language": "typescript",
+        "content": "// This script clears the current session state"
+      }
+    }
+  },
+  "required_scripts": [
+    "whisper-transcribe",
+    "ollama-analyze", 
+    "comfyui-generate",
+    "agent-s2-automation"
+  ],
+  "permissions": {
+    "read": ["public"],
+    "write": ["admin"],
+    "execute": ["admin", "user"]
+  },
+  "tags": ["ai", "multimodal", "assistant", "automation", "demo"],
+  "created_by": "multimodal-scenario-test",
+  "created_at": "2025-08-01T00:00:00Z"
+}

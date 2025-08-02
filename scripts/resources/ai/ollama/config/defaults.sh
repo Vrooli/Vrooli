@@ -56,3 +56,6 @@ ollama::export_config() {
     export OLLAMA_INSTALL_DIR OLLAMA_USER
     # Note: Arrays MODEL_CATALOG and DEFAULT_MODELS are already available to sourcing scripts
 }
+
+# Export function for subshell availability
+export -f ollama::export_config

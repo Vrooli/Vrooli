@@ -93,17 +93,20 @@ setup() {
     export MSG_FAILED_API_REQUEST="Failed API request"
     export MSG_CHECK_STATUS="Check status"
     
-    # Mock ollama functions (lightweight)
+    # Mock ollama functions that need test control
     mock::ollama::setup() { return 0; }
-    ollama::is_healthy() { return 0; }  # Default: healthy
-    ollama::validate_model_available() { return 0; }  # Default: model available
-    ollama::get_installed_models() { echo "llama3.1:8b deepseek-r1:8b"; }
-    ollama::get_best_available_model() { echo "llama3.1:8b"; }
-    ollama::calculate_default_size() { echo "13.7"; }
     
-    # Export mock functions
-    export -f mock::ollama::setup ollama::is_healthy ollama::validate_model_available
-    export -f ollama::get_installed_models ollama::get_best_available_model ollama::calculate_default_size
+    # Export mock function
+    export -f mock::ollama::setup
+    
+    # Mock Docker functions for status checks
+    ollama::is_installed() { return 0; }
+    ollama::is_running() { return 0; }
+    export -f ollama::is_installed ollama::is_running
+    
+    # Mock resources function
+    resources::check_http_health() { return 0; }
+    export -f resources::check_http_health
     
     # Override curl mock for Ollama-specific API responses
     curl() {
@@ -117,8 +120,27 @@ setup() {
         return 0
     }
     
+    # Mock log functions
+    log::info() { echo "[INFO] $*"; }
+    log::error() { echo "[ERROR] $*" >&2; }
+    log::warning() { echo "[WARNING] $*" >&2; }
+    log::header() { echo "=== $* ==="; }
+    log::success() { echo "[SUCCESS] $*"; }
+    log::debug() { [[ "${DEBUG:-}" == "true" ]] && echo "[DEBUG] $*" >&2 || true; }
+    export -f log::info log::error log::warning log::header log::success log::debug
+    
     # Mock system commands (shared mocks handle most, only override what's needed)
     date() { echo "1234567890"; }  # Fixed timestamp for testing
+    
+    # Load configuration
+    local OLLAMA_DIR="$(dirname "$(dirname "$BATS_TEST_FILENAME")")"
+    source "${OLLAMA_DIR}/config/defaults.sh" 2>/dev/null || true
+    source "${OLLAMA_DIR}/config/messages.sh" 2>/dev/null || true
+    
+    # Load required dependencies
+    source "${OLLAMA_DIR}/lib/common.sh" 2>/dev/null || true
+    source "${OLLAMA_DIR}/lib/status.sh"
+    source "${OLLAMA_DIR}/lib/models.sh"
     
     # Source the API functions
     source "$(dirname "$BATS_TEST_FILENAME")/api.sh"
@@ -129,19 +151,19 @@ setup() {
     
     run ollama::send_prompt "test prompt"
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "API unavailable" ]]
+    [[ "$output" =~ "Ollama API is not available" ]]
 }
 
 @test "ollama::send_prompt fails when no prompt text provided" {
     run ollama::send_prompt ""
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "No prompt text" ]]
+    [[ "$output" =~ "No prompt text provided" ]]
 }
 
 @test "ollama::send_prompt succeeds with basic prompt" {
     run ollama::send_prompt "Hello world"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Selecting model" ]]
+    [[ "$output" =~ "Selecting best available model" ]]
     [[ "$output" =~ "Sending prompt" ]]
     [[ "$output" =~ "Test response text" ]]
 }
@@ -158,7 +180,7 @@ setup() {
     
     run ollama::send_prompt "Hello world" "nonexistent:1b"
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "Model not installed" ]]
+    [[ "$output" =~ "is not installed" ]]
 }
 
 @test "ollama::send_prompt selects model by type" {
@@ -172,7 +194,7 @@ setup() {
     
     run ollama::send_prompt "Write code" "" "code"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Selecting model" ]]
+    [[ "$output" =~ "Selecting best available model" ]]
     [[ "$output" =~ "Selected model" ]]
 }
 

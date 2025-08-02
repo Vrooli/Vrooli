@@ -25,18 +25,31 @@ claude_code::status() {
             log::warn "⚠️  Node.js version requirement not met (need v$MIN_NODE_VERSION+)"
         fi
         
-        # Show Claude doctor output if available (only in interactive mode)
-        if [[ -t 0 && -t 1 ]]; then
-            echo
-            log::info "Running claude doctor..."
-            if claude doctor 2>/dev/null; then
-                echo
-            else
-                log::warn "⚠️  Could not run claude doctor (may need authentication)"
+        # Show diagnostic information using health check
+        echo
+        log::info "Running health check..."
+        if claude_code::health_check "full" "text" >/tmp/claude_health_check.log 2>&1; then
+            # Parse and show relevant information from health check
+            local health_output
+            health_output=$(cat /tmp/claude_health_check.log)
+            
+            # Extract key information
+            if echo "$health_output" | grep -q "Overall Status:"; then
+                echo "$health_output" | grep "Overall Status:" | sed 's/^/  /'
             fi
+            if echo "$health_output" | grep -q "Authentication:"; then
+                echo "$health_output" | grep "Authentication:" | sed 's/^/  /'
+            fi
+            if echo "$health_output" | grep -q "TTY Compatible:"; then
+                echo "$health_output" | grep "TTY Compatible:" | sed 's/^/  /'
+            fi
+            if echo "$health_output" | grep -q "Errors:"; then
+                echo "$health_output" | grep -A5 "Errors:" | sed 's/^/  /'
+            fi
+            rm -f /tmp/claude_health_check.log
         else
-            echo
-            log::info "Run 'claude doctor' interactively for diagnostic information"
+            log::warn "⚠️  Health check failed - some issues detected"
+            log::info "  Use: $0 --action health-check --check-type full for detailed information"
         fi
         
         return 0

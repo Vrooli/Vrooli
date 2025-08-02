@@ -1,0 +1,59 @@
+# Resume Screening Assistant scenario metadata
+scenario:
+  id: "resume-screening-assistant"
+  name: "Resume Screening Assistant"
+  description: "AI-powered recruitment automation for resume parsing, candidate scoring, and job matching"
+  version: "1.0.0"
+  
+categories:
+  - ai-recruitment
+  
+complexity: "intermediate"
+
+resources:
+  required:
+    - unstructured-io  # Resume parsing
+    - ollama           # AI analysis and scoring
+    - qdrant           # Candidate database
+  optional:
+    - browserless      # LinkedIn profile scraping
+    
+business:
+  value_proposition: "Automated recruitment process with AI-powered candidate evaluation and matching"
+  revenue_potential:
+    min: 2500
+    max: 6000
+    currency: "USD"
+  market_demand: "high"
+  target_markets:
+    - "HR departments"
+    - "Recruiting agencies"
+    - "Staffing firms"
+    - "Corporate talent acquisition"
+  
+testing:
+  duration_minutes: 10
+  timeout_seconds: 600
+  requires_display: false
+  requires_ui: false
+  
+upwork_examples:
+  - "Build AI resume screening system"
+  - "Automate candidate evaluation"
+  - "HR AI assistant for recruitment"
+  - "Resume parsing and ranking tool"
+  
+success_criteria:
+  - "Parse various resume formats (PDF, DOCX)"
+  - "Extract qualifications and experience"
+  - "Score candidates against job requirements"
+  - "Match candidates to positions"
+  - "Generate screening reports"
+  - "Store candidate profiles for search"
+
+tags:
+  - hr-tech
+  - recruitment
+  - resume-parsing
+  - candidate-matching
+  - automation

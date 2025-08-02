@@ -104,7 +104,13 @@ setup::main() {
     if ! flow::is_yes "$IS_CI"; then
         permissions::make_scripts_executable
         clock::fix
-        internet::check_connection
+        network_diagnostics::run
+        
+        # Setup firewall EARLY to ensure outbound HTTPS works for subsequent operations
+        # This prevents issues with GitHub clones, package downloads, etc.
+        log::info "Setting up firewall early to ensure network connectivity..."
+        firewall::setup "${ENVIRONMENT:-development}"
+        
         system::update_and_upgrade
     fi
 
@@ -145,7 +151,7 @@ setup::main() {
         ports::check_and_free "${PORT_UI:-3000}"
 
         proxy::setup
-        firewall::setup
+        # firewall::setup is now called earlier in the setup process
     fi
 
     if ! flow::is_yes "$IS_CI" && env::is_location_local; then

@@ -20,7 +20,7 @@ fi
 
 # Docker configuration
 if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_IMAGE="; then
-    readonly UNSTRUCTURED_IO_IMAGE="downloads.unstructured.io/unstructured-io/unstructured-api:latest"
+    readonly UNSTRUCTURED_IO_IMAGE="downloads.unstructured.io/unstructured-io/unstructured-api:0.0.78"
 fi
 if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_API_PORT="; then
     readonly UNSTRUCTURED_IO_API_PORT=8000  # Internal container port
@@ -82,7 +82,7 @@ if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_BATCH_ENDPOI
     readonly UNSTRUCTURED_IO_BATCH_ENDPOINT="/general/v0/general/batch"
 fi
 if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_METRICS_ENDPOINT="; then
-    readonly UNSTRUCTURED_IO_METRICS_ENDPOINT="/metrics"
+    readonly UNSTRUCTURED_IO_METRICS_ENDPOINT=""  # Metrics endpoint not available in this version
 fi
 
 # Supported file formats
@@ -95,6 +95,7 @@ if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_SUPPORTED_FO
     "ppt"     # Legacy PowerPoint
     "xlsx"    # Microsoft Excel
     "xls"     # Legacy Excel
+    "csv"     # Comma-separated values
     "txt"     # Plain text
     "rtf"     # Rich Text Format
     "html"    # Web pages
@@ -141,4 +142,11 @@ unstructured_io::export_config() {
     export UNSTRUCTURED_IO_TIMEOUT_SECONDS UNSTRUCTURED_IO_MAX_CONCURRENT_REQUESTS
     export UNSTRUCTURED_IO_HEALTH_ENDPOINT UNSTRUCTURED_IO_HEALTH_INTERVAL
     export UNSTRUCTURED_IO_PROCESS_ENDPOINT UNSTRUCTURED_IO_BATCH_ENDPOINT
+    # The formats array is already readonly, just export the reference
 }
+
+# Export the supported formats array
+export UNSTRUCTURED_IO_SUPPORTED_FORMATS
+
+# Export function for subshell availability
+export -f unstructured_io::export_config

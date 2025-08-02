@@ -61,6 +61,10 @@ log::header() {
     log::echo_color MAGENTA "[HEADER]  $*"
 }
 
+log::subheader() {
+    log::echo_color BLUE "[SECTION] $*"
+}
+
 log::info() {
     log::echo_color CYAN "[INFO]    $*"
 }

@@ -13,7 +13,7 @@ setup() {
     export UNSTRUCTURED_IO_CUSTOM_PORT="9999"
     export UNSTRUCTURED_IO_CONTAINER_NAME="unstructured-io-test"
     export UNSTRUCTURED_IO_BASE_URL="http://localhost:9999"
-    export UNSTRUCTURED_IO_IMAGE="downloads.unstructured.io/unstructured-io/unstructured-api:latest"
+    export UNSTRUCTURED_IO_IMAGE="downloads.unstructured.io/unstructured-io/unstructured-api:0.0.78"
     export UNSTRUCTURED_IO_API_PORT="8000"
     export UNSTRUCTURED_IO_MEMORY_LIMIT="4g"
     export UNSTRUCTURED_IO_CPU_LIMIT="2.0"

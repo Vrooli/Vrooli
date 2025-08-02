@@ -200,3 +200,6 @@ ollama::export_messages() {
     export MSG_START_OLLAMA MSG_CHECK_STATUS MSG_AVAILABLE_MODELS MSG_INSTALL_MODEL
     export MSG_FAILED_API_REQUEST MSG_LIST_MODELS_FAILED
 }
+
+# Export function for subshell availability
+export -f ollama::export_messages

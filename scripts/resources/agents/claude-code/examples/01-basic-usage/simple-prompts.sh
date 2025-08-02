@@ -2,6 +2,7 @@
 
 # Simple Claude Code Prompts Example
 # Demonstrates basic usage of the management script API
+# Note: This script uses the corrected CLI interface (fixed January 2025)
 
 set -e
 
@@ -17,7 +18,9 @@ fi
 
 # Verify Claude Code status
 echo "📋 Checking Claude Code status..."
-if ! ./manage.sh --action status &> /dev/null; then
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MANAGE_SCRIPT="$SCRIPT_DIR/../../manage.sh"
+if ! "$MANAGE_SCRIPT" --action status &> /dev/null; then
     echo "❌ Claude Code not properly installed"
     exit 1
 fi
@@ -38,7 +41,7 @@ EOF
 echo "Sample code created: sample-function.js"
 echo "Asking Claude to explain this function..."
 
-./manage.sh --action run \
+"$MANAGE_SCRIPT" --action run \
   --prompt "Explain this JavaScript function and suggest improvements" \
   --allowed-tools "Read" \
   --max-turns 3
@@ -66,7 +69,7 @@ EOF
 echo "Sample code created: sample-security.js"
 echo "Asking Claude to identify security issues..."
 
-./manage.sh --action run \
+"$MANAGE_SCRIPT" --action run \
   --prompt "Review this Express.js code for security vulnerabilities" \
   --allowed-tools "Read" \
   --max-turns 2
@@ -79,7 +82,7 @@ echo
 echo "📝 Example 3: Documentation Generation"
 echo "Asking Claude to generate documentation for our functions..."
 
-./manage.sh --action run \
+"$MANAGE_SCRIPT" --action run \
   --prompt "Generate JSDoc documentation for all JavaScript functions in the current directory" \
   --allowed-tools "Read,Write" \
   --max-turns 5

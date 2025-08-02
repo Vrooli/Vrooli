@@ -1,0 +1,67 @@
+[
+  {
+    "id": "minio-inject",
+    "type": "inject",
+    "name": "Trigger Storage Test",
+    "props": [
+      {
+        "p": "payload",
+        "v": "test-file-content",
+        "vt": "str"
+      },
+      {
+        "p": "filename",
+        "v": "test-file.txt",
+        "vt": "str"
+      },
+      {
+        "p": "bucket",
+        "v": "test-bucket",
+        "vt": "str"
+      }
+    ],
+    "repeat": "",
+    "crontab": "",
+    "once": false,
+    "x": 130,
+    "y": 80
+  },
+  {
+    "id": "minio-upload",
+    "type": "http request",
+    "name": "MinIO Upload",
+    "method": "PUT",
+    "ret": "txt",
+    "url": "http://localhost:9000/{{bucket}}/{{filename}}",
+    "headers": {
+      "Content-Type": "text/plain",
+      "Authorization": "Bearer test-token"
+    },
+    "payload": "{{payload}}",
+    "x": 350,
+    "y": 80
+  },
+  {
+    "id": "minio-verify",
+    "type": "http request",
+    "name": "Verify Upload",
+    "method": "HEAD",
+    "ret": "txt",
+    "url": "http://localhost:9000/{{bucket}}/{{filename}}",
+    "headers": {
+      "Authorization": "Bearer test-token"
+    },
+    "x": 550,
+    "y": 80
+  },
+  {
+    "id": "storage-debug",
+    "type": "debug",
+    "name": "Storage Result",
+    "active": true,
+    "console": false,
+    "complete": "payload",
+    "x": 750,
+    "y": 80
+  }
+]

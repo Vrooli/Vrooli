@@ -113,7 +113,26 @@ if [ "${AGENT_S2_ENABLE_PROXY:-true}" = "true" ]; then
     
     # Setup iptables rules for transparent proxy
     PROXY_PORT="${PROXY_PORT:-8085}"
-    PROXY_USER="agents2"
+    # NOTE: We need to be careful about user exclusions to avoid blocking browser traffic
+    # The rules should only exclude traffic from mitmproxy itself to prevent loops
+    
+    # Clean up any existing iptables rules first
+    log_info "Cleaning up existing iptables rules..."
+    # Remove all existing Agent-S2 related rules to prevent duplicates
+    while true; do
+        # Find first rule that matches our patterns
+        rule_num=$($SUDO_CMD iptables -t nat -L OUTPUT --line-numbers -n 2>/dev/null | \
+            grep -E "REDIRECT.*tcp.*dpt:(80|443|8080|8443).*redir ports (8080|8085)" | \
+            head -1 | awk '{print $1}')
+        
+        if [[ -n "$rule_num" ]]; then
+            $SUDO_CMD iptables -t nat -D OUTPUT "$rule_num" 2>/dev/null || break
+        else
+            break
+        fi
+    done
+    # Also remove loopback exclusion rules
+    while $SUDO_CMD iptables -t nat -D OUTPUT -o lo -j RETURN 2>/dev/null; do :; done
     
     log_info "Setting up iptables rules for transparent proxy on port $PROXY_PORT..."
     
@@ -121,16 +140,18 @@ if [ "${AGENT_S2_ENABLE_PROXY:-true}" = "true" ]; then
     IPTABLES_SUCCESS=0
     
     # Create nat table rules for HTTP/HTTPS redirection
-    # HTTP (port 80)
-    if $SUDO_CMD iptables -t nat -A OUTPUT -p tcp --dport 80 -m owner ! --uid-owner $PROXY_USER -j REDIRECT --to-port $PROXY_PORT 2>/dev/null; then
+    # Exclude traffic from source port 8085 (mitmproxy outbound) to prevent loops
+    
+    # HTTP (port 80) - redirect all traffic except from mitmproxy
+    if $SUDO_CMD iptables -t nat -A OUTPUT -p tcp --dport 80 ! --sport $PROXY_PORT -j REDIRECT --to-port $PROXY_PORT 2>/dev/null; then
         log_info "✓ HTTP (port 80) redirect rule added"
         IPTABLES_SUCCESS=$((IPTABLES_SUCCESS + 1))
     else
         log_warn "✗ Failed to add HTTP iptables rule"
     fi
     
-    # HTTPS (port 443)  
-    if $SUDO_CMD iptables -t nat -A OUTPUT -p tcp --dport 443 -m owner ! --uid-owner $PROXY_USER -j REDIRECT --to-port $PROXY_PORT 2>/dev/null; then
+    # HTTPS (port 443) - redirect all traffic except from mitmproxy  
+    if $SUDO_CMD iptables -t nat -A OUTPUT -p tcp --dport 443 ! --sport $PROXY_PORT -j REDIRECT --to-port $PROXY_PORT 2>/dev/null; then
         log_info "✓ HTTPS (port 443) redirect rule added"
         IPTABLES_SUCCESS=$((IPTABLES_SUCCESS + 1))
     else
@@ -138,14 +159,14 @@ if [ "${AGENT_S2_ENABLE_PROXY:-true}" = "true" ]; then
     fi
     
     # Also handle common alternative ports
-    if $SUDO_CMD iptables -t nat -A OUTPUT -p tcp --dport 8080 -m owner ! --uid-owner $PROXY_USER -j REDIRECT --to-port $PROXY_PORT 2>/dev/null; then
+    if $SUDO_CMD iptables -t nat -A OUTPUT -p tcp --dport 8080 ! --sport $PROXY_PORT -j REDIRECT --to-port $PROXY_PORT 2>/dev/null; then
         log_info "✓ Port 8080 redirect rule added"
         IPTABLES_SUCCESS=$((IPTABLES_SUCCESS + 1))
     else
         log_warn "✗ Failed to add port 8080 iptables rule"
     fi
     
-    if $SUDO_CMD iptables -t nat -A OUTPUT -p tcp --dport 8443 -m owner ! --uid-owner $PROXY_USER -j REDIRECT --to-port $PROXY_PORT 2>/dev/null; then
+    if $SUDO_CMD iptables -t nat -A OUTPUT -p tcp --dport 8443 ! --sport $PROXY_PORT -j REDIRECT --to-port $PROXY_PORT 2>/dev/null; then
         log_info "✓ Port 8443 redirect rule added"
         IPTABLES_SUCCESS=$((IPTABLES_SUCCESS + 1))
     else

@@ -63,8 +63,30 @@ firewall::setup() {
         changes_made=true
     fi
 
-    # 3) Only open required ports using a loop to minimize status calls
-    local ports=("80/tcp" "443/tcp" "22/tcp")
+    # 2.5) CRITICAL: Add explicit outbound rules for HTTP/HTTPS to prevent blocking
+    # This prevents issues where UFW default policies get overridden
+    log::info "Ensuring critical outbound connections are allowed..."
+    
+    # Get current status including direction info
+    local status_numbered
+    status_numbered=$(sudo ufw status numbered)
+    
+    # Define critical outbound rules
+    local outbound_rules=("80/tcp" "443/tcp" "53" "53/udp")
+    
+    for port_proto in "${outbound_rules[@]}"; do
+        # Check if outbound rule exists (look for patterns like "80/tcp (out)" or "ALLOW OUT")
+        if echo "$status_numbered" | grep -E "${port_proto}.*ALLOW OUT|${port_proto}.*\(out\)" >/dev/null 2>&1; then
+            log::info "Outbound rule for ${port_proto} already exists"
+        else
+            log::info "Adding critical outbound rule: ufw allow out ${port_proto}"
+            sudo ufw allow out "${port_proto}"
+            changes_made=true
+        fi
+    done
+
+    # 3) Only open required INCOMING ports using a loop to minimize status calls
+    local ports=("80/tcp" "443/tcp" "22/tcp" "3389/tcp")
     if env::in_development "$environment"; then
         ports+=("${PORT_UI:-3000}/tcp" "${PORT_SERVER:-5329}/tcp")
     fi
@@ -74,10 +96,11 @@ firewall::setup() {
     status_plain=$(sudo ufw status)
 
     for port_proto in "${ports[@]}"; do
-        if echo "$status_plain" | grep -qw "$port_proto"; then
-            log::info "Rule for $port_proto already exists"
+        # Check for incoming rules (default when direction not specified)
+        if echo "$status_plain" | grep -qw "$port_proto" && ! echo "$status_plain" | grep -qw "$port_proto.*(out)"; then
+            log::info "Incoming rule for $port_proto already exists"
         else
-            log::info "Allowing $port_proto"
+            log::info "Allowing incoming $port_proto"
             sudo ufw allow "$port_proto"
             changes_made=true
         fi

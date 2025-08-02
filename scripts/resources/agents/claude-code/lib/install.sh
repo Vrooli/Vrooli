@@ -55,9 +55,9 @@ claude_code::install() {
         version=$(claude_code::get_version)
         log::success "✓ Claude Code $version is ready to use"
         
-        # Update resource configuration
-        if resources::update_config "agents" "$RESOURCE_NAME" "claude-cli" \
-            '{"type":"cli","command":"claude","requiresAuth":true}'; then
+        # Update resource configuration for CLI tool
+        if resources::update_cli_config "agents" "$RESOURCE_NAME" "claude" \
+            '{"requiresAuth":true,"version":"'$version'","healthCommand":"health-check"}'; then
             log::success "✓ Resource configuration updated"
         else
             log::warn "⚠️  Failed to update resource configuration"

@@ -534,3 +534,43 @@ system::install_nvidia_runtime_pacman() {
     log::info "Please install manually: yay -S nvidia-container-toolkit"
     return 1
 }
+
+# Additional system utility functions for Judge0 and other resources
+
+#######################################
+# Get total memory in MB
+# Returns: Total memory in MB as integer
+#######################################
+system::get_total_memory_mb() {
+    if system::is_command "free"; then
+        free -m | awk '/^Mem:/{print $2}'
+    elif [[ -f /proc/meminfo ]]; then
+        # Fallback: parse /proc/meminfo
+        awk '/^MemTotal:/{printf "%.0f", $2/1024}' /proc/meminfo
+    else
+        # Default fallback if neither command works
+        echo "2048"
+    fi
+}
+
+#######################################
+# Get free disk space in GB for a given path
+# Arguments:
+#   $1 - path to check (defaults to $HOME)
+# Returns: Free space in GB as integer
+#######################################
+system::get_free_space_gb() {
+    local path="${1:-$HOME}"
+    
+    if system::is_command "df"; then
+        # Use df to get available space in GB
+        df -BG "$path" 2>/dev/null | awk 'NR==2{gsub(/G/,"",$4); print int($4)}'
+    elif system::is_command "du"; then
+        # Fallback using du (less reliable)
+        local available=$(du -sb "$path" 2>/dev/null | awk '{print int((1024*1024*1024*10 - $1)/(1024*1024*1024))}')
+        echo "${available:-10}"
+    else
+        # Default fallback
+        echo "10"
+    fi
+}

@@ -280,3 +280,7 @@ curl -X POST $OLLAMA_BASE_URL/api/chat \\
 For more information, visit: https://ollama.com/library
 EOF
 }
+
+# Export functions for subshell availability
+export -f ollama::send_prompt
+export -f ollama::info

@@ -17,7 +17,7 @@ unstructured_io::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|process|info|logs" \
+        --options "install|uninstall|start|stop|restart|status|process|info|logs|test|extract-tables|extract-metadata|process-directory|create-report|cache-stats|clear-cache" \
         --default "install"
     
     args::register \
@@ -68,6 +68,58 @@ unstructured_io::parse_arguments() {
         --options "yes|no" \
         --default "no"
     
+    args::register \
+        --name "quiet" \
+        --flag "q" \
+        --desc "Suppress status messages (only show output)" \
+        --type "value" \
+        --options "yes|no" \
+        --default "no"
+    
+    args::register \
+        --name "directory" \
+        --desc "Directory to process (for process-directory action)" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "recursive" \
+        --desc "Process directory recursively" \
+        --type "value" \
+        --options "yes|no" \
+        --default "no"
+    
+    args::register \
+        --name "report-file" \
+        --desc "Output file for report (for create-report action)" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "chunk-chars" \
+        --desc "Maximum characters per chunk (default: 1500)" \
+        --type "value" \
+        --default "1500"
+    
+    args::register \
+        --name "new-after-chars" \
+        --desc "Start new chunk after N characters (default: 500)" \
+        --type "value" \
+        --default "500"
+    
+    args::register \
+        --name "combine-under-chars" \
+        --desc "Combine elements under N characters (default: 0)" \
+        --type "value" \
+        --default "0"
+    
+    args::register \
+        --name "include-page-breaks" \
+        --desc "Include page breaks in output" \
+        --type "value" \
+        --options "yes|no" \
+        --default "yes"
+    
     # Parse the arguments
     args::parse "$@"
     
@@ -80,6 +132,23 @@ unstructured_io::parse_arguments() {
     export LANGUAGES=$(args::get "languages")
     export BATCH=$(args::get "batch")
     export FOLLOW=$(args::get "follow")
+    export QUIET=$(args::get "quiet")
+    export DIRECTORY=$(args::get "directory")
+    export RECURSIVE=$(args::get "recursive")
+    export REPORT_FILE=$(args::get "report-file")
+    export CHUNK_CHARS=$(args::get "chunk-chars")
+    export NEW_AFTER_CHARS=$(args::get "new-after-chars")
+    export COMBINE_UNDER_CHARS=$(args::get "combine-under-chars")
+    export INCLUDE_PAGE_BREAKS=$(args::get "include-page-breaks")
+}
+
+#######################################
+# Print status message if not in quiet mode
+#######################################
+unstructured_io::status_msg() {
+    if [[ "$QUIET" != "yes" ]]; then
+        echo "$@" >&2
+    fi
 }
 
 #######################################
@@ -94,21 +163,42 @@ unstructured_io::usage() {
     echo "  $0 [OPTIONS]"
     echo
     echo "ACTIONS:"
-    echo "  install     Install and start Unstructured.io service (default)"
-    echo "  uninstall   Stop and remove Unstructured.io service"
-    echo "  start       Start the Unstructured.io container"
-    echo "  stop        Stop the Unstructured.io container"
-    echo "  restart     Restart the Unstructured.io container"
-    echo "  status      Check service status and health"
-    echo "  process     Process a document file"
-    echo "  info        Display service information and endpoints"
-    echo "  logs        View container logs"
+    echo "  install           Install and start Unstructured.io service (default)"
+    echo "  uninstall         Stop and remove Unstructured.io service"
+    echo "  start             Start the Unstructured.io container"
+    echo "  stop              Stop the Unstructured.io container"
+    echo "  restart           Restart the Unstructured.io container"
+    echo "  status            Check service status and health"
+    echo "  process           Process a document file"
+    echo "  extract-tables    Extract tables from a document"
+    echo "  extract-metadata  Extract metadata from a document"
+    echo "  process-directory Process all documents in a directory"
+    echo "  create-report     Generate a detailed processing report"
+    echo "  info              Display service information and endpoints"
+    echo "  logs              View container logs"
+    echo "  test              Test API functionality with a sample document"
+    echo "  cache-stats       Show cache statistics"
+    echo "  clear-cache       Clear document cache"
     echo
     echo "PROCESSING OPTIONS:"
     echo "  --file PATH          File to process"
     echo "  --strategy STRATEGY  Processing strategy (fast|hi_res|auto)"
     echo "  --output FORMAT      Output format (json|markdown|text|elements)"
     echo "  --languages LANGS    OCR languages (e.g., eng,fra,deu)"
+    echo "  --quiet, -q          Suppress status messages (only show output)"
+    echo
+    echo "CHUNKING OPTIONS:"
+    echo "  --chunk-chars N      Maximum characters per chunk (default: 1500)"
+    echo "  --new-after-chars N  Start new chunk after N chars (default: 500)"
+    echo "  --combine-under-chars N  Combine elements under N chars (default: 0)"
+    echo "  --include-page-breaks    Include page breaks (yes|no, default: yes)"
+    echo
+    echo "DIRECTORY OPTIONS:"
+    echo "  --directory PATH     Directory to process"
+    echo "  --recursive          Process subdirectories (yes|no)"
+    echo
+    echo "REPORT OPTIONS:"
+    echo "  --report-file PATH   Output file for report (optional)"
     echo
     echo "EXAMPLES:"
     echo "  # Install Unstructured.io"
@@ -117,11 +207,26 @@ unstructured_io::usage() {
     echo "  # Process a PDF document"
     echo "  $0 --action process --file document.pdf --output markdown"
     echo
+    echo "  # Extract tables from a document"
+    echo "  $0 --action extract-tables --file report.pdf"
+    echo
+    echo "  # Extract metadata from a document"
+    echo "  $0 --action extract-metadata --file document.docx"
+    echo
+    echo "  # Process all documents in a directory"
+    echo "  $0 --action process-directory --directory /path/to/docs --recursive yes"
+    echo
+    echo "  # Create a processing report"
+    echo "  $0 --action create-report --file document.pdf --report-file analysis.json"
+    echo
     echo "  # Check service status"
     echo "  $0 --action status"
     echo
     echo "  # View logs"
     echo "  $0 --action logs --follow yes"
+    echo
+    echo "  # Process quietly for automation"
+    echo "  $0 --action process --file document.pdf --quiet yes --output json"
 }
 
 #######################################
@@ -232,3 +337,81 @@ unstructured_io::format_size() {
         echo "$((bytes / 1024 / 1024 / 1024))GB"
     fi
 }
+
+#######################################
+# Display container logs
+#######################################
+unstructured_io::logs() {
+    local follow="${1:-no}"
+    local container_name="${UNSTRUCTURED_IO_CONTAINER_NAME:-unstructured-io}"
+    
+    if [[ "$follow" == "yes" ]]; then
+        docker logs -f "$container_name"
+    else
+        docker logs "$container_name"
+    fi
+}
+
+#######################################
+# Display service information
+#######################################
+unstructured_io::info() {
+    echo "Service: Unstructured.io Document Processing"
+    echo "Container: ${UNSTRUCTURED_IO_CONTAINER_NAME:-unstructured-io}"
+    echo "Base URL: ${UNSTRUCTURED_IO_BASE_URL:-http://localhost:11450}"
+    echo "Port: ${UNSTRUCTURED_IO_PORT:-11450}"
+}
+
+#######################################
+# Check if port is available
+#######################################
+unstructured_io::check_port_available() {
+    local port="${UNSTRUCTURED_IO_PORT:-11450}"
+    ! ports::is_port_in_use "$port"
+}
+
+#######################################
+# Validate processing strategy
+#######################################
+unstructured_io::validate_strategy() {
+    local strategy="$1"
+    case "$strategy" in
+        "hi_res"|"fast"|"auto")
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+#######################################
+# Validate output format
+#######################################
+unstructured_io::validate_output_format() {
+    local format="$1"
+    case "$format" in
+        "json"|"markdown"|"text"|"elements")
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+}
+
+# Export functions for subshell availability
+export -f unstructured_io::parse_arguments
+export -f unstructured_io::usage
+export -f unstructured_io::status_msg
+export -f unstructured_io::check_docker
+export -f unstructured_io::container_exists
+export -f unstructured_io::container_running
+export -f unstructured_io::wait_for_api
+export -f unstructured_io::validate_file
+export -f unstructured_io::format_size
+export -f unstructured_io::logs
+export -f unstructured_io::info
+export -f unstructured_io::check_port_available
+export -f unstructured_io::validate_strategy
+export -f unstructured_io::validate_output_format

@@ -78,6 +78,9 @@ agents2::docker_start() {
         docker rm "$AGENTS2_CONTAINER_NAME" >/dev/null 2>&1 || true
     fi
     
+    # Load environment variables from resources.local.json
+    agents2::load_environment_from_config
+    
     # Ensure network exists
     agents2::docker_create_network || return 1
     
@@ -103,10 +106,13 @@ agents2::docker_start() {
         -e "AGENTS2_ENABLE_AI=$AGENTS2_ENABLE_AI"
         -e "AGENTS2_ENABLE_SEARCH=$AGENTS2_ENABLE_SEARCH"
         -e "DISPLAY=$AGENTS2_DISPLAY"
+        -e "AGENT_S2_VIRUSTOTAL_API_KEY=$AGENTS2_VIRUSTOTAL_API_KEY"
         -v "${AGENTS2_DATA_DIR}/logs:/var/log/supervisor:rw"
         -v "${AGENTS2_DATA_DIR}/cache:/home/agents2/.cache:rw"
         -v "${AGENTS2_DATA_DIR}/models:/home/agents2/.agent-s2/models:rw"
         -v "${AGENTS2_DATA_DIR}/sessions:/home/agents2/.agent-s2/sessions:rw"
+        --cap-add NET_ADMIN
+        --cap-add NET_RAW
         --security-opt "$AGENTS2_SECURITY_OPT"
         --shm-size "$AGENTS2_SHM_SIZE"
         --memory "$AGENTS2_MEMORY_LIMIT"

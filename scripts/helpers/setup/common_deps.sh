@@ -37,6 +37,7 @@ common_deps::check_and_install() {
     system::check_and_install "mkdir"
     system::check_and_install "script"
     system::check_and_install "yq"
+    system::check_and_install "ffmpeg"
     
     # Install Helm CLI for Kubernetes package management
     helm::check_and_install

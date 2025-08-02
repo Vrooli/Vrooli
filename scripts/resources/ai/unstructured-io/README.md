@@ -42,6 +42,28 @@ Unstructured.io is a comprehensive document processing platform that converts co
 ./scripts/resources/ai/unstructured-io/manage.sh --action install --force yes
 ```
 
+### Docker Compose Deployment
+For standardized deployments, you can use the provided docker-compose.yml:
+```bash
+# Start service with docker-compose
+cd scripts/resources/ai/unstructured-io
+docker compose up -d
+
+# Stop service
+docker compose down
+
+# View logs
+docker compose logs -f unstructured-io
+```
+
+The deployment includes:
+- Resource limits (4GB memory, 2.0 CPU)
+- Health checks with automatic restart
+- Proper network configuration
+- Persistent service management
+- Pinned Docker image version (0.0.78) for reproducible deployments
+
+### Installation Process
 The installation will:
 1. Pull the Unstructured.io Docker image
 2. Create a container with proper resource limits
@@ -64,7 +86,32 @@ The installation will:
 
 # Process with specific OCR languages
 ./manage.sh --action process --file document.pdf --languages eng,fra,deu
+
+# Process quietly for automation
+./manage.sh --action process --file report.pdf --quiet yes --output json
 ```
+
+### Caching
+
+Unstructured.io automatically caches processed documents to improve performance:
+
+```bash
+# Check cache statistics
+./manage.sh --action cache-stats
+
+# Clear all cache
+./manage.sh --action clear-cache
+
+# Clear cache for specific file
+./manage.sh --action clear-cache --file report.pdf
+```
+
+Cache features:
+- Automatic caching of processed documents (1 hour TTL by default)
+- File-based cache stored in `~/.vrooli/cache/unstructured-io/`
+- Cache key includes file hash, strategy, output format, and languages
+- Cached results show "📦 Using cached result" message
+- Set `UNSTRUCTURED_IO_CACHE_ENABLED=no` to disable caching
 
 ### Processing Strategies
 
@@ -180,6 +227,23 @@ The installation will:
 ```
 
 ## 🔗 Integration Examples
+
+### Quick Start with Integration Scripts
+
+Ready-to-use integration scripts are available in the `integrations/` directory:
+
+```bash
+# Document Q&A with Ollama
+./integrations/doc-qa.sh report.pdf "What are the key findings?"
+
+# Archive to MinIO with metadata
+./integrations/doc-to-minio.sh contract.pdf legal-documents
+
+# Batch process multiple files
+./integrations/batch-process.sh -o markdown -d ./summaries /path/to/documents
+```
+
+See `examples/integration-examples.sh` for more detailed examples and workflows.
 
 ### With Ollama (Document Q&A)
 
@@ -317,49 +381,32 @@ Convert company documents to vector-ready chunks:
 
 ## 🚨 Troubleshooting
 
-### Common Issues
+For comprehensive troubleshooting, see the **[Troubleshooting Guide](TROUBLESHOOTING.md)**.
 
-1. **Container won't start**
+### Quick Fixes
+
+1. **Validate installation**
    ```bash
-   # Check Docker is running
-   docker info
-   
-   # Check port availability
-   sudo lsof -i :11450
+   ./manage.sh --action validate-installation
    ```
 
-2. **Processing timeout**
-   - Increase timeout for large files
-   - Use `fast` strategy for quicker processing
-   - Split large documents if possible
-
-3. **Out of memory**
+2. **Check service health**
    ```bash
-   # Check container resources
-   docker stats vrooli-unstructured-io
-   
-   # Increase memory limit if needed
-   docker update --memory="8g" vrooli-unstructured-io
+   ./manage.sh --action status
+   ./manage.sh --action logs --tail 50
    ```
 
-4. **OCR not working**
-   - Ensure image files are not corrupted
-   - Check language codes are correct
-   - Use hi_res strategy for better OCR
+3. **Common errors**
+   - `[ERROR:CONNECTION]` - Service not running, use `./manage.sh --action start`
+   - `[ERROR:TIMEOUT]` - Use `--strategy fast` or process smaller files
+   - `[ERROR:FILE_TOO_LARGE]` - Split file or increase limits
+   - `[ERROR:UNSUPPORTED_TYPE]` - Check supported formats with `./manage.sh --action info`
 
-### Debug Commands
-
-```bash
-# Check container logs
-docker logs vrooli-unstructured-io --tail 100
-
-# Test with simple file
-echo "Test document" > test.txt
-./manage.sh --action process --file test.txt
-
-# Check API directly
-curl http://localhost:11450/healthcheck
-```
+4. **Reset and reinstall**
+   ```bash
+   ./manage.sh --action uninstall
+   ./manage.sh --action install --force yes
+   ```
 
 ## 📊 Performance Tips
 

@@ -21,6 +21,97 @@ This guide helps you diagnose and resolve common issues with Browserless.
 
 ## Common Issues
 
+### API Parameter Errors
+
+**Symptoms:**
+- "POST Body validation failed" errors
+- Parameters rejected with "is not allowed" messages
+- Requests fail despite correct-looking syntax
+
+**Example errors:**
+```
+POST Body validation failed: "options.width" is not allowed
+"options.height" is not allowed
+"waitFor" is not allowed
+```
+
+**Diagnosis:**
+```bash
+# Test which parameters are accepted
+curl -X POST http://localhost:4110/chrome/screenshot \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com"}' \
+  -o test.png
+
+# Check API version and capabilities
+curl http://localhost:4110/config
+```
+
+**Solutions:**
+
+1. **Use correct parameter structure:**
+   ```bash
+   # WRONG - these parameters are not accepted in options
+   curl -X POST http://localhost:4110/chrome/screenshot \
+     -d '{
+       "url": "https://example.com",
+       "options": {
+         "width": 1920,
+         "height": 1080
+       }
+     }'
+   
+   # CORRECT - use viewport in gotoOptions
+   curl -X POST http://localhost:4110/chrome/screenshot \
+     -d '{
+       "url": "https://example.com",
+       "gotoOptions": {
+         "viewport": {
+           "width": 1920,
+           "height": 1080
+         }
+       }
+     }'
+   ```
+
+2. **Common parameter mistakes:**
+   - `waitFor` → Use `gotoOptions.waitUntil` or add custom wait logic
+   - `options.width/height` → Use `gotoOptions.viewport`
+   - `timeout` at root level → Use `gotoOptions.timeout`
+
+### Wrong Endpoint Errors
+
+**Symptoms:**
+- "Not Found" responses
+- "No route or file found for resource" errors
+- 404 errors when endpoint seems correct
+
+**Example errors:**
+```
+Not Found
+No route or file found for resource GET: /
+```
+
+**Solutions:**
+
+1. **Use correct endpoint paths:**
+   ```bash
+   # WRONG - missing /chrome prefix
+   curl -X POST http://localhost:4110/screenshot
+   
+   # CORRECT - includes /chrome prefix
+   curl -X POST http://localhost:4110/chrome/screenshot
+   ```
+
+2. **Available endpoints:**
+   - `/chrome/screenshot` - Take screenshots
+   - `/chrome/pdf` - Generate PDFs
+   - `/chrome/content` - Get page content
+   - `/chrome/scrape` - Extract specific elements
+   - `/chrome/function` - Run custom code
+   - `/pressure` - Check service health
+   - `/metrics` - Get performance metrics
+
 ### Container Won't Start
 
 **Symptoms:**
@@ -162,6 +253,17 @@ curl http://localhost:4110/pressure
 - Screenshot commands fail with validation errors
 - "HTTP status: 404" or "HTTP status: 500" errors
 - "File too small" or "Not an image" errors
+- Binary data returned as text
+
+**Common validation errors:**
+```bash
+# File size too small (usually contains error text)
+$ ls -la screenshot.png
+-rw-r--r-- 1 user user 10 Jan 1 12:00 screenshot.png
+
+$ cat screenshot.png
+Not Found
+```
 
 **Diagnosis:**
 ```bash
@@ -487,6 +589,29 @@ A: Docker containers can't access host's localhost. Use:
 - Docker bridge IP (172.17.0.1)
 - Host network mode
 - Container names for other services
+
+**Q: How do I access other Docker services from Browserless?**
+A: When Browserless needs to access other containers (like SearXNG):
+```bash
+# WRONG - localhost refers to Browserless container
+curl -X POST http://localhost:4110/chrome/screenshot \
+  -d '{"url": "http://localhost:9200"}'
+
+# CORRECT - use container name if on same network
+curl -X POST http://localhost:4110/chrome/screenshot \
+  -d '{"url": "http://searxng:8080"}'
+
+# CORRECT - use host IP if containers on different networks
+curl -X POST http://localhost:4110/chrome/screenshot \
+  -d '{"url": "http://172.17.0.1:9200"}'
+```
+
+**Q: What are the most common parameter errors?**
+A: These parameters often cause confusion:
+- `waitFor` - Not a valid parameter, use `gotoOptions.waitUntil` instead
+- `options.width/height` - Use `gotoOptions.viewport.width/height`
+- `timeout` - Must be inside `gotoOptions`, not at root level
+- Direct viewport settings - Must be nested under `gotoOptions`
 
 **Q: How much memory does each browser use?**
 A: Typically 100-500MB per browser instance, depending on page complexity.

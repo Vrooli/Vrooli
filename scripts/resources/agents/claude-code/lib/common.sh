@@ -75,3 +75,42 @@ claude_code::build_allowed_tools() {
     
     echo "$result"
 }
+
+#######################################
+# Check if running in a TTY environment
+# Returns: 0 if TTY, 1 otherwise
+#######################################
+claude_code::is_tty() {
+    [[ -t 0 && -t 1 ]]
+}
+
+#######################################
+# Check if command requires TTY and handle appropriately
+# Arguments:
+#   $1 - command name (e.g., "doctor", "interactive")
+# Returns: 0 if can proceed, 1 if should skip
+#######################################
+claude_code::check_tty_requirement() {
+    local command="$1"
+    
+    if ! claude_code::is_tty; then
+        case "$command" in
+            "doctor")
+                log::warn "Interactive 'claude doctor' not supported in non-TTY environment"
+                log::info "Use --action health-check instead for non-interactive diagnostics"
+                return 1
+                ;;
+            "interactive")
+                log::error "Interactive mode requires a TTY environment"
+                log::info "Use --action run with --prompt for non-interactive execution"
+                return 1
+                ;;
+            *)
+                # Command doesn't require TTY
+                return 0
+                ;;
+        esac
+    fi
+    
+    return 0
+}

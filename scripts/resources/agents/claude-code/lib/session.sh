@@ -122,3 +122,10 @@ claude_code::session_view() {
         return 1
     fi
 }
+
+# Export functions for subshell availability
+export -f claude_code::session
+export -f claude_code::session_list
+export -f claude_code::session_resume
+export -f claude_code::session_delete
+export -f claude_code::session_view

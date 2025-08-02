@@ -122,8 +122,24 @@ setup() {
 # ============================================================================
 
 @test "claude_code::session_resume builds basic command" {
-    # Set up environment
-    eval() { echo "Command: $*"; }
+    # Set up environment with intelligent eval mock
+    eval() {
+        local cmd="$*"
+        # Skip log color variables and BATS debug info
+        if [[ "$cmd" =~ ^(RED|GREEN|YELLOW|BLUE|MAGENTA|CYAN|WHITE)= ]] || \
+           [[ "$cmd" =~ ^color_value= ]] || \
+           [[ "$cmd" =~ ^stack_trace= ]] || \
+           [[ "$cmd" =~ BATS_DEBUG ]]; then
+            # Execute the actual command for log functions
+            builtin eval "$cmd" 2>/dev/null || true
+            return 0
+        fi
+        # Only show commands that look like claude commands
+        if [[ "$cmd" =~ ^claude ]]; then
+            echo "Command: $cmd"
+        fi
+        return 0
+    }
     
     # Set variables
     export DEFAULT_MAX_TURNS=5
@@ -138,8 +154,24 @@ setup() {
 }
 
 @test "claude_code::session_resume adds custom max turns" {
-    # Set up environment
-    eval() { echo "Command: $*"; }
+    # Set up environment with intelligent eval mock
+    eval() {
+        local cmd="$*"
+        # Skip log color variables and BATS debug info
+        if [[ "$cmd" =~ ^(RED|GREEN|YELLOW|BLUE|MAGENTA|CYAN|WHITE)= ]] || \
+           [[ "$cmd" =~ ^color_value= ]] || \
+           [[ "$cmd" =~ ^stack_trace= ]] || \
+           [[ "$cmd" =~ BATS_DEBUG ]]; then
+            # Execute the actual command for log functions
+            builtin eval "$cmd" 2>/dev/null || true
+            return 0
+        fi
+        # Only show commands that look like claude commands
+        if [[ "$cmd" =~ ^claude ]]; then
+            echo "Command: $cmd"
+        fi
+        return 0
+    }
     
     # Set variables
     export DEFAULT_MAX_TURNS=5

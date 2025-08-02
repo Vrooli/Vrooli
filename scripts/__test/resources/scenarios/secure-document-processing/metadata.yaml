@@ -1,0 +1,64 @@
+# Secure Document Processing scenario metadata
+scenario:
+  id: "secure-document-processing"
+  name: "Secure Document Processing Pipeline"
+  description: "Enterprise-grade secure document processing with encryption, audit trails, and compliance automation"
+  version: "1.0.0"
+  
+categories:
+  - security
+  
+complexity: "advanced"
+
+resources:
+  required:
+    - vault            # Secure credential management
+    - unstructured-io  # Document parsing with PII detection
+    - postgres         # Audit trail database
+    - minio            # Encrypted object storage
+  optional:
+    - ollama           # AI-powered PII detection
+    - qdrant           # Compliance knowledge base
+    
+business:
+  value_proposition: "Zero-trust document processing platform with military-grade security and full compliance automation"
+  revenue_potential:
+    min: 8000
+    max: 20000
+    currency: "USD"
+  market_demand: "very-high"
+  target_markets:
+    - "Healthcare systems (HIPAA)"
+    - "Legal firms (Attorney-Client privilege)"
+    - "Financial institutions (PCI-DSS)"
+    - "Government agencies (FedRAMP)"
+    - "Insurance companies"
+  
+testing:
+  duration_minutes: 18
+  timeout_seconds: 1080
+  requires_display: false
+  requires_ui: false
+  
+upwork_examples:
+  - "HIPAA compliant document processing"
+  - "Secure legal document pipeline"
+  - "Financial document automation with audit trail"
+  - "Government document processing system"
+  
+success_criteria:
+  - "Secure credential management via Vault"
+  - "Document parsing with PII detection"
+  - "End-to-end encryption (at rest and in transit)"
+  - "Immutable audit trail logging"
+  - "Compliance framework validation"
+  - "Zero-downtime credential rotation"
+
+tags:
+  - compliance-focused
+  - enterprise-ready
+  - high-revenue-potential
+  - hipaa
+  - gdpr
+  - sox-compliance
+  - security-first

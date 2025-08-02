@@ -17,8 +17,8 @@ ollama::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|models|available|info|prompt" \
-        --default "install"
+        --options "install|uninstall|start|stop|restart|status|logs|models|available|info|prompt" \
+        --default ""
     
     args::register \
         --name "force" \
@@ -110,6 +110,14 @@ ollama::parse_arguments() {
         exit 0
     fi
     
+    # Handle version request (check arguments manually)
+    for arg in "$@"; do
+        if [[ "$arg" == "--version" ]]; then
+            ollama::version
+            exit 0
+        fi
+    done
+    
     args::parse "$@"
     
     export ACTION=$(args::get "action")
@@ -151,6 +159,22 @@ ollama::usage() {
     echo "  $0 --action status                               # Check Ollama status"
     echo "  $0 --action models                               # List installed models"
     echo "  $0 --action uninstall                           # Remove Ollama"
+}
+
+#######################################
+# Display version information
+#######################################
+ollama::version() {
+    echo "ollama resource manager v1.0"
+    echo "Vrooli AI resource for local LLM inference"
+    
+    # Show installed Ollama version if available
+    if system::is_command "ollama"; then
+        echo "Installed Ollama version:"
+        ollama version 2>/dev/null || echo "  Unable to determine Ollama version"
+    else
+        echo "Ollama binary not found - run '$0 --action install' to install"
+    fi
 }
 
 #######################################
@@ -249,3 +273,8 @@ ollama::validate_max_tokens() {
         return 1
     fi
 }
+
+# Export functions for use in tests and subshells
+export -f ollama::parse_arguments ollama::usage ollama::version ollama::update_config
+export -f ollama::validate_temperature ollama::validate_top_p
+export -f ollama::validate_top_k ollama::validate_max_tokens

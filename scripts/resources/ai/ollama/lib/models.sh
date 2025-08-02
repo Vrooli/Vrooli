@@ -458,3 +458,11 @@ ollama::list_models() {
         return 1
     fi
 }
+
+# Export functions for use in tests and subshells
+export -f ollama::get_model_info ollama::get_model_size ollama::is_model_known
+export -f ollama::show_available_models ollama::calculate_default_size
+export -f ollama::validate_model_list ollama::get_installed_models
+export -f ollama::get_best_available_model ollama::validate_model_available
+export -f ollama::parse_models ollama::pull_model ollama::install_models
+export -f ollama::list_models

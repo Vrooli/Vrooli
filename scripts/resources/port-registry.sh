@@ -42,9 +42,9 @@ declare -g -A RESOURCE_PORTS=(
     
     # Agent Services (41xx range - safely above Vrooli range)
     ["browserless"]="4110"     # Browserless.io Chrome service
-    ["claude-code"]="4112"     # Claude Code agent service
     ["huginn"]="4111"          # Workflow automation platform
     ["agent-s2"]="4113"        # Agent S2 autonomous computer interaction
+    # Note: claude-code is a CLI tool and doesn't use a port
     
     # Search Services (92xx range - moved due to conflict)
     ["searxng"]="9200"         # SearXNG metasearch engine (NOTE: conflicts with debug range)

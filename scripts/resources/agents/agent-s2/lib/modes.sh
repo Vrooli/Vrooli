@@ -138,6 +138,9 @@ agents2::start_in_mode() {
     # Stop any existing container
     agents2::docker_stop >/dev/null 2>&1
     
+    # Load environment variables from resources.local.json
+    agents2::load_environment_from_config
+    
     # Start with appropriate compose files
     log::debug "Using compose files: ${compose_files[*]}"
     docker-compose "${compose_files[@]}" up -d

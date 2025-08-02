@@ -17,6 +17,15 @@ native_linux::setup_native_linux() {
     # Setup pnpm and generate Prisma client
     pnpm_tools::setup
     
+    # Configure kernel parameters for resources
+    # Let the kernel config script itself determine if changes are needed and handle sudo availability
+    local kernel_config_script="${SETUP_TARGET_DIR}/../kernel_config.sh"
+    if [[ -f "$kernel_config_script" ]]; then
+        bash "$kernel_config_script" configure || {
+            log::warning "Kernel configuration failed - some resources may not work properly"
+        }
+    fi
+    
     # Setup local resources if requested
     if [[ -n "${RESOURCES:-}" && "$RESOURCES" != "none" ]]; then
         # Handle special case for "enabled" option

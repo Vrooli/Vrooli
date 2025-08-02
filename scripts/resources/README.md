@@ -57,7 +57,7 @@ cat ~/.vrooli/resources.local.json | jq '.services'
 **Use Cases**: 
 - Private AI chat and code generation
 - Offline inference without cloud dependencies
-- Custom model fine-tuning and experimentation
+- Domain-specific model customization via Modelfiles
 - Cost-effective local processing
 
 **When to Use**: Privacy-sensitive data, offline environments, cost optimization, custom models  
@@ -68,8 +68,13 @@ cat ~/.vrooli/resources.local.json | jq '.services'
 # Check available models
 curl http://localhost:11434/api/tags
 
-# Generate text
+# Generate text with base model
 curl -X POST http://localhost:11434/api/generate -d '{"model": "llama3.1:8b", "prompt": "Explain AI"}'
+
+# Create specialized model (e.g., customer support agent)
+echo 'FROM llama3.1:8b
+SYSTEM "You are a professional customer support agent. Always be helpful and follow company policies."' > /tmp/support-agent
+ollama create support-agent -f /tmp/support-agent
 ```
 📖 **Details**: [scripts/resources/ai/ollama/README.md](ai/ollama/README.md)
 
@@ -92,6 +97,27 @@ curl -X POST http://localhost:8090/transcribe -F "audio=@meeting.wav"
 ```
 📖 **Details**: [scripts/resources/ai/whisper/README.md](ai/whisper/README.md)
 
+## Unstructured-IO - Document Processing
+**AI-powered document parsing and content extraction**
+
+**Use Cases**:
+- PDF and document text extraction
+- Structured data extraction from unstructured documents
+- Document preprocessing for AI workflows
+- Content analysis and indexing
+
+**When to Use**: Document processing pipelines, content extraction, AI document analysis  
+**Alternative**: Manual parsing, cloud document APIs
+
+**Quick Example**:
+```bash
+# Process document
+curl -X POST http://localhost:11450/general/v0/general \
+  -F "files=@document.pdf" \
+  -F "strategy=fast"
+```
+📖 **Details**: [scripts/resources/ai/unstructured-io/README.md](ai/unstructured-io/README.md)
+
 ## ComfyUI - AI Image Generation
 **Workflow-based AI image generation and manipulation**
 
@@ -107,10 +133,10 @@ curl -X POST http://localhost:8090/transcribe -F "audio=@meeting.wav"
 **Quick Example**:
 ```bash
 # Check ComfyUI status
-curl http://localhost:8188/
+curl http://localhost:5679/
 
-# Submit workflow
-curl -X POST http://localhost:8188/api/v1/queue -d @workflow.json
+# Submit workflow  
+curl -X POST http://localhost:5679/api/prompt -H "Content-Type: application/json" -d @workflow.json
 ```
 📖 **Details**: [scripts/resources/ai/comfyui/README.md](automation/comfyui/README.md)
 
@@ -157,8 +183,8 @@ curl -X POST http://localhost:5678/webhook/my-workflow
 # Access Node-RED editor
 open http://localhost:1880
 
-# Check resource monitoring API
-curl http://localhost:1880/api/resources/status | jq .
+# Check Node-RED flows API
+curl http://localhost:1880/flows | jq .
 ```
 📖 **Details**: [scripts/resources/automation/node-red/README.md](automation/node-red/README.md)
 
@@ -224,11 +250,15 @@ curl -X POST http://localhost:5681/api/jobs/run -d '{"script": "my_script"}'
 
 **Quick Example**:
 ```bash
-# Take screenshot and analyze
-curl -X POST http://localhost:4113/ai/task -d '{"task": "take a screenshot"}'
+# Take screenshot
+curl -X POST "http://localhost:4113/screenshot?format=png&response_format=binary" -o screenshot.png
 
-# Automate web navigation  
-curl -X POST http://localhost:4113/ai/task -d '{"task": "go to google.com and search for cats"}'
+# Test with management script (recommended)
+./scripts/resources/agents/agent-s2/manage.sh --action usage --usage-type screenshot
+
+# Core automation examples
+curl -X POST http://localhost:4113/mouse/click -d '{"x": 500, "y": 300}'
+curl -X POST http://localhost:4113/keyboard/type -d '{"text": "Hello World"}'
 ```
 📖 **Details**: [scripts/resources/agents/agent-s2/README.md](agents/agent-s2/README.md)
 
@@ -247,10 +277,10 @@ curl -X POST http://localhost:4113/ai/task -d '{"task": "go to google.com and se
 **Quick Example**:
 ```bash
 # Screenshot local dashboard
-curl -X POST http://localhost:4110/screenshot -d '{"url": "http://localhost:3000/dashboard"}'
+curl -X POST http://localhost:4110/chrome/screenshot -H "Content-Type: application/json" -d '{"url": "http://localhost:3000/dashboard"}'
 
 # Generate PDF report
-curl -X POST http://localhost:4110/pdf -d '{"url": "http://localhost:8080/report"}'
+curl -X POST http://localhost:4110/chrome/pdf -H "Content-Type: application/json" -d '{"url": "http://localhost:8080/report"}'
 ```
 📖 **Details**: [scripts/resources/agents/browserless/README.md](agents/browserless/README.md)
 
@@ -295,10 +325,10 @@ claude-code document --file src/main.ts
 **Quick Example**:
 ```bash
 # Access SearXNG search interface
-open http://localhost:8100
+open http://localhost:9200
 
 # Search via API  
-curl "http://localhost:8100/search?q=vrooli+ai&format=json"
+curl "http://localhost:9200/search?q=vrooli+ai&format=json"
 ```
 📖 **Details**: [scripts/resources/search/searxng/README.md](search/searxng/README.md)
 
@@ -328,6 +358,125 @@ curl -X PUT http://localhost:9000/bucket/file.txt -T ./file.txt
 ```
 📖 **Details**: [scripts/resources/storage/minio/README.md](storage/minio/README.md)
 
+## QuestDB - Ultra-Fast Time-Series Database
+**High-performance time-series database for metrics and analytics**
+
+**Use Cases**:
+- AI model performance tracking
+- Resource health monitoring
+- Workflow execution analytics
+- Real-time metrics dashboards
+
+**When to Use**: Time-series data, performance metrics, high-frequency events  
+**Alternative**: InfluxDB for specific ecosystems, Prometheus for Kubernetes
+
+**Quick Example**:
+```bash
+# Query recent AI metrics
+curl -G "http://localhost:9010/exec" --data-urlencode "query=SELECT * FROM ai_inference ORDER BY timestamp DESC LIMIT 10"
+
+# Ingest metrics via InfluxDB protocol
+echo "cpu,host=server1 usage=45.2 $(date +%s)000000000" | nc localhost 9011
+```
+📖 **Details**: [scripts/resources/storage/questdb/README.md](storage/questdb/README.md)
+
+## Vault - Secret Management
+**Secure secret storage and dynamic credential management**
+
+**Use Cases**:
+- API key and credential storage
+- Dynamic database credentials
+- Certificate management
+- Secure configuration storage
+
+**When to Use**: Production deployments, credential rotation, secure secret access  
+**Alternative**: Environment variables for development, cloud secret managers
+
+**Quick Example**:
+```bash
+# Store secret
+curl -X POST http://localhost:8200/v1/secret/data/myapp \
+  -H "X-Vault-Token: your-token" \
+  -d '{"data": {"api_key": "secret-value"}}'
+
+# Retrieve secret
+curl -H "X-Vault-Token: your-token" http://localhost:8200/v1/secret/data/myapp
+```
+📖 **Details**: [scripts/resources/storage/vault/README.md](storage/vault/README.md)
+
+## Qdrant - Vector Database
+**High-performance vector database for AI embeddings and semantic search**
+
+**Use Cases**:
+- Semantic search and similarity matching
+- AI embeddings storage and retrieval
+- Recommendation systems
+- RAG (Retrieval-Augmented Generation) workflows
+
+**When to Use**: AI applications requiring semantic search, embedding storage, similarity matching  
+**Alternative**: Simple databases for non-vector data, cloud vector services for scale
+
+**Quick Example**:
+```bash
+# Create collection
+curl -X PUT http://localhost:6333/collections/documents \
+  -H "Content-Type: application/json" \
+  -d '{"vectors": {"size": 384, "distance": "Cosine"}}'
+
+# Search vectors
+curl -X POST http://localhost:6333/collections/documents/points/search \
+  -H "Content-Type: application/json" \
+  -d '{"vector": [0.1, 0.2, 0.3], "limit": 5}'
+```
+📖 **Details**: [scripts/resources/storage/qdrant/README.md](storage/qdrant/README.md)
+
+## PostgreSQL - Relational Database
+**Production-ready PostgreSQL database for structured data**
+
+**Use Cases**:
+- Application data storage
+- Relational data modeling
+- Complex queries and transactions
+- Business logic and reporting
+
+**When to Use**: Structured data, complex relationships, ACID transactions, SQL queries  
+**Alternative**: QuestDB for time-series, Qdrant for vectors, MinIO for files
+
+**Quick Example**:
+```bash
+# Connect with psql
+psql -h localhost -p 5433 -U postgres -d vrooli
+
+# Query via HTTP (if enabled)
+curl -X POST http://localhost:5433/query \
+  -H "Content-Type: application/json" \
+  -d '{"query": "SELECT version();"}'
+```
+📖 **Details**: [scripts/resources/storage/postgres/README.md](storage/postgres/README.md)
+
+## Redis - In-Memory Cache
+**High-performance in-memory data store for caching and pub/sub**
+
+**Use Cases**:
+- Application caching and session storage
+- Real-time messaging and pub/sub
+- Task queue management
+- Rate limiting and counters
+
+**When to Use**: Caching, real-time features, session management, high-speed data access  
+**Alternative**: PostgreSQL for persistent data, QuestDB for time-series metrics
+
+**Quick Example**:
+```bash
+# Set and get value
+redis-cli -h localhost -p 6380 SET mykey "myvalue"
+redis-cli -h localhost -p 6380 GET mykey
+
+# Pub/sub messaging
+redis-cli -h localhost -p 6380 PUBLISH mychannel "Hello World"
+```
+📖 **Details**: [scripts/resources/storage/redis/README.md](storage/redis/README.md)
+
 ---
 
 # 🔗 Integration Patterns
@@ -338,8 +487,62 @@ curl -X PUT http://localhost:9000/bucket/file.txt -T ./file.txt
 - **Real-time monitoring**: Node-RED + Agent-S2 + MinIO
 - **Business automation**: n8n + Browserless + external APIs  
 - **AI processing**: Ollama + Whisper + ComfyUI + MinIO
+- **Domain-specific AI**: Ollama Modelfiles + Qdrant + MinIO (custom chatbots, specialized assistants)
 - **Information gathering**: SearXNG + Huginn + Agent-S2 + MinIO
 - **Development workflows**: Claude Code + Windmill + version control
+- **Interactive AI interfaces**: Windmill + Ollama + Agent-S2 + ComfyUI + Whisper
+
+## 🎨 UI Development Patterns
+
+**Automated interface generation for AI workflows**
+
+Both **Windmill** and **Node-RED** provide powerful capabilities for creating interactive user interfaces that orchestrate multi-resource AI workflows. Rather than building static UIs, these platforms enable **automated UI generation** based on your AI service combinations.
+
+### **Windmill: Professional AI Applications**
+```typescript
+// Multi-modal AI assistant interface
+- File upload (drag-and-drop audio, images)
+- Real-time processing dashboard  
+- AI service orchestration (Whisper → Ollama → ComfyUI)
+- Professional export and sharing capabilities
+```
+
+**When to Use**: Complex workflows, file processing, business applications, accessibility tools
+
+### **Node-RED: Real-time AI Dashboards**  
+```javascript
+// Live AI monitoring and interaction
+- WebSocket-based real-time updates
+- Resource health monitoring dashboards
+- Event-driven AI triggers
+- Simple drag-and-drop configuration  
+```
+
+**When to Use**: Real-time monitoring, IoT integration, rapid prototyping, system dashboards
+
+### **Multi-Modal AI Assistant Example**
+
+A complete **voice-to-visual-to-action** workflow combining:
+- **Whisper**: Voice command processing
+- **Ollama**: Intent understanding and response generation  
+- **ComfyUI**: Visual content creation
+- **Agent-S2**: Screen automation and file management
+
+```bash
+# Test the complete workflow
+./scripts/resources/tests/run.sh --scenarios "scenario=multi-modal-ai-assistant"
+
+# Access the interfaces
+open http://localhost:5681  # Windmill professional interface
+open http://localhost:1880  # Node-RED real-time dashboard  
+```
+
+**Revenue Potential**: $10,000-25,000 per project for accessibility and enterprise productivity solutions
+
+📖 **Detailed Guides**: 
+- [Windmill UI Development](automation/windmill/docs/UI_DEVELOPMENT.md)
+- [Node-RED Dashboard Creation](automation/node-red/docs/DASHBOARD_CREATION.md)
+- [Multi-Modal Assistant Tutorial](automation/windmill/examples/multi-modal-assistant/)
 
 ## Configuration Management
 
@@ -364,8 +567,8 @@ Install by logical groupings:
 - `automation-only` - Workflow platforms (n8n, node-red, windmill, huginn)  
 - `agents-only` - Interaction agents (agent-s2, browserless, claude-code)
 - `search-only` - Search and information retrieval (searxng)
-- `storage-only` - Storage solutions (minio, ipfs, rclone)
-- `essential` - Core set (ollama, n8n, agent-s2, minio)
+- `storage-only` - Storage solutions (minio, questdb, vault, qdrant)
+- `essential` - Core set (ollama, n8n, agent-s2, minio, questdb)
 - `enabled` - Only enabled resources (default)
 
 ---
@@ -404,6 +607,18 @@ sudo usermod -aG docker $USER && newgrp docker
 
 # Verify service
 sudo systemctl status docker
+```
+
+**Service Status Issues**:
+```bash
+# SearXNG - Service may not be accessible (connection refused)
+# If SearXNG search API fails, check service status:
+./scripts/resources/search/searxng/manage.sh --action status
+
+# QuestDB - Port conflict resolved
+# QuestDB now runs on corrected ports to avoid MinIO conflict:
+curl http://localhost:9010/  # HTTP/REST API (was 9009)
+echo "test_metric value=1" | nc localhost 9011  # InfluxDB line protocol (was 9003)
 ```
 
 ## Getting Help

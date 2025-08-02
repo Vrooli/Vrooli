@@ -42,6 +42,31 @@ for resource in "${!RESOURCE_PORTS[@]}"; do
     DEFAULT_PORTS["$resource"]="${RESOURCE_PORTS[$resource]}"
 done
 
+# Resource type definitions - distinguish CLI tools from services
+declare -A RESOURCE_TYPES=(
+    # CLI tools (no port, use command-based health checks)
+    ["claude-code"]="cli"
+    
+    # Web services (port-based)
+    ["ollama"]="service"
+    ["whisper"]="service"
+    ["unstructured-io"]="service"
+    ["n8n"]="service"
+    ["comfyui"]="service"
+    ["node-red"]="service"
+    ["windmill"]="service"
+    ["huginn"]="service"
+    ["minio"]="service"
+    ["vault"]="service"
+    ["qdrant"]="service"
+    ["questdb"]="service"
+    ["postgres"]="service"
+    ["redis"]="service"
+    ["browserless"]="service"
+    ["agent-s2"]="service"
+    ["searxng"]="service"
+)
+
 # Error handling and rollback support
 declare -a ROLLBACK_ACTIONS=()
 declare -g OPERATION_ID=""
@@ -195,6 +220,51 @@ resources::get_detailed_health_status() {
 resources::get_default_port() {
     local resource="$1"
     echo "${DEFAULT_PORTS[$resource]:-8080}"
+}
+
+#######################################
+# Get the resource type (cli or service)
+# Arguments:
+#   $1 - resource name
+# Outputs:
+#   The resource type (cli|service)
+#######################################
+resources::get_resource_type() {
+    local resource="$1"
+    echo "${RESOURCE_TYPES[$resource]:-service}"
+}
+
+#######################################
+# Check if a CLI resource is available and healthy
+# Arguments:
+#   $1 - resource name
+# Returns:
+#   0 if healthy, 1 otherwise
+#######################################
+resources::is_cli_resource_healthy() {
+    local resource="$1"
+    
+    case "$resource" in
+        "claude-code")
+            # Use the claude-code resource's health check
+            local script_path="${RESOURCES_DIR}/agents/claude-code/manage.sh"
+            if [[ -x "$script_path" ]]; then
+                # Run health check and capture both exit code and output
+                local health_output
+                if health_output=$("$script_path" --action health-check --check-type basic --format json 2>/dev/null); then
+                    # Parse JSON to check if status is healthy
+                    if echo "$health_output" | grep -q '"status": "healthy"'; then
+                        return 0
+                    fi
+                fi
+            fi
+            return 1
+            ;;
+        *)
+            # Unknown CLI resource
+            return 1
+            ;;
+    esac
 }
 
 #######################################
@@ -761,6 +831,83 @@ resources::update_config() {
         resources::handle_error "Failed to update configuration with jq" "config"
         return 1
     fi
+}
+
+#######################################
+# Update CLI resource configuration
+# Arguments:
+#   $1 - category (ai, automation, storage, agents)
+#   $2 - resource name
+#   $3 - command name
+#   $4 - additional config JSON (optional)
+#######################################
+resources::update_cli_config() {
+    local category="$1"
+    local resource_name="$2"
+    local command="$3"
+    local additional_config="${4:-{}}"
+    
+    log::info "Updating CLI resource configuration for $category/$resource_name"
+    
+    # Create CLI-specific configuration
+    local resource_config
+    if system::is_command "jq"; then
+        # Create base config for CLI tools
+        local base_config="{\"enabled\": true, \"type\": \"cli\", \"command\": \"$command\"}"
+        
+        # Try to merge configurations safely
+        if [[ "$additional_config" != "{}" ]] && [[ -n "$additional_config" ]]; then
+            resource_config=$(echo "$base_config" | jq --arg additional "$additional_config" '. + ($additional | fromjson)' 2>/dev/null)
+            
+            # If merge fails, just use base config
+            if [[ $? -ne 0 ]] || [[ -z "$resource_config" ]]; then
+                log::warn "Failed to merge additional configuration, using base config only"
+                resource_config="$base_config"
+            fi
+        else
+            resource_config="$base_config"
+        fi
+    else
+        log::warn "jq not available, using simplified configuration"
+        resource_config="{\"enabled\": true, \"type\": \"cli\", \"command\": \"$command\"}"
+    fi
+    
+    # Use the same configuration update logic as regular resources
+    local config_path="${VROOLI_CONFIG_DIR}/resources.local.json"
+    local temp_config=$(mktemp)
+    
+    # Try TypeScript configuration manager first
+    if [[ -f "$CONFIG_MANAGER_SCRIPT" ]] && system::is_command "node"; then
+        if node "$CONFIG_MANAGER_SCRIPT" update \
+            --category "$category" \
+            --resource "$resource_name" \
+            --config "$resource_config"; then
+            log::success "CLI resource configuration updated using TypeScript manager"
+            return 0
+        else
+            log::warn "TypeScript configuration manager failed, falling back to manual method"
+        fi
+    fi
+    
+    # Fallback to manual jq-based update
+    if system::is_command "jq"; then
+        if jq --arg category "$category" \
+              --arg resource "$resource_name" \
+              --argjson config "$resource_config" \
+              '.services[$category][$resource] = $config' \
+              "$config_path" > "$temp_config" 2>/dev/null; then
+            
+            if jq empty "$temp_config" 2>/dev/null; then
+                mv "$temp_config" "$config_path"
+                log::success "CLI resource configuration updated successfully"
+                return 0
+            fi
+        fi
+    fi
+    
+    rm -f "$temp_config"
+    log::error "Failed to update CLI resource configuration"
+    return 1
 }
 
 #######################################

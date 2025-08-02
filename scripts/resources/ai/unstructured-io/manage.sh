@@ -38,6 +38,10 @@ source "${SCRIPT_DIR}/lib/status.sh"
 source "${SCRIPT_DIR}/lib/api.sh"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib/process.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/cache-simple.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/validate.sh"
 
 #######################################
 # Main orchestration function
@@ -77,12 +81,18 @@ unstructured_io::main() {
             if [[ "$BATCH" = "yes" ]]; then
                 # Process multiple files (comma-separated)
                 IFS=',' read -ra files <<< "$FILE_INPUT"
-                unstructured_io::batch_process "${files[@]}" \
+                if ! unstructured_io::batch_process "${files[@]}" \
                     --strategy "$STRATEGY" \
-                    --output "$OUTPUT"
+                    --output "$OUTPUT"; then
+                    log::error "Batch processing failed"
+                    exit 1
+                fi
             else
                 # Process single file
-                unstructured_io::process_document "$FILE_INPUT" "$STRATEGY" "$OUTPUT" "$LANGUAGES"
+                if ! unstructured_io::process_document "$FILE_INPUT" "$STRATEGY" "$OUTPUT" "$LANGUAGES"; then
+                    log::error "Document processing failed"
+                    exit 1
+                fi
             fi
             ;;
         info)
@@ -90,6 +100,57 @@ unstructured_io::main() {
             ;;
         logs)
             unstructured_io::logs "$FOLLOW"
+            ;;
+        test)
+            unstructured_io::test_api
+            ;;
+        extract-tables)
+            if [[ -z "$FILE_INPUT" ]]; then
+                log::error "No file provided for table extraction"
+                log::info "Use: $0 --action extract-tables --file <path>"
+                exit 1
+            fi
+            unstructured_io::extract_tables "$FILE_INPUT"
+            ;;
+        extract-metadata)
+            if [[ -z "$FILE_INPUT" ]]; then
+                log::error "No file provided for metadata extraction"
+                log::info "Use: $0 --action extract-metadata --file <path>"
+                exit 1
+            fi
+            unstructured_io::extract_metadata "$FILE_INPUT"
+            ;;
+        process-directory)
+            if [[ -z "$DIRECTORY" ]]; then
+                log::error "No directory provided for processing"
+                log::info "Use: $0 --action process-directory --directory <path>"
+                exit 1
+            fi
+            unstructured_io::process_directory "$DIRECTORY" "$STRATEGY" "$OUTPUT" "$RECURSIVE"
+            ;;
+        create-report)
+            if [[ -z "$FILE_INPUT" ]]; then
+                log::error "No file provided for report generation"
+                log::info "Use: $0 --action create-report --file <path>"
+                exit 1
+            fi
+            unstructured_io::create_report "$FILE_INPUT" "$REPORT_FILE"
+            ;;
+        cache-stats)
+            unstructured_io::cache_stats
+            ;;
+        clear-cache)
+            if [[ -n "$FILE_INPUT" ]]; then
+                # Clear cache for specific file
+                unstructured_io::clear_cache "$FILE_INPUT"
+                echo "✅ Cleared cache for: $FILE_INPUT"
+            else
+                # Clear all cache
+                unstructured_io::clear_all_cache
+            fi
+            ;;
+        validate-installation)
+            unstructured_io::validate_installation
             ;;
         *)
             log::error "Unknown action: $ACTION"

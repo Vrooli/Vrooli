@@ -180,3 +180,11 @@ unstructured_io::restart() {
     
     return 1
 }
+
+# Export functions for subshell availability
+export -f unstructured_io::install
+export -f unstructured_io::create_container
+export -f unstructured_io::uninstall
+export -f unstructured_io::start
+export -f unstructured_io::stop
+export -f unstructured_io::restart

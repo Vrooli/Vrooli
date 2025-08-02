@@ -1,0 +1,67 @@
+# Multi-Modal AI Assistant scenario metadata
+scenario:
+  id: "multi-modal-ai-assistant"
+  name: "Multi-Modal AI Assistant"
+  description: "Voice-to-visual-to-action AI assistant with professional UI for accessibility and productivity"
+  version: "1.0.0"
+  
+categories:
+  - ai-assistance
+  - ai-content-creation  # Also fits here due to visual generation
+  
+complexity: "advanced"
+
+resources:
+  required:
+    - whisper      # Audio transcription
+    - ollama       # Language understanding and intent analysis
+    - comfyui      # Visual content generation
+    - agent-s2     # Screen automation and interaction
+    - windmill     # Professional UI deployment
+  optional:
+    - minio        # File storage for generated content
+    - qdrant       # Vector storage for context memory
+    
+business:
+  value_proposition: "Complete accessibility and productivity solution combining voice, AI, visual generation, and automation"
+  revenue_potential:
+    min: 10000
+    max: 25000
+    currency: "USD"
+  market_demand: "very-high"
+  target_markets:
+    - "Accessibility services for disabled users"
+    - "Creative professionals and agencies"
+    - "Enterprise productivity and automation"
+    - "Educational institutions"
+  
+testing:
+  duration_minutes: 15
+  timeout_seconds: 900
+  requires_display: true   # Agent-S2 needs display for screenshots
+  requires_ui: true        # Has Windmill UI components
+  
+upwork_examples:
+  - "Build AI virtual assistant with voice control"
+  - "Create accessibility assistant for disabled users"
+  - "Develop multi-modal AI for creative workflows"
+  - "Enterprise productivity assistant with voice and visual capabilities"
+  
+success_criteria:
+  - "Process audio commands through Whisper"
+  - "Generate intelligent responses using Ollama"
+  - "Create visual content with ComfyUI"
+  - "Perform screen interactions via Agent-S2"
+  - "Maintain context across modalities"
+  - "Provide professional user interface through Windmill"
+  - "Demonstrate end-to-end workflow from voice to action"
+
+tags:
+  - multimodal
+  - voice-enabled
+  - visual-generation
+  - automation
+  - windmill-ui
+  - accessibility
+  - enterprise-ready
+  - high-revenue-potential

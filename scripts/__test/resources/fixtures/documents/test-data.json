@@ -1,0 +1,23 @@
+{
+  "test_document": {
+    "id": "test_1753754829",
+    "title": "Integration Test Document",
+    "created": "2025-07-28T22:07:09-04:00",
+    "content": {
+      "sections": [
+        {
+          "title": "Overview",
+          "text": "This is a test document for integration testing."
+        },
+        {
+          "title": "Data",
+          "items": ["item1", "item2", "item3"]
+        }
+      ]
+    },
+    "metadata": {
+      "source": "integration_test",
+      "version": "1.0"
+    }
+  }
+}

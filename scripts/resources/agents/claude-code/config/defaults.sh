@@ -84,3 +84,6 @@ claude_code::export_config() {
     export VROOLI_MCP_ENDPOINT
     export VROOLI_HEALTH_ENDPOINT
 }
+
+# Export function for subshell availability
+export -f claude_code::export_config

@@ -55,7 +55,7 @@ class UnstructuredIOClient:
         data = {
             "strategy": strategy,
             "include_page_breaks": str(include_page_breaks).lower(),
-            "pdf_infer_table_structure": "true",
+            "skip_infer_table_types": "[]",
             "encoding": "utf-8"
         }
         
