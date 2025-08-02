@@ -1,0 +1,1795 @@
+{
+  "name": "Enterprise Image Generation Platform",
+  "description": "Professional multi-brand AI-powered image generation platform with voice briefings, compliance automation, and enterprise-grade asset management",
+  "version": "2.0.0",
+  "app_structure": {
+    "layout": {
+      "type": "container",
+      "configuration": {
+        "direction": "column",
+        "gap": 4
+      },
+      "components": [
+        {
+          "id": "platform_header",
+          "type": "container",
+          "configuration": {
+            "direction": "row",
+            "justifyContent": "space-between",
+            "alignItems": "center",
+            "style": {
+              "backgroundColor": "#1e3a8a",
+              "color": "white",
+              "padding": "20px",
+              "borderRadius": "8px",
+              "marginBottom": "20px"
+            }
+          },
+          "components": [
+            {
+              "id": "platform_title",
+              "type": "text",
+              "configuration": {
+                "text": "# 🎨 Enterprise Image Generation Platform",
+                "style": {
+                  "color": "white",
+                  "fontSize": "28px",
+                  "fontWeight": "bold",
+                  "margin": "0"
+                }
+              }
+            },
+            {
+              "id": "revenue_indicator",
+              "type": "text",
+              "configuration": {
+                "text": "$15K-35K Projects | Fortune 500 Ready",
+                "style": {
+                  "color": "#fbbf24",
+                  "fontSize": "14px",
+                  "fontWeight": "600",
+                  "backgroundColor": "rgba(251, 191, 36, 0.2)",
+                  "padding": "8px 12px",
+                  "borderRadius": "4px"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "id": "main_navigation",
+          "type": "tabs",
+          "configuration": {
+            "tabs": [
+              {
+                "id": "campaign_management",
+                "label": "📋 Campaign Management",
+                "active": true
+              },
+              {
+                "id": "generation_studio",
+                "label": "🎨 Generation Studio"
+              },
+              {
+                "id": "brand_center",
+                "label": "🏢 Brand Center"
+              },
+              {
+                "id": "quality_control",
+                "label": "✅ Quality Control"
+              },
+              {
+                "id": "asset_management",
+                "label": "📁 Asset Management"
+              },
+              {
+                "id": "analytics_dashboard",
+                "label": "📊 Analytics"
+              },
+              {
+                "id": "client_portal",
+                "label": "👥 Client Portal"
+              }
+            ]
+          },
+          "components": [
+            {
+              "id": "campaign_management_tab",
+              "type": "container",
+              "configuration": {
+                "direction": "row",
+                "gap": 4
+              },
+              "components": [
+                {
+                  "id": "campaign_controls",
+                  "type": "container",
+                  "configuration": {
+                    "direction": "column",
+                    "gap": 3,
+                    "width": "400px",
+                    "style": {
+                      "backgroundColor": "#f8fafc",
+                      "padding": "20px",
+                      "borderRadius": "8px"
+                    }
+                  },
+                  "components": [
+                    {
+                      "id": "campaign_header",
+                      "type": "text",
+                      "configuration": {
+                        "text": "## 🚀 Campaign Creation",
+                        "style": {
+                          "marginBottom": "15px",
+                          "color": "#1e40af"
+                        }
+                      }
+                    },
+                    {
+                      "id": "voice_briefing_section",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 2,
+                        "style": {
+                          "backgroundColor": "white",
+                          "padding": "15px",
+                          "borderRadius": "6px",
+                          "border": "2px dashed #e5e7eb"
+                        }
+                      },
+                      "components": [
+                        {
+                          "id": "voice_briefing_label",
+                          "type": "text",
+                          "configuration": {
+                            "text": "### 🎤 Voice Briefing Upload",
+                            "style": {
+                              "marginBottom": "10px",
+                              "color": "#374151"
+                            }
+                          }
+                        },
+                        {
+                          "id": "voice_file_upload",
+                          "type": "file",
+                          "configuration": {
+                            "label": "Upload Campaign Brief (Audio)",
+                            "accept": "audio/*",
+                            "placeholder": "Upload voice briefing for AI processing",
+                            "description": "Supports: MP3, WAV, M4A - Max 50MB"
+                          }
+                        },
+                        {
+                          "id": "process_voice_button",
+                          "type": "button",
+                          "configuration": {
+                            "text": "🧠 Process Voice Brief",
+                            "color": "green",
+                            "size": "md",
+                            "disabled": "${!state.voice_file || state.processing_voice}",
+                            "loading": "${state.processing_voice}",
+                            "onClickScript": "process_voice_briefing"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "campaign_details",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 3,
+                        "style": {
+                          "marginTop": "20px"
+                        }
+                      },
+                      "components": [
+                        {
+                          "id": "campaign_name_input",
+                          "type": "text_input",
+                          "configuration": {
+                            "label": "Campaign Name",
+                            "placeholder": "e.g., Q4 Product Launch Campaign",
+                            "required": true
+                          }
+                        },
+                        {
+                          "id": "target_audience_input",
+                          "type": "textarea",
+                          "configuration": {
+                            "label": "Target Audience",
+                            "placeholder": "Describe your target audience, demographics, and psychographics...",
+                            "rows": 3
+                          }
+                        },
+                        {
+                          "id": "brand_selection",
+                          "type": "multiselect",
+                          "configuration": {
+                            "label": "Brand Selection",
+                            "options": [
+                              {"value": "brand_tech", "label": "TechCorp (Primary)"},
+                              {"value": "brand_retail", "label": "RetailMax"},
+                              {"value": "brand_finance", "label": "FinanceFirst"},
+                              {"value": "brand_health", "label": "HealthPlus"}
+                            ],
+                            "placeholder": "Select brands for this campaign"
+                          }
+                        },
+                        {
+                          "id": "deliverables_section",
+                          "type": "container",
+                          "configuration": {
+                            "direction": "column",
+                            "gap": 2
+                          },
+                          "components": [
+                            {
+                              "id": "deliverables_label",
+                              "type": "text",
+                              "configuration": {
+                                "text": "### 📦 Campaign Deliverables",
+                                "style": {
+                                  "marginBottom": "10px"
+                                }
+                              }
+                            },
+                            {
+                              "id": "hero_images_checkbox",
+                              "type": "checkbox",
+                              "configuration": {
+                                "label": "Hero Images (1920x1080)",
+                                "checked": true
+                              }
+                            },
+                            {
+                              "id": "social_media_checkbox",
+                              "type": "checkbox",
+                              "configuration": {
+                                "label": "Social Media Assets (Multiple sizes)",
+                                "checked": true
+                              }
+                            },
+                            {
+                              "id": "banner_ads_checkbox",
+                              "type": "checkbox",
+                              "configuration": {
+                                "label": "Display Banner Ads (Various)"
+                              }
+                            },
+                            {
+                              "id": "print_ads_checkbox",
+                              "type": "checkbox",
+                              "configuration": {
+                                "label": "Print/PDF Advertisements"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "id": "campaign_budget_input",
+                          "type": "number_input",
+                          "configuration": {
+                            "label": "Campaign Budget ($)",
+                            "placeholder": "25000",
+                            "min": 1000,
+                            "max": 100000
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "campaign_actions",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "row",
+                        "gap": 2,
+                        "justifyContent": "space-between",
+                        "style": {
+                          "marginTop": "20px"
+                        }
+                      },
+                      "components": [
+                        {
+                          "id": "create_campaign_button",
+                          "type": "button",
+                          "configuration": {
+                            "text": "🚀 Create Campaign",
+                            "color": "blue",
+                            "size": "lg",
+                            "disabled": "${state.creating_campaign}",
+                            "loading": "${state.creating_campaign}",
+                            "onClickScript": "create_campaign"
+                          }
+                        },
+                        {
+                          "id": "save_draft_button",
+                          "type": "button",
+                          "configuration": {
+                            "text": "💾 Save Draft",
+                            "color": "gray",
+                            "size": "md",
+                            "onClickScript": "save_campaign_draft"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "campaign_results",
+                  "type": "container",
+                  "configuration": {
+                    "direction": "column",
+                    "gap": 3,
+                    "flex": 1
+                  },
+                  "components": [
+                    {
+                      "id": "voice_processing_results",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 2,
+                        "visible": "${state.voice_brief_result}",
+                        "style": {
+                          "backgroundColor": "#f0f9ff",
+                          "padding": "20px",
+                          "borderRadius": "8px",
+                          "border": "1px solid #0ea5e9"
+                        }
+                      },
+                      "components": [
+                        {
+                          "id": "voice_results_header",
+                          "type": "text",
+                          "configuration": {
+                            "text": "## 🧠 AI-Processed Voice Brief",
+                            "style": {
+                              "color": "#0c4a6e",
+                              "marginBottom": "15px"
+                            }
+                          }
+                        },
+                        {
+                          "id": "brief_transcription",
+                          "type": "text",
+                          "configuration": {
+                            "text": "**Transcription:**\n${state.voice_brief_result?.transcription || 'Processing...'}",
+                            "style": {
+                              "backgroundColor": "white",
+                              "padding": "12px",
+                              "borderRadius": "6px",
+                              "fontFamily": "monospace",
+                              "marginBottom": "10px"
+                            }
+                          }
+                        },
+                        {
+                          "id": "structured_brief",
+                          "type": "container",
+                          "configuration": {
+                            "direction": "column",
+                            "gap": 2
+                          },
+                          "components": [
+                            {
+                              "id": "brief_objective",
+                              "type": "text",
+                              "configuration": {
+                                "text": "**Campaign Objective:** ${state.voice_brief_result?.structured?.objective || 'Processing...'}"
+                              }
+                            },
+                            {
+                              "id": "brief_audience",
+                              "type": "text",
+                              "configuration": {
+                                "text": "**Target Audience:** ${state.voice_brief_result?.structured?.targetAudience || 'Processing...'}"
+                              }
+                            },
+                            {
+                              "id": "brief_messages",
+                              "type": "text",
+                              "configuration": {
+                                "text": "**Key Messages:** ${state.voice_brief_result?.structured?.keyMessages?.join(', ') || 'Processing...'}"
+                              }
+                            },
+                            {
+                              "id": "brief_style",
+                              "type": "text",
+                              "configuration": {
+                                "text": "**Visual Style:** ${state.voice_brief_result?.structured?.visualStyle || 'Processing...'}"
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "id": "active_campaigns_list",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 2,
+                        "style": {
+                          "marginTop": "20px"
+                        }
+                      },
+                      "components": [
+                        {
+                          "id": "campaigns_header",
+                          "type": "text",
+                          "configuration": {
+                            "text": "## 📋 Active Campaigns",
+                            "style": {
+                              "marginBottom": "15px"
+                            }
+                          }
+                        },
+                        {
+                          "id": "campaigns_table",
+                          "type": "table",
+                          "configuration": {
+                            "data": "${state.active_campaigns || []}",
+                            "columns": [
+                              {"key": "name", "label": "Campaign Name"},
+                              {"key": "status", "label": "Status"},
+                              {"key": "brands", "label": "Brands"},
+                              {"key": "progress", "label": "Progress"},
+                              {"key": "actions", "label": "Actions"}
+                            ],
+                            "pageSize": 10
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "generation_studio_tab",
+              "type": "container",
+              "configuration": {
+                "direction": "row",
+                "gap": 4
+              },
+              "components": [
+                {
+                  "id": "generation_controls",
+                  "type": "container",
+                  "configuration": {
+                    "direction": "column",
+                    "gap": 3,
+                    "width": "450px",
+                    "style": {
+                      "backgroundColor": "#fef3e2",
+                      "padding": "20px",
+                      "borderRadius": "8px"
+                    }
+                  },
+                  "components": [
+                    {
+                      "id": "studio_header",
+                      "type": "text",
+                      "configuration": {
+                        "text": "## 🎨 Professional Generation Studio",
+                        "style": {
+                          "marginBottom": "15px",
+                          "color": "#dc2626"
+                        }
+                      }
+                    },
+                    {
+                      "id": "prompt_optimization_section",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 2,
+                        "style": {
+                          "backgroundColor": "white",
+                          "padding": "15px",
+                          "borderRadius": "6px"
+                        }
+                      },
+                      "components": [
+                        {
+                          "id": "prompt_input",
+                          "type": "textarea",
+                          "configuration": {
+                            "label": "Image Generation Prompt",
+                            "placeholder": "Describe the image you want to generate... (e.g., 'Professional corporate headshot with blue background')",
+                            "rows": 4,
+                            "required": true
+                          }
+                        },
+                        {
+                          "id": "optimize_prompt_button",
+                          "type": "button",
+                          "configuration": {
+                            "text": "🧠 AI Optimize Prompt",
+                            "color": "purple",
+                            "size": "sm",
+                            "disabled": "${state.optimizing_prompt}",
+                            "loading": "${state.optimizing_prompt}",
+                            "onClickScript": "optimize_prompt"
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "style_preset_section",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 2
+                      },
+                      "components": [
+                        {
+                          "id": "style_preset_label",
+                          "type": "text",
+                          "configuration": {
+                            "text": "### 🎭 Style Presets",
+                            "style": {
+                              "marginBottom": "10px"
+                            }
+                          }
+                        },
+                        {
+                          "id": "style_preset_select",
+                          "type": "select",
+                          "configuration": {
+                            "label": "Style Category",
+                            "options": [
+                              {"value": "professional", "label": "🏢 Professional/Corporate"},
+                              {"value": "artistic", "label": "🎨 Artistic/Creative"},
+                              {"value": "marketing", "label": "📢 Marketing/Commercial"},
+                              {"value": "brand_specific", "label": "🏷️ Brand-Specific"},
+                              {"value": "trending", "label": "🔥 Trending Styles"}
+                            ],
+                            "value": "professional"
+                          }
+                        },
+                        {
+                          "id": "specific_style_select",
+                          "type": "select",
+                          "configuration": {
+                            "label": "Specific Style",
+                            "options": [
+                              {"value": "corporate_clean", "label": "Corporate Clean"},
+                              {"value": "tech_modern", "label": "Tech Modern"},
+                              {"value": "healthcare_trust", "label": "Healthcare Trust"},
+                              {"value": "finance_stable", "label": "Finance Stable"}
+                            ]
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "generation_settings",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 2
+                      },
+                      "components": [
+                        {
+                          "id": "generation_settings_label",
+                          "type": "text",
+                          "configuration": {
+                            "text": "### ⚙️ Generation Settings",
+                            "style": {
+                              "marginTop": "15px",
+                              "marginBottom": "10px"
+                            }
+                          }
+                        },
+                        {
+                          "id": "image_dimensions_select",
+                          "type": "select",
+                          "configuration": {
+                            "label": "Image Dimensions",
+                            "options": [
+                              {"value": "1024x1024", "label": "Square (1024x1024) - Social Posts"},
+                              {"value": "1920x1080", "label": "Landscape (1920x1080) - Hero Images"},
+                              {"value": "1080x1920", "label": "Portrait (1080x1920) - Stories"},
+                              {"value": "728x90", "label": "Banner (728x90) - Web Ads"},
+                              {"value": "1200x630", "label": "Social Share (1200x630)"}
+                            ],
+                            "value": "1024x1024"
+                          }
+                        },
+                        {
+                          "id": "quality_level_select",
+                          "type": "select",
+                          "configuration": {
+                            "label": "Quality Level",
+                            "options": [
+                              {"value": "draft", "label": "Draft - Fast preview"},
+                              {"value": "standard", "label": "Standard - Balanced"},
+                              {"value": "high", "label": "High - Professional"},
+                              {"value": "ultra", "label": "Ultra - Maximum quality"}
+                            ],
+                            "value": "high"
+                          }
+                        },
+                        {
+                          "id": "variations_slider",
+                          "type": "slider",
+                          "configuration": {
+                            "label": "Number of Variations",
+                            "min": 1,
+                            "max": 8,
+                            "step": 1,
+                            "value": 3
+                          }
+                        },
+                        {
+                          "id": "brand_compliance_checkbox",
+                          "type": "checkbox",
+                          "configuration": {
+                            "label": "Enable Brand Compliance Checking",
+                            "checked": true
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "generation_actions",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 2,
+                        "style": {
+                          "marginTop": "20px"
+                        }
+                      },
+                      "components": [
+                        {
+                          "id": "generate_images_button",
+                          "type": "button",
+                          "configuration": {
+                            "text": "🎨 Generate Images",
+                            "color": "red",
+                            "size": "lg",
+                            "disabled": "${state.generating_images}",
+                            "loading": "${state.generating_images}",
+                            "onClickScript": "generate_images"
+                          }
+                        },
+                        {
+                          "id": "batch_generate_button",
+                          "type": "button",
+                          "configuration": {
+                            "text": "⚡ Batch Generate (Campaign)",
+                            "color": "orange",
+                            "size": "md",
+                            "onClickScript": "batch_generate"
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "generation_results",
+                  "type": "container",
+                  "configuration": {
+                    "direction": "column",
+                    "gap": 3,
+                    "flex": 1
+                  },
+                  "components": [
+                    {
+                      "id": "optimization_results",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 2,
+                        "visible": "${state.optimized_prompt}",
+                        "style": {
+                          "backgroundColor": "#f3e8ff",
+                          "padding": "15px",
+                          "borderRadius": "8px",
+                          "marginBottom": "15px"
+                        }
+                      },
+                      "components": [
+                        {
+                          "id": "optimization_header",
+                          "type": "text",
+                          "configuration": {
+                            "text": "### 🧠 AI Prompt Optimization",
+                            "style": {
+                              "color": "#7c3aed",
+                              "marginBottom": "10px"
+                            }
+                          }
+                        },
+                        {
+                          "id": "optimized_prompt_display",
+                          "type": "text",
+                          "configuration": {
+                            "text": "**Optimized Prompt:**\n${state.optimized_prompt}",
+                            "style": {
+                              "backgroundColor": "white",
+                              "padding": "12px",
+                              "borderRadius": "6px",
+                              "fontFamily": "monospace"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "generation_progress",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 2,
+                        "visible": "${state.generating_images}",
+                        "style": {
+                          "backgroundColor": "#fef7cd",
+                          "padding": "15px",
+                          "borderRadius": "8px",
+                          "marginBottom": "15px"
+                        }
+                      },
+                      "components": [
+                        {
+                          "id": "progress_header",
+                          "type": "text",
+                          "configuration": {
+                            "text": "### ⚡ Generation in Progress",
+                            "style": {
+                              "color": "#92400e",
+                              "marginBottom": "10px"
+                            }
+                          }
+                        },
+                        {
+                          "id": "progress_steps",
+                          "type": "container",
+                          "configuration": {
+                            "direction": "column",
+                            "gap": 1
+                          },
+                          "components": [
+                            {
+                              "id": "step_prompt_processing",
+                              "type": "text",
+                              "configuration": {
+                                "text": "🔍 Prompt Processing & Brand Guidelines... ${state.step_prompt ? '✅' : '⏳'}"
+                              }
+                            },
+                            {
+                              "id": "step_workflow_creation",
+                              "type": "text",
+                              "configuration": {
+                                "text": "⚙️ Creating ComfyUI Workflow... ${state.step_workflow ? '✅' : '⏳'}"
+                              }
+                            },
+                            {
+                              "id": "step_image_generation",
+                              "type": "text",
+                              "configuration": {
+                                "text": "🎨 Generating Images... ${state.step_generation ? '✅' : '⏳'}"
+                              }
+                            },
+                            {
+                              "id": "step_quality_analysis",
+                              "type": "text",
+                              "configuration": {
+                                "text": "📊 Quality Analysis... ${state.step_quality ? '✅' : '⏳'}"
+                              }
+                            },
+                            {
+                              "id": "step_brand_compliance",
+                              "type": "text",
+                              "configuration": {
+                                "text": "✅ Brand Compliance Check... ${state.step_compliance ? '✅' : '⏳'}"
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "id": "generated_images_gallery",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 2,
+                        "visible": "${state.generated_images && state.generated_images.length > 0}"
+                      },
+                      "components": [
+                        {
+                          "id": "gallery_header",
+                          "type": "text",
+                          "configuration": {
+                            "text": "## 🖼️ Generated Images",
+                            "style": {
+                              "marginBottom": "15px"
+                            }
+                          }
+                        },
+                        {
+                          "id": "image_gallery_grid",
+                          "type": "container",
+                          "configuration": {
+                            "direction": "row",
+                            "gap": 3,
+                            "flexWrap": "wrap"
+                          },
+                          "components": [
+                            {
+                              "id": "image_card_template",
+                              "type": "container",
+                              "configuration": {
+                                "direction": "column",
+                                "gap": 2,
+                                "style": {
+                                  "backgroundColor": "white",
+                                  "padding": "15px",
+                                  "borderRadius": "8px",
+                                  "border": "1px solid #e5e7eb",
+                                  "minWidth": "300px"
+                                }
+                              },
+                              "components": [
+                                {
+                                  "id": "generated_image_display",
+                                  "type": "image",
+                                  "configuration": {
+                                    "src": "${state.latest_image_url}",
+                                    "alt": "Generated image",
+                                    "style": {
+                                      "width": "100%",
+                                      "height": "200px",
+                                      "objectFit": "cover",
+                                      "borderRadius": "6px"
+                                    }
+                                  }
+                                },
+                                {
+                                  "id": "image_metrics",
+                                  "type": "container",
+                                  "configuration": {
+                                    "direction": "row",
+                                    "justifyContent": "space-between",
+                                    "alignItems": "center"
+                                  },
+                                  "components": [
+                                    {
+                                      "id": "quality_score",
+                                      "type": "text",
+                                      "configuration": {
+                                        "text": "Quality: ${state.latest_quality_score || 'N/A'}/100",
+                                        "style": {
+                                          "fontSize": "12px",
+                                          "color": "#6b7280"
+                                        }
+                                      }
+                                    },
+                                    {
+                                      "id": "compliance_score",
+                                      "type": "text",
+                                      "configuration": {
+                                        "text": "Brand: ${state.latest_compliance_score || 'N/A'}/100",
+                                        "style": {
+                                          "fontSize": "12px",
+                                          "color": "#6b7280"
+                                        }
+                                      }
+                                    }
+                                  ]
+                                },
+                                {
+                                  "id": "image_actions",
+                                  "type": "container",
+                                  "configuration": {
+                                    "direction": "row",
+                                    "gap": 1,
+                                    "justifyContent": "space-between"
+                                  },
+                                  "components": [
+                                    {
+                                      "id": "download_button",
+                                      "type": "button",
+                                      "configuration": {
+                                        "text": "💾",
+                                        "color": "blue",
+                                        "size": "sm",
+                                        "onClickScript": "download_image"
+                                      }
+                                    },
+                                    {
+                                      "id": "approve_button",
+                                      "type": "button",
+                                      "configuration": {
+                                        "text": "✅",
+                                        "color": "green",
+                                        "size": "sm",
+                                        "onClickScript": "approve_image"
+                                      }
+                                    },
+                                    {
+                                      "id": "variations_button",
+                                      "type": "button",
+                                      "configuration": {
+                                        "text": "🔄",
+                                        "color": "orange",
+                                        "size": "sm",
+                                        "onClickScript": "generate_variations"
+                                      }
+                                    }
+                                  ]
+                                }
+                              ]
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "brand_center_tab",
+              "type": "container",
+              "configuration": {
+                "direction": "column",
+                "gap": 3
+              },
+              "components": [
+                {
+                  "id": "brand_center_header",
+                  "type": "text",
+                  "configuration": {
+                    "text": "## 🏢 Enterprise Brand Management Center",
+                    "style": {
+                      "marginBottom": "20px",
+                      "color": "#059669"
+                    }
+                  }
+                },
+                {
+                  "id": "brand_management_grid",
+                  "type": "container",
+                  "configuration": {
+                    "direction": "row",
+                    "gap": 4
+                  },
+                  "components": [
+                    {
+                      "id": "brand_list_section",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 2,
+                        "width": "400px"
+                      },
+                      "components": [
+                        {
+                          "id": "brand_list_header",
+                          "type": "text",
+                          "configuration": {
+                            "text": "### 📋 Brand Portfolio",
+                            "style": {
+                              "marginBottom": "10px"
+                            }
+                          }
+                        },
+                        {
+                          "id": "add_brand_button",
+                          "type": "button",
+                          "configuration": {
+                            "text": "➕ Add New Brand",
+                            "color": "green",
+                            "size": "md",
+                            "onClickScript": "add_brand"
+                          }
+                        },
+                        {
+                          "id": "brands_table",
+                          "type": "table",
+                          "configuration": {
+                            "data": "${state.brands || []}",
+                            "columns": [
+                              {"key": "name", "label": "Brand Name"},
+                              {"key": "industry", "label": "Industry"},
+                              {"key": "status", "label": "Status"},
+                              {"key": "compliance", "label": "Compliance"}
+                            ],
+                            "pageSize": 10
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "brand_details_section",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 2,
+                        "flex": 1,
+                        "visible": "${state.selected_brand}"
+                      },
+                      "components": [
+                        {
+                          "id": "brand_details_header",
+                          "type": "text",
+                          "configuration": {
+                            "text": "### 🎨 Brand Guidelines: ${state.selected_brand?.name || 'Select a brand'}",
+                            "style": {
+                              "marginBottom": "15px"
+                            }
+                          }
+                        },
+                        {
+                          "id": "brand_colors_section",
+                          "type": "container",
+                          "configuration": {
+                            "direction": "column",
+                            "gap": 2,
+                            "style": {
+                              "backgroundColor": "#f9fafb",
+                              "padding": "15px",
+                              "borderRadius": "6px"
+                            }
+                          },
+                          "components": [
+                            {
+                              "id": "primary_colors_input",
+                              "type": "text_input",
+                              "configuration": {
+                                "label": "Primary Colors (Hex codes)",
+                                "placeholder": "#1e40af, #3b82f6, #60a5fa",
+                                "value": "${state.selected_brand?.colors?.join(', ') || ''}"
+                              }
+                            },
+                            {
+                              "id": "secondary_colors_input",
+                              "type": "text_input",
+                              "configuration": {
+                                "label": "Secondary Colors",
+                                "placeholder": "#6b7280, #9ca3af, #d1d5db"
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "id": "brand_style_section",
+                          "type": "container",
+                          "configuration": {
+                            "direction": "column",
+                            "gap": 2,
+                            "style": {
+                              "backgroundColor": "#fefce8",
+                              "padding": "15px",  
+                              "borderRadius": "6px"
+                            }
+                          },
+                          "components": [
+                            {
+                              "id": "style_keywords_input",
+                              "type": "textarea",
+                              "configuration": {
+                                "label": "Style Keywords",
+                                "placeholder": "professional, modern, clean, trustworthy, innovative",
+                                "rows": 2
+                              }
+                            },
+                            {
+                              "id": "avoid_keywords_input",
+                              "type": "textarea",
+                              "configuration": {
+                                "label": "Avoid Keywords",
+                                "placeholder": "cluttered, unprofessional, outdated, aggressive",
+                                "rows": 2
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "id": "brand_actions",
+                          "type": "container",
+                          "configuration": {
+                            "direction": "row",
+                            "gap": 2,
+                            "justifyContent": "flex-end"
+                          },
+                          "components": [
+                            {
+                              "id": "save_brand_button",
+                              "type": "button",
+                              "configuration": {
+                                "text": "💾 Save Guidelines",
+                                "color": "blue",
+                                "size": "md",
+                                "onClickScript": "save_brand_guidelines"
+                              }
+                            },
+                            {
+                              "id": "test_compliance_button",
+                              "type": "button",
+                              "configuration": {
+                                "text": "🧪 Test Compliance",
+                                "color": "purple",
+                                "size": "md",
+                                "onClickScript": "test_brand_compliance"
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "quality_control_tab",
+              "type": "container",
+              "configuration": {
+                "direction": "column",
+                "gap": 3
+              },
+              "components": [
+                {
+                  "id": "quality_control_header",
+                  "type": "text",
+                  "configuration": {
+                    "text": "## ✅ Enterprise Quality Control Center",
+                    "style": {
+                      "marginBottom": "20px",
+                      "color": "#dc2626"
+                    }
+                  }
+                },
+                {
+                  "id": "quality_control_dashboard",
+                  "type": "container",
+                  "configuration": {
+                    "direction": "row",
+                    "gap": 4
+                  },
+                  "components": [
+                    {
+                      "id": "quality_metrics",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 3,
+                        "width": "300px"
+                      },
+                      "components": [
+                        {
+                          "id": "metrics_header",
+                          "type": "text",
+                          "configuration": {
+                            "text": "### 📊 Quality Metrics",
+                            "style": {
+                              "marginBottom": "15px"
+                            }
+                          }
+                        },
+                        {
+                          "id": "avg_quality_metric",
+                          "type": "container",
+                          "configuration": {
+                            "direction": "row",
+                            "justifyContent": "space-between",
+                            "alignItems": "center",
+                            "style": {
+                              "backgroundColor": "#f0f9ff",
+                              "padding": "10px",
+                              "borderRadius": "6px"
+                            }
+                          },
+                          "components": [
+                            {
+                              "id": "avg_quality_label",
+                              "type": "text",
+                              "configuration": {
+                                "text": "Average Quality Score"
+                              }
+                            },
+                            {
+                              "id": "avg_quality_value",
+                              "type": "text",
+                              "configuration": {
+                                "text": "${state.avg_quality_score || '92'}/100",
+                                "style": {
+                                  "fontWeight": "bold",
+                                  "color": "#0ea5e9"
+                                }
+                              }
+                            }
+                          ]
+                        },
+                        {
+                          "id": "compliance_rate_metric",
+                          "type": "container",
+                          "configuration": {
+                            "direction": "row",
+                            "justifyContent": "space-between",
+                            "alignItems": "center",
+                            "style": {
+                              "backgroundColor": "#f0fdf4",
+                              "padding": "10px",
+                              "borderRadius": "6px"
+                            }
+                          },
+                          "components": [
+                            {
+                              "id": "compliance_rate_label",
+                              "type": "text",
+                              "configuration": {
+                                "text": "Brand Compliance Rate"
+                              }
+                            },
+                            {
+                              "id": "compliance_rate_value",
+                              "type": "text",
+                              "configuration": {
+                                "text": "${state.compliance_rate || '96'}%",
+                                "style": {
+                                  "fontWeight": "bold",
+                                  "color": "#22c55e"
+                                }
+                              }
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "id": "pending_approvals",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 2,
+                        "flex": 1
+                      },
+                      "components": [
+                        {
+                          "id": "approvals_header",
+                          "type": "text",
+                          "configuration": {
+                            "text": "### 🔍 Pending Quality Reviews",
+                            "style": {
+                              "marginBottom": "15px"
+                            }
+                          }
+                        },
+                        {
+                          "id": "approvals_table",
+                          "type": "table",
+                          "configuration": {
+                            "data": "${state.pending_approvals || []}",
+                            "columns": [
+                              {"key": "image", "label": "Image"},
+                              {"key": "campaign", "label": "Campaign"},
+                              {"key": "quality_score", "label": "Quality"},
+                              {"key": "compliance_score", "label": "Compliance"},
+                              {"key": "actions", "label": "Actions"}
+                            ],
+                            "pageSize": 10
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "asset_management_tab",
+              "type": "container",
+              "configuration": {
+                "direction": "column",
+                "gap": 3
+              },
+              "components": [
+                {
+                  "id": "asset_management_header",
+                  "type": "text",
+                  "configuration": {
+                    "text": "## 📁 Enterprise Asset Management",
+                    "style": {
+                      "marginBottom": "20px",
+                      "color": "#7c3aed"
+                    }
+                  }
+                },
+                {
+                  "id": "asset_search_section",
+                  "type": "container",
+                  "configuration": {
+                    "direction": "row",
+                    "gap": 3,
+                    "alignItems": "flex-end"
+                  },
+                  "components": [
+                    {
+                      "id": "asset_search_input",
+                      "type": "text_input",
+                      "configuration": {
+                        "label": "Search Assets",
+                        "placeholder": "Search by name, tags, campaign, or brand...",
+                        "style": {
+                          "width": "300px"
+                        }
+                      }
+                    },
+                    {
+                      "id": "asset_filter_select",
+                      "type": "select",
+                      "configuration": {
+                        "label": "Filter by Type",
+                        "options": [
+                          {"value": "all", "label": "All Types"},
+                          {"value": "hero", "label": "Hero Images"},
+                          {"value": "social", "label": "Social Media"},
+                          {"value": "banner", "label": "Banner Ads"},
+                          {"value": "print", "label": "Print Materials"}
+                        ],
+                        "value": "all"
+                      }
+                    },
+                    {
+                      "id": "search_assets_button",
+                      "type": "button",
+                      "configuration": {
+                        "text": "🔍 Search",
+                        "color": "blue",
+                        "size": "md",
+                        "onClickScript": "search_assets"
+                      }
+                    }
+                  ]
+                },
+                {
+                  "id": "asset_grid",
+                  "type": "container",
+                  "configuration": {
+                    "direction": "row",
+                    "gap": 3,
+                    "flexWrap": "wrap"
+                  },
+                  "components": [
+                    {
+                      "id": "asset_card_placeholder",
+                      "type": "text",
+                      "configuration": {
+                        "text": "Assets will appear here after search or generation...",
+                        "style": {
+                          "color": "#6b7280",
+                          "fontStyle": "italic",
+                          "textAlign": "center",
+                          "padding": "40px"
+                        }
+                      }
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "analytics_dashboard_tab",
+              "type": "container",
+              "configuration": {
+                "direction": "column",
+                "gap": 3
+              },
+              "components": [
+                {
+                  "id": "analytics_header",
+                  "type": "text",
+                  "configuration": {
+                    "text": "## 📊 Campaign Performance Analytics",
+                    "style": {
+                      "marginBottom": "20px",
+                      "color": "#059669"
+                    }
+                  }
+                },
+                {
+                  "id": "analytics_summary_cards",
+                  "type": "container",
+                  "configuration": {
+                    "direction": "row",
+                    "gap": 3
+                  },
+                  "components": [
+                    {
+                      "id": "total_campaigns_card",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 1,
+                        "style": {
+                          "backgroundColor": "#dbeafe",
+                          "padding": "20px",
+                          "borderRadius": "8px",
+                          "textAlign": "center",
+                          "minWidth": "150px"
+                        }
+                      },
+                      "components": [
+                        {
+                          "id": "total_campaigns_number",
+                          "type": "text",
+                          "configuration": {
+                            "text": "${state.total_campaigns || '12'}",
+                            "style": {
+                              "fontSize": "32px",
+                              "fontWeight": "bold",
+                              "color": "#1e40af"
+                            }
+                          }
+                        },
+                        {
+                          "id": "total_campaigns_label",
+                          "type": "text",
+                          "configuration": {
+                            "text": "Total Campaigns",
+                            "style": {
+                              "fontSize": "14px",
+                              "color": "#374151"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "images_generated_card",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 1,
+                        "style": {
+                          "backgroundColor": "#dcfce7",
+                          "padding": "20px",
+                          "borderRadius": "8px",
+                          "textAlign": "center",
+                          "minWidth": "150px"
+                        }
+                      },
+                      "components": [
+                        {
+                          "id": "images_generated_number",
+                          "type": "text",
+                          "configuration": {
+                            "text": "${state.total_images || '3,847'}",
+                            "style": {
+                              "fontSize": "32px",
+                              "fontWeight": "bold",
+                              "color": "#16a34a"
+                            }
+                          }
+                        },
+                        {
+                          "id": "images_generated_label",
+                          "type": "text",
+                          "configuration": {
+                            "text": "Images Generated",
+                            "style": {
+                              "fontSize": "14px",
+                              "color": "#374151"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "avg_quality_card",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 1,
+                        "style": {
+                          "backgroundColor": "#fef3e2",
+                          "padding": "20px",
+                          "borderRadius": "8px",
+                          "textAlign": "center",
+                          "minWidth": "150px"
+                        }
+                      },
+                      "components": [
+                        {
+                          "id": "avg_quality_number",
+                          "type": "text",
+                          "configuration": {
+                            "text": "${state.avg_quality || '94.2'}",
+                            "style": {
+                              "fontSize": "32px",
+                              "fontWeight": "bold",
+                              "color": "#ea580c"
+                            }
+                          }
+                        },
+                        {
+                          "id": "avg_quality_label",
+                          "type": "text",
+                          "configuration": {
+                            "text": "Avg Quality Score",
+                            "style": {
+                              "fontSize": "14px",
+                              "color": "#374151"
+                            }
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "cost_savings_card",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 1,
+                        "style": {
+                          "backgroundColor": "#f3e8ff",
+                          "padding": "20px",
+                          "borderRadius": "8px",
+                          "textAlign": "center",
+                          "minWidth": "150px"
+                        }
+                      },
+                      "components": [
+                        {
+                          "id": "cost_savings_number",
+                          "type": "text",
+                          "configuration": {
+                            "text": "${state.cost_savings || '$127K'}",
+                            "style": {
+                              "fontSize": "32px",
+                              "fontWeight": "bold",
+                              "color": "#7c3aed"
+                            }
+                          }
+                        },
+                        {
+                          "id": "cost_savings_label",
+                          "type": "text",
+                          "configuration": {
+                            "text": "Cost Savings",
+                            "style": {
+                              "fontSize": "14px",
+                              "color": "#374151"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "id": "analytics_charts_placeholder",
+                  "type": "text",
+                  "configuration": {
+                    "text": "📈 Advanced analytics charts and reporting tools will be displayed here. Integration with business intelligence tools provides comprehensive campaign performance insights.",
+                    "style": {
+                      "backgroundColor": "#f9fafb",
+                      "padding": "40px",
+                      "borderRadius": "8px",
+                      "textAlign": "center",
+                      "color": "#6b7280",
+                      "fontStyle": "italic"
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "id": "client_portal_tab",
+              "type": "container",
+              "configuration": {
+                "direction": "column",
+                "gap": 3
+              },
+              "components": [
+                {
+                  "id": "client_portal_header",
+                  "type": "text",
+                  "configuration": {
+                    "text": "## 👥 Client Collaboration Portal",
+                    "style": {
+                      "marginBottom": "20px",
+                      "color": "#0891b2"
+                    }
+                  }
+                },
+                {
+                  "id": "client_collaboration_features",
+                  "type": "container",
+                  "configuration": {
+                    "direction": "row",
+                    "gap": 4
+                  },
+                  "components": [
+                    {
+                      "id": "client_access_management",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 2,
+                        "width": "400px"
+                      },
+                      "components": [
+                        {
+                          "id": "client_access_header",
+                          "type": "text",
+                          "configuration": {
+                            "text": "### 🔐 Client Access Management",
+                            "style": {
+                              "marginBottom": "15px"
+                            }
+                          }
+                        },
+                        {
+                          "id": "add_client_button",
+                          "type": "button",
+                          "configuration": {
+                            "text": "➕ Add Client Access",
+                            "color": "blue",
+                            "size": "md",
+                            "onClickScript": "add_client_access"
+                          }
+                        },
+                        {
+                          "id": "client_list_table",
+                          "type": "table",
+                          "configuration": {
+                            "data": "${state.client_access || []}",
+                            "columns": [
+                              {"key": "name", "label": "Client Name"},
+                              {"key": "email", "label": "Email"},
+                              {"key": "access_level", "label": "Access Level"},
+                              {"key": "status", "label": "Status"}
+                            ],
+                            "pageSize": 10
+                          }
+                        }
+                      ]
+                    },
+                    {
+                      "id": "approval_workflow",
+                      "type": "container",
+                      "configuration": {
+                        "direction": "column",
+                        "gap": 2,
+                        "flex": 1
+                      },
+                      "components": [
+                        {
+                          "id": "approval_workflow_header",
+                          "type": "text",
+                          "configuration": {
+                            "text": "### ✅ Approval Workflow",
+                            "style": {
+                              "marginBottom": "15px"
+                            }
+                          }
+                        },
+                        {
+                          "id": "pending_client_approvals",
+                          "type": "table",
+                          "configuration": {
+                            "data": "${state.pending_client_approvals || []}",
+                            "columns": [
+                              {"key": "asset", "label": "Asset"},
+                              {"key": "client", "label": "Client"},
+                              {"key": "submitted", "label": "Submitted"},
+                              {"key": "status", "label": "Status"},
+                              {"key": "actions", "label": "Actions"}
+                            ],
+                            "pageSize": 10
+                          }
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "state": {
+      "processing": false,
+      "voice_file": null,
+      "processing_voice": false,
+      "voice_brief_result": null,
+      "creating_campaign": false,
+      "active_campaigns": [],
+      "optimizing_prompt": false,
+      "optimized_prompt": "",
+      "generating_images": false,
+      "step_prompt": false,
+      "step_workflow": false,
+      "step_generation": false,
+      "step_quality": false,
+      "step_compliance": false,
+      "generated_images": [],
+      "latest_image_url": "",
+      "latest_quality_score": null,
+      "latest_compliance_score": null,
+      "brands": [],
+      "selected_brand": null,
+      "avg_quality_score": null,
+      "compliance_rate": null,
+      "pending_approvals": [],
+      "total_campaigns": null,
+      "total_images": null,
+      "avg_quality": null,
+      "cost_savings": null,
+      "client_access": [],
+      "pending_client_approvals": []
+    },
+    "scripts": {
+      "process_voice_briefing": {
+        "language": "typescript",
+        "content": "// This script processes voice briefings through Whisper and AI analysis"
+      },
+      "create_campaign": {
+        "language": "typescript",
+        "content": "// This script creates new campaigns with all specified parameters"
+      },
+      "optimize_prompt": {
+        "language": "typescript",
+        "content": "// This script optimizes prompts using AI for better generation results"
+      },
+      "generate_images": {
+        "language": "typescript",
+        "content": "// This script orchestrates the complete image generation workflow"
+      },
+      "batch_generate": {
+        "language": "typescript",
+        "content": "// This script handles batch generation for campaigns"
+      },
+      "manage_brands": {
+        "language": "typescript",
+        "content": "// This script manages brand guidelines and consistency"
+      },
+      "quality_control": {
+        "language": "typescript",
+        "content": "// This script handles quality analysis and compliance checking"
+      },
+      "asset_management": {
+        "language": "typescript",
+        "content": "// This script manages enterprise asset storage and organization"
+      },
+      "analytics": {
+        "language": "typescript",
+        "content": "// This script provides comprehensive analytics and reporting"
+      },
+      "client_portal": {
+        "language": "typescript",
+        "content": "// This script manages client access and collaboration features"
+      }
+    }
+  },
+  "required_scripts": [
+    "campaign_manager",
+    "generation_studio",
+    "brand_engine",
+    "quality_control",
+    "asset_manager",
+    "analytics_dashboard",
+    "client_portal"
+  ],
+  "permissions": {
+    "read": ["public"],
+    "write": ["admin", "campaign_manager"],
+    "execute": ["admin", "campaign_manager", "client"]
+  },
+  "tags": ["enterprise", "image-generation", "ai", "campaign-management", "brand-compliance", "fortune-500"],
+  "created_by": "enterprise-image-generation-scenario",
+  "created_at": "2025-08-01T00:00:00Z"
+}

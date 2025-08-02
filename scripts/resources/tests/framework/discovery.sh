@@ -453,6 +453,9 @@ check_resource_health() {
         "vault")
             check_vault_health "$port"
             ;;
+        "redis")
+            check_redis_health "$port"
+            ;;
         *)
             # Generic HTTP health check
             check_generic_health "$resource" "$port"
@@ -615,6 +618,42 @@ check_vault_health() {
     
     response=$(curl -s --max-time 10 "http://localhost:${port}/v1/sys/health" 2>/dev/null)
     if [[ $? -eq 0 && -n "$response" ]]; then
+        echo "healthy"
+    else
+        echo "unreachable"
+    fi
+}
+
+check_redis_health() {
+    local port="$1"
+    local response
+    
+    # If no port provided, try to find Redis container and get its port
+    if [[ -z "$port" ]]; then
+        # Find Redis container (might be named differently like vrooli-redis-resource)
+        local redis_container
+        redis_container=$(docker ps --format "{{.Names}}" 2>/dev/null | grep -E "(redis|^redis$)" | head -1)
+        
+        if [[ -n "$redis_container" ]]; then
+            # Get the port mapping
+            local port_mapping
+            port_mapping=$(docker port "$redis_container" 2>/dev/null | head -1)
+            if [[ -n "$port_mapping" ]]; then
+                # Extract host port from format: 6379/tcp -> 0.0.0.0:6380
+                port=$(echo "$port_mapping" | sed 's/.*://g')
+            fi
+        fi
+        
+        # Fallback to default Redis port
+        if [[ -z "$port" ]]; then
+            port="6380"  # Vrooli's default Redis port
+        fi
+    fi
+    
+    # Redis uses its own protocol, not HTTP. Test with Redis PING command
+    # Using netcat to send Redis protocol PING command
+    response=$(timeout 5 bash -c 'echo -e "*1\r\n\$4\r\nPING\r\n" | nc localhost '"$port"' 2>/dev/null' | head -1 | tr -d '\r\n')
+    if [[ "$response" == "+PONG" ]]; then
         echo "healthy"
     else
         echo "unreachable"
@@ -1083,8 +1122,9 @@ get_default_port() {
         "minio") echo "9000" ;;
         "vault") echo "8200" ;;
         "qdrant") echo "6333" ;;
-        "questdb") echo "9009" ;;
+        "questdb") echo "9010" ;;
         "postgres") echo "5433" ;;
+        "redis") echo "6380" ;;
         *) echo "8080" ;;
     esac
 }

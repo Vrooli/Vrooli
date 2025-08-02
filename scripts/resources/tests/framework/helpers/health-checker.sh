@@ -203,6 +203,9 @@ check_resource_health_standardized() {
         "questdb")
             perform_health_check_with_retry "$resource" "check_questdb_health_std" "$port"
             ;;
+        "redis")
+            perform_health_check_with_retry "$resource" "check_redis_health_std" "$port"
+            ;;
         *)
             perform_health_check_with_retry "$resource" "check_generic_health_std" "$port"
             ;;
@@ -321,6 +324,43 @@ check_questdb_health_std() {
         result=$(perform_http_health_check "http://localhost:${port}/" "$timeout")
     fi
     echo "$result"
+}
+
+check_redis_health_std() {
+    local timeout="$1"
+    local port="$2"
+    
+    # If no port provided, try to find Redis container and get its port
+    if [[ -z "$port" ]]; then
+        # Find Redis container (might be named differently like vrooli-redis-resource)
+        local redis_container
+        redis_container=$(docker ps --format "{{.Names}}" 2>/dev/null | grep -E "(redis|^redis$)" | head -1)
+        
+        if [[ -n "$redis_container" ]]; then
+            # Get the port mapping
+            local port_mapping
+            port_mapping=$(docker port "$redis_container" 2>/dev/null | head -1)
+            if [[ -n "$port_mapping" ]]; then
+                # Extract host port from format: 6379/tcp -> 0.0.0.0:6380
+                port=$(echo "$port_mapping" | sed 's/.*://g')
+            fi
+        fi
+        
+        # Fallback to default Redis port
+        if [[ -z "$port" ]]; then
+            port="6380"  # Vrooli's default Redis port
+        fi
+    fi
+    
+    # Redis uses its own protocol, not HTTP. Test with Redis PING command
+    # Using netcat to send Redis protocol PING command
+    local response
+    response=$(timeout "$timeout" bash -c 'echo -e "*1\r\n\$4\r\nPING\r\n" | nc localhost '"$port"' 2>/dev/null' | head -1 | tr -d '\r\n')
+    if [[ "$response" == "+PONG" ]]; then
+        echo "healthy"
+    else
+        echo "unhealthy"
+    fi
 }
 
 check_generic_health_std() {

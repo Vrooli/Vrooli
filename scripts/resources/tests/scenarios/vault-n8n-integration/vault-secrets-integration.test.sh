@@ -38,11 +38,20 @@ source "$SCRIPT_DIR/framework/helpers/assertions.sh"
 source "$SCRIPT_DIR/framework/helpers/cleanup.sh"
 source "$SCRIPT_DIR/framework/helpers/fixtures.sh"
 source "$SCRIPT_DIR/framework/helpers/metadata.sh"
+source "$SCRIPT_DIR/framework/helpers/secure-config.sh"
 
-# Service configuration
-VAULT_BASE_URL="http://localhost:8200"
-N8N_BASE_URL="http://localhost:5678"
-VAULT_TOKEN="myroot"  # Dev token - should be configured properly in prod
+# Service configuration with secure defaults
+export_service_urls
+VAULT_TOKEN=$(get_auth_token "vault" "myroot")  # Dev default only used in development environment
+
+# Validate production security
+if [[ "$VROOLI_ENV" == "production" ]]; then
+    if [[ -z "$VAULT_TOKEN" || "$VAULT_TOKEN" == "myroot" ]]; then
+        echo "❌ Production environment requires secure Vault token configuration"
+        echo "   Set VROOLI_VAULT_TOKEN environment variable or configure in ~/.vrooli/.secrets"
+        exit 1
+    fi
+fi
 
 # Test fixtures
 TEST_SECRETS_PATH="test/integration"

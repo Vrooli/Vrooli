@@ -39,11 +39,10 @@ source "$SCRIPT_DIR/framework/helpers/assertions.sh"
 source "$SCRIPT_DIR/framework/helpers/cleanup.sh"
 source "$SCRIPT_DIR/framework/helpers/fixtures.sh"
 source "$SCRIPT_DIR/framework/helpers/metadata.sh"
+source "$SCRIPT_DIR/framework/helpers/secure-config.sh"
 
-# Service configuration
-N8N_BASE_URL="http://localhost:5678"
-OLLAMA_BASE_URL="http://localhost:11434"
-AGENT_S2_BASE_URL="http://localhost:4113"
+# Service configuration from secure config
+export_service_urls
 
 # Business scenario setup
 setup_business_scenario() {
