@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Prevent multiple sourcing to avoid readonly variable conflicts
+[[ -n "${VROOLI_COMMON_SOURCED:-}" ]] && return 0
+readonly VROOLI_COMMON_SOURCED=1
+
 # Common utilities for local resource setup and management
 # This file provides shared functionality for all resource setup scripts
 
@@ -99,6 +103,89 @@ resources::check_http_health() {
 }
 
 #######################################
+# Enhanced HTTP health check with detailed error reporting
+# Arguments:
+#   $1 - base URL (e.g., http://localhost:11434)
+#   $2 - health endpoint (optional, defaults to empty)
+# Outputs:
+#   Detailed status message with specific error information
+# Returns:
+#   0 if healthy, 1 otherwise
+#######################################
+resources::get_detailed_health_status() {
+    local base_url="$1"
+    local health_endpoint="${2:-}"
+    local url="${base_url}${health_endpoint}"
+    
+    if ! system::is_command "curl"; then
+        echo "curl not available - cannot check health"
+        return 1
+    fi
+    
+    # Capture both HTTP status code and curl exit code
+    local temp_output=$(mktemp)
+    local http_code
+    local curl_exit_code
+    
+    # Use curl with detailed options to capture both status and errors
+    http_code=$(curl -s -w "%{http_code}" --max-time 5 --connect-timeout 3 \
+                --output "$temp_output" "$url" 2>/dev/null)
+    curl_exit_code=$?
+    
+    # Clean up temp file
+    rm -f "$temp_output"
+    
+    # Analyze the results and provide specific error messages
+    case $curl_exit_code in
+        0)
+            # Success - check HTTP status code
+            case $http_code in
+                200|201|202)
+                    echo "✅ Healthy"
+                    return 0
+                    ;;
+                404)
+                    echo "⚠️  Service running but health endpoint not found (HTTP 404)"
+                    return 1
+                    ;;
+                403)
+                    echo "⚠️  Service running but access denied (HTTP 403)"
+                    return 1
+                    ;;
+                401)
+                    echo "⚠️  Service running but authentication required (HTTP 401)"
+                    return 1
+                    ;;
+                5*)
+                    echo "⚠️  Service running but internal error (HTTP $http_code)"
+                    return 1
+                    ;;
+                *)
+                    echo "⚠️  Service responded with HTTP $http_code"
+                    return 1
+                    ;;
+            esac
+            ;;
+        7)
+            echo "⚠️  Service not running (connection refused)"
+            return 1
+            ;;
+        28)
+            echo "⚠️  Service running but health check timed out"
+            return 1
+            ;;
+        6)
+            echo "⚠️  Network connectivity problem (DNS resolution failed)"
+            return 1
+            ;;
+        *)
+            echo "⚠️  Health check failed (curl error $curl_exit_code)"
+            return 1
+            ;;
+    esac
+}
+
+#######################################
 # Get the default port for a resource
 # Arguments:
 #   $1 - resource name
@@ -132,19 +219,19 @@ resources::get_health_endpoint() {
             echo "/health"
             ;;
         "n8n")
-            echo "/api/v1/info"
+            echo "/healthz"
             ;;
         "node-red")
             echo "/flows"
             ;;
         "windmill")
-            echo "/api/version"
+            echo "/api/health"
             ;;
         "huginn")
-            echo "/users/sign_in"
+            echo "/"
             ;;
         "comfyui")
-            echo "/history"
+            echo "/system_stats"
             ;;
         "whisper")
             echo "/health"
@@ -152,11 +239,171 @@ resources::get_health_endpoint() {
         "minio")
             echo "/minio/health/live"
             ;;
+        "vault")
+            echo "/v1/sys/health"
+            ;;
+        "searxng")
+            echo "/stats"
+            ;;
+        "claude-code")
+            echo "/mcp/health"
+            ;;
+        "redis")
+            # Redis is TCP-based, no HTTP health endpoint
+            echo ""
+            ;;
         *)
             # Default endpoint for unknown resources
             echo ""
             ;;
     esac
+}
+
+#######################################
+# Validate that a service on a port is the expected service
+# Arguments:
+#   $1 - resource name
+#   $2 - port number
+# Returns:
+#   0 if service is validated, 1 otherwise
+# Outputs:
+#   Validation status message
+#######################################
+resources::validate_service_identity() {
+    local resource="$1"
+    local port="$2"
+    local base_url="http://localhost:$port"
+    
+    if ! resources::is_service_running "$port"; then
+        echo "❌ No service running on port $port"
+        return 1
+    fi
+    
+    # Service-specific validation based on unique identifiers
+    case "$resource" in
+        "ollama")
+            # Check for Ollama-specific API
+            if curl -s "$base_url/api/version" 2>/dev/null | grep -q "version"; then
+                echo "✅ Validated as Ollama"
+                return 0
+            fi
+            ;;
+        "searxng")
+            # Check for SearXNG specific headers or content
+            if curl -s -I "$base_url" 2>/dev/null | grep -qi "searxng\|searx"; then
+                echo "✅ Validated as SearXNG"
+                return 0
+            fi
+            # Also check HTML content
+            if curl -s "$base_url" 2>/dev/null | grep -qi 'meta.*searxng\|searx'; then
+                echo "✅ Validated as SearXNG"
+                return 0
+            fi
+            ;;
+        "browserless")
+            # Check for Browserless-specific endpoints
+            if curl -s "$base_url/pressure" 2>/dev/null | grep -q "running\|queued"; then
+                echo "✅ Validated as Browserless"
+                return 0
+            fi
+            ;;
+        "n8n")
+            # Check for n8n specific endpoints
+            if curl -s "$base_url/healthz" 2>/dev/null | grep -qi "ok\|healthy"; then
+                echo "✅ Validated as n8n"
+                return 0
+            fi
+            ;;
+        "minio")
+            # Check MinIO health endpoint
+            if curl -s "$base_url/minio/health/live" 2>/dev/null; then
+                echo "✅ Validated as MinIO"
+                return 0
+            fi
+            ;;
+        "agent-s2")
+            # Check Agent-S2 specific endpoints
+            if curl -s "$base_url/health" 2>/dev/null | grep -qi "agent.*s2\|healthy"; then
+                echo "✅ Validated as Agent-S2"
+                return 0
+            fi
+            ;;
+        "node-red")
+            # Check for Node-RED flows endpoint
+            if curl -s "$base_url/flows" 2>/dev/null | head -1 | grep -q "\[\|flows"; then
+                echo "✅ Validated as Node-RED"
+                return 0
+            fi
+            ;;
+        "vault")
+            # Check Vault sys endpoint
+            if curl -s "$base_url/v1/sys/health" 2>/dev/null | grep -q "initialized\|sealed"; then
+                echo "✅ Validated as Vault"
+                return 0
+            fi
+            ;;
+        "whisper")
+            # Check for Whisper service - check docs or openapi.json endpoint
+            if curl -s "$base_url/docs" 2>/dev/null | grep -qi "whisper\|swagger"; then
+                echo "✅ Validated as Whisper"
+                return 0
+            elif curl -s "$base_url/openapi.json" 2>/dev/null | grep -q "Whisper Asr Webservice"; then
+                echo "✅ Validated as Whisper"
+                return 0
+            fi
+            ;;
+        "unstructured-io")
+            # Check for Unstructured-IO service via healthcheck endpoint
+            if curl -s "$base_url/healthcheck" 2>/dev/null | grep -qi "ok\|healthy"; then
+                echo "✅ Validated as Unstructured-IO"
+                return 0
+            elif curl -s "$base_url/general/v0/general" 2>/dev/null | head -1 | grep -q "422\|405"; then
+                # The API endpoint exists but needs proper request
+                echo "✅ Validated as Unstructured-IO"
+                return 0
+            fi
+            ;;
+        "postgres")
+            # PostgreSQL validation - check if it's a postgres container
+            local postgres_container
+            postgres_container=$(docker ps --format "{{.Names}}" | grep "^vrooli-postgres-" | head -1)
+            if [[ -n "$postgres_container" ]]; then
+                echo "✅ Validated as PostgreSQL"
+                return 0
+            fi
+            ;;
+        "redis")
+            # Redis validation - check if it's the redis container
+            if docker ps --format "{{.Names}}" | grep -q "vrooli-redis-resource"; then
+                echo "✅ Validated as Redis"
+                return 0
+            fi
+            ;;
+        "comfyui")
+            # Check ComfyUI system stats
+            if curl -s "$base_url/system_stats" 2>/dev/null | grep -q "system\|python_version"; then
+                echo "✅ Validated as ComfyUI"
+                return 0
+            fi
+            ;;
+        "qdrant")
+            # Check Qdrant API
+            if curl -s "$base_url/collections" 2>/dev/null | grep -q "collections\|result"; then
+                echo "✅ Validated as Qdrant"
+                return 0  
+            fi
+            ;;
+        *)
+            # For unknown services, just check if something is responding
+            if curl -s -I "$base_url" 2>/dev/null | grep -q "200\|301\|302"; then
+                echo "⚠️  Service responding but cannot validate identity"
+                return 0
+            fi
+            ;;
+    esac
+    
+    echo "❌ Service on port $port is not $resource"
+    return 1
 }
 
 #######################################
@@ -228,7 +475,7 @@ resources::validate_port() {
         case "$resource" in
             ollama|whisper) category="AI" ;;
             n8n|node-red|comfyui) category="automation" ;;
-            minio|ipfs) category="storage" ;;
+            minio) category="storage" ;;
             browserless|claude-code|huginn) category="agents" ;;
         esac
         

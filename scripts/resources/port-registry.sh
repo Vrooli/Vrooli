@@ -28,7 +28,7 @@ declare -g -A RESOURCE_PORTS=(
     
     # Automation Services (56xx range)
     ["n8n"]="5678"             # Workflow automation
-    ["comfyui"]="5679"         # AI-powered image generation workflows
+    ["comfyui"]="8188"         # AI-powered image generation workflows
     ["node-red"]="1880"        # Flow-based automation (Node-RED default port)
     ["windmill"]="5681"        # Developer-centric workflow automation
     
@@ -36,6 +36,9 @@ declare -g -A RESOURCE_PORTS=(
     ["minio"]="9000"           # Object storage (S3 compatible)
     ["vault"]="8200"           # HashiCorp Vault secret management
     ["qdrant"]="6333"          # Vector database for AI embeddings
+    ["questdb"]="9009"         # Time-series database for analytics
+    ["postgres"]="5433"        # PostgreSQL instances (5433-5499 range for client instances)
+    ["redis"]="6380"           # Redis in-memory data store (6380 to avoid conflict with internal Redis on 6379)
     
     # Agent Services (41xx range - safely above Vrooli range)
     ["browserless"]="4110"     # Browserless.io Chrome service
@@ -43,8 +46,8 @@ declare -g -A RESOURCE_PORTS=(
     ["huginn"]="4111"          # Workflow automation platform
     ["agent-s2"]="4113"        # Agent S2 autonomous computer interaction
     
-    # Search Services (81xx range)
-    ["searxng"]="8100"         # SearXNG metasearch engine
+    # Search Services (92xx range - moved due to conflict)
+    ["searxng"]="9200"         # SearXNG metasearch engine (NOTE: conflicts with debug range)
     
     # Execution Services (23xx range)
     ["judge0"]="2358"          # Code execution sandbox (official Judge0 port)
@@ -68,6 +71,14 @@ declare -g -A RESERVED_RANGES=(
     ["debug"]="9200-9299"             # Debug ports
     ["system"]="1-1023"               # System ports (require root)
 )
+
+# ============================================================================
+# PostgreSQL Instance Configuration
+# ============================================================================
+# PostgreSQL instances (5433-5499 range for client instances)  
+[[ -z "${POSTGRES_DEFAULT_PORT:-}" ]] && readonly POSTGRES_DEFAULT_PORT=5433
+[[ -z "${POSTGRES_INSTANCE_PORT_RANGE_START:-}" ]] && readonly POSTGRES_INSTANCE_PORT_RANGE_START=5433
+[[ -z "${POSTGRES_INSTANCE_PORT_RANGE_END:-}" ]] && readonly POSTGRES_INSTANCE_PORT_RANGE_END=5499
 
 # ============================================================================
 # Helper Functions
@@ -234,7 +245,56 @@ ports::show_registry() {
     done | sort
 }
 
-# If script is run directly, show the registry
+#######################################
+# Export resource ports as JSON
+# Used by TypeScript modules for dynamic loading
+#######################################
+ports::export_json() {
+    local output='{"resource_ports":{'
+    local first=true
+    
+    for resource in "${!RESOURCE_PORTS[@]}"; do
+        if [[ "$first" == true ]]; then
+            first=false
+        else
+            output+=","
+        fi
+        # Ensure port is a valid number
+        local port="${RESOURCE_PORTS[$resource]}"
+        if [[ "$port" =~ ^[0-9]+$ ]]; then
+            output+="\"$resource\":$port"
+        fi
+    done
+    
+    output+="}}"
+    echo "$output"
+}
+
+#######################################
+# Show help information
+#######################################
+ports::show_help() {
+    echo "Port Registry - Central source of truth for all service port assignments"
+    echo
+    echo "Usage: $0 [OPTION]"
+    echo
+    echo "Options:"
+    echo "  --export-json    Export resource ports as JSON (for TypeScript integration)"
+    echo "  --help          Show this help message"
+    echo "  (no options)    Show port registry information"
+}
+
+# If script is run directly, handle CLI arguments
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    ports::show_registry
+    case "${1:-}" in
+        --export-json)
+            ports::export_json
+            ;;
+        --help)
+            ports::show_help
+            ;;
+        *)
+            ports::show_registry
+            ;;
+    esac
 fi
