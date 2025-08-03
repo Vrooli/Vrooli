@@ -63,7 +63,7 @@ postgres::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|create|destroy|start|stop|restart|status|list|logs|connect|diagnose|monitor|upgrade|backup|restore|migrate|migrate-init|migrate-status|migrate-rollback|migrate-list|seed|create-db|drop-db|create-user|drop-user|db-stats|list-backups|delete-backup|verify-backup|cleanup-backups|multi-start|multi-stop|multi-restart|multi-status|multi-migrate|multi-backup|multi-health|gui|gui-stop|gui-status|gui-list|network-update|network-migrate-all" \
+        --options "install|uninstall|create|destroy|start|stop|restart|status|list|logs|connect|diagnose|monitor|upgrade|backup|restore|migrate|migrate-init|migrate-status|migrate-rollback|migrate-list|seed|create-db|drop-db|create-user|drop-user|db-stats|list-backups|delete-backup|verify-backup|cleanup-backups|multi-start|multi-stop|multi-restart|multi-status|multi-migrate|multi-backup|multi-health|gui|gui-stop|gui-status|gui-list|network-update|network-migrate-all|inject|validate-injection" \
         --default "status"
     
     args::register \
@@ -182,6 +182,12 @@ postgres::parse_arguments() {
         --type "value" \
         --default "$POSTGRES_BACKUP_RETENTION_DAYS"
     
+    args::register \
+        --name "injection-config" \
+        --desc "JSON configuration for data injection" \
+        --type "value" \
+        --default ""
+    
     if args::is_asking_for_help "$@"; then
         postgres::usage
         exit 0
@@ -208,6 +214,7 @@ postgres::parse_arguments() {
     export MIGRATIONS_DIR=$(args::get "migrations-dir")
     export SEED_PATH=$(args::get "seed-path")
     export RETENTION_DAYS=$(args::get "retention-days")
+    export INJECTION_CONFIG=$(args::get "injection-config")
 }
 
 #######################################
@@ -817,6 +824,22 @@ postgres::main() {
             ;;
         "network-migrate-all")
             postgres::network::migrate_all_instances
+            ;;
+        "inject")
+            if [[ -z "$INJECTION_CONFIG" ]]; then
+                log::error "Injection configuration required for inject action"
+                log::info "Use: --injection-config 'JSON_CONFIG'"
+                exit 1
+            fi
+            "${SCRIPT_DIR}/inject.sh" --inject "$INJECTION_CONFIG"
+            ;;
+        "validate-injection")
+            if [[ -z "$INJECTION_CONFIG" ]]; then
+                log::error "Injection configuration required for validate-injection action"
+                log::info "Use: --injection-config 'JSON_CONFIG'"
+                exit 1
+            fi
+            "${SCRIPT_DIR}/inject.sh" --validate "$INJECTION_CONFIG"
             ;;
         *)
             log::error "Unknown action: $ACTION"

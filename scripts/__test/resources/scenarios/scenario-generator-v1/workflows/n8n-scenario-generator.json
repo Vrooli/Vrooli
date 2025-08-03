@@ -1,0 +1,254 @@
+{
+  "name": "Scenario Generator V1",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "scenario-generator",
+        "responseMode": "responseNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "scenario-generator"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract and validate input\nconst customerInput = items[0].json.customerInput;\nconst complexity = items[0].json.complexity || 'intermediate';\nconst category = items[0].json.category || 'business-automation';\nconst timestamp = new Date().toISOString();\n\nif (!customerInput || customerInput.trim().length < 10) {\n  throw new Error('Customer input must be at least 10 characters');\n}\n\n// Generate unique scenario ID\nconst scenarioId = `scn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;\n\n// Read prompt template from file\nconst promptTemplate = `\n# Generate Vrooli Scenario from Customer Requirements\n\n## Task\nYou are generating a complete Vrooli scenario directory structure from customer requirements.\nThe scenario should be production-ready and follow existing patterns.\n\n## Documentation References\n- Scenario template structure: /home/matthalloran8/Vrooli/scripts/__test/resources/scenarios/SCENARIO_TEMPLATE/\n- Available resources: /home/matthalloran8/Vrooli/scripts/resources/README.md\n- Existing scenarios for patterns: /home/matthalloran8/Vrooli/scripts/__test/resources/scenarios/*/metadata.yaml\n- Resource capabilities:\n  - AI: ollama, whisper, unstructured-io, comfyui\n  - Automation: n8n, windmill, node-red, huginn\n  - Agents: agent-s2, browserless, claude-code\n  - Search: searxng\n  - Storage: postgres, minio, qdrant, redis, vault, questdb\n\n## Customer Requirements\n${customerInput}\n\n## Constraints\n- Complexity: ${complexity}\n- Category: ${category}\n- Scenario ID: ${scenarioId}\n\n## Required Output Structure\nGenerate the complete scenario with these files:\n\n1. metadata.yaml - Complete configuration following the template\n2. workflows/main-workflow.json - n8n or windmill workflow\n3. ui/windmill/app.tsx - User interface component\n4. initialization/database/schema.sql - Database schema if needed\n5. initialization/configuration/config.json - Runtime configuration\n6. deployment/startup.sh - Startup script\n7. README.md - Usage documentation\n\n## Important Guidelines\n- Select appropriate resources based on requirements\n- Estimate realistic revenue potential ($10k-50k range)\n- Include proper error handling and validation\n- Follow existing scenario patterns\n- Make it production-ready\n- Include data import/export capabilities\n\n## Response Format\nReturn a JSON object with:\n{\n  \"scenarioId\": \"${scenarioId}\",\n  \"scenarioName\": \"<descriptive name>\",\n  \"files\": {\n    \"metadata.yaml\": \"<content>\",\n    \"workflows/main-workflow.json\": \"<content>\",\n    \"ui/windmill/app.tsx\": \"<content>\",\n    \"initialization/database/schema.sql\": \"<content>\",\n    \"initialization/configuration/config.json\": \"<content>\",\n    \"deployment/startup.sh\": \"<content>\",\n    \"README.md\": \"<content>\"\n  },\n  \"resourcesRequired\": [<list of resources>],\n  \"estimatedRevenue\": { \"min\": <number>, \"max\": <number> },\n  \"deploymentNotes\": \"<any special deployment considerations>\"\n}\n`;\n\nreturn {\n  scenarioId,\n  customerInput,\n  complexity,\n  category,\n  timestamp,\n  promptTemplate\n};"
+      },
+      "id": "prepare-prompt",
+      "name": "Prepare Claude Prompt",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:11434/api/generate",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "=llama3.1:8b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.promptTemplate }}"
+            },
+            {
+              "name": "stream",
+              "value": "=false"
+            },
+            {
+              "name": "temperature",
+              "value": "=0.7"
+            },
+            {
+              "name": "max_tokens",
+              "value": "=8000"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000,
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "id": "call-claude",
+      "name": "Call Claude Code",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [650, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse Claude's response\nconst claudeResponse = items[0].json;\nconst scenarioData = items[0].json;\n\ntry {\n  // Extract the generated scenario from Claude's response\n  let generatedScenario;\n  \n  if (claudeResponse.response) {\n    // Parse the JSON response from Claude\n    generatedScenario = JSON.parse(claudeResponse.response);\n  } else if (claudeResponse.error) {\n    throw new Error(`Claude generation failed: ${claudeResponse.error}`);\n  } else {\n    // Fallback to mock data for testing\n    generatedScenario = {\n      scenarioId: scenarioData.scenarioId,\n      scenarioName: 'Mock Scenario for ' + scenarioData.category,\n      files: {\n        'metadata.yaml': `# Mock scenario\\nscenario:\\n  id: ${scenarioData.scenarioId}\\n  name: Mock Scenario`,\n        'README.md': '# Mock Scenario\\nThis is a mock scenario for testing.'\n      },\n      resourcesRequired: ['ollama', 'n8n', 'postgres'],\n      estimatedRevenue: { min: 15000, max: 25000 },\n      deploymentNotes: 'Mock scenario - replace with actual Claude generation'\n    };\n  }\n\n  // Add generation metadata\n  generatedScenario.generatedAt = new Date().toISOString();\n  generatedScenario.customerInput = scenarioData.customerInput;\n  generatedScenario.complexity = scenarioData.complexity;\n  generatedScenario.category = scenarioData.category;\n  generatedScenario.generationTimeMs = Date.now() - new Date(scenarioData.timestamp).getTime();\n\n  return generatedScenario;\n} catch (error) {\n  // Return error scenario\n  return {\n    scenarioId: scenarioData.scenarioId,\n    status: 'error',\n    error: error.message,\n    generatedAt: new Date().toISOString()\n  };\n}"
+      },
+      "id": "parse-response",
+      "name": "Parse Claude Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Store scenario files in MinIO\nconst scenario = items[0].json;\nconst scenarioId = scenario.scenarioId;\n\n// Prepare files for storage\nconst files = scenario.files || {};\nconst storageOperations = [];\n\n// Create storage path\nconst date = new Date();\nconst storagePath = `${date.getFullYear()}/${String(date.getMonth() + 1).padStart(2, '0')}/${scenarioId}`;\n\nfor (const [filePath, content] of Object.entries(files)) {\n  storageOperations.push({\n    bucket: 'generated-scenarios',\n    key: `${storagePath}/${filePath}`,\n    content: content,\n    contentType: filePath.endsWith('.json') ? 'application/json' : \n                 filePath.endsWith('.yaml') ? 'text/yaml' : \n                 filePath.endsWith('.tsx') ? 'text/typescript' : \n                 filePath.endsWith('.sql') ? 'text/sql' : \n                 filePath.endsWith('.sh') ? 'text/x-shellscript' : \n                 'text/plain'\n  });\n}\n\n// Add storage metadata\nscenario.storagePath = storagePath;\nscenario.storageOperations = storageOperations;\n\nreturn scenario;"
+      },
+      "id": "prepare-storage",
+      "name": "Prepare MinIO Storage",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",
+        "table": "scenario_generations",
+        "columns": "id,customer_input,generated_at,scenario_id,scenario_name,resources_required,status,generation_time_ms,complexity,category,estimated_revenue,storage_path",
+        "additionalFields": {}
+      },
+      "id": "save-to-postgres",
+      "name": "Save to PostgreSQL",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1250, 300],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "Vrooli PostgreSQL"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "functionCode": "// Prepare final response\nconst scenario = items[0].json;\n\nconst response = {\n  scenarioId: scenario.scenarioId,\n  scenarioName: scenario.scenarioName,\n  resourcesRequired: scenario.resourcesRequired,\n  estimatedRevenue: scenario.estimatedRevenue,\n  generationTimeMs: scenario.generationTimeMs,\n  status: scenario.error ? 'error' : 'success',\n  message: scenario.error || `Scenario '${scenario.scenarioName}' generated successfully`,\n  storagePath: scenario.storagePath,\n  generatedAt: scenario.generatedAt\n};\n\nreturn response;"
+      },
+      "id": "prepare-response",
+      "name": "Prepare Response",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    }
+  ],
+  "connections": {
+    "webhook-trigger": {
+      "main": [
+        [
+          {
+            "node": "prepare-prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare-prompt": {
+      "main": [
+        [
+          {
+            "node": "call-claude",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call-claude": {
+      "main": [
+        [
+          {
+            "node": "parse-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse-response": {
+      "main": [
+        [
+          {
+            "node": "prepare-storage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare-storage": {
+      "main": [
+        [
+          {
+            "node": "save-to-postgres",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "save-to-postgres": {
+      "main": [
+        [
+          {
+            "node": "prepare-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare-response": {
+      "main": [
+        [
+          {
+            "node": "webhook-response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "saveDataSuccessExecution": "all",
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "executionTimeout": 180
+  },
+  "versionId": "scenario-generator-v1",
+  "id": "scenario-generator-workflow",
+  "meta": {
+    "instanceId": "scenario-generator"
+  },
+  "tags": [
+    {
+      "name": "scenario-generator"
+    },
+    {
+      "name": "ai-generation"
+    }
+  ]
+}

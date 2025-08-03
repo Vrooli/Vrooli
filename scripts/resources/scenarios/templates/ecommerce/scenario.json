@@ -1,0 +1,326 @@
+{
+  "name": "ecommerce-platform",
+  "description": "Complete e-commerce platform with inventory management, order processing, and analytics",
+  "version": "1.0.0",
+  "author": "Vrooli Team",
+  "tags": ["ecommerce", "retail", "marketplace"],
+  "dependencies": [],
+  
+  "resources": {
+    "postgres": {
+      "description": "Main database for products, users, and orders",
+      "inject": {
+        "tables": [
+          {
+            "name": "ecommerce",
+            "schema": "assets/schema.sql",
+            "seed": "assets/seed-data.sql"
+          }
+        ],
+        "migrations": [
+          {
+            "version": "001",
+            "file": "assets/migrations/001_initial.sql"
+          }
+        ]
+      }
+    },
+    
+    "minio": {
+      "description": "Object storage for product images and documents",
+      "inject": {
+        "buckets": [
+          {
+            "name": "product-images",
+            "policy": "public-read",
+            "versioning": false
+          },
+          {
+            "name": "user-uploads",
+            "policy": "private",
+            "versioning": true
+          },
+          {
+            "name": "invoices",
+            "policy": "private",
+            "versioning": true
+          }
+        ],
+        "data": [
+          {
+            "type": "directory",
+            "bucket": "product-images",
+            "source": "assets/sample-images/",
+            "prefix": "samples/",
+            "recursive": true
+          }
+        ]
+      }
+    },
+    
+    "n8n": {
+      "description": "Workflow automation for order processing and notifications",
+      "inject": {
+        "workflows": [
+          {
+            "name": "Order Processing",
+            "file": "assets/workflows/n8n/order-processing.json",
+            "active": true
+          },
+          {
+            "name": "Inventory Alerts",
+            "file": "assets/workflows/n8n/inventory-alerts.json",
+            "active": true
+          },
+          {
+            "name": "Customer Notifications",
+            "file": "assets/workflows/n8n/customer-notifications.json",
+            "active": true
+          },
+          {
+            "name": "Abandoned Cart Recovery",
+            "file": "assets/workflows/n8n/abandoned-cart.json",
+            "active": false
+          }
+        ],
+        "credentials": [
+          {
+            "name": "postgres-ecommerce",
+            "type": "postgres",
+            "data": {
+              "host": "postgres-ecommerce",
+              "port": 5432,
+              "database": "ecommerce",
+              "user": "${DB_USER}",
+              "password": "${DB_PASSWORD}"
+            }
+          },
+          {
+            "name": "smtp-notifications",
+            "type": "smtp",
+            "data": {
+              "host": "${SMTP_HOST}",
+              "port": "${SMTP_PORT}",
+              "user": "${SMTP_USER}",
+              "password": "${SMTP_PASSWORD}"
+            }
+          }
+        ]
+      }
+    },
+    
+    "node-red": {
+      "description": "Real-time event processing and IoT integration",
+      "inject": {
+        "flows": [
+          {
+            "name": "Payment Processing",
+            "file": "assets/workflows/node-red/payment-flow.json",
+            "deploy": true
+          },
+          {
+            "name": "Inventory Sync",
+            "file": "assets/workflows/node-red/inventory-sync.json",
+            "deploy": true
+          }
+        ]
+      }
+    },
+    
+    "vault": {
+      "description": "Secure storage for API keys and payment credentials",
+      "inject": {
+        "secrets": [
+          {
+            "path": "secret/data/payment/stripe",
+            "data": {
+              "publishable_key": "${STRIPE_PUBLISHABLE_KEY}",
+              "secret_key": "${STRIPE_SECRET_KEY}",
+              "webhook_secret": "${STRIPE_WEBHOOK_SECRET}"
+            }
+          },
+          {
+            "path": "secret/data/payment/paypal",
+            "data": {
+              "client_id": "${PAYPAL_CLIENT_ID}",
+              "client_secret": "${PAYPAL_CLIENT_SECRET}",
+              "webhook_id": "${PAYPAL_WEBHOOK_ID}"
+            }
+          },
+          {
+            "path": "secret/data/shipping/fedex",
+            "data": {
+              "account_number": "${FEDEX_ACCOUNT}",
+              "meter_number": "${FEDEX_METER}",
+              "key": "${FEDEX_KEY}",
+              "password": "${FEDEX_PASSWORD}"
+            }
+          },
+          {
+            "path": "secret/data/analytics/google",
+            "data": {
+              "tracking_id": "${GA_TRACKING_ID}",
+              "api_secret": "${GA_API_SECRET}"
+            }
+          }
+        ],
+        "policies": [
+          {
+            "name": "ecommerce-read",
+            "rules": "path \"secret/data/payment/*\" { capabilities = [\"read\"] } path \"secret/data/shipping/*\" { capabilities = [\"read\"] }"
+          },
+          {
+            "name": "ecommerce-admin",
+            "rules": "path \"secret/data/*\" { capabilities = [\"create\", \"read\", \"update\", \"delete\", \"list\"] }"
+          }
+        ]
+      }
+    },
+    
+    "questdb": {
+      "description": "Time-series database for analytics and metrics",
+      "inject": {
+        "tables": [
+          {
+            "name": "order_metrics",
+            "schema": "timestamp TIMESTAMP, order_id SYMBOL, customer_id SYMBOL, amount DOUBLE, items INT, status SYMBOL, payment_method SYMBOL, region SYMBOL",
+            "partitionBy": "DAY",
+            "timestamp": "timestamp"
+          },
+          {
+            "name": "product_views",
+            "schema": "timestamp TIMESTAMP, product_id SYMBOL, customer_id SYMBOL, session_id SYMBOL, source SYMBOL, duration INT",
+            "partitionBy": "DAY",
+            "timestamp": "timestamp"
+          },
+          {
+            "name": "cart_events",
+            "schema": "timestamp TIMESTAMP, cart_id SYMBOL, customer_id SYMBOL, event_type SYMBOL, product_id SYMBOL, quantity INT, value DOUBLE",
+            "partitionBy": "DAY",
+            "timestamp": "timestamp"
+          },
+          {
+            "name": "inventory_levels",
+            "schema": "timestamp TIMESTAMP, product_id SYMBOL, warehouse_id SYMBOL, quantity INT, reserved INT, available INT",
+            "partitionBy": "MONTH",
+            "timestamp": "timestamp"
+          }
+        ]
+      }
+    },
+    
+    "qdrant": {
+      "description": "Vector database for product recommendations and search",
+      "inject": {
+        "collections": [
+          {
+            "name": "products",
+            "size": 384,
+            "distance": "Cosine",
+            "on_disk": false
+          },
+          {
+            "name": "customer_preferences",
+            "size": 256,
+            "distance": "Cosine",
+            "on_disk": false
+          }
+        ],
+        "indices": [
+          {
+            "collection": "products",
+            "field": "category",
+            "type": "keyword"
+          },
+          {
+            "collection": "products",
+            "field": "brand",
+            "type": "keyword"
+          }
+        ]
+      }
+    },
+    
+    "windmill": {
+      "description": "Scheduled tasks and batch processing",
+      "inject": {
+        "scripts": [
+          {
+            "name": "daily_sales_report",
+            "file": "assets/scripts/windmill/sales-report.py",
+            "schedule": "0 0 * * *",
+            "description": "Generate daily sales report"
+          },
+          {
+            "name": "inventory_reorder",
+            "file": "assets/scripts/windmill/inventory-reorder.py",
+            "schedule": "0 */6 * * *",
+            "description": "Check inventory levels and create reorder suggestions"
+          },
+          {
+            "name": "customer_segmentation",
+            "file": "assets/scripts/windmill/customer-segments.py",
+            "schedule": "0 2 * * 1",
+            "description": "Weekly customer segmentation analysis"
+          }
+        ],
+        "apps": [
+          {
+            "name": "admin_dashboard",
+            "file": "assets/apps/windmill/admin-dashboard.json",
+            "public": false
+          }
+        ]
+      }
+    },
+    
+    "ollama": {
+      "description": "AI models for customer support and content generation",
+      "inject": {
+        "models": [
+          {
+            "name": "llama2",
+            "tag": "7b",
+            "pull": true
+          },
+          {
+            "name": "codellama",
+            "tag": "7b",
+            "pull": true
+          }
+        ]
+      }
+    }
+  },
+  
+  "environment": {
+    "required": [
+      "DB_USER",
+      "DB_PASSWORD",
+      "STRIPE_PUBLISHABLE_KEY",
+      "STRIPE_SECRET_KEY",
+      "SMTP_HOST",
+      "SMTP_PORT",
+      "SMTP_USER",
+      "SMTP_PASSWORD"
+    ],
+    "optional": [
+      "STRIPE_WEBHOOK_SECRET",
+      "PAYPAL_CLIENT_ID",
+      "PAYPAL_CLIENT_SECRET",
+      "FEDEX_ACCOUNT",
+      "GA_TRACKING_ID"
+    ]
+  },
+  
+  "post_injection": {
+    "commands": [
+      "echo 'E-commerce platform deployed successfully!'",
+      "echo 'Access points:'",
+      "echo '  - Admin Dashboard: http://localhost:8000'",
+      "echo '  - n8n Workflows: http://localhost:5678'",
+      "echo '  - Node-RED: http://localhost:1880'",
+      "echo '  - MinIO Console: http://localhost:9001'"
+    ]
+  }
+}
