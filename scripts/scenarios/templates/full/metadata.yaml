@@ -1,0 +1,169 @@
+# Scenario metadata - Machine-readable configuration for both deployment and AI generation
+# This template supports BOTH deployment orchestration AND AI generation patterns
+
+scenario:
+  # For manual creation, edit these directly
+  # For AI generation, use: SCENARIO_ID_PLACEHOLDER, SCENARIO_NAME_PLACEHOLDER, SCENARIO_DESCRIPTION_PLACEHOLDER
+  id: "scenario-name-here"                    # AI: Replace with kebab-case identifier (e.g., "customer-service-ai")
+  name: "Human Readable Scenario Name"        # AI: Replace with business-friendly name (e.g., "Enterprise Customer Service AI")
+  description: "Brief description of what this scenario tests and demonstrates"  # AI: One sentence problem + solution
+  version: "1.0.0"
+  
+categories:
+  # AI Guidance: Choose categories that match business use case
+  - primary-category     # AI: Choose from ai-assistance, ai-content-creation, automation, real-time-monitoring, etc.
+  - secondary-category   # AI: Optional secondary categorization
+
+# AI Guidance: Choose complexity based on resource count and integration complexity
+# basic: 1-2 resources, simple integration
+# intermediate: 3-4 resources, moderate integration  
+# advanced: 5+ resources, complex orchestration
+complexity: "intermediate"  # basic, intermediate, advanced
+
+# CRITICAL: Resource selection drives deployment efficiency
+resources:
+  # Simple format (recommended for most scenarios)
+  required:
+    # AI: Minimal set for core functionality - choose from ollama, postgres, n8n, windmill, etc.
+    - resource1        # AI: Replace with actual required resource (e.g., "ollama")
+    - resource2        # AI: Add only what's essential (e.g., "postgres")
+  optional:
+    # AI: Enhancement features that add value but aren't critical
+    - resource3        # AI: Add capabilities that enhance value (e.g., "whisper", "minio")
+  
+  # Enhanced format (optional - use when you need versions or config)
+  # required:
+  #   - name: postgres
+  #     version: ">=15.0"  # Optional version constraint
+  #     config:            # Optional resource-specific config
+  #       database: "test_db"
+  #       extensions: ["uuid-ossp", "pgcrypto"]
+  #   - name: n8n
+  #     version: "~1.0.0"
+  # optional:
+  #   - name: ollama
+  #     enhances: ["ai-capabilities", "nlp-processing"]
+  
+  # AI: Prevent resource conflicts (uncomment if needed)
+  # conflicts:
+  #   - conflicting-resource  # AI: e.g., agent-s2 conflicts with browserless
+    
+# BUSINESS MODEL: This drives pricing and market positioning
+business:
+  # AI: Create specific, quantified value proposition (use VALUE_PROPOSITION_PLACEHOLDER for AI generation)
+  value_proposition: "Clear statement of business value"  # AI: Include specific metrics/outcomes (e.g., "90% automated customer service resolution")
+  
+  # AI: Target specific industries/roles (use PRIMARY_MARKET_PLACEHOLDER, SECONDARY_MARKET_PLACEHOLDER for AI generation)
+  target_markets:
+    - "Target industry or use case"        # AI: e.g., "e-commerce-businesses"
+    - "Another target market"              # AI: e.g., "saas-companies"
+  
+  # AI: List specific problems this solves (use PAIN_POINT_*_PLACEHOLDER for AI generation)
+  pain_points:
+    - "Primary customer problem this solves"    # AI: Specific customer problem
+    - "Secondary problem addressed"             # AI: Additional problem solved
+  
+  # AI: Realistic project pricing based on scope and value
+  revenue_potential:
+    min: 5000                              # AI: Adjust based on scenario complexity (15000+ for enterprise)
+    max: 15000                             # AI: Adjust based on business value (25000-50000 for complex)
+    currency: "USD"
+    pricing_model: "fixed-project"         # AI: or "monthly-saas", "hourly-consulting"
+  
+  market_demand: "high"                    # low, medium, high, very-high
+  
+  # AI: What makes this better than alternatives (use COMPETITIVE_ADVANTAGE_PLACEHOLDER for AI generation)
+  competitive_advantage: "Unique differentiation from competitors"
+  
+  # AI: Measurable customer benefits (use ROI_METRIC_*_PLACEHOLDER for AI generation)
+  roi_metrics:
+    - "Primary quantifiable benefit"       # AI: e.g., "50% reduction in processing time"
+    - "Secondary measurable value"         # AI: e.g., "24/7 availability"
+  
+# TESTING CONFIGURATION: Ensures reliability
+testing:
+  duration_minutes: 10                     # AI: Adjust based on complexity (5-20 minutes)
+  timeout_seconds: 600                     # AI: Adjust based on complexity (300-1800 seconds)
+  requires_display: false                  # AI: Set true if GUI interaction needed (Agent-S2)
+  requires_ui: false                       # AI: Set true if has UI components (Windmill)
+  
+upwork_examples:
+  - "Example job posting that this solves"    # AI: Real freelance project examples
+  - "Another relevant freelance project"      # AI: Additional market validation
+  
+# AI: Define measurable success criteria (use SUCCESS_CRITERION_* for AI generation)
+success_criteria:
+  - "First measurable success criterion"      # AI: e.g., "AI responds within 3 seconds"
+  - "Second measurable success criterion"     # AI: e.g., "Database operations complete successfully"
+  - "Third measurable success criterion"      # AI: e.g., "Workflow automation executes correctly"
+
+# AI: Add relevant tags for discovery and filtering (use TAG_*_PLACEHOLDER for AI generation)
+tags:
+  - relevant-tag1                         # AI: e.g., "enterprise-ready"
+  - relevant-tag2                         # AI: e.g., "high-revenue-potential"
+  - technology-specific                   # AI: Add resource requirement tags (e.g., "requires-ollama")
+
+# PERFORMANCE EXPECTATIONS: Set realistic performance targets for deployment
+performance:
+  latency:
+    p50: "100ms"                          # AI: Expected 50th percentile response time
+    p95: "500ms"                          # AI: Expected 95th percentile response time
+    p99: "1s"                            # AI: Expected 99th percentile response time
+  throughput:
+    requests_per_second: 100              # AI: Expected requests per second
+    concurrent_users: 50                  # AI: Expected concurrent users
+  resource_usage:
+    memory: "512MB"                       # AI: Expected memory consumption
+    cpu: "0.5"                           # AI: Expected CPU cores needed
+
+# CUSTOMIZATION FRAMEWORK: Enable customer-specific adaptations
+customization:
+  branding:                              # AI: Visual customization options
+    - "company_logo"                     # AI: Logo replacement capability
+    - "color_scheme"                     # AI: Brand color adaptation
+    - "messaging"                        # AI: Customer-specific text
+  business_logic:                        # AI: Workflow customization points  
+    - "business_rule_1"                  # AI: e.g., "escalation_rules"
+    - "business_rule_2"                  # AI: e.g., "approval_workflows"
+  integrations:                          # AI: External system connections
+    - "integration_1"                    # AI: e.g., "crm_connector"
+    - "integration_2"                    # AI: e.g., "notification_channels"
+
+# Optional: Declare resource artifacts for automated setup
+artifacts:
+  # n8n workflows to import
+  n8n:
+    workflows: 
+      - "workflow1.json"  # relative to resources/n8n/
+      - "workflow2.json"
+  
+  # Database schemas and data
+  postgres:
+    schema: "schema.sql"      # relative to resources/postgres/
+    seed_data: "seed.sql"
+    migrations: "migrations/" # directory of migration files
+  
+  # Windmill scripts
+  windmill:
+    scripts:
+      - "main.py"
+      - "utils.ts"
+    workspace: "scenario-workspace"
+  
+  # API collections for testing
+  api:
+    postman: "collection.json"
+    openapi: "spec.yaml"
+    
+# Optional: Performance expectations
+performance:
+  latency:
+    p50: "100ms"  # 50th percentile
+    p95: "500ms"  # 95th percentile
+    p99: "1s"     # 99th percentile
+  throughput:
+    requests_per_second: 100
+    concurrent_users: 50
+  resource_usage:
+    memory: "512MB"
+    cpu: "0.5"

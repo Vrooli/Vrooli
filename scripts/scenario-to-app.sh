@@ -6,7 +6,7 @@ set -euo pipefail
 
 # Configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-SCENARIOS_DIR="$SCRIPT_DIR/__test/resources/scenarios"
+SCENARIOS_DIR="$SCRIPT_DIR/scenarios/core"
 DEFAULT_DEPLOY_MODE="local"
 DEFAULT_VALIDATION_MODE="full"
 

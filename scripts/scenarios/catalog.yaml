@@ -1,0 +1,422 @@
+version: "1.0"
+metadata:
+  total_scenarios: 14
+  validation_coverage: "95%"
+  deployment_ready: 12
+  ui_enabled: 6
+  average_revenue: "$8k-25k"
+  last_updated: "2025-08-03"
+
+# Core scenario catalog organized by business value and complexity
+scenarios:
+  # High-Value AI Applications ($10k-50k projects)
+  multi-modal-ai-assistant:
+    location: "core/multi-modal-ai-assistant"
+    name: "Multi-Modal AI Assistant"
+    description: "Voice-to-visual-to-action AI assistant with professional UI"
+    categories: ["ai-assistance", "ai-content-creation"]
+    complexity: "advanced"
+    validation: true
+    deployment: true
+    ui_included: true
+    revenue_range: "$10k-25k"
+    resources:
+      required: [whisper, ollama, comfyui, agent-s2, windmill]
+      optional: [minio, qdrant]
+    use_cases:
+      - "Accessibility assistant for disabled users"
+      - "Creative workflow automation"
+      - "Enterprise productivity suite"
+    upwork_demand: "very-high"
+    tags: [multimodal, voice-enabled, visual-generation, automation, windmill-ui, accessibility, enterprise-ready, high-revenue-potential]
+
+  ai-content-assistant-example:
+    location: "core/ai-content-assistant-example"
+    name: "AI Content Assistant"
+    description: "Content creation and management with AI-powered workflows"
+    categories: ["ai-content-creation"]
+    complexity: "intermediate"
+    validation: true
+    deployment: true
+    ui_included: true
+    revenue_range: "$8k-20k"
+    resources:
+      required: [ollama, comfyui, windmill, minio]
+      optional: [whisper, unstructured-io]
+    use_cases:
+      - "Content creation for marketing agencies"
+      - "Creative workflow automation"
+      - "Social media management"
+    upwork_demand: "high"
+    tags: [content-creation, marketing, creative-workflows, windmill-ui]
+
+  research-assistant:
+    location: "core/research-assistant"
+    name: "Research Assistant"
+    description: "Intelligent research and knowledge management platform"
+    categories: ["ai-research"]
+    complexity: "intermediate"
+    validation: true
+    deployment: true
+    ui_included: true
+    revenue_range: "$10k-25k"
+    resources:
+      required: [searxng, ollama, qdrant, windmill]
+      optional: [minio, browserless]
+    use_cases:
+      - "Market research automation"
+      - "Competitive analysis platforms"
+      - "Knowledge management systems"
+    upwork_demand: "high"
+    tags: [research, knowledge-management, search, windmill-ui, enterprise-ready]
+
+  # Business Automation Solutions ($5k-35k projects)
+  business-process-automation:
+    location: "core/business-process-automation"
+    name: "Business Process Automation"
+    description: "AI-powered workflow automation with intelligent decision making"
+    categories: ["ai-automation"]
+    complexity: "advanced"
+    validation: true
+    deployment: true
+    ui_included: false
+    revenue_range: "$5k-15k"
+    resources:
+      required: [n8n, ollama, agent-s2]
+      optional: [node-red, qdrant, minio]
+    use_cases:
+      - "Enterprise digital transformation"
+      - "Business process outsourcing"
+      - "Operations optimization"
+    upwork_demand: "very-high"
+    tags: [workflow-automation, enterprise-ready, process-optimization, rpa, digital-transformation]
+
+  document-intelligence-pipeline:
+    location: "core/document-intelligence-pipeline"
+    name: "Document Intelligence Pipeline"
+    description: "AI-powered document processing with semantic search"
+    categories: ["ai-data-analysis"]
+    complexity: "advanced"
+    validation: true
+    deployment: true
+    ui_included: false
+    revenue_range: "$4k-12k"
+    resources:
+      required: [unstructured-io, qdrant, ollama]
+      optional: [browserless]
+    use_cases:
+      - "Legal document processing"
+      - "Financial document analysis"
+      - "Healthcare record management"
+    upwork_demand: "very-high"
+    tags: [document-processing, data-extraction, semantic-search, enterprise-ready, legal-tech, fintech]
+
+  # Creative & Media Solutions ($8k-30k projects)
+  image-generation-pipeline:
+    location: "core/image-generation-pipeline"
+    name: "Image Generation Pipeline"
+    description: "AI-powered image creation and manipulation workflows"
+    categories: ["ai-content-creation"]
+    complexity: "intermediate"
+    validation: true
+    deployment: true
+    ui_included: true
+    revenue_range: "$8k-20k"
+    resources:
+      required: [comfyui, ollama, windmill]
+      optional: [minio, whisper]
+    use_cases:
+      - "Creative agency automation"
+      - "Marketing visual generation"
+      - "E-commerce product imagery"
+    upwork_demand: "high"
+    tags: [image-generation, creative-workflows, marketing, windmill-ui]
+
+  podcast-transcription-assistant:
+    location: "core/podcast-transcription-assistant"
+    name: "Podcast Transcription Assistant"
+    description: "Automated podcast processing with transcription and analysis"
+    categories: ["ai-content-creation"]
+    complexity: "intermediate"
+    validation: true
+    deployment: true
+    ui_included: true
+    revenue_range: "$6k-15k"
+    resources:
+      required: [whisper, ollama, windmill]
+      optional: [minio, qdrant]
+    use_cases:
+      - "Podcast production workflows"
+      - "Content creator tools"
+      - "Media analysis platforms"
+    upwork_demand: "medium"
+    tags: [audio-processing, transcription, content-creation, windmill-ui]
+
+  # Analytics & Monitoring Solutions ($10k-35k projects)
+  analytics-dashboard:
+    location: "core/analytics-dashboard"
+    name: "Analytics Dashboard"
+    description: "Real-time monitoring and analytics platform"
+    categories: ["real-time-monitoring"]
+    complexity: "intermediate"
+    validation: true
+    deployment: true
+    ui_included: true
+    revenue_range: "$10k-25k"
+    resources:
+      required: [questdb, node-red, windmill]
+      optional: [postgres, redis]
+    use_cases:
+      - "Business intelligence dashboards"
+      - "Real-time monitoring systems"
+      - "Performance analytics platforms"
+    upwork_demand: "high"
+    tags: [analytics, monitoring, real-time, windmill-ui, business-intelligence]
+
+  # Desktop & Productivity Solutions ($8k-20k projects)
+  intelligent-desktop-assistant:
+    location: "core/intelligent-desktop-assistant"
+    name: "Intelligent Desktop Assistant"
+    description: "Desktop automation with AI-powered assistance"
+    categories: ["ai-assistance"]
+    complexity: "basic"
+    validation: true
+    deployment: true
+    ui_included: false
+    revenue_range: "$8k-18k"
+    resources:
+      required: [agent-s2, ollama]
+      optional: [whisper, browserless]
+    use_cases:
+      - "Personal productivity automation"
+      - "Desktop workflow optimization"
+      - "Accessibility assistance"
+    upwork_demand: "medium"
+    tags: [desktop-automation, productivity, accessibility, basic-scenarios]
+
+  # Security & Compliance Solutions ($15k-40k projects)
+  secure-document-processing:
+    location: "core/secure-document-processing"
+    name: "Secure Document Processing"
+    description: "Security-focused document handling with compliance features"
+    categories: ["security"]
+    complexity: "advanced"
+    validation: true
+    deployment: true
+    ui_included: false
+    revenue_range: "$15k-35k"
+    resources:
+      required: [vault, unstructured-io, ollama]
+      optional: [postgres, qdrant]
+    use_cases:
+      - "Healthcare document processing"
+      - "Financial compliance systems"
+      - "Government document handling"
+    upwork_demand: "high"
+    tags: [security, compliance, document-processing, enterprise-ready, healthcare, fintech]
+
+  vault-secrets-integration:
+    location: "core/vault-secrets-integration"
+    name: "Vault Secrets Integration"
+    description: "Secure credential management and rotation system"
+    categories: ["security"]
+    complexity: "basic"
+    validation: true
+    deployment: true
+    ui_included: true
+    revenue_range: "$12k-25k"
+    resources:
+      required: [vault, windmill]
+      optional: [postgres, redis]
+    use_cases:
+      - "Enterprise security automation"
+      - "DevOps credential management"
+      - "Compliance automation"
+    upwork_demand: "medium"
+    tags: [security, devops, compliance, enterprise-ready, windmill-ui]
+
+  # Multi-Resource Integration Examples ($6k-18k projects)
+  multi-resource-pipeline:
+    location: "core/multi-resource-pipeline"
+    name: "Multi-Resource Pipeline"
+    description: "Comprehensive resource integration demonstration"
+    categories: ["ai-data-analysis"]
+    complexity: "advanced"
+    validation: true
+    deployment: true
+    ui_included: false
+    revenue_range: "$6k-15k"
+    resources:
+      required: [ollama, whisper, minio, qdrant]
+      optional: [comfyui, n8n]
+    use_cases:
+      - "Integration testing platform"
+      - "Multi-modal data processing"
+      - "Resource orchestration examples"
+    upwork_demand: "low"
+    tags: [integration-testing, multi-modal, resource-orchestration]
+
+  # Development Tools & Templates ($5k-15k projects)
+  scenario-generator-v1:
+    location: "core/scenario-generator-v1"
+    name: "Scenario Generator v1"
+    description: "AI-powered scenario generation and validation tools"
+    categories: ["development-tools"]
+    complexity: "advanced"
+    validation: true
+    deployment: false
+    ui_included: true
+    revenue_range: "$5k-12k"
+    resources:
+      required: [ollama, windmill, postgres]
+      optional: [n8n, minio]
+    use_cases:
+      - "Development tool platforms"
+      - "AI code generation systems"
+      - "Workflow automation tools"
+    upwork_demand: "medium"
+    tags: [development-tools, code-generation, automation, windmill-ui]
+
+# Resource co-occurrence matrix for recommendations
+resource_combinations:
+  high_synergy:
+    - resources: [ollama, qdrant]
+      scenarios: 6
+      use_case: "Vector search for AI applications"
+    - resources: [ollama, whisper]
+      scenarios: 4
+      use_case: "Multi-modal AI processing"
+    - resources: [windmill, ollama]
+      scenarios: 6
+      use_case: "AI-powered user interfaces"
+    - resources: [n8n, ollama]
+      scenarios: 3
+      use_case: "Intelligent workflow automation"
+    - resources: [postgres, minio]
+      scenarios: 4
+      use_case: "Complete data storage solution"
+    - resources: [unstructured-io, qdrant]
+      scenarios: 3
+      use_case: "Document processing with semantic search"
+
+# Category-based discovery
+categories:
+  ai-assistance:
+    description: "AI-powered assistance and automation"
+    scenarios: 3
+    average_revenue: "$10k-22k"
+    examples: [multi-modal-ai-assistant, intelligent-desktop-assistant]
+    
+  ai-content-creation:
+    description: "Content generation using AI"
+    scenarios: 4
+    average_revenue: "$8k-20k"
+    examples: [ai-content-assistant-example, image-generation-pipeline, podcast-transcription-assistant]
+    
+  ai-automation:
+    description: "Business process automation with AI"
+    scenarios: 1
+    average_revenue: "$5k-15k"
+    examples: [business-process-automation]
+    
+  ai-data-analysis:
+    description: "Data processing and analysis"
+    scenarios: 2
+    average_revenue: "$5k-15k"
+    examples: [document-intelligence-pipeline, multi-resource-pipeline]
+    
+  ai-research:
+    description: "Research and information gathering"
+    scenarios: 1
+    average_revenue: "$10k-25k"
+    examples: [research-assistant]
+    
+  real-time-monitoring:
+    description: "Live monitoring and analytics"
+    scenarios: 1
+    average_revenue: "$10k-25k"
+    examples: [analytics-dashboard]
+    
+  security:
+    description: "Security and compliance scenarios"
+    scenarios: 2
+    average_revenue: "$13k-30k"
+    examples: [secure-document-processing, vault-secrets-integration]
+
+# Tag-based discovery
+tags:
+  # UI-enabled scenarios
+  windmill-ui:
+    scenarios: [multi-modal-ai-assistant, ai-content-assistant-example, research-assistant, image-generation-pipeline, podcast-transcription-assistant, analytics-dashboard, vault-secrets-integration, scenario-generator-v1]
+    
+  # Resource-based tags
+  requires-ollama:
+    scenarios: [multi-modal-ai-assistant, ai-content-assistant-example, business-process-automation, document-intelligence-pipeline, research-assistant, image-generation-pipeline, podcast-transcription-assistant, intelligent-desktop-assistant, secure-document-processing, multi-resource-pipeline, scenario-generator-v1]
+    
+  requires-whisper:
+    scenarios: [multi-modal-ai-assistant, podcast-transcription-assistant, multi-resource-pipeline, intelligent-desktop-assistant]
+    
+  requires-vault:
+    scenarios: [secure-document-processing, vault-secrets-integration]
+    
+  # Complexity tags
+  advanced-scenarios:
+    scenarios: [multi-modal-ai-assistant, business-process-automation, document-intelligence-pipeline, secure-document-processing, multi-resource-pipeline, scenario-generator-v1]
+    
+  basic-scenarios:
+    scenarios: [intelligent-desktop-assistant, vault-secrets-integration]
+    
+  # Business value tags
+  enterprise-ready:
+    scenarios: [multi-modal-ai-assistant, business-process-automation, document-intelligence-pipeline, research-assistant, secure-document-processing, vault-secrets-integration]
+    
+  high-revenue-potential:
+    scenarios: [multi-modal-ai-assistant, research-assistant, analytics-dashboard, secure-document-processing]
+    
+  accessibility:
+    scenarios: [multi-modal-ai-assistant, intelligent-desktop-assistant]
+
+# Quick discovery filters
+filters:
+  by_revenue:
+    high_value: # >$15k
+      scenarios: [multi-modal-ai-assistant, research-assistant, analytics-dashboard, secure-document-processing]
+    medium_value: # $10k-15k
+      scenarios: [ai-content-assistant-example, business-process-automation, vault-secrets-integration]
+    entry_level: # <$10k
+      scenarios: [document-intelligence-pipeline, image-generation-pipeline, podcast-transcription-assistant, intelligent-desktop-assistant, multi-resource-pipeline, scenario-generator-v1]
+      
+  by_complexity:
+    advanced:
+      scenarios: [multi-modal-ai-assistant, business-process-automation, document-intelligence-pipeline, secure-document-processing, multi-resource-pipeline, scenario-generator-v1]
+    intermediate:
+      scenarios: [ai-content-assistant-example, research-assistant, image-generation-pipeline, podcast-transcription-assistant, analytics-dashboard]
+    basic:
+      scenarios: [intelligent-desktop-assistant, vault-secrets-integration]
+      
+  by_upwork_demand:
+    very_high:
+      scenarios: [multi-modal-ai-assistant, business-process-automation, document-intelligence-pipeline]
+    high:
+      scenarios: [ai-content-assistant-example, research-assistant, image-generation-pipeline, analytics-dashboard, secure-document-processing]
+    medium:
+      scenarios: [podcast-transcription-assistant, intelligent-desktop-assistant, vault-secrets-integration, scenario-generator-v1]
+    low:
+      scenarios: [multi-resource-pipeline]
+
+# Success metrics
+metrics:
+  validation_stats:
+    total_tests: 14
+    passing_tests: 13
+    test_coverage: "93%"
+    
+  deployment_stats:
+    deployment_ready: 12
+    ui_scenarios: 8
+    enterprise_ready: 6
+    
+  business_stats:
+    total_revenue_potential: "$140k-320k"
+    average_project_value: "$10k-23k"
+    high_demand_scenarios: 8

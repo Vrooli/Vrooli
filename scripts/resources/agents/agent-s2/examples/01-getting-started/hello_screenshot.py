@@ -19,7 +19,7 @@ def main():
     print("Taking a screenshot...")
     filename = screenshot.save(
         filename="hello_screenshot.png",
-        directory="../../testing/test-outputs/screenshots"
+        directory="../../data/test-outputs/screenshots"
     )
     
     print(f"✅ Screenshot saved to: {filename}")

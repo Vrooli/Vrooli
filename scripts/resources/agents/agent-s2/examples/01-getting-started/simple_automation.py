@@ -29,7 +29,7 @@ def main():
     
     # Step 1: Take initial screenshot
     print("\n1. Taking initial screenshot...")
-    screenshot.save("before_automation.png", directory="../../testing/test-outputs/screenshots")
+    screenshot.save("before_automation.png", directory="../../data/test-outputs/screenshots")
     print("   ✅ Saved: before_automation.png")
     
     # Step 2: Get current mouse position
@@ -53,11 +53,11 @@ def main():
     # Step 5: Take final screenshot
     print("\n5. Taking final screenshot...")
     time.sleep(0.5)  # Brief pause to ensure text is visible
-    screenshot.save("after_automation.png", directory="../../testing/test-outputs/screenshots")
+    screenshot.save("after_automation.png", directory="../../data/test-outputs/screenshots")
     print("   ✅ Saved: after_automation.png")
     
     print("\n🎉 Automation complete!")
-    print("   Check the screenshots in testing/test-outputs/screenshots/")
+    print("   Check the screenshots in data/test-outputs/screenshots/")
 
 if __name__ == "__main__":
     main()

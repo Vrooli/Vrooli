@@ -39,7 +39,7 @@ services:
       
     volumes:
       # Mount test outputs
-      - ../../testing/test-outputs:/tmp/agent-s2-outputs
+      - ../../data/test-outputs:/tmp/agent-s2-outputs
       
       # Optional: Mount local code for development
       - ../../agent_s2:/opt/agent-s2/agent_s2:ro

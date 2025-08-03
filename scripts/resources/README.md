@@ -49,6 +49,44 @@ cat ~/.vrooli/resources.local.json | jq '.services'
 
 ---
 
+## 🎯 See Resources in Action
+
+Our scenario system demonstrates real-world resource combinations and generates deployable applications:
+
+### Popular Resource Combinations
+- **Multi-Modal AI**: Whisper + Ollama + ComfyUI + Agent-S2 
+  → [Multi-Modal AI Assistant](../scenarios/core/multi-modal-ai-assistant/) ($10k-25k projects)
+- **Document Processing**: Unstructured-IO + Ollama + Qdrant 
+  → [Document Intelligence Pipeline](../scenarios/core/document-intelligence-pipeline/) ($4k-12k projects)
+- **Business Automation**: n8n + PostgreSQL + MinIO 
+  → [Business Process Automation](../scenarios/core/business-process-automation/) ($5k-15k projects)
+- **Content Creation**: ComfyUI + Ollama + Windmill 
+  → [AI Content Assistant](../scenarios/core/ai-content-assistant-example/) ($8k-20k projects)
+
+### Test Resource Integration
+```bash
+# Run all scenarios using a specific resource
+./scripts/scenarios/tools/test-by-resource.sh --resource ollama
+
+# Test multi-resource combinations
+cd ../scenarios/core/multi-modal-ai-assistant && ./test.sh
+
+# Browse all available scenarios
+cat ../scenarios/catalog.yaml
+```
+
+### Generate Apps from Scenarios
+```bash
+# Convert any scenario into a deployable app
+./scripts/scenarios/tools/scenario-to-app.sh \
+  --scenario multi-modal-ai-assistant \
+  --output ~/my-customer-app
+```
+
+📖 **Full Scenario Documentation**: [Scenario System](../scenarios/)
+
+---
+
 # 🧠 AI Resources
 
 ## Ollama - Local LLM Inference

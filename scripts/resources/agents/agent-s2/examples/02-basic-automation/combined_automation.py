@@ -27,7 +27,7 @@ def main():
     
     # Take initial screenshot
     print("\n📸 Taking initial screenshot...")
-    screenshot.save("combined_start.png", directory="../../testing/test-outputs/screenshots")
+    screenshot.save("combined_start.png", directory="../../data/test-outputs/screenshots")
     
     # Step 1: Click in the center of screen (where a text area might be)
     screen_info = screenshot.client.screenshot()
@@ -90,7 +90,7 @@ Time: {}
     
     # Take final screenshot
     print("\n📸 Taking final screenshot...")
-    screenshot.save("combined_end.png", directory="../../testing/test-outputs/screenshots")
+    screenshot.save("combined_end.png", directory="../../data/test-outputs/screenshots")
     
     print("\n✅ Automation complete!")
     print("\nWhat we demonstrated:")

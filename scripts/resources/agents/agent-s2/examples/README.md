@@ -179,7 +179,7 @@ After each section, verify your understanding:
 1. **Start Simple** - Don't skip to advanced examples
 2. **Run Examples** - Reading isn't enough; execute the code
 3. **Watch VNC** - See what's happening in the virtual display
-4. **Check Outputs** - Screenshots are saved to `testing/test-outputs/`
+4. **Check Outputs** - Screenshots are saved to `data/test-outputs/`
 5. **Experiment** - Modify examples to learn better
 6. **Read Logs** - Understanding errors helps learning
 

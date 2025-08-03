@@ -3,7 +3,7 @@
 # API testing, examples, and usage demonstrations
 
 # Test output directory configuration
-BROWSERLESS_TEST_OUTPUT_DIR="${BROWSERLESS_TEST_OUTPUT_DIR:-./testing/test-outputs/browserless}"
+BROWSERLESS_TEST_OUTPUT_DIR="${BROWSERLESS_TEST_OUTPUT_DIR:-./data/test-outputs/browserless}"
 
 # Ensure test output directory exists
 browserless::ensure_test_output_dir() {

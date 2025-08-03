@@ -48,7 +48,7 @@ class RobustAutomation:
                     try:
                         self.screenshot.save(
                             f"error_attempt_{attempt + 1}.png",
-                            directory="../../testing/test-outputs/screenshots"
+                            directory="../../data/test-outputs/screenshots"
                         )
                     except:
                         pass
@@ -106,7 +106,7 @@ class RobustAutomation:
             # Save current state
             screenshot_path = self.screenshot.save(
                 f"checkpoint_{name}.png",
-                directory="../../testing/test-outputs/screenshots"
+                directory="../../data/test-outputs/screenshots"
             )
             
             # Save mouse position

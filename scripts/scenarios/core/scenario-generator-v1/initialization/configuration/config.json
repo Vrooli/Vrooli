@@ -1,0 +1,236 @@
+{
+  "scenario_generator": {
+    "version": "1.0.0",
+    "environment": "development",
+    "debug": false
+  },
+  
+  "claude_code": {
+    "enabled": true,
+    "api_endpoint": "http://localhost:11434/api/generate",
+    "model": "llama3.1:8b",
+    "temperature": 0.7,
+    "max_tokens": 8000,
+    "timeout_seconds": 120,
+    "retry_attempts": 3,
+    "retry_delay_ms": 1000
+  },
+  
+  "resources": {
+    "windmill": {
+      "base_url": "http://localhost:5681",
+      "api_path": "/api",
+      "workspace": "scenario-generator",
+      "auth": {
+        "type": "token",
+        "token": "${WINDMILL_TOKEN}"
+      }
+    },
+    
+    "n8n": {
+      "base_url": "http://localhost:5678",
+      "webhook_path": "/webhook",
+      "api_path": "/api/v1",
+      "auth": {
+        "type": "basic",
+        "username": "${N8N_USERNAME}",
+        "password": "${N8N_PASSWORD}"
+      },
+      "workflows": {
+        "generator": "scenario-generator",
+        "validator": "scenario-validator",
+        "deployer": "scenario-deployer"
+      }
+    },
+    
+    "postgres": {
+      "host": "localhost",
+      "port": 5433,
+      "database": "scenario_generator",
+      "username": "${POSTGRES_USER}",
+      "password": "${POSTGRES_PASSWORD}",
+      "pool": {
+        "min": 2,
+        "max": 10,
+        "idle_timeout_ms": 30000
+      },
+      "ssl": false
+    },
+    
+    "minio": {
+      "endpoint": "localhost",
+      "port": 9000,
+      "use_ssl": false,
+      "access_key": "${MINIO_ACCESS_KEY}",
+      "secret_key": "${MINIO_SECRET_KEY}",
+      "buckets": {
+        "scenarios": "generated-scenarios",
+        "templates": "scenario-templates",
+        "archives": "scenario-archives"
+      },
+      "retention": {
+        "days": 365,
+        "archive_after_days": 30
+      }
+    },
+    
+    "redis": {
+      "host": "localhost",
+      "port": 6380,
+      "password": "${REDIS_PASSWORD}",
+      "db": 1,
+      "cache": {
+        "ttl_seconds": 3600,
+        "max_size_mb": 100
+      }
+    }
+  },
+  
+  "generation": {
+    "defaults": {
+      "complexity": "intermediate",
+      "category": "business-automation",
+      "revenue_multiplier": 1.0
+    },
+    
+    "limits": {
+      "max_resources": 10,
+      "max_generation_time_seconds": 180,
+      "max_scenario_size_mb": 50,
+      "max_daily_generations": 100
+    },
+    
+    "validation": {
+      "required_files": [
+        "metadata.yaml",
+        "README.md",
+        "workflows/main-workflow.json"
+      ],
+      "required_sections": [
+        "scenario",
+        "resources",
+        "business",
+        "deployment"
+      ]
+    },
+    
+    "templates": {
+      "use_cached": true,
+      "refresh_interval_hours": 24,
+      "template_sources": [
+        "/scripts/scenarios/templates/SCENARIO_TEMPLATE",
+        "/scripts/scenarios/core/*"
+      ]
+    }
+  },
+  
+  "ui": {
+    "windmill": {
+      "apps": {
+        "generator": "scenario-generator-input",
+        "list": "scenario-list",
+        "dashboard": "scenario-dashboard"
+      },
+      "refresh_interval_seconds": 30,
+      "pagination": {
+        "page_size": 20,
+        "max_page_size": 100
+      }
+    },
+    
+    "themes": {
+      "default": "light",
+      "available": ["light", "dark", "auto"]
+    }
+  },
+  
+  "monitoring": {
+    "metrics": {
+      "enabled": true,
+      "collect_interval_seconds": 60,
+      "retention_days": 30
+    },
+    
+    "alerts": {
+      "generation_failure_threshold": 3,
+      "generation_time_threshold_seconds": 120,
+      "disk_usage_threshold_percent": 80
+    },
+    
+    "health_checks": {
+      "enabled": true,
+      "interval_seconds": 30,
+      "timeout_seconds": 5,
+      "endpoints": [
+        "http://localhost:5681/health",
+        "http://localhost:5678/healthz",
+        "http://localhost:9000/minio/health/live"
+      ]
+    }
+  },
+  
+  "deployment": {
+    "auto_deploy": false,
+    "environments": {
+      "development": {
+        "auto_restart": true,
+        "debug_mode": true,
+        "resource_limits": {
+          "cpu": "2",
+          "memory": "4Gi"
+        }
+      },
+      "production": {
+        "auto_restart": false,
+        "debug_mode": false,
+        "resource_limits": {
+          "cpu": "4",
+          "memory": "8Gi"
+        }
+      }
+    }
+  },
+  
+  "security": {
+    "api_keys": {
+      "rotation_days": 90,
+      "min_length": 32
+    },
+    
+    "cors": {
+      "enabled": true,
+      "allowed_origins": ["http://localhost:5681", "http://localhost:3000"],
+      "allowed_methods": ["GET", "POST", "PUT", "DELETE"],
+      "allowed_headers": ["Content-Type", "Authorization"]
+    },
+    
+    "rate_limiting": {
+      "enabled": true,
+      "requests_per_minute": 60,
+      "burst_size": 10
+    }
+  },
+  
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "outputs": ["console", "file"],
+    "file": {
+      "path": "/var/log/scenario-generator",
+      "max_size_mb": 100,
+      "max_files": 10,
+      "compress": true
+    }
+  },
+  
+  "features": {
+    "enable_templates": true,
+    "enable_validation": true,
+    "enable_auto_deploy": false,
+    "enable_marketplace": false,
+    "enable_versioning": true,
+    "enable_collaboration": false,
+    "enable_ai_suggestions": true,
+    "enable_cost_estimation": true
+  }
+}

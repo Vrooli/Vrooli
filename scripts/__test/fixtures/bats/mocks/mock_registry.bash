@@ -18,6 +18,11 @@ if [[ "${PATH_RESOLVER_LOADED:-}" != "true" ]]; then
     source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/core/path_resolver.bash"
 fi
 
+# Load configuration system if not already loaded
+if [[ "${CONFIG_LOADER_LOADED:-}" != "true" ]]; then
+    source "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../lib" && pwd)/config-loader.bash"
+fi
+
 #######################################
 # Load a specific mock module
 # Globals: LOADED_MOCKS, VROOLI_TEST_FIXTURES_DIR
@@ -74,6 +79,17 @@ mock::load() {
 mock::detect_resource_category() {
     local resource="$1"
     
+    # Try to get category from configuration first
+    if command -v config::get_resource >/dev/null 2>&1; then
+        local category
+        category=$(config::get_resource "$resource" "category" "")
+        if [[ -n "$category" && "$category" != "null" ]]; then
+            echo "$category"
+            return 0
+        fi
+    fi
+    
+    # Fallback to hard-coded mappings for backward compatibility
     case "$resource" in
         "ollama"|"whisper"|"comfyui"|"unstructured-io")
             echo "ai"
@@ -183,14 +199,28 @@ mock::setup_resource() {
 #######################################
 mock::configure_resource_environment() {
     local resource="$1"
+    
+    if [[ -z "$resource" ]]; then
+        mock_registry_error "Resource name required for environment configuration"
+        return 1
+    fi
+    
+    # Use configuration-driven setup if available
+    if command -v config::setup_resource_env >/dev/null 2>&1; then
+        config::setup_resource_env "$resource"
+        return $?
+    fi
+    
+    # Fallback to legacy hard-coded configuration for backward compatibility
+    echo "[MOCK_REGISTRY] WARNING: Using legacy hard-coded configuration for $resource"
     local port_base=$((8000 + (RANDOM % 1000)))
     
     # Set common environment variables
     export RESOURCE_NAME="$resource"
-    export TEST_NAMESPACE="test_$$_${RANDOM}"
+    export TEST_NAMESPACE="${TEST_NAMESPACE:-test_$$_${RANDOM}}"
     export CONTAINER_NAME_PREFIX="${TEST_NAMESPACE}_"
     
-    # Set resource-specific variables
+    # Set resource-specific variables (legacy fallback)
     case "$resource" in
         "ollama")
             export OLLAMA_PORT="${OLLAMA_PORT:-11434}"

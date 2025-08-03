@@ -1,0 +1,213 @@
+{
+  "ai": {
+    {% if "ollama" in resources.required %}
+    "ollama": {
+      "base_url": "http://localhost:11434",
+      "health_endpoint": "/api/tags",
+      "generate_endpoint": "/api/generate",
+      "embeddings_endpoint": "/api/embeddings",
+      "timeout_seconds": 30
+    },
+    {% endif %}
+    
+    {% if "whisper" in resources.required %}
+    "whisper": {
+      "base_url": "http://localhost:8090",
+      "health_endpoint": "/",
+      "transcribe_endpoint": "/transcribe",
+      "timeout_seconds": 60
+    },
+    {% endif %}
+    
+    {% if "comfyui" in resources.required %}
+    "comfyui": {
+      "base_url": "http://localhost:8188",
+      "health_endpoint": "/",
+      "api_endpoint": "/api",
+      "upload_endpoint": "/upload",
+      "timeout_seconds": 120
+    },
+    {% endif %}
+    
+    {% if "unstructured-io" in resources.required %}
+    "unstructured_io": {
+      "base_url": "http://localhost:11450",
+      "health_endpoint": "/healthcheck",
+      "process_endpoint": "/general/v0/general",
+      "timeout_seconds": 60
+    }
+    {% endif %}
+  },
+  
+  "automation": {
+    {% if "n8n" in resources.required %}
+    "n8n": {
+      "base_url": "http://localhost:5678",
+      "health_endpoint": "/healthz",
+      "api_endpoint": "/api/v1",
+      "webhook_endpoint": "/webhook",
+      "workflows_endpoint": "/api/v1/workflows",
+      "timeout_seconds": 30
+    },
+    {% endif %}
+    
+    {% if "windmill" in resources.required %}
+    "windmill": {
+      "base_url": "http://localhost:5681",
+      "health_endpoint": "/api/version",
+      "api_endpoint": "/api",
+      "apps_endpoint": "/api/apps",
+      "scripts_endpoint": "/api/scripts",
+      "timeout_seconds": 30
+    },
+    {% endif %}
+    
+    {% if "node-red" in resources.required %}
+    "node_red": {
+      "base_url": "http://localhost:1880",
+      "health_endpoint": "/",
+      "api_endpoint": "/",
+      "flows_endpoint": "/flows",
+      "admin_endpoint": "/admin",
+      "timeout_seconds": 30
+    },
+    {% endif %}
+    
+    {% if "huginn" in resources.required %}
+    "huginn": {
+      "base_url": "http://localhost:4111",
+      "health_endpoint": "/",
+      "api_endpoint": "/api/v1",
+      "agents_endpoint": "/api/v1/agents",
+      "timeout_seconds": 30
+    }
+    {% endif %}
+  },
+  
+  "agents": {
+    {% if "agent-s2" in resources.required %}
+    "agent_s2": {
+      "base_url": "http://localhost:4113",
+      "health_endpoint": "/health",
+      "screenshot_endpoint": "/screenshot",
+      "mouse_endpoint": "/mouse",
+      "keyboard_endpoint": "/keyboard",
+      "timeout_seconds": 30
+    },
+    {% endif %}
+    
+    {% if "browserless" in resources.required %}
+    "browserless": {
+      "base_url": "http://localhost:4110",
+      "health_endpoint": "/",
+      "screenshot_endpoint": "/chrome/screenshot",
+      "pdf_endpoint": "/chrome/pdf",
+      "timeout_seconds": 60
+    },
+    {% endif %}
+    
+    {% if "claude-code" in resources.required %}
+    "claude_code": {
+      "type": "cli",
+      "command": "claude",
+      "timeout_seconds": 300
+    }
+    {% endif %}
+  },
+  
+  "search": {
+    {% if "searxng" in resources.required %}
+    "searxng": {
+      "base_url": "http://localhost:9200",
+      "health_endpoint": "/",
+      "search_endpoint": "/search",
+      "api_endpoint": "/search",
+      "timeout_seconds": 30
+    }
+    {% endif %}
+  },
+  
+  "storage": {
+    {% if "postgres" in resources.required %}
+    "postgres": {
+      "host": "localhost",
+      "port": 5433,
+      "database": "{{ scenario.id | replace('-', '_') }}",
+      "username": "postgres",
+      "password": "postgres",
+      "connection_url": "postgresql://postgres:postgres@localhost:5433/{{ scenario.id | replace('-', '_') }}",
+      "max_connections": 20,
+      "timeout_seconds": 30
+    },
+    {% endif %}
+    
+    {% if "redis" in resources.required %}
+    "redis": {
+      "host": "localhost",
+      "port": 6380,
+      "database": 0,
+      "connection_url": "redis://localhost:6380/0",
+      "max_connections": 10,
+      "timeout_seconds": 5
+    },
+    {% endif %}
+    
+    {% if "minio" in resources.required %}
+    "minio": {
+      "base_url": "http://localhost:9000",
+      "console_url": "http://localhost:9001",
+      "access_key": "minioadmin",
+      "secret_key": "minioadmin",
+      "bucket": "vault-secrets-integration-assets",
+      "timeout_seconds": 30
+    },
+    {% endif %}
+    
+    {% if "qdrant" in resources.required %}
+    "qdrant": {
+      "base_url": "http://localhost:6333",
+      "health_endpoint": "/",
+      "collections_endpoint": "/collections",
+      "points_endpoint": "/collections/{collection}/points",
+      "timeout_seconds": 30
+    },
+    {% endif %}
+    
+    {% if "questdb" in resources.required %}
+    "questdb": {
+      "http_url": "http://localhost:9010",
+      "influx_url": "http://localhost:9011",
+      "health_endpoint": "/",
+      "query_endpoint": "/exec",
+      "timeout_seconds": 30
+    },
+    {% endif %}
+    
+    {% if "vault" in resources.required %}
+    "vault": {
+      "base_url": "http://localhost:8200",
+      "health_endpoint": "/v1/sys/health",
+      "secrets_endpoint": "/v1/secret",
+      "timeout_seconds": 15
+    }
+    {% endif %}
+  },
+  
+  "application": {
+    "base_url": "http://localhost:3000",
+    "api_prefix": "/api/vault-secrets-integration",
+    "health_endpoint": "/api/vault-secrets-integration/health",
+    "metrics_endpoint": "/api/vault-secrets-integration/metrics",
+    "status_endpoint": "/api/vault-secrets-integration/status"
+  },
+  
+  "monitoring": {
+    "health_check_interval_seconds": 30,
+    "metrics_collection_interval_seconds": 60,
+    "alert_endpoints": {
+      "errors": "/api/vault-secrets-integration/alerts/errors",
+      "performance": "/api/vault-secrets-integration/alerts/performance",
+      "resource_health": "/api/vault-secrets-integration/alerts/resources"
+    }
+  }
+}

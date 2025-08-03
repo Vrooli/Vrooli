@@ -279,7 +279,7 @@ docker compose up -d
 **Characteristics**:
 - **Security**: High isolation, container-only applications
 - **Display**: Virtual display with VNC access
-- **File Access**: Test outputs directory only (`/testing/test-outputs`)
+- **File Access**: Test outputs directory only (`/data/test-outputs`)
 - **Network**: Host networking for automation capabilities
 - **Resource Limits**: 2GB RAM, 2 CPU cores
 - **Use Cases**: 

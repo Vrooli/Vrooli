@@ -13,6 +13,21 @@ SCRIPTS_DIR=$(dirname "${TESTS_DIR}")
 source "${SCRIPTS_DIR}/helpers/utils/exit_codes.sh"
 source "${SCRIPTS_DIR}/helpers/utils/log.sh"
 
+# Load simplified parallel runner if available
+SIMPLE_PARALLEL_RUNNER_PATH="${TESTS_DIR}/lib/simple-parallel-runner.bash"
+if [[ -f "$SIMPLE_PARALLEL_RUNNER_PATH" ]]; then
+    source "$SIMPLE_PARALLEL_RUNNER_PATH"
+    if simple_parallel::is_supported; then
+        PARALLEL_RUNNER_AVAILABLE="true"
+    else
+        PARALLEL_RUNNER_AVAILABLE="false"
+        log::warning "Parallel execution requirements not met"
+    fi
+else
+    PARALLEL_RUNNER_AVAILABLE="false"
+    log::warning "Parallel runner not found, parallel execution disabled"
+fi
+
 #######################################
 # Configuration
 #######################################
@@ -125,6 +140,11 @@ main() {
     # Parse simple arguments
     local CHANGED_ONLY="no"
     local PARALLEL_JOBS="1"
+    
+    # Load configuration for default parallel jobs if available
+    if command -v config::get >/dev/null 2>&1; then
+        PARALLEL_JOBS=$(config::get "global.max_parallel_tests" "1")
+    fi
     while [[ $# -gt 0 ]]; do
         case $1 in
             --timeout)
@@ -160,7 +180,17 @@ main() {
     # Find test files with smart selection
     local -a test_files=()
     
-    if [[ "$CHANGED_ONLY" == "yes" ]]; then
+    # Use provided test files if any arguments remain
+    if [[ $# -gt 0 ]]; then
+        log::info "🎯 Using provided test files: $*"
+        for test_file in "$@"; do
+            if [[ -f "$test_file" && "$test_file" =~ \.bats$ ]]; then
+                test_files+=("$test_file")
+            else
+                log::warning "⚠️  Test file not found or invalid: $test_file"
+            fi
+        done
+    elif [[ "$CHANGED_ONLY" == "yes" ]]; then
         log::info "🔍 Smart selection: Running tests for changed files only"
         
         # Get changed files from git
@@ -198,8 +228,8 @@ main() {
         fi
     fi
     
-    # Fallback to all test files if no smart selection or no changed files
-    if [[ "$CHANGED_ONLY" == "no" || ${#test_files[@]} -eq 0 ]]; then
+    # Fallback to all test files if no smart selection or no changed files (but not if specific files were provided)
+    if [[ "$CHANGED_ONLY" == "no" && ${#test_files[@]} -eq 0 && $# -eq 0 ]]; then
         while IFS= read -r test_file; do
             # Skip test helper utilities
             if [[ "$test_file" =~ __tests/helpers/ ]]; then
@@ -219,42 +249,75 @@ main() {
     local successful=0
     local failed=0
     
-    # Note: Parallel execution disabled due to function visibility issues in subshells
-    # Sequential execution with intelligent timeouts
-    for test_file in "${test_files[@]}"; do
-        local test_timeout=$(get_test_timeout "$test_file" "$TIMEOUT")
-        if run_single_test "$test_file" "$test_timeout"; then
-            successful=$((successful + 1))
+    # Choose execution mode: parallel or sequential
+    if [[ "$PARALLEL_JOBS" -gt 1 && "$PARALLEL_RUNNER_AVAILABLE" == "true" && ${#test_files[@]} -gt 1 ]]; then
+        log::info "🚀 Using parallel execution with $PARALLEL_JOBS concurrent jobs"
+        
+        # Initialize simplified parallel runner
+        simple_parallel::init "$PARALLEL_JOBS"
+        
+        # Run tests in parallel
+        if simple_parallel::run_tests "${test_files[@]}"; then
+            log::success "✅ All parallel tests completed successfully"
         else
-            failed=$((failed + 1))
-            
-            # Stop if too many failures
-            if [[ $failed -ge $MAX_FAILURES ]]; then
-                log::warning "⚠️  Stopping after $failed failures"
-                break
-            fi
+            log::error "❌ Some parallel tests failed"
         fi
         
-        # Enhanced progress reporting every 10 tests with estimated time
-        local completed=$((successful + failed))
-        if [[ $((completed % 10)) -eq 0 && $completed -gt 0 ]]; then
-            local progress=$((completed * 100 / ${#test_files[@]}))
-            local current_time=$(date +%s.%N)
-            local elapsed=$((${current_time%.*} - ${start_time%.*}))
-            local avg_per_test=$((elapsed / completed))
-            local remaining=$((${#test_files[@]} - completed))
-            local eta=$((remaining * avg_per_test))
-            
-            local eta_formatted=""
-            if [[ $eta -gt 60 ]]; then
-                eta_formatted="~$((eta / 60))m$((eta % 60))s"
+        # Collect results from simplified parallel execution
+        local results
+        results=$(simple_parallel::get_results)
+        successful=$(echo "$results" | cut -d: -f2)
+        failed=$(echo "$results" | cut -d: -f4)
+        
+        # Ensure numeric values
+        successful=${successful:-0}
+        failed=${failed:-0}
+        
+    else
+        # Sequential execution with intelligent timeouts
+        if [[ "$PARALLEL_JOBS" -gt 1 ]]; then
+            log::warning "⚠️  Parallel execution requested but not available, falling back to sequential"
+        fi
+        log::info "🔄 Using sequential execution"
+        
+        for test_file in "${test_files[@]}"; do
+            local test_timeout=$(get_test_timeout "$test_file" "$TIMEOUT")
+            if run_single_test "$test_file" "$test_timeout"; then
+                successful=$((successful + 1))
             else
-                eta_formatted="~${eta}s"
+                failed=$((failed + 1))
+                
+                # Stop if too many failures
+                if [[ $failed -ge $MAX_FAILURES ]]; then
+                    log::warning "⚠️  Stopping after $failed failures"
+                    break
+                fi
             fi
             
-            log::info "📊 Progress: $completed/${#test_files[@]} ($progress%) - ✅$successful ❌$failed - ETA: $eta_formatted"
-        fi
-    done
+            # Enhanced progress reporting every 10 tests with estimated time
+            local completed=$((successful + failed))
+            if [[ $((completed % 10)) -eq 0 && $completed -gt 0 ]]; then
+                local progress=$((completed * 100 / ${#test_files[@]}))
+                local current_time=$(date +%s.%N)
+                local elapsed=$((${current_time%.*} - ${start_time%.*}))
+                local avg_per_test=$((elapsed / completed))
+                local remaining=$((${#test_files[@]} - completed))
+                local eta=$((remaining * avg_per_test))
+                
+                local eta_formatted=""
+                if [[ $eta -gt 60 ]]; then
+                    eta_formatted="~$((eta / 60))m$((eta % 60))s"
+                else
+                    eta_formatted="~${eta}s"
+                fi
+                
+                log::info "📊 Progress: $completed/${#test_files[@]} ($progress%) - ✅$successful ❌$failed - ETA: $eta_formatted"
+            fi
+        done
+    fi
+    
+    # Enhanced progress reporting (for sequential mode only)
+    # Note: Progress reporting was moved inside the sequential execution loop above
     
     # Results
     local end_time=$(date +%s.%N)

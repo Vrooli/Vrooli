@@ -13,6 +13,14 @@ export COMMON_SETUP_LOADED="true"
 # This ensures consistent path resolution across all fixtures
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/path_resolver.bash"
 
+# Load configuration system - this must come early to configure everything else
+BATS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../lib" && pwd)"
+if [[ -f "${BATS_LIB_DIR}/config-loader.bash" ]]; then
+    source "${BATS_LIB_DIR}/config-loader.bash"
+else
+    echo "[COMMON_SETUP] WARNING: Configuration loader not found, using legacy values"
+fi
+
 # Initialize test environment using centralized path functions
 export BATS_TEST_TMPDIR="$(vrooli_test_tmpdir)"
 export MOCK_RESPONSES_DIR="${BATS_TEST_TMPDIR}/mock_responses"

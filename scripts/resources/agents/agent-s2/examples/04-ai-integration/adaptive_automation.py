@@ -26,7 +26,7 @@ def main():
     print("-" * 40)
     
     # Take a screenshot for context
-    screenshot.save("adaptive_start.png", directory="../../testing/test-outputs/screenshots")
+    screenshot.save("adaptive_start.png", directory="../../data/test-outputs/screenshots")
     
     # Ask AI to find and click a button with various descriptions
     button_variations = [
@@ -175,7 +175,7 @@ def main():
         time.sleep(1)
     
     # Final screenshot
-    screenshot.save("adaptive_end.png", directory="../../testing/test-outputs/screenshots")
+    screenshot.save("adaptive_end.png", directory="../../data/test-outputs/screenshots")
     
     print("\n\n✅ Adaptive Automation Complete!")
     print("\nKey Concepts Demonstrated:")

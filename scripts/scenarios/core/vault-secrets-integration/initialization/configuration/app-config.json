@@ -1,0 +1,138 @@
+{
+  "app": {
+    "name": "Vault Secrets Integration",
+    "id": "vault-secrets-integration",
+    "version": "1.0.0",
+    "description": "{{ scenario.description }}",
+    "complexity": "{{ complexity }}",
+    "categories": {{ categories | tojson }}
+  },
+  
+  "runtime": {
+    "environment": "development",
+    "debug": true,
+    "log_level": "info",
+    "session_timeout_minutes": 30,
+    "max_concurrent_users": {{ performance.throughput.concurrent_users | default(10) }},
+    "request_timeout_seconds": {{ testing.timeout_seconds | default(300) }}
+  },
+  
+  "features": {
+    "ai_processing": {{ "true" if "ollama" in resources.required else "false" }},
+    "speech_recognition": {{ "true" if "whisper" in resources.required else "false" }},
+    "image_generation": {{ "true" if "comfyui" in resources.required else "false" }},
+    "document_processing": {{ "true" if "unstructured-io" in resources.required else "false" }},
+    "workflow_automation": {{ "true" if "n8n" in resources.required else "false" }},
+    "screen_automation": {{ "true" if "agent-s2" in resources.required else "false" }},
+    "web_automation": {{ "true" if "browserless" in resources.required else "false" }},
+    "vector_search": {{ "true" if "qdrant" in resources.required else "false" }},
+    "file_storage": {{ "true" if "minio" in resources.required else "false" }},
+    "analytics": {{ "true" if "questdb" in resources.required else "false" }},
+    "search": {{ "true" if "searxng" in resources.required else "false" }},
+    "professional_ui": {{ "true" if "windmill" in resources.required else "false" }},
+    "real_time_dashboard": {{ "true" if "node-red" in resources.required else "false" }}
+  },
+  
+  "business": {
+    "value_proposition": "{{ business.value_proposition }}",
+    "target_markets": {{ business.target_markets | tojson }},
+    "revenue_potential": {{ business.revenue_potential | tojson }},
+    "market_demand": "{{ business.market_demand }}"
+  },
+  
+  "ai": {
+    "default_model": "llama3.1:8b",
+    "temperature": 0.7,
+    "max_tokens": 2048,
+    "timeout_seconds": 30,
+    "retry_attempts": 3,
+    "models": {
+      "text": ["llama3.1:8b", "qwen2.5-coder:7b"],
+      "vision": ["llava:7b", "llama3.2-vision:11b"],
+      "embedding": ["nomic-embed-text:latest"]
+    }
+  },
+  
+  "workflows": {
+    "default_timeout_seconds": 300,
+    "max_concurrent_executions": 5,
+    "retry_failed_workflows": true,
+    "retry_attempts": 2,
+    "enable_webhooks": true,
+    "webhook_auth_required": false
+  },
+  
+  "storage": {
+    "max_file_size_mb": 50,
+    "allowed_file_types": [
+      "image/jpeg", "image/png", "image/gif", "image/webp",
+      "audio/mpeg", "audio/wav", "audio/ogg",
+      "application/pdf", "text/plain", "text/csv",
+      "application/json", "application/xml"
+    ],
+    "retention_days": 30,
+    "enable_compression": true
+  },
+  
+  "performance": {
+    "cache_enabled": true,
+    "cache_ttl_seconds": 3600,
+    "rate_limiting": {
+      "enabled": true,
+      "requests_per_minute": 60,
+      "burst_limit": 10
+    },
+    "monitoring": {
+      "collect_metrics": true,
+      "metrics_retention_days": 7,
+      "performance_alerts": true
+    }
+  },
+  
+  "security": {
+    "cors_enabled": true,
+    "cors_origins": ["http://localhost:3000", "http://localhost:5681"],
+    "api_key_required": false,
+    "session_security": {
+      "secure_cookies": false,
+      "same_site": "lax",
+      "session_rotation": true
+    },
+    "content_security": {
+      "validate_uploads": true,
+      "scan_for_malware": false,
+      "max_request_size_mb": 100
+    }
+  },
+  
+  "ui": {
+    "theme": "default",
+    "primary_color": "#3b82f6",
+    "brand_name": "Vault Secrets Integration",
+    "show_advanced_features": false,
+    "enable_dark_mode": true,
+    "enable_accessibility": true,
+    "default_language": "en"
+  },
+  
+  "integrations": {
+    "webhook_endpoints": {
+      "status_updates": "/api/webhooks/status",
+      "completion_notifications": "/api/webhooks/completed",
+      "error_alerts": "/api/webhooks/errors"
+    },
+    "external_apis": {
+      "timeout_seconds": 30,
+      "retry_attempts": 3,
+      "cache_responses": true
+    }
+  },
+  
+  "development": {
+    "hot_reload": true,
+    "mock_external_services": false,
+    "verbose_logging": true,
+    "enable_debug_endpoints": true,
+    "simulate_latency": false
+  }
+}

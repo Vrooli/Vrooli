@@ -48,7 +48,7 @@ Chrome-as-a-Service providing headless browser automation via REST API. Browserl
 
 When running usage examples, output files are managed automatically:
 
-- **Default Location**: `./testing/test-outputs/browserless/`
+- **Default Location**: `./data/test-outputs/browserless/`
 - **Files Created**:
   - `screenshot_test.png` - Test screenshot captures
   - `document_test.pdf` - Test PDF generation
@@ -72,7 +72,7 @@ export BROWSERLESS_TEST_OUTPUT_DIR="/tmp/browserless-tests"
 
 ### Environment Variables
 
-- `BROWSERLESS_TEST_OUTPUT_DIR` - Override default test output directory (default: `./testing/test-outputs/browserless`)
+- `BROWSERLESS_TEST_OUTPUT_DIR` - Override default test output directory (default: `./data/test-outputs/browserless`)
 
 ## 💡 Common Use Cases
 
