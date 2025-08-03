@@ -54,7 +54,7 @@ n8n::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|reset-password|logs|info|execute|api-setup|save-api-key" \
+        --options "install|uninstall|start|stop|restart|status|reset-password|logs|info|execute|api-setup|save-api-key|inject|validate-injection" \
         --default "install"
     
     args::register \
@@ -129,6 +129,12 @@ n8n::parse_arguments() {
         --options "yes|no" \
         --default "no"
     
+    args::register \
+        --name "injection-config" \
+        --desc "JSON configuration for data injection" \
+        --type "value" \
+        --default ""
+    
     if args::is_asking_for_help "$@"; then
         n8n::usage
         exit 0
@@ -149,6 +155,7 @@ n8n::parse_arguments() {
     export DATABASE_TYPE=$(args::get "database")
     export TUNNEL_ENABLED=$(args::get "tunnel")
     export BUILD_IMAGE=$(args::get "build-image")
+    export INJECTION_CONFIG=$(args::get "injection-config")
 }
 
 #######################################
@@ -193,6 +200,22 @@ n8n::main() {
             ;;
         "save-api-key")
             n8n::save_api_key
+            ;;
+        "inject")
+            if [[ -z "$INJECTION_CONFIG" ]]; then
+                log::error "Injection configuration required for inject action"
+                log::info "Use: --injection-config 'JSON_CONFIG'"
+                exit 1
+            fi
+            "${SCRIPT_DIR}/inject.sh" --inject "$INJECTION_CONFIG"
+            ;;
+        "validate-injection")
+            if [[ -z "$INJECTION_CONFIG" ]]; then
+                log::error "Injection configuration required for validate-injection action"
+                log::info "Use: --injection-config 'JSON_CONFIG'"
+                exit 1
+            fi
+            "${SCRIPT_DIR}/inject.sh" --validate "$INJECTION_CONFIG"
             ;;
         *)
             log::error "Unknown action: $ACTION"

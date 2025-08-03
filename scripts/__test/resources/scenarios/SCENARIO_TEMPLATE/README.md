@@ -1,178 +1,293 @@
-# [Scenario Name] - [Brief Description]
+# {{ scenario.name }} - Improved Scenario Template
 
-## 🎯 Overview
+> **Complete scenario-to-app blueprint with deployment orchestration**
 
-Brief description of what this scenario demonstrates and its business value.
+## 🆕 **What's New**
 
-## 📋 Prerequisites
+This template includes the **improved scenario structure** that enables seamless conversion from scenario validation to deployable applications:
 
-- Required resources: `resource1`, `resource2`
-- Optional resources: `resource3` (for enhanced functionality)
-- System requirements: Any special requirements
+- ✅ **`manifest.yaml`** - Deployment orchestration
+- ✅ **`initialization/`** - Complete app startup data  
+- ✅ **`deployment/`** - Orchestration scripts
+- ✅ **One-command deployment** via `scenario-to-app.sh`
 
-## 🚀 Quick Start
+## 🎯 **Business Overview**
 
+### **Value Proposition**
+{{ business.value_proposition }}
+
+### **Target Markets**
+{% for market in business.target_markets %}
+- {{ market }}
+{% endfor %}
+
+### **Revenue Potential**
+- **Range**: ${{ business.revenue_potential.min | number_format }} - ${{ business.revenue_potential.max | number_format }} {{ business.revenue_potential.currency }}
+- **Market Demand**: {{ business.market_demand }}
+
+## 🏗️ **Architecture**
+
+### **Required Resources**
+{% for resource in resources.required %}
+- **{{ resource }}**: [Purpose and integration]
+{% endfor %}
+
+### **Optional Resources**  
+{% for resource in resources.optional %}
+- **{{ resource }}**: [Enhancement capability]
+{% endfor %}
+
+### **System Components**
+```
+┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
+│   Frontend UI   │────▶│   Workflows     │────▶│  AI Processing  │
+│   (Windmill)    │     │   (n8n/etc)     │     │   (Ollama/etc)  │
+└─────────────────┘     └─────────────────┘     └─────────────────┘
+                                │                           │
+                                ▼                           ▼
+                        ┌─────────────────┐     ┌─────────────────┐
+                        │   Database      │     │   Storage       │
+                        │  (PostgreSQL)   │     │  (MinIO/etc)    │
+                        └─────────────────┘     └─────────────────┘
+```
+
+## 🚀 **Quick Start**
+
+### **1. Deploy as Application**
 ```bash
-# Run the test scenario
+# Convert scenario to running application
+./scripts/scenario-to-app.sh {{ scenario.id }}
+
+# Result: Complete application with UI, workflows, database, monitoring
+```
+
+### **2. Access Application**
+After successful deployment:
+- **UI Application**: http://localhost:5681/app/{{ scenario.id }}
+- **API Endpoints**: http://localhost:3000/api/{{ scenario.id }}
+- **Workflow Webhooks**: http://localhost:5678/webhook/{{ scenario.id }}-webhook
+
+### **3. Monitor Health**
+```bash
+# Check application status
+cd {{ scenario.id }}
+./deployment/monitor.sh status
+
+# View logs
+./deployment/monitor.sh logs
+
+# Run validation
+./deployment/validate.sh post-deployment
+```
+
+## 📁 **File Structure**
+
+### **Core Files**
+```
+{{ scenario.id }}/
+├── metadata.yaml              # Business model and configuration
+├── manifest.yaml              # Deployment orchestration
+├── README.md                  # This documentation
+└── test.sh                    # Integration tests
+```
+
+### **Initialization Data**
+```
+initialization/
+├── database/
+│   ├── schema.sql             # Database structure
+│   └── seed.sql               # Initial data
+├── workflows/
+│   ├── n8n/                   # n8n workflow definitions
+│   ├── windmill/              # Windmill scripts
+│   └── triggers.yaml          # Workflow activation
+├── configuration/
+│   ├── app-config.json        # Runtime settings
+│   ├── resource-urls.json     # Service endpoints
+│   └── feature-flags.json     # Feature toggles
+├── ui/
+│   └── windmill-app.json      # Professional UI
+└── storage/
+    └── minio-config.json      # Object storage setup
+```
+
+### **Deployment Scripts**
+```
+deployment/
+├── startup.sh                 # Application initialization
+├── validate.sh               # Pre/post validation
+└── monitor.sh                # Health monitoring
+```
+
+## 🔧 **Customization Guide**
+
+### **Business Configuration** 
+Edit `metadata.yaml`:
+```yaml
+business:
+  value_proposition: "Your unique value proposition"
+  target_markets:
+    - "Your primary market"
+    - "Your secondary market"
+  revenue_potential:
+    min: 15000  # Minimum project value
+    max: 30000  # Maximum project value
+```
+
+### **Resource Selection**
+Edit `metadata.yaml`:
+```yaml
+resources:
+  required:
+    - ollama     # AI processing
+    - n8n        # Workflow automation
+    - postgres   # Data storage
+  optional:
+    - whisper    # Speech processing
+    - comfyui    # Image generation
+```
+
+### **UI Customization**
+Edit `initialization/ui/windmill-app.json`:
+- Update branding and colors
+- Add/remove UI components
+- Configure user workflows
+
+### **Database Schema**
+Edit `initialization/database/schema.sql`:
+- Add business-specific tables
+- Configure indexes and constraints
+- Set up views and functions
+
+### **Workflow Logic**
+Edit `initialization/workflows/n8n/main-workflow.json`:
+- Add business logic nodes
+- Configure API integrations
+- Set up data processing steps
+
+## 🧪 **Testing & Validation**
+
+### **Structure Validation**
+```bash
+# Validate scenario structure
+./deployment/validate.sh structure
+
+# Validate content syntax
+./deployment/validate.sh content
+
+# Validate configuration
+./deployment/validate.sh configuration
+```
+
+### **Resource Health Check**
+```bash
+# Check required resources are running
+./deployment/validate.sh with-resources
+```
+
+### **Integration Testing**
+```bash
+# Run full integration test
 ./test.sh
 
-# Run with custom configuration
-TEST_TIMEOUT=1200 ./test.sh
-
-# Skip cleanup for debugging
-TEST_CLEANUP=false ./test.sh
+# Expected results:
+# ✅ All resources healthy
+# ✅ Database initialized
+# ✅ Workflows deployed and active
+# ✅ UI accessible
+# ✅ End-to-end functionality working
 ```
 
-## 💼 Business Value
+## 📊 **Performance Expectations**
 
-### Use Cases
-- Primary use case this scenario addresses
-- Secondary use cases
+### **Response Times**
+- **API Calls**: {{ performance.latency.p50 }} (p50), {{ performance.latency.p95 }} (p95)
+- **Workflow Execution**: {{ testing.timeout_seconds }}s max timeout
+- **UI Load Time**: < 2 seconds
 
-### Target Market
-- Industries or business segments
-- Specific roles who would benefit
+### **Throughput**
+- **Concurrent Users**: {{ performance.throughput.concurrent_users }}
+- **Requests/Second**: {{ performance.throughput.requests_per_second }}
 
-### Revenue Potential
-- Project range: $X,000 - $Y,000
-- Recurring revenue opportunities
+### **Resource Usage**
+- **Memory**: {{ performance.resource_usage.memory }}
+- **CPU**: {{ performance.resource_usage.cpu }} cores
 
-## 🔧 Technical Details
+## 🔒 **Security & Compliance**
 
-### Architecture
-Brief description of how the components work together.
+### **Built-in Security**
+- Database access controls
+- API rate limiting
+- Input validation
+- Audit logging
 
-### Resources Used
-- **Resource1**: How it's used in this scenario
-- **Resource2**: Its role and importance
-- **Resource3** (optional): Additional capabilities it provides
+### **Production Checklist**
+- [ ] Change default passwords
+- [ ] Configure SSL certificates  
+- [ ] Set up backup procedures
+- [ ] Enable monitoring alerts
+- [ ] Review access permissions
 
-### Data Flow
-1. Step 1: Initial data input
-2. Step 2: Processing stage
-3. Step 3: Output generation
+## 💰 **Business Impact**
 
-## 🔌 Resource Integration (if applicable)
+### **Revenue Model**
+This scenario template targets projects in the **${{ business.revenue_potential.min | number_format }}-${{ business.revenue_potential.max | number_format }}** range with **{{ business.market_demand }}** market demand.
 
-<!-- Only include this section if your scenario includes resource-specific artifacts -->
+### **Success Criteria**
+{% for criterion in success_criteria %}
+- {{ criterion }}
+{% endfor %}
 
-### Directory Structure
-```
-scenario-name/
-├── metadata.yaml
-├── test.sh
-├── README.md
-├── ui/                    # Optional: UI components
-└── resources/             # Optional: Resource-specific artifacts
-    ├── n8n/              # n8n workflow exports
-    ├── windmill/         # Windmill scripts
-    ├── postgres/         # Database schemas/seeds
-    ├── api/              # API collections
-    └── config/           # Resource-specific configs
-```
+### **ROI Metrics**
+- **Implementation Time**: Hours instead of weeks
+- **Resource Efficiency**: Deploy only required services
+- **Professional Quality**: Enterprise-ready features included
+- **Scalability**: Ready for production deployment
 
-### n8n Workflows
-<!-- Include if scenario uses n8n -->
-- **File**: `resources/n8n/workflow-name.json`
-- **Import**: Navigate to n8n UI → Import → Select file
-- **Configuration**: Update webhook URL to `${N8N_BASE_URL}/webhook/scenario-name`
-- **Required Credentials**: List any credentials that need to be configured
+## 🛟 **Support & Resources**
 
-### Windmill Scripts
-<!-- Include if scenario uses Windmill -->
-- **Directory**: `resources/windmill/`
-- **Deployment**: `wmill sync push --workspace scenario-name`
-- **Dependencies**: Listed in `resources/windmill/requirements.txt`
-- **Entry Point**: `resources/windmill/main.py` or `main.ts`
+### **Documentation**
+- **[Improved Structure Guide](../IMPROVED_SCENARIO_STRUCTURE.md)**: Complete overview of new architecture
+- **[Scenarios README](../README.md)**: Main scenarios documentation
+- **[Resource Guide](../../README.md)**: Available resources and integration
 
-### Database Setup
-<!-- Include if scenario uses PostgreSQL -->
-- **Schema**: `resources/postgres/schema.sql`
-- **Seed Data**: `resources/postgres/seed.sql`
-- **Indexes**: `resources/postgres/indexes.sql`
-- **Apply Schema**: 
-  ```bash
-  psql -h $POSTGRES_HOST -U $POSTGRES_USER -d $POSTGRES_DB -f resources/postgres/schema.sql
-  psql -h $POSTGRES_HOST -U $POSTGRES_USER -d $POSTGRES_DB -f resources/postgres/seed.sql
-  ```
-
-### API Collections
-<!-- Include if scenario has API endpoints to test -->
-- **Postman Collection**: `resources/api/postman-collection.json`
-- **Environment Variables**: `resources/api/environment.json`
-- **OpenAPI Spec**: `resources/api/openapi.yaml`
-- **Usage**: Import collection and environment into Postman/Insomnia
-
-### Configuration Files
-<!-- Include if scenario needs special configuration -->
-- **Environment Template**: `resources/config/.env.template`
-- **Docker Compose Override**: `resources/config/docker-compose.override.yml`
-- **Service Configuration**: `resources/config/service-config.yaml`
-
-## 🛠️ Setup Instructions (if applicable)
-
-<!-- Include detailed setup steps if the scenario requires manual configuration -->
-
-### Initial Setup
-1. **Configure Resources**: Ensure all required resources are running
-2. **Import Artifacts**: Load any workflows, scripts, or schemas
-3. **Set Environment Variables**: Copy and configure `.env.template` if provided
-4. **Initialize Data**: Run database migrations and seed data
-
-### Resource-Specific Setup
-<!-- Add sections for each resource that needs configuration -->
-
-#### n8n Setup
+### **Troubleshooting**
 ```bash
-# Import workflow
-curl -X POST ${N8N_BASE_URL}/api/v1/workflows \
-  -H "X-N8N-API-KEY: $N8N_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d @resources/n8n/workflow.json
+# Common issues and fixes
+./deployment/validate.sh --help        # Validation options
+./deployment/startup.sh --help         # Deployment options  
+./deployment/monitor.sh --help         # Monitoring options
 ```
 
-#### Database Setup
-```bash
-# Create database and apply schema
-./resources/postgres/setup.sh
-```
+### **Getting Help**
+- Review existing scenarios for examples
+- Check resource health with discovery commands
+- Use validation scripts to identify issues
+- Monitor logs for detailed error information
 
-## 🧪 Test Coverage
+## 🎯 **Next Steps**
 
-This scenario validates:
-- ✅ Capability 1
-- ✅ Capability 2
-- ✅ Integration between services
-- ✅ Error handling and recovery
+### **For Development**
+1. Copy this template: `cp -r SCENARIO_TEMPLATE/ your-scenario/`
+2. Customize business configuration in `metadata.yaml`
+3. Adapt initialization data for your use case
+4. Test with `./deployment/validate.sh`
+5. Deploy with `../../../scenario-to-app.sh your-scenario`
 
-## 📊 Success Metrics
+### **For Production**
+1. Review security configuration
+2. Set up monitoring and alerts
+3. Configure backup procedures  
+4. Plan scaling strategy
+5. Train users on the application
 
-- Metric 1: Target value
-- Metric 2: Expected range
-- Performance: Latency/throughput expectations
+### **For AI Generation**
+This template is optimized for AI agents to generate complete scenarios from customer requirements. The structure provides clear guidance for:
+- Business model definition
+- Resource selection
+- Technical implementation
+- Deployment orchestration
 
-## 🎨 UI Components (if applicable)
+---
 
-If this scenario includes a UI:
-- Component description
-- Deployment instructions
-- User workflows
-
-## 🚧 Troubleshooting
-
-### Common Issues
-
-| Issue | Solution |
-|-------|----------|
-| Service not accessible | Check service health with `check_service_health` |
-| Timeout errors | Increase TEST_TIMEOUT value |
-
-## 📚 Related Documentation
-
-- [Link to relevant docs]
-- [API documentation]
-- [Best practices guide]
-
-## 🏷️ Tags
-
-`tag1`, `tag2`, `tag3`
+**🎉 This improved template transforms scenarios from validation tools into complete application blueprints, enabling rapid deployment of profitable SaaS applications!**

@@ -636,6 +636,259 @@ assert_output_equals() {
 }
 
 #######################################
+# Advanced Assertion Functions
+#######################################
+
+# Assert that a condition becomes true within a timeout period (polling)
+assert_eventually_true() {
+    local command="$1"
+    local timeout="${2:-30}"
+    local interval="${3:-1}"
+    local description="${4:-condition}"
+    
+    local elapsed=0
+    while [[ $elapsed -lt $timeout ]]; do
+        if eval "$command" >/dev/null 2>&1; then
+            return 0
+        fi
+        sleep "$interval"
+        elapsed=$((elapsed + interval))
+    done
+    
+    echo "Expected $description to become true within ${timeout}s, but it didn't" >&2
+    echo "Last command tried: $command" >&2
+    return 1
+}
+
+# Assert that a command completes within a specified time
+assert_completes_within() {
+    local timeout="$1"
+    local description="${2:-command}"
+    shift 2
+    local command=("$@")
+    
+    local start_time end_time duration
+    start_time=$(date +%s%N)
+    
+    # Run command with timeout
+    if timeout "${timeout}s" "${command[@]}" >/dev/null 2>&1; then
+        end_time=$(date +%s%N)
+        duration=$(( (end_time - start_time) / 1000000 ))  # Convert to milliseconds
+        echo "Command completed in ${duration}ms (within ${timeout}s limit)" >&2
+        return 0
+    else
+        echo "Expected $description to complete within ${timeout}s, but it didn't" >&2
+        echo "Command: ${command[*]}" >&2
+        return 1
+    fi
+}
+
+# Assert that a file is modified after a certain point in time
+assert_file_modified_after() {
+    local file="$1"
+    local reference_time="$2"  # Unix timestamp
+    local description="${3:-file modification}"
+    
+    if [[ ! -f "$file" ]]; then
+        echo "File does not exist for modification check: $file" >&2
+        return 1
+    fi
+    
+    local file_mtime
+    file_mtime=$(stat -c "%Y" "$file" 2>/dev/null || stat -f "%m" "$file" 2>/dev/null)
+    
+    if [[ "$file_mtime" -le "$reference_time" ]]; then
+        echo "Expected $description after timestamp $reference_time" >&2
+        echo "File $file was last modified at $file_mtime" >&2
+        return 1
+    fi
+}
+
+# Assert that logs contain a pattern within a timeout
+assert_log_contains() {
+    local log_file="$1"
+    local pattern="$2" 
+    local timeout="${3:-10}"
+    local description="${4:-log pattern}"
+    
+    local elapsed=0
+    while [[ $elapsed -lt $timeout ]]; do
+        if [[ -f "$log_file" ]] && grep -q "$pattern" "$log_file"; then
+            return 0
+        fi
+        sleep 1
+        elapsed=$((elapsed + 1))
+    done
+    
+    echo "Expected $description to appear in $log_file within ${timeout}s" >&2
+    echo "Pattern: $pattern" >&2
+    if [[ -f "$log_file" ]]; then
+        echo "Log file contents:" >&2
+        tail -10 "$log_file" >&2
+    else
+        echo "Log file does not exist" >&2
+    fi
+    return 1
+}
+
+# Assert that a process is running
+assert_process_running() {
+    local process_pattern="$1"
+    local description="${2:-process}"
+    
+    if ! pgrep -f "$process_pattern" >/dev/null 2>&1; then
+        echo "Expected $description to be running" >&2
+        echo "Process pattern: $process_pattern" >&2
+        echo "Currently running processes:" >&2
+        ps aux | grep -v grep | grep "$process_pattern" >&2 || echo "No matching processes found" >&2
+        return 1
+    fi
+}
+
+# Assert that a process stops within timeout
+assert_process_stops() {
+    local process_pattern="$1"
+    local timeout="${2:-10}"
+    local description="${3:-process}"
+    
+    local elapsed=0
+    while [[ $elapsed -lt $timeout ]]; do
+        if ! pgrep -f "$process_pattern" >/dev/null 2>&1; then
+            return 0
+        fi
+        sleep 1
+        elapsed=$((elapsed + 1))
+    done
+    
+    echo "Expected $description to stop within ${timeout}s" >&2
+    echo "Process pattern: $process_pattern" >&2
+    echo "Still running processes:" >&2
+    ps aux | grep -v grep | grep "$process_pattern" >&2
+    return 1
+}
+
+# Assert that a command eventually succeeds (retry with backoff)
+assert_eventually_succeeds() {
+    local max_attempts="${1:-5}"
+    local backoff_factor="${2:-2}"
+    local description="${3:-command}"
+    shift 3
+    local command=("$@")
+    
+    local attempt=1
+    local wait_time=1
+    
+    while [[ $attempt -le $max_attempts ]]; do
+        echo "Attempt $attempt of $max_attempts for $description" >&2
+        
+        if "${command[@]}" >/dev/null 2>&1; then
+            echo "Command succeeded on attempt $attempt" >&2
+            return 0
+        fi
+        
+        if [[ $attempt -lt $max_attempts ]]; then
+            echo "Waiting ${wait_time}s before retry..." >&2
+            sleep "$wait_time"
+            wait_time=$((wait_time * backoff_factor))
+        fi
+        
+        ((attempt++))
+    done
+    
+    echo "Expected $description to eventually succeed within $max_attempts attempts" >&2
+    echo "Command: ${command[*]}" >&2
+    return 1
+}
+
+# Assert that network connectivity exists
+assert_network_connectivity() {
+    local host="${1:-8.8.8.8}"
+    local port="${2:-53}"
+    local timeout="${3:-5}"
+    local description="${4:-network connectivity}"
+    
+    if ! nc -z -w"$timeout" "$host" "$port" 2>/dev/null; then
+        echo "Expected $description to $host:$port" >&2
+        return 1
+    fi
+}
+
+# Assert that disk space is sufficient
+assert_disk_space_available() {
+    local path="${1:-.}"
+    local min_space_mb="$2"
+    local description="${3:-disk space}"
+    
+    local available_mb
+    available_mb=$(df -m "$path" | awk 'NR==2 {print $4}')
+    
+    if [[ "$available_mb" -lt "$min_space_mb" ]]; then
+        echo "Expected at least ${min_space_mb}MB $description" >&2
+        echo "Available: ${available_mb}MB at $path" >&2
+        return 1
+    fi
+}
+
+# Assert that memory usage is within limits
+assert_memory_usage_within() {
+    local max_memory_mb="$1"
+    local process_pattern="${2:-}"
+    local description="${3:-memory usage}"
+    
+    local memory_usage_mb
+    if [[ -n "$process_pattern" ]]; then
+        # Check specific process memory
+        memory_usage_mb=$(ps -o rss= -p $(pgrep -f "$process_pattern" | head -1) 2>/dev/null | awk '{print int($1/1024)}')
+    else
+        # Check system memory usage
+        memory_usage_mb=$(free -m | awk '/^Mem:/ {print $3}')
+    fi
+    
+    if [[ -z "$memory_usage_mb" ]]; then
+        echo "Could not determine $description" >&2
+        return 1
+    fi
+    
+    if [[ "$memory_usage_mb" -gt "$max_memory_mb" ]]; then
+        echo "Expected $description to be under ${max_memory_mb}MB" >&2
+        echo "Actual usage: ${memory_usage_mb}MB" >&2
+        return 1
+    fi
+}
+
+# Assert that a lock file is properly managed
+assert_lock_file_behavior() {
+    local lock_file="$1"
+    local timeout="${2:-10}"
+    local description="${3:-lock file behavior}"
+    
+    # Wait for lock file to be created
+    local elapsed=0
+    while [[ $elapsed -lt $timeout ]]; do
+        if [[ -f "$lock_file" ]]; then
+            break
+        fi
+        sleep 1
+        elapsed=$((elapsed + 1))
+    done
+    
+    if [[ ! -f "$lock_file" ]]; then
+        echo "Expected $description: lock file not created within ${timeout}s" >&2
+        echo "Lock file: $lock_file" >&2
+        return 1
+    fi
+    
+    # Check that lock file contains valid content (usually PID)
+    local lock_content
+    lock_content=$(cat "$lock_file" 2>/dev/null)
+    if [[ ! "$lock_content" =~ ^[0-9]+$ ]]; then
+        echo "Expected $description: lock file should contain valid PID" >&2
+        echo "Lock file content: $lock_content" >&2
+        return 1
+    fi
+}
+
+#######################################
 # Export all assertion functions
 #######################################
 export -f assert_output_contains assert_output_not_contains assert_output_matches
@@ -651,5 +904,8 @@ export -f assert_resource_healthy assert_docker_container_running assert_docker_
 export -f assert_api_response_valid assert_resource_chain_working
 export -f assert_mock_used assert_mock_response_used
 export -f assert_equals assert_not_empty assert_string_contains assert_greater_than assert_less_than
+export -f assert_eventually_true assert_completes_within assert_file_modified_after assert_log_contains
+export -f assert_process_running assert_process_stops assert_eventually_succeeds assert_network_connectivity
+export -f assert_disk_space_available assert_memory_usage_within assert_lock_file_behavior
 
 echo "[ASSERTIONS] Enhanced assertion library loaded with $(compgen -A function | grep -c '^assert_') assertion functions"

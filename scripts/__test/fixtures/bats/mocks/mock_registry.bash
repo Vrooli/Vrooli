@@ -10,13 +10,13 @@ export MOCK_REGISTRY_LOADED="true"
 
 # Mock registry state
 declare -A LOADED_MOCKS
-# declare -A MOCK_STATES    # Future use for state tracking
-# declare -A MOCK_CONFIGS   # Future use for configuration management
+declare -A MOCK_STATES    # Track mock states for debugging
+declare -A MOCK_CONFIGS   # Store mock configurations
 
-# Global configuration
-# Use relative paths for portability
-export BATS_TEST_DIRNAME="${BATS_TEST_DIRNAME:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
-export VROOLI_TEST_FIXTURES_DIR="${VROOLI_TEST_FIXTURES_DIR:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
+# Load path resolver if not already loaded
+if [[ "${PATH_RESOLVER_LOADED:-}" != "true" ]]; then
+    source "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)/core/path_resolver.bash"
+fi
 
 #######################################
 # Load a specific mock module
@@ -49,7 +49,7 @@ mock::load() {
             mock_file="${VROOLI_TEST_FIXTURES_DIR}/mocks/resources/${resource_category}/${name}.bash"
             ;;
         *)
-            echo "ERROR: Unknown mock category: $category" >&2
+            mock_registry_error "Unknown mock category: $category"
             return 1
             ;;
     esac
@@ -123,7 +123,7 @@ mock::load_legacy_mock() {
         return 0
     fi
     
-    echo "[MOCK_REGISTRY] WARNING: Mock not found for $category:$name" >&2
+    mock_registry_warning "Mock not found for $category:$name"
     return 1
 }
 
@@ -133,6 +133,9 @@ mock::load_legacy_mock() {
 #######################################
 mock::setup_minimal() {
     echo "[MOCK_REGISTRY] Setting up minimal test environment"
+    
+    # Load verification system first
+    mock::load system verification
     
     # Load essential system mocks
     mock::load system docker
@@ -148,6 +151,11 @@ mock::setup_minimal() {
     # Create minimal test directories
     export TEST_TMPDIR="${TEST_TMPDIR:-/tmp/vrooli-test-$$}"
     mkdir -p "$TEST_TMPDIR"
+    
+    # Initialize verification system
+    if command -v mock::verify::init &>/dev/null; then
+        mock::verify::init
+    fi
 }
 
 #######################################

@@ -55,7 +55,7 @@ minio::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|diagnose|monitor|list-buckets|create-bucket|remove-bucket|show-credentials|reset-credentials|test-upload|upgrade" \
+        --options "install|uninstall|start|stop|restart|status|logs|diagnose|monitor|list-buckets|create-bucket|remove-bucket|show-credentials|reset-credentials|test-upload|upgrade|inject|validate-injection" \
         --default "status"
     
     args::register \
@@ -102,6 +102,12 @@ minio::parse_arguments() {
         --type "value" \
         --default "5"
     
+    args::register \
+        --name "injection-config" \
+        --desc "JSON configuration for data injection" \
+        --type "value" \
+        --default ""
+    
     if args::is_asking_for_help "$@"; then
         minio::usage
         exit 0
@@ -116,6 +122,7 @@ minio::parse_arguments() {
     export FORCE=$(args::get "force")
     export LOG_LINES=$(args::get "lines")
     export MONITOR_INTERVAL=$(args::get "interval")
+    export INJECTION_CONFIG=$(args::get "injection-config")
 }
 
 #######################################
@@ -263,6 +270,22 @@ main() {
             ;;
         upgrade)
             minio::install::upgrade
+            ;;
+        inject)
+            if [[ -z "$INJECTION_CONFIG" ]]; then
+                log::error "Injection configuration required for inject action"
+                log::info "Use: --injection-config 'JSON_CONFIG'"
+                exit 1
+            fi
+            "${SCRIPT_DIR}/inject.sh" --inject "$INJECTION_CONFIG"
+            ;;
+        validate-injection)
+            if [[ -z "$INJECTION_CONFIG" ]]; then
+                log::error "Injection configuration required for validate-injection action"
+                log::info "Use: --injection-config 'JSON_CONFIG'"
+                exit 1
+            fi
+            "${SCRIPT_DIR}/inject.sh" --validate "$INJECTION_CONFIG"
             ;;
         *)
             log::error "Unknown action: $ACTION"

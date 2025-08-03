@@ -7,7 +7,14 @@ bats_require_minimum_version 1.5.0
 # Setup for each test
 setup() {
     # Load the new unified infrastructure
-    source "/home/matthalloran8/Vrooli/scripts/__test/fixtures/bats/core/common_setup.bash"
+    # Source from relative path or use VROOLI_TEST_FIXTURES_DIR if set
+    if [[ -n "${VROOLI_TEST_FIXTURES_DIR:-}" ]]; then
+        source "${VROOLI_TEST_FIXTURES_DIR}/core/common_setup.bash"
+    else
+        # Find fixtures directory relative to this test file
+        TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        source "${TEST_DIR}/core/common_setup.bash"
+    fi
     
     # Use standard setup
     setup_standard_mocks

@@ -1,0 +1,383 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Vrooli Scenarios Configuration",
+  "description": "Configuration schema for Vrooli resource data injection scenarios",
+  "type": "object",
+  "required": ["scenarios"],
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Configuration schema version",
+      "default": "1.0.0"
+    },
+    "scenarios": {
+      "type": "object",
+      "description": "Available scenarios for resource data injection",
+      "patternProperties": {
+        "^[a-zA-Z0-9_-]+$": {
+          "$ref": "#/definitions/scenario"
+        }
+      },
+      "additionalProperties": false
+    },
+    "active": {
+      "type": "array",
+      "description": "List of scenarios to inject on startup",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-zA-Z0-9_-]+$"
+      },
+      "uniqueItems": true,
+      "default": []
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "scenario": {
+      "type": "object",
+      "description": "A scenario configuration for resource data injection",
+      "required": ["description", "version", "resources"],
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Human-readable description of the scenario",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "description": "Scenario version (semantic versioning recommended)",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$"
+        },
+        "dependencies": {
+          "type": "array",
+          "description": "Other scenarios that must be injected before this one",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-zA-Z0-9_-]+$"
+          },
+          "uniqueItems": true
+        },
+        "resources": {
+          "type": "object",
+          "description": "Resource-specific injection configurations",
+          "patternProperties": {
+            "^[a-zA-Z0-9_-]+$": {
+              "$ref": "#/definitions/resourceInjection"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "resourceInjection": {
+      "type": "object",
+      "description": "Data injection configuration for a specific resource",
+      "properties": {
+        "workflows": {
+          "type": "array",
+          "description": "Workflow configurations to inject",
+          "items": {
+            "$ref": "#/definitions/workflowInjection"
+          }
+        },
+        "scripts": {
+          "type": "array",
+          "description": "Script configurations to inject",
+          "items": {
+            "$ref": "#/definitions/scriptInjection"
+          }
+        },
+        "apps": {
+          "type": "array",
+          "description": "Application configurations to inject",
+          "items": {
+            "$ref": "#/definitions/appInjection"
+          }
+        },
+        "data": {
+          "type": "array",
+          "description": "Data files or database content to inject",
+          "items": {
+            "$ref": "#/definitions/dataInjection"
+          }
+        },
+        "configurations": {
+          "type": "array",
+          "description": "Configuration files or settings to inject",
+          "items": {
+            "$ref": "#/definitions/configurationInjection"
+          }
+        },
+        "models": {
+          "type": "array",
+          "description": "AI models or model configurations to inject",
+          "items": {
+            "$ref": "#/definitions/modelInjection"
+          }
+        },
+        "credentials": {
+          "type": "array",
+          "description": "Credential configurations to inject",
+          "items": {
+            "$ref": "#/definitions/credentialInjection"
+          }
+        },
+        "buckets": {
+          "type": "array",
+          "description": "Storage bucket configurations to inject",
+          "items": {
+            "$ref": "#/definitions/bucketInjection"
+          }
+        },
+        "flows": {
+          "type": "array",
+          "description": "Flow configurations to inject (Node-RED)",
+          "items": {
+            "$ref": "#/definitions/flowInjection"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "workflowInjection": {
+      "type": "object",
+      "description": "Workflow injection configuration",
+      "required": ["name", "file"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Workflow name",
+          "minLength": 1
+        },
+        "file": {
+          "type": "string",
+          "description": "Path to workflow file (relative to Vrooli root)",
+          "minLength": 1
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether workflow should be activated",
+          "default": true
+        },
+        "tags": {
+          "type": "array",
+          "description": "Tags for workflow organization",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "scriptInjection": {
+      "type": "object",
+      "description": "Script injection configuration",
+      "required": ["path", "file"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Script path in target system",
+          "minLength": 1
+        },
+        "file": {
+          "type": "string",
+          "description": "Path to script file (relative to Vrooli root)",
+          "minLength": 1
+        },
+        "summary": {
+          "type": "string",
+          "description": "Script description"
+        },
+        "schema": {
+          "type": "string",
+          "description": "Path to script schema file"
+        },
+        "language": {
+          "type": "string",
+          "description": "Script language",
+          "enum": ["typescript", "python", "bash", "javascript", "go", "rust"]
+        }
+      },
+      "additionalProperties": true
+    },
+    "appInjection": {
+      "type": "object",
+      "description": "Application injection configuration",
+      "required": ["path", "file"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Application path in target system",
+          "minLength": 1
+        },
+        "file": {
+          "type": "string",
+          "description": "Path to application configuration file",
+          "minLength": 1
+        },
+        "summary": {
+          "type": "string",
+          "description": "Application description"
+        }
+      },
+      "additionalProperties": true
+    },
+    "dataInjection": {
+      "type": "object",
+      "description": "Data injection configuration",
+      "required": ["type", "file"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Type of data injection",
+          "enum": ["schema", "seed", "migration", "file", "directory"]
+        },
+        "file": {
+          "type": "string",
+          "description": "Path to data file or directory",
+          "minLength": 1
+        },
+        "bucket": {
+          "type": "string",
+          "description": "Target bucket for file storage"
+        },
+        "source": {
+          "type": "string",
+          "description": "Source path for directory injection"
+        },
+        "recursive": {
+          "type": "boolean",
+          "description": "Whether to process directories recursively",
+          "default": false
+        }
+      },
+      "additionalProperties": true
+    },
+    "configurationInjection": {
+      "type": "object",
+      "description": "Configuration injection",
+      "required": ["name", "content"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Configuration name or path",
+          "minLength": 1
+        },
+        "content": {
+          "description": "Configuration content (object or file path)"
+        },
+        "type": {
+          "type": "string",
+          "description": "Configuration type",
+          "enum": ["json", "yaml", "toml", "ini", "env"]
+        }
+      },
+      "additionalProperties": true
+    },
+    "modelInjection": {
+      "type": "object",
+      "description": "AI model injection configuration",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Model name",
+          "minLength": 1
+        },
+        "source": {
+          "type": "string",
+          "description": "Model source (URL, file path, or registry)",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "description": "Model type",
+          "enum": ["huggingface", "ollama", "gguf", "safetensors", "pytorch"]
+        },
+        "config": {
+          "type": "object",
+          "description": "Model-specific configuration"
+        }
+      },
+      "additionalProperties": true
+    },
+    "credentialInjection": {
+      "type": "object",
+      "description": "Credential injection configuration",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Credential name",
+          "minLength": 1
+        },
+        "type": {
+          "type": "string",
+          "description": "Credential type",
+          "enum": ["httpAuth", "apiKey", "oauth2", "basic", "bearer"]
+        },
+        "config": {
+          "type": "object",
+          "description": "Credential configuration",
+          "properties": {
+            "url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "authType": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "bucketInjection": {
+      "type": "object",
+      "description": "Storage bucket injection configuration",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Bucket name",
+          "minLength": 1
+        },
+        "policy": {
+          "type": "string",
+          "description": "Bucket access policy",
+          "enum": ["private", "public-read", "public-read-write"]
+        },
+        "versioning": {
+          "type": "boolean",
+          "description": "Enable versioning",
+          "default": false
+        }
+      },
+      "additionalProperties": true
+    },
+    "flowInjection": {
+      "type": "object",
+      "description": "Flow injection configuration (Node-RED)",
+      "required": ["name", "file"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Flow name",
+          "minLength": 1
+        },
+        "file": {
+          "type": "string",
+          "description": "Path to flow configuration file",
+          "minLength": 1
+        },
+        "deploy": {
+          "type": "boolean",
+          "description": "Whether to deploy flow automatically",
+          "default": true
+        }
+      },
+      "additionalProperties": true
+    }
+  }
+}

@@ -56,7 +56,7 @@ windmill::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|info|scale-workers|restart-workers|api-setup|save-api-key|backup|restore|list-apps|prepare-app|deploy-app|check-app-api" \
+        --options "install|uninstall|start|stop|restart|status|logs|info|scale-workers|restart-workers|api-setup|save-api-key|backup|restore|list-apps|prepare-app|deploy-app|check-app-api|inject|validate-injection" \
         --default "install"
     
     args::register \
@@ -169,6 +169,12 @@ windmill::parse_arguments() {
         --type "value" \
         --default "${HOME}/windmill-apps"
     
+    args::register \
+        --name "injection-config" \
+        --desc "JSON configuration for data injection" \
+        --type "value" \
+        --default ""
+    
     if args::is_asking_for_help "$@"; then
         windmill::usage
         exit 0
@@ -195,6 +201,7 @@ windmill::parse_arguments() {
     export OUTPUT_DIR=$(args::get "output-dir")
     export WORKSPACE=$(args::get "workspace")
     export API_KEY=$(args::get "api-key")
+    export INJECTION_CONFIG=$(args::get "injection-config")
 }
 
 #######################################
@@ -263,6 +270,22 @@ windmill::main() {
             ;;
         "check-app-api")
             windmill::check_app_api
+            ;;
+        "inject")
+            if [[ -z "$INJECTION_CONFIG" ]]; then
+                log::error "Injection configuration required for inject action"
+                log::info "Use: --injection-config 'JSON_CONFIG'"
+                exit 1
+            fi
+            "${SCRIPT_DIR}/inject.sh" --inject "$INJECTION_CONFIG"
+            ;;
+        "validate-injection")
+            if [[ -z "$INJECTION_CONFIG" ]]; then
+                log::error "Injection configuration required for validate-injection action"
+                log::info "Use: --injection-config 'JSON_CONFIG'"
+                exit 1
+            fi
+            "${SCRIPT_DIR}/inject.sh" --validate "$INJECTION_CONFIG"
             ;;
         *)
             log::error "Unknown action: $ACTION"

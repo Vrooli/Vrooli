@@ -42,7 +42,7 @@ resources::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|list|discover|test" \
+        --options "install|uninstall|start|stop|restart|status|list|discover|test|inject|inject-all" \
         --default "install"
     
     args::register \
@@ -82,6 +82,18 @@ resources::parse_arguments() {
         --options "single|multi|scenarios|all" \
         --default "all"
     
+    args::register \
+        --name "scenario" \
+        --desc "Scenario name for injection" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "scenarios-config" \
+        --desc "Path to scenarios configuration file" \
+        --type "value" \
+        --default "${HOME}/.vrooli/scenarios.json"
+    
     if args::is_asking_for_help "$@"; then
         resources::usage
         exit 0
@@ -96,6 +108,8 @@ resources::parse_arguments() {
     export YES=$(args::get "yes")
     export AUTO_CONFIGURE=$(args::get "auto-configure")
     export TEST_TYPE=$(args::get "test-type")
+    export SCENARIO_NAME=$(args::get "scenario")
+    export SCENARIOS_CONFIG=$(args::get "scenarios-config")
 }
 
 #######################################
@@ -729,6 +743,20 @@ resources::main() {
             ;;
         "test")
             resources::run_tests
+            return 0
+            ;;
+        "inject")
+            if [[ -n "$SCENARIO_NAME" ]]; then
+                "${RESOURCES_DIR}/injection/engine.sh" --action inject --scenario "$SCENARIO_NAME" --config-file "$SCENARIOS_CONFIG"
+            else
+                log::error "Scenario name required for injection action"
+                log::info "Use: --scenario SCENARIO_NAME"
+                exit 1
+            fi
+            return 0
+            ;;
+        "inject-all")
+            "${RESOURCES_DIR}/injection/engine.sh" --action inject --all-active yes --config-file "$SCENARIOS_CONFIG"
             return 0
             ;;
     esac

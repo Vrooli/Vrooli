@@ -56,7 +56,15 @@ assert_success, assert_failure, assert_output_contains
 #!/usr/bin/env bats
 
 bats_require_minimum_version 1.5.0
-source "/home/matthalloran8/Vrooli/scripts/tests/bats-fixtures/core/common_setup.bash"
+# Load the unified testing infrastructure  
+# Source from relative path or use VROOLI_TEST_FIXTURES_DIR if set
+if [[ -n "${VROOLI_TEST_FIXTURES_DIR:-}" ]]; then
+    source "${VROOLI_TEST_FIXTURES_DIR}/core/common_setup.bash"
+else
+    # Find fixtures directory relative to this test file
+    TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "${TEST_DIR}/../fixtures/bats/core/common_setup.bash"
+fi
 
 setup() {
     setup_standard_mocks
@@ -173,7 +181,15 @@ $CONTAINER_NAME_PREFIX   # Prefix for container names
 #!/usr/bin/env bats
 
 bats_require_minimum_version 1.5.0
-source "/home/matthalloran8/Vrooli/scripts/tests/bats-fixtures/core/common_setup.bash"
+# Load the unified testing infrastructure  
+# Source from relative path or use VROOLI_TEST_FIXTURES_DIR if set
+if [[ -n "${VROOLI_TEST_FIXTURES_DIR:-}" ]]; then
+    source "${VROOLI_TEST_FIXTURES_DIR}/core/common_setup.bash"
+else
+    # Find fixtures directory relative to this test file
+    TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "${TEST_DIR}/../fixtures/bats/core/common_setup.bash"
+fi
 
 setup() {
     setup_resource_test "ollama"
@@ -246,7 +262,15 @@ teardown() {
 #!/usr/bin/env bats
 
 bats_require_minimum_version 1.5.0
-source "/home/matthalloran8/Vrooli/scripts/tests/bats-fixtures/core/common_setup.bash"
+# Load the unified testing infrastructure  
+# Source from relative path or use VROOLI_TEST_FIXTURES_DIR if set
+if [[ -n "${VROOLI_TEST_FIXTURES_DIR:-}" ]]; then
+    source "${VROOLI_TEST_FIXTURES_DIR}/core/common_setup.bash"
+else
+    # Find fixtures directory relative to this test file
+    TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    source "${TEST_DIR}/../fixtures/bats/core/common_setup.bash"
+fi
 
 setup() {
     setup_integration_test "ollama" "whisper" "n8n"

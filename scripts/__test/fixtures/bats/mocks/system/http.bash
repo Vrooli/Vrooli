@@ -329,63 +329,63 @@ curl_get_mock_response() {
 #######################################
 curl_match_url_pattern() {
     local url="$1"
-    local -n response_ref=$2
-    local -n status_ref=$3
+    local -n pattern_response_ref=$2
+    local -n pattern_status_ref=$3
     
     # Extract components
     local host=$(echo "$url" | sed 's|https\?://||' | cut -d/ -f1)
     local path=$(echo "$url" | sed 's|https\?://[^/]*||')
     
     # Default response
-    response_ref='{"status":"ok"}'
-    status_ref="200"
+    pattern_response_ref='{"status":"ok"}'
+    pattern_status_ref="200"
     
     # Pattern matching for common endpoints
     case "$path" in
         *"/health"*|*"/healthz"*)
-            response_ref='{"status":"healthy","timestamp":"'$(date -Iseconds)'"}'
+            pattern_response_ref='{"status":"healthy","timestamp":"'$(date -Iseconds)'"}'
             ;;
         *"/status"*)
-            response_ref='{"status":"ok","version":"1.0.0"}'
+            pattern_response_ref='{"status":"ok","version":"1.0.0"}'
             ;;
         *"/version"*)
-            response_ref='{"version":"1.0.0","build":"abc123"}'
+            pattern_response_ref='{"version":"1.0.0","build":"abc123"}'
             ;;
         *"/api/"*)
-            response_ref='{"data":[],"total":0}'
+            pattern_response_ref='{"data":[],"total":0}'
             ;;
         *"/metrics"*)
-            response_ref='# HELP test_metric A test metric\ntest_metric 42'
+            pattern_response_ref='# HELP test_metric A test metric\ntest_metric 42'
             ;;
         *"/ping"*)
-            response_ref='pong'
+            pattern_response_ref='pong'
             ;;
         *"/ready"*)
-            response_ref='{"ready":true}'
+            pattern_response_ref='{"ready":true}'
             ;;
         *"/config"*)
-            response_ref='{"config":{"setting1":"value1","setting2":"value2"}}'
+            pattern_response_ref='{"config":{"setting1":"value1","setting2":"value2"}}'
             ;;
         *)
             # Resource-specific patterns
             case "$host" in
                 *"ollama"*|*"11434"*)
-                    curl_ollama_response "$path" response_ref status_ref
+                    curl_ollama_response "$path" pattern_response_ref pattern_status_ref
                     ;;
                 *"whisper"*|*"8090"*)
-                    curl_whisper_response "$path" response_ref status_ref
+                    curl_whisper_response "$path" pattern_response_ref pattern_status_ref
                     ;;
                 *"n8n"*|*"5678"*)
-                    curl_n8n_response "$path" response_ref status_ref
+                    curl_n8n_response "$path" pattern_response_ref pattern_status_ref
                     ;;
                 *"qdrant"*|*"6333"*)
-                    curl_qdrant_response "$path" response_ref status_ref
+                    curl_qdrant_response "$path" pattern_response_ref pattern_status_ref
                     ;;
                 *"minio"*|*"9000"*)
-                    curl_minio_response "$path" response_ref status_ref
+                    curl_minio_response "$path" pattern_response_ref pattern_status_ref
                     ;;
                 *)
-                    response_ref='{"message":"Mock response for '$(basename "$path")'"}'
+                    pattern_response_ref='{"message":"Mock response for '$(basename "$path")'"}'
                     ;;
             esac
             ;;

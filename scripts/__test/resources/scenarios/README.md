@@ -2,6 +2,12 @@
 
 > **Transform customer requirements into profitable SaaS applications in a single AI conversation**
 
+## 🆕 **Major Update: Improved Scenario-to-App Structure**
+
+**New Feature**: Scenarios now include complete deployment orchestration! Use the new `SCENARIO_TEMPLATE/` and `./scripts/scenario-to-app.sh` script to convert any scenario into a running application with database, workflows, UI, and monitoring.
+
+📚 **[Read the full improvement guide →](IMPROVED_SCENARIO_STRUCTURE.md)**
+
 ## 🎯 What Are Scenarios?
 
 **Scenarios are declarative templates that enable Vrooli to generate complete, deployable SaaS applications from customer requirements.** Each scenario represents the minimal set of files needed to validate, test, and deploy a specific type of business application.
@@ -30,20 +36,30 @@ Instead of building every feature into one monolithic platform, Vrooli uses scen
 ls -la                                    # See all available scenarios
 cat _index/categories.yaml               # Browse by category
 
-# 2. Create a new scenario
-cp -r templates/business/ my-new-scenario/
+# 2. Create a new scenario using the improved template
+cp -r SCENARIO_TEMPLATE/ my-new-scenario/
 cd my-new-scenario/
-# Edit metadata.yaml, README.md, test.sh
+# Edit metadata.yaml, manifest.yaml, initialization files
 
-# 3. Test your scenario
-./test.sh                               # Validate integration
+# 3. Test your scenario structure
+./deployment/validate.sh                 # Validate structure and content
+
+# 4. Deploy as application
+../../../scenario-to-app.sh my-new-scenario
 ```
 
 ### For AI Generation
 ```bash
-# Generate a scenario from requirements (future capability)
+# Generate a scenario from requirements using the new structure
 vrooli generate-scenario --requirements "Customer needs X functionality"
-# → Creates complete scenario with metadata, tests, and UI components
+# → Creates complete scenario with:
+#   - metadata.yaml (business model)
+#   - manifest.yaml (deployment orchestration)  
+#   - initialization/ (database, workflows, UI, configuration)
+#   - deployment/ (startup, validation, monitoring scripts)
+
+# Deploy generated scenario
+./scripts/scenario-to-app.sh generated-scenario-name
 ```
 
 ---
@@ -115,6 +131,25 @@ vrooli generate-scenario --requirements "Customer needs X functionality"
 
 ## 🏗️ Architecture Philosophy
 
+### **Improved Scenario-to-App Structure**
+The enhanced scenario structure enables seamless conversion from validation tools to deployable applications:
+
+```
+scenario-name/
+├── metadata.yaml              # Business/scenario metadata (existing)
+├── manifest.yaml              # 🆕 Deployment orchestration
+├── initialization/            # 🆕 App startup data
+│   ├── database/              # Schema and seed data
+│   ├── workflows/             # n8n, Windmill, triggers
+│   ├── configuration/         # Runtime settings
+│   ├── ui/                    # Windmill applications
+│   └── storage/               # MinIO, Qdrant setup
+└── deployment/                # 🆕 Orchestration scripts
+    ├── startup.sh             # App initialization  
+    ├── validate.sh            # Pre/post validation
+    └── monitor.sh             # Health monitoring
+```
+
 ### **Capability Emergence Through Orchestration**
 Scenarios don't contain business logic—they orchestrate external resources to create emergent capabilities:
 
@@ -128,6 +163,13 @@ Scenarios integrate with Vrooli's AI architecture:
 - **Tier 1**: Coordination Intelligence (scenario selection and planning)
 - **Tier 2**: Process Intelligence (resource orchestration)  
 - **Tier 3**: Execution Intelligence (direct resource interaction)
+
+### **Scenario-to-App Conversion**
+The new `./scripts/scenario-to-app.sh` script converts any scenario into a running application:
+1. **Validation Phase**: Structure and resource health checks
+2. **Configuration Phase**: Generate efficient resource configuration
+3. **Deployment Phase**: Database setup, workflow deployment, UI activation
+4. **Monitoring Phase**: Health monitoring and integration testing
 
 ---
 
@@ -166,12 +208,15 @@ business:
 
 ### **Choose Your Template**
 
-| Template | Use Case | Complexity | AI-Generation Ready |
-|----------|----------|------------|-------------------|
-| [**basic/**](templates/basic/) | Resource integration testing | ⭐ Simple | ✅ Yes |
-| [**business/**](templates/business/) | Customer-facing applications | ⭐⭐ Moderate | ✅ Yes |
-| [**enterprise/**](templates/enterprise/) | Full enterprise features | ⭐⭐⭐ Advanced | 🔄 In Progress |
-| [**ai-generation/**](templates/ai-generation/) | Optimized for AI creation | ⭐⭐ Moderate | ✅ Optimized |
+| Template | Use Case | Complexity | Features | AI-Generation Ready |
+|----------|----------|------------|----------|-------------------|
+| [**SCENARIO_TEMPLATE/**](SCENARIO_TEMPLATE/) | Complete app blueprint | ⭐⭐ Moderate | Full deployment orchestration | ✅ Optimized |
+| [**basic/**](templates/basic/) | Resource integration testing | ⭐ Simple | Basic structure only | ✅ Yes |
+| [**business/**](templates/business/) | Customer-facing applications | ⭐⭐ Moderate | Business features | ✅ Yes |
+| [**enterprise/**](templates/enterprise/) | Full enterprise features | ⭐⭐⭐ Advanced | Enterprise capabilities | 🔄 In Progress |
+| [**ai-generation/**](templates/ai-generation/) | Legacy AI creation | ⭐⭐ Moderate | AI-optimized (deprecated) | ⚠️ Use SCENARIO_TEMPLATE |
+
+**🎯 Recommended**: Use `SCENARIO_TEMPLATE/` for all new scenarios - it includes the complete deployment orchestration layer for seamless scenario-to-app conversion.
 
 📋 **Detailed Template Guide**: [docs/template-guide.md](docs/template-guide.md)
 

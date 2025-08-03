@@ -9,26 +9,20 @@ if [[ "${COMMON_SETUP_LOADED:-}" == "true" ]]; then
 fi
 export COMMON_SETUP_LOADED="true"
 
-# Global configuration
-# Use relative paths for portability
-export BATS_TEST_DIRNAME="${BATS_TEST_DIRNAME:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
-export VROOLI_TEST_FIXTURES_DIR="${VROOLI_TEST_FIXTURES_DIR:-$(cd "$BATS_TEST_DIRNAME/.." && pwd)}"
+# Load the centralized path resolver first
+# This ensures consistent path resolution across all fixtures
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/path_resolver.bash"
 
-# Performance optimization: use in-memory temp directory when available
-if [[ -d "/dev/shm" && -w "/dev/shm" ]]; then
-    export BATS_TEST_TMPDIR="${BATS_TEST_TMPDIR:-/dev/shm/vrooli-tests-$$}"
-else
-    export BATS_TEST_TMPDIR="${BATS_TEST_TMPDIR:-$(mktemp -d)}"
-fi
+# Initialize test environment using centralized path functions
+export BATS_TEST_TMPDIR="$(vrooli_test_tmpdir)"
+export MOCK_RESPONSES_DIR="${BATS_TEST_TMPDIR}/mock_responses"
+mkdir -p "${MOCK_RESPONSES_DIR}"
 
-# Create test environment
-mkdir -p "$BATS_TEST_TMPDIR"
-export MOCK_RESPONSES_DIR="$BATS_TEST_TMPDIR/mock_responses"
-mkdir -p "$MOCK_RESPONSES_DIR"
-
-# Load core infrastructure
-source "${VROOLI_TEST_FIXTURES_DIR}/mocks/mock_registry.bash"
-source "${VROOLI_TEST_FIXTURES_DIR}/core/assertions.bash"
+# Load core infrastructure using the path resolver
+vrooli_source_fixture "core/error_handling.bash"
+vrooli_source_fixture "core/benchmarking.bash"
+vrooli_source_fixture "mocks/mock_registry.bash"
+vrooli_source_fixture "core/assertions.bash"
 
 #######################################
 # Enhanced setup functions with improved performance and reliability
@@ -72,12 +66,14 @@ setup_resource_test() {
     local resource="$1"
     local state="${2:-healthy}"
     
-    if [[ -z "$resource" ]]; then
-        echo "[COMMON_SETUP] ERROR: Resource name required" >&2
+    if ! validate_required_param "resource" "$resource" "COMMON_SETUP"; then
         return 1
     fi
     
     echo "[COMMON_SETUP] Setting up test environment for resource: $resource"
+    
+    # Initialize benchmarking system if enabled
+    benchmark::init
     
     # Use the new mock registry for resource setup
     mock::setup_resource "$resource"
@@ -101,7 +97,7 @@ setup_integration_test() {
     local resources=("$@")
     
     if [[ ${#resources[@]} -eq 0 ]]; then
-        echo "[COMMON_SETUP] ERROR: At least one resource required for integration test" >&2
+        common_setup_error "At least one resource required for integration test"
         return 1
     fi
     
@@ -182,6 +178,9 @@ mock::setup_generic_resource() {
 cleanup_mocks() {
     echo "[COMMON_SETUP] Cleaning up test environment"
     
+    # Cleanup benchmarking system
+    benchmark::cleanup
+    
     # Use mock registry cleanup
     mock::cleanup
     
@@ -214,8 +213,7 @@ validate_mock_environment() {
     )
     
     for func in "${required_functions[@]}"; do
-        if ! declare -f "$func" >/dev/null 2>&1; then
-            echo "[COMMON_SETUP] ERROR: Required function not available: $func" >&2
+        if ! validate_function_exists "$func" "COMMON_SETUP"; then
             return 1
         fi
     done
@@ -301,7 +299,7 @@ export -f setup_legacy_environment mock::setup_generic_resource
 
 # Validate environment on load
 if ! validate_mock_environment; then
-    echo "[COMMON_SETUP] ERROR: Mock environment validation failed" >&2
+    common_setup_error "Mock environment validation failed"
     return 1
 fi
 

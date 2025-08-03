@@ -54,7 +54,7 @@ node_red::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|flow-list|flow-export|flow-import|flow-execute|flow-enable|flow-disable|test|validate-host|validate-docker|benchmark|metrics|info|health|monitor|stress-test|verify" \
+        --options "install|uninstall|start|stop|restart|status|logs|flow-list|flow-export|flow-import|flow-execute|flow-enable|flow-disable|test|validate-host|validate-docker|benchmark|metrics|info|health|monitor|stress-test|verify|inject|validate-injection" \
         --default "install"
     
     args::register \
@@ -133,6 +133,12 @@ node_red::parse_arguments() {
         --type "value" \
         --default ""
     
+    args::register \
+        --name "injection-config" \
+        --desc "JSON configuration for data injection" \
+        --type "value" \
+        --default ""
+    
     if args::is_asking_for_help "$@"; then
         node_red::usage
         exit 0
@@ -154,6 +160,7 @@ node_red::parse_arguments() {
     export INTERVAL=$(args::get "interval")
     export DURATION=$(args::get "duration")
     export BACKUP_PATH=$(args::get "backup-path")
+    export INJECTION_CONFIG=$(args::get "injection-config")
 }
 
 #######################################
@@ -237,6 +244,22 @@ main() {
             ;;
         restore)
             node_red::restore "$BACKUP_PATH"
+            ;;
+        inject)
+            if [[ -z "$INJECTION_CONFIG" ]]; then
+                log::error "Injection configuration required for inject action"
+                log::info "Use: --injection-config 'JSON_CONFIG'"
+                exit 1
+            fi
+            "${SCRIPT_DIR}/inject.sh" --inject "$INJECTION_CONFIG"
+            ;;
+        validate-injection)
+            if [[ -z "$INJECTION_CONFIG" ]]; then
+                log::error "Injection configuration required for validate-injection action"
+                log::info "Use: --injection-config 'JSON_CONFIG'"
+                exit 1
+            fi
+            "${SCRIPT_DIR}/inject.sh" --validate "$INJECTION_CONFIG"
             ;;
         *)
             log::error "Unknown action: $ACTION"

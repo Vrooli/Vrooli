@@ -32,6 +32,11 @@ mock::docker::set_container_state() {
     if [[ -n "${MOCK_RESPONSES_DIR:-}" ]]; then
         echo "docker_container_state:$container:$state" >> "${MOCK_RESPONSES_DIR}/used_mocks.log"
     fi
+    
+    # Record call in verification system
+    if command -v mock::verify::record_call &>/dev/null; then
+        mock::verify::record_call "docker" "set_container_state $container $state"
+    fi
 }
 
 #######################################
@@ -52,6 +57,11 @@ docker() {
     # Track command calls for verification
     if [[ -n "${MOCK_RESPONSES_DIR:-}" ]]; then
         echo "docker $*" >> "${MOCK_RESPONSES_DIR}/command_calls.log"
+    fi
+    
+    # Record call in verification system
+    if command -v mock::verify::record_call &>/dev/null; then
+        mock::verify::record_call "docker" "$*"
     fi
     
     # Handle different Docker mock modes
