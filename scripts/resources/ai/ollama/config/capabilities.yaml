@@ -1,0 +1,188 @@
+apiVersion: vrooli.com/v1
+kind: ResourceCapability
+metadata:
+  name: ollama
+  category: ai
+  subcategory: inference
+  description: "Local LLM inference engine for privacy-sensitive AI tasks"
+  maturity: stable
+  complexity: intermediate
+  
+spec:
+  # Core capabilities this resource provides
+  capabilities:
+    primary:
+      - text-generation
+      - code-assistance 
+      - embeddings
+      - conversation
+      - analysis
+    secondary:
+      - reasoning
+      - summarization
+      - translation
+      - creative-writing
+    specialized:
+      - model-customization
+      - domain-specific-models
+      - offline-inference
+  
+  # API interfaces available
+  interfaces:
+    - name: text-generation
+      endpoint: "/api/generate"
+      method: POST
+      inputTypes: [text, json]
+      outputTypes: [text, json, stream]
+      description: "Generate text responses from prompts"
+    - name: chat
+      endpoint: "/api/chat"
+      method: POST
+      inputTypes: [json]
+      outputTypes: [json, stream]
+      description: "Conversational chat interface"
+    - name: embeddings
+      endpoint: "/api/embeddings"
+      method: POST
+      inputTypes: [text]
+      outputTypes: [vector]
+      description: "Generate text embeddings for semantic search"
+    - name: model-management
+      endpoint: "/api/tags"
+      method: GET
+      outputTypes: [json]
+      description: "List available models"
+  
+  # Resource dependencies and requirements
+  dependencies:
+    required: []
+    optional: 
+      - gpu-acceleration
+      - large-memory
+    incompatible: []
+  
+  # Scenario compatibility
+  scenarios:
+    primary:
+      - research-assistant
+      - ai-content-assistant-example
+      - document-intelligence-pipeline
+    secondary:
+      - multi-modal-ai-assistant
+      - business-process-automation
+      - podcast-transcription-assistant
+    optimal_combinations:
+      - [ollama, n8n, minio]           # AI workflow automation
+      - [ollama, qdrant, unstructured-io]  # Document intelligence
+      - [ollama, whisper, agent-s2]    # Multi-modal AI assistant
+  
+  # Business intelligence
+  business:
+    revenue_range:
+      min: 2000
+      max: 15000
+      currency: USD
+    complexity_score: 6  # 1-10 scale
+    implementation_time: "1-3 days"
+    upwork_demand: very-high
+    target_industries:
+      - consulting
+      - content-creation
+      - research
+      - customer-support
+      - software-development
+    common_project_types:
+      - "AI chatbot for customer support"
+      - "Content generation assistant"
+      - "Research and analysis automation"
+      - "Code generation and review tools"
+  
+  # Technical specifications
+  technical:
+    ports: [11434]
+    protocols: [http, rest]
+    data_formats: [json, text, stream]
+    resource_requirements:
+      memory:
+        minimum: "4GB"
+        recommended: "8GB"
+        optimal: "16GB+"
+      cpu:
+        minimum: "2 cores"
+        recommended: "4 cores"
+        optimal: "8+ cores"
+      storage:
+        minimum: "10GB"
+        recommended: "50GB"
+      gpu:
+        required: false
+        recommended: true
+        vram_min: "8GB"
+    scaling:
+      horizontal: false
+      vertical: true
+      max_concurrent_requests: 100
+  
+  # AI generation hints for automated scenario creation
+  ai_generation:
+    common_patterns:
+      - llm-powered-analysis
+      - text-generation-workflows
+      - code-assistance-tools
+      - content-creation-pipelines
+      - conversational-interfaces
+    integration_targets:
+      preferred: [n8n, windmill, minio, qdrant]
+      compatible: [whisper, agent-s2, unstructured-io]
+      avoid: [real-time-streaming, video-processing]
+    prompt_templates:
+      basic: "Generate {content_type} about {topic} using {style}"
+      workflow: "Create a {workflow_type} that processes {input} and generates {output}"
+      analysis: "Analyze {data_source} and provide {analysis_type} insights"
+    complexity_indicators:
+      simple: ["basic text generation", "simple Q&A", "content summarization"]
+      intermediate: ["multi-step analysis", "code generation", "specialized models"]
+      advanced: ["complex reasoning chains", "multi-model orchestration", "custom model training"]
+  
+  # Testing and validation
+  testing:
+    test_file: "scripts/__test/resources/single/ai/ollama.test.sh"
+    test_coverage:
+      - health_check
+      - model_listing
+      - text_generation
+      - api_functionality
+      - performance_baseline
+    fixtures:
+      - text_prompts
+      - code_samples
+      - conversation_examples
+    integration_tests:
+      - ollama_n8n_workflow
+      - ollama_qdrant_search
+      - multi_modal_pipeline
+  
+  # Documentation and examples
+  documentation:
+    readme: "scripts/resources/ai/ollama/README.md"
+    api_reference: "scripts/resources/ai/ollama/docs/API.md"
+    examples_dir: "scripts/resources/ai/ollama/examples/"
+    configuration: "scripts/resources/ai/ollama/docs/CONFIGURATION.md"
+  
+  # Version and compatibility
+  version_info:
+    min_version: "0.1.0"
+    tested_version: "0.5.0"
+    api_version: "v1"
+    compatibility_matrix:
+      docker: ">=20.10.0"
+      memory: ">=4GB"
+      architecture: [amd64, arm64]
+
+# Metadata for resource discovery and automation
+labels:
+  resource.vrooli.com/category: "ai"
+  resource.vrooli.com/type: "inference"
+  resource.vrooli.com/maturity: "stable"
+  resource.vrooli.com/business-value: "high"
+  resource.vrooli.com/ai-friendly: "true"

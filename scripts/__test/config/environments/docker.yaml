@@ -1,0 +1,39 @@
+# Docker Environment Configuration
+# Optimized for containerized testing
+
+environment:
+  name: "docker"
+  tmpdir_base: "/tmp"  # Docker containers use /tmp
+  namespace_prefix: "docker_test"
+
+logging:
+  level: "INFO"
+  console: true
+  file: "/tmp/vrooli-test-docker.log"
+
+performance:
+  parallel_enabled: true
+  max_parallel_tests: 3
+  memory_limit: "512M"  # Conservative for container limits
+
+# Docker-optimized timeouts
+timeouts:
+  basic: 90      # Docker can be slower
+  api: 150
+  ai_inference: 360
+  docker_operations: 240  # Docker-in-docker needs more time
+  integration: 300
+  security: 90
+
+health_checks:
+  timeout: 45     # Docker health checks may take longer
+  retry_count: 4
+  retry_delay: 5
+
+# Docker-specific port ranges (avoid conflicts)
+ports:
+  # AI Services - offset by 1000
+  ollama: 12434
+  whisper: 9080
+  comfyui: 9188
+  unstructured_io: 9000

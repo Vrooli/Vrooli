@@ -188,6 +188,42 @@ ${PWD}:/workspace:ro                      # Workspace access
 - View logs: `./manage.sh --action logs`
 - Test functionality: `./manage.sh --action test`
 
+## 🧪 Testing & Examples
+
+### Individual Resource Tests
+- **Test Location**: `scripts/__test/resources/single/automation/n8n.test.sh`
+- **Test Coverage**: Service health, API functionality, workflow management, host system access
+- **Run Test**: `cd scripts/__test/resources && ./quick-test.sh n8n`
+
+### Working Examples
+- **Examples Folder**: [examples/](examples/)
+- **Available Examples**: 
+  - `example-notification-workflow.json` - Notification automation workflow
+  - `webhook-workflow.json` - Webhook-triggered processing
+- **Integration Examples**: Multi-service workflows connecting n8n with Ollama, Agent-S2, and storage resources
+
+### Integration with Scenarios
+n8n is used in these business scenarios:
+- **[Business Process Automation](../../scenarios/core/business-process-automation/)** - Complete workflow automation ($12k-35k projects)
+- **[Multi-Modal AI Assistant](../../scenarios/core/multi-modal-ai-assistant/)** - AI workflow orchestration ($10k-25k projects)
+- **[Document Intelligence Pipeline](../../scenarios/core/document-intelligence-pipeline/)** - Document processing workflows ($15k-30k projects)
+
+### Test Fixtures
+- **Shared Test Data**: `scripts/__test/resources/fixtures/workflows/` (sample n8n workflows)
+- **Integration Data**: `scripts/__test/resources/fixtures/documents/` (for document processing scenarios)
+
+### Quick Test Commands
+```bash
+# Test individual n8n functionality
+./scripts/__test/resources/quick-test.sh n8n
+
+# Test in business scenarios
+cd ./scripts/scenarios/core/business-process-automation && ./test.sh
+
+# Run all tests using n8n
+./scripts/scenarios/tools/test-by-resource.sh --resource n8n
+```
+
 ## 📦 What's Included
 
 ```

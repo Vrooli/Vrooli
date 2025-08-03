@@ -1,0 +1,253 @@
+apiVersion: vrooli.com/v1
+kind: ResourceCapability
+metadata:
+  name: agent-s2
+  category: agents
+  subcategory: desktop-automation
+  description: "AI-powered desktop and web automation with visual reasoning"
+  maturity: stable
+  complexity: advanced
+  
+spec:
+  # Core capabilities this resource provides
+  capabilities:
+    primary:
+      - desktop-automation
+      - web-automation
+      - visual-understanding
+      - natural-language-control
+      - screenshot-capture
+    secondary:
+      - mouse-control
+      - keyboard-input
+      - task-planning
+      - screen-interaction
+      - application-control
+    specialized:
+      - ai-powered-navigation
+      - anti-bot-detection
+      - stealth-mode
+      - session-persistence
+      - visual-reasoning
+  
+  # API interfaces available
+  interfaces:
+    - name: ai-task-execution
+      endpoint: "/ai/task"
+      method: POST
+      inputTypes: [json]
+      outputTypes: [json, stream]
+      description: "Execute natural language tasks with AI planning"
+    - name: screenshot
+      endpoint: "/screenshot"
+      method: POST
+      inputTypes: [json]
+      outputTypes: [binary, base64]
+      description: "Capture full screen or region screenshots"
+    - name: mouse-control
+      endpoint: "/mouse/*"
+      method: POST
+      inputTypes: [json]
+      outputTypes: [json]
+      description: "Mouse click, move, and drag operations"
+    - name: keyboard-input
+      endpoint: "/keyboard/*"
+      method: POST
+      inputTypes: [json, text]
+      outputTypes: [json]
+      description: "Text typing and key combinations"
+    - name: vnc-access
+      endpoint: "vnc://localhost:5900"
+      method: VNC
+      description: "Direct VNC access to virtual desktop"
+  
+  # Resource dependencies and requirements
+  dependencies:
+    required: []
+    optional:
+      - ollama  # For AI task planning
+      - anthropic-api  # Alternative AI provider
+      - openai-api    # Alternative AI provider
+    incompatible: []
+  
+  # Scenario compatibility
+  scenarios:
+    primary:
+      - multi-modal-ai-assistant
+      - intelligent-desktop-assistant
+      - business-process-automation
+    secondary:
+      - document-intelligence-pipeline
+      - analytics-dashboard
+      - research-assistant
+    optimal_combinations:
+      - [agent-s2, ollama, whisper]    # Natural language automation
+      - [agent-s2, comfyui, windmill]  # Visual workflow automation
+      - [agent-s2, n8n, minio]         # Automated data collection
+      - [agent-s2, browserless]        # Complementary web automation
+  
+  # Business intelligence
+  business:
+    revenue_range:
+      min: 8000
+      max: 25000
+      currency: USD
+    complexity_score: 8  # 1-10 scale
+    implementation_time: "3-7 days"
+    upwork_demand: high
+    target_industries:
+      - process-automation
+      - accessibility-technology
+      - qa-testing
+      - data-extraction
+      - workflow-optimization
+      - creative-automation
+    common_project_types:
+      - "AI-powered accessibility assistant"
+      - "Automated testing and QA workflows"
+      - "Desktop application automation"
+      - "Web scraping with anti-bot capabilities"
+      - "Visual workflow automation tools"
+      - "Multi-modal AI interfaces"
+  
+  # Technical specifications
+  technical:
+    ports: [4113, 5900]  # API + VNC
+    protocols: [http, rest, vnc, x11]
+    data_formats: [json, binary, base64, png, jpeg]
+    resource_requirements:
+      memory:
+        minimum: "2GB"
+        recommended: "4GB"
+        optimal: "8GB+"
+      cpu:
+        minimum: "2 cores"
+        recommended: "4 cores"
+        optimal: "8+ cores"
+      storage:
+        minimum: "2GB"
+        recommended: "10GB"
+        optimal: "20GB+"
+      display:
+        required: true
+        type: "virtual_x11"
+        resolution: "1920x1080"
+    scaling:
+      horizontal: true
+      vertical: true
+      max_concurrent_sessions: 10
+      isolation_level: container
+  
+  # AI generation hints for automated scenario creation
+  ai_generation:
+    common_patterns:
+      - natural-language-automation
+      - visual-workflow-creation
+      - desktop-application-control
+      - web-interaction-automation
+      - screen-based-data-extraction
+    integration_targets:
+      preferred: [ollama, whisper, comfyui, windmill]
+      compatible: [n8n, minio, browserless]
+      avoid: [headless-only-workflows, api-only-integration]
+    task_templates:
+      navigation: "Navigate to {website/application} and {action}"
+      interaction: "Click on {element} and {follow_up_action}"
+      data_extraction: "Extract {data_type} from {source} and save to {destination}"
+      workflow: "Complete {task_sequence} across {applications/websites}"
+    complexity_indicators:
+      simple: ["basic clicking", "simple navigation", "screenshot capture"]
+      intermediate: ["multi-step workflows", "conditional interactions", "data extraction"]
+      advanced: ["AI-powered decision making", "complex visual reasoning", "anti-bot handling"]
+  
+  # Specialized modes and features
+  modes:
+    sandbox:
+      description: "High security container isolation"
+      network_access: "HTTPS only"
+      host_access: false
+      security_level: high
+    host:
+      description: "Controlled host system access"
+      network_access: "Full including localhost"
+      host_access: limited
+      security_level: medium
+  
+  features:
+    stealth_mode:
+      enabled: true
+      description: "Advanced anti-bot detection avoidance"
+      capabilities:
+        - fingerprint_randomization
+        - session_persistence
+        - human_like_timing
+        - proxy_support
+    ai_integration:
+      enabled: true
+      description: "Natural language task execution"
+      providers: [ollama, anthropic, openai]
+      planning_capabilities: true
+    visual_reasoning:
+      enabled: true
+      description: "AI-powered visual understanding"
+      ocr_support: true
+      element_detection: true
+      layout_understanding: true
+  
+  # Security considerations
+  security:
+    isolation_level: container
+    network_restrictions: configurable
+    host_access: controlled
+    audit_logging: comprehensive
+    data_persistence: minimal
+    vnc_security: password_protected
+  
+  # Testing and validation
+  testing:
+    test_file: "scripts/__test/resources/single/agents/agent-s2.test.sh"
+    test_coverage:
+      - service_health
+      - ai_task_execution
+      - screenshot_functionality
+      - automation_capabilities
+      - vnc_access
+    fixtures:
+      - test_screenshots
+      - automation_scenarios
+      - visual_validation_data
+    integration_tests:
+      - agent_s2_ollama_planning
+      - multi_modal_workflows
+      - desktop_automation_suite
+  
+  # Documentation and examples
+  documentation:
+    readme: "scripts/resources/agents/agent-s2/README.md"
+    api_reference: "scripts/resources/agents/agent-s2/docs/API.md"
+    examples_dir: "scripts/resources/agents/agent-s2/examples/"
+    configuration: "scripts/resources/agents/agent-s2/docs/CONFIGURATION.md"
+    security: "scripts/resources/agents/agent-s2/docs/SECURITY.md"
+    troubleshooting: "scripts/resources/agents/agent-s2/docs/TROUBLESHOOTING.md"
+  
+  # Version and compatibility
+  version_info:
+    min_version: "2.0.0"
+    tested_version: "2.1.0"
+    api_version: "v1"
+    compatibility_matrix:
+      docker: ">=20.10.0"
+      python: ">=3.9.0"
+      memory: ">=2GB"
+      architecture: [amd64]
+      x11: required
+
+# Metadata for resource discovery and automation
+labels:
+  resource.vrooli.com/category: "agents"
+  resource.vrooli.com/type: "automation"
+  resource.vrooli.com/maturity: "stable"
+  resource.vrooli.com/business-value: "very-high"
+  resource.vrooli.com/ai-friendly: "true"
+  resource.vrooli.com/visual-reasoning: "true"
+  resource.vrooli.com/security-level: "high"

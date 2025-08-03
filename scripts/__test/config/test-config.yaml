@@ -1,280 +1,109 @@
-# Vrooli Test Infrastructure Configuration
-# Central configuration to eliminate hard-coded values and enable parallel execution
+# Vrooli Test Configuration
+# Central configuration for all testing infrastructure
 
-# Global test settings
-global:
-  test_namespace_prefix: "vrooli_test"
-  temp_dir_base: "/dev/shm"
-  temp_dir_fallback: "/tmp"
-  default_timeout: 60
-  max_parallel_tests: 4
-  cleanup_on_exit: true
-  
-# Port allocation strategy
+# Test Environment Settings
+environment:
+  name: "default"
+  tmpdir_base: "/dev/shm"  # Use shared memory for performance
+  tmpdir_fallback: "/tmp"  # Fallback if /dev/shm unavailable
+  namespace_prefix: "vrooli_test"
+
+# Service Port Assignments
 ports:
-  # Base ports for different test categories
-  base_port: 8000
-  port_range: 1000
-  
-  # Reserved port ranges (to avoid conflicts)
-  reserved_ranges:
-    - start: 8080
-      end: 8090
-      description: "Common development ports"
-    - start: 3000
-      end: 3010
-      description: "Node.js development"
-
-# Resource configurations (replaces hard-coded values)
-resources:
   # AI Services
-  ollama:
-    category: "ai"
-    default_port: 11434
-    health_endpoint: "/api/health"
-    startup_timeout: 120
-    health_check_interval: 5
-    container_image: "ollama/ollama:latest"
-    environment:
-      OLLAMA_KEEP_ALIVE: "5m"
-      OLLAMA_HOST: "0.0.0.0"
-    
-  whisper:
-    category: "ai"
-    default_port: 8090
-    health_endpoint: "/health"
-    startup_timeout: 60
-    health_check_interval: 3
-    container_image: "openai/whisper:latest"
-    
-  comfyui:
-    category: "ai"
-    default_port: 8188
-    health_endpoint: "/system_stats"
-    startup_timeout: 180
-    health_check_interval: 5
-    
-  unstructured-io:
-    category: "ai"
-    default_port: 8000
-    health_endpoint: "/healthcheck"
-    startup_timeout: 90
-    health_check_interval: 3
-
-  # Automation Services
-  n8n:
-    category: "automation"
-    default_port: 5678
-    health_endpoint: "/healthz"
-    startup_timeout: 90
-    health_check_interval: 5
-    container_image: "n8nio/n8n:latest"
-    environment:
-      N8N_DISABLE_UI: "false"
-      WEBHOOK_URL: "http://localhost:5678"
-      
-  node-red:
-    category: "automation"
-    default_port: 1880
-    health_endpoint: "/red"
-    startup_timeout: 60
-    health_check_interval: 3
-    
-  huginn:
-    category: "automation"
-    default_port: 3000
-    health_endpoint: "/users/sign_in"
-    startup_timeout: 120
-    health_check_interval: 5
-    
-  windmill:
-    category: "automation"
-    default_port: 8000
-    health_endpoint: "/api/version"
-    startup_timeout: 90
-    health_check_interval: 5
-
-  # Agent Services  
-  agent-s2:
-    category: "agents"
-    default_port: 8080
-    health_endpoint: "/health"
-    startup_timeout: 60
-    health_check_interval: 3
-    
-  browserless:
-    category: "agents"
-    default_port: 3000
-    health_endpoint: "/stats"
-    startup_timeout: 45
-    health_check_interval: 3
-    
-  claude-code:
-    category: "agents"
-    default_port: 8001
-    health_endpoint: "/api/health"
-    startup_timeout: 30
-    health_check_interval: 2
-
+  ollama: 11434
+  whisper: 8080
+  comfyui: 8188
+  unstructured_io: 8000
+  
   # Storage Services
-  redis:
-    category: "storage"
-    default_port: 6379
-    health_endpoint: "ping"  # Special case - Redis PING command
-    startup_timeout: 30
-    health_check_interval: 2
-    container_image: "redis:7-alpine"
-    
-  postgres:
-    category: "storage"
-    default_port: 5432
-    health_endpoint: "select"  # Special case - PostgreSQL SELECT 1
-    startup_timeout: 45
-    health_check_interval: 3
-    
-  qdrant:
-    category: "storage"
-    default_port: 6333
-    health_endpoint: "/collections"
-    startup_timeout: 60
-    health_check_interval: 3
-    
-  questdb:
-    category: "storage"
-    default_port: 9000
-    health_endpoint: "/status"
-    startup_timeout: 45
-    health_check_interval: 3
-    
-  minio:
-    category: "storage"
-    default_port: 9000
-    health_endpoint: "/minio/health/live"
-    startup_timeout: 30
-    health_check_interval: 3
-    
-  vault:
-    category: "storage"
-    default_port: 8200
-    health_endpoint: "/v1/sys/health"
-    startup_timeout: 45
-    health_check_interval: 3
-
+  postgres: 5432
+  redis: 6379
+  minio: 9000
+  qdrant: 6333
+  questdb: 9000
+  vault: 8200
+  
+  # Automation Services
+  n8n: 5678
+  node_red: 1880
+  huginn: 3000
+  windmill: 8000
+  
+  # Agent Services
+  agent_s2: 8080
+  browserless: 3000
+  claude_code: 8080
+  
   # Search Services
-  searxng:
-    category: "search"
-    default_port: 8080
-    health_endpoint: "/healthz"
-    startup_timeout: 60
-    health_check_interval: 3
-    
+  searxng: 8080
+  
   # Execution Services
-  judge0:
-    category: "execution"
-    default_port: 2358
-    health_endpoint: "/system_info"
-    startup_timeout: 90
-    health_check_interval: 5
+  judge0: 2358
 
-# Test environment configurations
-environments:
-  development:
-    resource_cleanup_aggressive: false
-    log_level: "debug"
-    preserve_temp_files: true
-    
-  ci:
-    resource_cleanup_aggressive: true
-    log_level: "info"
-    preserve_temp_files: false
-    parallel_execution: true
-    
-  performance:
-    resource_cleanup_aggressive: true
-    log_level: "error"
-    preserve_temp_files: false
-    parallel_execution: true
-    skip_slow_tests: true
-
-# Mock behavior configurations
-mocks:
-  docker:
-    mock_mode: "normal"  # normal, offline, error
-    simulate_delays: false
-    track_calls: true
-    
-  http:
-    default_timeout: 5
-    simulate_network_errors: false
-    rate_limit_simulation: false
-    
-  filesystem:
-    use_tmpfs: true
-    cleanup_on_failure: true
-
-# Timeout matrix (replaces magic multipliers)
+# Test Timeout Settings (in seconds)
 timeouts:
-  # Base timeouts by test type
-  base:
-    unit: 30
-    integration: 120
-    performance: 300
-    
-  # Multipliers based on test characteristics
-  multipliers:
-    docker_heavy: 2.0
-    model_loading: 4.0
-    network_dependent: 1.5
-    cpu_intensive: 2.5
-    
-  # Specific test patterns
-  patterns:
-    ".*api.*\\.bats$": 120
-    ".*models.*\\.bats$": 240
-    ".*install.*\\.bats$": 180
-    ".*process.*\\.bats$": 90
-    ".*docker.*\\.bats$": 150
-    ".*status.*\\.bats$": 60
-    ".*common.*\\.bats$": 120
+  basic: 60
+  api: 120
+  ai_inference: 300
+  docker_operations: 180
+  integration: 240
+  security: 60
 
-# Logging configuration
-logging:
-  level: "info"  # debug, info, warn, error
-  format: "structured"  # simple, structured
-  output:
-    console: true
-    file: true
-    syslog: false
-  rotation:
-    max_size: "10MB"
-    max_files: 5
-
-# Performance monitoring
-monitoring:
+# Mock Configuration
+mocks:
   enabled: true
-  metrics:
-    execution_time: true
-    memory_usage: true
-    cpu_usage: true
-    disk_io: true
-  alerting:
-    slow_test_threshold: 300  # seconds
-    memory_threshold: "1GB"
-    
-# Resource dependencies (for integration tests)
-dependencies:
-  ollama:
-    requires: []
-    optional: ["qdrant", "redis"]
-    
-  n8n:
-    requires: ["postgres"]
-    optional: ["redis", "vault"]
-    
-  agent-s2:
-    requires: ["postgres", "redis"]
-    optional: ["ollama", "whisper"]
-    
-  windmill:
-    requires: ["postgres"]
-    optional: ["redis", "ollama"]
+  lazy_loading: true
+  cache_responses: true
+  response_cache_ttl: 3600  # 1 hour
+
+# Test Data Locations
+data:
+  images: "integration/data/images"
+  documents: "integration/data/documents"
+  audio: "integration/data/audio"
+  workflows: "integration/data/workflows"
+
+# Logging Configuration
+logging:
+  level: "INFO"  # DEBUG, INFO, WARN, ERROR
+  format: "[%timestamp] [%level] [%component] %message"
+  file: "/tmp/vrooli-test.log"
+  console: true
+
+# Performance Settings
+performance:
+  parallel_enabled: true
+  max_parallel_tests: 4
+  cache_enabled: true
+  cache_ttl: 86400  # 24 hours
+  memory_limit: "1G"
+
+# Health Check Settings
+health_checks:
+  timeout: 30
+  retry_count: 3
+  retry_delay: 5
+  required_services: []  # Empty means auto-detect
+
+# Test Categories
+categories:
+  unit:
+    description: "Fast, isolated tests with mocks"
+    timeout_multiplier: 1
+    parallel_safe: true
+  
+  integration:
+    description: "Tests against real services"
+    timeout_multiplier: 2
+    parallel_safe: false
+  
+  security:
+    description: "Security-focused validation"
+    timeout_multiplier: 1.5
+    parallel_safe: true
+  
+  performance:
+    description: "Performance and benchmark tests"
+    timeout_multiplier: 3
+    parallel_safe: false

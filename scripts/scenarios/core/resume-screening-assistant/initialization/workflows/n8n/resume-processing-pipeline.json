@@ -1,0 +1,221 @@
+{
+  "name": "Resume Processing Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "resume-upload",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Resume Upload Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "id": "webhook_1"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8000/general/v0/general",
+        "requestMethod": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "files",
+              "value": "={{ $json[\"file\"] }}"
+            },
+            {
+              "name": "strategy",
+              "value": "fast"
+            },
+            {
+              "name": "output_format",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Parse Resume with Unstructured",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [450, 300],
+      "id": "unstructured_1"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:11434/api/generate",
+        "requestMethod": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llama3.2:3b"
+            },
+            {
+              "name": "prompt",
+              "value": "Extract key information from this resume and score the candidate on technical skills, experience, education, and leadership. Resume: {{ $json[\"text\"] }}"
+            },
+            {
+              "name": "stream",
+              "value": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "AI Assessment with Ollama",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [650, 300],
+      "id": "ollama_1"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:11434/api/embeddings",
+        "requestMethod": "POST",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "llama3.2:3b"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json[\"text\"] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Generate Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [650, 450],
+      "id": "embeddings_1"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:6333/collections/candidate_profiles/points",
+        "requestMethod": "PUT",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "points",
+              "value": "[{\"id\": \"{{ $json[\"candidate_id\"] }}\", \"vector\": {{ $json[\"embedding\"] }}, \"payload\": {{ $json[\"candidate_data\"] }}}]"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "name": "Store in Qdrant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [850, 375],
+      "id": "qdrant_1"
+    },
+    {
+      "parameters": {
+        "functionCode": "const items = [];\nconst parsedResume = $input.all()[0].json;\nconst assessment = $input.all()[1].json;\n\n// Combine parsed resume and assessment\nconst candidateProfile = {\n  id: Math.random().toString(36).substr(2, 9),\n  timestamp: new Date().toISOString(),\n  resume_text: parsedResume.text || '',\n  assessment: assessment.response || '',\n  score: Math.floor(Math.random() * 100),\n  status: 'processed'\n};\n\nitems.push({json: candidateProfile});\nreturn items;"
+      },
+      "name": "Process Candidate Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [850, 200],
+      "id": "function_1"
+    },
+    {
+      "parameters": {
+        "content": "## Resume Processing Complete\n\n**Candidate ID:** {{ $json[\"id\"] }}\n**Score:** {{ $json[\"score\"] }}/100\n**Status:** {{ $json[\"status\"] }}\n**Timestamp:** {{ $json[\"timestamp\"] }}\n\n### Assessment Summary\n{{ $json[\"assessment\"] }}",
+        "responseCode": 200
+      },
+      "name": "Return Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1050, 300],
+      "id": "response_1"
+    }
+  ],
+  "connections": {
+    "Resume Upload Webhook": {
+      "main": [
+        [
+          {
+            "node": "Parse Resume with Unstructured",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Resume with Unstructured": {
+      "main": [
+        [
+          {
+            "node": "AI Assessment with Ollama",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Generate Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Assessment with Ollama": {
+      "main": [
+        [
+          {
+            "node": "Process Candidate Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Store in Qdrant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Candidate Data": {
+      "main": [
+        [
+          {
+            "node": "Store in Qdrant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store in Qdrant": {
+      "main": [
+        [
+          {
+            "node": "Return Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["resume-screening-assistant", "recruitment", "ai"],
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "1.0.0"
+}

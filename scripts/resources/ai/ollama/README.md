@@ -192,6 +192,42 @@ ollama rm real-estate-v1
 
 See the [Models Guide](docs/MODELS.md) for 50+ additional models.
 
+## 🧪 Testing & Examples
+
+### Individual Resource Tests
+- **Test Location**: `scripts/__test/resources/single/ai/ollama.test.sh`
+- **Test Coverage**: Health checks, model listing, text generation, API functionality
+- **Run Test**: `cd scripts/__test/resources && ./quick-test.sh ollama`
+
+### Working Examples
+- **Examples Folder**: [examples/](examples/)
+- **Basic Usage**: Simple text generation and API calls
+- **Integration Examples**: Multi-resource workflows combining Ollama with other services
+- **Model Management**: Creating and using custom specialized models
+
+### Integration with Scenarios
+Ollama is used in these business scenarios:
+- **[Multi-Modal AI Assistant](../../scenarios/core/multi-modal-ai-assistant/)** - Voice + AI + visual workflows ($10k-25k projects)
+- **[Research Assistant](../../scenarios/core/research-assistant/)** - Knowledge management and analysis ($10k-25k projects)  
+- **[AI Content Assistant](../../scenarios/core/ai-content-assistant-example/)** - Content creation workflows ($8k-20k projects)
+- **[Document Intelligence Pipeline](../../scenarios/core/document-intelligence-pipeline/)** - Document processing ($15k-30k projects)
+
+### Test Fixtures
+- **Shared Test Data**: `scripts/__test/resources/fixtures/documents/` (prompts, text samples)
+- **Audio Fixtures**: `scripts/__test/resources/fixtures/audio/` (for multi-modal scenarios)
+
+### Quick Test Commands
+```bash
+# Test individual Ollama functionality
+./scripts/__test/resources/quick-test.sh ollama
+
+# Test in real business scenarios
+cd ./scripts/scenarios/core/research-assistant && ./test.sh
+
+# Run all tests using Ollama
+./scripts/scenarios/tools/test-by-resource.sh --resource ollama
+```
+
 ## 🔗 Quick Links
 
 - **Web UI**: http://localhost:11434

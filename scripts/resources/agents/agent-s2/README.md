@@ -188,6 +188,44 @@ The AI layer intelligently orchestrates core automation functions to achieve com
 - View logs: `./manage.sh --action logs`
 - Test functionality: `./manage.sh --action usage --usage-type all`
 
+## 🧪 Testing & Examples
+
+### Individual Resource Tests
+- **Test Location**: `scripts/__test/resources/single/agents/agent-s2.test.sh`
+- **Test Coverage**: Service health, AI task execution, screenshot functionality, automation capabilities
+- **Run Test**: `cd scripts/__test/resources && ./quick-test.sh agent-s2`
+
+### Working Examples
+- **Examples Folder**: [examples/](examples/)
+- **Progressive Tutorials**: 
+  - `01-getting-started/` - Basic usage and setup
+  - `02-basic-automation/` - Core automation features
+  - `03-advanced-features/` - Complex workflows and integrations
+  - `04-ai-integration/` - AI-powered natural language automation
+- **Integration Examples**: Multi-resource workflows combining Agent-S2 with Ollama, Whisper, and ComfyUI
+
+### Integration with Scenarios
+Agent-S2 is used in these business scenarios:
+- **[Multi-Modal AI Assistant](../../scenarios/core/multi-modal-ai-assistant/)** - Voice + visual + screen automation ($10k-25k projects)
+- **[Intelligent Desktop Assistant](../../scenarios/core/intelligent-desktop-assistant/)** - Desktop automation workflows ($8k-18k projects)
+- **[Business Process Automation](../../scenarios/core/business-process-automation/)** - Automated business workflows ($12k-35k projects)
+
+### Test Fixtures
+- **Shared Test Data**: `scripts/__test/resources/fixtures/images/` (test screenshots and visual validation)
+- **Integration Data**: `scripts/__test/resources/fixtures/workflows/` (automation scenarios)
+
+### Quick Test Commands
+```bash
+# Test individual Agent-S2 functionality
+./scripts/__test/resources/quick-test.sh agent-s2
+
+# Test in business scenarios
+cd ./scripts/scenarios/core/multi-modal-ai-assistant && ./test.sh
+
+# Run all tests using Agent-S2
+./scripts/scenarios/tools/test-by-resource.sh --resource agent-s2
+```
+
 ## 📦 What's Included
 
 ```
