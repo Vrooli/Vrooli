@@ -410,4 +410,251 @@ describe("AuthCommands", () => {
             expect(outputMock.warn).toHaveBeenCalledWith("No user data found");
         });
     });
+
+    describe("reset-password command", () => {
+        it("should register reset-password command", () => {
+            const authCmd = program.commands.find(cmd => cmd.name() === "auth");
+            const subCommands = authCmd?.commands.map(cmd => cmd.name());
+            expect(subCommands).toContain("reset-password");
+        });
+
+        it("should reset password successfully with provided email", async () => {
+            vi.mocked(client.post)
+                .mockResolvedValueOnce({}) // requestPasswordChange response
+                .mockResolvedValueOnce({}); // resetPassword response
+
+            // Mock prompt responses for reset code and new password
+            vi.mocked(inquirer.prompt)
+                .mockResolvedValueOnce({
+                    code: "reset123",
+                    newPassword: "newPassword123",
+                    confirmPassword: "newPassword123",
+                });
+
+            await program.parseAsync(["node", "cli", "auth", "reset-password", "-e", "test@example.com"]);
+
+            expect(vi.mocked(client.post)).toHaveBeenNthCalledWith(1, "/auth/email/requestPasswordChange", {
+                email: "test@example.com",
+            });
+            expect(vi.mocked(client.post)).toHaveBeenNthCalledWith(2, "/auth/email/resetPassword", {
+                code: "reset123",
+                newPassword: "newPassword123",
+            });
+            expect(outputMock.success).toHaveBeenCalledWith(expect.stringContaining("✓ Password reset email sent"));
+            expect(outputMock.success).toHaveBeenCalledWith(expect.stringContaining("✓ Password reset successfully"));
+        });
+
+        it("should prompt for email when not provided", async () => {
+            vi.mocked(inquirer.prompt)
+                .mockResolvedValueOnce({ email: "prompt@example.com" })
+                .mockResolvedValueOnce({
+                    code: "reset123",
+                    newPassword: "newPassword123",
+                    confirmPassword: "newPassword123",
+                });
+
+            vi.mocked(client.post)
+                .mockResolvedValueOnce({})
+                .mockResolvedValueOnce({});
+
+            await program.parseAsync(["node", "cli", "auth", "reset-password"]);
+
+            expect(vi.mocked(inquirer.prompt)).toHaveBeenCalledWith([{
+                type: "input",
+                name: "email",
+                message: "Email address:",
+                validate: expect.any(Function),
+            }]);
+            expect(vi.mocked(client.post)).toHaveBeenNthCalledWith(1, "/auth/email/requestPasswordChange", {
+                email: "prompt@example.com",
+            });
+        });
+
+        it("should validate email format in prompt", async () => {
+            vi.mocked(inquirer.prompt)
+                .mockResolvedValueOnce({ email: "test@example.com" })
+                .mockResolvedValueOnce({
+                    code: "reset123",
+                    newPassword: "newPassword123",
+                    confirmPassword: "newPassword123",
+                });
+
+            vi.mocked(client.post)
+                .mockResolvedValueOnce({})
+                .mockResolvedValueOnce({});
+
+            await program.parseAsync(["node", "cli", "auth", "reset-password"]);
+
+            const emailPromptConfig = vi.mocked(inquirer.prompt).mock.calls[0][0] as any;
+            const emailValidation = emailPromptConfig[0].validate;
+
+            expect(emailValidation("invalid-email")).toBe("Please enter a valid email address");
+            expect(emailValidation("valid@email.com")).toBe(true);
+        });
+
+        it("should validate password requirements and confirmation", async () => {
+            vi.mocked(inquirer.prompt)
+                .mockResolvedValueOnce({ email: "test@example.com" })
+                .mockResolvedValueOnce({
+                    code: "reset123",
+                    newPassword: "newPassword123",
+                    confirmPassword: "newPassword123",
+                });
+
+            vi.mocked(client.post)
+                .mockResolvedValueOnce({})
+                .mockResolvedValueOnce({});
+
+            await program.parseAsync(["node", "cli", "auth", "reset-password"]);
+
+            const resetPromptConfig = vi.mocked(inquirer.prompt).mock.calls[1][0] as any;
+            
+            // Test password validation
+            const passwordValidation = resetPromptConfig[1].validate;
+            expect(passwordValidation("short")).toContain("Password must be at least");
+            expect(passwordValidation("longEnoughPassword")).toBe(true);
+
+            // Test password confirmation validation
+            const confirmValidation = resetPromptConfig[2].validate;
+            expect(confirmValidation("different", { newPassword: "original" })).toBe("Passwords do not match");
+            expect(confirmValidation("same", { newPassword: "same" })).toBe(true);
+        });
+
+        it("should output JSON when JSON mode is enabled", async () => {
+            vi.mocked(config.isJsonOutput).mockReturnValue(true);
+            vi.mocked(client.post)
+                .mockResolvedValueOnce({})
+                .mockResolvedValueOnce({});
+
+            vi.mocked(inquirer.prompt)
+                .mockResolvedValueOnce({
+                    code: "reset123",
+                    newPassword: "newPassword123",
+                    confirmPassword: "newPassword123",
+                });
+
+            await program.parseAsync(["node", "cli", "auth", "reset-password", "-e", "test@example.com"]);
+
+            expect(outputMock.json).toHaveBeenCalledWith({ success: true });
+        });
+
+        it("should handle password reset request failure", async () => {
+            vi.mocked(client.post).mockRejectedValue(new Error("Email not found"));
+
+            await expect(program.parseAsync(["node", "cli", "auth", "reset-password", "-e", "test@example.com"]))
+                .rejects.toThrow("Process exited with code 1");
+
+            expect(outputMock.error).toHaveBeenCalledWith(expect.stringContaining("✗ Password reset failed: Email not found"));
+        });
+
+        it("should handle password reset completion failure", async () => {
+            vi.mocked(client.post)
+                .mockResolvedValueOnce({}) // requestPasswordChange succeeds
+                .mockRejectedValue(new Error("Invalid reset code")); // resetPassword fails
+
+            vi.mocked(inquirer.prompt)
+                .mockResolvedValueOnce({
+                    code: "invalid123",
+                    newPassword: "newPassword123",
+                    confirmPassword: "newPassword123",
+                });
+
+            await expect(program.parseAsync(["node", "cli", "auth", "reset-password", "-e", "test@example.com"]))
+                .rejects.toThrow("Process exited with code 1");
+
+            expect(outputMock.error).toHaveBeenCalledWith(expect.stringContaining("✗ Password reset failed: Invalid reset code"));
+        });
+
+        it("should handle missing email error", async () => {
+            vi.mocked(inquirer.prompt).mockResolvedValueOnce({ email: "" });
+
+            await expect(program.parseAsync(["node", "cli", "auth", "reset-password"]))
+                .rejects.toThrow("Process exited with code 1");
+
+            expect(outputMock.error).toHaveBeenCalledWith(expect.stringContaining("✗ Password reset failed: Email is required"));
+        });
+    });
+
+    describe("verify-email command", () => {
+        it("should register verify-email command", () => {
+            const authCmd = program.commands.find(cmd => cmd.name() === "auth");
+            const subCommands = authCmd?.commands.map(cmd => cmd.name());
+            expect(subCommands).toContain("verify-email");
+        });
+
+        it("should verify email successfully with provided code", async () => {
+            vi.mocked(client.post).mockResolvedValue({});
+
+            await program.parseAsync(["node", "cli", "auth", "verify-email", "-c", "verify123"]);
+
+            expect(vi.mocked(client.post)).toHaveBeenCalledWith("/email/verify", {
+                code: "verify123",
+            });
+            expect(outputMock.success).toHaveBeenCalledWith(expect.stringContaining("✓ Email verified successfully"));
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("Your email is now verified"));
+        });
+
+        it("should prompt for code when not provided", async () => {
+            vi.mocked(inquirer.prompt).mockResolvedValueOnce({ code: "prompt123" });
+            vi.mocked(client.post).mockResolvedValue({});
+
+            await program.parseAsync(["node", "cli", "auth", "verify-email"]);
+
+            expect(vi.mocked(inquirer.prompt)).toHaveBeenCalledWith([{
+                type: "input",
+                name: "code",
+                message: "Enter the verification code from your email:",
+                validate: expect.any(Function),
+            }]);
+            expect(vi.mocked(client.post)).toHaveBeenCalledWith("/email/verify", {
+                code: "prompt123",
+            });
+        });
+
+        it("should validate code in prompt", async () => {
+            vi.mocked(inquirer.prompt).mockResolvedValueOnce({ code: "verify123" });
+            vi.mocked(client.post).mockResolvedValue({});
+
+            await program.parseAsync(["node", "cli", "auth", "verify-email"]);
+
+            const promptConfig = vi.mocked(inquirer.prompt).mock.calls[0][0] as any;
+            const codeValidation = promptConfig[0].validate;
+
+            expect(codeValidation("")).toBe("Verification code is required");
+            expect(codeValidation("valid-code")).toBe(true);
+        });
+
+        it("should output JSON when JSON mode is enabled", async () => {
+            vi.mocked(config.isJsonOutput).mockReturnValue(true);
+            vi.mocked(client.post).mockResolvedValue({});
+
+            await program.parseAsync(["node", "cli", "auth", "verify-email", "-c", "verify123"]);
+
+            expect(outputMock.json).toHaveBeenCalledWith({ success: true });
+        });
+
+        it("should handle verification failure", async () => {
+            vi.mocked(client.post).mockRejectedValue(new Error("Invalid verification code"));
+
+            await expect(program.parseAsync(["node", "cli", "auth", "verify-email", "-c", "invalid123"]))
+                .rejects.toThrow("Process exited with code 1");
+
+            expect(outputMock.error).toHaveBeenCalledWith(expect.stringContaining("✗ Email verification failed: Invalid verification code"));
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("Make sure you have the correct verification code"));
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("Codes typically expire after a few minutes"));
+        });
+
+        it("should handle verification failure in JSON mode", async () => {
+            vi.mocked(config.isJsonOutput).mockReturnValue(true);
+            vi.mocked(client.post).mockRejectedValue(new Error("Invalid code"));
+
+            await expect(program.parseAsync(["node", "cli", "auth", "verify-email", "-c", "invalid123"]))
+                .rejects.toThrow("Process exited with code 1");
+
+            expect(outputMock.json).toHaveBeenCalledWith({
+                success: false,
+                error: "Invalid code",
+            });
+        });
+    });
 });

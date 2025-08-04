@@ -29,5 +29,14 @@
     "@vitejs/plugin-react-swc": "^3.7.1",
     "vite": "^5.4.7"
   },
-  "packageManager": "pnpm@10.5.2"
+  "packageManager": "pnpm@10.5.2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Vrooli/Vrooli.git",
+    "directory": "packages/extension"
+  },
+  "bugs": {
+    "url": "https://github.com/Vrooli/Vrooli/issues"
+  },
+  "homepage": "https://vrooli.com"
 }

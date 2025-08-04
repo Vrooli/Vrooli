@@ -60,5 +60,14 @@
   },
   "engines": {
     "node": ">=18.0.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Vrooli/Vrooli.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/Vrooli/Vrooli/issues"
+  },
+  "homepage": "https://vrooli.com"
 }

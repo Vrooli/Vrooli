@@ -672,7 +672,7 @@ describe("InteractiveChatEngine", () => {
     });
 
     describe("error handling and cleanup", () => {
-        it("should handle process.exit in cleanup", async () => {
+        it("should properly cleanup session without calling process.exit", async () => {
             const processExitSpy = vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
 
             const engine = new InteractiveChatEngine(
@@ -690,7 +690,8 @@ describe("InteractiveChatEngine", () => {
 
             await engine.cleanup();
 
-            expect(processExitSpy).toHaveBeenCalledWith(0);
+            // process.exit should NOT be called in cleanup (removed per comment in implementation)
+            expect(processExitSpy).not.toHaveBeenCalled();
 
             processExitSpy.mockRestore();
         });

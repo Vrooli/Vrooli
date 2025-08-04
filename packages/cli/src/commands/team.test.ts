@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-08-04
 import { Command } from "commander";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as fs from "fs/promises";
@@ -1085,7 +1086,7 @@ describe("TeamCommands", () => {
                 expect(client.get).toHaveBeenCalledWith("/team/team1");
             });
 
-            it.skip("should handle monitorTeam with valid options", async () => {
+            it("should handle monitorTeam with valid options", async () => {
                 const mockTeam = {
                     id: "team1",
                     translations: [{ name: "Test Team" }],

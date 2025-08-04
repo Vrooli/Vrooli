@@ -349,7 +349,7 @@ describe("RoutineCommands", () => {
             (fs.readFile as any).mockResolvedValue("invalid json");
 
             await expect(
-                program.parseAsync(["node", "test", "routine", "import", "./routine.json"])
+                program.parseAsync(["node", "test", "routine", "import", "./routine.json"]),
             ).rejects.toThrow("Import failed:");
 
             expect(output.error).toHaveBeenCalledWith(expect.stringContaining("Import failed:"));
@@ -359,7 +359,7 @@ describe("RoutineCommands", () => {
             (fs.readFile as any).mockRejectedValue(new Error("File not found"));
 
             await expect(
-                program.parseAsync(["node", "test", "routine", "import", "./routine.json"])
+                program.parseAsync(["node", "test", "routine", "import", "./routine.json"]),
             ).rejects.toThrow("Import failed:");
 
             expect(output.error).toHaveBeenCalledWith(expect.stringContaining("Import failed:"));
@@ -472,7 +472,7 @@ describe("RoutineCommands", () => {
             });
 
             await expect(
-                program.parseAsync(["node", "test", "routine", "import-dir", "./routines", "--fail-fast"])
+                program.parseAsync(["node", "test", "routine", "import-dir", "./routines", "--fail-fast"]),
             ).rejects.toThrow("Directory import failed");
 
             expect(output.info).toHaveBeenCalledWith(expect.stringContaining("Found 2 file(s) to import"));
@@ -513,7 +513,7 @@ describe("RoutineCommands", () => {
 
         it("should export a routine to file", async () => {
             (mockClient.requestWithEndpoint as any).mockResolvedValue(mockRoutine);
-            
+
             // Mock the fs/promises module used by writeJsonFile
             const fsPromises = await import("fs/promises");
 
@@ -533,7 +533,7 @@ describe("RoutineCommands", () => {
 
         it("should export to default filename when no output specified", async () => {
             (mockClient.requestWithEndpoint as any).mockResolvedValue(mockRoutine);
-            
+
             // Mock the fs/promises module used by writeJsonFile
             const fsPromises = await import("fs/promises");
 
@@ -550,7 +550,7 @@ describe("RoutineCommands", () => {
             (mockClient.requestWithEndpoint as any).mockRejectedValue(new Error("Not found"));
 
             await expect(
-                program.parseAsync(["node", "test", "routine", "export", "invalid-id"])
+                program.parseAsync(["node", "test", "routine", "export", "invalid-id"]),
             ).rejects.toThrow("Export failed: Not found");
 
             expect(output.error).toHaveBeenCalledWith(expect.stringContaining("Export failed: Not found"));
@@ -588,7 +588,7 @@ describe("RoutineCommands", () => {
             (fs.readFile as any).mockResolvedValue(JSON.stringify(invalidRoutine));
 
             await expect(
-                program.parseAsync(["node", "test", "routine", "validate", "./routine.json"])
+                program.parseAsync(["node", "test", "routine", "validate", "./routine.json"]),
             ).rejects.toThrow("Validation error:");
 
             expect(output.info).toHaveBeenCalledWith("🔍 Validating routine file...\n");
@@ -598,7 +598,7 @@ describe("RoutineCommands", () => {
             (fs.readFile as any).mockResolvedValue("{ invalid json");
 
             await expect(
-                program.parseAsync(["node", "test", "routine", "validate", "./routine.json"])
+                program.parseAsync(["node", "test", "routine", "validate", "./routine.json"]),
             ).rejects.toThrow("Validation error:");
 
             expect(output.error).toHaveBeenCalledWith(expect.stringContaining("Validation error:"));
@@ -615,7 +615,7 @@ describe("RoutineCommands", () => {
             (fs.readFile as any).mockResolvedValue(JSON.stringify(invalidRoutine));
 
             await expect(
-                program.parseAsync(["node", "test", "routine", "validate", "./routine.json"])
+                program.parseAsync(["node", "test", "routine", "validate", "./routine.json"]),
             ).rejects.toThrow("Validation error:");
 
             expect(output.error).toHaveBeenCalledWith(expect.stringContaining("Validation error:"));

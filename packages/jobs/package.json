@@ -78,5 +78,14 @@
     "testcontainers": "^10.18.0",
     "vitest": "~3.0.9"
   },
-  "packageManager": "pnpm@10.5.2"
+  "packageManager": "pnpm@10.5.2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Vrooli/Vrooli.git",
+    "directory": "packages/jobs"
+  },
+  "bugs": {
+    "url": "https://github.com/Vrooli/Vrooli/issues"
+  },
+  "homepage": "https://vrooli.com"
 }

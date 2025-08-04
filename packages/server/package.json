@@ -1,183 +1,192 @@
 {
-    "name": "@vrooli/server",
-    "author": "Vrooli",
-    "license": "AGPL-3.0-only",
-    "version": "2.0.2",
-    "private": true,
-    "main": "dist/index.js",
-    "type": "module",
-    "typings": "src/types.d.ts",
-    "exports": {
-        ".": {
-            "import": "./dist/index.js",
-            "types": "./src/index.ts"
-        },
-        "./auth": {
-            "import": "./dist/auth/index.js",
-            "types": "./src/auth/index.ts"
-        },
-        "./db": {
-            "import": "./dist/db/provider.js",
-            "types": "./src/db/provider.ts"
-        },
-        "./cache": {
-            "import": "./dist/redisConn.js",
-            "types": "./src/redisConn.ts"
-        },
-        "./events": {
-            "import": "./dist/events/index.js",
-            "types": "./src/events/index.ts"
-        },
-        "./logger": {
-            "import": "./dist/events/logger.js",
-            "types": "./src/events/logger.ts"
-        },
-        "./utils": {
-            "import": "./dist/utils/index.js",
-            "types": "./src/utils/index.ts"
-        },
-        "./batch": {
-            "import": "./dist/utils/batch.js",
-            "types": "./src/utils/batch.ts"
-        },
-        "./models": {
-            "import": "./dist/models/index.js",
-            "types": "./src/models/index.ts"
-        },
-        "./tasks": {
-            "import": "./dist/tasks/index.js",
-            "types": "./src/tasks/index.ts"
-        },
-        "./services": {
-            "import": "./dist/services/index.js",
-            "types": "./src/services/index.ts"
-        },
-        "./endpoints": {
-            "import": "./dist/endpoints/logic/index.js",
-            "types": "./src/endpoints/logic/index.ts"
-        },
-        "./test-fixtures": {
-            "import": "./test-dist/__test/fixtures/db/factories/index.js",
-            "types": "./src/__test/fixtures/db/factories/index.ts"
-        }
+  "name": "@vrooli/server",
+  "author": "Vrooli",
+  "license": "AGPL-3.0-only",
+  "version": "2.0.2",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Vrooli/Vrooli.git",
+    "directory": "packages/server"
+  },
+  "bugs": {
+    "url": "https://github.com/Vrooli/Vrooli/issues"
+  },
+  "homepage": "https://vrooli.com",
+  "private": true,
+  "main": "dist/index.js",
+  "type": "module",
+  "typings": "src/types.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./src/index.ts"
     },
-    "prisma": {
-        "schema": "./src/db/schema.prisma",
-        "seed": "./dist/db/seeds/init.js"
+    "./auth": {
+      "import": "./dist/auth/index.js",
+      "types": "./src/auth/index.ts"
     },
-    "scripts": {
-        "pretest": "cd ../shared && pnpm run build:test",
-        "test": "bash ../../scripts/package-test.sh server",
-        "test:single": "cd ../shared && pnpm run build:test && cd ../server && VITEST_CONFIG=single node --no-warnings $(which vitest) -c vitest.config.single.ts",
-        "test:parallel": "cd ../shared && pnpm run build:test && cd ../server && VITEST_CONFIG=parallel node --no-warnings $(which vitest) -c vitest.config.parallel.ts",
-        "test:auto": "cd ../shared && pnpm run build:test && cd ../server && node --no-warnings $(which vitest)",
-        "test:debug": "cd ../shared && pnpm run build:test && cd ../server && LOG_LEVEL=debug VITEST_CONFIG=single node --no-warnings $(which vitest) -c vitest.config.single.ts --no-coverage",
-        "test-watch": "cd ../shared && pnpm run build:test && cd ../server && node --no-warnings $(which vitest) -c vitest.config.ts",
-        "test-coverage": "cd ../shared && pnpm run build:test && cd ../server && NODE_OPTIONS='--max-old-space-size=8192' node --no-warnings $(which vitest) run -c vitest.config.ts --coverage",
-        "test-coverage:single": "cd ../shared && pnpm run build:test && cd ../server && VITEST_CONFIG=single NODE_OPTIONS='--max-old-space-size=8192' node --no-warnings $(which vitest) run -c vitest.config.single.ts --coverage",
-        "test-coverage:parallel": "cd ../shared && pnpm run build:test && cd ../server && VITEST_CONFIG=parallel NODE_OPTIONS='--max-old-space-size=8192' node --no-warnings $(which vitest) run -c vitest.config.parallel.ts --coverage",
-        "lint": "eslint src --ignore-pattern '**/__test/**' --ignore-pattern '**/*.test.ts' --ignore-pattern '**/*.spec.ts' --ignore-pattern '**/*.test.hybrid.ts' --cache --cache-location .eslintcache --fix",
-        "lint:test": "eslint 'src/**/*.test.ts' --config .eslintrc.test.cjs --cache --cache-location .eslintcache.test --fix",
-        "lint:all": "pnpm run lint && pnpm run lint:test",
-        "build": "rimraf dist && cross-env NODE_ENV=production swc src -d dist --source-maps --ignore \"**/*.test.ts,**/*.test.js,**/*.test.tsx,**/*.test.jsx,**/*.test.cjs,**/*.d.ts,**/__test/**\" && pnpm run post-build && pnpm run build:types",
-        "build:types": "tsc --emitDeclarationOnly --declaration --declarationMap",
-        "build:test": "rimraf test-dist && cross-env NODE_ENV=test swc src -d test-dist --source-maps && pnpm run post-build:test",
-        "pre-prod": "pnpm run prisma:migrate && pnpm run prisma:generate",
-        "pre-develop": "pnpm run pre-prod",
-        "post-build": "run-s post-build-copy post-build-fix-imports",
-        "post-build:test": "run-s post-build-copy:test post-build-fix-imports:test",
-        "post-build-copy": "copyfiles -u 1 \"src/**/*.txt\" \"src/**/*.lua\" \"src/**/*.html\" \"src/**/*.prisma\" \"src/**/*.sql\" \"src/**/*.json\" \"src/auth/message_signing/rust/pkg/*.wasm\" \"src/auth/message_signing/rust/pkg/emurgo_message_signing.cjs\" dist",
-        "post-build-copy:test": "copyfiles -u 1 \"src/**/*.txt\" \"src/**/*.lua\" \"src/**/*.html\" \"src/**/*.prisma\" \"src/**/*.sql\" \"src/**/*.json\" \"src/auth/message_signing/rust/pkg/*.wasm\" \"src/auth/message_signing/rust/pkg/emurgo_message_signing.cjs\" test-dist",
-        "post-build-fix-imports": "sh ../../scripts/fixImports.sh assert dist",
-        "post-build-fix-imports:test": "sh ../../scripts/fixImports.sh assert test-dist",
-        "start-development": "cross-env NODE_OPTIONS=--max-old-space-size=4096 nodemon dist/index.js",
-        "start-production": "node --experimental-modules --experimental-specifier-resolution=node dist/index.js",
-        "type-check": "cross-env NODE_OPTIONS='--max-old-space-size=4096 --no-deprecation' tsc --noEmit",
-        "type-check:test": "cross-env NODE_OPTIONS='--max-old-space-size=4096 --no-deprecation' tsc --noEmit -p tsconfig.test.json",
-        "type-check:all": "pnpm run type-check && pnpm run type-check:test",
-        "validate": "pnpm run lint && pnpm run type-check",
-        "validate:all": "pnpm run lint:all && pnpm run type-check:all",
-        "prisma:generate": "prisma generate",
-        "prisma:migrate": "prisma migrate deploy"
+    "./db": {
+      "import": "./dist/db/provider.js",
+      "types": "./src/db/provider.ts"
     },
-    "dependencies": {
-        "@anthropic-ai/sdk": "^0.16.0",
-        "@aws-sdk/client-s3": "^3.666.0",
-        "@emurgo/cardano-serialization-lib-nodejs": "^9.1.2",
-        "@mistralai/mistralai": "^0.2.0",
-        "@modelcontextprotocol/sdk": "^1.5.0",
-        "@prisma/client": "6.1.0",
-        "@socket.io/redis-adapter": "^8.3.0",
-        "@swc/cli": "^0.1.63",
-        "@swc/core": "^1.3.104",
-        "@vrooli/shared": "workspace:*",
-        "bcrypt": "^5.0.1",
-        "bcryptjs": "^3.0.2",
-        "bullmq": "^5.52.2",
-        "busboy": "^1.6.0",
-        "cookie": "^0.7.2",
-        "cors": "^2.8.5",
-        "cross-env": "^7.0.3",
-        "express": "^5.0.1",
-        "file-type": "^20.0.0",
-        "form-data": "^4.0.3",
-        "glob": "^11.0.0",
-        "heic-convert": "^1.2.4",
-        "i18next": "^22.4.10",
-        "ioredis": "^5.6.1",
-        "isolated-vm": "^5.0.1",
-        "jsonwebtoken": "^9.0.0",
-        "lodash": "^4.17.21",
-        "mqtt-match": "^3.0.0",
-        "node-cron": "^3.0.0",
-        "node-fetch": "^3.2.10",
-        "node-ical": "^0.15.3",
-        "nodejs-snowflake": "^2.0.1",
-        "nodemailer": "^6.6.0",
-        "openai": "4.103.0",
-        "passport": "^0.7.0",
-        "passport-google-oauth20": "^2.0.0",
-        "passport-local": "^1.0.0",
-        "prisma": "6.1.0",
-        "rimraf": "^5.0.10",
-        "sharp": "^0.32.3",
-        "socket.io": "^4.6.2",
-        "stopword": "^2.0.8",
-        "stripe": "^11.17.0",
-        "superjson": "^2.2.1",
-        "tiktoken": "^1.0.20",
-        "twilio": "^4.23.0",
-        "web-push": "^3.5.0",
-        "winston": "^3.12.0",
-        "yup": "^1.3.3"
+    "./cache": {
+      "import": "./dist/redisConn.js",
+      "types": "./src/redisConn.ts"
     },
-    "devDependencies": {
-        "0x": "^5.5.0",
-        "@types/bcrypt": "^5.0.0",
-        "@types/bcryptjs": "^3.0.0",
-        "@types/cookie-parser": "^1.4.2",
-        "@types/express": "^4.17.11",
-        "@types/heic-convert": "^1.2.0",
-        "@types/jsonwebtoken": "^8.5.5",
-        "@types/node": "^17.0.35",
-        "@types/node-cron": "^3.0.1",
-        "@types/nodemailer": "^6.4.4",
-        "@types/passport": "^1.0.17",
-        "@types/stopword": "^2.0.0",
-        "@types/supertest": "^6.0.3",
-        "@types/web-push": "^3.3.2",
-        "@vitest/coverage-v8": "^3.0.9",
-        "copyfiles": "^2.4.1",
-        "dotenv-cli": "^8.0.0",
-        "jsdom": "^26.0.0",
-        "nodemon": "3.0.2",
-        "npm-run-all": "^4.1.5",
-        "supertest": "^7.1.3",
-        "testcontainers": "^10.18.0",
-        "typescript": "5.8.3",
-        "typescript-json-schema": "^0.65.1",
-        "vitest": "~3.0.9",
-        "why-is-node-running": "^2.3.0"
+    "./events": {
+      "import": "./dist/events/index.js",
+      "types": "./src/events/index.ts"
     },
-    "packageManager": "pnpm@10.5.2"
+    "./logger": {
+      "import": "./dist/events/logger.js",
+      "types": "./src/events/logger.ts"
+    },
+    "./utils": {
+      "import": "./dist/utils/index.js",
+      "types": "./src/utils/index.ts"
+    },
+    "./batch": {
+      "import": "./dist/utils/batch.js",
+      "types": "./src/utils/batch.ts"
+    },
+    "./models": {
+      "import": "./dist/models/index.js",
+      "types": "./src/models/index.ts"
+    },
+    "./tasks": {
+      "import": "./dist/tasks/index.js",
+      "types": "./src/tasks/index.ts"
+    },
+    "./services": {
+      "import": "./dist/services/index.js",
+      "types": "./src/services/index.ts"
+    },
+    "./endpoints": {
+      "import": "./dist/endpoints/logic/index.js",
+      "types": "./src/endpoints/logic/index.ts"
+    },
+    "./test-fixtures": {
+      "import": "./test-dist/__test/fixtures/db/factories/index.js",
+      "types": "./src/__test/fixtures/db/factories/index.ts"
+    }
+  },
+  "prisma": {
+    "schema": "./src/db/schema.prisma",
+    "seed": "./dist/db/seeds/init.js"
+  },
+  "scripts": {
+    "pretest": "cd ../shared && pnpm run build:test",
+    "test": "bash ../../scripts/package-test.sh server",
+    "test:single": "cd ../shared && pnpm run build:test && cd ../server && VITEST_CONFIG=single node --no-warnings $(which vitest) -c vitest.config.single.ts",
+    "test:parallel": "cd ../shared && pnpm run build:test && cd ../server && VITEST_CONFIG=parallel node --no-warnings $(which vitest) -c vitest.config.parallel.ts",
+    "test:auto": "cd ../shared && pnpm run build:test && cd ../server && node --no-warnings $(which vitest)",
+    "test:debug": "cd ../shared && pnpm run build:test && cd ../server && LOG_LEVEL=debug VITEST_CONFIG=single node --no-warnings $(which vitest) -c vitest.config.single.ts --no-coverage",
+    "test-watch": "cd ../shared && pnpm run build:test && cd ../server && node --no-warnings $(which vitest) -c vitest.config.ts",
+    "test-coverage": "cd ../shared && pnpm run build:test && cd ../server && NODE_OPTIONS='--max-old-space-size=8192' node --no-warnings $(which vitest) run -c vitest.config.ts --coverage",
+    "test-coverage:single": "cd ../shared && pnpm run build:test && cd ../server && VITEST_CONFIG=single NODE_OPTIONS='--max-old-space-size=8192' node --no-warnings $(which vitest) run -c vitest.config.single.ts --coverage",
+    "test-coverage:parallel": "cd ../shared && pnpm run build:test && cd ../server && VITEST_CONFIG=parallel NODE_OPTIONS='--max-old-space-size=8192' node --no-warnings $(which vitest) run -c vitest.config.parallel.ts --coverage",
+    "lint": "eslint src --ignore-pattern '**/__test/**' --ignore-pattern '**/*.test.ts' --ignore-pattern '**/*.spec.ts' --ignore-pattern '**/*.test.hybrid.ts' --cache --cache-location .eslintcache --fix",
+    "lint:test": "eslint 'src/**/*.test.ts' --config .eslintrc.test.cjs --cache --cache-location .eslintcache.test --fix",
+    "lint:all": "pnpm run lint && pnpm run lint:test",
+    "build": "rimraf dist && cross-env NODE_ENV=production swc src -d dist --source-maps --ignore \"**/*.test.ts,**/*.test.js,**/*.test.tsx,**/*.test.jsx,**/*.test.cjs,**/*.d.ts,**/__test/**\" && pnpm run post-build && pnpm run build:types",
+    "build:types": "tsc --emitDeclarationOnly --declaration --declarationMap",
+    "build:test": "rimraf test-dist && cross-env NODE_ENV=test swc src -d test-dist --source-maps && pnpm run post-build:test",
+    "pre-prod": "pnpm run prisma:migrate && pnpm run prisma:generate",
+    "pre-develop": "pnpm run pre-prod",
+    "post-build": "run-s post-build-copy post-build-fix-imports",
+    "post-build:test": "run-s post-build-copy:test post-build-fix-imports:test",
+    "post-build-copy": "copyfiles -u 1 \"src/**/*.txt\" \"src/**/*.lua\" \"src/**/*.html\" \"src/**/*.prisma\" \"src/**/*.sql\" \"src/**/*.json\" \"src/auth/message_signing/rust/pkg/*.wasm\" \"src/auth/message_signing/rust/pkg/emurgo_message_signing.cjs\" dist",
+    "post-build-copy:test": "copyfiles -u 1 \"src/**/*.txt\" \"src/**/*.lua\" \"src/**/*.html\" \"src/**/*.prisma\" \"src/**/*.sql\" \"src/**/*.json\" \"src/auth/message_signing/rust/pkg/*.wasm\" \"src/auth/message_signing/rust/pkg/emurgo_message_signing.cjs\" test-dist",
+    "post-build-fix-imports": "sh ../../scripts/fixImports.sh assert dist",
+    "post-build-fix-imports:test": "sh ../../scripts/fixImports.sh assert test-dist",
+    "start-development": "cross-env NODE_OPTIONS=--max-old-space-size=4096 nodemon dist/index.js",
+    "start-production": "node --experimental-modules --experimental-specifier-resolution=node dist/index.js",
+    "type-check": "cross-env NODE_OPTIONS='--max-old-space-size=4096 --no-deprecation' tsc --noEmit",
+    "type-check:test": "cross-env NODE_OPTIONS='--max-old-space-size=4096 --no-deprecation' tsc --noEmit -p tsconfig.test.json",
+    "type-check:all": "pnpm run type-check && pnpm run type-check:test",
+    "validate": "pnpm run lint && pnpm run type-check",
+    "validate:all": "pnpm run lint:all && pnpm run type-check:all",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate deploy"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.16.0",
+    "@aws-sdk/client-s3": "^3.666.0",
+    "@emurgo/cardano-serialization-lib-nodejs": "^9.1.2",
+    "@mistralai/mistralai": "^0.2.0",
+    "@modelcontextprotocol/sdk": "^1.5.0",
+    "@prisma/client": "6.1.0",
+    "@socket.io/redis-adapter": "^8.3.0",
+    "@swc/cli": "^0.1.63",
+    "@swc/core": "^1.3.104",
+    "@vrooli/shared": "workspace:*",
+    "bcrypt": "^5.0.1",
+    "bcryptjs": "^3.0.2",
+    "bullmq": "^5.52.2",
+    "busboy": "^1.6.0",
+    "cookie": "^0.7.2",
+    "cors": "^2.8.5",
+    "cross-env": "^7.0.3",
+    "express": "^5.0.1",
+    "file-type": "^20.0.0",
+    "form-data": "^4.0.3",
+    "glob": "^11.0.0",
+    "heic-convert": "^1.2.4",
+    "i18next": "^22.4.10",
+    "ioredis": "^5.6.1",
+    "isolated-vm": "^5.0.1",
+    "jsonwebtoken": "^9.0.0",
+    "lodash": "^4.17.21",
+    "mqtt-match": "^3.0.0",
+    "node-cron": "^3.0.0",
+    "node-fetch": "^3.2.10",
+    "node-ical": "^0.15.3",
+    "nodejs-snowflake": "^2.0.1",
+    "nodemailer": "^6.6.0",
+    "openai": "4.103.0",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
+    "passport-local": "^1.0.0",
+    "prisma": "6.1.0",
+    "rimraf": "^5.0.10",
+    "sharp": "^0.32.3",
+    "socket.io": "^4.6.2",
+    "stopword": "^2.0.8",
+    "stripe": "^11.17.0",
+    "superjson": "^2.2.1",
+    "tiktoken": "^1.0.20",
+    "twilio": "^4.23.0",
+    "web-push": "^3.5.0",
+    "winston": "^3.12.0",
+    "yup": "^1.3.3"
+  },
+  "devDependencies": {
+    "0x": "^5.5.0",
+    "@types/bcrypt": "^5.0.0",
+    "@types/bcryptjs": "^3.0.0",
+    "@types/cookie-parser": "^1.4.2",
+    "@types/express": "^4.17.11",
+    "@types/heic-convert": "^1.2.0",
+    "@types/jsonwebtoken": "^8.5.5",
+    "@types/node": "^17.0.35",
+    "@types/node-cron": "^3.0.1",
+    "@types/nodemailer": "^6.4.4",
+    "@types/passport": "^1.0.17",
+    "@types/stopword": "^2.0.0",
+    "@types/supertest": "^6.0.3",
+    "@types/web-push": "^3.3.2",
+    "@vitest/coverage-v8": "^3.0.9",
+    "copyfiles": "^2.4.1",
+    "dotenv-cli": "^8.0.0",
+    "jsdom": "^26.0.0",
+    "nodemon": "3.0.2",
+    "npm-run-all": "^4.1.5",
+    "supertest": "^7.1.3",
+    "testcontainers": "^10.18.0",
+    "typescript": "5.8.3",
+    "typescript-json-schema": "^0.65.1",
+    "vitest": "~3.0.9",
+    "why-is-node-running": "^2.3.0"
+  },
+  "packageManager": "pnpm@10.5.2"
 }

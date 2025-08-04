@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=2 | LAST: 2025-01-27
 import { type ChatMessage, type User } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 import { InteractiveChatUI, type BotStatus, type ChatDisplayOptions } from "./chatUI.js";
@@ -337,21 +338,24 @@ describe("InteractiveChatUI", () => {
             expect(output).toContain("TestTool");
         });
 
-        it.skip("should display tool result", () => {
-            // Method doesn't exist yet - needs implementation
-            // ui.displayToolResult("TestTool", { success: true });
-        });
+        // TODO: Implement displayToolResult method in InteractiveChatUI
+        // it("should display tool result", () => {
+        //     ui.displayToolResult("TestTool", { success: true });
+        //     expect(consoleLogSpy).toHaveBeenCalled();
+        // });
 
-        it.skip("should display tool error", () => {
-            // Method doesn't exist yet - needs implementation
-            // ui.displayToolError("TestTool", "Failed to execute");
-        });
+        // TODO: Implement displayToolError method in InteractiveChatUI
+        // it("should display tool error", () => {
+        //     ui.displayToolError("TestTool", "Failed to execute");
+        //     expect(consoleLogSpy).toHaveBeenCalled();
+        // });
     });
 
-    describe("displaySlashCommand", () => {
-        it.skip("should display slash command result", () => {
-            // Method doesn't exist yet - needs implementation
-            // ui.displaySlashCommandResult("/help", "Available commands...");
-        });
-    });
+    // TODO: Implement displaySlashCommandResult method in InteractiveChatUI and add tests
+    // describe("displaySlashCommand", () => {
+    //     it("should display slash command result", () => {
+    //         ui.displaySlashCommandResult("/help", "Available commands...");
+    //         expect(consoleLogSpy).toHaveBeenCalled();
+    //     });
+    // });
 });
