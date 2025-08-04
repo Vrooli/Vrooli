@@ -1,0 +1,195 @@
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "resume-screening-assistant",
+    "version": "1.0.0",
+    "displayName": "Resume Screening Assistant",
+    "description": "AI-powered recruitment automation for resume parsing, candidate scoring, and job matching",
+    "tags": [
+      "hr-tech",
+      "recruitment",
+      "resume-parsing",
+      "candidate-matching",
+      "automation"
+    ],
+    "labels": {
+      "category": "ai-recruitment",
+      "complexity": "intermediate",
+      "market-demand": "high"
+    },
+    "annotations": {
+      "value-proposition": "Automated recruitment process with AI-powered candidate evaluation and matching",
+      "generated-from": "manifest-to-service-converter",
+      "conversion-date": "2025-08-04T02:14:46Z"
+    }
+  },
+  "spec": {
+    "type": "application",
+    "category": "ai-recruitment",
+    "capabilities": [
+      "ai-processing",
+      "web-automation"
+    ],
+    "dependencies": {
+      "resources": [
+        {
+          "type": "ai",
+          "name": "unstructured-io",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "ai",
+          "name": "ollama",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "vectordb",
+          "name": "qdrant",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "agent",
+          "name": "browserless",
+          "optional": true,
+          "version": "*"
+        }
+      ]
+    },
+    "pricing": {
+      "model": "subscription",
+      "currency": "USD",
+      "tiers": [
+        {
+          "name": "Basic",
+          "price": 2500,
+          "interval": "month",
+          "features": []
+        },
+        {
+          "name": "Professional",
+          "price": 6000,
+          "interval": "month",
+          "features": []
+        }
+      ]
+    },
+    "scenarios": {
+      "initialization": {
+        "resources": {},
+        "order": [],
+        "parallel": false
+      }
+    },
+    "serve": {
+      "healthChecks": {
+        "readiness": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8080,
+            "scheme": "HTTP"
+          },
+          "periodSeconds": 30,
+          "timeoutSeconds": 5
+        },
+        "liveness": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8080,
+            "scheme": "HTTP"
+          },
+          "periodSeconds": 60,
+          "timeoutSeconds": 5
+        }
+      },
+      "endpoints": [
+        {
+          "name": "app",
+          "protocol": "http",
+          "path": "/resume-screening-assistant",
+          "port": 3000,
+          "public": true
+        },
+        {
+          "name": "admin",
+          "protocol": "http",
+          "path": "/admin/resume-screening-assistant",
+          "port": 3000,
+          "public": true
+        },
+        {
+          "name": "api",
+          "protocol": "http",
+          "path": "/api/resume-screening-assistant",
+          "port": 3000,
+          "public": true
+        },
+        {
+          "name": "health",
+          "protocol": "http",
+          "path": "/api/resume-screening-assistant/health",
+          "port": 3000,
+          "public": false
+        },
+        {
+          "name": "upload",
+          "protocol": "http",
+          "path": "/api/resume-screening-assistant/upload",
+          "port": 3000,
+          "public": true
+        },
+        {
+          "name": "search",
+          "protocol": "http",
+          "path": "/api/resume-screening-assistant/search",
+          "port": 3000,
+          "public": true
+        }
+      ]
+    },
+    "deployment": {
+      "replicas": 1,
+      "strategy": "recreate",
+      "resources": {
+        "requests": {
+          "cpu": "100m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "1000m",
+          "memory": "1Gi"
+        }
+      }
+    },
+    "security": {
+      "authentication": {
+        "required": true,
+        "type": "jwt"
+      },
+      "authorization": {
+        "type": "rbac"
+      },
+      "encryption": {
+        "transit": true,
+        "atRest": true
+      }
+    },
+    "observability": {
+      "logging": {
+        "enabled": true,
+        "level": "info"
+      },
+      "metrics": {
+        "enabled": true,
+        "provider": "prometheus"
+      },
+      "tracing": {
+        "enabled": false,
+        "provider": "jaeger"
+      }
+    }
+  }
+}

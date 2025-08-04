@@ -14,7 +14,7 @@ templates/
 
 ### **Use `templates/full/` when:**
 - ✅ Creating scenarios that will become customer applications
-- ✅ Need full deployment orchestration (manifest.yaml, deployment/, initialization/)
+- ✅ Need full deployment orchestration (service.json, deployment/, initialization/)
 - ✅ Building business applications with revenue models
 - ✅ AI agents generating complete scenarios
 - ✅ Want scenario-to-app.sh deployment capability
@@ -34,8 +34,7 @@ cp -r templates/full/ core/my-business-app/
 cd core/my-business-app/
 
 # Edit for your use case
-# - metadata.yaml: Business model and resource requirements
-# - manifest.yaml: Deployment orchestration  
+# - service.json: Business model, resource requirements, and deployment orchestration
 # - initialization/: Database, workflows, UI, configuration
 # - deployment/: Startup, validation, monitoring scripts
 
@@ -50,7 +49,7 @@ cp -r templates/basic/ core/my-integration-test/
 cd core/my-integration-test/
 
 # Edit for your use case  
-# - metadata.yaml: Resource requirements and test criteria
+# - service.json: Resource requirements and test criteria
 # - test.sh: Integration test logic
 
 # Run integration test
@@ -75,15 +74,14 @@ cd core/my-integration-test/
 ## 🏗️ **Template Details**
 
 ### **`templates/full/` Contents:**
-- `metadata.yaml` - Enhanced with AI patterns + business models
-- `manifest.yaml` - Deployment orchestration  
+- `service.json` - Complete configuration with AI patterns, business models, and deployment orchestration
 - `deployment/` - startup.sh, validate.sh, monitor.sh
 - `initialization/` - database/, workflows/, ui/, configuration/
 - `README.md` - Comprehensive documentation
 - `test.sh` - Integration testing
 
 ### **`templates/basic/` Contents:**
-- `metadata.yaml` - Simple resource requirements
+- `service.json` - Simple resource requirements and test configuration
 - `README.md` - Basic documentation
 - `test.sh` - Integration testing
 

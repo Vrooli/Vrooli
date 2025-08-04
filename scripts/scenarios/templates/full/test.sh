@@ -19,12 +19,11 @@ source "$SCRIPT_DIR/framework/helpers/secure-config.sh"
 
 # Load scenario metadata
 SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-METADATA_FILE="${SCENARIO_DIR}/metadata.yaml"
+SERVICE_FILE="${SCENARIO_DIR}/service.json"
 
-# Parse metadata for configuration
-# Note: In production, use proper YAML parser
-REQUIRED_RESOURCES=($(grep -A10 "required:" "$METADATA_FILE" | grep "^\s*-" | sed 's/^\s*- //'))
-TEST_TIMEOUT=$(grep "timeout_seconds:" "$METADATA_FILE" | awk '{print $2}')
+# Parse service configuration
+REQUIRED_RESOURCES=($(jq -r '.resources | to_entries[] | select(.value.required == true) | .key' "$SERVICE_FILE" 2>/dev/null))
+TEST_TIMEOUT=$(jq -r '.deployment.testing.timeout // "30m"' "$SERVICE_FILE" 2>/dev/null | sed 's/[ms]//g')
 TEST_CLEANUP="${TEST_CLEANUP:-true}"
 
 # Service configuration from secure config

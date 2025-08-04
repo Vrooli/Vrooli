@@ -43,7 +43,7 @@ Local AI and automation tools that extend Vrooli's capabilities through modular 
 
 ## 🎯 Scenario Deployment
 
-Resources support declarative deployment through the [injection system](_injection/README.md), 
+Resources support declarative deployment through the [injection system](../scenarios/injection/README.md), 
 enabling complete application deployment from JSON specifications.
 
 ## 🛠️ Resource Structure

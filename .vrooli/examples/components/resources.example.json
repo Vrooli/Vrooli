@@ -1,0 +1,166 @@
+{
+  "$schema": "../schemas/resources.schema.json",
+  "version": "1.0.0",
+  "resources": {
+    "storage": {
+      "postgres": {
+        "type": "postgresql",
+        "enabled": true,
+        "version": "16",
+        "host": "localhost",
+        "port": 5432,
+        "database": "my_assistant",
+        "username": "assistant_user",
+        "password": {
+          "name": "DB_PASSWORD",
+          "key": "value",
+          "provider": "env"
+        },
+        "ssl": false,
+        "pool": {
+          "min": 2,
+          "max": 10,
+          "acquireTimeout": 30000,
+          "idleTimeout": 10000
+        },
+        "healthCheck": {
+          "type": "tcp",
+          "port": 5432,
+          "intervalMs": 30000,
+          "timeoutMs": 5000
+        }
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "version": "7",
+        "host": "localhost",
+        "port": 6379,
+        "database": "0",
+        "persistence": true,
+        "eviction": "LRU",
+        "maxMemory": "1Gi",
+        "healthCheck": {
+          "type": "tcp",
+          "port": 6379,
+          "intervalMs": 30000,
+          "timeoutMs": 5000
+        }
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "version": "1.7",
+        "baseUrl": "http://localhost:6333",
+        "indices": [
+          {
+            "name": "conversation_memory",
+            "shards": 1,
+            "replicas": 0
+          }
+        ]
+      }
+    },
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "provider": "local",
+        "baseUrl": "http://localhost:11434",
+        "models": [
+          {
+            "name": "llama3.1:8b",
+            "type": "llm"
+          },
+          {
+            "name": "nomic-embed-text",
+            "type": "embedding"
+          }
+        ],
+        "defaultModel": "llama3.1:8b",
+        "temperature": 0.7,
+        "maxTokens": 4096,
+        "keepAlive": "5m",
+        "healthCheck": {
+          "type": "http",
+          "endpoint": "/api/tags",
+          "intervalMs": 300000,
+          "timeoutMs": 10000
+        }
+      },
+      "openrouter": {
+        "type": "openai",
+        "enabled": false,
+        "provider": "openrouter",
+        "baseUrl": "https://openrouter.ai/api/v1",
+        "apiKey": {
+          "name": "OPENROUTER_API_KEY",
+          "key": "value",
+          "provider": "env"
+        },
+        "models": [
+          {
+            "name": "anthropic/claude-3-opus",
+            "type": "llm"
+          }
+        ],
+        "rateLimits": {
+          "requests": 50,
+          "window": "1m"
+        }
+      }
+    },
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": false,
+        "baseUrl": "http://localhost:5678",
+        "webhookUrl": "http://localhost:5678/webhook",
+        "workspaces": ["assistant"],
+        "executionLimit": 5
+      }
+    },
+    "agents": {
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": false,
+        "capabilities": ["code-execution", "file-management"],
+        "sandbox": true,
+        "maxSessionTime": "20m"
+      }
+    },
+    "execution": {
+      "bullmq": {
+        "type": "bullmq",
+        "enabled": true,
+        "host": "localhost",
+        "port": 6379,
+        "queues": [
+          {
+            "name": "chat",
+            "durable": true,
+            "maxRetries": 3
+          },
+          {
+            "name": "memory",
+            "durable": true,
+            "maxRetries": 1
+          }
+        ]
+      }
+    }
+  },
+  "profiles": {
+    "minimal": {
+      "name": "minimal",
+      "description": "Minimal resource profile for development",
+      "enabled": ["storage.postgres", "storage.redis", "ai.ollama", "execution.bullmq"],
+      "disabled": ["ai.openrouter", "automation.n8n", "agents.claude-code"]
+    },
+    "full": {
+      "name": "full",
+      "description": "Full resource profile with all features",
+      "enabled": ["storage.postgres", "storage.redis", "storage.qdrant", "ai.ollama", "ai.openrouter", "automation.n8n", "agents.claude-code", "execution.bullmq"]
+    }
+  }
+}

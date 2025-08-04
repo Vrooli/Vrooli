@@ -19,7 +19,7 @@ This template is designed for basic resource integration testing. Use it when yo
    ```
 
 2. **Update Configuration**:
-   - Edit `metadata.yaml` with your resources and requirements
+   - Edit `service.json` with your resources and requirements
    - Update `README.md` with scenario details
    - Modify `test.sh` with your integration tests
 
@@ -31,7 +31,7 @@ This template is designed for basic resource integration testing. Use it when yo
 ## 🔧 Customization
 
 ### Required Changes
-- **metadata.yaml**: Update scenario ID, resources, and testing requirements
+- **service.json**: Update scenario ID, resources, and testing requirements
 - **test.sh**: Replace placeholder tests with actual validation logic
 - **README.md**: Document your specific use case
 
@@ -59,4 +59,4 @@ A basic scenario passes when:
 
 ---
 
-*This template provides a foundation for resource integration testing. For business applications, use the [business template](../business/) or [AI-generation template](../ai-generation/).*
+*This template provides a foundation for resource integration testing. For business applications, use the [full template](../full/).*

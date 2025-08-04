@@ -1,0 +1,211 @@
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "ai-content-assistant-example",
+    "version": "1.0.0",
+    "displayName": "AI Content Assistant",
+    "description": "Multi-modal AI assistant for content creation with voice input, text generation, and professional UI",
+    "tags": [
+      "ai-assistant",
+      "content-creation",
+      "voice-enabled",
+      "workflow-automation",
+      "analytics-dashboard",
+      "enterprise-ready",
+      "high-revenue-potential",
+      "example-scenario"
+    ],
+    "labels": {
+      "category": "ai-assistance",
+      "complexity": "intermediate",
+      "market-demand": "very-high"
+    },
+    "annotations": {
+      "value-proposition": "Complete AI-powered content creation suite with voice interface and professional analytics",
+      "generated-from": "manifest-to-service-converter",
+      "conversion-date": "2025-08-04T02:14:41Z"
+    }
+  },
+  "spec": {
+    "type": "application",
+    "category": "ai-assistance",
+    "capabilities": [
+      "ai-processing",
+      "workflow-automation",
+      "file-storage",
+      "data-persistence"
+    ],
+    "dependencies": {
+      "resources": [
+        {
+          "type": "ai",
+          "name": "ollama",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "ai",
+          "name": "whisper",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "automation",
+          "name": "n8n",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "database",
+          "name": "postgres",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "automation",
+          "name": "windmill",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "automation",
+          "name": "comfyui",
+          "optional": true,
+          "version": "*"
+        },
+        {
+          "type": "storage",
+          "name": "minio",
+          "optional": true,
+          "version": "*"
+        },
+        {
+          "type": "vectordb",
+          "name": "qdrant",
+          "optional": true,
+          "version": "*"
+        }
+      ]
+    },
+    "pricing": {
+      "model": "subscription",
+      "currency": "USD",
+      "tiers": [
+        {
+          "name": "Basic",
+          "price": 15000,
+          "interval": "month",
+          "features": []
+        },
+        {
+          "name": "Professional",
+          "price": 30000,
+          "interval": "month",
+          "features": []
+        }
+      ]
+    },
+    "scenarios": {
+      "initialization": {
+        "resources": {
+          "postgres": {
+            "data": [
+              {
+                "type": "schema",
+                "file": "scenarios/ai-content-assistant-example/initialization/database/schema.sql",
+                "format": "sql"
+              },
+              {
+                "type": "seed",
+                "file": "scenarios/ai-content-assistant-example/initialization/database/seed.sql",
+                "format": "sql"
+              }
+            ]
+          }
+        },
+        "order": [],
+        "parallel": false
+      }
+    },
+    "serve": {
+      "healthChecks": {
+        "readiness": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8080,
+            "scheme": "HTTP"
+          },
+          "periodSeconds": 30,
+          "timeoutSeconds": 5
+        },
+        "liveness": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8080,
+            "scheme": "HTTP"
+          },
+          "periodSeconds": 60,
+          "timeoutSeconds": 5
+        }
+      },
+      "endpoints": [
+        {
+          "name": "api",
+          "protocol": "http",
+          "path": "/api/{{ scenario.id }}",
+          "port": 3000,
+          "public": true
+        },
+        {
+          "name": "health",
+          "protocol": "http",
+          "path": "/api/{{ scenario.id }}/health",
+          "port": 3000,
+          "public": false
+        }
+      ]
+    },
+    "deployment": {
+      "replicas": 1,
+      "strategy": "recreate",
+      "resources": {
+        "requests": {
+          "cpu": "100m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "1000m",
+          "memory": "1Gi"
+        }
+      }
+    },
+    "security": {
+      "authentication": {
+        "required": true,
+        "type": "jwt"
+      },
+      "authorization": {
+        "type": "rbac"
+      },
+      "encryption": {
+        "transit": true,
+        "atRest": true
+      }
+    },
+    "observability": {
+      "logging": {
+        "enabled": true,
+        "level": "info"
+      },
+      "metrics": {
+        "enabled": true,
+        "provider": "prometheus"
+      },
+      "tracing": {
+        "enabled": false,
+        "provider": "jaeger"
+      }
+    }
+  }
+}

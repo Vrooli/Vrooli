@@ -1,0 +1,196 @@
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "scenario-generator-v1",
+    "version": "1.0.0",
+    "displayName": "Scenario Generator V1",
+    "description": "A meta-scenario that generates Vrooli scenarios from customer requirements using AI",
+    "tags": [],
+    "labels": {
+      "category": "general",
+      "complexity": "medium",
+      "market-demand": "medium"
+    },
+    "annotations": {
+      "value-proposition": "Generate complete SaaS applications from customer requirements in minutes",
+      "generated-from": "manifest-to-service-converter",
+      "conversion-date": "2025-08-04T02:14:47Z"
+    }
+  },
+  "spec": {
+    "type": "application",
+    "category": "general",
+    "capabilities": [
+      "ai-processing",
+      "workflow-automation",
+      "file-storage",
+      "data-persistence"
+    ],
+    "dependencies": {
+      "resources": [
+        {
+          "type": "automation",
+          "name": "windmill",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "automation",
+          "name": "n8n",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "agent",
+          "name": "claude-code",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "database",
+          "name": "postgres",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "storage",
+          "name": "minio",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "ai",
+          "name": "ollama",
+          "optional": true,
+          "version": "*"
+        },
+        {
+          "type": "cache",
+          "name": "redis",
+          "optional": true,
+          "version": "*"
+        }
+      ]
+    },
+    "pricing": {
+      "model": "subscription",
+      "currency": "USD",
+      "tiers": [
+        {
+          "name": "Basic",
+          "price": 5000,
+          "interval": "month",
+          "features": []
+        },
+        {
+          "name": "Professional",
+          "price": 10000,
+          "interval": "month",
+          "features": []
+        }
+      ]
+    },
+    "scenarios": {
+      "initialization": {
+        "resources": {
+          "postgres": {
+            "data": [
+              {
+                "type": "schema",
+                "file": "scenarios/scenario-generator-v1/initialization/database/schema.sql",
+                "format": "sql"
+              },
+              {
+                "type": "seed",
+                "file": "scenarios/scenario-generator-v1/initialization/database/seed.sql",
+                "format": "sql"
+              }
+            ]
+          }
+        },
+        "order": [],
+        "parallel": false
+      }
+    },
+    "serve": {
+      "healthChecks": {
+        "readiness": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8080,
+            "scheme": "HTTP"
+          },
+          "periodSeconds": 30,
+          "timeoutSeconds": 5
+        },
+        "liveness": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8080,
+            "scheme": "HTTP"
+          },
+          "periodSeconds": 60,
+          "timeoutSeconds": 5
+        }
+      },
+      "endpoints": [
+        {
+          "name": "api",
+          "protocol": "http",
+          "path": "/api/scenario-generator-v1",
+          "port": 3000,
+          "public": true
+        },
+        {
+          "name": "health",
+          "protocol": "http",
+          "path": "/api/scenario-generator-v1/health",
+          "port": 3000,
+          "public": false
+        }
+      ]
+    },
+    "deployment": {
+      "replicas": 1,
+      "strategy": "recreate",
+      "resources": {
+        "requests": {
+          "cpu": "100m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "1000m",
+          "memory": "1Gi"
+        }
+      }
+    },
+    "security": {
+      "authentication": {
+        "required": true,
+        "type": "jwt"
+      },
+      "authorization": {
+        "type": "rbac"
+      },
+      "encryption": {
+        "transit": true,
+        "atRest": true
+      }
+    },
+    "observability": {
+      "logging": {
+        "enabled": true,
+        "level": "info"
+      },
+      "metrics": {
+        "enabled": true,
+        "provider": "prometheus"
+      },
+      "tracing": {
+        "enabled": false,
+        "provider": "jaeger"
+      }
+    }
+  }
+}

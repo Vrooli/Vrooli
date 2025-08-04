@@ -1,0 +1,298 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/common.schema.json",
+  "title": "Common Schema Definitions",
+  "description": "Shared definitions used across all Vrooli service schemas",
+  "definitions": {
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)(?:-((?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\\.(?:0|[1-9]\\d*|\\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\\+([0-9a-zA-Z-]+(?:\\.[0-9a-zA-Z-]+)*))?$",
+      "description": "Semantic version string"
+    },
+    "port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "Valid TCP/UDP port number"
+    },
+    "url": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https?://",
+      "description": "HTTP or HTTPS URL"
+    },
+    "path": {
+      "type": "string",
+      "description": "File system path (relative or absolute)"
+    },
+    "duration": {
+      "type": "string",
+      "pattern": "^\\d+(ms|s|m|h|d)$",
+      "description": "Duration with unit (ms, s, m, h, d)"
+    },
+    "memory": {
+      "type": "string",
+      "pattern": "^\\d+(Ki|Mi|Gi|Ti)?$",
+      "description": "Memory size with optional unit"
+    },
+    "cpu": {
+      "type": "string",
+      "pattern": "^\\d+(\\.\\d+)?(m)?$",
+      "description": "CPU resources (cores or millicores)"
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Environment variables as key-value pairs"
+    },
+    "labels": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Metadata labels as key-value pairs"
+    },
+    "annotations": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "string"
+      },
+      "description": "Metadata annotations as key-value pairs"
+    },
+    "healthCheck": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["http", "tcp", "exec", "grpc"],
+          "default": "http"
+        },
+        "endpoint": {
+          "type": "string",
+          "description": "Health check endpoint path"
+        },
+        "port": {
+          "$ref": "#/definitions/port"
+        },
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Command to execute for exec-type health checks"
+        },
+        "intervalMs": {
+          "type": "integer",
+          "minimum": 1000,
+          "default": 30000,
+          "description": "Interval between health checks in milliseconds"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "minimum": 100,
+          "default": 5000,
+          "description": "Health check timeout in milliseconds"
+        },
+        "retries": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 3,
+          "description": "Number of retries before marking unhealthy"
+        },
+        "successThreshold": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1,
+          "description": "Consecutive successes required to mark healthy"
+        },
+        "failureThreshold": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 3,
+          "description": "Consecutive failures required to mark unhealthy"
+        },
+        "requiresAuth": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether health check requires authentication"
+        }
+      },
+      "required": ["type"]
+    },
+    "secretRef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Secret name"
+        },
+        "key": {
+          "type": "string",
+          "description": "Key within the secret"
+        },
+        "provider": {
+          "type": "string",
+          "enum": ["env", "vault", "kubernetes", "aws-secrets", "azure-keyvault", "gcp-secret-manager"],
+          "default": "env",
+          "description": "Secret provider type"
+        }
+      },
+      "required": ["name", "key"]
+    },
+    "resourceRequirements": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "object",
+          "properties": {
+            "cpu": {
+              "$ref": "#/definitions/cpu"
+            },
+            "memory": {
+              "$ref": "#/definitions/memory"
+            },
+            "storage": {
+              "$ref": "#/definitions/memory"
+            }
+          }
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "cpu": {
+              "$ref": "#/definitions/cpu"
+            },
+            "memory": {
+              "$ref": "#/definitions/memory"
+            },
+            "storage": {
+              "$ref": "#/definitions/memory"
+            }
+          }
+        }
+      }
+    },
+    "networkPolicy": {
+      "type": "object",
+      "properties": {
+        "ingress": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "from": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "service": {
+                      "type": "string"
+                    },
+                    "namespace": {
+                      "type": "string"
+                    },
+                    "cidr": {
+                      "type": "string",
+                      "format": "ipv4"
+                    }
+                  }
+                }
+              },
+              "ports": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/port"
+                }
+              }
+            }
+          }
+        },
+        "egress": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "to": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "service": {
+                      "type": "string"
+                    },
+                    "namespace": {
+                      "type": "string"
+                    },
+                    "cidr": {
+                      "type": "string",
+                      "format": "ipv4"
+                    },
+                    "dns": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "ports": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/port"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "properties": {
+        "preStart": {
+          "$ref": "#/definitions/hook"
+        },
+        "postStart": {
+          "$ref": "#/definitions/hook"
+        },
+        "preStop": {
+          "$ref": "#/definitions/hook"
+        },
+        "postStop": {
+          "$ref": "#/definitions/hook"
+        }
+      }
+    },
+    "hook": {
+      "type": "object",
+      "properties": {
+        "exec": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "httpGet": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "port": {
+              "$ref": "#/definitions/port"
+            },
+            "scheme": {
+              "type": "string",
+              "enum": ["HTTP", "HTTPS"]
+            }
+          }
+        }
+      }
+    }
+  }
+}

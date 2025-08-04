@@ -1,0 +1,183 @@
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "document-intelligence-pipeline",
+    "version": "1.0.0",
+    "displayName": "Document Intelligence Pipeline",
+    "description": "AI-powered document processing system for extraction, analysis, and semantic search",
+    "tags": [
+      "document-processing",
+      "data-extraction",
+      "semantic-search",
+      "enterprise-ready",
+      "legal-tech",
+      "fintech"
+    ],
+    "labels": {
+      "category": "ai-data-analysis",
+      "complexity": "advanced",
+      "market-demand": "very-high"
+    },
+    "annotations": {
+      "value-proposition": "Enterprise document processing automation with AI-powered extraction and search",
+      "generated-from": "manifest-to-service-converter",
+      "conversion-date": "2025-08-04T02:14:43Z"
+    }
+  },
+  "spec": {
+    "type": "application",
+    "category": "ai-data-analysis",
+    "capabilities": [
+      "ai-processing",
+      "web-automation"
+    ],
+    "dependencies": {
+      "resources": [
+        {
+          "type": "ai",
+          "name": "unstructured-io",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "vectordb",
+          "name": "qdrant",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "ai",
+          "name": "ollama",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "agent",
+          "name": "browserless",
+          "optional": true,
+          "version": "*"
+        }
+      ]
+    },
+    "pricing": {
+      "model": "subscription",
+      "currency": "USD",
+      "tiers": [
+        {
+          "name": "Basic",
+          "price": 4000,
+          "interval": "month",
+          "features": []
+        },
+        {
+          "name": "Professional",
+          "price": 12000,
+          "interval": "month",
+          "features": []
+        }
+      ]
+    },
+    "scenarios": {
+      "initialization": {
+        "resources": {
+          "postgres": {
+            "data": [
+              {
+                "type": "schema",
+                "file": "scenarios/document-intelligence-pipeline/initialization/database/schema.sql",
+                "format": "sql"
+              },
+              {
+                "type": "seed",
+                "file": "scenarios/document-intelligence-pipeline/initialization/database/seed.sql",
+                "format": "sql"
+              }
+            ]
+          }
+        },
+        "order": [],
+        "parallel": false
+      }
+    },
+    "serve": {
+      "healthChecks": {
+        "readiness": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8080,
+            "scheme": "HTTP"
+          },
+          "periodSeconds": 30,
+          "timeoutSeconds": 5
+        },
+        "liveness": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8080,
+            "scheme": "HTTP"
+          },
+          "periodSeconds": 60,
+          "timeoutSeconds": 5
+        }
+      },
+      "endpoints": [
+        {
+          "name": "api",
+          "protocol": "http",
+          "path": "/api/document-intelligence-pipeline",
+          "port": 3000,
+          "public": true
+        },
+        {
+          "name": "health",
+          "protocol": "http",
+          "path": "/api/document-intelligence-pipeline/health",
+          "port": 3000,
+          "public": false
+        }
+      ]
+    },
+    "deployment": {
+      "replicas": 1,
+      "strategy": "recreate",
+      "resources": {
+        "requests": {
+          "cpu": "100m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "1000m",
+          "memory": "1Gi"
+        }
+      }
+    },
+    "security": {
+      "authentication": {
+        "required": true,
+        "type": "jwt"
+      },
+      "authorization": {
+        "type": "rbac"
+      },
+      "encryption": {
+        "transit": true,
+        "atRest": true
+      }
+    },
+    "observability": {
+      "logging": {
+        "enabled": true,
+        "level": "info"
+      },
+      "metrics": {
+        "enabled": true,
+        "provider": "prometheus"
+      },
+      "tracing": {
+        "enabled": false,
+        "provider": "jaeger"
+      }
+    }
+  }
+}

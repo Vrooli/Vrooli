@@ -1,0 +1,182 @@
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "intelligent-desktop-assistant",
+    "version": "1.0.0",
+    "displayName": "Intelligent Desktop Assistant",
+    "description": "AI-powered desktop automation assistant that understands screen content and executes complex workflows",
+    "tags": [
+      "desktop-automation",
+      "screen-analysis",
+      "customer-service",
+      "task-automation",
+      "basic-scenario"
+    ],
+    "labels": {
+      "category": "ai-assistance",
+      "complexity": "advanced",
+      "market-demand": "high"
+    },
+    "annotations": {
+      "value-proposition": "Intelligent automation assistant for business workflows and customer service tasks",
+      "generated-from": "manifest-to-service-converter",
+      "conversion-date": "2025-08-04T02:14:44Z"
+    }
+  },
+  "spec": {
+    "type": "application",
+    "category": "ai-assistance",
+    "capabilities": [
+      "ai-processing",
+      "web-automation"
+    ],
+    "dependencies": {
+      "resources": [
+        {
+          "type": "agent",
+          "name": "agent-s2",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "ai",
+          "name": "ollama",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "vectordb",
+          "name": "qdrant",
+          "optional": true,
+          "version": "*"
+        },
+        {
+          "type": "ai",
+          "name": "whisper",
+          "optional": true,
+          "version": "*"
+        }
+      ]
+    },
+    "pricing": {
+      "model": "subscription",
+      "currency": "USD",
+      "tiers": [
+        {
+          "name": "Basic",
+          "price": 3000,
+          "interval": "month",
+          "features": []
+        },
+        {
+          "name": "Professional",
+          "price": 8000,
+          "interval": "month",
+          "features": []
+        }
+      ]
+    },
+    "scenarios": {
+      "initialization": {
+        "resources": {
+          "postgres": {
+            "data": [
+              {
+                "type": "schema",
+                "file": "scenarios/intelligent-desktop-assistant/initialization/database/schema.sql",
+                "format": "sql"
+              },
+              {
+                "type": "seed",
+                "file": "scenarios/intelligent-desktop-assistant/initialization/database/seed.sql",
+                "format": "sql"
+              }
+            ]
+          }
+        },
+        "order": [],
+        "parallel": false
+      }
+    },
+    "serve": {
+      "healthChecks": {
+        "readiness": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8080,
+            "scheme": "HTTP"
+          },
+          "periodSeconds": 30,
+          "timeoutSeconds": 5
+        },
+        "liveness": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8080,
+            "scheme": "HTTP"
+          },
+          "periodSeconds": 60,
+          "timeoutSeconds": 5
+        }
+      },
+      "endpoints": [
+        {
+          "name": "api",
+          "protocol": "http",
+          "path": "/api/intelligent-desktop-assistant",
+          "port": 3000,
+          "public": true
+        },
+        {
+          "name": "health",
+          "protocol": "http",
+          "path": "/api/intelligent-desktop-assistant/health",
+          "port": 3000,
+          "public": false
+        }
+      ]
+    },
+    "deployment": {
+      "replicas": 1,
+      "strategy": "recreate",
+      "resources": {
+        "requests": {
+          "cpu": "100m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "1000m",
+          "memory": "1Gi"
+        }
+      }
+    },
+    "security": {
+      "authentication": {
+        "required": true,
+        "type": "jwt"
+      },
+      "authorization": {
+        "type": "rbac"
+      },
+      "encryption": {
+        "transit": true,
+        "atRest": true
+      }
+    },
+    "observability": {
+      "logging": {
+        "enabled": true,
+        "level": "info"
+      },
+      "metrics": {
+        "enabled": true,
+        "provider": "prometheus"
+      },
+      "tracing": {
+        "enabled": false,
+        "provider": "jaeger"
+      }
+    }
+  }
+}

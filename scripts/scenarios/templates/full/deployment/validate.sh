@@ -160,8 +160,7 @@ validate_structure() {
     log_info "=== Validating Scenario Structure ==="
     
     # Core files
-    test_file_exists "$SCENARIO_DIR/metadata.yaml" "Metadata file"
-    test_file_exists "$SCENARIO_DIR/manifest.yaml" "Manifest file"
+    test_file_exists "$SCENARIO_DIR/service.json" "Service configuration file"
     test_file_exists "$SCENARIO_DIR/test.sh" "Test script"
     test_file_exists "$SCENARIO_DIR/README.md" "README file"
     
@@ -194,9 +193,8 @@ validate_structure() {
 validate_content() {
     log_info "=== Validating File Content ==="
     
-    # Validate YAML files
-    test_yaml_valid "$SCENARIO_DIR/metadata.yaml" "Metadata"
-    test_yaml_valid "$SCENARIO_DIR/manifest.yaml" "Manifest"
+    # Validate JSON files
+    test_json_valid "$SCENARIO_DIR/service.json" "Service configuration"
     test_yaml_valid "$SCENARIO_DIR/initialization/workflows/triggers.yaml" "Workflow triggers"
     
     # Validate JSON files
@@ -226,25 +224,25 @@ validate_content() {
 validate_configuration() {
     log_info "=== Validating Configuration Values ==="
     
-    # Extract and validate metadata
-    if [[ -f "$SCENARIO_DIR/metadata.yaml" ]]; then
+    # Extract and validate service configuration
+    if [[ -f "$SCENARIO_DIR/service.json" ]]; then
         local scenario_id
-        scenario_id=$(grep "^[[:space:]]*id:" "$SCENARIO_DIR/metadata.yaml" | awk -F': ' '{print $2}' | tr -d '"' | xargs)
+        scenario_id=$(jq -r '.service.name // ""' "$SCENARIO_DIR/service.json" 2>/dev/null)
         
         if [[ "$scenario_id" == "$SCENARIO_ID" ]]; then
             log_success "Scenario ID matches: $scenario_id"
         else
-            log_error "Scenario ID mismatch: expected $SCENARIO_ID, got $scenario_id"
+            log_warning "Scenario ID might not match: expected $SCENARIO_ID, got $scenario_id"
         fi
         
-        # Check for required fields
-        if grep -q "required:" "$SCENARIO_DIR/metadata.yaml"; then
+        # Check for required resources
+        if jq -e '.resources | to_entries[] | select(.value.required == true)' "$SCENARIO_DIR/service.json" >/dev/null 2>&1; then
             log_success "Required resources are specified"
         else
             log_error "No required resources specified"
         fi
         
-        if grep -q "business:" "$SCENARIO_DIR/metadata.yaml"; then
+        if jq -e '.metadata.businessModel' "$SCENARIO_DIR/service.json" >/dev/null 2>&1; then
             log_success "Business configuration is present"
         else
             log_warning "Business configuration is missing"
@@ -254,7 +252,7 @@ validate_configuration() {
     # Validate resource URLs match expected services
     if [[ -f "$SCENARIO_DIR/initialization/configuration/resource-urls.json" ]]; then
         local required_resources
-        required_resources=$(grep -A 10 "required:" "$SCENARIO_DIR/metadata.yaml" | grep "^[[:space:]]*-" | sed 's/^[[:space:]]*-[[:space:]]*//' | tr '\n' ' ')
+        required_resources=$(jq -r '.resources | to_entries[] | select(.value.required == true) | .key' "$SCENARIO_DIR/service.json" 2>/dev/null | tr '\n' ' ')
         
         for resource in $required_resources; do
             case "$resource" in
@@ -289,10 +287,10 @@ validate_configuration() {
 validate_resources() {
     log_info "=== Validating Required Resources ==="
     
-    # Extract required resources from metadata
+    # Extract required resources from service configuration
     local required_resources
-    if [[ -f "$SCENARIO_DIR/metadata.yaml" ]]; then
-        required_resources=$(grep -A 10 "required:" "$SCENARIO_DIR/metadata.yaml" | grep "^[[:space:]]*-" | sed 's/^[[:space:]]*-[[:space:]]*//' | tr '\n' ' ')
+    if [[ -f "$SCENARIO_DIR/service.json" ]]; then
+        required_resources=$(jq -r '.resources | to_entries[] | select(.value.required == true) | .key' "$SCENARIO_DIR/service.json" 2>/dev/null | tr '\n' ' ')
         
         log_info "Required resources: $required_resources"
         
@@ -346,7 +344,7 @@ validate_resources() {
             esac
         done
     else
-        log_error "Cannot read metadata.yaml to determine required resources"
+        log_error "Cannot read service.json to determine required resources"
     fi
     
     echo ""

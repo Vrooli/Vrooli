@@ -1,0 +1,659 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/scenarios.schema.json",
+  "title": "Service Scenarios Schema",
+  "description": "Schema for defining service initialization scenarios and resource combinations",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "$ref": "common.schema.json#/definitions/semver"
+    },
+    "scenarios": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/scenario"
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/profile"
+      }
+    },
+    "templates": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/template"
+      }
+    },
+    "workflows": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/workflow"
+      }
+    }
+  },
+  "definitions": {
+    "scenario": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["development", "testing", "staging", "production", "demo", "migration", "backup", "recovery"]
+        },
+        "profiles": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Profiles to apply for this scenario"
+        },
+        "resources": {
+          "$ref": "#/definitions/resourceSelection"
+        },
+        "execution": {
+          "$ref": "#/definitions/executionSelection"
+        },
+        "deployment": {
+          "$ref": "#/definitions/deploymentSelection"
+        },
+        "initialization": {
+          "$ref": "#/definitions/initializationSequence"
+        },
+        "validation": {
+          "$ref": "#/definitions/validationRules"
+        },
+        "transitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/scenarioTransition"
+          }
+        }
+      },
+      "required": ["name", "category"]
+    },
+    "profile": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "extends": {
+          "type": "string",
+          "description": "Profile to extend from"
+        },
+        "resources": {
+          "type": "object",
+          "properties": {
+            "presets": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object"
+              }
+            },
+            "overrides": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "object"
+              }
+            }
+          }
+        },
+        "execution": {
+          "type": "object",
+          "properties": {
+            "environment": {
+              "type": "string"
+            },
+            "overrides": {
+              "type": "object"
+            }
+          }
+        },
+        "deployment": {
+          "type": "object",
+          "properties": {
+            "target": {
+              "type": "string"
+            },
+            "overrides": {
+              "type": "object"
+            }
+          }
+        },
+        "variables": {
+          "$ref": "common.schema.json#/definitions/environment"
+        }
+      },
+      "required": ["name"]
+    },
+    "template": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["application", "service", "infrastructure", "workflow"]
+        },
+        "parameters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/templateParameter"
+          }
+        },
+        "resources": {
+          "type": "object",
+          "description": "Resource configuration template"
+        },
+        "execution": {
+          "type": "object",
+          "description": "Execution configuration template"
+        },
+        "deployment": {
+          "type": "object",
+          "description": "Deployment configuration template"
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/templateOutput"
+          }
+        }
+      },
+      "required": ["name", "type"]
+    },
+    "workflow": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "trigger": {
+          "$ref": "#/definitions/workflowTrigger"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/workflowStep"
+          }
+        },
+        "rollback": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/workflowStep"
+          }
+        },
+        "notifications": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/notification"
+          }
+        }
+      },
+      "required": ["name", "steps"]
+    },
+    "resourceSelection": {
+      "type": "object",
+      "properties": {
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "exclude": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "optional": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "configurations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object"
+          }
+        }
+      }
+    },
+    "executionSelection": {
+      "type": "object",
+      "properties": {
+        "environment": {
+          "type": "string"
+        },
+        "sandboxing": {
+          "type": "string"
+        },
+        "languages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "limits": {
+          "type": "object"
+        }
+      }
+    },
+    "deploymentSelection": {
+      "type": "object",
+      "properties": {
+        "target": {
+          "type": "string",
+          "enum": ["local", "docker", "kubernetes", "serverless", "edge"]
+        },
+        "strategy": {
+          "type": "string",
+          "enum": ["recreate", "rolling", "blue-green", "canary", "a-b"]
+        },
+        "scaling": {
+          "type": "object",
+          "properties": {
+            "min": {
+              "type": "integer"
+            },
+            "max": {
+              "type": "integer"
+            },
+            "targetCPU": {
+              "type": "integer"
+            },
+            "targetMemory": {
+              "type": "integer"
+            }
+          }
+        }
+      }
+    },
+    "initializationSequence": {
+      "type": "object",
+      "properties": {
+        "phases": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/initPhase"
+          }
+        },
+        "timeout": {
+          "$ref": "common.schema.json#/definitions/duration"
+        },
+        "retryPolicy": {
+          "$ref": "#/definitions/retryPolicy"
+        }
+      }
+    },
+    "initPhase": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "parallel": {
+          "type": "boolean",
+          "default": false
+        },
+        "tasks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/initTask"
+          }
+        },
+        "waitFor": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "continueOnError": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": ["name", "tasks"]
+    },
+    "initTask": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["command", "script", "http", "resource", "wait", "check"]
+        },
+        "resource": {
+          "type": "string"
+        },
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "script": {
+          "type": "string"
+        },
+        "url": {
+          "$ref": "common.schema.json#/definitions/url"
+        },
+        "condition": {
+          "$ref": "#/definitions/condition"
+        },
+        "timeout": {
+          "$ref": "common.schema.json#/definitions/duration"
+        },
+        "retryPolicy": {
+          "$ref": "#/definitions/retryPolicy"
+        }
+      },
+      "required": ["name", "type"]
+    },
+    "validationRules": {
+      "type": "object",
+      "properties": {
+        "preDeployment": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/validationRule"
+          }
+        },
+        "postDeployment": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/validationRule"
+          }
+        },
+        "runtime": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/validationRule"
+          }
+        }
+      }
+    },
+    "validationRule": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["health", "connectivity", "performance", "security", "compliance", "custom"]
+        },
+        "target": {
+          "type": "string"
+        },
+        "check": {
+          "type": "object"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["critical", "error", "warning", "info"],
+          "default": "error"
+        },
+        "failureAction": {
+          "type": "string",
+          "enum": ["abort", "retry", "continue", "rollback"],
+          "default": "abort"
+        }
+      },
+      "required": ["name", "type"]
+    },
+    "scenarioTransition": {
+      "type": "object",
+      "properties": {
+        "from": {
+          "type": "string"
+        },
+        "to": {
+          "type": "string"
+        },
+        "condition": {
+          "$ref": "#/definitions/condition"
+        },
+        "workflow": {
+          "type": "string"
+        },
+        "automatic": {
+          "type": "boolean",
+          "default": false
+        }
+      },
+      "required": ["to"]
+    },
+    "templateParameter": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["string", "number", "boolean", "object", "array"]
+        },
+        "description": {
+          "type": "string"
+        },
+        "default": {},
+        "required": {
+          "type": "boolean",
+          "default": false
+        },
+        "validation": {
+          "type": "object"
+        }
+      },
+      "required": ["name", "type"]
+    },
+    "templateOutput": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        }
+      },
+      "required": ["name", "value"]
+    },
+    "workflowTrigger": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["manual", "schedule", "event", "webhook", "condition"]
+        },
+        "schedule": {
+          "type": "string",
+          "description": "Cron expression"
+        },
+        "event": {
+          "type": "string"
+        },
+        "webhook": {
+          "$ref": "common.schema.json#/definitions/url"
+        },
+        "condition": {
+          "$ref": "#/definitions/condition"
+        }
+      },
+      "required": ["type"]
+    },
+    "workflowStep": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["scenario", "profile", "template", "command", "script", "parallel", "conditional"]
+        },
+        "scenario": {
+          "type": "string"
+        },
+        "profile": {
+          "type": "string"
+        },
+        "template": {
+          "type": "string"
+        },
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "script": {
+          "type": "string"
+        },
+        "parallel": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/workflowStep"
+          }
+        },
+        "condition": {
+          "$ref": "#/definitions/condition"
+        },
+        "onSuccess": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/workflowStep"
+          }
+        },
+        "onFailure": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/workflowStep"
+          }
+        },
+        "timeout": {
+          "$ref": "common.schema.json#/definitions/duration"
+        },
+        "retryPolicy": {
+          "$ref": "#/definitions/retryPolicy"
+        }
+      },
+      "required": ["name", "type"]
+    },
+    "condition": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["expression", "script", "http", "resource"]
+        },
+        "expression": {
+          "type": "string"
+        },
+        "script": {
+          "type": "string"
+        },
+        "url": {
+          "$ref": "common.schema.json#/definitions/url"
+        },
+        "resource": {
+          "type": "string"
+        },
+        "expected": {},
+        "operator": {
+          "type": "string",
+          "enum": ["eq", "ne", "gt", "gte", "lt", "lte", "in", "not-in", "contains", "matches"]
+        }
+      },
+      "required": ["type"]
+    },
+    "retryPolicy": {
+      "type": "object",
+      "properties": {
+        "maxAttempts": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 3
+        },
+        "delay": {
+          "$ref": "common.schema.json#/definitions/duration",
+          "default": "1s"
+        },
+        "maxDelay": {
+          "$ref": "common.schema.json#/definitions/duration",
+          "default": "30s"
+        },
+        "backoff": {
+          "type": "string",
+          "enum": ["constant", "linear", "exponential"],
+          "default": "exponential"
+        },
+        "jitter": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    },
+    "notification": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["email", "slack", "webhook", "sns", "pagerduty"]
+        },
+        "destination": {
+          "type": "string"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["start", "success", "failure", "warning", "progress"]
+          }
+        },
+        "template": {
+          "type": "string"
+        }
+      },
+      "required": ["type", "destination"]
+    }
+  },
+  "required": ["version", "scenarios"]
+}

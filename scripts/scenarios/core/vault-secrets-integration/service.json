@@ -1,0 +1,176 @@
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "vault-secrets-integration",
+    "version": "1.0.0",
+    "displayName": "Vault Secrets Integration",
+    "description": "Secure secrets management integration for workflow automation platforms",
+    "tags": [
+      "secrets-management",
+      "security",
+      "devops",
+      "basic-scenario",
+      "integration-test"
+    ],
+    "labels": {
+      "category": "security",
+      "complexity": "intermediate",
+      "market-demand": "high"
+    },
+    "annotations": {
+      "value-proposition": "Enterprise secrets management for automated workflows with zero-trust security",
+      "generated-from": "manifest-to-service-converter",
+      "conversion-date": "2025-08-04T02:14:48Z"
+    }
+  },
+  "spec": {
+    "type": "application",
+    "category": "security",
+    "capabilities": [
+      "workflow-automation",
+      "data-persistence"
+    ],
+    "dependencies": {
+      "resources": [
+        {
+          "type": "security",
+          "name": "vault",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "automation",
+          "name": "n8n",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "database",
+          "name": "postgres",
+          "optional": true,
+          "version": "*"
+        }
+      ]
+    },
+    "pricing": {
+      "model": "subscription",
+      "currency": "USD",
+      "tiers": [
+        {
+          "name": "Basic",
+          "price": 2000,
+          "interval": "month",
+          "features": []
+        },
+        {
+          "name": "Professional",
+          "price": 8000,
+          "interval": "month",
+          "features": []
+        }
+      ]
+    },
+    "scenarios": {
+      "initialization": {
+        "resources": {
+          "postgres": {
+            "data": [
+              {
+                "type": "schema",
+                "file": "scenarios/vault-secrets-integration/initialization/database/schema.sql",
+                "format": "sql"
+              },
+              {
+                "type": "seed",
+                "file": "scenarios/vault-secrets-integration/initialization/database/seed.sql",
+                "format": "sql"
+              }
+            ]
+          }
+        },
+        "order": [],
+        "parallel": false
+      }
+    },
+    "serve": {
+      "healthChecks": {
+        "readiness": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8080,
+            "scheme": "HTTP"
+          },
+          "periodSeconds": 30,
+          "timeoutSeconds": 5
+        },
+        "liveness": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8080,
+            "scheme": "HTTP"
+          },
+          "periodSeconds": 60,
+          "timeoutSeconds": 5
+        }
+      },
+      "endpoints": [
+        {
+          "name": "api",
+          "protocol": "http",
+          "path": "/api/vault-secrets-integration",
+          "port": 3000,
+          "public": true
+        },
+        {
+          "name": "health",
+          "protocol": "http",
+          "path": "/api/vault-secrets-integration/health",
+          "port": 3000,
+          "public": false
+        }
+      ]
+    },
+    "deployment": {
+      "replicas": 1,
+      "strategy": "recreate",
+      "resources": {
+        "requests": {
+          "cpu": "100m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "1000m",
+          "memory": "1Gi"
+        }
+      }
+    },
+    "security": {
+      "authentication": {
+        "required": true,
+        "type": "jwt"
+      },
+      "authorization": {
+        "type": "rbac"
+      },
+      "encryption": {
+        "transit": true,
+        "atRest": true
+      }
+    },
+    "observability": {
+      "logging": {
+        "enabled": true,
+        "level": "info"
+      },
+      "metrics": {
+        "enabled": true,
+        "provider": "prometheus"
+      },
+      "tracing": {
+        "enabled": false,
+        "provider": "jaeger"
+      }
+    }
+  }
+}

@@ -23,6 +23,25 @@ config::init() {
         mkdir -p "${vrooli_dir}"
     fi
     
+    # Check for old configuration files and offer migration
+    if [[ -f "${vrooli_dir}/resources.local.json" ]] || [[ -f "${vrooli_dir}/execution.local.json" ]]; then
+        log::warning "Found old configuration files (resources.local.json/execution.local.json)"
+        log::info "These files have been replaced by the unified service.json format."
+        
+        # Run migration helper if service.json doesn't exist
+        if [[ ! -f "${vrooli_dir}/service.json" ]]; then
+            log::info "Running configuration migration..."
+            if "${SETUP_DIR}/migrate-config.sh" "${vrooli_dir}"; then
+                log::success "Configuration migration completed"
+            else
+                log::warning "Configuration migration had issues. Continuing with setup..."
+            fi
+        else
+            log::info "service.json already exists. Old config files will be ignored."
+            log::info "Run './scripts/helpers/setup/migrate-config.sh' to backup/remove old files."
+        fi
+    fi
+    
     # Initialize service config (unified configuration)
     if config::init_service_config "${vrooli_dir}"; then
         config_created=true

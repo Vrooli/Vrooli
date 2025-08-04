@@ -1,0 +1,466 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "SCENARIO_ID_PLACEHOLDER",
+    "displayName": "SCENARIO_NAME_PLACEHOLDER",
+    "description": "SCENARIO_DESCRIPTION_PLACEHOLDER",
+    "version": "SCENARIO_VERSION_PLACEHOLDER",
+    "type": "business-application",
+    "tags": [
+      "INDUSTRY_TAG_PLACEHOLDER",
+      "SOLUTION_TYPE_PLACEHOLDER",
+      "TARGET_MARKET_PLACEHOLDER"
+    ],
+    "maintainers": [
+      {
+        "name": "MAINTAINER_NAME_PLACEHOLDER",
+        "email": "MAINTAINER_EMAIL_PLACEHOLDER",
+        "url": "MAINTAINER_URL_PLACEHOLDER"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "REPOSITORY_URL_PLACEHOLDER",
+      "directory": "/scenarios/SCENARIO_ID_PLACEHOLDER"
+    },
+    "license": "LICENSE_TYPE_PLACEHOLDER",
+    "homepage": "HOMEPAGE_URL_PLACEHOLDER",
+    "documentation": "./README.md",
+    "support": {
+      "email": "SUPPORT_EMAIL_PLACEHOLDER",
+      "issues": "ISSUES_URL_PLACEHOLDER",
+      "chat": "CHAT_URL_PLACEHOLDER"
+    }
+  },
+  "resources": {
+    "storage": {
+      "postgres": {
+        "type": "postgresql",
+        "enabled": true,
+        "version": "16",
+        "required": true,
+        "initialization": {
+          "data": [
+            {
+              "type": "schema",
+              "file": "initialization/database/schema.sql"
+            },
+            {
+              "type": "seed",
+              "file": "initialization/database/seed.sql"
+            }
+          ]
+        }
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "version": "7",
+        "required": true
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": false,
+        "initialization": {
+          "buckets": [
+            {
+              "name": "APPLICATION_BUCKET_PLACEHOLDER",
+              "policy": "private"
+            }
+          ]
+        }
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": false,
+        "required": false,
+        "initialization": {
+          "collections": []
+        }
+      }
+    },
+    "automation": {
+      "n8n": {
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "workflows": [
+            {
+              "name": "main-workflow",
+              "file": "initialization/workflows/n8n/main-workflow.json",
+              "enabled": true,
+              "tags": ["core", "automation"]
+            }
+          ],
+          "credentials": [
+            {
+              "name": "api-auth",
+              "type": "httpAuth",
+              "config": {
+                "url": "{{ API_URL }}",
+                "authType": "bearer"
+              }
+            }
+          ]
+        }
+      },
+      "windmill": {
+        "enabled": true,
+        "required": false,
+        "initialization": {
+          "apps": [
+            {
+              "path": "f/APPLICATION_PATH_PLACEHOLDER/dashboard",
+              "file": "initialization/ui/windmill-app.json",
+              "summary": "APPLICATION_DASHBOARD_DESCRIPTION_PLACEHOLDER"
+            }
+          ],
+          "scripts": []
+        }
+      },
+      "node-red": {
+        "enabled": false,
+        "required": false,
+        "initialization": {
+          "flows": []
+        }
+      }
+    },
+    "ai": {
+      "ollama": {
+        "enabled": false,
+        "required": false,
+        "models": ["AI_MODEL_PLACEHOLDER"]
+      }
+    }
+  },
+  "deployment": {
+    "target": "docker",
+    "strategy": "rolling-update",
+    "urls": {
+      "application": "http://localhost:{{ APP_PORT }}",
+      "admin": "http://localhost:{{ ADMIN_PORT }}",
+      "api": "http://localhost:{{ API_PORT }}",
+      "health": "http://localhost:{{ API_PORT }}/health"
+    },
+    "initialization": {
+      "phases": [
+        {
+          "name": "pre-validation",
+          "tasks": [
+            {
+              "name": "validate-resources",
+              "type": "script",
+              "script": "./deployment/validate.sh",
+              "timeout": "30s"
+            }
+          ]
+        },
+        {
+          "name": "database-setup",
+          "tasks": [
+            {
+              "name": "apply-schema",
+              "type": "sql",
+              "target": "storage.postgres",
+              "file": "initialization/database/schema.sql"
+            },
+            {
+              "name": "seed-data",
+              "type": "sql",
+              "target": "storage.postgres",
+              "file": "initialization/database/seed.sql"
+            }
+          ]
+        },
+        {
+          "name": "workflow-deployment",
+          "parallel": true,
+          "tasks": [
+            {
+              "name": "deploy-n8n-workflows",
+              "type": "resource-inject",
+              "target": "automation.n8n",
+              "config": "initialization/workflows/n8n/"
+            },
+            {
+              "name": "deploy-windmill-apps",
+              "type": "resource-inject",
+              "target": "automation.windmill",
+              "config": "initialization/ui/"
+            }
+          ]
+        },
+        {
+          "name": "application-configuration",
+          "tasks": [
+            {
+              "name": "load-app-config",
+              "type": "config",
+              "file": "initialization/configuration/app-config.json"
+            },
+            {
+              "name": "set-feature-flags",
+              "type": "config",
+              "file": "initialization/configuration/feature-flags.json"
+            }
+          ]
+        },
+        {
+          "name": "startup",
+          "tasks": [
+            {
+              "name": "start-application",
+              "type": "script",
+              "script": "./deployment/startup.sh",
+              "timeout": "2m"
+            }
+          ]
+        },
+        {
+          "name": "post-validation",
+          "tasks": [
+            {
+              "name": "health-check",
+              "type": "healthcheck",
+              "target": "{{ urls.health }}",
+              "timeout": "30s",
+              "retries": 3
+            },
+            {
+              "name": "monitor-startup",
+              "type": "script",
+              "script": "./deployment/monitor.sh",
+              "background": true
+            }
+          ]
+        }
+      ]
+    },
+    "monitoring": {
+      "enabled": true,
+      "healthChecks": {
+        "application": {
+          "endpoint": "{{ urls.health }}",
+          "interval": "30s",
+          "timeout": "5s",
+          "threshold": 3
+        },
+        "workflows": {
+          "endpoint": "http://localhost:5678/api/v1/info",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "database": {
+          "type": "tcp",
+          "port": 5432,
+          "interval": "30s"
+        }
+      },
+      "metrics": {
+        "responseTime": {
+          "p50": "100ms",
+          "p95": "500ms",
+          "p99": "1000ms"
+        },
+        "throughput": {
+          "rps": 100,
+          "concurrent": 10
+        },
+        "errorRate": {
+          "threshold": "1%"
+        }
+      }
+    },
+    "cleanup": {
+      "enabled": true,
+      "tasks": [
+        {
+          "name": "delete-workflows",
+          "type": "resource-cleanup",
+          "target": "automation.n8n"
+        },
+        {
+          "name": "drop-database",
+          "type": "sql",
+          "target": "storage.postgres",
+          "query": "DROP DATABASE IF EXISTS {{ DATABASE_NAME }}"
+        },
+        {
+          "name": "clear-storage",
+          "type": "resource-cleanup",
+          "target": "storage.minio"
+        }
+      ]
+    },
+    "testing": {
+      "enabled": true,
+      "timeout": "30m",
+      "script": "./test.sh",
+      "ui": {
+        "required": true,
+        "type": "windmill",
+        "url": "{{ urls.application }}"
+      },
+      "performance": {
+        "loadTest": {
+          "users": 10,
+          "duration": "5m",
+          "rampUp": "30s"
+        }
+      }
+    }
+  },
+  "metadata": {
+    "businessModel": {
+      "purpose": "commercial",
+      "valueProposition": "VALUE_PROPOSITION_PLACEHOLDER",
+      "targetMarket": "TARGET_MARKET_PLACEHOLDER",
+      "painPoints": [
+        "PAIN_POINT_1_PLACEHOLDER",
+        "PAIN_POINT_2_PLACEHOLDER",
+        "PAIN_POINT_3_PLACEHOLDER"
+      ],
+      "solution": "SOLUTION_DESCRIPTION_PLACEHOLDER",
+      "competitiveAdvantage": "COMPETITIVE_ADVANTAGE_PLACEHOLDER",
+      "revenuePotential": {
+        "initial": "$INITIAL_REVENUE_PLACEHOLDER",
+        "recurring": "$RECURRING_REVENUE_PLACEHOLDER",
+        "expansion": "$EXPANSION_REVENUE_PLACEHOLDER",
+        "totalEstimate": "$TOTAL_ESTIMATE_PLACEHOLDER"
+      },
+      "marketDemand": {
+        "level": "DEMAND_LEVEL_PLACEHOLDER",
+        "growth": "GROWTH_RATE_PLACEHOLDER",
+        "evidence": "MARKET_EVIDENCE_PLACEHOLDER"
+      },
+      "roi": {
+        "developmentCost": "$DEVELOPMENT_COST_PLACEHOLDER",
+        "timeToMarket": "TIME_TO_MARKET_PLACEHOLDER",
+        "breakEven": "BREAK_EVEN_TIMELINE_PLACEHOLDER"
+      }
+    },
+    "performance": {
+      "targets": {
+        "initializationTime": "2m",
+        "responseTime": {
+          "p50": "100ms",
+          "p95": "500ms",
+          "p99": "1000ms"
+        },
+        "throughput": {
+          "minimum": 50,
+          "target": 100,
+          "peak": 500
+        },
+        "availability": "99.9%",
+        "errorRate": "<1%"
+      },
+      "resources": {
+        "cpu": {
+          "minimum": "0.5",
+          "target": "1.0",
+          "maximum": "2.0"
+        },
+        "memory": {
+          "minimum": "512Mi",
+          "target": "1Gi",
+          "maximum": "2Gi"
+        },
+        "storage": {
+          "database": "10Gi",
+          "files": "20Gi"
+        }
+      }
+    },
+    "customization": {
+      "variables": {
+        "APP_NAME": {
+          "type": "string",
+          "default": "APPLICATION_NAME_PLACEHOLDER",
+          "description": "Application display name"
+        },
+        "COMPANY_NAME": {
+          "type": "string",
+          "default": "COMPANY_NAME_PLACEHOLDER",
+          "description": "Customer company name"
+        },
+        "PRIMARY_COLOR": {
+          "type": "string",
+          "default": "#PRIMARY_COLOR_PLACEHOLDER",
+          "description": "Brand primary color"
+        },
+        "DATABASE_NAME": {
+          "type": "string",
+          "default": "DATABASE_NAME_PLACEHOLDER",
+          "description": "Database name"
+        },
+        "APP_PORT": {
+          "type": "number",
+          "default": 3000,
+          "description": "Application port"
+        },
+        "ADMIN_PORT": {
+          "type": "number",
+          "default": 3001,
+          "description": "Admin dashboard port"
+        },
+        "API_PORT": {
+          "type": "number",
+          "default": 5329,
+          "description": "API server port"
+        }
+      },
+      "features": {
+        "authentication": {
+          "enabled": true,
+          "provider": "AUTH_PROVIDER_PLACEHOLDER",
+          "sso": false
+        },
+        "notifications": {
+          "enabled": true,
+          "channels": ["email", "webhook"]
+        },
+        "analytics": {
+          "enabled": true,
+          "provider": "internal"
+        },
+        "payments": {
+          "enabled": false,
+          "provider": "PAYMENT_PROVIDER_PLACEHOLDER"
+        }
+      },
+      "integrations": [
+        {
+          "name": "INTEGRATION_NAME_PLACEHOLDER",
+          "type": "INTEGRATION_TYPE_PLACEHOLDER",
+          "required": false
+        }
+      ]
+    },
+    "aiGeneration": {
+      "enabled": true,
+      "placeholders": {
+        "business": [
+          "VALUE_PROPOSITION_PLACEHOLDER",
+          "TARGET_MARKET_PLACEHOLDER",
+          "PAIN_POINT_*_PLACEHOLDER",
+          "SOLUTION_DESCRIPTION_PLACEHOLDER"
+        ],
+        "technical": [
+          "SCENARIO_ID_PLACEHOLDER",
+          "DATABASE_NAME_PLACEHOLDER",
+          "APPLICATION_PATH_PLACEHOLDER"
+        ],
+        "revenue": [
+          "*_REVENUE_PLACEHOLDER",
+          "TOTAL_ESTIMATE_PLACEHOLDER",
+          "DEVELOPMENT_COST_PLACEHOLDER"
+        ]
+      },
+      "instructions": "Replace all _PLACEHOLDER values with specific details for the target scenario"
+    }
+  }
+}

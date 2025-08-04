@@ -1,0 +1,663 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/resources.schema.json",
+  "$ref": "#/definitions/resourcesConfig",
+  "title": "Service Resources Schema",
+  "description": "Schema for defining service resource dependencies and configurations",
+  "definitions": {
+    "resourcesConfig": {
+      "type": "object",
+      "properties": {
+        "$schema": {
+          "type": "string"
+        },
+        "version": {
+          "$ref": "common.schema.json#/definitions/semver"
+        },
+        "resources": {
+          "type": "object",
+          "properties": {
+            "ai": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/aiResource"
+              },
+              "description": "AI and ML resources (LLMs, embeddings, vision models, etc.)"
+            },
+            "automation": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/automationResource"
+              },
+              "description": "Workflow automation platforms (n8n, Windmill, Node-RED, etc.)"
+            },
+            "agents": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/agentResource"
+              },
+              "description": "AI agent services (Claude Code, Agent-S2, etc.)"
+            },
+            "storage": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/storageResource"
+              },
+              "description": "Data storage resources (PostgreSQL, Redis, MinIO, Qdrant, etc.)"
+            },
+            "execution": {
+              "type": "object",
+              "additionalProperties": {
+                "$ref": "#/definitions/executionResource"
+              },
+              "description": "Code execution environments (Judge0, sandboxes, etc.)"
+            }
+          }
+        },
+        "profiles": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/resourceProfile"
+          },
+          "description": "Named resource configuration profiles"
+        }
+      }
+    },
+    "baseResource": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether this resource is enabled"
+        },
+        "type": {
+          "type": "string",
+          "description": "Resource type identifier"
+        },
+        "version": {
+          "type": "string",
+          "description": "Resource version"
+        },
+        "baseUrl": {
+          "$ref": "common.schema.json#/definitions/url",
+          "description": "Base URL for the resource API"
+        },
+        "endpoint": {
+          "$ref": "common.schema.json#/definitions/url",
+          "description": "Alternative to baseUrl for some resources"
+        },
+        "apiKey": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "common.schema.json#/definitions/secretReference"
+            }
+          ],
+          "description": "API key for authentication"
+        },
+        "username": {
+          "type": "string",
+          "description": "Username for authentication"
+        },
+        "password": {
+          "oneOf": [
+            {
+              "type": "string"
+            },
+            {
+              "$ref": "common.schema.json#/definitions/secretReference"
+            }
+          ],
+          "description": "Password for authentication"
+        },
+        "connection": {
+          "$ref": "#/definitions/connectionConfig",
+          "description": "Connection configuration"
+        },
+        "healthCheck": {
+          "$ref": "#/definitions/healthCheckConfig",
+          "description": "Health check configuration"
+        },
+        "rateLimits": {
+          "$ref": "#/definitions/rateLimitConfig",
+          "description": "Rate limiting configuration"
+        },
+        "security": {
+          "$ref": "#/definitions/resourceSecurityConfig",
+          "description": "Security configuration"
+        },
+        "monitoring": {
+          "$ref": "#/definitions/resourceMonitoringConfig",
+          "description": "Monitoring configuration"
+        },
+        "labels": {
+          "$ref": "common.schema.json#/definitions/labels"
+        },
+        "annotations": {
+          "$ref": "common.schema.json#/definitions/annotations"
+        }
+      },
+      "additionalProperties": true,
+      "description": "Base configuration for all resources with service-specific properties allowed"
+    },
+    "aiResource": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/baseResource"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "provider": {
+              "type": "string",
+              "enum": ["local", "openai", "anthropic", "openrouter", "huggingface", "replicate", "custom"],
+              "description": "AI service provider"
+            },
+            "models": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/aiModel"
+              },
+              "description": "Available AI models"
+            },
+            "defaultModel": {
+              "type": "string",
+              "description": "Default model to use"
+            },
+            "maxTokens": {
+              "type": "integer",
+              "description": "Maximum tokens per request"
+            },
+            "temperature": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 2,
+              "description": "Default temperature setting"
+            },
+            "keepAlive": {
+              "type": "string",
+              "description": "Model keep-alive duration (for local models)"
+            }
+          }
+        }
+      ]
+    },
+    "automationResource": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/baseResource"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "workspaces": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "Available workspaces"
+            },
+            "webhookUrl": {
+              "$ref": "common.schema.json#/definitions/url",
+              "description": "Webhook endpoint URL"
+            },
+            "executionLimit": {
+              "type": "integer",
+              "description": "Maximum concurrent executions"
+            }
+          }
+        }
+      ]
+    },
+    "agentResource": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/baseResource"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "capabilities": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["web-browsing", "code-execution", "file-management", "api-interaction", "image-processing", "document-parsing"]
+              },
+              "description": "Agent capabilities"
+            },
+            "sandbox": {
+              "type": "boolean",
+              "default": true,
+              "description": "Whether agent runs in sandbox"
+            },
+            "maxSessionTime": {
+              "$ref": "common.schema.json#/definitions/duration",
+              "description": "Maximum session duration"
+            }
+          }
+        }
+      ]
+    },
+    "storageResource": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/baseResource"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "host": {
+              "type": "string",
+              "description": "Storage host"
+            },
+            "port": {
+              "$ref": "common.schema.json#/definitions/port",
+              "description": "Storage port"
+            },
+            "database": {
+              "type": "string",
+              "description": "Database name"
+            },
+            "bucket": {
+              "type": "string",
+              "description": "Storage bucket name"
+            },
+            "region": {
+              "type": "string",
+              "description": "Storage region"
+            },
+            "ssl": {
+              "type": "boolean",
+              "description": "Use SSL connection"
+            },
+            "pool": {
+              "$ref": "#/definitions/connectionPool",
+              "description": "Connection pool configuration"
+            },
+            "backup": {
+              "$ref": "#/definitions/backupConfig",
+              "description": "Backup configuration"
+            },
+            "persistence": {
+              "type": "boolean",
+              "description": "Enable data persistence"
+            },
+            "eviction": {
+              "type": "string",
+              "enum": ["LRU", "LFU", "TTL", "RANDOM"],
+              "description": "Cache eviction policy"
+            },
+            "maxMemory": {
+              "$ref": "common.schema.json#/definitions/memory",
+              "description": "Maximum memory usage"
+            },
+            "indices": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/indexConfig"
+              },
+              "description": "Search indices configuration"
+            },
+            "buckets": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/bucketConfig"
+              },
+              "description": "Object storage buckets"
+            }
+          }
+        }
+      ]
+    },
+    "executionResource": {
+      "allOf": [
+        {
+          "$ref": "#/definitions/baseResource"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "languages": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["javascript", "typescript", "python", "go", "rust", "java", "csharp", "ruby", "php", "shell", "sql"]
+              },
+              "description": "Supported programming languages"
+            },
+            "timeout": {
+              "$ref": "common.schema.json#/definitions/duration",
+              "description": "Execution timeout"
+            },
+            "memoryLimit": {
+              "$ref": "common.schema.json#/definitions/memory",
+              "description": "Memory limit per execution"
+            },
+            "cpuLimit": {
+              "$ref": "common.schema.json#/definitions/cpu",
+              "description": "CPU limit per execution"
+            },
+            "networkAccess": {
+              "type": "boolean",
+              "default": false,
+              "description": "Allow network access during execution"
+            },
+            "fileSystemAccess": {
+              "type": "boolean",
+              "default": false,
+              "description": "Allow file system access during execution"
+            }
+          }
+        }
+      ]
+    },
+    "aiModel": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Model name"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["llm", "embedding", "vision", "audio", "multimodal"],
+          "description": "Model type"
+        },
+        "size": {
+          "type": "string",
+          "description": "Model size (e.g., 7b, 13b, 70b)"
+        },
+        "contextLength": {
+          "type": "integer",
+          "description": "Maximum context length"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["text-generation", "code-generation", "function-calling", "vision", "audio", "reasoning"]
+          }
+        }
+      },
+      "required": ["name", "type"]
+    },
+    "connectionConfig": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "$ref": "common.schema.json#/definitions/url"
+        },
+        "host": {
+          "type": "string"
+        },
+        "port": {
+          "$ref": "common.schema.json#/definitions/port"
+        },
+        "timeout": {
+          "$ref": "common.schema.json#/definitions/duration"
+        },
+        "retries": {
+          "type": "integer",
+          "default": 3
+        },
+        "ssl": {
+          "type": "boolean"
+        }
+      }
+    },
+    "healthCheckConfig": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["http", "tcp", "grpc", "command"],
+          "default": "http"
+        },
+        "endpoint": {
+          "type": "string",
+          "description": "Health check endpoint path"
+        },
+        "port": {
+          "$ref": "common.schema.json#/definitions/port"
+        },
+        "intervalMs": {
+          "type": "integer",
+          "default": 30000,
+          "description": "Health check interval in milliseconds"
+        },
+        "timeoutMs": {
+          "type": "integer",
+          "default": 5000,
+          "description": "Health check timeout in milliseconds"
+        },
+        "retries": {
+          "type": "integer",
+          "default": 3
+        },
+        "requiresAuth": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether health check requires authentication"
+        },
+        "command": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Command to run for health check"
+        }
+      }
+    },
+    "rateLimitConfig": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "integer",
+          "description": "Number of requests"
+        },
+        "window": {
+          "$ref": "common.schema.json#/definitions/duration",
+          "description": "Time window for rate limit"
+        },
+        "burst": {
+          "type": "integer",
+          "description": "Burst allowance"
+        }
+      }
+    },
+    "resourceSecurityConfig": {
+      "type": "object",
+      "properties": {
+        "tls": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "verify": {
+              "type": "boolean",
+              "default": true
+            },
+            "cert": {
+              "$ref": "common.schema.json#/definitions/secretReference"
+            },
+            "key": {
+              "$ref": "common.schema.json#/definitions/secretReference"
+            }
+          }
+        },
+        "allowlist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Allowed IP addresses or ranges"
+        },
+        "blocklist": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Blocked IP addresses or ranges"
+        }
+      }
+    },
+    "resourceMonitoringConfig": {
+      "type": "object",
+      "properties": {
+        "metrics": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": true
+            },
+            "endpoint": {
+              "type": "string"
+            },
+            "labels": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "logging": {
+          "type": "object",
+          "properties": {
+            "level": {
+              "type": "string",
+              "enum": ["debug", "info", "warn", "error"],
+              "default": "info"
+            },
+            "format": {
+              "type": "string",
+              "enum": ["json", "text"],
+              "default": "json"
+            }
+          }
+        }
+      }
+    },
+    "connectionPool": {
+      "type": "object",
+      "properties": {
+        "min": {
+          "type": "integer",
+          "default": 2
+        },
+        "max": {
+          "type": "integer",
+          "default": 10
+        },
+        "acquireTimeout": {
+          "type": "integer",
+          "description": "Connection acquire timeout in milliseconds"
+        },
+        "idleTimeout": {
+          "type": "integer",
+          "description": "Connection idle timeout in milliseconds"
+        }
+      }
+    },
+    "backupConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "schedule": {
+          "type": "string",
+          "description": "Cron expression for backup schedule"
+        },
+        "retention": {
+          "$ref": "common.schema.json#/definitions/duration",
+          "description": "Backup retention period"
+        },
+        "destination": {
+          "type": "string",
+          "description": "Backup destination (e.g., S3 URL)"
+        }
+      }
+    },
+    "indexConfig": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "shards": {
+          "type": "integer",
+          "default": 1
+        },
+        "replicas": {
+          "type": "integer",
+          "default": 0
+        }
+      },
+      "required": ["name"]
+    },
+    "bucketConfig": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "public": {
+          "type": "boolean",
+          "default": false
+        },
+        "versioning": {
+          "type": "boolean",
+          "default": false
+        },
+        "lifecycle": {
+          "type": "object",
+          "properties": {
+            "expiration": {
+              "$ref": "common.schema.json#/definitions/duration"
+            }
+          }
+        }
+      },
+      "required": ["name"]
+    },
+    "resourceProfile": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "resources": {
+          "type": "object",
+          "description": "Resource overrides for this profile"
+        },
+        "enabled": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Resources to enable in this profile"
+        },
+        "disabled": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Resources to disable in this profile"
+        }
+      },
+      "required": ["name"]
+    }
+  },
+  "required": ["resources"]
+}

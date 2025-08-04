@@ -21,7 +21,7 @@ MIGRATION COMPLETED:
 
 This template includes the **improved scenario structure** that enables seamless conversion from scenario validation to deployable applications:
 
-- ✅ **`manifest.yaml`** - Deployment orchestration
+- ✅ **`service.json`** - Unified configuration with deployment orchestration
 - ✅ **`initialization/`** - Complete app startup data  
 - ✅ **`deployment/`** - Orchestration scripts
 - ✅ **One-command deployment** via `scenario-to-app.sh`
@@ -120,8 +120,7 @@ cd {{ scenario.id }}
 ### **Core Files**
 ```
 {{ scenario.id }}/
-├── metadata.yaml              # Business model and configuration
-├── manifest.yaml              # Deployment orchestration
+├── service.json               # Unified business model, configuration, and deployment
 ├── README.md                  # This documentation
 └── test.sh                    # Integration tests
 ```
@@ -157,29 +156,44 @@ deployment/
 ## 🔧 **Customization Guide**
 
 ### **Business Configuration** 
-Edit `metadata.yaml`:
-```yaml
-business:
-  value_proposition: "Your unique value proposition"
-  target_markets:
-    - "Your primary market"
-    - "Your secondary market"
-  revenue_potential:
-    min: 15000  # Minimum project value
-    max: 30000  # Maximum project value
+Edit `service.json` metadata section:
+```json
+"metadata": {
+  "businessModel": {
+    "valueProposition": "Your unique value proposition",
+    "targetMarket": "Your primary market",
+    "revenuePotential": {
+      "initial": "$15000",
+      "recurring": "$5000",
+      "totalEstimate": "$30000"
+    }
+  }
+}
 ```
 
 ### **Resource Selection**
-Edit `metadata.yaml`:
-```yaml
-resources:
-  required:
-    - ollama     # AI processing
-    - n8n        # Workflow automation
-    - postgres   # Data storage
-  optional:
-    - whisper    # Speech processing
-    - comfyui    # Image generation
+Edit `service.json` resources section:
+```json
+"resources": {
+  "ai": {
+    "ollama": {
+      "enabled": true,
+      "required": true
+    }
+  },
+  "automation": {
+    "n8n": {
+      "enabled": true,
+      "required": true
+    }
+  },
+  "storage": {
+    "postgres": {
+      "enabled": true,
+      "required": true
+    }
+  }
+}
 ```
 
 ### **UI Customization**
@@ -303,8 +317,8 @@ This scenario template targets projects in the **${{ business.revenue_potential.
 ## 🎯 **Next Steps**
 
 ### **For Development**
-1. Copy this template: `cp -r SCENARIO_TEMPLATE/ your-scenario/`
-2. Customize business configuration in `metadata.yaml`
+1. Copy this template: `cp -r templates/full/ your-scenario/`
+2. Customize business configuration in `service.json`
 3. Adapt initialization data for your use case
 4. Test with `./deployment/validate.sh`
 5. Deploy with `../../../scenario-to-app.sh your-scenario`

@@ -1,0 +1,140 @@
+{
+  "$schema": "../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "basic-scenario-template",
+    "displayName": "Basic Scenario Template",
+    "description": "Simple integration testing template for validating resource connectivity",
+    "version": "1.0.0",
+    "type": "integration-test",
+    "tags": [
+      "template",
+      "testing",
+      "integration"
+    ],
+    "maintainers": [
+      {
+        "name": "MAINTAINER_NAME_PLACEHOLDER",
+        "email": "MAINTAINER_EMAIL_PLACEHOLDER"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "REPOSITORY_URL_PLACEHOLDER",
+      "directory": "/scenarios/basic"
+    },
+    "license": "MIT",
+    "documentation": "./README.md"
+  },
+  "resources": {
+    "storage": {
+      "postgres": {
+        "type": "postgresql",
+        "enabled": true,
+        "version": "16",
+        "required": true,
+        "initialization": {
+          "data": [
+            {
+              "type": "schema",
+              "file": "initialization/database/schema.sql"
+            },
+            {
+              "type": "seed",
+              "file": "initialization/database/seed.sql"
+            }
+          ]
+        }
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "version": "7",
+        "required": false
+      }
+    },
+    "automation": {
+      "n8n": {
+        "enabled": false,
+        "required": false,
+        "workflows": []
+      }
+    }
+  },
+  "deployment": {
+    "target": "local",
+    "strategy": "recreate",
+    "testing": {
+      "enabled": true,
+      "timeout": "5m",
+      "script": "./test.sh",
+      "successCriteria": {
+        "exitCode": 0,
+        "outputContains": ["SUCCESS", "PASSED"]
+      }
+    },
+    "initialization": {
+      "phases": [
+        {
+          "name": "validate-resources",
+          "tasks": [
+            {
+              "name": "check-postgres",
+              "type": "healthcheck",
+              "target": "storage.postgres",
+              "timeout": "30s"
+            }
+          ]
+        },
+        {
+          "name": "setup-database",
+          "tasks": [
+            {
+              "name": "apply-schema",
+              "type": "sql",
+              "target": "storage.postgres",
+              "file": "initialization/database/schema.sql"
+            },
+            {
+              "name": "seed-data",
+              "type": "sql",
+              "target": "storage.postgres",
+              "file": "initialization/database/seed.sql"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "metadata": {
+    "businessModel": {
+      "purpose": "internal",
+      "valueProposition": "Validates resource connectivity and basic operations",
+      "targetMarket": "Development and QA teams",
+      "revenuePotential": {
+        "type": "internal-use",
+        "value": "N/A"
+      }
+    },
+    "performance": {
+      "targets": {
+        "initializationTime": "30s",
+        "testDuration": "5m"
+      }
+    },
+    "customization": {
+      "variables": {
+        "DATABASE_NAME": {
+          "type": "string",
+          "default": "test_db",
+          "description": "Database name for testing"
+        },
+        "TEST_TIMEOUT": {
+          "type": "duration",
+          "default": "5m",
+          "description": "Maximum test execution time"
+        }
+      }
+    }
+  }
+}

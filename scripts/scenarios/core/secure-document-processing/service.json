@@ -1,0 +1,197 @@
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "secure-document-processing",
+    "version": "1.0.0",
+    "displayName": "Secure Document Processing Pipeline",
+    "description": "Enterprise-grade secure document processing with encryption, audit trails, and compliance automation",
+    "tags": [
+      "compliance-focused",
+      "enterprise-ready",
+      "high-revenue-potential",
+      "hipaa",
+      "gdpr",
+      "sox-compliance",
+      "security-first"
+    ],
+    "labels": {
+      "category": "security",
+      "complexity": "advanced",
+      "market-demand": "very-high"
+    },
+    "annotations": {
+      "value-proposition": "Zero-trust document processing platform with military-grade security and full compliance automation",
+      "generated-from": "manifest-to-service-converter",
+      "conversion-date": "2025-08-04T02:14:47Z"
+    }
+  },
+  "spec": {
+    "type": "application",
+    "category": "security",
+    "capabilities": [
+      "ai-processing",
+      "file-storage",
+      "data-persistence"
+    ],
+    "dependencies": {
+      "resources": [
+        {
+          "type": "security",
+          "name": "vault",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "ai",
+          "name": "unstructured-io",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "database",
+          "name": "postgres",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "storage",
+          "name": "minio",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "ai",
+          "name": "ollama",
+          "optional": true,
+          "version": "*"
+        },
+        {
+          "type": "vectordb",
+          "name": "qdrant",
+          "optional": true,
+          "version": "*"
+        }
+      ]
+    },
+    "pricing": {
+      "model": "subscription",
+      "currency": "USD",
+      "tiers": [
+        {
+          "name": "Basic",
+          "price": 8000,
+          "interval": "month",
+          "features": []
+        },
+        {
+          "name": "Professional",
+          "price": 20000,
+          "interval": "month",
+          "features": []
+        }
+      ]
+    },
+    "scenarios": {
+      "initialization": {
+        "resources": {
+          "postgres": {
+            "data": [
+              {
+                "type": "schema",
+                "file": "scenarios/secure-document-processing/initialization/database/schema.sql",
+                "format": "sql"
+              },
+              {
+                "type": "seed",
+                "file": "scenarios/secure-document-processing/initialization/database/seed.sql",
+                "format": "sql"
+              }
+            ]
+          }
+        },
+        "order": [],
+        "parallel": false
+      }
+    },
+    "serve": {
+      "healthChecks": {
+        "readiness": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8080,
+            "scheme": "HTTP"
+          },
+          "periodSeconds": 30,
+          "timeoutSeconds": 5
+        },
+        "liveness": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8080,
+            "scheme": "HTTP"
+          },
+          "periodSeconds": 60,
+          "timeoutSeconds": 5
+        }
+      },
+      "endpoints": [
+        {
+          "name": "api",
+          "protocol": "http",
+          "path": "/api/secure-document-processing",
+          "port": 3000,
+          "public": true
+        },
+        {
+          "name": "health",
+          "protocol": "http",
+          "path": "/api/secure-document-processing/health",
+          "port": 3000,
+          "public": false
+        }
+      ]
+    },
+    "deployment": {
+      "replicas": 1,
+      "strategy": "recreate",
+      "resources": {
+        "requests": {
+          "cpu": "100m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "1000m",
+          "memory": "1Gi"
+        }
+      }
+    },
+    "security": {
+      "authentication": {
+        "required": true,
+        "type": "jwt"
+      },
+      "authorization": {
+        "type": "rbac"
+      },
+      "encryption": {
+        "transit": true,
+        "atRest": true
+      }
+    },
+    "observability": {
+      "logging": {
+        "enabled": true,
+        "level": "info"
+      },
+      "metrics": {
+        "enabled": true,
+        "provider": "prometheus"
+      },
+      "tracing": {
+        "enabled": false,
+        "provider": "jaeger"
+      }
+    }
+  }
+}

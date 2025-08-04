@@ -311,8 +311,10 @@ Vrooli is built using a sophisticated, enterprise-grade technology stack designe
 ### AI & Execution Infrastructure
 - **Three-Tier Architecture:** SwarmStateMachine (Coordination Intelligence), RunStateMachine (Process Intelligence), UnifiedExecutor (Execution Intelligence)
 - **AI Model Management:** Multi-provider support (OpenAI, Anthropic, Mistral) with intelligent fallback and cost optimization
+- **Local Resource Integration:** Standardized interfaces for databases, AI models, automation platforms, web browsers, code execution, and more
 - **MCP Integration:** Model Context Protocol for universal tool integration and agent-to-agent communication
 - **Strategy Evolution:** Dynamic execution strategy selection (Conversational → Reasoning → Deterministic)
+- **Scenario System:** Declarative app generation from minimal JSON specifications, enabling one-shot SaaS creation
 
 ### Data & State Management
 - [<img align="left" alt="PostgreSQL" width="26px" src="./assets/postgresql.svg" style="padding-right:10px;" />](https://www.postgresql.org/) **PostgreSQL + pgvector:** Primary database with vector embedding support for knowledge base and similarity search.
@@ -338,6 +340,8 @@ Vrooli is built using a sophisticated, enterprise-grade technology stack designe
 - **Universal Navigators:** Plug-and-play support for BPMN 2.0, with planned support for Langchain, Temporal, Airflow, and n8n
 - **Routine Evolution:** Automatic progression from conversational to deterministic execution strategies
 - **Cross-Platform Compatibility:** Platform-agnostic routine execution enabling unprecedented workflow interoperability
+- **Resource Orchestration:** Dynamic integration with 30+ local resources (Ollama, Whisper, n8n, Windmill, Agent-S2, PostgreSQL, etc.)
+- **App Generation Pipeline:** Requirements → Scenario → Deployment in hours, not months
 
 This technology stack enables Vrooli's unique capabilities: recursive self-improvement, collaborative intelligence ecosystems, and universal automation platform support.
 
@@ -421,6 +425,8 @@ This security architecture ensures that Vrooli can safely enable autonomous AI o
 
 ## [👩🏼‍💻 Developer Setup][setup-guide]
 [Follow this guide][setup-guide] to set up your development environment, including step-by-step instructions and useful tips for efficient development.
+
+**Note:** Running the setup process with sudo permissions automatically configures any required system settings for local resources.
 
 ### CI/CD Pipeline
 

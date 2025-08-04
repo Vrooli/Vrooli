@@ -1,0 +1,205 @@
+{
+  "apiVersion": "v1",
+  "kind": "Service",
+  "metadata": {
+    "name": "multi-modal-ai-assistant",
+    "version": "1.0.0",
+    "displayName": "Multi-Modal AI Assistant",
+    "description": "Voice-to-visual-to-action AI assistant with professional UI for accessibility and productivity",
+    "tags": [
+      "multimodal",
+      "voice-enabled",
+      "visual-generation",
+      "automation",
+      "windmill-ui",
+      "accessibility",
+      "enterprise-ready",
+      "high-revenue-potential"
+    ],
+    "labels": {
+      "category": "ai-assistance",
+      "complexity": "advanced",
+      "market-demand": "very-high"
+    },
+    "annotations": {
+      "value-proposition": "Complete accessibility and productivity solution combining voice, AI, visual generation, and automation",
+      "generated-from": "manifest-to-service-converter",
+      "conversion-date": "2025-08-04T02:14:44Z"
+    }
+  },
+  "spec": {
+    "type": "application",
+    "category": "ai-assistance",
+    "capabilities": [
+      "ai-processing",
+      "workflow-automation",
+      "file-storage",
+      "web-automation"
+    ],
+    "dependencies": {
+      "resources": [
+        {
+          "type": "ai",
+          "name": "whisper",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "ai",
+          "name": "ollama",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "automation",
+          "name": "comfyui",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "agent",
+          "name": "agent-s2",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "automation",
+          "name": "windmill",
+          "optional": false,
+          "version": "*"
+        },
+        {
+          "type": "storage",
+          "name": "minio",
+          "optional": true,
+          "version": "*"
+        },
+        {
+          "type": "vectordb",
+          "name": "qdrant",
+          "optional": true,
+          "version": "*"
+        }
+      ]
+    },
+    "pricing": {
+      "model": "subscription",
+      "currency": "USD",
+      "tiers": [
+        {
+          "name": "Basic",
+          "price": 10000,
+          "interval": "month",
+          "features": []
+        },
+        {
+          "name": "Professional",
+          "price": 25000,
+          "interval": "month",
+          "features": []
+        }
+      ]
+    },
+    "scenarios": {
+      "initialization": {
+        "resources": {
+          "postgres": {
+            "data": [
+              {
+                "type": "schema",
+                "file": "scenarios/multi-modal-ai-assistant/initialization/database/schema.sql",
+                "format": "sql"
+              },
+              {
+                "type": "seed",
+                "file": "scenarios/multi-modal-ai-assistant/initialization/database/seed.sql",
+                "format": "sql"
+              }
+            ]
+          }
+        },
+        "order": [],
+        "parallel": false
+      }
+    },
+    "serve": {
+      "healthChecks": {
+        "readiness": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8080,
+            "scheme": "HTTP"
+          },
+          "periodSeconds": 30,
+          "timeoutSeconds": 5
+        },
+        "liveness": {
+          "httpGet": {
+            "path": "/health",
+            "port": 8080,
+            "scheme": "HTTP"
+          },
+          "periodSeconds": 60,
+          "timeoutSeconds": 5
+        }
+      },
+      "endpoints": [
+        {
+          "name": "api",
+          "protocol": "http",
+          "path": "/api/multi-modal-ai-assistant",
+          "port": 3000,
+          "public": true
+        },
+        {
+          "name": "health",
+          "protocol": "http",
+          "path": "/api/multi-modal-ai-assistant/health",
+          "port": 3000,
+          "public": false
+        }
+      ]
+    },
+    "deployment": {
+      "replicas": 1,
+      "strategy": "recreate",
+      "resources": {
+        "requests": {
+          "cpu": "100m",
+          "memory": "128Mi"
+        },
+        "limits": {
+          "cpu": "1000m",
+          "memory": "1Gi"
+        }
+      }
+    },
+    "security": {
+      "authentication": {
+        "required": true,
+        "type": "jwt"
+      },
+      "authorization": {
+        "type": "rbac"
+      },
+      "encryption": {
+        "transit": true,
+        "atRest": true
+      }
+    },
+    "observability": {
+      "logging": {
+        "enabled": true,
+        "level": "info"
+      },
+      "metrics": {
+        "enabled": true,
+        "provider": "prometheus"
+      },
+      "tracing": {
+        "enabled": false,
+        "provider": "jaeger"
+      }
+    }
+  }
+}

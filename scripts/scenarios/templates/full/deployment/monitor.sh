@@ -65,8 +65,8 @@ trap cleanup_and_exit SIGTERM SIGINT
 
 # Helper functions
 get_required_resources() {
-    if [[ -f "$SCENARIO_DIR/metadata.yaml" ]]; then
-        grep -A 10 "required:" "$SCENARIO_DIR/metadata.yaml" | grep "^[[:space:]]*-" | sed 's/^[[:space:]]*-[[:space:]]*//' | tr '\n' ' '
+    if [[ -f "$SCENARIO_DIR/service.json" ]]; then
+        jq -r '.resources | to_entries[] | select(.value.required == true) | .key' "$SCENARIO_DIR/service.json" 2>/dev/null | tr '\n' ' '
     fi
 }
 
