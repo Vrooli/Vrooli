@@ -58,7 +58,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                 nodeName: "Node1",
                 data: JSON.stringify({ value: "test" }),
                 run: {
-                    connect: { id: this.fixtureRunId },
+                    connect: { id: this.fixtureRunId.toString() as any },
                 },
             },
             complete: {
@@ -84,7 +84,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                     },
                 }),
                 run: {
-                    connect: { id: this.fixtureRunId },
+                    connect: { id: this.fixtureRunId.toString() as any },
                 },
             },
             invalid: {
@@ -245,7 +245,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
             nodeName: `Node_${nanoid()}`,
             data: JSON.stringify({ value: "default" }),
             run: {
-                connect: { id: this.defaultRunId },
+                connect: { id: this.defaultRunId.toString() as any },
             },
             ...overrides,
         };
@@ -274,7 +274,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                 },
             }),
             run: {
-                connect: { id: this.defaultRunId },
+                connect: { id: this.defaultRunId.toString() as any },
             },
             ...overrides,
         };
@@ -381,7 +381,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
             nodeInputName: "input",
             nodeName,
             data: JSON.stringify(data),
-            run: { connect: { id: runId } },
+            run: { connect: { id: runId.toString() as any } },
         });
     }
 
@@ -390,7 +390,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
             nodeInputName: "output",
             nodeName,
             data: JSON.stringify(data),
-            run: { connect: { id: runId } },
+            run: { connect: { id: runId.toString() as any } },
         });
     }
 
@@ -404,7 +404,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
                 stack: error.stack,
                 timestamp: new Date().toISOString(),
             }),
-            run: { connect: { id: runId } },
+            run: { connect: { id: runId.toString() as any } },
         });
     }
 
@@ -430,7 +430,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
         // Handle run relationship
         if (config.withRun) {
             data.run = {
-                connect: { id: config.withRun.runId },
+                connect: { id: config.withRun.runId.toString() as any },
             };
         }
 
@@ -492,7 +492,7 @@ export class RunIODbFactory extends EnhancedDatabaseFactory<
         const results: run_io[] = [];
         for (const io of ioData) {
             const result = await this.createMinimal({
-                run: { connect: { id: runId } },
+                run: { connect: { id: runId.toString() as any } },
                 nodeInputName: io.nodeInputName,
                 nodeName: io.nodeName,
                 data: JSON.stringify(io.data),

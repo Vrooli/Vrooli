@@ -244,19 +244,19 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
 
     // Static methods for backward compatibility
     static createMinimal(
-        byId: string,
+        byId: bigint,
         overrides?: Partial<Prisma.viewUncheckedCreateInput>,
     ): Prisma.viewUncheckedCreateInput {
         const factory = new ViewDbFactory();
         return factory.createMinimal({
-            byId: BigInt(byId),
+            byId,
             ...overrides,
         });
     }
 
     static createForObject(
-        byId: string,
-        objectId: string,
+        byId: bigint,
+        objectId: bigint,
         objectType: ViewFor | "Issue" | "Resource" | "Team" | "User",
         overrides?: Partial<Prisma.viewUncheckedCreateInput>,
     ): Prisma.viewUncheckedCreateInput {
@@ -281,16 +281,16 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
         }
 
         return factory.createMinimal({
-            byId: BigInt(byId),
-            [fieldName]: BigInt(objectId),
+            byId,
+            [fieldName]: objectId,
             name: `${objectType} View`,
             ...overrides,
         });
     }
 
     static createAnonymousView(
-        sessionId: string,
-        objectId: string,
+        sessionId: bigint,
+        objectId: bigint,
         objectType: ViewFor | "Issue" | "Resource" | "Team" | "User",
         overrides?: Partial<Prisma.viewUncheckedCreateInput>,
     ): Prisma.viewUncheckedCreateInput {
@@ -308,20 +308,20 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
 
         const fieldName = typeMapping[objectType];
         const data = factory.createMinimal({
-            [fieldName]: BigInt(objectId),
+            [fieldName]: objectId,
             name: `Anonymous ${objectType} View`,
             ...overrides,
         });
 
         // Remove byId and set bySessionId for anonymous views
         delete data.byId;
-        data.bySessionId = BigInt(sessionId);
+        data.bySessionId = sessionId;
 
         return data;
     }
 
     static createWithTimestamp(
-        byId: string,
+        byId: bigint,
         viewedAt: Date,
         overrides?: Partial<Prisma.viewUncheckedCreateInput>,
     ): Prisma.viewUncheckedCreateInput {
@@ -332,8 +332,8 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
     }
 
     static createViewHistory(
-        byId: string,
-        objects: Array<{ id: string; type: ViewFor | "Issue" | "Resource" | "Team" | "User"; viewedAt?: Date }>,
+        byId: bigint,
+        objects: Array<{ id: bigint; type: ViewFor | "Issue" | "Resource" | "Team" | "User"; viewedAt?: Date }>,
     ): Prisma.viewUncheckedCreateInput[] {
         return objects.map((obj, index) =>
             this.createForObject(byId, obj.id, obj.type, {
@@ -343,32 +343,32 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
     }
 
     static createForIssue(
-        byId: string,
-        issueId: string,
+        byId: bigint,
+        issueId: bigint,
         overrides?: Partial<Prisma.viewUncheckedCreateInput>,
     ): Prisma.viewUncheckedCreateInput {
         return this.createForObject(byId, issueId, "Issue", overrides);
     }
 
     static createForResource(
-        byId: string,
-        resourceId: string,
+        byId: bigint,
+        resourceId: bigint,
         overrides?: Partial<Prisma.viewUncheckedCreateInput>,
     ): Prisma.viewUncheckedCreateInput {
         return this.createForObject(byId, resourceId, ViewFor.Resource, overrides);
     }
 
     static createForTeam(
-        byId: string,
-        teamId: string,
+        byId: bigint,
+        teamId: bigint,
         overrides?: Partial<Prisma.viewUncheckedCreateInput>,
     ): Prisma.viewUncheckedCreateInput {
         return this.createForObject(byId, teamId, ViewFor.Team, overrides);
     }
 
     static createForUser(
-        byId: string,
-        userId: string,
+        byId: bigint,
+        userId: bigint,
         overrides?: Partial<Prisma.viewUncheckedCreateInput>,
     ): Prisma.viewUncheckedCreateInput {
         return this.createForObject(byId, userId, ViewFor.User, overrides);
@@ -381,9 +381,9 @@ export class ViewDbFactory extends EnhancedDbFactory<Prisma.viewUncheckedCreateI
 export async function seedViews(
     prisma: any,
     options: {
-        byId?: string;
-        bySessionId?: string;
-        objects: Array<{ id: string; type: ViewFor | "Issue" | "Resource" | "Team" | "User" }>;
+        byId?: bigint;
+        bySessionId?: bigint;
+        objects: Array<{ id: bigint; type: ViewFor | "Issue" | "Resource" | "Team" | "User" }>;
         withTimestamps?: boolean;
     },
 ): Promise<BulkSeedResult<any>> {
@@ -443,7 +443,7 @@ export async function seedViews(
  */
 export async function seedRecentActivity(
     prisma: any,
-    userId: string,
+    userId: bigint,
     count = 5,
 ): Promise<BulkSeedResult<any>> {
     const activities = [];
@@ -483,11 +483,11 @@ export async function seedRecentActivity(
  */
 export async function seedViewAnalytics(
     prisma: any,
-    objectId: string,
+    objectId: bigint,
     objectType: ViewFor | "Issue" | "Resource" | "Team" | "User",
     options: {
-        viewerIds?: string[];
-        sessionIds?: string[];
+        viewerIds?: bigint[];
+        sessionIds?: bigint[];
         daysBack?: number;
         viewsPerDay?: number;
     },
@@ -556,8 +556,8 @@ export async function seedViewAnalytics(
 export async function seedViewsByDateRange(
     prisma: any,
     options: {
-        userId: string;
-        objectId: string;
+        userId: bigint;
+        objectId: bigint;
         objectType: ViewFor | "Issue" | "Resource" | "Team" | "User";
         startDate: Date;
         endDate: Date;

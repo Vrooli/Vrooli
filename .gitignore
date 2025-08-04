@@ -227,9 +227,9 @@ scripts/tests/tmp
 
 /scripts/__tests/helpers
 
-# Local execution configuration (keep example files, ignore local settings)
-.vrooli/execution.local.json
-.vrooli/resources.local.json
+# Local execution configuration
+.vrooli/*.local.json
+.vrooli/service.json
 
 # Node-RED test artifacts
 node-red-flows-export-*.json

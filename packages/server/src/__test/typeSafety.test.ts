@@ -1,4 +1,5 @@
 // AI_CHECK: TYPE_SAFETY=phase2-tests | LAST: 2025-07-04 - Type safety verification tests
+import { generatePK } from "@vrooli/shared";
 import { beforeAll, describe, expect, it } from "vitest";
 import { ModelMap } from "../models/base/index.js";
 import {
@@ -35,9 +36,10 @@ describe("Type Guards", () => {
 
     describe("hasId", () => {
         it("should detect objects with string id", () => {
-            expect(hasId({ id: "123" })).toBe(true);
+            const validId = generatePK().toString();
+            expect(hasId({ id: validId })).toBe(true);
             expect(hasId({ id: 123 })).toBe(false);
-            expect(hasId({ no_id: "123" })).toBe(false);
+            expect(hasId({ no_id: validId })).toBe(false);
         });
     });
 
@@ -51,32 +53,39 @@ describe("Type Guards", () => {
 
     describe("isAuthData", () => {
         it("should validate auth data structure", () => {
-            expect(isAuthData({ __typename: "User", id: "123" })).toBe(true);
+            const validId = generatePK().toString();
+            expect(isAuthData({ __typename: "User", id: validId })).toBe(true);
             expect(isAuthData({ __typename: "User", id: 123 })).toBe(false);
-            expect(isAuthData({ id: "123" })).toBe(false);
+            expect(isAuthData({ id: validId })).toBe(false);
             expect(isAuthData({ __typename: "User" })).toBe(false);
         });
     });
 
     describe("extractOwnerId", () => {
         it("should extract userId", () => {
-            expect(extractOwnerId({ userId: "123" })).toBe("123");
+            const id1 = generatePK().toString();
+            expect(extractOwnerId({ userId: id1 })).toBe(id1);
         });
 
         it("should extract startedById", () => {
-            expect(extractOwnerId({ startedById: "456" })).toBe("456");
+            const id2 = generatePK().toString();
+            expect(extractOwnerId({ startedById: id2 })).toBe(id2);
         });
 
         it("should extract userData.id", () => {
-            expect(extractOwnerId({ userData: { id: "789" } })).toBe("789");
+            const id3 = generatePK().toString();
+            expect(extractOwnerId({ userData: { id: id3 } })).toBe(id3);
         });
 
         it("should prioritize userId over others", () => {
+            const id1 = generatePK().toString();
+            const id2 = generatePK().toString();
+            const id3 = generatePK().toString();
             expect(extractOwnerId({
-                userId: "123",
-                startedById: "456",
-                userData: { id: "789" },
-            })).toBe("123");
+                userId: id1,
+                startedById: id2,
+                userData: { id: id3 },
+            })).toBe(id1);
         });
 
         it("should return null for invalid data", () => {
@@ -123,14 +132,15 @@ describe("ModelMap Type Safety", () => {
 
 describe("Type Inference", () => {
     it("should narrow types with guards", () => {
-        const data: unknown = { userId: "123", status: "active" };
+        const validId = generatePK().toString();
+        const data: unknown = { userId: validId, status: "active" };
 
         if (isObject(data)) {
             // TypeScript knows data is Record<string, unknown>
             if (hasUserId(data)) {
                 // TypeScript knows data has userId: string
                 const id: string = data.userId;
-                expect(id).toBe("123");
+                expect(id).toBe(validId);
             }
 
             if (hasStatus(data)) {

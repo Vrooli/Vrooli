@@ -1,3 +1,4 @@
+/* eslint-disable no-magic-numbers */
 import { type Prisma, type PrismaClient, type issue } from "@prisma/client";
 import { IssueStatus } from "@vrooli/shared";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
@@ -276,7 +277,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateMinimalData(overrides?: Partial<issueCreateInput>): issueCreateInput {
+    protected generateMinimalData(overrides?: Partial<Prisma.issueCreateInput>): Prisma.issueCreateInput {
         return {
             id: this.generateId(),
             publicId: this.generatePublicId(),
@@ -294,7 +295,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         };
     }
 
-    protected generateCompleteData(overrides?: Partial<issueCreateInput>): issueCreateInput {
+    protected generateCompleteData(overrides?: Partial<Prisma.issueCreateInput>): Prisma.issueCreateInput {
         return {
             id: this.generateId(),
             publicId: this.generatePublicId(),
@@ -507,7 +508,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
      * Update issue status
      */
     async updateStatus(issueId: string, status: IssueStatus, closedById?: string): Promise<issue> {
-        const updateData: issueUpdateInput = { status };
+        const updateData: Prisma.issueUpdateInput = { status };
 
         if (status === IssueStatus.ClosedResolved || status === IssueStatus.ClosedUnresolved || status === IssueStatus.Rejected) {
             updateData.closedAt = new Date();
@@ -526,7 +527,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    protected getDefaultInclude(): issueInclude {
+    protected getDefaultInclude(): Prisma.issueInclude {
         return {
             resource: true,
             team: true,
@@ -553,10 +554,10 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async applyRelationships(
-        baseData: issueCreateInput,
+        baseData: Prisma.issueCreateInput,
         config: IssueRelationConfig,
         tx: any,
-    ): Promise<issueCreateInput> {
+    ): Promise<Prisma.issueCreateInput> {
         const data = { ...baseData };
 
         // Handle resource relationship
@@ -666,7 +667,16 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: issue,
+        record: issue & {
+            comments?: any[];
+            translations?: any[];
+            reactions?: any[];
+            reactionSummaries?: any[];
+            bookmarkedBy?: any[];
+            viewedBy?: any[];
+            reports?: any[];
+            subscriptions?: any[];
+        },
         remainingDepth: number,
         tx: any,
         includeOnly?: string[],
@@ -751,7 +761,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
      * Get issues for a resource
      */
     async getResourceIssues(resourceId: string, includeResolved = false): Promise<issue[]> {
-        const whereClause: issueWhereInput = { resourceId: BigInt(resourceId) };
+        const whereClause: Prisma.issueWhereInput = { resource: { id: BigInt(resourceId) } };
 
         if (!includeResolved) {
             whereClause.status = { notIn: [IssueStatus.ClosedResolved, IssueStatus.ClosedUnresolved] };
@@ -768,7 +778,7 @@ export class IssueDbFactory extends EnhancedDatabaseFactory<
      * Get issues for a team
      */
     async getTeamIssues(teamId: string, includeResolved = false): Promise<issue[]> {
-        const whereClause: issueWhereInput = { teamId: BigInt(teamId) };
+        const whereClause: Prisma.issueWhereInput = { team: { id: BigInt(teamId) } };
 
         if (!includeResolved) {
             whereClause.status = {

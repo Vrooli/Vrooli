@@ -14,8 +14,6 @@ This dual-purpose design means when you create a scenario, you're simultaneously
 - Building a template for revenue-generating applications
 - Enabling one-shot AI generation from customer requirements
 
-📚 **[Read the full improvement guide →](IMPROVED_SCENARIO_STRUCTURE.md)**
-
 ## 🎯 What Are Scenarios?
 
 **Scenarios are declarative templates that enable Vrooli to generate complete, deployable SaaS applications from customer requirements.** Each scenario represents the minimal set of files needed to validate, test, and deploy a specific type of business application.
@@ -57,45 +55,38 @@ All scenarios have been migrated to the new framework:
 
 ### For Validation Testing
 ```bash
-# Run integration tests for a specific scenario (NEW FRAMEWORK)
+# Run integration tests for a specific scenario
 cd core/multi-modal-ai-assistant
-./test.sh  # Now only 34 lines instead of 1000+!
+./test.sh
 
 # Run all scenario tests  
 for dir in core/*/; do
     echo "Testing $(basename $dir)..."
     (cd "$dir" && ./test.sh)
 done
-
-# Test scenarios using a specific resource
-./tools/test-by-resource.sh --resource ollama
 ```
 
 ### For App Generation
 ```bash
-# Generate a complete app from a scenario
-./tools/scenario-to-app.sh \
-  --scenario multi-modal-ai-assistant \
-  --output ~/my-customer-app
+# Convert a scenario to a deployable app
+./tools/scenario-to-app.sh multi-modal-ai-assistant
 
-# Generate with customization
-./tools/scenario-to-app.sh \
-  --scenario multi-modal-ai-assistant \
-  --output ~/my-app \
-  --config customer-config.yaml
+# Deploy with options
+./tools/scenario-to-app.sh multi-modal-ai-assistant --mode local --validate full
+
+# Dry run to see what would be done
+./tools/scenario-to-app.sh multi-modal-ai-assistant --dry-run
 ```
 
 ### For Developers
 ```bash
 # 1. Explore existing scenarios
 ls -la core/                             # See all available scenarios
-cat catalog.yaml                         # Browse registry
-cat _index/categories.yaml               # Browse by category
 
 # 2. Create a new scenario using the unified template
 cp -r templates/full/ core/my-new-scenario/
 cd core/my-new-scenario/
-# Edit metadata.yaml, manifest.yaml, initialization files
+# Edit service.json and initialization files
 # Template supports both manual editing AND AI generation patterns
 
 # 3. Test your scenario structure
@@ -137,43 +128,41 @@ cp -r templates/full/ core/ai-generated-scenario/
 
 ```
 scenarios/
-├── core/                     # All working scenarios (15+ scenarios)
-│   ├── multi-modal-ai-assistant/      # Voice+AI+Visual assistant ($10k-25k)
-│   ├── document-intelligence-pipeline/  # Document processing ($15k-30k)
-│   ├── ai-content-assistant-example/   # Content creation ($8k-20k)
-│   ├── business-process-automation/    # Workflow automation ($12k-35k)
-│   ├── research-assistant/             # Knowledge management ($10k-25k)
-│   └── ... (10+ more scenarios)
+├── core/                     # All working scenarios (14 scenarios)
+│   ├── multi-modal-ai-assistant/      # Voice+AI+Visual assistant
+│   ├── document-intelligence-pipeline/  # Document processing
+│   ├── ai-content-assistant-example/   # Content creation
+│   ├── business-process-automation/    # Workflow automation
+│   ├── research-assistant/             # Knowledge management
+│   └── ... (9 more scenarios)
 ├── templates/                # Templates for creating new scenarios
-│   ├── SCENARIO_TEMPLATE/    # Primary template (use this)
-│   ├── basic/               # Simple resource integration
-│   ├── business/            # Customer-facing applications  
-│   └── enterprise/          # Enterprise features
+│   ├── full/                # Complete application template (use this)
+│   └── basic/               # Simple testing template
 ├── tools/                    # Management and conversion tools
-│   ├── analyze-resource-usage.sh      # Resource analysis
-│   ├── generate-test-suggestions.sh   # Test generation
-│   └── (more tools coming)
-├── docs/                     # Detailed documentation
-├── _index/                   # Legacy categorization (still useful)
-├── catalog.yaml              # Scenario registry (to be created)
-└── README.md                # This file
+│   └── scenario-to-app.sh   # Convert scenarios to deployable apps
+├── injection/               # Resource injection system
+│   ├── engine.sh           # Injection orchestrator
+│   ├── schema-validator.sh # Configuration validation
+│   └── docs/               # Injection documentation
+├── docs/                    # Detailed documentation
+└── README.md               # This file
 ```
 
 ---
 
 ## 🧭 Navigation Dashboard
 
-| **Getting Started** | **Technical Deep Dive** | **Business Focus** |
+| **Getting Started** | **Technical Deep Dive** | **Resource Injection** |
 |---|---|---|
-| 📖 [Getting Started Guide](docs/getting-started.md) | 🏗️ [Architecture Overview](docs/architecture.md) | 💼 [Business Framework](docs/business-framework.md) |
-| 🎯 [Template Selection Guide](docs/template-guide.md) | 🔧 [Resource Integration](docs/resource-integration.md) | 📊 [Revenue Modeling](docs/business-framework.md#revenue-modeling) |
-| 🤖 [AI Generation Guide](docs/ai-generation-guide.md) | 🧪 [Testing Framework](docs/testing-framework.md) | 🚀 [Deployment Guide](docs/deployment-guide.md) |
+| 📖 [Getting Started Guide](docs/getting-started.md) | 🏗️ [Core Concepts](docs/CONCEPTS.md) | 📋 [Injection System](injection/README.md) |
+| 🤖 [AI Generation Guide](docs/ai-generation-guide.md) | 🧪 [Validation Framework](docs/VALIDATION.md) | 🔧 [API Reference](injection/docs/api-reference.md) |
+| 📋 [Available Templates](templates/) | 🚀 [Deployment Guide](docs/DEPLOYMENT.md) | 🛠️ [Adapter Development](injection/docs/adapter-development.md) |
 
-| **Quick Reference** | **Examples & Tutorials** | **Support** |
-|---|---|---|
-| 📋 [Available Templates](templates/) | 💡 [Example Walkthroughs](docs/examples/) | 🔍 [Troubleshooting](docs/troubleshooting.md) |
-| 📁 [Scenario Categories](_index/categories.yaml) | 🛠️ [Integration Examples](docs/examples/) | 🆘 [Common Issues](docs/troubleshooting.md) |
-| 🔍 [Discovery Guide](_index/discovery.md) | 🎨 [UI Development](docs/examples/) | 📚 [Full Documentation](docs/) |
+| **Quick Reference** | **Examples & Support** |
+|---|---|
+| 📁 [All Scenarios](core/) | 💡 [Example Walkthroughs](docs/examples/) |
+| 🎯 [Template Guide](templates/README.md) | 🔍 [Troubleshooting](injection/docs/troubleshooting.md) |
+| 📚 [Full Documentation](docs/) | 🆘 [Injection Support](injection/docs/) |
 
 ---
 
@@ -228,23 +217,24 @@ scenarios/
 
 ## 🏗️ Architecture Philosophy
 
-### **Improved Scenario-to-App Structure**
-The enhanced scenario structure enables seamless conversion from validation tools to deployable applications:
+### **Service-Driven Structure**
+The service.json configuration enables seamless conversion from validation tools to deployable applications:
 
 ```
 scenario-name/
-├── metadata.yaml              # Business/scenario metadata (existing)
-├── manifest.yaml              # 🆕 Deployment orchestration
-├── initialization/            # 🆕 App startup data
+├── service.json               # Complete configuration (metadata, resources, deployment)
+├── initialization/            # App startup data
 │   ├── database/              # Schema and seed data
 │   ├── workflows/             # n8n, Windmill, triggers
 │   ├── configuration/         # Runtime settings
 │   ├── ui/                    # Windmill applications
 │   └── storage/               # MinIO, Qdrant setup
-└── deployment/                # 🆕 Orchestration scripts
-    ├── startup.sh             # App initialization  
-    ├── validate.sh            # Pre/post validation
-    └── monitor.sh             # Health monitoring
+├── deployment/                # Orchestration scripts
+│   ├── startup.sh             # App initialization  
+│   ├── validate.sh            # Pre/post validation
+│   └── monitor.sh             # Health monitoring
+├── test.sh                    # Integration testing
+└── README.md                  # Documentation
 ```
 
 ### **Capability Emergence Through Orchestration**
@@ -275,20 +265,29 @@ The new `./scripts/scenario-to-app.sh` script converts any scenario into a runni
 ### **Optimal AI Generation Patterns**
 Scenarios are designed for reliable AI generation:
 
-```yaml
-# metadata.yaml - AI-friendly structure
-scenario:
-  id: customer-service-assistant
-  complexity: intermediate
-  
-resources:
-  required: ["ollama", "n8n", "postgres"]
-  optional: ["whisper", "agent-s2"]
-  
-business:
-  value_proposition: "Automated customer service with 90% issue resolution"
-  target_market: ["e-commerce", "saas", "service-businesses"]
-  revenue_range: { min: 15000, max: 25000, currency: "USD" }
+```json
+// service.json - AI-friendly structure
+{
+  "metadata": {
+    "name": "customer-service-assistant",
+    "displayName": "Customer Service AI Assistant",
+    "complexity": "intermediate"
+  },
+  "spec": {
+    "dependencies": {
+      "resources": [
+        {"name": "ollama", "type": "ai", "optional": false},
+        {"name": "n8n", "type": "automation", "optional": false},
+        {"name": "postgres", "type": "database", "optional": false}
+      ]
+    },
+    "business": {
+      "valueProposition": "Automated customer service with 90% issue resolution",
+      "targetMarket": ["e-commerce", "saas", "service-businesses"],
+      "revenueRange": {"min": 15000, "max": 25000, "currency": "USD"}
+    }
+  }
+}
 ```
 
 ### **AI Generation Guidelines**
@@ -307,12 +306,10 @@ business:
 
 | Template | Use Case | Complexity | Features | AI-Generation Ready |
 |----------|----------|------------|----------|-------------------|
-| [**SCENARIO_TEMPLATE/**](templates/SCENARIO_TEMPLATE/) | Complete app blueprint | ⭐⭐ Moderate | Full deployment orchestration | ✅ Optimized |
+| [**full/**](templates/full/) | Complete app blueprint | ⭐⭐ Moderate | Full deployment orchestration | ✅ Optimized |
 | [**basic/**](templates/basic/) | Resource integration testing | ⭐ Simple | Basic structure only | ✅ Yes |
-| [**business/**](templates/business/) | Customer-facing applications | ⭐⭐ Moderate | Business features | ✅ Yes |
-| [**enterprise/**](templates/enterprise/) | Full enterprise features | ⭐⭐⭐ Advanced | Enterprise capabilities | 🔄 In Progress |
 
-**🎯 Recommended**: Use `templates/SCENARIO_TEMPLATE/` for all new scenarios - it includes the complete deployment orchestration layer for seamless scenario-to-app conversion.
+**🎯 Recommended**: Use `templates/full/` for all new scenarios - it includes the complete deployment orchestration layer for seamless scenario-to-app conversion with service.json.
 
 📋 **Detailed Template Guide**: [docs/template-guide.md](docs/template-guide.md)
 

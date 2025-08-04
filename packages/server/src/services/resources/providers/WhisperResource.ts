@@ -43,6 +43,22 @@ export class WhisperResource extends ResourceProvider<"whisper", WhisperConfig> 
     private lastModelRefresh = 0;
     private readonly CACHE_TTL_MS = MINUTES_5_MS;
 
+    // Default Whisper models
+    private readonly DEFAULT_MODELS = [
+        "tiny",
+        "tiny.en",
+        "base",
+        "base.en",
+        "small",
+        "small.en",
+        "medium",
+        "medium.en",
+        "large",
+        "large-v1",
+        "large-v2",
+        "large-v3",
+    ];
+
     /**
      * Perform service discovery by checking Whisper API availability
      */
@@ -100,23 +116,9 @@ export class WhisperResource extends ResourceProvider<"whisper", WhisperConfig> 
                 };
             }
 
-            // Try to get model information if available
-            let modelInfo = "Model status unknown";
-            try {
-                const modelsResult = await this.httpClient!.makeRequest({
-                    url: `${this.config.baseUrl}/models`,
-                    method: "GET",
-                    timeout: 3000,
-                });
-
-                if (modelsResult.success && modelsResult.data) {
-                    const models = Array.isArray(modelsResult.data) ? modelsResult.data : [modelsResult.data];
-                    modelInfo = `${models.length} model(s) available`;
-                }
-            } catch (error) {
-                // Models endpoint might not exist, continue with basic health check
-                logger.debug(`[${this.id}] Could not fetch model info:`, error);
-            }
+            // Use configured model size from config
+            const modelSize = this.config.modelSize || "large";
+            const modelInfo = `Model: ${modelSize}`;
 
             return {
                 healthy: true,
@@ -144,10 +146,10 @@ export class WhisperResource extends ResourceProvider<"whisper", WhisperConfig> 
     protected getMetadata(): AIMetadata {
         return {
             version: "whisper.cpp",
-            capabilities: ["transcription", "translation", "speech-to-text"],
+            capabilities: ["transcription", "translation", "speech-to-text", "language-detection"],
             lastUpdated: new Date(),
             discoveredAt: this._lastHealthCheck,
-            supportedModels: Array.from(this.availableModels.keys()),
+            supportedModels: this.availableModels.size > 0 ? Array.from(this.availableModels.keys()) : this.DEFAULT_MODELS,
             contextWindow: undefined, // Not applicable for Whisper
             maxTokens: undefined, // Not applicable for Whisper
             costPerToken: undefined, // Local deployment - no cost
@@ -159,7 +161,8 @@ export class WhisperResource extends ResourceProvider<"whisper", WhisperConfig> 
      */
     async listModels(): Promise<string[]> {
         await this.refreshModels();
-        return Array.from(this.availableModels.keys());
+        // Return default models if none were discovered
+        return this.availableModels.size > 0 ? Array.from(this.availableModels.keys()) : this.DEFAULT_MODELS;
     }
 
     /**
@@ -167,7 +170,10 @@ export class WhisperResource extends ResourceProvider<"whisper", WhisperConfig> 
      */
     async hasModel(modelId: string): Promise<boolean> {
         await this.refreshModels();
-        return this.availableModels.has(modelId);
+        // If no models discovered, check against default models
+        return this.availableModels.size > 0
+            ? this.availableModels.has(modelId)
+            : this.DEFAULT_MODELS.includes(modelId);
     }
 
     /**
@@ -208,8 +214,9 @@ export class WhisperResource extends ResourceProvider<"whisper", WhisperConfig> 
                 logger.debug(`[${this.id}] Refreshed ${this.availableModels.size} models`);
             }
         } catch (error) {
-            logger.debug(`[${this.id}] Failed to refresh models:`, error);
-            // Don't throw - this is optional functionality
+            logger.debug(`[${this.id}] Models endpoint not available, using default models`);
+            // Don't throw - models endpoint is optional
+            // The service works fine without it
         }
     }
 }

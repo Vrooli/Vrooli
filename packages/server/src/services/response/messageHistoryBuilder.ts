@@ -9,13 +9,13 @@
  * [1..n] = Conversation history (token-budgeted, Redis-cached)
  */
 
-import type { ChatMessage, MessageConfigObject, ResponseContext, MessageState } from "@vrooli/shared";
+import type { ChatMessage, MessageConfigObject, MessageState, ResponseContext } from "@vrooli/shared";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
 import { ToolRegistry } from "../mcp/registry.js";
 import { ChatContextCache, TokenCounter } from "./messageStore.js";
-import { ResponseService, type PromptContext } from "./responseService.js";
 import { AIServiceRegistry } from "./registry.js";
+import { ResponseService, type PromptContext } from "./responseService.js";
 import { MessageTypeAdapters } from "./typeAdapters.js";
 
 const CONTEXT_SIZE_SAFETY_BUFFER_PERCENT = 0.05;
@@ -114,8 +114,9 @@ export class MessageHistoryBuilder {
 
             // Message history built
 
-            // 4. Return complete message array for LLM
-            return [systemMessage, ...historyMessages];
+            // 4. Return complete message array as MessageState[]
+            const allMessages = [systemMessage, ...historyMessages];
+            return allMessages;
 
         } catch (error) {
             logger.error("MessageHistoryBuilder: Failed to build messages", {

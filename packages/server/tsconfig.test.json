@@ -1,7 +1,6 @@
 {
     "extends": "./tsconfig.json",
     "compilerOptions": {
-        "rootDir": "./",
         "noEmit": true,
         "allowJs": true,
         "types": [
@@ -13,6 +12,7 @@
         "src/**/*.test.ts",
         "src/**/*.spec.ts",
         "src/**/__test/**/*",
+        "src/**/*",
         "test/**/*",
         "**/__test/**/*",
         "**/fixtures/**/*"

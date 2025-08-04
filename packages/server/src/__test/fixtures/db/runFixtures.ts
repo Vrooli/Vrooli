@@ -192,7 +192,7 @@ export class RunDbFactory {
     }
 
     static createWithResourceVersion(
-        resourceVersionId: string,
+        resourceVersionId: string | bigint,
         overrides?: Partial<Prisma.runCreateInput>,
     ): Prisma.runCreateInput {
         return {
@@ -313,8 +313,8 @@ export class RunDbFactory {
      * Create run with user and team
      */
     static createWithOwnership(
-        userId: string,
-        teamId?: string,
+        userId: string | bigint,
+        teamId?: string | bigint,
         overrides?: Partial<Prisma.runCreateInput>,
     ): Prisma.runCreateInput {
         return {
@@ -374,7 +374,7 @@ export class RunDbFactory {
      * Create scheduled run
      */
     static createScheduled(
-        scheduleId: string,
+        scheduleId: string | bigint,
         overrides?: Partial<Prisma.runCreateInput>,
     ): Prisma.runCreateInput {
         return {
@@ -393,9 +393,9 @@ export async function seedRuns(
     prisma: any,
     options: {
         count?: number;
-        userId?: string;
-        teamId?: string;
-        resourceVersionId?: string;
+        userId?: string | bigint;
+        teamId?: string | bigint;
+        resourceVersionId?: string | bigint;
         statuses?: Array<"Scheduled" | "InProgress" | "Completed" | "Failed" | "Cancelled">;
         withSteps?: boolean;
         withIO?: boolean;

@@ -2,7 +2,7 @@ import {
     type BotParticipant,
     ChatConfig,
     type ChatConfigObject,
-    type ConversationState
+    type ConversationState,
 } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DbProvider } from "../../db/provider.js";
@@ -11,7 +11,7 @@ import { CacheService } from "../../redisConn.js";
 import {
     CachedConversationStateStore,
     ChatStore,
-    PrismaChatStore
+    PrismaChatStore,
 } from "./chatStore.js";
 
 // Mock dependencies

@@ -1,0 +1,693 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/execution.schema.json",
+  "title": "Execution Environment Schema",
+  "description": "Schema for defining execution permissions, sandboxing, and runtime configuration",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "version": {
+      "$ref": "common.schema.json#/definitions/semver"
+    },
+    "enabled": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether code execution is enabled"
+    },
+    "environments": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/definitions/executionEnvironment"
+      },
+      "description": "Named execution environments (e.g., development, production, testing)"
+    },
+    "sandboxing": {
+      "$ref": "#/definitions/sandboxConfig"
+    },
+    "permissions": {
+      "$ref": "#/definitions/permissionConfig"
+    },
+    "runtimes": {
+      "$ref": "#/definitions/runtimeConfig"
+    },
+    "security": {
+      "$ref": "#/definitions/securityConfig"
+    },
+    "limits": {
+      "$ref": "#/definitions/limitConfig"
+    },
+    "auditing": {
+      "$ref": "#/definitions/auditConfig"
+    }
+  },
+  "definitions": {
+    "executionEnvironment": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "inherits": {
+          "type": "string",
+          "description": "Name of environment to inherit from"
+        },
+        "sandboxing": {
+          "$ref": "#/definitions/sandboxConfig"
+        },
+        "permissions": {
+          "$ref": "#/definitions/permissionConfig"
+        },
+        "runtimes": {
+          "$ref": "#/definitions/runtimeConfig"
+        },
+        "security": {
+          "$ref": "#/definitions/securityConfig"
+        },
+        "limits": {
+          "$ref": "#/definitions/limitConfig"
+        }
+      }
+    },
+    "sandboxConfig": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["none", "process", "container", "vm", "wasm", "secure-enclave"],
+          "default": "process"
+        },
+        "isolation": {
+          "type": "string",
+          "enum": ["none", "partial", "full"],
+          "default": "partial"
+        },
+        "containerConfig": {
+          "type": "object",
+          "properties": {
+            "runtime": {
+              "type": "string",
+              "enum": ["docker", "podman", "containerd", "firecracker"],
+              "default": "docker"
+            },
+            "image": {
+              "type": "string"
+            },
+            "registry": {
+              "type": "string"
+            },
+            "pullPolicy": {
+              "type": "string",
+              "enum": ["Always", "IfNotPresent", "Never"],
+              "default": "IfNotPresent"
+            },
+            "securityContext": {
+              "$ref": "#/definitions/securityContext"
+            }
+          }
+        },
+        "wasmConfig": {
+          "type": "object",
+          "properties": {
+            "runtime": {
+              "type": "string",
+              "enum": ["wasmtime", "wasmer", "wasm3", "wasmcloud"],
+              "default": "wasmtime"
+            },
+            "capabilities": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["wasi", "wasi-nn", "wasi-crypto", "wasi-threads"]
+              }
+            }
+          }
+        },
+        "vmConfig": {
+          "type": "object",
+          "properties": {
+            "hypervisor": {
+              "type": "string",
+              "enum": ["kvm", "xen", "vmware", "hyperv", "firecracker"],
+              "default": "kvm"
+            },
+            "image": {
+              "type": "string"
+            },
+            "resources": {
+              "$ref": "common.schema.json#/definitions/resourceRequirements"
+            }
+          }
+        }
+      }
+    },
+    "permissionConfig": {
+      "type": "object",
+      "properties": {
+        "filesystem": {
+          "$ref": "#/definitions/filesystemPermissions"
+        },
+        "network": {
+          "$ref": "#/definitions/networkPermissions"
+        },
+        "process": {
+          "$ref": "#/definitions/processPermissions"
+        },
+        "system": {
+          "$ref": "#/definitions/systemPermissions"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Linux capabilities (CAP_NET_ADMIN, etc.)"
+        }
+      }
+    },
+    "filesystemPermissions": {
+      "type": "object",
+      "properties": {
+        "read": {
+          "$ref": "#/definitions/pathPermissions"
+        },
+        "write": {
+          "$ref": "#/definitions/pathPermissions"
+        },
+        "execute": {
+          "$ref": "#/definitions/pathPermissions"
+        },
+        "mount": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "source": {
+                "$ref": "common.schema.json#/definitions/path"
+              },
+              "target": {
+                "$ref": "common.schema.json#/definitions/path"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["bind", "volume", "tmpfs"]
+              },
+              "readonly": {
+                "type": "boolean",
+                "default": false
+              }
+            },
+            "required": ["source", "target"]
+          }
+        }
+      }
+    },
+    "pathPermissions": {
+      "type": "object",
+      "properties": {
+        "allowed": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/definitions/path"
+          }
+        },
+        "denied": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/definitions/path"
+          }
+        },
+        "patterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Glob patterns for path matching"
+        }
+      }
+    },
+    "networkPermissions": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "allowedHosts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "deniedHosts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "allowedPorts": {
+          "type": "array",
+          "items": {
+            "$ref": "common.schema.json#/definitions/port"
+          }
+        },
+        "protocols": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["tcp", "udp", "http", "https", "ws", "wss", "grpc"]
+          }
+        },
+        "dns": {
+          "type": "object",
+          "properties": {
+            "servers": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "search": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "processPermissions": {
+      "type": "object",
+      "properties": {
+        "spawn": {
+          "type": "boolean",
+          "default": false
+        },
+        "fork": {
+          "type": "boolean",
+          "default": false
+        },
+        "exec": {
+          "type": "boolean",
+          "default": false
+        },
+        "allowedCommands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "deniedCommands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "signals": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "systemPermissions": {
+      "type": "object",
+      "properties": {
+        "env": {
+          "type": "object",
+          "properties": {
+            "read": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "write": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "syscalls": {
+          "type": "object",
+          "properties": {
+            "allowed": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "denied": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "devices": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "runtimeConfig": {
+      "type": "object",
+      "properties": {
+        "languages": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/languageRuntime"
+          }
+        },
+        "defaultLanguage": {
+          "type": "string"
+        },
+        "environment": {
+          "$ref": "common.schema.json#/definitions/environment"
+        },
+        "workingDirectory": {
+          "$ref": "common.schema.json#/definitions/path"
+        }
+      }
+    },
+    "languageRuntime": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": ["javascript", "typescript", "python", "go", "rust", "java", "csharp", "ruby", "php", "shell"]
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "version": {
+          "type": "string"
+        },
+        "executable": {
+          "type": "string"
+        },
+        "compiler": {
+          "type": "string"
+        },
+        "interpreter": {
+          "type": "string"
+        },
+        "packageManager": {
+          "type": "string"
+        },
+        "extensions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "environment": {
+          "$ref": "common.schema.json#/definitions/environment"
+        },
+        "limits": {
+          "$ref": "#/definitions/limitConfig"
+        }
+      },
+      "required": ["name"]
+    },
+    "securityConfig": {
+      "type": "object",
+      "properties": {
+        "authentication": {
+          "type": "object",
+          "properties": {
+            "required": {
+              "type": "boolean",
+              "default": true
+            },
+            "methods": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["token", "certificate", "oauth", "saml", "oidc"]
+              }
+            }
+          }
+        },
+        "authorization": {
+          "type": "object",
+          "properties": {
+            "model": {
+              "type": "string",
+              "enum": ["rbac", "abac", "acl", "custom"],
+              "default": "rbac"
+            },
+            "policies": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/authorizationPolicy"
+              }
+            }
+          }
+        },
+        "encryption": {
+          "type": "object",
+          "properties": {
+            "atRest": {
+              "type": "boolean",
+              "default": true
+            },
+            "inTransit": {
+              "type": "boolean",
+              "default": true
+            },
+            "algorithm": {
+              "type": "string",
+              "default": "AES-256-GCM"
+            }
+          }
+        },
+        "scanning": {
+          "type": "object",
+          "properties": {
+            "malware": {
+              "type": "boolean",
+              "default": true
+            },
+            "vulnerabilities": {
+              "type": "boolean",
+              "default": true
+            },
+            "secrets": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        }
+      }
+    },
+    "securityContext": {
+      "type": "object",
+      "properties": {
+        "runAsUser": {
+          "type": "integer"
+        },
+        "runAsGroup": {
+          "type": "integer"
+        },
+        "runAsNonRoot": {
+          "type": "boolean",
+          "default": true
+        },
+        "readOnlyRootFilesystem": {
+          "type": "boolean",
+          "default": false
+        },
+        "allowPrivilegeEscalation": {
+          "type": "boolean",
+          "default": false
+        },
+        "capabilities": {
+          "type": "object",
+          "properties": {
+            "add": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "drop": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "seLinuxOptions": {
+          "type": "object",
+          "properties": {
+            "user": {
+              "type": "string"
+            },
+            "role": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            },
+            "level": {
+              "type": "string"
+            }
+          }
+        },
+        "seccompProfile": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["RuntimeDefault", "Localhost", "Unconfined"]
+            },
+            "localhostProfile": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "limitConfig": {
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "$ref": "common.schema.json#/definitions/duration",
+          "default": "30s"
+        },
+        "memory": {
+          "$ref": "common.schema.json#/definitions/memory",
+          "default": "512Mi"
+        },
+        "cpu": {
+          "$ref": "common.schema.json#/definitions/cpu",
+          "default": "1"
+        },
+        "disk": {
+          "$ref": "common.schema.json#/definitions/memory"
+        },
+        "processes": {
+          "type": "integer",
+          "default": 10
+        },
+        "threads": {
+          "type": "integer",
+          "default": 100
+        },
+        "files": {
+          "type": "integer",
+          "default": 1000
+        },
+        "connections": {
+          "type": "integer",
+          "default": 100
+        },
+        "outputSize": {
+          "$ref": "common.schema.json#/definitions/memory",
+          "default": "10Mi"
+        }
+      }
+    },
+    "auditConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "level": {
+          "type": "string",
+          "enum": ["none", "basic", "detailed", "full"],
+          "default": "basic"
+        },
+        "storage": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["file", "database", "stream", "external"]
+            },
+            "destination": {
+              "type": "string"
+            },
+            "retention": {
+              "$ref": "common.schema.json#/definitions/duration"
+            }
+          }
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["start", "stop", "error", "access", "modify", "network", "process", "all"]
+          }
+        },
+        "includeMetadata": {
+          "type": "boolean",
+          "default": true
+        },
+        "includeInput": {
+          "type": "boolean",
+          "default": false
+        },
+        "includeOutput": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "authorizationPolicy": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "description": {
+          "type": "string"
+        },
+        "effect": {
+          "type": "string",
+          "enum": ["allow", "deny"],
+          "default": "allow"
+        },
+        "principals": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "conditions": {
+          "type": "object"
+        }
+      },
+      "required": ["name", "effect"]
+    }
+  },
+  "required": ["version", "enabled"]
+}

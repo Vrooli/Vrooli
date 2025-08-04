@@ -1,5 +1,5 @@
-import { generatePK, type StatPeriodType } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
+import { generatePK, type StatPeriodType } from "@vrooli/shared";
 
 /**
  * Database fixtures for StatsUser model - used for seeding test data
@@ -21,7 +21,6 @@ export const statsUserDbIds = {
  */
 export const minimalStatsUserDb: Prisma.stats_userCreateInput = {
     id: statsUserDbIds.statsUser1,
-    userId: statsUserDbIds.user1,
     periodStart: new Date("2024-01-01T00:00:00Z"),
     periodEnd: new Date("2024-01-31T23:59:59Z"),
     periodType: "Monthly",
@@ -43,30 +42,29 @@ export const minimalStatsUserDb: Prisma.stats_userCreateInput = {
  */
 export const completeStatsUserDb: Prisma.stats_userCreateInput = {
     id: statsUserDbIds.statsUser2,
-    userId: statsUserDbIds.user2,
     periodStart: new Date("2024-02-01T00:00:00Z"),
     periodEnd: new Date("2024-02-29T23:59:59Z"),
     periodType: "Monthly",
-    resourcesCreatedByType: JSON.stringify({ 
-        "ROUTINE": 25, 
-        "PROJECT": 8, 
-        "CODE": 15, 
+    resourcesCreatedByType: JSON.stringify({
+        "ROUTINE": 25,
+        "PROJECT": 8,
+        "CODE": 15,
         "API": 3,
-        "STANDARD": 2, 
+        "STANDARD": 2,
     }),
-    resourcesCompletedByType: JSON.stringify({ 
-        "ROUTINE": 22, 
-        "PROJECT": 7, 
-        "CODE": 13, 
+    resourcesCompletedByType: JSON.stringify({
+        "ROUTINE": 22,
+        "PROJECT": 7,
+        "CODE": 13,
         "API": 2,
-        "STANDARD": 1, 
+        "STANDARD": 1,
     }),
-    resourceCompletionTimeAverageByType: JSON.stringify({ 
-        "ROUTINE": 95.7, 
-        "PROJECT": 250.0, 
+    resourceCompletionTimeAverageByType: JSON.stringify({
+        "ROUTINE": 95.7,
+        "PROJECT": 250.0,
         "CODE": 45.3,
         "API": 180.5,
-        "STANDARD": 420.0, 
+        "STANDARD": 420.0,
     }),
     runsStarted: 150,
     runsCompleted: 142,
@@ -83,33 +81,32 @@ export const completeStatsUserDb: Prisma.stats_userCreateInput = {
  */
 export const highPerformanceStatsUserDb: Prisma.stats_userCreateInput = {
     id: statsUserDbIds.statsUser3,
-    userId: statsUserDbIds.user3,
     periodStart: new Date("2024-03-01T00:00:00Z"),
     periodEnd: new Date("2024-03-31T23:59:59Z"),
     periodType: "Monthly",
-    resourcesCreatedByType: JSON.stringify({ 
-        "ROUTINE": 50, 
-        "PROJECT": 15, 
-        "CODE": 30, 
+    resourcesCreatedByType: JSON.stringify({
+        "ROUTINE": 50,
+        "PROJECT": 15,
+        "CODE": 30,
         "API": 8,
         "STANDARD": 5,
-        "QUIZ": 10, 
+        "QUIZ": 10,
     }),
-    resourcesCompletedByType: JSON.stringify({ 
-        "ROUTINE": 48, 
-        "PROJECT": 14, 
-        "CODE": 29, 
+    resourcesCompletedByType: JSON.stringify({
+        "ROUTINE": 48,
+        "PROJECT": 14,
+        "CODE": 29,
         "API": 7,
         "STANDARD": 4,
-        "QUIZ": 9, 
+        "QUIZ": 9,
     }),
-    resourceCompletionTimeAverageByType: JSON.stringify({ 
-        "ROUTINE": 45.2, 
-        "PROJECT": 180.0, 
+    resourceCompletionTimeAverageByType: JSON.stringify({
+        "ROUTINE": 45.2,
+        "PROJECT": 180.0,
         "CODE": 25.8,
         "API": 90.3,
         "STANDARD": 200.0,
-        "QUIZ": 15.5, 
+        "QUIZ": 15.5,
     }),
     runsStarted: 300,
     runsCompleted: 295,
@@ -129,9 +126,8 @@ export class StatsUserDbFactory {
         return {
             ...minimalStatsUserDb,
             id: generatePK(),
-            userId: generatePK(),
-            user: {
-                connect: { id: overrides?.userId || generatePK() },
+            user: overrides?.user || {
+                connect: { id: generatePK() },
             },
             ...overrides,
         };
@@ -141,9 +137,8 @@ export class StatsUserDbFactory {
         return {
             ...completeStatsUserDb,
             id: generatePK(),
-            userId: generatePK(),
-            user: {
-                connect: { id: overrides?.userId || generatePK() },
+            user: overrides?.user || {
+                connect: { id: generatePK() },
             },
             ...overrides,
         };
@@ -153,9 +148,8 @@ export class StatsUserDbFactory {
         return {
             ...highPerformanceStatsUserDb,
             id: generatePK(),
-            userId: generatePK(),
-            user: {
-                connect: { id: overrides?.userId || generatePK() },
+            user: overrides?.user || {
+                connect: { id: generatePK() },
             },
             ...overrides,
         };
@@ -174,12 +168,11 @@ export class StatsUserDbFactory {
         return {
             ...minimalStatsUserDb,
             id: generatePK(),
-            userId,
             periodType,
             periodStart,
             periodEnd,
             user: {
-                connect: { id: userId },
+                connect: { id: BigInt(userId) },
             },
             ...overrides,
         };
@@ -205,7 +198,6 @@ export class StatsUserDbFactory {
         return {
             ...minimalStatsUserDb,
             id: generatePK(),
-            userId,
             resourcesCreatedByType: JSON.stringify(metrics.resourcesCreatedByType ?? { "ROUTINE": 5, "PROJECT": 2 }),
             resourcesCompletedByType: JSON.stringify(metrics.resourcesCompletedByType ?? { "ROUTINE": 4, "PROJECT": 1 }),
             resourceCompletionTimeAverageByType: JSON.stringify(metrics.resourceCompletionTimeAverageByType ?? { "ROUTINE": 120.5, "PROJECT": 300.0 }),
@@ -215,7 +207,7 @@ export class StatsUserDbFactory {
             runContextSwitchesAverage: metrics.runContextSwitchesAverage ?? 2.3,
             teamsCreated: metrics.teamsCreated ?? 1,
             user: {
-                connect: { id: userId },
+                connect: { id: BigInt(userId) },
             },
             ...overrides,
         };
@@ -228,7 +220,6 @@ export class StatsUserDbFactory {
         return {
             ...minimalStatsUserDb,
             id: generatePK(),
-            userId,
             resourcesCreatedByType: JSON.stringify({}),
             resourcesCompletedByType: JSON.stringify({}),
             resourceCompletionTimeAverageByType: JSON.stringify({}),
@@ -238,7 +229,7 @@ export class StatsUserDbFactory {
             runContextSwitchesAverage: 0,
             teamsCreated: 0,
             user: {
-                connect: { id: userId },
+                connect: { id: BigInt(userId) },
             },
             ...overrides,
         };
@@ -251,7 +242,6 @@ export class StatsUserDbFactory {
         return {
             ...minimalStatsUserDb,
             id: generatePK(),
-            userId,
             resourcesCreatedByType: JSON.stringify({ "ROUTINE": 1, "PROJECT": 1 }),
             resourcesCompletedByType: JSON.stringify({ "ROUTINE": 0, "PROJECT": 0 }),
             resourceCompletionTimeAverageByType: JSON.stringify({}),
@@ -261,7 +251,7 @@ export class StatsUserDbFactory {
             runContextSwitchesAverage: 5.0,
             teamsCreated: 0,
             user: {
-                connect: { id: userId },
+                connect: { id: BigInt(userId) },
             },
             ...overrides,
         };
@@ -290,7 +280,7 @@ export function createStatsUserTimeSeries(
             "PROJECT": Math.floor(2 + (i * 1)),
             "CODE": Math.floor(3 + (i * 1.5)),
         };
-        
+
         const resourcesCompleted = {
             "ROUTINE": Math.floor(resourcesCreated.ROUTINE * 0.8),
             "PROJECT": Math.floor(resourcesCreated.PROJECT * 0.6),
@@ -341,7 +331,7 @@ export async function seedStatsUsers(
     },
 ) {
     const statsUsers = [];
-    const periodType = options?.periodType || "Monthly";
+    const periodType = (options?.periodType || "Monthly") as StatPeriodType;
     const periodsPerUser = options?.periodsPerUser || 3;
 
     for (const userId of userIds) {
@@ -352,7 +342,7 @@ export async function seedStatsUsers(
                 statsUsers.push(created);
             }
         } else {
-            const stats = StatsUserDbFactory.createMinimal({ userId });
+            const stats = StatsUserDbFactory.createMinimal({ user: { connect: { id: BigInt(userId) } } });
             const created = await prisma.stats_user.create({ data: stats });
             statsUsers.push(created);
         }

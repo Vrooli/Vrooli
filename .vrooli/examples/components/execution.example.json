@@ -1,0 +1,212 @@
+{
+  "$schema": "../schemas/execution.schema.json",
+  "version": "1.0.0",
+  "enabled": true,
+  "environments": {
+    "development": {
+      "name": "development",
+      "description": "Local development environment with relaxed security",
+      "sandboxing": {
+        "type": "process",
+        "isolation": "partial"
+      },
+      "permissions": {
+        "filesystem": {
+          "read": {
+            "allowed": ["./", "./data/"],
+            "denied": ["./.git", "./node_modules", "./secrets/"]
+          },
+          "write": {
+            "allowed": ["./tmp", "./uploads", "./data/chat"],
+            "denied": ["./", "./.git", "./config/"]
+          }
+        },
+        "network": {
+          "enabled": true,
+          "allowedHosts": ["localhost", "127.0.0.1", "api.example.com"],
+          "protocols": ["http", "https"]
+        },
+        "process": {
+          "spawn": false,
+          "fork": false,
+          "exec": false
+        }
+      },
+      "runtimes": {
+        "languages": [
+          {
+            "name": "javascript",
+            "enabled": true,
+            "version": "20",
+            "executable": "node",
+            "extensions": [".js", ".mjs"]
+          },
+          {
+            "name": "typescript",
+            "enabled": true,
+            "version": "5.3",
+            "compiler": "tsc",
+            "extensions": [".ts"]
+          }
+        ],
+        "defaultLanguage": "javascript"
+      },
+      "limits": {
+        "timeout": "60s",
+        "memory": "1Gi",
+        "cpu": "2",
+        "processes": 20,
+        "threads": 200,
+        "outputSize": "50Mi"
+      }
+    },
+    "production": {
+      "name": "production",
+      "description": "Production environment with strict security",
+      "inherits": "development",
+      "sandboxing": {
+        "type": "container",
+        "isolation": "full",
+        "containerConfig": {
+          "runtime": "docker",
+          "image": "my-assistant/sandbox:latest",
+          "securityContext": {
+            "runAsNonRoot": true,
+            "readOnlyRootFilesystem": true,
+            "allowPrivilegeEscalation": false,
+            "capabilities": {
+              "drop": ["ALL"]
+            }
+          }
+        }
+      },
+      "permissions": {
+        "filesystem": {
+          "read": {
+            "allowed": ["./data/readonly/"],
+            "denied": ["./", "./.git", "./config/", "./secrets/"]
+          },
+          "write": {
+            "allowed": ["./tmp"],
+            "denied": ["./", "./data/", "./config/"]
+          }
+        },
+        "network": {
+          "enabled": false
+        },
+        "process": {
+          "spawn": false,
+          "fork": false,
+          "exec": false
+        }
+      },
+      "limits": {
+        "timeout": "30s",
+        "memory": "512Mi",
+        "cpu": "1",
+        "processes": 5,
+        "threads": 50,
+        "outputSize": "10Mi"
+      }
+    },
+    "wasm": {
+      "name": "wasm",
+      "description": "WebAssembly sandbox for maximum security",
+      "sandboxing": {
+        "type": "wasm",
+        "isolation": "full",
+        "wasmConfig": {
+          "runtime": "wasmtime",
+          "capabilities": ["wasi"]
+        }
+      },
+      "permissions": {
+        "filesystem": {
+          "read": {
+            "allowed": []
+          },
+          "write": {
+            "allowed": []
+          }
+        },
+        "network": {
+          "enabled": false
+        },
+        "process": {
+          "spawn": false,
+          "fork": false,
+          "exec": false
+        }
+      },
+      "runtimes": {
+        "languages": [
+          {
+            "name": "javascript",
+            "enabled": true,
+            "version": "20",
+            "executable": "wasmtime",
+            "extensions": [".js"]
+          }
+        ],
+        "defaultLanguage": "javascript"
+      },
+      "limits": {
+        "timeout": "10s",
+        "memory": "128Mi",
+        "cpu": "0.5",
+        "processes": 1,
+        "threads": 1,
+        "outputSize": "1Mi"
+      }
+    }
+  },
+  "security": {
+    "authentication": {
+      "required": true,
+      "methods": ["token"]
+    },
+    "authorization": {
+      "model": "rbac",
+      "policies": [
+        {
+          "name": "user-code-execution",
+          "description": "Allow users to execute code in development environment",
+          "effect": "allow",
+          "principals": ["user:*"],
+          "resources": ["environment:development"],
+          "actions": ["execute", "read", "write"]
+        },
+        {
+          "name": "admin-production-access",
+          "description": "Allow admins to execute code in production environment",
+          "effect": "allow",
+          "principals": ["role:admin"],
+          "resources": ["environment:production"],
+          "actions": ["execute", "read", "write", "debug"]
+        }
+      ]
+    },
+    "encryption": {
+      "atRest": true,
+      "inTransit": true,
+      "algorithm": "AES-256-GCM"
+    },
+    "scanning": {
+      "malware": true,
+      "vulnerabilities": true,
+      "secrets": true
+    }
+  },
+  "auditing": {
+    "enabled": true,
+    "level": "detailed",
+    "storage": {
+      "type": "database",
+      "retention": "90d"
+    },
+    "events": ["start", "stop", "error", "access", "modify", "network"],
+    "includeMetadata": true,
+    "includeInput": false,
+    "includeOutput": false
+  }
+}

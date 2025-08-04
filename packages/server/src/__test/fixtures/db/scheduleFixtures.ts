@@ -1,9 +1,9 @@
-import { generatePK, generatePublicId, nanoid } from "@vrooli/shared";
+/* eslint-disable no-magic-numbers */
 import { type Prisma } from "@prisma/client";
+import { generatePK, generatePublicId } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
 import { ScheduleExceptionDbFactory } from "./scheduleExceptionFixtures.js";
-import { ScheduleRecurrenceDbFactory } from "./scheduleRecurrenceFixtures.js";
+import type { BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
 
 /**
  * Database fixtures for Schedule model - used for seeding test data
@@ -31,6 +31,7 @@ export const scheduleDbFixtures: DbTestFixtures<Prisma.scheduleCreateInput> = {
         startTime: new Date(),
         endTime: new Date(Date.now() + 60 * 60 * 1000), // 1 hour later
         timezone: "UTC",
+        user: { connect: { id: BigInt(1) } },
     },
     complete: {
         id: generatePK(),
@@ -38,7 +39,7 @@ export const scheduleDbFixtures: DbTestFixtures<Prisma.scheduleCreateInput> = {
         startTime: new Date(),
         endTime: new Date(Date.now() + 2 * 60 * 60 * 1000), // 2 hours later
         timezone: "America/New_York",
-        meeting: { connect: { id: "meeting_placeholder_id" } },
+        user: { connect: { id: BigInt(1) } },
         recurrences: {
             create: {
                 id: generatePK(),
@@ -95,7 +96,7 @@ export const scheduleDbFixtures: DbTestFixtures<Prisma.scheduleCreateInput> = {
             startTime: new Date(),
             endTime: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days duration
             timezone: "UTC",
-            runProject: { connect: { id: "project_placeholder_id" } },
+            runProject: { connect: { id: BigInt("999999999999999998") } },
         },
         dailyRecurringSchedule: {
             id: generatePK(),
@@ -139,7 +140,7 @@ export const scheduleDbFixtures: DbTestFixtures<Prisma.scheduleCreateInput> = {
             startTime: new Date(),
             endTime: new Date(Date.now() + 60 * 60 * 1000),
             timezone: "Asia/Tokyo",
-            focusMode: { connect: { id: "focus_mode_placeholder_id" } },
+            focusMode: { connect: { id: BigInt("999999999999999997") } },
             exceptions: {
                 create: [
                     {
@@ -163,7 +164,7 @@ export const scheduleDbFixtures: DbTestFixtures<Prisma.scheduleCreateInput> = {
             startTime: new Date(),
             endTime: new Date(Date.now() + 60 * 60 * 1000),
             timezone: "Pacific/Auckland",
-            runRoutine: { connect: { id: "routine_placeholder_id" } },
+            runRoutine: { connect: { id: BigInt("999999999999999996") } },
         },
     },
 };
@@ -176,43 +177,43 @@ export const RRuleHelpers = {
      * Daily recurrence
      */
     daily: (interval = 1) => `FREQ=DAILY;INTERVAL=${interval}`,
-    
+
     /**
      * Weekly recurrence with specific days
      */
-    weekly: (days: string[], interval = 1) => 
+    weekly: (days: string[], interval = 1) =>
         `FREQ=WEEKLY;INTERVAL=${interval};BYDAY=${days.join(",")}`,
-    
+
     /**
      * Monthly by day of month
      */
-    monthlyByDate: (dayOfMonth: number, interval = 1) => 
+    monthlyByDate: (dayOfMonth: number, interval = 1) =>
         `FREQ=MONTHLY;INTERVAL=${interval};BYMONTHDAY=${dayOfMonth}`,
-    
+
     /**
      * Monthly by position (e.g., 2nd Tuesday)
      */
-    monthlyByPosition: (position: number, day: string, interval = 1) => 
+    monthlyByPosition: (position: number, day: string, interval = 1) =>
         `FREQ=MONTHLY;INTERVAL=${interval};BYDAY=${position}${day}`,
-    
+
     /**
      * Yearly recurrence
      */
-    yearly: (month: number, day: number, interval = 1) => 
+    yearly: (month: number, day: number, interval = 1) =>
         `FREQ=YEARLY;INTERVAL=${interval};BYMONTH=${month};BYMONTHDAY=${day}`,
-    
+
     /**
      * Add count limit to any RRULE
      */
-    withCount: (rrule: string, count: number) => 
+    withCount: (rrule: string, count: number) =>
         `${rrule};COUNT=${count}`,
-    
+
     /**
      * Add until date to any RRULE
      */
-    withUntil: (rrule: string, until: Date) => 
+    withUntil: (rrule: string, until: Date) =>
         `${rrule};UNTIL=${until.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "")}`,
-    
+
     /**
      * Parse RRULE to recurrence properties
      */
@@ -222,12 +223,12 @@ export const RRuleHelpers = {
             acc[key] = value;
             return acc;
         }, {} as Record<string, string>);
-        
+
         // Map RRULE to database schema
         const recurrence: Partial<Prisma.ScheduleRecurrenceCreateWithoutScheduleInput> = {
             interval: parseInt(parts.INTERVAL || "1"),
         };
-        
+
         // Map frequency
         switch (parts.FREQ) {
             case "DAILY":
@@ -258,7 +259,7 @@ export const RRuleHelpers = {
                 }
                 break;
         }
-        
+
         // Handle end conditions
         if (parts.UNTIL) {
             // Parse UNTIL date (format: YYYYMMDDTHHMMSSZ)
@@ -267,7 +268,7 @@ export const RRuleHelpers = {
             const day = parts.UNTIL.substring(6, 8);
             recurrence.endDate = new Date(`${year}-${month}-${day}`);
         }
-        
+
         return recurrence;
     },
 };
@@ -276,7 +277,7 @@ export const RRuleHelpers = {
  * Enhanced factory for creating schedule database fixtures
  */
 export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.scheduleCreateInput> {
-    
+
     /**
      * Get the test fixtures for Schedule model
      */
@@ -303,7 +304,7 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.scheduleCreateIn
                     startTime: new Date(),
                     endTime: new Date(Date.now() + 60 * 60 * 1000),
                     timezone: "UTC",
-                    meeting: { connect: { id: "non-existent-meeting-id" } },
+                    meeting: { connect: { id: BigInt("999999999999999995") } },
                 },
                 checkConstraintViolation: {
                     id: generatePK(),
@@ -348,12 +349,13 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.scheduleCreateIn
     /**
      * Add object association to a schedule fixture
      */
-    protected addObjectAssociation(data: Prisma.scheduleCreateInput, forId: string, forType: string): Prisma.scheduleCreateInput {
+    protected addObjectAssociation(data: Prisma.scheduleCreateInput, forId: string | bigint, forType: string): Prisma.scheduleCreateInput {
+        const id = typeof forId === "string" ? BigInt(forId) : forId;
         const connections: Record<string, any> = {
-            FocusMode: { focusMode: { connect: { id: forId } } },
-            Meeting: { meeting: { connect: { id: forId } } },
-            RunProject: { runProject: { connect: { id: forId } } },
-            RunRoutine: { runRoutine: { connect: { id: forId } } },
+            FocusMode: { focusMode: { connect: { id } } },
+            Meeting: { meeting: { connect: { id } } },
+            RunProject: { runProject: { connect: { id } } },
+            RunRoutine: { runRoutine: { connect: { id } } },
         };
 
         return {
@@ -432,7 +434,7 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.scheduleCreateIn
      * Add exceptions to schedule
      */
     protected addExceptions(
-        scheduleId: string,
+        scheduleId: bigint,
         exceptionDates: Array<{
             originalDate: Date;
             type: "cancel" | "reschedule" | "extend";
@@ -487,7 +489,7 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.scheduleCreateIn
         dateRange: { start: Date; end: Date },
     ): Array<{ start: Date; end: Date }> {
         const occurrences: Array<{ start: Date; end: Date }> = [];
-        
+
         if (!schedule.recurrences || schedule.recurrences.length === 0) {
             // One-time event
             if (schedule.startTime >= dateRange.start && schedule.startTime <= dateRange.end) {
@@ -495,12 +497,12 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.scheduleCreateIn
             }
             return occurrences;
         }
-        
+
         // Generate occurrences for each recurrence
         for (const recurrence of schedule.recurrences) {
             const currentDate = new Date(schedule.startTime);
             const duration = schedule.endTime.getTime() - schedule.startTime.getTime();
-            
+
             while (currentDate <= dateRange.end && (!recurrence.endDate || currentDate <= recurrence.endDate)) {
                 if (currentDate >= dateRange.start) {
                     occurrences.push({
@@ -508,7 +510,7 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.scheduleCreateIn
                         end: new Date(currentDate.getTime() + duration),
                     });
                 }
-                
+
                 // Calculate next occurrence
                 switch (recurrence.recurrenceType) {
                     case "Daily":
@@ -535,7 +537,7 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.scheduleCreateIn
                 }
             }
         }
-        
+
         return occurrences.sort((a, b) => a.start.getTime() - b.start.getTime());
     }
 
@@ -580,7 +582,7 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.scheduleCreateIn
 
     // Static methods for backward compatibility
     static createMinimal(
-        forId: string,
+        forId: string | bigint,
         forType: string,
         overrides?: Partial<Prisma.scheduleCreateInput>,
     ): Prisma.scheduleCreateInput {
@@ -590,7 +592,7 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.scheduleCreateIn
     }
 
     static createRecurring(
-        forId: string,
+        forId: string | bigint,
         forType: string,
         recurrence: Partial<Prisma.ScheduleRecurrenceCreateWithoutScheduleInput>,
         overrides?: Partial<Prisma.scheduleCreateInput>,
@@ -602,7 +604,7 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.scheduleCreateIn
     }
 
     static createWithRRule(
-        forId: string,
+        forId: string | bigint,
         forType: string,
         rrule: string,
         overrides?: Partial<Prisma.scheduleCreateInput>,
@@ -614,7 +616,7 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.scheduleCreateIn
     }
 
     static createWithRecurrences(
-        forId: string,
+        forId: string | bigint,
         forType: string,
         recurrencePatterns: Array<Partial<Prisma.ScheduleRecurrenceCreateWithoutScheduleInput> | string>,
         overrides?: Partial<Prisma.scheduleCreateInput>,
@@ -626,7 +628,7 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.scheduleCreateIn
     }
 
     static createWithExceptions(
-        forId: string,
+        forId: string | bigint,
         forType: string,
         exceptions: Array<{ date: Date; newStartTime?: Date; newEndTime?: Date }>,
         overrides?: Partial<Prisma.scheduleCreateInput>,
@@ -634,7 +636,7 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.scheduleCreateIn
         const factory = new ScheduleDbFactory();
         let data = factory.createMinimal(overrides);
         data = factory.addObjectAssociation(data, forId, forType);
-        
+
         // Convert old format to new format for backward compatibility
         const formattedExceptions = exceptions.map(ex => ({
             originalDate: ex.date,
@@ -642,9 +644,9 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.scheduleCreateIn
             newStartTime: ex.newStartTime,
             newEndTime: ex.newEndTime,
         }));
-        
-        const exceptionData = factory.addExceptions(data.id as string, formattedExceptions);
-        
+
+        const exceptionData = factory.addExceptions(data.id as bigint, formattedExceptions);
+
         return {
             ...data,
             exceptions: {
@@ -654,15 +656,15 @@ export class ScheduleDbFactory extends EnhancedDbFactory<Prisma.scheduleCreateIn
     }
 
     static createWithLabels(
-        forId: string,
+        forId: string | bigint,
         forType: string,
-        labelIds: string[],
+        labelIds: (string | bigint)[],
         overrides?: Partial<Prisma.scheduleCreateInput>,
     ): Prisma.scheduleCreateInput {
         const factory = new ScheduleDbFactory();
         const data = factory.createMinimal({
             labels: {
-                connect: labelIds.map(id => ({ id })),
+                connect: labelIds.map(id => ({ id: typeof id === "string" ? BigInt(id) : id })),
             },
             ...overrides,
         });
@@ -712,7 +714,7 @@ export async function seedSchedules(
         } else if (options.withExceptions) {
             const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000);
             const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-            
+
             scheduleData = ScheduleDbFactory.createWithExceptions(
                 obj.id,
                 obj.type,
@@ -741,8 +743,8 @@ export async function seedSchedules(
 
         const schedule = await prisma.schedule.create({
             data: scheduleData,
-            include: { 
-                recurrences: true, 
+            include: {
+                recurrences: true,
                 exceptions: true,
                 labels: true,
                 meeting: true,

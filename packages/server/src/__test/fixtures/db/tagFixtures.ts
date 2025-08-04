@@ -1,25 +1,32 @@
-import { generatePK, generatePublicId } from "@vrooli/shared";
+/* eslint-disable no-magic-numbers */
 import { type Prisma } from "@prisma/client";
+import { generatePK, generatePublicId } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
-import type { DbTestFixtures, BulkSeedOptions, BulkSeedResult, DbErrorScenarios } from "./types.js";
+import type { BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
 
 /**
  * Database fixtures for Tag model - used for seeding test data
  * Tags are reusable across many object types and support hierarchical relationships
  */
 
-// Consistent IDs for testing
-export const tagDbIds = {
-    tag1: generatePK(),
-    tag2: generatePK(),
-    tag3: generatePK(),
-    parentTag1: generatePK(),
-    childTag1: generatePK(),
-    popularTag1: generatePK(),
-    translation1: generatePK(),
-    translation2: generatePK(),
-    translation3: generatePK(),
-};
+// Consistent IDs for testing - using lazy initialization to avoid module-level generatePK() calls
+let _tagDbIds: Record<string, bigint> | null = null;
+export function getTagDbIds() {
+    if (!_tagDbIds) {
+        _tagDbIds = {
+            tag1: generatePK(),
+            tag2: generatePK(),
+            tag3: generatePK(),
+            parentTag1: generatePK(),
+            childTag1: generatePK(),
+            popularTag1: generatePK(),
+            translation1: generatePK(),
+            translation2: generatePK(),
+            translation3: generatePK(),
+        };
+    }
+    return _tagDbIds;
+}
 
 /**
  * Enhanced test fixtures for Tag model following standard structure
@@ -121,7 +128,7 @@ export const tagDbFixtures: DbTestFixtures<Prisma.tag_uncheckedCreateInput> = {
             publicId: generatePublicId(),
             tag: "child-tag",
             bookmarks: 10,
-            parentId: tagDbIds.parentTag1,
+            parentId: getTagDbIds().parentTag1,
         },
     },
 };
@@ -130,7 +137,7 @@ export const tagDbFixtures: DbTestFixtures<Prisma.tag_uncheckedCreateInput> = {
  * Enhanced factory for creating tag database fixtures
  */
 export class TagDbFactory extends EnhancedDbFactory<Prisma.tag_uncheckedCreateInput> {
-    
+
     /**
      * Get the test fixtures for Tag model
      */
@@ -145,7 +152,7 @@ export class TagDbFactory extends EnhancedDbFactory<Prisma.tag_uncheckedCreateIn
         return {
             constraints: {
                 uniqueViolation: {
-                    id: tagDbIds.tag1, // Duplicate ID
+                    id: getTagDbIds().tag1, // Duplicate ID
                     publicId: generatePublicId(),
                     tag: "existing-tag", // Duplicate tag name
                     bookmarks: 0,
@@ -176,18 +183,18 @@ export class TagDbFactory extends EnhancedDbFactory<Prisma.tag_uncheckedCreateIn
             },
             businessLogic: {
                 selfParentReference: {
-                    id: tagDbIds.tag2,
+                    id: getTagDbIds().tag2,
                     publicId: generatePublicId(),
                     tag: "self-referencing-tag",
                     bookmarks: 0,
-                    parentId: tagDbIds.tag2, // Self-reference
+                    parentId: getTagDbIds().tag2, // Self-reference
                 },
                 circularParentReference: {
-                    id: tagDbIds.tag3,
+                    id: getTagDbIds().tag3,
                     publicId: generatePublicId(),
                     tag: "circular-reference-tag",
                     bookmarks: 0,
-                    parentId: tagDbIds.childTag1, // Child of its own child
+                    parentId: getTagDbIds().childTag1, // Child of its own child
                 },
             },
         };
@@ -287,21 +294,21 @@ export class TagDbFactory extends EnhancedDbFactory<Prisma.tag_uncheckedCreateIn
     ): Prisma.tag_uncheckedCreateInput[] {
         const factory = new TagDbFactory();
         const parentId = generatePK();
-        
+
         const parent = factory.createMinimal({
             id: parentId,
             tag: parentTag,
             ...overrides,
         });
-        
-        const children = childTags.map(childTag => 
+
+        const children = childTags.map(childTag =>
             factory.createMinimal({
                 tag: childTag,
                 parentId: BigInt(parentId),
                 ...overrides,
             }),
         );
-        
+
         return [parent, ...children];
     }
 
@@ -312,7 +319,7 @@ export class TagDbFactory extends EnhancedDbFactory<Prisma.tag_uncheckedCreateIn
         tags: Array<{ name: string; popularity?: number }>,
     ): Prisma.tag_uncheckedCreateInput[] {
         const factory = new TagDbFactory();
-        return tags.map(t => 
+        return tags.map(t =>
             factory.createMinimal({
                 tag: t.name,
                 bookmarks: t.popularity || Math.floor(Math.random() * 100),
@@ -363,12 +370,12 @@ export async function seedTags(
                     { language: "en", description: `Description for ${tag}` },
                     { language: "es", description: `Descripción para ${tag}` },
                 ],
-                { 
+                {
                     tag,
                     ...(options?.popular && { bookmarks: Math.floor(Math.random() * 200) + 50 }),
                 },
             )
-            : TagDbFactory.createMinimal({ 
+            : TagDbFactory.createMinimal({
                 tag,
                 ...(options?.popular && { bookmarks: Math.floor(Math.random() * 200) + 50 }),
             });
@@ -403,7 +410,7 @@ export async function seedTagHierarchy(
 
     for (const { parent, children, withTranslations } of structure) {
         const tags = TagDbFactory.createHierarchical(parent, children);
-        
+
         for (const tagData of tags) {
             const finalData = withTranslations
                 ? {
