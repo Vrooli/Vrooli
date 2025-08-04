@@ -1,0 +1,68 @@
+version: 1.0
+scenario: resume-screening-assistant
+
+# Structure validation
+structure:
+  required_files:
+    - metadata.yaml
+    - manifest.yaml
+    - README.md
+    - initialization/workflows/n8n/resume-processing-pipeline.json
+    - initialization/configuration/app-config.json
+  
+  required_dirs:
+    - initialization/workflows
+    - initialization/configuration
+    - initialization/vectors
+    - deployment
+
+# Resource requirements
+resources:
+  required: [ollama, unstructured-io, qdrant]
+  optional: [browserless]
+  health_timeout: 30
+
+# Declarative tests
+tests:
+  - name: "AI Model Engine Ready"
+    type: http
+    service: ollama
+    endpoint: /api/tags
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+        
+  - name: "Document Processing Engine Ready"
+    type: http
+    service: unstructured-io
+    endpoint: /general/v0/general
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Vector Database Ready"
+    type: http
+    service: qdrant
+    endpoint: /collections
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+        
+  - name: "Business Logic Validation"
+    type: custom
+    script: custom-tests.sh
+    function: test_resume_screening_assistant_workflow
+
+# Validation criteria
+validation:
+  success_rate: 75        # Allow some flexibility for optional services
+  response_time: 10000    # 10 seconds max for service responses
+  revenue_potential: 10000
+  business_criteria:
+    - "Core services operational"
+    - "Business workflow functional"
+    - "Integration points validated"

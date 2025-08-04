@@ -1,0 +1,106 @@
+version: 1.0
+scenario: document-intelligence-pipeline
+
+# Structure validation
+structure:
+  required_files:
+    - metadata.yaml
+    - manifest.yaml
+    - README.md
+    - initialization/database/schema.sql
+    - initialization/workflows/n8n/main-workflow.json
+    - initialization/configuration/app-config.json
+    - initialization/ui/windmill-app.json
+  
+  required_dirs:
+    - initialization/database
+    - initialization/workflows
+    - initialization/configuration
+    - initialization/vectors
+    - deployment
+    - ui
+
+# Resource requirements
+resources:
+  required: [unstructured-io, qdrant, ollama]
+  optional: [browserless]
+  health_timeout: 30
+
+# Declarative tests
+tests:
+  - name: "Document Processing Engine Ready"
+    type: http
+    service: unstructured-io
+    endpoint: /general/v0/general
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Vector Database Ready"
+    type: http
+    service: qdrant
+    endpoint: /collections
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+        
+  - name: "AI Analysis Engine Ready"
+    type: http
+    service: ollama
+    endpoint: /api/tags
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+        
+  - name: "Web Document Fetcher Ready (Optional)"
+    type: http
+    service: browserless
+    endpoint: /metrics
+    method: GET
+    expect:
+      status: 200
+    required: false
+
+  - name: "Document Intelligence Pipeline Chain"
+    type: chain
+    description: "End-to-end document processing workflow"
+    steps:
+      - id: document_processor_check
+        service: unstructured-io
+        action: health_check
+        expect:
+          status: available
+        
+      - id: vector_database_check
+        service: qdrant
+        action: health_check
+        expect:
+          status: available
+          
+      - id: ai_analysis_check
+        service: ollama
+        action: health_check
+        expect:
+          status: available
+
+  - name: "Document Processing Business Logic"
+    type: custom
+    script: custom-tests.sh
+    function: test_document_intelligence_workflow
+
+# Validation criteria
+validation:
+  success_rate: 75        # Allow some flexibility for optional services
+  response_time: 10000    # 10 seconds max for service responses
+  revenue_potential: 8000   # Average of min/max from metadata (4K-12K)
+  business_criteria:
+    - "Document parsing engine available"
+    - "Vector database operational"
+    - "AI analysis engine ready"
+    - "Document processing pipeline functional"
+    - "Semantic search capabilities working"
+    - "Business workflow integration complete"

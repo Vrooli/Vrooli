@@ -1,0 +1,2714 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Vrooli Service Configuration",
+  "description": "Comprehensive schema for defining services with deployment, monitoring, and lifecycle management",
+  "type": "object",
+  "required": ["apiVersion", "kind", "metadata", "spec"],
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "description": "API version of the service configuration",
+      "pattern": "^v\\d+(\\.\\d+)?$",
+      "default": "v1"
+    },
+    "kind": {
+      "type": "string",
+      "description": "The kind of resource",
+      "enum": ["Service", "ServiceGroup", "ServiceTemplate"],
+      "default": "Service"
+    },
+    "metadata": {
+      "$ref": "#/definitions/metadata"
+    },
+    "spec": {
+      "$ref": "#/definitions/serviceSpec"
+    },
+    "status": {
+      "$ref": "#/definitions/serviceStatus"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "metadata": {
+      "type": "object",
+      "description": "Service metadata including identification and organizational information",
+      "required": ["name", "version"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Unique service identifier",
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+          "maxLength": 63
+        },
+        "version": {
+          "type": "string",
+          "description": "Service version (semantic versioning)",
+          "pattern": "^v?\\d+\\.\\d+\\.\\d+(-(alpha|beta|rc)\\.\\d+)?$"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Human-readable service name",
+          "maxLength": 255
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed service description",
+          "maxLength": 4096
+        },
+        "labels": {
+          "type": "object",
+          "description": "Key-value pairs for service categorization",
+          "patternProperties": {
+            "^[a-zA-Z][a-zA-Z0-9._-]*$": {
+              "type": "string",
+              "maxLength": 63
+            }
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "description": "Non-identifying metadata",
+          "patternProperties": {
+            "^[a-zA-Z][a-zA-Z0-9._/-]*$": {
+              "type": "string"
+            }
+          }
+        },
+        "tags": {
+          "type": "array",
+          "description": "Service tags for discovery and filtering",
+          "items": {
+            "type": "string",
+            "pattern": "^[a-z0-9-]+$"
+          },
+          "uniqueItems": true
+        },
+        "owner": {
+          "type": "object",
+          "description": "Service ownership information",
+          "properties": {
+            "team": {
+              "type": "string",
+              "description": "Owning team identifier"
+            },
+            "email": {
+              "type": "string",
+              "format": "email",
+              "description": "Contact email"
+            },
+            "slack": {
+              "type": "string",
+              "description": "Slack channel for notifications"
+            }
+          }
+        },
+        "documentation": {
+          "type": "object",
+          "description": "Links to service documentation",
+          "properties": {
+            "readme": {
+              "type": "string",
+              "format": "uri"
+            },
+            "api": {
+              "type": "string",
+              "format": "uri"
+            },
+            "runbook": {
+              "type": "string",
+              "format": "uri"
+            },
+            "architecture": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        },
+        "repository": {
+          "type": "object",
+          "description": "Source code repository information",
+          "properties": {
+            "url": {
+              "type": "string",
+              "format": "uri"
+            },
+            "branch": {
+              "type": "string",
+              "default": "main"
+            },
+            "commit": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40}$"
+            }
+          }
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Service creation timestamp"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Last update timestamp"
+        }
+      }
+    },
+    "serviceSpec": {
+      "type": "object",
+      "description": "Service specification including deployment, resources, and configuration",
+      "required": ["serve"],
+      "properties": {
+        "pricing": {
+          "$ref": "#/definitions/pricing"
+        },
+        "serve": {
+          "$ref": "#/definitions/serveConfiguration"
+        },
+        "scenarios": {
+          "$ref": "#/definitions/scenarios"
+        },
+        "capabilities": {
+          "$ref": "#/definitions/capabilities"
+        },
+        "dependencies": {
+          "$ref": "#/definitions/dependencies"
+        },
+        "resources": {
+          "$ref": "#/definitions/resourceRequirements"
+        },
+        "configuration": {
+          "$ref": "#/definitions/configuration"
+        },
+        "security": {
+          "$ref": "#/definitions/security"
+        },
+        "networking": {
+          "$ref": "#/definitions/networking"
+        },
+        "lifecycle": {
+          "$ref": "#/definitions/lifecycle"
+        },
+        "observability": {
+          "$ref": "#/definitions/observability"
+        },
+        "compliance": {
+          "$ref": "#/definitions/compliance"
+        }
+      }
+    },
+    "pricing": {
+      "type": "object",
+      "description": "Service pricing configuration",
+      "properties": {
+        "model": {
+          "type": "string",
+          "enum": ["free", "freemium", "subscription", "usage", "tiered", "enterprise"],
+          "description": "Pricing model type"
+        },
+        "currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$",
+          "default": "USD",
+          "description": "ISO 4217 currency code"
+        },
+        "tiers": {
+          "type": "array",
+          "description": "Pricing tiers",
+          "items": {
+            "$ref": "#/definitions/pricingTier"
+          }
+        },
+        "usage": {
+          "type": "object",
+          "description": "Usage-based pricing configuration",
+          "properties": {
+            "metrics": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/usageMetric"
+              }
+            },
+            "billing": {
+              "type": "string",
+              "enum": ["hourly", "daily", "monthly", "yearly"],
+              "default": "monthly"
+            }
+          }
+        },
+        "trial": {
+          "type": "object",
+          "description": "Free trial configuration",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "duration": {
+              "type": "integer",
+              "description": "Trial duration in days",
+              "minimum": 1,
+              "maximum": 365
+            },
+            "features": {
+              "type": "array",
+              "description": "Features available during trial",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "pricingTier": {
+      "type": "object",
+      "required": ["name", "price"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Tier name"
+        },
+        "price": {
+          "type": "number",
+          "description": "Price amount",
+          "minimum": 0
+        },
+        "interval": {
+          "type": "string",
+          "enum": ["hour", "day", "month", "year"],
+          "default": "month"
+        },
+        "features": {
+          "type": "array",
+          "description": "Features included in this tier",
+          "items": {
+            "type": "string"
+          }
+        },
+        "limits": {
+          "type": "object",
+          "description": "Resource limits for this tier",
+          "additionalProperties": {
+            "type": ["number", "string"]
+          }
+        }
+      }
+    },
+    "usageMetric": {
+      "type": "object",
+      "required": ["name", "unit", "price"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Metric name"
+        },
+        "unit": {
+          "type": "string",
+          "description": "Unit of measurement"
+        },
+        "price": {
+          "type": "number",
+          "description": "Price per unit",
+          "minimum": 0
+        },
+        "included": {
+          "type": "number",
+          "description": "Units included in base price",
+          "minimum": 0
+        },
+        "overage": {
+          "type": "number",
+          "description": "Price for overage units"
+        }
+      }
+    },
+    "serveConfiguration": {
+      "type": "object",
+      "description": "Service deployment and serving configuration",
+      "required": ["deployment"],
+      "properties": {
+        "deployment": {
+          "$ref": "#/definitions/deploymentStrategy"
+        },
+        "scaling": {
+          "$ref": "#/definitions/scalingPolicy"
+        },
+        "availability": {
+          "$ref": "#/definitions/availabilityConfiguration"
+        },
+        "endpoints": {
+          "type": "array",
+          "description": "Service endpoints",
+          "items": {
+            "$ref": "#/definitions/endpoint"
+          }
+        },
+        "ports": {
+          "type": "array",
+          "description": "Service ports",
+          "items": {
+            "$ref": "#/definitions/port"
+          }
+        },
+        "healthChecks": {
+          "$ref": "#/definitions/healthChecks"
+        },
+        "loadBalancing": {
+          "$ref": "#/definitions/loadBalancing"
+        }
+      }
+    },
+    "deploymentStrategy": {
+      "type": "object",
+      "description": "Deployment strategy configuration",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["rolling", "blueGreen", "canary", "recreate", "progressive"],
+          "description": "Deployment strategy type"
+        },
+        "replicas": {
+          "type": "integer",
+          "description": "Number of service replicas",
+          "minimum": 0,
+          "default": 1
+        },
+        "progressive": {
+          "type": "object",
+          "description": "Progressive deployment configuration",
+          "properties": {
+            "stages": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/deploymentStage"
+              }
+            },
+            "analysis": {
+              "$ref": "#/definitions/analysisConfiguration"
+            },
+            "rollback": {
+              "$ref": "#/definitions/rollbackStrategy"
+            }
+          }
+        },
+        "canary": {
+          "type": "object",
+          "description": "Canary deployment configuration",
+          "properties": {
+            "weight": {
+              "type": "integer",
+              "description": "Initial traffic percentage for canary",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "increment": {
+              "type": "integer",
+              "description": "Traffic increment percentage",
+              "minimum": 1,
+              "maximum": 100
+            },
+            "interval": {
+              "type": "string",
+              "description": "Time between increments (e.g., '5m', '1h')",
+              "pattern": "^\\d+[smhd]$"
+            }
+          }
+        },
+        "maxSurge": {
+          "type": ["integer", "string"],
+          "description": "Maximum number of pods above desired replica count",
+          "pattern": "^(\\d+|\\d+%)$"
+        },
+        "maxUnavailable": {
+          "type": ["integer", "string"],
+          "description": "Maximum number of unavailable pods during update",
+          "pattern": "^(\\d+|\\d+%)$"
+        }
+      }
+    },
+    "deploymentStage": {
+      "type": "object",
+      "required": ["name", "weight", "duration"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Stage name"
+        },
+        "weight": {
+          "type": "integer",
+          "description": "Traffic percentage for this stage",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "duration": {
+          "type": "string",
+          "description": "Stage duration (e.g., '30m', '2h')",
+          "pattern": "^\\d+[smhd]$"
+        },
+        "criteria": {
+          "type": "array",
+          "description": "Success criteria for stage",
+          "items": {
+            "$ref": "#/definitions/successCriterion"
+          }
+        },
+        "pause": {
+          "type": "boolean",
+          "description": "Pause for manual approval",
+          "default": false
+        }
+      }
+    },
+    "successCriterion": {
+      "type": "object",
+      "required": ["metric", "threshold"],
+      "properties": {
+        "metric": {
+          "type": "string",
+          "description": "Metric to evaluate"
+        },
+        "threshold": {
+          "type": "number",
+          "description": "Success threshold"
+        },
+        "operator": {
+          "type": "string",
+          "enum": ["<", "<=", ">", ">=", "==", "!="],
+          "default": ">="
+        },
+        "window": {
+          "type": "string",
+          "description": "Evaluation window (e.g., '5m')",
+          "pattern": "^\\d+[smhd]$"
+        }
+      }
+    },
+    "analysisConfiguration": {
+      "type": "object",
+      "description": "Deployment analysis configuration",
+      "properties": {
+        "metrics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/analysisMetric"
+          }
+        },
+        "webhooks": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/analysisWebhook"
+          }
+        },
+        "queries": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/analysisQuery"
+          }
+        }
+      }
+    },
+    "analysisMetric": {
+      "type": "object",
+      "required": ["name", "query"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Metric name"
+        },
+        "provider": {
+          "type": "string",
+          "enum": ["prometheus", "datadog", "cloudwatch", "questdb", "custom"],
+          "default": "prometheus"
+        },
+        "query": {
+          "type": "string",
+          "description": "Metric query"
+        },
+        "interval": {
+          "type": "string",
+          "description": "Query interval",
+          "pattern": "^\\d+[smhd]$"
+        },
+        "successCondition": {
+          "type": "string",
+          "description": "Success condition expression"
+        },
+        "failureCondition": {
+          "type": "string",
+          "description": "Failure condition expression"
+        }
+      }
+    },
+    "analysisWebhook": {
+      "type": "object",
+      "required": ["url"],
+      "properties": {
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Webhook URL"
+        },
+        "method": {
+          "type": "string",
+          "enum": ["GET", "POST", "PUT"],
+          "default": "POST"
+        },
+        "headers": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "body": {
+          "type": ["object", "string"],
+          "description": "Request body"
+        },
+        "timeout": {
+          "type": "string",
+          "description": "Request timeout",
+          "pattern": "^\\d+[smhd]$"
+        }
+      }
+    },
+    "analysisQuery": {
+      "type": "object",
+      "required": ["name", "query"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Query name"
+        },
+        "database": {
+          "type": "string",
+          "enum": ["postgres", "questdb", "redis", "custom"],
+          "default": "postgres"
+        },
+        "query": {
+          "type": "string",
+          "description": "Database query"
+        },
+        "expectedResult": {
+          "description": "Expected query result"
+        }
+      }
+    },
+    "rollbackStrategy": {
+      "type": "object",
+      "description": "Rollback strategy configuration",
+      "properties": {
+        "automatic": {
+          "type": "boolean",
+          "description": "Enable automatic rollback",
+          "default": true
+        },
+        "onFailure": {
+          "type": "string",
+          "enum": ["rollback", "pause", "abort", "continue"],
+          "default": "rollback"
+        },
+        "maxRetries": {
+          "type": "integer",
+          "description": "Maximum rollback retries",
+          "minimum": 0,
+          "default": 3
+        },
+        "checkpoints": {
+          "type": "array",
+          "description": "Rollback checkpoints",
+          "items": {
+            "$ref": "#/definitions/rollbackCheckpoint"
+          }
+        }
+      }
+    },
+    "rollbackCheckpoint": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Checkpoint name"
+        },
+        "version": {
+          "type": "string",
+          "description": "Service version at checkpoint"
+        },
+        "timestamp": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Checkpoint timestamp"
+        },
+        "data": {
+          "type": "object",
+          "description": "Checkpoint data snapshot"
+        }
+      }
+    },
+    "scalingPolicy": {
+      "type": "object",
+      "description": "Service scaling configuration",
+      "properties": {
+        "horizontal": {
+          "$ref": "#/definitions/horizontalScaling"
+        },
+        "vertical": {
+          "$ref": "#/definitions/verticalScaling"
+        },
+        "manual": {
+          "type": "boolean",
+          "description": "Allow manual scaling",
+          "default": true
+        }
+      }
+    },
+    "horizontalScaling": {
+      "type": "object",
+      "description": "Horizontal pod autoscaling configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "minReplicas": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        },
+        "maxReplicas": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 10
+        },
+        "targetCPU": {
+          "type": "integer",
+          "description": "Target CPU utilization percentage",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "targetMemory": {
+          "type": "integer",
+          "description": "Target memory utilization percentage",
+          "minimum": 1,
+          "maximum": 100
+        },
+        "metrics": {
+          "type": "array",
+          "description": "Custom metrics for scaling",
+          "items": {
+            "$ref": "#/definitions/scalingMetric"
+          }
+        },
+        "behavior": {
+          "$ref": "#/definitions/scalingBehavior"
+        }
+      }
+    },
+    "verticalScaling": {
+      "type": "object",
+      "description": "Vertical pod autoscaling configuration",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "updateMode": {
+          "type": "string",
+          "enum": ["Off", "Initial", "Recreate", "Auto"],
+          "default": "Auto"
+        },
+        "resourcePolicy": {
+          "type": "object",
+          "properties": {
+            "minAllowed": {
+              "$ref": "#/definitions/resourceLimits"
+            },
+            "maxAllowed": {
+              "$ref": "#/definitions/resourceLimits"
+            }
+          }
+        }
+      }
+    },
+    "scalingMetric": {
+      "type": "object",
+      "required": ["type", "name", "target"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["Resource", "Pods", "Object", "External"],
+          "description": "Metric type"
+        },
+        "name": {
+          "type": "string",
+          "description": "Metric name"
+        },
+        "target": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["Utilization", "Value", "AverageValue"]
+            },
+            "value": {
+              "type": ["string", "number"]
+            }
+          }
+        }
+      }
+    },
+    "scalingBehavior": {
+      "type": "object",
+      "description": "Scaling behavior configuration",
+      "properties": {
+        "scaleUp": {
+          "$ref": "#/definitions/scalingRules"
+        },
+        "scaleDown": {
+          "$ref": "#/definitions/scalingRules"
+        }
+      }
+    },
+    "scalingRules": {
+      "type": "object",
+      "properties": {
+        "stabilizationWindowSeconds": {
+          "type": "integer",
+          "description": "Stabilization window in seconds",
+          "minimum": 0
+        },
+        "selectPolicy": {
+          "type": "string",
+          "enum": ["Max", "Min", "Disabled"]
+        },
+        "policies": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["Percent", "Pods"]
+              },
+              "value": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "periodSeconds": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "availabilityConfiguration": {
+      "type": "object",
+      "description": "Service availability configuration",
+      "properties": {
+        "sla": {
+          "type": "string",
+          "description": "Service Level Agreement",
+          "enum": ["99%", "99.9%", "99.95%", "99.99%", "99.999%"]
+        },
+        "zones": {
+          "type": "array",
+          "description": "Availability zones",
+          "items": {
+            "type": "string"
+          }
+        },
+        "regions": {
+          "type": "array",
+          "description": "Deployment regions",
+          "items": {
+            "type": "string"
+          }
+        },
+        "podDisruptionBudget": {
+          "type": "object",
+          "properties": {
+            "minAvailable": {
+              "type": ["integer", "string"],
+              "pattern": "^(\\d+|\\d+%)$"
+            },
+            "maxUnavailable": {
+              "type": ["integer", "string"],
+              "pattern": "^(\\d+|\\d+%)$"
+            }
+          }
+        }
+      }
+    },
+    "endpoint": {
+      "type": "object",
+      "required": ["name", "protocol"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Endpoint name"
+        },
+        "protocol": {
+          "type": "string",
+          "enum": ["http", "https", "grpc", "websocket", "tcp", "udp"]
+        },
+        "path": {
+          "type": "string",
+          "description": "Endpoint path"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "public": {
+          "type": "boolean",
+          "description": "Publicly accessible endpoint",
+          "default": false
+        },
+        "authentication": {
+          "type": "string",
+          "enum": ["none", "basic", "bearer", "oauth2", "apikey", "mtls"]
+        },
+        "rateLimit": {
+          "$ref": "#/definitions/rateLimit"
+        }
+      }
+    },
+    "port": {
+      "type": "object",
+      "required": ["name", "port", "protocol"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Port name"
+        },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "targetPort": {
+          "type": ["integer", "string"],
+          "description": "Target port on container"
+        },
+        "protocol": {
+          "type": "string",
+          "enum": ["TCP", "UDP", "SCTP"],
+          "default": "TCP"
+        }
+      }
+    },
+    "healthChecks": {
+      "type": "object",
+      "description": "Health check configuration",
+      "properties": {
+        "liveness": {
+          "$ref": "#/definitions/probe"
+        },
+        "readiness": {
+          "$ref": "#/definitions/probe"
+        },
+        "startup": {
+          "$ref": "#/definitions/probe"
+        }
+      }
+    },
+    "probe": {
+      "type": "object",
+      "properties": {
+        "httpGet": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "port": {
+              "type": ["integer", "string"]
+            },
+            "scheme": {
+              "type": "string",
+              "enum": ["HTTP", "HTTPS"]
+            },
+            "headers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "value": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "tcpSocket": {
+          "type": "object",
+          "properties": {
+            "port": {
+              "type": ["integer", "string"]
+            }
+          }
+        },
+        "exec": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "initialDelaySeconds": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "periodSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "timeoutSeconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "successThreshold": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "failureThreshold": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "loadBalancing": {
+      "type": "object",
+      "description": "Load balancing configuration",
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "enum": ["roundRobin", "leastConnections", "ipHash", "random", "weighted"],
+          "default": "roundRobin"
+        },
+        "sessionAffinity": {
+          "type": "string",
+          "enum": ["None", "ClientIP"],
+          "default": "None"
+        },
+        "sessionAffinityConfig": {
+          "type": "object",
+          "properties": {
+            "clientIP": {
+              "type": "object",
+              "properties": {
+                "timeoutSeconds": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 86400
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "scenarios": {
+      "type": "object",
+      "description": "Service initialization scenarios",
+      "properties": {
+        "initialization": {
+          "$ref": "#/definitions/scenarioConfiguration"
+        },
+        "dependencies": {
+          "type": "array",
+          "description": "Scenario dependencies",
+          "items": {
+            "type": "string"
+          }
+        },
+        "optional": {
+          "type": "array",
+          "description": "Optional scenarios",
+          "items": {
+            "$ref": "#/definitions/optionalScenario"
+          }
+        }
+      }
+    },
+    "scenarioConfiguration": {
+      "type": "object",
+      "description": "Scenario configuration for resource initialization",
+      "properties": {
+        "resources": {
+          "type": "object",
+          "description": "Resource-specific initialization",
+          "additionalProperties": {
+            "$ref": "#/definitions/resourceInitialization"
+          }
+        },
+        "order": {
+          "type": "array",
+          "description": "Initialization order",
+          "items": {
+            "type": "string"
+          }
+        },
+        "parallel": {
+          "type": "boolean",
+          "description": "Allow parallel initialization",
+          "default": false
+        }
+      }
+    },
+    "resourceInitialization": {
+      "type": "object",
+      "description": "Resource initialization configuration",
+      "properties": {
+        "workflows": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/workflowReference"
+          }
+        },
+        "scripts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/scriptReference"
+          }
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/dataReference"
+          }
+        },
+        "configurations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/configReference"
+          }
+        }
+      }
+    },
+    "workflowReference": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Workflow name"
+        },
+        "file": {
+          "type": "string",
+          "description": "Path to workflow file"
+        },
+        "inline": {
+          "type": "object",
+          "description": "Inline workflow definition"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "scriptReference": {
+      "type": "object",
+      "required": ["path"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Script path"
+        },
+        "file": {
+          "type": "string",
+          "description": "Script file location"
+        },
+        "inline": {
+          "type": "string",
+          "description": "Inline script content"
+        },
+        "language": {
+          "type": "string",
+          "enum": ["typescript", "python", "bash", "javascript", "go", "rust"]
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Script parameters"
+        }
+      }
+    },
+    "dataReference": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["schema", "seed", "migration", "file", "directory"]
+        },
+        "file": {
+          "type": "string",
+          "description": "Data file path"
+        },
+        "inline": {
+          "description": "Inline data content"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["sql", "json", "yaml", "csv", "parquet"]
+        }
+      }
+    },
+    "configReference": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Configuration name"
+        },
+        "file": {
+          "type": "string",
+          "description": "Configuration file path"
+        },
+        "inline": {
+          "type": "object",
+          "description": "Inline configuration"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["json", "yaml", "toml", "ini", "env"]
+        },
+        "secret": {
+          "type": "boolean",
+          "description": "Mark as secret configuration",
+          "default": false
+        }
+      }
+    },
+    "optionalScenario": {
+      "type": "object",
+      "required": ["name", "condition"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Scenario name"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Activation condition"
+        },
+        "configuration": {
+          "$ref": "#/definitions/scenarioConfiguration"
+        }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "description": "Service capabilities for AI discovery",
+      "properties": {
+        "ai": {
+          "$ref": "#/definitions/aiCapabilities"
+        },
+        "api": {
+          "$ref": "#/definitions/apiCapabilities"
+        },
+        "data": {
+          "$ref": "#/definitions/dataCapabilities"
+        },
+        "compute": {
+          "$ref": "#/definitions/computeCapabilities"
+        },
+        "integration": {
+          "$ref": "#/definitions/integrationCapabilities"
+        }
+      }
+    },
+    "aiCapabilities": {
+      "type": "object",
+      "description": "AI/ML capabilities",
+      "properties": {
+        "models": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/aiModel"
+          }
+        },
+        "tasks": {
+          "type": "array",
+          "description": "Supported AI tasks",
+          "items": {
+            "type": "string",
+            "enum": ["nlp", "vision", "audio", "multimodal", "reinforcement", "generation", "classification", "regression"]
+          }
+        },
+        "frameworks": {
+          "type": "array",
+          "description": "Supported frameworks",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "aiModel": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Model name"
+        },
+        "type": {
+          "type": "string",
+          "description": "Model type"
+        },
+        "version": {
+          "type": "string",
+          "description": "Model version"
+        },
+        "capabilities": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "performance": {
+          "type": "object",
+          "properties": {
+            "latency": {
+              "type": "string",
+              "description": "Average latency"
+            },
+            "throughput": {
+              "type": "string",
+              "description": "Throughput capacity"
+            },
+            "accuracy": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        }
+      }
+    },
+    "apiCapabilities": {
+      "type": "object",
+      "description": "API capabilities",
+      "properties": {
+        "protocols": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["rest", "graphql", "grpc", "websocket", "mqtt"]
+          }
+        },
+        "authentication": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "versioning": {
+          "type": "string",
+          "enum": ["path", "header", "query", "none"]
+        },
+        "documentation": {
+          "type": "object",
+          "properties": {
+            "openapi": {
+              "type": "string",
+              "format": "uri"
+            },
+            "asyncapi": {
+              "type": "string",
+              "format": "uri"
+            },
+            "graphql": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      }
+    },
+    "dataCapabilities": {
+      "type": "object",
+      "description": "Data processing capabilities",
+      "properties": {
+        "formats": {
+          "type": "array",
+          "description": "Supported data formats",
+          "items": {
+            "type": "string"
+          }
+        },
+        "storage": {
+          "type": "array",
+          "description": "Storage types",
+          "items": {
+            "type": "string",
+            "enum": ["relational", "document", "keyValue", "graph", "timeSeries", "object", "vector"]
+          }
+        },
+        "processing": {
+          "type": "array",
+          "description": "Processing capabilities",
+          "items": {
+            "type": "string",
+            "enum": ["batch", "stream", "realtime", "etl", "analytics"]
+          }
+        },
+        "volume": {
+          "type": "object",
+          "properties": {
+            "max": {
+              "type": "string",
+              "description": "Maximum data volume"
+            },
+            "throughput": {
+              "type": "string",
+              "description": "Data throughput"
+            }
+          }
+        }
+      }
+    },
+    "computeCapabilities": {
+      "type": "object",
+      "description": "Compute capabilities",
+      "properties": {
+        "languages": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "runtimes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "gpuSupport": {
+          "type": "boolean",
+          "default": false
+        },
+        "acceleration": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["cuda", "rocm", "opencl", "metal", "tpu", "fpga"]
+          }
+        }
+      }
+    },
+    "integrationCapabilities": {
+      "type": "object",
+      "description": "Integration capabilities",
+      "properties": {
+        "webhooks": {
+          "type": "boolean",
+          "default": false
+        },
+        "events": {
+          "type": "array",
+          "description": "Supported event types",
+          "items": {
+            "type": "string"
+          }
+        },
+        "protocols": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "connectors": {
+          "type": "array",
+          "description": "Available connectors",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "description": "Service dependencies",
+      "properties": {
+        "services": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/serviceDependency"
+          }
+        },
+        "resources": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/resourceDependency"
+          }
+        },
+        "external": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/externalDependency"
+          }
+        }
+      }
+    },
+    "serviceDependency": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Service name"
+        },
+        "version": {
+          "type": "string",
+          "description": "Required version"
+        },
+        "optional": {
+          "type": "boolean",
+          "default": false
+        },
+        "endpoints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "resourceDependency": {
+      "type": "object",
+      "required": ["type", "name"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Resource type"
+        },
+        "name": {
+          "type": "string",
+          "description": "Resource name"
+        },
+        "version": {
+          "type": "string",
+          "description": "Required version"
+        },
+        "configuration": {
+          "type": "object",
+          "description": "Required configuration"
+        }
+      }
+    },
+    "externalDependency": {
+      "type": "object",
+      "required": ["name", "url"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "External service name"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri",
+          "description": "Service URL"
+        },
+        "authentication": {
+          "type": "object",
+          "description": "Authentication configuration"
+        },
+        "healthCheck": {
+          "type": "string",
+          "format": "uri",
+          "description": "Health check endpoint"
+        }
+      }
+    },
+    "resourceRequirements": {
+      "type": "object",
+      "description": "Resource requirements and limits",
+      "properties": {
+        "requests": {
+          "$ref": "#/definitions/resourceLimits"
+        },
+        "limits": {
+          "$ref": "#/definitions/resourceLimits"
+        },
+        "storage": {
+          "$ref": "#/definitions/storageRequirements"
+        }
+      }
+    },
+    "resourceLimits": {
+      "type": "object",
+      "properties": {
+        "cpu": {
+          "type": "string",
+          "pattern": "^\\d+(\\.\\d+)?m?$",
+          "description": "CPU limit (e.g., '100m', '2')"
+        },
+        "memory": {
+          "type": "string",
+          "pattern": "^\\d+(\\.\\d+)?[KMGTPE]i?$",
+          "description": "Memory limit (e.g., '256Mi', '2Gi')"
+        },
+        "gpu": {
+          "type": "string",
+          "pattern": "^\\d+$",
+          "description": "GPU count"
+        },
+        "ephemeralStorage": {
+          "type": "string",
+          "pattern": "^\\d+(\\.\\d+)?[KMGTPE]i?$",
+          "description": "Ephemeral storage limit"
+        }
+      }
+    },
+    "storageRequirements": {
+      "type": "object",
+      "properties": {
+        "persistent": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/volumeSpec"
+          }
+        },
+        "ephemeral": {
+          "type": "string",
+          "pattern": "^\\d+(\\.\\d+)?[KMGTPE]i?$"
+        }
+      }
+    },
+    "volumeSpec": {
+      "type": "object",
+      "required": ["name", "size"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Volume name"
+        },
+        "size": {
+          "type": "string",
+          "pattern": "^\\d+(\\.\\d+)?[KMGTPE]i?$",
+          "description": "Volume size"
+        },
+        "storageClass": {
+          "type": "string",
+          "description": "Storage class"
+        },
+        "accessMode": {
+          "type": "string",
+          "enum": ["ReadWriteOnce", "ReadOnlyMany", "ReadWriteMany"],
+          "default": "ReadWriteOnce"
+        },
+        "mountPath": {
+          "type": "string",
+          "description": "Mount path in container"
+        }
+      }
+    },
+    "configuration": {
+      "type": "object",
+      "description": "Service configuration",
+      "properties": {
+        "environment": {
+          "type": "object",
+          "description": "Environment variables",
+          "additionalProperties": {
+            "type": ["string", "number", "boolean"]
+          }
+        },
+        "secrets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/secretReference"
+          }
+        },
+        "configMaps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/configMapReference"
+          }
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/fileMount"
+          }
+        },
+        "overrides": {
+          "type": "object",
+          "description": "Environment-specific overrides",
+          "properties": {
+            "development": {
+              "type": "object"
+            },
+            "staging": {
+              "type": "object"
+            },
+            "production": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "secretReference": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Secret name"
+        },
+        "key": {
+          "type": "string",
+          "description": "Secret key"
+        },
+        "envVar": {
+          "type": "string",
+          "description": "Environment variable name"
+        }
+      }
+    },
+    "configMapReference": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "ConfigMap name"
+        },
+        "key": {
+          "type": "string",
+          "description": "ConfigMap key"
+        },
+        "envVar": {
+          "type": "string",
+          "description": "Environment variable name"
+        }
+      }
+    },
+    "fileMount": {
+      "type": "object",
+      "required": ["path"],
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "File path in container"
+        },
+        "content": {
+          "type": "string",
+          "description": "File content"
+        },
+        "source": {
+          "type": "string",
+          "description": "Source file path"
+        },
+        "mode": {
+          "type": "string",
+          "pattern": "^[0-7]{3,4}$",
+          "description": "File permissions"
+        }
+      }
+    },
+    "security": {
+      "type": "object",
+      "description": "Security configuration",
+      "properties": {
+        "authentication": {
+          "$ref": "#/definitions/authenticationConfig"
+        },
+        "authorization": {
+          "$ref": "#/definitions/authorizationConfig"
+        },
+        "encryption": {
+          "$ref": "#/definitions/encryptionConfig"
+        },
+        "compliance": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["GDPR", "HIPAA", "PCI-DSS", "SOC2", "ISO27001", "CCPA"]
+          }
+        },
+        "vulnerabilityScanning": {
+          "type": "boolean",
+          "default": true
+        },
+        "securityContext": {
+          "$ref": "#/definitions/securityContext"
+        }
+      }
+    },
+    "authenticationConfig": {
+      "type": "object",
+      "properties": {
+        "methods": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["basic", "bearer", "oauth2", "saml", "ldap", "oidc", "mtls"]
+          }
+        },
+        "providers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/authProvider"
+          }
+        },
+        "mfa": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "authProvider": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Provider name"
+        },
+        "type": {
+          "type": "string",
+          "description": "Provider type"
+        },
+        "config": {
+          "type": "object",
+          "description": "Provider configuration"
+        }
+      }
+    },
+    "authorizationConfig": {
+      "type": "object",
+      "properties": {
+        "model": {
+          "type": "string",
+          "enum": ["rbac", "abac", "acl", "custom"],
+          "default": "rbac"
+        },
+        "policies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/authPolicy"
+          }
+        }
+      }
+    },
+    "authPolicy": {
+      "type": "object",
+      "required": ["name", "rules"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Policy name"
+        },
+        "description": {
+          "type": "string",
+          "description": "Policy description"
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "resource": {
+                "type": "string"
+              },
+              "actions": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "effect": {
+                "type": "string",
+                "enum": ["allow", "deny"]
+              }
+            }
+          }
+        }
+      }
+    },
+    "encryptionConfig": {
+      "type": "object",
+      "properties": {
+        "atRest": {
+          "type": "boolean",
+          "default": true
+        },
+        "inTransit": {
+          "type": "boolean",
+          "default": true
+        },
+        "algorithm": {
+          "type": "string",
+          "enum": ["AES-256", "AES-128", "RSA-2048", "RSA-4096"]
+        },
+        "keyManagement": {
+          "type": "string",
+          "enum": ["vault", "kms", "local", "external"]
+        }
+      }
+    },
+    "securityContext": {
+      "type": "object",
+      "properties": {
+        "runAsUser": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "runAsGroup": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "runAsNonRoot": {
+          "type": "boolean",
+          "default": true
+        },
+        "readOnlyRootFilesystem": {
+          "type": "boolean",
+          "default": false
+        },
+        "allowPrivilegeEscalation": {
+          "type": "boolean",
+          "default": false
+        },
+        "capabilities": {
+          "type": "object",
+          "properties": {
+            "add": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "drop": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "seccompProfile": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["RuntimeDefault", "Localhost", "Unconfined"]
+            },
+            "localhostProfile": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "networking": {
+      "type": "object",
+      "description": "Networking configuration",
+      "properties": {
+        "ingress": {
+          "$ref": "#/definitions/ingressConfig"
+        },
+        "egress": {
+          "$ref": "#/definitions/egressConfig"
+        },
+        "serviceMesh": {
+          "$ref": "#/definitions/serviceMeshConfig"
+        },
+        "dns": {
+          "$ref": "#/definitions/dnsConfig"
+        }
+      }
+    },
+    "ingressConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "className": {
+          "type": "string",
+          "description": "Ingress class name"
+        },
+        "hosts": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ingressHost"
+          }
+        },
+        "tls": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/tlsConfig"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "ingressHost": {
+      "type": "object",
+      "required": ["host"],
+      "properties": {
+        "host": {
+          "type": "string",
+          "description": "Hostname"
+        },
+        "paths": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string"
+              },
+              "pathType": {
+                "type": "string",
+                "enum": ["Prefix", "Exact", "ImplementationSpecific"]
+              },
+              "backend": {
+                "type": "object",
+                "properties": {
+                  "service": {
+                    "type": "string"
+                  },
+                  "port": {
+                    "type": ["integer", "string"]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "tlsConfig": {
+      "type": "object",
+      "properties": {
+        "hosts": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "secretName": {
+          "type": "string",
+          "description": "TLS secret name"
+        }
+      }
+    },
+    "egressConfig": {
+      "type": "object",
+      "properties": {
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/egressRule"
+          }
+        },
+        "defaultPolicy": {
+          "type": "string",
+          "enum": ["allow", "deny"],
+          "default": "allow"
+        }
+      }
+    },
+    "egressRule": {
+      "type": "object",
+      "properties": {
+        "to": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "host": {
+                "type": "string"
+              },
+              "port": {
+                "type": "integer"
+              },
+              "protocol": {
+                "type": "string",
+                "enum": ["TCP", "UDP", "HTTP", "HTTPS"]
+              }
+            }
+          }
+        },
+        "policy": {
+          "type": "string",
+          "enum": ["allow", "deny"]
+        }
+      }
+    },
+    "serviceMeshConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "provider": {
+          "type": "string",
+          "enum": ["istio", "linkerd", "consul", "kuma"],
+          "default": "istio"
+        },
+        "trafficPolicy": {
+          "type": "object",
+          "properties": {
+            "timeout": {
+              "type": "string",
+              "pattern": "^\\d+[smhd]$"
+            },
+            "retries": {
+              "type": "object",
+              "properties": {
+                "attempts": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "perTryTimeout": {
+                  "type": "string",
+                  "pattern": "^\\d+[smhd]$"
+                }
+              }
+            },
+            "circuitBreaker": {
+              "type": "object",
+              "properties": {
+                "consecutive5xxErrors": {
+                  "type": "integer"
+                },
+                "interval": {
+                  "type": "string",
+                  "pattern": "^\\d+[smhd]$"
+                },
+                "baseEjectionTime": {
+                  "type": "string",
+                  "pattern": "^\\d+[smhd]$"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "dnsConfig": {
+      "type": "object",
+      "properties": {
+        "nameservers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "ipv4"
+          }
+        },
+        "searches": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "value": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "description": "Service lifecycle management",
+      "properties": {
+        "hooks": {
+          "$ref": "#/definitions/lifecycleHooks"
+        },
+        "upgrade": {
+          "$ref": "#/definitions/upgradePolicy"
+        },
+        "backup": {
+          "$ref": "#/definitions/backupPolicy"
+        },
+        "maintenance": {
+          "$ref": "#/definitions/maintenanceWindow"
+        }
+      }
+    },
+    "lifecycleHooks": {
+      "type": "object",
+      "properties": {
+        "preStart": {
+          "$ref": "#/definitions/hook"
+        },
+        "postStart": {
+          "$ref": "#/definitions/hook"
+        },
+        "preStop": {
+          "$ref": "#/definitions/hook"
+        },
+        "postStop": {
+          "$ref": "#/definitions/hook"
+        }
+      }
+    },
+    "hook": {
+      "type": "object",
+      "properties": {
+        "exec": {
+          "type": "object",
+          "properties": {
+            "command": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "httpGet": {
+          "type": "object",
+          "properties": {
+            "path": {
+              "type": "string"
+            },
+            "port": {
+              "type": ["integer", "string"]
+            },
+            "scheme": {
+              "type": "string",
+              "enum": ["HTTP", "HTTPS"]
+            }
+          }
+        },
+        "tcpSocket": {
+          "type": "object",
+          "properties": {
+            "port": {
+              "type": ["integer", "string"]
+            }
+          }
+        }
+      }
+    },
+    "upgradePolicy": {
+      "type": "object",
+      "properties": {
+        "automatic": {
+          "type": "boolean",
+          "default": false
+        },
+        "schedule": {
+          "type": "string",
+          "description": "Cron expression for upgrade schedule"
+        },
+        "preUpgradeChecks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "postUpgradeChecks": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "backupPolicy": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "schedule": {
+          "type": "string",
+          "description": "Cron expression for backup schedule"
+        },
+        "retention": {
+          "type": "object",
+          "properties": {
+            "days": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "count": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "destination": {
+          "type": "string",
+          "description": "Backup destination"
+        }
+      }
+    },
+    "maintenanceWindow": {
+      "type": "object",
+      "properties": {
+        "dayOfWeek": {
+          "type": "string",
+          "enum": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+        },
+        "startTime": {
+          "type": "string",
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$"
+        },
+        "duration": {
+          "type": "string",
+          "pattern": "^\\d+[mh]$"
+        },
+        "notification": {
+          "type": "object",
+          "properties": {
+            "advance": {
+              "type": "string",
+              "pattern": "^\\d+[hd]$"
+            },
+            "channels": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    "observability": {
+      "type": "object",
+      "description": "Observability configuration",
+      "properties": {
+        "metrics": {
+          "$ref": "#/definitions/metricsConfig"
+        },
+        "logging": {
+          "$ref": "#/definitions/loggingConfig"
+        },
+        "tracing": {
+          "$ref": "#/definitions/tracingConfig"
+        },
+        "alerts": {
+          "$ref": "#/definitions/alertingConfig"
+        }
+      }
+    },
+    "metricsConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "provider": {
+          "type": "string",
+          "enum": ["prometheus", "datadog", "cloudwatch", "stackdriver", "questdb"],
+          "default": "prometheus"
+        },
+        "endpoint": {
+          "type": "string",
+          "description": "Metrics endpoint"
+        },
+        "interval": {
+          "type": "string",
+          "pattern": "^\\d+[smhd]$",
+          "default": "30s"
+        },
+        "custom": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/customMetric"
+          }
+        }
+      }
+    },
+    "customMetric": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Metric name"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["counter", "gauge", "histogram", "summary"]
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "help": {
+          "type": "string",
+          "description": "Metric description"
+        }
+      }
+    },
+    "loggingConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "level": {
+          "type": "string",
+          "enum": ["debug", "info", "warn", "error", "fatal"],
+          "default": "info"
+        },
+        "format": {
+          "type": "string",
+          "enum": ["json", "text", "structured"],
+          "default": "json"
+        },
+        "outputs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/logOutput"
+          }
+        },
+        "sampling": {
+          "type": "object",
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false
+            },
+            "rate": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            }
+          }
+        }
+      }
+    },
+    "logOutput": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["stdout", "file", "syslog", "fluentd", "elasticsearch", "loki"]
+        },
+        "config": {
+          "type": "object",
+          "description": "Output-specific configuration"
+        }
+      }
+    },
+    "tracingConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": false
+        },
+        "provider": {
+          "type": "string",
+          "enum": ["jaeger", "zipkin", "tempo", "datadog", "aws-xray"],
+          "default": "jaeger"
+        },
+        "endpoint": {
+          "type": "string",
+          "format": "uri",
+          "description": "Tracing endpoint"
+        },
+        "samplingRate": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 1,
+          "default": 0.1
+        }
+      }
+    },
+    "alertingConfig": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "default": true
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/alertRule"
+          }
+        },
+        "channels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/alertChannel"
+          }
+        }
+      }
+    },
+    "alertRule": {
+      "type": "object",
+      "required": ["name", "condition"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Alert rule name"
+        },
+        "condition": {
+          "type": "string",
+          "description": "Alert condition expression"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["critical", "warning", "info"],
+          "default": "warning"
+        },
+        "for": {
+          "type": "string",
+          "pattern": "^\\d+[smhd]$",
+          "description": "Duration before alert fires"
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "alertChannel": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Channel name"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["email", "slack", "pagerduty", "webhook", "sms"]
+        },
+        "config": {
+          "type": "object",
+          "description": "Channel-specific configuration"
+        }
+      }
+    },
+    "compliance": {
+      "type": "object",
+      "description": "Compliance and regulatory configuration",
+      "properties": {
+        "standards": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["GDPR", "HIPAA", "PCI-DSS", "SOC2", "ISO27001", "CCPA", "FedRAMP"]
+          }
+        },
+        "dataResidency": {
+          "type": "array",
+          "description": "Required data residency regions",
+          "items": {
+            "type": "string"
+          }
+        },
+        "auditLogging": {
+          "type": "boolean",
+          "default": true
+        },
+        "dataRetention": {
+          "type": "object",
+          "properties": {
+            "days": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "policy": {
+              "type": "string",
+              "enum": ["delete", "archive", "anonymize"]
+            }
+          }
+        }
+      }
+    },
+    "rateLimit": {
+      "type": "object",
+      "properties": {
+        "requests": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "window": {
+          "type": "string",
+          "pattern": "^\\d+[smhd]$"
+        },
+        "burst": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+    "serviceStatus": {
+      "type": "object",
+      "description": "Current service status (runtime populated)",
+      "properties": {
+        "phase": {
+          "type": "string",
+          "enum": ["pending", "deploying", "running", "updating", "degraded", "failed", "terminating"],
+          "description": "Current service phase"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/statusCondition"
+          }
+        },
+        "replicas": {
+          "type": "object",
+          "properties": {
+            "desired": {
+              "type": "integer"
+            },
+            "current": {
+              "type": "integer"
+            },
+            "ready": {
+              "type": "integer"
+            },
+            "available": {
+              "type": "integer"
+            }
+          }
+        },
+        "endpoints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string",
+                "format": "uri"
+              },
+              "status": {
+                "type": "string",
+                "enum": ["healthy", "unhealthy", "unknown"]
+              }
+            }
+          }
+        },
+        "lastDeployment": {
+          "type": "object",
+          "properties": {
+            "version": {
+              "type": "string"
+            },
+            "timestamp": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "status": {
+              "type": "string",
+              "enum": ["successful", "failed", "inProgress"]
+            }
+          }
+        },
+        "metrics": {
+          "type": "object",
+          "properties": {
+            "cpu": {
+              "type": "string"
+            },
+            "memory": {
+              "type": "string"
+            },
+            "requests": {
+              "type": "integer"
+            },
+            "errors": {
+              "type": "integer"
+            },
+            "latency": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "statusCondition": {
+      "type": "object",
+      "required": ["type", "status"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "description": "Condition type"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["True", "False", "Unknown"]
+        },
+        "reason": {
+          "type": "string",
+          "description": "Condition reason"
+        },
+        "message": {
+          "type": "string",
+          "description": "Human-readable message"
+        },
+        "lastUpdateTime": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "lastTransitionTime": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    }
+  }
+}

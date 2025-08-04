@@ -194,6 +194,7 @@ data/uploads/
 data/schema-hash
 data/backup*
 data/test-state/
+data/test-outputs/
 
 #Backups
 backups/

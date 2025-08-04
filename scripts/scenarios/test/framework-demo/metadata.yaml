@@ -1,0 +1,21 @@
+name: "Framework Demo"
+description: "Demonstration of the new scenario testing framework"
+version: "1.0.0"
+category: "testing"
+author: "Claude Code"
+revenue_potential: 0
+business_value: "Framework validation"
+
+tags:
+  - testing
+  - framework
+  - demo
+
+resources:
+  required: []
+  optional: ["ollama"]
+
+success_criteria:
+  - "Framework components load successfully"
+  - "Basic validation passes"
+  - "Test runner executes without errors"

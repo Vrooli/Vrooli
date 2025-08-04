@@ -1,0 +1,44 @@
+version: 1.0
+scenario: scenario-generator-v1
+
+# Structure validation
+structure:
+  required_files:
+    - metadata.yaml
+    - manifest.yaml
+    - README.md
+    - initialization/database/schema.sql
+    - initialization/workflows/n8n/main-workflow.json
+    - initialization/configuration/app-config.json
+    - initialization/ui/windmill-app.json
+  
+  required_dirs:
+    - initialization/database
+    - initialization/workflows
+    - initialization/configuration
+    - initialization/vectors
+    - deployment
+    - ui
+
+# Resource requirements
+resources:
+  required: []
+  optional: []
+  health_timeout: 30
+
+# Declarative tests
+tests:
+  - name: "Business Logic Validation"
+    type: custom
+    script: custom-tests.sh
+    function: test_scenario_generator_v1_workflow
+
+# Validation criteria
+validation:
+  success_rate: 75        # Allow some flexibility for optional services
+  response_time: 10000    # 10 seconds max for service responses
+  revenue_potential: 10000
+  business_criteria:
+    - "Core services operational"
+    - "Business workflow functional"
+    - "Integration points validated"

@@ -1,0 +1,19 @@
+version: 1.0
+scenario: framework-demo
+
+deployment:
+  sequence:
+    - name: "Framework Validation"
+      type: test
+      timeout: 30
+      
+resources:
+  required: []
+  optional: 
+    - name: ollama
+      health_check: "/api/tags"
+      timeout: 10
+
+validation:
+  success_rate: 100
+  max_response_time: 5000

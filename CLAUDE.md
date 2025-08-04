@@ -18,6 +18,44 @@ This file provides essential guidance to Claude Code (claude.ai/code) when worki
 6. **Dependencies**: Never install packages without explicit permission
 7. **Documentation**: Read `/docs/` files at session start for context
 
+## 🎯 Understanding Vrooli's True Nature
+
+**CRITICAL CONTEXT:** Vrooli is not just an automation platform - it's a **self-improving intelligence system** where:
+
+### The Core Vision
+- **Agent Swarms as Virtual Teams:** AI agents work individually or in coordinated swarms to accomplish open-ended goals
+- **Solutions Become Capabilities:** Every app/workflow built becomes a permanent tool the system can use forever
+- **Recursive Improvement:** Agents build tools → Tools make agents smarter → Smarter agents build better tools → ∞
+- **Compound Intelligence:** The system literally cannot forget how to solve problems, only get better at solving them
+
+### The Evolution That Changed Everything
+- **Phase 1 (Past):** Web platform where agents could only interact through APIs (limited but proved the concept)
+- **Phase 2 (Current):** AI inference servers with local resource access - agents can now build complete applications
+- **Phase 3 (Future):** Specialized servers for engineering, science, finance - unlimited domain expansion
+
+### Understanding Scenarios
+Scenarios are NOT just test cases or demos. They serve triple duty:
+1. **Validation:** Prove agents can autonomously build complex systems (from SaaS businesses to AI assistants)
+2. **Products:** Generate real revenue when deployed ($10K-50K typical value per scenario)
+3. **Capabilities:** Become new tools that enhance Vrooli itself or solve future problems
+
+When working with scenarios, remember: **You're not building tests. You're building businesses and expanding intelligence.**
+
+### Working with Resources
+Local resources (Ollama, n8n, PostgreSQL, etc.) aren't just "integrations" - they're the building blocks of emergent capability:
+- Each resource multiplies what agents can accomplish
+- Agents discover novel combinations we haven't imagined
+- Resources enable the shift from "calling APIs" to "building the APIs"
+
+### The Recursive Learning Loop in Practice
+1. Agent solves problem using available resources
+2. Solution gets crystallized as reusable workflow/app
+3. Future agents use that solution as a building block
+4. More complex problems become solvable
+5. Each iteration makes ALL future iterations more powerful
+
+**Remember:** Every line of code you write, every routine you create, every scenario you build - it all becomes permanent intelligence that the system uses to improve itself forever.
+
 ## 🔄 Maintenance Task Tracking
 For recurring tasks (test quality, React performance, etc.), use the AI maintenance tracking system:
 - **Before starting:** Check existing work with `rg "AI_CHECK:.*TASK_ID" --type ts`
@@ -25,17 +63,18 @@ For recurring tasks (test quality, React performance, etc.), use the AI maintena
 - **Full system:** See [AI Maintenance Tracking](/docs/ai-maintenance/README.md)
 
 ## 🏗️ Architecture Overview
-**Three-Tier AI System:**
-- **Tier 1**: Coordination Intelligence (strategic planning, resource allocation)
-- **Tier 2**: Process Intelligence (task orchestration, routine navigation)  
-- **Tier 3**: Execution Intelligence (direct task execution, tool integration)
-- **Event Bus**: Redis-based communication between tiers
+**Three-Tier AI System (Enabling Recursive Improvement):**
+- **Tier 1**: Coordination Intelligence (orchestrates agent swarms, allocates resources, strategic planning)
+- **Tier 2**: Process Intelligence (manages workflows, converts solutions to reusable patterns, routine navigation)  
+- **Tier 3**: Execution Intelligence (interfaces with resources, builds applications, tool integration)
+- **Event Bus**: Redis-based communication enabling collective learning between all agents
+- **Resource Layer**: 30+ local services (AI models, databases, automation platforms) that agents orchestrate
 
 ## 📁 Key Locations
 ```
 /packages/
   /ui/            # React frontend (PWA)
-  /server/        # Express backend with AI tiers
+  /server/        # Express backend with AI tiers & resource integration
   /shared/        # Shared types and utilities
   /jobs/          # Background job processing
   
@@ -44,11 +83,14 @@ Key Files:
 - Endpoints: packages/server/src/endpoints/logic/
 - Tests: __test directories (NOT __tests)
 - AI Tiers: packages/server/src/services/execution/tier[1-3]/
+- Resources: packages/server/src/services/resources/providers/
+- Scenarios: scripts/scenarios/ (business templates & capability demos)
 ```
 
 ## 🚀 Quick Start Commands
 ```bash
-# Setup project (includes CLI installation)
+# Setup project (includes CLI installation and system configuration)
+# NOTE: First run requires sudo for kernel parameter configuration when using certain resources
 ./scripts/main/setup.sh --target native-linux --yes yes
 
 # Start development environment

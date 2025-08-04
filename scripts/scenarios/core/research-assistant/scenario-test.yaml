@@ -1,0 +1,64 @@
+version: 1.0
+scenario: research-assistant
+
+# Structure validation
+structure:
+  required_files:
+    - metadata.yaml
+    - manifest.yaml
+    - README.md
+    - initialization/database/schema.sql
+    - initialization/workflows/n8n/main-workflow.json
+    - initialization/configuration/app-config.json
+    - initialization/ui/windmill-app.json
+  
+  required_dirs:
+    - initialization/database
+    - initialization/workflows
+    - initialization/configuration
+    - initialization/vectors
+    - deployment
+    - ui
+
+# Resource requirements
+resources:
+  required: [ollama, qdrant]
+  optional: [searxng, minio]
+  health_timeout: 30
+
+# Declarative tests
+tests:
+  - name: "AI Model Engine Ready"
+    type: http
+    service: ollama
+    endpoint: /api/tags
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+        
+  - name: "Vector Database Ready"
+    type: http
+    service: qdrant
+    endpoint: /collections
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+        
+  - name: "Business Logic Validation"
+    type: custom
+    script: custom-tests.sh
+    function: test_research_assistant_workflow
+
+# Validation criteria
+validation:
+  success_rate: 75        # Allow some flexibility for optional services
+  response_time: 10000    # 10 seconds max for service responses
+  revenue_potential: 10000
+  business_criteria:
+    - "Core services operational"
+    - "Business workflow functional"
+    - "Integration points validated"

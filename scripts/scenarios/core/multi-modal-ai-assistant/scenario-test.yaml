@@ -1,0 +1,125 @@
+version: 1.0
+scenario: multi-modal-ai-assistant
+
+# Structure validation
+structure:
+  required_files:
+    - metadata.yaml
+    - manifest.yaml
+    - README.md
+    - initialization/database/schema.sql
+    - initialization/workflows/n8n/main-workflow.json
+    - initialization/configuration/app-config.json
+    - ui/multimodal-assistant-app.json
+  
+  required_dirs:
+    - initialization/database
+    - initialization/workflows
+    - initialization/configuration
+    - deployment
+    - ui
+
+# Resource requirements
+resources:
+  required: [whisper, ollama, comfyui, agent-s2, windmill]
+  optional: [minio, qdrant]
+  health_timeout: 30
+
+# Declarative tests
+tests:
+  - name: "Voice Command Processing"
+    type: http
+    service: whisper
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Language Understanding Ready"
+    type: http
+    service: ollama
+    endpoint: /api/tags
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+        
+  - name: "Visual Generation Ready"
+    type: http
+    service: comfyui
+    endpoint: /system_stats
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Screen Automation Ready"
+    type: http
+    service: agent-s2
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "UI Platform Ready"
+    type: http
+    service: windmill
+    endpoint: /api/version
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+
+  - name: "Multi-Modal Assistant Chain"
+    type: chain
+    description: "End-to-end voice-to-visual-to-action workflow"
+    steps:
+      - id: health_check
+        service: whisper
+        action: health_check
+        expect:
+          status: available
+        
+      - id: language_model_check
+        service: ollama
+        action: health_check
+        expect:
+          status: available
+          
+      - id: visual_engine_check
+        service: comfyui
+        action: health_check
+        expect:
+          status: available
+          
+      - id: automation_engine_check
+        service: agent-s2
+        action: health_check
+        expect:
+          status: available
+          
+      - id: ui_platform_check
+        service: windmill
+        action: health_check
+        expect:
+          status: available
+
+  - name: "Business Logic Integration"
+    type: custom
+    script: custom-tests.sh
+    function: test_multimodal_business_workflow
+
+# Validation criteria
+validation:
+  success_rate: 80        # Allow some tests to fail in development
+  response_time: 15000    # 15 seconds max for service responses
+  revenue_potential: 17500  # Average of min/max from metadata
+  business_criteria:
+    - "Voice command processing available"
+    - "Language understanding ready"
+    - "Visual content generation ready" 
+    - "Screen automation ready"
+    - "Professional UI platform ready"
+    - "Multi-modal workflow chain functional"
+    - "Business logic integration working"
