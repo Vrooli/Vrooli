@@ -42,8 +42,14 @@ teardown() {
 
 @test "bats::install_dependency clones absent dependency" {
     source "$SCRIPT_PATH"
-    # Stub git clone to just create the target directory
-    git() { [[ "$1" == "clone" ]] && mkdir -p "$BATS_DEPENDENCIES_DIR/$3"; }
+    # Stub git clone to just create the target directory (handle -c option and different argument positions)
+    git() { 
+        if [[ "$*" =~ clone ]]; then
+            # Extract directory name (last argument)
+            local dir_name="${!#}"
+            mkdir -p "$BATS_DEPENDENCIES_DIR/$dir_name"
+        fi
+    }
 
     run bats::install_dependency "https://example.com/foo.git" "foo"
     [ "$status" -eq 0 ]
@@ -62,8 +68,8 @@ teardown() {
 
 @test "bats::install_core clones and installs when missing" {
     source "$SCRIPT_PATH"
-    # Stub git clone and sudo install.sh
-    git() { [[ "$1" == "clone" ]] && mkdir -p "$BATS_DEPENDENCIES_DIR/bats-core"; }
+    # Stub git clone and sudo install.sh (handle -c option for TLS config)
+    git() { [[ "$*" =~ clone ]] && mkdir -p "$BATS_DEPENDENCIES_DIR/bats-core"; }
     sudo() { :; }
 
     run bats::install_core
@@ -117,8 +123,8 @@ teardown() {
 
 @test "bats::install_core installs without sudo to user directory" {
     source "$SCRIPT_PATH"
-    # Stub git clone and install.sh
-    git() { [[ "$1" == "clone" ]] && mkdir -p "$BATS_DEPENDENCIES_DIR/bats-core"; }
+    # Stub git clone and install.sh (handle -c option for TLS config)
+    git() { [[ "$*" =~ clone ]] && mkdir -p "$BATS_DEPENDENCIES_DIR/bats-core"; }
     # Simulate no sudo available
     sudo() { return 1; }
     export -f sudo

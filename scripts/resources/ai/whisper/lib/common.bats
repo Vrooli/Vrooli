@@ -16,7 +16,7 @@ setup() {
     source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
     
     # Setup standard mocks
-    setup_standard_mocks
+    vrooli_auto_setup
     
     # Set test environment
     export WHISPER_CONTAINER_NAME="whisper-test"

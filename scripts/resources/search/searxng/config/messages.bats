@@ -7,7 +7,7 @@ setup() {
     source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
     
     # Setup standard mocks
-    setup_standard_mocks
+    vrooli_auto_setup
     
     # Load messages.sh for each test (required for bats isolation)
     SEARXNG_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"

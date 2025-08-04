@@ -25,11 +25,11 @@ Testing Environment          Production Environment
 ### Vrooli Approach (Unified)
 ```
 Single Scenario
-├── metadata.yaml           # Defines BOTH test requirements AND business model
+├── service.json            # Defines BOTH test requirements AND business model
 ├── test.sh                 # Validates integration AND proves deployment readiness
 ├── initialization/         # BOTH test data AND production startup data
-├── manifest.yaml           # BOTH test orchestration AND deployment orchestration
-└── deployment/             # BOTH validation scripts AND production monitoring
+├── deployment/             # BOTH validation scripts AND production monitoring
+└── README.md               # Business context AND technical documentation
 
 ✅ Single source of truth
 ✅ Tests prove deployment readiness
@@ -41,35 +41,56 @@ Single Scenario
 
 Every scenario contains the complete genetic code for a deployable application:
 
-### 1. Business DNA (`metadata.yaml`)
-```yaml
-scenario:
-  id: "multi-modal-ai-assistant"
-  name: "Multi-Modal AI Assistant"
-  description: "Voice-to-visual-to-action AI assistant"
-
-business:
-  value_proposition: "Complete accessibility solution"
-  revenue_potential: { min: 10000, max: 25000 }
-  target_markets: ["accessibility", "enterprise"]
-
-resources:
-  required: [whisper, ollama, comfyui, agent-s2]
-  optional: [minio, qdrant]
+### 1. Business DNA (`service.json`)
+```json
+{
+  "metadata": {
+    "name": "multi-modal-ai-assistant",
+    "displayName": "Multi-Modal AI Assistant",
+    "description": "Voice-to-visual-to-action AI assistant"
+  },
+  "spec": {
+    "business": {
+      "valueProposition": "Complete accessibility solution",
+      "revenueRange": { "min": 10000, "max": 25000 },
+      "targetMarkets": ["accessibility", "enterprise"]
+    },
+    "dependencies": {
+      "resources": [
+        {"name": "whisper", "type": "ai", "optional": false},
+        {"name": "ollama", "type": "ai", "optional": false},
+        {"name": "comfyui", "type": "ai", "optional": false},
+        {"name": "agent-s2", "type": "agent", "optional": false},
+        {"name": "minio", "type": "storage", "optional": true},
+        {"name": "qdrant", "type": "vectordb", "optional": true}
+      ]
+    }
+  }
+}
 ```
 
-### 2. Deployment DNA (`manifest.yaml`)
-```yaml
-deployment:
-  startup_sequence:
-    - validate_resources
-    - initialize_database  
-    - deploy_workflows
-    - activate_ui
-    
-urls:
-  app: "http://localhost:5681/app/{{scenario_id}}"
-  api: "http://localhost:3000/api/{{scenario_id}}"
+### 2. Deployment DNA (`service.json` continued)
+```json
+{
+  "spec": {
+    "scenarios": {
+      "initialization": {
+        "phases": [
+          {"name": "validate-resources", "type": "validation"},
+          {"name": "initialize-database", "type": "database"},
+          {"name": "deploy-workflows", "type": "workflow"},
+          {"name": "activate-ui", "type": "ui"}
+        ]
+      }
+    },
+    "serve": {
+      "endpoints": [
+        {"name": "app", "protocol": "http", "port": 5681, "path": "/app/{{scenario_id}}"},
+        {"name": "api", "protocol": "http", "port": 3000, "path": "/api/{{scenario_id}}"}
+      ]
+    }
+  }
+}
 ```
 
 ### 3. Application DNA (`initialization/`)
@@ -123,7 +144,7 @@ cd core/customer-call-assistant
   --output ~/deployments/customer-app
 
 # Generates:
-# ✅ Minimal service.json (only needed resources)
+# ✅ Optimized deployment configuration
 # ✅ Docker Compose file for deployment
 # ✅ Customer documentation
 # ✅ Monitoring and logging setup
@@ -148,15 +169,22 @@ docker-compose up -d
 Scenarios don't contain business logic—they **orchestrate external resources** to create emergent capabilities:
 
 ### Resource Orchestra
-```yaml
-# Each resource is like an instrument in an orchestra
-resources:
-  whisper:     # The "ears" - audio input processing
-  ollama:      # The "brain" - intelligent reasoning
-  comfyui:     # The "hands" - visual creation
-  agent-s2:    # The "fingers" - precise interaction
-  windmill:    # The "stage" - user presentation
-  n8n:         # The "conductor" - workflow orchestration
+```json
+// Each resource is like an instrument in an orchestra
+{
+  "spec": {
+    "dependencies": {
+      "resources": [
+        {"name": "whisper", "type": "ai"},        // The "ears" - audio input processing
+        {"name": "ollama", "type": "ai"},         // The "brain" - intelligent reasoning
+        {"name": "comfyui", "type": "ai"},        // The "hands" - visual creation
+        {"name": "agent-s2", "type": "agent"},    // The "fingers" - precise interaction
+        {"name": "windmill", "type": "automation"},// The "stage" - user presentation
+        {"name": "n8n", "type": "automation"}     // The "conductor" - workflow orchestration
+      ]
+    }
+  }
+}
 ```
 
 ### Emergent Capabilities

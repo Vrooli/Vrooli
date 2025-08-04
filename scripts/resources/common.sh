@@ -22,6 +22,8 @@ source "${RESOURCES_DIR}/../helpers/utils/ports.sh"
 source "${RESOURCES_DIR}/../helpers/utils/system.sh"
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/../helpers/utils/docker.sh"
+# shellcheck disable=SC1091
+source "${RESOURCES_DIR}/../helpers/utils/repository.sh"
 
 # Resource configuration paths
 # Use the project's .vrooli directory, not the home directory
@@ -685,6 +687,17 @@ resources::handle_error() {
         log::info "💡 Specific Remediation: $remediation"
     fi
     
+    # Add repository context if available
+    if command -v repository::get_url >/dev/null 2>&1; then
+        local repo_url
+        repo_url=$(repository::get_url 2>/dev/null || echo "")
+        if [[ -n "$repo_url" ]]; then
+            log::info "📚 For more help, see:"
+            log::info "  • Documentation: ${repo_url}/tree/main/scripts/resources"
+            log::info "  • Report issue: ${repo_url}/issues/new"
+        fi
+    fi
+    
     # Execute rollback if context exists
     if [[ -n "$OPERATION_ID" ]]; then
         resources::execute_rollback
@@ -1272,5 +1285,24 @@ resources::print_status() {
         else
             log::warn "⚠️  Resource not configured in $VROOLI_RESOURCES_CONFIG"
         fi
+    fi
+}
+
+#######################################
+# Show repository information in resource status
+# This adds project context to resource status displays
+#######################################
+resources::show_repository_info() {
+    local repo_url repo_branch
+    repo_url=$(repository::get_url 2>/dev/null || echo "")
+    repo_branch=$(repository::get_branch 2>/dev/null || echo "")
+    
+    if [[ -n "$repo_url" ]]; then
+        echo
+        log::info "Project Repository:"
+        log::info "  URL: $repo_url"
+        log::info "  Branch: $repo_branch"
+        log::info "  Issues: $repo_url/issues"
+        log::info "  Documentation: $repo_url#readme"
     fi
 }

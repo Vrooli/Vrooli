@@ -49,7 +49,7 @@ setup() {
     export BROWSERLESS_CONTAINER_NAME="browserless-test"
     export BROWSERLESS_BASE_URL="http://localhost:9999"
     export URL="https://example.com"
-    export OUTPUT="test-output.png"
+    export OUTPUT="/tmp/browserless-test-output.png"
     
     # Basic mock functions (lightweight)
     mock::network::set_online() { return 0; }
@@ -134,11 +134,11 @@ setup() {
         return 0
     }
     
-    run browserless::test_screenshot "https://test.com" "test.png"
+    run browserless::test_screenshot "https://test.com" "/tmp/test.png"
     
     [ "$status" -eq 0 ]
     [[ "$output" == *"Taking screenshot of: https://test.com"* ]]
-    [[ "$output" == *"Screenshot saved to: test.png"* ]]
+    [[ "$output" == *"Screenshot saved to: /tmp/test.png"* ]]
     [[ "$output" == *"Validated as:"* ]]
 }
 
@@ -166,7 +166,7 @@ setup() {
         return 0
     }
     
-    run browserless::test_screenshot "https://test.com" "test.png"
+    run browserless::test_screenshot "https://test.com" "/tmp/test.png"
     
     [ "$status" -eq 1 ]
     [[ "$output" == *"Screenshot request failed with HTTP status: 500"* ]]
@@ -195,7 +195,7 @@ setup() {
         return 0
     }
     
-    run browserless::test_screenshot "https://test.com" "test.png"
+    run browserless::test_screenshot "https://test.com" "/tmp/test.png"
     
     [ "$status" -eq 1 ]
     # Could fail on either check - file type or size
@@ -225,7 +225,7 @@ setup() {
         return 0
     }
     
-    run browserless::test_screenshot "https://test.com" "test.png"
+    run browserless::test_screenshot "https://test.com" "/tmp/test.png"
     
     [ "$status" -eq 1 ]
     [[ "$output" == *"Response is not an image"* ]]
@@ -247,11 +247,11 @@ setup() {
         echo "25K	${OUTPUT:-document_test.pdf}"
     }
     
-    run browserless::test_pdf "https://test.com" "test.pdf"
+    run browserless::test_pdf "https://test.com" "/tmp/test.pdf"
     
     [ "$status" -eq 0 ]
     [[ "$output" == *"Generating PDF from: https://test.com"* ]]
-    [[ "$output" == *"PDF saved to: test.pdf"* ]]
+    [[ "$output" == *"PDF saved to: /tmp/test.pdf"* ]]
 }
 
 # Test scraping API function
@@ -270,7 +270,7 @@ setup() {
         echo "<html><body><h1>Test Conte"
     }
     
-    run browserless::test_scrape "https://test.com" "scrape.html"
+    run browserless::test_scrape "https://test.com" "/tmp/scrape.html"
     
     [ "$status" -eq 0 ]
     [[ "$output" == *"Scraping content from: https://test.com"* ]]

@@ -21,14 +21,14 @@ setup_file() {
 # Lightweight per-test setup
 setup() {
     # Setup standard mocks
-    setup_standard_mocks
+    vrooli_auto_setup
     
     # Set test environment (lightweight per-test)
     export BROWSERLESS_CUSTOM_PORT="9999"
     export BROWSERLESS_BASE_URL="http://localhost:9999"
     export USAGE_TYPE="help"
     export URL="https://example.com"
-    export OUTPUT="test-output.png"
+    export OUTPUT="/tmp/browserless-test-output.png"
     
     # Export config functions (lightweight)
     browserless::export_config

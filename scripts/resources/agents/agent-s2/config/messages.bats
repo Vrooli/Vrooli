@@ -19,7 +19,7 @@ setup_file() {
 # Lightweight per-test setup
 setup() {
     # Setup standard mocks
-    setup_standard_mocks
+    vrooli_auto_setup
     
     # Load messages.sh for each test (required for bats isolation)
     AGENTS2_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"

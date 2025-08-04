@@ -31,10 +31,9 @@ Ensures scenarios have all required components for both testing and deployment.
 ```bash
 # Every scenario must have:
 scenario/
-├── ✅ metadata.yaml      # Business model & resource requirements
+├── ✅ service.json      # Complete configuration (metadata, resources, deployment)
 ├── ✅ test.sh           # Integration test implementation  
 ├── ✅ README.md         # Business context & documentation
-├── ⚠️  manifest.yaml    # Deployment orchestration (new scenarios)
 ├── ⚠️  initialization/  # Startup data (complex scenarios)
 └── ⚠️  deployment/      # Production scripts (deployment-ready)
 ```
@@ -45,7 +44,7 @@ scenario/
 ./tools/validate-structure.sh scenario-name
 
 # Manual checklist
-□ metadata.yaml contains required fields
+□ service.json contains required fields
 □ Resources are properly declared
 □ Business model is complete
 □ Test script is executable
@@ -53,41 +52,44 @@ scenario/
 □ All referenced files exist
 ```
 
-### Metadata Validation
-```yaml
-# metadata.yaml must include:
-scenario:
-  id: "unique-identifier"           # ✅ Required
-  name: "Human Readable Name"       # ✅ Required
-  description: "Brief description"  # ✅ Required
-  version: "1.0.0"                 # ✅ Required
-
-categories: ["category-name"]       # ✅ Required - from catalog
-complexity: "basic|intermediate|advanced"  # ✅ Required
-
-resources:
-  required: ["resource-list"]       # ✅ Required - must be valid
-  optional: ["optional-resources"]  # ⚠️  Optional
-
-business:
-  value_proposition: "Clear value"  # ✅ Required
-  revenue_potential:               # ✅ Required
-    min: 5000
-    max: 25000
-    currency: "USD"
-  target_markets: ["market-list"]   # ✅ Required
-
-testing:
-  duration_minutes: 15             # ✅ Required
-  timeout_seconds: 900             # ✅ Required
-  requires_display: true|false     # ✅ Required for Agent-S2
-  requires_ui: true|false          # ✅ Required
-
-success_criteria:                  # ✅ Required
-  - "Measurable outcome 1"
-  - "Measurable outcome 2"
-
-tags: ["tag-list"]                 # ✅ Required
+### Service Configuration Validation
+```json
+// service.json must include:
+{
+  "metadata": {
+    "name": "unique-identifier",           // ✅ Required
+    "displayName": "Human Readable Name", // ✅ Required
+    "description": "Brief description",    // ✅ Required
+    "version": "1.0.0",                   // ✅ Required
+    "complexity": "basic|intermediate|advanced" // ✅ Required
+  },
+  "spec": {
+    "dependencies": {
+      "resources": [                       // ✅ Required - must be valid
+        {"name": "ollama", "type": "ai", "optional": false},
+        {"name": "postgres", "type": "database", "optional": false}
+      ]
+    },
+    "business": {
+      "valueProposition": "Clear value",   // ✅ Required
+      "revenueRange": {                   // ✅ Required
+        "min": 5000,
+        "max": 25000,
+        "currency": "USD"
+      },
+      "targetMarkets": ["market-list"]    // ✅ Required
+    },
+    "testing": {
+      "timeout": 900,                     // ✅ Required
+      "requiresDisplay": false,           // ✅ Required for Agent-S2
+      "successCriteria": [                // ✅ Required
+        "Measurable outcome 1",
+        "Measurable outcome 2"
+      ]
+    }
+  },
+  "tags": ["tag-list"]                   // ✅ Required
+}
 ```
 
 ## 🔗 Layer 2: Integration Validation

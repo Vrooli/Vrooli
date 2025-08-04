@@ -3,11 +3,11 @@ bats_require_minimum_version 1.5.0
 
 # Setup for each test
 setup() {
-    # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    # Load Vrooli test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
     
-    # Setup standard mocks
-    setup_standard_mocks
+    # Setup SearXNG test environment
+    vrooli_setup_service_test "searxng"
     
     # Load the functions we are testing (required for bats isolation)
     SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"

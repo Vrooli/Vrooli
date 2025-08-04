@@ -69,7 +69,7 @@ setup() {
     export MOCK_YQ_AVAILABLE="yes"
     
     # Setup standard mocks AFTER sourcing real utilities (to override them)
-    setup_standard_mocks
+    vrooli_auto_setup
 }
 
 # ============================================================================

@@ -7,7 +7,7 @@ setup() {
     source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
     
     # Setup standard mocks
-    setup_standard_mocks
+    vrooli_auto_setup
     
     # Load the functions we are testing (required for bats isolation)
     SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"

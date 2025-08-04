@@ -29,6 +29,8 @@ source "${MAIN_DIR}/../helpers/utils/targetMatcher.sh"
 # shellcheck disable=SC1091
 source "${MAIN_DIR}/../helpers/utils/var.sh"
 # shellcheck disable=SC1091
+source "${MAIN_DIR}/../helpers/utils/repository.sh"
+# shellcheck disable=SC1091
 source "${MAIN_DIR}/../helpers/setup/index.sh"
 
 setup::parse_arguments() {
@@ -214,6 +216,13 @@ setup::main() {
     bash "$TARGET_SCRIPT" "$@" || exit $?
 
     log::success "✅ Setup complete. You can now run 'pnpm run develop' or 'bash scripts/main/develop.sh'"
+
+    # Execute repository postInstall hook if configured
+    if repository::run_hook "postInstall" 2>/dev/null; then
+        log::success "✅ Repository postInstall hook completed"
+    else
+        log::debug "No postInstall hook configured or execution failed"
+    fi
 
     # Schedule backups only if in production environment (not just if prod file exists)
     if ! flow::is_yes "$IS_CI" && env::in_production; then

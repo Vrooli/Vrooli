@@ -117,6 +117,9 @@ browserless::show_status() {
             log::info "  View logs: $0 --action logs"
             log::info "  Restart: $0 --action restart"
             log::info "  Test API: $0 --action usage"
+            
+            # Show repository information
+            resources::show_repository_info
         else
             log::warn "${MSG_EXISTS_NOT_RUNNING}"
             log::info "Start with: $0 --action start"

@@ -23,6 +23,9 @@ VERBOSE="${VROOLI_TEST_VERBOSE:-false}"
 FAIL_FAST="${VROOLI_TEST_FAIL_FAST:-false}"
 COVERAGE="${VROOLI_TEST_COVERAGE:-false}"
 
+# Ensure VROOLI_LOG_LEVEL is set for child processes
+export VROOLI_LOG_LEVEL="${VROOLI_LOG_LEVEL:-INFO}"
+
 # Test statistics
 TOTAL_TESTS=0
 PASSED_TESTS=0
@@ -202,12 +205,36 @@ discover_tests() {
     done < <(find "$SCRIPTS_DIR/resources" -name "*.bats" -type f 2>/dev/null | sort)
     
     # Report discovery results
-    vrooli_log_info "Found tests:"
-    vrooli_log_info "  Unit tests: ${#unit_tests[@]}"
-    vrooli_log_info "  Integration tests: ${#integration_tests[@]}"
-    vrooli_log_info "  Shell tests: ${#shell_tests[@]}"
-    
     TOTAL_TESTS=$((${#unit_tests[@]} + ${#integration_tests[@]} + ${#shell_tests[@]}))
+    
+    # Count shell tests by category for better visibility
+    local ai_tests=$(find "$SCRIPTS_DIR/resources/ai" -name "*.bats" -type f 2>/dev/null | wc -l)
+    local agents_tests=$(find "$SCRIPTS_DIR/resources/agents" -name "*.bats" -type f 2>/dev/null | wc -l)
+    local automation_tests=$(find "$SCRIPTS_DIR/resources/automation" -name "*.bats" -type f 2>/dev/null | wc -l)
+    local execution_tests=$(find "$SCRIPTS_DIR/resources/execution" -name "*.bats" -type f 2>/dev/null | wc -l)
+    local search_tests=$(find "$SCRIPTS_DIR/resources/search" -name "*.bats" -type f 2>/dev/null | wc -l)
+    local storage_tests=$(find "$SCRIPTS_DIR/resources/storage" -name "*.bats" -type f 2>/dev/null | wc -l)
+    local other_tests=$(find "$SCRIPTS_DIR/resources" -maxdepth 1 -name "*.bats" -type f 2>/dev/null | wc -l)
+    
+    vrooli_log_header "📊 Test Discovery Summary"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  TOTAL TESTS FOUND: $TOTAL_TESTS"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo "  Test Types:"
+    echo "    Unit tests:        ${#unit_tests[@]}"
+    echo "    Integration tests: ${#integration_tests[@]}"
+    echo "    Shell tests:       ${#shell_tests[@]}"
+    echo ""
+    echo "  Shell Tests by Category:"
+    echo "    AI:         $ai_tests"
+    echo "    Agents:     $agents_tests"
+    echo "    Automation: $automation_tests"
+    echo "    Execution:  $execution_tests"
+    echo "    Search:     $search_tests"
+    echo "    Storage:    $storage_tests"
+    echo "    Other:      $other_tests"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    echo ""
     
     # Export test arrays for use in other functions
     export UNIT_TESTS=("${unit_tests[@]}")
@@ -234,16 +261,30 @@ run_unit_tests() {
     fi
     
     # Run unit tests using the dedicated runner
-    if "$RUNNER_DIR/run-unit.sh" \
-        ${PARALLEL_ENABLED:+--parallel} \
-        ${MAX_PARALLEL_JOBS:+--jobs "$MAX_PARALLEL_JOBS"} \
-        ${VERBOSE:+--verbose} \
-        ${FAIL_FAST:+--fail-fast}; then
-        vrooli_log_success "Unit tests completed successfully"
-        return 0
+    # Build command arguments
+    local cmd_args=()
+    [[ "$PARALLEL_ENABLED" == "true" ]] && cmd_args+=(--parallel)
+    [[ -n "$MAX_PARALLEL_JOBS" ]] && [[ "$PARALLEL_ENABLED" == "true" ]] && cmd_args+=(--jobs "$MAX_PARALLEL_JOBS")
+    [[ "$VERBOSE" == "true" ]] && cmd_args+=(--verbose)
+    [[ "$FAIL_FAST" == "true" ]] && cmd_args+=(--fail-fast)
+    
+    # Call run-unit.sh with proper array handling
+    if [[ ${#cmd_args[@]} -gt 0 ]]; then
+        if "$RUNNER_DIR/run-unit.sh" "${cmd_args[@]}" "${UNIT_TESTS[@]}"; then
+            vrooli_log_success "Unit tests completed successfully"
+            return 0
+        else
+            vrooli_log_error "Unit tests failed"
+            return 1
+        fi
     else
-        vrooli_log_error "Unit tests failed"
-        return 1
+        if "$RUNNER_DIR/run-unit.sh" "${UNIT_TESTS[@]}"; then
+            vrooli_log_success "Unit tests completed successfully"
+            return 0
+        else
+            vrooli_log_error "Unit tests failed"
+            return 1
+        fi
     fi
 }
 
@@ -295,23 +336,21 @@ run_shell_tests() {
         return 0
     fi
     
-    # Use the optimized shell test runner if available
-    local shell_runner="$TEST_ROOT/shell/core/run-tests.sh"
-    if [[ -f "$shell_runner" ]]; then
-        if "$shell_runner" \
-            ${PARALLEL_ENABLED:+--parallel "$MAX_PARALLEL_JOBS"} \
-            ${VERBOSE:+--verbose} \
-            --timeout "$((60 * TIMEOUT_MULTIPLIER))" \
-            "${SHELL_TESTS[@]}"; then
-            vrooli_log_success "Shell tests completed successfully"
-            return 0
-        else
-            vrooli_log_error "Shell tests failed"
-            return 1
-        fi
-    else
-        vrooli_log_warn "Shell test runner not found, skipping shell tests"
+    # Use run-unit.sh for BATS files (shell tests are unit tests for shell scripts)
+    # Build command arguments
+    local cmd_args=()
+    [[ "$PARALLEL_ENABLED" == "true" ]] && cmd_args+=(--parallel)
+    [[ -n "$MAX_PARALLEL_JOBS" ]] && [[ "$PARALLEL_ENABLED" == "true" ]] && cmd_args+=(--jobs "$MAX_PARALLEL_JOBS")
+    [[ "$VERBOSE" == "true" ]] && cmd_args+=(--verbose)
+    [[ "$FAIL_FAST" == "true" ]] && cmd_args+=(--fail-fast)
+    cmd_args+=(--timeout "$((60 * TIMEOUT_MULTIPLIER))")
+    
+    if "$RUNNER_DIR/run-unit.sh" "${cmd_args[@]}" "${SHELL_TESTS[@]}"; then
+        vrooli_log_success "Shell tests completed successfully"
         return 0
+    else
+        vrooli_log_error "Shell tests failed"
+        return 1
     fi
 }
 

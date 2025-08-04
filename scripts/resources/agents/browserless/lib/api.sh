@@ -3,7 +3,7 @@
 # API testing, examples, and usage demonstrations
 
 # Test output directory configuration
-BROWSERLESS_TEST_OUTPUT_DIR="${BROWSERLESS_TEST_OUTPUT_DIR:-./data/test-outputs/browserless}"
+BROWSERLESS_TEST_OUTPUT_DIR="${BROWSERLESS_TEST_OUTPUT_DIR:-/tmp/browserless-test-outputs}"
 
 # Ensure test output directory exists
 browserless::ensure_test_output_dir() {
@@ -395,15 +395,15 @@ browserless::test_all_apis() {
     echo
     sleep 2
     
-    URL="$test_url" OUTPUT="screenshot.png" browserless::test_screenshot || ((failed_tests++))
+    URL="$test_url" browserless::test_screenshot || ((failed_tests++))
     echo
     sleep 2
     
-    URL="$test_url" OUTPUT="document.pdf" browserless::test_pdf || ((failed_tests++))
+    URL="$test_url" browserless::test_pdf || ((failed_tests++))
     echo
     sleep 2
     
-    URL="$test_url" OUTPUT="scrape.html" browserless::test_scrape || ((failed_tests++))
+    URL="$test_url" browserless::test_scrape || ((failed_tests++))
     echo
     sleep 2
     

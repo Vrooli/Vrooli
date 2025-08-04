@@ -7,7 +7,7 @@
 **Goal**: Enable AI to generate complete, deployable SaaS scenarios from simple customer requirements in a single conversation.
 
 **Input**: "I need a customer service system that handles 90% of inquiries automatically"  
-**Output**: Complete scenario with metadata, tests, UI components, and deployment artifacts  
+**Output**: Complete scenario with service.json, tests, UI components, and deployment artifacts  
 **Result**: Deployed, profitable application ready for customer delivery  
 
 This guide teaches you the patterns, structures, and techniques that make reliable AI generation possible.
@@ -18,112 +18,140 @@ This guide teaches you the patterns, structures, and techniques that make reliab
 
 ### 1. **Atomic Self-Containment**
 Each scenario must be completely self-contained:
-```yaml
-# ✅ Good: All dependencies declared
-resources:
-  required: ["ollama", "n8n", "postgres"]
-  optional: ["whisper"]
-  conflicts: ["browserless"]  # Prevent resource conflicts
+```json
+// ✅ Good: All dependencies declared
+{
+  "spec": {
+    "dependencies": {
+      "resources": [
+        {"name": "ollama", "type": "ai", "optional": false},
+        {"name": "n8n", "type": "automation", "optional": false},
+        {"name": "postgres", "type": "database", "optional": false},
+        {"name": "whisper", "type": "ai", "optional": true}
+      ],
+      "conflicts": ["browserless"]  // Prevent resource conflicts
+    }
+  }
+}
 
-# ❌ Bad: Implicit dependencies
-resources:
-  required: ["ollama"]
-  # Missing n8n dependency, will fail in deployment
+// ❌ Bad: Implicit dependencies
+{
+  "spec": {
+    "dependencies": {
+      "resources": [
+        {"name": "ollama", "type": "ai", "optional": false}
+        // Missing n8n dependency, will fail in deployment
+      ]
+    }
+  }
+}
 ```
 
 ### 2. **Deterministic Structure**
 AI needs predictable patterns to follow:
 ```
 scenario-name/
-├── metadata.yaml          # ALWAYS: Machine-readable config
+├── service.json           # ALWAYS: Machine-readable config
 ├── README.md              # ALWAYS: Business documentation  
 ├── test.sh                # ALWAYS: Integration validation
-├── ui/                    # OPTIONAL: User interface
-│   ├── deploy-ui.sh       # UI deployment automation
-│   ├── config.json        # UI configuration
-│   └── scripts/           # TypeScript backend services
-└── resources/             # OPTIONAL: Resource artifacts
-    ├── n8n/               # n8n workflows
-    ├── postgres/          # Database schemas
-    └── config/            # Configuration templates
+├── deployment/            # ALWAYS: Deployment scripts
+├── initialization/        # OPTIONAL: Startup data
+│   ├── database/          # Database schemas
+│   ├── workflows/         # n8n, Windmill workflows
+│   ├── ui/                # UI configurations
+│   └── configuration/     # Runtime settings
+└── ui/                    # OPTIONAL: UI components
+    └── windmill-app.json   # Windmill UI definition
 ```
 
 ### 3. **Business-First Design**
 Start with business value, derive technical implementation:
-```yaml
-business:
-  value_proposition: "90% automated customer service resolution"    # Specific outcome
-  target_market: ["e-commerce", "saas-businesses"]                # Targeted industries
-  revenue_range: { min: 20000, max: 35000, currency: "USD" }      # Realistic pricing
-  competitive_advantage: "24/7 availability with human escalation" # Differentiation
+```json
+{
+  "spec": {
+    "business": {
+      "valueProposition": "90% automated customer service resolution",
+      "targetMarkets": ["e-commerce", "saas-businesses"],
+      "revenueRange": {"min": 20000, "max": 35000, "currency": "USD"},
+      "competitiveAdvantage": "24/7 availability with human escalation"
+    }
+  }
+}
 ```
 
 ---
 
-## 🔧 AI-Optimized Metadata Design
+## 🔧 AI-Optimized Service Configuration Design
 
 ### **Essential Structure**
-```yaml
-# metadata.yaml - AI Generation Template
-scenario:
-  id: "descriptive-kebab-case"           # Clear naming convention
-  name: "Human-Readable Business Name"   # Customer-facing title
-  description: "Specific business problem and solution in one sentence"
-  version: "1.0.0"                      # Semantic versioning
+```json
+// service.json - AI Generation Template
+{
+  "metadata": {
+    "name": "descriptive-kebab-case",
+    "displayName": "Human-Readable Business Name",
+    "description": "Specific business problem and solution in one sentence",
+    "version": "1.0.0",
+    "complexity": "intermediate",  // basic | intermediate | advanced
+    "categories": ["ai-assistance", "customer-service"]
 
-complexity: basic | intermediate | advanced  # AI complexity guidance
+  },
+  "spec": {
+    "dependencies": {
+      "resources": [
+        {"name": "ollama", "type": "ai", "optional": false},          // AI inference
+        {"name": "n8n", "type": "automation", "optional": false},     // Workflow automation
+        {"name": "postgres", "type": "database", "optional": false},  // Data storage
+        {"name": "whisper", "type": "ai", "optional": true},          // Voice capabilities
+        {"name": "agent-s2", "type": "agent", "optional": true}       // Screen automation
+      ],
+      "conflicts": ["browserless"]  // Can't use with agent-s2
+    },
 
-categories:                              # Business categorization
-  - "ai-assistance"                     # Primary category
-  - "customer-service"                  # Secondary category
+    "business": {
+      "valueProposition": "Quantified business outcome with specific metrics",
+      "targetMarkets": ["specific-industry", "business-type", "role"],
+      "painPoints": [
+        "High support ticket volume",
+        "After-hours customer inquiries",
+        "Repetitive question handling"
+      ],
+      "revenueRange": {
+        "min": 15000,
+        "max": 30000,
+        "currency": "USD",
+        "pricingModel": "fixed-project"  // or "monthly-saas", "hourly-consulting"
+      },
+      "competitiveAdvantage": "Specific differentiator from alternatives",
+      "roiMetrics": [
+        "50% reduction in support tickets",
+        "24/7 availability",
+        "90% customer satisfaction"
+      ]
+    },
 
-resources:
-  required:                             # Minimal working set
-    - "ollama"                         # AI inference
-    - "n8n"                            # Workflow automation
-    - "postgres"                       # Data storage
-  optional:                             # Enhancement features
-    - "whisper"                        # Voice capabilities
-    - "agent-s2"                       # Screen automation
-  conflicts:                            # Mutually exclusive
-    - "browserless"                    # Can't use with agent-s2
-
-business:
-  value_proposition: "Quantified business outcome with specific metrics"
-  target_market: ["specific-industry", "business-type", "role"]
-  pain_points:                          # Problems this solves
-    - "High support ticket volume"
-    - "After-hours customer inquiries"
-    - "Repetitive question handling"
-  revenue_range:
-    min: 15000                         # Minimum project value
-    max: 30000                         # Maximum project value  
-    currency: "USD"
-    pricing_model: "fixed-project"      # or "monthly-saas", "hourly-consulting"
-  competitive_advantage: "Specific differentiator from alternatives"
-  roi_metrics:                          # Customer value justification
-    - "50% reduction in support tickets"
-    - "24/7 availability"
-    - "90% customer satisfaction"
-
-testing:
-  timeout: 600                          # Test execution timeout
-  requires_display: false               # GUI requirements
-  success_criteria:                     # Measurable validation
-    - "AI responds within 3 seconds"
-    - "Database queries execute successfully"
-    - "Workflow automation completes"
-
-tags:                                   # Discovery and filtering
-  - "enterprise-ready"
-  - "high-revenue-potential"
-  - "requires-ollama"
-  - "24-7-availability"
-
-performance:                            # Expected performance
-  latency: "< 3 seconds"               # Response time
-  throughput: "100 concurrent users"    # Scale expectations
-  resource_usage: "< 4GB RAM"          # Resource requirements
+    "testing": {
+      "timeout": 600,
+      "requiresDisplay": false,
+      "successCriteria": [
+        "AI responds within 3 seconds",
+        "Database queries execute successfully",
+        "Workflow automation completes"
+      ]
+    },
+    "performance": {
+      "latency": "< 3 seconds",
+      "throughput": "100 concurrent users",
+      "resourceUsage": "< 4GB RAM"
+    }
+  },
+  "tags": [
+    "enterprise-ready",
+    "high-revenue-potential",
+    "requires-ollama",
+    "24-7-availability"
+  ]
+}
 ```
 
 ### **AI Consumption Patterns**
@@ -259,23 +287,31 @@ AI Analysis Framework:
 ```
 
 ### **Pattern 2: Scenario Generation**
-```yaml
-# AI follows this template structure
-scenario:
-  id: "customer-service-automation"     # Generated from requirements
-  name: "Enterprise Customer Service AI" # Business-friendly name
-  description: "AI chatbot handling 90% of customer inquiries with human escalation"
-
-complexity: intermediate                # Based on resource count and integration
-
-resources:
-  required: ["ollama", "postgres", "n8n"]  # Core functionality
-  optional: ["whisper"]                   # Voice enhancement
-
-business:
-  value_proposition: "90% automated resolution, 24/7 availability, 50% cost reduction"
-  target_market: ["e-commerce", "saas", "service-businesses"]
-  revenue_range: { min: 20000, max: 35000, currency: "USD" }
+```json
+// AI follows this template structure
+{
+  "metadata": {
+    "name": "customer-service-automation",
+    "displayName": "Enterprise Customer Service AI",
+    "description": "AI chatbot handling 90% of customer inquiries with human escalation",
+    "complexity": "intermediate"
+  },
+  "spec": {
+    "dependencies": {
+      "resources": [
+        {"name": "ollama", "type": "ai", "optional": false},
+        {"name": "postgres", "type": "database", "optional": false},
+        {"name": "n8n", "type": "automation", "optional": false},
+        {"name": "whisper", "type": "ai", "optional": true}
+      ]
+    },
+    "business": {
+      "valueProposition": "90% automated resolution, 24/7 availability, 50% cost reduction",
+      "targetMarkets": ["e-commerce", "saas", "service-businesses"],
+      "revenueRange": {"min": 20000, "max": 35000, "currency": "USD"}
+    }
+  }
+}
 ```
 
 ### **Pattern 3: Test Generation**
@@ -307,20 +343,20 @@ test_customer_service_ai() {
 ```bash
 # Check required files exist
 validate_scenario_structure() {
-    [[ -f "metadata.yaml" ]] || fail "Missing metadata.yaml"
+    [[ -f "service.json" ]] || fail "Missing service.json"
     [[ -f "README.md" ]] || fail "Missing README.md" 
     [[ -f "test.sh" ]] || fail "Missing test.sh"
     [[ -x "test.sh" ]] || fail "test.sh not executable"
 }
 ```
 
-**2. Metadata Validation**
+**2. Service Configuration Validation**
 ```bash
-# Validate metadata.yaml structure
-validate_metadata() {
-    yq eval '.scenario.id' metadata.yaml >/dev/null || fail "Missing scenario.id"
-    yq eval '.resources.required' metadata.yaml >/dev/null || fail "Missing required resources"
-    yq eval '.business.value_proposition' metadata.yaml >/dev/null || fail "Missing value proposition"
+# Validate service.json structure
+validate_service_config() {
+    jq -e '.metadata.name' service.json >/dev/null || fail "Missing metadata.name"
+    jq -e '.spec.dependencies.resources' service.json >/dev/null || fail "Missing resource dependencies"
+    jq -e '.spec.business.valueProposition' service.json >/dev/null || fail "Missing value proposition"
 }
 ```
 
@@ -328,8 +364,8 @@ validate_metadata() {
 ```bash
 # Validate business model
 validate_business_model() {
-    local min_revenue=$(yq eval '.business.revenue_range.min' metadata.yaml)
-    local max_revenue=$(yq eval '.business.revenue_range.max' metadata.yaml)
+    local min_revenue=$(jq -r '.spec.business.revenueRange.min' service.json)
+    local max_revenue=$(jq -r '.spec.business.revenueRange.max' service.json)
     
     [[ $min_revenue -ge 10000 ]] || fail "Minimum revenue too low for enterprise scenario"
     [[ $max_revenue -le 100000 ]] || fail "Maximum revenue unrealistic for single project"
@@ -340,7 +376,7 @@ validate_business_model() {
 ```bash
 # Test that all declared resources are accessible
 validate_resource_accessibility() {
-    local required_resources=$(yq eval '.resources.required[]' metadata.yaml)
+    local required_resources=$(jq -r '.spec.dependencies.resources[] | select(.optional == false) | .name' service.json)
     
     for resource in $required_resources; do
         check_service_health "$resource" || fail "Required resource $resource not available"

@@ -229,11 +229,137 @@ validate_resources() {
     log_success "Resource validation completed"
 }
 
-# Generate service.json configuration
-generate_resources_config() {
-    log_step "Generating resources configuration..."
+################################################################################
+# Safety and Validation Functions
+################################################################################
+
+# Validate service.json structure and content
+validate_service_config() {
+    local config_file="$1"
+    local validation_type="${2:-full}"  # basic, full
     
-    # Extract resources from service.json
+    if [[ ! -f "$config_file" ]]; then
+        log_error "Service config file not found: $config_file"
+        return 1
+    fi
+    
+    # Basic JSON validation
+    if ! jq empty "$config_file" 2>/dev/null; then
+        log_error "Service config is not valid JSON: $config_file"
+        return 1
+    fi
+    
+    if [[ "$validation_type" == "basic" ]]; then
+        return 0
+    fi
+    
+    # Full structure validation
+    local config_content
+    if ! config_content=$(cat "$config_file"); then
+        log_error "Failed to read service config: $config_file"
+        return 1
+    fi
+    
+    # Check required top-level structure
+    local required_sections=("service" "resources")
+    for section in "${required_sections[@]}"; do
+        if [[ $(echo "$config_content" | jq -r ".$section // false") == "false" ]]; then
+            log_error "Missing required section: $section"
+            return 1
+        fi
+    done
+    
+    # Check resources structure
+    local resource_categories=("storage" "ai" "automation")
+    for category in "${resource_categories[@]}"; do
+        if [[ $(echo "$config_content" | jq -r ".resources.$category // false") == "false" ]]; then
+            log_warning "Missing resource category: $category (will be created)"
+        fi
+    done
+    
+    [[ "$VERBOSE" == true ]] && log_success "Service config validation passed: $config_file"
+    return 0
+}
+
+# Create safe backup with metadata
+create_safe_backup() {
+    local source_file="$1"
+    local backup_reason="${2:-manual}"
+    
+    if [[ ! -f "$source_file" ]]; then
+        log_warning "Source file not found for backup: $source_file"
+        return 1
+    fi
+    
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local backup_file="${source_file}.backup.${timestamp}.${backup_reason}"
+    
+    if cp "$source_file" "$backup_file"; then
+        # Create metadata file
+        cat > "${backup_file}.meta" << EOF
+{
+  "source_file": "$source_file",
+  "backup_time": "$(date -Iseconds)",
+  "backup_reason": "$backup_reason",
+  "script_version": "scenario-to-app.sh",
+  "user": "$(whoami)",
+  "pwd": "$(pwd)"
+}
+EOF
+        [[ "$VERBOSE" == true ]] && log_info "Created backup: $backup_file"
+        echo "$backup_file"
+        return 0
+    else
+        log_error "Failed to create backup of: $source_file"
+        return 1
+    fi
+}
+
+# Pre-flight safety checks before any modifications
+preflight_safety_check() {
+    local service_config="$1"
+    
+    [[ "$VERBOSE" == true ]] && log_step "Running pre-flight safety checks..."
+    
+    # Check if we have write permissions
+    local config_dir=$(dirname "$service_config")
+    if [[ ! -w "$config_dir" ]]; then
+        log_error "No write permission to config directory: $config_dir"
+        return 1
+    fi
+    
+    # Check for required tools
+    local required_tools=("jq" "cp" "mv" "date")
+    for tool in "${required_tools[@]}"; do
+        if ! command -v "$tool" >/dev/null 2>&1; then
+            log_error "Required tool not found: $tool"
+            return 1
+        fi
+    done
+    
+    # Validate existing config if it exists
+    if [[ -f "$service_config" ]]; then
+        if ! validate_service_config "$service_config" "full"; then
+            log_error "Existing service config is invalid"
+            return 1
+        fi
+    fi
+    
+    [[ "$VERBOSE" == true ]] && log_success "Pre-flight safety checks passed"
+    return 0
+}
+
+# SAFE Generate service.json configuration
+generate_resources_config() {
+    log_step "Safely updating resources configuration..."
+    
+    # Run pre-flight safety checks
+    if ! preflight_safety_check "$SERVICE_CONFIG"; then
+        log_error "Pre-flight safety checks failed"
+        return 1
+    fi
+    
+    # Extract resources from scenario service.json
     local resources=$(echo "$SERVICE_JSON" | jq -r '.spec.dependencies.resources[] | .name' 2>/dev/null)
     
     if [[ -z "$resources" ]]; then
@@ -241,41 +367,66 @@ generate_resources_config() {
         return 0
     fi
     
-    # Start with empty resources config
-    local resources_config='{}'
+    # SAFETY: Create timestamped backup BEFORE any modifications
+    local backup_file=""
+    if [[ -f "$SERVICE_CONFIG" ]]; then
+        if backup_file=$(create_safe_backup "$SERVICE_CONFIG" "scenario-deployment"); then
+            log_info "Created safety backup: $backup_file"
+        else
+            log_error "Failed to create safety backup"
+            return 1
+        fi
+    fi
     
-    # Add each resource to config
+    # Read existing configuration or create minimal structure
+    local existing_config='{}'
+    if [[ -f "$SERVICE_CONFIG" ]]; then
+        if ! existing_config=$(cat "$SERVICE_CONFIG"); then
+            log_error "Failed to read existing service config"
+            return 1
+        fi
+        log_info "Loaded existing service configuration"
+    else
+        # Create minimal structure for new installations
+        existing_config='{"resources": {"storage": {}, "ai": {}, "automation": {}, "agents": {}, "execution": {}, "search": {}}}'
+        log_info "Creating new service configuration structure"
+    fi
+    
+    # Process each required resource
+    local updated_config="$existing_config"
+    
     for resource in $resources; do
         local resource_type=$(echo "$SERVICE_JSON" | jq -r ".spec.dependencies.resources[] | select(.name == \"$resource\") | .type" 2>/dev/null)
         local optional=$(echo "$SERVICE_JSON" | jq -r ".spec.dependencies.resources[] | select(.name == \"$resource\") | .optional" 2>/dev/null)
         
-        [[ "$optional" == "true" ]] && continue  # Skip optional resources
+        # Skip optional resources (don't auto-enable them)
+        if [[ "$optional" == "true" ]]; then
+            [[ "$VERBOSE" == true ]] && log_info "Skipping optional resource: $resource"
+            continue
+        fi
         
-        [[ "$VERBOSE" == true ]] && log_info "Adding resource: $resource (type: $resource_type)"
+        [[ "$VERBOSE" == true ]] && log_info "Processing required resource: $resource (type: $resource_type)"
         
-        # Map resource to config path
-        local config_path=""
+        # Map resource type to config category
+        local category=""
         case "$resource_type" in
-            "database"|"cache"|"storage"|"vectordb"|"timeseries")
-                config_path="storage.$resource"
+            "database"|"cache"|"storage"|"vectordb"|"timeseries"|"security")
+                category="storage"
                 ;;
             "ai")
-                config_path="ai.$resource"
+                category="ai"
                 ;;
             "automation")
-                config_path="automation.$resource"
+                category="automation"
                 ;;
             "agent")
-                config_path="agents.$resource"
+                category="agents"
                 ;;
             "execution")
-                config_path="execution.$resource"
+                category="execution"
                 ;;
             "search")
-                config_path="search.$resource"
-                ;;
-            "security")
-                config_path="storage.$resource"  # Vault is under storage
+                category="search"
                 ;;
             *)
                 log_warning "Unknown resource type: $resource_type for $resource"
@@ -283,27 +434,54 @@ generate_resources_config() {
                 ;;
         esac
         
-        # Add to config
-        resources_config=$(echo "$resources_config" | jq --arg path "$config_path" '.[$path] = {"enabled": true}')
+        # SAFE OPERATION: Only modify the "enabled" field, preserve all other config
+        local resource_exists=$(echo "$updated_config" | jq -r ".resources.$category.$resource // false" 2>/dev/null)
+        
+        if [[ "$resource_exists" != "false" && "$resource_exists" != "null" ]]; then
+            # Resource exists - only enable it (preserve all other settings)
+            updated_config=$(echo "$updated_config" | jq ".resources.$category.$resource.enabled = true")
+            log_info "✓ Enabled existing resource: $resource"
+        else
+            # Resource doesn't exist - add minimal configuration
+            local minimal_resource='{"enabled": true, "type": "'$resource'"}'
+            updated_config=$(echo "$updated_config" | jq ".resources.$category.$resource = $minimal_resource")
+            log_info "✓ Added new resource: $resource"
+        fi
     done
     
-    # Write config
+    # ATOMIC WRITE: Write to temporary file first, then move
     if [[ "$DRY_RUN" == true ]]; then
-        log_info "[DRY RUN] Would write service config to: $SERVICE_CONFIG"
-        [[ "$VERBOSE" == true ]] && echo "$resources_config" | jq '.'
+        log_info "[DRY RUN] Would safely update service config: $SERVICE_CONFIG"
+        [[ "$VERBOSE" == true ]] && echo "$updated_config" | jq '.resources'
     else
-        # Backup existing config
-        if [[ -f "$SERVICE_CONFIG" ]]; then
-            cp "$SERVICE_CONFIG" "${SERVICE_CONFIG}.backup.$(date +%s)"
-            [[ "$VERBOSE" == true ]] && log_info "Backed up existing resources config"
-        fi
+        local temp_file="${SERVICE_CONFIG}.tmp.$$"
         
         # Ensure directory exists
         mkdir -p "$(dirname "$SERVICE_CONFIG")"
         
-        # Write new config
-        echo "$resources_config" | jq '.' > "$SERVICE_CONFIG"
-        log_success "Generated service config: $SERVICE_CONFIG"
+        # Write to temporary file
+        if echo "$updated_config" | jq '.' > "$temp_file"; then
+            # Atomic move
+            mv "$temp_file" "$SERVICE_CONFIG"
+            log_success "✓ Safely updated service configuration"
+        else
+            rm -f "$temp_file"
+            log_error "Failed to write updated configuration"
+            return 1
+        fi
+        
+        # Verify the update worked
+        if jq empty "$SERVICE_CONFIG" 2>/dev/null; then
+            log_success "Configuration validation passed"
+        else
+            log_error "Configuration file is corrupted!"
+            # Restore from backup if available
+            if [[ -n "$backup_file" && -f "$backup_file" ]]; then
+                log_info "Restoring from backup: $backup_file"
+                cp "$backup_file" "$SERVICE_CONFIG"
+            fi
+            return 1
+        fi
     fi
 }
 

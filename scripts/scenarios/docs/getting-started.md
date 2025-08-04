@@ -36,12 +36,12 @@ cd scripts/scenarios/core/
 # Browse available scenarios
 ls -la                                    # See all scenarios
 
-# Check categories and organization
-cat _index/categories.yaml               # Business categorization
+# Check available scenarios
+ls -la                                    # List all scenarios
 
 # Look at a simple example
 cd multi-resource-pipeline/
-cat metadata.yaml                        # Scenario configuration
+cat service.json                        # Scenario configuration
 cat README.md                           # Business documentation
 ```
 
@@ -51,28 +51,36 @@ cat README.md                           # Business documentation
 
 Every scenario has **four core components**:
 
-### 1. **metadata.yaml** - The Configuration Brain
-```yaml
-scenario:
-  id: "my-scenario"
-  name: "Customer Service Assistant"
-  description: "AI-powered customer service automation"
-  version: "1.0.0"
-  
-complexity: intermediate
-  
-resources:
-  required: ["ollama", "n8n", "postgres"]
-  optional: ["whisper", "agent-s2"]
-  
-business:
-  value_proposition: "90% automated issue resolution"
-  target_market: ["e-commerce", "saas", "service-businesses"]
-  revenue_range: { min: 15000, max: 25000, currency: "USD" }
-  
-testing:
-  timeout: 600
-  requires_display: false
+### 1. **service.json** - The Configuration Brain
+```json
+{
+  "metadata": {
+    "name": "customer-service-assistant",
+    "displayName": "Customer Service Assistant",
+    "description": "AI-powered customer service automation",
+    "version": "1.0.0",
+    "complexity": "intermediate"
+  },
+  "spec": {
+    "dependencies": {
+      "resources": [
+        {"name": "ollama", "type": "ai", "optional": false},
+        {"name": "n8n", "type": "automation", "optional": false},
+        {"name": "postgres", "type": "database", "optional": false},
+        {"name": "whisper", "type": "ai", "optional": true}
+      ]
+    },
+    "business": {
+      "valueProposition": "90% automated issue resolution",
+      "targetMarkets": ["e-commerce", "saas", "service-businesses"],
+      "revenueRange": {"min": 15000, "max": 25000, "currency": "USD"}
+    },
+    "testing": {
+      "timeout": 600,
+      "requiresDisplay": false
+    }
+  }
+}
 ```
 
 ### 2. **README.md** - The Business Case
@@ -119,48 +127,57 @@ test_scenario
 | Template | Best For | Complexity |
 |----------|----------|------------|
 | [**basic/**](../templates/basic/) | Resource integration testing | ⭐ Simple |
-| [**business/**](../templates/business/) | Customer applications | ⭐⭐ Moderate |
-| [**ai-generation/**](../templates/ai-generation/) | AI-optimized scenarios | ⭐⭐ Moderate |
+| [**full/**](../templates/full/) | Customer applications | ⭐⭐ Moderate |
 
-**For this tutorial, we'll use the business template:**
+**For this tutorial, we'll use the full template:**
 
 ```bash
-# 1. Copy the business template
-cp -r templates/business/ my-customer-portal/
-cd my-customer-portal/
+# 1. Copy the full template
+cp -r templates/full/ core/my-customer-portal/
+cd core/my-customer-portal/
 
 # 2. Examine the template structure
 ls -la
-# metadata.yaml    # Template configuration
-# README.md        # Template documentation
-# test.sh          # Template test script
-# ui/              # UI components (if applicable)
+# service.json     # Scenario configuration
+# README.md        # Business documentation
+# test.sh          # Integration test script
+# deployment/      # Deployment scripts
+# initialization/  # Startup data and workflows
 ```
 
 ### Customize Your Scenario
 
-#### 1. **Edit metadata.yaml**
-```yaml
-scenario:
-  id: "customer-portal"                    # ✏️ Change this
-  name: "Enterprise Customer Portal"       # ✏️ Change this
-  description: "Self-service customer portal with AI chat support"  # ✏️ Change this
-  version: "1.0.0"
-
-complexity: intermediate                   # basic, intermediate, or advanced
-
-resources:
-  required: ["ollama", "n8n", "postgres"] # ✏️ Add/remove resources as needed
-  optional: ["whisper", "browserless"]    # ✏️ Add/remove optional resources
-
-business:
-  value_proposition: "50% reduction in support tickets through self-service"  # ✏️ Change this
-  target_market: ["b2b-saas", "e-commerce", "service-businesses"]           # ✏️ Change this
-  revenue_range: { min: 20000, max: 35000, currency: "USD" }                # ✏️ Adjust pricing
-
-testing:
-  timeout: 900                            # ✏️ Adjust based on complexity
-  requires_display: false                 # Set to true if UI testing needed
+#### 1. **Edit service.json**
+```json
+{
+  "metadata": {
+    "name": "customer-portal",                    // ✏️ Change this
+    "displayName": "Enterprise Customer Portal",  // ✏️ Change this
+    "description": "Self-service customer portal with AI chat support",  // ✏️ Change this
+    "version": "1.0.0",
+    "complexity": "intermediate"                  // basic, intermediate, or advanced
+  },
+  "spec": {
+    "dependencies": {
+      "resources": [
+        {"name": "ollama", "type": "ai", "optional": false},      // ✏️ Add/remove as needed
+        {"name": "n8n", "type": "automation", "optional": false},
+        {"name": "postgres", "type": "database", "optional": false},
+        {"name": "whisper", "type": "ai", "optional": true},       // ✏️ Optional resources
+        {"name": "browserless", "type": "agent", "optional": true}
+      ]
+    },
+    "business": {
+      "valueProposition": "50% reduction in support tickets through self-service",  // ✏️ Change this
+      "targetMarkets": ["b2b-saas", "e-commerce", "service-businesses"],          // ✏️ Change this
+      "revenueRange": {"min": 20000, "max": 35000, "currency": "USD"}             // ✏️ Adjust pricing
+    },
+    "testing": {
+      "timeout": 900,                           // ✏️ Adjust based on complexity
+      "requiresDisplay": false                  // Set to true if UI testing needed
+    }
+  }
+}
 ```
 
 #### 2. **Update README.md**
@@ -285,19 +302,26 @@ vrooli market-research --scenario customer-portal --platform upwork
 ### AI-Friendly Structure
 Ensure your scenario is optimized for AI consumption:
 
-```yaml
-# metadata.yaml - AI-readable structure
-scenario:
-  id: "descriptive-kebab-case"           # Clear, descriptive naming
-  description: "Specific, actionable description"  # No ambiguity
-  
-resources:
-  required: ["specific", "resources"]    # Exact resource names
-  conflicts: ["mutually-exclusive"]     # Prevent resource conflicts
-  
-business:
-  value_proposition: "Quantified benefit with metrics"  # Measurable outcomes
-  target_market: ["specific-industries"]               # Targeted markets
+```json
+// service.json - AI-readable structure
+{
+  "metadata": {
+    "name": "descriptive-kebab-case",           // Clear, descriptive naming
+    "description": "Specific, actionable description"  // No ambiguity
+  },
+  "spec": {
+    "dependencies": {
+      "resources": [
+        {"name": "ollama", "type": "ai", "optional": false}    // Exact resource specifications
+      ],
+      "conflicts": ["browserless"]              // Prevent resource conflicts
+    },
+    "business": {
+      "valueProposition": "Quantified benefit with metrics",  // Measurable outcomes
+      "targetMarkets": ["specific-industries"]               // Targeted markets
+    }
+  }
+}
 ```
 
 ### Documentation Standards

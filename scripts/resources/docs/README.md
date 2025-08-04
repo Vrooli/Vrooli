@@ -72,7 +72,7 @@ Our scenario system demonstrates real-world resource combinations and generates 
 cd ../scenarios/core/multi-modal-ai-assistant && ./test.sh
 
 # Browse all available scenarios
-cat ../scenarios/catalog.yaml
+cat ../scenarios/catalog.json
 ```
 
 ### Generate Apps from Scenarios

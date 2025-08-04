@@ -1,0 +1,374 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "total_scenarios": 14,
+    "validation_coverage": "95%",
+    "deployment_ready": 12,
+    "ui_enabled": 6,
+    "average_revenue": "$8k-25k",
+    "last_updated": "2025-08-03"
+  },
+  "business_intelligence": {
+    "multi-modal-ai-assistant": {
+      "location": "core/multi-modal-ai-assistant",
+      "revenue_range": "$10k-25k",
+      "upwork_demand": "very-high",
+      "validation": true,
+      "deployment": true,
+      "ui_included": true,
+      "use_cases": [
+        "Accessibility assistant for disabled users",
+        "Creative workflow automation",
+        "Enterprise productivity suite"
+      ]
+    },
+    "ai-content-assistant-example": {
+      "location": "core/ai-content-assistant-example",
+      "revenue_range": "$8k-20k",
+      "upwork_demand": "high",
+      "validation": true,
+      "deployment": true,
+      "ui_included": true,
+      "use_cases": [
+        "Content creation for marketing agencies",
+        "Creative workflow automation",
+        "Social media management"
+      ]
+    },
+    "research-assistant": {
+      "location": "core/research-assistant",
+      "revenue_range": "$10k-25k",
+      "upwork_demand": "high",
+      "validation": true,
+      "deployment": true,
+      "ui_included": true,
+      "use_cases": [
+        "Market research automation",
+        "Competitive analysis platforms",
+        "Knowledge management systems"
+      ]
+    },
+    "business-process-automation": {
+      "location": "core/business-process-automation",
+      "revenue_range": "$5k-15k",
+      "upwork_demand": "very-high",
+      "validation": true,
+      "deployment": true,
+      "ui_included": false,
+      "use_cases": [
+        "Enterprise digital transformation",
+        "Business process outsourcing",
+        "Operations optimization"
+      ]
+    },
+    "document-intelligence-pipeline": {
+      "location": "core/document-intelligence-pipeline",
+      "revenue_range": "$4k-12k",
+      "upwork_demand": "very-high",
+      "validation": true,
+      "deployment": true,
+      "ui_included": false,
+      "use_cases": [
+        "Legal document processing",
+        "Financial document analysis",
+        "Healthcare record management"
+      ]
+    },
+    "image-generation-pipeline": {
+      "location": "core/image-generation-pipeline",
+      "revenue_range": "$8k-20k",
+      "upwork_demand": "high",
+      "validation": true,
+      "deployment": true,
+      "ui_included": true,
+      "use_cases": [
+        "Creative agency automation",
+        "Marketing visual generation",
+        "E-commerce product imagery"
+      ]
+    },
+    "podcast-transcription-assistant": {
+      "location": "core/podcast-transcription-assistant",
+      "revenue_range": "$6k-15k",
+      "upwork_demand": "medium",
+      "validation": true,
+      "deployment": true,
+      "ui_included": true,
+      "use_cases": [
+        "Podcast production workflows",
+        "Content creator tools",
+        "Media analysis platforms"
+      ]
+    },
+    "analytics-dashboard": {
+      "location": "core/analytics-dashboard",
+      "revenue_range": "$10k-25k",
+      "upwork_demand": "high",
+      "validation": true,
+      "deployment": true,
+      "ui_included": true,
+      "use_cases": [
+        "Business intelligence dashboards",
+        "Real-time monitoring systems",
+        "Performance analytics platforms"
+      ]
+    },
+    "intelligent-desktop-assistant": {
+      "location": "core/intelligent-desktop-assistant",
+      "revenue_range": "$8k-18k",
+      "upwork_demand": "medium",
+      "validation": true,
+      "deployment": true,
+      "ui_included": false,
+      "use_cases": [
+        "Personal productivity automation",
+        "Desktop workflow optimization",
+        "Accessibility assistance"
+      ]
+    },
+    "secure-document-processing": {
+      "location": "core/secure-document-processing",
+      "revenue_range": "$15k-35k",
+      "upwork_demand": "high",
+      "validation": true,
+      "deployment": true,
+      "ui_included": false,
+      "use_cases": [
+        "Healthcare document processing",
+        "Financial compliance systems",
+        "Government document handling"
+      ]
+    },
+    "vault-secrets-integration": {
+      "location": "core/vault-secrets-integration",
+      "revenue_range": "$12k-25k",
+      "upwork_demand": "medium",
+      "validation": true,
+      "deployment": true,
+      "ui_included": true,
+      "use_cases": [
+        "Enterprise security automation",
+        "DevOps credential management",
+        "Compliance automation"
+      ]
+    },
+    "multi-resource-pipeline": {
+      "location": "core/multi-resource-pipeline",
+      "revenue_range": "$6k-15k",
+      "upwork_demand": "low",
+      "validation": true,
+      "deployment": true,
+      "ui_included": false,
+      "use_cases": [
+        "Integration testing platform",
+        "Multi-modal data processing",
+        "Resource orchestration examples"
+      ]
+    },
+    "scenario-generator-v1": {
+      "location": "core/scenario-generator-v1",
+      "revenue_range": "$5k-12k",
+      "upwork_demand": "medium",
+      "validation": true,
+      "deployment": false,
+      "ui_included": true,
+      "use_cases": [
+        "Development tool platforms",
+        "AI code generation systems",
+        "Workflow automation tools"
+      ]
+    }
+  },
+  "resource_combinations": {
+    "high_synergy": [
+      {
+        "resources": [
+          "ollama",
+          "qdrant"
+        ],
+        "scenarios": 6,
+        "use_case": "Vector search for AI applications"
+      },
+      {
+        "resources": [
+          "ollama",
+          "whisper"
+        ],
+        "scenarios": 4,
+        "use_case": "Multi-modal AI processing"
+      },
+      {
+        "resources": [
+          "windmill",
+          "ollama"
+        ],
+        "scenarios": 6,
+        "use_case": "AI-powered user interfaces"
+      },
+      {
+        "resources": [
+          "n8n",
+          "ollama"
+        ],
+        "scenarios": 3,
+        "use_case": "Intelligent workflow automation"
+      },
+      {
+        "resources": [
+          "postgres",
+          "minio"
+        ],
+        "scenarios": 4,
+        "use_case": "Complete data storage solution"
+      },
+      {
+        "resources": [
+          "unstructured-io",
+          "qdrant"
+        ],
+        "scenarios": 3,
+        "use_case": "Document processing with semantic search"
+      }
+    ]
+  },
+  "categories": {
+    "ai-assistance": {
+      "description": "AI-powered assistance and automation",
+      "scenarios": 3,
+      "average_revenue": "$10k-22k",
+      "examples": [
+        "multi-modal-ai-assistant",
+        "intelligent-desktop-assistant"
+      ]
+    },
+    "ai-content-creation": {
+      "description": "Content generation using AI",
+      "scenarios": 4,
+      "average_revenue": "$8k-20k",
+      "examples": [
+        "ai-content-assistant-example",
+        "image-generation-pipeline",
+        "podcast-transcription-assistant"
+      ]
+    },
+    "ai-automation": {
+      "description": "Business process automation with AI",
+      "scenarios": 1,
+      "average_revenue": "$5k-15k",
+      "examples": [
+        "business-process-automation"
+      ]
+    },
+    "ai-data-analysis": {
+      "description": "Data processing and analysis",
+      "scenarios": 2,
+      "average_revenue": "$5k-15k",
+      "examples": [
+        "document-intelligence-pipeline",
+        "multi-resource-pipeline"
+      ]
+    },
+    "ai-research": {
+      "description": "Research and information gathering",
+      "scenarios": 1,
+      "average_revenue": "$10k-25k",
+      "examples": [
+        "research-assistant"
+      ]
+    },
+    "real-time-monitoring": {
+      "description": "Live monitoring and analytics",
+      "scenarios": 1,
+      "average_revenue": "$10k-25k",
+      "examples": [
+        "analytics-dashboard"
+      ]
+    },
+    "security": {
+      "description": "Security and compliance scenarios",
+      "scenarios": 2,
+      "average_revenue": "$13k-30k",
+      "examples": [
+        "secure-document-processing",
+        "vault-secrets-integration"
+      ]
+    }
+  },
+  "filters": {
+    "by_revenue": {
+      "high_value": {
+        "scenarios": [
+          "multi-modal-ai-assistant",
+          "research-assistant",
+          "analytics-dashboard",
+          "secure-document-processing"
+        ]
+      },
+      "medium_value": {
+        "scenarios": [
+          "ai-content-assistant-example",
+          "business-process-automation",
+          "vault-secrets-integration"
+        ]
+      },
+      "entry_level": {
+        "scenarios": [
+          "document-intelligence-pipeline",
+          "image-generation-pipeline",
+          "podcast-transcription-assistant",
+          "intelligent-desktop-assistant",
+          "multi-resource-pipeline",
+          "scenario-generator-v1"
+        ]
+      }
+    },
+    "by_upwork_demand": {
+      "very_high": {
+        "scenarios": [
+          "multi-modal-ai-assistant",
+          "business-process-automation",
+          "document-intelligence-pipeline"
+        ]
+      },
+      "high": {
+        "scenarios": [
+          "ai-content-assistant-example",
+          "research-assistant",
+          "image-generation-pipeline",
+          "analytics-dashboard",
+          "secure-document-processing"
+        ]
+      },
+      "medium": {
+        "scenarios": [
+          "podcast-transcription-assistant",
+          "intelligent-desktop-assistant",
+          "vault-secrets-integration",
+          "scenario-generator-v1"
+        ]
+      },
+      "low": {
+        "scenarios": [
+          "multi-resource-pipeline"
+        ]
+      }
+    }
+  },
+  "metrics": {
+    "validation_stats": {
+      "total_tests": 14,
+      "passing_tests": 13,
+      "test_coverage": "93%"
+    },
+    "deployment_stats": {
+      "deployment_ready": 12,
+      "ui_scenarios": 8,
+      "enterprise_ready": 6
+    },
+    "business_stats": {
+      "total_revenue_potential": "$140k-320k",
+      "average_project_value": "$10k-23k",
+      "high_demand_scenarios": 8
+    }
+  }
+}

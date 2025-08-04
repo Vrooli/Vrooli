@@ -1,13 +1,13 @@
 #!/usr/bin/env bats
 # Tests for Unstructured.io manage.sh script
 
-# Load common test helper
-source "$(dirname "${BATS_TEST_FILENAME}")/../../tests/common_test_helper.bash"
+# Load Vrooli test infrastructure
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
 
 # Setup for each test
 setup() {
-    # Use common setup
-    common_setup
+    # Use Vrooli test infrastructure with Unstructured.io-specific setup
+    vrooli_setup_service_test "unstructured-io"
     
     # Set unstructured-io specific environment
     export UNSTRUCTURED_IO_CUSTOM_PORT="9999"

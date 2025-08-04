@@ -4,7 +4,7 @@ set -euo pipefail
 UTILS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck disable=SC1091
-for util in env exit_codes flow log system var; do source "${UTILS_DIR}/${util}.sh"; done
+for util in env exit_codes flow log repository system var; do source "${UTILS_DIR}/${util}.sh"; done
 
 # Generic command wrapper that handles permission issues automatically
 docker::_execute_with_permissions() {
@@ -627,15 +627,37 @@ docker::build_images() {
         exit "$ERROR_BUILD_FAILED"
     fi
     
+    # Get repository metadata for build labels
+    local repo_url repo_branch git_commit build_date
+    repo_url=$(repository::get_url 2>/dev/null || echo "unknown")
+    repo_branch=$(repository::get_branch 2>/dev/null || echo "unknown")
+    git_commit=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+    build_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    
+    log::info "Adding repository metadata to build:"
+    log::info "  Repository: $repo_url"
+    log::info "  Branch: $repo_branch"
+    log::info "  Commit: $git_commit"
+    log::info "  Build Date: $build_date"
+    
     # Build with appropriate arguments based on version
     # The wrapper handles version detection, we just need to handle version-specific args
     local compose_cmd=$(docker::_get_compose_command)
+    
+    # Create build args for repository metadata
+    local build_args=(
+        "--build-arg" "REPO_URL=$repo_url"
+        "--build-arg" "REPO_BRANCH=$repo_branch"
+        "--build-arg" "GIT_COMMIT=$git_commit"
+        "--build-arg" "BUILD_DATE=$build_date"
+    )
+    
     if [[ "$compose_cmd" == "docker compose" ]]; then
         # Plugin version supports --progress flag
-        docker::compose -f "$compose_file" build --no-cache --progress=plain
+        docker::compose -f "$compose_file" build --no-cache --progress=plain "${build_args[@]}"
     else
         # Standalone version doesn't support --progress
-        docker::compose -f "$compose_file" build --no-cache
+        docker::compose -f "$compose_file" build --no-cache "${build_args[@]}"
     fi
     
     log::success "Docker images built successfully"

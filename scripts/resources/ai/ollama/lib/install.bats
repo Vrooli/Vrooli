@@ -3,20 +3,11 @@
 # Tests for Ollama installation functions
 
 setup() {
-    # Load shared test infrastructure with timeout protection
-    timeout 10s bash -c 'source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"' || {
-        echo "WARNING: common_setup.bash took too long, using fallback mocks" >&2
-        export MOCK_RESPONSES_DIR="${BATS_TEST_TMPDIR:-/tmp}/mock_responses"
-        mkdir -p "$MOCK_RESPONSES_DIR"
-    }
+    # Load Vrooli test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
     
-    # Setup standard mocks with timeout protection
-    timeout 5s setup_standard_mocks 2>/dev/null || {
-        echo "WARNING: setup_standard_mocks failed, using minimal setup" >&2
-        export FORCE="${FORCE:-no}"
-        export YES="${YES:-no}"
-        export OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"
-    }
+    # Setup Ollama-specific test environment
+    vrooli_setup_service_test "ollama"
     
     # Set test environment
     export OLLAMA_USER="ollama"

@@ -441,7 +441,8 @@ run_affected_tests() {
     # Run shell tests
     if [[ ${#shell_tests[@]} -gt 0 ]]; then
         vrooli_log_info "Running ${#shell_tests[@]} shell tests..."
-        if ! "$TEST_ROOT/shell/core/run-tests.sh" ${VERBOSE:+--verbose} "${shell_tests[@]}"; then
+        # Use run-unit.sh for BATS files (shell tests are unit tests for shell scripts)
+        if ! "$RUNNER_DIR/run-unit.sh" ${VERBOSE:+--verbose} "${shell_tests[@]}"; then
             ((failures++))
         fi
     fi

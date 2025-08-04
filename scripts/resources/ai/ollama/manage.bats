@@ -1,8 +1,8 @@
 #!/usr/bin/env bats
 # Tests for Ollama manage.sh script
 
-# Load common test helper
-source "$(dirname "${BATS_TEST_FILENAME}")/../../tests/common_test_helper.bash"
+# Load Vrooli test infrastructure
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
 
 # Helper function to initialize MODEL_CATALOG (fixes BATS associative array issue)
 setup_model_catalog() {
@@ -37,8 +37,8 @@ setup_model_catalog() {
 # Setup for each test
 # Run expensive setup once per file instead of per test
 setup_file() {
-    # Use common setup (expensive operation)
-    common_setup
+    # Use Vrooli test infrastructure with Ollama-specific setup
+    vrooli_setup_service_test "ollama"
     
     # Setup model catalog once for all tests
     setup_model_catalog

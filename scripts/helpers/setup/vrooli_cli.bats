@@ -22,7 +22,20 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/vrooli_cli.sh"
     run bash -c "
         source '$SCRIPT_PATH'
         # Mock the project root to a non-existent location
-        var_ROOT_DIR='/tmp/nonexistent'
+        export var_ROOT_DIR='/tmp/nonexistent'
+        # Override command to make vrooli appear not installed
+        command() {
+            if [[ \"\$1\" == '-v' ]] && [[ \"\$2\" == 'vrooli' ]]; then
+                return 1
+            fi
+            builtin command \"\$@\"
+        }
+        # Also make sure vrooli command itself doesn't exist
+        vrooli() {
+            return 127
+        }
+        export -f command
+        export -f vrooli
         vrooli_cli::setup 2>&1
     "
     [ "$status" -ne 0 ]

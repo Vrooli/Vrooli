@@ -88,19 +88,19 @@ browserless::run_usage_example() {
     case "$usage_type" in
         "screenshot")
             if [[ "$should_cleanup" == "true" ]]; then
-                cleanup_files+=("${BROWSERLESS_TEST_OUTPUT_DIR:-./data/test-outputs/browserless}/screenshot_test.png")
+                cleanup_files+=("${BROWSERLESS_TEST_OUTPUT_DIR:-/tmp/browserless-test-outputs}/screenshot_test.png")
             fi
             browserless::test_screenshot "$URL" "$OUTPUT"
             ;;
         "pdf")
             if [[ "$should_cleanup" == "true" ]]; then
-                cleanup_files+=("${BROWSERLESS_TEST_OUTPUT_DIR:-./data/test-outputs/browserless}/document_test.pdf")
+                cleanup_files+=("${BROWSERLESS_TEST_OUTPUT_DIR:-/tmp/browserless-test-outputs}/document_test.pdf")
             fi
             browserless::test_pdf "$URL" "$OUTPUT"
             ;;
         "scrape")
             if [[ "$should_cleanup" == "true" ]]; then
-                cleanup_files+=("${BROWSERLESS_TEST_OUTPUT_DIR:-./data/test-outputs/browserless}/scrape_test.html")
+                cleanup_files+=("${BROWSERLESS_TEST_OUTPUT_DIR:-/tmp/browserless-test-outputs}/scrape_test.html")
             fi
             browserless::test_scrape "$URL" "$OUTPUT"
             ;;
@@ -112,9 +112,9 @@ browserless::run_usage_example() {
             ;;
         "all")
             if [[ "$should_cleanup" == "true" ]]; then
-                cleanup_files+=("${BROWSERLESS_TEST_OUTPUT_DIR:-./data/test-outputs/browserless}/screenshot_test.png")
-                cleanup_files+=("${BROWSERLESS_TEST_OUTPUT_DIR:-./data/test-outputs/browserless}/document_test.pdf") 
-                cleanup_files+=("${BROWSERLESS_TEST_OUTPUT_DIR:-./data/test-outputs/browserless}/scrape_test.html")
+                cleanup_files+=("${BROWSERLESS_TEST_OUTPUT_DIR:-/tmp/browserless-test-outputs}/screenshot_test.png")
+                cleanup_files+=("${BROWSERLESS_TEST_OUTPUT_DIR:-/tmp/browserless-test-outputs}/document_test.pdf") 
+                cleanup_files+=("${BROWSERLESS_TEST_OUTPUT_DIR:-/tmp/browserless-test-outputs}/scrape_test.html")
             fi
             browserless::test_all_apis "$URL"
             ;;

@@ -15,6 +15,8 @@ trap 'echo ""; log::info "Resource installation interrupted by user. Exiting..."
 source "${RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/../helpers/utils/args.sh"
+# shellcheck disable=SC1091
+source "${RESOURCES_DIR}/../helpers/utils/repository.sh"
 
 # Available resources organized by category
 declare -A AVAILABLE_RESOURCES=(
@@ -137,6 +139,54 @@ resources::usage() {
     for category in "${!AVAILABLE_RESOURCES[@]}"; do
         echo "  $category: ${AVAILABLE_RESOURCES[$category]}"
     done
+    
+    # Add repository information if available
+    local repo_url
+    repo_url=$(repository::get_url 2>/dev/null || echo "")
+    if [[ -n "$repo_url" ]]; then
+        echo
+        echo "Documentation: ${repo_url}/tree/main/scripts/resources"
+        echo "Issues: ${repo_url}/issues"
+    fi
+}
+
+#######################################
+# Replace repository placeholders in scenario templates
+# Globals:
+#   None
+# Arguments:
+#   $1 - template file path
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+resources::update_scenario_template() {
+    local template_file="$1"
+    
+    if [[ ! -f "$template_file" ]]; then
+        log::error "Template file not found: $template_file"
+        return 1
+    fi
+    
+    # Get repository URL from service.json
+    local repo_url
+    repo_url=$(repository::get_url 2>/dev/null || echo "")
+    
+    if [[ -z "$repo_url" ]]; then
+        log::warn "No repository URL found in service.json, skipping template update"
+        return 0
+    fi
+    
+    # Replace REPOSITORY_URL_PLACEHOLDER with actual URL
+    if grep -q "REPOSITORY_URL_PLACEHOLDER" "$template_file"; then
+        log::info "Updating repository URL in template: $template_file"
+        sed -i "s|REPOSITORY_URL_PLACEHOLDER|${repo_url}|g" "$template_file"
+        
+        # Also update related placeholders
+        sed -i "s|ISSUES_URL_PLACEHOLDER|${repo_url}/issues|g" "$template_file"
+        sed -i "s|HOMEPAGE_URL_PLACEHOLDER|${repo_url}|g" "$template_file"
+    fi
+    
+    return 0
 }
 
 #######################################
@@ -661,13 +711,30 @@ resources::discover_running() {
 resources::run_tests() {
     log::header "🧪 Resource Integration Tests"
     
-    # Step 1: Auto-discover healthy resources
+    # Step 1: Auto-discover healthy resources with explicit filtering
     log::info "Auto-discovering healthy resources..."
     local healthy_resources=()
+    local api_based_count=0
+    local not_running_count=0
+    local unhealthy_count=0
     
     for resource in $ALL_RESOURCES; do
+        # Check if this is an API-based resource first
+        if resources::is_api_based "$resource"; then
+            log::info "🌐 $resource: Skipping (API-based service - no local testing needed)"
+            api_based_count=$((api_based_count + 1))
+            continue
+        fi
+        
         local port
         port=$(resources::get_default_port "$resource")
+        
+        # Check if port is defined for this resource
+        if [[ -z "$port" ]]; then
+            log::info "⏭️  $resource: Skipping (no port defined - not a local service)"
+            not_running_count=$((not_running_count + 1))
+            continue
+        fi
         
         if resources::is_service_running "$port"; then
             local base_url="http://localhost:$port"
@@ -676,12 +743,25 @@ resources::run_tests() {
             
             if resources::check_http_health "$base_url" "$health_endpoint"; then
                 healthy_resources+=("$resource")
-                log::success "✅ $resource is healthy and ready for testing"
+                log::success "✅ $resource is healthy and ready for testing (port $port)"
             else
-                log::warn "⚠️  $resource is running but not responding to health checks"
+                log::warn "❌ $resource: Running on port $port but failing health checks"
+                unhealthy_count=$((unhealthy_count + 1))
             fi
+        else
+            log::info "💤 $resource: Not running on expected port $port (skipping)"
+            not_running_count=$((not_running_count + 1))
         fi
     done
+    
+    # Summary of filtering results
+    echo
+    log::info "Discovery Summary:"
+    log::info "  ✅ Healthy local resources: ${#healthy_resources[@]}"
+    log::info "  🌐 API-based resources (skipped): $api_based_count"
+    log::info "  💤 Not running/no port: $not_running_count" 
+    log::info "  ❌ Unhealthy: $unhealthy_count"
+    echo
     
     if [[ ${#healthy_resources[@]} -eq 0 ]]; then
         log::error "No healthy resources found for testing"
@@ -691,7 +771,7 @@ resources::run_tests() {
     
     # Step 2: Filter resources if specific resource requested
     local test_resources=("${healthy_resources[@]}")
-    if [[ -n "$RESOURCES_INPUT" && "$RESOURCES_INPUT" != "all" ]]; then
+    if [[ -n "$RESOURCES_INPUT" && "$RESOURCES_INPUT" != "all" && "$RESOURCES_INPUT" != "enabled" ]]; then
         local resource_list
         resource_list=$(resources::resolve_list)
         

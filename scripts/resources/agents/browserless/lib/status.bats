@@ -3,8 +3,8 @@
 
 # Expensive setup operations run once per file
 setup_file() {
-    # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    # Load Vrooli test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
     
     # Load dependencies once per file
     SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"

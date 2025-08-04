@@ -4,10 +4,10 @@
 # Setup for each test
 setup() {
     # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
     
     # Setup standard mocks
-    setup_standard_mocks
+    vrooli_auto_setup
     
     # Set test environment
     export BROWSERLESS_CUSTOM_PORT="9999"

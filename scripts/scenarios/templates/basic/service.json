@@ -20,7 +20,7 @@
     ],
     "repository": {
       "type": "git",
-      "url": "REPOSITORY_URL_PLACEHOLDER",
+      "url": "https://github.com/Vrooli/Vrooli",
       "directory": "/scenarios/basic"
     },
     "license": "MIT",

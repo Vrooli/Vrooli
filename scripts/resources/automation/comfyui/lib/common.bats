@@ -3,11 +3,11 @@
 
 # Setup for each test
 setup() {
-    # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    # Load Vrooli test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
     
-    # Setup standard mocks
-    setup_standard_mocks
+    # Setup ComfyUI test environment
+    vrooli_setup_service_test "comfyui"
     
     # Set test environment
     export COMFYUI_CUSTOM_PORT="8188"

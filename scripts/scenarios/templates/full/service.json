@@ -21,15 +21,15 @@
     ],
     "repository": {
       "type": "git",
-      "url": "REPOSITORY_URL_PLACEHOLDER",
+      "url": "https://github.com/Vrooli/Vrooli",
       "directory": "/scenarios/SCENARIO_ID_PLACEHOLDER"
     },
     "license": "LICENSE_TYPE_PLACEHOLDER",
-    "homepage": "HOMEPAGE_URL_PLACEHOLDER",
+    "homepage": "https://github.com/Vrooli/Vrooli",
     "documentation": "./README.md",
     "support": {
       "email": "SUPPORT_EMAIL_PLACEHOLDER",
-      "issues": "ISSUES_URL_PLACEHOLDER",
+      "issues": "https://github.com/Vrooli/Vrooli/issues",
       "chat": "CHAT_URL_PLACEHOLDER"
     }
   },

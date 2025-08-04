@@ -11,8 +11,8 @@ setup() {
     }
     
     # Setup standard mocks with timeout protection
-    timeout 5s setup_standard_mocks 2>/dev/null || {
-        echo "WARNING: setup_standard_mocks failed, using minimal setup" >&2
+    timeout 5s vrooli_auto_setup 2>/dev/null || {
+        echo "WARNING: vrooli_auto_setup failed, using minimal setup" >&2
         export FORCE="${FORCE:-no}"
         export YES="${YES:-no}"
         export OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"

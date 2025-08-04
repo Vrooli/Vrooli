@@ -23,7 +23,7 @@ setup_file() {
 # Lightweight per-test setup
 setup() {
     # Setup standard mocks
-    setup_standard_mocks
+    vrooli_auto_setup
     
     # Load the functions we're testing (required for bats isolation)
     SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"

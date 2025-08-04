@@ -698,4 +698,3 @@ claude_code::mcp_test() {
     
     echo
     log::success "✓ MCP connection test completed"
-}

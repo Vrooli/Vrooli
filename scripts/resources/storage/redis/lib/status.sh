@@ -94,6 +94,9 @@ redis::status::show_detailed_info() {
     
     # Show configuration summary
     redis::status::show_config_summary
+    
+    # Show repository information
+    resources::show_repository_info
 }
 
 #######################################

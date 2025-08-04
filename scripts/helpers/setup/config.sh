@@ -10,6 +10,8 @@ source "${SETUP_DIR}/../utils/log.sh"
 source "${SETUP_DIR}/../utils/var.sh"
 # shellcheck disable=SC1091
 source "${SETUP_DIR}/../utils/env.sh"
+# shellcheck disable=SC1091
+source "${SETUP_DIR}/../utils/repository.sh"
 
 config::init() {
     log::header "Initializing .vrooli configuration files..."
@@ -53,6 +55,9 @@ config::init() {
     else
         log::info "All configuration files already exist"
     fi
+    
+    # Handle repository configuration and hooks
+    config::handle_repository_setup
     
     return 0
 }
@@ -152,6 +157,61 @@ config::init_service_config() {
     fi
     
     return 0
+}
+
+config::handle_repository_setup() {
+    log::header "Configuring repository settings..."
+    
+    # Check if we're in a git repository
+    if [[ -d "${var_ROOT_DIR}/.git" ]]; then
+        log::info "Git repository detected"
+        
+        # Display repository information
+        if repository::info; then
+            log::success "Repository configuration loaded"
+        fi
+        
+        # If this is a fresh clone (checking for node_modules as indicator)
+        if [[ ! -d "${var_ROOT_DIR}/node_modules" ]]; then
+            log::info "Fresh repository detected - running postClone hook"
+            if repository::run_hook "postClone"; then
+                log::success "PostClone hook completed"
+            else
+                log::warning "PostClone hook failed - you may need to run setup commands manually"
+            fi
+        fi
+        
+        # Configure git remotes for mirrors if available
+        local mirrors
+        mirrors=$(repository::get_mirrors)
+        if [[ -n "$mirrors" ]]; then
+            log::info "Configuring mirror remotes..."
+            local index=1
+            for mirror in $mirrors; do
+                local remote_name="mirror${index}"
+                if ! git remote get-url "$remote_name" &>/dev/null; then
+                    git remote add "$remote_name" "$mirror"
+                    log::success "Added remote '$remote_name': $mirror"
+                else
+                    log::info "Remote '$remote_name' already exists"
+                fi
+                ((index++))
+            done
+        fi
+        
+        # Set up branch tracking
+        local branch
+        branch=$(repository::get_branch)
+        local current_branch
+        current_branch=$(git branch --show-current 2>/dev/null || echo "")
+        
+        if [[ -n "$current_branch" && "$current_branch" != "$branch" ]]; then
+            log::warning "Current branch ($current_branch) differs from configured branch ($branch)"
+            log::info "You may want to switch branches: git checkout $branch"
+        fi
+    else
+        log::info "Not in a git repository - skipping repository configuration"
+    fi
 }
 
 

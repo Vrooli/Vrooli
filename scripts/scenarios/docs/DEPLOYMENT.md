@@ -9,11 +9,11 @@ Once a scenario passes validation, it's ready to become a customer application. 
 ### Overview: Scenario → App Pipeline
 ```
 Validated Scenario              Customer Application
-├── metadata.yaml              ├── service.json (minimal)
+├── service.json               ├── service.json (optimized)
 ├── test.sh                    ├── docker-compose.yml
 ├── initialization/            ├── startup.sh
 ├── deployment/                ├── monitoring/
-└── docs/                      ├── customer-docs/
+└── README.md                  ├── customer-docs/
                               └── support/
 ```
 
@@ -24,31 +24,25 @@ The conversion process preserves all business functionality while optimizing for
 ### Basic Usage
 ```bash
 # Convert scenario to deployable app
-./tools/scenario-to-app.sh \
-  --scenario multi-modal-ai-assistant \
-  --output ~/deployments/customer-app
+./tools/scenario-to-app.sh multi-modal-ai-assistant
 
-# With customization
-./tools/scenario-to-app.sh \
-  --scenario multi-modal-ai-assistant \
-  --output ~/deployments/customer-app \
-  --config customer-config.yaml \
-  --branding customer-branding.json
+# With options
+./tools/scenario-to-app.sh multi-modal-ai-assistant \
+  --mode docker \
+  --validate full \
+  --verbose
 ```
 
 ### Advanced Options
 ```bash
-# Full customization example
-./tools/scenario-to-app.sh \
-  --scenario document-intelligence-pipeline \
-  --output ~/deployments/legal-firm-app \
-  --config configs/legal-firm.yaml \
-  --branding branding/legal-firm.json \
-  --environment production \
-  --monitoring enabled \
-  --backup-schedule "0 2 * * *" \
-  --ssl-cert /path/to/cert.pem \
-  --domain legal-firm.example.com
+# With dry run to preview
+./tools/scenario-to-app.sh document-intelligence-pipeline --dry-run
+
+# Local deployment
+./tools/scenario-to-app.sh document-intelligence-pipeline --mode local
+
+# Kubernetes deployment
+./tools/scenario-to-app.sh document-intelligence-pipeline --mode k8s
 ```
 
 ## 📋 Configuration Options
@@ -138,7 +132,7 @@ customer-app/
 ├── docker-compose.yml         # Main deployment configuration
 ├── .env.example              # Environment variables template
 ├── startup.sh                # Application startup script
-├── service.json      # Minimal resource configuration
+├── service.json              # Optimized resource configuration
 ├── docs/                     # Customer documentation
 │   ├── README.md             # Getting started guide
 │   ├── CONFIGURATION.md      # Configuration options
@@ -166,38 +160,39 @@ customer-app/
 
 ## ⚙️ Resource Optimization
 
-### Minimal Resource Configuration
+### Optimized Resource Configuration
 The conversion process analyzes scenario requirements and generates optimized `service.json`:
 
 ```json
 {
-  "services": {
+  "resources": {
     "ai": {
       "ollama": {
         "enabled": true,
         "baseUrl": "http://localhost:11434",
-        "models": ["llama3.1:8b"],
-        "max_memory": "4gb"
+        "expectedModels": ["llama3.1:8b"],
+        "type": "ollama"
       }
     },
     "storage": {
       "postgres": {
         "enabled": true,
-        "baseUrl": "postgres://localhost:5432",
-        "database": "customer_app",
-        "max_connections": 100
+        "type": "postgresql",
+        "host": "localhost",
+        "port": 5432,
+        "database": "customer_app"
       },
       "qdrant": {
         "enabled": true,
-        "baseUrl": "http://localhost:6333",
-        "collection": "documents"
+        "type": "qdrant",
+        "baseUrl": "http://localhost:6333"
       }
     },
     "automation": {
       "n8n": {
         "enabled": true,
-        "baseUrl": "http://localhost:5678",
-        "workflows": ["document-processing"]
+        "type": "n8n",
+        "baseUrl": "http://localhost:5678"
       }
     }
   }

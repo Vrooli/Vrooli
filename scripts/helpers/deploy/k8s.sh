@@ -9,6 +9,8 @@ source "${DEPLOY_DIR}/../utils/env.sh"
 source "${DEPLOY_DIR}/../utils/log.sh"
 # shellcheck disable=SC1091
 source "${DEPLOY_DIR}/../utils/var.sh"
+# shellcheck disable=SC1091
+source "${DEPLOY_DIR}/../utils/repository.sh"
 
 # Deploy application to Kubernetes using Helm
 deploy::deploy_k8s() {
@@ -110,10 +112,28 @@ deploy::deploy_k8s() {
   
   # No --set image tag overrides from script. Helm will use tags defined in the values file.
   
+  # Add repository metadata as Helm annotations and labels
+  local repo_url repo_branch git_commit deploy_date
+  repo_url=$(repository::get_url 2>/dev/null || echo "unknown")
+  repo_branch=$(repository::get_branch 2>/dev/null || echo "unknown")
+  git_commit=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
+  deploy_date=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+  
+  # Add repository metadata as Helm values
+  helm_cmd_opts+=("--set" "global.repository.url=$repo_url")
+  helm_cmd_opts+=("--set" "global.repository.branch=$repo_branch")
+  helm_cmd_opts+=("--set" "global.repository.commit=$git_commit")
+  helm_cmd_opts+=("--set" "global.deployment.date=$deploy_date")
+  helm_cmd_opts+=("--set" "global.deployment.version=$VERSION")
+  
   helm_cmd_opts+=("--atomic")
   helm_cmd_opts+=("--timeout" "10m")
+  
+  # Add deployment annotations for tracking
+  helm_cmd_opts+=("--description" "Deployed from $repo_url@$git_commit on $deploy_date")
 
   log::info "Preparing to deploy Helm chart '$release_name' with the following value precedence:"
+  log::info "Repository metadata: $repo_url branch:$repo_branch commit:$git_commit"
   log::info "  1. Packaged chart defaults (from ${chart_name}-${VERSION}.tgz internal values.yaml)"
   if [[ -f "$env_specific_values_path" ]]; then
     log::info "  2. Environment-specific overrides (from $env_specific_values_path)"

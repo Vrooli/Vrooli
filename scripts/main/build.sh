@@ -21,6 +21,8 @@ source "${MAIN_DIR}/../helpers/utils/system.sh"
 # shellcheck disable=SC1091
 source "${MAIN_DIR}/../helpers/utils/var.sh"
 # shellcheck disable=SC1091
+source "${MAIN_DIR}/../helpers/utils/repository.sh"
+# shellcheck disable=SC1091
 source "${MAIN_DIR}/../helpers/utils/version.sh"
 # shellcheck disable=SC1091
 source "${MAIN_DIR}/../helpers/utils/zip.sh"
@@ -247,6 +249,13 @@ build::main() {
     fi
 
     source "${MAIN_DIR}/setup.sh" "$@"
+
+    # Execute repository preBuild hook if configured
+    if repository::run_hook "preBuild" 2>/dev/null; then
+        log::success "✅ Repository preBuild hook completed"
+    else
+        log::debug "No preBuild hook configured or execution failed"
+    fi
 
     log::info "Cleaning previous build artifacts..."
     package::clean_build
