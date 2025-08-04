@@ -21,7 +21,7 @@ This architecture allows Vrooli's three-tier AI system to adapt to whatever reso
 ./scripts/resources/index.sh --action discover
 
 # Check enabled resources
-cat ~/.vrooli/resources.local.json | jq '.services'
+cat ~/.vrooli/service.json | jq '.services'
 
 # List all available resources
 ./scripts/resources/index.sh --action list
@@ -648,7 +648,7 @@ open http://localhost:1880  # Node-RED real-time dashboard
 
 ## Configuration Management
 
-**Resource Configuration**: `~/.vrooli/resources.local.json`
+**Resource Configuration**: `~/.vrooli/service.json`
 ```json
 {
   "services": {
@@ -689,7 +689,7 @@ Install by logical groupings:
 ## Common Issues
 
 **Resource Not Available**:
-1. Check if enabled: `jq '.services.ai.ollama.enabled' ~/.vrooli/resources.local.json`
+1. Check if enabled: `jq '.services.ai.ollama.enabled' ~/.vrooli/service.json`
 2. Verify running: `docker ps | grep ollama` 
 3. Check logs: `./scripts/resources/ai/ollama/manage.sh --action logs`
 

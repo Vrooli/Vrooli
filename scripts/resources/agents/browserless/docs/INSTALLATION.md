@@ -181,7 +181,7 @@ To completely remove Browserless:
 
 ## Configuration After Installation
 
-Browserless is automatically configured in `~/.vrooli/resources.local.json`. See [Configuration Guide](./CONFIGURATION.md) for customization options.
+Browserless is automatically configured in `~/.vrooli/service.json`. See [Configuration Guide](./CONFIGURATION.md) for customization options.
 
 ## Next Steps
 

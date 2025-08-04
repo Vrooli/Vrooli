@@ -578,7 +578,7 @@ docker logs --tail 100 minio
 
 # Configuration
 ls -la ~/.minio/config/
-cat ~/.vrooli/resources.local.json | jq '.services.storage.minio'
+cat ~/.vrooli/service.json | jq '.services.storage.minio'
 ```
 
 ### Quick Fix Summary

@@ -383,7 +383,7 @@ curl http://localhost:11434/api/tags
 ## 📚 **Additional Resources**
 
 - **Individual Resource READMEs**: `/scripts/resources/*/README.md`
-- **Configuration Files**: `~/.vrooli/resources.local.json`
+- **Configuration Files**: `~/.vrooli/service.json`
 - **Example Workflows**: `/scripts/resources/*/examples/`
 - **Test Scripts**: `/scripts/resources/tests/`
 

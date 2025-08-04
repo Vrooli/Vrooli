@@ -32,7 +32,7 @@ An API-executable workflow that shows:
 ### Method 2: Via API (Programmatic)
 ```bash
 # Get your API key from the configuration
-API_KEY=$(jq -r '.services.automation.n8n.apiKey' ~/.vrooli/resources.local.json)
+API_KEY=$(jq -r '.services.automation.n8n.apiKey' ~/.vrooli/service.json)
 
 # Import a workflow
 curl -X POST http://localhost:5678/api/v1/workflows \

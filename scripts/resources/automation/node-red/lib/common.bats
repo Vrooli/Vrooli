@@ -163,25 +163,25 @@ teardown() {
     run node_red::update_resource_config
     assert_success
     
-    assert_file_exists "$NODE_RED_TEST_CONFIG_DIR/resources.local.json"
+    assert_file_exists "$NODE_RED_TEST_CONFIG_DIR/service.json"
 }
 
 @test "node_red::update_resource_config updates existing config file" {
     # Create initial config
     mkdir -p "$NODE_RED_TEST_CONFIG_DIR"
-    echo '{"services": {}}' > "$NODE_RED_TEST_CONFIG_DIR/resources.local.json"
+    echo '{"services": {}}' > "$NODE_RED_TEST_CONFIG_DIR/service.json"
     
     run node_red::update_resource_config
     assert_success
     
     # Config should still exist and be valid JSON
-    assert_file_exists "$NODE_RED_TEST_CONFIG_DIR/resources.local.json"
+    assert_file_exists "$NODE_RED_TEST_CONFIG_DIR/service.json"
 }
 
 @test "node_red::remove_resource_config removes node-red from config" {
     # Create config with node-red entry
     mkdir -p "$NODE_RED_TEST_CONFIG_DIR"
-    cat > "$NODE_RED_TEST_CONFIG_DIR/resources.local.json" << 'EOF'
+    cat > "$NODE_RED_TEST_CONFIG_DIR/service.json" << 'EOF'
 {
     "services": {
         "automation": {

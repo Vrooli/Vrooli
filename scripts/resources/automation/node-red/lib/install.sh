@@ -376,7 +376,7 @@ node_red::validate_installation() {
     fi
     
     # Check resource configuration
-    local config_file="$HOME/.vrooli/resources.local.json"
+    local config_file="$HOME/.vrooli/service.json"
     if [[ ! -f "$config_file" ]] || ! jq -e '.services.automation."node-red"' "$config_file" >/dev/null 2>&1; then
         log::warning "Resource configuration missing or invalid"
         ((issues++))

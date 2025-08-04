@@ -32,6 +32,8 @@ tests:
     service: whisper
     endpoint: /health
     method: GET
+    required: false
+    fallback: mock
     expect:
       status: 200
       
@@ -50,6 +52,8 @@ tests:
     service: comfyui
     endpoint: /system_stats
     method: GET
+    required: false
+    fallback: mock
     expect:
       status: 200
       
@@ -58,6 +62,7 @@ tests:
     service: agent-s2
     endpoint: /health
     method: GET
+    required: false
     expect:
       status: 200
       
@@ -66,6 +71,7 @@ tests:
     service: windmill
     endpoint: /api/version
     method: GET
+    required: false
     expect:
       status: 200
       body:

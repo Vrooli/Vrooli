@@ -287,7 +287,7 @@ find scripts/resources -name "inject.sh" -executable
 ./scripts/resources/automation/n8n/inject.sh --help
 
 # Check resource configuration
-jq '.services.ai.ollama' ~/.vrooli/resources.local.json
+jq '.services.ai.ollama' ~/.vrooli/service.json
 
 # Test resource APIs manually
 curl -v http://localhost:5678/healthz  # n8n
@@ -545,7 +545,7 @@ cd /path/to/vrooli && git log --oneline -5
 
 # Configuration
 cat ~/.vrooli/scenarios.json
-cat ~/.vrooli/resources.local.json
+cat ~/.vrooli/service.json
 
 # Error output
 ./scripts/resources/_injection/engine.sh --action inject --scenario PROBLEM_SCENARIO 2>&1 | tee injection-error.log

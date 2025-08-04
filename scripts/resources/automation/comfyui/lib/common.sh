@@ -255,7 +255,7 @@ comfyui::cleanup_help() {
     echo "   rm -rf ${COMFYUI_DATA_DIR}"
     echo
     echo "4. Remove from Vrooli configuration:"
-    echo "   Edit ~/.vrooli/resources.local.json and remove the 'comfyui' entry"
+    echo "   Edit ~/.vrooli/service.json and remove the 'comfyui' entry"
     echo
     echo "5. Clean up any orphaned volumes:"
     echo "   docker volume prune"

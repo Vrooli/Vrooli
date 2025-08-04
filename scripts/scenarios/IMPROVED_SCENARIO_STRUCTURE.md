@@ -200,7 +200,7 @@ Transform scenario into running application:
 
 ### **Phase 2: Configuration**
 ```bash
-# Generate .vrooli/resources.local.json with only required resources
+# Generate .vrooli/service.json with only required resources
 # This enables efficient deployment with minimal resource footprint
 ```
 
@@ -230,7 +230,7 @@ Transform scenario into running application:
 The new structure enables smart resource selection:
 
 ```json
-// .vrooli/resources.local.json - Generated automatically
+// .vrooli/service.json - Generated automatically
 {
   "services": {
     "ai": {

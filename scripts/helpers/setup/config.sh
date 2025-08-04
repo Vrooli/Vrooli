@@ -23,13 +23,8 @@ config::init() {
         mkdir -p "${vrooli_dir}"
     fi
     
-    # Initialize execution config
-    if config::init_execution_config "${vrooli_dir}"; then
-        config_created=true
-    fi
-    
-    # Initialize resources config
-    if config::init_resources_config "${vrooli_dir}"; then
+    # Initialize service config (unified configuration)
+    if config::init_service_config "${vrooli_dir}"; then
         config_created=true
     fi
     
@@ -43,71 +38,24 @@ config::init() {
     return 0
 }
 
-config::init_execution_config() {
+config::init_service_config() {
     local vrooli_dir="$1"
-    local example_file="${vrooli_dir}/execution.example.json"
-    local local_file="${vrooli_dir}/execution.local.json"
+    local example_file="${vrooli_dir}/examples/complete/ai-assistant.service.json"
+    local local_file="${vrooli_dir}/service.json"
     
-    # Skip if local file already exists
+    # Skip if service.json already exists
     if [[ -f "${local_file}" ]]; then
-        log::info "execution.local.json already exists, skipping"
+        log::info "service.json already exists, skipping"
         return 1
     fi
     
     # Check if example file exists
     if [[ ! -f "${example_file}" ]]; then
-        log::warning "execution.example.json not found, skipping execution config"
+        log::warning "service example not found at ${example_file}, skipping service config"
         return 1
     fi
     
-    log::info "Creating execution.local.json from example..."
-    
-    # Copy the example file
-    cp "${example_file}" "${local_file}"
-    
-    # For development environment, enable by default with safe settings
-    if env::in_development; then
-        log::info "Development environment detected - enabling local execution with safe defaults"
-        
-        # Use jq if available, otherwise use sed
-        if command -v jq &> /dev/null; then
-            # Enable execution and add shell to allowed languages
-            jq '.enabled = true | .allowedLanguages = ["javascript", "shell"]' "${local_file}" > "${local_file}.tmp" && \
-                mv "${local_file}.tmp" "${local_file}"
-        else
-            # Fallback to sed (less robust but works)
-            sed -i 's/"enabled": false/"enabled": true/' "${local_file}"
-            sed -i 's/"allowedLanguages": \["javascript"\]/"allowedLanguages": ["javascript", "shell"]/' "${local_file}"
-        fi
-        
-        log::success "Enabled local execution for development"
-        log::warning "⚠️  Local code execution is now enabled. Review security settings in execution.local.json"
-    else
-        log::info "Non-development environment - execution remains disabled by default"
-        log::info "To enable, edit execution.local.json and set 'enabled: true'"
-    fi
-    
-    return 0
-}
-
-config::init_resources_config() {
-    local vrooli_dir="$1"
-    local example_file="${vrooli_dir}/resources.example.json"
-    local local_file="${vrooli_dir}/resources.local.json"
-    
-    # Skip if local file already exists
-    if [[ -f "${local_file}" ]]; then
-        log::info "resources.local.json already exists, skipping"
-        return 1
-    fi
-    
-    # Check if example file exists
-    if [[ ! -f "${example_file}" ]]; then
-        log::warning "resources.example.json not found, skipping resources config"
-        return 1
-    fi
-    
-    log::info "Creating resources.local.json from example..."
+    log::info "Creating service.json from example..."
     
     # Copy the example file
     cp "${example_file}" "${local_file}"
@@ -116,14 +64,14 @@ config::init_resources_config() {
     local has_missing_vars=false
     local missing_vars=()
     
-    # Find all ${VAR_NAME} placeholders
+    # Find all \${VAR_NAME} placeholders
     local placeholders=$(grep -o '\${[^}]*}' "${local_file}" | sort -u || true)
     
     if [[ -n "${placeholders}" ]]; then
         log::info "Processing environment variable placeholders..."
         
         while IFS= read -r placeholder; do
-            # Extract variable name (remove ${ and })
+            # Extract variable name (remove \${ and })
             local var_name="${placeholder:2:-1}"
             local var_value="${!var_name:-}"
             
@@ -139,39 +87,54 @@ config::init_resources_config() {
         done <<< "${placeholders}"
     fi
     
-    # Disable services that have missing environment variables
+    # Handle missing environment variables
     if [[ "${has_missing_vars}" == "true" ]]; then
         log::warning "Some environment variables are not set: ${missing_vars[*]}"
-        log::info "Services requiring these variables will remain disabled"
+        log::info "Resources requiring these variables will remain disabled"
         
-        # Create a comment block at the top of the file about missing vars
+        # Create a comment in the service config about missing vars
         if command -v jq &> /dev/null; then
-            local comment=$(printf "Missing environment variables: %s. Set these in your .env file to enable related services." "${missing_vars[*]}")
+            local comment=$(printf "Missing environment variables: %s. Set these in your .env file to enable related resources." "${missing_vars[*]}")
             jq --arg comment "$comment" '._warning = $comment | . as $orig | {_warning: ._warning} + ($orig | del(._warning))' "${local_file}" > "${local_file}.tmp" && \
                 mv "${local_file}.tmp" "${local_file}"
         fi
     fi
     
-    # For development, check if common services are running and enable them
+    # For development environment, enable by default with safe settings
     if env::in_development; then
-        log::info "Checking for running services..."
+        log::info "Development environment detected - enabling local execution and checking for running services"
         
-        # Check if Ollama is running
-        if curl -s http://localhost:11434/api/tags &> /dev/null; then
-            log::info "Ollama detected - enabling in config"
-            if command -v jq &> /dev/null; then
-                jq '.enabled = true | .services.ai.ollama.enabled = true' "${local_file}" > "${local_file}.tmp" && \
+        # Use jq if available for complex JSON manipulation
+        if command -v jq &> /dev/null; then
+            # Enable execution with safe defaults
+            jq '.execution.enabled = true | .execution.environments.development.runtimes.languages |= map(if .name == "javascript" then .enabled = true else . end)' "${local_file}" > "${local_file}.tmp" && \
+                mv "${local_file}.tmp" "${local_file}"
+            
+            # Check if Ollama is running and enable it
+            if curl -s http://localhost:11434/api/tags &> /dev/null; then
+                log::info "Ollama detected - enabling in config"
+                jq '.resources.ai.ollama.enabled = true' "${local_file}" > "${local_file}.tmp" && \
                     mv "${local_file}.tmp" "${local_file}"
+            else
+                log::info "Ollama not detected - you can install it with: ./scripts/resources/ai/ollama/manage.sh --action install"
             fi
+            
+            # Could add more service detection here...
         else
-            log::info "Ollama not detected - you can install it with: ./scripts/resources/ai/ollama.sh --action install"
+            # Fallback to sed (less robust but works)
+            sed -i 's/"enabled": false/"enabled": true/' "${local_file}"
         fi
         
-        # Could add more service detection here...
+        log::success "Enabled local execution for development"
+        log::warning "⚠️  Local code execution is now enabled. Review security settings in service.json"
+    else
+        log::info "Non-development environment - execution remains disabled by default"
+        log::info "To enable, edit service.json and set 'execution.enabled: true'"
     fi
     
     return 0
 }
+
 
 # If this script is run directly, invoke its main function
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

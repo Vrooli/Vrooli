@@ -117,7 +117,7 @@ urls:
 
 # Resource configuration generation
 resource_config:
-  # Generate .vrooli/resources.local.json with only required resources
+  # Generate .vrooli/service.json with only required resources
   enabled_only: true
   
   # Override default ports if needed

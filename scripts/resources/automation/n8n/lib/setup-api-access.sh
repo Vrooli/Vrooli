@@ -31,7 +31,7 @@ NC='\033[0m' # No Color
 
 # Configuration
 N8N_BASE_URL="http://localhost:5678"
-CONFIG_FILE="$HOME/.vrooli/resources.local.json"
+CONFIG_FILE="$HOME/.vrooli/service.json"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Parse command line arguments

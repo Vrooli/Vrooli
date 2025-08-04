@@ -294,7 +294,7 @@ resources::execute_action() {
     if resources::is_api_based "$resource"; then
         if [[ "$action" == "install" ]]; then
             log::info "🌐 $resource: API-based service (no local installation needed)"
-            log::info "   Configure API keys in environment variables and enable in resources.local.json"
+            log::info "   Configure API keys in environment variables and enable in service.json"
             return 0  # Success - no installation needed
         elif [[ "$action" == "status" ]]; then
             log::info "🌐 $resource: API-based service (check configuration and API keys)"
@@ -641,7 +641,7 @@ resources::discover_running() {
         
         echo
         log::success "✅ Auto-configuration complete"
-        log::info "Configured resources are now available in ~/.vrooli/resources.local.json"
+        log::info "Configured resources are now available in ~/.vrooli/service.json"
     else
         echo
         log::info "To configure discovered resources for Vrooli, run:"
@@ -862,7 +862,7 @@ resources::main() {
     if [[ "$ACTION" == "install" && $success_count -gt 0 ]]; then
         echo
         log::header "🎯 Next Steps"
-        log::info "1. Resources have been configured in ~/.vrooli/resources.local.json"
+        log::info "1. Resources have been configured in ~/.vrooli/service.json"
         log::info "2. Start your Vrooli development environment to begin using these resources"
         log::info "3. Check resource status with: $0 --action status --resources $RESOURCES_INPUT"
     fi

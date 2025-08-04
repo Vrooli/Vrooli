@@ -41,6 +41,115 @@ print_debug() {
     fi
 }
 
+# Map resource names to service.json paths
+get_service_path() {
+    local resource_name="$1"
+    case "$resource_name" in
+        # AI resources
+        ollama) echo "resources.ai.ollama" ;;
+        whisper) echo "resources.ai.whisper" ;;
+        comfyui) echo "resources.ai.comfyui" ;;
+        unstructured-io) echo "resources.ai.unstructured-io" ;;
+        openrouter) echo "resources.ai.openrouter" ;;
+        
+        # Storage resources
+        postgres|postgresql) echo "resources.storage.postgres" ;;
+        redis) echo "resources.storage.redis" ;;
+        minio) echo "resources.storage.minio" ;;
+        qdrant) echo "resources.storage.qdrant" ;;
+        
+        # Automation resources
+        n8n) echo "resources.automation.n8n" ;;
+        windmill) echo "resources.automation.windmill" ;;
+        node-red) echo "resources.automation.node-red" ;;
+        huginn) echo "resources.automation.huginn" ;;
+        
+        # Agent resources
+        agent-s2) echo "resources.agents.agent-s2" ;;
+        claude-code) echo "resources.agents.claude-code" ;;
+        browserless) echo "resources.agents.browserless" ;;
+        
+        # Execution resources
+        judge0) echo "resources.execution.judge0" ;;
+        bullmq) echo "resources.execution.bullmq" ;;
+        
+        # Search resources
+        searxng) echo "resources.search.searxng" ;;
+        
+        # Security resources
+        vault) echo "resources.security.vault" ;;
+        
+        # Default: assume it's already a path or return as-is
+        *) echo "$resource_name" ;;
+    esac
+}
+
+# Check if resource is enabled in service.json
+is_resource_enabled() {
+    local resource_name="$1"
+    local service_config="$2"
+    
+    if [[ ! -f "$service_config" ]] || ! command -v jq >/dev/null 2>&1; then
+        return 0  # Assume enabled if we can't check
+    fi
+    
+    local service_path=$(get_service_path "$resource_name")
+    local enabled=$(jq -r ".$service_path.enabled // false" "$service_config" 2>/dev/null || echo "false")
+    
+    [[ "$enabled" == "true" ]]
+}
+
+# Get resource URL from service.json format
+get_service_url() {
+    local resource_name="$1"
+    local service_config="$2"
+    
+    if [[ ! -f "$service_config" ]] || ! command -v jq >/dev/null 2>&1; then
+        return 1
+    fi
+    
+    local service_path=$(get_service_path "$resource_name")
+    
+    # Check if resource is enabled
+    if ! is_resource_enabled "$resource_name" "$service_config"; then
+        return 1  # Resource disabled
+    fi
+    
+    # Try different URL patterns
+    local resource_url=""
+    
+    # Pattern 1: baseUrl (most HTTP services)
+    resource_url=$(jq -r ".$service_path.baseUrl // empty" "$service_config" 2>/dev/null || echo "")
+    
+    # Pattern 2: host + port (databases, some services)
+    if [[ -z "$resource_url" ]]; then
+        local host=$(jq -r ".$service_path.host // empty" "$service_config" 2>/dev/null || echo "")
+        local port=$(jq -r ".$service_path.port // empty" "$service_config" 2>/dev/null || echo "")
+        
+        if [[ -n "$host" && -n "$port" ]]; then
+            # Determine protocol based on resource type
+            case "$resource_name" in
+                postgres|postgresql)
+                    resource_url="postgresql://$host:$port"
+                    ;;
+                redis)
+                    resource_url="redis://$host:$port"
+                    ;;
+                *)
+                    resource_url="http://$host:$port"
+                    ;;
+            esac
+        fi
+    fi
+    
+    if [[ -n "$resource_url" ]]; then
+        echo "$resource_url"
+        return 0
+    fi
+    
+    return 1
+}
+
 # Get resource URL with multiple fallback methods
 get_resource_url() {
     local resource_name="$1"
@@ -48,36 +157,51 @@ get_resource_url() {
     
     print_debug "Looking up URL for resource: $resource_name"
     
-    # Method 1: Check .vrooli/resources.local.json
-    local resources_config=""
+    # Method 1: Check .vrooli/service.json (NEW FORMAT)
+    local service_config="$HOME/.vrooli/service.json"
+    if [[ ! -f "$service_config" ]]; then
+        service_config="$(git rev-parse --show-toplevel 2>/dev/null)/.vrooli/service.json" || true
+    fi
     
-    # Try current directory first
-    if [[ -f ".vrooli/resources.local.json" ]]; then
-        resources_config=".vrooli/resources.local.json"
-    # Try user home directory
-    elif [[ -f "$HOME/.vrooli/resources.local.json" ]]; then
-        resources_config="$HOME/.vrooli/resources.local.json"
-    # Try git root directory
-    elif [[ -n "${PWD:-}" ]]; then
-        local git_root=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
-        if [[ -n "$git_root" && -f "$git_root/.vrooli/resources.local.json" ]]; then
-            resources_config="$git_root/.vrooli/resources.local.json"
+    if [[ -f "$service_config" ]]; then
+        resource_url=$(get_service_url "$resource_name" "$service_config" 2>/dev/null || echo "")
+        if [[ -n "$resource_url" ]]; then
+            print_debug "Found URL in service.json: $resource_url"
         fi
     fi
     
-    if [[ -n "$resources_config" ]] && [[ -f "$resources_config" ]]; then
-        print_debug "Found resources config: $resources_config"
+    # Method 1b: Check .vrooli/service.json (LEGACY SUPPORT)
+    if [[ -z "$resource_url" ]]; then
+        local resources_config=""
         
-        if command -v jq >/dev/null 2>&1; then
-            # Try different path structures in the JSON
-            resource_url=$(jq -r ".\"$resource_name\".url // .resources.\"$resource_name\".url // empty" "$resources_config" 2>/dev/null || echo "")
-            
-            # If empty, try with enabled resources
-            if [[ -z "$resource_url" ]]; then
-                resource_url=$(jq -r "to_entries[] | select(.value.enabled == true and .key == \"$resource_name\") | .value.url // empty" "$resources_config" 2>/dev/null || echo "")
+        # Try current directory first
+        if [[ -f ".vrooli/service.json" ]]; then
+            resources_config=".vrooli/service.json"
+        # Try user home directory
+        elif [[ -f "$HOME/.vrooli/service.json" ]]; then
+            resources_config="$HOME/.vrooli/service.json"
+        # Try git root directory
+        elif [[ -n "${PWD:-}" ]]; then
+            local git_root=$(git rev-parse --show-toplevel 2>/dev/null || echo "")
+            if [[ -n "$git_root" && -f "$git_root/.vrooli/service.json" ]]; then
+                resources_config="$git_root/.vrooli/service.json"
             fi
-        else
-            print_debug "jq not available, skipping JSON parsing"
+        fi
+        
+        if [[ -n "$resources_config" ]] && [[ -f "$resources_config" ]]; then
+            print_debug "Found legacy resources config: $resources_config"
+            
+            if command -v jq >/dev/null 2>&1; then
+                # Try different path structures in the JSON
+                resource_url=$(jq -r ".\"$resource_name\".url // .resources.\"$resource_name\".url // empty" "$resources_config" 2>/dev/null || echo "")
+                
+                # If empty, try with enabled resources
+                if [[ -z "$resource_url" ]]; then
+                    resource_url=$(jq -r "to_entries[] | select(.value.enabled == true and .key == \"$resource_name\") | .value.url // empty" "$resources_config" 2>/dev/null || echo "")
+                fi
+            else
+                print_debug "jq not available, skipping JSON parsing"
+            fi
         fi
     fi
     
@@ -483,6 +607,9 @@ url_encode() {
 }
 
 # Export all functions
+export -f get_service_path
+export -f is_resource_enabled
+export -f get_service_url
 export -f get_resource_url
 export -f is_resource_available
 export -f check_url_health

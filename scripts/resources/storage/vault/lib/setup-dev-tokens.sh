@@ -34,7 +34,7 @@ NC='\033[0m' # No Color
 # Configuration
 VAULT_BASE_URL="http://localhost:8200"
 TOKEN_FILE="/tmp/vault-token"
-CONFIG_FILE="$HOME/.vrooli/resources.local.json"
+CONFIG_FILE="$HOME/.vrooli/service.json"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Parse command line arguments

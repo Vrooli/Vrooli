@@ -56,7 +56,7 @@ minio::install() {
     # Update Vrooli configuration
     if ! minio::install::update_vrooli_config; then
         log::warn "Failed to update Vrooli configuration"
-        log::info "You may need to manually add MinIO to ~/.vrooli/resources.local.json"
+        log::info "You may need to manually add MinIO to ~/.vrooli/service.json"
     fi
     
     # Test functionality
@@ -118,7 +118,7 @@ minio::install::pre_checks() {
 # Returns: 0 on success, 1 on failure
 #######################################
 minio::install::update_vrooli_config() {
-    local config_file="${HOME}/.vrooli/resources.local.json"
+    local config_file="${HOME}/.vrooli/service.json"
     local config_dir=$(dirname "$config_file")
     
     # Create directory if it doesn't exist

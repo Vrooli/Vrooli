@@ -43,7 +43,7 @@ postgres::install() {
     # Update Vrooli configuration
     if ! postgres::install::update_vrooli_config; then
         log::warn "Failed to update Vrooli configuration"
-        log::info "You may need to manually add PostgreSQL to ~/.vrooli/resources.local.json"
+        log::info "You may need to manually add PostgreSQL to ~/.vrooli/service.json"
     fi
     
     # Show success message
@@ -118,7 +118,7 @@ postgres::uninstall() {
     # Remove from Vrooli configuration
     if ! postgres::install::remove_vrooli_config; then
         log::warn "Failed to remove from Vrooli configuration"
-        log::info "You may need to manually remove PostgreSQL from ~/.vrooli/resources.local.json"
+        log::info "You may need to manually remove PostgreSQL from ~/.vrooli/service.json"
     fi
     
     log::success "${MSG_UNINSTALL_SUCCESS}"
@@ -262,7 +262,7 @@ EOF
 # Returns: 0 on success, 1 on failure
 #######################################
 postgres::install::update_vrooli_config() {
-    local config_file="${HOME}/.vrooli/resources.local.json"
+    local config_file="${HOME}/.vrooli/service.json"
     local base_url="http://localhost:${POSTGRES_DEFAULT_PORT}"
     
     # Create configuration JSON
@@ -316,7 +316,7 @@ postgres::install::update_vrooli_config() {
 # Returns: 0 on success, 1 on failure
 #######################################
 postgres::install::remove_vrooli_config() {
-    local config_file="${HOME}/.vrooli/resources.local.json"
+    local config_file="${HOME}/.vrooli/service.json"
     
     if [[ ! -f "$config_file" ]]; then
         return 0  # Nothing to remove

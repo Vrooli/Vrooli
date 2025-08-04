@@ -272,9 +272,9 @@ generate_resource_config() {
     
     log_verbose "Required resources: $required_resources"
     
-    # Generate .vrooli/resources.local.json with only required resources
+    # Generate .vrooli/service.json with only required resources
     local config_dir="$HOME/.vrooli"
-    local config_file="$config_dir/resources.local.json"
+    local config_file="$config_dir/service.json"
     
     if [[ "$DRY_RUN" == "true" ]]; then
         log_info "Would generate resource config with resources: $required_resources"

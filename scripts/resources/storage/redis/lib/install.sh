@@ -148,7 +148,7 @@ redis::install::create_cli_helper() {
 # This script connects to the Redis resource instance
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "${SCRIPT_DIR}/../../resources.local.json" 2>/dev/null || true
+source "${SCRIPT_DIR}/../../service.json" 2>/dev/null || true
 
 REDIS_PORT="${REDIS_PORT:-6380}"
 REDIS_PASSWORD="${REDIS_PASSWORD:-}"
@@ -168,7 +168,7 @@ EOF
 # Update resource configuration
 #######################################
 redis::install::update_resource_config() {
-    local config_file="${HOME}/.vrooli/resources.local.json"
+    local config_file="${HOME}/.vrooli/service.json"
     
     if [[ -f "$config_file" ]]; then
         # Use jq to update configuration if available
@@ -251,7 +251,7 @@ redis::install::uninstall() {
         rm -f "${HOME}/.vrooli/redis/logrotate.conf"
         
         # Update resource configuration
-        local config_file="${HOME}/.vrooli/resources.local.json"
+        local config_file="${HOME}/.vrooli/service.json"
         if [[ -f "$config_file" ]] && command -v jq >/dev/null 2>&1; then
             local temp_config
             temp_config=$(mktemp)

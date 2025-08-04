@@ -346,7 +346,7 @@ teardown() {
     mkdir -p "$SCRIPT_DIR/flows"
     echo 'module.exports = {};' > "$SCRIPT_DIR/settings.js"
     mkdir -p "$NODE_RED_TEST_CONFIG_DIR"
-    echo '{"services": {"automation": {"node-red": {"enabled": true}}}}' > "$NODE_RED_TEST_CONFIG_DIR/resources.local.json"
+    echo '{"services": {"automation": {"node-red": {"enabled": true}}}}' > "$NODE_RED_TEST_CONFIG_DIR/service.json"
     
     # Test health check
     run node_red::health_check
@@ -365,7 +365,7 @@ teardown() {
     # Test configuration creation
     run node_red::update_resource_config
     assert_success
-    assert_file_exists "$NODE_RED_TEST_CONFIG_DIR/resources.local.json"
+    assert_file_exists "$NODE_RED_TEST_CONFIG_DIR/service.json"
     
     # Test configuration removal
     run node_red::remove_resource_config
@@ -646,7 +646,7 @@ teardown() {
     mkdir -p "$SCRIPT_DIR/flows" "$SCRIPT_DIR/nodes"
     echo 'module.exports = {};' > "$SCRIPT_DIR/settings.js"
     mkdir -p "$NODE_RED_TEST_CONFIG_DIR"
-    echo '{"services": {"automation": {"node-red": {"enabled": true}}}}' > "$NODE_RED_TEST_CONFIG_DIR/resources.local.json"
+    echo '{"services": {"automation": {"node-red": {"enabled": true}}}}' > "$NODE_RED_TEST_CONFIG_DIR/service.json"
     
     # Everything should validate successfully
     run node_red::validate_installation

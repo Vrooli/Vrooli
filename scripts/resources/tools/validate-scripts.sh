@@ -140,7 +140,7 @@ log_info "Fix mode: $FIX_MODE"
 check_dangerous_overwrites() {
     log_info "Checking for dangerous file overwrite patterns..."
     
-    # Pattern 1: Direct writes to resources.local.json
+    # Pattern 1: Direct writes to service.json
     local dangerous_files=()
     while IFS= read -r -d '' file; do
         dangerous_files+=("$file")
@@ -156,7 +156,7 @@ check_dangerous_overwrites() {
         if grep -q "cat.*>.*resources\.local\.json" "$file" 2>/dev/null && \
            ! grep -q "#.*cat.*>.*resources\.local\.json\|^[[:space:]]*#.*cat.*>.*" "$file" 2>/dev/null; then
             log_error "File $file contains dangerous config overwrite pattern:"
-            log_error "  Found: cat ... > resources.local.json"
+            log_error "  Found: cat ... > service.json"
             log_error "  Risk: Complete config file overwrite, API key loss"
             log_error "  Fix: Use resources::update_config() from common.sh instead"
             echo
@@ -165,7 +165,7 @@ check_dangerous_overwrites() {
         if grep -q "echo.*>.*resources\.local\.json" "$file" 2>/dev/null && \
            ! grep -q "#.*echo.*>.*resources\.local\.json\|^[[:space:]]*#.*echo.*>.*" "$file" 2>/dev/null; then
             log_error "File $file contains dangerous config overwrite pattern:"
-            log_error "  Found: echo ... > resources.local.json"
+            log_error "  Found: echo ... > service.json"
             log_error "  Risk: Complete config file overwrite, API key loss"
             log_error "  Fix: Use resources::update_config() from common.sh instead"
             echo

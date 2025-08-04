@@ -321,7 +321,7 @@ UNSTRUCTURED_IO_TIMEOUT_SECONDS=300
 
 ### Resource Configuration
 
-Edit `~/.vrooli/resources.local.json`:
+Edit `~/.vrooli/service.json`:
 
 ```json
 {

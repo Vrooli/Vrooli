@@ -38,7 +38,7 @@ Local AI and automation tools that extend Vrooli's capabilities through modular 
 
 - **Discovery**: `./index.sh --action discover`
 - **Installation**: See [setup documentation](../main/README.md)
-- **Configuration**: `~/.vrooli/resources.local.json`
+- **Configuration**: `~/.vrooli/service.json`
 - **Validation**: `./tools/validate-interfaces.sh`
 
 ## 🎯 Scenario Deployment

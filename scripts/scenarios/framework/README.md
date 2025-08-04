@@ -162,12 +162,13 @@ test_scenario_workflow() {
 export -f test_scenario_workflow
 ```
 
-## Resource Discovery
+## Resource Discovery (UPDATED: New Configuration Format)
 
 Resources are automatically discovered from:
-1. `.vrooli/resources.local.json` (primary)
-2. Environment variables (fallback)
-3. Default ports (last resort)
+1. `.vrooli/service.json` (NEW: primary format)
+2. `.vrooli/service.json` (legacy support)  
+3. Environment variables (fallback)
+4. Default ports (last resort)
 
 Example resource configuration:
 ```json
@@ -201,6 +202,9 @@ Example resource configuration:
 - **Business-focused** - Tests validate business operations
 - **Maintainable** - Clear separation of concerns
 - **Extensible** - Easy to add new test types
+- **Graceful degradation** - Tests can continue with partial functionality (NEW)
+- **Mock support** - Simulate unavailable services for testing (NEW)
+- **Improved resilience** - Better handling of resource unavailability (NEW)
 
 ## Common Patterns
 
@@ -228,14 +232,21 @@ Example resource configuration:
       action: health_check
 ```
 
-### Optional Service Testing
+### Optional Service Testing (NEW: Graceful Degradation)
 ```yaml
 - name: "Optional Service"
   type: http
   service: optional-service
   endpoint: /status
-  required: false  # Won't fail if service unavailable
+  required: false      # Won't fail if service unavailable
+  fallback: mock       # Use mock response when unavailable
 ```
+
+#### Graceful Degradation Features
+- **Optional Services**: Mark tests as `required: false` to allow graceful degradation
+- **Mock Responses**: Use `fallback: mock` to simulate responses when services are unavailable
+- **Improved Reporting**: Degraded tests show as warnings, not failures
+- **Business Continuity**: Tests can continue with partial functionality instead of failing completely
 
 ## Troubleshooting
 
@@ -245,7 +256,7 @@ Example resource configuration:
 - Review logs: Tests output detailed error messages
 
 ### Resource Discovery Issues
-- Verify `.vrooli/resources.local.json` exists
+- Verify `.vrooli/service.json` exists
 - Check environment variables are set
 - Ensure services are running on expected ports
 

@@ -123,7 +123,7 @@ cd core/customer-call-assistant
   --output ~/deployments/customer-app
 
 # Generates:
-# ✅ Minimal resources.local.json (only needed resources)
+# ✅ Minimal service.json (only needed resources)
 # ✅ Docker Compose file for deployment
 # ✅ Customer documentation
 # ✅ Monitoring and logging setup

@@ -597,7 +597,7 @@ node_red::verify_installation() {
     
     # Check configuration
     echo -n "Resource config: "
-    local config_file="$HOME/.vrooli/resources.local.json"
+    local config_file="$HOME/.vrooli/service.json"
     if [[ -f "$config_file" ]] && jq -e '.services.automation."node-red"' "$config_file" >/dev/null 2>&1; then
         echo "✓"
     else

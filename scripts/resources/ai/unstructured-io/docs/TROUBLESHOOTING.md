@@ -286,7 +286,7 @@ export CHUNK_CHARS=1000
 
 5. **Review configuration:**
    ```bash
-   cat ~/.vrooli/resources.local.json | jq '.services.ai."unstructured-io"'
+   cat ~/.vrooli/service.json | jq '.services.ai."unstructured-io"'
    ```
 
 ## 📝 Reporting Issues
@@ -311,7 +311,7 @@ When reporting issues, include:
 rm -rf ~/.vrooli/cache/unstructured-io
 
 # 3. Remove configuration
-rm -f ~/.vrooli/resources.local.json
+rm -f ~/.vrooli/service.json
 
 # 4. Reinstall
 ./manage.sh --action install

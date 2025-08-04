@@ -169,18 +169,18 @@ agents2::export_config() {
 }
 
 #######################################
-# Load environment variables from resources.local.json
+# Load environment variables from service.json
 # This function looks for agent-s2 environment configuration
 # and exports the variables for docker-compose
 #######################################
 agents2::load_environment_from_config() {
-    local config_file="${HOME}/.vrooli/resources.local.json"
+    local config_file="${HOME}/.vrooli/service.json"
     
     # Check if config file exists and has agent-s2 configuration
     if [[ -f "$config_file" ]] && command -v jq >/dev/null 2>&1; then
         # Check if agent-s2 has environment configuration
         if jq -e '.services.agents."agent-s2".environment' "$config_file" >/dev/null 2>&1; then
-            log::info "Loading Agent-S2 environment variables from resources.local.json"
+            log::info "Loading Agent-S2 environment variables from service.json"
             
             # Extract and export each environment variable
             while IFS="=" read -r key value; do
@@ -192,7 +192,7 @@ agents2::load_environment_from_config() {
                 fi
             done < <(jq -r '.services.agents."agent-s2".environment | to_entries[] | "\(.key)=\(.value)"' "$config_file" 2>/dev/null)
         else
-            log::debug "No environment configuration found for agent-s2 in resources.local.json"
+            log::debug "No environment configuration found for agent-s2 in service.json"
         fi
     else
         log::debug "Resources configuration file not found or jq not available"

@@ -446,7 +446,7 @@ export COMFYUI_DISABLE_SYNCTHING=true
 
 ### Vrooli Resource Integration
 
-ComfyUI is automatically configured in `~/.vrooli/resources.local.json`:
+ComfyUI is automatically configured in `~/.vrooli/service.json`:
 
 ```json
 {

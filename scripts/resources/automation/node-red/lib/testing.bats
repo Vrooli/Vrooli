@@ -489,7 +489,7 @@ teardown() {
     mkdir -p "$SCRIPT_DIR/flows"
     echo 'module.exports = {};' > "$SCRIPT_DIR/settings.js"
     mkdir -p "$NODE_RED_TEST_CONFIG_DIR"
-    echo '{"services": {"automation": {"node-red": {"enabled": true}}}}' > "$NODE_RED_TEST_CONFIG_DIR/resources.local.json"
+    echo '{"services": {"automation": {"node-red": {"enabled": true}}}}' > "$NODE_RED_TEST_CONFIG_DIR/service.json"
     
     # Mock docker image and network checks
     docker() {

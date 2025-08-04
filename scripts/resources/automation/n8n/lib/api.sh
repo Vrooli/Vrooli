@@ -26,7 +26,7 @@ n8n::execute() {
     
     # If not in env, try to load from resources config
     if [[ -z "$api_key" ]]; then
-        local config_file="${HOME}/.vrooli/resources.local.json"
+        local config_file="${HOME}/.vrooli/service.json"
         if [[ -f "$config_file" ]]; then
             api_key=$(jq -r '.services.automation.n8n.apiKey // empty' "$config_file" 2>/dev/null)
         fi
@@ -190,7 +190,7 @@ n8n::save_api_key() {
     mkdir -p "$config_dir"
     
     # Load existing config or create new
-    local config_file="${config_dir}/resources.local.json"
+    local config_file="${config_dir}/service.json"
     local config
     
     if [[ -f "$config_file" ]]; then
@@ -247,7 +247,7 @@ n8n::list_workflows() {
     
     # Try to load API key from config if not in env
     if [[ -z "$api_key" ]]; then
-        local config_file="${HOME}/.vrooli/resources.local.json"
+        local config_file="${HOME}/.vrooli/service.json"
         if [[ -f "$config_file" ]]; then
             api_key=$(jq -r '.services.automation.n8n.apiKey // empty' "$config_file" 2>/dev/null)
         fi
@@ -288,7 +288,7 @@ n8n::get_executions() {
     
     # Try to load API key from config if not in env
     if [[ -z "$api_key" ]]; then
-        local config_file="${HOME}/.vrooli/resources.local.json"
+        local config_file="${HOME}/.vrooli/service.json"
         if [[ -f "$config_file" ]]; then
             api_key=$(jq -r '.services.automation.n8n.apiKey // empty' "$config_file" 2>/dev/null)
         fi
@@ -326,7 +326,7 @@ n8n::test_api() {
     
     # Try to load API key from config if not in env
     if [[ -z "$api_key" ]]; then
-        local config_file="${HOME}/.vrooli/resources.local.json"
+        local config_file="${HOME}/.vrooli/service.json"
         if [[ -f "$config_file" ]]; then
             api_key=$(jq -r '.services.automation.n8n.apiKey // empty' "$config_file" 2>/dev/null)
         fi

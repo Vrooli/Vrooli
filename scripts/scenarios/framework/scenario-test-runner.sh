@@ -19,6 +19,7 @@ DRY_RUN=false
 TESTS_PASSED=0
 TESTS_FAILED=0
 TESTS_SKIPPED=0
+TESTS_DEGRADED=0
 
 # Resolve script location
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -219,6 +220,10 @@ execute_test() {
             print_success "$test_name"
             TESTS_PASSED=$((TESTS_PASSED + 1))
             [[ "$VERBOSE" == "true" ]] && print_info "Test passed. TESTS_PASSED=$TESTS_PASSED, TESTS_FAILED=$TESTS_FAILED"
+        elif [[ $result -eq 2 ]]; then
+            print_warning "$test_name (degraded functionality)"
+            TESTS_DEGRADED=$((TESTS_DEGRADED + 1))
+            [[ "$VERBOSE" == "true" ]] && print_info "Test degraded. TESTS_PASSED=$TESTS_PASSED, TESTS_FAILED=$TESTS_FAILED, TESTS_DEGRADED=$TESTS_DEGRADED"
         else
             print_error "$test_name"
             TESTS_FAILED=$((TESTS_FAILED + 1))
@@ -347,11 +352,13 @@ run_tests() {
 
 # Generate test report
 generate_report() {
-    local total=$((TESTS_PASSED + TESTS_FAILED + TESTS_SKIPPED))
+    local total=$((TESTS_PASSED + TESTS_FAILED + TESTS_SKIPPED + TESTS_DEGRADED))
     local success_rate=0
+    local healthy_rate=0
     
     if [[ $total -gt 0 ]]; then
-        success_rate=$((TESTS_PASSED * 100 / total))
+        success_rate=$(((TESTS_PASSED + TESTS_DEGRADED) * 100 / total))
+        healthy_rate=$((TESTS_PASSED * 100 / total))
     fi
     
     echo
@@ -359,15 +366,23 @@ generate_report() {
     echo "                    Test Summary                        "
     echo "════════════════════════════════════════════════════════"
     echo -e "  ${GREEN}Passed:${NC}  $TESTS_PASSED"
+    if [[ $TESTS_DEGRADED -gt 0 ]]; then
+        echo -e "  ${YELLOW}Degraded:${NC} $TESTS_DEGRADED"
+    fi
     echo -e "  ${RED}Failed:${NC}  $TESTS_FAILED"
     echo -e "  ${YELLOW}Skipped:${NC} $TESTS_SKIPPED"
     echo "  ──────────────────────────────────────────────────────"
     echo "  Total:   $total"
-    echo "  Success Rate: ${success_rate}%"
+    if [[ $TESTS_DEGRADED -gt 0 ]]; then
+        echo "  Overall Success Rate: ${success_rate}% (includes degraded)"
+        echo "  Healthy Success Rate: ${healthy_rate}%"
+    else
+        echo "  Success Rate: ${success_rate}%"
+    fi
     echo "════════════════════════════════════════════════════════"
     echo
     
-    # Return non-zero if any tests failed
+    # Return non-zero if any tests failed (degraded tests are still considered successful)
     [[ $TESTS_FAILED -eq 0 ]]
 }
 

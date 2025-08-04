@@ -164,10 +164,10 @@ get_resource_url() {
         fi
     fi
     
-    # Method 2: Check .vrooli/resources.local.json (OLD FORMAT - backward compatibility)
-    local resources_config="$HOME/.vrooli/resources.local.json"
+    # Method 2: Check .vrooli/service.json (OLD FORMAT - backward compatibility)
+    local resources_config="$HOME/.vrooli/service.json"
     if [[ ! -f "$resources_config" ]]; then
-        resources_config="$(git rev-parse --show-toplevel 2>/dev/null)/.vrooli/resources.local.json" || true
+        resources_config="$(git rev-parse --show-toplevel 2>/dev/null)/.vrooli/service.json" || true
     fi
     
     if [[ -f "$resources_config" ]] && command -v jq >/dev/null 2>&1; then

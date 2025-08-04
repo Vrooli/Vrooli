@@ -500,7 +500,7 @@ export N8N_WEBHOOK_MONITORING_URL=https://monitoring.company.com/webhook
 
 ### Vrooli Resource Integration
 
-n8n is automatically configured in `~/.vrooli/resources.local.json`:
+n8n is automatically configured in `~/.vrooli/service.json`:
 
 ```json
 {

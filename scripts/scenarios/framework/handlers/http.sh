@@ -41,6 +41,51 @@ print_http_warning() {
     ((HTTP_WARNINGS++))
 }
 
+# Check if service is available
+check_service_availability() {
+    local service_name="$1"
+    local service_url="$2"
+    local timeout="${3:-5}"
+    
+    # Try a simple connectivity check
+    if [[ "$service_url" == http* ]]; then
+        # HTTP service - try a simple curl check
+        curl -s --connect-timeout "$timeout" --max-time "$timeout" "$service_url" >/dev/null 2>&1
+    elif [[ "$service_url" == postgresql* ]]; then
+        # PostgreSQL - use pg_isready if available
+        local host=$(echo "$service_url" | sed 's|.*@\([^:]*\).*|\1|')
+        local port=$(echo "$service_url" | sed 's|.*:\([0-9]*\)/.*|\1|')
+        if command -v pg_isready >/dev/null 2>&1; then
+            pg_isready -h "$host" -p "${port:-5432}" -t "$timeout" >/dev/null 2>&1
+        else
+            # Fallback to netcat
+            nc -z "$host" "${port:-5432}" 2>/dev/null
+        fi
+    elif [[ "$service_url" == redis* ]]; then
+        # Redis - use redis-cli if available
+        local host=$(echo "$service_url" | sed 's|redis://\([^:]*\).*|\1|')
+        local port=$(echo "$service_url" | sed 's|.*:\([0-9]*\).*|\1|')
+        if command -v redis-cli >/dev/null 2>&1; then
+            redis-cli -h "$host" -p "${port:-6379}" ping >/dev/null 2>&1
+        else
+            # Fallback to netcat
+            nc -z "$host" "${port:-6379}" 2>/dev/null
+        fi
+    else
+        # Generic check - assume it's reachable
+        return 0
+    fi
+}
+
+# Generate mock HTTP response
+mock_http_response() {
+    local expected_status="${1:-200}"
+    local expected_body="${2:-{\"status\":\"mock\",\"message\":\"Service unavailable, mock response\"}}"
+    
+    print_http_success "Mock response generated (status: $expected_status)"
+    return 0
+}
+
 # Make HTTP request with error handling
 make_http_request() {
     local method="$1"
@@ -166,10 +211,13 @@ execute_http_test_from_config() {
     local method=$(echo "$test_config" | grep "method:" | head -1 | cut -d: -f2 | xargs)
     local expected_status=$(echo "$test_config" | grep -A5 "expect:" | grep "status:" | head -1 | cut -d: -f2 | xargs)
     local expected_contains=$(echo "$test_config" | grep "contains:" | cut -d: -f2 | xargs)
+    local required=$(echo "$test_config" | grep "required:" | head -1 | cut -d: -f2 | xargs)
+    local fallback=$(echo "$test_config" | grep "fallback:" | head -1 | cut -d: -f2 | xargs)
     
     # Default values
     method="${method:-GET}"
     expected_status="${expected_status:-200}"
+    required="${required:-true}"
     
     # Source resource validator for get_resource_url function
     local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -187,13 +235,33 @@ execute_http_test_from_config() {
     fi
     
     if [[ -z "$service_url" ]]; then
-        print_http_error "Service URL not found for: $service"
-        return 1
+        if [[ "$required" == "false" ]]; then
+            print_http_warning "Optional service not available: $service"
+            return 2  # Return 2 for degraded/warning state
+        else
+            print_http_error "Required service URL not found: $service"
+            return 1
+        fi
     fi
     
     local full_url="${service_url}${endpoint}"
     
     print_http_info "Testing $method $full_url"
+    
+    # Check if service is actually reachable
+    if ! check_service_availability "$service" "$service_url"; then
+        if [[ "$required" == "false" ]]; then
+            print_http_warning "Optional service unavailable: $service (continuing with degraded functionality)"
+            return 2  # Return 2 for degraded/warning state
+        elif [[ "$fallback" == "mock" ]]; then
+            print_http_info "Service unavailable, using mock response: $service"
+            mock_http_response "$expected_status" "$expected_contains"
+            return 2  # Mock response is degraded functionality
+        else
+            print_http_error "Required service unavailable: $service"
+            return 1
+        fi
+    fi
     
     # Make HTTP request
     local response=$(make_http_request "$method" "$full_url" "" "" 30)

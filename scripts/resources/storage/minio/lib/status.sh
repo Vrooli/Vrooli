@@ -107,7 +107,7 @@ minio::status::check() {
 # Returns: 0 if registered, 1 if not
 #######################################
 minio::status::check_vrooli_config() {
-    local config_file="${HOME}/.vrooli/resources.local.json"
+    local config_file="${HOME}/.vrooli/service.json"
     
     if [[ ! -f "$config_file" ]]; then
         return 1

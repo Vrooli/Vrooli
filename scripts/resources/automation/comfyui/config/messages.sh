@@ -97,7 +97,7 @@ ComfyUI automatically registers with Vrooli's resource system. Use it in:
 - Automation routines
 - Agent-based image generation
 
-The resource configuration is stored in ~/.vrooli/resources.local.json
+The resource configuration is stored in ~/.vrooli/service.json
 
 ENVIRONMENT VARIABLES
 --------------------

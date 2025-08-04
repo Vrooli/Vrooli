@@ -185,7 +185,7 @@ EOF
 # Remove Node-RED from resource configuration
 #######################################
 node_red::remove_resource_config() {
-    local config_file="$HOME/.vrooli/resources.local.json"
+    local config_file="$HOME/.vrooli/service.json"
     
     if [[ -f "$config_file" ]]; then
         # Remove node-red configuration

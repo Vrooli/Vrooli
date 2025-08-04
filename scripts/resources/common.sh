@@ -27,7 +27,7 @@ source "${RESOURCES_DIR}/../helpers/utils/docker.sh"
 # Use the project's .vrooli directory, not the home directory
 VROOLI_PROJECT_ROOT=$(cd "${RESOURCES_DIR}/../.." && pwd)
 readonly VROOLI_CONFIG_DIR="${VROOLI_PROJECT_ROOT}/.vrooli"
-readonly VROOLI_RESOURCES_CONFIG="${VROOLI_CONFIG_DIR}/resources.local.json"
+readonly VROOLI_RESOURCES_CONFIG="${VROOLI_CONFIG_DIR}/service.json"
 
 # Configuration manager script path
 readonly CONFIG_MANAGER_SCRIPT="${RESOURCES_DIR}/config-manager.js"
@@ -806,7 +806,7 @@ resources::update_config() {
         --arg category "$category" \
         --arg resource "$resource_name" \
         --argjson config "$resource_config" \
-        '.services[$category][$resource] = $config' \
+        '.resources[$category][$resource] = $config' \
         "$VROOLI_RESOURCES_CONFIG" > "$temp_config"; then
         
         # Validate the result
@@ -817,7 +817,7 @@ resources::update_config() {
             # Add rollback action
             resources::add_rollback_action \
                 "Remove $category/$resource_name configuration (legacy)" \
-                "jq 'del(.services.$category.$resource_name)' \"$VROOLI_RESOURCES_CONFIG\" > \"$temp_config\" && mv \"$temp_config\" \"$VROOLI_RESOURCES_CONFIG\"" \
+                "jq 'del(.resources.$category.$resource_name)' \"$VROOLI_RESOURCES_CONFIG\" > \"$temp_config\" && mv \"$temp_config\" \"$VROOLI_RESOURCES_CONFIG\"" \
                 10
             
             return 0
@@ -873,7 +873,7 @@ resources::update_cli_config() {
     fi
     
     # Use the same configuration update logic as regular resources
-    local config_path="${VROOLI_CONFIG_DIR}/resources.local.json"
+    local config_path="${VROOLI_CONFIG_DIR}/service.json"
     local temp_config=$(mktemp)
     
     # Try TypeScript configuration manager first
@@ -894,7 +894,7 @@ resources::update_cli_config() {
         if jq --arg category "$category" \
               --arg resource "$resource_name" \
               --argjson config "$resource_config" \
-              '.services[$category][$resource] = $config' \
+              '.resources[$category][$resource] = $config' \
               "$config_path" > "$temp_config" 2>/dev/null; then
             
             if jq empty "$temp_config" 2>/dev/null; then
@@ -957,7 +957,7 @@ resources::remove_config() {
     if jq \
         --arg category "$category" \
         --arg resource "$resource_name" \
-        'del(.services[$category][$resource])' \
+        'del(.resources[$category][$resource])' \
         "$VROOLI_RESOURCES_CONFIG" > "$temp_config"; then
         
         mv "$temp_config" "$VROOLI_RESOURCES_CONFIG"
@@ -990,7 +990,7 @@ resources::get_enabled_from_config() {
     # Extract all resources where enabled=true
     local enabled_resources
     enabled_resources=$(jq -r '
-        .services | to_entries | map(
+        .resources | to_entries | map(
             .value | to_entries | map(
                 select(.value.enabled == true) | .key
             )
@@ -1014,13 +1014,20 @@ resources::init_config_legacy() {
         log::info "Creating initial resources configuration: $VROOLI_RESOURCES_CONFIG"
         cat > "$VROOLI_RESOURCES_CONFIG" << 'EOF'
 {
-  "version": "1.0.0",
-  "enabled": true,
-  "services": {
+  "version": "2.0.0",
+  "service": {
+    "name": "vrooli-local",
+    "displayName": "Vrooli Local Instance",
+    "description": "Local Vrooli development environment",
+    "version": "2.0.0",
+    "type": "platform"
+  },
+  "resources": {
     "ai": {},
     "automation": {},
     "storage": {},
-    "agents": {}
+    "agents": {},
+    "execution": {}
   }
 }
 EOF
@@ -1257,7 +1264,7 @@ resources::print_status() {
     if [[ -f "$VROOLI_RESOURCES_CONFIG" ]] && system::is_command "jq"; then
         local config_exists
         config_exists=$(jq -r --arg name "$resource_name" \
-            '.services.ai[$name] // .services.automation[$name] // .services.storage[$name] // .services.agents[$name] // empty' \
+            '.resources.ai[$name] // .resources.automation[$name] // .resources.storage[$name] // .resources.agents[$name] // empty' \
             "$VROOLI_RESOURCES_CONFIG" 2>/dev/null)
         
         if [[ -n "$config_exists" && "$config_exists" != "null" ]]; then

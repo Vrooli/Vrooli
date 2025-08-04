@@ -157,13 +157,13 @@ kernel_config::configure_for_resources() {
     local judge0_enabled=false
     
     # Check if Judge0 is enabled in resources
-    if [[ -f "$HOME/.vrooli/resources.local.json" ]]; then
+    if [[ -f "$HOME/.vrooli/service.json" ]]; then
         # Use jq if available, otherwise grep
         if command -v jq >/dev/null 2>&1; then
-            judge0_enabled=$(jq -r '.judge0.enabled // false' "$HOME/.vrooli/resources.local.json" 2>/dev/null || echo "false")
+            judge0_enabled=$(jq -r '.judge0.enabled // false' "$HOME/.vrooli/service.json" 2>/dev/null || echo "false")
         else
             # Fallback: simple grep check
-            if grep -q '"judge0".*"enabled".*true' "$HOME/.vrooli/resources.local.json" 2>/dev/null; then
+            if grep -q '"judge0".*"enabled".*true' "$HOME/.vrooli/service.json" 2>/dev/null; then
                 judge0_enabled="true"
             fi
         fi

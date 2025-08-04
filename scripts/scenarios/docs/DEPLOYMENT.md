@@ -9,7 +9,7 @@ Once a scenario passes validation, it's ready to become a customer application. 
 ### Overview: Scenario → App Pipeline
 ```
 Validated Scenario              Customer Application
-├── metadata.yaml              ├── resources.local.json (minimal)
+├── metadata.yaml              ├── service.json (minimal)
 ├── test.sh                    ├── docker-compose.yml
 ├── initialization/            ├── startup.sh
 ├── deployment/                ├── monitoring/
@@ -138,7 +138,7 @@ customer-app/
 ├── docker-compose.yml         # Main deployment configuration
 ├── .env.example              # Environment variables template
 ├── startup.sh                # Application startup script
-├── resources.local.json      # Minimal resource configuration
+├── service.json      # Minimal resource configuration
 ├── docs/                     # Customer documentation
 │   ├── README.md             # Getting started guide
 │   ├── CONFIGURATION.md      # Configuration options
@@ -167,7 +167,7 @@ customer-app/
 ## ⚙️ Resource Optimization
 
 ### Minimal Resource Configuration
-The conversion process analyzes scenario requirements and generates optimized `resources.local.json`:
+The conversion process analyzes scenario requirements and generates optimized `service.json`:
 
 ```json
 {

@@ -124,7 +124,7 @@ node_red::show_info() {
     
     # Configuration files
     echo "Configuration:"
-    local config_file="$HOME/.vrooli/resources.local.json"
+    local config_file="$HOME/.vrooli/service.json"
     if [[ -f "$config_file" ]] && jq -e '.services.automation."node-red"' "$config_file" >/dev/null 2>&1; then
         echo "- Resource Config: ✓ Configured"
     else
@@ -209,7 +209,7 @@ node_red::health_check() {
     
     # Configuration files
     echo -n "Configuration: "
-    local config_file="$HOME/.vrooli/resources.local.json"
+    local config_file="$HOME/.vrooli/service.json"
     if [[ -f "$config_file" ]] && jq -e '.services.automation."node-red"' "$config_file" >/dev/null 2>&1; then
         echo "✓ Valid"
     else

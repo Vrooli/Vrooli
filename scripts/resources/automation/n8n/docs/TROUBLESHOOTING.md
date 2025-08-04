@@ -533,7 +533,7 @@ docker network inspect bridge | grep -E "(n8n|ollama|node-red)"
 # Use: http://ollama:11434
 
 # Check Vrooli resource configuration
-cat ~/.vrooli/resources.local.json | jq '.services.automation.n8n'
+cat ~/.vrooli/service.json | jq '.services.automation.n8n'
 ```
 
 ## Log Analysis
