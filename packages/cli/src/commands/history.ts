@@ -1,6 +1,7 @@
 import { type Command } from "commander";
 import { type ApiClient } from "../utils/client.js";
 import { type ConfigManager } from "../utils/config.js";
+import { output } from "../utils/output.js";
 import { HistoryManager } from "../history/HistoryManager.js";
 import { HistoryUI } from "../history/HistoryUI.js";
 import { type HistorySearchQuery, type HistoryEntry } from "../history/types.js";
@@ -164,20 +165,20 @@ export class HistoryCommands {
             });
             
             if (this.config.isJsonOutput() || options.format === "json") {
-                console.log(JSON.stringify(entries));
+                output.json(entries);
                 return;
             }
             
             if (options.format === "script") {
                 const successfulEntries = entries.filter(e => e.success);
                 successfulEntries.forEach(entry => {
-                    console.log(`${entry.command} ${entry.args.join(" ")}`.trim());
+                    output.info(`${entry.command} ${entry.args.join(" ")}`.trim());
                 });
                 return;
             }
             
             if (entries.length === 0) {
-                console.log(chalk.yellow("No history entries found"));
+                output.info(chalk.yellow("No history entries found"));
                 return;
             }
             
@@ -185,7 +186,7 @@ export class HistoryCommands {
             
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Failed to list history: ${errorMessage}`));
+            output.error(`Failed to list history: ${errorMessage}`);
             process.exit(1);
         }
     }
@@ -205,21 +206,21 @@ export class HistoryCommands {
             });
             
             if (this.config.isJsonOutput() || options.format === "json") {
-                console.log(JSON.stringify(entries));
+                output.json(entries);
                 return;
             }
             
             if (entries.length === 0) {
-                console.log(chalk.yellow(`No history entries found for "${query}"`));
+                output.info(chalk.yellow(`No history entries found for "${query}"`));
                 return;
             }
             
-            console.log(chalk.bold(`\\nSearch Results for "${query}":`));
+            output.info(chalk.bold(`\\nSearch Results for "${query}":`));
             this.displayHistoryTable(entries);
             
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Failed to search history: ${errorMessage}`));
+            output.error(`Failed to search history: ${errorMessage}`);
             process.exit(1);
         }
     }
@@ -232,34 +233,34 @@ export class HistoryCommands {
             const entry = await this.manager.get(id);
             
             if (!entry) {
-                console.error(chalk.red(`✗ Command not found in history: ${id}`));
+                output.error(`Command not found in history: ${id}`);
                 process.exit(1);
             }
             
             const command = `${entry.command} ${entry.args.join(" ")}`.trim();
             
             if (options.dryRun) {
-                console.log(chalk.gray(`Would execute: ${command}`));
+                output.info(chalk.gray(`Would execute: ${command}`));
                 return;
             }
             
             if (options.edit) {
                 // In a real implementation, this would open an editor
-                console.log(chalk.yellow("Edit mode not implemented yet"));
-                console.log(chalk.gray(`Command: ${command}`));
+                output.info(chalk.yellow("Edit mode not implemented yet"));
+                output.info(chalk.gray(`Command: ${command}`));
                 return;
             }
             
-            console.log(chalk.gray(`Replaying: ${command}`));
+            output.info(chalk.gray(`Replaying: ${command}`));
             
             // In a real implementation, this would execute the command
             // For now, we'll just show what would be executed
-            console.log(chalk.yellow("Command replay not implemented yet"));
-            console.log(chalk.gray(`Would execute: ${command}`));
+            output.info(chalk.yellow("Command replay not implemented yet"));
+            output.info(chalk.gray(`Would execute: ${command}`));
             
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Failed to replay command: ${errorMessage}`));
+            output.error(`Failed to replay command: ${errorMessage}`);
             process.exit(1);
         }
     }
@@ -269,42 +270,42 @@ export class HistoryCommands {
             const stats = await this.manager.getStats();
             
             if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify(stats));
+                output.json(stats);
                 return;
             }
             
-            console.log(chalk.bold("\\nCommand History Statistics:"));
-            console.log(`  Total Commands: ${stats.totalCommands}`);
-            console.log(`  Successful: ${chalk.green(stats.successfulCommands)} (${(stats.successfulCommands / stats.totalCommands * 100).toFixed(1)}%)`);
-            console.log(`  Failed: ${chalk.red(stats.failedCommands)} (${(stats.failedCommands / stats.totalCommands * 100).toFixed(1)}%)`);
-            console.log(`  Unique Commands: ${stats.uniqueCommands}`);
-            console.log(`  Average Duration: ${(stats.avgDuration / SECONDS_1_MS).toFixed(2)}s`);
-            console.log(`  Last Command: ${stats.lastCommand.toLocaleString()}`);
+            output.info(chalk.bold("\\nCommand History Statistics:"));
+            output.info(`  Total Commands: ${stats.totalCommands}`);
+            output.info(`  Successful: ${chalk.green(stats.successfulCommands)} (${(stats.successfulCommands / stats.totalCommands * 100).toFixed(1)}%)`);
+            output.info(`  Failed: ${chalk.red(stats.failedCommands)} (${(stats.failedCommands / stats.totalCommands * 100).toFixed(1)}%)`);
+            output.info(`  Unique Commands: ${stats.uniqueCommands}`);
+            output.info(`  Average Duration: ${(stats.avgDuration / SECONDS_1_MS).toFixed(2)}s`);
+            output.info(`  Last Command: ${stats.lastCommand.toLocaleString()}`);
             
             if (stats.topCommands.length > 0) {
-                console.log(chalk.bold("\\nTop Commands:"));
+                output.info(chalk.bold("\\nTop Commands:"));
                 stats.topCommands.forEach((cmd, i) => {
-                    console.log(`  ${i + 1}. ${cmd.command} (${cmd.count} times)`);
+                    output.info(`  ${i + 1}. ${cmd.command} (${cmd.count} times)`);
                 });
             }
             
             if (Object.keys(stats.commandsByProfile).length > 0) {
-                console.log(chalk.bold("\\nCommands by Profile:"));
+                output.info(chalk.bold("\\nCommands by Profile:"));
                 Object.entries(stats.commandsByProfile).forEach(([profile, count]) => {
-                    console.log(`  ${profile}: ${count} commands`);
+                    output.info(`  ${profile}: ${count} commands`);
                 });
             }
             
             if (stats.recentActivity.length > 0) {
-                console.log(chalk.bold("\\nRecent Activity (last 30 days):"));
+                output.info(chalk.bold("\\nRecent Activity (last 30 days):"));
                 stats.recentActivity.slice(0, CLI_LIMITS.DISPLAY_RECENT_DAYS).forEach(({ date, count }) => {
-                    console.log(`  ${date}: ${count} commands`);
+                    output.info(`  ${date}: ${count} commands`);
                 });
             }
             
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Failed to show stats: ${errorMessage}`));
+            output.error(`Failed to show stats: ${errorMessage}`);
             process.exit(1);
         }
     }
@@ -315,7 +316,7 @@ export class HistoryCommands {
             await ui.browse();
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Failed to browse history: ${errorMessage}`));
+            output.error(`Failed to browse history: ${errorMessage}`);
             process.exit(1);
         }
     }
@@ -325,20 +326,20 @@ export class HistoryCommands {
             const entry = await this.manager.get(id);
             
             if (!entry) {
-                console.error(chalk.red(`✗ Command not found in history: ${id}`));
+                output.error(`Command not found in history: ${id}`);
                 process.exit(1);
             }
             
             const command = `${entry.command} ${entry.args.join(" ")}`.trim();
             
             // For now, just show what the alias would be
-            console.log(chalk.green(`✓ Would create alias '${name}' for command:`));
-            console.log(chalk.gray(`  ${command}`));
-            console.log(chalk.yellow("Alias creation not implemented yet"));
+            output.success(`Would create alias '${name}' for command:`);
+            output.info(chalk.gray(`  ${command}`));
+            output.info(chalk.yellow("Alias creation not implemented yet"));
             
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Failed to create alias: ${errorMessage}`));
+            output.error(`Failed to create alias: ${errorMessage}`);
             process.exit(1);
         }
     }
@@ -373,7 +374,7 @@ export class HistoryCommands {
             const entries = await this.manager.search(query);
             
             if (entries.length === 0) {
-                console.log(chalk.yellow("No history entries found to export"));
+                output.info(chalk.yellow("No history entries found to export"));
                 return;
             }
             
@@ -397,14 +398,14 @@ export class HistoryCommands {
             if (options.output) {
                 const outputPath = path.resolve(options.output);
                 await fs.writeFile(outputPath, exportData);
-                console.log(chalk.green(`✓ Exported ${entries.length} entries to ${outputPath}`));
+                output.success(`Exported ${entries.length} entries to ${outputPath}`);
             } else {
-                console.log(exportData);
+                output.info(exportData);
             }
             
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Failed to export history: ${errorMessage}`));
+            output.error(`Failed to export history: ${errorMessage}`);
             process.exit(1);
         }
     }
@@ -416,17 +417,17 @@ export class HistoryCommands {
         try {
             if (!options.force) {
                 // In a real implementation, this would prompt for confirmation
-                console.log(chalk.yellow("History clearing requires --force flag"));
-                console.log(chalk.gray("Use: vrooli history clear --force"));
+                output.info(chalk.yellow("History clearing requires --force flag"));
+                output.info(chalk.gray("Use: vrooli history clear --force"));
                 return;
             }
             
             await this.manager.clear();
-            console.log(chalk.green("✓ History cleared"));
+            output.success("History cleared");
             
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Failed to clear history: ${errorMessage}`));
+            output.error(`Failed to clear history: ${errorMessage}`);
             process.exit(1);
         }
     }
@@ -438,22 +439,22 @@ export class HistoryCommands {
             const entry = await this.manager.get(id);
             
             if (!entry) {
-                console.error(chalk.red(`✗ Command not found in history: ${id}`));
+                output.error(`Command not found in history: ${id}`);
                 process.exit(1);
             }
             
             if (!options.force) {
-                console.log(chalk.yellow("Entry deletion requires --force flag"));
-                console.log(chalk.gray(`Entry: ${entry.command} ${entry.args.join(" ")}`));
+                output.info(chalk.yellow("Entry deletion requires --force flag"));
+                output.info(chalk.gray(`Entry: ${entry.command} ${entry.args.join(" ")}`));
                 return;
             }
             
             await this.manager.delete(id);
-            console.log(chalk.green("✓ History entry deleted"));
+            output.success("History entry deleted");
             
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Failed to delete entry: ${errorMessage}`));
+            output.error(`Failed to delete entry: ${errorMessage}`);
             process.exit(1);
         }
     }
@@ -466,21 +467,21 @@ export class HistoryCommands {
             if (storage && typeof storage.getDbInfo === "function") {
                 const dbInfo = storage.getDbInfo();
                 
-                console.log(chalk.bold("\\nHistory Database Information:"));
-                console.log(`  Database Path: ${dbInfo.path}`);
-                console.log(`  Database Size: ${this.formatFileSize(dbInfo.size)}`);
-                console.log(`  Page Count: ${dbInfo.pageCount}`);
+                output.info(chalk.bold("\\nHistory Database Information:"));
+                output.info(`  Database Path: ${dbInfo.path}`);
+                output.info(`  Database Size: ${this.formatFileSize(dbInfo.size)}`);
+                output.info(`  Page Count: ${dbInfo.pageCount}`);
                 
                 const stats = await this.manager.getStats();
-                console.log(`  Total Entries: ${stats.totalCommands}`);
-                console.log(`  Oldest Entry: ${stats.recentActivity[stats.recentActivity.length - 1]?.date || "N/A"}`);
-                console.log(`  Newest Entry: ${stats.lastCommand.toLocaleString()}`);
+                output.info(`  Total Entries: ${stats.totalCommands}`);
+                output.info(`  Oldest Entry: ${stats.recentActivity[stats.recentActivity.length - 1]?.date || "N/A"}`);
+                output.info(`  Newest Entry: ${stats.lastCommand.toLocaleString()}`);
             } else {
-                console.log(chalk.yellow("Database info not available"));
+                output.info(chalk.yellow("Database info not available"));
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Failed to show database info: ${errorMessage}`));
+            output.error(`Failed to show database info: ${errorMessage}`);
             process.exit(1);
         }
     }
@@ -493,20 +494,20 @@ export class HistoryCommands {
             const suggestions = await this.manager.getSuggestions(partial, parseInt(options.count || "5") as typeof DEFAULT_SUGGESTION_COUNT);
             
             if (suggestions.length === 0) {
-                console.log(chalk.yellow(`No suggestions found for "${partial}"`));
+                output.info(chalk.yellow(`No suggestions found for "${partial}"`));
                 return;
             }
             
-            console.log(chalk.bold(`\\nSuggestions for "${partial}":`));
+            output.info(chalk.bold(`\\nSuggestions for "${partial}":`));
             suggestions.forEach((entry, i) => {
                 const command = `${entry.command} ${entry.args.join(" ")}`.trim();
-                console.log(`  ${i + 1}. ${command}`);
-                console.log(`     ${chalk.gray(`Used ${entry.timestamp.toLocaleDateString()}`)}`);
+                output.info(`  ${i + 1}. ${command}`);
+                output.info(`     ${chalk.gray(`Used ${entry.timestamp.toLocaleDateString()}`)}`);
             });
             
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Failed to get suggestions: ${errorMessage}`));
+            output.error(`Failed to get suggestions: ${errorMessage}`);
             process.exit(1);
         }
     }
@@ -519,26 +520,26 @@ export class HistoryCommands {
             const frequent = await this.manager.getFrequentCommands(parseInt(options.count || "10") as typeof DEFAULT_FREQUENT_COUNT);
             
             if (frequent.length === 0) {
-                console.log(chalk.yellow("No frequent commands found"));
+                output.info(chalk.yellow("No frequent commands found"));
                 return;
             }
             
-            console.log(chalk.bold("\\nFrequently Used Commands:"));
+            output.info(chalk.bold("\\nFrequently Used Commands:"));
             frequent.forEach((cmd, i) => {
-                console.log(`  ${i + 1}. ${cmd.command} (${cmd.count} times)`);
-                console.log(`     ${chalk.gray(`Last used: ${cmd.lastUsed.toLocaleString()}`)}`);
+                output.info(`  ${i + 1}. ${cmd.command} (${cmd.count} times)`);
+                output.info(`     ${chalk.gray(`Last used: ${cmd.lastUsed.toLocaleString()}`)}`);
             });
             
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Failed to show frequent commands: ${errorMessage}`));
+            output.error(`Failed to show frequent commands: ${errorMessage}`);
             process.exit(1);
         }
     }
     
     private displayHistoryTable(entries: HistoryEntry[]): void {
-        console.log(chalk.bold("\\nCommand History:"));
-        console.log();
+        output.info(chalk.bold("\\nCommand History:"));
+        output.newline();
         
         entries.forEach((entry, index) => {
             const status = entry.success ? chalk.green("✓") : chalk.red("✗");
@@ -546,15 +547,15 @@ export class HistoryCommands {
             const time = entry.timestamp.toLocaleString();
             const duration = entry.duration ? `${(entry.duration / SECONDS_1_MS).toFixed(2)}s` : "N/A";
             
-            console.log(`${status} ${chalk.cyan(entry.id.slice(0, CLI_LIMITS.ID_DISPLAY_LENGTH))} ${command}`);
-            console.log(`   ${chalk.gray(`${time} | ${duration} | ${entry.profile}`)}`);
+            output.info(`${status} ${chalk.cyan(entry.id.slice(0, CLI_LIMITS.ID_DISPLAY_LENGTH))} ${command}`);
+            output.info(`   ${chalk.gray(`${time} | ${duration} | ${entry.profile}`)}`);
             
             if (entry.error) {
-                console.log(`   ${chalk.red(`Error: ${entry.error}`)}`);
+                output.info(`   ${chalk.red(`Error: ${entry.error}`)}`);
             }
             
             if (index < entries.length - 1) {
-                console.log();
+                output.newline();
             }
         });
     }

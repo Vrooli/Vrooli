@@ -1,9 +1,10 @@
-import { SERVER_VERSION, type EndpointDef } from "@vrooli/shared";
+import { SERVER_VERSION, type EndpointDefinition } from "@vrooli/shared";
 import axios, { type AxiosError, type AxiosInstance, type AxiosRequestConfig } from "axios";
 import FormData from "form-data";
 import { io, type Socket } from "socket.io-client";
 import { type ConfigManager } from "./config.js";
-import { HTTP_STATUS, LIMITS } from "./constants.js";
+import { HTTP_STATUS, LIMITS, WEBSOCKET_CONFIG } from "./constants.js";
+import { CLI_CONFIG } from "../config/constants.js";
 import { formatErrorWithTrace } from "./errorMessages.js";
 import { logger } from "./logger.js";
 
@@ -16,11 +17,17 @@ export interface ApiError {
 export class ApiClient {
     private axios: AxiosInstance;
     private socket: Socket | null = null;
+    private reconnectAttempts = 0;
+    private maxReconnectAttempts = WEBSOCKET_CONFIG.MAX_RECONNECT_ATTEMPTS;
+    private reconnectTimeout: NodeJS.Timeout | null = null;
+    private refreshAttempts = 0;
+    private readonly maxRefreshAttempts = 3;
+    private refreshPromise: Promise<void> | null = null;
 
     constructor(private config: ConfigManager) {
         this.axios = axios.create({
             baseURL: `${config.getServerUrl()}/api/v2`,
-            timeout: 30000,
+            timeout: CLI_CONFIG.API_TIMEOUT,
             headers: {
                 "Content-Type": "application/json",
             },
@@ -66,18 +73,44 @@ export class ApiClient {
                     });
                 }
 
-                // Handle 401 - try to refresh token
-                if (error.response?.status === HTTP_STATUS.UNAUTHORIZED && error.config && !(error.config as AxiosRequestConfig & { _retry?: boolean })._retry) {
-                    (error.config as AxiosRequestConfig & { _retry?: boolean })._retry = true;
-
-                    try {
-                        await this.refreshAuth();
-                        // Retry the original request
-                        return this.axios.request(error.config);
-                    } catch (refreshError) {
-                        // Refresh failed, clear auth
-                        this.config.clearAuth();
-                        throw this.formatError(error);
+                // Handle 401 - try to refresh token (with max attempts)
+                if (error.response?.status === HTTP_STATUS.UNAUTHORIZED && error.config) {
+                    const requestConfig = error.config as AxiosRequestConfig & { _retry?: boolean; _refreshAttempt?: number };
+                    
+                    // Initialize refresh attempt counter for this request
+                    if (!requestConfig._refreshAttempt) {
+                        requestConfig._refreshAttempt = 0;
+                    }
+                    
+                    // Check if we haven't exceeded max refresh attempts for this request
+                    if (!requestConfig._retry && requestConfig._refreshAttempt < this.maxRefreshAttempts) {
+                        requestConfig._retry = true;
+                        requestConfig._refreshAttempt++;
+                        
+                        try {
+                            // Use the singleton refresh promise to prevent concurrent refreshes
+                            await this.performTokenRefresh();
+                            // Reset global refresh attempts on success
+                            this.refreshAttempts = 0;
+                            // Retry the original request with new token
+                            const token = this.config.getAuthToken();
+                            if (token && error.config) {
+                                error.config.headers = error.config.headers || {};
+                                error.config.headers.Authorization = `Bearer ${token}`;
+                            }
+                            return this.axios.request(error.config);
+                        } catch (refreshError) {
+                            this.refreshAttempts++;
+                            
+                            // If we've hit the global max attempts, clear auth
+                            if (this.refreshAttempts >= this.maxRefreshAttempts) {
+                                this.config.clearAuth();
+                                this.refreshAttempts = 0; // Reset for next session
+                                logger.error(`Token refresh failed after ${this.maxRefreshAttempts} attempts, clearing auth`);
+                            }
+                            
+                            throw this.formatError(error);
+                        }
                     }
                 }
 
@@ -125,6 +158,22 @@ export class ApiClient {
         return error;
     }
 
+    private async performTokenRefresh(): Promise<void> {
+        // If a refresh is already in progress, wait for it
+        if (this.refreshPromise) {
+            return this.refreshPromise;
+        }
+
+        // Start a new refresh
+        this.refreshPromise = this.refreshAuth()
+            .finally(() => {
+                // Clear the promise after completion (success or failure)
+                this.refreshPromise = null;
+            });
+
+        return this.refreshPromise;
+    }
+
     private async refreshAuth(): Promise<void> {
         const refreshToken = this.config.getRefreshToken();
         if (!refreshToken) {
@@ -170,10 +219,24 @@ export class ApiClient {
         return response.data;
     }
 
-    // WebSocket connection
+    // WebSocket connection with automatic reconnection
     public connectWebSocket(): Socket {
+        // Clear any existing reconnection timeout FIRST
+        if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = null;
+        }
+        
+        // If already connected, return existing socket
         if (this.socket && this.socket.connected) {
             return this.socket;
+        }
+        
+        // ALWAYS clean up old socket completely before creating new one
+        if (this.socket) {
+            this.socket.removeAllListeners();
+            this.socket.disconnect();
+            this.socket = null;
         }
 
         const token = this.config.getAuthToken();
@@ -182,9 +245,18 @@ export class ApiClient {
                 token,
             },
             transports: ["websocket"],
+            autoConnect: true,
+            reconnection: false, // We'll handle reconnection manually for better control
+            timeout: WEBSOCKET_CONFIG.CONNECTION_TIMEOUT_MS, // 10 second connection timeout
         });
 
         this.socket.on("connect", () => {
+            // Clear any pending reconnection timeout on successful connection
+            if (this.reconnectTimeout) {
+                clearTimeout(this.reconnectTimeout);
+                this.reconnectTimeout = null;
+            }
+            this.reconnectAttempts = 0; // Reset reconnection counter on successful connection
             if (this.config.isDebug()) {
                 logger.debug("WebSocket connected");
             }
@@ -193,6 +265,32 @@ export class ApiClient {
         this.socket.on("disconnect", (reason) => {
             if (this.config.isDebug()) {
                 logger.debug("WebSocket disconnected", { reason });
+            }
+            
+            // Clear any pending reconnection timeout to prevent duplicates
+            if (this.reconnectTimeout) {
+                clearTimeout(this.reconnectTimeout);
+                this.reconnectTimeout = null;
+            }
+            
+            // Only attempt reconnection for certain disconnect reasons
+            if (this.shouldReconnect(reason)) {
+                this.scheduleReconnection();
+            }
+        });
+
+        this.socket.on("connect_error", (error) => {
+            logger.error("WebSocket connection error", error);
+            
+            // Clear any pending reconnection timeout to prevent duplicates
+            if (this.reconnectTimeout) {
+                clearTimeout(this.reconnectTimeout);
+                this.reconnectTimeout = null;
+            }
+            
+            // Only schedule reconnection if not already scheduled
+            if (!this.reconnectTimeout) {
+                this.scheduleReconnection();
             }
         });
 
@@ -203,8 +301,78 @@ export class ApiClient {
         return this.socket;
     }
 
+    private shouldReconnect(reason: string): boolean {
+        // Don't reconnect for these reasons
+        const noReconnectReasons = [
+            "io server disconnect", // Server initiated disconnect
+            "io client disconnect", // Client initiated disconnect
+            "ping timeout", // May indicate server issues
+        ];
+        
+        return !noReconnectReasons.includes(reason) && this.reconnectAttempts < this.maxReconnectAttempts;
+    }
+
+    private scheduleReconnection(): void {
+        // Prevent concurrent reconnection attempts
+        if (this.reconnectTimeout) {
+            return; // Already scheduled
+        }
+        
+        if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+            logger.error(`WebSocket max reconnection attempts (${this.maxReconnectAttempts}) exceeded`);
+            // Clean up socket completely on max attempts
+            if (this.socket) {
+                this.socket.removeAllListeners();
+                this.socket.disconnect();
+                this.socket = null;
+            }
+            return;
+        }
+
+        // Exponential backoff: 1s, 2s, 4s, 8s, 16s
+        const delay = Math.min(
+            WEBSOCKET_CONFIG.BASE_RECONNECT_DELAY_MS * Math.pow(2, this.reconnectAttempts),
+            WEBSOCKET_CONFIG.MAX_RECONNECT_DELAY_MS,
+        );
+        this.reconnectAttempts++;
+
+        if (this.config.isDebug()) {
+            logger.debug(`Scheduling WebSocket reconnection attempt ${this.reconnectAttempts} in ${delay}ms`);
+        }
+
+        this.reconnectTimeout = setTimeout(() => {
+            this.reconnectTimeout = null;
+            // Double-check we're not connected before attempting reconnection
+            if (!this.socket?.connected) {
+                if (this.config.isDebug()) {
+                    logger.debug(`Attempting WebSocket reconnection (attempt ${this.reconnectAttempts})`);
+                }
+                try {
+                    this.connectWebSocket();
+                } catch (error) {
+                    logger.error("Failed to reconnect WebSocket", error);
+                    // Schedule another attempt if we haven't exceeded max attempts
+                    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+                        this.scheduleReconnection();
+                    }
+                }
+            }
+        }, delay);
+    }
+
     public disconnectWebSocket(): void {
+        // Clear any scheduled reconnection
+        if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+            this.reconnectTimeout = null;
+        }
+        
+        // Reset reconnection attempts
+        this.reconnectAttempts = 0;
+        
         if (this.socket) {
+            // Remove all listeners to prevent memory leaks
+            this.socket.removeAllListeners();
             this.socket.disconnect();
             this.socket = null;
         }
@@ -284,7 +452,7 @@ export class ApiClient {
      * Execute a request using an endpoint definition from pairs.ts
      */
     public async requestWithEndpoint<T = unknown>(
-        endpointDef: EndpointDef,
+        endpointDef: EndpointDefinition,
         variables?: Record<string, unknown>,
         config?: AxiosRequestConfig,
     ): Promise<T> {

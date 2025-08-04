@@ -1,12 +1,12 @@
 import { type Command } from "commander";
 import { type ApiClient } from "../utils/client.js";
 import { type ConfigManager } from "../utils/config.js";
+import { output } from "../utils/output.js";
 import chalk from "chalk";
-import ora from "ora";
 import { promises as fs } from "fs";
 import * as path from "path";
 import { glob } from "glob";
-import cliProgress from "cli-progress";
+import * as cliProgress from "cli-progress";
 import { UI } from "../utils/constants.js";
 import type { 
     Resource,
@@ -15,15 +15,10 @@ import type {
     BotConfigObject,
     ResourceCreateInput,
 } from "@vrooli/shared";
-import { generatePK, ResourceType, ResourceSubType, ResourceUsedFor, endpointsResource } from "@vrooli/shared";
+import { generatePK, ResourceType, ResourceSubType, ResourceUsedFor, endpointsResource, type ResourceVersionEdge } from "@vrooli/shared";
+import { BaseCommand } from "./BaseCommand.js";
 
 // Interface definitions for agent operations
-interface AgentTranslation {
-    language: string;
-    name?: string;
-    description?: string;
-}
-
 interface AgentValidationData {
     identity: {
         name: string;
@@ -55,26 +50,16 @@ interface AgentValidationData {
     resources?: string[];
 }
 
-interface AgentSearchEdge {
-    node: {
-        id: string;
-        publicId: string;
-        resourceSubType?: string;
-        translations?: AgentTranslation[];
-    };
-    searchScore?: number;
-}
-
-export class AgentCommands {
+export class AgentCommands extends BaseCommand {
     constructor(
-        private program: Command,
-        private client: ApiClient,
-        private config: ConfigManager,
+        program: Command,
+        client: ApiClient,
+        config: ConfigManager,
     ) {
-        this.registerCommands();
+        super(program, client, config);
     }
 
-    private registerCommands(): void {
+    protected registerCommands(): void {
         const agentCmd = this.program
             .command("agent")
             .description("Manage AI agents for swarm orchestration");
@@ -145,81 +130,56 @@ export class AgentCommands {
     }
 
     private async importAgent(filePath: string, options: { dryRun?: boolean; validate?: boolean }): Promise<void> {
-        const spinner = ora("Reading agent file...").start();
-
         try {
             // Read and parse file
-            const absolutePath = path.resolve(filePath);
-            const fileContent = await fs.readFile(absolutePath, "utf-8");
-            
-            spinner.text = "Parsing JSON...";
-            let agentData;
-            try {
-                agentData = JSON.parse(fileContent);
-            } catch (error) {
-                spinner.fail("Invalid JSON");
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                console.error(chalk.red(`✗ JSON parse error: ${errorMessage}`));
-                process.exit(1);
-            }
+            const agentData = await this.executeWithSpinner(
+                "Reading and parsing agent file...",
+                async () => this.parseJsonFile<AgentValidationData>(filePath),
+                "File parsed successfully",
+            );
 
             // Validate structure
-            spinner.text = "Validating agent structure...";
-            const validation = await this.validateAgentData(agentData, options.validate);
+            const validation = await this.executeWithSpinner(
+                "Validating agent structure...",
+                async () => this.validateAgentData(agentData, options.validate),
+                "Validation completed",
+            );
             
             if (!validation.valid) {
-                spinner.fail("Validation failed");
-                console.error(chalk.red("\n✗ Validation errors:"));
-                validation.errors.forEach((error: string) => {
-                    console.error(`  - ${error}`);
-                });
-                process.exit(1);
+                const errorMessage = `Validation errors:\n${validation.errors.map(error => `  - ${error}`).join("\n")}`;
+                this.handleError(new Error(errorMessage));
             }
 
             if (options.dryRun) {
-                spinner.succeed("Validation passed (dry run)");
-                console.log(chalk.green("\n✓ Agent is valid"));
-                console.log(`  Name: ${agentData.identity.name}`);
-                console.log(`  Goal: ${agentData.goal}`);
-                console.log(`  Role: ${agentData.role}`);
-                console.log(`  Subscriptions: ${agentData.subscriptions.length}`);
-                console.log(`  Behaviors: ${agentData.behaviors.length}`);
+                output.success("Agent is valid (dry run)");
+                output.info(`  Name: ${agentData.identity.name}`);
+                output.info(`  Goal: ${agentData.goal}`);
+                output.info(`  Role: ${agentData.role}`);
+                output.info(`  Subscriptions: ${agentData.subscriptions.length}`);
+                output.info(`  Behaviors: ${agentData.behaviors.length}`);
                 return;
             }
 
             // Convert agent format to Resource format for API
-            spinner.text = "Uploading to server...";
             const resourceData = this.convertAgentToResource(agentData);
-            const response = await this.client.post<Resource>("/api/resource", resourceData);
+            const response = await this.executeWithSpinner(
+                "Uploading to server...",
+                async () => this.client.post<Resource>("/api/resource", resourceData),
+                "Agent imported successfully",
+            );
 
-            spinner.succeed("Agent imported successfully");
-
-            if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify(response));
-            } else {
-                console.log(chalk.green("\n✓ Import successful"));
-                console.log(`  ID: ${response.id}`);
-                console.log(`  Name: ${agentData.identity.name}`);
-                console.log(`  Role: ${agentData.role}`);
-                console.log(`  URL: ${this.config.getServerUrl()}/agent/${response.id}`);
-            }
+            this.output(
+                response,
+                () => {
+                    output.success("Import successful");
+                    output.info(`  ID: ${response.id}`);
+                    output.info(`  Name: ${agentData.identity.name}`);
+                    output.info(`  Role: ${agentData.role}`);
+                    output.info(`  URL: ${this.config.getServerUrl()}/agent/${response.id}`);
+                },
+            );
         } catch (error) {
-            spinner.fail("Import failed");
-            
-            const err = error as { code?: string; message?: string; details?: unknown };
-            if (err.code === "ENOENT") {
-                console.error(chalk.red(`✗ File not found: ${filePath}`));
-            } else if (err.details) {
-                const errorMessage = err.message || String(error);
-                console.error(chalk.red(`✗ Server error: ${errorMessage}`));
-                if (this.config.isDebug() && err.details) {
-                    console.error("Details:", err.details);
-                }
-            } else {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                console.error(chalk.red(`✗ ${errorMessage}`));
-            }
-            process.exit(1);
+            this.handleError(error, "Import failed");
         }
     }
 
@@ -236,11 +196,11 @@ export class AgentCommands {
             const files = await glob(pattern);
 
             if (files.length === 0) {
-                console.log(chalk.yellow(`⚠ No files found matching pattern: ${pattern}`));
+                output.info(chalk.yellow(`⚠ No files found matching pattern: ${pattern}`));
                 return;
             }
 
-            console.log(chalk.bold(`\nFound ${files.length} file(s) to import`));
+            output.info(chalk.bold(`\nFound ${files.length} file(s) to import`));
 
             // Create progress bar
             const progressBar = new cliProgress.SingleBar({
@@ -284,40 +244,38 @@ export class AgentCommands {
             progressBar.stop();
 
             // Show results
-            console.log(chalk.bold("\n📊 Import Summary:"));
-            console.log(chalk.green(`  ✓ Success: ${results.success.length}`));
-            if (results.failed.length > 0) {
-                console.log(chalk.red(`  ✗ Failed: ${results.failed.length}`));
-                
-                if (!this.config.isJsonOutput()) {
-                    console.log(chalk.bold("\n❌ Failed imports:"));
-                    results.failed.forEach(({ file, error }) => {
-                        console.log(`  ${path.basename(file)}: ${error}`);
-                    });
-                }
-            }
-
-            if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify(results));
-            }
+            this.output(
+                results,
+                () => {
+                    output.info(chalk.bold("\n📊 Import Summary:"));
+                    output.success(`  Success: ${results.success.length}`);
+                    if (results.failed.length > 0) {
+                        output.error(`  Failed: ${results.failed.length}`);
+                        output.info(chalk.bold("\n❌ Failed imports:"));
+                        results.failed.forEach(({ file, error }) => {
+                            output.error(`  ${path.basename(file)}: ${error}`);
+                        });
+                    }
+                },
+            );
 
             // Exit with error if any failed
             if (results.failed.length > 0) {
-                process.exit(1);
+                const errorMessage = `${results.failed.length} file(s) failed to import:\n${results.failed.map(f => `  - ${f.file}: ${f.error}`).join("\n")}`;
+                this.handleError(new Error(errorMessage));
             }
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Directory import failed: ${errorMessage}`));
-            process.exit(1);
+            this.handleError(error, "Directory import failed");
         }
     }
 
     private async exportAgent(agentId: string, options: { output?: string }): Promise<void> {
-        const spinner = ora("Fetching agent...").start();
-
         try {
-            const agent = await this.client.get<Resource>(`/api/resource/${agentId}`);
-            spinner.succeed("Agent fetched");
+            const agent = await this.executeWithSpinner(
+                "Fetching agent...",
+                async () => this.client.get<Resource>(`/api/resource/${agentId}`),
+                "Agent fetched",
+            );
 
             // Convert back to agent format
             const agentData = this.convertResourceToAgent(agent);
@@ -327,14 +285,11 @@ export class AgentCommands {
             const absolutePath = path.resolve(outputPath);
 
             // Write to file
-            await fs.writeFile(absolutePath, JSON.stringify(agentData, null, 2));
+            await this.writeJsonFile(absolutePath, agentData);
 
-            console.log(chalk.green(`✓ Agent exported to: ${absolutePath}`));
+            output.success(`Agent exported to: ${absolutePath}`);
         } catch (error) {
-            spinner.fail("Export failed");
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ ${errorMessage}`));
-            process.exit(1);
+            this.handleError(error, "Export failed");
         }
     }
 
@@ -348,7 +303,7 @@ export class AgentCommands {
         try {
             const params: ResourceVersionSearchInput = {
                 take: parseInt(options.limit || "20"),
-                latestVersionResourceSubType: "AgentSpec" as ResourceSubType,
+                resourceSubType: ResourceSubType.RoutineInformational,
             };
 
             if (options.search) {
@@ -356,149 +311,139 @@ export class AgentCommands {
             }
 
             if (options.mine) {
-                params.createdById = "me";
+                params.createdByIdRoot = "me";
             }
 
             // Note: Role filtering would need to be done post-fetch since it's in metadata
             const response = await this.client.get<ResourceVersionSearchResult>("/api/resources", { params });
 
-            if (this.config.isJsonOutput() || options.format === "json") {
-                console.log(JSON.stringify(response));
+            if (options.format === "json") {
+                output.json(response);
                 return;
             }
 
             if (!response || !response.edges || response.edges.length === 0) {
-                console.log(chalk.yellow("No agents found"));
+                output.info(chalk.yellow("No agents found"));
                 return;
             }
 
-            console.log(chalk.bold("\nAgents found:\n"));
-
-            response.edges.forEach((edge, index: number) => {
-                const resource = edge.node;
-                const metadata = resource.versions?.[0]?.config as BotConfigObject;
-                const role = metadata?.agentSpec?.role || "unknown";
-                
-                // Filter by role if specified
-                if (options.role && role !== options.role) {
-                    return;
-                }
-
-                console.log(chalk.cyan(`${index + 1}. ${resource.translatedName || "Unnamed Agent"}`));
-                console.log(`   ID: ${resource.id}`);
-                console.log(`   Role: ${role}`);
-                console.log(`   Goal: ${metadata?.agentSpec?.goal || "No goal specified"}`);
-                console.log(`   Created: ${new Date(resource.createdAt).toLocaleDateString()}`);
-                console.log("");
-            });
-
-            if (response.pageInfo.hasNextPage) {
-                console.log(chalk.gray("More results available. Use pagination to see more."));
+            // Filter by role if specified
+            let filteredEdges = response.edges;
+            if (options.role) {
+                filteredEdges = response.edges.filter(edge => {
+                    const metadata = edge.node.config as BotConfigObject;
+                    const role = metadata?.agentSpec?.role || "unknown";
+                    return role === options.role;
+                });
             }
+
+            this.output(
+                { edges: filteredEdges, count: filteredEdges.length },
+                () => {
+                    output.info(chalk.bold(`\nAgents found (${filteredEdges.length}):\n`));
+
+                    filteredEdges.forEach((edge, index: number) => {
+                        const resource = edge.node;
+                        const metadata = resource.config as BotConfigObject;
+                        const role = metadata?.agentSpec?.role || "unknown";
+
+                        output.info(chalk.cyan(`${index + 1}. ${resource.translations?.[0]?.name || "Unnamed Agent"}`));
+                        output.info(`   ID: ${resource.id}`);
+                        output.info(`   Role: ${role}`);
+                        output.info(`   Goal: ${metadata?.agentSpec?.goal || "No goal specified"}`);
+                        output.info(`   Created: ${new Date(resource.createdAt).toLocaleDateString()}`);
+                        output.info("");
+                    });
+
+                    if (response.pageInfo.hasNextPage) {
+                        output.info(chalk.gray("More results available. Use pagination to see more."));
+                    }
+                },
+            );
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Failed to list agents: ${errorMessage}`));
-            process.exit(1);
+            this.handleError(error, "Failed to list agents");
         }
     }
 
     private async getAgent(agentId: string): Promise<void> {
-        const spinner = ora("Fetching agent...").start();
-
         try {
-            const agent = await this.client.get<Resource>(`/api/resource/${agentId}`);
-            spinner.succeed("Agent fetched");
-
-            if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify(agent));
-                return;
-            }
+            const agent = await this.executeWithSpinner(
+                "Fetching agent...",
+                async () => this.client.get<Resource>(`/api/resource/${agentId}`),
+                "Agent fetched",
+            );
 
             // Extract agent data from resource
             const agentData = this.convertResourceToAgent(agent);
 
-            console.log(chalk.bold("\nAgent Details:"));
-            console.log(`  ID: ${agent.id}`);
-            console.log(`  Name: ${agentData.identity.name}`);
-            console.log(`  Goal: ${agentData.goal}`);
-            console.log(`  Role: ${agentData.role}`);
-            console.log(`  Created: ${agent.createdAt ? new Date(agent.createdAt).toLocaleString() : "Unknown"}`);
-            console.log(`  Updated: ${agent.updatedAt ? new Date(agent.updatedAt).toLocaleString() : "Unknown"}`);
-            
-            console.log(chalk.bold("\nSubscriptions:"));
-            agentData.subscriptions.forEach((sub: string, index: number) => {
-                console.log(`  ${index + 1}. ${sub}`);
-            });
+            this.output(
+                agent,
+                () => {
+                    output.info(chalk.bold("\nAgent Details:"));
+                    output.info(`  ID: ${agent.id}`);
+                    output.info(`  Name: ${agentData.identity.name}`);
+                    output.info(`  Goal: ${agentData.goal}`);
+                    output.info(`  Role: ${agentData.role}`);
+                    output.info(`  Created: ${agent.createdAt ? new Date(agent.createdAt).toLocaleString() : "Unknown"}`);
+                    output.info(`  Updated: ${agent.updatedAt ? new Date(agent.updatedAt).toLocaleString() : "Unknown"}`);
+                    
+                    output.info(chalk.bold("\nSubscriptions:"));
+                    agentData.subscriptions.forEach((sub: string, index: number) => {
+                        output.info(`  ${index + 1}. ${sub}`);
+                    });
 
-            console.log(chalk.bold("\nBehaviors:"));
-            agentData.behaviors.forEach((behavior, index: number) => {
-                console.log(`  ${index + 1}. Trigger: ${behavior.trigger.topic}`);
-                if (behavior.trigger.when) {
-                    console.log(`     When: ${behavior.trigger.when}`);
-                }
-                console.log(`     Action: ${behavior.action.type}`);
-                if (behavior.action.type === "routine") {
-                    console.log(`     Routine: ${behavior.action.label}`);
-                } else {
-                    console.log(`     Purpose: ${behavior.action.purpose}`);
-                }
-            });
+                    output.info(chalk.bold("\nBehaviors:"));
+                    agentData.behaviors.forEach((behavior, index: number) => {
+                        output.info(`  ${index + 1}. Trigger: ${behavior.trigger.topic}`);
+                        if (behavior.trigger.when) {
+                            output.info(`     When: ${behavior.trigger.when}`);
+                        }
+                        output.info(`     Action: ${behavior.action.type}`);
+                        if (behavior.action.type === "routine") {
+                            output.info(`     Routine: ${behavior.action.label}`);
+                        } else {
+                            output.info(`     Purpose: ${behavior.action.purpose}`);
+                        }
+                    });
 
-            if (agentData.prompt) {
-                console.log(chalk.bold("\nPrompt:"));
-                console.log(`  Mode: ${agentData.prompt.mode}`);
-                console.log(`  Source: ${agentData.prompt.source}`);
-                if (agentData.prompt.content) {
-                    console.log(`  Content: ${agentData.prompt.content.substring(0, 100)}...`);
-                }
-            }
+                    if (agentData.prompt) {
+                        output.info(chalk.bold("\nPrompt:"));
+                        output.info(`  Mode: ${agentData.prompt.mode}`);
+                        output.info(`  Source: ${agentData.prompt.source}`);
+                        if (agentData.prompt.content) {
+                            output.info(`  Content: ${agentData.prompt.content.substring(0, 100)}...`);
+                        }
+                    }
+                },
+            );
         } catch (error) {
-            spinner.fail("Failed to fetch agent");
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ ${errorMessage}`));
-            process.exit(1);
+            this.handleError(error, "Failed to fetch agent");
         }
     }
 
     private async validateAgent(filePath: string, options: { checkRoutines?: boolean }): Promise<void> {
-        console.log(chalk.bold("🔍 Validating agent file...\n"));
+        output.info(chalk.bold("🔍 Validating agent file...\n"));
 
         try {
-            const absolutePath = path.resolve(filePath);
-            const fileContent = await fs.readFile(absolutePath, "utf-8");
-            
             // Parse JSON
-            let agentData;
-            try {
-                agentData = JSON.parse(fileContent);
-            } catch (error) {
-                console.error(chalk.red("✗ Invalid JSON:"));
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                console.error(`  ${errorMessage}`);
-                process.exit(1);
-            }
+            const agentData = await this.parseJsonFile<AgentValidationData>(filePath);
 
             // Perform validation
             const validation = await this.validateAgentData(agentData, options.checkRoutines);
 
             if (validation.valid) {
-                console.log(chalk.green("✓ Agent is valid!"));
-                console.log(`\n  Name: ${agentData.identity.name}`);
-                console.log(`  Goal: ${agentData.goal}`);
-                console.log(`  Role: ${agentData.role}`);
-                console.log(`  Subscriptions: ${agentData.subscriptions.length}`);
-                console.log(`  Behaviors: ${agentData.behaviors.length}`);
+                output.success("Agent is valid!");
+                output.info(`\n  Name: ${agentData.identity.name}`);
+                output.info(`  Goal: ${agentData.goal}`);
+                output.info(`  Role: ${agentData.role}`);
+                output.info(`  Subscriptions: ${agentData.subscriptions.length}`);
+                output.info(`  Behaviors: ${agentData.behaviors.length}`);
             } else {
-                console.error(chalk.red("✗ Validation failed:\n"));
-                validation.errors.forEach((error: string) => {
-                    console.error(`  - ${error}`);
-                });
-                process.exit(1);
+                const errorMessage = `Validation failed:\n${validation.errors.map(error => `  - ${error}`).join("\n")}`;
+                this.handleError(new Error(errorMessage));
             }
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Validation error: ${errorMessage}`));
-            process.exit(1);
+            this.handleError(error, "Validation error");
         }
     }
 
@@ -507,59 +452,54 @@ export class AgentCommands {
         role?: string;
         format?: string;
     }): Promise<void> {
-        const spinner = ora(`Searching for agents: "${query}"...`).start();
-
         try {
             const searchInput: ResourceVersionSearchInput = {
                 take: parseInt(options.limit || "10"),
                 searchString: query,
                 isLatest: true,
-                rootResourceType: ResourceType.Agent,
+                rootResourceType: ResourceType.Routine,
             };
 
-            const response = await this.client.requestWithEndpoint<ResourceVersionSearchResult>(
-                endpointsResource.findMany,
-                searchInput,
+            const response = await this.executeWithSpinner(
+                `Searching for agents: "${query}"...`,
+                async () => this.client.requestWithEndpoint<ResourceVersionSearchResult>(
+                    endpointsResource.findMany,
+                    searchInput as Record<string, unknown>,
+                ),
+                "Search complete",
             );
 
             if (!response.edges || response.edges.length === 0) {
-                spinner.info(`No agents found for "${query}"`);
+                output.info(`No agents found for "${query}"`);
                 return;
             }
 
-            spinner.succeed(`Found ${response.edges.length} agent(s) for "${query}"`);
+            output.info(`Found ${response.edges.length} agent(s) for "${query}"`);
 
-            const agents = response.edges.map((edge: AgentSearchEdge) => {
+            const agents = response.edges.map((edge: ResourceVersionEdge) => {
                 const translation = edge.node.translations?.[0];
                 return {
                     id: edge.node.id,
                     publicId: edge.node.publicId,
                     name: translation?.name || "Unnamed",
                     description: translation?.description || "No description",
-                    score: edge.searchScore || 1.0,
+                    score: 1.0, // searchScore not available in current API
                 };
             });
 
             if (options.format === "json") {
-                console.log(JSON.stringify(agents, null, 2));
+                output.json(agents);
             } else {
-                console.log("\n" + chalk.cyan("Search Results:"));
-                console.log("Score".padEnd(UI.PADDING.TOP) + "ID".padEnd(UI.PADDING.RIGHT) + "Name".padEnd(UI.PADDING.BOTTOM) + "Description");
-                console.log("─".repeat(UI.CONTENT_WIDTH));
-                
-                agents.forEach((agent) => {
-                    const scoreStr = agent.score.toFixed(2);
-                    console.log(
-                        scoreStr.padEnd(UI.PADDING.TOP) + 
-                        agent.publicId.padEnd(UI.PADDING.RIGHT) + 
-                        agent.name.substring(0, UI.PADDING.BOTTOM - 2).padEnd(UI.PADDING.BOTTOM) + 
-                        agent.description.substring(0, UI.DESCRIPTION_WIDTH),
-                    );
-                });
+                const tableData = agents.map((agent) => ({
+                    Score: agent.score.toFixed(2),
+                    ID: agent.publicId,
+                    Name: agent.name.substring(0, UI.PADDING.BOTTOM - 2),
+                    Description: agent.description.substring(0, UI.DESCRIPTION_WIDTH),
+                }));
+                output.table(tableData);
             }
         } catch (error) {
-            spinner.fail(`Failed to search agents: ${error}`);
-            throw error;
+            this.handleError(error, "Failed to search agents");
         }
     }
 
@@ -649,7 +589,7 @@ export class AgentCommands {
                             errors.push(`Behavior ${index + 1}: Routine action missing 'label'`);
                         } else if (checkRoutines) {
                             // Would check routine existence here if enabled
-                            console.log(chalk.gray(`  Checking routine '${behavior.action.label}'...`));
+                            output.info(chalk.gray(`  Checking routine '${behavior.action.label}'...`));
                         }
                     } else if (behavior.action.type === "invoke") {
                         if (!behavior.action.purpose) {

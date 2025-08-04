@@ -1,0 +1,21 @@
+{
+  "id": "new-routine",
+  "publicId": "pub-new",
+  "resourceType": "RoutineVersion",
+  "versions": [
+    {
+      "id": "v-new",
+      "resourceSubType": "Graph",
+      "config": {
+        "steps": []
+      },
+      "translations": [
+        {
+          "language": "en",
+          "name": "Imported Routine",
+          "description": "A newly imported routine"
+        }
+      ]
+    }
+  ]
+}

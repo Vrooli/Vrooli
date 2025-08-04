@@ -5,6 +5,7 @@ import chalk from "chalk";
 export interface Logger {
     debug: (message: string, ...args: unknown[]) => void;
     info: (message: string, ...args: unknown[]) => void;
+    success: (message: string, ...args: unknown[]) => void;
     warn: (message: string, ...args: unknown[]) => void;
     error: (message: string, ...args: unknown[]) => void;
     setLevel: (level: string) => void;
@@ -36,6 +37,12 @@ class SimpleLogger implements Logger {
     info(message: string, ...args: unknown[]): void {
         if (this.shouldLog("info")) {
             console.log(chalk.blue(`[INFO] ${message}`), ...args);
+        }
+    }
+
+    success(message: string, ...args: unknown[]): void {
+        if (this.shouldLog("info")) {
+            console.log(chalk.green(`✓ ${message}`), ...args);
         }
     }
 

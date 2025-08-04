@@ -112,7 +112,7 @@ describe("CompletionCache", () => {
             expect(fs.mkdir).toHaveBeenCalledWith("/config/dir", { recursive: true });
             expect(fs.writeFile).toHaveBeenCalledWith(
                 "/config/dir/completion-cache.json",
-                expect.any(String)
+                expect.any(String),
             );
         });
     });

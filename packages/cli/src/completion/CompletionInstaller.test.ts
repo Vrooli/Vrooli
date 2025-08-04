@@ -52,7 +52,7 @@ describe("CompletionInstaller", () => {
     beforeEach(() => {
         vi.clearAllMocks();
         installer = new CompletionInstaller();
-        consoleSpy = vi.spyOn(console, "log").mockImplementation(() => { });
+        consoleSpy = vi.spyOn(console, "log").mockImplementation(() => { /* intentionally empty */ });
     });
 
     afterEach(() => {
@@ -64,7 +64,7 @@ describe("CompletionInstaller", () => {
             vi.spyOn(installer as any, "detectShell").mockReturnValue("bash");
             vi.spyOn(installer as any, "getInstallPath").mockReturnValue("/path/to/bash_completion");
             vi.spyOn(installer as any, "ensureDirectoryExists").mockResolvedValue(undefined);
-            vi.spyOn(installer as any, "showShellInstructions").mockImplementation(() => { });
+            vi.spyOn(installer as any, "showShellInstructions").mockImplementation(() => { /* intentionally empty */ });
 
             await installer.install("bash");
 

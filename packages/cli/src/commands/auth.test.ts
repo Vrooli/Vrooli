@@ -9,6 +9,16 @@ import { AuthCommands } from "./auth.js";
 // Mock dependencies
 vi.mock("../utils/client.js");
 vi.mock("../utils/config.js");
+vi.mock("../utils/output.js", () => ({
+    output: {
+        success: vi.fn(),
+        error: vi.fn(),
+        warn: vi.fn(),
+        info: vi.fn(),
+        debug: vi.fn(),
+        json: vi.fn(),
+    },
+}));
 vi.mock("chalk", () => ({
     default: {
         red: vi.fn((str: string) => str),
@@ -16,6 +26,8 @@ vi.mock("chalk", () => ({
         yellow: vi.fn((str: string) => str),
         gray: vi.fn((str: string) => str),
         bold: vi.fn((str: string) => str),
+        blue: vi.fn((str: string) => str),
+        underline: { bold: vi.fn((str: string) => str) },
     },
 }));
 vi.mock("ora", () => ({
@@ -36,11 +48,10 @@ describe("AuthCommands", () => {
     let client: ApiClient;
     let config: ConfigManager;
     let authCommands: AuthCommands;
-    let consoleLogSpy: any;
-    let consoleErrorSpy: any;
+    let outputMock: any;
     let processExitSpy: any;
 
-    beforeEach(() => {
+    beforeEach(async () => {
         // Clear all mocks
         vi.clearAllMocks();
 
@@ -57,13 +68,11 @@ describe("AuthCommands", () => {
         vi.mocked(config).isJsonOutput.mockReturnValue(false);
         vi.mocked(config).isDebug.mockReturnValue(false);
 
-        // Setup console spies
-        consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => {
-            // Mock implementation
-        });
-        consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {
-            // Mock implementation
-        });
+        // Get output mock
+        const { output } = await import("../utils/output.js");
+        outputMock = vi.mocked(output);
+
+        // Setup process.exit spy
         processExitSpy = vi.spyOn(process, "exit").mockImplementation((code?: number) => {
             throw new Error(`Process exited with code ${code}`);
         });
@@ -116,9 +125,9 @@ describe("AuthCommands", () => {
                 password: "password123",
             });
             expect(vi.mocked(config.setSession)).toHaveBeenCalledWith(mockSession);
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("✓ Authentication successful"));
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("User: Test User"));
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Handle: testuser"));
+            expect(outputMock.success).toHaveBeenCalledWith(expect.stringContaining("✓ Authentication successful"));
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("User: Test User"));
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("Handle: testuser"));
         });
 
         it("should prompt for credentials when not provided", async () => {
@@ -150,23 +159,23 @@ describe("AuthCommands", () => {
 
             await program.parseAsync(["node", "cli", "auth", "login", "-e", "test@example.com", "-p", "password123"]);
 
-            expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify({
+            expect(outputMock.json).toHaveBeenCalledWith({
                 success: true,
                 user: {
                     id: "user-123",
                     handle: "testuser",
                     name: "Test User",
                 },
-            }));
+            });
         });
 
         it("should handle login errors", async () => {
             vi.mocked(client.post).mockRejectedValue(new Error("Invalid credentials"));
 
             await expect(program.parseAsync(["node", "cli", "auth", "login", "-e", "test@example.com", "-p", "wrong"]))
-                .rejects.toThrow("Process exited with code 1");
+                .rejects.toThrow("Login failed: Invalid credentials");
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("✗ Login failed: Invalid credentials"));
+            expect(outputMock.error).toHaveBeenCalledWith("Login failed: Invalid credentials");
         });
 
         it("should handle missing user data in response", async () => {
@@ -174,9 +183,9 @@ describe("AuthCommands", () => {
             vi.mocked(client.post).mockResolvedValue(badSession);
 
             await expect(program.parseAsync(["node", "cli", "auth", "login", "-e", "test@example.com", "-p", "password123"]))
-                .rejects.toThrow("Process exited with code 1");
+                .rejects.toThrow("Login failed: No user data in login response");
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("No user data in login response"));
+            expect(outputMock.error).toHaveBeenCalledWith("Login failed: No user data in login response");
         });
 
         it("should validate email format in prompt", async () => {
@@ -207,7 +216,7 @@ describe("AuthCommands", () => {
 
             expect(vi.mocked(client.post)).toHaveBeenCalledWith("/auth/logout");
             expect(vi.mocked(config.clearAuth)).toHaveBeenCalled();
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("✓ Credentials cleared"));
+            expect(outputMock.success).toHaveBeenCalledWith("✓ Credentials cleared");
         });
 
         it("should clear auth even if logout API fails", async () => {
@@ -217,7 +226,7 @@ describe("AuthCommands", () => {
             await program.parseAsync(["node", "cli", "auth", "logout"]);
 
             expect(vi.mocked(config.clearAuth)).toHaveBeenCalled();
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("✓ Credentials cleared"));
+            expect(outputMock.success).toHaveBeenCalledWith("✓ Credentials cleared");
         });
 
         it("should logout successfully when not authenticated", async () => {
@@ -227,7 +236,7 @@ describe("AuthCommands", () => {
 
             expect(vi.mocked(client.post)).not.toHaveBeenCalled();
             expect(vi.mocked(config.clearAuth)).toHaveBeenCalled();
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("✓ Credentials cleared"));
+            expect(outputMock.success).toHaveBeenCalledWith("✓ Credentials cleared");
         });
 
         it("should output JSON when JSON mode is enabled", async () => {
@@ -236,7 +245,7 @@ describe("AuthCommands", () => {
 
             await program.parseAsync(["node", "cli", "auth", "logout"]);
 
-            expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify({ success: true }));
+            expect(outputMock.json).toHaveBeenCalledWith({ success: true });
         });
     });
 
@@ -258,9 +267,9 @@ describe("AuthCommands", () => {
             await program.parseAsync(["node", "cli", "auth", "status"]);
 
             expect(vi.mocked(client.get)).toHaveBeenCalledWith("/profile");
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("✓ Authenticated"));
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("User: Test User"));
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Handle: testuser"));
+            expect(outputMock.success).toHaveBeenCalledWith(expect.stringContaining("✓ Authenticated"));
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("User: Test User"));
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("Handle: testuser"));
         });
 
         it("should show not authenticated when no token", async () => {
@@ -269,8 +278,8 @@ describe("AuthCommands", () => {
             await program.parseAsync(["node", "cli", "auth", "status"]);
 
             expect(vi.mocked(client.get)).not.toHaveBeenCalled();
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("⚠ Not authenticated"));
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Profile: default"));
+            expect(outputMock.warn).toHaveBeenCalledWith("⚠ Not authenticated");
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("Profile: default"));
         });
 
         it("should handle invalid token and clear auth", async () => {
@@ -280,8 +289,8 @@ describe("AuthCommands", () => {
             await program.parseAsync(["node", "cli", "auth", "status"]);
 
             expect(vi.mocked(config.clearAuth)).toHaveBeenCalled();
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("✗ Authentication invalid"));
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Run 'vrooli auth login' to authenticate"));
+            expect(outputMock.error).toHaveBeenCalledWith(expect.stringContaining("✗ Authentication invalid"));
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("Run 'vrooli auth login' to authenticate"));
         });
 
         it("should output JSON for authenticated status", async () => {
@@ -291,7 +300,7 @@ describe("AuthCommands", () => {
 
             await program.parseAsync(["node", "cli", "auth", "status"]);
 
-            expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify({
+            expect(outputMock.json).toHaveBeenCalledWith({
                 authenticated: true,
                 profile: "default",
                 user: {
@@ -299,7 +308,7 @@ describe("AuthCommands", () => {
                     handle: "testuser",
                     name: "Test User",
                 },
-            }));
+            });
         });
 
         it("should output JSON for not authenticated status", async () => {
@@ -308,10 +317,10 @@ describe("AuthCommands", () => {
 
             await program.parseAsync(["node", "cli", "auth", "status"]);
 
-            expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify({
+            expect(outputMock.json).toHaveBeenCalledWith({
                 authenticated: false,
                 profile: "default",
-            }));
+            });
         });
     });
 
@@ -336,13 +345,13 @@ describe("AuthCommands", () => {
             await program.parseAsync(["node", "cli", "auth", "whoami"]);
 
             expect(vi.mocked(client.get)).toHaveBeenCalledWith("/profile");
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("User Information:"));
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("ID: user-123"));
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Handle: testuser"));
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Name: Test User"));
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Languages: en, es"));
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Credits: 100"));
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Premium: Yes"));
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("User Information:"));
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("ID: user-123"));
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("Handle: testuser"));
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("Name: Test User"));
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("Languages: en, es"));
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("Credits: 100"));
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("Premium: Yes"));
         });
 
         it("should handle missing user fields gracefully", async () => {
@@ -357,11 +366,11 @@ describe("AuthCommands", () => {
 
             await program.parseAsync(["node", "cli", "auth", "whoami"]);
 
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Handle: (not set)"));
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Name: (not set)"));
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Languages: none"));
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Credits: 0"));
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Premium: No"));
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("Handle: (not set)"));
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("Name: (not set)"));
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("Languages: none"));
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("Credits: 0"));
+            expect(outputMock.info).toHaveBeenCalledWith(expect.stringContaining("Premium: No"));
         });
 
         it("should output JSON when JSON mode is enabled", async () => {
@@ -371,7 +380,7 @@ describe("AuthCommands", () => {
             await program.parseAsync(["node", "cli", "auth", "whoami"]);
 
             const expectedUser = mockSession.users![0];
-            expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(expectedUser));
+            expect(outputMock.json).toHaveBeenCalledWith(expectedUser);
         });
 
         it("should handle authentication errors", async () => {
@@ -380,7 +389,7 @@ describe("AuthCommands", () => {
             await expect(program.parseAsync(["node", "cli", "auth", "whoami"]))
                 .rejects.toThrow("Process exited with code 1");
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("✗ Not authenticated. Run 'vrooli auth login' first."));
+            expect(outputMock.error).toHaveBeenCalledWith("✗ Not authenticated. Run 'vrooli auth login' first.");
         });
 
         it("should handle other errors", async () => {
@@ -389,7 +398,7 @@ describe("AuthCommands", () => {
             await expect(program.parseAsync(["node", "cli", "auth", "whoami"]))
                 .rejects.toThrow("Process exited with code 1");
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("✗ Failed to get user info: Network error"));
+            expect(outputMock.error).toHaveBeenCalledWith("✗ Failed to get user info: Network error");
         });
 
         it("should handle missing user data", async () => {
@@ -398,7 +407,7 @@ describe("AuthCommands", () => {
 
             await program.parseAsync(["node", "cli", "auth", "whoami"]);
 
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("No user data found"));
+            expect(outputMock.warn).toHaveBeenCalledWith("No user data found");
         });
     });
 });

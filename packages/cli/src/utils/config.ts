@@ -2,7 +2,7 @@ import * as fsSync from "fs";
 import * as os from "os";
 import * as path from "path";
 import { logger } from "./logger.js";
-import { TIMEOUTS } from "./constants.js";
+import { SECONDS_1_MS } from "./constants.js";
 import type { Session } from "@vrooli/shared";
 
 export interface ProfileConfig {
@@ -134,7 +134,7 @@ export class ConfigManager {
 
     public setAuth(authToken: string, refreshToken?: string, expiresIn?: number): void {
         const profileName = this.config.currentProfile;
-        const tokenExpiry = expiresIn ? Date.now() + (expiresIn * TIMEOUTS.COMMAND_TIMEOUT_MS) : undefined;
+        const tokenExpiry = expiresIn ? Date.now() + (expiresIn * SECONDS_1_MS) : undefined;
 
         this.updateProfile(profileName, {
             authToken,

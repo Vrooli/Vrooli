@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as fs from "fs/promises";
 import { ApiClient } from "../utils/client.js";
 import { ConfigManager } from "../utils/config.js";
 import { TeamCommands } from "./team.js";
@@ -30,6 +31,13 @@ vi.mock("fs", () => ({
         writeFile: vi.fn(),
         stat: vi.fn(),
     },
+}));
+
+vi.mock("fs/promises", () => ({
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
+    mkdir: vi.fn(),
+    stat: vi.fn(),
 }));
 vi.mock("glob");
 vi.mock("ora", () => ({
@@ -332,9 +340,9 @@ describe("TeamCommands", () => {
                         take: 10,
                     }));
                 } catch (error) {
-                    // Check if it's our expected process.exit error
+                    // Check if it's our expected property access error
                     expect(error).toBeInstanceOf(Error);
-                    expect(error.message).toContain("Process exited with code");
+                    expect(error.message).toContain("Failed to list teams: Cannot read properties of undefined");
                     // Still verify the API call was made before the error
                     expect(client.post).toHaveBeenCalledWith("/teams", expect.objectContaining({
                         take: 10,
@@ -356,7 +364,7 @@ describe("TeamCommands", () => {
                 const listTeamsMethod = (teamCommands as any).listTeams.bind(teamCommands);
                 await listTeamsMethod(options);
 
-                expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify({ edges: [], pageInfo: { hasNextPage: false } }));
+                expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify({ edges: [], pageInfo: { hasNextPage: false } }, null, 2));
             });
 
             it("should handle empty team list", async () => {
@@ -392,8 +400,8 @@ describe("TeamCommands", () => {
                     fail("Expected method to throw");
                 } catch (error) {
                     expect(error).toBeInstanceOf(Error);
-                    expect(error.message).toContain("Process exited with code 1");
-                    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("✗ Failed to list teams"));
+                    expect(error.message).toContain("Failed to list teams: List failed");
+                    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to list teams:"));
                 }
             });
         });
@@ -819,7 +827,7 @@ describe("TeamCommands", () => {
                 const getTeamMethod = (teamCommands as any).getTeam.bind(teamCommands);
                 await getTeamMethod("team1", {});
 
-                expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(mockTeam));
+                expect(consoleLogSpy).toHaveBeenCalledWith(JSON.stringify(mockTeam, null, 2));
             });
 
             it("should handle getTeam when team not found", async () => {
@@ -832,8 +840,8 @@ describe("TeamCommands", () => {
                     fail("Expected method to throw");
                 } catch (error) {
                     expect(error).toBeInstanceOf(Error);
-                    expect(error.message).toContain("Process exited with code 1");
-                    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("✗ Team not found"));
+                    expect(error.message).toContain("Failed to fetch team: Team not found");
+                    expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to fetch team: Team not found"));
                 }
             });
 
@@ -892,7 +900,7 @@ describe("TeamCommands", () => {
                     fail("Expected method to throw");
                 } catch (error) {
                     expect(error).toBeInstanceOf(Error);
-                    expect(error.message).toContain("Process exited with code 1");
+                    expect(error.message).toContain("Failed to update team: Team not found");
                 }
             });
 
@@ -907,8 +915,7 @@ describe("TeamCommands", () => {
                 };
 
                 // Mock fs.writeFile
-                const fs = await import("fs");
-                (fs.promises.writeFile as any) = vi.fn().mockResolvedValue(undefined);
+                (fs.writeFile as any).mockResolvedValue(undefined);
 
                 (client.get as any).mockResolvedValue(mockTeam);
 
@@ -916,7 +923,7 @@ describe("TeamCommands", () => {
                 await exportTeamMethod("team1", { output: "team-export.json" });
 
                 expect(client.get).toHaveBeenCalledWith("/team/team1");
-                expect(fs.promises.writeFile).toHaveBeenCalled();
+                expect(fs.writeFile).toHaveBeenCalled();
             });
 
             it("should handle exportTeam with default filename", async () => {
@@ -925,15 +932,14 @@ describe("TeamCommands", () => {
                     config: { goal: "Test goal" },
                 };
 
-                const fs = await import("fs");
-                (fs.promises.writeFile as any) = vi.fn().mockResolvedValue(undefined);
+                (fs.writeFile as any).mockResolvedValue(undefined);
 
                 (client.get as any).mockResolvedValue(mockTeam);
 
                 const exportTeamMethod = (teamCommands as any).exportTeam.bind(teamCommands);
                 await exportTeamMethod("team1", {});
 
-                expect(fs.promises.writeFile).toHaveBeenCalled();
+                expect(fs.writeFile).toHaveBeenCalled();
             });
 
             it("should handle spawnChat successfully", async () => {
@@ -982,7 +988,7 @@ describe("TeamCommands", () => {
                     fail("Expected method to throw");
                 } catch (error) {
                     expect(error).toBeInstanceOf(Error);
-                    expect(error.message).toContain("Process exited with code 1");
+                    expect(error.message).toContain("Failed to spawn chat: Team not found");
                 }
             });
 

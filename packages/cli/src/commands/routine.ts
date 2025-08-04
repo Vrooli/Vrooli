@@ -1,8 +1,8 @@
 import { type Command } from "commander";
 import { type ApiClient } from "../utils/client.js";
 import { type ConfigManager } from "../utils/config.js";
+import { output } from "../utils/output.js";
 import chalk from "chalk";
-import ora from "ora";
 import { promises as fs } from "fs";
 import * as path from "path";
 import { glob } from "glob";
@@ -15,7 +15,8 @@ import type {
     ResourceVersionTranslation,
     ResourceSubType,
 } from "@vrooli/shared";
-import { endpointsResource, ResourceType } from "@vrooli/shared";
+import { endpointsResource, ResourceType, type ResourceVersionEdge } from "@vrooli/shared";
+import { BaseCommand } from "./BaseCommand.js";
 
 // Interface definitions for routine operations
 interface RoutineTranslation {
@@ -64,16 +65,6 @@ interface RoutineGraphConfig {
     schema?: unknown;
 }
 
-interface RoutineSearchEdge {
-    node: {
-        id: string;
-        publicId: string;
-        resourceSubType?: string;
-        translations?: RoutineTranslation[];
-    };
-    searchScore?: number;
-}
-
 interface RoutineSearchResult {
     id: string;
     publicId: string;
@@ -84,16 +75,16 @@ interface RoutineSearchResult {
 }
 
 
-export class RoutineCommands {
+export class RoutineCommands extends BaseCommand {
     constructor(
-        private program: Command,
-        private client: ApiClient,
-        private config: ConfigManager,
+        program: Command,
+        client: ApiClient,
+        config: ConfigManager,
     ) {
-        this.registerCommands();
+        super(program, client, config);
     }
 
-    private registerCommands(): void {
+    protected registerCommands(): void {
         const routineCmd = this.program
             .command("routine")
             .description("Manage routines");
@@ -181,81 +172,62 @@ export class RoutineCommands {
     }
 
     private async importRoutine(filePath: string, options: { dryRun?: boolean; validate?: boolean }): Promise<void> {
-        const spinner = ora("Reading routine file...").start();
-
         try {
             // Read and parse file
-            const absolutePath = path.resolve(filePath);
-            const fileContent = await fs.readFile(absolutePath, "utf-8");
-            
-            spinner.text = "Parsing JSON...";
-            let routineData;
-            try {
-                routineData = JSON.parse(fileContent);
-            } catch (error) {
-                spinner.fail("Invalid JSON");
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                console.error(chalk.red(`✗ JSON parse error: ${errorMessage}`));
-                process.exit(1);
-            }
+            const routineData = await this.executeWithSpinner(
+                "Reading and parsing routine file...",
+                async () => this.parseJsonFile<RoutineValidationData>(filePath),
+                "File parsed successfully",
+            );
 
             // Validate structure
-            spinner.text = "Validating routine structure...";
-            const validation = await this.validateRoutineData(routineData, options.validate);
+            const validation = await this.executeWithSpinner(
+                "Validating routine structure...",
+                async () => this.validateRoutineData(routineData, options.validate),
+                "Validation completed",
+            );
             
             if (!validation.valid) {
-                spinner.fail("Validation failed");
-                console.error(chalk.red("\n✗ Validation errors:"));
+                output.error("Validation errors:");
                 validation.errors.forEach((error: string) => {
-                    console.error(`  - ${error}`);
+                    output.error(`  - ${error}`);
                 });
                 process.exit(1);
             }
 
             if (options.dryRun) {
-                spinner.succeed("Validation passed (dry run)");
-                console.log(chalk.green("\n✓ Routine is valid"));
-                console.log(`  Name: ${routineData.name}`);
-                console.log(`  Description: ${routineData.description || "(none)"}`);
-                console.log(`  Steps: ${routineData.steps?.length || 0}`);
+                output.success("Routine is valid");
+                const firstVersion = routineData.versions?.[0];
+                const name = firstVersion?.translations?.[0]?.name || "Untitled";
+                const description = firstVersion?.translations?.[0]?.description || "(none)";
+                output.info(`  Name: ${name}`);
+                output.info(`  Description: ${description}`);
+                output.info(`  Versions: ${routineData.versions?.length || 0}`);
                 return;
             }
 
             // Import to server
-            spinner.text = "Uploading to server...";
-            const response = await this.client.requestWithEndpoint<Resource>(
-                endpointsResource.createOne,
-                routineData,
+            const response = await this.executeWithSpinner(
+                "Uploading to server...",
+                async () => this.client.requestWithEndpoint<Resource>(
+                    endpointsResource.createOne,
+                    routineData as Record<string, unknown>,
+                ),
+                "Routine imported successfully",
             );
 
-            spinner.succeed("Routine imported successfully");
-
-            if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify(response));
-            } else {
-                console.log(chalk.green("\n✓ Import successful"));
-                console.log(`  ID: ${response.id}`);
-                console.log(`  Name: ${response.translatedName || "Untitled"}`);
-                console.log(`  Versions: ${response.versionsCount || 0}`);
-                console.log(`  URL: ${this.config.getServerUrl()}/routine/${response.id}`);
-            }
+            this.output(
+                response,
+                () => {
+                    output.success("Import successful");
+                    output.info(`  ID: ${response.id}`);
+                    output.info(`  Name: ${response.translatedName || "Untitled"}`);
+                    output.info(`  Versions: ${response.versionsCount || 0}`);
+                    output.info(`  URL: ${this.config.getServerUrl()}/routine/${response.id}`);
+                },
+            );
         } catch (error) {
-            spinner.fail("Import failed");
-            
-            const err = error as { code?: string; message?: string; details?: unknown };
-            if (err.code === "ENOENT") {
-                console.error(chalk.red(`✗ File not found: ${filePath}`));
-            } else if (err.details) {
-                const errorMessage = err.message || String(error);
-                console.error(chalk.red(`✗ Server error: ${errorMessage}`));
-                if (this.config.isDebug() && err.details) {
-                    console.error("Details:", err.details);
-                }
-            } else {
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                console.error(chalk.red(`✗ ${errorMessage}`));
-            }
-            process.exit(1);
+            this.handleError(error, "Import failed");
         }
     }
 
@@ -272,11 +244,11 @@ export class RoutineCommands {
             const files = await glob(pattern);
 
             if (files.length === 0) {
-                console.log(chalk.yellow(`⚠ No files found matching pattern: ${pattern}`));
+                output.info(chalk.yellow(`⚠ No files found matching pattern: ${pattern}`));
                 return;
             }
 
-            console.log(chalk.bold(`\nFound ${files.length} file(s) to import`));
+            output.info(chalk.bold(`\nFound ${files.length} file(s) to import`));
 
             // Create progress bar
             const progressBar = new cliProgress.SingleBar({
@@ -320,57 +292,51 @@ export class RoutineCommands {
             progressBar.stop();
 
             // Show results
-            console.log(chalk.bold("\n📊 Import Summary:"));
-            console.log(chalk.green(`  ✓ Success: ${results.success.length}`));
-            if (results.failed.length > 0) {
-                console.log(chalk.red(`  ✗ Failed: ${results.failed.length}`));
-                
-                if (!this.config.isJsonOutput()) {
-                    console.log(chalk.bold("\n❌ Failed imports:"));
-                    results.failed.forEach(({ file, error }) => {
-                        console.log(`  ${path.basename(file)}: ${error}`);
-                    });
-                }
-            }
-
-            if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify(results));
-            }
+            this.output(
+                results,
+                () => {
+                    output.info(chalk.bold("\n📊 Import Summary:"));
+                    output.success(`  Success: ${results.success.length}`);
+                    if (results.failed.length > 0) {
+                        output.error(`  Failed: ${results.failed.length}`);
+                        output.info(chalk.bold("\n❌ Failed imports:"));
+                        results.failed.forEach(({ file, error }) => {
+                            output.error(`  ${path.basename(file)}: ${error}`);
+                        });
+                    }
+                },
+            );
 
             // Exit with error if any failed
             if (results.failed.length > 0) {
-                process.exit(1);
+                throw new Error(`Directory import failed: ${results.failed.length} file(s) failed to import`);
             }
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Directory import failed: ${errorMessage}`));
-            process.exit(1);
+            this.handleError(error, "Directory import failed");
         }
     }
 
     private async exportRoutine(routineId: string, options: { output?: string }): Promise<void> {
-        const spinner = ora("Fetching routine...").start();
-
         try {
-            const routine = await this.client.requestWithEndpoint<Resource>(
-                endpointsResource.findOne,
-                { publicId: routineId },
+            const routine = await this.executeWithSpinner(
+                "Fetching routine...",
+                async () => this.client.requestWithEndpoint<Resource>(
+                    endpointsResource.findOne,
+                    { publicId: routineId },
+                ),
+                "Routine fetched",
             );
-            spinner.succeed("Routine fetched");
 
             // Determine output path
             const outputPath = options.output || `routine-${routineId}.json`;
             const absolutePath = path.resolve(outputPath);
 
             // Write to file
-            await fs.writeFile(absolutePath, JSON.stringify(routine, null, 2));
+            await this.writeJsonFile(absolutePath, routine);
 
-            console.log(chalk.green(`✓ Routine exported to: ${absolutePath}`));
+            output.success(`Routine exported to: ${absolutePath}`);
         } catch (error) {
-            spinner.fail("Export failed");
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ ${errorMessage}`));
-            process.exit(1);
+            this.handleError(error, "Export failed");
         }
     }
 
@@ -389,152 +355,141 @@ export class RoutineCommands {
             };
 
             if (options.search) {
-                // TODO: ResourceSearchInput doesn't have a direct search field
-                // Need to check API for text search capability
+                params.searchString = options.search;
             }
 
             if (options.mine) {
-                params.createdById = "me";
+                params.createdByIdRoot = "me";
             }
 
             const response = await this.client.requestWithEndpoint<ResourceVersionSearchResult>(
                 endpointsResource.findMany,
-                params,
+                params as Record<string, unknown>,
             );
 
-            if (this.config.isJsonOutput() || options.format === "json") {
-                console.log(JSON.stringify(response));
+            if (options.format === "json") {
+                output.json(response);
                 return;
             }
 
-            if (!response || !response.edges || response.edges.length === 0) {
-                console.log(chalk.yellow("No routines found"));
-                return;
-            }
+            this.output(
+                response,
+                () => {
+                    if (!response || !response.edges || response.edges.length === 0) {
+                        output.info(chalk.yellow("No routines found"));
+                        return;
+                    }
 
-            console.log(chalk.bold("\nRoutines found:\n"));
+                    output.info(chalk.bold("\nRoutines found:\n"));
 
-            response.edges.forEach((edge, index: number) => {
-                const resource = edge.node;
-                console.log(chalk.cyan(`${index + 1}. ${resource.translatedName || "Untitled"}`));
-                console.log(`   ID: ${resource.id}`);
-                console.log(`   Type: ${resource.resourceType}`);
-                console.log(`   Created: ${new Date(resource.createdAt).toLocaleDateString()}`);
-                console.log(`   Versions: ${resource.versionsCount || 0}`);
-                console.log("");
-            });
+                    response.edges.forEach((edge, index: number) => {
+                        const resource = edge.node;
+                        output.info(chalk.cyan(`${index + 1}. ${resource.translations?.[0]?.name || "Untitled"}`));
+                        output.info(`   ID: ${resource.id}`);
+                        output.info(`   Type: ${resource.resourceSubType}`);
+                        output.info(`   Created: ${new Date(resource.createdAt).toLocaleDateString()}`);
+                        output.info(`   Version: ${resource.versionLabel}`);
+                        output.info("");
+                    });
 
-            if (response.pageInfo.hasNextPage) {
-                console.log(chalk.gray("More results available. Use pagination to see more."));
-            }
+                    if (response.pageInfo.hasNextPage) {
+                        output.info(chalk.gray("More results available. Use pagination to see more."));
+                    }
+                },
+            );
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Failed to list routines: ${errorMessage}`));
-            process.exit(1);
+            this.handleError(error, "Failed to list routines");
         }
     }
 
     private async getRoutine(routineId: string): Promise<void> {
-        const spinner = ora("Fetching routine...").start();
-
         try {
-            const routine = await this.client.requestWithEndpoint<Resource>(
-                endpointsResource.findOne,
-                { publicId: routineId },
+            const routine = await this.executeWithSpinner(
+                "Fetching routine...",
+                async () => this.client.requestWithEndpoint<Resource>(
+                    endpointsResource.findOne,
+                    { publicId: routineId },
+                ),
+                "Routine fetched",
             );
-            spinner.succeed("Routine fetched");
 
-            if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify(routine));
-                return;
-            }
-
-            // Get latest version info
-            const latestVersion = routine.versions?.find(v => v.isLatest) || routine.versions?.[0];
-            const versionLabel = latestVersion?.versionLabel || "1.0.0";
-            
-            // Extract name and description from version translations
-            const translation = latestVersion?.translations?.find((t: ResourceVersionTranslation) => t.language === "en") || latestVersion?.translations?.[0];
-            const name = translation?.name || "Untitled";
-            const description = translation?.description || "(none)";
-
-            console.log(chalk.bold("\nRoutine Details:"));
-            console.log(`  ID: ${routine.id}`);
-            console.log(`  Name: ${name}`);
-            console.log(`  Description: ${description}`);
-            console.log(`  Version: ${versionLabel}`);
-            console.log(`  Created: ${routine.createdAt ? new Date(routine.createdAt).toLocaleString() : "Unknown"}`);
-            console.log(`  Updated: ${routine.updatedAt ? new Date(routine.updatedAt).toLocaleString() : "Unknown"}`);
-            
-            // Note: steps, inputs, and outputs would be in the version's config
-            if (latestVersion?.config) {
-                const config = latestVersion.config as unknown as Record<string, unknown>;
-                
-                // For graph-based routines
-                if (config.graph && typeof config.graph === "object") {
-                    const graph = config.graph as Record<string, unknown>;
-                    const schema = graph.schema as Record<string, unknown>;
+            this.output(
+                routine,
+                () => {
+                    // Get latest version info
+                    const latestVersion = routine.versions?.find(v => v.isLatest) || routine.versions?.[0];
+                    const versionLabel = latestVersion?.versionLabel || "1.0.0";
                     
-                    if (schema?.steps && Array.isArray(schema.steps)) {
-                        console.log(chalk.bold("\nSteps:"));
-                        schema.steps.forEach((step: RoutineDefinitionStep, index: number) => {
-                            console.log(`  ${index + 1}. ${step.name || step.type || "Step"}`);
-                            if (step.description) {
-                                console.log(`     ${step.description}`);
+                    // Extract name and description from version translations
+                    const translation = latestVersion?.translations?.find((t: ResourceVersionTranslation) => t.language === "en") || latestVersion?.translations?.[0];
+                    const name = translation?.name || "Untitled";
+                    const description = translation?.description || "(none)";
+
+                    output.info(chalk.bold("\nRoutine Details:"));
+                    output.info(`  ID: ${routine.id}`);
+                    output.info(`  Name: ${name}`);
+                    output.info(`  Description: ${description}`);
+                    output.info(`  Version: ${versionLabel}`);
+                    output.info(`  Created: ${routine.createdAt ? new Date(routine.createdAt).toLocaleString() : "Unknown"}`);
+                    output.info(`  Updated: ${routine.updatedAt ? new Date(routine.updatedAt).toLocaleString() : "Unknown"}`);
+                    
+                    // Note: steps, inputs, and outputs would be in the version's config
+                    if (latestVersion?.config) {
+                        const config = latestVersion.config as unknown as Record<string, unknown>;
+                        
+                        // For graph-based routines
+                        if (config.graph && typeof config.graph === "object") {
+                            const graph = config.graph as Record<string, unknown>;
+                            const schema = graph.schema as Record<string, unknown>;
+                            
+                            if (schema?.steps && Array.isArray(schema.steps)) {
+                                output.info(chalk.bold("\nSteps:"));
+                                schema.steps.forEach((step: RoutineDefinitionStep, index: number) => {
+                                    output.info(`  ${index + 1}. ${step.name || step.type || "Step"}`);
+                                    if (step.description) {
+                                        output.info(`     ${step.description}`);
+                                    }
+                                });
                             }
-                        });
+                        }
+                        
+                        // Note: inputs/outputs would typically be part of the routine's interface
+                        // but the Resource type doesn't have these fields directly
                     }
-                }
-                
-                // Note: inputs/outputs would typically be part of the routine's interface
-                // but the Resource type doesn't have these fields directly
-            }
+                },
+            );
         } catch (error) {
-            spinner.fail("Failed to fetch routine");
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ ${errorMessage}`));
-            process.exit(1);
+            this.handleError(error, "Failed to fetch routine");
         }
     }
 
     private async validateRoutine(filePath: string): Promise<void> {
-        console.log(chalk.bold("🔍 Validating routine file...\n"));
+        output.info(chalk.bold("🔍 Validating routine file...\n"));
 
         try {
-            const absolutePath = path.resolve(filePath);
-            const fileContent = await fs.readFile(absolutePath, "utf-8");
-            
             // Parse JSON
-            let routineData;
-            try {
-                routineData = JSON.parse(fileContent);
-            } catch (error) {
-                console.error(chalk.red("✗ Invalid JSON:"));
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                console.error(`  ${errorMessage}`);
-                process.exit(1);
-            }
+            const routineData = await this.parseJsonFile<RoutineValidationData>(filePath);
 
             // Perform validation
             const validation = await this.validateRoutineData(routineData, true);
 
             if (validation.valid) {
-                console.log(chalk.green("✓ Routine is valid!"));
-                console.log(`\n  Name: ${routineData.name}`);
-                console.log(`  Steps: ${routineData.steps?.length || 0}`);
-                console.log(`  Inputs: ${routineData.inputs?.length || 0}`);
-                console.log(`  Outputs: ${routineData.outputs?.length || 0}`);
+                output.success("Routine is valid!");
+                const firstVersion = routineData.versions?.[0];
+                const name = firstVersion?.translations?.[0]?.name || "Untitled";
+                output.info(`\n  Name: ${name}`);
+                output.info(`  Versions: ${routineData.versions?.length || 0}`);
+                output.info(`  Type: ${firstVersion?.resourceSubType || "Unknown"}`);
             } else {
-                console.error(chalk.red("✗ Validation failed:\n"));
+                output.error("Validation failed:\n");
                 validation.errors.forEach((error: string) => {
-                    console.error(`  - ${error}`);
+                    output.error(`  - ${error}`);
                 });
-                process.exit(1);
+                // Use handleError to ensure proper error handling in tests
+                this.handleError(new Error(`Validation failed with ${validation.errors.length} error(s)`), "Validation error");
             }
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Validation error: ${errorMessage}`));
-            process.exit(1);
+            this.handleError(error, "Validation error");
         }
     }
 
@@ -545,28 +500,31 @@ export class RoutineCommands {
                 try {
                     inputData = JSON.parse(options.input);
                 } catch (error) {
-                    console.error(chalk.red("✗ Invalid input JSON"));
+                    output.error("Invalid input JSON");
                     process.exit(1);
                 }
             }
 
-            const spinner = ora("Starting routine execution...").start();
 
             // Start execution
-            const execution = await this.client.post<{ id: string }>("/task/start/run", {
-                routineId,
-                inputs: inputData,
-            });
+            const execution = await this.executeWithSpinner(
+                "Starting routine execution...",
+                async () => this.client.post<{ id: string }>("/task/start/run", {
+                    routineId,
+                    inputs: inputData,
+                }),
+                "Execution started",
+            );
 
-            spinner.succeed(`Execution started: ${execution.id}`);
+            output.info(`Execution ID: ${execution.id}`);
 
             if (!options.watch) {
-                console.log(chalk.gray("\nRun with --watch to monitor progress"));
+                output.info(chalk.gray("\nRun with --watch to monitor progress"));
                 return;
             }
 
             // Watch execution progress
-            console.log(chalk.bold("\n📊 Monitoring execution...\n"));
+            output.info(chalk.bold("\n📊 Monitoring execution...\n"));
             
             const socket = this.client.connectWebSocket();
             socket.emit("run:watch", { runId: execution.id });
@@ -584,20 +542,20 @@ export class RoutineCommands {
             });
 
             socket.on(`run:${execution.id}:log`, (data: { timestamp: string; message: string }) => {
-                console.log(`\n[${data.timestamp}] ${data.message}`);
+                output.info(`\n[${data.timestamp}] ${data.message}`);
             });
 
             socket.on(`run:${execution.id}:complete`, (data: { duration: number; status: string; outputs?: unknown }) => {
                 progressBar.update(100, { step: "Complete" });
                 progressBar.stop();
                 
-                console.log(chalk.green("\n✓ Execution complete!"));
-                console.log(`  Duration: ${data.duration}ms`);
-                console.log(`  Status: ${data.status}`);
+                output.success("Execution complete!");
+                output.info(`  Duration: ${data.duration}ms`);
+                output.info(`  Status: ${data.status}`);
                 
                 if (data.outputs) {
-                    console.log(chalk.bold("\nOutputs:"));
-                    console.log(JSON.stringify(data.outputs, null, 2));
+                    output.info(chalk.bold("\nOutputs:"));
+                    output.json(data.outputs);
                 }
                 
                 socket.disconnect();
@@ -606,14 +564,12 @@ export class RoutineCommands {
 
             socket.on(`run:${execution.id}:error`, (data: { message: string }) => {
                 progressBar.stop();
-                console.error(chalk.red(`\n✗ Execution failed: ${data.message}`));
+                output.error(`Execution failed: ${data.message}`);
                 socket.disconnect();
                 process.exit(1);
             });
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Failed to run routine: ${errorMessage}`));
-            process.exit(1);
+            this.handleError(error, "Failed to run routine");
         }
     }
 
@@ -754,7 +710,7 @@ export class RoutineCommands {
 
                 // If extensive validation is enabled and we have a client, check subroutine existence
                 if (extensive && subroutineIds.length > 0 && this.client) {
-                    console.log(chalk.gray("\n  Checking subroutine existence..."));
+                    output.info(chalk.gray("\n  Checking subroutine existence..."));
                     
                     for (const { stepIndex, id } of subroutineIds) {
                         try {
@@ -763,10 +719,10 @@ export class RoutineCommands {
                                 endpointsResource.findOne,
                                 { publicId: id },
                             );
-                            console.log(chalk.gray(`    ✓ Step ${stepIndex + 1}: Subroutine '${id}' exists`));
+                            output.info(chalk.gray(`    ✓ Step ${stepIndex + 1}: Subroutine '${id}' exists`));
                         } catch (error) {
                             errors.push(`Step ${stepIndex + 1}: Subroutine '${id}' not found in database`);
-                            console.log(chalk.red(`    ✗ Step ${stepIndex + 1}: Subroutine '${id}' not found`));
+                            output.error(`    Step ${stepIndex + 1}: Subroutine '${id}' not found`);
                         }
                     }
                 }
@@ -800,7 +756,7 @@ export class RoutineCommands {
 
                 // Check existence if we have activities to validate
                 if (activityIds.length > 0 && this.client) {
-                    console.log(chalk.gray("\n  Checking BPMN subroutine existence..."));
+                    output.info(chalk.gray("\n  Checking BPMN subroutine existence..."));
                     
                     for (const { activityId, subroutineId } of activityIds) {
                         try {
@@ -808,10 +764,10 @@ export class RoutineCommands {
                                 endpointsResource.findOne,
                                 { publicId: subroutineId },
                             );
-                            console.log(chalk.gray(`    ✓ Activity '${activityId}': Subroutine '${subroutineId}' exists`));
+                            output.info(chalk.gray(`    ✓ Activity '${activityId}': Subroutine '${subroutineId}' exists`));
                         } catch (error) {
                             errors.push(`Activity '${activityId}': Subroutine '${subroutineId}' not found in database`);
-                            console.log(chalk.red(`    ✗ Activity '${activityId}': Subroutine '${subroutineId}' not found`));
+                            output.error(`    Activity '${activityId}': Subroutine '${subroutineId}' not found`);
                         }
                     }
                 }
@@ -853,8 +809,6 @@ export class RoutineCommands {
     }
 
     private async searchRoutines(query: string, options: { limit?: string; type?: string; format?: string; minScore?: string }): Promise<void> {
-        const spinner = ora(`Searching for routines: "${query}"...`).start();
-
         try {
             const searchInput = {
                 take: parseInt(options.limit || "10"),
@@ -866,87 +820,86 @@ export class RoutineCommands {
                 },
             };
 
-            const response = await this.client.requestWithEndpoint<ResourceVersionSearchResult>(
-                endpointsResource.findMany,
-                searchInput,
+            const response = await this.executeWithSpinner(
+                `Searching for routines: "${query}"...`,
+                async () => this.client.requestWithEndpoint<ResourceVersionSearchResult>(
+                    endpointsResource.findMany,
+                    searchInput,
+                ),
+                "Search complete",
             );
 
             if (!response.edges || response.edges.length === 0) {
-                spinner.info(`No routines found for "${query}"`);
+                output.info(`No routines found for "${query}"`);
                 return;
             }
 
-            spinner.succeed(`Found ${response.edges.length} routine(s) for "${query}"`);
+            output.info(`Found ${response.edges.length} routine(s) for "${query}"`);
 
-            const routines = response.edges.map((edge: RoutineSearchEdge) => ({
+            const routines = response.edges.map((edge: ResourceVersionEdge) => ({
                 id: edge.node.id,
                 publicId: edge.node.publicId,
                 name: edge.node.translations?.[0]?.name || "Unnamed",
                 type: edge.node.resourceSubType || "Unknown",
                 description: edge.node.translations?.[0]?.description || "No description",
-                score: edge.searchScore || 1.0,
+                score: 1.0, // searchScore not available in current API
             })).filter((routine: RoutineSearchResult) => {
                 const minScore = parseFloat(options.minScore || "0.7");
                 return routine.score >= minScore;
             });
 
             if (routines.length === 0) {
-                console.log(chalk.yellow(`No routines found with similarity score >= ${options.minScore || "0.7"}`));
+                output.info(chalk.yellow(`No routines found with similarity score >= ${options.minScore || "0.7"}`));
                 return;
             }
 
             if (options.format === "json") {
-                console.log(JSON.stringify(routines, null, 2));
+                output.json(routines);
             } else if (options.format === "ids") {
-                console.log("\n" + chalk.cyan("Routine IDs (for copy/paste):"));
+                output.info("\n" + chalk.cyan("Routine IDs (for copy/paste):"));
                 routines.forEach((routine: { publicId: string }) => {
-                    console.log(`"${routine.publicId}"`);
+                    output.info(`"${routine.publicId}"`);
                 });
             } else {
-                console.log("\n" + chalk.cyan("Search Results:"));
-                console.log("Score".padEnd(UI.PADDING.TOP) + "ID".padEnd(UI.PADDING.RIGHT) + "Name".padEnd(UI.PADDING.BOTTOM) + "Type".padEnd(UI.PADDING.LEFT) + "Description");
-                console.log("─".repeat(UI.CONTENT_WIDTH));
-                
-                routines.forEach((routine) => {
-                    const scoreStr = routine.score.toFixed(2);
-                    console.log(
-                        scoreStr.padEnd(UI.PADDING.TOP) + 
-                        routine.publicId.padEnd(UI.PADDING.RIGHT) + 
-                        routine.name.substring(0, UI.PADDING.BOTTOM - 2).padEnd(UI.PADDING.BOTTOM) + 
-                        routine.type.padEnd(UI.PADDING.LEFT) + 
-                        routine.description.substring(0, UI.DESCRIPTION_WIDTH),
-                    );
-                });
+                const tableData = routines.map((routine) => ({
+                    Score: routine.score.toFixed(2),
+                    ID: routine.publicId,
+                    Name: routine.name.substring(0, UI.PADDING.BOTTOM - 2),
+                    Type: routine.type,
+                    Description: routine.description.substring(0, UI.DESCRIPTION_WIDTH),
+                }));
+                output.table(tableData);
             }
         } catch (error) {
-            spinner.fail(`Failed to search routines: ${error}`);
-            throw error;
+            this.handleError(error, "Failed to search routines");
         }
     }
 
     private async discoverRoutines(options: { type?: string; format?: string }): Promise<void> {
-        const spinner = ora("Discovering available routines...").start();
-
         try {
-            const response = await this.client.requestWithEndpoint<ResourceVersionSearchResult>(
-                endpointsResource.findMany,
-                {
-                    take: 100,
-                    isLatest: true,
-                    rootResourceType: ResourceType.Routine,
-                    ...(options.type && { resourceSubType: options.type as ResourceSubType }),
-                    isCompleteWithRoot: true,
-                },
+            const response = await this.executeWithSpinner(
+                "Discovering available routines...",
+                async () => this.client.requestWithEndpoint<ResourceVersionSearchResult>(
+                    endpointsResource.findMany,
+                    {
+                        take: 100,
+                        isLatest: true,
+                        rootResourceType: ResourceType.Routine,
+                        ...(options.type && { resourceSubType: options.type as ResourceSubType }),
+                        isCompleteWithRoot: true,
+                    },
+                ),
+                "Discovery complete",
             );
 
             if (!response.edges || response.edges.length === 0) {
-                spinner.info("No routines found");
+                output.info("No routines found");
                 return;
             }
 
-            spinner.succeed(`Found ${response.edges.length} routine(s)`);
+            output.info(`Found ${response.edges.length} routine(s)`);
 
-            const routines = response.edges.map((edge: RoutineSearchEdge) => ({
+            const routines = response.edges.map((edge: ResourceVersionEdge) => ({
                 id: edge.node.id,
                 publicId: edge.node.publicId,
                 name: edge.node.translations?.[0]?.name || "Unnamed",
@@ -955,29 +908,23 @@ export class RoutineCommands {
             }));
 
             if (options.format === "json") {
-                console.log(JSON.stringify(routines, null, 2));
+                output.json(routines);
             } else if (options.format === "mapping") {
-                console.log("\n" + chalk.cyan("ID Mapping Reference:"));
+                output.info("\n" + chalk.cyan("ID Mapping Reference:"));
                 routines.forEach((routine) => {
-                    console.log(`"${routine.publicId}" # ${routine.name} (${routine.type})`);
+                    output.info(`"${routine.publicId}" # ${routine.name} (${routine.type})`);
                 });
             } else {
-                console.log("\n" + chalk.cyan("Available Routines:"));
-                console.log("ID".padEnd(UI.PADDING.RIGHT) + "Name".padEnd(UI.PADDING.BOTTOM) + "Type".padEnd(UI.PADDING.LEFT) + "Description");
-                console.log("─".repeat(UI.CONTENT_WIDTH - UI.WIDTH_ADJUSTMENT));
-                
-                routines.forEach((routine) => {
-                    console.log(
-                        routine.publicId.padEnd(UI.PADDING.RIGHT) + 
-                        routine.name.substring(0, UI.PADDING.BOTTOM - 2).padEnd(UI.PADDING.BOTTOM) + 
-                        routine.type.padEnd(UI.PADDING.LEFT) + 
-                        routine.description.substring(0, UI.DESCRIPTION_WIDTH),
-                    );
-                });
+                const tableData = routines.map((routine) => ({
+                    ID: routine.publicId,
+                    Name: routine.name.substring(0, UI.PADDING.BOTTOM - 2),
+                    Type: routine.type,
+                    Description: routine.description.substring(0, UI.DESCRIPTION_WIDTH),
+                }));
+                output.table(tableData);
             }
         } catch (error) {
-            spinner.fail(`Failed to discover routines: ${error}`);
-            throw error;
+            this.handleError(error, "Failed to discover routines");
         }
     }
 

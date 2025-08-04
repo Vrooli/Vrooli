@@ -1,6 +1,7 @@
 import { type Command } from "commander";
 import { type ApiClient } from "../utils/client.js";
 import { type ConfigManager } from "../utils/config.js";
+import { output } from "../utils/output.js";
 import chalk from "chalk";
 import ora from "ora";
 import {
@@ -142,12 +143,12 @@ export class ChatCommands {
             try {
                 const result = await this.client.requestWithEndpoint<UserSearchResult>(
                     endpointsUser.findMany,
-                    searchInput,
+                    searchInput as Record<string, unknown>,
                 );
                 spinner.succeed(`Found ${result.edges.length} bots`);
 
                 if (this.config.isJsonOutput() || options.format === "json") {
-                    console.log(JSON.stringify(result));
+                    output.json(result);
                 } else {
                     this.displayBotsTable(result.edges.map(edge => edge.node));
                 }
@@ -158,12 +159,12 @@ export class ChatCommands {
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify({
+                output.json({
                     success: false,
                     error: errorMessage,
-                }));
+                });
             } else {
-                console.error(chalk.red(`✗ Failed to list bots: ${errorMessage}`));
+                output.error(`Failed to list bots: ${errorMessage}`);
             }
             process.exit(1);
         }
@@ -198,23 +199,23 @@ export class ChatCommands {
             try {
                 const result = await this.client.requestWithEndpoint<Chat>(
                     endpointsChat.createOne,
-                    chatInput,
+                    chatInput as unknown as Record<string, unknown>,
                 );
                 spinner.succeed("Chat created successfully");
 
                 if (this.config.isJsonOutput()) {
-                    console.log(JSON.stringify(result));
+                    output.json(result);
                 } else {
-                    console.log(chalk.green("\n✓ Chat created"));
-                    console.log(`  Chat ID: ${result.id}`);
-                    console.log(`  Public ID: ${result.publicId}`);
+                    output.success("Chat created");
+                    output.info(`  Chat ID: ${result.id}`);
+                    output.info(`  Public ID: ${result.publicId}`);
                     if (result.translations?.[0]?.name) {
-                        console.log(`  Name: ${result.translations[0].name}`);
+                        output.info(`  Name: ${result.translations[0].name}`);
                     }
                     if (options.task) {
-                        console.log(`  Task: ${options.task}`);
+                        output.info(`  Task: ${options.task}`);
                     }
-                    console.log(chalk.gray(`\nUse 'vrooli chat send ${result.id} "your message"' to start chatting`));
+                    output.info(chalk.gray(`\nUse 'vrooli chat send ${result.id} "your message"' to start chatting`));
                 }
             } catch (error) {
                 spinner.fail("Failed to create chat");
@@ -223,12 +224,12 @@ export class ChatCommands {
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify({
+                output.json({
                     success: false,
                     error: errorMessage,
-                }));
+                });
             } else {
-                console.error(chalk.red(`✗ Failed to create chat: ${errorMessage}`));
+                output.error(`Failed to create chat: ${errorMessage}`);
             }
             process.exit(1);
         }
@@ -252,12 +253,12 @@ export class ChatCommands {
             try {
                 const result = await this.client.requestWithEndpoint<ChatSearchResult>(
                     endpointsChat.findMany,
-                    searchInput,
+                    searchInput as Record<string, unknown>,
                 );
                 spinner.succeed(`Found ${result.edges.length} chats`);
 
                 if (this.config.isJsonOutput() || options.format === "json") {
-                    console.log(JSON.stringify(result));
+                    output.json(result);
                 } else {
                     this.displayChatsTable(result.edges.map(edge => edge.node));
                 }
@@ -268,12 +269,12 @@ export class ChatCommands {
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify({
+                output.json({
                     success: false,
                     error: errorMessage,
-                }));
+                });
             } else {
-                console.error(chalk.red(`✗ Failed to list chats: ${errorMessage}`));
+                output.error(`Failed to list chats: ${errorMessage}`);
             }
             process.exit(1);
         }
@@ -299,7 +300,7 @@ export class ChatCommands {
                 spinner.succeed(`Found ${result.edges.length} messages`);
 
                 if (this.config.isJsonOutput() || options.format === "json") {
-                    console.log(JSON.stringify(result));
+                    output.json(result);
                 } else {
                     this.displayChatHistory(result.edges.map(edge => edge.node));
                 }
@@ -310,12 +311,12 @@ export class ChatCommands {
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify({
+                output.json({
                     success: false,
                     error: errorMessage,
-                }));
+                });
             } else {
-                console.error(chalk.red(`✗ Failed to show chat: ${errorMessage}`));
+                output.error(`Failed to show chat: ${errorMessage}`);
             }
             process.exit(1);
         }
@@ -366,14 +367,14 @@ export class ChatCommands {
                 spinner.succeed("Message sent");
 
                 if (this.config.isJsonOutput()) {
-                    console.log(JSON.stringify(result));
+                    output.json(result);
                 } else {
-                    console.log(chalk.green("\n✓ Message sent"));
-                    console.log(`  Message ID: ${result.id}`);
-                    console.log(`  Text: ${result.text}`);
+                    output.success("Message sent");
+                    output.info(`  Message ID: ${result.id}`);
+                    output.info(`  Text: ${result.text}`);
                     
                     if (options.wait) {
-                        console.log(chalk.gray("\nWaiting for bot response..."));
+                        output.info(chalk.gray("\nWaiting for bot response..."));
                         await this.waitForResponse(chatId, parseInt(options.timeout));
                     }
                 }
@@ -384,12 +385,12 @@ export class ChatCommands {
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify({
+                output.json({
                     success: false,
                     error: errorMessage,
-                }));
+                });
             } else {
-                console.error(chalk.red(`✗ Failed to send message: ${errorMessage}`));
+                output.error(`Failed to send message: ${errorMessage}`);
             }
             process.exit(1);
         }
@@ -398,10 +399,11 @@ export class ChatCommands {
     private async waitForResponse(chatId: string, timeoutSeconds: number): Promise<void> {
         return new Promise((resolve, reject) => {
             const socket = this.client.connectWebSocket();
+            const MILLISECONDS_PER_SECOND = 1000;
             const timeout = setTimeout(() => {
                 socket.disconnect();
                 reject(new Error("Response timeout"));
-            }, timeoutSeconds * TIMEOUTS.COMMAND_TIMEOUT_MS);
+            }, timeoutSeconds * MILLISECONDS_PER_SECOND); // Convert seconds to milliseconds
 
             // Listen for new messages in this chat
             socket.on("messages", (data: SocketData) => {
@@ -410,8 +412,8 @@ export class ChatCommands {
                     socket.disconnect();
                     
                     // Display the bot's response
-                    console.log(chalk.blue("\n🤖 Bot response:"));
-                    console.log(`${data.message?.text || ""}\n`);
+                    output.info(chalk.blue("\n🤖 Bot response:"));
+                    output.info(`${data.message?.text || ""}\n`);
                     resolve();
                 }
             });
@@ -446,12 +448,12 @@ export class ChatCommands {
             const token = this.config.getAuthToken();
             if (!token) {
                 if (this.config.isJsonOutput()) {
-                    console.log(JSON.stringify({
+                    output.json({
                         success: false,
                         error: "Not authenticated. Run 'vrooli auth login' first.",
-                    }));
+                    });
                 } else {
-                    console.error(chalk.red("✗ Not authenticated. Run 'vrooli auth login' first."));
+                    output.error("Not authenticated. Run 'vrooli auth login' first.");
                 }
                 process.exit(1);
             }
@@ -461,19 +463,19 @@ export class ChatCommands {
                 // Bot ID is required for new chat
                 if (!options.bot) {
                     if (this.config.isJsonOutput()) {
-                        console.log(JSON.stringify({
+                        output.json({
                             success: false,
                             error: "Bot ID required when creating new chat. Use -b <bot-id> or provide a chat ID.",
-                        }));
+                        });
                     } else {
-                        console.error(chalk.red("✗ Bot ID required when creating new chat. Use -b <bot-id> or provide a chat ID."));
-                        console.log(chalk.gray("\nTip: Run 'vrooli chat list-bots' to see available bots"));
+                        output.error("Bot ID required when creating new chat. Use -b <bot-id> or provide a chat ID.");
+                        output.info(chalk.gray("\nTip: Run 'vrooli chat list-bots' to see available bots"));
                     }
                     process.exit(1);
                 }
 
                 // Create new chat
-                console.log(chalk.cyan("Creating new chat..."));
+                output.info(chalk.cyan("Creating new chat..."));
                 const chatPk = generatePK().toString();
                 const createInput: ChatCreateInput = {
                     id: chatPk,
@@ -493,13 +495,13 @@ export class ChatCommands {
                 try {
                     const result = await this.client.requestWithEndpoint<Chat>(
                         endpointsChat.createOne,
-                        createInput,
+                        createInput as unknown as Record<string, unknown>,
                     );
                     chatId = result.id;
-                    console.log(chalk.green("✓ Created new chat: " + chatId));
+                    output.success("Created new chat: " + chatId);
                 } catch (error) {
                     const errorMessage = error instanceof Error ? error.message : String(error);
-                    console.error(chalk.red(`✗ Failed to create chat: ${errorMessage}`));
+                    output.error(`Failed to create chat: ${errorMessage}`);
                     process.exit(1);
                 }
             }
@@ -527,12 +529,12 @@ export class ChatCommands {
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify({
+                output.json({
                     success: false,
                     error: errorMessage,
-                }));
+                });
             } else {
-                console.error(chalk.red(`✗ Interactive chat failed: ${errorMessage}`));
+                output.error(`Interactive chat failed: ${errorMessage}`);
             }
             process.exit(1);
         }
@@ -541,32 +543,32 @@ export class ChatCommands {
     // Display helpers
     private displayBotsTable(bots: User[]): void {
         if (bots.length === 0) {
-            console.log(chalk.yellow("No bots found"));
+            output.info(chalk.yellow("No bots found"));
             return;
         }
 
-        console.log(chalk.bold("\nAvailable Bots:"));
-        console.log();
+        output.info(chalk.bold("\nAvailable Bots:"));
+        output.info("");
         
         bots.forEach((bot, index) => {
             const name = bot.name || bot.handle || "Unnamed Bot";
             const description = bot.translations?.[0]?.bio || "No description";
             
-            console.log(`${chalk.cyan((index + 1).toString().padStart(3))}. ${chalk.bold(name)}`);
-            console.log(`     ID: ${chalk.gray(bot.id)}`);
-            console.log(`     ${description.length > UI.TERMINAL_WIDTH ? description.substring(0, UI.TERMINAL_WIDTH) + "..." : description}`);
-            console.log();
+            output.info(`${chalk.cyan((index + 1).toString().padStart(3))}. ${chalk.bold(name)}`);
+            output.info(`     ID: ${chalk.gray(bot.id)}`);
+            output.info(`     ${description.length > UI.TERMINAL_WIDTH ? description.substring(0, UI.TERMINAL_WIDTH) + "..." : description}`);
+            output.info("");
         });
     }
 
     private displayChatsTable(chats: Chat[]): void {
         if (chats.length === 0) {
-            console.log(chalk.yellow("No chats found"));
+            output.info(chalk.yellow("No chats found"));
             return;
         }
 
-        console.log(chalk.bold("\nYour Chats:"));
-        console.log();
+        output.info(chalk.bold("\nYour Chats:"));
+        output.info("");
         
         chats.forEach((chat, index) => {
             const name = chat.translations?.[0]?.name || "Unnamed Chat";
@@ -574,21 +576,21 @@ export class ChatCommands {
             const messages = chat.messages?.length || 0;
             const updated = new Date(chat.updatedAt).toLocaleDateString();
             
-            console.log(`${chalk.cyan((index + 1).toString().padStart(3))}. ${chalk.bold(name)}`);
-            console.log(`     ID: ${chalk.gray(chat.id)}`);
-            console.log(`     Participants: ${participants} | Messages: ${messages} | Updated: ${updated}`);
-            console.log();
+            output.info(`${chalk.cyan((index + 1).toString().padStart(3))}. ${chalk.bold(name)}`);
+            output.info(`     ID: ${chalk.gray(chat.id)}`);
+            output.info(`     Participants: ${participants} | Messages: ${messages} | Updated: ${updated}`);
+            output.info("");
         });
     }
 
     private displayChatHistory(messages: ChatMessage[]): void {
         if (messages.length === 0) {
-            console.log(chalk.yellow("No messages found"));
+            output.info(chalk.yellow("No messages found"));
             return;
         }
 
-        console.log(chalk.bold("\nChat History:"));
-        console.log("─".repeat(TIMEOUTS.MAX_WAIT_SECONDS));
+        output.info(chalk.bold("\nChat History:"));
+        output.info("─".repeat(TIMEOUTS.MAX_WAIT_SECONDS));
         
         // Sort messages by creation date
         const sortedMessages = messages.sort((a, b) => 
@@ -602,12 +604,12 @@ export class ChatCommands {
             const icon = isBot ? "🤖" : "👤";
             const color = isBot ? chalk.blue : chalk.green;
             
-            console.log();
-            console.log(color(`${icon} ${userName} (${timestamp})`));
-            console.log(message.text);
+            output.info("");
+            output.info(color(`${icon} ${userName} (${timestamp})`));
+            output.info(message.text);
         });
         
-        console.log();
-        console.log("─".repeat(TIMEOUTS.MAX_WAIT_SECONDS));
+        output.info("");
+        output.info("─".repeat(TIMEOUTS.MAX_WAIT_SECONDS));
     }
 }

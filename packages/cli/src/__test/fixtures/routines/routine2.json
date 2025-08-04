@@ -1,0 +1,27 @@
+{
+  "id": "routine2",
+  "publicId": "pub2",
+  "resourceType": "Routine",
+  "versions": [
+    {
+      "id": "v2",
+      "resourceSubType": "Graph",
+      "config": {
+        "__version": "1.0",
+        "callDataCode": {
+          "__version": "1.0",
+          "schema": {
+            "language": "javascript",
+            "code": "console.log('routine2')"
+          }
+        }
+      },
+      "translations": [
+        {
+          "language": "en",
+          "name": "Routine 2"
+        }
+      ]
+    }
+  ]
+}

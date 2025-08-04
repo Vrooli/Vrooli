@@ -153,3 +153,16 @@ export const EXIT_CODES = {
     SIGINT: 130,
     SIGTERM: 143,
 } as const;
+
+// WebSocket constants
+export const WEBSOCKET_CONFIG = {
+    MAX_RECONNECT_ATTEMPTS: 5,
+    BASE_RECONNECT_DELAY_MS: 1000,
+    MAX_RECONNECT_DELAY_MS: 16000,
+    CONNECTION_TIMEOUT_MS: 10000,
+} as const;
+
+// Authentication constants
+export const AUTH_CONFIG = {
+    MIN_PASSWORD_LENGTH: 8,
+} as const;

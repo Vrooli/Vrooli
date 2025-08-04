@@ -1,8 +1,8 @@
 import { type Command } from "commander";
 import { type ApiClient } from "../utils/client.js";
 import { type ConfigManager } from "../utils/config.js";
+import { output } from "../utils/output.js";
 import chalk from "chalk";
-import ora from "ora";
 import { promises as fs } from "fs";
 import * as path from "path";
 import { UI } from "../utils/constants.js";
@@ -17,6 +17,7 @@ import type {
     BlackboardItem,
 } from "@vrooli/shared";
 import { generatePK } from "@vrooli/shared";
+import { BaseCommand } from "./BaseCommand.js";
 
 // Interface for blackboard insights
 interface TeamInsight {
@@ -134,16 +135,16 @@ interface _TeamMonitorData {
     }>;
 }
 
-export class TeamCommands {
+export class TeamCommands extends BaseCommand {
     constructor(
-        private program: Command,
-        private client: ApiClient,
-        private config: ConfigManager,
+        program: Command,
+        client: ApiClient,
+        config: ConfigManager,
     ) {
-        this.registerCommands();
+        super(program, client, config);
     }
 
-    private registerCommands(): void {
+    protected registerCommands(): void {
         const teamCmd = this.program
             .command("team")
             .description("Manage teams for swarm orchestration");
@@ -252,21 +253,17 @@ export class TeamCommands {
         ram?: string;
         targetProfit?: string;
     }): Promise<void> {
-        const spinner = ora("Creating team...").start();
-
         try {
             let teamConfig: TeamValidationData;
 
             if (options.config) {
                 // Load from config file
-                const absolutePath = path.resolve(options.config);
-                const fileContent = await fs.readFile(absolutePath, "utf-8");
-                teamConfig = JSON.parse(fileContent);
+                teamConfig = await this.parseJsonFile<TeamValidationData>(options.config);
             } else {
                 // Create from command line options
                 if (!options.name || !options.goal) {
-                    spinner.fail("Name and goal are required when not using config file");
-                    console.error(chalk.red("✗ Use --name and --goal or provide --config file"));
+                    output.error("Name and goal are required when not using config file");
+                    output.error("Use --name and --goal or provide --config file");
                     process.exit(1);
                 }
 
@@ -298,15 +295,12 @@ export class TeamCommands {
             // Validate team configuration
             const validation = this.validateTeamConfig(teamConfig);
             if (!validation.valid) {
-                spinner.fail("Invalid team configuration");
-                console.error(chalk.red("\n✗ Validation errors:"));
+                output.error("Invalid team configuration:");
                 validation.errors.forEach((error: string) => {
-                    console.error(`  - ${error}`);
+                    output.error(`  - ${error}`);
                 });
                 process.exit(1);
             }
-
-            spinner.text = "Uploading to server...";
 
             // Convert to TeamCreateInput
             const teamInput: TeamCreateInput = {
@@ -321,32 +315,26 @@ export class TeamCommands {
                 }],
             };
 
-            const result = await this.client.post<Team>("/team", teamInput);
-            spinner.succeed("Team created successfully");
+            const result = await this.executeWithSpinner(
+                "Creating team...",
+                async () => this.client.post<Team>("/team", teamInput),
+                "Team created successfully",
+            );
 
-            if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify(result));
-            } else {
-                console.log(chalk.green("\n✓ Team created"));
-                console.log(`  ID: ${result.id}`);
-                console.log(`  Name: ${options.name || "Unnamed Team"}`);
-                console.log(`  Goal: ${teamConfig.goal}`);
-                console.log(`  Type: ${teamConfig.deploymentType}`);
-                console.log(`  Target Profit: $${parseInt(options.targetProfit || "2500")}/month`);
-                console.log(chalk.gray(`\nUse 'vrooli team spawn ${result.id}' to create chat instances`));
-            }
+            this.output(
+                result,
+                () => {
+                    output.success("Team created");
+                    output.info(`  ID: ${result.id}`);
+                    output.info(`  Name: ${options.name || "Unnamed Team"}`);
+                    output.info(`  Goal: ${teamConfig.goal}`);
+                    output.info(`  Type: ${teamConfig.deploymentType}`);
+                    output.info(`  Target Profit: $${parseInt(options.targetProfit || "2500")}/month`);
+                    output.info(chalk.gray(`\nUse 'vrooli team spawn ${result.id}' to create chat instances`));
+                },
+            );
         } catch (error) {
-            spinner.fail("Team creation failed");
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify({
-                    success: false,
-                    error: errorMessage,
-                }));
-            } else {
-                console.error(chalk.red(`✗ Failed to create team: ${errorMessage}`));
-            }
-            process.exit(1);
+            this.handleError(error, "Failed to create team");
         }
     }
 
@@ -358,8 +346,6 @@ export class TeamCommands {
         type?: string;
     }): Promise<void> {
         try {
-            const spinner = ora("Fetching teams...").start();
-
             const searchInput: TeamSearchInput = {
                 take: parseInt(options.limit || String(TEAM_CONSTANTS.DEFAULT_RESOURCE_LIMIT)),
                 searchString: options.search,
@@ -369,16 +355,19 @@ export class TeamCommands {
             // Note: TeamSearchInput doesn't support filtering by creator
             // We'll need to filter results post-fetch if needed
 
-            const result = await this.client.post<TeamSearchResult>("/teams", searchInput);
-            spinner.succeed(`Found ${result.edges.length} teams`);
+            const result = await this.executeWithSpinner(
+                "Fetching teams...",
+                async () => this.client.post<TeamSearchResult>("/teams", searchInput),
+                "Teams fetched",
+            );
 
-            if (this.config.isJsonOutput() || options.format === "json") {
-                console.log(JSON.stringify(result));
+            if (options.format === "json") {
+                output.json(result);
                 return;
             }
 
             if (!result || !result.edges || result.edges.length === 0) {
-                console.log(chalk.yellow("No teams found"));
+                output.info(chalk.yellow("No teams found"));
                 return;
             }
 
@@ -391,18 +380,15 @@ export class TeamCommands {
                 });
             }
 
-            this.displayTeamsTable(teams);
+            this.output(
+                { teams, count: teams.length },
+                () => {
+                    output.info(`Found ${teams.length} teams`);
+                    this.displayTeamsTable(teams);
+                },
+            );
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify({
-                    success: false,
-                    error: errorMessage,
-                }));
-            } else {
-                console.error(chalk.red(`✗ Failed to list teams: ${errorMessage}`));
-            }
-            process.exit(1);
+            this.handleError(error, "Failed to list teams");
         }
     }
 
@@ -410,80 +396,78 @@ export class TeamCommands {
         showBlackboard?: boolean;
         showStats?: boolean;
     }): Promise<void> {
-        const spinner = ora("Fetching team...").start();
-
         try {
-            const team = await this.client.get<Team>(`/team/${teamId}`);
-            spinner.succeed("Team fetched");
+            const team = await this.executeWithSpinner(
+                "Fetching team...",
+                async () => this.client.get<Team>(`/team/${teamId}`),
+                "Team fetched",
+            );
 
-            if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify(team));
-                return;
-            }
+            this.output(
+                team,
+                () => {
+                    const config = team.config as TeamValidationData;
+                    const name = team.translations?.[0]?.name || "Unnamed Team";
 
-            const config = team.config as TeamValidationData;
-            const name = team.translations?.[0]?.name || "Unnamed Team";
+                    output.info(chalk.bold("\nTeam Details:"));
+                    output.info(`  ID: ${team.id}`);
+                    output.info(`  Name: ${name}`);
+                    output.info(`  Goal: ${config.goal}`);
+                    output.info(`  Deployment Type: ${config.deploymentType}`);
+                    output.info(`  Created: ${team.createdAt ? new Date(team.createdAt).toLocaleString() : "Unknown"}`);
+                    output.info(`  Updated: ${team.updatedAt ? new Date(team.updatedAt).toLocaleString() : "Unknown"}`);
 
-            console.log(chalk.bold("\nTeam Details:"));
-            console.log(`  ID: ${team.id}`);
-            console.log(`  Name: ${name}`);
-            console.log(`  Goal: ${config.goal}`);
-            console.log(`  Deployment Type: ${config.deploymentType}`);
-            console.log(`  Created: ${team.createdAt ? new Date(team.createdAt).toLocaleString() : "Unknown"}`);
-            console.log(`  Updated: ${team.updatedAt ? new Date(team.updatedAt).toLocaleString() : "Unknown"}`);
+                    output.info(chalk.bold("\nResource Allocation:"));
+                    output.info(`  GPU: ${config.resourceQuota.gpuPercentage}%`);
+                    output.info(`  RAM: ${config.resourceQuota.ramGB} GB`);
+                    output.info(`  CPU: ${config.resourceQuota.cpuCores} cores`);
+                    output.info(`  Storage: ${config.resourceQuota.storageGB} GB`);
 
-            console.log(chalk.bold("\nResource Allocation:"));
-            console.log(`  GPU: ${config.resourceQuota.gpuPercentage}%`);
-            console.log(`  RAM: ${config.resourceQuota.ramGB} GB`);
-            console.log(`  CPU: ${config.resourceQuota.cpuCores} cores`);
-            console.log(`  Storage: ${config.resourceQuota.storageGB} GB`);
+                    output.info(chalk.bold("\nEconomic Targets:"));
+                    const targetProfitUSD = Number(BigInt(config.targetProfitPerMonth)) / TEAM_CONSTANTS.MICROSECONDS_PER_SECOND;
+                    output.info(`  Target Profit: $${targetProfitUSD}/month`);
+                    if (config.costLimit) {
+                        const costLimitUSD = Number(BigInt(config.costLimit)) / TEAM_CONSTANTS.MICROSECONDS_PER_SECOND;
+                        output.info(`  Cost Limit: $${costLimitUSD}/month`);
+                    }
 
-            console.log(chalk.bold("\nEconomic Targets:"));
-            const targetProfitUSD = Number(BigInt(config.targetProfitPerMonth)) / TEAM_CONSTANTS.MICROSECONDS_PER_SECOND;
-            console.log(`  Target Profit: $${targetProfitUSD}/month`);
-            if (config.costLimit) {
-                const costLimitUSD = Number(BigInt(config.costLimit)) / TEAM_CONSTANTS.MICROSECONDS_PER_SECOND;
-                console.log(`  Cost Limit: $${costLimitUSD}/month`);
-            }
+                    if (options.showStats && config.stats) {
+                        output.info(chalk.bold("\nPerformance Statistics:"));
+                        const totalProfitUSD = Number(BigInt(config.stats.totalProfit)) / TEAM_CONSTANTS.MICROSECONDS_PER_SECOND;
+                        const totalCostsUSD = Number(BigInt(config.stats.totalCosts)) / TEAM_CONSTANTS.MICROSECONDS_PER_SECOND;
+                        const netProfitUSD = totalProfitUSD - totalCostsUSD;
+                        
+                        output.info(`  Total Instances: ${config.stats.totalInstances}`);
+                        output.info(`  Active Instances: ${config.stats.activeInstances}`);
+                        output.info(`  Total Revenue: $${totalProfitUSD.toFixed(2)}`);
+                        output.info(`  Total Costs: $${totalCostsUSD.toFixed(2)}`);
+                        output.info(`  Net Profit: $${netProfitUSD.toFixed(2)}`);
+                        
+                        if (config.stats.totalInstances > 0) {
+                            output.info(`  Profit/Instance: $${(netProfitUSD / config.stats.totalInstances).toFixed(2)}`);
+                        }
+                        
+                        const targetRatio = targetProfitUSD > 0 ? (netProfitUSD / targetProfitUSD * 100).toFixed(1) : "N/A";
+                        output.info(`  Target Achievement: ${targetRatio}%`);
+                    }
 
-            if (options.showStats && config.stats) {
-                console.log(chalk.bold("\nPerformance Statistics:"));
-                const totalProfitUSD = Number(BigInt(config.stats.totalProfit)) / TEAM_CONSTANTS.MICROSECONDS_PER_SECOND;
-                const totalCostsUSD = Number(BigInt(config.stats.totalCosts)) / TEAM_CONSTANTS.MICROSECONDS_PER_SECOND;
-                const netProfitUSD = totalProfitUSD - totalCostsUSD;
-                
-                console.log(`  Total Instances: ${config.stats.totalInstances}`);
-                console.log(`  Active Instances: ${config.stats.activeInstances}`);
-                console.log(`  Total Revenue: $${totalProfitUSD.toFixed(2)}`);
-                console.log(`  Total Costs: $${totalCostsUSD.toFixed(2)}`);
-                console.log(`  Net Profit: $${netProfitUSD.toFixed(2)}`);
-                
-                if (config.stats.totalInstances > 0) {
-                    console.log(`  Profit/Instance: $${(netProfitUSD / config.stats.totalInstances).toFixed(2)}`);
-                }
-                
-                const targetRatio = targetProfitUSD > 0 ? (netProfitUSD / targetProfitUSD * 100).toFixed(1) : "N/A";
-                console.log(`  Target Achievement: ${targetRatio}%`);
-            }
+                    if (options.showBlackboard && config.blackboard && config.blackboard.length > 0) {
+                        output.info(chalk.bold("\nRecent Blackboard Insights:"));
+                        const recentInsights = config.blackboard.slice(-TEAM_CONSTANTS.HISTORY_WINDOW_MINUTES);
+                        recentInsights.forEach((item, index) => {
+                            const insight = item.value as TeamInsight;
+                            output.info(`  ${index + 1}. ${insight.type} (confidence: ${insight.confidence})`);
+                            output.info(`     ${JSON.stringify(insight.data).substring(0, 100)}...`);
+                            output.info(`     ${new Date(item.created_at).toLocaleString()}`);
+                        });
+                    }
 
-            if (options.showBlackboard && config.blackboard && config.blackboard.length > 0) {
-                console.log(chalk.bold("\nRecent Blackboard Insights:"));
-                const recentInsights = config.blackboard.slice(-TEAM_CONSTANTS.HISTORY_WINDOW_MINUTES);
-                recentInsights.forEach((item, index) => {
-                    const insight = item.value as TeamInsight;
-                    console.log(`  ${index + 1}. ${insight.type} (confidence: ${insight.confidence})`);
-                    console.log(`     ${JSON.stringify(insight.data).substring(0, 100)}...`);
-                    console.log(`     ${new Date(item.created_at).toLocaleString()}`);
-                });
-            }
-
-            console.log(chalk.bold("\nBusiness Prompt:"));
-            console.log(`  ${config.businessPrompt.substring(0, TEAM_CONSTANTS.LOG_MESSAGES_LIMIT)}...`);
+                    output.info(chalk.bold("\nBusiness Prompt:"));
+                    output.info(`  ${config.businessPrompt.substring(0, TEAM_CONSTANTS.LOG_MESSAGES_LIMIT)}...`);
+                },
+            );
         } catch (error) {
-            spinner.fail("Failed to fetch team");
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ ${errorMessage}`));
-            process.exit(1);
+            this.handleError(error, "Failed to fetch team");
         }
     }
 
@@ -497,8 +481,8 @@ export class TeamCommands {
         const durationMs = parseInt(options.duration || "0") * TEAM_CONSTANTS.TIME_WINDOW_SECONDS * TEAM_CONSTANTS.POLLING_INTERVAL_MS;
         const endTime = durationMs > 0 ? Date.now() + durationMs : 0;
 
-        console.log(chalk.cyan(`📊 Monitoring team ${teamId}...`));
-        console.log(chalk.gray("Press Ctrl+C to stop\n"));
+        output.info(chalk.cyan(`📊 Monitoring team ${teamId}...`));
+        output.info(chalk.gray("Press Ctrl+C to stop\n"));
 
         const monitor = async () => {
             try {
@@ -508,13 +492,13 @@ export class TeamCommands {
 
                 // Clear console for clean display
                 console.clear();
-                console.log(chalk.cyan(`📊 Team Monitor: ${name}`));
-                console.log(chalk.gray(`Updated: ${new Date().toLocaleTimeString()}`));
-                console.log("─".repeat(UI.TERMINAL_WIDTH));
+                output.info(chalk.cyan(`📊 Team Monitor: ${name}`));
+                output.info(chalk.gray(`Updated: ${new Date().toLocaleTimeString()}`));
+                output.info("─".repeat(UI.TERMINAL_WIDTH));
 
                 // Basic info
-                console.log(chalk.bold("\n🎯 Goal:"), config.goal);
-                console.log(chalk.bold("📍 Type:"), config.deploymentType);
+                output.info(chalk.bold("\n🎯 Goal:") + " " + config.goal);
+                output.info(chalk.bold("📍 Type:") + " " + config.deploymentType);
 
                 // Performance metrics
                 if (options.showStats && config.stats) {
@@ -524,51 +508,51 @@ export class TeamCommands {
                     const targetProfitUSD = Number(BigInt(config.targetProfitPerMonth)) / TEAM_CONSTANTS.MICROSECONDS_PER_SECOND;
                     const targetRatio = targetProfitUSD > 0 ? (netProfitUSD / targetProfitUSD * 100) : 0;
 
-                    console.log(chalk.bold("\n📈 Performance:"));
-                    console.log(`  Instances: ${chalk.green(config.stats.activeInstances)} active / ${config.stats.totalInstances} total`);
-                    console.log(`  Revenue: ${chalk.green(`$${totalProfitUSD.toFixed(2)}`)}`);
-                    console.log(`  Costs: ${chalk.red(`$${totalCostsUSD.toFixed(2)}`)}`);
-                    console.log(`  Net Profit: ${netProfitUSD >= 0 ? chalk.green(`$${netProfitUSD.toFixed(2)}`) : chalk.red(`$${netProfitUSD.toFixed(2)}`)}`);
+                    output.info(chalk.bold("\n📈 Performance:"));
+                    output.info(`  Instances: ${chalk.green(config.stats.activeInstances)} active / ${config.stats.totalInstances} total`);
+                    output.info(`  Revenue: ${chalk.green(`$${totalProfitUSD.toFixed(2)}`)}`);
+                    output.info(`  Costs: ${chalk.red(`$${totalCostsUSD.toFixed(2)}`)}`);
+                    output.info(`  Net Profit: ${netProfitUSD >= 0 ? chalk.green(`$${netProfitUSD.toFixed(2)}`) : chalk.red(`$${netProfitUSD.toFixed(2)}`)}`);
                     
                     // Progress bar for target achievement
                     const progressBar = this.createProgressBar(targetRatio, 100);
-                    console.log(`  Target Progress: ${progressBar} ${targetRatio.toFixed(1)}%`);
+                    output.info(`  Target Progress: ${progressBar} ${targetRatio.toFixed(1)}%`);
 
                     // Resource utilization
-                    console.log(chalk.bold("\n💻 Resource Usage:"));
+                    output.info(chalk.bold("\n💻 Resource Usage:"));
                     const gpuBar = this.createProgressBar(config.resourceQuota.gpuPercentage, 100);
-                    console.log(`  GPU: ${gpuBar} ${config.resourceQuota.gpuPercentage}%`);
-                    console.log(`  RAM: ${config.resourceQuota.ramGB} GB | CPU: ${config.resourceQuota.cpuCores} cores`);
+                    output.info(`  GPU: ${gpuBar} ${config.resourceQuota.gpuPercentage}%`);
+                    output.info(`  RAM: ${config.resourceQuota.ramGB} GB | CPU: ${config.resourceQuota.cpuCores} cores`);
                 }
 
                 // Recent insights
                 if (options.showBlackboard && config.blackboard && config.blackboard.length > 0) {
-                    console.log(chalk.bold("\n🧠 Recent Insights:"));
+                    output.info(chalk.bold("\n🧠 Recent Insights:"));
                     const recentInsights = config.blackboard.slice(-TEAM_CONSTANTS.TIME_OFFSET_HOURS);
                     recentInsights.forEach((item) => {
                         const insight = item.value as TeamInsight;
                         const icon = insight.confidence > TEAM_CONSTANTS.THROTTLE_THRESHOLD ? "🟢" : insight.confidence > TEAM_CONSTANTS.MEMORY_USAGE_WARNING ? "🟡" : "🔴";
-                        console.log(`  ${icon} ${insight.type}: ${JSON.stringify(insight.data).substring(0, TEAM_CONSTANTS.SYSTEM_CHECK_INTERVAL)}...`);
+                        output.info(`  ${icon} ${insight.type}: ${JSON.stringify(insight.data).substring(0, TEAM_CONSTANTS.SYSTEM_CHECK_INTERVAL)}...`);
                     });
                 }
 
                 // KPIs if available
                 if (config.stats.averageKPIs && Object.keys(config.stats.averageKPIs).length > 0) {
-                    console.log(chalk.bold("\n📊 Key Performance Indicators:"));
+                    output.info(chalk.bold("\n📊 Key Performance Indicators:"));
                     Object.entries(config.stats.averageKPIs).slice(0, TEAM_CONSTANTS.HISTORY_WINDOW_MINUTES).forEach(([key, value]) => {
-                        console.log(`  ${key}: ${typeof value === "number" ? value.toFixed(2) : value}`);
+                        output.info(`  ${key}: ${typeof value === "number" ? value.toFixed(2) : value}`);
                     });
                 }
 
-                console.log("\n" + "─".repeat(UI.TERMINAL_WIDTH));
+                output.info("\n" + "─".repeat(UI.TERMINAL_WIDTH));
 
                 // Check if we should continue
                 if (endTime > 0 && Date.now() >= endTime) {
-                    console.log(chalk.green("\n✓ Monitoring complete"));
+                    output.success("Monitoring complete");
                     process.exit(0);
                 }
             } catch (error) {
-                console.error(chalk.red(`\n✗ Monitor error: ${error}`));
+                output.error(`Monitor error: ${error}`);
             }
         };
 
@@ -581,7 +565,7 @@ export class TeamCommands {
         // Handle graceful shutdown
         process.on("SIGINT", () => {
             clearInterval(intervalId);
-            console.log(chalk.yellow("\n\n⚠ Monitoring stopped"));
+            output.info(chalk.yellow("\n\n⚠ Monitoring stopped"));
             process.exit(0);
         });
     }
@@ -593,10 +577,13 @@ export class TeamCommands {
         autoStart?: boolean;
     }): Promise<void> {
         try {
-            const spinner = ora("Spawning chat instance from team...").start();
-
             // Fetch team to get configuration
-            const team = await this.client.get<Team>(`/team/${teamId}`);
+            const team = await this.executeWithSpinner(
+                "Fetching team configuration...",
+                async () => this.client.get<Team>(`/team/${teamId}`),
+                "Team configuration fetched",
+            );
+            
             const teamConfig = team.config as TeamValidationData;
             const teamName = team.translations?.[0]?.name || "Unnamed Team";
 
@@ -606,7 +593,7 @@ export class TeamCommands {
                 try {
                     _clientContext = JSON.parse(options.context);
                 } catch (error) {
-                    spinner.fail("Invalid client context JSON");
+                    output.error("Invalid client context JSON");
                     process.exit(1);
                 }
             }
@@ -624,37 +611,32 @@ export class TeamCommands {
                 }],
             };
 
-            const result = await this.client.post<Chat>("/chat", chatInput);
-            spinner.succeed("Chat instance spawned successfully");
+            const result = await this.executeWithSpinner(
+                "Creating chat instance...",
+                async () => this.client.post<Chat>("/chat", chatInput),
+                "Chat instance spawned successfully",
+            );
 
-            if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify(result));
-            } else {
-                console.log(chalk.green("\n✓ Chat instance created"));
-                console.log(`  Chat ID: ${result.id}`);
-                console.log(`  Name: ${result.translations?.[0]?.name}`);
-                console.log(`  Team: ${teamName}`);
-                console.log(`  Task: ${options.task || teamConfig.goal}`);
-                
-                if (options.autoStart) {
-                    console.log(chalk.gray("\n🚀 Starting interactive chat..."));
-                    // Could trigger interactive chat here
-                    console.log(chalk.cyan(`vrooli chat interactive ${result.id}`));
-                } else {
-                    console.log(chalk.gray(`\nUse 'vrooli chat interactive ${result.id}' to start chatting`));
-                }
-            }
+            this.output(
+                result,
+                () => {
+                    output.success("Chat instance created");
+                    output.info(`  Chat ID: ${result.id}`);
+                    output.info(`  Name: ${result.translations?.[0]?.name}`);
+                    output.info(`  Team: ${teamName}`);
+                    output.info(`  Task: ${options.task || teamConfig.goal}`);
+                    
+                    if (options.autoStart) {
+                        output.info(chalk.gray("\n🚀 Starting interactive chat..."));
+                        // Could trigger interactive chat here
+                        output.info(chalk.cyan(`vrooli chat interactive ${result.id}`));
+                    } else {
+                        output.info(chalk.gray(`\nUse 'vrooli chat interactive ${result.id}' to start chatting`));
+                    }
+                },
+            );
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify({
-                    success: false,
-                    error: errorMessage,
-                }));
-            } else {
-                console.error(chalk.red(`✗ Failed to spawn chat: ${errorMessage}`));
-            }
-            process.exit(1);
+            this.handleError(error, "Failed to spawn chat");
         }
     }
 
@@ -664,11 +646,14 @@ export class TeamCommands {
         targetProfit?: string;
         costLimit?: string;
     }): Promise<void> {
-        const spinner = ora("Updating team...").start();
-
         try {
-            // Fetch current team
-            const team = await this.client.get<Team>(`/team/${teamId}`);
+            // Fetch current team and build updates
+            const team = await this.executeWithSpinner(
+                "Fetching current team...",
+                async () => this.client.get<Team>(`/team/${teamId}`),
+                "Team fetched",
+            );
+            
             const currentConfig = team.config as TeamValidationData;
 
             // Build update payload
@@ -696,72 +681,67 @@ export class TeamCommands {
             const updatedConfig = { ...currentConfig, ...updates };
 
             // Update via API
-            const result = await this.client.put<Team>(`/team/${teamId}`, {
-                config: updatedConfig,
-            });
+            const result = await this.executeWithSpinner(
+                "Updating team...",
+                async () => this.client.put<Team>(`/team/${teamId}`, {
+                    config: updatedConfig,
+                }),
+                "Team updated successfully",
+            );
 
-            spinner.succeed("Team updated successfully");
-
-            if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify(result));
-            } else {
-                console.log(chalk.green("\n✓ Team updated"));
-                if (options.goal) console.log(`  Goal: ${options.goal}`);
-                if (options.targetProfit) console.log(`  Target Profit: $${options.targetProfit}/month`);
-                if (options.costLimit) console.log(`  Cost Limit: $${options.costLimit}/month`);
-            }
+            this.output(
+                result,
+                () => {
+                    output.success("Team updated");
+                    if (options.goal) output.info(`  Goal: ${options.goal}`);
+                    if (options.targetProfit) output.info(`  Target Profit: $${options.targetProfit}/month`);
+                    if (options.costLimit) output.info(`  Cost Limit: $${options.costLimit}/month`);
+                },
+            );
         } catch (error) {
-            spinner.fail("Update failed");
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ ${errorMessage}`));
-            process.exit(1);
+            this.handleError(error, "Failed to update team");
         }
     }
 
     private async importTeam(filePath: string, options: { dryRun?: boolean }): Promise<void> {
-        const spinner = ora("Reading team configuration...").start();
-
         try {
-            const absolutePath = path.resolve(filePath);
-            const fileContent = await fs.readFile(absolutePath, "utf-8");
-            
-            spinner.text = "Parsing JSON...";
-            let teamConfig;
-            try {
-                teamConfig = JSON.parse(fileContent);
-            } catch (error) {
-                spinner.fail("Invalid JSON");
-                const errorMessage = error instanceof Error ? error.message : String(error);
-                console.error(chalk.red(`✗ JSON parse error: ${errorMessage}`));
-                process.exit(1);
-            }
+            // Read and parse team configuration
+            const teamConfig = await this.executeWithSpinner(
+                "Reading and parsing team configuration...",
+                async () => {
+                    const absolutePath = path.resolve(filePath);
+                    const fileContent = await fs.readFile(absolutePath, "utf-8");
+                    return JSON.parse(fileContent);
+                },
+                "Configuration parsed",
+            );
 
             // Validate configuration
-            spinner.text = "Validating team configuration...";
-            const validation = this.validateTeamConfig(teamConfig);
+            const validation = await this.executeWithSpinner(
+                "Validating team configuration...",
+                async () => this.validateTeamConfig(teamConfig),
+                "Validation completed",
+            );
             
             if (!validation.valid) {
-                spinner.fail("Validation failed");
-                console.error(chalk.red("\n✗ Validation errors:"));
+                output.error("Validation failed:");
                 validation.errors.forEach((error: string) => {
-                    console.error(`  - ${error}`);
+                    output.error(`  - ${error}`);
                 });
                 process.exit(1);
             }
 
             if (options.dryRun) {
-                spinner.succeed("Validation passed (dry run)");
-                console.log(chalk.green("\n✓ Team configuration is valid"));
+                output.success("Team configuration is valid (dry run)");
                 const targetProfitUSD = Number(BigInt(teamConfig.targetProfitPerMonth)) / TEAM_CONSTANTS.MICROSECONDS_PER_SECOND;
-                console.log(`  Deployment Type: ${teamConfig.deploymentType}`);
-                console.log(`  Goal: ${teamConfig.goal}`);
-                console.log(`  Target Profit: $${targetProfitUSD}/month`);
-                console.log(`  Resource Quota: ${teamConfig.resourceQuota.gpuPercentage}% GPU, ${teamConfig.resourceQuota.ramGB}GB RAM`);
+                output.info(`  Deployment Type: ${teamConfig.deploymentType}`);
+                output.info(`  Goal: ${teamConfig.goal}`);
+                output.info(`  Target Profit: $${targetProfitUSD}/month`);
+                output.info(`  Resource Quota: ${teamConfig.resourceQuota.gpuPercentage}% GPU, ${teamConfig.resourceQuota.ramGB}GB RAM`);
                 return;
             }
 
             // Create team via API
-            spinner.text = "Creating team...";
             const teamInput: TeamCreateInput = {
                 id: generatePK().toString(),
                 isPrivate: true,
@@ -774,26 +754,32 @@ export class TeamCommands {
                 }],
             };
 
-            const result = await this.client.post<Team>("/team", teamInput);
-            spinner.succeed("Team imported successfully");
+            const result = await this.executeWithSpinner(
+                "Creating team...",
+                async () => this.client.post<Team>("/team", teamInput),
+                "Team imported successfully",
+            );
 
-            console.log(chalk.green("\n✓ Import successful"));
-            console.log(`  Team ID: ${result.id}`);
-            console.log(`  Goal: ${teamConfig.goal}`);
+            this.output(
+                result,
+                () => {
+                    output.success("Import successful");
+                    output.info(`  Team ID: ${result.id}`);
+                    output.info(`  Goal: ${teamConfig.goal}`);
+                },
+            );
         } catch (error) {
-            spinner.fail("Import failed");
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ ${errorMessage}`));
-            process.exit(1);
+            this.handleError(error, "Import failed");
         }
     }
 
     private async exportTeam(teamId: string, options: { output?: string }): Promise<void> {
-        const spinner = ora("Fetching team configuration...").start();
-
         try {
-            const team = await this.client.get<Team>(`/team/${teamId}`);
-            spinner.succeed("Team fetched");
+            const team = await this.executeWithSpinner(
+                "Fetching team configuration...",
+                async () => this.client.get<Team>(`/team/${teamId}`),
+                "Team fetched",
+            );
 
             const teamConfig = team.config as TeamValidationData;
             
@@ -801,15 +787,12 @@ export class TeamCommands {
             const outputPath = options.output || `team-${teamId}-config.json`;
             const absolutePath = path.resolve(outputPath);
 
-            // Write to file
-            await fs.writeFile(absolutePath, JSON.stringify(teamConfig, null, 2));
+            // Write to file  
+            await this.writeJsonFile(absolutePath, teamConfig);
 
-            console.log(chalk.green(`✓ Team configuration exported to: ${absolutePath}`));
+            output.success(`Team configuration exported to: ${absolutePath}`);
         } catch (error) {
-            spinner.fail("Export failed");
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ ${errorMessage}`));
-            process.exit(1);
+            this.handleError(error, "Export failed");
         }
     }
 
@@ -818,15 +801,17 @@ export class TeamCommands {
         limit?: string;
         minConfidence?: string;
     }): Promise<void> {
-        const spinner = ora("Fetching team insights...").start();
-
         try {
-            const team = await this.client.get<Team>(`/team/${teamId}`);
+            const team = await this.executeWithSpinner(
+                "Fetching team insights...",
+                async () => this.client.get<Team>(`/team/${teamId}`),
+                "Insights fetched",
+            );
+            
             const config = team.config as TeamValidationData;
-            spinner.succeed("Insights fetched");
 
             if (!config.blackboard || config.blackboard.length === 0) {
-                console.log(chalk.yellow("No insights found in team blackboard"));
+                output.info(chalk.yellow("No insights found in team blackboard"));
                 return;
             }
 
@@ -855,26 +840,28 @@ export class TeamCommands {
             insights = insights.slice(-limit);
 
             if (insights.length === 0) {
-                console.log(chalk.yellow("No insights match the criteria"));
+                output.info(chalk.yellow("No insights match the criteria"));
                 return;
             }
 
-            console.log(chalk.bold(`\n🧠 Team Insights (${insights.length} found):`));
-            console.log("─".repeat(UI.TERMINAL_WIDTH));
+            this.output(
+                { insights, count: insights.length },
+                () => {
+                    output.info(chalk.bold(`\n🧠 Team Insights (${insights.length} found):`));
+                    output.info("─".repeat(UI.TERMINAL_WIDTH));
 
-            insights.forEach((item, index) => {
-                const insight = item.value as TeamInsight;
-                const confidenceIcon = insight.confidence > TEAM_CONSTANTS.THROTTLE_THRESHOLD ? "🟢" : insight.confidence > TEAM_CONSTANTS.MEMORY_USAGE_WARNING ? "🟡" : "🔴";
-                
-                console.log(`\n${index + 1}. ${chalk.bold(insight.type)} ${confidenceIcon} (${(insight.confidence * 100).toFixed(0)}%)`);
-                console.log(`   Created: ${new Date(item.created_at).toLocaleString()}`);
-                console.log(`   Data: ${JSON.stringify(insight.data, null, 2).split("\n").map(line => "   " + line).join("\n").trim()}`);
-            });
+                    insights.forEach((item, index) => {
+                        const insight = item.value as TeamInsight;
+                        const confidenceIcon = insight.confidence > TEAM_CONSTANTS.THROTTLE_THRESHOLD ? "🟢" : insight.confidence > TEAM_CONSTANTS.MEMORY_USAGE_WARNING ? "🟡" : "🔴";
+                        
+                        output.info(`\n${index + 1}. ${chalk.bold(insight.type)} ${confidenceIcon} (${(insight.confidence * 100).toFixed(0)}%)`);
+                        output.info(`   Created: ${new Date(item.created_at).toLocaleString()}`);
+                        output.info(`   Data: ${JSON.stringify(insight.data, null, 2).split("\n").map(line => "   " + line).join("\n").trim()}`);
+                    });
+                },
+            );
         } catch (error) {
-            spinner.fail("Failed to fetch insights");
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ ${errorMessage}`));
-            process.exit(1);
+            this.handleError(error, "Failed to fetch insights");
         }
     }
 
@@ -928,12 +915,12 @@ export class TeamCommands {
 
     private displayTeamsTable(teams: Team[]): void {
         if (teams.length === 0) {
-            console.log(chalk.yellow("No teams found"));
+            output.info(chalk.yellow("No teams found"));
             return;
         }
 
-        console.log(chalk.bold("\nTeams:"));
-        console.log();
+        output.info(chalk.bold("\nTeams:"));
+        output.info("");
         
         teams.forEach((team, index) => {
             const name = team.translations?.[0]?.name || "Unnamed Team";
@@ -941,11 +928,11 @@ export class TeamCommands {
             const targetProfitUSD = Number(BigInt(config.targetProfitPerMonth)) / TEAM_CONSTANTS.MICROSECONDS_PER_SECOND;
             const activeInstances = config.stats?.activeInstances || 0;
             
-            console.log(`${chalk.cyan((index + 1).toString().padStart(3))}. ${chalk.bold(name)}`);
-            console.log(`     ID: ${chalk.gray(team.id)}`);
-            console.log(`     Goal: ${config.goal}`);
-            console.log(`     Type: ${config.deploymentType} | Target: $${targetProfitUSD}/mo | Active: ${activeInstances}`);
-            console.log();
+            output.info(`${chalk.cyan((index + 1).toString().padStart(3))}. ${chalk.bold(name)}`);
+            output.info(`     ID: ${chalk.gray(team.id)}`);
+            output.info(`     Goal: ${config.goal}`);
+            output.info(`     Type: ${config.deploymentType} | Target: $${targetProfitUSD}/mo | Active: ${activeInstances}`);
+            output.info("");
         });
     }
 

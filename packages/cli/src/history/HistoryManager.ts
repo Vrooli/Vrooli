@@ -3,36 +3,76 @@ import { StorageFactory, type ExtendedHistoryStorage } from "./storage/StorageFa
 import { generatePK } from "@vrooli/shared";
 import type { HistoryEntry, HistorySearchQuery, HistoryStats } from "./types.js";
 import { CLI_LIMITS, DAYS_90_MS } from "../utils/constants.js";
+import { logger } from "../utils/logger.js";
 
 export class HistoryManager {
-    private storage: ExtendedHistoryStorage;
+    private storage: ExtendedHistoryStorage | null = null;
+    private syncStorage: ExtendedHistoryStorage | null = null;
     private currentEntry?: Partial<HistoryEntry>;
-    private readonly sensitiveKeys = ["password", "token", "secret", "key", "auth"];
-    private storagePromise: Promise<ExtendedHistoryStorage>;
+    private readonly sensitiveKeys = ["password", "token", "secret", "key", "auth", "api", "apikey", "credential"];
+    private storagePromise: Promise<ExtendedHistoryStorage> | null;
+    private isStorageInitialized = false;
     
     constructor(
         private config: ConfigManager,
         _storageType: "sqlite" | "json" = "sqlite",
     ) {
-        // Create storage asynchronously
+        // Create storage asynchronously for normal operations
         this.storagePromise = StorageFactory.create(config).then(storage => {
             this.storage = storage;
+            this.isStorageInitialized = true;
             return storage;
+        }).catch(error => {
+            // If async initialization fails, mark as initialized anyway to prevent hanging
+            logger.error("Failed to initialize async storage", error);
+            this.isStorageInitialized = true;
+            // Fall back to sync storage
+            if (!this.syncStorage) {
+                this.syncStorage = StorageFactory.createSync(config);
+            }
+            this.storage = this.syncStorage;
+            return this.storage;
         });
         
-        // For immediate use in sync contexts (e.g., exit handlers), create a sync fallback
-        this.storage = StorageFactory.createSync(config);
+        // Create sync storage only when needed (lazy initialization for exit handlers)
+        // This avoids the race condition by not creating both immediately
     }
     
     /**
      * Ensures storage is initialized before use
      */
     private async ensureStorage(): Promise<ExtendedHistoryStorage> {
-        if (this.storagePromise) {
-            this.storage = await this.storagePromise;
-            this.storagePromise = null as unknown as Promise<ExtendedHistoryStorage>; // Clear to avoid repeated awaits
+        // If already initialized, return the storage
+        if (this.isStorageInitialized && this.storage) {
+            return this.storage;
         }
+        
+        // Wait for async initialization if still pending
+        if (this.storagePromise) {
+            const storage = await this.storagePromise;
+            this.storagePromise = null; // Clear to avoid repeated awaits
+            return storage;
+        }
+        
+        // Fallback: create sync storage if nothing else worked
+        if (!this.storage) {
+            if (!this.syncStorage) {
+                this.syncStorage = StorageFactory.createSync(this.config);
+            }
+            this.storage = this.syncStorage;
+        }
+        
         return this.storage;
+    }
+    
+    /**
+     * Get sync storage for exit handlers - lazy initialization
+     */
+    private getSyncStorage(): ExtendedHistoryStorage {
+        if (!this.syncStorage) {
+            this.syncStorage = StorageFactory.createSync(this.config);
+        }
+        return this.syncStorage;
     }
     
     async startCommand(command: string, args: string[], options: Record<string, unknown>): Promise<void> {
@@ -92,9 +132,10 @@ export class HistoryManager {
         this.addCompletionMetadata();
         
         try {
-            // Use synchronous call for exit handlers
-            if (this.storage.addSync) {
-                this.storage.addSync(this.currentEntry as HistoryEntry);
+            // Use sync storage for exit handlers
+            const syncStorage = this.getSyncStorage();
+            if (syncStorage.addSync) {
+                syncStorage.addSync(this.currentEntry as HistoryEntry);
             }
         } catch (error) {
             // Ignore errors during exit
@@ -160,11 +201,12 @@ export class HistoryManager {
         const sanitized = { ...options };
         
         for (const key of Object.keys(sanitized)) {
-            if (this.isSensitiveKey(key)) {
-                sanitized[key] = "***";
-            } else if (typeof sanitized[key] === "object" && sanitized[key] !== null && !Array.isArray(sanitized[key])) {
-                // Recursively sanitize nested objects
+            if (typeof sanitized[key] === "object" && sanitized[key] !== null && !Array.isArray(sanitized[key])) {
+                // Recursively sanitize nested objects first
                 sanitized[key] = this.sanitizeOptions(sanitized[key] as Record<string, unknown>);
+            } else if (this.isSensitiveKey(key)) {
+                // Only mask primitive values with sensitive keys
+                sanitized[key] = "***";
             }
         }
         

@@ -1,21 +1,28 @@
 import { type Command } from "commander";
 import { type ApiClient } from "../utils/client.js";
 import { type ConfigManager } from "../utils/config.js";
+import { output } from "../utils/output.js";
 import chalk from "chalk";
 import inquirer from "inquirer";
 import ora from "ora";
-import type { Session } from "@vrooli/shared";
+import type { 
+    Session, 
+    EmailRequestPasswordChangeInput, 
+    EmailResetPasswordInput, 
+} from "@vrooli/shared";
+import { AUTH_CONFIG } from "../utils/constants.js";
+import { BaseCommand } from "./BaseCommand.js";
 
-export class AuthCommands {
+export class AuthCommands extends BaseCommand {
     constructor(
-        private program: Command,
-        private client: ApiClient,
-        private config: ConfigManager,
+        program: Command,
+        client: ApiClient,
+        config: ConfigManager,
     ) {
-        this.registerCommands();
+        super(program, client, config);
     }
 
-    private registerCommands(): void {
+    protected registerCommands(): void {
         const authCmd = this.program
             .command("auth")
             .description("Authentication commands");
@@ -50,6 +57,22 @@ export class AuthCommands {
             .action(async () => {
                 await this.whoami();
             });
+
+        authCmd
+            .command("reset-password")
+            .description("Reset your password")
+            .option("-e, --email <email>", "Email address")
+            .action(async (options) => {
+                await this.resetPassword(options);
+            });
+
+        authCmd
+            .command("verify-email")
+            .description("Verify your email address")
+            .option("-c, --code <code>", "Verification code")
+            .action(async (options) => {
+                await this.verifyEmail(options);
+            });
     }
 
     private async login(options: { email?: string; password?: string; save?: boolean }): Promise<void> {
@@ -57,60 +80,56 @@ export class AuthCommands {
             // Prompt for credentials if not provided
             const credentials = await this.promptCredentials(options);
             
-            const spinner = ora("Logging in...").start();
+            const session = await this.executeWithSpinner(
+                "Logging in...",
+                async () => {
+                    // Call login endpoint
+                    const session = await this.client.post<Session>("/auth/email/login", {
+                        email: credentials.email,
+                        password: credentials.password,
+                    });
 
-            try {
-                // Call login endpoint
-                const session = await this.client.post<Session>("/auth/email/login", {
-                    email: credentials.email,
-                    password: credentials.password,
-                });
-
-                const user = session.users?.[0];
-                if (!user) {
-                    throw new Error("No user data in login response");
-                }
-
-                // Tokens are handled via HTTP-only cookies automatically
-                // Save session info if requested
-                if (options.save !== false) {
-                    this.config.setSession(session);
-                }
-
-                spinner.succeed("Logged in successfully");
-
-                if (this.config.isJsonOutput()) {
-                    console.log(JSON.stringify({
-                        success: true,
-                        user: {
-                            id: user.id,
-                            handle: user.handle,
-                            name: user.name,
-                        },
-                    }));
-                } else {
-                    console.log(chalk.green("\n✓ Authentication successful"));
-                    console.log(`  User: ${user.name || user.handle}`);
-                    console.log(`  Handle: ${user.handle}`);
-                    if (options.save !== false) {
-                        console.log(`  Profile: ${this.config.getActiveProfileName()}`);
+                    const user = session.users?.[0];
+                    if (!user) {
+                        throw new Error("No user data in login response");
                     }
-                }
-            } catch (error) {
-                spinner.fail("Login failed");
-                throw error;
+
+                    // Tokens are handled via HTTP-only cookies automatically
+                    // Save session info if requested
+                    if (options.save !== false) {
+                        this.config.setSession(session);
+                    }
+
+                    return session;
+                },
+                "Logged in successfully",
+            );
+
+            const user = session.users?.[0];
+            if (!user) {
+                throw new Error("No user data in response");
             }
+            
+            this.output(
+                {
+                    success: true,
+                    user: {
+                        id: user.id,
+                        handle: user.handle,
+                        name: user.name,
+                    },
+                },
+                () => {
+                    output.success("\n✓ Authentication successful");
+                    output.info(`  User: ${user.name || user.handle}`);
+                    output.info(`  Handle: ${user.handle}`);
+                    if (options.save !== false) {
+                        output.info(`  Profile: ${this.config.getActiveProfileName()}`);
+                    }
+                },
+            );
         } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error);
-            if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify({
-                    success: false,
-                    error: errorMessage,
-                }));
-            } else {
-                console.error(chalk.red(`✗ Login failed: ${errorMessage}`));
-            }
-            process.exit(1);
+            this.handleError(error, "Login failed");
         }
     }
 
@@ -127,7 +146,7 @@ export class AuthCommands {
             } catch (error) {
                 // Ignore logout errors - we'll clear local auth anyway
                 if (this.config.isDebug()) {
-                    console.error("Logout API error (ignored):", error);
+                    output.debug("Logout API error (ignored):", error);
                 }
             }
 
@@ -136,13 +155,13 @@ export class AuthCommands {
             spinner.succeed("Logged out successfully");
 
             if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify({ success: true }));
+                output.json({ success: true });
             } else {
-                console.log(chalk.green("✓ Credentials cleared"));
+                output.success("✓ Credentials cleared");
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Logout failed: ${errorMessage}`));
+            output.error(`✗ Logout failed: ${errorMessage}`);
             process.exit(1);
         }
     }
@@ -153,14 +172,14 @@ export class AuthCommands {
             
             if (!token) {
                 if (this.config.isJsonOutput()) {
-                    console.log(JSON.stringify({
+                    output.json({
                         authenticated: false,
                         profile: this.config.getActiveProfileName(),
-                    }));
+                    });
                 } else {
-                    console.log(chalk.yellow("⚠ Not authenticated"));
-                    console.log(`  Profile: ${this.config.getActiveProfileName()}`);
-                    console.log(`  Server: ${this.config.getServerUrl()}`);
+                    output.warn("⚠ Not authenticated");
+                    output.info(`  Profile: ${this.config.getActiveProfileName()}`);
+                    output.info(`  Server: ${this.config.getServerUrl()}`);
                 }
                 return;
             }
@@ -179,7 +198,7 @@ export class AuthCommands {
                 }
 
                 if (this.config.isJsonOutput()) {
-                    console.log(JSON.stringify({
+                    output.json({
                         authenticated: true,
                         profile: this.config.getActiveProfileName(),
                         user: {
@@ -187,13 +206,13 @@ export class AuthCommands {
                             handle: user.handle,
                             name: user.name,
                         },
-                    }));
+                    });
                 } else {
-                    console.log(chalk.green("\n✓ Authenticated"));
-                    console.log(`  User: ${user.name || user.handle}`);
-                    console.log(`  Handle: ${user.handle}`);
-                    console.log(`  Profile: ${this.config.getActiveProfileName()}`);
-                    console.log(`  Server: ${this.config.getServerUrl()}`);
+                    output.success("\n✓ Authenticated");
+                    output.info(`  User: ${user.name || user.handle}`);
+                    output.info(`  Handle: ${user.handle}`);
+                    output.info(`  Profile: ${this.config.getActiveProfileName()}`);
+                    output.info(`  Server: ${this.config.getServerUrl()}`);
                 }
             } catch (error) {
                 spinner.fail("Not authenticated");
@@ -201,21 +220,21 @@ export class AuthCommands {
                 
                 const errorMessage = error instanceof Error ? error.message : String(error);
                 if (this.config.isJsonOutput()) {
-                    console.log(JSON.stringify({
+                    output.json({
                         authenticated: false,
                         profile: this.config.getActiveProfileName(),
                         error: errorMessage,
-                    }));
+                    });
                 } else {
-                    console.log(chalk.red("\n✗ Authentication invalid"));
-                    console.log(`  Profile: ${this.config.getActiveProfileName()}`);
-                    console.log(`  Server: ${this.config.getServerUrl()}`);
-                    console.log(chalk.gray("\nRun 'vrooli auth login' to authenticate"));
+                    output.error("\n✗ Authentication invalid");
+                    output.info(`  Profile: ${this.config.getActiveProfileName()}`);
+                    output.info(`  Server: ${this.config.getServerUrl()}`);
+                    output.info(chalk.gray("\nRun 'vrooli auth login' to authenticate"));
                 }
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
-            console.error(chalk.red(`✗ Status check failed: ${errorMessage}`));
+            output.error(`✗ Status check failed: ${errorMessage}`);
             process.exit(1);
         }
     }
@@ -229,28 +248,28 @@ export class AuthCommands {
 
             const user = session.users?.[0];
             if (!user) {
-                console.log(chalk.yellow("No user data found"));
+                output.warn("No user data found");
                 return;
             }
 
             if (this.config.isJsonOutput()) {
-                console.log(JSON.stringify(user));
+                output.json(user);
             } else {
-                console.log(chalk.bold("\nUser Information:"));
-                console.log(`  ID: ${user.id}`);
-                console.log(`  Handle: ${user.handle || "(not set)"}`);
-                console.log(`  Name: ${user.name || "(not set)"}`);
-                console.log(`  Languages: ${user.languages?.join(", ") || "none"}`);
-                console.log(`  Credits: ${user.credits || "0"}`);
-                console.log(`  Premium: ${user.hasPremium ? "Yes" : "No"}`);
-                console.log(`  Last Updated: ${new Date(user.updatedAt).toLocaleString()}`);
+                output.info(chalk.bold("\nUser Information:"));
+                output.info(`  ID: ${user.id}`);
+                output.info(`  Handle: ${user.handle || "(not set)"}`);
+                output.info(`  Name: ${user.name || "(not set)"}`);
+                output.info(`  Languages: ${user.languages?.join(", ") || "none"}`);
+                output.info(`  Credits: ${user.credits || "0"}`);
+                output.info(`  Premium: ${user.hasPremium ? "Yes" : "No"}`);
+                output.info(`  Last Updated: ${new Date(user.updatedAt).toLocaleString()}`);
             }
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : String(error);
             if (errorMessage.includes("401")) {
-                console.error(chalk.red("✗ Not authenticated. Run 'vrooli auth login' first."));
+                output.error("✗ Not authenticated. Run 'vrooli auth login' first.");
             } else {
-                console.error(chalk.red(`✗ Failed to get user info: ${errorMessage}`));
+                output.error(`✗ Failed to get user info: ${errorMessage}`);
             }
             process.exit(1);
         }
@@ -292,5 +311,165 @@ export class AuthCommands {
             email: options.email || answers.email || "",
             password: options.password || answers.password || "",
         };
+    }
+
+    private async resetPassword(options: { email?: string }): Promise<void> {
+        try {
+            let email = options.email;
+
+            // Prompt for email if not provided
+            if (!email) {
+                const emailAnswer = await inquirer.prompt([{
+                    type: "input",
+                    name: "email",
+                    message: "Email address:",
+                    validate: (input: string) => {
+                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                        return emailRegex.test(input) || "Please enter a valid email address";
+                    },
+                }]);
+                email = emailAnswer.email;
+            }
+
+            if (!email) {
+                throw new Error("Email is required");
+            }
+
+            const spinner = ora("Requesting password reset...").start();
+
+            try {
+                // First, request password change  
+                const requestInput: EmailRequestPasswordChangeInput = { email };
+                await this.client.post("/auth/email/requestPasswordChange", requestInput);
+
+                spinner.succeed("Password reset requested");
+
+                if (this.config.isJsonOutput()) {
+                    output.json({ success: true });
+                } else {
+                    output.success("\n✓ Password reset email sent");
+                    output.info("  Check your email for reset instructions");
+                    output.info(chalk.gray("  Use 'vrooli auth reset-password --help' for more options"));
+                }
+
+                // Prompt for reset code and new password
+                const resetAnswers = await inquirer.prompt<{
+                    code: string;
+                    newPassword: string;
+                    confirmPassword: string;
+                }>([
+                    {
+                        type: "input",
+                        name: "code",
+                        message: "Enter the reset code from your email:",
+                        validate: (input: string) => {
+                            return input.length > 0 || "Reset code is required";
+                        },
+                    },
+                    {
+                        type: "password",
+                        name: "newPassword",
+                        message: "Enter your new password:",
+                        mask: "*",
+                        validate: (input: string) => {
+                            return input.length >= AUTH_CONFIG.MIN_PASSWORD_LENGTH || `Password must be at least ${AUTH_CONFIG.MIN_PASSWORD_LENGTH} characters`;
+                        },
+                    },
+                    {
+                        type: "password",
+                        name: "confirmPassword",
+                        message: "Confirm your new password:",
+                        mask: "*",
+                        validate: (input: string, answers?: Record<string, unknown>) => {
+                            return input === (answers as { newPassword?: string })?.newPassword || "Passwords do not match";
+                        },
+                    },
+                ]);
+
+                const resetSpinner = ora("Resetting password...").start();
+
+                // Reset password with code
+                const resetInput: EmailResetPasswordInput = {
+                    code: resetAnswers.code,
+                    newPassword: resetAnswers.newPassword,
+                };
+                await this.client.post("/auth/email/resetPassword", resetInput);
+
+                resetSpinner.succeed("Password reset successfully");
+
+                if (this.config.isJsonOutput()) {
+                    output.json({ success: true });
+                } else {
+                    output.success("\n✓ Password reset successfully");
+                    output.info("  You can now log in with your new password");
+                }
+
+            } catch (error) {
+                spinner.fail("Password reset failed");
+                throw error;
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (this.config.isJsonOutput()) {
+                output.json({
+                    success: false,
+                    error: errorMessage,
+                });
+            } else {
+                output.error(`✗ Password reset failed: ${errorMessage}`);
+            }
+            process.exit(1);
+        }
+    }
+
+    private async verifyEmail(options: { code?: string }): Promise<void> {
+        try {
+            let code = options.code;
+
+            // Prompt for code if not provided
+            if (!code) {
+                const codeAnswer = await inquirer.prompt([{
+                    type: "input",
+                    name: "code",
+                    message: "Enter the verification code from your email:",
+                    validate: (input: string) => {
+                        return input.length > 0 || "Verification code is required";
+                    },
+                }]);
+                code = codeAnswer.code;
+            }
+
+            const spinner = ora("Verifying email...").start();
+
+            try {
+                // Call email verification endpoint
+                await this.client.post("/email/verify", { code });
+
+                spinner.succeed("Email verified successfully");
+
+                if (this.config.isJsonOutput()) {
+                    output.json({ success: true });
+                } else {
+                    output.success("\n✓ Email verified successfully");
+                    output.info("  Your email is now verified and you have access to all features");
+                }
+            } catch (error) {
+                spinner.fail("Email verification failed");
+                throw error;
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : String(error);
+            if (this.config.isJsonOutput()) {
+                output.json({
+                    success: false,
+                    error: errorMessage,
+                });
+            } else {
+                output.error(`✗ Email verification failed: ${errorMessage}`);
+                output.info(chalk.gray("  Make sure you have the correct verification code"));
+                output.info(chalk.gray("  Codes typically expire after a few minutes"));
+            }
+            process.exit(1);
+        }
     }
 }

@@ -551,8 +551,9 @@ export class InteractiveChatEngine {
             this.handleUserInput(input);
         });
         
-        this.readline.on("close", () => {
-            this.cleanup();
+        this.readline.on("close", async () => {
+            await this.cleanup();
+            process.exit(0);
         });
         
         // Handle Ctrl+C gracefully
@@ -672,7 +673,7 @@ export class InteractiveChatEngine {
     }
 
     /**
-     * Cleanup resources and exit
+     * Cleanup resources
      */
     async cleanup(): Promise<void> {
         this.isRunning = false;
@@ -699,7 +700,7 @@ export class InteractiveChatEngine {
         this.ui.displaySuccess(`Chat session ended. Duration: ${durationMinutes} minutes, Messages: ${this.session.messageCount}`);
         console.log();
         
-        process.exit(0);
+        // Note: Removed process.exit(0) - let the caller decide when to exit
     }
 
     /**

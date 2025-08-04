@@ -66,6 +66,7 @@ describe("ApiClient", () => {
             on: vi.fn(),
             off: vi.fn(),
             emit: vi.fn(),
+            removeAllListeners: vi.fn(),
             connected: false,
         } as any;
 
@@ -203,7 +204,8 @@ describe("ApiClient", () => {
             vi.mocked(config.getRefreshToken).mockReturnValue("refresh-token");
             mockAxiosInstance.post.mockRejectedValue(new Error("Refresh failed"));
 
-            const error: AxiosError = {
+            // Create multiple errors to trigger the max refresh attempts
+            const error1: AxiosError = {
                 response: { status: HTTP_STATUS.UNAUTHORIZED } as any,
                 config: { url: "/protected" } as AxiosRequestConfig,
                 isAxiosError: true,
@@ -211,8 +213,28 @@ describe("ApiClient", () => {
                 name: "AxiosError",
                 message: "Unauthorized",
             };
+            const error2: AxiosError = {
+                response: { status: HTTP_STATUS.UNAUTHORIZED } as any,
+                config: { url: "/protected2" } as AxiosRequestConfig,
+                isAxiosError: true,
+                toJSON: () => ({}),
+                name: "AxiosError",
+                message: "Unauthorized",
+            };
+            const error3: AxiosError = {
+                response: { status: HTTP_STATUS.UNAUTHORIZED } as any,
+                config: { url: "/protected3" } as AxiosRequestConfig,
+                isAxiosError: true,
+                toJSON: () => ({}),
+                name: "AxiosError",
+                message: "Unauthorized",
+            };
 
-            await expect(responseErrorHandler(error)).rejects.toBeDefined();
+            // Make 3 failed refresh attempts to trigger clearAuth
+            await expect(responseErrorHandler(error1)).rejects.toBeDefined();
+            await expect(responseErrorHandler(error2)).rejects.toBeDefined();
+            await expect(responseErrorHandler(error3)).rejects.toBeDefined();
+            
             expect(vi.mocked(config.clearAuth)).toHaveBeenCalled();
         });
 
@@ -347,6 +369,9 @@ describe("ApiClient", () => {
                     token: null,
                 },
                 transports: ["websocket"],
+                autoConnect: true,
+                reconnection: false,
+                timeout: 10000,
             });
             expect(socket).toBe(mockSocket);
         });
@@ -377,6 +402,7 @@ describe("ApiClient", () => {
             client.connectWebSocket();
             client.disconnectWebSocket();
 
+            expect(mockSocket.removeAllListeners).toHaveBeenCalled();
             expect(mockSocket.disconnect).toHaveBeenCalled();
         });
 

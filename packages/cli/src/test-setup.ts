@@ -1,5 +1,8 @@
 import { vi, beforeEach } from "vitest";
 
+// Set NODE_ENV to test for proper error handling detection
+process.env.NODE_ENV = "test";
+
 // Mock @vrooli/shared package to prevent translation loading issues during coverage
 vi.mock("@vrooli/shared", async () => {
     const actualShared = await vi.importActual("@vrooli/shared");

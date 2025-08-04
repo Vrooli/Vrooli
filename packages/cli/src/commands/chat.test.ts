@@ -8,10 +8,11 @@ import type {
 } from "@vrooli/shared";
 import chalk from "chalk";
 import { Command } from "commander";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockedFunction } from "vitest";
 import { type ApiClient } from "../utils/client.js";
 import { type ConfigManager } from "../utils/config.js";
 import { ChatCommands } from "./chat.js";
+import { output } from "../utils/output.js";
 
 // Mock dependencies
 vi.mock("../utils/chatEngine.js", () => ({
@@ -40,6 +41,25 @@ vi.mock("chalk", () => ({
         cyan: vi.fn((text: string) => text),
         gray: vi.fn((text: string) => text),
         blue: vi.fn((text: string) => text),
+        underline: vi.fn((text: string) => text),
+    },
+}));
+
+// Mock the output utility
+vi.mock("../utils/output.js", () => ({
+    output: {
+        info: vi.fn(),
+        success: vi.fn(),
+        error: vi.fn(),
+        warn: vi.fn(),
+        debug: vi.fn(),
+        json: vi.fn(),
+        table: vi.fn(),
+        raw: vi.fn(),
+        newline: vi.fn(),
+        section: vi.fn(),
+        listItem: vi.fn(),
+        keyValue: vi.fn(),
     },
 }));
 
@@ -48,14 +68,13 @@ describe("ChatCommands", () => {
     let mockClient: ApiClient;
     let mockConfig: ConfigManager;
     let chatCommands: ChatCommands;
-    let consoleLogSpy: any;
-    let consoleErrorSpy: any;
     let processExitSpy: any;
 
     beforeEach(() => {
-        // Capture console output
-        consoleLogSpy = vi.spyOn(console, "log").mockImplementation(() => undefined);
-        consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+        // Clear all mocks before each test
+        vi.clearAllMocks();
+        
+        // Mock process.exit
         processExitSpy = vi.spyOn(process, "exit").mockImplementation(() => undefined as never);
 
         // Create mocks
@@ -66,7 +85,9 @@ describe("ChatCommands", () => {
             post: vi.fn(),
             get: vi.fn(),
             getSocket: vi.fn(),
+            requestWithEndpoint: vi.fn(),
             isAuthenticated: vi.fn(),
+            connectWebSocket: vi.fn(),
         } as unknown as ApiClient;
 
         mockConfig = {
@@ -80,8 +101,6 @@ describe("ChatCommands", () => {
     });
 
     afterEach(() => {
-        consoleLogSpy.mockRestore();
-        consoleErrorSpy.mockRestore();
         processExitSpy.mockRestore();
         vi.clearAllMocks();
     });
@@ -137,12 +156,12 @@ describe("ChatCommands", () => {
         };
 
         it("should list available bots in table format", async () => {
-            (mockClient.post as any).mockResolvedValue(mockBots);
+            (mockClient.requestWithEndpoint as any).mockResolvedValue(mockBots);
 
             await program.parseAsync(["node", "test", "chat", "list-bots"]);
 
-            expect(mockClient.post).toHaveBeenCalledWith(
-                "/users",
+            expect(mockClient.requestWithEndpoint).toHaveBeenCalledWith(
+                expect.anything(),
                 expect.objectContaining({
                     searchString: undefined,
                     isBot: true,
@@ -150,29 +169,27 @@ describe("ChatCommands", () => {
                 }),
             );
 
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Available Bots"));
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("TestBot"));
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("HelperBot"));
+            expect(output.info).toHaveBeenCalledWith(expect.stringContaining("Available Bots"));
+            expect(output.info).toHaveBeenCalledWith(expect.stringContaining("TestBot"));
+            expect(output.info).toHaveBeenCalledWith(expect.stringContaining("HelperBot"));
         });
 
         it("should list bots in JSON format when specified", async () => {
-            (mockClient.post as any).mockResolvedValue(mockBots);
+            (mockClient.requestWithEndpoint as any).mockResolvedValue(mockBots);
             (mockConfig.isJsonOutput as any).mockReturnValue(true);
 
             await program.parseAsync(["node", "test", "chat", "list-bots", "--format", "json"]);
 
-            expect(consoleLogSpy).toHaveBeenCalledWith(
-                JSON.stringify(mockBots),
-            );
+            expect(output.json).toHaveBeenCalledWith(mockBots);
         });
 
         it("should search bots by name", async () => {
-            (mockClient.post as any).mockResolvedValue(mockBots);
+            (mockClient.requestWithEndpoint as any).mockResolvedValue(mockBots);
 
             await program.parseAsync(["node", "test", "chat", "list-bots", "--search", "test"]);
 
-            expect(mockClient.post).toHaveBeenCalledWith(
-                "/users",
+            expect(mockClient.requestWithEndpoint).toHaveBeenCalledWith(
+                expect.anything(),
                 expect.objectContaining({
                     searchString: "test",
                     isBot: true,
@@ -182,11 +199,11 @@ describe("ChatCommands", () => {
         });
 
         it("should handle API errors gracefully", async () => {
-            (mockClient.post as any).mockRejectedValue(new Error("Network error"));
+            (mockClient.requestWithEndpoint as any).mockRejectedValue(new Error("Network error"));
 
             await program.parseAsync(["node", "test", "chat", "list-bots"]);
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(expect.stringContaining("Failed to list bots"));
+            expect(output.error).toHaveBeenCalledWith(expect.stringContaining("Failed to list bots"));
             expect(processExitSpy).toHaveBeenCalledWith(1);
         });
 
@@ -200,11 +217,11 @@ describe("ChatCommands", () => {
                 },
                 __typename: "UserSearchResult",
             };
-            (mockClient.post as any).mockResolvedValue(emptyBotsResponse);
+            (mockClient.requestWithEndpoint as any).mockResolvedValue(emptyBotsResponse);
 
             await program.parseAsync(["node", "test", "chat", "list-bots"]);
 
-            expect(consoleLogSpy).toHaveBeenCalledWith(chalk.yellow("No bots found"));
+            expect(output.info).toHaveBeenCalledWith(expect.stringContaining("No bots found"));
         });
     });
 
@@ -230,12 +247,12 @@ describe("ChatCommands", () => {
 
         it("should create a new chat with a bot", async () => {
             (mockClient.isAuthenticated as any).mockReturnValue(true);
-            (mockClient.post as any).mockResolvedValue(mockChat);
+            (mockClient.requestWithEndpoint as any).mockResolvedValue(mockChat);
 
             await program.parseAsync(["node", "test", "chat", "create", "bot1"]);
 
-            expect(mockClient.post).toHaveBeenCalledWith(
-                "/chat",
+            expect(mockClient.requestWithEndpoint).toHaveBeenCalledWith(
+                expect.anything(),
                 expect.objectContaining({
                     id: expect.any(String),
                     openToAnyoneWithInvite: false,
@@ -247,18 +264,18 @@ describe("ChatCommands", () => {
                 }),
             );
 
-            expect(consoleLogSpy).toHaveBeenCalledWith(chalk.green("\n✓ Chat created"));
-            expect(consoleLogSpy).toHaveBeenCalledWith("  Chat ID: chat123");
+            expect(output.success).toHaveBeenCalledWith("Chat created");
+            expect(output.info).toHaveBeenCalledWith("  Chat ID: chat123");
         });
 
         it("should create a chat with custom name", async () => {
             (mockClient.isAuthenticated as any).mockReturnValue(true);
-            (mockClient.post as any).mockResolvedValue(mockChat);
+            (mockClient.requestWithEndpoint as any).mockResolvedValue(mockChat);
 
             await program.parseAsync(["node", "test", "chat", "create", "bot1", "--name", "My Chat"]);
 
-            expect(mockClient.post).toHaveBeenCalledWith(
-                "/chat",
+            expect(mockClient.requestWithEndpoint).toHaveBeenCalledWith(
+                expect.anything(),
                 expect.objectContaining({
                     translationsCreate: expect.arrayContaining([
                         expect.objectContaining({
@@ -326,12 +343,12 @@ describe("ChatCommands", () => {
 
         it("should list user chats in table format", async () => {
             (mockClient.isAuthenticated as any).mockReturnValue(true);
-            (mockClient.post as any).mockResolvedValue(mockChats);
+            (mockClient.requestWithEndpoint as any).mockResolvedValue(mockChats);
 
             await program.parseAsync(["node", "test", "chat", "list"]);
 
-            expect(mockClient.post).toHaveBeenCalledWith(
-                "/chats",
+            expect(mockClient.requestWithEndpoint).toHaveBeenCalledWith(
+                expect.anything(),
                 expect.objectContaining({
                     searchString: undefined,
                     take: 20,
@@ -339,26 +356,24 @@ describe("ChatCommands", () => {
                 }),
             );
 
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Your Chats"));
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Chat 1"));
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("Chat 2"));
+            expect(output.info).toHaveBeenCalledWith(expect.stringContaining("Your Chats"));
+            expect(output.info).toHaveBeenCalledWith(expect.stringContaining("Chat 1"));
+            expect(output.info).toHaveBeenCalledWith(expect.stringContaining("Chat 2"));
         });
 
         it("should list chats in JSON format", async () => {
             (mockClient.isAuthenticated as any).mockReturnValue(true);
-            (mockClient.post as any).mockResolvedValue(mockChats);
+            (mockClient.requestWithEndpoint as any).mockResolvedValue(mockChats);
             (mockConfig.isJsonOutput as any).mockReturnValue(true);
 
             await program.parseAsync(["node", "test", "chat", "list", "--format", "json"]);
 
-            expect(consoleLogSpy).toHaveBeenCalledWith(
-                JSON.stringify(mockChats),
-            );
+            expect(output.json).toHaveBeenCalledWith(mockChats);
         });
 
         it("should handle empty chat list", async () => {
             (mockClient.isAuthenticated as any).mockReturnValue(true);
-            (mockClient.post as any).mockResolvedValue({
+            (mockClient.requestWithEndpoint as any).mockResolvedValue({
                 edges: [],
                 pageInfo: {
                     hasNextPage: false,
@@ -370,7 +385,7 @@ describe("ChatCommands", () => {
 
             await program.parseAsync(["node", "test", "chat", "list"]);
 
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("No chats found"));
+            expect(output.info).toHaveBeenCalledWith(expect.stringContaining("No chats found"));
         });
     });
 
@@ -433,37 +448,35 @@ describe("ChatCommands", () => {
         };
 
         it("should display chat history in conversation format", async () => {
-            (mockClient.post as any).mockResolvedValue(mockMessages);
+            (mockClient.requestWithEndpoint as any).mockResolvedValue(mockMessages);
 
             await program.parseAsync(["node", "test", "chat", "show", "chat1"]);
 
-            expect(mockClient.post).toHaveBeenCalledWith(
-                "/chatMessages",
+            expect(mockClient.requestWithEndpoint).toHaveBeenCalledWith(
+                expect.anything(),
                 expect.objectContaining({
                     chatId: "chat1",
                     take: 50,
                 }),
             );
 
-            expect(consoleLogSpy).toHaveBeenCalledWith(chalk.bold("\nChat History:"));
-            expect(consoleLogSpy).toHaveBeenCalledWith("─".repeat(300));
-            expect(consoleLogSpy).toHaveBeenCalledWith("Hello bot!");
-            expect(consoleLogSpy).toHaveBeenCalledWith("Hello! How can I help?");
+            expect(output.info).toHaveBeenCalledWith(expect.stringContaining("Chat History"));
+            expect(output.info).toHaveBeenCalledWith("─".repeat(300));
+            expect(output.info).toHaveBeenCalledWith("Hello bot!");
+            expect(output.info).toHaveBeenCalledWith("Hello! How can I help?");
         });
 
         it("should display chat history in JSON format", async () => {
-            (mockClient.post as any).mockResolvedValue(mockMessages);
+            (mockClient.requestWithEndpoint as any).mockResolvedValue(mockMessages);
             (mockConfig.isJsonOutput as any).mockReturnValue(true);
 
             await program.parseAsync(["node", "test", "chat", "show", "chat1", "--format", "json"]);
 
-            expect(consoleLogSpy).toHaveBeenCalledWith(
-                JSON.stringify(mockMessages),
-            );
+            expect(output.json).toHaveBeenCalledWith(mockMessages);
         });
 
         it("should handle empty chat", async () => {
-            (mockClient.post as any).mockResolvedValue({
+            (mockClient.requestWithEndpoint as any).mockResolvedValue({
                 edges: [],
                 pageInfo: {
                     hasNextPage: false,
@@ -475,14 +488,14 @@ describe("ChatCommands", () => {
 
             await program.parseAsync(["node", "test", "chat", "show", "chat1"]);
 
-            expect(consoleLogSpy).toHaveBeenCalledWith(expect.stringContaining("No messages found"));
+            expect(output.info).toHaveBeenCalledWith(expect.stringContaining("No messages found"));
         });
     });
 
     describe("send message command", () => {
         it("should send a message to a chat", async () => {
             (mockClient.isAuthenticated as any).mockReturnValue(true);
-            (mockClient.post as any).mockResolvedValue({
+            (mockClient.requestWithEndpoint as any).mockResolvedValue({
                 id: "msg123",
                 text: "Test message",
                 translations: [{
@@ -495,8 +508,8 @@ describe("ChatCommands", () => {
 
             await program.parseAsync(["node", "test", "chat", "send", "chat1", "Test message"]);
 
-            expect(mockClient.post).toHaveBeenCalledWith(
-                "/chatMessage",
+            expect(mockClient.requestWithEndpoint).toHaveBeenCalledWith(
+                expect.anything(),
                 expect.objectContaining({
                     message: expect.objectContaining({
                         chatConnect: "chat1",
@@ -510,7 +523,7 @@ describe("ChatCommands", () => {
                 }),
             );
 
-            expect(consoleLogSpy).toHaveBeenCalledWith(chalk.green("\n✓ Message sent"));
+            expect(output.success).toHaveBeenCalledWith("Message sent");
         });
 
     });
@@ -556,9 +569,11 @@ describe("ChatCommands", () => {
             }));
 
             // Mock the chat creation
-            (mockClient.post as any).mockResolvedValue({
+            (mockClient.requestWithEndpoint as any).mockResolvedValue({
                 id: "new-chat-id",
                 name: "New Chat",
+                publicId: "public-id",
+                translations: [],
             });
 
             await program.parseAsync(["node", "test", "chat", "interactive", "--bot", "bot1"]);
@@ -592,12 +607,10 @@ describe("ChatCommands", () => {
 
             await program.parseAsync(["node", "test", "chat", "interactive", "chat1"]);
 
-            expect(consoleLogSpy).toHaveBeenCalledWith(
-                JSON.stringify({
-                    success: false,
-                    error: "Connection failed",
-                }),
-            );
+            expect(output.json).toHaveBeenCalledWith({
+                success: false,
+                error: "Connection failed",
+            });
             expect(processExitSpy).toHaveBeenCalledWith(1);
         });
 
@@ -615,8 +628,8 @@ describe("ChatCommands", () => {
 
             await program.parseAsync(["node", "test", "chat", "interactive", "chat1"]);
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(
-                chalk.red("✗ Interactive chat failed: Network timeout"),
+            expect(output.error).toHaveBeenCalledWith(
+                "Interactive chat failed: Network timeout",
             );
             expect(processExitSpy).toHaveBeenCalledWith(1);
         });
@@ -626,12 +639,12 @@ describe("ChatCommands", () => {
             (mockConfig.isJsonOutput as any).mockReturnValue(false);
 
             // Mock chat creation to fail
-            (mockClient.post as any).mockRejectedValue(new Error("Failed to create chat"));
+            (mockClient.requestWithEndpoint as any).mockRejectedValue(new Error("Failed to create chat"));
 
             await program.parseAsync(["node", "test", "chat", "interactive", "--bot", "bot1"]);
 
-            expect(consoleErrorSpy).toHaveBeenCalledWith(
-                chalk.red("✗ Failed to create chat: Failed to create chat"),
+            expect(output.error).toHaveBeenCalledWith(
+                "Failed to create chat: Failed to create chat",
             );
             expect(processExitSpy).toHaveBeenCalledWith(1);
         });

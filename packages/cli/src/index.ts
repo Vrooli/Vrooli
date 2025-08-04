@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 // AI_CHECK: TEST_COVERAGE=77 | LAST: 2025-07-13
 import { Command } from "commander";
 import { ConfigManager } from "./utils/config.js";
@@ -11,6 +10,7 @@ import { TeamCommands } from "./commands/team.js";
 import { HistoryCommands } from "./commands/history.js";
 import { CompletionEngine, CompletionInstaller } from "./completion/index.js";
 import { HistoryManager } from "./history/HistoryManager.js";
+import { cleanup } from "./utils/cleanupManager.js";
 import chalk from "chalk";
 
 // Simple logger for CLI
@@ -29,6 +29,23 @@ async function main() {
         const config = new ConfigManager();
         const client = new ApiClient(config);
         const historyManager = new HistoryManager(config);
+
+        // Register cleanup tasks
+        cleanup.register("websocket", () => {
+            try {
+                client.disconnectWebSocket();
+            } catch (error) {
+                // Ignore errors during cleanup
+            }
+        }); // Use default priority
+
+        cleanup.register("history", () => {
+            try {
+                historyManager.endCommandSync(1);
+            } catch (error) {
+                // Ignore errors during cleanup
+            }
+        }); // Use default priority
 
         program
             .name("vrooli")
@@ -201,34 +218,50 @@ async function main() {
                     }),
             );
 
-        // Add process exit handlers for history tracking
+        // Add process exit handlers for cleanup
         process.on("exit", (code) => {
-            try {
-                // Synchronous call for exit handler
-                historyManager.endCommandSync(code);
-            } catch (error) {
-                // Ignore errors during exit
+            // Last chance cleanup - only sync operations
+            if (!cleanup.cleanedUp) {
+                cleanup.executeAllSync(code);
             }
         });
 
         const SIGINT_EXIT_CODE = 130;
         const SIGTERM_EXIT_CODE = 143;
 
-        process.on("SIGINT", () => {
-            try {
-                historyManager.endCommandSync(SIGINT_EXIT_CODE); // SIGINT exit code
-            } catch (error) {
-                // Ignore errors during exit
+        process.on("SIGINT", async () => {
+            if (process.env.DEBUG) {
+                console.error(chalk.yellow("\n[DEBUG] Received SIGINT, cleaning up..."));
             }
+            
+            // Update history manager exit code
+            cleanup.register("history", () => {
+                try {
+                    historyManager.endCommandSync(SIGINT_EXIT_CODE);
+                } catch (error) {
+                    // Ignore errors during cleanup
+                }
+            }); // Use default priority
+            
+            await cleanup.executeAll(SIGINT_EXIT_CODE);
             process.exit(SIGINT_EXIT_CODE);
         });
 
-        process.on("SIGTERM", () => {
-            try {
-                historyManager.endCommandSync(SIGTERM_EXIT_CODE); // SIGTERM exit code
-            } catch (error) {
-                // Ignore errors during exit
+        process.on("SIGTERM", async () => {
+            if (process.env.DEBUG) {
+                console.error(chalk.yellow("\n[DEBUG] Received SIGTERM, cleaning up..."));
             }
+            
+            // Update history manager exit code
+            cleanup.register("history", () => {
+                try {
+                    historyManager.endCommandSync(SIGTERM_EXIT_CODE);
+                } catch (error) {
+                    // Ignore errors during cleanup
+                }
+            }); // Use default priority
+            
+            await cleanup.executeAll(SIGTERM_EXIT_CODE);
             process.exit(SIGTERM_EXIT_CODE);
         });
 
@@ -249,12 +282,48 @@ async function main() {
         if (error instanceof Error && error.stack && process.env.DEBUG) {
             console.error(error.stack);
         }
+        
+        // Cleanup before exit
+        await cleanup.executeAll(1, error instanceof Error ? error : new Error(String(error)));
         process.exit(1);
     }
 }
 
+// Add global error handlers
+process.on("uncaughtException", (error) => {
+    console.error(chalk.red("\n✗ Uncaught Exception:"), error);
+    if (process.env.DEBUG && error.stack) {
+        console.error(error.stack);
+    }
+    
+    // Try to cleanup synchronously since we're in an error state
+    cleanup.executeAllSync(1);
+    process.exit(1);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+    const error = reason instanceof Error ? reason : new Error(String(reason));
+    console.error(chalk.red("\n✗ Unhandled Promise Rejection:"), error);
+    if (process.env.DEBUG) {
+        console.error("Promise:", promise);
+        if (error.stack) {
+            console.error(error.stack);
+        }
+    }
+    
+    // Try to cleanup synchronously since we're in an error state
+    cleanup.executeAllSync(1);
+    process.exit(1);
+});
+
 // Run the CLI
-main().catch((error) => {
+main().catch(async (error) => {
     console.error(chalk.red("Fatal error:"), error);
+    if (error instanceof Error && error.stack && process.env.DEBUG) {
+        console.error(error.stack);
+    }
+    
+    // Try async cleanup first, then exit
+    await cleanup.executeAll(1, error instanceof Error ? error : new Error(String(error)));
     process.exit(1);
 });

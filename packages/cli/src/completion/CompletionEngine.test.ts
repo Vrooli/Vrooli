@@ -127,7 +127,7 @@ describe("CompletionEngine", () => {
             expect(mockCache.set).toHaveBeenCalledWith(
                 expect.stringContaining("completion:"),
                 mockResults,
-                300
+                300,
             );
             expect(result).toEqual(mockResults);
         });

@@ -77,7 +77,7 @@ describe("HistoryManager", () => {
                 email: "user@example.com",
                 password: "secret123",
                 token: "bearer-token",
-                apiKey: "api-key-value"
+                apiKey: "api-key-value",
             };
 
             await historyManager.startCommand(command, args, options);
@@ -103,7 +103,7 @@ describe("HistoryManager", () => {
                     success: true,
                     profile: "default",
                     userId: "user123",
-                })
+                }),
             );
         });
 
@@ -117,7 +117,7 @@ describe("HistoryManager", () => {
                     exitCode: 1,
                     success: false,
                     error: "Command failed",
-                })
+                }),
             );
         });
 
@@ -153,7 +153,7 @@ describe("HistoryManager", () => {
             expect(mockStorage.add).toHaveBeenCalledWith(
                 expect.objectContaining({
                     duration: 5000,
-                })
+                }),
             );
 
             // Restore Date
@@ -323,7 +323,7 @@ describe("HistoryManager", () => {
                         auth: "***",
                         normalOption: "safe-value",
                     }),
-                })
+                }),
             );
         });
 
@@ -352,7 +352,7 @@ describe("HistoryManager", () => {
                             token: "***",
                         },
                     }),
-                })
+                }),
             );
         });
     });
