@@ -17,6 +17,39 @@
 #   - .resources.{category}.{resource}.required  (not .optional!)
 #   - .resources.{category}.{resource}.initialization  (setup data)
 #
+# 🏗️ ARCHITECTURE: Why Validation-Only?
+#
+# The Problem with Deploy-Time Injection:
+#   - Tight Coupling: Deployment success depends on external resource state
+#   - Timing Complexity: Resources must be running during deployment  
+#   - State Management: Deployment tool becomes responsible for resource lifecycle
+#   - Rollback Complexity: Must understand and reverse resource-specific operations
+#   - Environment Sensitivity: Different resource states across dev/staging/prod
+#
+# The Validation-Only Solution:
+#   - Loose Coupling: Apps are self-contained and manage their own resources
+#   - Deployment Simplicity: Only validates and packages, no external dependencies
+#   - Runtime Responsibility: Apps handle resource startup and injection when ready
+#   - Atomic Operations: Resource injection happens atomically during app startup
+#   - Environment Agnostic: Apps work consistently across all deployment targets
+#
+# 🔄 NEW DEPLOYMENT FLOW:
+#
+# Deploy-Time (this script):
+#   1. Validate service.json against schema
+#   2. Verify all referenced files exist and are valid
+#   3. Package scenario into deployable app structure  
+#   4. Generate runtime injection manifests
+#   5. Create deployment artifacts (scripts/containers/k8s)
+#
+# Runtime (Generated App Startup):
+#   1. Inherit Vrooli's resource management capabilities
+#   2. Start required resources using existing infrastructure
+#   3. Wait for resource health using service.json specifications
+#   4. Inject initialization data using validated manifests
+#   5. Start application services
+#   6. Begin monitoring and health checks
+#
 # Usage:
 #   ./scenario-to-app.sh <scenario-name> [options]
 #
@@ -44,7 +77,6 @@ log_banner() { echo ""; echo "=== $1 ==="; echo ""; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 SCENARIOS_DIR="${PROJECT_ROOT}/scripts/scenarios/core"
-# INJECTION_DIR removed in Phase 3 - direct integration without engine.sh
 
 # Import helper functions (override defaults if available)
 if [[ -f "${PROJECT_ROOT}/scripts/helpers/utils/log.sh" ]]; then
@@ -74,7 +106,33 @@ declare -a ROLLBACK_ACTIONS=()
 
 # Show usage information
 show_usage() {
-    head -n 20 "${BASH_SOURCE[0]}" | grep "^#" | grep -v "^#!/" | sed 's/^# //'
+    cat << 'EOF'
+Scenario-to-App Conversion Script
+
+Converts Vrooli scenarios into deployable applications using the unified
+service.json format and resource injection engine.
+
+SCHEMA REFERENCE:
+  All service.json files follow the official schema:
+  .vrooli/schemas/service.schema.json
+  
+  Key paths used in this script:
+  - .service.name           (scenario identifier)
+  - .service.displayName    (human-readable name)
+  - .resources.{category}.{resource}  (resource definitions)
+  - .resources.{category}.{resource}.required  (not .optional!)
+  - .resources.{category}.{resource}.initialization  (setup data)
+
+Usage:
+  ./scenario-to-app.sh <scenario-name> [options]
+
+Options:
+  --mode        Deployment mode (local, docker, k8s) [default: local]
+  --validate    Validation mode (none, basic, full) [default: full]
+  --dry-run     Show what would be done without executing
+  --verbose     Enable verbose logging
+  --help        Show this help message
+EOF
 }
 
 # Parse command line arguments
@@ -155,6 +213,28 @@ validate_scenario() {
     log_info "Loaded service.json successfully"
 }
 
+# Extract resources from service.json based on condition
+extract_resources_by_condition() {
+    local condition="$1"
+    local error_message="$2"
+    
+    local resources
+    if ! resources=$(echo "$SERVICE_JSON" | jq -r "
+      .resources | 
+      to_entries[] | 
+      .value | 
+      to_entries[] | 
+      select(.value.$condition) | 
+      .key
+    "); then
+        log_error "$error_message"
+        return 1
+    fi
+    
+    echo "$resources"
+    return 0
+}
+
 # Validate scenario structure based on service.json
 validate_structure() {
     if [[ "$VALIDATION_MODE" == "none" ]]; then
@@ -181,15 +261,7 @@ validate_structure() {
     # Check for required initialization files
     # NOTE: Initialization data is embedded within each resource definition
     local init_resources
-    if ! init_resources=$(echo "$SERVICE_JSON" | jq -r '
-      .resources | 
-      to_entries[] | 
-      .value | 
-      to_entries[] | 
-      select(.value.initialization != null) | 
-      .key
-    '); then
-        log_error "Failed to extract initialization resources from service.json"
+    if ! init_resources=$(extract_resources_by_condition "initialization != null" "Failed to extract initialization resources from service.json"); then
         return 1
     fi
     
@@ -258,15 +330,7 @@ validate_resources() {
     # Extract required resources from service.json
     # NOTE: Using standard service.schema.json structure (.resources.{category}.{resource})
     local required_resources
-    if ! required_resources=$(echo "$SERVICE_JSON" | jq -r '
-      .resources | 
-      to_entries[] | 
-      .value | 
-      to_entries[] | 
-      select(.value.required == true) | 
-      .key
-    '); then
-        log_error "Failed to extract required resources from service.json"
+    if ! required_resources=$(extract_resources_by_condition "required == true" "Failed to extract required resources from service.json"); then
         return 1
     fi
     
@@ -289,22 +353,689 @@ validate_resources() {
             log_warning "  ⚠ No injection handler for: $resource"
         fi
         
-        # Check resource health if injection script supports status checks
-        if [[ -x "$inject_script" ]]; then
-            # First verify the script supports --status flag
-            if "$inject_script" --help 2>/dev/null | grep -q "\-\-status" 2>/dev/null; then
-                if "$inject_script" --status >/dev/null 2>&1; then
-                    [[ "$VERBOSE" == true ]] && log_success "  ✓ Resource '$resource' is healthy"
-                else
-                    log_warning "  ⚠ Resource '$resource' health check failed"
-                fi
-            else
-                [[ "$VERBOSE" == true ]] && log_info "  ℹ Resource '$resource' injection script doesn't support health checks"
-            fi
-        fi
     done
     
     log_success "Resource validation completed"
+}
+
+################################################################################
+# Enhanced Validation for Runtime Injection Architecture
+################################################################################
+
+# Comprehensive validation for injection readiness (no actual injection)
+# This replaces resource connectivity checks with file/schema validation
+validate_injection_readiness() {
+    local scenario_path="$1"
+    local service_config="${scenario_path}/service.json"
+    
+    log_step "Validating injection readiness (validation-only mode)..."
+    
+    # 1. Validate service.json schema compliance
+    log_info "Checking service.json schema compliance..."
+    local schema_path="${PROJECT_ROOT}/.vrooli/schemas/service.schema.json"
+    
+    if [[ -f "$schema_path" ]]; then
+        # Use ajv-cli if available, otherwise basic jq validation
+        if command -v ajv &>/dev/null; then
+            if ! ajv validate -s "$schema_path" -d "$service_config" 2>/dev/null; then
+                log_error "Service config does not match schema"
+                return 1
+            fi
+        else
+            # Fallback to basic structure validation
+            if ! validate_service_config "$service_config" "full"; then
+                return 1
+            fi
+        fi
+        log_success "✓ Schema validation passed"
+    else
+        log_warning "Schema file not found, using basic validation"
+        if ! validate_service_config "$service_config" "full"; then
+            return 1
+        fi
+    fi
+    
+    # 2. Validate all referenced files exist
+    log_info "Checking referenced files..."
+    local missing_files=()
+    
+    # Check database files
+    local db_files
+    db_files=$(echo "$SERVICE_JSON" | jq -r '
+        .resources.storage | 
+        to_entries[] | 
+        select(.value.initialization.database // false) | 
+        .value.initialization.database[]? // empty
+    ' 2>/dev/null || true)
+    
+    while IFS= read -r file; do
+        [[ -z "$file" ]] && continue
+        local full_path="${scenario_path}/${file}"
+        if [[ ! -f "$full_path" ]]; then
+            missing_files+=("$file")
+            log_error "  ✗ Missing database file: $file"
+        else
+            [[ "$VERBOSE" == true ]] && log_success "  ✓ Found: $file"
+        fi
+    done <<< "$db_files"
+    
+    # Check workflow files
+    local workflow_files
+    workflow_files=$(echo "$SERVICE_JSON" | jq -r '
+        .resources.automation | 
+        to_entries[] | 
+        select(.value.initialization.workflows // false) | 
+        .value.initialization.workflows[]? // empty
+    ' 2>/dev/null || true)
+    
+    while IFS= read -r file; do
+        [[ -z "$file" ]] && continue
+        local full_path="${scenario_path}/${file}"
+        if [[ ! -f "$full_path" ]]; then
+            missing_files+=("$file")
+            log_error "  ✗ Missing workflow file: $file"
+        else
+            [[ "$VERBOSE" == true ]] && log_success "  ✓ Found: $file"
+        fi
+    done <<< "$workflow_files"
+    
+    # Check script files
+    local script_files
+    script_files=$(echo "$SERVICE_JSON" | jq -r '
+        .resources.automation | 
+        to_entries[] | 
+        select(.value.initialization.scripts // false) | 
+        .value.initialization.scripts[].file // empty
+    ' 2>/dev/null || true)
+    
+    while IFS= read -r file; do
+        [[ -z "$file" ]] && continue
+        local full_path="${scenario_path}/${file}"
+        if [[ ! -f "$full_path" ]]; then
+            missing_files+=("$file")
+            log_error "  ✗ Missing script file: $file"
+        else
+            [[ "$VERBOSE" == true ]] && log_success "  ✓ Found: $file"
+        fi
+    done <<< "$script_files"
+    
+    # 3. Validate JSON/YAML files are syntactically valid
+    log_info "Validating file syntax..."
+    local invalid_files=()
+    
+    # Validate JSON files
+    for json_file in "${scenario_path}"/**/*.json; do
+        [[ -f "$json_file" ]] || continue
+        if ! jq empty "$json_file" 2>/dev/null; then
+            invalid_files+=("${json_file#$scenario_path/}")
+            log_error "  ✗ Invalid JSON: ${json_file#$scenario_path/}"
+        fi
+    done
+    
+    # Validate YAML files if yq is available
+    if command -v yq &>/dev/null; then
+        for yaml_file in "${scenario_path}"/**/*.{yml,yaml}; do
+            [[ -f "$yaml_file" ]] || continue
+            if ! yq eval '.' "$yaml_file" >/dev/null 2>&1; then
+                invalid_files+=("${yaml_file#$scenario_path/}")
+                log_error "  ✗ Invalid YAML: ${yaml_file#$scenario_path/}"
+            fi
+        done
+    fi
+    
+    # 4. Validate resource configurations match expected patterns
+    log_info "Validating resource configurations..."
+    
+    # Extract all resources
+    local all_resources
+    all_resources=$(echo "$SERVICE_JSON" | jq -r '
+        .resources | 
+        to_entries[] | 
+        .value | 
+        to_entries[] | 
+        .key
+    ' 2>/dev/null || true)
+    
+    # 5. Check required inject.sh scripts exist (for runtime use)
+    log_info "Checking injection handlers (for runtime use)..."
+    local resources_without_handlers=()
+    
+    while IFS= read -r resource; do
+        [[ -z "$resource" ]] && continue
+        
+        # Check if resource has an inject.sh script
+        local inject_script
+        inject_script=$(find "${PROJECT_ROOT}/scripts/resources" \
+            -name "inject.sh" \
+            -path "*/${resource}/*" \
+            2>/dev/null | head -1)
+        
+        if [[ -z "$inject_script" ]]; then
+            # Check if resource has initialization data
+            local has_init_data
+            has_init_data=$(echo "$SERVICE_JSON" | jq -r "
+                .resources | 
+                to_entries[] | 
+                .value.\"$resource\".initialization // false
+            " 2>/dev/null || echo "false")
+            
+            if [[ "$has_init_data" != "false" ]]; then
+                resources_without_handlers+=("$resource")
+                log_warning "  ⚠ Resource '$resource' has initialization data but no injection handler"
+            fi
+        else
+            [[ "$VERBOSE" == true ]] && log_success "  ✓ Handler found: $resource"
+        fi
+    done <<< "$all_resources"
+    
+    # 6. Check for conflicting resource requirements
+    log_info "Checking for resource conflicts..."
+    
+    # Check port conflicts
+    local ports=()
+    local port_conflicts=()
+    
+    local resource_ports
+    resource_ports=$(echo "$SERVICE_JSON" | jq -r '
+        .resources | 
+        to_entries[] | 
+        .value | 
+        to_entries[] | 
+        select(.value.port // false) | 
+        "\(.key):\(.value.port)"
+    ' 2>/dev/null || true)
+    
+    while IFS=: read -r resource port; do
+        [[ -z "$port" ]] && continue
+        if [[ " ${ports[@]} " =~ " ${port} " ]]; then
+            port_conflicts+=("Port $port used by multiple resources")
+        else
+            ports+=("$port")
+        fi
+    done <<< "$resource_ports"
+    
+    # Report validation results
+    local validation_passed=true
+    
+    if [[ ${#missing_files[@]} -gt 0 ]]; then
+        log_error "Missing files: ${#missing_files[@]}"
+        validation_passed=false
+    fi
+    
+    if [[ ${#invalid_files[@]} -gt 0 ]]; then
+        log_error "Invalid files: ${#invalid_files[@]}"
+        validation_passed=false
+    fi
+    
+    if [[ ${#resources_without_handlers[@]} -gt 0 ]]; then
+        log_warning "Resources without handlers: ${#resources_without_handlers[@]}"
+        # This is a warning, not a failure
+    fi
+    
+    if [[ ${#port_conflicts[@]} -gt 0 ]]; then
+        log_error "Port conflicts detected: ${port_conflicts[*]}"
+        validation_passed=false
+    fi
+    
+    if [[ "$validation_passed" == true ]]; then
+        log_success "✅ Injection readiness validation passed"
+        log_info "Note: This is validation-only mode. Actual resource injection will happen at runtime."
+        return 0
+    else
+        log_error "❌ Injection readiness validation failed"
+        return 1
+    fi
+}
+
+################################################################################
+# Packaging Functions for Self-Contained Apps
+################################################################################
+
+# Package scenario into deployable app structure
+package_scenario_app() {
+    local scenario_path="$1"
+    local target_dir="$2"
+    local deployment_mode="${3:-local}"  # local, docker, k8s
+    
+    log_step "Packaging scenario app for $deployment_mode deployment..."
+    
+    # Create deployment directory structure
+    mkdir -p "${target_dir}"/{bin,config,data,scripts,manifests}
+    
+    # Copy scenario files to target location
+    log_info "Copying scenario files..."
+    cp -r "${scenario_path}"/* "${target_dir}/data/" 2>/dev/null || true
+    
+    # Copy service.json to config directory
+    cp "${scenario_path}/service.json" "${target_dir}/config/"
+    
+    # Generate runtime injection manifest
+    log_info "Generating runtime injection manifest..."
+    generate_injection_manifest "$scenario_path" "${target_dir}/manifests/injection.json"
+    
+    # Generate app-specific startup script
+    log_info "Generating startup script..."
+    generate_startup_script "$deployment_mode" "$target_dir"
+    
+    # Set up monitoring configurations from service.json
+    if [[ $(echo "$SERVICE_JSON" | jq -r '.monitoring // false') != "false" ]]; then
+        log_info "Setting up monitoring configuration..."
+        echo "$SERVICE_JSON" | jq '.monitoring' > "${target_dir}/config/monitoring.json"
+    fi
+    
+    # Generate health check scripts
+    log_info "Generating health check scripts..."
+    generate_health_check_scripts "$target_dir"
+    
+    # Generate cleanup procedures
+    log_info "Generating cleanup scripts..."
+    generate_cleanup_scripts "$target_dir"
+    
+    # Create environment-specific configurations
+    case "$deployment_mode" in
+        local)
+            create_local_config "$target_dir"
+            ;;
+        docker)
+            create_docker_config "$target_dir"
+            ;;
+        k8s)
+            create_k8s_config "$target_dir"
+            ;;
+    esac
+    
+    # Make scripts executable
+    chmod +x "${target_dir}"/bin/* 2>/dev/null || true
+    chmod +x "${target_dir}"/scripts/* 2>/dev/null || true
+    
+    log_success "✅ Scenario app packaged successfully"
+    return 0
+}
+
+# Generate injection manifest for runtime use
+generate_injection_manifest() {
+    local scenario_path="$1"
+    local output_file="$2"
+    
+    # Extract resource initialization data
+    local manifest
+    manifest=$(echo "$SERVICE_JSON" | jq '{
+        resources: [
+            .resources | 
+            to_entries[] | 
+            .value | 
+            to_entries[] | 
+            select(.value.initialization // false) | 
+            {
+                category: (.key | split(".")[0]),
+                name: .key,
+                type: .value.type,
+                initialization: .value.initialization,
+                inject_script: null
+            }
+        ],
+        scenario: {
+            name: .service.name,
+            version: .service.version,
+            path: "'$scenario_path'"
+        }
+    }')
+    
+    # Add inject script paths
+    local updated_manifest="$manifest"
+    for resource in $(echo "$manifest" | jq -r '.resources[].name'); do
+        local inject_script
+        inject_script=$(find "${PROJECT_ROOT}/scripts/resources" \
+            -name "inject.sh" \
+            -path "*/${resource}/*" \
+            2>/dev/null | head -1 || echo "")
+        
+        if [[ -n "$inject_script" ]]; then
+            # Store relative path for portability
+            inject_script="${inject_script#$PROJECT_ROOT/}"
+            updated_manifest=$(echo "$updated_manifest" | jq \
+                --arg resource "$resource" \
+                --arg script "$inject_script" \
+                '(.resources[] | select(.name == $resource) | .inject_script) = $script')
+        fi
+    done
+    
+    echo "$updated_manifest" | jq '.' > "$output_file"
+}
+
+# Generate startup script for the app
+generate_startup_script() {
+    local deployment_mode="$1"
+    local target_dir="$2"
+    local script_path="${target_dir}/bin/start.sh"
+    
+    # Get scenario metadata
+    local scenario_name=$(echo "$SERVICE_JSON" | jq -r '.service.name')
+    local scenario_display_name=$(echo "$SERVICE_JSON" | jq -r '.service.displayName // .service.name')
+    
+    cat > "$script_path" << 'EOF'
+#!/usr/bin/env bash
+# Auto-generated startup script for scenario app
+# Generated by scenario-to-app.sh
+
+set -euo pipefail
+
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
+
+# Source Vrooli resource management functions
+# These will be provided by the Vrooli runtime environment
+if [[ -f "/opt/vrooli/scripts/resources/lib/resource-functions.sh" ]]; then
+    source "/opt/vrooli/scripts/resources/lib/resource-functions.sh"
+elif [[ -f "${VROOLI_RUNTIME_DIR}/scripts/resources/lib/resource-functions.sh" ]]; then
+    source "${VROOLI_RUNTIME_DIR}/scripts/resources/lib/resource-functions.sh"
+else
+    echo "ERROR: Vrooli resource functions not found"
+    echo "This app requires Vrooli runtime environment"
+    exit 1
+fi
+
+# Load injection manifest
+INJECTION_MANIFEST="${APP_ROOT}/manifests/injection.json"
+
+log_info() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] INFO: $*"
+}
+
+log_success() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] SUCCESS: $*"
+}
+
+log_error() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $*" >&2
+}
+
+main() {
+EOF
+    
+    # Add scenario-specific metadata
+    cat >> "$script_path" << EOF
+    log_info "Starting ${scenario_display_name} (${deployment_mode} mode)"
+    
+    # 1. Start required resources (inherited from Vrooli)
+    log_info "Starting required resources..."
+    if ! start_required_resources; then
+        log_error "Failed to start required resources"
+        exit 1
+    fi
+    
+    # 2. Wait for resource health using service.json specifications
+    log_info "Waiting for resources to be healthy..."
+    if ! wait_for_resource_health; then
+        log_error "Resources failed health checks"
+        exit 1
+    fi
+    
+    # 3. Inject initialization data using validated manifests
+    log_info "Injecting initialization data..."
+    if [[ -f "\$INJECTION_MANIFEST" ]]; then
+        if ! inject_initialization_data "\$INJECTION_MANIFEST"; then
+            log_error "Failed to inject initialization data"
+            exit 1
+        fi
+    else
+        log_info "No initialization data to inject"
+    fi
+    
+    # 4. Start application services
+    log_info "Starting application services..."
+    if ! start_application_services; then
+        log_error "Failed to start application services"
+        exit 1
+    fi
+    
+    # 5. Begin health monitoring
+    log_info "Starting health monitoring..."
+    start_health_monitoring &
+    
+    log_success "${scenario_display_name} started successfully"
+    
+    # Keep the script running
+    wait
+}
+
+# Trap signals for cleanup
+trap 'cleanup_and_exit' EXIT INT TERM
+
+cleanup_and_exit() {
+    log_info "Shutting down ${scenario_display_name}..."
+    stop_health_monitoring
+    stop_application_services
+    stop_required_resources
+    log_info "Shutdown complete"
+}
+
+main "\$@"
+EOF
+    
+    chmod +x "$script_path"
+}
+
+# Generate health check scripts
+generate_health_check_scripts() {
+    local target_dir="$1"
+    local health_script="${target_dir}/scripts/health-check.sh"
+    
+    cat > "$health_script" << 'EOF'
+#!/usr/bin/env bash
+# Health check script for scenario app
+
+set -euo pipefail
+
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
+CONFIG_FILE="${APP_ROOT}/config/service.json"
+
+# Extract health check configurations
+HEALTH_CHECKS=$(jq -r '.resources | 
+    to_entries[] | 
+    .value | 
+    to_entries[] | 
+    select(.value.healthCheck // false) | 
+    {
+        resource: .key,
+        check: .value.healthCheck
+    }' "$CONFIG_FILE" 2>/dev/null || echo '[]')
+
+# Run health checks
+all_healthy=true
+
+echo "$HEALTH_CHECKS" | jq -c '.[]' | while read -r check; do
+    resource=$(echo "$check" | jq -r '.resource')
+    check_type=$(echo "$check" | jq -r '.check.type // "tcp"')
+    
+    case "$check_type" in
+        tcp)
+            port=$(echo "$check" | jq -r '.check.port // 0')
+            if [[ "$port" -ne 0 ]]; then
+                if nc -z localhost "$port" 2>/dev/null; then
+                    echo "✓ $resource: healthy (port $port)"
+                else
+                    echo "✗ $resource: unhealthy (port $port unreachable)"
+                    all_healthy=false
+                fi
+            fi
+            ;;
+        http)
+            endpoint=$(echo "$check" | jq -r '.check.endpoint // "/"')
+            port=$(echo "$check" | jq -r '.check.port // 80')
+            if curl -sf "http://localhost:${port}${endpoint}" >/dev/null; then
+                echo "✓ $resource: healthy (HTTP endpoint)"
+            else
+                echo "✗ $resource: unhealthy (HTTP endpoint failed)"
+                all_healthy=false
+            fi
+            ;;
+    esac
+done
+
+if [[ "$all_healthy" == true ]]; then
+    exit 0
+else
+    exit 1
+fi
+EOF
+    
+    chmod +x "$health_script"
+}
+
+# Generate cleanup scripts
+generate_cleanup_scripts() {
+    local target_dir="$1"
+    local cleanup_script="${target_dir}/scripts/cleanup.sh"
+    
+    cat > "$cleanup_script" << 'EOF'
+#!/usr/bin/env bash
+# Cleanup script for scenario app
+
+set -euo pipefail
+
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+APP_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
+
+log_info() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] INFO: $*"
+}
+
+# Stop all services
+log_info "Stopping application services..."
+pkill -f "start.sh" 2>/dev/null || true
+
+# Clean up temporary files
+log_info "Cleaning up temporary files..."
+rm -rf "${APP_ROOT}/tmp/*" 2>/dev/null || true
+
+# Clean up logs older than 7 days
+log_info "Cleaning up old logs..."
+find "${APP_ROOT}/logs" -type f -mtime +7 -delete 2>/dev/null || true
+
+log_info "Cleanup complete"
+EOF
+    
+    chmod +x "$cleanup_script"
+}
+
+# Create local deployment configuration
+create_local_config() {
+    local target_dir="$1"
+    
+    cat > "${target_dir}/config/deployment.json" << EOF
+{
+    "mode": "local",
+    "runtime": {
+        "vrooli_dir": "${PROJECT_ROOT}",
+        "resource_scripts": "${PROJECT_ROOT}/scripts/resources"
+    },
+    "environment": {
+        "NODE_ENV": "development",
+        "LOG_LEVEL": "debug"
+    }
+}
+EOF
+}
+
+# Create Docker deployment configuration  
+create_docker_config() {
+    local target_dir="$1"
+    
+    # Generate Dockerfile
+    cat > "${target_dir}/Dockerfile" << 'EOF'
+FROM node:18-alpine
+
+# Install dependencies
+RUN apk add --no-cache bash curl jq
+
+# Copy app files
+WORKDIR /app
+COPY . .
+
+# Make scripts executable
+RUN chmod +x /app/bin/* /app/scripts/*
+
+# Expose common ports (customize based on service.json)
+EXPOSE 3000 8080
+
+# Start the app
+CMD ["/app/bin/start.sh"]
+EOF
+    
+    # Generate docker-compose.yml
+    local compose_file="${target_dir}/docker-compose.yml"
+    echo "version: '3.8'" > "$compose_file"
+    echo "services:" >> "$compose_file"
+    echo "  app:" >> "$compose_file"
+    echo "    build: ." >> "$compose_file"
+    echo "    environment:" >> "$compose_file"
+    echo "      - NODE_ENV=production" >> "$compose_file"
+    echo "    networks:" >> "$compose_file"
+    echo "      - vrooli-network" >> "$compose_file"
+    echo "" >> "$compose_file"
+    echo "networks:" >> "$compose_file"
+    echo "  vrooli-network:" >> "$compose_file"
+    echo "    external: true" >> "$compose_file"
+}
+
+# Create Kubernetes deployment configuration
+create_k8s_config() {
+    local target_dir="$1"
+    local k8s_dir="${target_dir}/k8s"
+    mkdir -p "$k8s_dir"
+    
+    # Extract metadata
+    local app_name=$(echo "$SERVICE_JSON" | jq -r '.service.name')
+    local app_version=$(echo "$SERVICE_JSON" | jq -r '.service.version')
+    
+    # Generate ConfigMap for configuration
+    cat > "${k8s_dir}/configmap.yaml" << EOF
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ${app_name}-config
+data:
+  service.json: |
+$(cat "${target_dir}/config/service.json" | sed 's/^/    /')
+EOF
+    
+    # Generate Deployment
+    cat > "${k8s_dir}/deployment.yaml" << EOF
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${app_name}
+  labels:
+    app: ${app_name}
+    version: ${app_version}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ${app_name}
+  template:
+    metadata:
+      labels:
+        app: ${app_name}
+        version: ${app_version}
+    spec:
+      containers:
+      - name: ${app_name}
+        image: ${app_name}:${app_version}
+        command: ["/app/bin/start.sh"]
+        volumeMounts:
+        - name: config
+          mountPath: /app/config
+        env:
+        - name: NODE_ENV
+          value: "production"
+      volumes:
+      - name: config
+        configMap:
+          name: ${app_name}-config
+EOF
 }
 
 ################################################################################
@@ -379,7 +1110,8 @@ create_safe_backup() {
         return 1
     fi
     
-    local timestamp=$(date +%Y%m%d_%H%M%S)
+    local timestamp
+    timestamp=$(date +%Y%m%d_%H%M%S)
     local backup_file="${source_file}.backup.${timestamp}.${backup_reason}"
     
     if cp "$source_file" "$backup_file"; then
@@ -410,7 +1142,8 @@ preflight_safety_check() {
     [[ "$VERBOSE" == true ]] && log_step "Running pre-flight safety checks..."
     
     # Check if we have write permissions
-    local config_dir=$(dirname "$service_config")
+    local config_dir
+    config_dir=$(dirname "$service_config")
     if [[ ! -w "$config_dir" ]]; then
         log_error "No write permission to config directory: $config_dir"
         return 1
@@ -436,11 +1169,6 @@ preflight_safety_check() {
     [[ "$VERBOSE" == true ]] && log_success "Pre-flight safety checks passed"
     return 0
 }
-
-# REMOVED: generate_resources_config function
-# Scenarios are self-contained and use their own service.json as single source of truth
-# This aligns with the service.schema.json specification where scenarios
-# define their own resource requirements without modifying global configuration
 
 # Rollback system functions
 add_rollback_action() {
@@ -481,271 +1209,6 @@ execute_rollback() {
     ROLLBACK_ACTIONS=()
 }
 
-# Phase 2: Dynamic resource discovery function
-find_resource_inject_script() {
-    local resource="$1"
-    local category="$2"
-    
-    # Try category-specific location first
-    local category_script="${PROJECT_ROOT}/scripts/resources/${category}/${resource}/inject.sh"
-    if [[ -x "$category_script" ]]; then
-        echo "$category_script"
-        return 0
-    fi
-    
-    # Fallback to searching across all resources
-    local fallback_script=$(find "${PROJECT_ROOT}/scripts/resources" -name "inject.sh" -path "*/${resource}/*" -executable 2>/dev/null | head -1)
-    if [[ -n "$fallback_script" ]]; then
-        echo "$fallback_script"
-        return 0
-    fi
-    
-    # No injection script found
-    return 1
-}
-
-# Phase 3: Direct resource injection without engine.sh
-inject_resources() {
-    log_step "Injecting resource initialization data..."
-    
-    # Get list of resources to inject (those with initialization data)
-    # NOTE: Using standard service.schema.json structure
-    local resources
-    if ! resources=$(echo "$SERVICE_JSON" | jq -r '
-      .resources | 
-      to_entries[] | 
-      .value | 
-      to_entries[] | 
-      select(.value.initialization != null) | 
-      .key
-    '); then
-        log_error "Failed to extract resources with initialization data"
-        return 1
-    fi
-    
-    if [[ -z "$resources" ]]; then
-        log_info "No resources to inject"
-        return 0
-    fi
-    
-    # Inject each resource
-    for resource in $resources; do
-        log_info "Injecting data for: $resource"
-        
-        # Extract initialization data and category for this specific resource
-        local resource_info
-        if ! resource_info=$(echo "$SERVICE_JSON" | jq -r --arg res "$resource" '
-          .resources | 
-          to_entries[] | 
-          select(.value | has($res)) | 
-          "\(.key)|\(.value[$res].initialization // {})"'
-        ); then
-            log_error "Failed to extract resource information for: $resource"
-            return 1
-        fi
-        
-        if [[ -z "$resource_info" ]]; then
-            log_error "Resource '$resource' not found in any category"
-            continue
-        fi
-        
-        local category
-        local init_data
-        IFS='|' read -r category init_data <<< "$resource_info"
-        
-        # Find injection script for resource using dynamic discovery
-        local inject_script=$(find_resource_inject_script "$resource" "$category")
-        
-        if [[ -z "$inject_script" ]]; then
-            log_warning "  No injection handler for: $resource"
-            continue
-        fi
-        
-        if [[ -z "$init_data" || "$init_data" == "{}" ]]; then
-            log_info "  No initialization data for: $resource"
-            continue
-        fi
-        
-        if [[ "$DRY_RUN" == true ]]; then
-            log_info "  [DRY RUN] Would run: $inject_script --inject '<initialization_data>'"
-            [[ "$VERBOSE" == true ]] && log_info "  [DRY RUN] Initialization data: $init_data"
-        else
-            # Run injection script with proper JSON data
-            if [[ "$VERBOSE" == true ]]; then
-                log_info "  Running: $inject_script --inject '<initialization_data>'"
-                log_info "  Initialization data: $init_data"
-            fi
-            
-            # Add rollback action before injection (escape JSON properly)
-            local escaped_init_data
-            escaped_init_data=$(printf '%s' "$init_data" | sed "s/'/'\\\\''/g")
-            add_rollback_action "Rollback injection for $resource" "\"$inject_script\" --rollback '$escaped_init_data' || true"
-            
-            if "$inject_script" --inject "$init_data"; then
-                log_success "  ✓ Injected data for: $resource (category: $category)"
-            else
-                log_error "  ✗ Failed to inject data for: $resource (category: $category)"
-                execute_rollback
-                return 1
-            fi
-        fi
-    done
-    
-    log_success "Resource injection completed"
-}
-
-# Deploy the application
-deploy_application() {
-    log_step "Deploying application..."
-    
-    local startup_script="${SCENARIO_PATH}/deployment/startup.sh"
-    
-    if [[ -f "$startup_script" && -x "$startup_script" ]]; then
-        if [[ "$DRY_RUN" == true ]]; then
-            log_info "[DRY RUN] Would run: $startup_script deploy"
-        else
-            [[ "$VERBOSE" == true ]] && log_info "Running deployment script..."
-            
-            if "$startup_script" deploy; then
-                log_success "Application deployed successfully"
-            else
-                log_error "Application deployment failed"
-                return 1
-            fi
-        fi
-    else
-        log_warning "Deployment script not found: $startup_script"
-        log_info "Skipping deployment step"
-    fi
-}
-
-# Start monitoring
-start_monitoring() {
-    log_step "Starting application monitoring..."
-    
-    local monitor_script="${SCENARIO_PATH}/deployment/monitor.sh"
-    
-    if [[ -f "$monitor_script" && -x "$monitor_script" ]]; then
-        if [[ "$DRY_RUN" == true ]]; then
-            log_info "[DRY RUN] Would run: $monitor_script start"
-        else
-            [[ "$VERBOSE" == true ]] && log_info "Starting monitoring..."
-            
-            if "$monitor_script" start >/dev/null 2>&1; then
-                log_success "Monitoring started"
-            else
-                log_warning "Failed to start monitoring (non-critical)"
-            fi
-        fi
-    else
-        [[ "$VERBOSE" == true ]] && log_info "No monitoring script found"
-    fi
-}
-
-# Run integration tests
-run_tests() {
-    if [[ "$VALIDATION_MODE" == "none" ]]; then
-        log_info "Skipping integration tests"
-        return 0
-    fi
-    
-    log_step "Running integration tests..."
-    
-    local test_script="${SCENARIO_PATH}/test.sh"
-    
-    if [[ -f "$test_script" && -x "$test_script" ]]; then
-        if [[ "$DRY_RUN" == true ]]; then
-            log_info "[DRY RUN] Would run: $test_script"
-        else
-            [[ "$VERBOSE" == true ]] && log_info "Running tests..."
-            
-            if "$test_script"; then
-                log_success "Integration tests passed"
-            else
-                log_error "Integration tests failed"
-                return 1
-            fi
-        fi
-    else
-        log_warning "Test script not found: $test_script"
-    fi
-}
-
-# Show deployment summary
-show_summary() {
-    # NOTE: Using standard service.schema.json paths (.service.* not .metadata.*)
-    local scenario_name
-    local scenario_id
-    local version
-    scenario_name=$(echo "$SERVICE_JSON" | jq -r '.service.displayName // .service.name')
-    scenario_id=$(echo "$SERVICE_JSON" | jq -r '.service.name')
-    version=$(echo "$SERVICE_JSON" | jq -r '.service.version')
-    
-    echo ""
-    log_success "🎉 Deployment Summary"
-    echo "════════════════════════════════════════════════════════════════"
-    echo "📋 Scenario: $scenario_name ($scenario_id)"
-    echo "📌 Version: $version"
-    echo "📁 Path: $SCENARIO_PATH"
-    echo "🚀 Mode: $DEPLOYMENT_MODE"
-    echo "✅ Status: Successfully Deployed"
-    echo ""
-    
-    # Extract endpoints from service.json  
-    # NOTE: Using deployment.urls from service.schema.json structure
-    local endpoints
-    if ! endpoints=$(echo "$SERVICE_JSON" | jq -r '.deployment.urls // {} | to_entries[] | "  \(.key): \(.value)"'); then
-        [[ "$VERBOSE" == true ]] && log_info "No deployment URLs found in service.json"
-        endpoints=""
-    fi
-    
-    if [[ -n "$endpoints" ]]; then
-        log_info "Application Endpoints:"
-        echo "$endpoints"
-        echo ""
-    fi
-    
-    # Show resource-specific URLs
-    # NOTE: Using standard service.schema.json structure for required resources
-    local resources
-    if ! resources=$(echo "$SERVICE_JSON" | jq -r '
-      .resources | 
-      to_entries[] | 
-      .value | 
-      to_entries[] | 
-      select(.value.required == true) | 
-      .key
-    '); then
-        log_warning "Failed to extract required resources for summary display"
-        resources=""
-    fi
-    
-    log_info "Resource Access:"
-    for resource in $resources; do
-        case "$resource" in
-            n8n)
-                echo "  📡 n8n Editor: http://localhost:5678"
-                ;;
-            windmill)
-                echo "  🌪️ Windmill: http://localhost:5681"
-                ;;
-            postgres)
-                echo "  🗄️ Database: postgresql://localhost:5432/${scenario_id//-/_}"
-                ;;
-            minio)
-                echo "  📦 MinIO: http://localhost:9000"
-                ;;
-        esac
-    done
-    echo ""
-    
-    log_info "Management Commands:"
-    echo "  📊 Status: $SCENARIO_PATH/deployment/monitor.sh status"
-    echo "  📝 Logs: $SCENARIO_PATH/deployment/monitor.sh logs"
-    echo "  🧪 Tests: $SCENARIO_PATH/test.sh"
-    echo ""
-}
-
 ################################################################################
 # Main Execution
 ################################################################################
@@ -755,10 +1218,10 @@ main() {
     parse_args "$@"
     
     # Show banner
-    log_banner "Vrooli Scenario-to-App Converter"
+    log_banner "Vrooli Scenario-to-App Converter (Validation-Only Mode)"
     log_info "Converting scenario: $SCENARIO_NAME"
     log_info "Deployment mode: $DEPLOYMENT_MODE"
-    log_info "Validation mode: $VALIDATION_MODE"
+    log_info "Architecture: Validation-only with runtime injection"
     
     if [[ "$DRY_RUN" == true ]]; then
         log_warning "DRY RUN MODE - No actual changes will be made"
@@ -766,72 +1229,112 @@ main() {
     
     echo ""
     
-    # Phase 1: Validation
-    log_phase "Phase 1: Validation"
+    # Phase 1: Comprehensive Validation
+    log_phase "Phase 1: Injection Readiness Validation"
+    
+    # Basic scenario validation
     if ! validate_scenario; then
         log_error "Scenario validation failed"
         exit 1
     fi
     
-    if ! validate_structure; then
-        log_error "Structure validation failed"
+    # Enhanced validation for injection readiness
+    if ! validate_injection_readiness "$SCENARIO_PATH"; then
+        log_error "Injection readiness validation failed"
         exit 1
     fi
     
-    if ! validate_resources; then
-        log_error "Resource validation failed"
-        exit 1
-    fi
-    
-    log_success "Validation completed"
+    log_success "✅ All validations passed"
     
     echo ""
     
-    # Phase 2: Resource Injection
-    log_phase "Phase 2: Resource Injection"
-    if ! inject_resources; then
-        log_error "Resource injection failed - rollback executed"
-        exit 1
+    # Phase 2: Package Scenario App
+    log_phase "Phase 2: Packaging Self-Contained App"
+    
+    # Determine output directory
+    local output_dir="${OUTPUT_DIR:-${PROJECT_ROOT}/generated-apps/${SCENARIO_NAME}}"
+    
+    if [[ "$DRY_RUN" == true ]]; then
+        log_info "[DRY RUN] Would package app to: $output_dir"
+        log_info "[DRY RUN] Deployment mode: $DEPLOYMENT_MODE"
+    else
+        # Create output directory
+        mkdir -p "$output_dir"
+        
+        # Package the scenario
+        if ! package_scenario_app "$SCENARIO_PATH" "$output_dir" "$DEPLOYMENT_MODE"; then
+            log_error "Failed to package scenario app"
+            exit 1
+        fi
+        
+        log_success "✅ App packaged successfully"
     fi
-    log_success "Resource injection completed"
     
     echo ""
     
-    # Phase 3: Deployment
-    log_phase "Phase 3: Deployment"
-    if ! deploy_application; then
-        log_error "Application deployment failed"
-        execute_rollback
-        exit 1
-    fi
+    # Phase 3: Generate Deployment Artifacts
+    log_phase "Phase 3: Deployment Artifacts"
     
-    if ! start_monitoring; then
-        log_warning "Monitoring startup failed (non-critical)"
-    fi
-    
-    log_success "Deployment completed"
-    
-    echo ""
-    
-    # Phase 4: Testing
-    log_phase "Phase 4: Testing"
-    if ! run_tests; then
-        log_error "Integration tests failed"
-        execute_rollback
-        exit 1
-    fi
-    log_success "Testing completed"
+    case "$DEPLOYMENT_MODE" in
+        local)
+            log_info "Generated local deployment scripts"
+            if [[ "$DRY_RUN" != true ]]; then
+                log_info "Start script: ${output_dir}/bin/start.sh"
+                log_info "Health check: ${output_dir}/scripts/health-check.sh"
+            fi
+            ;;
+        docker)
+            log_info "Generated Docker deployment files"
+            if [[ "$DRY_RUN" != true ]]; then
+                log_info "Dockerfile: ${output_dir}/Dockerfile"
+                log_info "Compose file: ${output_dir}/docker-compose.yml"
+                log_info ""
+                log_info "To build and run:"
+                log_info "  cd ${output_dir}"
+                log_info "  docker-compose up --build"
+            fi
+            ;;
+        k8s)
+            log_info "Generated Kubernetes manifests"
+            if [[ "$DRY_RUN" != true ]]; then
+                log_info "ConfigMap: ${output_dir}/k8s/configmap.yaml"
+                log_info "Deployment: ${output_dir}/k8s/deployment.yaml"
+                log_info ""
+                log_info "To deploy:"
+                log_info "  kubectl apply -f ${output_dir}/k8s/"
+            fi
+            ;;
+    esac
     
     echo ""
     
     # Summary
+    log_phase "Summary"
+    
     if [[ "$DRY_RUN" == true ]]; then
-        log_success "Dry run completed successfully!"
-        log_info "Run without --dry-run to perform actual deployment"
+        log_success "✅ Dry run completed successfully!"
+        log_info "The app would be packaged with:"
+        log_info "  - Runtime injection manifest"
+        log_info "  - Self-contained startup script"
+        log_info "  - Health monitoring"
+        log_info "  - Deployment configurations"
+        log_info ""
+        log_info "Run without --dry-run to generate the actual app"
     else
-        show_summary
+        log_success "✅ Scenario app generated successfully!"
+        log_info ""
+        log_info "📦 App location: $output_dir"
+        log_info ""
+        log_info "🚀 Next steps:"
+        log_info "  1. Review generated files in $output_dir"
+        log_info "  2. Deploy using the $DEPLOYMENT_MODE instructions above"
+        log_info "  3. The app will handle resource startup and injection at runtime"
+        log_info ""
+        log_info "Note: This is a self-contained app that inherits Vrooli's"
+        log_info "      resource management capabilities. No external resources"
+        log_info "      need to be running during deployment."
     fi
 }
 
-# Run main function
+# Execute main function
 main "$@"
