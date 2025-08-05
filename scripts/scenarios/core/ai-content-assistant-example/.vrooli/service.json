@@ -1,20 +1,21 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "name": "analytics-dashboard",
-    "displayName": "Real-time Analytics Dashboard",
-    "description": "Live monitoring dashboard with streaming data, time-series storage, and AI-powered insights",
+    "name": "ai-content-assistant-example",
+    "displayName": "AI Content Assistant",
+    "description": "Multi-modal AI assistant for content creation with voice input, text generation, and professional UI",
     "version": "1.0.0",
     "type": "business-application",
     "tags": [
-      "real-time",
-      "time-series",
-      "iot",
-      "monitoring",
-      "operational-intelligence",
-      "windmill-ui",
-      "enterprise-ready"
+      "ai-assistant",
+      "content-creation",
+      "voice-enabled",
+      "workflow-automation",
+      "analytics-dashboard",
+      "enterprise-ready",
+      "high-revenue-potential",
+      "example-scenario"
     ],
     "maintainers": [
       {
@@ -26,7 +27,7 @@
     "repository": {
       "type": "git",
       "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/core/analytics-dashboard"
+      "directory": "/scripts/scenarios/core/ai-content-assistant-example"
     },
     "license": "GPL-3.0",
     "homepage": "https://github.com/Vrooli/Vrooli",
@@ -57,19 +58,6 @@
           ]
         }
       },
-      "questdb": {
-        "type": "questdb",
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "tables": [
-            {
-              "name": "metrics",
-              "schema": "CREATE TABLE metrics (timestamp TIMESTAMP, metric_name STRING, value DOUBLE, tags STRING)"
-            }
-          ]
-        }
-      },
       "minio": {
         "type": "minio",
         "enabled": false,
@@ -77,55 +65,74 @@
         "initialization": {
           "buckets": [
             {
-              "name": "analytics-data",
+              "name": "ai-content-assistant",
               "policy": "private"
             }
           ]
+        }
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": false,
+        "required": false,
+        "initialization": {
+          "collections": []
         }
       }
     },
     "ai": {
       "ollama": {
-        "enabled": false,
-        "required": false,
+        "enabled": true,
+        "required": true,
         "models": ["llama3.1:8b"]
+      },
+      "whisper": {
+        "enabled": true,
+        "required": true
       }
     },
     "automation": {
-      "node-red": {
+      "n8n": {
         "enabled": true,
         "required": true,
         "initialization": {
-          "flows": [
+          "workflows": [
             {
-              "name": "data-ingestion-flow",
-              "file": "initialization/workflows/node-red/main-flow.json",
+              "name": "main-workflow",
+              "file": "initialization/workflows/n8n/main-workflow.json",
               "enabled": true,
-              "tags": ["core", "data-ingestion"]
+              "tags": ["core", "automation"]
+            }
+          ],
+          "credentials": [
+            {
+              "name": "api-auth",
+              "type": "httpAuth",
+              "config": {
+                "url": "{{ API_URL }}",
+                "authType": "bearer"
+              }
             }
           ]
         }
       },
       "windmill": {
-        "enabled": false,
-        "required": false,
+        "enabled": true,
+        "required": true,
         "initialization": {
           "apps": [
             {
-              "path": "f/analytics-dashboard/dashboard",
+              "path": "f/ai-content-assistant/dashboard",
               "file": "initialization/ui/windmill-app.json",
-              "summary": "Real-time Analytics Dashboard"
+              "summary": "AI Content Assistant Dashboard"
             }
           ],
           "scripts": []
         }
-      }
-    },
-    "agents": {
-      "browserless": {
-        "enabled": true,
-        "required": true,
-        "mode": "service"
+      },
+      "comfyui": {
+        "enabled": false,
+        "required": false
       }
     }
   },
@@ -134,9 +141,8 @@
     "strategy": "rolling-update",
     "urls": {
       "application": "http://localhost:3000",
-      "api": "http://localhost:3000/api/analytics-dashboard",
-      "health": "http://localhost:3000/api/analytics-dashboard/health",
-      "questdb": "http://localhost:9000"
+      "api": "http://localhost:3000/api/ai-content-assistant-example",
+      "health": "http://localhost:3000/api/ai-content-assistant-example/health"
     },
     "initialization": {
       "phases": [
@@ -165,12 +171,6 @@
               "type": "sql",
               "target": "storage.postgres",
               "file": "initialization/database/seed.sql"
-            },
-            {
-              "name": "setup-questdb",
-              "type": "resource-inject",
-              "target": "storage.questdb",
-              "timeout": "60s"
             }
           ]
         },
@@ -179,10 +179,10 @@
           "parallel": true,
           "tasks": [
             {
-              "name": "deploy-node-red-flows",
+              "name": "deploy-n8n-workflows",
               "type": "resource-inject",
-              "target": "automation.node-red",
-              "config": "initialization/workflows/node-red/"
+              "target": "automation.n8n",
+              "config": "initialization/workflows/n8n/"
             },
             {
               "name": "deploy-windmill-apps",
@@ -224,7 +224,7 @@
             {
               "name": "health-check",
               "type": "healthcheck",
-              "target": "http://localhost:3000/api/analytics-dashboard/health",
+              "target": "http://localhost:3000/api/ai-content-assistant-example/health",
               "timeout": "30s",
               "retries": 3
             },
@@ -242,18 +242,13 @@
       "enabled": true,
       "healthChecks": {
         "application": {
-          "endpoint": "http://localhost:3000/api/analytics-dashboard/health",
+          "endpoint": "http://localhost:3000/api/ai-content-assistant-example/health",
           "interval": "30s",
           "timeout": "5s",
           "threshold": 3
         },
-        "questdb": {
-          "endpoint": "http://localhost:9000/status",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "node-red": {
-          "endpoint": "http://localhost:1880/settings",
+        "workflows": {
+          "endpoint": "http://localhost:5678/api/v1/info",
           "interval": "60s",
           "timeout": "10s"
         },
@@ -270,8 +265,8 @@
           "p99": "1000ms"
         },
         "throughput": {
-          "rps": 200,
-          "concurrent": 50
+          "rps": 100,
+          "concurrent": 10
         },
         "errorRate": {
           "threshold": "1%"
@@ -282,20 +277,15 @@
       "enabled": true,
       "tasks": [
         {
-          "name": "delete-node-red-flows",
+          "name": "delete-workflows",
           "type": "resource-cleanup",
-          "target": "automation.node-red"
+          "target": "automation.n8n"
         },
         {
           "name": "drop-database",
           "type": "sql",
           "target": "storage.postgres",
-          "query": "DROP DATABASE IF EXISTS analytics_dashboard"
-        },
-        {
-          "name": "clear-questdb",
-          "type": "resource-cleanup",
-          "target": "storage.questdb"
+          "query": "DROP DATABASE IF EXISTS ai_content_assistant"
         },
         {
           "name": "clear-storage",
@@ -310,14 +300,14 @@
       "script": "./test.sh",
       "ui": {
         "required": true,
-        "type": "node-red",
-        "url": "http://localhost:1880"
+        "type": "windmill",
+        "url": "http://localhost:3000"
       },
       "performance": {
         "loadTest": {
-          "users": 50,
-          "duration": "10m",
-          "rampUp": "1m"
+          "users": 10,
+          "duration": "5m",
+          "rampUp": "30s"
         }
       }
     },
@@ -335,62 +325,61 @@
   "metadata": {
     "businessModel": {
       "purpose": "commercial",
-      "valueProposition": "Real-time operational intelligence platform for IoT, financial, and business metrics",
-      "targetMarket": "IoT companies, financial institutions, and businesses needing real-time monitoring and analytics",
+      "valueProposition": "Complete AI-powered content creation suite with voice interface and professional analytics",
+      "targetMarket": "Content creators, marketing teams, and businesses needing AI-assisted content generation",
       "painPoints": [
-        "Delayed insights from batch processing systems",
-        "Complex setup for real-time data pipelines",
-        "Lack of integrated monitoring and alerting"
+        "Time-consuming manual content creation",
+        "Inconsistent content quality and tone",
+        "Lack of voice-to-text workflow integration"
       ],
-      "solution": "Complete real-time analytics platform with streaming data ingestion, time-series storage, and interactive dashboards",
-      "competitiveAdvantage": "Integrated Node-RED workflows with QuestDB time-series performance and automated monitoring",
+      "solution": "Multi-modal AI assistant combining voice input, text generation, and automated workflows for efficient content creation",
+      "competitiveAdvantage": "Integrated voice interface with professional UI and workflow automation",
       "revenuePotential": {
-        "initial": "$5,000",
-        "recurring": "$12,000",
-        "expansion": "$25,000",
-        "totalEstimate": "$42,000"
+        "initial": "$15,000",
+        "recurring": "$30,000",
+        "expansion": "$45,000",
+        "totalEstimate": "$90,000"
       },
       "marketDemand": {
         "level": "very-high",
-        "growth": "35% annually",
-        "evidence": "Growing IoT market and real-time analytics demand"
+        "growth": "25% annually",
+        "evidence": "Growing demand for AI content tools and voice interfaces"
       },
       "roi": {
-        "developmentCost": "$3,000",
-        "timeToMarket": "1 week",
-        "breakEven": "2 months"
+        "developmentCost": "$5,000",
+        "timeToMarket": "2 weeks",
+        "breakEven": "3 months"
       }
     },
     "performance": {
       "targets": {
-        "initializationTime": "3m",
+        "initializationTime": "2m",
         "responseTime": {
-          "p50": "50ms",
-          "p95": "200ms",
-          "p99": "500ms"
+          "p50": "100ms",
+          "p95": "500ms",
+          "p99": "1000ms"
         },
         "throughput": {
-          "minimum": 100,
-          "target": 200,
-          "peak": 1000
+          "minimum": 50,
+          "target": 100,
+          "peak": 500
         },
-        "availability": "99.95%",
-        "errorRate": "<0.5%"
+        "availability": "99.9%",
+        "errorRate": "<1%"
       },
       "resources": {
         "cpu": {
-          "minimum": "1.0",
-          "target": "2.0",
-          "maximum": "4.0"
+          "minimum": "0.5",
+          "target": "1.0",
+          "maximum": "2.0"
         },
         "memory": {
-          "minimum": "1Gi",
-          "target": "2Gi",
-          "maximum": "4Gi"
+          "minimum": "512Mi",
+          "target": "1Gi",
+          "maximum": "2Gi"
         },
         "storage": {
-          "database": "50Gi",
-          "timeseries": "100Gi",
+          "database": "10Gi",
           "files": "20Gi"
         }
       }
@@ -399,7 +388,7 @@
       "variables": {
         "APP_NAME": {
           "type": "string",
-          "default": "Analytics Dashboard",
+          "default": "AI Content Assistant",
           "description": "Application display name"
         },
         "COMPANY_NAME": {
@@ -409,12 +398,12 @@
         },
         "PRIMARY_COLOR": {
           "type": "string",
-          "default": "#059669",
+          "default": "#2563eb",
           "description": "Brand primary color"
         },
         "DATABASE_NAME": {
           "type": "string",
-          "default": "analytics_dashboard",
+          "default": "ai_content_assistant",
           "description": "Database name"
         },
         "APP_PORT": {
@@ -422,10 +411,10 @@
           "default": 3000,
           "description": "Application port"
         },
-        "QUESTDB_PORT": {
+        "API_PORT": {
           "type": "number",
-          "default": 9000,
-          "description": "QuestDB web console port"
+          "default": 3000,
+          "description": "API server port"
         }
       },
       "features": {
@@ -436,32 +425,27 @@
         },
         "notifications": {
           "enabled": true,
-          "channels": ["email", "webhook", "slack"]
+          "channels": ["email", "webhook"]
         },
         "analytics": {
           "enabled": true,
           "provider": "internal"
         },
-        "realtime": {
-          "enabled": true,
-          "provider": "questdb"
+        "payments": {
+          "enabled": false,
+          "provider": "stripe"
         }
       },
       "integrations": [
         {
-          "name": "IoT Sensors",
-          "type": "mqtt",
-          "required": false
-        },
-        {
-          "name": "External APIs",
-          "type": "rest",
+          "name": "Content APIs",
+          "type": "api",
           "required": false
         }
       ]
     },
-    "category": "real-time-monitoring",
-    "complexity": "advanced",
+    "category": "ai-assistance",
+    "complexity": "intermediate",
     "marketDemand": "very-high"
   }
 }

@@ -642,8 +642,8 @@ assert_line() {
     # Check state file exists
     [[ -f "$REDIS_MOCK_STATE_DIR/redis-state.sh" ]]
     
-    # Reset and reload
-    mock::redis::reset
+    # Reset without saving state, then reload
+    mock::redis::reset false
     mock::redis::load_state
     
     run redis-cli get statekey

@@ -1,20 +1,21 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "name": "resume-screening-assistant",
-    "displayName": "Resume Screening Assistant",
-    "description": "AI-powered recruitment automation for resume parsing, candidate scoring, and job matching",
+    "name": "multi-modal-ai-assistant",
+    "displayName": "Multi-Modal AI Assistant",
+    "description": "Voice-to-visual-to-action AI assistant with professional UI for accessibility and productivity",
     "version": "1.0.0",
     "type": "business-application",
     "tags": [
-      "hr-tech",
-      "recruitment",
-      "resume-parsing",
-      "candidate-matching",
+      "multimodal",
+      "voice-enabled",
+      "visual-generation",
       "automation",
-      "talent-acquisition",
-      "ai-recruiting"
+      "windmill-ui",
+      "accessibility",
+      "enterprise-ready",
+      "high-revenue-potential"
     ],
     "maintainers": [
       {
@@ -26,7 +27,7 @@
     "repository": {
       "type": "git",
       "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/core/resume-screening-assistant"
+      "directory": "/scripts/scenarios/core/multi-modal-ai-assistant"
     },
     "license": "GPL-3.0",
     "homepage": "https://github.com/Vrooli/Vrooli",
@@ -57,42 +58,6 @@
           ]
         }
       },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "collections": [
-            {
-              "name": "resumes",
-              "config": {
-                "vectors": {
-                  "size": 384,
-                  "distance": "Cosine"
-                }
-              }
-            },
-            {
-              "name": "job-descriptions",
-              "config": {
-                "vectors": {
-                  "size": 384,
-                  "distance": "Cosine"
-                }
-              }
-            },
-            {
-              "name": "candidate-profiles",
-              "config": {
-                "vectors": {
-                  "size": 384,
-                  "distance": "Cosine"
-                }
-              }
-            }
-          ]
-        }
-      },
       "minio": {
         "type": "minio",
         "enabled": false,
@@ -100,37 +65,110 @@
         "initialization": {
           "buckets": [
             {
-              "name": "resume-uploads",
+              "name": "voice-recordings",
               "policy": "private"
             },
             {
-              "name": "processed-documents",
+              "name": "generated-visuals",
               "policy": "private"
             },
             {
-              "name": "candidate-photos",
+              "name": "user-uploads",
               "policy": "private"
+            }
+          ]
+        }
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": false,
+        "required": false,
+        "initialization": {
+          "collections": [
+            {
+              "name": "conversation-memory",
+              "config": {
+                "vectors": {
+                  "size": 384,
+                  "distance": "Cosine"
+                }
+              }
+            },
+            {
+              "name": "user-preferences",
+              "config": {
+                "vectors": {
+                  "size": 384,
+                  "distance": "Cosine"
+                }
+              }
             }
           ]
         }
       }
     },
     "ai": {
-      "unstructured-io": {
+      "whisper": {
         "enabled": true,
-        "required": true,
-        "type": "unstructured-io"
+        "required": true
       },
       "ollama": {
         "enabled": true,
         "required": true,
-        "models": ["llama3.1:8b", "nomic-embed-text"]
+        "models": ["llama3.1:8b", "llava:13b", "nomic-embed-text"]
+      }
+    },
+    "automation": {
+      "comfyui": {
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "workflows": [
+            {
+              "name": "accessibility-visual-generation",
+              "file": "initialization/workflows/comfyui/accessibility-workflow.json",
+              "enabled": true,
+              "tags": ["accessibility", "visual"]
+            },
+            {
+              "name": "voice-to-visual-pipeline",
+              "file": "initialization/workflows/comfyui/voice-visual-workflow.json",
+              "enabled": true,
+              "tags": ["voice", "multimodal"]
+            }
+          ]
+        }
+      },
+      "windmill": {
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "apps": [
+            {
+              "path": "f/multi-modal-assistant/dashboard",
+              "file": "initialization/ui/windmill-app.json",
+              "summary": "Multi-Modal AI Assistant Dashboard"
+            }
+          ],
+          "scripts": [
+            {
+              "name": "voice-processing",
+              "file": "initialization/scripts/voice-processing.ts",
+              "language": "typescript"
+            },
+            {
+              "name": "visual-generation",
+              "file": "initialization/scripts/visual-generation.ts",
+              "language": "typescript"
+            }
+          ]
+        }
       }
     },
     "agents": {
-      "browserless": {
-        "enabled": false,
-        "required": false,
+      "agent-s2": {
+        "enabled": true,
+        "required": true,
         "mode": "service"
       }
     }
@@ -139,14 +177,12 @@
     "target": "docker",
     "strategy": "rolling-update",
     "urls": {
-      "application": "http://localhost:3000/resume-screening-assistant",
-      "admin": "http://localhost:3000/admin/resume-screening-assistant",
-      "api": "http://localhost:3000/api/resume-screening-assistant",
-      "health": "http://localhost:3000/api/resume-screening-assistant/health",
-      "upload": "http://localhost:3000/api/resume-screening-assistant/upload",
-      "search": "http://localhost:3000/api/resume-screening-assistant/search",
-      "unstructured": "http://localhost:8000",
-      "qdrant": "http://localhost:6333"
+      "application": "http://localhost:8000",
+      "api": "http://localhost:3000/api/multi-modal-ai-assistant",
+      "health": "http://localhost:3000/api/multi-modal-ai-assistant/health",
+      "windmill": "http://localhost:8000",
+      "comfyui": "http://localhost:8188",
+      "agent-s2": "http://localhost:4113"
     },
     "initialization": {
       "phases": [
@@ -179,20 +215,14 @@
           ]
         },
         {
-          "name": "ai-setup",
+          "name": "storage-setup",
           "parallel": true,
           "tasks": [
             {
-              "name": "verify-unstructured-io",
+              "name": "setup-minio-buckets",
               "type": "resource-inject",
-              "target": "ai.unstructured-io",
+              "target": "storage.minio",
               "timeout": "2m"
-            },
-            {
-              "name": "load-ai-models",
-              "type": "resource-inject",
-              "target": "ai.ollama",
-              "timeout": "10m"
             },
             {
               "name": "setup-vector-collections",
@@ -203,13 +233,40 @@
           ]
         },
         {
-          "name": "optional-services-setup",
+          "name": "ai-setup",
+          "parallel": true,
           "tasks": [
             {
-              "name": "setup-storage-buckets",
+              "name": "load-ai-models",
               "type": "resource-inject",
-              "target": "storage.minio",
+              "target": "ai.ollama",
+              "timeout": "15m"
+            },
+            {
+              "name": "verify-whisper",
+              "type": "resource-inject",
+              "target": "ai.whisper",
               "timeout": "2m"
+            }
+          ]
+        },
+        {
+          "name": "workflow-deployment",
+          "parallel": true,
+          "tasks": [
+            {
+              "name": "deploy-comfyui-workflows",
+              "type": "resource-inject",
+              "target": "automation.comfyui",
+              "config": "initialization/workflows/comfyui/",
+              "timeout": "5m"
+            },
+            {
+              "name": "deploy-windmill-apps",
+              "type": "resource-inject",
+              "target": "automation.windmill",
+              "config": "initialization/ui/",
+              "timeout": "3m"
             }
           ]
         },
@@ -222,9 +279,9 @@
               "file": "initialization/configuration/app-config.json"
             },
             {
-              "name": "set-recruitment-settings",
+              "name": "set-feature-flags",
               "type": "config",
-              "file": "initialization/configuration/recruitment-settings.json"
+              "file": "initialization/configuration/feature-flags.json"
             }
           ]
         },
@@ -235,7 +292,7 @@
               "name": "start-application",
               "type": "script",
               "script": "./deployment/startup.sh",
-              "timeout": "2m"
+              "timeout": "3m"
             }
           ]
         },
@@ -245,7 +302,7 @@
             {
               "name": "health-check",
               "type": "healthcheck",
-              "target": "http://localhost:3000/api/resume-screening-assistant/health",
+              "target": "http://localhost:3000/api/multi-modal-ai-assistant/health",
               "timeout": "30s",
               "retries": 3
             },
@@ -263,28 +320,28 @@
       "enabled": true,
       "healthChecks": {
         "application": {
-          "endpoint": "http://localhost:3000/api/resume-screening-assistant/health",
+          "endpoint": "http://localhost:3000/api/multi-modal-ai-assistant/health",
           "interval": "30s",
           "timeout": "5s",
           "threshold": 3
         },
-        "upload-endpoint": {
-          "endpoint": "http://localhost:3000/api/resume-screening-assistant/upload",
+        "windmill": {
+          "endpoint": "http://localhost:8000/api/version",
           "interval": "60s",
           "timeout": "10s"
         },
-        "search-endpoint": {
-          "endpoint": "http://localhost:3000/api/resume-screening-assistant/search",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "unstructured-io": {
-          "endpoint": "http://localhost:8000/general/v0/general",
+        "comfyui": {
+          "endpoint": "http://localhost:8188/system_stats",
           "interval": "60s",
           "timeout": "15s"
         },
-        "qdrant": {
-          "endpoint": "http://localhost:6333/health",
+        "agent-s2": {
+          "endpoint": "http://localhost:4113/health",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "whisper": {
+          "endpoint": "http://localhost:8090/health",
           "interval": "60s",
           "timeout": "10s"
         },
@@ -292,11 +349,6 @@
           "endpoint": "http://localhost:11434/api/tags",
           "interval": "60s",
           "timeout": "15s"
-        },
-        "browserless": {
-          "endpoint": "http://localhost:4110/pressure",
-          "interval": "60s",
-          "timeout": "10s"
         },
         "database": {
           "type": "tcp",
@@ -306,16 +358,16 @@
       },
       "metrics": {
         "responseTime": {
-          "p50": "600ms",
-          "p95": "2000ms",
-          "p99": "5000ms"
+          "p50": "800ms",
+          "p95": "3000ms",
+          "p99": "8000ms"
         },
         "throughput": {
-          "rps": 8,
-          "concurrent": 12
+          "rps": 10,
+          "concurrent": 15
         },
         "errorRate": {
-          "threshold": "3%"
+          "threshold": "4%"
         }
       }
     },
@@ -323,10 +375,20 @@
       "enabled": true,
       "tasks": [
         {
+          "name": "delete-windmill-apps",
+          "type": "resource-cleanup",
+          "target": "automation.windmill"
+        },
+        {
+          "name": "delete-comfyui-workflows",
+          "type": "resource-cleanup",
+          "target": "automation.comfyui"
+        },
+        {
           "name": "drop-database",
           "type": "sql",
           "target": "storage.postgres",
-          "query": "DROP DATABASE IF EXISTS resume_screening_assistant"
+          "query": "DROP DATABASE IF EXISTS multi_modal_ai_assistant"
         },
         {
           "name": "clear-vector-collections",
@@ -342,54 +404,54 @@
     },
     "testing": {
       "enabled": true,
-      "timeout": "35m",
+      "timeout": "45m",
       "script": "./test.sh",
       "ui": {
         "required": true,
-        "type": "web",
-        "url": "http://localhost:3000/resume-screening-assistant"
+        "type": "windmill",
+        "url": "http://localhost:8000"
       },
       "performance": {
         "loadTest": {
-          "users": 8,
-          "duration": "5m",
+          "users": 5,
+          "duration": "8m",
           "rampUp": "1m"
         }
       }
     },
     "resources": {
       "requests": {
-        "cpu": "800m",
-        "memory": "2Gi"
+        "cpu": "1500m",
+        "memory": "3Gi"
       },
       "limits": {
-        "cpu": "3000m",
-        "memory": "6Gi"
+        "cpu": "6000m",
+        "memory": "12Gi"
       }
     }
   },
   "metadata": {
     "businessModel": {
       "purpose": "commercial",
-      "valueProposition": "AI-powered recruitment automation platform for resume parsing, candidate scoring, and intelligent job matching",
-      "targetMarket": "HR departments, recruitment agencies, talent acquisition teams, and staffing companies",
+      "valueProposition": "Complete accessibility and productivity solution combining voice, AI, visual generation, and automation",
+      "targetMarket": "Enterprise accessibility teams, productivity-focused organizations, and users with accessibility needs",
       "painPoints": [
-        "Manual resume screening consuming hours of recruiter time per position",
-        "Inconsistent candidate evaluation and bias in hiring decisions",
-        "Difficulty matching qualified candidates to appropriate job openings at scale"
+        "Limited accessibility options in existing productivity tools",
+        "Complex multi-step processes requiring voice-to-visual-to-action workflows",
+        "Lack of integrated AI-powered assistance for users with different interaction preferences"
       ],
-      "solution": "Automated recruitment platform with AI-powered resume parsing, candidate scoring, and intelligent matching capabilities",
-      "competitiveAdvantage": "Complete HR tech solution combining Unstructured.io document processing with AI analysis and vector-based candidate matching",
+      "solution": "Multi-modal AI assistant providing voice input, visual generation, automated workflows, and accessible interfaces",
+      "competitiveAdvantage": "Complete integration of voice, vision, and automation with professional accessibility-focused UI",
       "revenuePotential": {
-        "initial": "$5,000",
-        "recurring": "$18,000",
-        "expansion": "$35,000",
-        "totalEstimate": "$58,000"
+        "initial": "$10,000",
+        "recurring": "$25,000",
+        "expansion": "$50,000",
+        "totalEstimate": "$85,000"
       },
       "marketDemand": {
-        "level": "high",
-        "growth": "30% annually",
-        "evidence": "Growing HR tech market and increasing demand for AI-powered recruitment solutions to address talent shortage"
+        "level": "very-high",
+        "growth": "35% annually",
+        "evidence": "Growing demand for accessibility solutions and AI-powered productivity tools"
       },
       "roi": {
         "developmentCost": "$8,000",
@@ -399,35 +461,36 @@
     },
     "performance": {
       "targets": {
-        "initializationTime": "6m",
+        "initializationTime": "8m",
         "responseTime": {
-          "p50": "600ms",
-          "p95": "2000ms",
-          "p99": "5000ms"
+          "p50": "800ms",
+          "p95": "3000ms",
+          "p99": "8000ms"
         },
         "throughput": {
           "minimum": 5,
-          "target": 8,
-          "peak": 25
+          "target": 10,
+          "peak": 30
         },
-        "availability": "99.5%",
-        "errorRate": "<3%"
+        "availability": "99.7%",
+        "errorRate": "<4%"
       },
       "resources": {
         "cpu": {
-          "minimum": "1.5",
-          "target": "3.0",
-          "maximum": "6.0"
+          "minimum": "3.0",
+          "target": "6.0",
+          "maximum": "12.0"
         },
         "memory": {
-          "minimum": "3Gi",
-          "target": "6Gi",
-          "maximum": "12Gi"
+          "minimum": "6Gi",
+          "target": "12Gi",
+          "maximum": "24Gi"
         },
         "storage": {
-          "database": "200Gi",
-          "vectors": "100Gi",
-          "documents": "500Gi"
+          "database": "30Gi",
+          "vectors": "50Gi",
+          "media": "200Gi",
+          "workflows": "20Gi"
         }
       }
     },
@@ -435,7 +498,7 @@
       "variables": {
         "APP_NAME": {
           "type": "string",
-          "default": "Resume Screening Assistant",
+          "default": "Multi-Modal AI Assistant",
           "description": "Application display name"
         },
         "COMPANY_NAME": {
@@ -445,12 +508,12 @@
         },
         "PRIMARY_COLOR": {
           "type": "string",
-          "default": "#16a34a",
+          "default": "#10b981",
           "description": "Brand primary color"
         },
         "DATABASE_NAME": {
           "type": "string",
-          "default": "resume_screening_assistant",
+          "default": "multi_modal_ai_assistant",
           "description": "Database name"
         },
         "APP_PORT": {
@@ -458,15 +521,15 @@
           "default": 3000,
           "description": "Application port"
         },
-        "UNSTRUCTURED_PORT": {
+        "WINDMILL_PORT": {
           "type": "number",
           "default": 8000,
-          "description": "Unstructured.io API port"
+          "description": "Windmill UI port"
         },
-        "QDRANT_PORT": {
+        "COMFYUI_PORT": {
           "type": "number",
-          "default": 6333,
-          "description": "Qdrant vector database port"
+          "default": 8188,
+          "description": "ComfyUI interface port"
         }
       },
       "features": {
@@ -477,54 +540,49 @@
         },
         "notifications": {
           "enabled": true,
-          "channels": ["email", "webhook", "slack"]
+          "channels": ["email", "webhook", "accessibility"]
         },
         "analytics": {
           "enabled": true,
           "provider": "internal"
         },
-        "resumeParsing": {
+        "voiceInput": {
           "enabled": true,
-          "provider": "unstructured-io"
+          "provider": "whisper"
         },
-        "candidateScoring": {
+        "visualGeneration": {
           "enabled": true,
-          "provider": "ollama"
-        },
-        "candidateMatching": {
-          "enabled": true,
-          "provider": "qdrant"
+          "provider": "comfyui"
         },
         "webAutomation": {
-          "enabled": false,
-          "provider": "browserless"
+          "enabled": true,
+          "provider": "agent-s2"
+        },
+        "accessibility": {
+          "enabled": true,
+          "provider": "windmill"
         }
       },
       "integrations": [
         {
-          "name": "Applicant Tracking Systems (ATS)",
+          "name": "Accessibility Tools",
           "type": "api",
           "required": false
         },
         {
-          "name": "HR Information Systems (HRIS)",
+          "name": "Productivity Suites",
           "type": "webhook",
           "required": false
         },
         {
-          "name": "Job Boards",
-          "type": "api",
-          "required": false
-        },
-        {
-          "name": "Background Check Services",
+          "name": "Voice Assistants",
           "type": "api",
           "required": false
         }
       ]
     },
-    "category": "ai-recruitment",
-    "complexity": "intermediate",
-    "marketDemand": "high"
+    "category": "ai-assistance",
+    "complexity": "advanced",
+    "marketDemand": "very-high"
   }
 }

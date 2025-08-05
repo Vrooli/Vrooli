@@ -1,20 +1,21 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "name": "scenario-generator-v1",
-    "displayName": "Scenario Generator V1",
-    "description": "A meta-scenario that generates Vrooli scenarios from customer requirements using AI",
+    "name": "image-generation-pipeline",
+    "displayName": "Enterprise Image Generation Pipeline",
+    "description": "Enterprise-grade AI image generation platform with voice briefings, multi-brand management, and quality control",
     "version": "1.0.0",
     "type": "business-application",
     "tags": [
-      "meta-scenario",
-      "code-generation",
-      "ai-development",
-      "saas-generator",
-      "business-automation",
-      "claude-code",
-      "ultra-high-revenue-potential"
+      "visual-generation",
+      "voice-enabled",
+      "enterprise-ready",
+      "multimodal",
+      "windmill-ui",
+      "high-revenue-potential",
+      "brand-management",
+      "quality-control"
     ],
     "maintainers": [
       {
@@ -26,7 +27,7 @@
     "repository": {
       "type": "git",
       "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/core/scenario-generator-v1"
+      "directory": "/scripts/scenarios/core/image-generation-pipeline"
     },
     "license": "GPL-3.0",
     "homepage": "https://github.com/Vrooli/Vrooli",
@@ -64,91 +65,101 @@
         "initialization": {
           "buckets": [
             {
-              "name": "generated-scenarios",
+              "name": "generated-images",
               "policy": "private"
             },
             {
-              "name": "scenario-templates",
+              "name": "brand-assets",
               "policy": "private"
             },
             {
-              "name": "customer-requirements",
-              "policy": "private"
-            },
-            {
-              "name": "code-artifacts",
+              "name": "workflows",
               "policy": "private"
             }
           ]
         }
       },
-      "redis": {
-        "type": "redis",
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "collections": [
+            {
+              "name": "brand-vectors",
+              "config": {
+                "vectors": {
+                  "size": 384,
+                  "distance": "Cosine"
+                }
+              }
+            },
+            {
+              "name": "style-vectors",
+              "config": {
+                "vectors": {
+                  "size": 384,
+                  "distance": "Cosine"
+                }
+              }
+            }
+          ]
+        }
+      },
+      "vault": {
+        "type": "vault",
         "enabled": false,
-        "required": false
+        "required": false,
+        "initialization": {
+          "secrets": [
+            {
+              "path": "image-generation/api-keys",
+              "description": "External API keys for image services"
+            }
+          ]
+        }
       }
     },
     "ai": {
       "ollama": {
-        "enabled": false,
-        "required": false,
-        "models": ["llama3.1:8b", "nomic-embed-text"]
+        "enabled": true,
+        "required": true,
+        "models": ["llama3.1:8b", "nomic-embed-text", "llava:13b"]
+      },
+      "whisper": {
+        "enabled": true,
+        "required": true
       }
     },
     "automation": {
-      "windmill": {
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "apps": [
-            {
-              "path": "f/scenario-generator/dashboard",
-              "file": "initialization/ui/windmill-generator-app.json",
-              "summary": "Scenario Generation Dashboard"
-            }
-          ],
-          "scripts": [
-            {
-              "name": "scenario-processor",
-              "file": "initialization/scripts/scenario-processor.ts",
-              "language": "typescript"
-            },
-            {
-              "name": "code-generator",
-              "file": "initialization/scripts/code-generator.ts",
-              "language": "typescript"
-            },
-            {
-              "name": "requirement-analyzer",
-              "file": "initialization/scripts/requirement-analyzer.ts",
-              "language": "typescript"
-            }
-          ]
-        }
-      },
-      "n8n": {
+      "comfyui": {
         "enabled": true,
         "required": true,
         "initialization": {
           "workflows": [
             {
-              "name": "scenario-generation-pipeline",
-              "file": "initialization/workflows/n8n/generation-pipeline.json",
+              "name": "brand-consistent-generation",
+              "file": "initialization/workflows/comfyui/brand-workflow.json",
               "enabled": true,
-              "tags": ["generation", "automation"]
+              "tags": ["brand", "consistency"]
             },
             {
-              "name": "code-review-workflow",
-              "file": "initialization/workflows/n8n/code-review.json",
+              "name": "quality-control-pipeline",
+              "file": "initialization/workflows/comfyui/qc-workflow.json",
               "enabled": true,
-              "tags": ["quality", "review"]
+              "tags": ["quality", "validation"]
             }
           ]
         }
       }
     },
     "agents": {
-      "claude-code": {
+      "agent-s2": {
+        "enabled": true,
+        "required": true,
+        "mode": "service"
+      },
+      "browserless": {
         "enabled": true,
         "required": true,
         "mode": "service"
@@ -160,12 +171,13 @@
     "strategy": "rolling-update",
     "urls": {
       "application": "http://localhost:3000",
-      "api": "http://localhost:3000/api/scenario-generator-v1",
-      "health": "http://localhost:3000/api/scenario-generator-v1/health",
-      "windmill": "http://localhost:8000",
-      "n8n": "http://localhost:5678",
+      "api": "http://localhost:3000/api/image-generation-pipeline",
+      "health": "http://localhost:3000/api/image-generation-pipeline/health",
+      "comfyui": "http://localhost:8188",
       "minio": "http://localhost:9000",
-      "claude-code": "http://localhost:4112"
+      "qdrant": "http://localhost:6333",
+      "agent-s2": "http://localhost:4113",
+      "browserless": "http://localhost:4110"
     },
     "initialization": {
       "phases": [
@@ -208,47 +220,40 @@
               "timeout": "2m"
             },
             {
-              "name": "setup-redis-cache",
+              "name": "setup-vector-collections",
               "type": "resource-inject",
-              "target": "storage.redis",
-              "timeout": "1m"
+              "target": "storage.qdrant",
+              "timeout": "2m"
             }
           ]
         },
         {
           "name": "ai-setup",
+          "parallel": true,
           "tasks": [
-            {
-              "name": "configure-claude-code",
-              "type": "resource-inject",
-              "target": "agents.claude-code",
-              "timeout": "3m"
-            },
             {
               "name": "load-ai-models",
               "type": "resource-inject",
               "target": "ai.ollama",
-              "timeout": "10m"
+              "timeout": "15m"
+            },
+            {
+              "name": "verify-whisper",
+              "type": "resource-inject",
+              "target": "ai.whisper",
+              "timeout": "2m"
             }
           ]
         },
         {
           "name": "workflow-deployment",
-          "parallel": true,
           "tasks": [
             {
-              "name": "deploy-n8n-workflows",
+              "name": "deploy-comfyui-workflows",
               "type": "resource-inject",
-              "target": "automation.n8n",
-              "config": "initialization/workflows/n8n/",
+              "target": "automation.comfyui",
+              "config": "initialization/workflows/comfyui/",
               "timeout": "5m"
-            },
-            {
-              "name": "deploy-windmill-apps",
-              "type": "resource-inject",
-              "target": "automation.windmill",
-              "config": "initialization/ui/",
-              "timeout": "3m"
             }
           ]
         },
@@ -261,9 +266,9 @@
               "file": "initialization/configuration/app-config.json"
             },
             {
-              "name": "set-generation-settings",
+              "name": "set-feature-flags",
               "type": "config",
-              "file": "initialization/configuration/generation-settings.json"
+              "file": "initialization/configuration/feature-flags.json"
             }
           ]
         },
@@ -284,7 +289,7 @@
             {
               "name": "health-check",
               "type": "healthcheck",
-              "target": "http://localhost:3000/api/scenario-generator-v1/health",
+              "target": "http://localhost:3000/api/image-generation-pipeline/health",
               "timeout": "30s",
               "retries": 3
             },
@@ -302,23 +307,13 @@
       "enabled": true,
       "healthChecks": {
         "application": {
-          "endpoint": "http://localhost:3000/api/scenario-generator-v1/health",
+          "endpoint": "http://localhost:3000/api/image-generation-pipeline/health",
           "interval": "30s",
           "timeout": "5s",
           "threshold": 3
         },
-        "windmill": {
-          "endpoint": "http://localhost:8000/api/version",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "n8n": {
-          "endpoint": "http://localhost:5678/api/v1/info",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "claude-code": {
-          "endpoint": "http://localhost:4112/health",
+        "comfyui": {
+          "endpoint": "http://localhost:8188/system_stats",
           "interval": "60s",
           "timeout": "15s"
         },
@@ -327,15 +322,30 @@
           "interval": "60s",
           "timeout": "10s"
         },
+        "qdrant": {
+          "endpoint": "http://localhost:6333/health",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "agent-s2": {
+          "endpoint": "http://localhost:4113/health",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "browserless": {
+          "endpoint": "http://localhost:4110/pressure",
+          "interval": "60s",
+          "timeout": "10s"
+        },
         "ollama": {
           "endpoint": "http://localhost:11434/api/tags",
           "interval": "60s",
           "timeout": "15s"
         },
-        "redis": {
-          "type": "tcp",
-          "port": 6379,
-          "interval": "30s"
+        "whisper": {
+          "endpoint": "http://localhost:8090/health",
+          "interval": "60s",
+          "timeout": "10s"
         },
         "database": {
           "type": "tcp",
@@ -345,13 +355,13 @@
       },
       "metrics": {
         "responseTime": {
-          "p50": "2000ms",
-          "p95": "10000ms",
-          "p99": "30000ms"
+          "p50": "1000ms",
+          "p95": "5000ms",
+          "p99": "10000ms"
         },
         "throughput": {
-          "rps": 2,
-          "concurrent": 3
+          "rps": 5,
+          "concurrent": 10
         },
         "errorRate": {
           "threshold": "5%"
@@ -362,20 +372,20 @@
       "enabled": true,
       "tasks": [
         {
-          "name": "delete-windmill-apps",
+          "name": "delete-comfyui-workflows",
           "type": "resource-cleanup",
-          "target": "automation.windmill"
-        },
-        {
-          "name": "delete-n8n-workflows",
-          "type": "resource-cleanup",
-          "target": "automation.n8n"
+          "target": "automation.comfyui"
         },
         {
           "name": "drop-database",
           "type": "sql",
           "target": "storage.postgres",
-          "query": "DROP DATABASE IF EXISTS scenario_generator_v1"
+          "query": "DROP DATABASE IF EXISTS image_generation_pipeline"
+        },
+        {
+          "name": "clear-vector-collections",
+          "type": "resource-cleanup",
+          "target": "storage.qdrant"
         },
         {
           "name": "clear-storage-buckets",
@@ -390,12 +400,12 @@
       "script": "./test.sh",
       "ui": {
         "required": true,
-        "type": "windmill",
-        "url": "http://localhost:8000"
+        "type": "comfyui",
+        "url": "http://localhost:8188"
       },
       "performance": {
         "loadTest": {
-          "users": 2,
+          "users": 3,
           "duration": "10m",
           "rampUp": "2m"
         }
@@ -415,46 +425,46 @@
   "metadata": {
     "businessModel": {
       "purpose": "commercial",
-      "valueProposition": "Revolutionary AI-powered SaaS generator that creates complete business applications from customer requirements in minutes",
-      "targetMarket": "Software development agencies, digital transformation consultants, entrepreneurs, and enterprises seeking rapid application development",
+      "valueProposition": "Enterprise visual content automation platform for multi-brand campaigns with compliance and quality control",
+      "targetMarket": "Large enterprises, marketing agencies, and brands requiring high-volume visual content generation",
       "painPoints": [
-        "Custom software development taking months and costing hundreds of thousands of dollars",
-        "Shortage of skilled developers creating bottlenecks in digital transformation",
-        "Need for rapid prototyping and MVP development to validate business ideas quickly"
+        "High costs and slow turnaround for professional visual content creation",
+        "Inconsistent brand compliance across multiple campaigns and teams",
+        "Manual quality control processes for large-scale visual content production"
       ],
-      "solution": "AI-powered scenario generator that automatically creates complete SaaS applications with full deployment configurations from natural language requirements",
-      "competitiveAdvantage": "First-to-market meta-scenario system using Claude Code for autonomous application generation with complete infrastructure automation",
+      "solution": "AI-powered image generation pipeline with voice briefings, automated brand compliance, and quality control workflows",
+      "competitiveAdvantage": "Complete enterprise solution combining ComfyUI generation, voice input, brand consistency, and automated quality control",
       "revenuePotential": {
-        "initial": "$25,000",
-        "recurring": "$75,000",
-        "expansion": "$200,000",
-        "totalEstimate": "$300,000"
+        "initial": "$15,000",
+        "recurring": "$35,000",
+        "expansion": "$75,000",
+        "totalEstimate": "$125,000"
       },
       "marketDemand": {
-        "level": "ultra-high",
-        "growth": "60% annually",
-        "evidence": "Explosive demand for no-code/low-code solutions and AI-powered development tools in the face of developer shortage"
+        "level": "very-high",
+        "growth": "45% annually",
+        "evidence": "Explosive growth in AI image generation market and enterprise demand for brand-consistent content at scale"
       },
       "roi": {
-        "developmentCost": "$30,000",
-        "timeToMarket": "6 weeks",
-        "breakEven": "8 months"
+        "developmentCost": "$12,000",
+        "timeToMarket": "4 weeks",
+        "breakEven": "6 months"
       }
     },
     "performance": {
       "targets": {
-        "initializationTime": "12m",
+        "initializationTime": "10m",
         "responseTime": {
-          "p50": "2000ms",
-          "p95": "10000ms",
-          "p99": "30000ms"
+          "p50": "1000ms",
+          "p95": "5000ms",
+          "p99": "10000ms"
         },
         "throughput": {
-          "minimum": 1,
-          "target": 2,
-          "peak": 5
+          "minimum": 2,
+          "target": 5,
+          "peak": 20
         },
-        "availability": "99.0%",
+        "availability": "99.5%",
         "errorRate": "<5%"
       },
       "resources": {
@@ -469,10 +479,10 @@
           "maximum": "32Gi"
         },
         "storage": {
-          "database": "500Gi",
-          "scenarios": "2Ti",
-          "templates": "500Gi",
-          "code-artifacts": "1Ti"
+          "database": "50Gi",
+          "vectors": "100Gi",
+          "images": "1Ti",
+          "workflows": "50Gi"
         }
       }
     },
@@ -480,7 +490,7 @@
       "variables": {
         "APP_NAME": {
           "type": "string",
-          "default": "Scenario Generator V1",
+          "default": "Enterprise Image Generation Pipeline",
           "description": "Application display name"
         },
         "COMPANY_NAME": {
@@ -490,12 +500,12 @@
         },
         "PRIMARY_COLOR": {
           "type": "string",
-          "default": "#9333ea",
+          "default": "#8b5cf6",
           "description": "Brand primary color"
         },
         "DATABASE_NAME": {
           "type": "string",
-          "default": "scenario_generator_v1",
+          "default": "image_generation_pipeline",
           "description": "Database name"
         },
         "APP_PORT": {
@@ -503,20 +513,15 @@
           "default": 3000,
           "description": "Application port"
         },
-        "WINDMILL_PORT": {
+        "COMFYUI_PORT": {
           "type": "number",
-          "default": 8000,
-          "description": "Windmill UI port"
+          "default": 8188,
+          "description": "ComfyUI interface port"
         },
-        "N8N_PORT": {
+        "MINIO_PORT": {
           "type": "number",
-          "default": 5678,
-          "description": "n8n workflow editor port"
-        },
-        "CLAUDE_CODE_PORT": {
-          "type": "number",
-          "default": 4112,
-          "description": "Claude Code agent port"
+          "default": 9000,
+          "description": "MinIO storage port"
         }
       },
       "features": {
@@ -533,43 +538,39 @@
           "enabled": true,
           "provider": "internal"
         },
-        "codeGeneration": {
+        "voiceInput": {
           "enabled": true,
-          "provider": "claude-code"
+          "provider": "whisper"
         },
-        "workflowAutomation": {
+        "brandCompliance": {
           "enabled": true,
-          "provider": "n8n"
+          "provider": "qdrant"
         },
-        "uiGeneration": {
+        "qualityControl": {
           "enabled": true,
-          "provider": "windmill"
-        },
-        "scenarioTemplates": {
-          "enabled": true,
-          "provider": "minio"
+          "provider": "comfyui"
         }
       },
       "integrations": [
         {
-          "name": "Version Control Systems",
+          "name": "Brand Management Systems",
           "type": "api",
           "required": false
         },
         {
-          "name": "Cloud Deployment Services",
-          "type": "api",
-          "required": false
-        },
-        {
-          "name": "Customer Requirements Management",
+          "name": "Content Management Platforms",
           "type": "webhook",
+          "required": false
+        },
+        {
+          "name": "Marketing Automation",
+          "type": "api",
           "required": false
         }
       ]
     },
-    "category": "ai-development",
+    "category": "ai-content-creation",
     "complexity": "advanced",
-    "marketDemand": "ultra-high"
+    "marketDemand": "very-high"
   }
 }

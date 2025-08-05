@@ -1,20 +1,22 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "name": "multi-resource-pipeline",
-    "displayName": "Multi-Resource Data Pipeline",
-    "description": "Enterprise data pipeline handling multiple formats with AI processing and unified storage",
+    "name": "secure-document-processing",
+    "displayName": "Secure Document Processing Pipeline",
+    "description": "Enterprise-grade secure document processing with encryption, audit trails, and compliance automation",
     "version": "1.0.0",
     "type": "business-application",
     "tags": [
-      "data-pipeline",
-      "etl",
-      "multi-format",
+      "compliance-focused",
       "enterprise-ready",
-      "data-engineering",
       "high-revenue-potential",
-      "multi-modal"
+      "hipaa",
+      "gdpr",
+      "sox-compliance",
+      "security-first",
+      "zero-trust",
+      "audit-trails"
     ],
     "maintainers": [
       {
@@ -26,7 +28,7 @@
     "repository": {
       "type": "git",
       "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/core/multi-resource-pipeline"
+      "directory": "/scripts/scenarios/core/secure-document-processing"
     },
     "license": "GPL-3.0",
     "homepage": "https://github.com/Vrooli/Vrooli",
@@ -64,19 +66,19 @@
         "initialization": {
           "buckets": [
             {
-              "name": "raw-data",
+              "name": "encrypted-documents",
               "policy": "private"
             },
             {
-              "name": "processed-data",
+              "name": "processed-documents",
               "policy": "private"
             },
             {
-              "name": "pipeline-artifacts",
+              "name": "audit-logs",
               "policy": "private"
             },
             {
-              "name": "backup-storage",
+              "name": "compliance-reports",
               "policy": "private"
             }
           ]
@@ -84,12 +86,12 @@
       },
       "qdrant": {
         "type": "qdrant",
-        "enabled": true,
-        "required": true,
+        "enabled": false,
+        "required": false,
         "initialization": {
           "collections": [
             {
-              "name": "document-embeddings",
+              "name": "document-metadata",
               "config": {
                 "vectors": {
                   "size": 384,
@@ -98,22 +100,34 @@
               }
             },
             {
-              "name": "pipeline-metadata",
+              "name": "compliance-vectors",
               "config": {
                 "vectors": {
                   "size": 384,
                   "distance": "Cosine"
                 }
               }
+            }
+          ]
+        }
+      },
+      "vault": {
+        "type": "vault",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "secrets": [
+            {
+              "path": "secure-processing/encryption-keys",
+              "description": "Document encryption keys"
             },
             {
-              "name": "content-similarity",
-              "config": {
-                "vectors": {
-                  "size": 384,
-                  "distance": "Cosine"
-                }
-              }
+              "path": "secure-processing/audit-keys",
+              "description": "Audit trail signing keys"
+            },
+            {
+              "path": "secure-processing/compliance-certs",
+              "description": "Compliance certificates and tokens"
             }
           ]
         }
@@ -126,29 +140,9 @@
         "type": "unstructured-io"
       },
       "ollama": {
-        "enabled": true,
-        "required": true,
-        "models": ["llama3.1:8b", "nomic-embed-text", "llava:13b"]
-      },
-      "whisper": {
-        "enabled": true,
-        "required": true
-      }
-    },
-    "automation": {
-      "comfyui": {
         "enabled": false,
         "required": false,
-        "initialization": {
-          "workflows": [
-            {
-              "name": "visual-data-processing",
-              "file": "initialization/workflows/comfyui/visual-processing.json",
-              "enabled": false,
-              "tags": ["visual", "processing"]
-            }
-          ]
-        }
+        "models": ["llama3.1:8b", "nomic-embed-text"]
       }
     }
   },
@@ -157,10 +151,10 @@
     "strategy": "rolling-update",
     "urls": {
       "application": "http://localhost:3000",
-      "api": "http://localhost:3000/api/multi-resource-pipeline",
-      "health": "http://localhost:3000/api/multi-resource-pipeline/health",
+      "api": "http://localhost:3000/api/secure-document-processing",
+      "health": "http://localhost:3000/api/secure-document-processing/health",
+      "vault": "http://localhost:8200",
       "minio": "http://localhost:9000",
-      "qdrant": "http://localhost:6333",
       "unstructured": "http://localhost:8000"
     },
     "initialization": {
@@ -173,6 +167,17 @@
               "type": "script",
               "script": "./deployment/validate.sh",
               "timeout": "30s"
+            }
+          ]
+        },
+        {
+          "name": "security-setup",
+          "tasks": [
+            {
+              "name": "initialize-vault",
+              "type": "resource-inject",
+              "target": "storage.vault",
+              "timeout": "5m"
             }
           ]
         },
@@ -198,10 +203,10 @@
           "parallel": true,
           "tasks": [
             {
-              "name": "setup-minio-buckets",
+              "name": "setup-encrypted-buckets",
               "type": "resource-inject",
               "target": "storage.minio",
-              "timeout": "2m"
+              "timeout": "3m"
             },
             {
               "name": "setup-vector-collections",
@@ -216,37 +221,36 @@
           "parallel": true,
           "tasks": [
             {
-              "name": "load-ai-models",
-              "type": "resource-inject",
-              "target": "ai.ollama",
-              "timeout": "15m"
-            },
-            {
               "name": "verify-unstructured-io",
               "type": "resource-inject",
               "target": "ai.unstructured-io",
               "timeout": "2m"
             },
             {
-              "name": "verify-whisper",
+              "name": "load-ai-models",
               "type": "resource-inject",
-              "target": "ai.whisper",
-              "timeout": "2m"
+              "target": "ai.ollama",
+              "timeout": "10m"
             }
           ]
         },
         {
-          "name": "pipeline-configuration",
+          "name": "compliance-configuration",
           "tasks": [
             {
-              "name": "load-pipeline-config",
+              "name": "load-compliance-config",
               "type": "config",
-              "file": "initialization/configuration/pipeline-config.json"
+              "file": "initialization/configuration/compliance-config.json"
             },
             {
-              "name": "set-processing-flags",
+              "name": "set-security-policies",
               "type": "config",
-              "file": "initialization/configuration/processing-flags.json"
+              "file": "initialization/configuration/security-policies.json"
+            },
+            {
+              "name": "configure-audit-settings",
+              "type": "config",
+              "file": "initialization/configuration/audit-settings.json"
             }
           ]
         },
@@ -267,9 +271,15 @@
             {
               "name": "health-check",
               "type": "healthcheck",
-              "target": "http://localhost:3000/api/multi-resource-pipeline/health",
+              "target": "http://localhost:3000/api/secure-document-processing/health",
               "timeout": "30s",
               "retries": 3
+            },
+            {
+              "name": "security-validation",
+              "type": "script",
+              "script": "./deployment/security-validation.sh",
+              "timeout": "2m"
             },
             {
               "name": "monitor-startup",
@@ -285,18 +295,18 @@
       "enabled": true,
       "healthChecks": {
         "application": {
-          "endpoint": "http://localhost:3000/api/multi-resource-pipeline/health",
+          "endpoint": "http://localhost:3000/api/secure-document-processing/health",
           "interval": "30s",
           "timeout": "5s",
           "threshold": 3
         },
-        "minio": {
-          "endpoint": "http://localhost:9000/minio/health/ready",
+        "vault": {
+          "endpoint": "http://localhost:8200/v1/sys/health",
           "interval": "60s",
           "timeout": "10s"
         },
-        "qdrant": {
-          "endpoint": "http://localhost:6333/health",
+        "minio": {
+          "endpoint": "http://localhost:9000/minio/health/ready",
           "interval": "60s",
           "timeout": "10s"
         },
@@ -305,8 +315,8 @@
           "interval": "60s",
           "timeout": "15s"
         },
-        "whisper": {
-          "endpoint": "http://localhost:8090/health",
+        "qdrant": {
+          "endpoint": "http://localhost:6333/health",
           "interval": "60s",
           "timeout": "10s"
         },
@@ -323,16 +333,16 @@
       },
       "metrics": {
         "responseTime": {
-          "p50": "800ms",
-          "p95": "3000ms",
-          "p99": "8000ms"
+          "p50": "1000ms",
+          "p95": "4000ms",
+          "p99": "10000ms"
         },
         "throughput": {
-          "rps": 8,
-          "concurrent": 12
+          "rps": 5,
+          "concurrent": 8
         },
         "errorRate": {
-          "threshold": "4%"
+          "threshold": "1%"
         }
       }
     },
@@ -340,10 +350,16 @@
       "enabled": true,
       "tasks": [
         {
+          "name": "secure-data-deletion",
+          "type": "script",
+          "script": "./deployment/secure-cleanup.sh",
+          "timeout": "5m"
+        },
+        {
           "name": "drop-database",
           "type": "sql",
           "target": "storage.postgres",
-          "query": "DROP DATABASE IF EXISTS multi_resource_pipeline"
+          "query": "DROP DATABASE IF EXISTS secure_document_processing"
         },
         {
           "name": "clear-vector-collections",
@@ -351,25 +367,30 @@
           "target": "storage.qdrant"
         },
         {
-          "name": "clear-storage-buckets",
+          "name": "clear-encrypted-buckets",
           "type": "resource-cleanup",
           "target": "storage.minio"
+        },
+        {
+          "name": "revoke-vault-secrets",
+          "type": "resource-cleanup",
+          "target": "storage.vault"
         }
       ]
     },
     "testing": {
       "enabled": true,
-      "timeout": "60m",
+      "timeout": "50m",
       "script": "./test.sh",
       "ui": {
         "required": false,
         "type": "api",
-        "url": "http://localhost:3000/api/multi-resource-pipeline"
+        "url": "http://localhost:3000/api/secure-document-processing"
       },
       "performance": {
         "loadTest": {
           "users": 5,
-          "duration": "10m",
+          "duration": "8m",
           "rampUp": "2m"
         }
       }
@@ -388,47 +409,47 @@
   "metadata": {
     "businessModel": {
       "purpose": "commercial",
-      "valueProposition": "Unified enterprise data pipeline for multi-format ingestion, AI processing, and intelligent retrieval",
-      "targetMarket": "Large enterprises, data engineering teams, and organizations with complex multi-format data processing needs",
+      "valueProposition": "Zero-trust enterprise document processing platform with military-grade security and automated compliance for HIPAA, GDPR, and SOX",
+      "targetMarket": "Healthcare organizations, financial institutions, government agencies, and enterprises with strict compliance requirements",
       "painPoints": [
-        "Complex data formats requiring specialized processing tools and expertise",
-        "Lack of unified pipeline for handling documents, audio, images, and structured data",
-        "Difficulty in making processed data searchable and accessible across organization"
+        "Manual compliance processes consuming significant resources and creating audit risks",
+        "Lack of end-to-end encryption and audit trails in document processing workflows",
+        "Difficulty meeting multiple regulatory requirements (HIPAA, GDPR, SOX) simultaneously"
       ],
-      "solution": "Comprehensive data pipeline integrating multiple AI services for unified multi-format data processing and intelligent storage",
-      "competitiveAdvantage": "Complete integration of Unstructured.io, Whisper, vision models, and vector storage in single deployable solution",
+      "solution": "Comprehensive secure document processing pipeline with Vault encryption, automated compliance, and complete audit trails",
+      "competitiveAdvantage": "First integrated solution combining Unstructured.io processing with HashiCorp Vault security and automated compliance reporting",
       "revenuePotential": {
-        "initial": "$8,000",
-        "recurring": "$20,000",
-        "expansion": "$45,000",
-        "totalEstimate": "$73,000"
+        "initial": "$15,000",
+        "recurring": "$45,000",
+        "expansion": "$100,000",
+        "totalEstimate": "$160,000"
       },
       "marketDemand": {
         "level": "very-high",
         "growth": "35% annually",
-        "evidence": "Growing enterprise demand for unified data processing and AI-powered document intelligence solutions"
+        "evidence": "Increasing regulatory requirements and security breaches driving demand for secure document processing solutions"
       },
       "roi": {
-        "developmentCost": "$12,000",
-        "timeToMarket": "4 weeks",
-        "breakEven": "5 months"
+        "developmentCost": "$20,000",
+        "timeToMarket": "5 weeks",
+        "breakEven": "6 months"
       }
     },
     "performance": {
       "targets": {
-        "initializationTime": "8m",
+        "initializationTime": "10m",
         "responseTime": {
-          "p50": "800ms",
-          "p95": "3000ms",
-          "p99": "8000ms"
+          "p50": "1000ms",
+          "p95": "4000ms",
+          "p99": "10000ms"
         },
         "throughput": {
-          "minimum": 5,
-          "target": 8,
-          "peak": 25
+          "minimum": 3,
+          "target": 5,
+          "peak": 15
         },
-        "availability": "99.5%",
-        "errorRate": "<4%"
+        "availability": "99.9%",
+        "errorRate": "<1%"
       },
       "resources": {
         "cpu": {
@@ -442,10 +463,10 @@
           "maximum": "24Gi"
         },
         "storage": {
-          "database": "100Gi",
-          "vectors": "200Gi",
-          "raw-data": "1Ti",
-          "processed-data": "500Gi"
+          "database": "500Gi",
+          "encrypted-documents": "2Ti",
+          "audit-logs": "1Ti",
+          "compliance-reports": "200Gi"
         }
       }
     },
@@ -453,7 +474,7 @@
       "variables": {
         "APP_NAME": {
           "type": "string",
-          "default": "Multi-Resource Data Pipeline",
+          "default": "Secure Document Processing Pipeline",
           "description": "Application display name"
         },
         "COMPANY_NAME": {
@@ -463,12 +484,12 @@
         },
         "PRIMARY_COLOR": {
           "type": "string",
-          "default": "#059669",
+          "default": "#dc2626",
           "description": "Brand primary color"
         },
         "DATABASE_NAME": {
           "type": "string",
-          "default": "multi_resource_pipeline",
+          "default": "secure_document_processing",
           "description": "Database name"
         },
         "APP_PORT": {
@@ -476,67 +497,73 @@
           "default": 3000,
           "description": "Application port"
         },
+        "VAULT_PORT": {
+          "type": "number",
+          "default": 8200,
+          "description": "HashiCorp Vault port"
+        },
         "MINIO_PORT": {
           "type": "number",
           "default": 9000,
-          "description": "MinIO storage port"
-        },
-        "QDRANT_PORT": {
-          "type": "number",
-          "default": 6333,
-          "description": "Qdrant vector database port"
+          "description": "MinIO secure storage port"
         }
       },
       "features": {
         "authentication": {
           "enabled": true,
           "provider": "jwt",
-          "sso": true
+          "sso": true,
+          "mfa": true
         },
         "notifications": {
           "enabled": true,
-          "channels": ["email", "webhook", "slack"]
+          "channels": ["email", "webhook", "sms", "compliance-alerts"]
         },
         "analytics": {
           "enabled": true,
           "provider": "internal"
         },
+        "encryption": {
+          "enabled": true,
+          "provider": "vault"
+        },
+        "auditTrails": {
+          "enabled": true,
+          "provider": "internal"
+        },
+        "complianceReporting": {
+          "enabled": true,
+          "standards": ["HIPAA", "GDPR", "SOX", "PCI-DSS"]
+        },
         "documentProcessing": {
           "enabled": true,
           "provider": "unstructured-io"
-        },
-        "audioProcessing": {
-          "enabled": true,
-          "provider": "whisper"
-        },
-        "vectorSearch": {
-          "enabled": true,
-          "provider": "qdrant"
-        },
-        "objectStorage": {
-          "enabled": true,
-          "provider": "minio"
         }
       },
       "integrations": [
         {
-          "name": "Enterprise Data Sources",
+          "name": "Enterprise Identity Providers",
+          "type": "saml",
+          "required": false
+        },
+        {
+          "name": "Compliance Management Systems",
           "type": "api",
           "required": false
         },
         {
-          "name": "Data Lakes",
-          "type": "storage",
+          "name": "Security Information and Event Management (SIEM)",
+          "type": "webhook",
           "required": false
         },
         {
-          "name": "Business Intelligence Tools",
-          "type": "webhook",
+          "name": "Document Management Systems",
+          "type": "api",
           "required": false
         }
       ]
     },
-    "category": "ai-data-analysis",
+    "category": "security",
     "complexity": "advanced",
     "marketDemand": "very-high"
   }

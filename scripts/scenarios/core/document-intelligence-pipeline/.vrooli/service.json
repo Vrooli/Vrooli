@@ -1,18 +1,19 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "name": "business-process-automation",
-    "displayName": "Business Process Automation",
-    "description": "AI-powered workflow automation combining n8n orchestration with intelligent decision making",
+    "name": "document-intelligence-pipeline",
+    "displayName": "Document Intelligence Pipeline",
+    "description": "AI-powered document processing system for extraction, analysis, and semantic search",
     "version": "1.0.0",
     "type": "business-application",
     "tags": [
-      "workflow-automation",
+      "document-processing",
+      "data-extraction",
+      "semantic-search",
       "enterprise-ready",
-      "process-optimization",
-      "rpa",
-      "digital-transformation"
+      "legal-tech",
+      "fintech"
     ],
     "maintainers": [
       {
@@ -24,7 +25,7 @@
     "repository": {
       "type": "git",
       "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/core/business-process-automation"
+      "directory": "/scripts/scenarios/core/document-intelligence-pipeline"
     },
     "license": "GPL-3.0",
     "homepage": "https://github.com/Vrooli/Vrooli",
@@ -57,12 +58,21 @@
       },
       "qdrant": {
         "type": "qdrant",
-        "enabled": false,
-        "required": false,
+        "enabled": true,
+        "required": true,
         "initialization": {
           "collections": [
             {
-              "name": "process-knowledge",
+              "name": "documents",
+              "config": {
+                "vectors": {
+                  "size": 384,
+                  "distance": "Cosine"
+                }
+              }
+            },
+            {
+              "name": "document-chunks",
               "config": {
                 "vectors": {
                   "size": 384,
@@ -72,72 +82,24 @@
             }
           ]
         }
-      },
-      "minio": {
-        "type": "minio",
-        "enabled": false,
-        "required": false,
-        "initialization": {
-          "buckets": [
-            {
-              "name": "process-documents",
-              "policy": "private"
-            }
-          ]
-        }
       }
     },
     "ai": {
+      "unstructured-io": {
+        "enabled": true,
+        "required": true,
+        "type": "unstructured-io"
+      },
       "ollama": {
         "enabled": true,
         "required": true,
         "models": ["llama3.1:8b", "nomic-embed-text"]
       }
     },
-    "automation": {
-      "n8n": {
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "workflows": [
-            {
-              "name": "process-automation-workflow",
-              "file": "initialization/workflows/n8n/main-workflow.json",
-              "enabled": true,
-              "tags": ["core", "automation", "process"]
-            }
-          ],
-          "credentials": [
-            {
-              "name": "api-auth",
-              "type": "httpAuth",
-              "config": {
-                "url": "{{ API_URL }}",
-                "authType": "bearer"
-              }
-            }
-          ]
-        }
-      },
-      "node-red": {
+    "agents": {
+      "browserless": {
         "enabled": false,
         "required": false,
-        "initialization": {
-          "flows": [
-            {
-              "name": "legacy-process-flow",
-              "file": "initialization/workflows/node-red/legacy-flow.json",
-              "enabled": false,
-              "tags": ["legacy", "integration"]
-            }
-          ]
-        }
-      }
-    },
-    "agents": {
-      "agent-s2": {
-        "enabled": true,
-        "required": true,
         "mode": "service"
       }
     }
@@ -147,10 +109,10 @@
     "strategy": "rolling-update",
     "urls": {
       "application": "http://localhost:3000",
-      "api": "http://localhost:3000/api/business-process-automation",
-      "health": "http://localhost:3000/api/business-process-automation/health",
-      "n8n": "http://localhost:5678",
-      "agent-s2": "http://localhost:4113"
+      "api": "http://localhost:3000/api/document-intelligence-pipeline",
+      "health": "http://localhost:3000/api/document-intelligence-pipeline/health",
+      "unstructured": "http://localhost:8000",
+      "qdrant": "http://localhost:6333"
     },
     "initialization": {
       "phases": [
@@ -184,30 +146,25 @@
         },
         {
           "name": "ai-setup",
+          "parallel": true,
           "tasks": [
             {
               "name": "load-ai-models",
               "type": "resource-inject",
               "target": "ai.ollama",
               "timeout": "10m"
-            }
-          ]
-        },
-        {
-          "name": "workflow-deployment",
-          "parallel": true,
-          "tasks": [
-            {
-              "name": "deploy-n8n-workflows",
-              "type": "resource-inject",
-              "target": "automation.n8n",
-              "config": "initialization/workflows/n8n/"
             },
             {
-              "name": "deploy-node-red-flows",
+              "name": "setup-vector-collections",
               "type": "resource-inject",
-              "target": "automation.node-red",
-              "config": "initialization/workflows/node-red/"
+              "target": "storage.qdrant",
+              "timeout": "2m"
+            },
+            {
+              "name": "verify-unstructured-io",
+              "type": "resource-inject",
+              "target": "ai.unstructured-io",
+              "timeout": "2m"
             }
           ]
         },
@@ -243,7 +200,7 @@
             {
               "name": "health-check",
               "type": "healthcheck",
-              "target": "http://localhost:3000/api/business-process-automation/health",
+              "target": "http://localhost:3000/api/document-intelligence-pipeline/health",
               "timeout": "30s",
               "retries": 3
             },
@@ -261,18 +218,18 @@
       "enabled": true,
       "healthChecks": {
         "application": {
-          "endpoint": "http://localhost:3000/api/business-process-automation/health",
+          "endpoint": "http://localhost:3000/api/document-intelligence-pipeline/health",
           "interval": "30s",
           "timeout": "5s",
           "threshold": 3
         },
-        "n8n": {
-          "endpoint": "http://localhost:5678/api/v1/info",
+        "unstructured-io": {
+          "endpoint": "http://localhost:8000/general/v0/general",
           "interval": "60s",
-          "timeout": "10s"
+          "timeout": "15s"
         },
-        "agent-s2": {
-          "endpoint": "http://localhost:4113/health",
+        "qdrant": {
+          "endpoint": "http://localhost:6333/health",
           "interval": "60s",
           "timeout": "10s"
         },
@@ -289,16 +246,16 @@
       },
       "metrics": {
         "responseTime": {
-          "p50": "200ms",
-          "p95": "1000ms",
-          "p99": "2000ms"
+          "p50": "500ms",
+          "p95": "2000ms",
+          "p99": "5000ms"
         },
         "throughput": {
-          "rps": 50,
-          "concurrent": 20
+          "rps": 10,
+          "concurrent": 5
         },
         "errorRate": {
-          "threshold": "2%"
+          "threshold": "3%"
         }
       }
     },
@@ -306,121 +263,106 @@
       "enabled": true,
       "tasks": [
         {
-          "name": "delete-workflows",
-          "type": "resource-cleanup",
-          "target": "automation.n8n"
-        },
-        {
-          "name": "delete-node-red-flows",
-          "type": "resource-cleanup",
-          "target": "automation.node-red"
-        },
-        {
           "name": "drop-database",
           "type": "sql",
           "target": "storage.postgres",
-          "query": "DROP DATABASE IF EXISTS business_process_automation"
+          "query": "DROP DATABASE IF EXISTS document_intelligence_pipeline"
         },
         {
           "name": "clear-vector-collections",
           "type": "resource-cleanup",
           "target": "storage.qdrant"
-        },
-        {
-          "name": "clear-storage",
-          "type": "resource-cleanup",
-          "target": "storage.minio"
         }
       ]
     },
     "testing": {
       "enabled": true,
-      "timeout": "30m",
+      "timeout": "45m",
       "script": "./test.sh",
       "ui": {
-        "required": true,
-        "type": "n8n",
-        "url": "http://localhost:5678"
+        "required": false,
+        "type": "api",
+        "url": "http://localhost:3000/api/document-intelligence-pipeline"
       },
       "performance": {
         "loadTest": {
-          "users": 20,
-          "duration": "5m",
+          "users": 5,
+          "duration": "3m",
           "rampUp": "30s"
         }
       }
     },
     "resources": {
       "requests": {
-        "cpu": "500m",
-        "memory": "512Mi"
+        "cpu": "1000m",
+        "memory": "2Gi"
       },
       "limits": {
-        "cpu": "2000m",
-        "memory": "4Gi"
+        "cpu": "4000m",
+        "memory": "8Gi"
       }
     }
   },
   "metadata": {
     "businessModel": {
       "purpose": "commercial",
-      "valueProposition": "Enterprise process automation with AI-powered decision making for digital transformation",
-      "targetMarket": "Mid to large enterprises seeking digital transformation and process optimization",
+      "valueProposition": "Enterprise document processing automation with AI-powered extraction and search",
+      "targetMarket": "Legal firms, financial institutions, and enterprises with heavy document processing needs",
       "painPoints": [
-        "Manual, repetitive business processes consuming valuable time",
-        "Inconsistent process execution and decision making",
-        "Lack of intelligent automation with contextual decision making"
+        "Manual document review and data extraction consuming hours of professional time",
+        "Inability to search and analyze large document repositories effectively",
+        "Inconsistent data extraction and classification across documents"
       ],
-      "solution": "AI-powered business process automation platform combining workflow orchestration with intelligent decision making",
-      "competitiveAdvantage": "Integration of n8n workflow automation with AI agents and contextual decision making",
+      "solution": "AI-powered document intelligence pipeline with automated extraction, semantic search, and intelligent classification",
+      "competitiveAdvantage": "Integration of Unstructured.io processing with vector search and local AI models for secure document analysis",
       "revenuePotential": {
-        "initial": "$5,000",
-        "recurring": "$15,000",
-        "expansion": "$35,000",
-        "totalEstimate": "$55,000"
+        "initial": "$4,000",
+        "recurring": "$12,000",
+        "expansion": "$25,000",
+        "totalEstimate": "$41,000"
       },
       "marketDemand": {
         "level": "very-high",
-        "growth": "40% annually",
-        "evidence": "Digital transformation and RPA market growth driving demand for intelligent automation"
+        "growth": "30% annually",
+        "evidence": "Growing legal tech and document automation markets, especially in compliance and due diligence"
       },
       "roi": {
-        "developmentCost": "$8,000",
-        "timeToMarket": "3 weeks",
-        "breakEven": "4 months"
+        "developmentCost": "$6,000",
+        "timeToMarket": "2 weeks",
+        "breakEven": "3 months"
       }
     },
     "performance": {
       "targets": {
         "initializationTime": "5m",
         "responseTime": {
-          "p50": "200ms",
-          "p95": "1000ms",
-          "p99": "2000ms"
+          "p50": "500ms",
+          "p95": "2000ms",
+          "p99": "5000ms"
         },
         "throughput": {
-          "minimum": 20,
-          "target": 50,
-          "peak": 200
+          "minimum": 5,
+          "target": 10,
+          "peak": 50
         },
-        "availability": "99.9%",
-        "errorRate": "<2%"
+        "availability": "99.5%",
+        "errorRate": "<3%"
       },
       "resources": {
         "cpu": {
-          "minimum": "1.0",
-          "target": "2.0",
-          "maximum": "4.0"
+          "minimum": "2.0",
+          "target": "4.0",
+          "maximum": "8.0"
         },
         "memory": {
-          "minimum": "1Gi",
-          "target": "2Gi",
-          "maximum": "8Gi"
+          "minimum": "4Gi",
+          "target": "8Gi",
+          "maximum": "16Gi"
         },
         "storage": {
-          "database": "20Gi",
-          "vectors": "10Gi",
-          "files": "50Gi"
+          "database": "100Gi",
+          "vectors": "200Gi",
+          "documents": "500Gi"
         }
       }
     },
@@ -428,7 +370,7 @@
       "variables": {
         "APP_NAME": {
           "type": "string",
-          "default": "Business Process Automation",
+          "default": "Document Intelligence Pipeline",
           "description": "Application display name"
         },
         "COMPANY_NAME": {
@@ -438,12 +380,12 @@
         },
         "PRIMARY_COLOR": {
           "type": "string",
-          "default": "#7c3aed",
+          "default": "#dc2626",
           "description": "Brand primary color"
         },
         "DATABASE_NAME": {
           "type": "string",
-          "default": "business_process_automation",
+          "default": "document_intelligence_pipeline",
           "description": "Database name"
         },
         "APP_PORT": {
@@ -451,10 +393,15 @@
           "default": 3000,
           "description": "Application port"
         },
-        "N8N_PORT": {
+        "UNSTRUCTURED_PORT": {
           "type": "number",
-          "default": 5678,
-          "description": "n8n workflow editor port"
+          "default": 8000,
+          "description": "Unstructured.io API port"
+        },
+        "QDRANT_PORT": {
+          "type": "number",
+          "default": 6333,
+          "description": "Qdrant vector database port"
         }
       },
       "features": {
@@ -465,31 +412,35 @@
         },
         "notifications": {
           "enabled": true,
-          "channels": ["email", "webhook", "slack", "teams"]
+          "channels": ["email", "webhook"]
         },
         "analytics": {
           "enabled": true,
           "provider": "internal"
         },
-        "ai": {
+        "ocr": {
           "enabled": true,
-          "provider": "ollama"
+          "provider": "unstructured-io"
+        },
+        "semanticSearch": {
+          "enabled": true,
+          "provider": "qdrant"
         }
       },
       "integrations": [
         {
-          "name": "Enterprise Systems",
-          "type": "rest-api",
+          "name": "Document Management Systems",
+          "type": "api",
           "required": false
         },
         {
-          "name": "Legacy Systems",
-          "type": "database",
+          "name": "Legal Case Management",
+          "type": "webhook",
           "required": false
         }
       ]
     },
-    "category": "ai-automation",
+    "category": "ai-data-analysis",
     "complexity": "advanced",
     "marketDemand": "very-high"
   }

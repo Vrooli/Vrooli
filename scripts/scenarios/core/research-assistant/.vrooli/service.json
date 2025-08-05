@@ -1,19 +1,20 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "name": "document-intelligence-pipeline",
-    "displayName": "Document Intelligence Pipeline",
-    "description": "AI-powered document processing system for extraction, analysis, and semantic search",
+    "name": "research-assistant",
+    "displayName": "AI Research Assistant",
+    "description": "Privacy-respecting research assistant combining web search, AI analysis, and knowledge management",
     "version": "1.0.0",
     "type": "business-application",
     "tags": [
-      "document-processing",
-      "data-extraction",
-      "semantic-search",
-      "enterprise-ready",
-      "legal-tech",
-      "fintech"
+      "research-automation",
+      "competitive-intelligence",
+      "knowledge-management",
+      "privacy-focused",
+      "windmill-ui",
+      "market-analysis",
+      "content-synthesis"
     ],
     "maintainers": [
       {
@@ -25,7 +26,7 @@
     "repository": {
       "type": "git",
       "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/core/document-intelligence-pipeline"
+      "directory": "/scripts/scenarios/core/research-assistant"
     },
     "license": "GPL-3.0",
     "homepage": "https://github.com/Vrooli/Vrooli",
@@ -63,7 +64,7 @@
         "initialization": {
           "collections": [
             {
-              "name": "documents",
+              "name": "research-documents",
               "config": {
                 "vectors": {
                   "size": 384,
@@ -72,7 +73,16 @@
               }
             },
             {
-              "name": "document-chunks",
+              "name": "knowledge-base",
+              "config": {
+                "vectors": {
+                  "size": 384,
+                  "distance": "Cosine"
+                }
+              }
+            },
+            {
+              "name": "search-results",
               "config": {
                 "vectors": {
                   "size": 384,
@@ -82,25 +92,68 @@
             }
           ]
         }
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": false,
+        "required": false,
+        "initialization": {
+          "buckets": [
+            {
+              "name": "research-documents",
+              "policy": "private"
+            },
+            {
+              "name": "reports",
+              "policy": "private"
+            },
+            {
+              "name": "datasets",
+              "policy": "private"
+            }
+          ]
+        }
       }
     },
     "ai": {
-      "unstructured-io": {
-        "enabled": true,
-        "required": true,
-        "type": "unstructured-io"
-      },
       "ollama": {
         "enabled": true,
         "required": true,
         "models": ["llama3.1:8b", "nomic-embed-text"]
       }
     },
-    "agents": {
-      "browserless": {
+    "search": {
+      "searxng": {
+        "enabled": true,
+        "required": true,
+        "type": "searxng"
+      }
+    },
+    "automation": {
+      "windmill": {
         "enabled": false,
         "required": false,
-        "mode": "service"
+        "initialization": {
+          "apps": [
+            {
+              "path": "f/research-assistant/dashboard",
+              "file": "initialization/ui/windmill-research-app.json",
+              "summary": "Research Management Dashboard"
+            }
+          ],
+          "scripts": [
+            {
+              "name": "research-coordinator",
+              "file": "initialization/scripts/research-coordinator.ts",
+              "language": "typescript"
+            },
+            {
+              "name": "report-generator",
+              "file": "initialization/scripts/report-generator.ts",
+              "language": "typescript"
+            }
+          ]
+        }
       }
     }
   },
@@ -109,10 +162,11 @@
     "strategy": "rolling-update",
     "urls": {
       "application": "http://localhost:3000",
-      "api": "http://localhost:3000/api/document-intelligence-pipeline",
-      "health": "http://localhost:3000/api/document-intelligence-pipeline/health",
-      "unstructured": "http://localhost:8000",
-      "qdrant": "http://localhost:6333"
+      "api": "http://localhost:3000/api/research-assistant",
+      "health": "http://localhost:3000/api/research-assistant/health",
+      "searxng": "http://localhost:8080",
+      "qdrant": "http://localhost:6333",
+      "windmill": "http://localhost:8000"
     },
     "initialization": {
       "phases": [
@@ -145,6 +199,17 @@
           ]
         },
         {
+          "name": "search-setup",
+          "tasks": [
+            {
+              "name": "configure-searxng",
+              "type": "resource-inject",
+              "target": "search.searxng",
+              "timeout": "3m"
+            }
+          ]
+        },
+        {
           "name": "ai-setup",
           "parallel": true,
           "tasks": [
@@ -159,12 +224,25 @@
               "type": "resource-inject",
               "target": "storage.qdrant",
               "timeout": "2m"
+            }
+          ]
+        },
+        {
+          "name": "optional-services-setup",
+          "parallel": true,
+          "tasks": [
+            {
+              "name": "setup-storage-buckets",
+              "type": "resource-inject",
+              "target": "storage.minio",
+              "timeout": "2m"
             },
             {
-              "name": "verify-unstructured-io",
+              "name": "deploy-windmill-apps",
               "type": "resource-inject",
-              "target": "ai.unstructured-io",
-              "timeout": "2m"
+              "target": "automation.windmill",
+              "config": "initialization/ui/",
+              "timeout": "3m"
             }
           ]
         },
@@ -177,9 +255,9 @@
               "file": "initialization/configuration/app-config.json"
             },
             {
-              "name": "set-feature-flags",
+              "name": "set-research-settings",
               "type": "config",
-              "file": "initialization/configuration/feature-flags.json"
+              "file": "initialization/configuration/research-settings.json"
             }
           ]
         },
@@ -200,7 +278,7 @@
             {
               "name": "health-check",
               "type": "healthcheck",
-              "target": "http://localhost:3000/api/document-intelligence-pipeline/health",
+              "target": "http://localhost:3000/api/research-assistant/health",
               "timeout": "30s",
               "retries": 3
             },
@@ -218,15 +296,15 @@
       "enabled": true,
       "healthChecks": {
         "application": {
-          "endpoint": "http://localhost:3000/api/document-intelligence-pipeline/health",
+          "endpoint": "http://localhost:3000/api/research-assistant/health",
           "interval": "30s",
           "timeout": "5s",
           "threshold": 3
         },
-        "unstructured-io": {
-          "endpoint": "http://localhost:8000/general/v0/general",
+        "searxng": {
+          "endpoint": "http://localhost:8080/healthz",
           "interval": "60s",
-          "timeout": "15s"
+          "timeout": "10s"
         },
         "qdrant": {
           "endpoint": "http://localhost:6333/health",
@@ -238,6 +316,16 @@
           "interval": "60s",
           "timeout": "15s"
         },
+        "windmill": {
+          "endpoint": "http://localhost:8000/api/version",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "minio": {
+          "endpoint": "http://localhost:9000/minio/health/ready",
+          "interval": "60s",
+          "timeout": "10s"
+        },
         "database": {
           "type": "tcp",
           "port": 5432,
@@ -246,16 +334,16 @@
       },
       "metrics": {
         "responseTime": {
-          "p50": "500ms",
-          "p95": "2000ms",
-          "p99": "5000ms"
+          "p50": "800ms",
+          "p95": "3000ms",
+          "p99": "8000ms"
         },
         "throughput": {
-          "rps": 10,
-          "concurrent": 5
+          "rps": 5,
+          "concurrent": 8
         },
         "errorRate": {
-          "threshold": "3%"
+          "threshold": "4%"
         }
       }
     },
@@ -263,101 +351,111 @@
       "enabled": true,
       "tasks": [
         {
+          "name": "delete-windmill-apps",
+          "type": "resource-cleanup",
+          "target": "automation.windmill"
+        },
+        {
           "name": "drop-database",
           "type": "sql",
           "target": "storage.postgres",
-          "query": "DROP DATABASE IF EXISTS document_intelligence_pipeline"
+          "query": "DROP DATABASE IF EXISTS research_assistant"
         },
         {
           "name": "clear-vector-collections",
           "type": "resource-cleanup",
           "target": "storage.qdrant"
+        },
+        {
+          "name": "clear-storage-buckets",
+          "type": "resource-cleanup",
+          "target": "storage.minio"
         }
       ]
     },
     "testing": {
       "enabled": true,
-      "timeout": "45m",
+      "timeout": "40m",
       "script": "./test.sh",
       "ui": {
         "required": false,
-        "type": "api",
-        "url": "http://localhost:3000/api/document-intelligence-pipeline"
+        "type": "windmill",
+        "url": "http://localhost:8000"
       },
       "performance": {
         "loadTest": {
           "users": 5,
-          "duration": "3m",
-          "rampUp": "30s"
+          "duration": "6m",
+          "rampUp": "1m"
         }
       }
     },
     "resources": {
       "requests": {
-        "cpu": "1000m",
-        "memory": "2Gi"
+        "cpu": "700m",
+        "memory": "1.5Gi"
       },
       "limits": {
-        "cpu": "4000m",
-        "memory": "8Gi"
+        "cpu": "2500m",
+        "memory": "5Gi"
       }
     }
   },
   "metadata": {
     "businessModel": {
       "purpose": "commercial",
-      "valueProposition": "Enterprise document processing automation with AI-powered extraction and search",
-      "targetMarket": "Legal firms, financial institutions, and enterprises with heavy document processing needs",
+      "valueProposition": "Privacy-focused AI research assistant for automated market intelligence, competitive analysis, and knowledge synthesis",
+      "targetMarket": "Business analysts, researchers, consultants, competitive intelligence teams, and market research professionals",
       "painPoints": [
-        "Manual document review and data extraction consuming hours of professional time",
-        "Inability to search and analyze large document repositories effectively",
-        "Inconsistent data extraction and classification across documents"
+        "Manual web research consuming hours of analyst time daily",
+        "Difficulty synthesizing information from multiple sources into actionable insights",
+        "Privacy concerns with cloud-based research tools handling sensitive competitive intelligence"
       ],
-      "solution": "AI-powered document intelligence pipeline with automated extraction, semantic search, and intelligent classification",
-      "competitiveAdvantage": "Integration of Unstructured.io processing with vector search and local AI models for secure document analysis",
+      "solution": "Local AI-powered research assistant combining privacy-respecting search with intelligent analysis and knowledge management",
+      "competitiveAdvantage": "Complete privacy-focused solution with SearXNG search, local AI processing, and intelligent knowledge synthesis",
       "revenuePotential": {
         "initial": "$4,000",
-        "recurring": "$12,000",
-        "expansion": "$25,000",
-        "totalEstimate": "$41,000"
+        "recurring": "$15,000",
+        "expansion": "$30,000",
+        "totalEstimate": "$49,000"
       },
       "marketDemand": {
-        "level": "very-high",
-        "growth": "30% annually",
-        "evidence": "Growing legal tech and document automation markets, especially in compliance and due diligence"
+        "level": "high",
+        "growth": "25% annually",
+        "evidence": "Growing demand for privacy-focused business intelligence tools and automated research solutions"
       },
       "roi": {
         "developmentCost": "$6,000",
-        "timeToMarket": "2 weeks",
-        "breakEven": "3 months"
+        "timeToMarket": "3 weeks",
+        "breakEven": "4 months"
       }
     },
     "performance": {
       "targets": {
-        "initializationTime": "5m",
+        "initializationTime": "6m",
         "responseTime": {
-          "p50": "500ms",
-          "p95": "2000ms",
-          "p99": "5000ms"
+          "p50": "800ms",
+          "p95": "3000ms",
+          "p99": "8000ms"
         },
         "throughput": {
-          "minimum": 5,
-          "target": 10,
-          "peak": 50
+          "minimum": 3,
+          "target": 5,
+          "peak": 15
         },
         "availability": "99.5%",
-        "errorRate": "<3%"
+        "errorRate": "<4%"
       },
       "resources": {
         "cpu": {
-          "minimum": "2.0",
-          "target": "4.0",
-          "maximum": "8.0"
+          "minimum": "1.5",
+          "target": "2.5",
+          "maximum": "5.0"
         },
         "memory": {
-          "minimum": "4Gi",
-          "target": "8Gi",
-          "maximum": "16Gi"
+          "minimum": "3Gi",
+          "target": "5Gi",
+          "maximum": "10Gi"
         },
         "storage": {
           "database": "100Gi",
@@ -370,7 +468,7 @@
       "variables": {
         "APP_NAME": {
           "type": "string",
-          "default": "Document Intelligence Pipeline",
+          "default": "AI Research Assistant",
           "description": "Application display name"
         },
         "COMPANY_NAME": {
@@ -380,12 +478,12 @@
         },
         "PRIMARY_COLOR": {
           "type": "string",
-          "default": "#dc2626",
+          "default": "#3b82f6",
           "description": "Brand primary color"
         },
         "DATABASE_NAME": {
           "type": "string",
-          "default": "document_intelligence_pipeline",
+          "default": "research_assistant",
           "description": "Database name"
         },
         "APP_PORT": {
@@ -393,10 +491,10 @@
           "default": 3000,
           "description": "Application port"
         },
-        "UNSTRUCTURED_PORT": {
+        "SEARXNG_PORT": {
           "type": "number",
-          "default": 8000,
-          "description": "Unstructured.io API port"
+          "default": 8080,
+          "description": "SearXNG search engine port"
         },
         "QDRANT_PORT": {
           "type": "number",
@@ -408,7 +506,7 @@
         "authentication": {
           "enabled": true,
           "provider": "jwt",
-          "sso": true
+          "sso": false
         },
         "notifications": {
           "enabled": true,
@@ -418,30 +516,47 @@
           "enabled": true,
           "provider": "internal"
         },
-        "ocr": {
+        "webSearch": {
           "enabled": true,
-          "provider": "unstructured-io"
+          "provider": "searxng"
         },
-        "semanticSearch": {
+        "aiAnalysis": {
+          "enabled": true,
+          "provider": "ollama"
+        },
+        "knowledgeBase": {
           "enabled": true,
           "provider": "qdrant"
+        },
+        "documentStorage": {
+          "enabled": false,
+          "provider": "minio"
+        },
+        "workflowAutomation": {
+          "enabled": false,
+          "provider": "windmill"
         }
       },
       "integrations": [
         {
-          "name": "Document Management Systems",
+          "name": "Business Intelligence Tools",
           "type": "api",
           "required": false
         },
         {
-          "name": "Legal Case Management",
+          "name": "CRM Systems",
           "type": "webhook",
+          "required": false
+        },
+        {
+          "name": "Document Management Systems",
+          "type": "api",
           "required": false
         }
       ]
     },
-    "category": "ai-data-analysis",
-    "complexity": "advanced",
-    "marketDemand": "very-high"
+    "category": "ai-research",
+    "complexity": "intermediate",
+    "marketDemand": "high"
   }
 }

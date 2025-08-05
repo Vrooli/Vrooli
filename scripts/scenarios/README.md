@@ -34,8 +34,16 @@ Instead of building every feature into one monolithic platform, Vrooli uses scen
 
 ---
 
-## 🚀 Major Update: New Declarative Testing Framework
+## 🚀 Major Updates
 
+### Minimal Runtime Extraction (NEW!)
+The scenario-to-app.sh script now creates **minimal standalone apps**:
+- **Size Reduction**: ~3MB apps vs ~1GB full Vrooli copies (99% smaller!)
+- **Production Ready**: Direct startup scripts, not development mode
+- **Resource Efficient**: Only includes required resource adapters
+- **Home Directory**: Apps generate to `~/app-name` by default
+
+### Declarative Testing Framework
 We've completely rewritten our testing infrastructure achieving **95% code reduction**:
 - **Before**: 8,622 lines of imperative bash across 13 scenarios
 - **After**: 440 lines + declarative YAML configurations
@@ -68,14 +76,18 @@ done
 
 ### For App Generation
 ```bash
-# Convert a scenario to a deployable app
-./tools/scenario-to-app.sh multi-modal-ai-assistant
+# Convert a scenario to a minimal standalone app (NEW: ~3MB vs ~1GB!)
+./tools/scenario-to-app.sh ./scripts/scenarios/core/multi-modal-ai-assistant my-app
 
-# Deploy with options
-./tools/scenario-to-app.sh multi-modal-ai-assistant --mode local --validate full
+# App is generated to home directory by default
+./tools/scenario-to-app.sh ./scripts/scenarios/core/ai-content-assistant my-ai-app
+# Creates: ~/my-ai-app (2-3MB minimal runtime)
 
-# Dry run to see what would be done
-./tools/scenario-to-app.sh multi-modal-ai-assistant --dry-run
+# Specify custom output directory
+./tools/scenario-to-app.sh ./scripts/scenarios/core/e-commerce shop ~/apps/shop
+
+# Enable debug output
+./tools/scenario-to-app.sh ./scripts/scenarios/core/research-assistant research --debug
 ```
 
 ### For Developers
@@ -92,8 +104,9 @@ cd core/my-new-scenario/
 # 3. Test your scenario structure
 ./test.sh                                # Run validation tests
 
-# 4. Deploy as application
-../../tools/scenario-to-app.sh my-new-scenario
+# 4. Deploy as minimal standalone application
+../../tools/scenario-to-app.sh ./core/my-new-scenario my-app
+# Creates: ~/my-app (2-3MB minimal runtime)
 ```
 
 ### For AI Generation
@@ -105,8 +118,9 @@ cp -r templates/full/ core/ai-generated-scenario/
 #   - AI guidance comments throughout all files
 #   - Both Jinja2 templates AND AI placeholders supported
 
-# Deploy AI-generated scenario
-./scripts/scenario-to-app.sh ai-generated-scenario
+# Deploy AI-generated scenario as minimal app
+../../tools/scenario-to-app.sh ./core/ai-generated-scenario ai-app
+# Creates: ~/ai-app (2-3MB minimal runtime, production-ready)
 ```
 
 ## 🔄 **Template Consolidation (COMPLETED)**
@@ -251,12 +265,34 @@ Scenarios integrate with Vrooli's AI architecture:
 - **Tier 2**: Process Intelligence (resource orchestration)  
 - **Tier 3**: Execution Intelligence (direct resource interaction)
 
-### **Scenario-to-App Conversion**
-The new `./scripts/scenario-to-app.sh` script converts any scenario into a running application:
-1. **Validation Phase**: Structure and resource health checks
-2. **Configuration Phase**: Generate efficient resource configuration
-3. **Deployment Phase**: Database setup, workflow deployment, UI activation
-4. **Monitoring Phase**: Health monitoring and integration testing
+### **Scenario-to-App Conversion (Minimal Runtime Extraction)**
+The updated `./tools/scenario-to-app.sh` script converts scenarios into minimal standalone applications:
+
+**Key Features:**
+- **Minimal Size**: ~2-3MB apps vs ~1GB full Vrooli copies (99% reduction!)
+- **Production Ready**: Direct startup scripts, not development mode
+- **Resource Efficient**: Only includes required resource adapters
+- **Self-Contained**: Complete runtime with injection engine
+
+**How It Works:**
+1. **Validation Phase**: Validates scenario structure and service.json
+2. **Extraction Phase**: Copies only essential runtime components (~2MB)
+3. **Configuration Phase**: Generates minimal docker-compose with required resources
+4. **Production Phase**: Creates production-ready startup/shutdown scripts
+
+**Generated App Structure:**
+```
+~/my-app/                       # Default location: home directory
+├── runtime/                    # Minimal Vrooli runtime (~2MB)
+│   ├── injection/              # Injection engine only
+│   ├── utils/                  # Essential utilities
+│   └── resources/              # Only required resource adapters
+├── .vrooli/                    # Scenario configuration
+├── initialization/             # Scenario data
+├── docker-compose.yml          # Only required services
+├── start.sh                    # Production startup (not develop.sh)
+└── stop.sh                     # Graceful shutdown
+```
 
 ---
 

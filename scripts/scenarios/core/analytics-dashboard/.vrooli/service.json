@@ -1,18 +1,20 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "name": "intelligent-desktop-assistant",
-    "displayName": "Intelligent Desktop Assistant",
-    "description": "AI-powered desktop automation assistant that understands screen content and executes complex workflows",
+    "name": "analytics-dashboard",
+    "displayName": "Real-time Analytics Dashboard",
+    "description": "Live monitoring dashboard with streaming data, time-series storage, and AI-powered insights",
     "version": "1.0.0",
     "type": "business-application",
     "tags": [
-      "desktop-automation",
-      "screen-analysis",
-      "customer-service",
-      "task-automation",
-      "basic-scenario"
+      "real-time",
+      "time-series",
+      "iot",
+      "monitoring",
+      "operational-intelligence",
+      "windmill-ui",
+      "enterprise-ready"
     ],
     "maintainers": [
       {
@@ -24,7 +26,7 @@
     "repository": {
       "type": "git",
       "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/core/intelligent-desktop-assistant"
+      "directory": "/scripts/scenarios/core/analytics-dashboard"
     },
     "license": "GPL-3.0",
     "homepage": "https://github.com/Vrooli/Vrooli",
@@ -55,29 +57,28 @@
           ]
         }
       },
-      "qdrant": {
-        "type": "qdrant",
+      "questdb": {
+        "type": "questdb",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "tables": [
+            {
+              "name": "metrics",
+              "schema": "CREATE TABLE metrics (timestamp TIMESTAMP, metric_name STRING, value DOUBLE, tags STRING)"
+            }
+          ]
+        }
+      },
+      "minio": {
+        "type": "minio",
         "enabled": false,
         "required": false,
         "initialization": {
-          "collections": [
+          "buckets": [
             {
-              "name": "automation-knowledge",
-              "config": {
-                "vectors": {
-                  "size": 384,
-                  "distance": "Cosine"
-                }
-              }
-            },
-            {
-              "name": "screen-patterns",
-              "config": {
-                "vectors": {
-                  "size": 384,
-                  "distance": "Cosine"
-                }
-              }
+              "name": "analytics-data",
+              "policy": "private"
             }
           ]
         }
@@ -85,17 +86,43 @@
     },
     "ai": {
       "ollama": {
+        "enabled": false,
+        "required": false,
+        "models": ["llama3.1:8b"]
+      }
+    },
+    "automation": {
+      "node-red": {
         "enabled": true,
         "required": true,
-        "models": ["llama3.1:8b", "llava:13b", "nomic-embed-text"]
+        "initialization": {
+          "flows": [
+            {
+              "name": "data-ingestion-flow",
+              "file": "initialization/workflows/node-red/main-flow.json",
+              "enabled": true,
+              "tags": ["core", "data-ingestion"]
+            }
+          ]
+        }
       },
-      "whisper": {
+      "windmill": {
         "enabled": false,
-        "required": false
+        "required": false,
+        "initialization": {
+          "apps": [
+            {
+              "path": "f/analytics-dashboard/dashboard",
+              "file": "initialization/ui/windmill-app.json",
+              "summary": "Real-time Analytics Dashboard"
+            }
+          ],
+          "scripts": []
+        }
       }
     },
     "agents": {
-      "agent-s2": {
+      "browserless": {
         "enabled": true,
         "required": true,
         "mode": "service"
@@ -107,9 +134,9 @@
     "strategy": "rolling-update",
     "urls": {
       "application": "http://localhost:3000",
-      "api": "http://localhost:3000/api/intelligent-desktop-assistant",
-      "health": "http://localhost:3000/api/intelligent-desktop-assistant/health",
-      "agent-s2": "http://localhost:4113"
+      "api": "http://localhost:3000/api/analytics-dashboard",
+      "health": "http://localhost:3000/api/analytics-dashboard/health",
+      "questdb": "http://localhost:9000"
     },
     "initialization": {
       "phases": [
@@ -138,24 +165,30 @@
               "type": "sql",
               "target": "storage.postgres",
               "file": "initialization/database/seed.sql"
+            },
+            {
+              "name": "setup-questdb",
+              "type": "resource-inject",
+              "target": "storage.questdb",
+              "timeout": "60s"
             }
           ]
         },
         {
-          "name": "ai-setup",
+          "name": "workflow-deployment",
           "parallel": true,
           "tasks": [
             {
-              "name": "load-ai-models",
+              "name": "deploy-node-red-flows",
               "type": "resource-inject",
-              "target": "ai.ollama",
-              "timeout": "12m"
+              "target": "automation.node-red",
+              "config": "initialization/workflows/node-red/"
             },
             {
-              "name": "setup-vector-collections",
+              "name": "deploy-windmill-apps",
               "type": "resource-inject",
-              "target": "storage.qdrant",
-              "timeout": "2m"
+              "target": "automation.windmill",
+              "config": "initialization/ui/"
             }
           ]
         },
@@ -191,7 +224,7 @@
             {
               "name": "health-check",
               "type": "healthcheck",
-              "target": "http://localhost:3000/api/intelligent-desktop-assistant/health",
+              "target": "http://localhost:3000/api/analytics-dashboard/health",
               "timeout": "30s",
               "retries": 3
             },
@@ -209,23 +242,18 @@
       "enabled": true,
       "healthChecks": {
         "application": {
-          "endpoint": "http://localhost:3000/api/intelligent-desktop-assistant/health",
+          "endpoint": "http://localhost:3000/api/analytics-dashboard/health",
           "interval": "30s",
           "timeout": "5s",
           "threshold": 3
         },
-        "agent-s2": {
-          "endpoint": "http://localhost:4113/health",
+        "questdb": {
+          "endpoint": "http://localhost:9000/status",
           "interval": "60s",
           "timeout": "10s"
         },
-        "ollama": {
-          "endpoint": "http://localhost:11434/api/tags",
-          "interval": "60s",
-          "timeout": "15s"
-        },
-        "qdrant": {
-          "endpoint": "http://localhost:6333/health",
+        "node-red": {
+          "endpoint": "http://localhost:1880/settings",
           "interval": "60s",
           "timeout": "10s"
         },
@@ -237,16 +265,16 @@
       },
       "metrics": {
         "responseTime": {
-          "p50": "300ms",
-          "p95": "1000ms",
-          "p99": "3000ms"
+          "p50": "100ms",
+          "p95": "500ms",
+          "p99": "1000ms"
         },
         "throughput": {
-          "rps": 20,
-          "concurrent": 10
+          "rps": 200,
+          "concurrent": 50
         },
         "errorRate": {
-          "threshold": "3%"
+          "threshold": "1%"
         }
       }
     },
@@ -254,15 +282,25 @@
       "enabled": true,
       "tasks": [
         {
+          "name": "delete-node-red-flows",
+          "type": "resource-cleanup",
+          "target": "automation.node-red"
+        },
+        {
           "name": "drop-database",
           "type": "sql",
           "target": "storage.postgres",
-          "query": "DROP DATABASE IF EXISTS intelligent_desktop_assistant"
+          "query": "DROP DATABASE IF EXISTS analytics_dashboard"
         },
         {
-          "name": "clear-vector-collections",
+          "name": "clear-questdb",
           "type": "resource-cleanup",
-          "target": "storage.qdrant"
+          "target": "storage.questdb"
+        },
+        {
+          "name": "clear-storage",
+          "type": "resource-cleanup",
+          "target": "storage.minio"
         }
       ]
     },
@@ -271,73 +309,73 @@
       "timeout": "30m",
       "script": "./test.sh",
       "ui": {
-        "required": false,
-        "type": "api",
-        "url": "http://localhost:3000/api/intelligent-desktop-assistant"
+        "required": true,
+        "type": "node-red",
+        "url": "http://localhost:1880"
       },
       "performance": {
         "loadTest": {
-          "users": 10,
-          "duration": "5m",
-          "rampUp": "30s"
+          "users": 50,
+          "duration": "10m",
+          "rampUp": "1m"
         }
       }
     },
     "resources": {
       "requests": {
-        "cpu": "500m",
-        "memory": "1Gi"
+        "cpu": "100m",
+        "memory": "128Mi"
       },
       "limits": {
-        "cpu": "2000m",
-        "memory": "4Gi"
+        "cpu": "1000m",
+        "memory": "1Gi"
       }
     }
   },
   "metadata": {
     "businessModel": {
       "purpose": "commercial",
-      "valueProposition": "Intelligent automation assistant for business workflows and customer service tasks",
-      "targetMarket": "Small to medium businesses, customer service teams, and knowledge workers needing desktop automation",
+      "valueProposition": "Real-time operational intelligence platform for IoT, financial, and business metrics",
+      "targetMarket": "IoT companies, financial institutions, and businesses needing real-time monitoring and analytics",
       "painPoints": [
-        "Repetitive desktop tasks consuming significant time daily",
-        "Inconsistent execution of complex multi-step workflows",
-        "Need for 24/7 customer service automation without human intervention"
+        "Delayed insights from batch processing systems",
+        "Complex setup for real-time data pipelines",
+        "Lack of integrated monitoring and alerting"
       ],
-      "solution": "AI-powered desktop assistant with screen analysis and intelligent workflow automation capabilities",
-      "competitiveAdvantage": "Advanced screen understanding with Agent-S2 integration and local AI processing for privacy",
+      "solution": "Complete real-time analytics platform with streaming data ingestion, time-series storage, and interactive dashboards",
+      "competitiveAdvantage": "Integrated Node-RED workflows with QuestDB time-series performance and automated monitoring",
       "revenuePotential": {
-        "initial": "$3,000",
-        "recurring": "$8,000",
-        "expansion": "$15,000",
-        "totalEstimate": "$26,000"
+        "initial": "$5,000",
+        "recurring": "$12,000",
+        "expansion": "$25,000",
+        "totalEstimate": "$42,000"
       },
       "marketDemand": {
-        "level": "high",
-        "growth": "25% annually",
-        "evidence": "Growing demand for RPA and desktop automation solutions in SMB market"
+        "level": "very-high",
+        "growth": "35% annually",
+        "evidence": "Growing IoT market and real-time analytics demand"
       },
       "roi": {
-        "developmentCost": "$4,000",
-        "timeToMarket": "2 weeks",
-        "breakEven": "3 months"
+        "developmentCost": "$3,000",
+        "timeToMarket": "1 week",
+        "breakEven": "2 months"
       }
     },
     "performance": {
       "targets": {
-        "initializationTime": "4m",
+        "initializationTime": "3m",
         "responseTime": {
-          "p50": "300ms",
-          "p95": "1000ms",
-          "p99": "3000ms"
+          "p50": "50ms",
+          "p95": "200ms",
+          "p99": "500ms"
         },
         "throughput": {
-          "minimum": 10,
-          "target": 20,
-          "peak": 100
+          "minimum": 100,
+          "target": 200,
+          "peak": 1000
         },
-        "availability": "99.7%",
-        "errorRate": "<3%"
+        "availability": "99.95%",
+        "errorRate": "<0.5%"
       },
       "resources": {
         "cpu": {
@@ -346,14 +384,14 @@
           "maximum": "4.0"
         },
         "memory": {
-          "minimum": "2Gi",
-          "target": "4Gi",
-          "maximum": "8Gi"
+          "minimum": "1Gi",
+          "target": "2Gi",
+          "maximum": "4Gi"
         },
         "storage": {
-          "database": "20Gi",
-          "vectors": "10Gi",
-          "screenshots": "50Gi"
+          "database": "50Gi",
+          "timeseries": "100Gi",
+          "files": "20Gi"
         }
       }
     },
@@ -361,7 +399,7 @@
       "variables": {
         "APP_NAME": {
           "type": "string",
-          "default": "Intelligent Desktop Assistant",
+          "default": "Analytics Dashboard",
           "description": "Application display name"
         },
         "COMPANY_NAME": {
@@ -371,12 +409,12 @@
         },
         "PRIMARY_COLOR": {
           "type": "string",
-          "default": "#0ea5e9",
+          "default": "#059669",
           "description": "Brand primary color"
         },
         "DATABASE_NAME": {
           "type": "string",
-          "default": "intelligent_desktop_assistant",
+          "default": "analytics_dashboard",
           "description": "Database name"
         },
         "APP_PORT": {
@@ -384,10 +422,10 @@
           "default": 3000,
           "description": "Application port"
         },
-        "AGENT_S2_PORT": {
+        "QUESTDB_PORT": {
           "type": "number",
-          "default": 4113,
-          "description": "Agent-S2 automation port"
+          "default": 9000,
+          "description": "QuestDB web console port"
         }
       },
       "features": {
@@ -398,41 +436,32 @@
         },
         "notifications": {
           "enabled": true,
-          "channels": ["email", "webhook"]
+          "channels": ["email", "webhook", "slack"]
         },
         "analytics": {
           "enabled": true,
           "provider": "internal"
         },
-        "screenAnalysis": {
+        "realtime": {
           "enabled": true,
-          "provider": "agent-s2"
-        },
-        "voiceInput": {
-          "enabled": false,
-          "provider": "whisper"
+          "provider": "questdb"
         }
       },
       "integrations": [
         {
-          "name": "CRM Systems",
-          "type": "api",
+          "name": "IoT Sensors",
+          "type": "mqtt",
           "required": false
         },
         {
-          "name": "Help Desk Software",
-          "type": "webhook",
-          "required": false
-        },
-        {
-          "name": "Business Applications",
-          "type": "automation",
+          "name": "External APIs",
+          "type": "rest",
           "required": false
         }
       ]
     },
-    "category": "ai-assistance",
+    "category": "real-time-monitoring",
     "complexity": "advanced",
-    "marketDemand": "high"
+    "marketDemand": "very-high"
   }
 }

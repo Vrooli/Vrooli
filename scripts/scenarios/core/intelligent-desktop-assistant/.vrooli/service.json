@@ -1,21 +1,18 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "name": "ai-content-assistant-example",
-    "displayName": "AI Content Assistant",
-    "description": "Multi-modal AI assistant for content creation with voice input, text generation, and professional UI",
+    "name": "intelligent-desktop-assistant",
+    "displayName": "Intelligent Desktop Assistant",
+    "description": "AI-powered desktop automation assistant that understands screen content and executes complex workflows",
     "version": "1.0.0",
     "type": "business-application",
     "tags": [
-      "ai-assistant",
-      "content-creation",
-      "voice-enabled",
-      "workflow-automation",
-      "analytics-dashboard",
-      "enterprise-ready",
-      "high-revenue-potential",
-      "example-scenario"
+      "desktop-automation",
+      "screen-analysis",
+      "customer-service",
+      "task-automation",
+      "basic-scenario"
     ],
     "maintainers": [
       {
@@ -27,7 +24,7 @@
     "repository": {
       "type": "git",
       "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/core/ai-content-assistant-example"
+      "directory": "/scripts/scenarios/core/intelligent-desktop-assistant"
     },
     "license": "GPL-3.0",
     "homepage": "https://github.com/Vrooli/Vrooli",
@@ -58,25 +55,31 @@
           ]
         }
       },
-      "minio": {
-        "type": "minio",
-        "enabled": false,
-        "required": false,
-        "initialization": {
-          "buckets": [
-            {
-              "name": "ai-content-assistant",
-              "policy": "private"
-            }
-          ]
-        }
-      },
       "qdrant": {
         "type": "qdrant",
         "enabled": false,
         "required": false,
         "initialization": {
-          "collections": []
+          "collections": [
+            {
+              "name": "automation-knowledge",
+              "config": {
+                "vectors": {
+                  "size": 384,
+                  "distance": "Cosine"
+                }
+              }
+            },
+            {
+              "name": "screen-patterns",
+              "config": {
+                "vectors": {
+                  "size": 384,
+                  "distance": "Cosine"
+                }
+              }
+            }
+          ]
         }
       }
     },
@@ -84,55 +87,18 @@
       "ollama": {
         "enabled": true,
         "required": true,
-        "models": ["llama3.1:8b"]
+        "models": ["llama3.1:8b", "llava:13b", "nomic-embed-text"]
       },
       "whisper": {
-        "enabled": true,
-        "required": true
-      }
-    },
-    "automation": {
-      "n8n": {
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "workflows": [
-            {
-              "name": "main-workflow",
-              "file": "initialization/workflows/n8n/main-workflow.json",
-              "enabled": true,
-              "tags": ["core", "automation"]
-            }
-          ],
-          "credentials": [
-            {
-              "name": "api-auth",
-              "type": "httpAuth",
-              "config": {
-                "url": "{{ API_URL }}",
-                "authType": "bearer"
-              }
-            }
-          ]
-        }
-      },
-      "windmill": {
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "apps": [
-            {
-              "path": "f/ai-content-assistant/dashboard",
-              "file": "initialization/ui/windmill-app.json",
-              "summary": "AI Content Assistant Dashboard"
-            }
-          ],
-          "scripts": []
-        }
-      },
-      "comfyui": {
         "enabled": false,
         "required": false
+      }
+    },
+    "agents": {
+      "agent-s2": {
+        "enabled": true,
+        "required": true,
+        "mode": "service"
       }
     }
   },
@@ -141,8 +107,9 @@
     "strategy": "rolling-update",
     "urls": {
       "application": "http://localhost:3000",
-      "api": "http://localhost:3000/api/ai-content-assistant-example",
-      "health": "http://localhost:3000/api/ai-content-assistant-example/health"
+      "api": "http://localhost:3000/api/intelligent-desktop-assistant",
+      "health": "http://localhost:3000/api/intelligent-desktop-assistant/health",
+      "agent-s2": "http://localhost:4113"
     },
     "initialization": {
       "phases": [
@@ -175,20 +142,20 @@
           ]
         },
         {
-          "name": "workflow-deployment",
+          "name": "ai-setup",
           "parallel": true,
           "tasks": [
             {
-              "name": "deploy-n8n-workflows",
+              "name": "load-ai-models",
               "type": "resource-inject",
-              "target": "automation.n8n",
-              "config": "initialization/workflows/n8n/"
+              "target": "ai.ollama",
+              "timeout": "12m"
             },
             {
-              "name": "deploy-windmill-apps",
+              "name": "setup-vector-collections",
               "type": "resource-inject",
-              "target": "automation.windmill",
-              "config": "initialization/ui/"
+              "target": "storage.qdrant",
+              "timeout": "2m"
             }
           ]
         },
@@ -224,7 +191,7 @@
             {
               "name": "health-check",
               "type": "healthcheck",
-              "target": "http://localhost:3000/api/ai-content-assistant-example/health",
+              "target": "http://localhost:3000/api/intelligent-desktop-assistant/health",
               "timeout": "30s",
               "retries": 3
             },
@@ -242,13 +209,23 @@
       "enabled": true,
       "healthChecks": {
         "application": {
-          "endpoint": "http://localhost:3000/api/ai-content-assistant-example/health",
+          "endpoint": "http://localhost:3000/api/intelligent-desktop-assistant/health",
           "interval": "30s",
           "timeout": "5s",
           "threshold": 3
         },
-        "workflows": {
-          "endpoint": "http://localhost:5678/api/v1/info",
+        "agent-s2": {
+          "endpoint": "http://localhost:4113/health",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "ollama": {
+          "endpoint": "http://localhost:11434/api/tags",
+          "interval": "60s",
+          "timeout": "15s"
+        },
+        "qdrant": {
+          "endpoint": "http://localhost:6333/health",
           "interval": "60s",
           "timeout": "10s"
         },
@@ -260,16 +237,16 @@
       },
       "metrics": {
         "responseTime": {
-          "p50": "100ms",
-          "p95": "500ms",
-          "p99": "1000ms"
+          "p50": "300ms",
+          "p95": "1000ms",
+          "p99": "3000ms"
         },
         "throughput": {
-          "rps": 100,
+          "rps": 20,
           "concurrent": 10
         },
         "errorRate": {
-          "threshold": "1%"
+          "threshold": "3%"
         }
       }
     },
@@ -277,20 +254,15 @@
       "enabled": true,
       "tasks": [
         {
-          "name": "delete-workflows",
-          "type": "resource-cleanup",
-          "target": "automation.n8n"
-        },
-        {
           "name": "drop-database",
           "type": "sql",
           "target": "storage.postgres",
-          "query": "DROP DATABASE IF EXISTS ai_content_assistant"
+          "query": "DROP DATABASE IF EXISTS intelligent_desktop_assistant"
         },
         {
-          "name": "clear-storage",
+          "name": "clear-vector-collections",
           "type": "resource-cleanup",
-          "target": "storage.minio"
+          "target": "storage.qdrant"
         }
       ]
     },
@@ -299,9 +271,9 @@
       "timeout": "30m",
       "script": "./test.sh",
       "ui": {
-        "required": true,
-        "type": "windmill",
-        "url": "http://localhost:3000"
+        "required": false,
+        "type": "api",
+        "url": "http://localhost:3000/api/intelligent-desktop-assistant"
       },
       "performance": {
         "loadTest": {
@@ -313,74 +285,75 @@
     },
     "resources": {
       "requests": {
-        "cpu": "100m",
-        "memory": "128Mi"
+        "cpu": "500m",
+        "memory": "1Gi"
       },
       "limits": {
-        "cpu": "1000m",
-        "memory": "1Gi"
+        "cpu": "2000m",
+        "memory": "4Gi"
       }
     }
   },
   "metadata": {
     "businessModel": {
       "purpose": "commercial",
-      "valueProposition": "Complete AI-powered content creation suite with voice interface and professional analytics",
-      "targetMarket": "Content creators, marketing teams, and businesses needing AI-assisted content generation",
+      "valueProposition": "Intelligent automation assistant for business workflows and customer service tasks",
+      "targetMarket": "Small to medium businesses, customer service teams, and knowledge workers needing desktop automation",
       "painPoints": [
-        "Time-consuming manual content creation",
-        "Inconsistent content quality and tone",
-        "Lack of voice-to-text workflow integration"
+        "Repetitive desktop tasks consuming significant time daily",
+        "Inconsistent execution of complex multi-step workflows",
+        "Need for 24/7 customer service automation without human intervention"
       ],
-      "solution": "Multi-modal AI assistant combining voice input, text generation, and automated workflows for efficient content creation",
-      "competitiveAdvantage": "Integrated voice interface with professional UI and workflow automation",
+      "solution": "AI-powered desktop assistant with screen analysis and intelligent workflow automation capabilities",
+      "competitiveAdvantage": "Advanced screen understanding with Agent-S2 integration and local AI processing for privacy",
       "revenuePotential": {
-        "initial": "$15,000",
-        "recurring": "$30,000",
-        "expansion": "$45,000",
-        "totalEstimate": "$90,000"
+        "initial": "$3,000",
+        "recurring": "$8,000",
+        "expansion": "$15,000",
+        "totalEstimate": "$26,000"
       },
       "marketDemand": {
-        "level": "very-high",
+        "level": "high",
         "growth": "25% annually",
-        "evidence": "Growing demand for AI content tools and voice interfaces"
+        "evidence": "Growing demand for RPA and desktop automation solutions in SMB market"
       },
       "roi": {
-        "developmentCost": "$5,000",
+        "developmentCost": "$4,000",
         "timeToMarket": "2 weeks",
         "breakEven": "3 months"
       }
     },
     "performance": {
       "targets": {
-        "initializationTime": "2m",
+        "initializationTime": "4m",
         "responseTime": {
-          "p50": "100ms",
-          "p95": "500ms",
-          "p99": "1000ms"
+          "p50": "300ms",
+          "p95": "1000ms",
+          "p99": "3000ms"
         },
         "throughput": {
-          "minimum": 50,
-          "target": 100,
-          "peak": 500
+          "minimum": 10,
+          "target": 20,
+          "peak": 100
         },
-        "availability": "99.9%",
-        "errorRate": "<1%"
+        "availability": "99.7%",
+        "errorRate": "<3%"
       },
       "resources": {
         "cpu": {
-          "minimum": "0.5",
-          "target": "1.0",
-          "maximum": "2.0"
+          "minimum": "1.0",
+          "target": "2.0",
+          "maximum": "4.0"
         },
         "memory": {
-          "minimum": "512Mi",
-          "target": "1Gi",
-          "maximum": "2Gi"
+          "minimum": "2Gi",
+          "target": "4Gi",
+          "maximum": "8Gi"
         },
         "storage": {
-          "database": "10Gi",
-          "files": "20Gi"
+          "database": "20Gi",
+          "vectors": "10Gi",
+          "screenshots": "50Gi"
         }
       }
     },
@@ -388,7 +361,7 @@
       "variables": {
         "APP_NAME": {
           "type": "string",
-          "default": "AI Content Assistant",
+          "default": "Intelligent Desktop Assistant",
           "description": "Application display name"
         },
         "COMPANY_NAME": {
@@ -398,12 +371,12 @@
         },
         "PRIMARY_COLOR": {
           "type": "string",
-          "default": "#2563eb",
+          "default": "#0ea5e9",
           "description": "Brand primary color"
         },
         "DATABASE_NAME": {
           "type": "string",
-          "default": "ai_content_assistant",
+          "default": "intelligent_desktop_assistant",
           "description": "Database name"
         },
         "APP_PORT": {
@@ -411,10 +384,10 @@
           "default": 3000,
           "description": "Application port"
         },
-        "API_PORT": {
+        "AGENT_S2_PORT": {
           "type": "number",
-          "default": 3000,
-          "description": "API server port"
+          "default": 4113,
+          "description": "Agent-S2 automation port"
         }
       },
       "features": {
@@ -431,21 +404,35 @@
           "enabled": true,
           "provider": "internal"
         },
-        "payments": {
+        "screenAnalysis": {
+          "enabled": true,
+          "provider": "agent-s2"
+        },
+        "voiceInput": {
           "enabled": false,
-          "provider": "stripe"
+          "provider": "whisper"
         }
       },
       "integrations": [
         {
-          "name": "Content APIs",
+          "name": "CRM Systems",
           "type": "api",
+          "required": false
+        },
+        {
+          "name": "Help Desk Software",
+          "type": "webhook",
+          "required": false
+        },
+        {
+          "name": "Business Applications",
+          "type": "automation",
           "required": false
         }
       ]
     },
     "category": "ai-assistance",
-    "complexity": "intermediate",
-    "marketDemand": "very-high"
+    "complexity": "advanced",
+    "marketDemand": "high"
   }
 }

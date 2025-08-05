@@ -1,20 +1,20 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "name": "podcast-transcription-assistant",
-    "displayName": "Podcast Transcription Assistant",
-    "description": "AI-powered podcast transcription with summaries, key points extraction, and show notes generation",
+    "name": "scenario-generator-v1",
+    "displayName": "Scenario Generator V1",
+    "description": "A meta-scenario that generates Vrooli scenarios from customer requirements using AI",
     "version": "1.0.0",
     "type": "business-application",
     "tags": [
-      "audio-processing",
-      "content-automation",
-      "transcription",
-      "windmill-ui",
-      "media-production",
-      "podcast-creator",
-      "content-generation"
+      "meta-scenario",
+      "code-generation",
+      "ai-development",
+      "saas-generator",
+      "business-automation",
+      "claude-code",
+      "ultra-high-revenue-potential"
     ],
     "maintainers": [
       {
@@ -26,7 +26,7 @@
     "repository": {
       "type": "git",
       "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/core/podcast-transcription-assistant"
+      "directory": "/scripts/scenarios/core/scenario-generator-v1"
     },
     "license": "GPL-3.0",
     "homepage": "https://github.com/Vrooli/Vrooli",
@@ -59,89 +59,99 @@
       },
       "minio": {
         "type": "minio",
-        "enabled": false,
-        "required": false,
+        "enabled": true,
+        "required": true,
         "initialization": {
           "buckets": [
             {
-              "name": "podcast-audio",
+              "name": "generated-scenarios",
               "policy": "private"
             },
             {
-              "name": "transcriptions",
+              "name": "scenario-templates",
               "policy": "private"
             },
             {
-              "name": "show-notes",
+              "name": "customer-requirements",
+              "policy": "private"
+            },
+            {
+              "name": "code-artifacts",
               "policy": "private"
             }
           ]
         }
       },
-      "qdrant": {
-        "type": "qdrant",
+      "redis": {
+        "type": "redis",
         "enabled": false,
-        "required": false,
-        "initialization": {
-          "collections": [
-            {
-              "name": "podcast-content",
-              "config": {
-                "vectors": {
-                  "size": 384,
-                  "distance": "Cosine"
-                }
-              }
-            },
-            {
-              "name": "episode-similarity",
-              "config": {
-                "vectors": {
-                  "size": 384,
-                  "distance": "Cosine"
-                }
-              }
-            }
-          ]
-        }
+        "required": false
       }
     },
     "ai": {
-      "whisper": {
-        "enabled": true,
-        "required": true
-      },
       "ollama": {
-        "enabled": true,
-        "required": true,
+        "enabled": false,
+        "required": false,
         "models": ["llama3.1:8b", "nomic-embed-text"]
       }
     },
     "automation": {
       "windmill": {
-        "enabled": false,
-        "required": false,
+        "enabled": true,
+        "required": true,
         "initialization": {
           "apps": [
             {
-              "path": "f/podcast-assistant/dashboard",
-              "file": "initialization/ui/windmill-podcast-app.json",
-              "summary": "Podcast Content Management Dashboard"
+              "path": "f/scenario-generator/dashboard",
+              "file": "initialization/ui/windmill-generator-app.json",
+              "summary": "Scenario Generation Dashboard"
             }
           ],
           "scripts": [
             {
-              "name": "transcription-processor",
-              "file": "initialization/scripts/transcription-processor.ts",
+              "name": "scenario-processor",
+              "file": "initialization/scripts/scenario-processor.ts",
               "language": "typescript"
             },
             {
-              "name": "show-notes-generator",
-              "file": "initialization/scripts/show-notes-generator.ts",
+              "name": "code-generator",
+              "file": "initialization/scripts/code-generator.ts",
+              "language": "typescript"
+            },
+            {
+              "name": "requirement-analyzer",
+              "file": "initialization/scripts/requirement-analyzer.ts",
               "language": "typescript"
             }
           ]
         }
+      },
+      "n8n": {
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "workflows": [
+            {
+              "name": "scenario-generation-pipeline",
+              "file": "initialization/workflows/n8n/generation-pipeline.json",
+              "enabled": true,
+              "tags": ["generation", "automation"]
+            },
+            {
+              "name": "code-review-workflow",
+              "file": "initialization/workflows/n8n/code-review.json",
+              "enabled": true,
+              "tags": ["quality", "review"]
+            }
+          ]
+        }
+      }
+    },
+    "agents": {
+      "claude-code": {
+        "enabled": true,
+        "required": true,
+        "mode": "service"
       }
     }
   },
@@ -150,9 +160,12 @@
     "strategy": "rolling-update",
     "urls": {
       "application": "http://localhost:3000",
-      "api": "http://localhost:3000/api/podcast-transcription-assistant",
-      "health": "http://localhost:3000/api/podcast-transcription-assistant/health",
-      "windmill": "http://localhost:8000"
+      "api": "http://localhost:3000/api/scenario-generator-v1",
+      "health": "http://localhost:3000/api/scenario-generator-v1/health",
+      "windmill": "http://localhost:8000",
+      "n8n": "http://localhost:5678",
+      "minio": "http://localhost:9000",
+      "claude-code": "http://localhost:4112"
     },
     "initialization": {
       "phases": [
@@ -185,14 +198,31 @@
           ]
         },
         {
-          "name": "ai-setup",
+          "name": "storage-setup",
           "parallel": true,
           "tasks": [
             {
-              "name": "verify-whisper",
+              "name": "setup-minio-buckets",
               "type": "resource-inject",
-              "target": "ai.whisper",
+              "target": "storage.minio",
               "timeout": "2m"
+            },
+            {
+              "name": "setup-redis-cache",
+              "type": "resource-inject",
+              "target": "storage.redis",
+              "timeout": "1m"
+            }
+          ]
+        },
+        {
+          "name": "ai-setup",
+          "tasks": [
+            {
+              "name": "configure-claude-code",
+              "type": "resource-inject",
+              "target": "agents.claude-code",
+              "timeout": "3m"
             },
             {
               "name": "load-ai-models",
@@ -203,14 +233,15 @@
           ]
         },
         {
-          "name": "optional-services-setup",
+          "name": "workflow-deployment",
           "parallel": true,
           "tasks": [
             {
-              "name": "setup-vector-collections",
+              "name": "deploy-n8n-workflows",
               "type": "resource-inject",
-              "target": "storage.qdrant",
-              "timeout": "2m"
+              "target": "automation.n8n",
+              "config": "initialization/workflows/n8n/",
+              "timeout": "5m"
             },
             {
               "name": "deploy-windmill-apps",
@@ -230,9 +261,9 @@
               "file": "initialization/configuration/app-config.json"
             },
             {
-              "name": "set-transcription-settings",
+              "name": "set-generation-settings",
               "type": "config",
-              "file": "initialization/configuration/transcription-settings.json"
+              "file": "initialization/configuration/generation-settings.json"
             }
           ]
         },
@@ -243,7 +274,7 @@
               "name": "start-application",
               "type": "script",
               "script": "./deployment/startup.sh",
-              "timeout": "2m"
+              "timeout": "3m"
             }
           ]
         },
@@ -253,7 +284,7 @@
             {
               "name": "health-check",
               "type": "healthcheck",
-              "target": "http://localhost:3000/api/podcast-transcription-assistant/health",
+              "target": "http://localhost:3000/api/scenario-generator-v1/health",
               "timeout": "30s",
               "retries": 3
             },
@@ -271,13 +302,28 @@
       "enabled": true,
       "healthChecks": {
         "application": {
-          "endpoint": "http://localhost:3000/api/podcast-transcription-assistant/health",
+          "endpoint": "http://localhost:3000/api/scenario-generator-v1/health",
           "interval": "30s",
           "timeout": "5s",
           "threshold": 3
         },
-        "whisper": {
-          "endpoint": "http://localhost:8090/health",
+        "windmill": {
+          "endpoint": "http://localhost:8000/api/version",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "n8n": {
+          "endpoint": "http://localhost:5678/api/v1/info",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "claude-code": {
+          "endpoint": "http://localhost:4112/health",
+          "interval": "60s",
+          "timeout": "15s"
+        },
+        "minio": {
+          "endpoint": "http://localhost:9000/minio/health/ready",
           "interval": "60s",
           "timeout": "10s"
         },
@@ -286,15 +332,10 @@
           "interval": "60s",
           "timeout": "15s"
         },
-        "windmill": {
-          "endpoint": "http://localhost:8000/api/version",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "qdrant": {
-          "endpoint": "http://localhost:6333/health",
-          "interval": "60s",
-          "timeout": "10s"
+        "redis": {
+          "type": "tcp",
+          "port": 6379,
+          "interval": "30s"
         },
         "database": {
           "type": "tcp",
@@ -304,13 +345,13 @@
       },
       "metrics": {
         "responseTime": {
-          "p50": "1000ms",
-          "p95": "5000ms",
-          "p99": "15000ms"
+          "p50": "2000ms",
+          "p95": "10000ms",
+          "p99": "30000ms"
         },
         "throughput": {
-          "rps": 3,
-          "concurrent": 5
+          "rps": 2,
+          "concurrent": 3
         },
         "errorRate": {
           "threshold": "5%"
@@ -326,106 +367,112 @@
           "target": "automation.windmill"
         },
         {
+          "name": "delete-n8n-workflows",
+          "type": "resource-cleanup",
+          "target": "automation.n8n"
+        },
+        {
           "name": "drop-database",
           "type": "sql",
           "target": "storage.postgres",
-          "query": "DROP DATABASE IF EXISTS podcast_transcription_assistant"
+          "query": "DROP DATABASE IF EXISTS scenario_generator_v1"
         },
         {
-          "name": "clear-vector-collections",
+          "name": "clear-storage-buckets",
           "type": "resource-cleanup",
-          "target": "storage.qdrant"
+          "target": "storage.minio"
         }
       ]
     },
     "testing": {
       "enabled": true,
-      "timeout": "45m",
+      "timeout": "60m",
       "script": "./test.sh",
       "ui": {
-        "required": false,
+        "required": true,
         "type": "windmill",
         "url": "http://localhost:8000"
       },
       "performance": {
         "loadTest": {
-          "users": 3,
-          "duration": "5m",
-          "rampUp": "1m"
+          "users": 2,
+          "duration": "10m",
+          "rampUp": "2m"
         }
       }
     },
     "resources": {
       "requests": {
-        "cpu": "800m",
-        "memory": "2Gi"
+        "cpu": "2000m",
+        "memory": "4Gi"
       },
       "limits": {
-        "cpu": "3000m",
-        "memory": "6Gi"
+        "cpu": "8000m",
+        "memory": "16Gi"
       }
     }
   },
   "metadata": {
     "businessModel": {
       "purpose": "commercial",
-      "valueProposition": "Complete podcast content automation platform for transcription, analysis, and show notes generation",
-      "targetMarket": "Podcast creators, media companies, content agencies, and audio production studios",
+      "valueProposition": "Revolutionary AI-powered SaaS generator that creates complete business applications from customer requirements in minutes",
+      "targetMarket": "Software development agencies, digital transformation consultants, entrepreneurs, and enterprises seeking rapid application development",
       "painPoints": [
-        "Manual transcription and show notes creation consuming hours per episode",
-        "Inconsistent content quality and formatting across episodes",
-        "Difficulty in making podcast content searchable and discoverable"
+        "Custom software development taking months and costing hundreds of thousands of dollars",
+        "Shortage of skilled developers creating bottlenecks in digital transformation",
+        "Need for rapid prototyping and MVP development to validate business ideas quickly"
       ],
-      "solution": "AI-powered podcast assistant providing automated transcription, intelligent summaries, and professional show notes generation",
-      "competitiveAdvantage": "Integration of Whisper transcription with AI-powered content analysis and professional workflow automation",
+      "solution": "AI-powered scenario generator that automatically creates complete SaaS applications with full deployment configurations from natural language requirements",
+      "competitiveAdvantage": "First-to-market meta-scenario system using Claude Code for autonomous application generation with complete infrastructure automation",
       "revenuePotential": {
-        "initial": "$3,000",
-        "recurring": "$12,000",
-        "expansion": "$25,000",
-        "totalEstimate": "$40,000"
+        "initial": "$25,000",
+        "recurring": "$75,000",
+        "expansion": "$200,000",
+        "totalEstimate": "$300,000"
       },
       "marketDemand": {
-        "level": "very-high",
-        "growth": "40% annually",
-        "evidence": "Explosive growth in podcast industry and increasing demand for content automation tools"
+        "level": "ultra-high",
+        "growth": "60% annually",
+        "evidence": "Explosive demand for no-code/low-code solutions and AI-powered development tools in the face of developer shortage"
       },
       "roi": {
-        "developmentCost": "$5,000",
-        "timeToMarket": "2 weeks",
-        "breakEven": "3 months"
+        "developmentCost": "$30,000",
+        "timeToMarket": "6 weeks",
+        "breakEven": "8 months"
       }
     },
     "performance": {
       "targets": {
-        "initializationTime": "5m",
+        "initializationTime": "12m",
         "responseTime": {
-          "p50": "1000ms",
-          "p95": "5000ms",
-          "p99": "15000ms"
+          "p50": "2000ms",
+          "p95": "10000ms",
+          "p99": "30000ms"
         },
         "throughput": {
-          "minimum": 2,
-          "target": 3,
-          "peak": 10
+          "minimum": 1,
+          "target": 2,
+          "peak": 5
         },
-        "availability": "99.5%",
+        "availability": "99.0%",
         "errorRate": "<5%"
       },
       "resources": {
         "cpu": {
-          "minimum": "1.5",
-          "target": "3.0",
-          "maximum": "6.0"
+          "minimum": "4.0",
+          "target": "8.0",
+          "maximum": "16.0"
         },
         "memory": {
-          "minimum": "3Gi",
-          "target": "6Gi",
-          "maximum": "12Gi"
+          "minimum": "8Gi",
+          "target": "16Gi",
+          "maximum": "32Gi"
         },
         "storage": {
-          "database": "50Gi",
-          "audio": "500Gi",
-          "transcriptions": "100Gi"
+          "database": "500Gi",
+          "scenarios": "2Ti",
+          "templates": "500Gi",
+          "code-artifacts": "1Ti"
         }
       }
     },
@@ -433,7 +480,7 @@
       "variables": {
         "APP_NAME": {
           "type": "string",
-          "default": "Podcast Transcription Assistant",
+          "default": "Scenario Generator V1",
           "description": "Application display name"
         },
         "COMPANY_NAME": {
@@ -443,12 +490,12 @@
         },
         "PRIMARY_COLOR": {
           "type": "string",
-          "default": "#f59e0b",
+          "default": "#9333ea",
           "description": "Brand primary color"
         },
         "DATABASE_NAME": {
           "type": "string",
-          "default": "podcast_transcription_assistant",
+          "default": "scenario_generator_v1",
           "description": "Database name"
         },
         "APP_PORT": {
@@ -456,68 +503,73 @@
           "default": 3000,
           "description": "Application port"
         },
-        "WHISPER_PORT": {
-          "type": "number",
-          "default": 8090,
-          "description": "Whisper transcription service port"
-        },
         "WINDMILL_PORT": {
           "type": "number",
           "default": 8000,
           "description": "Windmill UI port"
+        },
+        "N8N_PORT": {
+          "type": "number",
+          "default": 5678,
+          "description": "n8n workflow editor port"
+        },
+        "CLAUDE_CODE_PORT": {
+          "type": "number",
+          "default": 4112,
+          "description": "Claude Code agent port"
         }
       },
       "features": {
         "authentication": {
           "enabled": true,
           "provider": "jwt",
-          "sso": false
+          "sso": true
         },
         "notifications": {
           "enabled": true,
-          "channels": ["email", "webhook"]
+          "channels": ["email", "webhook", "slack"]
         },
         "analytics": {
           "enabled": true,
           "provider": "internal"
         },
-        "transcription": {
+        "codeGeneration": {
           "enabled": true,
-          "provider": "whisper"
-        },
-        "contentAnalysis": {
-          "enabled": true,
-          "provider": "ollama"
-        },
-        "vectorSearch": {
-          "enabled": false,
-          "provider": "qdrant"
+          "provider": "claude-code"
         },
         "workflowAutomation": {
-          "enabled": false,
+          "enabled": true,
+          "provider": "n8n"
+        },
+        "uiGeneration": {
+          "enabled": true,
           "provider": "windmill"
+        },
+        "scenarioTemplates": {
+          "enabled": true,
+          "provider": "minio"
         }
       },
       "integrations": [
         {
-          "name": "Podcast Hosting Platforms",
+          "name": "Version Control Systems",
           "type": "api",
           "required": false
         },
         {
-          "name": "Audio Processing Tools",
+          "name": "Cloud Deployment Services",
+          "type": "api",
+          "required": false
+        },
+        {
+          "name": "Customer Requirements Management",
           "type": "webhook",
-          "required": false
-        },
-        {
-          "name": "Content Management Systems",
-          "type": "api",
           "required": false
         }
       ]
     },
-    "category": "ai-content-creation",
-    "complexity": "intermediate",
-    "marketDemand": "very-high"
+    "category": "ai-development",
+    "complexity": "advanced",
+    "marketDemand": "ultra-high"
   }
 }

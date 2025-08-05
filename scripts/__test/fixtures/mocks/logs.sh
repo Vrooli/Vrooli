@@ -107,9 +107,8 @@ mock::_create_log_files() {
     
     local log_files=(
         "command_calls.log:Mock call log started at $timestamp"
-        "http_calls.log:HTTP mock calls started at $timestamp"
         "docker_calls.log:Docker mock calls started at $timestamp"
-        "used_mocks.log:Mock state changes started at $timestamp"
+        "state_changes.log:Mock state changes started at $timestamp"
     )
     
     for log_entry in "${log_files[@]}"; do
@@ -163,9 +162,6 @@ mock::log_call() {
     # Determine appropriate log file based on system
     local log_file
     case "$system" in
-        "http"|"curl"|"wget"|"nc")
-            log_file="$MOCK_LOG_DIR/http_calls.log"
-            ;;
         "docker"|"docker-compose")
             log_file="$MOCK_LOG_DIR/docker_calls.log"
             ;;
@@ -238,7 +234,7 @@ mock::log_state() {
     local state_entry="[$timestamp] ${state_type}:${identifier:-}:${new_state:-}"
     
     # Attempt to log to file
-    if ! echo "$state_entry" >> "$MOCK_LOG_DIR/used_mocks.log" 2>/dev/null; then
+    if ! echo "$state_entry" >> "$MOCK_LOG_DIR/state_changes.log" 2>/dev/null; then
         # State log file write failed
         if [[ "$MOCK_UTILS_VERBOSE" == "true" ]]; then
             echo "[MOCK_UTILS] ERROR: Failed to log state change: $state_entry" >&2 2>/dev/null || true
@@ -398,9 +394,8 @@ mock::print_log_summary() {
     echo ""
     echo "View logs with:"
     echo "  cat $MOCK_LOG_DIR/command_calls.log"
-    echo "  cat $MOCK_LOG_DIR/http_calls.log"
     echo "  cat $MOCK_LOG_DIR/docker_calls.log"
-    echo "  cat $MOCK_LOG_DIR/used_mocks.log"
+    echo "  cat $MOCK_LOG_DIR/state_changes.log"
     
     return 0
 }

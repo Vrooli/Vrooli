@@ -1,21 +1,20 @@
 {
-  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
-    "name": "multi-modal-ai-assistant",
-    "displayName": "Multi-Modal AI Assistant",
-    "description": "Voice-to-visual-to-action AI assistant with professional UI for accessibility and productivity",
+    "name": "podcast-transcription-assistant",
+    "displayName": "Podcast Transcription Assistant",
+    "description": "AI-powered podcast transcription with summaries, key points extraction, and show notes generation",
     "version": "1.0.0",
     "type": "business-application",
     "tags": [
-      "multimodal",
-      "voice-enabled",
-      "visual-generation",
-      "automation",
+      "audio-processing",
+      "content-automation",
+      "transcription",
       "windmill-ui",
-      "accessibility",
-      "enterprise-ready",
-      "high-revenue-potential"
+      "media-production",
+      "podcast-creator",
+      "content-generation"
     ],
     "maintainers": [
       {
@@ -27,7 +26,7 @@
     "repository": {
       "type": "git",
       "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/core/multi-modal-ai-assistant"
+      "directory": "/scripts/scenarios/core/podcast-transcription-assistant"
     },
     "license": "GPL-3.0",
     "homepage": "https://github.com/Vrooli/Vrooli",
@@ -65,15 +64,15 @@
         "initialization": {
           "buckets": [
             {
-              "name": "voice-recordings",
+              "name": "podcast-audio",
               "policy": "private"
             },
             {
-              "name": "generated-visuals",
+              "name": "transcriptions",
               "policy": "private"
             },
             {
-              "name": "user-uploads",
+              "name": "show-notes",
               "policy": "private"
             }
           ]
@@ -86,7 +85,7 @@
         "initialization": {
           "collections": [
             {
-              "name": "conversation-memory",
+              "name": "podcast-content",
               "config": {
                 "vectors": {
                   "size": 384,
@@ -95,7 +94,7 @@
               }
             },
             {
-              "name": "user-preferences",
+              "name": "episode-similarity",
               "config": {
                 "vectors": {
                   "size": 384,
@@ -115,61 +114,34 @@
       "ollama": {
         "enabled": true,
         "required": true,
-        "models": ["llama3.1:8b", "llava:13b", "nomic-embed-text"]
+        "models": ["llama3.1:8b", "nomic-embed-text"]
       }
     },
     "automation": {
-      "comfyui": {
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "workflows": [
-            {
-              "name": "accessibility-visual-generation",
-              "file": "initialization/workflows/comfyui/accessibility-workflow.json",
-              "enabled": true,
-              "tags": ["accessibility", "visual"]
-            },
-            {
-              "name": "voice-to-visual-pipeline",
-              "file": "initialization/workflows/comfyui/voice-visual-workflow.json",
-              "enabled": true,
-              "tags": ["voice", "multimodal"]
-            }
-          ]
-        }
-      },
       "windmill": {
-        "enabled": true,
-        "required": true,
+        "enabled": false,
+        "required": false,
         "initialization": {
           "apps": [
             {
-              "path": "f/multi-modal-assistant/dashboard",
-              "file": "initialization/ui/windmill-app.json",
-              "summary": "Multi-Modal AI Assistant Dashboard"
+              "path": "f/podcast-assistant/dashboard",
+              "file": "initialization/ui/windmill-podcast-app.json",
+              "summary": "Podcast Content Management Dashboard"
             }
           ],
           "scripts": [
             {
-              "name": "voice-processing",
-              "file": "initialization/scripts/voice-processing.ts",
+              "name": "transcription-processor",
+              "file": "initialization/scripts/transcription-processor.ts",
               "language": "typescript"
             },
             {
-              "name": "visual-generation",
-              "file": "initialization/scripts/visual-generation.ts",
+              "name": "show-notes-generator",
+              "file": "initialization/scripts/show-notes-generator.ts",
               "language": "typescript"
             }
           ]
         }
-      }
-    },
-    "agents": {
-      "agent-s2": {
-        "enabled": true,
-        "required": true,
-        "mode": "service"
       }
     }
   },
@@ -177,12 +149,10 @@
     "target": "docker",
     "strategy": "rolling-update",
     "urls": {
-      "application": "http://localhost:8000",
-      "api": "http://localhost:3000/api/multi-modal-ai-assistant",
-      "health": "http://localhost:3000/api/multi-modal-ai-assistant/health",
-      "windmill": "http://localhost:8000",
-      "comfyui": "http://localhost:8188",
-      "agent-s2": "http://localhost:4113"
+      "application": "http://localhost:3000",
+      "api": "http://localhost:3000/api/podcast-transcription-assistant",
+      "health": "http://localhost:3000/api/podcast-transcription-assistant/health",
+      "windmill": "http://localhost:8000"
     },
     "initialization": {
       "phases": [
@@ -215,51 +185,32 @@
           ]
         },
         {
-          "name": "storage-setup",
-          "parallel": true,
-          "tasks": [
-            {
-              "name": "setup-minio-buckets",
-              "type": "resource-inject",
-              "target": "storage.minio",
-              "timeout": "2m"
-            },
-            {
-              "name": "setup-vector-collections",
-              "type": "resource-inject",
-              "target": "storage.qdrant",
-              "timeout": "2m"
-            }
-          ]
-        },
-        {
           "name": "ai-setup",
           "parallel": true,
           "tasks": [
-            {
-              "name": "load-ai-models",
-              "type": "resource-inject",
-              "target": "ai.ollama",
-              "timeout": "15m"
-            },
             {
               "name": "verify-whisper",
               "type": "resource-inject",
               "target": "ai.whisper",
               "timeout": "2m"
+            },
+            {
+              "name": "load-ai-models",
+              "type": "resource-inject",
+              "target": "ai.ollama",
+              "timeout": "10m"
             }
           ]
         },
         {
-          "name": "workflow-deployment",
+          "name": "optional-services-setup",
           "parallel": true,
           "tasks": [
             {
-              "name": "deploy-comfyui-workflows",
+              "name": "setup-vector-collections",
               "type": "resource-inject",
-              "target": "automation.comfyui",
-              "config": "initialization/workflows/comfyui/",
-              "timeout": "5m"
+              "target": "storage.qdrant",
+              "timeout": "2m"
             },
             {
               "name": "deploy-windmill-apps",
@@ -279,9 +230,9 @@
               "file": "initialization/configuration/app-config.json"
             },
             {
-              "name": "set-feature-flags",
+              "name": "set-transcription-settings",
               "type": "config",
-              "file": "initialization/configuration/feature-flags.json"
+              "file": "initialization/configuration/transcription-settings.json"
             }
           ]
         },
@@ -292,7 +243,7 @@
               "name": "start-application",
               "type": "script",
               "script": "./deployment/startup.sh",
-              "timeout": "3m"
+              "timeout": "2m"
             }
           ]
         },
@@ -302,7 +253,7 @@
             {
               "name": "health-check",
               "type": "healthcheck",
-              "target": "http://localhost:3000/api/multi-modal-ai-assistant/health",
+              "target": "http://localhost:3000/api/podcast-transcription-assistant/health",
               "timeout": "30s",
               "retries": 3
             },
@@ -320,25 +271,10 @@
       "enabled": true,
       "healthChecks": {
         "application": {
-          "endpoint": "http://localhost:3000/api/multi-modal-ai-assistant/health",
+          "endpoint": "http://localhost:3000/api/podcast-transcription-assistant/health",
           "interval": "30s",
           "timeout": "5s",
           "threshold": 3
-        },
-        "windmill": {
-          "endpoint": "http://localhost:8000/api/version",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "comfyui": {
-          "endpoint": "http://localhost:8188/system_stats",
-          "interval": "60s",
-          "timeout": "15s"
-        },
-        "agent-s2": {
-          "endpoint": "http://localhost:4113/health",
-          "interval": "60s",
-          "timeout": "10s"
         },
         "whisper": {
           "endpoint": "http://localhost:8090/health",
@@ -350,6 +286,16 @@
           "interval": "60s",
           "timeout": "15s"
         },
+        "windmill": {
+          "endpoint": "http://localhost:8000/api/version",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "qdrant": {
+          "endpoint": "http://localhost:6333/health",
+          "interval": "60s",
+          "timeout": "10s"
+        },
         "database": {
           "type": "tcp",
           "port": 5432,
@@ -358,16 +304,16 @@
       },
       "metrics": {
         "responseTime": {
-          "p50": "800ms",
-          "p95": "3000ms",
-          "p99": "8000ms"
+          "p50": "1000ms",
+          "p95": "5000ms",
+          "p99": "15000ms"
         },
         "throughput": {
-          "rps": 10,
-          "concurrent": 15
+          "rps": 3,
+          "concurrent": 5
         },
         "errorRate": {
-          "threshold": "4%"
+          "threshold": "5%"
         }
       }
     },
@@ -380,25 +326,15 @@
           "target": "automation.windmill"
         },
         {
-          "name": "delete-comfyui-workflows",
-          "type": "resource-cleanup",
-          "target": "automation.comfyui"
-        },
-        {
           "name": "drop-database",
           "type": "sql",
           "target": "storage.postgres",
-          "query": "DROP DATABASE IF EXISTS multi_modal_ai_assistant"
+          "query": "DROP DATABASE IF EXISTS podcast_transcription_assistant"
         },
         {
           "name": "clear-vector-collections",
           "type": "resource-cleanup",
           "target": "storage.qdrant"
-        },
-        {
-          "name": "clear-storage-buckets",
-          "type": "resource-cleanup",
-          "target": "storage.minio"
         }
       ]
     },
@@ -407,90 +343,89 @@
       "timeout": "45m",
       "script": "./test.sh",
       "ui": {
-        "required": true,
+        "required": false,
         "type": "windmill",
         "url": "http://localhost:8000"
       },
       "performance": {
         "loadTest": {
-          "users": 5,
-          "duration": "8m",
+          "users": 3,
+          "duration": "5m",
           "rampUp": "1m"
         }
       }
     },
     "resources": {
       "requests": {
-        "cpu": "1500m",
-        "memory": "3Gi"
+        "cpu": "800m",
+        "memory": "2Gi"
       },
       "limits": {
-        "cpu": "6000m",
-        "memory": "12Gi"
+        "cpu": "3000m",
+        "memory": "6Gi"
       }
     }
   },
   "metadata": {
     "businessModel": {
       "purpose": "commercial",
-      "valueProposition": "Complete accessibility and productivity solution combining voice, AI, visual generation, and automation",
-      "targetMarket": "Enterprise accessibility teams, productivity-focused organizations, and users with accessibility needs",
+      "valueProposition": "Complete podcast content automation platform for transcription, analysis, and show notes generation",
+      "targetMarket": "Podcast creators, media companies, content agencies, and audio production studios",
       "painPoints": [
-        "Limited accessibility options in existing productivity tools",
-        "Complex multi-step processes requiring voice-to-visual-to-action workflows",
-        "Lack of integrated AI-powered assistance for users with different interaction preferences"
+        "Manual transcription and show notes creation consuming hours per episode",
+        "Inconsistent content quality and formatting across episodes",
+        "Difficulty in making podcast content searchable and discoverable"
       ],
-      "solution": "Multi-modal AI assistant providing voice input, visual generation, automated workflows, and accessible interfaces",
-      "competitiveAdvantage": "Complete integration of voice, vision, and automation with professional accessibility-focused UI",
+      "solution": "AI-powered podcast assistant providing automated transcription, intelligent summaries, and professional show notes generation",
+      "competitiveAdvantage": "Integration of Whisper transcription with AI-powered content analysis and professional workflow automation",
       "revenuePotential": {
-        "initial": "$10,000",
-        "recurring": "$25,000",
-        "expansion": "$50,000",
-        "totalEstimate": "$85,000"
+        "initial": "$3,000",
+        "recurring": "$12,000",
+        "expansion": "$25,000",
+        "totalEstimate": "$40,000"
       },
       "marketDemand": {
         "level": "very-high",
-        "growth": "35% annually",
-        "evidence": "Growing demand for accessibility solutions and AI-powered productivity tools"
+        "growth": "40% annually",
+        "evidence": "Explosive growth in podcast industry and increasing demand for content automation tools"
       },
       "roi": {
-        "developmentCost": "$8,000",
-        "timeToMarket": "3 weeks",
-        "breakEven": "4 months"
+        "developmentCost": "$5,000",
+        "timeToMarket": "2 weeks",
+        "breakEven": "3 months"
       }
     },
     "performance": {
       "targets": {
-        "initializationTime": "8m",
+        "initializationTime": "5m",
         "responseTime": {
-          "p50": "800ms",
-          "p95": "3000ms",
-          "p99": "8000ms"
+          "p50": "1000ms",
+          "p95": "5000ms",
+          "p99": "15000ms"
         },
         "throughput": {
-          "minimum": 5,
-          "target": 10,
-          "peak": 30
+          "minimum": 2,
+          "target": 3,
+          "peak": 10
         },
-        "availability": "99.7%",
-        "errorRate": "<4%"
+        "availability": "99.5%",
+        "errorRate": "<5%"
       },
       "resources": {
         "cpu": {
-          "minimum": "3.0",
-          "target": "6.0",
-          "maximum": "12.0"
+          "minimum": "1.5",
+          "target": "3.0",
+          "maximum": "6.0"
         },
         "memory": {
-          "minimum": "6Gi",
-          "target": "12Gi",
-          "maximum": "24Gi"
+          "minimum": "3Gi",
+          "target": "6Gi",
+          "maximum": "12Gi"
         },
         "storage": {
-          "database": "30Gi",
-          "vectors": "50Gi",
-          "media": "200Gi",
-          "workflows": "20Gi"
+          "database": "50Gi",
+          "audio": "500Gi",
+          "transcriptions": "100Gi"
         }
       }
     },
@@ -498,7 +433,7 @@
       "variables": {
         "APP_NAME": {
           "type": "string",
-          "default": "Multi-Modal AI Assistant",
+          "default": "Podcast Transcription Assistant",
           "description": "Application display name"
         },
         "COMPANY_NAME": {
@@ -508,12 +443,12 @@
         },
         "PRIMARY_COLOR": {
           "type": "string",
-          "default": "#10b981",
+          "default": "#f59e0b",
           "description": "Brand primary color"
         },
         "DATABASE_NAME": {
           "type": "string",
-          "default": "multi_modal_ai_assistant",
+          "default": "podcast_transcription_assistant",
           "description": "Database name"
         },
         "APP_PORT": {
@@ -521,68 +456,68 @@
           "default": 3000,
           "description": "Application port"
         },
+        "WHISPER_PORT": {
+          "type": "number",
+          "default": 8090,
+          "description": "Whisper transcription service port"
+        },
         "WINDMILL_PORT": {
           "type": "number",
           "default": 8000,
           "description": "Windmill UI port"
-        },
-        "COMFYUI_PORT": {
-          "type": "number",
-          "default": 8188,
-          "description": "ComfyUI interface port"
         }
       },
       "features": {
         "authentication": {
           "enabled": true,
           "provider": "jwt",
-          "sso": true
+          "sso": false
         },
         "notifications": {
           "enabled": true,
-          "channels": ["email", "webhook", "accessibility"]
+          "channels": ["email", "webhook"]
         },
         "analytics": {
           "enabled": true,
           "provider": "internal"
         },
-        "voiceInput": {
+        "transcription": {
           "enabled": true,
           "provider": "whisper"
         },
-        "visualGeneration": {
+        "contentAnalysis": {
           "enabled": true,
-          "provider": "comfyui"
+          "provider": "ollama"
         },
-        "webAutomation": {
-          "enabled": true,
-          "provider": "agent-s2"
+        "vectorSearch": {
+          "enabled": false,
+          "provider": "qdrant"
         },
-        "accessibility": {
-          "enabled": true,
+        "workflowAutomation": {
+          "enabled": false,
           "provider": "windmill"
         }
       },
       "integrations": [
         {
-          "name": "Accessibility Tools",
+          "name": "Podcast Hosting Platforms",
           "type": "api",
           "required": false
         },
         {
-          "name": "Productivity Suites",
+          "name": "Audio Processing Tools",
           "type": "webhook",
           "required": false
         },
         {
-          "name": "Voice Assistants",
+          "name": "Content Management Systems",
           "type": "api",
           "required": false
         }
       ]
     },
-    "category": "ai-assistance",
-    "complexity": "advanced",
+    "category": "ai-content-creation",
+    "complexity": "intermediate",
     "marketDemand": "very-high"
   }
 }

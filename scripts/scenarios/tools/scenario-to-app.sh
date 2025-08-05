@@ -308,22 +308,89 @@ package_scenario_app() {
         return 1
     fi
     
-    # Copy scenario files to target location using fs-operations
+    # Extract required resources from service.json
+    local required_resources
+    required_resources=$(echo "$SERVICE_JSON" | jq -r '
+        .resources | to_entries[] | 
+        select(.value | type == "object") | 
+        .value | to_entries[] | 
+        select(.value.enabled == true) | 
+        .key
+    ' 2>/dev/null | sort -u | tr '\n' ' ')
+    
+    log_info "Required resources: ${required_resources:-none}"
+    
+    # Create minimal runtime package instead of copying everything
+    create_minimal_runtime "$target_dir" "$required_resources"
+    
+    # Copy scenario files to target location
     log_info "Copying scenario files..."
-    if ! copy_scenario_files "$scenario_path" "${target_dir}/data"; then
-        log_error "Failed to copy scenario files"
-        return 1
+    if [[ -d "$scenario_path/.vrooli" ]]; then
+        cp -r "$scenario_path/.vrooli" "$target_dir/"
+    fi
+    if [[ -d "$scenario_path/initialization" ]]; then
+        cp -r "$scenario_path/initialization" "$target_dir/"
+    fi
+    if [[ -d "$scenario_path/deployment" ]]; then
+        cp -r "$scenario_path/deployment" "$target_dir/"
     fi
     
-    # Copy service.json to config directory using fs-operations
-    if ! copy_file_safely "${scenario_path}/service.json" "${target_dir}/config/service.json"; then
-        log_error "Failed to copy service.json to config directory"
-        return 1
+    # Fix schema reference to be relative
+    if [[ -f "$target_dir/.vrooli/service.json" ]]; then
+        local temp_file="$target_dir/.vrooli/service.json.tmp"
+        jq '."$schema" = "./schemas/service.schema.json"' "$target_dir/.vrooli/service.json" > "$temp_file"
+        mv "$temp_file" "$target_dir/.vrooli/service.json"
+    fi
+    
+    # Copy service.json to config directory for compatibility
+    mkdir -p "${target_dir}/config"
+    if [[ -f "$target_dir/.vrooli/service.json" ]]; then
+        cp "$target_dir/.vrooli/service.json" "${target_dir}/config/service.json"
     fi
     
     # Generate runtime injection manifest
     log_info "Generating runtime injection manifest..."
     generate_injection_manifest "$scenario_path" "${target_dir}/manifests/injection.json"
+    
+    # Generate secrets template if it doesn't exist
+    if [[ ! -f "$target_dir/.vrooli/secrets.json" ]]; then
+        log_info "Generating secrets template..."
+        cat > "$target_dir/.vrooli/secrets.json" << 'SECRETS_TEMPLATE'
+{
+  "DB_PASSWORD": "changeme",
+  "DB_USER": "postgres",
+  "DB_NAME": "app",
+  "MINIO_USER": "minioadmin",
+  "MINIO_PASSWORD": "changeme",
+  "N8N_DB_NAME": "n8n",
+  "WINDMILL_DB_NAME": "windmill",
+  "SEARXNG_SECRET": "ultrasecretkey",
+  "_comment": "Update these values before running the application"
+}
+SECRETS_TEMPLATE
+    fi
+    
+    # Create .env file for the app
+    local app_name=$(echo "$SERVICE_JSON" | jq -r '.service.name // "app"')
+    local app_version=$(echo "$SERVICE_JSON" | jq -r '.service.version // "1.0.0"')
+    
+    cat > "$target_dir/.env" << ENV_FILE
+# Application Environment Variables
+APP_NAME=$app_name
+APP_VERSION=$app_version
+
+# Database Configuration
+DB_PASSWORD=changeme
+DB_USER=postgres
+DB_NAME=$app_name
+
+# Resource-specific Configuration
+MINIO_USER=minioadmin
+MINIO_PASSWORD=changeme
+N8N_DB_NAME=n8n
+WINDMILL_DB_NAME=windmill
+SEARXNG_SECRET=ultrasecretkey
+ENV_FILE
     
     # Generate app-specific startup script
     log_info "Generating startup script..."
@@ -360,7 +427,63 @@ package_scenario_app() {
     make_executable "${target_dir}/bin" "*"
     make_executable "${target_dir}/scripts" "*"
     
+    # Generate README for the app
+    local scenario_display_name=$(echo "$SERVICE_JSON" | jq -r '.service.displayName // .service.name')
+    cat > "$target_dir/README.md" << README
+# $scenario_display_name
+
+This is a minimal standalone application generated from a Vrooli scenario.
+
+## Quick Start
+
+1. **Configure environment** (optional):
+   Edit \`.env\` to set passwords and configuration
+
+2. **Start the application**:
+   \`\`\`bash
+   ./bin/start.sh
+   \`\`\`
+
+3. **Stop the application**:
+   \`\`\`bash
+   ./bin/stop.sh
+   \`\`\`
+
+## Structure
+
+- \`runtime/\` - Minimal Vrooli runtime (injection engine + utilities)
+- \`.vrooli/\` - Application configuration
+- \`initialization/\` - Initialization data (SQL, workflows, configs)
+- \`docker-compose.yml\` - Resource containers
+- \`bin/start.sh\` - Production startup script
+- \`.env\` - Environment configuration
+
+## Resources
+
+This app uses the following resources:
+${required_resources:-None}
+
+## Generated From
+
+- Scenario: $scenario_path
+- Date: $(date)
+- Method: Minimal runtime extraction
+
+## Size Comparison
+
+- This app: ~10-20MB
+- Full Vrooli copy: ~1GB+
+
+The minimal runtime contains only the essential components needed to run the scenario.
+README
+    
     log_success "✅ Scenario app packaged successfully"
+    
+    # Display size information
+    local app_size
+    app_size=$(du -sh "$target_dir" 2>/dev/null | cut -f1)
+    log_info "📊 App size: ${app_size:-unknown} (minimal runtime)"
+    
     return 0
 }
 
@@ -424,42 +547,47 @@ generate_startup_script() {
     # Get scenario metadata
     local scenario_name=$(echo "$SERVICE_JSON" | jq -r '.service.name')
     local scenario_display_name=$(echo "$SERVICE_JSON" | jq -r '.service.displayName // .service.name')
+    local app_version=$(echo "$SERVICE_JSON" | jq -r '.service.version // "1.0.0"')
     
     cat > "$script_path" << 'EOF'
 #!/usr/bin/env bash
-# Auto-generated startup script for scenario app
-# Generated by scenario-to-app.sh
+# Auto-generated self-contained startup script
+# Generated by scenario-to-app.sh (minimal runtime version)
 
 set -euo pipefail
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-APP_ROOT=$(cd "${SCRIPT_DIR}/.." && pwd)
+APP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+RUNTIME_DIR="$APP_DIR/runtime"
 
-# Source Vrooli resource management functions
-# These will be provided by the Vrooli runtime environment
-if [[ -f "/opt/vrooli/scripts/resources/lib/resource-functions.sh" ]]; then
-    source "/opt/vrooli/scripts/resources/lib/resource-functions.sh"
-elif [[ -f "${VROOLI_RUNTIME_DIR}/scripts/resources/lib/resource-functions.sh" ]]; then
-    source "${VROOLI_RUNTIME_DIR}/scripts/resources/lib/resource-functions.sh"
+# Source utilities if available
+if [[ -f "$RUNTIME_DIR/utils/log.sh" ]]; then
+    source "$RUNTIME_DIR/utils/log.sh"
 else
-    echo "ERROR: Vrooli resource functions not found"
-    echo "This app requires Vrooli runtime environment"
-    exit 1
+    # Fallback logging functions
+    log_info() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] INFO: $*"; }
+    log_error() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $*" >&2; }
+    log_success() { echo "[$(date +'%Y-%m-%d %H:%M:%S')] SUCCESS: $*"; }
 fi
 
-# Load injection manifest
-INJECTION_MANIFEST="${APP_ROOT}/manifests/injection.json"
-
-log_info() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] INFO: $*"
-}
-
-log_success() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] SUCCESS: $*"
-}
-
-log_error() {
-    echo "[$(date +'%Y-%m-%d %H:%M:%S')] ERROR: $*" >&2
+# Function to wait for service health
+wait_for_health() {
+    local service="$1"
+    local port="$2"
+    local max_attempts="${3:-30}"
+    local attempt=0
+    
+    log_info "Waiting for $service on port $port..."
+    while (( attempt < max_attempts )); do
+        if nc -z localhost "$port" 2>/dev/null; then
+            log_success "✅ $service is ready"
+            return 0
+        fi
+        sleep 2
+        ((attempt++))
+    done
+    
+    log_error "❌ $service failed to start after $((max_attempts * 2)) seconds"
+    return 1
 }
 
 main() {
@@ -467,65 +595,180 @@ EOF
     
     # Add scenario-specific metadata
     cat >> "$script_path" << EOF
-    log_info "Starting ${scenario_display_name} (${deployment_mode} mode)"
-    
-    # 1. Start required resources (inherited from Vrooli)
-    log_info "Starting required resources..."
-    if ! start_required_resources; then
-        log_error "Failed to start required resources"
+    # Load app configuration
+    if [[ ! -f "\$APP_DIR/.vrooli/service.json" ]]; then
+        log_error "Missing .vrooli/service.json"
         exit 1
     fi
     
-    # 2. Wait for resource health using service.json specifications
-    log_info "Waiting for resources to be healthy..."
-    if ! wait_for_resource_health; then
-        log_error "Resources failed health checks"
-        exit 1
+    APP_NAME="${scenario_name}"
+    APP_VERSION="${app_version}"
+    
+    log_info "🚀 Starting ${scenario_display_name} v\$APP_VERSION"
+    
+    # Load environment variables if .env exists
+    if [[ -f "\$APP_DIR/.env" ]]; then
+        log_info "Loading environment variables..."
+        set -a
+        source "\$APP_DIR/.env"
+        set +a
     fi
     
-    # 3. Inject initialization data using validated manifests
-    log_info "Injecting initialization data..."
-    if [[ -f "\$INJECTION_MANIFEST" ]]; then
-        if ! inject_initialization_data "\$INJECTION_MANIFEST"; then
-            log_error "Failed to inject initialization data"
-            exit 1
+    # Start resources using docker-compose
+    if [[ -f "\$APP_DIR/docker-compose.yml" ]]; then
+        log_info "Starting application resources..."
+        cd "\$APP_DIR"
+        docker-compose up -d
+        
+        # Wait for critical services based on what's in service.json
+        REQUIRED_RESOURCES=\$(jq -r '
+            .resources | to_entries[] | 
+            select(.value | type == "object") | 
+            .value | to_entries[] | 
+            select(.value.enabled == true and .value.required == true) | 
+            .key
+        ' "\$APP_DIR/.vrooli/service.json" 2>/dev/null | tr '\n' ' ')
+        
+        for resource in \$REQUIRED_RESOURCES; do
+            case "\$resource" in
+                postgres|postgresql)
+                    wait_for_health "PostgreSQL" 5432 || exit 1
+                    ;;
+                redis)
+                    wait_for_health "Redis" 6379 || exit 1
+                    ;;
+                n8n)
+                    wait_for_health "n8n" 5678 60 || exit 1
+                    ;;
+                windmill)
+                    wait_for_health "Windmill" 8000 60 || exit 1
+                    ;;
+                ollama)
+                    wait_for_health "Ollama" 11434 || exit 1
+                    ;;
+                whisper)
+                    wait_for_health "Whisper" 9000 || exit 1
+                    ;;
+                minio)
+                    wait_for_health "MinIO" 9000 || exit 1
+                    ;;
+                qdrant)
+                    wait_for_health "Qdrant" 6333 || exit 1
+                    ;;
+                vault)
+                    wait_for_health "Vault" 8200 || exit 1
+                    ;;
+                searxng)
+                    wait_for_health "SearXNG" 8080 || exit 1
+                    ;;
+                comfyui)
+                    wait_for_health "ComfyUI" 8188 || exit 1
+                    ;;
+                judge0)
+                    wait_for_health "Judge0" 2358 || exit 1
+                    ;;
+            esac
+        done
+    fi
+    
+    # Run initialization using injection engine if available
+    if [[ -f "\$RUNTIME_DIR/injection/engine.sh" ]]; then
+        log_info "Running initialization..."
+        
+        # Set required environment variables for injection engine
+        export PROJECT_ROOT="\$APP_DIR"
+        export RESOURCES_DIR="\$RUNTIME_DIR/resources"
+        
+        # Check if already initialized
+        INIT_MARKER="\$APP_DIR/.initialized"
+        if [[ -f "\$INIT_MARKER" ]]; then
+            LAST_VERSION=\$(cat "\$INIT_MARKER" 2>/dev/null || echo "")
+            if [[ "\$LAST_VERSION" == "\$APP_VERSION" ]]; then
+                log_info "Already initialized for version \$APP_VERSION, skipping..."
+            else
+                log_info "Version changed from \$LAST_VERSION to \$APP_VERSION, re-initializing..."
+                rm -f "\$INIT_MARKER"
+            fi
         fi
+        
+        if [[ ! -f "\$INIT_MARKER" ]]; then
+            if "\$RUNTIME_DIR/injection/engine.sh" \\
+                --action inject \\
+                --scenario-dir "\$APP_DIR" \\
+                --dry-run no; then
+                echo "\$APP_VERSION" > "\$INIT_MARKER"
+                log_success "✅ Initialization completed"
+            else
+                log_error "❌ Initialization failed"
+                docker-compose down
+                exit 1
+            fi
+        fi
+    fi
+    
+    # Run custom startup script if provided
+    if [[ -f "\$APP_DIR/deployment/startup.sh" ]]; then
+        log_info "Running custom startup script..."
+        exec "\$APP_DIR/deployment/startup.sh"
     else
-        log_info "No initialization data to inject"
+        log_success "✅ ${scenario_display_name} is ready!"
+        log_info ""
+        log_info "Resources are running. Access points:"
+        
+        # Display access URLs based on running services
+        cd "\$APP_DIR"
+        [[ -n "\$(docker-compose ps -q postgres 2>/dev/null)" ]] && log_info "  PostgreSQL: localhost:5432"
+        [[ -n "\$(docker-compose ps -q redis 2>/dev/null)" ]] && log_info "  Redis: localhost:6379"
+        [[ -n "\$(docker-compose ps -q n8n 2>/dev/null)" ]] && log_info "  n8n: http://localhost:5678"
+        [[ -n "\$(docker-compose ps -q windmill 2>/dev/null)" ]] && log_info "  Windmill: http://localhost:8000"
+        [[ -n "\$(docker-compose ps -q ollama 2>/dev/null)" ]] && log_info "  Ollama: http://localhost:11434"
+        [[ -n "\$(docker-compose ps -q minio 2>/dev/null)" ]] && log_info "  MinIO: http://localhost:9001"
+        [[ -n "\$(docker-compose ps -q whisper 2>/dev/null)" ]] && log_info "  Whisper: http://localhost:9000"
+        [[ -n "\$(docker-compose ps -q qdrant 2>/dev/null)" ]] && log_info "  Qdrant: http://localhost:6333"
+        [[ -n "\$(docker-compose ps -q vault 2>/dev/null)" ]] && log_info "  Vault: http://localhost:8200"
+        [[ -n "\$(docker-compose ps -q searxng 2>/dev/null)" ]] && log_info "  SearXNG: http://localhost:8080"
+        [[ -n "\$(docker-compose ps -q comfyui 2>/dev/null)" ]] && log_info "  ComfyUI: http://localhost:8188"
+        [[ -n "\$(docker-compose ps -q judge0 2>/dev/null)" ]] && log_info "  Judge0: http://localhost:2358"
+        
+        log_info ""
+        log_info "Press Ctrl+C to stop all services"
+        
+        # Handle shutdown gracefully
+        shutdown() {
+            log_info "Shutting down services..."
+            docker-compose down
+            exit 0
+        }
+        
+        trap shutdown SIGINT SIGTERM
+        
+        # Keep running
+        while true; do
+            sleep 1
+        done
     fi
-    
-    # 4. Start application services
-    log_info "Starting application services..."
-    if ! start_application_services; then
-        log_error "Failed to start application services"
-        exit 1
-    fi
-    
-    # 5. Begin health monitoring
-    log_info "Starting health monitoring..."
-    start_health_monitoring &
-    
-    log_success "${scenario_display_name} started successfully"
-    
-    # Keep the script running
-    wait
-}
-
-# Trap signals for cleanup
-trap 'cleanup_and_exit' EXIT INT TERM
-
-cleanup_and_exit() {
-    log_info "Shutting down ${scenario_display_name}..."
-    stop_health_monitoring
-    stop_application_services
-    stop_required_resources
-    log_info "Shutdown complete"
 }
 
 main "\$@"
 EOF
     
     chmod +x "$script_path"
+    
+    # Also create a stop script for convenience
+    local stop_script="${target_dir}/bin/stop.sh"
+    cat > "$stop_script" << 'STOP_SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+cd "$APP_DIR"
+
+echo "Stopping all services..."
+docker-compose down
+echo "✅ All services stopped"
+STOP_SCRIPT
+    
+    chmod +x "$stop_script"
 }
 
 # Generate health check scripts
@@ -676,20 +919,422 @@ EXPOSE 3000 8080
 CMD ["/app/bin/start.sh"]
 EOF
     
-    # Generate docker-compose.yml
-    local compose_file="${target_dir}/docker-compose.yml"
-    echo "version: '3.8'" > "$compose_file"
-    echo "services:" >> "$compose_file"
-    echo "  app:" >> "$compose_file"
-    echo "    build: ." >> "$compose_file"
-    echo "    environment:" >> "$compose_file"
-    echo "      - NODE_ENV=production" >> "$compose_file"
-    echo "    networks:" >> "$compose_file"
-    echo "      - vrooli-network" >> "$compose_file"
-    echo "" >> "$compose_file"
-    echo "networks:" >> "$compose_file"
-    echo "  vrooli-network:" >> "$compose_file"
-    echo "    external: true" >> "$compose_file"
+    # Generate proper docker-compose.yml using the new function
+    generate_docker_compose "$target_dir"
+}
+
+#######################################
+# Create minimal runtime package (ported from minimal version)
+# Arguments:
+#   $1 - output directory
+#   $2 - required resources (space-separated)
+#######################################
+create_minimal_runtime() {
+    local output_dir="$1"
+    local required_resources="$2"
+    
+    log_info "Creating minimal runtime package..."
+    
+    # Create runtime directory structure
+    mkdir -p "$output_dir/runtime/injection"
+    mkdir -p "$output_dir/runtime/utils"
+    mkdir -p "$output_dir/runtime/resources"
+    mkdir -p "$output_dir/runtime/startup"
+    
+    # Copy injection engine
+    log_debug "Copying injection engine..."
+    if [[ -d "$PROJECT_ROOT/scripts/scenarios/injection" ]]; then
+        cp -r "$PROJECT_ROOT/scripts/scenarios/injection/"* "$output_dir/runtime/injection/" 2>/dev/null || true
+    fi
+    
+    # Copy essential utilities
+    log_debug "Copying essential utilities..."
+    for util in log.sh flow.sh ports.sh system.sh docker.sh repository.sh args.sh; do
+        if [[ -f "$PROJECT_ROOT/scripts/helpers/utils/$util" ]]; then
+            cp "$PROJECT_ROOT/scripts/helpers/utils/$util" "$output_dir/runtime/utils/"
+        fi
+    done
+    
+    # Copy resource common utilities
+    if [[ -f "$PROJECT_ROOT/scripts/resources/common.sh" ]]; then
+        cp "$PROJECT_ROOT/scripts/resources/common.sh" "$output_dir/runtime/resources/"
+    fi
+    if [[ -f "$PROJECT_ROOT/scripts/resources/port-registry.sh" ]]; then
+        cp "$PROJECT_ROOT/scripts/resources/port-registry.sh" "$output_dir/runtime/resources/"
+    fi
+    
+    # Copy only required resource adapters
+    if [[ -n "$required_resources" ]]; then
+        log_debug "Copying required resource adapters: $required_resources"
+        for resource in $required_resources; do
+            local resource_dir=""
+            # Handle different resource names and locations
+            case "$resource" in
+                postgres|postgresql)
+                    resource_dir="$PROJECT_ROOT/scripts/resources/storage/postgres"
+                    ;;
+                n8n)
+                    resource_dir="$PROJECT_ROOT/scripts/resources/automation/n8n"
+                    ;;
+                windmill)
+                    resource_dir="$PROJECT_ROOT/scripts/resources/automation/windmill"
+                    ;;
+                ollama)
+                    resource_dir="$PROJECT_ROOT/scripts/resources/ai/ollama"
+                    ;;
+                whisper)
+                    resource_dir="$PROJECT_ROOT/scripts/resources/ai/whisper"
+                    ;;
+                redis)
+                    resource_dir="$PROJECT_ROOT/scripts/resources/storage/redis"
+                    ;;
+                minio)
+                    resource_dir="$PROJECT_ROOT/scripts/resources/storage/minio"
+                    ;;
+                qdrant)
+                    resource_dir="$PROJECT_ROOT/scripts/resources/storage/qdrant"
+                    ;;
+                comfyui)
+                    resource_dir="$PROJECT_ROOT/scripts/resources/automation/comfyui"
+                    ;;
+                judge0)
+                    resource_dir="$PROJECT_ROOT/scripts/resources/execution/judge0"
+                    ;;
+                vault)
+                    resource_dir="$PROJECT_ROOT/scripts/resources/storage/vault"
+                    ;;
+                searxng)
+                    resource_dir="$PROJECT_ROOT/scripts/resources/search/searxng"
+                    ;;
+                *)
+                    # Try to find it with find command
+                    resource_dir=$(find "$PROJECT_ROOT/scripts/resources" -type d -name "$resource" 2>&1 | grep -v "Permission denied" | head -1)
+                    ;;
+            esac
+            
+            if [[ -n "$resource_dir" && -d "$resource_dir" ]]; then
+                local parent_dir=$(basename "$(dirname "$resource_dir")")
+                mkdir -p "$output_dir/runtime/resources/$parent_dir"
+                # Copy only essential files, exclude data directories
+                rsync -av --exclude="instances/" --exclude="data/" --exclude="*.log" \
+                    "$resource_dir/" "$output_dir/runtime/resources/$parent_dir/$resource/" 2>/dev/null || \
+                    cp -r "$resource_dir" "$output_dir/runtime/resources/$parent_dir/" 2>/dev/null || true
+                log_debug "  ✓ Copied resource adapter: $resource"
+            else
+                log_warn "  ⚠ Resource adapter not found: $resource (will use Docker only)"
+            fi
+        done
+    fi
+    
+    log_success "✅ Minimal runtime package created"
+}
+
+#######################################
+# Generate production-ready docker-compose.yml
+# Arguments:
+#   $1 - output directory
+#######################################
+generate_docker_compose() {
+    local output_dir="$1"
+    
+    log_info "Generating docker-compose.yml for required resources..."
+    
+    # Extract required resources from SERVICE_JSON
+    local required_resources
+    required_resources=$(echo "$SERVICE_JSON" | jq -r '
+        .resources | to_entries[] | 
+        select(.value | type == "object") | 
+        .value | to_entries[] | 
+        select(.value.enabled == true) | 
+        .key
+    ' 2>/dev/null | sort -u | tr '\n' ' ')
+    
+    # Start with basic compose structure
+    cat > "$output_dir/docker-compose.yml" << 'COMPOSE_HEADER'
+version: '3.8'
+
+networks:
+  app-network:
+    driver: bridge
+
+services:
+COMPOSE_HEADER
+    
+    # Track which volumes we need
+    local volumes_needed=()
+    
+    # Add each required resource to compose file
+    for resource in $required_resources; do
+        case "$resource" in
+            postgres|postgresql)
+                cat >> "$output_dir/docker-compose.yml" << 'POSTGRES_SERVICE'
+  postgres:
+    image: postgres:16-alpine
+    container_name: app-postgres
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_DB: ${DB_NAME:-app}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./initialization/database:/docker-entrypoint-initdb.d:ro
+    networks:
+      - app-network
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+POSTGRES_SERVICE
+                volumes_needed+=("postgres_data")
+                ;;
+                
+            redis)
+                cat >> "$output_dir/docker-compose.yml" << 'REDIS_SERVICE'
+  redis:
+    image: redis:7-alpine
+    container_name: app-redis
+    networks:
+      - app-network
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+REDIS_SERVICE
+                ;;
+                
+            n8n)
+                cat >> "$output_dir/docker-compose.yml" << 'N8N_SERVICE'
+  n8n:
+    image: n8nio/n8n:latest
+    container_name: app-n8n
+    environment:
+      - N8N_BASIC_AUTH_ACTIVE=false
+      - N8N_PORT=5678
+      - DB_TYPE=postgresdb
+      - DB_POSTGRESDB_HOST=postgres
+      - DB_POSTGRESDB_PORT=5432
+      - DB_POSTGRESDB_DATABASE=${N8N_DB_NAME:-n8n}
+      - DB_POSTGRESDB_USER=${DB_USER:-postgres}
+      - DB_POSTGRESDB_PASSWORD=${DB_PASSWORD:-postgres}
+    networks:
+      - app-network
+    ports:
+      - "5678:5678"
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - ./initialization/workflows/n8n:/workflows:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+N8N_SERVICE
+                volumes_needed+=("n8n_data")
+                ;;
+                
+            windmill)
+                cat >> "$output_dir/docker-compose.yml" << 'WINDMILL_SERVICE'
+  windmill:
+    image: ghcr.io/windmill-labs/windmill:latest
+    container_name: app-windmill
+    networks:
+      - app-network
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgres://${DB_USER:-postgres}:${DB_PASSWORD:-postgres}@postgres/${WINDMILL_DB_NAME:-windmill}
+      - INIT_SCRIPT=/initialization/windmill/init.sh
+    volumes:
+      - ./initialization/ui:/initialization/windmill:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+WINDMILL_SERVICE
+                ;;
+                
+            ollama)
+                cat >> "$output_dir/docker-compose.yml" << 'OLLAMA_SERVICE'
+  ollama:
+    image: ollama/ollama:latest
+    container_name: app-ollama
+    networks:
+      - app-network
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_models:/root/.ollama
+    environment:
+      - OLLAMA_HOST=0.0.0.0
+    restart: unless-stopped
+
+OLLAMA_SERVICE
+                volumes_needed+=("ollama_models")
+                ;;
+                
+            whisper)
+                cat >> "$output_dir/docker-compose.yml" << 'WHISPER_SERVICE'
+  whisper:
+    image: onerahmet/openai-whisper-asr-webservice:latest
+    container_name: app-whisper
+    networks:
+      - app-network
+    ports:
+      - "9000:9000"
+    environment:
+      - ASR_MODEL=base
+    restart: unless-stopped
+
+WHISPER_SERVICE
+                ;;
+                
+            minio)
+                cat >> "$output_dir/docker-compose.yml" << 'MINIO_SERVICE'
+  minio:
+    image: minio/minio:latest
+    container_name: app-minio
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=${MINIO_USER:-minioadmin}
+      - MINIO_ROOT_PASSWORD=${MINIO_PASSWORD:-minioadmin}
+    networks:
+      - app-network
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    restart: unless-stopped
+
+MINIO_SERVICE
+                volumes_needed+=("minio_data")
+                ;;
+                
+            qdrant)
+                cat >> "$output_dir/docker-compose.yml" << 'QDRANT_SERVICE'
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: app-qdrant
+    networks:
+      - app-network
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    restart: unless-stopped
+
+QDRANT_SERVICE
+                volumes_needed+=("qdrant_data")
+                ;;
+                
+            comfyui)
+                cat >> "$output_dir/docker-compose.yml" << 'COMFYUI_SERVICE'
+  comfyui:
+    image: ghcr.io/comfyanonymous/comfyui:latest
+    container_name: app-comfyui
+    networks:
+      - app-network
+    ports:
+      - "8188:8188"
+    volumes:
+      - comfyui_data:/workspace
+    environment:
+      - COMMANDLINE_ARGS=--listen 0.0.0.0
+    restart: unless-stopped
+
+COMFYUI_SERVICE
+                volumes_needed+=("comfyui_data")
+                ;;
+                
+            judge0)
+                cat >> "$output_dir/docker-compose.yml" << 'JUDGE0_SERVICE'
+  judge0:
+    image: judge0/judge0:latest
+    container_name: app-judge0
+    networks:
+      - app-network
+    ports:
+      - "2358:2358"
+    environment:
+      - RAILS_ENV=production
+      - REDIS_HOST=redis
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+JUDGE0_SERVICE
+                ;;
+                
+            vault)
+                cat >> "$output_dir/docker-compose.yml" << 'VAULT_SERVICE'
+  vault:
+    image: hashicorp/vault:latest
+    container_name: app-vault
+    networks:
+      - app-network
+    ports:
+      - "8200:8200"
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=root
+      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+    restart: unless-stopped
+
+VAULT_SERVICE
+                ;;
+                
+            searxng)
+                cat >> "$output_dir/docker-compose.yml" << 'SEARXNG_SERVICE'
+  searxng:
+    image: searxng/searxng:latest
+    container_name: app-searxng
+    networks:
+      - app-network
+    ports:
+      - "8080:8080"
+    volumes:
+      - searxng_data:/etc/searxng
+    environment:
+      - SEARXNG_SECRET_KEY=${SEARXNG_SECRET:-ultrasecretkey}
+    restart: unless-stopped
+
+SEARXNG_SERVICE
+                volumes_needed+=("searxng_data")
+                ;;
+                
+            *)
+                log_warn "No docker-compose template for resource: $resource"
+                ;;
+        esac
+    done
+    
+    # Add volumes section if any services were added
+    if [[ ${#volumes_needed[@]} -gt 0 ]]; then
+        echo "" >> "$output_dir/docker-compose.yml"
+        echo "volumes:" >> "$output_dir/docker-compose.yml"
+        for volume in "${volumes_needed[@]}"; do
+            echo "  $volume:" >> "$output_dir/docker-compose.yml"
+        done
+    fi
+    
+    log_success "✅ Docker compose file generated"
 }
 
 # Create Kubernetes deployment configuration

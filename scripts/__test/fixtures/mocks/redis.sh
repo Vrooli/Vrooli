@@ -60,51 +60,18 @@ mock::redis::save_state() {
     {
         echo "# Redis mock state - $(date)"
         
-        # Save configuration
-        echo "declare -gA REDIS_MOCK_CONFIG=("
-        for key in "${!REDIS_MOCK_CONFIG[@]}"; do
-            echo "    [$key]=\"${REDIS_MOCK_CONFIG[$key]}\""
-        done
-        echo ")"
-        
-        # Save data
-        echo "declare -gA REDIS_MOCK_DATA=("
-        for key in "${!REDIS_MOCK_DATA[@]}"; do
-            echo "    [$key]=\"${REDIS_MOCK_DATA[$key]}\""
-        done
-        echo ")"
-        
-        # Save expires
-        echo "declare -gA REDIS_MOCK_EXPIRES=("
-        for key in "${!REDIS_MOCK_EXPIRES[@]}"; do
-            echo "    [$key]=\"${REDIS_MOCK_EXPIRES[$key]}\""
-        done
-        echo ")"
-        
-        # Save lists
-        echo "declare -gA REDIS_MOCK_LISTS=("
-        for key in "${!REDIS_MOCK_LISTS[@]}"; do
-            echo "    [$key]=\"${REDIS_MOCK_LISTS[$key]}\""
-        done
-        echo ")"
-        
-        # Save sets
-        echo "declare -gA REDIS_MOCK_SETS=("
-        for key in "${!REDIS_MOCK_SETS[@]}"; do
-            echo "    [$key]=\"${REDIS_MOCK_SETS[$key]}\""
-        done
-        echo ")"
-        
-        # Save hashes
-        echo "declare -gA REDIS_MOCK_HASHES=("
-        for key in "${!REDIS_MOCK_HASHES[@]}"; do
-            echo "    [$key]=\"${REDIS_MOCK_HASHES[$key]}\""
-        done
-        echo ")"
+        # Save arrays using declare -p for proper restoration
+        declare -p REDIS_MOCK_CONFIG 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA REDIS_MOCK_CONFIG=()"
+        declare -p REDIS_MOCK_DATA 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA REDIS_MOCK_DATA=()"
+        declare -p REDIS_MOCK_EXPIRES 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA REDIS_MOCK_EXPIRES=()"
+        declare -p REDIS_MOCK_LISTS 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA REDIS_MOCK_LISTS=()"
+        declare -p REDIS_MOCK_SETS 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA REDIS_MOCK_SETS=()"
+        declare -p REDIS_MOCK_HASHES 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA REDIS_MOCK_HASHES=()"
+        declare -p REDIS_MOCK_PUBSUB 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA REDIS_MOCK_PUBSUB=()"
         
         # Save transaction state
         echo "REDIS_MOCK_TRANSACTION_MODE=\"$REDIS_MOCK_TRANSACTION_MODE\""
-        echo "REDIS_MOCK_TRANSACTION_QUEUE=(${REDIS_MOCK_TRANSACTION_QUEUE[@]@Q})"
+        declare -p REDIS_MOCK_TRANSACTION_QUEUE 2>/dev/null | sed 's/declare -a/declare -ga/' || echo "declare -ga REDIS_MOCK_TRANSACTION_QUEUE=()"
     } > "$state_file"
     
     mock::log_state "redis" "Saved Redis state to $state_file"
@@ -1210,6 +1177,9 @@ mock::redis::cmd_config() {
 
 # Test helper functions
 mock::redis::reset() {
+    # Optional parameter to control whether to save state after reset
+    local save_state="${1:-true}"
+    
     # Clear all data
     REDIS_MOCK_DATA=()
     REDIS_MOCK_EXPIRES=()
@@ -1236,8 +1206,11 @@ mock::redis::reset() {
     REDIS_MOCK_TRANSACTION_MODE=""
     REDIS_MOCK_TRANSACTION_QUEUE=()
     
-    # Clear state files
-    rm -rf "$REDIS_MOCK_STATE_DIR"/*
+    # Save the reset state to file if requested (default: true)
+    # This ensures subsequent redis-cli calls in subshells get clean state
+    if [[ "$save_state" == "true" ]]; then
+        mock::redis::save_state
+    fi
     
     mock::log_state "redis" "Redis mock reset to initial state"
 }
