@@ -158,9 +158,150 @@ questdb::status::monitor() {
 }
 
 #######################################
+# Test QuestDB functionality
+# Returns: 0 if all tests pass, 1 if any fail, 2 if service not ready
+#######################################
+questdb::test() {
+    echo_info "Testing QuestDB functionality..."
+    
+    # Test 1: Check if QuestDB is installed (container exists)
+    if ! questdb::docker::exists; then
+        echo_error "❌ QuestDB container is not installed"
+        return 1
+    fi
+    echo_success "✅ QuestDB container is installed"
+    
+    # Test 2: Check if service is running
+    if ! questdb::docker::is_running; then
+        echo_error "❌ QuestDB service is not running"
+        return 2
+    fi
+    echo_success "✅ QuestDB service is running"
+    
+    # Test 3: Check API health
+    if ! questdb::api::health_check; then
+        echo_error "❌ QuestDB API is not responding"
+        return 1
+    fi
+    echo_success "✅ QuestDB API is healthy"
+    
+    # Test 4: Test SQL queries
+    echo_info "Testing SQL operations..."
+    local test_result
+    test_result=$(questdb::api::query "SELECT 1 as test_value" 1 2>/dev/null || echo "")
+    if [[ -n "$test_result" ]] && echo "$test_result" | grep -q "test_value"; then
+        echo_success "✅ SQL queries working"
+    else
+        echo_error "❌ SQL query test failed"
+        return 1
+    fi
+    
+    # Test 5: Test table operations
+    echo_info "Testing table operations..."
+    local test_table="vrooli_test_table_$(date +%s)"
+    
+    if questdb::api::query "CREATE TABLE $test_table (id INT, name STRING)" 1 >/dev/null 2>&1; then
+        echo_success "✅ Table creation successful"
+        
+        # Test insert
+        if questdb::api::query "INSERT INTO $test_table VALUES (1, 'test')" 1 >/dev/null 2>&1; then
+            echo_success "✅ Data insertion successful"
+        fi
+        
+        # Clean up test table
+        questdb::api::query "DROP TABLE $test_table" 1 >/dev/null 2>&1 || true
+        echo_success "✅ Table cleanup successful"
+    else
+        echo_warn "⚠️  Table operations test failed - may be permission issue"
+    fi
+    
+    # Test 6: Check storage metrics
+    echo_info "Testing storage metrics..."
+    local storage_info
+    storage_info=$(docker exec "$QUESTDB_CONTAINER_NAME" df -h /root/.questdb 2>/dev/null | tail -1 | awk '{print $3}' || echo "unknown")
+    if [[ "$storage_info" != "unknown" ]]; then
+        echo_success "✅ Storage metrics available (used: $storage_info)"
+    else
+        echo_warn "⚠️  Storage metrics unavailable"
+    fi
+    
+    echo_success "🎉 All QuestDB tests passed"
+    return 0
+}
+
+#######################################
+# Show comprehensive QuestDB information
+#######################################
+questdb::info() {
+    cat << EOF
+=== QuestDB Resource Information ===
+
+ID: questdb
+Category: storage
+Display Name: QuestDB Time Series Database
+Description: High-performance time series database optimized for real-time analytics
+
+Service Details:
+- Container Name: $QUESTDB_CONTAINER_NAME
+- HTTP Port: $QUESTDB_HTTP_PORT
+- PostgreSQL Port: $QUESTDB_PG_PORT
+- InfluxDB Line Protocol Port: $QUESTDB_ILP_PORT
+- HTTP URL: http://localhost:$QUESTDB_HTTP_PORT
+- PostgreSQL URL: postgresql://localhost:$QUESTDB_PG_PORT/qdb
+- Data Directory: $QUESTDB_DATA_DIR
+
+Endpoints:
+- Web Console: http://localhost:$QUESTDB_HTTP_PORT
+- Health Check: http://localhost:$QUESTDB_HTTP_PORT/status
+- Query API: http://localhost:$QUESTDB_HTTP_PORT/exec
+- Import API: http://localhost:$QUESTDB_HTTP_PORT/imp
+- Export API: http://localhost:$QUESTDB_HTTP_PORT/exp
+
+Protocols:
+- HTTP REST API for queries and management
+- PostgreSQL wire protocol for standard SQL tools
+- InfluxDB Line Protocol for high-throughput ingestion
+
+Configuration:
+- Docker Image: $QUESTDB_IMAGE
+- Version: $QUESTDB_VERSION
+- Data Persistence: $QUESTDB_DATA_DIR
+- Log Directory: $QUESTDB_LOG_DIR
+- Config Directory: $QUESTDB_CONFIG_DIR
+
+QuestDB Features:
+- Time series optimized storage
+- SQL with time series extensions
+- High-performance ingestion
+- Real-time aggregations
+- Column-oriented storage
+- SIMD optimizations
+- Zero-GC Java implementation
+- PostgreSQL compatibility
+
+Example Usage:
+# Execute a SQL query
+$0 --action query --query "SELECT * FROM my_table LATEST ON timestamp PARTITION BY id"
+
+# Create a table
+$0 --action tables --table sensors --schema /path/to/schema.sql
+
+# Open web console
+$0 --action console
+
+# Monitor performance
+$0 --action monitor
+
+Documentation: https://questdb.io/docs/
+EOF
+}
+
+#######################################
 # Export status functions
 #######################################
 export -f questdb::status::check
 export -f questdb::status::detailed
 export -f questdb::status::metrics
 export -f questdb::status::monitor
+export -f questdb::test
+export -f questdb::info

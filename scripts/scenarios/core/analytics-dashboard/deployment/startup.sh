@@ -41,29 +41,24 @@ log_error() {
 # Error handling
 trap 'log_error "Startup failed at line $LINENO"; exit 1' ERR
 
-# Load configuration from manifest.yaml and metadata.yaml
+# Load configuration from service.json
 load_configuration() {
     log_info "Loading scenario configuration..."
     
-    # Check if required files exist
-    if [[ ! -f "$SCENARIO_DIR/metadata.yaml" ]]; then
-        log_error "metadata.yaml not found in $SCENARIO_DIR"
+    # Check if required file exists
+    if [[ ! -f "$SCENARIO_DIR/service.json" ]]; then
+        log_error "service.json not found in $SCENARIO_DIR"
         exit 1
     fi
     
-    if [[ ! -f "$SCENARIO_DIR/manifest.yaml" ]]; then
-        log_error "manifest.yaml not found in $SCENARIO_DIR"
-        exit 1
-    fi
-    
-    # Extract required resources (basic parsing - in production use yq or jq)
-    REQUIRED_RESOURCES=$(grep -A 10 "required:" "$SCENARIO_DIR/metadata.yaml" | grep "^[[:space:]]*-" | sed 's/^[[:space:]]*-[[:space:]]*//' | tr '\n' ' ')
+    # Extract required resources
+    REQUIRED_RESOURCES=$(jq -r '.resources | to_entries[] | .value | to_entries[] | select(.value.required == true) | .key' "$SCENARIO_DIR/service.json" 2>/dev/null | tr '\n' ' ')
     log_info "Required resources: $REQUIRED_RESOURCES"
     
     # Extract configuration
-    REQUIRES_UI=$(grep "requires_ui:" "$SCENARIO_DIR/metadata.yaml" | awk '{print $2}' || echo "false")
-    REQUIRES_DISPLAY=$(grep "requires_display:" "$SCENARIO_DIR/metadata.yaml" | awk '{print $2}' || echo "false")
-    TIMEOUT_SECONDS=$(grep "timeout_seconds:" "$SCENARIO_DIR/metadata.yaml" | awk '{print $2}' || echo "300")
+    REQUIRES_UI=$(jq -r '.deployment.testing.ui.required // false' "$SCENARIO_DIR/service.json" 2>/dev/null || echo "false")
+    REQUIRES_DISPLAY=$(jq -r '.deployment.testing.ui.type // "none"' "$SCENARIO_DIR/service.json" 2>/dev/null || echo "none")
+    TIMEOUT_SECONDS=$(jq -r '.deployment.testing.timeout // "30m"' "$SCENARIO_DIR/service.json" 2>/dev/null | sed 's/[ms]//g' || echo "300")
     
     log_info "UI required: $REQUIRES_UI, Display required: $REQUIRES_DISPLAY, Timeout: ${TIMEOUT_SECONDS}s"
 }

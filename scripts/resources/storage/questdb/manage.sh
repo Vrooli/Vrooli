@@ -60,6 +60,8 @@ questdb::parse_arguments() {
         - restart:     Restart QuestDB container
         - status:      Check QuestDB status
         - logs:        View QuestDB logs
+        - info:        Show detailed resource information
+        - test:        Test QuestDB functionality
         - query:       Execute SQL query
         - tables:      List or create tables
         - api:         Make API request
@@ -119,6 +121,12 @@ questdb::parse_arguments() {
             local tail_logs
             tail_logs=$(args::is_option_set tail && echo "true" || echo "false")
             questdb::docker::logs "$tail_logs"
+            ;;
+        info)
+            questdb::info
+            ;;
+        test)
+            questdb::test
             ;;
         query)
             local query

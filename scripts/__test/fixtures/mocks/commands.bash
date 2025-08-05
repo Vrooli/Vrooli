@@ -9,9 +9,9 @@ fi
 export COMMANDS_MOCKS_LOADED="true"
 
 # Command mock state storage
-declare -A MOCK_COMMAND_OUTPUTS
-declare -A MOCK_COMMAND_EXIT_CODES
-declare -A MOCK_SERVICE_STATES
+declare -gA MOCK_COMMAND_OUTPUTS
+declare -gA MOCK_COMMAND_EXIT_CODES
+declare -gA MOCK_SERVICE_STATES
 
 #######################################
 # Set mock command output
@@ -35,155 +35,6 @@ mock::service::set_state() {
     local state="$2"
     
     MOCK_SERVICE_STATES["$service"]="$state"
-}
-
-#######################################
-# jq command mock
-#######################################
-jq() {
-    # Track command calls
-    if [[ -n "${MOCK_RESPONSES_DIR:-}" ]]; then
-        echo "jq $*" >> "${MOCK_RESPONSES_DIR}/command_calls.log"
-    fi
-    
-    # Check for custom mock output
-    if [[ -n "${MOCK_COMMAND_OUTPUTS[jq]:-}" ]]; then
-        echo "${MOCK_COMMAND_OUTPUTS[jq]}"
-        return "${MOCK_COMMAND_EXIT_CODES[jq]:-0}"
-    fi
-    
-    # Handle common jq patterns
-    local filter="$1"
-    local input=""
-    local raw_output=false
-    
-    # Check for -r flag
-    if [[ "$filter" == "-r" ]]; then
-        raw_output=true
-        shift
-        filter="$1"
-    fi
-    
-    # Read from stdin if no file specified
-    if [[ $# -eq 1 ]] || ([[ $# -eq 2 ]] && [[ "$raw_output" == true ]]); then
-        input=$(cat)
-    else
-        # Handle file input
-        if [[ "$raw_output" == true ]]; then
-            shift
-        fi
-        shift
-        input=$(cat "$@" 2>/dev/null || echo "{}")
-    fi
-    
-    # Try to extract value from actual JSON input first
-    local extracted_value=""
-    if [[ -n "$input" && "$input" =~ ^\{.*\}$ ]]; then
-        case "$filter" in
-            ".status")
-                extracted_value=$(echo "$input" | sed -n 's/.*"status"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-                ;;
-            ".version")
-                extracted_value=$(echo "$input" | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-                ;;
-            ".enabled")
-                extracted_value=$(echo "$input" | sed -n 's/.*"enabled"[[:space:]]*:[[:space:]]*\([^,}]*\).*/\1/p')
-                ;;
-            ".health")
-                extracted_value=$(echo "$input" | sed -n 's/.*"health"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-                ;;
-        esac
-    fi
-    
-    # Output the result
-    case "$filter" in
-        ".status")
-            if [[ -n "$extracted_value" ]]; then
-                if [[ "$raw_output" == true ]]; then
-                    echo "$extracted_value"
-                else
-                    echo "\"$extracted_value\""
-                fi
-            else
-                if [[ "$raw_output" == true ]]; then
-                    echo "ok"
-                else
-                    echo "\"ok\""
-                fi
-            fi
-            ;;
-        ".version")
-            if [[ -n "$extracted_value" ]]; then
-                if [[ "$raw_output" == true ]]; then
-                    echo "$extracted_value"
-                else
-                    echo "\"$extracted_value\""
-                fi
-            else
-                if [[ "$raw_output" == true ]]; then
-                    echo "1.0.0"
-                else
-                    echo "\"1.0.0\""
-                fi
-            fi
-            ;;
-        ".enabled")
-            if [[ -n "$extracted_value" ]]; then
-                echo "$extracted_value"
-            else
-                echo "true"
-            fi
-            ;;
-        ".health")
-            if [[ -n "$extracted_value" ]]; then
-                if [[ "$raw_output" == true ]]; then
-                    echo "$extracted_value"
-                else
-                    echo "\"$extracted_value\""
-                fi
-            else
-                if [[ "$raw_output" == true ]]; then
-                    echo "healthy"
-                else
-                    echo "\"healthy\""
-                fi
-            fi
-            ;;
-        ".[]")
-            echo "\"item1\""
-            echo "\"item2\""
-            ;;
-        ".")
-            # Identity filter - validate and pretty print JSON
-            if echo "$input" | grep -q "^{"; then
-                echo "$input"
-            else
-                echo "{}"
-            fi
-            ;;
-        "keys")
-            echo "[\"key1\", \"key2\", \"key3\"]"
-            ;;
-        "length")
-            echo "3"
-            ;;
-        "empty")
-            # Return nothing
-            ;;
-        "has(\"*\")")
-            echo "true"
-            ;;
-        *)
-            # For complex filters, return a reasonable default
-            if [[ "$filter" =~ \[\] ]]; then
-                echo "[]"
-            elif [[ "$filter" =~ \{\} ]]; then
-                echo "{}"
-            else
-                echo "\"mock-value\""
-            fi
-            ;;
-    esac
 }
 
 #######################################

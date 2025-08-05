@@ -9,9 +9,9 @@ fi
 export FILESYSTEM_MOCKS_LOADED="true"
 
 # Filesystem mock state storage
-declare -A MOCK_FILE_CONTENTS
-declare -A MOCK_DIRECTORY_CONTENTS
-declare -A MOCK_FILE_PERMISSIONS
+declare -gA MOCK_FILE_CONTENTS
+declare -gA MOCK_DIRECTORY_CONTENTS
+declare -gA MOCK_FILE_PERMISSIONS
 
 #######################################
 # Set mock file content

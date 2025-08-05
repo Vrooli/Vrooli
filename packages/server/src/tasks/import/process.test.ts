@@ -1,3 +1,4 @@
+import { generatePK } from "@vrooli/shared";
 import { type Job } from "bullmq";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockJob } from "../taskFactory.js";
@@ -8,7 +9,7 @@ describe("importProcess", () => {
         vi.clearAllMocks();
     });
 
-    function createMockImportJob(data: Partial<ImportUserDataTask> = {}): Job<ImportUserDataTask> {
+    function _createMockImportJob(data: Partial<ImportUserDataTask> = {}): Job<ImportUserDataTask> {
         return createMockJob<ImportUserDataTask>(
             QueueTaskType.IMPORT_USER_DATA,
             {
@@ -20,9 +21,9 @@ describe("importProcess", () => {
                 },
                 config: data.config || {
                     allowForeignData: false,
-                    assignObjectsTo: { __typename: "User", id: "user-123" },
+                    assignObjectsTo: { __typename: "User", id: generatePK().toString() },
                     onConflict: "skip",
-                    userData: { id: "user-123", languages: ["en"] },
+                    userData: { id: generatePK().toString(), languages: ["en"] },
                     isSeeding: false,
                 },
                 ...data,

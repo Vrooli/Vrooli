@@ -9,10 +9,10 @@ fi
 export HTTP_MOCKS_LOADED="true"
 
 # HTTP mock state storage
-declare -A MOCK_HTTP_ENDPOINTS
-declare -A MOCK_HTTP_RESPONSES
-declare -A MOCK_HTTP_STATUS_CODES
-declare -A MOCK_HTTP_DELAYS
+declare -gA MOCK_HTTP_ENDPOINTS
+declare -gA MOCK_HTTP_RESPONSES
+declare -gA MOCK_HTTP_STATUS_CODES
+declare -gA MOCK_HTTP_DELAYS
 
 # Global HTTP mock configuration
 export HTTP_MOCK_MODE="${HTTP_MOCK_MODE:-normal}"  # normal, offline, slow
@@ -211,6 +211,7 @@ curl() {
                 shift
                 ;;
             "-w"|"--write-out")
+                # Handle various formats: %{http_code}, '\n%{http_code}', "\n%{http_code}"
                 if [[ "$2" =~ %\{http_code\} ]]; then
                     output_http_code=true
                 fi

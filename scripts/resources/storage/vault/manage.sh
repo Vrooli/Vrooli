@@ -193,6 +193,9 @@ vault::main() {
         "test-functional")
             vault::test_functional
             ;;
+        "test")
+            vault::test_functional
+            ;;
         "logs")
             if [[ "$FOLLOW_LOGS" == "yes" ]]; then
                 vault::docker::show_logs "$LOG_LINES" "follow"

@@ -210,7 +210,7 @@ function parseRRule(rrule: InstanceType<typeof RRule>, startTime: Date, endTime:
         recurrenceType,
         interval: rrule.options.interval || 1,
         duration,
-    } as ReturnType<typeof parseRRule>;
+    } as NonNullable<ReturnType<typeof parseRRule>>;
 
     // Handle day of week for weekly recurrence
     if (recurrenceType === ScheduleRecurrenceType.Weekly && rrule.options.byweekday) {

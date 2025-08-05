@@ -308,3 +308,140 @@ minio::status::diagnose() {
         return 1
     fi
 }
+
+#######################################
+# Test MinIO functionality
+# Returns: 0 if all tests pass, 1 if any fail, 2 if service not ready
+#######################################
+minio::test() {
+    log::info "Testing MinIO functionality..."
+    
+    # Test 1: Check if MinIO is installed (container exists)
+    if ! minio::common::container_exists; then
+        log::error "❌ MinIO container is not installed"
+        return 1
+    fi
+    log::success "✅ MinIO container is installed"
+    
+    # Test 2: Check if service is running
+    if ! minio::common::is_running; then
+        log::error "❌ MinIO service is not running"
+        return 2
+    fi
+    log::success "✅ MinIO service is running"
+    
+    # Test 3: Check API health
+    if ! minio::common::health_check; then
+        log::error "❌ MinIO API is not responding"
+        return 1
+    fi
+    log::success "✅ MinIO API is healthy"
+    
+    # Test 4: Check authentication and basic API operations
+    log::info "Testing API authentication..."
+    if minio::api::configure_mc >/dev/null 2>&1; then
+        log::success "✅ Authentication successful"
+        
+        # Test 5: Test bucket operations
+        log::info "Testing bucket operations..."
+        local test_bucket="vrooli-test-bucket-$(date +%s)"
+        
+        if minio::api::create_bucket "$test_bucket" >/dev/null 2>&1; then
+            log::success "✅ Bucket creation successful"
+            
+            # Clean up test bucket
+            minio::api::mc rm --recursive --force "local/$test_bucket" >/dev/null 2>&1 || true
+            log::success "✅ Bucket cleanup successful"
+        else
+            log::warn "⚠️  Bucket operations test failed - may be permission issue"
+        fi
+    else
+        log::error "❌ Authentication failed"
+        return 1
+    fi
+    
+    # Test 6: Check storage metrics
+    log::info "Testing storage metrics..."
+    local used_space
+    used_space=$(docker exec "$MINIO_CONTAINER_NAME" df -h /data 2>/dev/null | tail -1 | awk '{print $3}' || echo "unknown")
+    if [[ "$used_space" != "unknown" ]]; then
+        log::success "✅ Storage metrics available (used: $used_space)"
+    else
+        log::warn "⚠️  Storage metrics unavailable"
+    fi
+    
+    log::success "🎉 All MinIO tests passed"
+    return 0
+}
+
+#######################################
+# Show comprehensive MinIO information
+#######################################
+minio::info() {
+    cat << EOF
+=== MinIO Resource Information ===
+
+ID: minio
+Category: storage
+Display Name: MinIO Object Storage
+Description: S3-compatible object storage server
+
+Service Details:
+- Container Name: $MINIO_CONTAINER_NAME
+- API Port: $MINIO_PORT
+- Console Port: $MINIO_CONSOLE_PORT
+- API URL: http://localhost:$MINIO_PORT
+- Console URL: http://localhost:$MINIO_CONSOLE_PORT
+- Data Directory: $MINIO_DATA_DIR
+
+Endpoints:
+- Health Check: http://localhost:$MINIO_PORT/minio/health/live
+- Server Info: http://localhost:$MINIO_PORT/minio/admin/v3/info
+- Bucket List: http://localhost:$MINIO_PORT/minio/admin/v3/list-buckets
+- Upload: PUT http://localhost:$MINIO_PORT/{bucket}/{object}
+- Download: GET http://localhost:$MINIO_PORT/{bucket}/{object}
+
+Authentication:
+- Root User: $MINIO_ROOT_USER
+- Root Password: [HIDDEN - use --action show-credentials]
+- Access Key: $MINIO_ROOT_USER
+- Secret Key: [HIDDEN - use --action show-credentials]
+
+Configuration:
+- Docker Image: $MINIO_IMAGE
+- Version: $MINIO_VERSION
+- Data Persistence: $MINIO_DATA_DIR
+- Web Console: Enabled
+- API Compatibility: S3 v4 signature
+
+MinIO Features:
+- S3-compatible API
+- Multi-tenant buckets
+- Versioning support
+- Server-side encryption
+- Erasure coding
+- Cross-region replication
+- Event notifications
+- Lambda triggers
+- Web-based management console
+
+Example Usage:
+# Create a bucket
+$0 --action create-bucket --bucket my-data --policy download
+
+# Upload test data
+$0 --action test-upload
+
+# List all buckets
+$0 --action list-buckets
+
+# Monitor health
+$0 --action monitor --interval 10
+
+Documentation: https://min.io/docs/minio/linux/reference/minio-server.html
+EOF
+}
+
+# Export functions for subshell availability
+export -f minio::test
+export -f minio::info

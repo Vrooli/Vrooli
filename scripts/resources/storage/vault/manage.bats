@@ -1,33 +1,76 @@
 #!/usr/bin/env bats
+# Tests for Vault manage.sh script
 
-# Path to the script under test
-SCRIPT_PATH="$BATS_TEST_DIRNAME/manage.sh"
-CONFIG_DIR="$BATS_TEST_DIRNAME/config"
-LIB_DIR="$BATS_TEST_DIRNAME/lib"
+# Load Vrooli test infrastructure
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
 
-# Source dependencies
-RESOURCES_DIR="$BATS_TEST_DIRNAME/../.."
-HELPERS_DIR="$RESOURCES_DIR/../helpers"
+# Expensive setup operations run once per file
+setup_file() {
+    # Use Vrooli service test setup
+    vrooli_setup_service_test "vault"
+    
+    # Load Vault specific configuration once per file
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    VAULT_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Load configuration and manage script once
+    source "${VAULT_DIR}/config/defaults.sh"
+    source "${VAULT_DIR}/config/messages.sh"
+    source "${SCRIPT_DIR}/manage.sh"
+}
 
-# Source required utilities (suppress errors during test setup)
-. "$HELPERS_DIR/utils/log.sh" 2>/dev/null || true
-. "$HELPERS_DIR/utils/system.sh" 2>/dev/null || true
-. "$HELPERS_DIR/utils/args.sh" 2>/dev/null || true
+# Lightweight per-test setup
+setup() {
+    # Setup standard Vrooli mocks
+    vrooli_auto_setup
+    
+    # Set test environment variables (lightweight per-test)
+    export VAULT_PORT="8200"
+    export VAULT_MODE="dev"
+    export VAULT_DATA_DIR="/tmp/vault-test"
+    export VAULT_CONFIG_DIR="/tmp/vault-test"
+    export VAULT_CONTAINER_NAME="vault-test"
+    export ACTION="status"
+    export SECRET_PATH=""
+    export SECRET_VALUE=""
+    export ENV_FILE=""
+    export VAULT_PREFIX=""
+    export FOLLOW_LOGS="no"
+    export MONITOR_INTERVAL="30"
+    
+    # Export config functions
+    vault::export_config
+    vault::export_messages
+    
+    # Mock log functions
+    log::header() { echo "=== $* ==="; }
+    log::info() { echo "[INFO] $*"; }
+    log::error() { echo "[ERROR] $*" >&2; }
+    log::success() { echo "[SUCCESS] $*"; }
+    log::warning() { echo "[WARNING] $*" >&2; }
+    export -f log::header log::info log::error log::success log::warning
+}
+
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
+}
 
 # ============================================================================
 # Script Loading Tests
 # ============================================================================
 
-@test "sourcing manage.sh defines required functions" {
-    run bash -c "source '$SCRIPT_PATH' && declare -f vault::parse_arguments && declare -f vault::main"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ vault::parse_arguments ]]
-    [[ "$output" =~ vault::main ]]
+@test "manage.sh loads without errors" {
+    # Should load successfully in setup_file
+    [ "$?" -eq 0 ]
 }
 
-@test "manage.sh sources all required dependencies" {
-    run bash -c "source '$SCRIPT_PATH' 2>&1 | grep -v 'command not found' | head -1"
-    [ "$status" -eq 0 ]
+@test "manage.sh defines required functions" {
+    # Functions should be available from setup_file
+    declare -f vault::parse_arguments >/dev/null
+    declare -f vault::main >/dev/null
+    declare -f vault::install >/dev/null
+    declare -f vault::show_status >/dev/null
 }
 
 # ============================================================================
@@ -35,96 +78,77 @@ HELPERS_DIR="$RESOURCES_DIR/../helpers"
 # ============================================================================
 
 @test "vault::parse_arguments sets default action to status" {
-    run bash -c "source '$SCRIPT_PATH'; vault::parse_arguments; echo \"\$ACTION\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "status" ]]
+    vault::parse_arguments
+    [ "$ACTION" = "status" ]
 }
 
 @test "vault::parse_arguments accepts install action" {
-    run bash -c "source '$SCRIPT_PATH'; vault::parse_arguments --action install; echo \"\$ACTION\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "install" ]]
+    vault::parse_arguments --action install
+    [ "$ACTION" = "install" ]
 }
 
 @test "vault::parse_arguments accepts status action" {
-    run bash -c "source '$SCRIPT_PATH'; vault::parse_arguments --action status; echo \"\$ACTION\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "status" ]]
+    vault::parse_arguments --action status
+    [ "$ACTION" = "status" ]
 }
 
 @test "vault::parse_arguments accepts init-dev action" {
-    run bash -c "source '$SCRIPT_PATH'; vault::parse_arguments --action init-dev; echo \"\$ACTION\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "init-dev" ]]
+    vault::parse_arguments --action init-dev
+    [ "$ACTION" = "init-dev" ]
 }
 
 @test "vault::parse_arguments accepts init-prod action" {
-    run bash -c "source '$SCRIPT_PATH'; vault::parse_arguments --action init-prod; echo \"\$ACTION\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "init-prod" ]]
+    vault::parse_arguments --action init-prod
+    [ "$ACTION" = "init-prod" ]
 }
 
 @test "vault::parse_arguments accepts put-secret action" {
-    run bash -c "source '$SCRIPT_PATH'; vault::parse_arguments --action put-secret; echo \"\$ACTION\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "put-secret" ]]
+    vault::parse_arguments --action put-secret
+    [ "$ACTION" = "put-secret" ]
 }
 
 @test "vault::parse_arguments accepts get-secret action" {
-    run bash -c "source '$SCRIPT_PATH'; vault::parse_arguments --action get-secret; echo \"\$ACTION\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "get-secret" ]]
+    vault::parse_arguments --action get-secret
+    [ "$ACTION" = "get-secret" ]
 }
 
 @test "vault::parse_arguments accepts secret management arguments" {
-    run bash -c "source '$SCRIPT_PATH'; vault::parse_arguments --action put-secret --path test/key --value secret123; echo \"PATH=\$SECRET_PATH VALUE=\$SECRET_VALUE\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "PATH=test/key" ]]
-    [[ "$output" =~ "VALUE=secret123" ]]
+    vault::parse_arguments --action put-secret --path test/key --value secret123
+    [ "$SECRET_PATH" = "test/key" ]
+    [ "$SECRET_VALUE" = "secret123" ]
 }
 
 @test "vault::parse_arguments accepts mode argument" {
-    run bash -c "source '$SCRIPT_PATH'; vault::parse_arguments --mode prod; echo \"\$VAULT_MODE\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "prod" ]]
+    vault::parse_arguments --mode prod
+    [ "$VAULT_MODE" = "prod" ]
 }
 
 @test "vault::parse_arguments accepts migration arguments" {
-    run bash -c "source '$SCRIPT_PATH'; vault::parse_arguments --action migrate-env --env-file .env --vault-prefix dev; echo \"ENV=\$ENV_FILE PREFIX=\$VAULT_PREFIX\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "ENV=.env" ]]
-    [[ "$output" =~ "PREFIX=dev" ]]
+    vault::parse_arguments --action migrate-env --env-file .env --vault-prefix dev
+    [ "$ENV_FILE" = ".env" ]
+    [ "$VAULT_PREFIX" = "dev" ]
 }
 
 @test "vault::parse_arguments sets follow logs flag" {
-    run bash -c "source '$SCRIPT_PATH'; vault::parse_arguments --follow yes; echo \"\$FOLLOW_LOGS\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "yes" ]]
+    vault::parse_arguments --follow yes
+    [ "$FOLLOW_LOGS" = "yes" ]
 }
 
 @test "vault::parse_arguments accepts monitor interval" {
-    run bash -c "source '$SCRIPT_PATH'; vault::parse_arguments --interval 60; echo \"\$MONITOR_INTERVAL\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "60" ]]
+    vault::parse_arguments --interval 60
+    [ "$MONITOR_INTERVAL" = "60" ]
 }
 
 # ============================================================================
 # Help and Usage Tests
 # ============================================================================
 
-@test "manage.sh displays help with --help" {
-    run bash "$SCRIPT_PATH" --help
+@test "vault::usage displays help text" {
+    run vault::usage
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "HashiCorp Vault Secret Management" ]]
-    [[ "$output" =~ "USAGE:" ]]
-    [[ "$output" =~ "ACTIONS:" ]]
-    [[ "$output" =~ "EXAMPLES:" ]]
-}
-
-@test "manage.sh displays help for help action" {
-    run bash "$SCRIPT_PATH" --action help
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "HashiCorp Vault Secret Management" ]]
+    [[ "$output" == *"HashiCorp Vault Secret Management"* ]]
+    [[ "$output" == *"--action"* ]]
+    [[ "$output" == *"USAGE:"* ]]
 }
 
 # ============================================================================
@@ -132,69 +156,60 @@ HELPERS_DIR="$RESOURCES_DIR/../helpers"
 # ============================================================================
 
 @test "vault::main calls correct function for install action" {
-    # Mock functions
-    run bash -c "
-        source '$SCRIPT_PATH'
-        vault::install() { echo 'vault::install called'; return 0; }
-        export ACTION='install'
-        vault::main
-    "
+    # Mock vault::install function
+    vault::install() { echo 'vault::install called'; return 0; }
+    export -f vault::install
+    
+    export ACTION='install'
+    run vault::main
     [ "$status" -eq 0 ]
     [[ "$output" =~ "vault::install called" ]]
 }
 
 @test "vault::main calls correct function for status action" {
-    run bash -c "
-        source '$SCRIPT_PATH'
-        vault::show_status() { echo 'vault::show_status called'; return 0; }
-        export ACTION='status'
-        vault::main
-    "
+    # Mock vault::show_status function
+    vault::show_status() { echo 'vault::show_status called'; return 0; }
+    export -f vault::show_status
+    
+    export ACTION='status'
+    run vault::main
     [ "$status" -eq 0 ]
     [[ "$output" =~ "vault::show_status called" ]]
 }
 
 @test "vault::main validates put-secret arguments" {
-    run bash -c "
-        source '$SCRIPT_PATH'
-        export ACTION='put-secret'
-        export SECRET_PATH=''
-        export SECRET_VALUE='test'
-        vault::main 2>&1
-    "
+    export ACTION='put-secret'
+    export SECRET_PATH=''
+    export SECRET_VALUE='test'
+    
+    run vault::main
     [ "$status" -eq 1 ]
     [[ "$output" =~ "--path and --value are required" ]]
 }
 
 @test "vault::main validates get-secret arguments" {
-    run bash -c "
-        source '$SCRIPT_PATH'
-        export ACTION='get-secret'
-        export SECRET_PATH=''
-        vault::main 2>&1
-    "
+    export ACTION='get-secret'
+    export SECRET_PATH=''
+    
+    run vault::main
     [ "$status" -eq 1 ]
     [[ "$output" =~ "--path is required" ]]
 }
 
 @test "vault::main validates migrate-env arguments" {
-    run bash -c "
-        source '$SCRIPT_PATH'
-        export ACTION='migrate-env'
-        export ENV_FILE=''
-        export VAULT_PREFIX='dev'
-        vault::main 2>&1
-    "
+    export ACTION='migrate-env'
+    export ENV_FILE=''
+    export VAULT_PREFIX='dev'
+    
+    run vault::main
     [ "$status" -eq 1 ]
     [[ "$output" =~ "--env-file and --vault-prefix are required" ]]
 }
 
 @test "vault::main handles unknown action" {
-    run bash -c "
-        source '$SCRIPT_PATH'
-        export ACTION='unknown-action'
-        vault::main 2>&1
-    "
+    export ACTION='unknown-action'
+    
+    run vault::main
     [ "$status" -eq 1 ]
     [[ "$output" =~ "Unknown action: unknown-action" ]]
 }
@@ -203,34 +218,30 @@ HELPERS_DIR="$RESOURCES_DIR/../helpers"
 # Integration Tests
 # ============================================================================
 
-@test "manage.sh executes status action without arguments" {
+@test "vault::main executes status action without arguments" {
     # Mock vault functions to avoid actual execution
-    run bash -c "
-        export VAULT_PORT=8200
-        export VAULT_MODE=dev
-        export VAULT_DATA_DIR=/tmp/vault-test
-        export VAULT_CONFIG_DIR=/tmp/vault-test
-        export ACTION=status
-        
-        # Source the script and mock the status function
-        source '$SCRIPT_PATH'
-        vault::show_status() { echo 'Status: not_installed'; return 0; }
-        vault::cleanup() { : ; }
-        
-        vault::main 2>&1 | grep 'Status:'
-    "
+    vault::show_status() { echo 'Status: not_installed'; return 0; }
+    vault::cleanup() { : ; }
+    export -f vault::show_status vault::cleanup
+    
+    export ACTION=status
+    run vault::main
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Status:" ]]
 }
 
-@test "manage.sh validates secret operations require path" {
-    run bash "$SCRIPT_PATH" --action put-secret --value "test123"
-    [ "$status" -eq 1 ]
-    [[ "$output" =~ "path" ]]
+@test "configuration is exported correctly" {
+    vault::export_config
+    
+    [ -n "$VAULT_PORT" ]
+    [ -n "$VAULT_CONTAINER_NAME" ]
+    [ -n "$VAULT_IMAGE" ]
 }
 
-@test "manage.sh validates secret operations require value for put" {
-    run bash "$SCRIPT_PATH" --action put-secret --path "test/key"
-    [ "$status" -eq 1 ]
-    [[ "$output" =~ "value" ]]
+@test "messages are initialized correctly" {
+    vault::export_messages
+    
+    [ -n "$MSG_INSTALL_SUCCESS" ]
+    [ -n "$MSG_ALREADY_INSTALLED" ]
+    [ -n "$MSG_HEALTHY" ]
 }

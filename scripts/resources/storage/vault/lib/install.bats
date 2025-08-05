@@ -1,5 +1,4 @@
 #!/usr/bin/env bats
-bats_require_minimum_version 1.5.0
 
 # Expensive setup operations run once per file
 setup_file() {

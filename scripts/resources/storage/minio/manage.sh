@@ -55,7 +55,7 @@ minio::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|diagnose|monitor|list-buckets|create-bucket|remove-bucket|show-credentials|reset-credentials|test-upload|upgrade|inject|validate-injection" \
+        --options "install|uninstall|start|stop|restart|status|logs|info|test|diagnose|monitor|list-buckets|create-bucket|remove-bucket|show-credentials|reset-credentials|test-upload|upgrade|inject|validate-injection" \
         --default "status"
     
     args::register \
@@ -203,6 +203,12 @@ main() {
             ;;
         logs)
             minio::common::show_logs "$LOG_LINES"
+            ;;
+        info)
+            minio::info
+            ;;
+        test)
+            minio::test
             ;;
         diagnose)
             minio::status::diagnose

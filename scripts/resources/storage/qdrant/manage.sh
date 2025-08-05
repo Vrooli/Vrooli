@@ -57,7 +57,7 @@ qdrant::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|diagnose|monitor|list-collections|create-collection|delete-collection|collection-info|backup|restore|index-stats|upgrade" \
+        --options "install|uninstall|start|stop|restart|status|logs|info|test|diagnose|monitor|list-collections|create-collection|delete-collection|collection-info|backup|restore|index-stats|upgrade" \
         --default "status"
     
     args::register \
@@ -228,6 +228,12 @@ main() {
             ;;
         logs)
             qdrant::common::show_logs "$LOG_LINES"
+            ;;
+        info)
+            qdrant::info
+            ;;
+        test)
+            qdrant::test
             ;;
         diagnose)
             qdrant::status::diagnose

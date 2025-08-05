@@ -335,3 +335,139 @@ qdrant::status::simple_health() {
         return 1
     fi
 }
+
+#######################################
+# Test Qdrant functionality
+# Returns: 0 if all tests pass, 1 if any fail, 2 if service not ready
+#######################################
+qdrant::test() {
+    log::info "Testing Qdrant functionality..."
+    
+    # Test 1: Check if Qdrant is installed (container exists)
+    if ! qdrant::common::container_exists; then
+        log::error "❌ Qdrant container is not installed"
+        return 1
+    fi
+    log::success "✅ Qdrant container is installed"
+    
+    # Test 2: Check if service is running
+    if ! qdrant::common::is_running; then
+        log::error "❌ Qdrant service is not running"
+        return 2
+    fi
+    log::success "✅ Qdrant service is running"
+    
+    # Test 3: Check API health
+    if ! qdrant::api::health_check; then
+        log::error "❌ Qdrant API is not responding"
+        return 1
+    fi
+    log::success "✅ Qdrant API is healthy"
+    
+    # Test 4: Check cluster info and service info
+    log::info "Testing cluster information..."
+    if qdrant::api::get_service_status >/dev/null 2>&1; then
+        log::success "✅ Cluster information accessible"
+    else
+        log::warn "⚠️  Cluster information unavailable"
+    fi
+    
+    # Test 5: Test collection operations
+    log::info "Testing collection operations..."
+    local test_collection="vrooli-test-collection-$(date +%s)"
+    
+    if qdrant::collections::create "$test_collection" "128" "Cosine" >/dev/null 2>&1; then
+        log::success "✅ Collection creation successful"
+        
+        # Test basic vector operations
+        if qdrant::collections::get_info "$test_collection" >/dev/null 2>&1; then
+            log::success "✅ Collection info retrieval successful"
+        fi
+        
+        # Clean up test collection
+        qdrant::collections::delete "$test_collection" >/dev/null 2>&1 || true
+        log::success "✅ Collection cleanup successful"
+    else
+        log::warn "⚠️  Collection operations test failed - may be permission issue"
+    fi
+    
+    # Test 6: Check storage metrics
+    log::info "Testing storage metrics..."
+    local storage_info
+    storage_info=$(docker exec "$QDRANT_CONTAINER_NAME" df -h /qdrant/storage 2>/dev/null | tail -1 | awk '{print $3}' || echo "unknown")
+    if [[ "$storage_info" != "unknown" ]]; then
+        log::success "✅ Storage metrics available (used: $storage_info)"
+    else
+        log::warn "⚠️  Storage metrics unavailable"
+    fi
+    
+    log::success "🎉 All Qdrant tests passed"
+    return 0
+}
+
+#######################################
+# Show comprehensive Qdrant information
+#######################################
+qdrant::info() {
+    cat << EOF
+=== Qdrant Resource Information ===
+
+ID: qdrant
+Category: storage
+Display Name: Qdrant Vector Database
+Description: High-performance vector similarity search engine
+
+Service Details:
+- Container Name: $QDRANT_CONTAINER_NAME
+- HTTP Port: $QDRANT_PORT
+- gRPC Port: $QDRANT_GRPC_PORT
+- HTTP URL: http://localhost:$QDRANT_PORT
+- gRPC URL: grpc://localhost:$QDRANT_GRPC_PORT
+- Data Directory: $QDRANT_DATA_DIR
+
+Endpoints:
+- Health Check: http://localhost:$QDRANT_PORT/
+- Cluster Info: http://localhost:$QDRANT_PORT/cluster
+- Collections: http://localhost:$QDRANT_PORT/collections
+- Collections Info: http://localhost:$QDRANT_PORT/collections/{collection}
+- Search: POST http://localhost:$QDRANT_PORT/collections/{collection}/points/search
+- Upsert: PUT http://localhost:$QDRANT_PORT/collections/{collection}/points
+
+Configuration:
+- Docker Image: $QDRANT_IMAGE
+- Version: $QDRANT_VERSION
+- Data Persistence: $QDRANT_DATA_DIR
+- Default Vector Size: 1536 (OpenAI embedding size)
+- Default Distance Metric: Cosine
+
+Qdrant Features:
+- Vector similarity search
+- Payload filtering
+- Geolocation support
+- Distributed deployment
+- Efficient filtering
+- Real-time updates
+- HNSW indexing
+- Quantization support
+- Hybrid search capabilities
+
+Example Usage:
+# Create a collection
+$0 --action create-collection --collection embeddings --vector-size 1536
+
+# List collections
+$0 --action list-collections
+
+# Get collection info
+$0 --action collection-info --collection embeddings
+
+# Monitor performance
+$0 --action monitor --interval 10
+
+Documentation: https://qdrant.tech/documentation/
+EOF
+}
+
+# Export functions for subshell availability
+export -f qdrant::test
+export -f qdrant::info

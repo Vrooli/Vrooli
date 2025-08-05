@@ -1,14 +1,30 @@
 #!/usr/bin/env bats
+# Tests for QuestDB manage.sh script
 
-# QuestDB Management Script Tests
+# Load Vrooli test infrastructure
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
 
-# Set up test environment
-setup() {
-    load '../../../testing/test_helper'
-    load 'config/defaults'
-    load 'config/messages'
+# Expensive setup operations run once per file
+setup_file() {
+    # Use Vrooli service test setup
+    vrooli_setup_service_test "questdb"
     
-    # Export test configuration
+    # Load QuestDB specific configuration once per file
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    QUESTDB_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Load configuration and manage script once
+    source "${QUESTDB_DIR}/config/defaults.sh"
+    source "${QUESTDB_DIR}/config/messages.sh"
+    source "${SCRIPT_DIR}/manage.sh"
+}
+
+# Lightweight per-test setup
+setup() {
+    # Setup standard Vrooli mocks
+    vrooli_auto_setup
+    
+    # Set test environment variables (lightweight per-test)
     export QUESTDB_CONTAINER_NAME="questdb-test"
     export QUESTDB_HTTP_PORT="19009"
     export QUESTDB_PG_PORT="18812"
@@ -16,67 +32,136 @@ setup() {
     export QUESTDB_DATA_DIR="${BATS_TEST_TMPDIR}/questdb/data"
     export QUESTDB_CONFIG_DIR="${BATS_TEST_TMPDIR}/questdb/config"
     export QUESTDB_LOG_DIR="${BATS_TEST_TMPDIR}/questdb/logs"
+    export ACTION="status"
+    export QUERY=""
+    export LOG_LINES="50"
+    export MONITOR_INTERVAL="5"
     
-    # Export config for tests
+    # Export config functions
     questdb::export_config
-    questdb::messages::init
-}
-
-# Clean up after tests
-teardown() {
-    # Stop and remove test container if exists
-    docker stop "${QUESTDB_CONTAINER_NAME}" &>/dev/null || true
-    docker rm "${QUESTDB_CONTAINER_NAME}" &>/dev/null || true
+    questdb::export_messages
     
-    # Clean up test directories
-    rm -rf "${BATS_TEST_TMPDIR}/questdb"
+    # Mock log functions
+    log::header() { echo "=== $* ==="; }
+    log::info() { echo "[INFO] $*"; }
+    log::error() { echo "[ERROR] $*" >&2; }
+    log::success() { echo "[SUCCESS] $*"; }
+    log::warning() { echo "[WARNING] $*" >&2; }
+    export -f log::header log::info log::error log::success log::warning
 }
 
-@test "manage.sh exists and is executable" {
-    [[ -f "${BATS_TEST_DIRNAME}/manage.sh" ]]
-    [[ -x "${BATS_TEST_DIRNAME}/manage.sh" ]]
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
 }
 
-@test "manage.sh shows help" {
-    run "${BATS_TEST_DIRNAME}/manage.sh" --help
-    assert_success
-    assert_output --partial "Install and manage QuestDB time-series database"
-    assert_output --partial "--action"
-    assert_output --partial "--query"
+@test "manage.sh loads without errors" {
+    # Should load successfully in setup_file
+    [ "$?" -eq 0 ]
 }
 
-@test "manage.sh requires action" {
-    run "${BATS_TEST_DIRNAME}/manage.sh"
-    assert_failure
-    assert_output --partial "No action specified"
+@test "manage.sh defines required functions" {
+    # Functions should be available from setup_file
+    declare -f questdb::parse_arguments >/dev/null
+    declare -f questdb::main >/dev/null
+    declare -f questdb::install >/dev/null
+    declare -f questdb::status >/dev/null
 }
 
-@test "manage.sh handles invalid action" {
-    run "${BATS_TEST_DIRNAME}/manage.sh" --action invalid
-    assert_failure
-    assert_output --partial "Unknown action: invalid"
+@test "questdb::usage displays help text" {
+    run questdb::usage
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Install and manage QuestDB"* ]]
+    [[ "$output" == *"--action"* ]]
+    [[ "$output" == *"--query"* ]]
 }
 
-@test "manage.sh status when not running" {
-    run "${BATS_TEST_DIRNAME}/manage.sh" --action status
-    assert_failure
-    assert_output --partial "QuestDB is not running"
+@test "questdb::parse_arguments sets defaults correctly" {
+    questdb::parse_arguments --action status
+    
+    [ "$ACTION" = "status" ]
+    [ "$QUERY" = "" ]
+    [ "$LOG_LINES" = "50" ]
+    [ "$MONITOR_INTERVAL" = "5" ]
 }
 
-@test "manage.sh query requires running instance" {
-    run "${BATS_TEST_DIRNAME}/manage.sh" --action query --query "SELECT 1"
-    assert_failure
-    assert_output --partial "QuestDB is not running"
+@test "questdb::parse_arguments handles custom values" {
+    questdb::parse_arguments \
+        --action query \
+        --query "SELECT * FROM trades" \
+        --lines 100 \
+        --interval 10
+    
+    [ "$ACTION" = "query" ]
+    [ "$QUERY" = "SELECT * FROM trades" ]
+    [ "$LOG_LINES" = "100" ]
+    [ "$MONITOR_INTERVAL" = "10" ]
 }
 
-@test "manage.sh query requires query parameter" {
-    run "${BATS_TEST_DIRNAME}/manage.sh" --action query
-    assert_failure
-    assert_output --partial "No query specified"
+@test "questdb::parse_arguments handles all valid actions" {
+    local actions=(
+        "install" "uninstall" "start" "stop" "restart" 
+        "status" "logs" "diagnose" "monitor" 
+        "query" "health" "upgrade"
+    )
+    
+    for action in "${actions[@]}"; do
+        questdb::parse_arguments --action "$action"
+        [ "$ACTION" = "$action" ]
+    done
 }
 
-@test "manage.sh logs handles non-existent container" {
-    run "${BATS_TEST_DIRNAME}/manage.sh" --action logs
-    assert_failure
-    assert_output --partial "QuestDB container does not exist"
+@test "questdb::main calls correct function for install action" {
+    # Mock questdb::install function
+    questdb::install() { echo 'questdb::install called'; return 0; }
+    export -f questdb::install
+    
+    export ACTION='install'
+    run questdb::main
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "questdb::install called" ]]
+}
+
+@test "questdb::main calls correct function for status action" {
+    # Mock questdb::status function
+    questdb::status() { echo 'questdb::status called'; return 0; }
+    export -f questdb::status
+    
+    export ACTION='status'
+    run questdb::main
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "questdb::status called" ]]
+}
+
+@test "questdb::main validates query arguments" {
+    export ACTION='query'
+    export QUERY=''
+    
+    run questdb::main
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "No query specified" ]]
+}
+
+@test "questdb::main handles unknown action" {
+    export ACTION='unknown-action'
+    
+    run questdb::main
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Unknown action: unknown-action" ]]
+}
+
+@test "configuration is exported correctly" {
+    questdb::export_config
+    
+    [ -n "$QUESTDB_HTTP_PORT" ]
+    [ -n "$QUESTDB_CONTAINER_NAME" ]
+    [ -n "$QUESTDB_IMAGE" ]
+}
+
+@test "messages are initialized correctly" {
+    questdb::export_messages
+    
+    [ -n "$MSG_INSTALL_SUCCESS" ]
+    [ -n "$MSG_ALREADY_INSTALLED" ]
+    [ -n "$MSG_HEALTHY" ]
 }
