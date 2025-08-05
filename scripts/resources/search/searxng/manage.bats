@@ -1,29 +1,48 @@
 #!/usr/bin/env bats
-bats_require_minimum_version 1.5.0
+# Tests for SearXNG manage.sh script
 
-# Path to the script under test
-SCRIPT_PATH="$BATS_TEST_DIRNAME/manage.sh"
-CONFIG_DIR="$BATS_TEST_DIRNAME/config"
-LIB_DIR="$BATS_TEST_DIRNAME/lib"
+# Load Vrooli test infrastructure
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
 
-# Source dependencies
-RESOURCES_DIR="$BATS_TEST_DIRNAME/../.."
-HELPERS_DIR="$RESOURCES_DIR/../helpers"
+# Setup for each test
+setup() {
+    # Setup standard mocks
+    vrooli_auto_setup
+    
+    # Set SearXNG-specific test environment
+    export SEARXNG_CUSTOM_PORT="9999"
+    export SEARCH_QUERY=""
+    export SEARCH_FORMAT="json"
+    export SEARCH_CATEGORY="general"
+    export SEARCH_LANGUAGE="en"
+    export FORCE="no"
+    export YES="no"
+    
+    # Load the script without executing main
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    source "${SCRIPT_DIR}/manage.sh" || true
+}
 
-# Source required utilities (suppress errors during test setup)
-. "$HELPERS_DIR/utils/log.sh" 2>/dev/null || true
-. "$HELPERS_DIR/utils/system.sh" 2>/dev/null || true
-. "$HELPERS_DIR/utils/args.sh" 2>/dev/null || true
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
+}
 
 # ============================================================================
 # Script Loading Tests
 # ============================================================================
 
-@test "sourcing manage.sh defines required functions" {
-    run bash -c "source '$SCRIPT_PATH' && declare -f searxng::parse_arguments && declare -f searxng::main"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ searxng::parse_arguments ]]
-    [[ "$output" =~ searxng::main ]]
+@test "searxng script loads without errors" {
+    # Script loading happens in setup, this verifies it worked
+    declare -f searxng::parse_arguments > /dev/null
+    [ "$?" -eq 0 ]
+}
+
+@test "searxng defines all required functions" {
+    declare -f searxng::parse_arguments > /dev/null
+    [ "$?" -eq 0 ]
+    declare -f searxng::main > /dev/null
+    [ "$?" -eq 0 ]
 }
 
 @test "manage.sh sources all required dependencies" {
@@ -45,21 +64,18 @@ HELPERS_DIR="$RESOURCES_DIR/../helpers"
 # ============================================================================
 
 @test "searxng::parse_arguments sets default action to install" {
-    run bash -c "source '$SCRIPT_PATH'; searxng::parse_arguments; echo \"\$ACTION\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "install" ]]
+    searxng::parse_arguments
+    [ "$ACTION" = "install" ]
 }
 
 @test "searxng::parse_arguments accepts install action" {
-    run bash -c "source '$SCRIPT_PATH'; searxng::parse_arguments --action install; echo \"\$ACTION\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "install" ]]
+    searxng::parse_arguments --action install
+    [ "$ACTION" = "install" ]
 }
 
 @test "searxng::parse_arguments accepts status action" {
-    run bash -c "source '$SCRIPT_PATH'; searxng::parse_arguments --action status; echo \"\$ACTION\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "status" ]]
+    searxng::parse_arguments --action status
+    [ "$ACTION" = "status" ]
 }
 
 @test "searxng::parse_arguments accepts search action" {

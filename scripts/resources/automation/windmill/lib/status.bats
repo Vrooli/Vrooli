@@ -1,15 +1,32 @@
 #!/usr/bin/env bats
-# Tests for Windmill status.sh functions
 
-# Setup for each test
-setup() {
-    # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+# Load Vrooli test infrastructure (REQUIRED)
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+
+# Expensive setup operations (run once per file)
+setup_file() {
+    # Use appropriate setup function
+    vrooli_setup_service_test "windmill"
     
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    export SETUP_FILE_WINDMILL_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")" 
+    export SETUP_FILE_CONFIG_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")/config"
+    export SETUP_FILE_LIB_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")/lib"
+}
+
+# Lightweight per-test setup
+setup() {
     # Setup standard mocks
     vrooli_auto_setup
     
-    # Set test environment
+    # Use paths from setup_file
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
+    WINDMILL_DIR="${SETUP_FILE_WINDMILL_DIR}"
+    CONFIG_DIR="${SETUP_FILE_CONFIG_DIR}"
+    LIB_DIR="${SETUP_FILE_LIB_DIR}"
+    
+    # Set test environment BEFORE sourcing config files to avoid readonly conflicts
     export WINDMILL_PORT="5681"
     export WINDMILL_CONTAINER_NAME="windmill-test"
     export WINDMILL_DB_CONTAINER_NAME="windmill-db-test"
@@ -18,15 +35,97 @@ setup() {
     export WORKSPACE_NAME="demo"
     export YES="no"
     
-    # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
-    WINDMILL_DIR="$(dirname "$SCRIPT_DIR")"
+    # Mock resources functions that are called during config loading
+    resources::get_default_port() {
+        case "$1" in
+            "windmill") echo "5681" ;;
+            *) echo "8080" ;;
+        esac
+    }
     
-    # Mock system functions
+    # Now source the config files
+    source "${WINDMILL_DIR}/config/defaults.sh"
+    source "${WINDMILL_DIR}/config/messages.sh"
+    
+    # Export config and messages
+    windmill::export_config
+    windmill::export_messages
+    
+    # Load the functions to test
+    source "${WINDMILL_DIR}/lib/status.sh"
     
     # Mock curl for health checks and API calls
+    curl() {
+        case "$*" in
+            *"localhost:5681/api/version"*)
+                echo '{"version":"1.0.0"}'
+                ;;
+            *"localhost:5681/api/w/demo/jobs/completed"*)
+                cat <<EOF
+[
+  {
+    "id": "job_123456",
+    "type": "CompletedJob",
+    "workspace_id": "demo",
+    "created_at": "2024-01-15T10:30:00Z",
+    "success": true,
+    "result": "Hello from Windmill!"
+  }
+]
+EOF
+                ;;
+            *"localhost:5681/api/w/demo/workers/list"*)
+                cat <<EOF
+[
+  {
+    "worker_instance": "worker-1",
+    "last_ping": "2024-01-15T11:00:00Z",
+    "jobs_executed": 150,
+    "worker_group": "default"
+  },
+  {
+    "worker_instance": "worker-2",
+    "last_ping": "2024-01-15T11:00:00Z",
+    "jobs_executed": 200,
+    "worker_group": "default"
+  }
+]
+EOF
+                ;;
+            *) echo "CURL: $*" ;;
+        esac
+        return 0
+    }
     
     # Mock Docker operations
+    docker() {
+        case "$1" in
+            "ps")
+                if [[ "$*" =~ "windmill-test" ]]; then
+                    echo "windmill-test   running   5681->8000/tcp"
+                elif [[ "$*" =~ "windmill-db-test" ]]; then
+                    echo "windmill-db-test   running   5432/tcp"
+                else
+                    echo "windmill-test   running   5681->8000/tcp"
+                    echo "windmill-db-test   running   5432/tcp"
+                fi
+                ;;
+            "inspect")
+                if [[ "$*" =~ "windmill-test" ]]; then
+                    cat <<EOF
+{
+  "State": {
+    "Running": true,
+    "Status": "running",
+    "StartedAt": "2024-01-15T10:30:00Z",
+    "Health": {
+      "Status": "healthy",
+      "LastCheck": "2024-01-15T11:00:00Z"
+    }
+  },
+  "Config": {
+    "Image": "windmillhq/windmill:latest"
+  }
 }
 EOF
                 elif [[ "$*" =~ "windmill-db-test" ]]; then
@@ -99,14 +198,6 @@ EOF
         echo "2024-01-15 11:00:00"
     }
     
-    # Mock log functions
-    log::info() { echo "INFO: $1"; }
-    log::error() { echo "ERROR: $1"; }
-    log::warn() { echo "WARN: $1"; }
-    log::success() { echo "SUCCESS: $1"; }
-    log::debug() { echo "DEBUG: $1"; }
-    log::header() { echo "=== $1 ==="; }
-    
     # Mock utility functions
     system::check_port() {
         local port="$1"
@@ -119,15 +210,11 @@ EOF
     system::get_memory_usage() {
         echo "Total: 16GB, Used: 8GB, Available: 8GB"
     }
-    
-    # Load configuration and messages
-    source "${WINDMILL_DIR}/config/defaults.sh"
-    source "${WINDMILL_DIR}/config/messages.sh"
-    windmill::export_config
-    windmill::export_messages
-    
-    # Load the functions to test
-    source "${WINDMILL_DIR}/lib/status.sh"
+}
+
+# Cleanup after each test
+teardown() {
+    vrooli_cleanup_test
 }
 
 # Test container existence check

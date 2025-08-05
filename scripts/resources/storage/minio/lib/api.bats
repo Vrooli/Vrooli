@@ -1,96 +1,220 @@
 #!/usr/bin/env bats
+# Tests for MinIO API functions (lib/api.sh)
+
+# Load Vrooli test infrastructure
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
 
 # Expensive setup operations run once per file
 setup_file() {
-    # Minimal setup_file - most operations moved to lightweight setup()
-    true
+    # Use Vrooli service test setup
+    vrooli_setup_service_test "minio"
+    
+    # Load MinIO specific configuration once per file
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    MINIO_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Load configuration and API functions once
+    source "${MINIO_DIR}/config/defaults.sh"
+    source "${MINIO_DIR}/config/messages.sh"
+    source "${SCRIPT_DIR}/api.sh"
 }
 
-bats_require_minimum_version 1.5.0
-
-# Path to the script under test
-SCRIPT_PATH="$BATS_TEST_DIRNAME/api.sh"
-
-# ============================================================================
-# Script Loading Tests
-# ============================================================================
-
-@test "api.sh exists and is readable" {
-    [ -f "$SCRIPT_PATH" ]
-    [ -r "$SCRIPT_PATH" ]
+# Lightweight per-test setup
+setup() {
+    # Setup standard Vrooli mocks
+    vrooli_auto_setup
+    
+    # Set test environment variables (lightweight per-test)
+    export MINIO_CUSTOM_PORT="9001"
+    export MINIO_CONTAINER_NAME="minio-test"
+    export MINIO_BASE_URL="http://localhost:9001"
+    export MINIO_ACCESS_KEY="testkey"
+    export MINIO_SECRET_KEY="testsecret"
+    export MINIO_API_TIMEOUT="30"
+    
+    # Export config functions
+    minio::export_config
+    minio::export_messages
+    
+    # Mock health check function for API tests
+    minio::is_healthy() {
+        return 0  # Always healthy for API tests
+    }
+    export -f minio::is_healthy
+    
+    # Mock log functions
+    log::header() { echo "=== $* ==="; }
+    log::info() { echo "[INFO] $*"; }
+    log::error() { echo "[ERROR] $*" >&2; }
+    log::success() { echo "[SUCCESS] $*"; }
+    log::warning() { echo "[WARNING] $*" >&2; }
+    export -f log::header log::info log::error log::success log::warning
 }
 
-@test "sourcing api.sh loads without errors" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null"
-    [ "$status" -eq 0 ] || [ "$status" -eq 1 ]
-}
-
-# ============================================================================
-# Function Definition Tests
-# ============================================================================
-
-@test "sourcing api.sh defines minio::api::test function" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::api::test"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "minio::api::test" ]]
-}
-
-@test "sourcing api.sh defines minio::api::list_buckets function" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::api::list_buckets"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "minio::api::list_buckets" ]]
-}
-
-@test "sourcing api.sh defines minio::api::create_bucket function" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::api::create_bucket"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "minio::api::create_bucket" ]]
-}
-
-@test "sourcing api.sh defines minio::api::get_bucket_size function" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::api::get_bucket_size"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "minio::api::get_bucket_size" ]]
-}
-
-@test "sourcing api.sh defines minio::api::set_bucket_policy function" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::api::set_bucket_policy"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "minio::api::set_bucket_policy" ]]
-}
-
-@test "sourcing api.sh defines minio::api::upload_file function" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::api::upload_file"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "minio::api::upload_file" ]]
-}
-
-@test "sourcing api.sh defines minio::api::download_file function" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::api::download_file"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "minio::api::download_file" ]]
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
 }
 
 # ============================================================================
-# Function Structure Tests (without execution)
+# API Health Check Tests
 # ============================================================================
 
-@test "minio::api::test performs health check" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::api::test | grep -q 'API.*test'"
+@test "minio::api::test validates MinIO API connectivity" {
+    # Mock successful mc command
+    mc() {
+        if [[ "$*" =~ "admin info" ]]; then
+            echo "●  localhost:9001"
+            echo "   Uptime: 1 day"
+            echo "   Version: 2023-12-07T04:16:00Z"
+            return 0
+        fi
+        return 1
+    }
+    export -f mc
+    
+    run minio::api::test
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "API connectivity test passed" ]]
 }
 
-@test "minio::api::list_buckets uses mc command" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::api::list_buckets | grep -q 'mc'"
-    [ "$status" -eq 0 ]
+@test "minio::api::test fails when service is unhealthy" {
+    # Override health check to fail
+    minio::is_healthy() {
+        return 1
+    }
+    
+    run minio::api::test
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "MinIO is not running or healthy" ]]
 }
 
-@test "minio::api::create_bucket uses mc mb command" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::api::create_bucket | grep -q 'mc.*mb'"
+# ============================================================================
+# Bucket Management Tests
+# ============================================================================
+
+@test "minio::api::list_buckets displays bucket information" {
+    # Mock successful mc ls command
+    mc() {
+        if [[ "$*" =~ "ls" ]]; then
+            cat << 'EOF'
+[2023-12-01 10:00:00 UTC]     0B test-bucket/
+[2023-12-01 11:00:00 UTC]     0B backup-bucket/
+[2023-12-01 12:00:00 UTC]     0B data-bucket/
+EOF
+            return 0
+        fi
+        return 1
+    }
+    export -f mc
+    
+    run minio::api::list_buckets
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "test-bucket" ]]
+    [[ "$output" =~ "backup-bucket" ]]
+    [[ "$output" =~ "data-bucket" ]]
 }
 
-@test "minio::api::set_bucket_policy handles different policy types" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::api::set_bucket_policy | grep -q 'policy'"
+@test "minio::api::list_buckets handles no buckets" {
+    # Mock empty mc ls response
+    mc() {
+        if [[ "$*" =~ "ls" ]]; then
+            echo ""
+            return 0
+        fi
+        return 1
+    }
+    export -f mc
+    
+    run minio::api::list_buckets
     [ "$status" -eq 0 ]
+    [[ "$output" =~ "No buckets found" ]]
+}
+
+@test "minio::api::create_bucket creates new bucket successfully" {
+    # Mock successful mc mb command
+    mc() {
+        if [[ "$*" =~ "mb.*test-bucket" ]]; then
+            echo "Bucket created successfully 'minio/test-bucket'."
+            return 0
+        fi
+        return 1
+    }
+    export -f mc
+    
+    run minio::api::create_bucket "test-bucket"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Bucket created successfully" ]]
+}
+
+@test "minio::api::create_bucket fails with missing bucket name" {
+    run minio::api::create_bucket ""
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Bucket name is required" ]]
+}
+
+@test "minio::api::create_bucket handles existing bucket" {
+    # Mock mc mb command failure for existing bucket
+    mc() {
+        if [[ "$*" =~ "mb.*existing-bucket" ]]; then
+            echo "mc: <ERROR> Unable to make bucket 'minio/existing-bucket'. Your previous request to create the named bucket succeeded and you already own it."
+            return 1
+        fi
+        return 1
+    }
+    export -f mc
+    
+    run minio::api::create_bucket "existing-bucket"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "already own it" ]]
+}
+
+# ============================================================================
+# File Operations Tests
+# ============================================================================
+
+@test "minio::api::upload_file uploads file successfully" {
+    # Create test file
+    local test_file="/tmp/test-upload.txt"
+    echo "test content" > "$test_file"
+    
+    # Mock successful mc cp command
+    mc() {
+        if [[ "$*" =~ "cp.*test-upload.txt.*test-bucket" ]]; then
+            echo "/tmp/test-upload.txt -> minio/test-bucket/test-upload.txt"
+            return 0
+        fi
+        return 1
+    }
+    export -f mc
+    
+    run minio::api::upload_file "$test_file" "test-bucket"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Upload completed successfully" ]]
+}
+
+@test "minio::api::upload_file validates parameters" {
+    run minio::api::upload_file "" "test-bucket"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "File path is required" ]]
+    
+    run minio::api::upload_file "/tmp/test.txt" ""
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Bucket name is required" ]]
+}
+
+@test "minio::api::download_file downloads file successfully" {
+    # Mock successful mc cp command
+    mc() {
+        if [[ "$*" =~ "cp.*test-bucket/test-file.txt" ]]; then
+            echo "minio/test-bucket/test-file.txt -> /tmp/downloaded-file.txt"
+            return 0
+        fi
+        return 1
+    }
+    export -f mc
+    
+    run minio::api::download_file "test-bucket" "test-file.txt" "/tmp/downloaded-file.txt"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Download completed successfully" ]]
 }

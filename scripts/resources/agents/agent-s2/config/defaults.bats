@@ -1,26 +1,28 @@
 #!/usr/bin/env bats
 # Tests for agent-s2 config/defaults.sh configuration management
 
-bats_require_minimum_version 1.5.0
 
-# Use fast setup helper if available
-if [[ -f "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/fast_setup.bash" ]]; then
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/fast_setup.bash"
-fi
-
-# Setup for each test
-setup() {
-    # Use fast setup if available, otherwise fallback to standard
-    if type -t fast_setup_mocks &>/dev/null; then
-        fast_setup_mocks
-    else
-        # Load shared test infrastructure
-        source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
-        # Setup standard mocks
-        vrooli_auto_setup
-    fi
+# Expensive setup operations run once per file
+setup_file() {
+    # Load shared test infrastructure once per file
+    source "${VROOLI_TEST_ROOT:-/home/matthalloran8/Vrooli/scripts/__test}/fixtures/setup.bash"
+    # Setup standard mocks once
+    vrooli_auto_setup
     
-    # Set test environment
+    # Get resource directory path and export for use in setup()
+    AGENTS2_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
+    export SETUP_FILE_AGENTS2_DIR="$AGENTS2_DIR"
+    
+    # Load configuration once per file
+    source "${AGENTS2_DIR}/config/defaults.sh"
+}
+
+# Lightweight per-test setup
+setup() {
+    # Use the directory from setup_file
+    AGENTS2_DIR="${SETUP_FILE_AGENTS2_DIR}"
+    
+    # Set test environment (lightweight per-test)
     export AGENTS2_CUSTOM_PORT="4113"
     export AGENTS2_CUSTOM_VNC_PORT="5900"
     
@@ -31,14 +33,11 @@ setup() {
     unset AGENTS2_ANTHROPIC_API_KEY AGENTS2_OLLAMA_BASE_URL
     unset AGENTS2_DISPLAY AGENTS2_SCREEN_RESOLUTION AGENTS2_VNC_PASSWORD
     
-    # Get resource directory path
-    AGENTS2_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
-    
-    # Mock resources::get_default_port function
+    # Mock resources::get_default_port function (lightweight)
     resources::get_default_port() { echo "4113"; }
     export -f resources::get_default_port
     
-    # Load configuration
+    # Re-source defaults to ensure functions are available in test scope
     source "${AGENTS2_DIR}/config/defaults.sh"
     
     # Call export_config to initialize variables
@@ -47,7 +46,7 @@ setup() {
 
 teardown() {
     # Clean up environment
-    cleanup_mocks
+    vrooli_cleanup_test
 }
 
 # Test configuration loading and initialization
@@ -150,7 +149,7 @@ teardown() {
     [ "$AGENTS2_HEALTH_CHECK_INTERVAL" = "30" ]
     [ "$AGENTS2_HEALTH_CHECK_TIMEOUT" = "10" ]
     [ "$AGENTS2_HEALTH_CHECK_RETRIES" = "3" ]
-    [ "$AGENTS2_API_TIMEOUT" = "10" ]
+    [ "$AGENTS2_API_TIMEOUT" = "120" ]
 }
 
 @test "agents2::export_config should set resource limits" {

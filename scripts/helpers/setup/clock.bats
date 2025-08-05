@@ -46,21 +46,57 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/clock.sh"
 
 @test "clock::is_accurate returns success when time is within tolerance" {
     # Stub curl to return a date header that matches current time
-    run bash -c "source '$SCRIPT_PATH'; system::is_command(){ [[ \"\$1\" == \"curl\" ]]; }; curl(){ echo 'Date: $(date -R)'; }; date(){ if [[ \"\$1\" == \"+%s\" ]]; then echo '$(command date +%s)'; else command date \"\$@\"; fi; }; clock::is_accurate"
+    run bash -c "
+        # Define mock functions
+        system::is_command(){ [[ \"\$1\" == \"curl\" ]]; }
+        curl(){ echo \"Date: \$(command date -R)\"; }
+        date(){ if [[ \"\$1\" == \"+%s\" ]]; then command date +%s; else command date \"\$@\"; fi; }
+        
+        # Export functions to make them available in subshells
+        export -f system::is_command curl date
+        
+        # Source script and run test
+        source '$SCRIPT_PATH'
+        clock::is_accurate
+    "
     [ "$status" -eq 0 ]
     echo "$output" | grep -Fq "[INFO]    System clock is accurate"
 }
 
 @test "clock::is_accurate returns failure when time differs significantly" {
     # Stub curl to return a date header 10 minutes in the future
-    run bash -c "source '$SCRIPT_PATH'; system::is_command(){ [[ \"\$1\" == \"curl\" ]]; }; curl(){ echo \"Date: \$(date -R -d '+10 minutes')\"; }; clock::is_accurate"
+    run bash -c "
+        # Define mock functions
+        system::is_command(){ [[ \"\$1\" == \"curl\" ]]; }
+        curl(){ echo \"Date: \$(command date -R -d '+10 minutes')\"; }
+        date(){ command date \"\$@\"; }
+        
+        # Export functions to make them available in subshells
+        export -f system::is_command curl date
+        
+        # Source script and run test
+        source '$SCRIPT_PATH'
+        clock::is_accurate
+    "
     [ "$status" -eq 1 ]
     echo "$output" | grep -Fq "[WARNING] System clock is off by"
 }
 
 @test "clock::is_accurate fallback check when no network available" {
     # Stub curl to not exist
-    run bash -c "source '$SCRIPT_PATH'; system::is_command(){ return 1; }; clock::is_accurate"
+    run bash -c "
+        # Source script first to load dependencies
+        source '$SCRIPT_PATH'
+        
+        # Override system::is_command AFTER sourcing
+        system::is_command(){ return 1; }
+        
+        # Export functions to make them available in subshells
+        export -f system::is_command
+        
+        # Run test
+        clock::is_accurate
+    "
     [ "$status" -eq 0 ]
-    echo "$output" | grep -Fq "Cannot verify exact time accuracy"
+    echo "$output" | grep -Fq "Cannot verify exact time accuracy (no network time source), but year is reasonable"
 } 

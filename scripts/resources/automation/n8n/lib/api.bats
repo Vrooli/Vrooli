@@ -1,66 +1,52 @@
 #!/usr/bin/env bats
 
-# Expensive setup operations run once per file
-setup_file() {
-    # Minimal setup_file - most operations moved to lightweight setup()
-    true
-}
-
 # Tests for n8n api.sh functions
 
-# Setup for each test
+
+# Load Vrooli test infrastructure (REQUIRED)
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+
+# Expensive setup operations (run once per file)
+setup_file() {
+    # Use appropriate setup function
+    vrooli_setup_service_test "n8n"
+    
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    export SETUP_FILE_N8N_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
+}
+
 # Lightweight per-test setup
 setup() {
-    # Basic mock functions (lightweight)
-    # Mock resources functions to avoid hang
-    declare -A DEFAULT_PORTS=(
-        ["ollama"]="11434"
-        ["agent-s2"]="4113"
-        ["browserless"]="3000"
-        ["unstructured-io"]="8000"
-        ["n8n"]="5678"
-        ["node-red"]="1880"
-        ["huginn"]="3000"
-        ["windmill"]="8000"
-        ["judge0"]="2358"
-        ["searxng"]="8080"
-        ["qdrant"]="6333"
-        ["questdb"]="9000"
-        ["vault"]="8200"
-    )
-    resources::get_default_port() { echo "${DEFAULT_PORTS[$1]:-8080}"; }
-    export -f resources::get_default_port
+    # Setup standard mocks
+    vrooli_auto_setup
     
-    mock::network::set_online() { return 0; }
-    setup_standard_mocks() { 
-        export FORCE="${FORCE:-no}"
-        export YES="${YES:-no}"
-        export OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"
-        export QUIET="${QUIET:-no}"
-        mock::network::set_online
+    # Use paths from setup_file
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
+    N8N_DIR="${SETUP_FILE_N8N_DIR}"
+    
+    # Set test environment BEFORE sourcing config files to avoid readonly conflicts
+    export N8N_CUSTOM_PORT="5678"
+    export N8N_BASIC_AUTH_USER="admin"
+    export N8N_BASIC_AUTH_PASSWORD="password123"
+    export YES="no"
+    
+    # Mock resources functions BEFORE sourcing config files
+    resources::get_default_port() {
+        case "$1" in
+            "n8n") echo "5678" ;;
+            *) echo "8080" ;;
+        esac
     }
     
-    # Setup mocks
-    setup_standard_mocks
+    # Now source the config and library files
+    source "${N8N_DIR}/config/defaults.sh"
+    source "${N8N_DIR}/config/messages.sh"
+    source "${N8N_DIR}/lib/api.sh"
     
-    # Original setup content follows...
-    # Load shared test infrastructure
-    # Lightweight setup instead of heavy common_setup.bash
-    setup_standard_mocks() {
-        export FORCE="${FORCE:-no}"
-        export YES="${YES:-no}"
-        export OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"
-        export QUIET="${QUIET:-no}"
-        mock::network::set_online() { return 0; }
-        export -f mock::network::set_online
-    }
-    
-    # Mock system functions (lightweight)
-    log::info() { echo "[INFO] $*"; }
-    log::success() { echo "[SUCCESS] $*"; }
-    log::warning() { echo "[WARNING] $*"; }
-    log::error() { echo "[ERROR] $*" >&2; }
-    system::is_command() { command -v "$1" >/dev/null 2>&1; }
+    # Export config and messages
+    n8n::export_config
+    n8n::export_messages
     
     # Mock basic curl function
     curl() {
@@ -71,25 +57,6 @@ setup() {
         return 0
     }
     export -f curl
-    
-    # Setup standard mocks
-    setup_standard_mocks
-    
-    # Set test environment
-    export N8N_CUSTOM_PORT="5678"
-    export N8N_CONTAINER_NAME="n8n-test"
-    export N8N_BASE_URL="http://localhost:5678"
-    export N8N_BASIC_AUTH_USER="admin"
-    export N8N_BASIC_AUTH_PASSWORD="password123"
-    export YES="no"
-    
-    # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
-    N8N_DIR="$(dirname "$SCRIPT_DIR")"
-    
-    # Mock system functions
-    
-    # Mock curl for API calls
     
     # Mock jq for JSON processing
     jq() {
@@ -110,24 +77,10 @@ setup() {
         esac
     }
     
-    # Mock log functions
-    
-    
-    
-    
     # Mock n8n functions
     n8n::is_running() { return 0; }
     n8n::get_api_url() { echo "$N8N_BASE_URL/api/v1"; }
     n8n::get_auth_header() { echo "admin:password123"; }
-    
-    # Load configuration and messages
-    source "${N8N_DIR}/config/defaults.sh"
-    source "${N8N_DIR}/config/messages.sh"
-    n8n::export_config
-    n8n::export_messages
-    
-    # Load the functions to test
-    source "${N8N_DIR}/lib/api.sh"
 }
 
 # Test API health check
@@ -435,4 +388,9 @@ setup() {
     [[ "$result" =~ "backup" ]]
     
     rm -rf "$backup_dir"
+}
+
+# Teardown
+teardown() {
+    vrooli_cleanup_test
 }

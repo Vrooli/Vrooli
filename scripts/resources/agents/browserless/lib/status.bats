@@ -21,7 +21,7 @@ setup_file() {
 # Lightweight per-test setup
 setup() {
     # Setup standard mocks
-    setup_standard_mocks
+    vrooli_auto_setup
     
     # Set test environment (lightweight per-test)
     export BROWSERLESS_CUSTOM_PORT="9999"
@@ -37,6 +37,11 @@ setup() {
     # Export config functions (lightweight)
     browserless::export_config
     browserless::export_messages
+}
+
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
 }
 
 # Test health check with healthy service

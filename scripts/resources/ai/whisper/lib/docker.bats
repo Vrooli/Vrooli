@@ -1,13 +1,38 @@
 #!/usr/bin/env bats
 # Tests for Whisper docker.sh functions
 
-# Setup for each test
-setup() {
-    # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+# Load Vrooli test infrastructure
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+
+# Expensive setup operations (run once per file)
+setup_file() {
+    # Use appropriate setup function
+    vrooli_setup_service_test "whisper"
     
+    # Load dependencies once
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    WHISPER_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Load configuration and messages once
+    source "${WHISPER_DIR}/config/defaults.sh"
+    source "${WHISPER_DIR}/config/messages.sh"
+    
+    # Load docker functions once
+    source "${SCRIPT_DIR}/docker.sh"
+    
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_DIR="$SCRIPT_DIR"
+    export SETUP_FILE_WHISPER_DIR="$WHISPER_DIR"
+}
+
+# Lightweight per-test setup
+setup() {
     # Setup standard mocks
     vrooli_auto_setup
+    
+    # Use paths from setup_file
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
+    WHISPER_DIR="${SETUP_FILE_WHISPER_DIR}"
     
     # Set test environment
     export WHISPER_CUSTOM_PORT="8090"
@@ -50,11 +75,18 @@ setup() {
     # Load configuration and messages
     source "${WHISPER_DIR}/config/defaults.sh"
     source "${WHISPER_DIR}/config/messages.sh"
+    
+    # Export config functions
     whisper::export_config
     whisper::export_messages
     
     # Load the functions to test
     source "${WHISPER_DIR}/lib/docker.sh"
+}
+
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
 }
 
 # Test image pulling - CPU version

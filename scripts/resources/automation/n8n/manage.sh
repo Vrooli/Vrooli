@@ -54,7 +54,7 @@ n8n::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|reset-password|logs|info|execute|api-setup|save-api-key|inject|validate-injection" \
+        --options "install|uninstall|start|stop|restart|status|reset-password|logs|info|test|execute|api-setup|save-api-key|inject|validate-injection" \
         --default "install"
     
     args::register \
@@ -64,6 +64,13 @@ n8n::parse_arguments() {
         --type "value" \
         --options "yes|no" \
         --default "no"
+    
+    args::register \
+        --name "lines" \
+        --flag "n" \
+        --desc "Number of log lines to show" \
+        --type "value" \
+        --default "50"
     
     args::register \
         --name "webhook-url" \
@@ -144,6 +151,7 @@ n8n::parse_arguments() {
     
     export ACTION=$(args::get "action")
     export FORCE=$(args::get "force")
+    export LINES=$(args::get "lines")
     export YES=$(args::get "yes")
     export WEBHOOK_URL=$(args::get "webhook-url")
     export WORKFLOW_ID=$(args::get "workflow-id")
@@ -191,6 +199,9 @@ n8n::main() {
             ;;
         "info")
             n8n::info
+            ;;
+        "test")
+            n8n::test
             ;;
         "execute")
             n8n::execute

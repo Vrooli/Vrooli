@@ -1,38 +1,67 @@
 #!/usr/bin/env bats
-bats_require_minimum_version 1.5.0
 
-# Path to the script under test
-SCRIPT_PATH="$BATS_TEST_DIRNAME/status.sh"
-N8N_DIR="$BATS_TEST_DIRNAME/.."
+# Load Vrooli test infrastructure (REQUIRED)
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
 
-# Source dependencies
-RESOURCES_DIR="$N8N_DIR/../.."
-HELPERS_DIR="$RESOURCES_DIR/../helpers"
+# Expensive setup operations (run once per file)
+setup_file() {
+    # Use appropriate setup function
+    vrooli_setup_service_test "n8n"
+    
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_PATH="$(dirname "${BATS_TEST_FILENAME}")/status.sh"
+    export SETUP_FILE_N8N_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
+}
 
-# Source required utilities 
-. "$HELPERS_DIR/utils/log.sh"
-. "$HELPERS_DIR/utils/system.sh"
-. "$HELPERS_DIR/utils/ports.sh"
-. "$HELPERS_DIR/utils/flow.sh"
-. "$RESOURCES_DIR/port-registry.sh"
+# Lightweight per-test setup
+setup() {
+    # Setup standard mocks
+    vrooli_auto_setup
+    
+    # Use paths from setup_file
+    SCRIPT_PATH="${SETUP_FILE_SCRIPT_PATH}"
+    N8N_DIR="${SETUP_FILE_N8N_DIR}"
+    
+    # Set test environment BEFORE sourcing config files to avoid readonly conflicts
+    export N8N_CUSTOM_PORT="5678"
+    export YES="no"
+    
+    # Set default variables that the function expects
+    BASIC_AUTH="${BASIC_AUTH:-yes}"
+    AUTH_USERNAME="${AUTH_USERNAME:-admin}"
+    DATABASE_TYPE="${DATABASE_TYPE:-sqlite}"
+    TUNNEL_ENABLED="${TUNNEL_ENABLED:-no}"
+    
+    # Mock resources functions that are called during config loading
+    resources::get_default_port() {
+        case "$1" in
+            "n8n") echo "5678" ;;
+            *) echo "8080" ;;
+        esac
+    }
+    
+    # Now source the config and library files
+    source "${N8N_DIR}/config/defaults.sh"
+    source "${N8N_DIR}/config/messages.sh"
+    source "${N8N_DIR}/lib/common.sh"
+    source "$SCRIPT_PATH"
+    
+    # Export config and messages
+    n8n::export_config
+    n8n::export_messages
+}
+
+# Cleanup after each test
+teardown() {
+    vrooli_cleanup_test
+}
 
 # Helper function to setup n8n test environment
 setup_n8n_status_test() {
-    # Source dependencies directly in test context
-    SCRIPT_DIR="$N8N_DIR"  
-    RESOURCES_DIR="$N8N_DIR/../.."
-    HELPERS_DIR="$RESOURCES_DIR/../helpers"
-    
-    # Source in correct order
-    source "$HELPERS_DIR/utils/log.sh"
-    source "$HELPERS_DIR/utils/system.sh"
-    source "$HELPERS_DIR/utils/ports.sh"
-    source "$HELPERS_DIR/utils/flow.sh"
-    source "$RESOURCES_DIR/port-registry.sh"
-    source "$RESOURCES_DIR/common.sh"
-    source "$SCRIPT_DIR/config/defaults.sh"
-    source "$SCRIPT_DIR/lib/common.sh"
-    source "$SCRIPT_PATH"
+    # This function is now simplified as dependencies are loaded in setup_file
+    # Just ensure config and messages are exported
+    n8n::export_config
+    n8n::export_messages
     
     # Set default variables that the function expects
     BASIC_AUTH="${BASIC_AUTH:-yes}"

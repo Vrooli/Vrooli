@@ -51,18 +51,19 @@ setup() {
     export URL="https://example.com"
     export OUTPUT="/tmp/browserless-test-output.png"
     
+    # Load shared test infrastructure
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+    vrooli_auto_setup
+    
     # Basic mock functions (lightweight)
     mock::network::set_online() { return 0; }
-    setup_standard_mocks() { 
-        export FORCE="${FORCE:-no}"
-        export YES="${YES:-no}"
-        export OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"
-        export QUIET="${QUIET:-no}"
-        mock::network::set_online
-    }
     
-    # Setup mocks
-    setup_standard_mocks
+    # Set default environment variables
+    export FORCE="${FORCE:-no}"
+    export YES="${YES:-no}"
+    export OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"
+    export QUIET="${QUIET:-no}"
+    mock::network::set_online
     
     # Re-source config to ensure export functions are available
     source "${BROWSERLESS_DIR}/config/defaults.sh"
@@ -88,6 +89,11 @@ setup() {
     log::success() { echo "[SUCCESS] $*"; }
     log::warning() { echo "[WARNING] $*" >&2; }
     export -f log::header log::info log::error log::success log::warning
+}
+
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
 }
 
 # Test screenshot API function

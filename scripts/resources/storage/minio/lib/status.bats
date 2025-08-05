@@ -1,5 +1,4 @@
 #!/usr/bin/env bats
-bats_require_minimum_version 1.5.0
 
 # Path to the script under test
 SCRIPT_PATH="$BATS_TEST_DIRNAME/status.sh"

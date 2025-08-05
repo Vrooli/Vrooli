@@ -4,7 +4,7 @@
 # Setup for each test
 setup() {
     # Load shared test infrastructure with timeout protection
-    timeout 10s bash -c 'source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"' || {
+    timeout 10s bash -c 'source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"' || {
         echo "WARNING: common_setup.bash took too long, using fallback mocks" >&2
         export MOCK_RESPONSES_DIR="${BATS_TEST_TMPDIR:-/tmp}/mock_responses"
         mkdir -p "$MOCK_RESPONSES_DIR"
@@ -159,7 +159,7 @@ teardown() {
     READ_CALL_COUNT=0
     
     # Clean up test environment with timeout protection
-    timeout 5s cleanup_mocks 2>/dev/null || true
+    timeout 5s vrooli_cleanup_test 2>/dev/null || true
     rm -rf "$N8N_DATA_DIR" 2>/dev/null || true
     rm -rf "$MOCK_RESPONSES_DIR" 2>/dev/null || true
     

@@ -1,45 +1,50 @@
 #!/usr/bin/env bats
-
 # Tests for Ollama common utilities
 
+# Load Vrooli test infrastructure
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+
+# Expensive setup operations (run once per file)
+setup_file() {
+    # Use appropriate setup function
+    vrooli_setup_service_test "ollama"
+    
+    # Load dependencies once
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    OLLAMA_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Load configuration and messages once
+    source "${OLLAMA_DIR}/config/defaults.sh"
+    source "${OLLAMA_DIR}/config/messages.sh"
+    
+    # Load common functions once
+    source "${SCRIPT_DIR}/common.sh"
+    
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_DIR="$SCRIPT_DIR"
+    export SETUP_FILE_OLLAMA_DIR="$OLLAMA_DIR"
+}
+
+# Lightweight per-test setup
 setup() {
-    # Mock the resources directory structure
-    export SCRIPT_DIR="$(dirname "$BATS_TEST_FILENAME")"
-    export RESOURCES_DIR="$SCRIPT_DIR/../.."
+    # Setup standard mocks
+    vrooli_auto_setup
+    
+    # Use paths from setup_file
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
+    OLLAMA_DIR="${SETUP_FILE_OLLAMA_DIR}"
+    
+    # Set test environment
     export DESCRIPTION="Test Ollama management"
     
-    # Mock functions that would normally be sourced
-    args::reset() { return 0; }
-    args::register_help() { return 0; }
-    args::register_yes() { return 0; }
-    args::register() { return 0; }
-    args::is_asking_for_help() { return 1; }
-    args::parse() { return 0; }
-    args::get() { 
-        case "$1" in
-            "action") echo "status" ;;
-            "force") echo "no" ;;
-            "yes") echo "no" ;;
-            "models") echo "" ;;
-            "skip-models") echo "no" ;;
-            "text") echo "" ;;
-            "model") echo "" ;;
-            "type") echo "general" ;;
-            "format") echo "text" ;;
-            "temperature") echo "0.8" ;;
-            "max-tokens") echo "" ;;
-            "top-p") echo "0.9" ;;
-            "top-k") echo "40" ;;
-            "seed") echo "" ;;
-            "system") echo "" ;;
-        esac
-    }
-    args::usage() { echo "Usage: $1"; }
-    
-    resources::update_config() { return 0; }
-    
-    # Source the common utilities
-    source "$(dirname "$BATS_TEST_FILENAME")/common.sh"
+    # Export config functions
+    ollama::export_config
+    ollama::export_messages
+}
+
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
 }
 
 @test "ollama::parse_arguments sets environment variables correctly" {

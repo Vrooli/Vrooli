@@ -37,6 +37,11 @@ mock::http::set_endpoint_state() {
     local state="$2"
     local key=$(sanitize_url_key "$endpoint")
     
+    # Ensure array is properly initialized
+    if [[ ! -v MOCK_HTTP_ENDPOINTS ]]; then
+        declare -gA MOCK_HTTP_ENDPOINTS
+    fi
+    
     MOCK_HTTP_ENDPOINTS["$key"]="$state"
     
     # Set default response based on state
@@ -68,6 +73,15 @@ mock::http::set_endpoint_response() {
     local status_code="${3:-200}"
     local key=$(sanitize_url_key "$endpoint")
     
+    # Ensure arrays are properly initialized
+    if [[ ! -v MOCK_HTTP_RESPONSES ]]; then
+        declare -gA MOCK_HTTP_RESPONSES
+    fi
+    if [[ ! -v MOCK_HTTP_STATUS_CODES ]]; then
+        declare -gA MOCK_HTTP_STATUS_CODES
+    fi
+    
+    # Set values with proper quoting
     MOCK_HTTP_RESPONSES["$key"]="$response"
     MOCK_HTTP_STATUS_CODES["$key"]="$status_code"
 }
@@ -81,6 +95,11 @@ mock::http::set_endpoint_delay() {
     local delay="$2"
     local key=$(sanitize_url_key "$endpoint")
     
+    # Ensure array is properly initialized
+    if [[ ! -v MOCK_HTTP_DELAYS ]]; then
+        declare -gA MOCK_HTTP_DELAYS
+    fi
+    
     MOCK_HTTP_DELAYS["$key"]="$delay"
 }
 
@@ -92,6 +111,11 @@ mock::http::set_endpoint_sequence() {
     local endpoint="$1"
     local responses="$2"
     local key=$(sanitize_url_key "$endpoint")
+    
+    # Ensure array is properly initialized
+    if [[ ! -v MOCK_HTTP_RESPONSES ]]; then
+        declare -gA MOCK_HTTP_RESPONSES
+    fi
     
     # Store sequence in special format using underscore separators
     MOCK_HTTP_RESPONSES["${key}_sequence"]="$responses"
@@ -187,7 +211,7 @@ curl() {
                 shift
                 ;;
             "-w"|"--write-out")
-                if [[ "$2" == "%{http_code}" ]]; then
+                if [[ "$2" =~ %\{http_code\} ]]; then
                     output_http_code=true
                 fi
                 shift 2
@@ -267,6 +291,7 @@ curl() {
         echo "$output" > "$output_file"
     else
         if [[ "$output_http_code" == true ]]; then
+            echo "$output"
             echo "$status_code"
         else
             echo "$output"
@@ -586,6 +611,7 @@ nc() {
 
 # Export functions
 export -f curl wget nc
+export -f sanitize_url_key
 export -f mock::http::set_endpoint_state mock::http::set_endpoint_response
 export -f mock::http::set_endpoint_delay mock::http::set_endpoint_sequence
 export -f mock::http::set_endpoint_unreachable

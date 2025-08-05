@@ -105,9 +105,9 @@ pgrep() {
     local pattern="$1"
     echo "[MOCK] pgrep $pattern"
     
-    # Return mock PID for any pattern
-    echo "12345"
-    return 0
+    # Return empty (no processes found) to avoid cleanup delays
+    # This prevents the cleanup from trying to kill fake PIDs
+    return 1
 }
 
 #######################################

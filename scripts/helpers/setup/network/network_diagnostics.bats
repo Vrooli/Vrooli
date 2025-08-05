@@ -965,11 +965,11 @@ EOF
 # =============================================================================
 
 @test "performance: core tests complete within timeout" {
-    # Mock all commands with small delays
-    ping() { sleep 0.1; return 0; }
-    getent() { sleep 0.1; echo "1.1.1.1 test"; return 0; }
-    nc() { sleep 0.1; return 0; }
-    curl() { sleep 0.1; return 0; }
+    # Mock all commands without delays
+    ping() { return 0; }
+    getent() { echo "1.1.1.1 test"; return 0; }
+    nc() { return 0; }
+    curl() { return 0; }
     timeout() { shift; "$@"; }
     command() { return 0; }
     

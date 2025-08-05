@@ -1,11 +1,12 @@
 {
-  "apiVersion": "v1",
-  "kind": "Service",
-  "metadata": {
+  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
     "name": "document-intelligence-pipeline",
-    "version": "1.0.0",
     "displayName": "Document Intelligence Pipeline",
     "description": "AI-powered document processing system for extraction, analysis, and semantic search",
+    "version": "1.0.0",
+    "type": "business-application",
     "tags": [
       "document-processing",
       "data-extraction",
@@ -14,170 +15,433 @@
       "legal-tech",
       "fintech"
     ],
-    "labels": {
-      "category": "ai-data-analysis",
-      "complexity": "advanced",
-      "market-demand": "very-high"
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "team@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scripts/scenarios/core/document-intelligence-pipeline"
     },
-    "annotations": {
-      "value-proposition": "Enterprise document processing automation with AI-powered extraction and search",
-      "generated-from": "manifest-to-service-converter",
-      "conversion-date": "2025-08-04T02:14:43Z"
+    "license": "GPL-3.0",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "./README.md",
+    "support": {
+      "email": "support@vrooli.com",
+      "issues": "https://github.com/Vrooli/Vrooli/issues",
+      "chat": "https://discord.gg/vrooli"
     }
   },
-  "spec": {
-    "type": "application",
-    "category": "ai-data-analysis",
-    "capabilities": [
-      "ai-processing",
-      "web-automation"
-    ],
-    "dependencies": {
-      "resources": [
-        {
-          "type": "ai",
-          "name": "unstructured-io",
-          "optional": false,
-          "version": "*"
-        },
-        {
-          "type": "vectordb",
-          "name": "qdrant",
-          "optional": false,
-          "version": "*"
-        },
-        {
-          "type": "ai",
-          "name": "ollama",
-          "optional": false,
-          "version": "*"
-        },
-        {
-          "type": "agent",
-          "name": "browserless",
-          "optional": true,
-          "version": "*"
-        }
-      ]
-    },
-    "pricing": {
-      "model": "subscription",
-      "currency": "USD",
-      "tiers": [
-        {
-          "name": "Basic",
-          "price": 4000,
-          "interval": "month",
-          "features": []
-        },
-        {
-          "name": "Professional",
-          "price": 12000,
-          "interval": "month",
-          "features": []
-        }
-      ]
-    },
-    "scenarios": {
-      "initialization": {
-        "resources": {
-          "postgres": {
-            "data": [
-              {
-                "type": "schema",
-                "file": "scenarios/document-intelligence-pipeline/initialization/database/schema.sql",
-                "format": "sql"
-              },
-              {
-                "type": "seed",
-                "file": "scenarios/document-intelligence-pipeline/initialization/database/seed.sql",
-                "format": "sql"
-              }
-            ]
-          }
-        },
-        "order": [],
-        "parallel": false
-      }
-    },
-    "serve": {
-      "healthChecks": {
-        "readiness": {
-          "httpGet": {
-            "path": "/health",
-            "port": 8080,
-            "scheme": "HTTP"
-          },
-          "periodSeconds": 30,
-          "timeoutSeconds": 5
-        },
-        "liveness": {
-          "httpGet": {
-            "path": "/health",
-            "port": 8080,
-            "scheme": "HTTP"
-          },
-          "periodSeconds": 60,
-          "timeoutSeconds": 5
-        }
-      },
-      "endpoints": [
-        {
-          "name": "api",
-          "protocol": "http",
-          "path": "/api/document-intelligence-pipeline",
-          "port": 3000,
-          "public": true
-        },
-        {
-          "name": "health",
-          "protocol": "http",
-          "path": "/api/document-intelligence-pipeline/health",
-          "port": 3000,
-          "public": false
-        }
-      ]
-    },
-    "deployment": {
-      "replicas": 1,
-      "strategy": "recreate",
-      "resources": {
-        "requests": {
-          "cpu": "100m",
-          "memory": "128Mi"
-        },
-        "limits": {
-          "cpu": "1000m",
-          "memory": "1Gi"
-        }
-      }
-    },
-    "security": {
-      "authentication": {
+  "resources": {
+    "storage": {
+      "postgres": {
+        "type": "postgresql",
+        "enabled": true,
+        "version": "16",
         "required": true,
-        "type": "jwt"
+        "initialization": {
+          "data": [
+            {
+              "type": "schema",
+              "file": "initialization/database/schema.sql"
+            },
+            {
+              "type": "seed",
+              "file": "initialization/database/seed.sql"
+            }
+          ]
+        }
       },
-      "authorization": {
-        "type": "rbac"
-      },
-      "encryption": {
-        "transit": true,
-        "atRest": true
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "collections": [
+            {
+              "name": "documents",
+              "config": {
+                "vectors": {
+                  "size": 384,
+                  "distance": "Cosine"
+                }
+              }
+            },
+            {
+              "name": "document-chunks",
+              "config": {
+                "vectors": {
+                  "size": 384,
+                  "distance": "Cosine"
+                }
+              }
+            }
+          ]
+        }
       }
     },
-    "observability": {
-      "logging": {
+    "ai": {
+      "unstructured-io": {
         "enabled": true,
-        "level": "info"
+        "required": true,
+        "type": "unstructured-io"
       },
-      "metrics": {
+      "ollama": {
         "enabled": true,
-        "provider": "prometheus"
-      },
-      "tracing": {
+        "required": true,
+        "models": ["llama3.1:8b", "nomic-embed-text"]
+      }
+    },
+    "agents": {
+      "browserless": {
         "enabled": false,
-        "provider": "jaeger"
+        "required": false,
+        "mode": "service"
       }
     }
+  },
+  "deployment": {
+    "target": "docker",
+    "strategy": "rolling-update",
+    "urls": {
+      "application": "http://localhost:3000",
+      "api": "http://localhost:3000/api/document-intelligence-pipeline",
+      "health": "http://localhost:3000/api/document-intelligence-pipeline/health",
+      "unstructured": "http://localhost:8000",
+      "qdrant": "http://localhost:6333"
+    },
+    "initialization": {
+      "phases": [
+        {
+          "name": "pre-validation",
+          "tasks": [
+            {
+              "name": "validate-resources",
+              "type": "script",
+              "script": "./deployment/validate.sh",
+              "timeout": "30s"
+            }
+          ]
+        },
+        {
+          "name": "database-setup",
+          "tasks": [
+            {
+              "name": "apply-schema",
+              "type": "sql",
+              "target": "storage.postgres",
+              "file": "initialization/database/schema.sql"
+            },
+            {
+              "name": "seed-data",
+              "type": "sql",
+              "target": "storage.postgres",
+              "file": "initialization/database/seed.sql"
+            }
+          ]
+        },
+        {
+          "name": "ai-setup",
+          "parallel": true,
+          "tasks": [
+            {
+              "name": "load-ai-models",
+              "type": "resource-inject",
+              "target": "ai.ollama",
+              "timeout": "10m"
+            },
+            {
+              "name": "setup-vector-collections",
+              "type": "resource-inject",
+              "target": "storage.qdrant",
+              "timeout": "2m"
+            },
+            {
+              "name": "verify-unstructured-io",
+              "type": "resource-inject",
+              "target": "ai.unstructured-io",
+              "timeout": "2m"
+            }
+          ]
+        },
+        {
+          "name": "application-configuration",
+          "tasks": [
+            {
+              "name": "load-app-config",
+              "type": "config",
+              "file": "initialization/configuration/app-config.json"
+            },
+            {
+              "name": "set-feature-flags",
+              "type": "config",
+              "file": "initialization/configuration/feature-flags.json"
+            }
+          ]
+        },
+        {
+          "name": "startup",
+          "tasks": [
+            {
+              "name": "start-application",
+              "type": "script",
+              "script": "./deployment/startup.sh",
+              "timeout": "2m"
+            }
+          ]
+        },
+        {
+          "name": "post-validation",
+          "tasks": [
+            {
+              "name": "health-check",
+              "type": "healthcheck",
+              "target": "http://localhost:3000/api/document-intelligence-pipeline/health",
+              "timeout": "30s",
+              "retries": 3
+            },
+            {
+              "name": "monitor-startup",
+              "type": "script",
+              "script": "./deployment/monitor.sh",
+              "background": true
+            }
+          ]
+        }
+      ]
+    },
+    "monitoring": {
+      "enabled": true,
+      "healthChecks": {
+        "application": {
+          "endpoint": "http://localhost:3000/api/document-intelligence-pipeline/health",
+          "interval": "30s",
+          "timeout": "5s",
+          "threshold": 3
+        },
+        "unstructured-io": {
+          "endpoint": "http://localhost:8000/general/v0/general",
+          "interval": "60s",
+          "timeout": "15s"
+        },
+        "qdrant": {
+          "endpoint": "http://localhost:6333/health",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "ollama": {
+          "endpoint": "http://localhost:11434/api/tags",
+          "interval": "60s",
+          "timeout": "15s"
+        },
+        "database": {
+          "type": "tcp",
+          "port": 5432,
+          "interval": "30s"
+        }
+      },
+      "metrics": {
+        "responseTime": {
+          "p50": "500ms",
+          "p95": "2000ms",
+          "p99": "5000ms"
+        },
+        "throughput": {
+          "rps": 10,
+          "concurrent": 5
+        },
+        "errorRate": {
+          "threshold": "3%"
+        }
+      }
+    },
+    "cleanup": {
+      "enabled": true,
+      "tasks": [
+        {
+          "name": "drop-database",
+          "type": "sql",
+          "target": "storage.postgres",
+          "query": "DROP DATABASE IF EXISTS document_intelligence_pipeline"
+        },
+        {
+          "name": "clear-vector-collections",
+          "type": "resource-cleanup",
+          "target": "storage.qdrant"
+        }
+      ]
+    },
+    "testing": {
+      "enabled": true,
+      "timeout": "45m",
+      "script": "./test.sh",
+      "ui": {
+        "required": false,
+        "type": "api",
+        "url": "http://localhost:3000/api/document-intelligence-pipeline"
+      },
+      "performance": {
+        "loadTest": {
+          "users": 5,
+          "duration": "3m",
+          "rampUp": "30s"
+        }
+      }
+    },
+    "resources": {
+      "requests": {
+        "cpu": "1000m",
+        "memory": "2Gi"
+      },
+      "limits": {
+        "cpu": "4000m",
+        "memory": "8Gi"
+      }
+    }
+  },
+  "metadata": {
+    "businessModel": {
+      "purpose": "commercial",
+      "valueProposition": "Enterprise document processing automation with AI-powered extraction and search",
+      "targetMarket": "Legal firms, financial institutions, and enterprises with heavy document processing needs",
+      "painPoints": [
+        "Manual document review and data extraction consuming hours of professional time",
+        "Inability to search and analyze large document repositories effectively",
+        "Inconsistent data extraction and classification across documents"
+      ],
+      "solution": "AI-powered document intelligence pipeline with automated extraction, semantic search, and intelligent classification",
+      "competitiveAdvantage": "Integration of Unstructured.io processing with vector search and local AI models for secure document analysis",
+      "revenuePotential": {
+        "initial": "$4,000",
+        "recurring": "$12,000",
+        "expansion": "$25,000",
+        "totalEstimate": "$41,000"
+      },
+      "marketDemand": {
+        "level": "very-high",
+        "growth": "30% annually",
+        "evidence": "Growing legal tech and document automation markets, especially in compliance and due diligence"
+      },
+      "roi": {
+        "developmentCost": "$6,000",
+        "timeToMarket": "2 weeks",
+        "breakEven": "3 months"
+      }
+    },
+    "performance": {
+      "targets": {
+        "initializationTime": "5m",
+        "responseTime": {
+          "p50": "500ms",
+          "p95": "2000ms",
+          "p99": "5000ms"
+        },
+        "throughput": {
+          "minimum": 5,
+          "target": 10,
+          "peak": 50
+        },
+        "availability": "99.5%",
+        "errorRate": "<3%"
+      },
+      "resources": {
+        "cpu": {
+          "minimum": "2.0",
+          "target": "4.0",
+          "maximum": "8.0"
+        },
+        "memory": {
+          "minimum": "4Gi",
+          "target": "8Gi",
+          "maximum": "16Gi"
+        },
+        "storage": {
+          "database": "100Gi",
+          "vectors": "200Gi",
+          "documents": "500Gi"
+        }
+      }
+    },
+    "customization": {
+      "variables": {
+        "APP_NAME": {
+          "type": "string",
+          "default": "Document Intelligence Pipeline",
+          "description": "Application display name"
+        },
+        "COMPANY_NAME": {
+          "type": "string",
+          "default": "Your Company",
+          "description": "Customer company name"
+        },
+        "PRIMARY_COLOR": {
+          "type": "string",
+          "default": "#dc2626",
+          "description": "Brand primary color"
+        },
+        "DATABASE_NAME": {
+          "type": "string",
+          "default": "document_intelligence_pipeline",
+          "description": "Database name"
+        },
+        "APP_PORT": {
+          "type": "number",
+          "default": 3000,
+          "description": "Application port"
+        },
+        "UNSTRUCTURED_PORT": {
+          "type": "number",
+          "default": 8000,
+          "description": "Unstructured.io API port"
+        },
+        "QDRANT_PORT": {
+          "type": "number",
+          "default": 6333,
+          "description": "Qdrant vector database port"
+        }
+      },
+      "features": {
+        "authentication": {
+          "enabled": true,
+          "provider": "jwt",
+          "sso": true
+        },
+        "notifications": {
+          "enabled": true,
+          "channels": ["email", "webhook"]
+        },
+        "analytics": {
+          "enabled": true,
+          "provider": "internal"
+        },
+        "ocr": {
+          "enabled": true,
+          "provider": "unstructured-io"
+        },
+        "semanticSearch": {
+          "enabled": true,
+          "provider": "qdrant"
+        }
+      },
+      "integrations": [
+        {
+          "name": "Document Management Systems",
+          "type": "api",
+          "required": false
+        },
+        {
+          "name": "Legal Case Management",
+          "type": "webhook",
+          "required": false
+        }
+      ]
+    },
+    "category": "ai-data-analysis",
+    "complexity": "advanced",
+    "marketDemand": "very-high"
   }
 }

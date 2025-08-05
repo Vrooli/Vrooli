@@ -1,13 +1,31 @@
 #!/usr/bin/env bats
 # Tests for Unstructured.io manage.sh script
 
-# Load Vrooli test infrastructure
+# Load Vrooli test infrastructure (REQUIRED)
 source "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
 
-# Setup for each test
-setup() {
-    # Use Vrooli test infrastructure with Unstructured.io-specific setup
+# Expensive setup operations (run once per file)
+setup_file() {
+    # Use appropriate setup function
     vrooli_setup_service_test "unstructured-io"
+    
+    # Load dependencies once
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    
+    # Source manage.sh and all dependencies
+    source "${SCRIPT_DIR}/manage.sh"
+    
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_DIR="$SCRIPT_DIR"
+}
+
+# Lightweight per-test setup
+setup() {
+    # Setup standard mocks
+    vrooli_auto_setup
+    
+    # Use paths from setup_file
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
     
     # Set unstructured-io specific environment
     export UNSTRUCTURED_IO_CUSTOM_PORT="9999"
@@ -16,6 +34,15 @@ setup() {
     export OUTPUT="json"
     export LANGUAGES="eng"
     export BATCH="no"
+    
+    # Export config functions
+    unstructured_io::export_config
+    unstructured_io::export_messages
+}
+
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
 }
 
 # Test script loading

@@ -1,5 +1,4 @@
 #!/usr/bin/env bats
-bats_require_minimum_version 1.5.0
 
 # Test specific functions from common.sh that don't depend on readonly variables
 # This avoids conflicts with the readonly VROOLI_CONFIG_DIR

@@ -1,12 +1,11 @@
 #!/usr/bin/env bats
 # Tests for agent-s2 config/messages.sh message system
 
-bats_require_minimum_version 1.5.0
 
 # Expensive setup operations run once per file
 setup_file() {
     # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    source "${VROOLI_TEST_ROOT:-/home/matthalloran8/Vrooli/scripts/__test}/fixtures/setup.bash"
     
     # Get resource directory path
     AGENTS2_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
@@ -42,7 +41,7 @@ setup() {
 
 teardown() {
     # Clean up test environment
-    cleanup_mocks
+    vrooli_cleanup_test
 }
 
 # Test message system initialization

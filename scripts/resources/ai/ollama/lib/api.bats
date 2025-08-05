@@ -1,46 +1,38 @@
 #!/usr/bin/env bats
-
 # Tests for Ollama API functions
 
-# Expensive setup operations run once per file
+# Load Vrooli test infrastructure
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+
+# Expensive setup operations (run once per file)
 setup_file() {
-    # No expensive operations needed in setup_file for this test
-    true
+    # Use appropriate setup function
+    vrooli_setup_service_test "ollama"
+    
+    # Load dependencies once
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    OLLAMA_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Load configuration and messages once
+    source "${OLLAMA_DIR}/config/defaults.sh"
+    source "${OLLAMA_DIR}/config/messages.sh"
+    
+    # Load API functions once
+    source "${SCRIPT_DIR}/api.sh"
+    
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_DIR="$SCRIPT_DIR"
+    export SETUP_FILE_OLLAMA_DIR="$OLLAMA_DIR"
 }
 
 # Lightweight per-test setup
 setup() {
-    # Basic mock functions (lightweight)
-    # Mock resources functions to avoid hang
-    declare -A DEFAULT_PORTS=(
-        ["ollama"]="11434"
-        ["agent-s2"]="4113"
-        ["browserless"]="3000"
-        ["unstructured-io"]="8000"
-        ["n8n"]="5678"
-        ["node-red"]="1880"
-        ["huginn"]="3000"
-        ["windmill"]="8000"
-        ["judge0"]="2358"
-        ["searxng"]="8080"
-        ["qdrant"]="6333"
-        ["questdb"]="9000"
-        ["vault"]="8200"
-    )
-    resources::get_default_port() { echo "${DEFAULT_PORTS[$1]:-8080}"; }
-    export -f resources::get_default_port
+    # Setup standard mocks
+    vrooli_auto_setup
     
-    mock::network::set_online() { return 0; }
-    setup_standard_mocks() { 
-        export FORCE="${FORCE:-no}"
-        export YES="${YES:-no}"
-        export OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"
-        export QUIET="${QUIET:-no}"
-        mock::network::set_online
-    }
-    
-    # Setup mocks
-    setup_standard_mocks
+    # Use paths from setup_file
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
+    OLLAMA_DIR="${SETUP_FILE_OLLAMA_DIR}"
     
     # Set test environment (lightweight per-test)
     export OLLAMA_BASE_URL="http://localhost:11434"
@@ -131,19 +123,11 @@ setup() {
     
     # Mock system commands (shared mocks handle most, only override what's needed)
     date() { echo "1234567890"; }  # Fixed timestamp for testing
-    
-    # Load configuration
-    local OLLAMA_DIR="$(dirname "$(dirname "$BATS_TEST_FILENAME")")"
-    source "${OLLAMA_DIR}/config/defaults.sh" 2>/dev/null || true
-    source "${OLLAMA_DIR}/config/messages.sh" 2>/dev/null || true
-    
-    # Load required dependencies
-    source "${OLLAMA_DIR}/lib/common.sh" 2>/dev/null || true
-    source "${OLLAMA_DIR}/lib/status.sh"
-    source "${OLLAMA_DIR}/lib/models.sh"
-    
-    # Source the API functions
-    source "$(dirname "$BATS_TEST_FILENAME")/api.sh"
+}
+
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
 }
 
 @test "ollama::send_prompt fails when API not healthy" {
@@ -328,4 +312,9 @@ setup() {
     # Test that all expected functions exist
     type ollama::send_prompt >/dev/null
     type ollama::info >/dev/null
+}
+
+# Teardown
+teardown() {
+    vrooli_cleanup_test
 }

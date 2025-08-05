@@ -1,30 +1,54 @@
 #!/usr/bin/env bats
 # Tests for n8n install.sh functions
 
-# Setup for each test
-setup() {
-    # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+# Load Vrooli test infrastructure (REQUIRED)
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+
+# Expensive setup operations (run once per file)
+setup_file() {
+    # Use appropriate setup function
+    vrooli_setup_service_test "n8n"
     
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    export SETUP_FILE_N8N_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
+}
+
+# Lightweight per-test setup
+setup() {
     # Setup standard mocks
     vrooli_auto_setup
     
-    # Set test environment
+    # Use paths from setup_file
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
+    N8N_DIR="${SETUP_FILE_N8N_DIR}"
+    
+    # Set test environment BEFORE sourcing config files to avoid readonly conflicts
     export N8N_CUSTOM_PORT="5678"
-    export N8N_CONTAINER_NAME="n8n-test"
-    export N8N_DB_CONTAINER_NAME="n8n-postgres-test"
     export N8N_DATA_DIR="/tmp/n8n-test"
-    export N8N_BASE_URL="http://localhost:5678"
     export DATABASE_TYPE="postgres"
     export N8N_ENCRYPTION_KEY="test-encryption-key"
     export YES="no"
     
-    # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
-    N8N_DIR="$(dirname "$SCRIPT_DIR")"
-    
     # Create test directory
     mkdir -p "$N8N_DATA_DIR"
+    
+    # Mock resources functions that are called during config loading
+    resources::get_default_port() {
+        case "$1" in
+            "n8n") echo "5678" ;;
+            *) echo "8080" ;;
+        esac
+    }
+    
+    # Now source the config and library files
+    source "${N8N_DIR}/config/defaults.sh"
+    source "${N8N_DIR}/config/messages.sh"
+    source "${N8N_DIR}/lib/install.sh"
+    
+    # Export config and messages
+    n8n::export_config
+    n8n::export_messages
     
     # Mock rollback functions
     resources::add_rollback_action() {
@@ -53,12 +77,9 @@ setup() {
     }
     
     # Mock system functions
-    
     system::is_port_in_use() {
         return 1  # Port available
     }
-    
-    # Mock Docker functions
     
     # Mock openssl command
     openssl() {
@@ -70,11 +91,6 @@ setup() {
         esac
     }
     
-    # Mock log functions
-    
-    
-    
-    
     # Mock n8n functions
     n8n::check_docker() { return 0; }
     n8n::container_exists() { return 1; }  # No existing container
@@ -83,20 +99,12 @@ setup() {
     n8n::start_postgres() { return 0; }
     n8n::init_database() { return 0; }
     n8n::status() { return 0; }
-    
-    # Load configuration and messages
-    source "${N8N_DIR}/config/defaults.sh"
-    source "${N8N_DIR}/config/messages.sh"
-    n8n::export_config
-    n8n::export_messages
-    
-    # Load the functions to test
-    source "${N8N_DIR}/lib/install.sh"
 }
 
 # Cleanup after each test
 teardown() {
     rm -rf "$N8N_DATA_DIR"
+    vrooli_cleanup_test
 }
 
 # Test successful installation

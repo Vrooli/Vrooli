@@ -1,11 +1,30 @@
 #!/usr/bin/env bats
 # Tests for Unstructured.io install.sh functions
 
-# Setup for each test
-setup() {
-    # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+# Load Vrooli test infrastructure (REQUIRED)
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+
+# Expensive setup operations (run once per file)
+setup_file() {
+    # Use appropriate setup function
+    vrooli_setup_service_test "unstructured-io"
     
+    # Load dependencies once
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    UNSTRUCTURED_IO_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Source library files
+    source "${SCRIPT_DIR}/install.sh"
+    source "${UNSTRUCTURED_IO_DIR}/config/defaults.sh"
+    source "${UNSTRUCTURED_IO_DIR}/config/messages.sh"
+    
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_DIR="$SCRIPT_DIR"
+    export SETUP_FILE_UNSTRUCTURED_IO_DIR="$UNSTRUCTURED_IO_DIR"
+}
+
+# Lightweight per-test setup
+setup() {
     # Setup standard mocks
     vrooli_auto_setup
     
@@ -19,9 +38,9 @@ setup() {
     export UNSTRUCTURED_IO_CPU_LIMIT="2.0"
     export YES="no"
     
-    # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
-    UNSTRUCTURED_IO_DIR="$(dirname "$SCRIPT_DIR")"
+    # Use paths from setup_file
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
+    UNSTRUCTURED_IO_DIR="${SETUP_FILE_UNSTRUCTURED_IO_DIR}""
     
     # Mock rollback functions
     resources::add_rollback_action() {
@@ -69,14 +88,14 @@ setup() {
     unstructured_io::check_port_available() { return 0; }
     unstructured_io::status() { return 0; }
     
-    # Load configuration and messages
-    source "${UNSTRUCTURED_IO_DIR}/config/defaults.sh"
-    source "${UNSTRUCTURED_IO_DIR}/config/messages.sh"
+    # Export config functions
     unstructured_io::export_config
     unstructured_io::export_messages
-    
-    # Load the functions to test
-    source "${UNSTRUCTURED_IO_DIR}/lib/install.sh"
+}
+
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
 }
 
 # Test successful installation

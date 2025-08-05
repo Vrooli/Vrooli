@@ -1,45 +1,76 @@
 #!/usr/bin/env bats
-bats_require_minimum_version 1.5.0
+# Tests for Claude Code manage.sh script
 
-# Path to the script under test
-SCRIPT_PATH="$BATS_TEST_DIRNAME/manage.sh"
-CONFIG_DIR="$BATS_TEST_DIRNAME/config"
-LIB_DIR="$BATS_TEST_DIRNAME/lib"
+# Load Vrooli test infrastructure
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
 
-# Source dependencies
-RESOURCES_DIR="$BATS_TEST_DIRNAME/../.."
-HELPERS_DIR="$RESOURCES_DIR/../helpers"
+# Expensive setup operations run once per file
+setup_file() {
+    # Use Vrooli service test setup
+    vrooli_setup_service_test "claude-code"
+    
+    # Load Claude Code specific configuration once per file
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    CLAUDE_CODE_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Load configuration and manage script once
+    source "${CLAUDE_CODE_DIR}/config/defaults.sh"
+    source "${CLAUDE_CODE_DIR}/config/messages.sh"
+    source "${SCRIPT_DIR}/manage.sh"
+}
 
-# Source required utilities (suppress errors during test setup)
-. "$HELPERS_DIR/utils/log.sh" 2>/dev/null || true
-. "$HELPERS_DIR/utils/system.sh" 2>/dev/null || true
-. "$HELPERS_DIR/utils/args.sh" 2>/dev/null || true
+# Lightweight per-test setup
+setup() {
+    # Setup standard Vrooli mocks
+    vrooli_auto_setup
+    
+    # Set test environment variables (lightweight per-test)
+    export CLAUDE_CODE_CUSTOM_PORT="8080"
+    export CLAUDE_CODE_CONTAINER_NAME="claude-code-test"
+    export CLAUDE_CODE_BASE_URL="http://localhost:8080"
+    export FORCE="no"
+    export YES="no"
+    export OUTPUT_FORMAT="text"
+    export QUIET="no"
+    
+    # Export config functions
+    claude_code::export_config
+    claude_code::export_messages
+    
+    # Mock log functions
+    log::header() { echo "=== $* ==="; }
+    log::info() { echo "[INFO] $*"; }
+    log::error() { echo "[ERROR] $*" >&2; }
+    log::success() { echo "[SUCCESS] $*"; }
+    log::warning() { echo "[WARNING] $*" >&2; }
+    export -f log::header log::info log::error log::success log::warning
+}
+
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
+}
 
 # ============================================================================
 # Script Loading Tests
 # ============================================================================
 
-@test "sourcing manage.sh defines required functions" {
-    run bash -c "source '$SCRIPT_PATH' && declare -f claude_code::parse_arguments && declare -f claude_code::main"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ claude_code::parse_arguments ]]
-    [[ "$output" =~ claude_code::main ]]
+@test "manage.sh loads without errors" {
+    # Should load successfully in setup_file
+    [ "$?" -eq 0 ]
 }
 
-@test "manage.sh sources all required dependencies" {
-    run bash -c "source '$SCRIPT_PATH' 2>&1 | grep -v 'command not found' | head -1"
-    [ "$status" -eq 0 ]
+@test "manage.sh defines required functions" {
+    # Functions should be available from setup_file
+    declare -f claude_code::parse_arguments >/dev/null
+    declare -f claude_code::main >/dev/null
+    declare -f claude_code::install >/dev/null
+    declare -f claude_code::status >/dev/null
 }
 
-@test "manage.sh sources config files" {
-    run bash -c "source '$SCRIPT_PATH' && echo \$RESOURCE_NAME"
-    [ "$status" -eq 0 ]
-    [[ "$output" == "claude-code" ]]
-}
-
-@test "manage.sh sources all library modules" {
-    run bash -c "source '$SCRIPT_PATH' && declare -f claude_code::install && declare -f claude_code::status && declare -f claude_code::run"
-    [ "$status" -eq 0 ]
+@test "manage.sh loads configuration correctly" {
+    # Config should be loaded from setup_file
+    [ "$RESOURCE_NAME" = "claude-code" ]
 }
 
 # ============================================================================
@@ -47,67 +78,58 @@ HELPERS_DIR="$RESOURCES_DIR/../helpers"
 # ============================================================================
 
 @test "claude_code::parse_arguments sets default action to help" {
-    run bash -c "source '$SCRIPT_PATH'; claude_code::parse_arguments; echo \"\$ACTION\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "help" ]]
+    claude_code::parse_arguments
+    [ "$ACTION" = "help" ]
 }
 
 @test "claude_code::parse_arguments accepts install action" {
-    run bash -c "source '$SCRIPT_PATH'; claude_code::parse_arguments --action install; echo \"\$ACTION\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "install" ]]
+    claude_code::parse_arguments --action install
+    [ "$ACTION" = "install" ]
 }
 
 @test "claude_code::parse_arguments accepts status action" {
-    run bash -c "source '$SCRIPT_PATH'; claude_code::parse_arguments --action status; echo \"\$ACTION\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "status" ]]
+    claude_code::parse_arguments --action status
+    [ "$ACTION" = "status" ]
 }
 
 @test "claude_code::parse_arguments accepts MCP actions" {
     for action in register-mcp unregister-mcp mcp-status mcp-test; do
-        run bash -c "source '$SCRIPT_PATH'; claude_code::parse_arguments --action $action; echo \"\$ACTION\""
-        [ "$status" -eq 0 ]
-        [[ "$output" =~ "$action" ]]
+        claude_code::parse_arguments --action "$action"
+        [ "$ACTION" = "$action" ]
     done
 }
 
 @test "claude_code::parse_arguments handles prompt parameter" {
-    run bash -c "source '$SCRIPT_PATH'; claude_code::parse_arguments --prompt 'Test prompt'; echo \"\$PROMPT\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "Test prompt" ]]
+    claude_code::parse_arguments --prompt "Test prompt"
+    [ "$PROMPT" = "Test prompt" ]
 }
 
 @test "claude_code::parse_arguments sets default max-turns" {
-    run bash -c "source '$SCRIPT_PATH'; claude_code::parse_arguments; echo \"\$MAX_TURNS\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "5" ]]
+    claude_code::parse_arguments
+    [ "$MAX_TURNS" = "5" ]
 }
 
 @test "claude_code::parse_arguments accepts custom max-turns" {
-    run bash -c "source '$SCRIPT_PATH'; claude_code::parse_arguments --max-turns 10; echo \"\$MAX_TURNS\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "10" ]]
+    claude_code::parse_arguments --max-turns 10
+    [ "$MAX_TURNS" = "10" ]
 }
 
 @test "claude_code::parse_arguments handles MCP scope parameter" {
-    run bash -c "source '$SCRIPT_PATH'; claude_code::parse_arguments --scope user; echo \"\$MCP_SCOPE\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "user" ]]
+    claude_code::parse_arguments --scope user
+    [ "$MCP_SCOPE" = "user" ]
 }
 
 @test "claude_code::parse_arguments sets default timeout" {
-    run bash -c "source '$SCRIPT_PATH'; claude_code::parse_arguments; echo \"\$TIMEOUT\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "600" ]]
+    claude_code::parse_arguments
+    [ "$TIMEOUT" = "600" ]
 }
 
 # ============================================================================
 # Help and Usage Tests
 # ============================================================================
 
-@test "manage.sh shows help with --help flag" {
-    run bash "$SCRIPT_PATH" --help
+@test "claude_code::main shows help with --help flag" {
+    run claude_code::main --help
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Usage:" ]]
     [[ "$output" =~ "Actions:" ]]

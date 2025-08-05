@@ -1,9 +1,30 @@
 #!/usr/bin/env bats
-
 # Tests for Unstructured.io api.sh functions
 
-# Setup once per file
+# Load Vrooli test infrastructure (REQUIRED)
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+
+# Expensive setup operations (run once per file)
 setup_file() {
+    # Use appropriate setup function
+    vrooli_setup_service_test "unstructured-io"
+    
+    # Load dependencies once
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    UNSTRUCTURED_IO_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Source library files
+    source "${SCRIPT_DIR}/api.sh"
+    source "${UNSTRUCTURED_IO_DIR}/config/defaults.sh"
+    source "${UNSTRUCTURED_IO_DIR}/config/messages.sh"
+    source "${UNSTRUCTURED_IO_DIR}/lib/common.sh"
+    source "${UNSTRUCTURED_IO_DIR}/lib/status.sh"
+    source "${UNSTRUCTURED_IO_DIR}/lib/process.sh"
+    
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_DIR="$SCRIPT_DIR"
+    export SETUP_FILE_UNSTRUCTURED_IO_DIR="$UNSTRUCTURED_IO_DIR"
+    
     # Create test directory
     export TEST_DIR="/tmp/unstructured_io_test_$$"
     mkdir -p "$TEST_DIR"
@@ -24,11 +45,14 @@ teardown_file() {
     rm -rf "$TEST_DIR"
 }
 
-# Setup for each test
+# Lightweight per-test setup
 setup() {
-    # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
-    UNSTRUCTURED_IO_DIR="$(dirname "$SCRIPT_DIR")"
+    # Setup standard mocks
+    vrooli_auto_setup
+    
+    # Use paths from setup_file
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
+    UNSTRUCTURED_IO_DIR="${SETUP_FILE_UNSTRUCTURED_IO_DIR}""
     
     # Mock required functions before loading library files
     resources::get_default_port() { echo "11450"; }
@@ -43,14 +67,6 @@ setup() {
     export UNSTRUCTURED_IO_MAX_FILE_SIZE_BYTES=$((50 * 1024 * 1024))
     export UNSTRUCTURED_IO_TIMEOUT_SECONDS=300
     export YES="no"
-    
-    # Source library files (after setting environment)
-    source "${UNSTRUCTURED_IO_DIR}/config/defaults.sh"
-    source "${UNSTRUCTURED_IO_DIR}/config/messages.sh"
-    source "${UNSTRUCTURED_IO_DIR}/lib/common.sh"
-    source "${UNSTRUCTURED_IO_DIR}/lib/api.sh"
-    source "${UNSTRUCTURED_IO_DIR}/lib/status.sh"
-    source "${UNSTRUCTURED_IO_DIR}/lib/process.sh"
     
     # Mock system functions
     log::info() { echo "[INFO] $*"; }
@@ -104,6 +120,15 @@ setup() {
         esac
     }
     export -f file
+    
+    # Export config functions
+    unstructured_io::export_config
+    unstructured_io::export_messages
+}
+
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
 }
 
 # Test document processing function exists and has correct parameters

@@ -1,19 +1,56 @@
 #!/usr/bin/env bats
-bats_require_minimum_version 1.5.0
 
-# Path to the script under test
-SCRIPT_PATH="$BATS_TEST_DIRNAME/manage.sh"
-CONFIG_DIR="$BATS_TEST_DIRNAME/config"
-LIB_DIR="$BATS_TEST_DIRNAME/lib"
+# Load Vrooli test infrastructure (REQUIRED)
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
 
-# Source dependencies
-RESOURCES_DIR="$BATS_TEST_DIRNAME/../.."
-HELPERS_DIR="$RESOURCES_DIR/../helpers"
+# Expensive setup operations (run once per file)
+setup_file() {
+    # Use appropriate setup function
+    vrooli_setup_service_test "n8n"
+    
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_PATH="$(dirname "${BATS_TEST_FILENAME}")/manage.sh"
+    export SETUP_FILE_CONFIG_DIR="$(dirname "${BATS_TEST_FILENAME}")/config"
+    export SETUP_FILE_LIB_DIR="$(dirname "${BATS_TEST_FILENAME}")/lib"
+    export SETUP_FILE_N8N_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+}
 
-# Source required utilities (suppress errors during test setup)
-. "$HELPERS_DIR/utils/log.sh" 2>/dev/null || true
-. "$HELPERS_DIR/utils/system.sh" 2>/dev/null || true
-. "$HELPERS_DIR/utils/args.sh" 2>/dev/null || true
+# Lightweight per-test setup
+setup() {
+    # Setup standard mocks
+    vrooli_auto_setup
+    
+    # Use paths from setup_file
+    SCRIPT_PATH="${SETUP_FILE_SCRIPT_PATH}"
+    CONFIG_DIR="${SETUP_FILE_CONFIG_DIR}"
+    LIB_DIR="${SETUP_FILE_LIB_DIR}"
+    N8N_DIR="${SETUP_FILE_N8N_DIR}"
+    
+    # Set test environment BEFORE sourcing config files to avoid readonly conflicts
+    export N8N_CUSTOM_PORT="5678"
+    export YES="no"
+    
+    # Mock resources functions that are called during config loading
+    resources::get_default_port() {
+        case "$1" in
+            "n8n") echo "5678" ;;
+            *) echo "8080" ;;
+        esac
+    }
+    
+    # Now source the config files
+    source "${N8N_DIR}/config/defaults.sh"
+    source "${N8N_DIR}/config/messages.sh"
+    
+    # Export config and messages
+    n8n::export_config
+    n8n::export_messages
+}
+
+# Cleanup after each test
+teardown() {
+    vrooli_cleanup_test
+}
 
 # ============================================================================
 # Script Loading Tests

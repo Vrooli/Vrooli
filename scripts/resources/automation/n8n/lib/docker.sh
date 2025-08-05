@@ -315,8 +315,10 @@ n8n::logs() {
         return 1
     fi
     
-    log::info "Showing n8n logs (Ctrl+C to exit)..."
-    docker logs -f "$N8N_CONTAINER_NAME"
+    log::info "Showing n8n logs (last ${LINES:-50} lines)..."
+    log::info "Use 'docker logs -f $N8N_CONTAINER_NAME' to follow logs in real-time"
+    echo
+    docker logs --tail "${LINES:-50}" "$N8N_CONTAINER_NAME"
 }
 
 #######################################

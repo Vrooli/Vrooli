@@ -1,42 +1,45 @@
 #!/usr/bin/env bats
 # Tests for Whisper manage.sh script
 
-# Load Vrooli test infrastructure
+# Load Vrooli test infrastructure (REQUIRED)
 source "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
 
-# Setup for each test
-setup() {
-    # Use Vrooli test infrastructure with Whisper-specific setup
+# Expensive setup operations (run once per file)
+setup_file() {
+    # Use appropriate setup function
     vrooli_setup_service_test "whisper"
+    
+    # Load dependencies once
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    
+    # Source manage.sh and all dependencies
+    source "${SCRIPT_DIR}/manage.sh"
+    
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_DIR="$SCRIPT_DIR"
+}
+
+# Lightweight per-test setup
+setup() {
+    # Setup standard mocks
+    vrooli_auto_setup
+    
+    # Use paths from setup_file
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
     
     # Set whisper-specific environment
     export WHISPER_CUSTOM_PORT="9999"
     export WHISPER_DEFAULT_MODEL="small"
     export GPU="no"
     
-    # Load the script without executing main
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
-    
-    # Source library files directly to avoid readonly conflicts
-    for lib_file in "${SCRIPT_DIR}"/lib/*.sh; do
-        if [[ -f "$lib_file" ]]; then
-            source "$lib_file" 2>/dev/null || true
-        fi
-    done
-    
-    # Export config after libraries are loaded
-    if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
-        source "${SCRIPT_DIR}/config/defaults.sh"
-        if type -t whisper::export_config &>/dev/null; then
-            whisper::export_config
-        fi
-    fi
-    if [[ -f "${SCRIPT_DIR}/config/messages.sh" ]]; then
-        source "${SCRIPT_DIR}/config/messages.sh"
-        if type -t whisper::export_messages &>/dev/null; then
-            whisper::export_messages
-        fi
-    fi
+    # Export config functions
+    whisper::export_config
+    whisper::export_messages
+}
+
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
 }
 
 # Test script loading

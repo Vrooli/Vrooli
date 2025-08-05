@@ -1,33 +1,48 @@
 #!/usr/bin/env bats
-bats_require_minimum_version 1.5.0
+# Tests for MinIO manage.sh script
 
-# Path to the script under test
-SCRIPT_PATH="$BATS_TEST_DIRNAME/manage.sh"
-MINIO_DIR="$BATS_TEST_DIRNAME"
+# Load Vrooli test infrastructure
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
 
-# Source dependencies
-RESOURCES_DIR="$MINIO_DIR/../.."
-HELPERS_DIR="$RESOURCES_DIR/../helpers"
+# Setup for each test
+setup() {
+    # Setup standard mocks
+    vrooli_auto_setup
+    
+    # Set MinIO-specific test environment
+    export MINIO_CUSTOM_PORT="9999"
+    export MINIO_CONTAINER_NAME="minio-test"
+    export BUCKET=""
+    export POLICY=""
+    export MONITOR_INTERVAL="5"
+    export FORCE="no"
+    export YES="no"
+    
+    # Load the script without executing main
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    source "${SCRIPT_DIR}/manage.sh" || true
+}
 
-# Source required utilities (suppress errors during test setup)
-. "$HELPERS_DIR/utils/log.sh" 2>/dev/null || true
-. "$HELPERS_DIR/utils/system.sh" 2>/dev/null || true
-. "$HELPERS_DIR/utils/args.sh" 2>/dev/null || true
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
+}
 
 # ============================================================================
 # Script Loading Tests
 # ============================================================================
 
-@test "manage.sh exists and is executable" {
-    [ -f "$SCRIPT_PATH" ]
-    [ -x "$SCRIPT_PATH" ]
+@test "minio script loads without errors" {
+    # Script loading happens in setup, this verifies it worked
+    declare -f minio::parse_arguments > /dev/null
+    [ "$?" -eq 0 ]
 }
 
-@test "sourcing manage.sh defines required functions" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f main && declare -f minio::parse_arguments"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ main ]]
-    [[ "$output" =~ minio::parse_arguments ]]
+@test "minio defines all required functions" {
+    declare -f minio::parse_arguments > /dev/null
+    [ "$?" -eq 0 ]
+    declare -f main > /dev/null
+    [ "$?" -eq 0 ]
 }
 
 # ============================================================================
@@ -35,58 +50,50 @@ HELPERS_DIR="$RESOURCES_DIR/../helpers"
 # ============================================================================
 
 @test "minio::parse_arguments sets default action to status" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null; minio::parse_arguments; echo \"\$ACTION\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "status" ]]
+    minio::parse_arguments
+    [ "$ACTION" = "status" ]
 }
 
 @test "minio::parse_arguments accepts install action" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null; minio::parse_arguments --action install; echo \"\$ACTION\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "install" ]]
+    minio::parse_arguments --action install
+    [ "$ACTION" = "install" ]
 }
 
 @test "minio::parse_arguments accepts uninstall action" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null; minio::parse_arguments --action uninstall; echo \"\$ACTION\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "uninstall" ]]
+    minio::parse_arguments --action uninstall
+    [ "$ACTION" = "uninstall" ]
 }
 
 @test "minio::parse_arguments accepts bucket operations" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null; minio::parse_arguments --action create-bucket --bucket test-bucket --policy download; echo \"ACTION=\$ACTION BUCKET=\$BUCKET POLICY=\$POLICY\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "ACTION=create-bucket" ]]
-    [[ "$output" =~ "BUCKET=test-bucket" ]]
-    [[ "$output" =~ "POLICY=download" ]]
+    minio::parse_arguments --action create-bucket --bucket test-bucket --policy download
+    [ "$ACTION" = "create-bucket" ]
+    [ "$BUCKET" = "test-bucket" ]
+    [ "$POLICY" = "download" ]
 }
 
 @test "minio::parse_arguments handles monitor parameters" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null; minio::parse_arguments --action monitor --interval 10; echo \"ACTION=\$ACTION INTERVAL=\$MONITOR_INTERVAL\""
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "ACTION=monitor" ]]
-    [[ "$output" =~ "INTERVAL=10" ]]
+    minio::parse_arguments --action monitor --interval 10
+    [ "$ACTION" = "monitor" ]
+    [ "$MONITOR_INTERVAL" = "10" ]
 }
 
 # ============================================================================
 # Function Definition Tests
 # ============================================================================
 
-@test "sourcing manage.sh defines minio::parse_arguments function" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::parse_arguments"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "minio::parse_arguments" ]]
+@test "minio::parse_arguments function is defined" {
+    declare -f minio::parse_arguments > /dev/null
+    [ "$?" -eq 0 ]
 }
 
-@test "sourcing manage.sh defines minio::usage function" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f minio::usage"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "minio::usage" ]]
+@test "minio::usage function is defined" {
+    declare -f minio::usage > /dev/null
+    [ "$?" -eq 0 ]
 }
 
-@test "sourcing manage.sh defines main function" {
-    run bash -c "source '$SCRIPT_PATH' 2>/dev/null && declare -f main"
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "main" ]]
+@test "main function is defined" {
+    declare -f main > /dev/null
+    [ "$?" -eq 0 ]
 }
 
 # ============================================================================

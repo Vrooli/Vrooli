@@ -411,3 +411,165 @@ agents2::execute_ai_task() {
         return 1
     fi
 }
+
+#######################################
+# Wrapper functions for test compatibility
+# These provide the agent_s2:: interface expected by tests
+#######################################
+
+#######################################
+# Browser automation wrapper
+# Arguments:
+#   $1 - URL
+#   $2 - Action (e.g., "click button")
+# Returns: 0 if successful, 1 if failed
+#######################################
+agent_s2::automate_browser() {
+    local url="${1:-}"
+    local action="${2:-}"
+    
+    if [[ -z "$url" ]]; then
+        echo "URL is required" >&2
+        return 1
+    fi
+    
+    if [[ -z "$action" ]]; then
+        echo "Action is required" >&2
+        return 1
+    fi
+    
+    # Use the specific API endpoint expected by tests
+    local request_json
+    request_json=$(jq -n \
+        --arg url "$url" \
+        --arg action "$action" \
+        '{url: $url, action: $action}')
+    
+    agents2::api_request "POST" "/api/automate" "$request_json"
+}
+
+#######################################
+# Screenshot capture wrapper
+# Arguments:
+#   $1 - URL (optional)
+# Returns: 0 if successful, 1 if failed
+#######################################
+agent_s2::capture_screenshot() {
+    local url="${1:-}"
+    
+    if [[ -z "$url" ]]; then
+        echo "URL is required" >&2
+        return 1
+    fi
+    
+    # Use the specific API endpoint expected by tests
+    local request_json
+    request_json=$(jq -n --arg url "$url" '{url: $url}')
+    
+    agents2::api_request "POST" "/api/screenshot" "$request_json"
+}
+
+#######################################
+# Data extraction wrapper
+# Arguments:
+#   $1 - URL (optional)
+#   $2 - Selector or description
+# Returns: 0 if successful, 1 if failed
+#######################################
+agent_s2::extract_data() {
+    local url="${1:-}"
+    local selector="${2:-}"
+    
+    if [[ -z "$url" ]]; then
+        echo "URL is required" >&2
+        return 1
+    fi
+    
+    if [[ -z "$selector" ]]; then
+        echo "Selector is required" >&2
+        return 1
+    fi
+    
+    # Use the specific API endpoint expected by tests
+    local request_json
+    request_json=$(jq -n \
+        --arg url "$url" \
+        --arg selector "$selector" \
+        '{url: $url, selector: $selector}')
+    
+    agents2::api_request "POST" "/api/extract" "$request_json"
+}
+
+#######################################
+# Health check wrapper
+# Returns: 0 if healthy, 1 if not
+#######################################
+agent_s2::health_check() {
+    local response
+    if response=$(agents2::api_request "GET" "/api/health" 2>/dev/null); then
+        echo "$response"
+        return 0
+    else
+        echo "Agent-S2 API is not responding" >&2
+        return 1
+    fi
+}
+
+#######################################
+# Session creation wrapper
+# Returns: 0 if successful, 1 if failed
+#######################################
+agent_s2::create_session() {
+    agents2::api_request "POST" "/api/session/create" '{}'
+}
+
+#######################################
+# Session destruction wrapper
+# Arguments:
+#   $1 - Session ID
+# Returns: 0 if successful, 1 if failed
+#######################################
+agent_s2::destroy_session() {
+    local session_id="${1:-}"
+    
+    if [[ -z "$session_id" ]]; then
+        echo "Session ID is required" >&2
+        return 1
+    fi
+    
+    # Use the specific API endpoint expected by tests
+    local request_json
+    request_json=$(jq -n --arg session_id "$session_id" '{session_id: $session_id}')
+    
+    agents2::api_request "POST" "/api/session/destroy" "$request_json"
+}
+
+#######################################
+# Batch automation wrapper
+# Arguments:
+#   $1 - JSON array of actions
+# Returns: 0 if successful, 1 if failed
+#######################################
+agent_s2::batch_automate() {
+    local url="${1:-}"
+    local actions="${2:-}"
+    
+    if [[ -z "$url" ]]; then
+        echo "URL is required" >&2
+        return 1
+    fi
+    
+    if [[ -z "$actions" ]]; then
+        echo "Actions array is required" >&2
+        return 1
+    fi
+    
+    # Use the specific API endpoint expected by tests
+    local request_json
+    request_json=$(jq -n \
+        --arg url "$url" \
+        --argjson actions "$actions" \
+        '{url: $url, actions: $actions}')
+    
+    agents2::api_request "POST" "/api/batch" "$request_json"
+}

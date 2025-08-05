@@ -1,195 +1,530 @@
 {
-  "apiVersion": "v1",
-  "kind": "Service",
-  "metadata": {
+  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
     "name": "resume-screening-assistant",
-    "version": "1.0.0",
     "displayName": "Resume Screening Assistant",
     "description": "AI-powered recruitment automation for resume parsing, candidate scoring, and job matching",
+    "version": "1.0.0",
+    "type": "business-application",
     "tags": [
       "hr-tech",
       "recruitment",
       "resume-parsing",
       "candidate-matching",
-      "automation"
+      "automation",
+      "talent-acquisition",
+      "ai-recruiting"
     ],
-    "labels": {
-      "category": "ai-recruitment",
-      "complexity": "intermediate",
-      "market-demand": "high"
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "team@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scripts/scenarios/core/resume-screening-assistant"
     },
-    "annotations": {
-      "value-proposition": "Automated recruitment process with AI-powered candidate evaluation and matching",
-      "generated-from": "manifest-to-service-converter",
-      "conversion-date": "2025-08-04T02:14:46Z"
+    "license": "GPL-3.0",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "./README.md",
+    "support": {
+      "email": "support@vrooli.com",
+      "issues": "https://github.com/Vrooli/Vrooli/issues",
+      "chat": "https://discord.gg/vrooli"
     }
   },
-  "spec": {
-    "type": "application",
-    "category": "ai-recruitment",
-    "capabilities": [
-      "ai-processing",
-      "web-automation"
-    ],
-    "dependencies": {
-      "resources": [
-        {
-          "type": "ai",
-          "name": "unstructured-io",
-          "optional": false,
-          "version": "*"
-        },
-        {
-          "type": "ai",
-          "name": "ollama",
-          "optional": false,
-          "version": "*"
-        },
-        {
-          "type": "vectordb",
-          "name": "qdrant",
-          "optional": false,
-          "version": "*"
-        },
-        {
-          "type": "agent",
-          "name": "browserless",
-          "optional": true,
-          "version": "*"
-        }
-      ]
-    },
-    "pricing": {
-      "model": "subscription",
-      "currency": "USD",
-      "tiers": [
-        {
-          "name": "Basic",
-          "price": 2500,
-          "interval": "month",
-          "features": []
-        },
-        {
-          "name": "Professional",
-          "price": 6000,
-          "interval": "month",
-          "features": []
-        }
-      ]
-    },
-    "scenarios": {
-      "initialization": {
-        "resources": {},
-        "order": [],
-        "parallel": false
-      }
-    },
-    "serve": {
-      "healthChecks": {
-        "readiness": {
-          "httpGet": {
-            "path": "/health",
-            "port": 8080,
-            "scheme": "HTTP"
-          },
-          "periodSeconds": 30,
-          "timeoutSeconds": 5
-        },
-        "liveness": {
-          "httpGet": {
-            "path": "/health",
-            "port": 8080,
-            "scheme": "HTTP"
-          },
-          "periodSeconds": 60,
-          "timeoutSeconds": 5
-        }
-      },
-      "endpoints": [
-        {
-          "name": "app",
-          "protocol": "http",
-          "path": "/resume-screening-assistant",
-          "port": 3000,
-          "public": true
-        },
-        {
-          "name": "admin",
-          "protocol": "http",
-          "path": "/admin/resume-screening-assistant",
-          "port": 3000,
-          "public": true
-        },
-        {
-          "name": "api",
-          "protocol": "http",
-          "path": "/api/resume-screening-assistant",
-          "port": 3000,
-          "public": true
-        },
-        {
-          "name": "health",
-          "protocol": "http",
-          "path": "/api/resume-screening-assistant/health",
-          "port": 3000,
-          "public": false
-        },
-        {
-          "name": "upload",
-          "protocol": "http",
-          "path": "/api/resume-screening-assistant/upload",
-          "port": 3000,
-          "public": true
-        },
-        {
-          "name": "search",
-          "protocol": "http",
-          "path": "/api/resume-screening-assistant/search",
-          "port": 3000,
-          "public": true
-        }
-      ]
-    },
-    "deployment": {
-      "replicas": 1,
-      "strategy": "recreate",
-      "resources": {
-        "requests": {
-          "cpu": "100m",
-          "memory": "128Mi"
-        },
-        "limits": {
-          "cpu": "1000m",
-          "memory": "1Gi"
-        }
-      }
-    },
-    "security": {
-      "authentication": {
+  "resources": {
+    "storage": {
+      "postgres": {
+        "type": "postgresql",
+        "enabled": true,
+        "version": "16",
         "required": true,
-        "type": "jwt"
+        "initialization": {
+          "data": [
+            {
+              "type": "schema",
+              "file": "initialization/database/schema.sql"
+            },
+            {
+              "type": "seed",
+              "file": "initialization/database/seed.sql"
+            }
+          ]
+        }
       },
-      "authorization": {
-        "type": "rbac"
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "collections": [
+            {
+              "name": "resumes",
+              "config": {
+                "vectors": {
+                  "size": 384,
+                  "distance": "Cosine"
+                }
+              }
+            },
+            {
+              "name": "job-descriptions",
+              "config": {
+                "vectors": {
+                  "size": 384,
+                  "distance": "Cosine"
+                }
+              }
+            },
+            {
+              "name": "candidate-profiles",
+              "config": {
+                "vectors": {
+                  "size": 384,
+                  "distance": "Cosine"
+                }
+              }
+            }
+          ]
+        }
       },
-      "encryption": {
-        "transit": true,
-        "atRest": true
+      "minio": {
+        "type": "minio",
+        "enabled": false,
+        "required": false,
+        "initialization": {
+          "buckets": [
+            {
+              "name": "resume-uploads",
+              "policy": "private"
+            },
+            {
+              "name": "processed-documents",
+              "policy": "private"
+            },
+            {
+              "name": "candidate-photos",
+              "policy": "private"
+            }
+          ]
+        }
       }
     },
-    "observability": {
-      "logging": {
+    "ai": {
+      "unstructured-io": {
         "enabled": true,
-        "level": "info"
+        "required": true,
+        "type": "unstructured-io"
       },
-      "metrics": {
+      "ollama": {
         "enabled": true,
-        "provider": "prometheus"
-      },
-      "tracing": {
+        "required": true,
+        "models": ["llama3.1:8b", "nomic-embed-text"]
+      }
+    },
+    "agents": {
+      "browserless": {
         "enabled": false,
-        "provider": "jaeger"
+        "required": false,
+        "mode": "service"
       }
     }
+  },
+  "deployment": {
+    "target": "docker",
+    "strategy": "rolling-update",
+    "urls": {
+      "application": "http://localhost:3000/resume-screening-assistant",
+      "admin": "http://localhost:3000/admin/resume-screening-assistant",
+      "api": "http://localhost:3000/api/resume-screening-assistant",
+      "health": "http://localhost:3000/api/resume-screening-assistant/health",
+      "upload": "http://localhost:3000/api/resume-screening-assistant/upload",
+      "search": "http://localhost:3000/api/resume-screening-assistant/search",
+      "unstructured": "http://localhost:8000",
+      "qdrant": "http://localhost:6333"
+    },
+    "initialization": {
+      "phases": [
+        {
+          "name": "pre-validation",
+          "tasks": [
+            {
+              "name": "validate-resources",
+              "type": "script",
+              "script": "./deployment/validate.sh",
+              "timeout": "30s"
+            }
+          ]
+        },
+        {
+          "name": "database-setup",
+          "tasks": [
+            {
+              "name": "apply-schema",
+              "type": "sql",
+              "target": "storage.postgres",
+              "file": "initialization/database/schema.sql"
+            },
+            {
+              "name": "seed-data",
+              "type": "sql",
+              "target": "storage.postgres",
+              "file": "initialization/database/seed.sql"
+            }
+          ]
+        },
+        {
+          "name": "ai-setup",
+          "parallel": true,
+          "tasks": [
+            {
+              "name": "verify-unstructured-io",
+              "type": "resource-inject",
+              "target": "ai.unstructured-io",
+              "timeout": "2m"
+            },
+            {
+              "name": "load-ai-models",
+              "type": "resource-inject",
+              "target": "ai.ollama",
+              "timeout": "10m"
+            },
+            {
+              "name": "setup-vector-collections",
+              "type": "resource-inject",
+              "target": "storage.qdrant",
+              "timeout": "2m"
+            }
+          ]
+        },
+        {
+          "name": "optional-services-setup",
+          "tasks": [
+            {
+              "name": "setup-storage-buckets",
+              "type": "resource-inject",
+              "target": "storage.minio",
+              "timeout": "2m"
+            }
+          ]
+        },
+        {
+          "name": "application-configuration",
+          "tasks": [
+            {
+              "name": "load-app-config",
+              "type": "config",
+              "file": "initialization/configuration/app-config.json"
+            },
+            {
+              "name": "set-recruitment-settings",
+              "type": "config",
+              "file": "initialization/configuration/recruitment-settings.json"
+            }
+          ]
+        },
+        {
+          "name": "startup",
+          "tasks": [
+            {
+              "name": "start-application",
+              "type": "script",
+              "script": "./deployment/startup.sh",
+              "timeout": "2m"
+            }
+          ]
+        },
+        {
+          "name": "post-validation",
+          "tasks": [
+            {
+              "name": "health-check",
+              "type": "healthcheck",
+              "target": "http://localhost:3000/api/resume-screening-assistant/health",
+              "timeout": "30s",
+              "retries": 3
+            },
+            {
+              "name": "monitor-startup",
+              "type": "script",
+              "script": "./deployment/monitor.sh",
+              "background": true
+            }
+          ]
+        }
+      ]
+    },
+    "monitoring": {
+      "enabled": true,
+      "healthChecks": {
+        "application": {
+          "endpoint": "http://localhost:3000/api/resume-screening-assistant/health",
+          "interval": "30s",
+          "timeout": "5s",
+          "threshold": 3
+        },
+        "upload-endpoint": {
+          "endpoint": "http://localhost:3000/api/resume-screening-assistant/upload",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "search-endpoint": {
+          "endpoint": "http://localhost:3000/api/resume-screening-assistant/search",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "unstructured-io": {
+          "endpoint": "http://localhost:8000/general/v0/general",
+          "interval": "60s",
+          "timeout": "15s"
+        },
+        "qdrant": {
+          "endpoint": "http://localhost:6333/health",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "ollama": {
+          "endpoint": "http://localhost:11434/api/tags",
+          "interval": "60s",
+          "timeout": "15s"
+        },
+        "browserless": {
+          "endpoint": "http://localhost:4110/pressure",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "database": {
+          "type": "tcp",
+          "port": 5432,
+          "interval": "30s"
+        }
+      },
+      "metrics": {
+        "responseTime": {
+          "p50": "600ms",
+          "p95": "2000ms",
+          "p99": "5000ms"
+        },
+        "throughput": {
+          "rps": 8,
+          "concurrent": 12
+        },
+        "errorRate": {
+          "threshold": "3%"
+        }
+      }
+    },
+    "cleanup": {
+      "enabled": true,
+      "tasks": [
+        {
+          "name": "drop-database",
+          "type": "sql",
+          "target": "storage.postgres",
+          "query": "DROP DATABASE IF EXISTS resume_screening_assistant"
+        },
+        {
+          "name": "clear-vector-collections",
+          "type": "resource-cleanup",
+          "target": "storage.qdrant"
+        },
+        {
+          "name": "clear-storage-buckets",
+          "type": "resource-cleanup",
+          "target": "storage.minio"
+        }
+      ]
+    },
+    "testing": {
+      "enabled": true,
+      "timeout": "35m",
+      "script": "./test.sh",
+      "ui": {
+        "required": true,
+        "type": "web",
+        "url": "http://localhost:3000/resume-screening-assistant"
+      },
+      "performance": {
+        "loadTest": {
+          "users": 8,
+          "duration": "5m",
+          "rampUp": "1m"
+        }
+      }
+    },
+    "resources": {
+      "requests": {
+        "cpu": "800m",
+        "memory": "2Gi"
+      },
+      "limits": {
+        "cpu": "3000m",
+        "memory": "6Gi"
+      }
+    }
+  },
+  "metadata": {
+    "businessModel": {
+      "purpose": "commercial",
+      "valueProposition": "AI-powered recruitment automation platform for resume parsing, candidate scoring, and intelligent job matching",
+      "targetMarket": "HR departments, recruitment agencies, talent acquisition teams, and staffing companies",
+      "painPoints": [
+        "Manual resume screening consuming hours of recruiter time per position",
+        "Inconsistent candidate evaluation and bias in hiring decisions",
+        "Difficulty matching qualified candidates to appropriate job openings at scale"
+      ],
+      "solution": "Automated recruitment platform with AI-powered resume parsing, candidate scoring, and intelligent matching capabilities",
+      "competitiveAdvantage": "Complete HR tech solution combining Unstructured.io document processing with AI analysis and vector-based candidate matching",
+      "revenuePotential": {
+        "initial": "$5,000",
+        "recurring": "$18,000",
+        "expansion": "$35,000",
+        "totalEstimate": "$58,000"
+      },
+      "marketDemand": {
+        "level": "high",
+        "growth": "30% annually",
+        "evidence": "Growing HR tech market and increasing demand for AI-powered recruitment solutions to address talent shortage"
+      },
+      "roi": {
+        "developmentCost": "$8,000",
+        "timeToMarket": "3 weeks",
+        "breakEven": "4 months"
+      }
+    },
+    "performance": {
+      "targets": {
+        "initializationTime": "6m",
+        "responseTime": {
+          "p50": "600ms",
+          "p95": "2000ms",
+          "p99": "5000ms"
+        },
+        "throughput": {
+          "minimum": 5,
+          "target": 8,
+          "peak": 25
+        },
+        "availability": "99.5%",
+        "errorRate": "<3%"
+      },
+      "resources": {
+        "cpu": {
+          "minimum": "1.5",
+          "target": "3.0",
+          "maximum": "6.0"
+        },
+        "memory": {
+          "minimum": "3Gi",
+          "target": "6Gi",
+          "maximum": "12Gi"
+        },
+        "storage": {
+          "database": "200Gi",
+          "vectors": "100Gi",
+          "documents": "500Gi"
+        }
+      }
+    },
+    "customization": {
+      "variables": {
+        "APP_NAME": {
+          "type": "string",
+          "default": "Resume Screening Assistant",
+          "description": "Application display name"
+        },
+        "COMPANY_NAME": {
+          "type": "string",
+          "default": "Your Company",
+          "description": "Customer company name"
+        },
+        "PRIMARY_COLOR": {
+          "type": "string",
+          "default": "#16a34a",
+          "description": "Brand primary color"
+        },
+        "DATABASE_NAME": {
+          "type": "string",
+          "default": "resume_screening_assistant",
+          "description": "Database name"
+        },
+        "APP_PORT": {
+          "type": "number",
+          "default": 3000,
+          "description": "Application port"
+        },
+        "UNSTRUCTURED_PORT": {
+          "type": "number",
+          "default": 8000,
+          "description": "Unstructured.io API port"
+        },
+        "QDRANT_PORT": {
+          "type": "number",
+          "default": 6333,
+          "description": "Qdrant vector database port"
+        }
+      },
+      "features": {
+        "authentication": {
+          "enabled": true,
+          "provider": "jwt",
+          "sso": true
+        },
+        "notifications": {
+          "enabled": true,
+          "channels": ["email", "webhook", "slack"]
+        },
+        "analytics": {
+          "enabled": true,
+          "provider": "internal"
+        },
+        "resumeParsing": {
+          "enabled": true,
+          "provider": "unstructured-io"
+        },
+        "candidateScoring": {
+          "enabled": true,
+          "provider": "ollama"
+        },
+        "candidateMatching": {
+          "enabled": true,
+          "provider": "qdrant"
+        },
+        "webAutomation": {
+          "enabled": false,
+          "provider": "browserless"
+        }
+      },
+      "integrations": [
+        {
+          "name": "Applicant Tracking Systems (ATS)",
+          "type": "api",
+          "required": false
+        },
+        {
+          "name": "HR Information Systems (HRIS)",
+          "type": "webhook",
+          "required": false
+        },
+        {
+          "name": "Job Boards",
+          "type": "api",
+          "required": false
+        },
+        {
+          "name": "Background Check Services",
+          "type": "api",
+          "required": false
+        }
+      ]
+    },
+    "category": "ai-recruitment",
+    "complexity": "intermediate",
+    "marketDemand": "high"
   }
 }

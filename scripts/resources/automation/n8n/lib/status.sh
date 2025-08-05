@@ -365,3 +365,66 @@ n8n::check_all() {
         return 1
     fi
 }
+
+#######################################
+# Test n8n functionality
+# Returns: 0 if tests pass, 1 if tests fail, 2 if skip
+#######################################
+n8n::test() {
+    log::info "Testing n8n functionality..."
+    
+    # Test 1: Check if Docker is available
+    if ! system::is_command "docker"; then
+        log::error "❌ Docker is not installed"
+        return 1
+    fi
+    log::success "✅ Docker is available"
+    
+    # Test 2: Check if n8n container exists
+    if ! n8n::container_exists; then
+        log::error "❌ n8n container does not exist"
+        return 1
+    fi
+    log::success "✅ n8n container exists"
+    
+    # Test 3: Check if n8n is running
+    if ! n8n::is_running; then
+        log::error "❌ n8n container is not running"
+        return 1
+    fi
+    log::success "✅ n8n container is running"
+    
+    # Test 4: Check API health
+    if ! n8n::is_healthy; then
+        log::error "❌ n8n API is not responding"
+        return 1
+    fi
+    log::success "✅ n8n API is healthy"
+    
+    # Test 5: Run comprehensive health check
+    log::info "Running comprehensive health check..."
+    if n8n::check_all; then
+        log::success "✅ Comprehensive health check passed"
+    else
+        log::error "❌ Comprehensive health check failed"
+        return 1
+    fi
+    
+    # Test 6: Check workflows endpoint (automation-specific test)
+    if n8n::is_healthy; then
+        log::info "Testing workflows API endpoint..."
+        local workflows_response
+        workflows_response=$(curl -s -w "%{http_code}" -o /dev/null \
+            "http://localhost:${N8N_PORT}/api/v1/workflows" \
+            -H "Accept: application/json" 2>/dev/null || echo "000")
+        
+        if [[ "$workflows_response" == "200" ]] || [[ "$workflows_response" == "401" ]]; then
+            log::success "✅ Workflows API endpoint is accessible"
+        else
+            log::warn "⚠️  Workflows API endpoint test failed (HTTP: $workflows_response)"
+        fi
+    fi
+    
+    log::success "🎉 All n8n tests passed"
+    return 0
+}

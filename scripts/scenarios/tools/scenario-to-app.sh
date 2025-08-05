@@ -6,6 +6,17 @@
 # Converts Vrooli scenarios into deployable applications using the unified
 # service.json format and resource injection engine.
 #
+# SCHEMA REFERENCE:
+#   All service.json files follow the official schema:
+#   .vrooli/schemas/service.schema.json
+#   
+#   Key paths used in this script:
+#   - .service.name           (scenario identifier)
+#   - .service.displayName    (human-readable name)
+#   - .resources.{category}.{resource}  (resource definitions)
+#   - .resources.{category}.{resource}.required  (not .optional!)
+#   - .resources.{category}.{resource}.initialization  (setup data)
+#
 # Usage:
 #   ./scenario-to-app.sh <scenario-name> [options]
 #
@@ -33,8 +44,7 @@ log_banner() { echo ""; echo "=== $1 ==="; echo ""; }
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 SCENARIOS_DIR="${PROJECT_ROOT}/scripts/scenarios/core"
-INJECTION_DIR="${PROJECT_ROOT}/scripts/scenarios/injection"
-SERVICE_CONFIG="${PROJECT_ROOT}/.vrooli/service.json"
+# INJECTION_DIR removed in Phase 3 - direct integration without engine.sh
 
 # Import helper functions (override defaults if available)
 if [[ -f "${PROJECT_ROOT}/scripts/helpers/utils/log.sh" ]]; then
@@ -55,6 +65,9 @@ SCENARIO_PATH=""
 SERVICE_JSON=""
 SERVICE_JSON_PATH=""
 
+# Rollback tracking
+declare -a ROLLBACK_ACTIONS=()
+
 ################################################################################
 # Helper Functions
 ################################################################################
@@ -66,14 +79,7 @@ show_usage() {
 
 # Parse command line arguments
 parse_args() {
-    if [[ $# -eq 0 ]]; then
-        log_error "No scenario specified"
-        show_usage
-        exit 1
-    fi
-    
-    SCENARIO_NAME="$1"
-    shift
+    local scenario_provided=false
     
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -97,13 +103,29 @@ parse_args() {
                 show_usage
                 exit 0
                 ;;
-            *)
+            --*)
                 log_error "Unknown option: $1"
                 show_usage
                 exit 1
                 ;;
+            *)
+                if [[ "$scenario_provided" == true ]]; then
+                    log_error "Multiple scenario names provided: '$SCENARIO_NAME' and '$1'"
+                    show_usage
+                    exit 1
+                fi
+                SCENARIO_NAME="$1"
+                scenario_provided=true
+                shift
+                ;;
         esac
     done
+    
+    if [[ "$scenario_provided" == false ]]; then
+        log_error "No scenario specified"
+        show_usage
+        exit 1
+    fi
 }
 
 # Validate scenario exists and has required files
@@ -127,16 +149,10 @@ validate_scenario() {
         exit 1
     fi
     
-    # Load service.json
-    if [[ -f "$SERVICE_JSON_PATH" ]]; then
-        log_info "Loading service.json from $SERVICE_JSON_PATH"
-        SERVICE_JSON=$(cat "$SERVICE_JSON_PATH")
-        log_info "Loaded service.json successfully"
-        [[ "$VERBOSE" == true ]] && log_info "Loaded service.json from $SERVICE_JSON_PATH"
-    else
-        log_error "Failed to load service.json"
-        exit 1
-    fi
+    # Load service.json (already verified to exist)
+    log_info "Loading service.json from $SERVICE_JSON_PATH"
+    SERVICE_JSON=$(cat "$SERVICE_JSON_PATH")
+    log_info "Loaded service.json successfully"
 }
 
 # Validate scenario structure based on service.json
@@ -149,26 +165,52 @@ validate_structure() {
     log_step "Validating scenario structure..."
     
     # Extract scenario name and version from service.json
-    local scenario_name=$(echo "$SERVICE_JSON" | jq -r '.metadata.name // ""')
-    local scenario_version=$(echo "$SERVICE_JSON" | jq -r '.metadata.version // ""')
+    # NOTE: Using official service.schema.json paths (.service.* not .metadata.*)
+    local scenario_name
+    local scenario_version
+    scenario_name=$(echo "$SERVICE_JSON" | jq -r '.service.name // ""')
+    scenario_version=$(echo "$SERVICE_JSON" | jq -r '.service.version // ""')
     
     if [[ -z "$scenario_name" ]]; then
-        log_error "Invalid service.json: missing metadata.name"
+        log_error "Invalid service.json: missing service.name (see .vrooli/schemas/service.schema.json)"
         return 1
     fi
     
     [[ "$VERBOSE" == true ]] && log_info "Scenario: $scenario_name v$scenario_version"
     
     # Check for required initialization files
-    local init_resources=$(echo "$SERVICE_JSON" | jq -r '.spec.scenarios.initialization.resources // {} | keys[]' 2>/dev/null)
+    # NOTE: Initialization data is embedded within each resource definition
+    local init_resources
+    if ! init_resources=$(echo "$SERVICE_JSON" | jq -r '
+      .resources | 
+      to_entries[] | 
+      .value | 
+      to_entries[] | 
+      select(.value.initialization != null) | 
+      .key
+    '); then
+        log_error "Failed to extract initialization resources from service.json"
+        return 1
+    fi
     
     for resource in $init_resources; do
         [[ "$VERBOSE" == true ]] && log_info "Checking initialization data for: $resource"
         
-        # Check for database files
-        local db_files=$(echo "$SERVICE_JSON" | jq -r ".spec.scenarios.initialization.resources.$resource.data[]?.file // empty" 2>/dev/null)
+        # Check for database files (find resource across all categories)
+        local db_files
+        if ! db_files=$(echo "$SERVICE_JSON" | jq -r "
+          .resources | 
+          to_entries[] | 
+          .value | 
+          to_entries[] | 
+          select(.key == \"$resource\") | 
+          .value.initialization.data[]?.file // empty
+        "); then
+            log_warning "Failed to check database files for resource: $resource"
+            continue
+        fi
         for file in $db_files; do
-            local full_path="${PROJECT_ROOT}/$file"
+            local full_path="${SCENARIO_PATH}/$file"
             if [[ -f "$full_path" ]]; then
                 [[ "$VERBOSE" == true ]] && log_success "  ✓ Found: $file"
             else
@@ -177,10 +219,21 @@ validate_structure() {
             fi
         done
         
-        # Check for workflow files
-        local workflow_files=$(echo "$SERVICE_JSON" | jq -r ".spec.scenarios.initialization.resources.$resource.workflows[]?.file // empty" 2>/dev/null)
+        # Check for workflow files (find resource across all categories)
+        local workflow_files
+        if ! workflow_files=$(echo "$SERVICE_JSON" | jq -r "
+          .resources | 
+          to_entries[] | 
+          .value | 
+          to_entries[] | 
+          select(.key == \"$resource\") | 
+          .value.initialization.workflows[]?.file // empty
+        "); then
+            log_warning "Failed to check workflow files for resource: $resource"
+            continue
+        fi
         for file in $workflow_files; do
-            local full_path="${PROJECT_ROOT}/$file"
+            local full_path="${SCENARIO_PATH}/$file"
             if [[ -f "$full_path" ]]; then
                 [[ "$VERBOSE" == true ]] && log_success "  ✓ Found: $file"
             else
@@ -203,19 +256,32 @@ validate_resources() {
     log_step "Validating required resources..."
     
     # Extract required resources from service.json
-    local required_resources=$(echo "$SERVICE_JSON" | jq -r '.spec.dependencies.resources[] | select(.optional == false) | .name' 2>/dev/null)
+    # NOTE: Using standard service.schema.json structure (.resources.{category}.{resource})
+    local required_resources
+    if ! required_resources=$(echo "$SERVICE_JSON" | jq -r '
+      .resources | 
+      to_entries[] | 
+      .value | 
+      to_entries[] | 
+      select(.value.required == true) | 
+      .key
+    '); then
+        log_error "Failed to extract required resources from service.json"
+        return 1
+    fi
     
     if [[ -z "$required_resources" ]]; then
         log_warning "No required resources defined"
         return 0
     fi
     
-    [[ "$VERBOSE" == true ]] && log_info "Required resources: $(echo $required_resources | tr '\n' ' ')"
+    [[ "$VERBOSE" == true ]] && log_info "Required resources: $(echo "$required_resources" | tr '\n' ' ')"
     
     # Check each resource
     for resource in $required_resources; do
         # Check if resource has an inject.sh script
-        local inject_script=$(find "${PROJECT_ROOT}/scripts/resources" -name "inject.sh" -path "*/${resource}/*" 2>/dev/null | head -1)
+        local inject_script
+        inject_script=$(find "${PROJECT_ROOT}/scripts/resources" -name "inject.sh" -path "*/${resource}/*" 2>/dev/null | head -1)
         
         if [[ -n "$inject_script" ]]; then
             [[ "$VERBOSE" == true ]] && log_success "  ✓ Injection handler found for: $resource"
@@ -223,7 +289,19 @@ validate_resources() {
             log_warning "  ⚠ No injection handler for: $resource"
         fi
         
-        # TODO: Add actual resource health checks here
+        # Check resource health if injection script supports status checks
+        if [[ -x "$inject_script" ]]; then
+            # First verify the script supports --status flag
+            if "$inject_script" --help 2>/dev/null | grep -q "\-\-status" 2>/dev/null; then
+                if "$inject_script" --status >/dev/null 2>&1; then
+                    [[ "$VERBOSE" == true ]] && log_success "  ✓ Resource '$resource' is healthy"
+                else
+                    log_warning "  ⚠ Resource '$resource' health check failed"
+                fi
+            else
+                [[ "$VERBOSE" == true ]] && log_info "  ℹ Resource '$resource' injection script doesn't support health checks"
+            fi
+        fi
     done
     
     log_success "Resource validation completed"
@@ -269,13 +347,23 @@ validate_service_config() {
         fi
     done
     
-    # Check resources structure
-    local resource_categories=("storage" "ai" "automation")
-    for category in "${resource_categories[@]}"; do
-        if [[ $(echo "$config_content" | jq -r ".resources.$category // false") == "false" ]]; then
-            log_warning "Missing resource category: $category (will be created)"
+    # Check resources structure - dynamically extract categories from config
+    # Phase 2 improvement: Support any resource category from service.json
+    local resource_categories=()
+    if [[ $(echo "$config_content" | jq -r ".resources // false") != "false" ]]; then
+        # Extract all category names from the resources section
+        if ! mapfile -t resource_categories < <(echo "$config_content" | jq -r '.resources | keys[]'); then
+            log_error "Failed to extract resource categories from config"
+            return 1
         fi
-    done
+    fi
+    
+    # If no categories found, create basic structure  
+    if [[ ${#resource_categories[@]} -eq 0 ]]; then
+        log_info "No resource categories found - service config may need initialization"
+    else
+        [[ "$VERBOSE" == true ]] && log_info "Found resource categories: ${resource_categories[*]}"
+    fi
     
     [[ "$VERBOSE" == true ]] && log_success "Service config validation passed: $config_file"
     return 0
@@ -349,156 +437,91 @@ preflight_safety_check() {
     return 0
 }
 
-# SAFE Generate service.json configuration
-generate_resources_config() {
-    log_step "Safely updating resources configuration..."
+# REMOVED: generate_resources_config function
+# Scenarios are self-contained and use their own service.json as single source of truth
+# This aligns with the service.schema.json specification where scenarios
+# define their own resource requirements without modifying global configuration
+
+# Rollback system functions
+add_rollback_action() {
+    local description="$1"
+    local command="$2"
     
-    # Run pre-flight safety checks
-    if ! preflight_safety_check "$SERVICE_CONFIG"; then
-        log_error "Pre-flight safety checks failed"
-        return 1
-    fi
-    
-    # Extract resources from scenario service.json
-    local resources=$(echo "$SERVICE_JSON" | jq -r '.spec.dependencies.resources[] | .name' 2>/dev/null)
-    
-    if [[ -z "$resources" ]]; then
-        log_warning "No resources defined in service.json"
+    ROLLBACK_ACTIONS+=("$description|$command")
+    [[ "$VERBOSE" == true ]] && log_info "Added rollback action: $description"
+}
+
+execute_rollback() {
+    if [[ ${#ROLLBACK_ACTIONS[@]} -eq 0 ]]; then
+        [[ "$VERBOSE" == true ]] && log_info "No rollback actions to execute"
         return 0
     fi
     
-    # SAFETY: Create timestamped backup BEFORE any modifications
-    local backup_file=""
-    if [[ -f "$SERVICE_CONFIG" ]]; then
-        if backup_file=$(create_safe_backup "$SERVICE_CONFIG" "scenario-deployment"); then
-            log_info "Created safety backup: $backup_file"
+    log_warning "Executing rollback actions..."
+    
+    local success_count=0
+    local total_count=${#ROLLBACK_ACTIONS[@]}
+    
+    # Execute in reverse order
+    for ((i=${#ROLLBACK_ACTIONS[@]}-1; i>=0; i--)); do
+        local action="${ROLLBACK_ACTIONS[i]}"
+        IFS='|' read -r description command <<< "$action"
+        
+        log_info "Rollback: $description"
+        
+        if eval "$command" 2>/dev/null; then
+            success_count=$((success_count + 1))
+            [[ "$VERBOSE" == true ]] && log_success "Rollback completed: $description"
         else
-            log_error "Failed to create safety backup"
-            return 1
-        fi
-    fi
-    
-    # Read existing configuration or create minimal structure
-    local existing_config='{}'
-    if [[ -f "$SERVICE_CONFIG" ]]; then
-        if ! existing_config=$(cat "$SERVICE_CONFIG"); then
-            log_error "Failed to read existing service config"
-            return 1
-        fi
-        log_info "Loaded existing service configuration"
-    else
-        # Create minimal structure for new installations
-        existing_config='{"resources": {"storage": {}, "ai": {}, "automation": {}, "agents": {}, "execution": {}, "search": {}}}'
-        log_info "Creating new service configuration structure"
-    fi
-    
-    # Process each required resource
-    local updated_config="$existing_config"
-    
-    for resource in $resources; do
-        local resource_type=$(echo "$SERVICE_JSON" | jq -r ".spec.dependencies.resources[] | select(.name == \"$resource\") | .type" 2>/dev/null)
-        local optional=$(echo "$SERVICE_JSON" | jq -r ".spec.dependencies.resources[] | select(.name == \"$resource\") | .optional" 2>/dev/null)
-        
-        # Skip optional resources (don't auto-enable them)
-        if [[ "$optional" == "true" ]]; then
-            [[ "$VERBOSE" == true ]] && log_info "Skipping optional resource: $resource"
-            continue
-        fi
-        
-        [[ "$VERBOSE" == true ]] && log_info "Processing required resource: $resource (type: $resource_type)"
-        
-        # Map resource type to config category
-        local category=""
-        case "$resource_type" in
-            "database"|"cache"|"storage"|"vectordb"|"timeseries"|"security")
-                category="storage"
-                ;;
-            "ai")
-                category="ai"
-                ;;
-            "automation")
-                category="automation"
-                ;;
-            "agent")
-                category="agents"
-                ;;
-            "execution")
-                category="execution"
-                ;;
-            "search")
-                category="search"
-                ;;
-            *)
-                log_warning "Unknown resource type: $resource_type for $resource"
-                continue
-                ;;
-        esac
-        
-        # SAFE OPERATION: Only modify the "enabled" field, preserve all other config
-        local resource_exists=$(echo "$updated_config" | jq -r ".resources.$category.$resource // false" 2>/dev/null)
-        
-        if [[ "$resource_exists" != "false" && "$resource_exists" != "null" ]]; then
-            # Resource exists - only enable it (preserve all other settings)
-            updated_config=$(echo "$updated_config" | jq ".resources.$category.$resource.enabled = true")
-            log_info "✓ Enabled existing resource: $resource"
-        else
-            # Resource doesn't exist - add minimal configuration
-            local minimal_resource='{"enabled": true, "type": "'$resource'"}'
-            updated_config=$(echo "$updated_config" | jq ".resources.$category.$resource = $minimal_resource")
-            log_info "✓ Added new resource: $resource"
+            log_warning "Rollback failed: $description"
         fi
     done
     
-    # ATOMIC WRITE: Write to temporary file first, then move
-    if [[ "$DRY_RUN" == true ]]; then
-        log_info "[DRY RUN] Would safely update service config: $SERVICE_CONFIG"
-        [[ "$VERBOSE" == true ]] && echo "$updated_config" | jq '.resources'
-    else
-        local temp_file="${SERVICE_CONFIG}.tmp.$$"
-        
-        # Ensure directory exists
-        mkdir -p "$(dirname "$SERVICE_CONFIG")"
-        
-        # Write to temporary file
-        if echo "$updated_config" | jq '.' > "$temp_file"; then
-            # Atomic move
-            mv "$temp_file" "$SERVICE_CONFIG"
-            log_success "✓ Safely updated service configuration"
-        else
-            rm -f "$temp_file"
-            log_error "Failed to write updated configuration"
-            return 1
-        fi
-        
-        # Verify the update worked
-        if jq empty "$SERVICE_CONFIG" 2>/dev/null; then
-            log_success "Configuration validation passed"
-        else
-            log_error "Configuration file is corrupted!"
-            # Restore from backup if available
-            if [[ -n "$backup_file" && -f "$backup_file" ]]; then
-                log_info "Restoring from backup: $backup_file"
-                cp "$backup_file" "$SERVICE_CONFIG"
-            fi
-            return 1
-        fi
-    fi
+    log_info "Rollback completed: $success_count/$total_count actions successful"
+    ROLLBACK_ACTIONS=()
 }
 
-# Call injection engine to initialize resources
-inject_resources() {
-    log_step "Injecting resource initialization data..."
+# Phase 2: Dynamic resource discovery function
+find_resource_inject_script() {
+    local resource="$1"
+    local category="$2"
     
-    local injection_engine="${INJECTION_DIR}/engine.sh"
-    
-    if [[ ! -f "$injection_engine" ]]; then
-        log_warning "Injection engine not found: $injection_engine"
-        log_warning "Skipping resource injection"
+    # Try category-specific location first
+    local category_script="${PROJECT_ROOT}/scripts/resources/${category}/${resource}/inject.sh"
+    if [[ -x "$category_script" ]]; then
+        echo "$category_script"
         return 0
     fi
     
-    # Get list of resources to inject
-    local resources=$(echo "$SERVICE_JSON" | jq -r '.spec.scenarios.initialization.resources // {} | keys[]' 2>/dev/null)
+    # Fallback to searching across all resources
+    local fallback_script=$(find "${PROJECT_ROOT}/scripts/resources" -name "inject.sh" -path "*/${resource}/*" -executable 2>/dev/null | head -1)
+    if [[ -n "$fallback_script" ]]; then
+        echo "$fallback_script"
+        return 0
+    fi
+    
+    # No injection script found
+    return 1
+}
+
+# Phase 3: Direct resource injection without engine.sh
+inject_resources() {
+    log_step "Injecting resource initialization data..."
+    
+    # Get list of resources to inject (those with initialization data)
+    # NOTE: Using standard service.schema.json structure
+    local resources
+    if ! resources=$(echo "$SERVICE_JSON" | jq -r '
+      .resources | 
+      to_entries[] | 
+      .value | 
+      to_entries[] | 
+      select(.value.initialization != null) | 
+      .key
+    '); then
+        log_error "Failed to extract resources with initialization data"
+        return 1
+    fi
     
     if [[ -z "$resources" ]]; then
         log_info "No resources to inject"
@@ -509,28 +532,60 @@ inject_resources() {
     for resource in $resources; do
         log_info "Injecting data for: $resource"
         
-        # Find injection script for resource
-        local inject_script=$(find "${PROJECT_ROOT}/scripts/resources" -name "inject.sh" -path "*/${resource}/*" 2>/dev/null | head -1)
+        # Extract initialization data and category for this specific resource
+        local resource_info
+        if ! resource_info=$(echo "$SERVICE_JSON" | jq -r --arg res "$resource" '
+          .resources | 
+          to_entries[] | 
+          select(.value | has($res)) | 
+          "\(.key)|\(.value[$res].initialization // {})"'
+        ); then
+            log_error "Failed to extract resource information for: $resource"
+            return 1
+        fi
+        
+        if [[ -z "$resource_info" ]]; then
+            log_error "Resource '$resource' not found in any category"
+            continue
+        fi
+        
+        local category
+        local init_data
+        IFS='|' read -r category init_data <<< "$resource_info"
+        
+        # Find injection script for resource using dynamic discovery
+        local inject_script=$(find_resource_inject_script "$resource" "$category")
         
         if [[ -z "$inject_script" ]]; then
             log_warning "  No injection handler for: $resource"
             continue
         fi
         
+        if [[ -z "$init_data" || "$init_data" == "{}" ]]; then
+            log_info "  No initialization data for: $resource"
+            continue
+        fi
+        
         if [[ "$DRY_RUN" == true ]]; then
-            log_info "  [DRY RUN] Would run: $inject_script --service-json $SERVICE_JSON_PATH"
+            log_info "  [DRY RUN] Would run: $inject_script --inject '<initialization_data>'"
+            [[ "$VERBOSE" == true ]] && log_info "  [DRY RUN] Initialization data: $init_data"
         else
-            # Run injection script
+            # Run injection script with proper JSON data
             if [[ "$VERBOSE" == true ]]; then
-                "$inject_script" --service-json "$SERVICE_JSON_PATH" --verbose
-            else
-                "$inject_script" --service-json "$SERVICE_JSON_PATH"
+                log_info "  Running: $inject_script --inject '<initialization_data>'"
+                log_info "  Initialization data: $init_data"
             fi
             
-            if [[ $? -eq 0 ]]; then
-                log_success "  ✓ Injected data for: $resource"
+            # Add rollback action before injection (escape JSON properly)
+            local escaped_init_data
+            escaped_init_data=$(printf '%s' "$init_data" | sed "s/'/'\\\\''/g")
+            add_rollback_action "Rollback injection for $resource" "\"$inject_script\" --rollback '$escaped_init_data' || true"
+            
+            if "$inject_script" --inject "$init_data"; then
+                log_success "  ✓ Injected data for: $resource (category: $category)"
             else
-                log_error "  ✗ Failed to inject data for: $resource"
+                log_error "  ✗ Failed to inject data for: $resource (category: $category)"
+                execute_rollback
                 return 1
             fi
         fi
@@ -618,9 +673,13 @@ run_tests() {
 
 # Show deployment summary
 show_summary() {
-    local scenario_name=$(echo "$SERVICE_JSON" | jq -r '.metadata.displayName // .metadata.name')
-    local scenario_id=$(echo "$SERVICE_JSON" | jq -r '.metadata.name')
-    local version=$(echo "$SERVICE_JSON" | jq -r '.metadata.version')
+    # NOTE: Using standard service.schema.json paths (.service.* not .metadata.*)
+    local scenario_name
+    local scenario_id
+    local version
+    scenario_name=$(echo "$SERVICE_JSON" | jq -r '.service.displayName // .service.name')
+    scenario_id=$(echo "$SERVICE_JSON" | jq -r '.service.name')
+    version=$(echo "$SERVICE_JSON" | jq -r '.service.version')
     
     echo ""
     log_success "🎉 Deployment Summary"
@@ -632,8 +691,13 @@ show_summary() {
     echo "✅ Status: Successfully Deployed"
     echo ""
     
-    # Extract endpoints from service.json
-    local endpoints=$(echo "$SERVICE_JSON" | jq -r '.spec.serve.endpoints[]? | "  \(.name): \(.protocol)://localhost:\(.port)\(.path)"' 2>/dev/null)
+    # Extract endpoints from service.json  
+    # NOTE: Using deployment.urls from service.schema.json structure
+    local endpoints
+    if ! endpoints=$(echo "$SERVICE_JSON" | jq -r '.deployment.urls // {} | to_entries[] | "  \(.key): \(.value)"'); then
+        [[ "$VERBOSE" == true ]] && log_info "No deployment URLs found in service.json"
+        endpoints=""
+    fi
     
     if [[ -n "$endpoints" ]]; then
         log_info "Application Endpoints:"
@@ -642,7 +706,19 @@ show_summary() {
     fi
     
     # Show resource-specific URLs
-    local resources=$(echo "$SERVICE_JSON" | jq -r '.spec.dependencies.resources[] | select(.optional == false) | .name' 2>/dev/null)
+    # NOTE: Using standard service.schema.json structure for required resources
+    local resources
+    if ! resources=$(echo "$SERVICE_JSON" | jq -r '
+      .resources | 
+      to_entries[] | 
+      .value | 
+      to_entries[] | 
+      select(.value.required == true) | 
+      .key
+    '); then
+        log_warning "Failed to extract required resources for summary display"
+        resources=""
+    fi
     
     log_info "Resource Access:"
     for resource in $resources; do
@@ -651,7 +727,7 @@ show_summary() {
                 echo "  📡 n8n Editor: http://localhost:5678"
                 ;;
             windmill)
-                echo "  🌪️ Windmill: http://localhost:8000"
+                echo "  🌪️ Windmill: http://localhost:5681"
                 ;;
             postgres)
                 echo "  🗄️ Database: postgresql://localhost:5432/${scenario_id//-/_}"
@@ -692,41 +768,58 @@ main() {
     
     # Phase 1: Validation
     log_phase "Phase 1: Validation"
-    validate_scenario
-    log_info "After validate_scenario"
-    validate_structure
-    log_info "After validate_structure"
-    validate_resources
-    log_info "After validate_resources"
+    if ! validate_scenario; then
+        log_error "Scenario validation failed"
+        exit 1
+    fi
+    
+    if ! validate_structure; then
+        log_error "Structure validation failed"
+        exit 1
+    fi
+    
+    if ! validate_resources; then
+        log_error "Resource validation failed"
+        exit 1
+    fi
+    
     log_success "Validation completed"
     
     echo ""
     
-    # Phase 2: Configuration
-    log_phase "Phase 2: Configuration"
-    generate_resources_config
-    log_success "Configuration completed"
-    
-    echo ""
-    
-    # Phase 3: Resource Injection
-    log_phase "Phase 3: Resource Injection"
-    inject_resources
+    # Phase 2: Resource Injection
+    log_phase "Phase 2: Resource Injection"
+    if ! inject_resources; then
+        log_error "Resource injection failed - rollback executed"
+        exit 1
+    fi
     log_success "Resource injection completed"
     
     echo ""
     
-    # Phase 4: Deployment
-    log_phase "Phase 4: Deployment"
-    deploy_application
-    start_monitoring
+    # Phase 3: Deployment
+    log_phase "Phase 3: Deployment"
+    if ! deploy_application; then
+        log_error "Application deployment failed"
+        execute_rollback
+        exit 1
+    fi
+    
+    if ! start_monitoring; then
+        log_warning "Monitoring startup failed (non-critical)"
+    fi
+    
     log_success "Deployment completed"
     
     echo ""
     
-    # Phase 5: Testing
-    log_phase "Phase 5: Testing"
-    run_tests
+    # Phase 4: Testing
+    log_phase "Phase 4: Testing"
+    if ! run_tests; then
+        log_error "Integration tests failed"
+        execute_rollback
+        exit 1
+    fi
     log_success "Testing completed"
     
     echo ""

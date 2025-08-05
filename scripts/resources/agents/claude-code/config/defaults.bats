@@ -1,7 +1,6 @@
 #!/usr/bin/env bats
 # Tests for claude-code config/defaults.sh configuration management
 
-bats_require_minimum_version 1.5.0
 
 # Setup for each test
 setup() {

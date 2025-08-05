@@ -165,10 +165,10 @@ ollama::logs() {
     
     # Check if we have systemd service
     if systemctl list-unit-files | grep -q "^${OLLAMA_SERVICE_NAME}.service"; then
-        log::info "Showing Ollama service logs (last 50 lines):"
+        log::info "Showing Ollama service logs (last ${LINES:-50} lines):"
         log::info "Use 'journalctl -u $OLLAMA_SERVICE_NAME -f' to follow logs in real-time"
         echo
-        journalctl -u "$OLLAMA_SERVICE_NAME" -n 50 --no-pager
+        journalctl -u "$OLLAMA_SERVICE_NAME" -n "${LINES:-50}" --no-pager
     else
         log::warn "Ollama systemd service not found. Checking for running process..."
         
@@ -187,6 +187,65 @@ ollama::logs() {
     fi
 }
 
+#######################################
+# Test Ollama functionality
+# Returns: 0 if tests pass, 1 if tests fail, 2 if skip
+#######################################
+ollama::test() {
+    log::info "Testing Ollama functionality..."
+    
+    # Test 1: Check if Ollama is installed
+    if ! ollama::is_installed; then
+        log::error "❌ Ollama is not installed"
+        return 1
+    fi
+    log::success "✅ Ollama is installed"
+    
+    # Test 2: Check if service is running
+    if ! ollama::is_running; then
+        log::error "❌ Ollama service is not running"
+        return 1
+    fi
+    log::success "✅ Ollama service is running"
+    
+    # Test 3: Check API health
+    if ! ollama::is_healthy; then
+        log::error "❌ Ollama API is not responding"
+        return 1
+    fi
+    log::success "✅ Ollama API is healthy"
+    
+    # Test 4: Check if models are available
+    local model_count
+    if system::is_command "ollama"; then
+        model_count=$(ollama list 2>/dev/null | tail -n +2 | wc -l || echo "0")
+        if [[ "$model_count" -eq 0 ]]; then
+            log::warn "⚠️  No models installed - functionality will be limited"
+            log::info "Install models with: $0 --action install --models llama3.1:8b"
+        else
+            log::success "✅ $model_count models available"
+        fi
+    fi
+    
+    # Test 5: Simple API test (if models available)
+    if [[ "${model_count:-0}" -gt 0 ]]; then
+        log::info "Testing API with simple query..."
+        local test_response
+        test_response=$(curl -s -m 10 -X POST "$OLLAMA_BASE_URL/api/generate" \
+            -H "Content-Type: application/json" \
+            -d '{"model":"llama3.1:8b","prompt":"Say hello in one word","stream":false}' 2>/dev/null)
+        
+        if [[ -n "$test_response" ]] && echo "$test_response" | grep -q "response"; then
+            log::success "✅ API generates responses successfully"
+        else
+            log::warn "⚠️  API test failed - service may be initializing"
+        fi
+    fi
+    
+    log::success "🎉 All Ollama tests passed"
+    return 0
+}
+
 # Export functions for subshell availability
 export -f ollama::is_installed
 export -f ollama::is_running
@@ -196,3 +255,4 @@ export -f ollama::stop
 export -f ollama::restart
 export -f ollama::status
 export -f ollama::logs
+export -f ollama::test

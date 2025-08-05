@@ -1,81 +1,32 @@
 #!/usr/bin/env bats
 
-# Expensive setup operations run once per file
+# Load Vrooli test infrastructure (REQUIRED)
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+
+# Expensive setup operations (run once per file)
 setup_file() {
-    # Minimal setup_file - most operations moved to lightweight setup()
-    true
+    # Use appropriate setup function
+    vrooli_setup_service_test "windmill"
+    
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    export SETUP_FILE_WINDMILL_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")" 
+    export SETUP_FILE_CONFIG_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")/config"
+    export SETUP_FILE_LIB_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")/lib"
 }
 
-# Tests for Windmill api.sh functions
-
-# Setup for each test
 # Lightweight per-test setup
 setup() {
-    # Basic mock functions (lightweight)
-    # Mock resources functions to avoid hang
-    declare -A DEFAULT_PORTS=(
-        ["ollama"]="11434"
-        ["agent-s2"]="4113"
-        ["browserless"]="3000"
-        ["unstructured-io"]="8000"
-        ["n8n"]="5678"
-        ["node-red"]="1880"
-        ["huginn"]="3000"
-        ["windmill"]="8000"
-        ["judge0"]="2358"
-        ["searxng"]="8080"
-        ["qdrant"]="6333"
-        ["questdb"]="9000"
-        ["vault"]="8200"
-    )
-    resources::get_default_port() { echo "${DEFAULT_PORTS[$1]:-8080}"; }
-    export -f resources::get_default_port
-    
-    mock::network::set_online() { return 0; }
-    setup_standard_mocks() { 
-        export FORCE="${FORCE:-no}"
-        export YES="${YES:-no}"
-        export OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"
-        export QUIET="${QUIET:-no}"
-        mock::network::set_online
-    }
-    
-    # Setup mocks
-    setup_standard_mocks
-    
-    # Original setup content follows...
-    # Load shared test infrastructure
-    # Lightweight setup instead of heavy common_setup.bash
-    setup_standard_mocks() {
-        export FORCE="${FORCE:-no}"
-        export YES="${YES:-no}"
-        export OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"
-        export QUIET="${QUIET:-no}"
-        mock::network::set_online() { return 0; }
-        export -f mock::network::set_online
-    }
-    
-    # Mock system functions (lightweight)
-    log::info() { echo "[INFO] $*"; }
-    log::success() { echo "[SUCCESS] $*"; }
-    log::warning() { echo "[WARNING] $*"; }
-    log::error() { echo "[ERROR] $*" >&2; }
-    system::is_command() { command -v "$1" >/dev/null 2>&1; }
-    
-    # Mock basic curl function
-    curl() {
-        case "$*" in
-            *"health"*) echo '{"status":"healthy"}';;
-            *) echo '{"success":true}';;
-        esac
-        return 0
-    }
-    export -f curl
-    
     # Setup standard mocks
-    setup_standard_mocks
+    vrooli_auto_setup
     
-    # Set test environment
+    # Use paths from setup_file
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
+    WINDMILL_DIR="${SETUP_FILE_WINDMILL_DIR}"
+    CONFIG_DIR="${SETUP_FILE_CONFIG_DIR}"
+    LIB_DIR="${SETUP_FILE_LIB_DIR}"
+    
+    # Set test environment BEFORE sourcing config files to avoid readonly conflicts
     export WINDMILL_PORT="5681"
     export WINDMILL_BASE_URL="http://localhost:5681"
     export WINDMILL_API_TOKEN="wm_abc123def456"
@@ -86,14 +37,37 @@ setup() {
     export FLOW_ID="flow_789012"
     export YES="no"
     
-    # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
-    WINDMILL_DIR="$(dirname "$SCRIPT_DIR")"
-    
     # Create test script file
     echo "$SCRIPT_CONTENT" > "$SCRIPT_PATH"
     
-    # Mock system functions
+    # Mock resources functions that are called during config loading
+    resources::get_default_port() {
+        case "$1" in
+            "windmill") echo "5681" ;;
+            *) echo "8080" ;;
+        esac
+    }
+    
+    # Now source the config files
+    source "${WINDMILL_DIR}/config/defaults.sh"
+    source "${WINDMILL_DIR}/config/messages.sh"
+    
+    # Export config and messages
+    windmill::export_config
+    windmill::export_messages
+    
+    # Load the functions to test
+    source "${WINDMILL_DIR}/lib/api.sh"
+    
+    # Mock basic curl function
+    curl() {
+        case "$*" in
+            *"health"*) echo '{"status":"healthy"}';;
+            *) echo '{"success":true}';;
+        esac
+        return 0
+    }
+    export -f curl
     
     # Mock curl for API calls
     
@@ -149,6 +123,7 @@ setup() {
 # Cleanup after each test
 teardown() {
     rm -f "$SCRIPT_PATH"
+    vrooli_cleanup_test
 }
 
 # Test API connectivity

@@ -1,20 +1,30 @@
 #!/usr/bin/env bats
 # Tests for Whisper common.sh functions
 
-# Load test helper if available
-load_helper() {
-    local helper_file="$1"
-    if [[ -f "$helper_file" ]]; then
-        # shellcheck disable=SC1090
-        source "$helper_file"
-    fi
+# Load Vrooli test infrastructure (REQUIRED)
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+
+# Expensive setup operations (run once per file)
+setup_file() {
+    # Use appropriate setup function
+    vrooli_setup_service_test "whisper"
+    
+    # Load dependencies once
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    WHISPER_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Source library files
+    source "${SCRIPT_DIR}/common.sh"
+    source "${WHISPER_DIR}/config/defaults.sh"
+    source "${WHISPER_DIR}/config/messages.sh"
+    
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_DIR="$SCRIPT_DIR"
+    export SETUP_FILE_WHISPER_DIR="$WHISPER_DIR"
 }
 
-# Setup for each test
+# Lightweight per-test setup
 setup() {
-    # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
-    
     # Setup standard mocks
     vrooli_auto_setup
     
@@ -41,24 +51,19 @@ setup() {
     export MSG_PORT_IN_USE="Port 9090 is already in use"
     export MSG_GPU_NOT_AVAILABLE="⚠️  GPU not available, falling back to CPU"
     
-    # Mock system functions
+    # Use paths from setup_file
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
+    WHISPER_DIR="${SETUP_FILE_WHISPER_DIR}"
     
-    system::is_port_in_use() {
-        # For testing, assume port is available unless specifically mocked
-        return 1
-    }
-    
-    
-    # Load the script
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
-    source "${SCRIPT_DIR}/common.sh"
-    
-    # Clean up test directory
-    rm -rf "$WHISPER_DATA_DIR"
+    # Export config functions
+    whisper::export_config
+    whisper::export_messages
 }
 
-# Teardown for each test
+# BATS teardown function - runs after each test
 teardown() {
+    vrooli_cleanup_test
+    
     # Clean up test directory
     rm -rf "$WHISPER_DATA_DIR"
 }

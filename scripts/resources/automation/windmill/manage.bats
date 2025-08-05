@@ -1,15 +1,32 @@
 #!/usr/bin/env bats
-# Tests for Windmill main management script
 
-# Setup for each test
-setup() {
-    # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../tests/bats-fixtures/common_setup.bash"
+# Load Vrooli test infrastructure (REQUIRED)
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
+
+# Expensive setup operations (run once per file)
+setup_file() {
+    # Use appropriate setup function
+    vrooli_setup_service_test "windmill"
     
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_PATH="$(dirname "${BATS_TEST_FILENAME}")/manage.sh"
+    export SETUP_FILE_CONFIG_DIR="$(dirname "${BATS_TEST_FILENAME}")/config"
+    export SETUP_FILE_LIB_DIR="$(dirname "${BATS_TEST_FILENAME}")/lib"
+    export SETUP_FILE_WINDMILL_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+}
+
+# Lightweight per-test setup
+setup() {
     # Setup standard mocks
     vrooli_auto_setup
     
-    # Set test environment
+    # Use paths from setup_file
+    SCRIPT_PATH="${SETUP_FILE_SCRIPT_PATH}"
+    CONFIG_DIR="${SETUP_FILE_CONFIG_DIR}"
+    LIB_DIR="${SETUP_FILE_LIB_DIR}"
+    WINDMILL_DIR="${SETUP_FILE_WINDMILL_DIR}"
+    
+    # Set test environment BEFORE sourcing config files to avoid readonly conflicts
     export WINDMILL_PORT="5681"
     export WINDMILL_CONTAINER_NAME="windmill-test"
     export WINDMILL_BASE_URL="http://localhost:5681"
@@ -20,13 +37,21 @@ setup() {
     export FORCE="no"
     export YES="no"
     
-    # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
-    WINDMILL_DIR="$SCRIPT_DIR"
+    # Mock resources functions that are called during config loading
+    resources::get_default_port() {
+        case "$1" in
+            "windmill") echo "5681" ;;
+            *) echo "8080" ;;
+        esac
+    }
     
-    # Mock system functions
+    # Now source the config files
+    source "${WINDMILL_DIR}/config/defaults.sh"
+    source "${WINDMILL_DIR}/config/messages.sh"
     
-    # Mock log functions
+    # Export config and messages
+    windmill::export_config
+    windmill::export_messages
     
     # Mock argument parsing function
     windmill::parse_arguments() {
@@ -110,22 +135,11 @@ setup() {
         echo "API_SETUP_CALLED"
         return 0
     }
-    
-    windmill::export_config() {
-        export WINDMILL_SERVICE_NAME="windmill"
-        export WINDMILL_CONTAINER_NAME="windmill-test"
-        export WINDMILL_DEFAULT_PORT="5681"
-    }
-    
-    windmill::export_messages() {
-        export MSG_WINDMILL_INSTALLING="Installing Windmill"
-        export MSG_INSTALLATION_SUCCESS="✅ Windmill installed successfully"
-        export MSG_SERVICE_INFO="Windmill is available"
-    }
-    
-    # Load configuration and messages
-    windmill::export_config
-    windmill::export_messages
+}
+
+# Cleanup after each test
+teardown() {
+    vrooli_cleanup_test
 }
 
 # Test main function routing - install action
@@ -381,18 +395,18 @@ setup() {
 
 # Integration tests (when service is running)
 @test "windmill manage script has correct permissions" {
-    [ -x "${BATS_TEST_DIRNAME}/manage.sh" ]
+    [ -x "${WINDMILL_DIR}/manage.sh" ]
 }
 
 @test "windmill examples directory structure exists" {
-    [ -d "${BATS_TEST_DIRNAME}/examples/apps" ]
-    [ -d "${BATS_TEST_DIRNAME}/examples/scripts" ]
-    [ -d "${BATS_TEST_DIRNAME}/examples/flows" ]
+    [ -d "${WINDMILL_DIR}/examples/apps" ]
+    [ -d "${WINDMILL_DIR}/examples/scripts" ]
+    [ -d "${WINDMILL_DIR}/examples/flows" ]
 }
 
 @test "windmill app examples have valid JSON structure" {
-    if command -v jq >/dev/null 2>&1 && [ -f "${BATS_TEST_DIRNAME}/examples/apps/admin-dashboard.json" ]; then
-        run jq '.' "${BATS_TEST_DIRNAME}/examples/apps/admin-dashboard.json"
+    if command -v jq >/dev/null 2>&1 && [ -f "${WINDMILL_DIR}/examples/apps/admin-dashboard.json" ]; then
+        run jq '.' "${WINDMILL_DIR}/examples/apps/admin-dashboard.json"
         [ "$status" -eq 0 ]
     else
         skip "jq not available or file missing"

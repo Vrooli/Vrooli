@@ -1,11 +1,30 @@
 #!/usr/bin/env bats
 # Tests for Whisper status.sh functions
 
-# Setup for each test
-setup() {
-    # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+# Load Vrooli test infrastructure (REQUIRED)
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+
+# Expensive setup operations (run once per file)
+setup_file() {
+    # Use appropriate setup function
+    vrooli_setup_service_test "whisper"
     
+    # Load dependencies once
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    WHISPER_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Source library files
+    source "${WHISPER_DIR}/config/defaults.sh"
+    source "${WHISPER_DIR}/config/messages.sh"
+    source "${SCRIPT_DIR}/status.sh"
+    
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_DIR="$SCRIPT_DIR"
+    export SETUP_FILE_WHISPER_DIR="$WHISPER_DIR"
+}
+
+# Lightweight per-test setup
+setup() {
     # Setup standard mocks
     vrooli_auto_setup
     
@@ -17,9 +36,9 @@ setup() {
     export WHISPER_MODEL_SIZE="base"
     export YES="no"
     
-    # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
-    WHISPER_DIR="$(dirname "$SCRIPT_DIR")"
+    # Use paths from setup_file
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
+    WHISPER_DIR="${SETUP_FILE_WHISPER_DIR}""
     
     # Mock system functions
     
@@ -66,14 +85,14 @@ setup() {
     whisper::is_running() { return 0; }
     whisper::get_container_port() { echo "8090"; }
     
-    # Load configuration and messages
-    source "${WHISPER_DIR}/config/defaults.sh"
-    source "${WHISPER_DIR}/config/messages.sh"
+    # Export config functions
     whisper::export_config
     whisper::export_messages
-    
-    # Load the functions to test
-    source "${WHISPER_DIR}/lib/status.sh"
+}
+
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
 }
 
 # Test comprehensive status display

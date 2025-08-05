@@ -87,6 +87,9 @@ ollama::main() {
         info)
             ollama::info
             ;;
+        test)
+            ollama::test
+            ;;
         prompt)
             # For prompt action, we need to pass the parsed parameters
             if [[ -z "$PROMPT_TEXT" ]]; then

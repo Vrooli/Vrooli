@@ -1,13 +1,38 @@
 #!/usr/bin/env bats
-
 # Tests for Ollama status and service management functions
 
-setup() {
-    # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+# Load Vrooli test infrastructure
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+
+# Expensive setup operations (run once per file)
+setup_file() {
+    # Use appropriate setup function
+    vrooli_setup_service_test "ollama"
     
+    # Load dependencies once
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    OLLAMA_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Load configuration and messages once
+    source "${OLLAMA_DIR}/config/defaults.sh"
+    source "${OLLAMA_DIR}/config/messages.sh"
+    
+    # Load status functions once
+    source "${SCRIPT_DIR}/status.sh"
+    
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_DIR="$SCRIPT_DIR"
+    export SETUP_FILE_OLLAMA_DIR="$OLLAMA_DIR"
+}
+
+# Lightweight per-test setup
+setup() {
     # Setup standard mocks
     vrooli_auto_setup
+    
+    # Use paths from setup_file
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
+    OLLAMA_DIR="${SETUP_FILE_OLLAMA_DIR}"
     
     # Set test environment
     export OLLAMA_PORT="11434"
@@ -55,8 +80,14 @@ setup() {
     wc() { /usr/bin/wc "$@"; }
     tail() { /usr/bin/tail "$@"; }
     
-    # Source the status functions
-    source "$(dirname "$BATS_TEST_FILENAME")/status.sh"
+    # Export config functions
+    ollama::export_config
+    ollama::export_messages
+}
+
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
 }
 
 @test "ollama::is_installed returns 0 when binary exists" {

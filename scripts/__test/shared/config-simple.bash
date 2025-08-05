@@ -200,9 +200,10 @@ vrooli_config_get() {
     local key="$1"
     local default="${2:-}"
     
-    # Convert key to variable name format (replace dots with underscores)
+    # Convert key to variable name format (replace dots and hyphens with underscores)
     local var_name="VROOLI_CONFIG_${key^^}"
     var_name="${var_name//./_}"
+    var_name="${var_name//-/_}"
     
     # Get the value using indirect variable expansion
     local value="${!var_name:-$default}"

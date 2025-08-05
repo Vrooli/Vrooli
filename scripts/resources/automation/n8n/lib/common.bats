@@ -1,42 +1,47 @@
 #!/usr/bin/env bats
-bats_require_minimum_version 1.5.0
 
-# Path to the script under test
-SCRIPT_PATH="$BATS_TEST_DIRNAME/common.sh"
-N8N_DIR="$BATS_TEST_DIRNAME/.."
+# Load Vrooli test infrastructure (REQUIRED)
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
 
-# Source dependencies in correct order (matching manage.sh)
-RESOURCES_DIR="$N8N_DIR/../.."
-HELPERS_DIR="$RESOURCES_DIR/../helpers"
+# Expensive setup operations (run once per file)
+setup_file() {
+    # Use appropriate setup function
+    vrooli_setup_service_test "n8n"
+    
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_PATH="$(dirname "${BATS_TEST_FILENAME}")/common.sh"
+    export SETUP_FILE_N8N_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
+}
 
-# Source utilities first
-. "$HELPERS_DIR/utils/log.sh"
-. "$HELPERS_DIR/utils/system.sh"
-. "$HELPERS_DIR/utils/ports.sh"
-. "$HELPERS_DIR/utils/flow.sh"
-. "$RESOURCES_DIR/port-registry.sh"
-
-# Helper function for proper sourcing in tests
-setup_n8n_test_env() {
-    local script_dir="$N8N_DIR"
-    local resources_dir="$N8N_DIR/../.."
-    local helpers_dir="$resources_dir/../helpers"
+# Lightweight per-test setup
+setup() {
+    # Setup standard mocks
+    vrooli_auto_setup
     
-    # Source utilities first
-    source "$helpers_dir/utils/log.sh"
-    source "$helpers_dir/utils/system.sh"
-    source "$helpers_dir/utils/ports.sh"
-    source "$helpers_dir/utils/flow.sh"
-    source "$resources_dir/port-registry.sh"
+    # Use paths from setup_file
+    SCRIPT_PATH="${SETUP_FILE_SCRIPT_PATH}"
+    N8N_DIR="${SETUP_FILE_N8N_DIR}"
     
-    # Source common.sh (provides resources functions)
-    source "$resources_dir/common.sh"
+    # Set test environment BEFORE sourcing config files to avoid readonly conflicts
+    export N8N_CUSTOM_PORT="5678"
+    export YES="no"
     
-    # Source config (depends on resources functions)
-    source "$script_dir/config/defaults.sh"
+    # Mock resources functions that are called during config loading
+    resources::get_default_port() {
+        case "$1" in
+            "n8n") echo "5678" ;;
+            *) echo "8080" ;;
+        esac
+    }
     
-    # Source the script under test
+    # Now source the config and library files
+    source "${N8N_DIR}/config/defaults.sh"
+    source "${N8N_DIR}/config/messages.sh"
     source "$SCRIPT_PATH"
+    
+    # Export config and messages
+    n8n::export_config
+    n8n::export_messages
     
     # Mock functions for tests
     resources::add_rollback_action() { 
@@ -45,30 +50,24 @@ setup_n8n_test_env() {
     }
 }
 
+# Cleanup after each test
+teardown() {
+    vrooli_cleanup_test
+}
+
+# Helper function for proper sourcing in tests
+setup_n8n_test_env() {
+    # This function is now simplified as dependencies are loaded in setup_file
+    # Just ensure config and messages are exported
+    n8n::export_config
+    n8n::export_messages
+}
+
 # Helper function for directory tests (avoids readonly variable conflicts)
 setup_n8n_test_env_no_defaults() {
-    local script_dir="$N8N_DIR"
-    local resources_dir="$N8N_DIR/../.."
-    local helpers_dir="$resources_dir/../helpers"
-    
-    # Source utilities first
-    source "$helpers_dir/utils/log.sh"
-    source "$helpers_dir/utils/system.sh"
-    source "$helpers_dir/utils/ports.sh"
-    source "$helpers_dir/utils/flow.sh"
-    source "$resources_dir/port-registry.sh"
-    
-    # Source common.sh (provides resources functions)
-    source "$resources_dir/common.sh"
-    
-    # Source the script under test
-    source "$SCRIPT_PATH"
-    
-    # Mock functions for tests
-    resources::add_rollback_action() { 
-        echo "Rollback action added: $1" >&2
-        return 0
-    }
+    # This function is now simplified as dependencies are loaded in setup_file
+    # We can dynamically set N8N_DATA_DIR in individual tests
+    :
 }
 
 # ============================================================================

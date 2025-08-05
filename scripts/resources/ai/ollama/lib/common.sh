@@ -17,7 +17,7 @@ ollama::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|models|available|info|prompt" \
+        --options "install|uninstall|start|stop|restart|status|logs|models|available|info|test|prompt" \
         --default ""
     
     args::register \
@@ -27,6 +27,13 @@ ollama::parse_arguments() {
         --type "value" \
         --options "yes|no" \
         --default "no"
+    
+    args::register \
+        --name "lines" \
+        --flag "n" \
+        --desc "Number of log lines to show" \
+        --type "value" \
+        --default "50"
     
     args::register \
         --name "models" \
@@ -122,6 +129,7 @@ ollama::parse_arguments() {
     
     export ACTION=$(args::get "action")
     export FORCE=$(args::get "force")
+    export LINES=$(args::get "lines")
     export YES=$(args::get "yes")
     export MODELS_INPUT=$(args::get "models")
     export SKIP_MODELS=$(args::get "skip-models")
@@ -157,7 +165,9 @@ ollama::usage() {
     echo "  $0 --action prompt --text 'Code review' --system 'You are a senior developer'  # Set context"
     echo "  $0 --action available                           # Show available models from catalog"
     echo "  $0 --action status                               # Check Ollama status"
+    echo "  $0 --action test                                 # Test Ollama functionality"
     echo "  $0 --action models                               # List installed models"
+    echo "  $0 --action logs --lines 100                     # Show last 100 log lines"
     echo "  $0 --action uninstall                           # Remove Ollama"
 }
 

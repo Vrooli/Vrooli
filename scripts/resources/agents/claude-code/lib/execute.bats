@@ -1,15 +1,14 @@
 #!/usr/bin/env bats
-bats_require_minimum_version 1.5.0
 
 load ./test_helper.bash
 
 # BATS setup function - runs before each test
 setup() {
     # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
     
-    # Setup standard mocks
-    setup_standard_mocks
+    # Setup test environment
+    vrooli_auto_setup
     
     # Load the functions we are testing (required for bats isolation)
     SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
@@ -48,6 +47,11 @@ setup() {
     export TIMEOUT="${TIMEOUT:-$DEFAULT_TIMEOUT}"
     export OUTPUT_FORMAT="${OUTPUT_FORMAT:-$DEFAULT_OUTPUT_FORMAT}"
     export ALLOWED_TOOLS="${ALLOWED_TOOLS:-}"
+}
+
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
 }
 
 @test "execute.sh defines required functions" {

@@ -1,11 +1,12 @@
 {
-  "apiVersion": "v1",
-  "kind": "Service",
-  "metadata": {
+  "$schema": "../../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
     "name": "analytics-dashboard",
-    "version": "1.0.0",
     "displayName": "Real-time Analytics Dashboard",
     "description": "Live monitoring dashboard with streaming data, time-series storage, and AI-powered insights",
+    "version": "1.0.0",
+    "type": "business-application",
     "tags": [
       "real-time",
       "time-series",
@@ -15,184 +16,452 @@
       "windmill-ui",
       "enterprise-ready"
     ],
-    "labels": {
-      "category": "real-time-monitoring",
-      "complexity": "advanced",
-      "market-demand": "very-high"
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "team@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scripts/scenarios/core/analytics-dashboard"
     },
-    "annotations": {
-      "value-proposition": "Real-time operational intelligence platform for IoT, financial, and business metrics",
-      "generated-from": "manifest-to-service-converter",
-      "conversion-date": "2025-08-04T02:14:42Z"
+    "license": "GPL-3.0",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "./README.md",
+    "support": {
+      "email": "support@vrooli.com",
+      "issues": "https://github.com/Vrooli/Vrooli/issues",
+      "chat": "https://discord.gg/vrooli"
     }
   },
-  "spec": {
-    "type": "application",
-    "category": "real-time-monitoring",
-    "capabilities": [
-      "ai-processing",
-      "workflow-automation",
-      "file-storage",
-      "web-automation"
-    ],
-    "dependencies": {
-      "resources": [
-        {
-          "type": "automation",
-          "name": "node-red",
-          "optional": false,
-          "version": "*"
-        },
-        {
-          "type": "timeseries",
-          "name": "questdb",
-          "optional": false,
-          "version": "*"
-        },
-        {
-          "type": "agent",
-          "name": "browserless",
-          "optional": false,
-          "version": "*"
-        },
-        {
-          "type": "storage",
-          "name": "minio",
-          "optional": true,
-          "version": "*"
-        },
-        {
-          "type": "ai",
-          "name": "ollama",
-          "optional": true,
-          "version": "*"
-        },
-        {
-          "type": "automation",
-          "name": "windmill",
-          "optional": true,
-          "version": "*"
-        }
-      ]
-    },
-    "pricing": {
-      "model": "subscription",
-      "currency": "USD",
-      "tiers": [
-        {
-          "name": "Basic",
-          "price": 5000,
-          "interval": "month",
-          "features": []
-        },
-        {
-          "name": "Professional",
-          "price": 12000,
-          "interval": "month",
-          "features": []
-        }
-      ]
-    },
-    "scenarios": {
-      "initialization": {
-        "resources": {
-          "postgres": {
-            "data": [
-              {
-                "type": "schema",
-                "file": "scenarios/analytics-dashboard/initialization/database/schema.sql",
-                "format": "sql"
-              },
-              {
-                "type": "seed",
-                "file": "scenarios/analytics-dashboard/initialization/database/seed.sql",
-                "format": "sql"
-              }
-            ]
-          }
-        },
-        "order": [],
-        "parallel": false
-      }
-    },
-    "serve": {
-      "healthChecks": {
-        "readiness": {
-          "httpGet": {
-            "path": "/health",
-            "port": 8080,
-            "scheme": "HTTP"
-          },
-          "periodSeconds": 30,
-          "timeoutSeconds": 5
-        },
-        "liveness": {
-          "httpGet": {
-            "path": "/health",
-            "port": 8080,
-            "scheme": "HTTP"
-          },
-          "periodSeconds": 60,
-          "timeoutSeconds": 5
-        }
-      },
-      "endpoints": [
-        {
-          "name": "api",
-          "protocol": "http",
-          "path": "/api/analytics-dashboard",
-          "port": 3000,
-          "public": true
-        },
-        {
-          "name": "health",
-          "protocol": "http",
-          "path": "/api/analytics-dashboard/health",
-          "port": 3000,
-          "public": false
-        }
-      ]
-    },
-    "deployment": {
-      "replicas": 1,
-      "strategy": "recreate",
-      "resources": {
-        "requests": {
-          "cpu": "100m",
-          "memory": "128Mi"
-        },
-        "limits": {
-          "cpu": "1000m",
-          "memory": "1Gi"
-        }
-      }
-    },
-    "security": {
-      "authentication": {
+  "resources": {
+    "storage": {
+      "postgres": {
+        "type": "postgresql",
+        "enabled": true,
+        "version": "16",
         "required": true,
-        "type": "jwt"
+        "initialization": {
+          "data": [
+            {
+              "type": "schema",
+              "file": "initialization/database/schema.sql"
+            },
+            {
+              "type": "seed",
+              "file": "initialization/database/seed.sql"
+            }
+          ]
+        }
       },
-      "authorization": {
-        "type": "rbac"
+      "questdb": {
+        "type": "questdb",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "tables": [
+            {
+              "name": "metrics",
+              "schema": "CREATE TABLE metrics (timestamp TIMESTAMP, metric_name STRING, value DOUBLE, tags STRING)"
+            }
+          ]
+        }
       },
-      "encryption": {
-        "transit": true,
-        "atRest": true
+      "minio": {
+        "type": "minio",
+        "enabled": false,
+        "required": false,
+        "initialization": {
+          "buckets": [
+            {
+              "name": "analytics-data",
+              "policy": "private"
+            }
+          ]
+        }
       }
     },
-    "observability": {
-      "logging": {
-        "enabled": true,
-        "level": "info"
-      },
-      "metrics": {
-        "enabled": true,
-        "provider": "prometheus"
-      },
-      "tracing": {
+    "ai": {
+      "ollama": {
         "enabled": false,
-        "provider": "jaeger"
+        "required": false,
+        "models": ["llama3.1:8b"]
+      }
+    },
+    "automation": {
+      "node-red": {
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "flows": [
+            {
+              "name": "data-ingestion-flow",
+              "file": "initialization/workflows/node-red/main-flow.json",
+              "enabled": true,
+              "tags": ["core", "data-ingestion"]
+            }
+          ]
+        }
+      },
+      "windmill": {
+        "enabled": false,
+        "required": false,
+        "initialization": {
+          "apps": [
+            {
+              "path": "f/analytics-dashboard/dashboard",
+              "file": "initialization/ui/windmill-app.json",
+              "summary": "Real-time Analytics Dashboard"
+            }
+          ],
+          "scripts": []
+        }
+      }
+    },
+    "agents": {
+      "browserless": {
+        "enabled": true,
+        "required": true,
+        "mode": "service"
       }
     }
+  },
+  "deployment": {
+    "target": "docker",
+    "strategy": "rolling-update",
+    "urls": {
+      "application": "http://localhost:3000",
+      "api": "http://localhost:3000/api/analytics-dashboard",
+      "health": "http://localhost:3000/api/analytics-dashboard/health",
+      "questdb": "http://localhost:9000"
+    },
+    "initialization": {
+      "phases": [
+        {
+          "name": "pre-validation",
+          "tasks": [
+            {
+              "name": "validate-resources",
+              "type": "script",
+              "script": "./deployment/validate.sh",
+              "timeout": "30s"
+            }
+          ]
+        },
+        {
+          "name": "database-setup",
+          "tasks": [
+            {
+              "name": "apply-schema",
+              "type": "sql",
+              "target": "storage.postgres",
+              "file": "initialization/database/schema.sql"
+            },
+            {
+              "name": "seed-data",
+              "type": "sql",
+              "target": "storage.postgres",
+              "file": "initialization/database/seed.sql"
+            },
+            {
+              "name": "setup-questdb",
+              "type": "resource-inject",
+              "target": "storage.questdb",
+              "timeout": "60s"
+            }
+          ]
+        },
+        {
+          "name": "workflow-deployment",
+          "parallel": true,
+          "tasks": [
+            {
+              "name": "deploy-node-red-flows",
+              "type": "resource-inject",
+              "target": "automation.node-red",
+              "config": "initialization/workflows/node-red/"
+            },
+            {
+              "name": "deploy-windmill-apps",
+              "type": "resource-inject",
+              "target": "automation.windmill",
+              "config": "initialization/ui/"
+            }
+          ]
+        },
+        {
+          "name": "application-configuration",
+          "tasks": [
+            {
+              "name": "load-app-config",
+              "type": "config",
+              "file": "initialization/configuration/app-config.json"
+            },
+            {
+              "name": "set-feature-flags",
+              "type": "config",
+              "file": "initialization/configuration/feature-flags.json"
+            }
+          ]
+        },
+        {
+          "name": "startup",
+          "tasks": [
+            {
+              "name": "start-application",
+              "type": "script",
+              "script": "./deployment/startup.sh",
+              "timeout": "2m"
+            }
+          ]
+        },
+        {
+          "name": "post-validation",
+          "tasks": [
+            {
+              "name": "health-check",
+              "type": "healthcheck",
+              "target": "http://localhost:3000/api/analytics-dashboard/health",
+              "timeout": "30s",
+              "retries": 3
+            },
+            {
+              "name": "monitor-startup",
+              "type": "script",
+              "script": "./deployment/monitor.sh",
+              "background": true
+            }
+          ]
+        }
+      ]
+    },
+    "monitoring": {
+      "enabled": true,
+      "healthChecks": {
+        "application": {
+          "endpoint": "http://localhost:3000/api/analytics-dashboard/health",
+          "interval": "30s",
+          "timeout": "5s",
+          "threshold": 3
+        },
+        "questdb": {
+          "endpoint": "http://localhost:9000/status",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "node-red": {
+          "endpoint": "http://localhost:1880/settings",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "database": {
+          "type": "tcp",
+          "port": 5432,
+          "interval": "30s"
+        }
+      },
+      "metrics": {
+        "responseTime": {
+          "p50": "100ms",
+          "p95": "500ms",
+          "p99": "1000ms"
+        },
+        "throughput": {
+          "rps": 200,
+          "concurrent": 50
+        },
+        "errorRate": {
+          "threshold": "1%"
+        }
+      }
+    },
+    "cleanup": {
+      "enabled": true,
+      "tasks": [
+        {
+          "name": "delete-node-red-flows",
+          "type": "resource-cleanup",
+          "target": "automation.node-red"
+        },
+        {
+          "name": "drop-database",
+          "type": "sql",
+          "target": "storage.postgres",
+          "query": "DROP DATABASE IF EXISTS analytics_dashboard"
+        },
+        {
+          "name": "clear-questdb",
+          "type": "resource-cleanup",
+          "target": "storage.questdb"
+        },
+        {
+          "name": "clear-storage",
+          "type": "resource-cleanup",
+          "target": "storage.minio"
+        }
+      ]
+    },
+    "testing": {
+      "enabled": true,
+      "timeout": "30m",
+      "script": "./test.sh",
+      "ui": {
+        "required": true,
+        "type": "node-red",
+        "url": "http://localhost:1880"
+      },
+      "performance": {
+        "loadTest": {
+          "users": 50,
+          "duration": "10m",
+          "rampUp": "1m"
+        }
+      }
+    },
+    "resources": {
+      "requests": {
+        "cpu": "100m",
+        "memory": "128Mi"
+      },
+      "limits": {
+        "cpu": "1000m",
+        "memory": "1Gi"
+      }
+    }
+  },
+  "metadata": {
+    "businessModel": {
+      "purpose": "commercial",
+      "valueProposition": "Real-time operational intelligence platform for IoT, financial, and business metrics",
+      "targetMarket": "IoT companies, financial institutions, and businesses needing real-time monitoring and analytics",
+      "painPoints": [
+        "Delayed insights from batch processing systems",
+        "Complex setup for real-time data pipelines",
+        "Lack of integrated monitoring and alerting"
+      ],
+      "solution": "Complete real-time analytics platform with streaming data ingestion, time-series storage, and interactive dashboards",
+      "competitiveAdvantage": "Integrated Node-RED workflows with QuestDB time-series performance and automated monitoring",
+      "revenuePotential": {
+        "initial": "$5,000",
+        "recurring": "$12,000",
+        "expansion": "$25,000",
+        "totalEstimate": "$42,000"
+      },
+      "marketDemand": {
+        "level": "very-high",
+        "growth": "35% annually",
+        "evidence": "Growing IoT market and real-time analytics demand"
+      },
+      "roi": {
+        "developmentCost": "$3,000",
+        "timeToMarket": "1 week",
+        "breakEven": "2 months"
+      }
+    },
+    "performance": {
+      "targets": {
+        "initializationTime": "3m",
+        "responseTime": {
+          "p50": "50ms",
+          "p95": "200ms",
+          "p99": "500ms"
+        },
+        "throughput": {
+          "minimum": 100,
+          "target": 200,
+          "peak": 1000
+        },
+        "availability": "99.95%",
+        "errorRate": "<0.5%"
+      },
+      "resources": {
+        "cpu": {
+          "minimum": "1.0",
+          "target": "2.0",
+          "maximum": "4.0"
+        },
+        "memory": {
+          "minimum": "1Gi",
+          "target": "2Gi",
+          "maximum": "4Gi"
+        },
+        "storage": {
+          "database": "50Gi",
+          "timeseries": "100Gi",
+          "files": "20Gi"
+        }
+      }
+    },
+    "customization": {
+      "variables": {
+        "APP_NAME": {
+          "type": "string",
+          "default": "Analytics Dashboard",
+          "description": "Application display name"
+        },
+        "COMPANY_NAME": {
+          "type": "string",
+          "default": "Your Company",
+          "description": "Customer company name"
+        },
+        "PRIMARY_COLOR": {
+          "type": "string",
+          "default": "#059669",
+          "description": "Brand primary color"
+        },
+        "DATABASE_NAME": {
+          "type": "string",
+          "default": "analytics_dashboard",
+          "description": "Database name"
+        },
+        "APP_PORT": {
+          "type": "number",
+          "default": 3000,
+          "description": "Application port"
+        },
+        "QUESTDB_PORT": {
+          "type": "number",
+          "default": 9000,
+          "description": "QuestDB web console port"
+        }
+      },
+      "features": {
+        "authentication": {
+          "enabled": true,
+          "provider": "jwt",
+          "sso": false
+        },
+        "notifications": {
+          "enabled": true,
+          "channels": ["email", "webhook", "slack"]
+        },
+        "analytics": {
+          "enabled": true,
+          "provider": "internal"
+        },
+        "realtime": {
+          "enabled": true,
+          "provider": "questdb"
+        }
+      },
+      "integrations": [
+        {
+          "name": "IoT Sensors",
+          "type": "mqtt",
+          "required": false
+        },
+        {
+          "name": "External APIs",
+          "type": "rest",
+          "required": false
+        }
+      ]
+    },
+    "category": "real-time-monitoring",
+    "complexity": "advanced",
+    "marketDemand": "very-high"
   }
 }

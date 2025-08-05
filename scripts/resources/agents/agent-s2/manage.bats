@@ -1,23 +1,39 @@
 #!/usr/bin/env bats
 # Tests for Agent S2 manage.sh script
 
-# Load test helper
-load_helper() {
-    local helper_file="$1"
-    if [[ -f "$helper_file" ]]; then
-        # shellcheck disable=SC1090
-        source "$helper_file"
-    fi
+# Load Vrooli test infrastructure
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+
+# Expensive setup operations run once per file
+setup_file() {
+    # Use Vrooli service test setup
+    vrooli_setup_service_test "agent-s2"
+    
+    # Load Agent S2 specific configuration once per file
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    AGENTS2_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Load configuration and manage script once
+    source "${AGENTS2_DIR}/config/defaults.sh"
+    source "${AGENTS2_DIR}/config/messages.sh"
+    source "${SCRIPT_DIR}/manage.sh"
 }
 
-# Setup for each test
+# Lightweight per-test setup
 setup() {
-    # Set test environment
+    # Setup standard Vrooli mocks
+    vrooli_auto_setup
+    
+    # Set test environment variables (lightweight per-test)
     export AGENTS2_CUSTOM_PORT="9999"
+    export AGENTS2_CONTAINER_NAME="agent-s2-test"
+    export AGENTS2_BASE_URL="http://localhost:9999"
     export FORCE="no"
     export YES="no"
-    export LLM_PROVIDER="anthropic"
-    export LLM_MODEL="claude-3-7-sonnet-20250219"
+    export OUTPUT_FORMAT="text"
+    export QUIET="no"
+    export LLM_PROVIDER="ollama"
+    export LLM_MODEL="llama3.2-vision:11b"
     export ENABLE_AI="yes"
     export ENABLE_SEARCH="no"
     export VNC_PASSWORD="agents2vnc"
@@ -26,25 +42,52 @@ setup() {
     export TARGET_MODE=""
     export USAGE_TYPE="help"
     
-    # Load the script without executing main
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
-    source "${SCRIPT_DIR}/manage.sh" || true
+    # Export config functions
+    agents2::export_config
+    agents2::export_messages
+    
+    # Mock log functions
+    log::header() { echo "=== $* ==="; }
+    log::info() { echo "[INFO] $*"; }
+    log::error() { echo "[ERROR] $*" >&2; }
+    log::success() { echo "[SUCCESS] $*"; }
+    log::warning() { echo "[WARNING] $*" >&2; }
+    export -f log::header log::info log::error log::success log::warning
 }
 
-# Test script loading
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
+}
+
+# ============================================================================
+# Script Loading Tests
+# ============================================================================
+
 @test "manage.sh loads without errors" {
-    # The script should source successfully in setup
+    # Should load successfully in setup_file
     [ "$?" -eq 0 ]
 }
 
-# Test argument parsing
+@test "manage.sh defines required functions" {
+    # Functions should be available from setup_file
+    declare -f agents2::parse_arguments >/dev/null
+    declare -f agents2::main >/dev/null
+    declare -f agents2::install >/dev/null
+    declare -f agents2::status >/dev/null
+}
+
+# ============================================================================
+# Argument Parsing Tests
+# ============================================================================
+
 @test "agents2::parse_arguments sets defaults correctly" {
     agents2::parse_arguments --action status
     
     [ "$ACTION" = "status" ]
     [ "$FORCE" = "no" ]
-    [ "$LLM_PROVIDER" = "ollama" ]  # This is the actual default from the function
-    [ "$LLM_MODEL" = "llama3.2-vision:11b" ]  # This is the actual default from the function
+    [ "$LLM_PROVIDER" = "ollama" ]
+    [ "$LLM_MODEL" = "llama3.2-vision:11b" ]
     [ "$ENABLE_AI" = "yes" ]
     [ "$ENABLE_SEARCH" = "no" ]
     [ "$VNC_PASSWORD" = "agents2vnc" ]

@@ -1,15 +1,14 @@
 #!/usr/bin/env bats
-bats_require_minimum_version 1.5.0
 
 load ./test_helper.bash
 
 # BATS setup function - runs before each test
 setup() {
     # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
     
     # Setup standard mocks
-    setup_standard_mocks
+    vrooli_auto_setup
     
     # Load the functions we are testing (required for bats isolation)
     SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
@@ -42,6 +41,11 @@ setup() {
     confirm() { return 0; }  # Always confirm
     
     # Mock log functions to prevent "command not found" errors
+}
+
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
 }
 
 @test "session.sh defines required functions" {

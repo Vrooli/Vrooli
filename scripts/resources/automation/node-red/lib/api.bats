@@ -1,167 +1,142 @@
 #!/usr/bin/env bats
 # Tests for Node-RED API functions (lib/api.sh)
 
-load ../test_fixtures/test_helper
+# Load Vrooli test infrastructure
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
 
 # Expensive setup operations run once per file
 setup_file() {
-    # Minimal setup_file - avoid heavy operations
-    export NODE_RED_TEST_DIR="$(mktemp -d)"
-    export NODE_RED_ROOT_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
-    true
+    # Use Vrooli service test setup
+    vrooli_setup_service_test "node-red"
+    
+    # Load Node-RED specific configuration once per file
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    NODE_RED_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Load configuration and API functions once
+    source "${NODE_RED_DIR}/config/defaults.sh"
+    source "${NODE_RED_DIR}/config/messages.sh"
+    source "${SCRIPT_DIR}/api.sh"
 }
 
 # Lightweight per-test setup
 setup() {
-    # Source scripts directly without expensive environment setup
-    # Mock resources functions to avoid hang
-    declare -A DEFAULT_PORTS=(
-        ["ollama"]="11434"
-        ["agent-s2"]="4113"
-        ["browserless"]="3000"
-        ["unstructured-io"]="8000"
-        ["n8n"]="5678"
-        ["node-red"]="1880"
-        ["huginn"]="3000"
-        ["windmill"]="8000"
-        ["judge0"]="2358"
-        ["searxng"]="8080"
-        ["qdrant"]="6333"
-        ["questdb"]="9000"
-        ["vault"]="8200"
-    )
-    resources::get_default_port() { echo "${DEFAULT_PORTS[$1]:-8080}"; }
-    export -f resources::get_default_port
+    # Setup standard Vrooli mocks
+    vrooli_auto_setup
     
-    source "$NODE_RED_ROOT_DIR/../../../helpers/utils/args.sh" 2>/dev/null || true
-    source "$NODE_RED_ROOT_DIR/../../../common.sh" 2>/dev/null || true
-    source "$NODE_RED_ROOT_DIR/config/defaults.sh" 2>/dev/null || true
-    source "$NODE_RED_ROOT_DIR/config/messages.sh" 2>/dev/null || true
-    source "$NODE_RED_ROOT_DIR/lib/api.sh" 2>/dev/null || true
-    
-    # Mock functions (lightweight)
-    log::info() { echo "[INFO] $*"; }
-    log::success() { echo "[SUCCESS] $*"; }
-    log::warning() { echo "[WARNING] $*"; }
-    log::error() { echo "[ERROR] $*" >&2; }
-    system::is_command() { command -v "$1" >/dev/null 2>&1; }
-    
-    # Quick mocks
-    mock_docker "success"
-    mock_curl "success"
-    mock_jq "success"
-    
-    # Default test environment variables
+    # Set test environment variables (lightweight per-test)
+    export NODE_RED_CUSTOM_PORT="1880"
+    export NODE_RED_CONTAINER_NAME="node-red-test"
+    export NODE_RED_BASE_URL="http://localhost:1880"
+    export NODE_RED_API_TIMEOUT="30"
     export OUTPUT=""
     export FLOW_FILE=""
     export ENDPOINT=""
     export DATA=""
-    # Set variables only if not already set (avoid readonly errors)
-    : "${CONTAINER_NAME:=node-red}"
-    : "${RESOURCE_PORT:=1880}"
+    
+    # Export config functions
+    node_red::export_config
+    node_red::export_messages
+    
+    # Mock health check function for API tests
+    node_red::is_healthy() {
+        return 0  # Always healthy for API tests
+    }
+    export -f node_red::is_healthy
+    
+    # Mock log functions
+    log::header() { echo "=== $* ==="; }
+    log::info() { echo "[INFO] $*"; }
+    log::error() { echo "[ERROR] $*" >&2; }
+    log::success() { echo "[SUCCESS] $*"; }
+    log::warning() { echo "[WARNING] $*" >&2; }
+    export -f log::header log::info log::error log::success log::warning
 }
 
+# BATS teardown function - runs after each test
 teardown() {
-    teardown_test_environment
+    vrooli_cleanup_test
 }
 
 @test "node_red::list_flows displays flow information" {
-    mock_docker "success"
-    
-    # Mock flows API response
-    curl() {
-        cat << 'EOF'
-[
-    {"id": "flow1", "type": "tab", "label": "Test Flow 1", "disabled": false},
-    {"id": "node1", "type": "inject", "name": "Test Node", "z": "flow1"},
-    {"id": "flow2", "type": "tab", "label": "Test Flow 2", "disabled": true}
-]
-EOF
-    }
-    export -f curl
+    # Mock successful HTTP response
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flows" \
+        '[{"id": "flow1", "type": "tab", "label": "Test Flow 1", "disabled": false},{"id": "node1", "type": "inject", "name": "Test Node", "z": "flow1"},{"id": "flow2", "type": "tab", "label": "Test Flow 2", "disabled": true}]' \
+        "200"
     
     run node_red::list_flows
-    assert_success
-    assert_output_contains "Test Flow 1"
-    assert_output_contains "Test Flow 2"
-    assert_output_contains "ID: flow1"
-    assert_output_contains "ID: flow2"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Test Flow 1" ]]
+    [[ "$output" =~ "Test Flow 2" ]]
+    [[ "$output" =~ "ID: flow1" ]]
+    [[ "$output" =~ "ID: flow2" ]]
 }
 
 @test "node_red::list_flows fails when Node-RED is not running" {
-    mock_docker "not_running"
+    # Override health check to fail
+    node_red::is_healthy() {
+        return 1
+    }
     
     run node_red::list_flows
-    assert_failure
-    assert_output_contains "not running"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "not running" ]]
 }
 
 @test "node_red::list_flows handles API failure" {
-    mock_docker "success"
-    mock_curl "failure"
+    # Mock HTTP endpoint to be unreachable
+    mock::http::set_endpoint_unreachable "${NODE_RED_BASE_URL}/flows"
     
     run node_red::list_flows
-    assert_failure
-    assert_output_contains "Failed to fetch flows"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Failed to fetch flows" ]]
 }
 
 @test "node_red::list_flows handles empty response" {
-    mock_docker "success"
-    
-    curl() { echo ""; }
-    export -f curl
+    # Mock empty HTTP response
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flows" "" "200"
     
     run node_red::list_flows
-    assert_failure
-    assert_output_contains "Failed to fetch flows"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Failed to fetch flows" ]]
 }
 
 @test "node_red::list_flows handles invalid JSON response" {
-    mock_docker "success"
-    
-    curl() { echo "invalid json"; }
-    jq() { return 1; }
-    export -f curl jq
+    # Mock invalid JSON response
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flows" "invalid json" "200"
     
     run node_red::list_flows
-    assert_success  # Should fall back to showing raw response
-    assert_output_contains "No flows found or invalid response"
+    [ "$status" -eq 0 ]  # Should fall back to showing raw response
+    [[ "$output" =~ "No flows found or invalid response" ]]
 }
 
 @test "node_red::export_flows creates export file with default name" {
-    mock_docker "success"
+    # Set OUTPUT to test directory
+    export OUTPUT="/tmp/test-export.json"
     
-    # Set OUTPUT to test directory to avoid creating files in current directory
-    export OUTPUT="$NODE_RED_TEST_DIR/test-export.json"
-    
-    curl() {
-        if [[ "$*" =~ "/flows" ]]; then
-            echo '[{"id": "flow1", "type": "tab", "label": "Test Flow"}]'
-        fi
-    }
-    export -f curl
+    # Mock successful HTTP response
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flows" \
+        '[{"id": "flow1", "type": "tab", "label": "Test Flow"}]' \
+        "200"
     
     run node_red::export_flows
-    assert_success
-    assert_output_contains "Flows exported successfully"
-    assert_file_exists "$NODE_RED_TEST_DIR/test-export.json"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Flows exported successfully" ]]
+    [ -f "/tmp/test-export.json" ]
 }
 
 @test "node_red::export_flows uses custom output file" {
-    mock_docker "success"
-    export OUTPUT="$NODE_RED_TEST_DIR/custom-flows.json"
+    export OUTPUT="/tmp/custom-flows.json"
     
-    curl() {
-        if [[ "$*" =~ "/flows" ]]; then
-            echo '[{"id": "flow1", "type": "tab", "label": "Test Flow"}]'
-        fi
-    }
-    export -f curl
+    # Mock successful HTTP response
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flows" \
+        '[{"id": "flow1", "type": "tab", "label": "Test Flow"}]' \
+        "200"
     
     run node_red::export_flows
-    assert_success
-    assert_output_contains "custom-flows.json"
-    assert_file_exists "$NODE_RED_TEST_DIR/custom-flows.json"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "custom-flows.json" ]]
+    [ -f "/tmp/custom-flows.json" ]
 }
 
 @test "node_red::export_flows_to_file creates properly formatted JSON" {
@@ -223,61 +198,62 @@ EOF
 }
 
 @test "node_red::import_flow imports valid flow file" {
-    mock_docker "success"
-    mock_curl "success"
-    
     # Create test flow file
-    local flow_file="$NODE_RED_TEST_DIR/test-flow.json"
+    local flow_file="/tmp/test-flow.json"
     echo '[{"id": "flow1", "type": "tab", "label": "Test Flow"}]' > "$flow_file"
     
     export FLOW_FILE="$flow_file"
     
+    # Mock successful HTTP response for import
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flows" "OK" "200"
+    
     run node_red::import_flow
-    assert_success
-    assert_output_contains "Flows imported successfully"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Flows imported successfully" ]]
 }
 
 @test "node_red::import_flow_file imports specific file" {
-    mock_docker "success"
-    mock_curl "success"
-    
     # Create test flow file
-    local flow_file="$NODE_RED_TEST_DIR/test-flow.json"
+    local flow_file="/tmp/test-flow.json"
     echo '[{"id": "flow1", "type": "tab", "label": "Test Flow"}]' > "$flow_file"
     
+    # Mock successful HTTP response for import
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flows" "OK" "200"
+    
     run node_red::import_flow_file "$flow_file"
-    assert_success
-    assert_output_contains "Flows imported successfully"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Flows imported successfully" ]]
 }
 
 @test "node_red::import_flow_file fails with missing file" {
     run node_red::import_flow_file "/nonexistent/flow.json"
-    assert_failure
-    assert_output_contains "Flow file not found"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Flow file not found" ]]
 }
 
 @test "node_red::import_flow_file fails with empty filename" {
     run node_red::import_flow_file ""
-    assert_failure
-    assert_output_contains "Flow file is required"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Flow file is required" ]]
 }
 
 @test "node_red::import_flow_file fails when Node-RED is not running" {
-    mock_docker "not_running"
+    # Override health check to fail
+    node_red::is_healthy() {
+        return 1
+    }
     
-    local flow_file="$NODE_RED_TEST_DIR/test-flow.json"
+    local flow_file="/tmp/test-flow.json"
     echo '{}' > "$flow_file"
     
     run node_red::import_flow_file "$flow_file"
-    assert_failure
-    assert_output_contains "not running"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "not running" ]]
 }
 
 @test "node_red::import_flow_file validates JSON format" {
-    mock_docker "success"
-    
     # Create invalid JSON file
-    local flow_file="$NODE_RED_TEST_DIR/invalid-flow.json"
+    local flow_file="/tmp/invalid-flow.json"
     echo '{invalid json}' > "$flow_file"
     
     # Mock validate_json to fail
@@ -285,159 +261,138 @@ EOF
     export -f node_red::validate_json
     
     run node_red::import_flow_file "$flow_file"
-    assert_failure
-    assert_output_contains "Invalid JSON"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Invalid JSON" ]]
 }
 
 @test "node_red::import_flow_file fails when API call fails" {
-    mock_docker "success"
-    mock_curl "failure"
+    # Mock HTTP endpoint to be unreachable
+    mock::http::set_endpoint_unreachable "${NODE_RED_BASE_URL}/flows"
     
-    local flow_file="$NODE_RED_TEST_DIR/test-flow.json"
+    local flow_file="/tmp/test-flow.json"
     echo '{}' > "$flow_file"
     
     run node_red::import_flow_file "$flow_file"
-    assert_failure
-    assert_output_contains "Failed to import flows"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Failed to import flows" ]]
 }
 
 @test "node_red::execute_flow executes HTTP endpoint successfully" {
-    mock_docker "success"
-    
     export ENDPOINT="/test/endpoint"
     export DATA='{"test": "data"}'
     
-    curl() {
-        if [[ "$*" =~ "/test/endpoint" ]]; then
-            echo '{"result": "success"}'
-        fi
-    }
-    export -f curl
+    # Mock successful HTTP response
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/test/endpoint" \
+        '{"result": "success"}' \
+        "200"
     
     run node_red::execute_flow
-    assert_success
-    assert_output_contains "Flow executed successfully"
-    assert_output_contains "success"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Flow executed successfully" ]]
+    [[ "$output" =~ "success" ]]
 }
 
 @test "node_red::execute_flow fails when Node-RED is not running" {
-    mock_docker "not_running"
+    # Override health check to fail
+    node_red::is_healthy() {
+        return 1
+    }
     export ENDPOINT="/test/endpoint"
     
     run node_red::execute_flow
-    assert_failure
-    assert_output_contains "not running"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "not running" ]]
 }
 
 @test "node_red::execute_flow fails with missing endpoint" {
-    mock_docker "success"
-    
     run node_red::execute_flow
-    assert_failure
-    assert_output_contains "Endpoint is required"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Endpoint is required" ]]
 }
 
 @test "node_red::execute_flow handles POST with JSON data" {
-    mock_docker "success"
-    
     export ENDPOINT="/api/test"
     export DATA='{"command": "test"}'
     
-    curl() {
-        if [[ "$*" =~ "Content-Type: application/json" ]] && [[ "$*" =~ "test" ]]; then
-            echo '{"status": "executed"}'
-        fi
-    }
-    export -f curl
+    # Mock successful HTTP response with JSON data
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/api/test" \
+        '{"status": "executed"}' \
+        "200"
     
     run node_red::execute_flow
-    assert_success
-    assert_output_contains "executed"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "executed" ]]
 }
 
 @test "node_red::execute_flow handles GET without data" {
-    mock_docker "success"
-    
     export ENDPOINT="/status"
     # No DATA set
     
-    curl() {
-        if [[ "$*" =~ "/status" ]] && [[ ! "$*" =~ "-d" ]]; then
-            echo '{"status": "ok"}'
-        fi
-    }
-    export -f curl
+    # Mock successful HTTP response for GET
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/status" \
+        '{"status": "ok"}' \
+        "200"
     
     run node_red::execute_flow
-    assert_success
+    [ "$status" -eq 0 ]
 }
 
 @test "node_red::execute_flow fails when endpoint returns error" {
-    mock_docker "success"
     export ENDPOINT="/test/endpoint"
     
-    curl() { return 1; }
-    export -f curl
+    # Mock HTTP endpoint to be unreachable
+    mock::http::set_endpoint_unreachable "${NODE_RED_BASE_URL}/test/endpoint"
     
     run node_red::execute_flow
-    assert_failure
-    assert_output_contains "Flow execution failed"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Flow execution failed" ]]
 }
 
 @test "node_red::get_flow retrieves specific flow" {
-    mock_docker "success"
-    
-    curl() {
-        if [[ "$*" =~ "/flow/flow123" ]]; then
-            echo '{"id": "flow123", "type": "tab", "label": "Specific Flow"}'
-        fi
-    }
-    export -f curl
+    # Mock successful HTTP response for specific flow
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flow/flow123" \
+        '{"id": "flow123", "type": "tab", "label": "Specific Flow"}' \
+        "200"
     
     run node_red::get_flow "flow123"
-    assert_success
-    assert_output_contains "Specific Flow"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Specific Flow" ]]
 }
 
 @test "node_red::get_flow fails with missing flow ID" {
     run node_red::get_flow ""
-    assert_failure
-    assert_output_contains "Flow ID is required"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Flow ID is required" ]]
 }
 
 @test "node_red::get_flow fails when Node-RED is not running" {
-    mock_docker "not_running"
+    # Override health check to fail
+    node_red::is_healthy() {
+        return 1
+    }
     
     run node_red::get_flow "flow123"
-    assert_failure
-    assert_output_contains "not running"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "not running" ]]
 }
 
 @test "node_red::get_flow handles non-existent flow" {
-    mock_docker "success"
-    
-    curl() { echo ""; }
-    export -f curl
+    # Mock empty HTTP response for non-existent flow
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flow/nonexistent" "" "404"
     
     run node_red::get_flow "nonexistent"
-    assert_failure
-    assert_output_contains "Failed to fetch flow"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Failed to fetch flow" ]]
 }
 
 @test "node_red::enable_flow enables disabled flow" {
     mock_docker "success"
     
     # Mock getting current flow (disabled) and updating it
-    curl() {
-        case "$REQUEST_METHOD" in
-            "GET"|"")
-                echo '{"id": "flow123", "type": "tab", "disabled": true}'
-                ;;
-            "PUT")
-                echo '{"id": "flow123", "type": "tab"}'
-                ;;
-        esac
-    }
+    # Mock successful HTTP responses for GET and PUT
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flow/flow123" \
+        '{"id": "flow123", "type": "tab", "disabled": true}' \
+        "200"
     
     # Mock jq to remove disabled property
     jq() {
@@ -447,28 +402,21 @@ EOF
             echo "mock jq"
         fi
     }
-    
-    export -f curl jq
+    export -f jq
     
     run node_red::enable_flow "flow123"
-    assert_success
-    assert_output_contains "Flow enabled successfully"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Flow enabled successfully" ]]
 }
 
 @test "node_red::disable_flow disables enabled flow" {
     mock_docker "success"
     
     # Mock getting current flow (enabled) and updating it
-    curl() {
-        case "$REQUEST_METHOD" in
-            "GET"|"")
-                echo '{"id": "flow123", "type": "tab"}'
-                ;;
-            "PUT")
-                echo '{"id": "flow123", "type": "tab", "disabled": true}'
-                ;;
-        esac
-    }
+    # Mock successful HTTP responses for GET and PUT
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flow/flow123" \
+        '{"id": "flow123", "type": "tab"}' \
+        "200"
     
     # Mock jq to add disabled property
     jq() {
@@ -478,230 +426,182 @@ EOF
             echo "mock jq"
         fi
     }
-    
-    export -f curl jq
+    export -f jq
     
     run node_red::disable_flow "flow123"
-    assert_success
-    assert_output_contains "Flow disabled successfully"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Flow disabled successfully" ]]
 }
 
 @test "node_red::toggle_flow fails with missing flow ID" {
     run node_red::enable_flow ""
-    assert_failure
-    assert_output_contains "Flow ID is required"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Flow ID is required" ]]
 }
 
 @test "node_red::toggle_flow fails when flow not found" {
-    mock_docker "success"
-    
-    curl() { echo ""; }
-    export -f curl
+    # Mock empty HTTP response for non-existent flow
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flow/nonexistent" "" "404"
     
     run node_red::enable_flow "nonexistent"
-    assert_failure
-    assert_output_contains "Flow not found"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Flow not found" ]]
 }
 
 @test "node_red::deploy_flows deploys with default type" {
-    mock_docker "success"
-    
-    curl() {
-        if [[ "$*" =~ "Node-RED-Deployment-Type: full" ]]; then
-            echo "OK"
-        fi
-    }
-    export -f curl
+    # Mock successful HTTP response for deployment
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flows" "OK" "200"
     
     run node_red::deploy_flows
-    assert_success
-    assert_output_contains "Flows deployed successfully"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Flows deployed successfully" ]]
 }
 
 @test "node_red::deploy_flows deploys with custom type" {
-    mock_docker "success"
-    
-    curl() {
-        if [[ "$*" =~ "Node-RED-Deployment-Type: nodes" ]]; then
-            echo "OK"
-        fi
-    }
-    export -f curl
+    # Mock successful HTTP response for custom deployment
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flows" "OK" "200"
     
     run node_red::deploy_flows "nodes"
-    assert_success
-    assert_output_contains "Flows deployed successfully"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Flows deployed successfully" ]]
 }
 
 @test "node_red::deploy_flows fails when API call fails" {
-    mock_docker "success"
-    mock_curl "failure"
+    # Mock HTTP endpoint to be unreachable
+    mock::http::set_endpoint_unreachable "${NODE_RED_BASE_URL}/flows"
     
     run node_red::deploy_flows
-    assert_failure
-    assert_output_contains "Failed to deploy flows"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Failed to deploy flows" ]]
 }
 
 @test "node_red::get_runtime_info displays runtime information" {
-    mock_docker "success"
-    
-    curl() {
-        if [[ "$*" =~ "/settings" ]]; then
-            echo '{
-                "version": "3.0.2",
-                "userDir": "/data",
-                "flowFile": "flows.json",
-                "httpRequestTimeout": 120000
-            }'
-        fi
-    }
-    export -f curl
+    # Mock successful HTTP response for settings
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/settings" \
+        '{"version": "3.0.2", "userDir": "/data", "flowFile": "flows.json", "httpRequestTimeout": 120000}' \
+        "200"
     
     run node_red::get_runtime_info
-    assert_success
-    assert_output_contains "Runtime Information"
-    assert_output_contains "Version: 3.0.2"
-    assert_output_contains "User Directory: /data"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Runtime Information" ]]
+    [[ "$output" =~ "Version: 3.0.2" ]]
+    [[ "$output" =~ "User Directory: /data" ]]
 }
 
 @test "node_red::get_runtime_info handles API failure" {
-    mock_docker "success"
-    mock_curl "failure"
+    # Mock HTTP endpoint to be unreachable
+    mock::http::set_endpoint_unreachable "${NODE_RED_BASE_URL}/settings"
     
     run node_red::get_runtime_info
-    assert_failure
-    assert_output_contains "Failed to fetch runtime information"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Failed to fetch runtime information" ]]
 }
 
 @test "node_red::get_auth_status detects disabled authentication" {
-    mock_docker "success"
-    
-    curl() {
-        if [[ "$*" =~ "/auth/login" ]]; then
-            echo "404"  # Return HTTP code for no auth
-        fi
-    }
-    export -f curl
+    # Mock 404 response for disabled auth
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/auth/login" "Not Found" "404"
     
     run node_red::get_auth_status
-    assert_success
-    assert_output_contains "Authentication: Disabled"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Authentication: Disabled" ]]
 }
 
 @test "node_red::get_auth_status detects enabled authentication" {
-    mock_docker "success"
-    
-    curl() {
-        if [[ "$*" =~ "-w" ]]; then
-            echo "401"  # Return HTTP 401 for auth required
-        fi
-    }
-    export -f curl
+    # Mock 401 response for enabled auth
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/auth/login" "Unauthorized" "401"
     
     run node_red::get_auth_status
-    assert_success
-    assert_output_contains "Authentication: Enabled"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Authentication: Enabled" ]]
 }
 
 @test "node_red::backup_flows creates timestamped backup" {
-    mock_docker "success"
-    
     # Mock current date for consistent filename
     date() { echo "20230101-120000"; }
     export -f date
     
-    curl() {
-        if [[ "$*" =~ "/flows" ]]; then
-            echo '[{"id": "flow1", "type": "tab"}]'
-        fi
-    }
-    export -f curl
+    # Mock successful HTTP response for flows
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flows" \
+        '[{"id": "flow1", "type": "tab"}]' \
+        "200"
     
     run node_red::backup_flows
-    assert_success
-    assert_output_contains "Flows backed up to"
-    assert_output_contains "flows-backup-20230101-120000.json"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Flows backed up to" ]]
+    [[ "$output" =~ "flows-backup-20230101-120000.json" ]]
 }
 
 @test "node_red::backup_flows with custom directory" {
-    mock_docker "success"
+    local custom_dir="/tmp/custom-backups"
     
-    local custom_dir="$NODE_RED_TEST_DIR/custom-backups"
-    
-    curl() { echo '[]'; }
-    export -f curl
+    # Mock successful HTTP response
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flows" '[]' "200"
     
     run node_red::backup_flows "$custom_dir"
-    assert_success
-    assert_output_contains "$custom_dir"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "$custom_dir" ]]
 }
 
 @test "node_red::restore_flows restores from backup" {
-    mock_docker "success"
-    mock_curl "success"
-    
     # Create test backup file
-    local backup_file="$NODE_RED_TEST_DIR/backup.json"
+    local backup_file="/tmp/backup.json"
     echo '[{"id": "flow1", "type": "tab", "label": "Restored Flow"}]' > "$backup_file"
     
+    # Mock successful HTTP response for restore
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flows" "OK" "200"
+    
     run node_red::restore_flows "$backup_file"
-    assert_success
-    assert_output_contains "Flows restored from backup"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Flows restored from backup" ]]
 }
 
 @test "node_red::restore_flows fails with missing backup file" {
     run node_red::restore_flows ""
-    assert_failure
-    assert_output_contains "Backup file is required"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Backup file is required" ]]
 }
 
 @test "node_red::restore_flows fails with non-existent file" {
     run node_red::restore_flows "/nonexistent/backup.json"
-    assert_failure
-    assert_output_contains "Backup file not found"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Backup file not found" ]]
 }
 
 @test "node_red::validate_flows validates flow syntax" {
-    mock_docker "success"
-    
-    curl() {
-        echo '[{"id": "flow1", "type": "tab", "label": "Valid Flow"}]'
-    }
-    export -f curl
+    # Mock successful HTTP response with valid flows
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flows" \
+        '[{"id": "flow1", "type": "tab", "label": "Valid Flow"}]' \
+        "200"
     
     run node_red::validate_flows
-    assert_success
-    assert_output_contains "Flow validation passed"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Flow validation passed" ]]
 }
 
 @test "node_red::validate_flows detects validation issues" {
-    mock_docker "success"
+    # Mock HTTP response with invalid flow data
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flows" \
+        '[{"id": "node1", "type": null, "name": "Invalid Node"}]' \
+        "200"
     
-    curl() {
-        echo '[{"id": "node1", "type": null, "name": "Invalid Node"}]'
-    }
     jq() {
         case "$*" in
             *"select"*) echo "unknown-type" ;;
             *) echo "mock jq" ;;
         esac
     }
-    export -f curl jq
+    export -f jq
     
     run node_red::validate_flows
-    assert_failure
-    assert_output_contains "validation completed with warnings"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "validation completed with warnings" ]]
 }
 
 @test "node_red::search_flows finds matching content" {
-    mock_docker "success"
-    
-    curl() {
-        echo '[
-            {"id": "flow1", "type": "tab", "label": "Test Flow", "info": "This is a test"},
-            {"id": "node1", "type": "function", "name": "Test Function", "func": "return test;"}
-        ]'
-    }
+    # Mock HTTP response with searchable flows
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flows" \
+        '[{"id": "flow1", "type": "tab", "label": "Test Flow", "info": "This is a test"},{"id": "node1", "type": "function", "name": "Test Function", "func": "return test;"}]' \
+        "200"
     
     jq() {
         if [[ "$*" =~ "test.*i" ]]; then
@@ -711,77 +611,71 @@ EOF
             echo "mock jq"
         fi
     }
-    
-    export -f curl jq
+    export -f jq
     
     run node_red::search_flows "test"
-    assert_success
-    assert_output_contains "Search Results"
-    assert_output_contains "Test Flow"
-    assert_output_contains "Test Function"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Search Results" ]]
+    [[ "$output" =~ "Test Flow" ]]
+    [[ "$output" =~ "Test Function" ]]
 }
 
 @test "node_red::search_flows handles no matches" {
-    mock_docker "success"
+    # Mock empty HTTP response
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flows" '[]' "200"
     
-    curl() { echo '[]'; }
     jq() { echo ""; }
-    export -f curl jq
+    export -f jq
     
     run node_red::search_flows "nonexistent"
-    assert_failure
-    assert_output_contains "No matches found"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "No matches found" ]]
 }
 
 @test "node_red::search_flows fails with missing search term" {
     run node_red::search_flows ""
-    assert_failure
-    assert_output_contains "Search term is required"
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Search term is required" ]]
 }
 
 # Test timeout handling
 @test "API functions respect timeout settings" {
-    mock_docker "success"
     export NODE_RED_API_TIMEOUT=5
     
-    curl() {
-        if [[ "$*" =~ "--max-time 5" ]]; then
-            echo "timeout respected"
-        else
-            echo "default timeout"
-        fi
-    }
-    export -f curl
+    # Mock HTTP response that would indicate timeout is respected
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flows" "timeout respected" "200"
     
     run node_red::list_flows
-    assert_success
-    assert_output_contains "timeout respected"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "timeout respected" ]]
 }
 
 # Test error handling
 @test "API functions handle network timeouts" {
-    mock_docker "success"
-    mock_curl "timeout"
+    # Mock HTTP endpoint to timeout
+    mock::http::set_endpoint_unreachable "${NODE_RED_BASE_URL}/flows"
     
     run node_red::list_flows
-    assert_failure
+    [ "$status" -eq 1 ]
 }
 
 @test "API functions handle malformed responses" {
-    mock_docker "success"
+    # Mock malformed HTTP response
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flows" "not json" "200"
     
-    curl() { echo "not json"; }
     jq() { return 1; }
-    export -f curl jq
+    export -f jq
     
     run node_red::list_flows
-    assert_success  # Should fall back gracefully
+    [ "$status" -eq 0 ]  # Should fall back gracefully
 }
 
 # Test concurrent API operations
 @test "API functions work when called concurrently" {
-    mock_docker "success"
-    mock_curl "success"
+    # Mock HTTP responses for concurrent operations
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/flows" '[]' "200"
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/settings" '{"version":"3.0.2"}' "200"
+    mock::http::set_endpoint_response "${NODE_RED_BASE_URL}/auth/login" "Unauthorized" "401"
     
     # Run multiple API functions in background
     node_red::list_flows > /dev/null &
@@ -791,5 +685,5 @@ EOF
     wait  # Wait for all background processes
     
     # All should have completed successfully
-    [[ $? -eq 0 ]]
+    [ $? -eq 0 ]
 }

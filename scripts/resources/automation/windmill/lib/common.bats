@@ -1,15 +1,32 @@
 #!/usr/bin/env bats
-# Tests for Windmill common.sh functions
 
-# Setup for each test
-setup() {
-    # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+# Load Vrooli test infrastructure (REQUIRED)
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+
+# Expensive setup operations (run once per file)
+setup_file() {
+    # Use appropriate setup function
+    vrooli_setup_service_test "windmill"
     
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    export SETUP_FILE_WINDMILL_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")" 
+    export SETUP_FILE_CONFIG_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")/config"
+    export SETUP_FILE_LIB_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")/lib"
+}
+
+# Lightweight per-test setup
+setup() {
     # Setup standard mocks
     vrooli_auto_setup
     
-    # Set test environment
+    # Use paths from setup_file
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
+    WINDMILL_DIR="${SETUP_FILE_WINDMILL_DIR}"
+    CONFIG_DIR="${SETUP_FILE_CONFIG_DIR}"
+    LIB_DIR="${SETUP_FILE_LIB_DIR}"
+    
+    # Set test environment BEFORE sourcing config files to avoid readonly conflicts
     export WINDMILL_PORT="5681"
     export WINDMILL_CONTAINER_NAME="windmill-test"
     export WINDMILL_BASE_URL="http://localhost:5681"
@@ -17,15 +34,29 @@ setup() {
     export WINDMILL_DB_PASSWORD="test-password"
     export YES="no"
     
-    # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
-    WINDMILL_DIR="$(dirname "$SCRIPT_DIR")"
-    
     # Create test directories
     mkdir -p "$WINDMILL_DATA_DIR"
     
-    # Mock system functions
+    # Mock resources functions that are called during config loading
+    resources::get_default_port() {
+        case "$1" in
+            "windmill") echo "5681" ;;
+            *) echo "8080" ;;
+        esac
+    }
     
+    # Now source the config files
+    source "${WINDMILL_DIR}/config/defaults.sh"
+    source "${WINDMILL_DIR}/config/messages.sh"
+    
+    # Export config and messages
+    windmill::export_config
+    windmill::export_messages
+    
+    # Load the functions to test
+    source "${WINDMILL_DIR}/lib/common.sh"
+    
+    # Mock system functions
     system::check_port() {
         local port="$1"
         if [[ "$port" == "9999" ]]; then
@@ -37,10 +68,6 @@ setup() {
     system::get_available_port() {
         echo "5682"  # Mock alternative port
     }
-    
-    # Mock Docker operations
-    
-    # Mock curl for API calls
     
     # Mock openssl for password generation
     openssl() {
@@ -56,22 +83,12 @@ setup() {
     base64() {
         echo "encoded_string_123"
     }
-    
-    # Mock log functions
-    
-    # Load configuration and messages
-    source "${WINDMILL_DIR}/config/defaults.sh"
-    source "${WINDMILL_DIR}/config/messages.sh"
-    windmill::export_config
-    windmill::export_messages
-    
-    # Load the functions to test
-    source "${WINDMILL_DIR}/lib/common.sh"
 }
 
 # Cleanup after each test
 teardown() {
     rm -rf "$WINDMILL_DATA_DIR"
+    vrooli_cleanup_test
 }
 
 # Test container existence check

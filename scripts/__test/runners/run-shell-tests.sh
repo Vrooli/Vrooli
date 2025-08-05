@@ -258,6 +258,7 @@ main() {
         
         local test_name
         test_name=$(basename "$test_file" .bats)
+        local test_path_relative="${test_file#$SCRIPTS_DIR/}"
         
         # Check cache if enabled and not forcing
         if [[ "$USE_CACHE" == "true" && "$FORCE_RUN" != "true" ]] && declare -f cache::is_valid &>/dev/null; then
@@ -317,11 +318,11 @@ main() {
             break
         elif [[ $test_exit_code -eq 124 ]]; then
             ((failed++))
-            vrooli_log_error "❌ $test_name (timeout after ${TIMEOUT}s)"
+            vrooli_log_error "❌ $test_path_relative (timeout after ${TIMEOUT}s)"
         elif [[ $test_exit_code -eq 0 ]]; then
             ((passed++))
             if [[ "$VERBOSE" == "true" ]]; then
-                vrooli_log_success "✅ $test_name"
+                vrooli_log_success "✅ $test_path_relative"
             fi
             # Store successful result in cache
             if [[ "$USE_CACHE" == "true" ]] && declare -f cache::store_result &>/dev/null; then
@@ -329,7 +330,7 @@ main() {
             fi
         else
             ((failed++))
-            vrooli_log_error "❌ $test_name (exit code: $test_exit_code)"
+            vrooli_log_error "❌ $test_path_relative (exit code: $test_exit_code)"
             # Store failed result in cache (to avoid re-running failed tests)
             if [[ "$USE_CACHE" == "true" ]] && declare -f cache::store_result &>/dev/null; then
                 cache::store_result "$test_file" "failed" "$test_duration"
