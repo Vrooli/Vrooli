@@ -9,11 +9,11 @@ fi
 export MOCK_VERIFICATION_LOADED="true"
 
 # Mock verification state
-declare -A MOCK_CALL_COUNTS
-declare -A MOCK_CALL_HISTORY
-declare -A MOCK_EXPECTED_CALLS
-declare -A MOCK_CALL_PATTERNS
-declare -A MOCK_CALL_SEQUENCES
+declare -gA MOCK_CALL_COUNTS
+declare -gA MOCK_CALL_HISTORY
+declare -gA MOCK_EXPECTED_CALLS
+declare -gA MOCK_CALL_PATTERNS
+declare -gA MOCK_CALL_SEQUENCES
 
 # Global verification configuration
 export MOCK_VERIFICATION_ENABLED="${MOCK_VERIFICATION_ENABLED:-true}"

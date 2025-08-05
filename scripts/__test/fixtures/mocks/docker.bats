@@ -13,7 +13,7 @@ setup() {
     
     # Load verification system if available
     if [[ -f "${BATS_TEST_DIRNAME}/verification.bash" ]]; then
-        source "${BATS_TEST_DIRNAME}/verification.bash"
+        source "${BATS_TEST_DIRNAME}/verification.sh"
     fi
     
     # Load the docker mock

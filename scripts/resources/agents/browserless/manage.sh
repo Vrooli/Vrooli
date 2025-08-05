@@ -56,7 +56,7 @@ browserless::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|info|usage" \
+        --options "install|uninstall|start|stop|restart|status|logs|info|test|usage" \
         --default "install"
     
     args::register \
@@ -171,6 +171,9 @@ browserless::main() {
             ;;
         "info")
             browserless::show_info
+            ;;
+        "test")
+            browserless::test_all_apis "${URL:-https://example.com}"
             ;;
         "usage")
             browserless::run_usage_example "$USAGE_TYPE"

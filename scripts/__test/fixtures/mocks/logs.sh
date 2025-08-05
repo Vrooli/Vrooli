@@ -25,7 +25,7 @@ fi
 # Environment: MOCK_LOG_DIR will be set to the log directory path
 #######################################
 mock::init_logging() {
-    local custom_log_dir="$1"
+    local custom_log_dir="${1:-}"
     
     # Return early if already initialized (unless custom directory provided)
     if [[ -n "${MOCK_LOG_DIR:-}" && -z "$custom_log_dir" ]]; then
@@ -108,7 +108,8 @@ mock::_create_log_files() {
     local log_files=(
         "command_calls.log:Mock call log started at $timestamp"
         "docker_calls.log:Docker mock calls started at $timestamp"
-        "state_changes.log:Mock state changes started at $timestamp"
+        "http_calls.log:HTTP mock calls started at $timestamp"
+        "used_mocks.log:Mock state changes started at $timestamp"
     )
     
     for log_entry in "${log_files[@]}"; do
@@ -164,6 +165,9 @@ mock::log_call() {
     case "$system" in
         "docker"|"docker-compose")
             log_file="$MOCK_LOG_DIR/docker_calls.log"
+            ;;
+        "http"|"curl"|"wget")
+            log_file="$MOCK_LOG_DIR/http_calls.log"
             ;;
         *)
             log_file="$MOCK_LOG_DIR/command_calls.log"
@@ -234,7 +238,7 @@ mock::log_state() {
     local state_entry="[$timestamp] ${state_type}:${identifier:-}:${new_state:-}"
     
     # Attempt to log to file
-    if ! echo "$state_entry" >> "$MOCK_LOG_DIR/state_changes.log" 2>/dev/null; then
+    if ! echo "$state_entry" >> "$MOCK_LOG_DIR/used_mocks.log" 2>/dev/null; then
         # State log file write failed
         if [[ "$MOCK_UTILS_VERBOSE" == "true" ]]; then
             echo "[MOCK_UTILS] ERROR: Failed to log state change: $state_entry" >&2 2>/dev/null || true
@@ -395,7 +399,8 @@ mock::print_log_summary() {
     echo "View logs with:"
     echo "  cat $MOCK_LOG_DIR/command_calls.log"
     echo "  cat $MOCK_LOG_DIR/docker_calls.log"
-    echo "  cat $MOCK_LOG_DIR/state_changes.log"
+    echo "  cat $MOCK_LOG_DIR/http_calls.log"
+    echo "  cat $MOCK_LOG_DIR/used_mocks.log"
     
     return 0
 }

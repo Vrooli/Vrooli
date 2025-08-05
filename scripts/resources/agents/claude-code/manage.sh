@@ -64,7 +64,7 @@ claude_code::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|status|info|run|batch|session|settings|logs|register-mcp|unregister-mcp|mcp-status|mcp-test|parse-result|extract|session-manage|health-check|run-automation|batch-automation|batch-simple|batch-config|batch-multi|batch-parallel|error-report|error-validate|safe-execute|template-list|template-load|template-run|template-create|template-info|template-validate|session-extract|session-analytics|session-recover|session-cleanup|session-list-enhanced|sandbox|test-safe|help" \
+        --options "install|uninstall|start|stop|restart|status|info|test|run|batch|session|settings|logs|register-mcp|unregister-mcp|mcp-status|mcp-test|parse-result|extract|session-manage|health-check|run-automation|batch-automation|batch-simple|batch-config|batch-multi|batch-parallel|error-report|error-validate|safe-execute|template-list|template-load|template-run|template-create|template-info|template-validate|session-extract|session-analytics|session-recover|session-cleanup|session-list-enhanced|sandbox|test-safe|help" \
         --default "help"
     
     args::register \
@@ -355,11 +355,23 @@ claude_code::main() {
         "uninstall")
             claude_code::uninstall
             ;;
+        "start")
+            claude_code::start
+            ;;
+        "stop")
+            claude_code::stop
+            ;;
+        "restart")
+            claude_code::restart
+            ;;
         "status")
             claude_code::status
             ;;
         "info")
             claude_code::info
+            ;;
+        "test")
+            claude_code::test
             ;;
         "run")
             claude_code::run

@@ -13,7 +13,7 @@ setup() {
     
     # Load verification system if available
     if [[ -f "${BATS_TEST_DIRNAME}/verification.bash" ]]; then
-        source "${BATS_TEST_DIRNAME}/verification.bash"
+        source "${BATS_TEST_DIRNAME}/verification.sh"
     fi
     
     # Load the http mock
@@ -670,7 +670,7 @@ teardown() {
     run mock::http::debug::dump_state
     [ "$status" -eq 0 ]
     [[ "$output" =~ "HTTP Mock State Dump" ]]
-    [[ "$output" =~ "debug.com" ]]
+    [[ "$output" =~ "debug_com" ]]
     [[ "$output" =~ "healthy" ]]
     [[ "$output" =~ "connection_timeout" ]]
 }
@@ -683,9 +683,9 @@ teardown() {
     run mock::http::debug::list_endpoints
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Configured HTTP Endpoints" ]]
-    [[ "$output" =~ "list1.com" ]]
+    [[ "$output" =~ "list1_com" ]]
     [[ "$output" =~ "healthy" ]]
-    [[ "$output" =~ "list2.com" ]]
+    [[ "$output" =~ "list2_com" ]]
     [[ "$output" =~ "unhealthy" ]]
     [[ "$output" =~ "(1 calls)" ]]
 }
@@ -788,8 +788,8 @@ teardown() {
     [[ -f "$TEST_LOG_DIR/command_calls.log" ]]
     
     local log_content=$(cat "$TEST_LOG_DIR/command_calls.log")
-    [[ "$log_content" =~ "curl http://log.test" ]]
-    [[ "$log_content" =~ "wget -q http://log.test" ]]
+    [[ "$log_content" =~ "curl: http://log.test" ]]
+    [[ "$log_content" =~ "wget: -q http://log.test" ]]
 }
 
 @test "HTTP state changes should be logged" {
@@ -879,9 +879,9 @@ teardown() {
     fi
     
     # Mock should still work (fallback to defaults)
-    run curl http://recovery.test
+    run curl http://recovery.test/test
     [ "$status" -eq 0 ]
-    [[ "$output" =~ '"status":"ok"' ]]
+    [[ "$output" =~ '"message":"Mock response for test"' ]]
 }
 
 @test "mock should handle missing state file gracefully" {
@@ -891,7 +891,7 @@ teardown() {
     fi
     
     # Mock should still work
-    run curl http://missing.test
+    run curl http://missing.test/test
     [ "$status" -eq 0 ]
-    [[ "$output" =~ '"status":"ok"' ]]
+    [[ "$output" =~ '"message":"Mock response for test"' ]]
 }

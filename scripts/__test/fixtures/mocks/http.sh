@@ -313,38 +313,6 @@ curl() {
     error)   echo "curl: (7) Failed to connect" >&2; return 7 ;;
   esac
 
-  # Check for injected errors
-  local cmd_check="curl"
-  if [[ -n "${MOCK_HTTP_ERRORS[$cmd_check]}" ]]; then
-    local error_type="${MOCK_HTTP_ERRORS[$cmd_check]}"
-    case "$error_type" in
-      dns_resolution)
-        echo "curl: (6) Could not resolve host: ${2:-unknown}" >&2
-        return 6
-        ;;
-      connection_timeout)
-        echo "curl: (28) Connection timed out after ${3:-10000} milliseconds" >&2
-        return 28
-        ;;
-      connection_refused)
-        echo "curl: (7) Failed to connect to ${2:-localhost} port ${3:-80}: Connection refused" >&2
-        return 7
-        ;;
-      ssl_error)
-        echo "curl: (35) SSL connect error" >&2
-        return 35
-        ;;
-      http_error)
-        echo "curl: (22) The requested URL returned error: ${3:-500}" >&2
-        return 22
-        ;;
-      *)
-        echo "curl: Generic error: $error_type" >&2
-        return 1
-        ;;
-    esac
-  fi
-
   local url="" method="GET" output_file="" headers=() data="" 
   local follow_redirects=false silent=false show_headers=false
   local output_http_code=false max_time="" connect_timeout=""
@@ -396,6 +364,41 @@ curl() {
   local key="$(_sanitize_url_key "$url")"
   local count="${MOCK_HTTP_CALL_COUNT[$key]:-0}"
   MOCK_HTTP_CALL_COUNT["$key"]=$((count + 1))
+  
+  # Save state immediately after call count increment
+  _http_mock_save_state
+
+  # Check for injected errors (after tracking call count)
+  local cmd_check="curl"
+  if [[ -n "${MOCK_HTTP_ERRORS[$cmd_check]}" ]]; then
+    local error_type="${MOCK_HTTP_ERRORS[$cmd_check]}"
+    case "$error_type" in
+      dns_resolution)
+        echo "curl: (6) Could not resolve host: ${2:-unknown}" >&2
+        return 6
+        ;;
+      connection_timeout)
+        echo "curl: (28) Connection timed out after ${3:-10000} milliseconds" >&2
+        return 28
+        ;;
+      connection_refused)
+        echo "curl: (7) Failed to connect to ${2:-localhost} port ${3:-80}: Connection refused" >&2
+        return 7
+        ;;
+      ssl_error)
+        echo "curl: (35) SSL connect error" >&2
+        return 35
+        ;;
+      http_error)
+        echo "curl: (22) The requested URL returned error: ${3:-500}" >&2
+        return 22
+        ;;
+      *)
+        echo "curl: Generic error: $error_type" >&2
+        return 1
+        ;;
+    esac
+  fi
 
   # Apply delay if configured
   local delay="${MOCK_HTTP_DELAYS[$key]:-}"
@@ -715,8 +718,8 @@ mock::http::get_response() {
     return
   fi
 
-  # Check for exact URL match
-  if [[ -n "${MOCK_HTTP_RESPONSES[$key]}" ]]; then
+  # Check for exact URL match (including empty responses for unavailable endpoints)
+  if [[ "${MOCK_HTTP_RESPONSES[$key]+isset}" == "isset" ]]; then
     response_ref="${MOCK_HTTP_RESPONSES[$key]}"
     status_ref="${MOCK_HTTP_STATUS_CODES[$key]:-200}"
     return
