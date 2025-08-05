@@ -38,7 +38,7 @@ describe.skipIf(!canRun)("ClaudeCodeService Integration Tests (Real CLI)", () =>
                 role: "user",
             },
             language: "en",
-            createdAt: new Date(),
+            createdAt: new Date().toISOString(),
         }];
         
         const options = {
@@ -92,7 +92,7 @@ describe.skipIf(!canRun)("ClaudeCodeService Integration Tests (Real CLI)", () =>
                 role: "user",
             },
             language: "en",
-            createdAt: new Date(),
+            createdAt: new Date().toISOString(),
         }];
         
         const options = {
@@ -143,7 +143,7 @@ describe.skipIf(!canRun)("ClaudeCodeService Integration Tests (Real CLI)", () =>
                 role: "user",
             },
             language: "en",
-            createdAt: new Date(),
+            createdAt: new Date().toISOString(),
         }];
         
         const options = {

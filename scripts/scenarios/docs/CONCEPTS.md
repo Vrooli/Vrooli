@@ -137,30 +137,26 @@ cd core/customer-call-assistant
 # ✅ Performance meets requirements
 ```
 
-### Step 3: App Generation
+### Step 3: Live Application Deployment
 ```bash
-./tools/scenario-to-app.sh \
-  --scenario customer-call-assistant \
-  --output ~/deployments/customer-app
+./tools/scenario-to-app.sh customer-call-assistant
 
-# Generates:
-# ✅ Optimized deployment configuration
-# ✅ Docker Compose file for deployment
-# ✅ Customer documentation
-# ✅ Monitoring and logging setup
-# ✅ Backup and recovery procedures
+# Orchestrates:
+# ✅ Resource startup (via manage.sh scripts)
+# ✅ Data injection (via inject.sh scripts)
+# ✅ Application services startup
+# ✅ Health monitoring and access URLs
+# ✅ Complete business functionality
 ```
 
 ### Step 4: Customer Delivery
 ```bash
-cd ~/deployments/customer-app
-docker-compose up -d
-
-# Result:
-# ✅ Production-ready application
-# ✅ Professional UI
-# ✅ Complete business functionality
-# ✅ Monitoring and alerts
+# Application is running and accessible
+# Visit provided URLs for:
+# ✅ n8n workflows (localhost:5678)
+# ✅ Windmill UI (localhost:8000)
+# ✅ Application interface (localhost:3000)
+# ✅ Monitoring and health checks
 # ✅ $15k-30k revenue for this scenario type
 ```
 
@@ -280,14 +276,15 @@ while scenario_exists; do
 done
 ```
 
-### Deployment Transformation
+### Resource-Based Deployment
 ```bash
 scenario_to_app() {
+  validate_scenario_structure()
   extract_required_resources()
-  generate_minimal_config()
-  package_application()
-  create_documentation()
-  setup_monitoring()
+  start_resources_via_manage_scripts()
+  inject_data_via_inject_scripts()
+  run_custom_startup_scripts()
+  provide_access_urls()
 }
 ```
 

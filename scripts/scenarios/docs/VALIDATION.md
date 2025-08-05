@@ -351,10 +351,7 @@ test_deployment_readiness() {
     echo "Testing deployment readiness..."
     
     # Simulate app generation
-    ./tools/scenario-to-app.sh \
-        --scenario "$SCENARIO_NAME" \
-        --output "/tmp/test-deployment" \
-        --dry-run
+    ./tools/scenario-to-app.sh "$SCENARIO_NAME" --dry-run
     
     # Validate generated artifacts
     validate_generated_config

@@ -38,8 +38,8 @@ cd core/my-business-app/
 # - initialization/: Database, workflows, UI, configuration
 # - deployment/: Startup, validation, monitoring scripts
 
-# Deploy as application
-../../scenario-to-app.sh my-business-app
+# Run as live application
+../../tools/scenario-to-app.sh my-business-app
 ```
 
 ### **Create Simple Integration Test:**
@@ -77,13 +77,13 @@ cd core/my-integration-test/
 - `service.json` - Complete configuration with AI patterns, business models, and deployment orchestration
 - `deployment/` - startup.sh, validate.sh, monitor.sh
 - `initialization/` - database/, workflows/, ui/, configuration/
-- `README.md` - Comprehensive documentation
-- `test.sh` - Integration testing
+- `test.sh` - Integration testing (optional)
 
 ### **`templates/basic/` Contents:**
-- `service.json` - Simple resource requirements and test configuration
-- `README.md` - Basic documentation
-- `test.sh` - Integration testing
+- `service.json` - Simple resource requirements and test configuration  
+- `test.sh` - Integration testing (optional)
+
+**📝 Documentation Policy**: README.md files are now **optional** and only needed for scenarios with complex setup requirements. All essential information (business model, resources, deployment) is stored in service.json.
 
 ---
 

@@ -36,12 +36,12 @@ Instead of building every feature into one monolithic platform, Vrooli uses scen
 
 ## 🚀 Major Updates
 
-### Minimal Runtime Extraction (NEW!)
-The scenario-to-app.sh script now creates **minimal standalone apps**:
-- **Size Reduction**: ~3MB apps vs ~1GB full Vrooli copies (99% smaller!)
-- **Production Ready**: Direct startup scripts, not development mode
-- **Resource Efficient**: Only includes required resource adapters
-- **Home Directory**: Apps generate to `~/app-name` by default
+### Resource-Based Architecture (NEW!)
+The scenario-to-app.sh script now uses **existing resource infrastructure**:
+- **Leverages Proven Systems**: Uses existing manage.sh and inject.sh scripts
+- **No Docker Generation**: Orchestrates local resources instead of creating containers
+- **One-Shot Experience**: Customer requirements → running app in minutes
+- **Battle-Tested**: Built on proven resource management from scripts/resources/
 
 ### Declarative Testing Framework
 We've completely rewritten our testing infrastructure achieving **95% code reduction**:
@@ -76,18 +76,17 @@ done
 
 ### For App Generation
 ```bash
-# Convert a scenario to a minimal standalone app (NEW: ~3MB vs ~1GB!)
-./tools/scenario-to-app.sh ./scripts/scenarios/core/multi-modal-ai-assistant my-app
+# Convert scenario to running application using existing resource infrastructure
+./tools/scenario-to-app.sh ai-content-assistant-example
 
-# App is generated to home directory by default
-./tools/scenario-to-app.sh ./scripts/scenarios/core/ai-content-assistant my-ai-app
-# Creates: ~/my-ai-app (2-3MB minimal runtime)
+# Run with verbose output
+./tools/scenario-to-app.sh multi-modal-ai-assistant --verbose
 
-# Specify custom output directory
-./tools/scenario-to-app.sh ./scripts/scenarios/core/e-commerce shop ~/apps/shop
+# Preview what would be done without executing
+./tools/scenario-to-app.sh research-assistant --dry-run
 
-# Enable debug output
-./tools/scenario-to-app.sh ./scripts/scenarios/core/research-assistant research --debug
+# Keep resources running after errors for debugging
+./tools/scenario-to-app.sh document-intelligence-pipeline --no-cleanup
 ```
 
 ### For Developers
@@ -104,9 +103,9 @@ cd core/my-new-scenario/
 # 3. Test your scenario structure
 ./test.sh                                # Run validation tests
 
-# 4. Deploy as minimal standalone application
-../../tools/scenario-to-app.sh ./core/my-new-scenario my-app
-# Creates: ~/my-app (2-3MB minimal runtime)
+# 4. Run as live application using resource infrastructure
+../../tools/scenario-to-app.sh my-new-scenario
+# Starts all required resources and runs the application
 ```
 
 ### For AI Generation
@@ -118,9 +117,9 @@ cp -r templates/full/ core/ai-generated-scenario/
 #   - AI guidance comments throughout all files
 #   - Both Jinja2 templates AND AI placeholders supported
 
-# Deploy AI-generated scenario as minimal app
-../../tools/scenario-to-app.sh ./core/ai-generated-scenario ai-app
-# Creates: ~/ai-app (2-3MB minimal runtime, production-ready)
+# Run AI-generated scenario as live application
+../../tools/scenario-to-app.sh ai-generated-scenario
+# Orchestrates existing resources to run the application
 ```
 
 ## 🔄 **Template Consolidation (COMPLETED)**
@@ -247,8 +246,8 @@ scenario-name/
 │   ├── startup.sh             # App initialization  
 │   ├── validate.sh            # Pre/post validation
 │   └── monitor.sh             # Health monitoring
-├── test.sh                    # Integration testing
-└── README.md                  # Documentation
+├── test.sh                    # Integration testing (optional)
+└── README.md                  # Documentation (optional, only for complex scenarios)
 ```
 
 ### **Capability Emergence Through Orchestration**
@@ -265,33 +264,41 @@ Scenarios integrate with Vrooli's AI architecture:
 - **Tier 2**: Process Intelligence (resource orchestration)  
 - **Tier 3**: Execution Intelligence (direct resource interaction)
 
-### **Scenario-to-App Conversion (Minimal Runtime Extraction)**
-The updated `./tools/scenario-to-app.sh` script converts scenarios into minimal standalone applications:
+### **Scenario-to-App Conversion (Resource-Based Architecture)**
+The updated `./tools/scenario-to-app.sh` script converts scenarios into running applications using existing resource infrastructure:
 
 **Key Features:**
-- **Minimal Size**: ~2-3MB apps vs ~1GB full Vrooli copies (99% reduction!)
-- **Production Ready**: Direct startup scripts, not development mode
-- **Resource Efficient**: Only includes required resource adapters
-- **Self-Contained**: Complete runtime with injection engine
+- **Leverages Existing Infrastructure**: Uses proven manage.sh and inject.sh scripts
+- **No Container Generation**: Orchestrates local resources instead of creating Docker configs
+- **Battle-Tested**: Built on existing resource management that already works
+- **One-Shot Experience**: Customer requirements → running app in minutes
 
 **How It Works:**
 1. **Validation Phase**: Validates scenario structure and service.json
-2. **Extraction Phase**: Copies only essential runtime components (~2MB)
-3. **Configuration Phase**: Generates minimal docker-compose with required resources
-4. **Production Phase**: Creates production-ready startup/shutdown scripts
+2. **Resource Analysis**: Extracts required resources from configuration
+3. **Resource Startup**: Uses existing manage.sh scripts to start each resource
+4. **Data Injection**: Uses existing inject.sh scripts to initialize data
+5. **Application Startup**: Runs scenario-specific startup scripts
+6. **Ready State**: Provides access URLs and keeps application running
 
-**Generated App Structure:**
+**Runtime Architecture:**
 ```
-~/my-app/                       # Default location: home directory
-├── runtime/                    # Minimal Vrooli runtime (~2MB)
-│   ├── injection/              # Injection engine only
-│   ├── utils/                  # Essential utilities
-│   └── resources/              # Only required resource adapters
-├── .vrooli/                    # Scenario configuration
-├── initialization/             # Scenario data
-├── docker-compose.yml          # Only required services
-├── start.sh                    # Production startup (not develop.sh)
-└── stop.sh                     # Graceful shutdown
+Scenario Running State:
+├── Required Resources (started via manage.sh)
+│   ├── postgres (localhost:5432)
+│   ├── n8n (http://localhost:5678)
+│   ├── windmill (http://localhost:8000)
+│   ├── ollama (http://localhost:11434)
+│   └── ... (other resources as needed)
+├── Data Injection (via inject.sh)
+│   ├── Database schemas and seeds
+│   ├── n8n workflows
+│   ├── Windmill applications
+│   └── Configuration files
+└── Application Services
+    ├── Custom startup scripts
+    ├── Health monitoring
+    └── Access point URLs
 ```
 
 ---

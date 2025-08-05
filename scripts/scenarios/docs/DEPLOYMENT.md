@@ -1,48 +1,51 @@
-# Deployment Guide: Converting Scenarios to Customer Applications
+# Deployment Guide: Converting Scenarios to Running Applications
 
-## 🎯 From Validated Scenario to Revenue-Generating App
+## 🎯 From Validated Scenario to Live Application
 
-Once a scenario passes validation, it's ready to become a customer application. This guide covers the complete scenario-to-app conversion process that transforms test artifacts into production-ready deployments.
+Once a scenario passes validation, it's ready to become a running application. This guide covers the resource-based scenario-to-app conversion process that transforms test artifacts into live, running applications using existing resource infrastructure.
 
 ## 🚀 The Conversion Process
 
-### Overview: Scenario → App Pipeline
+### Overview: Scenario → Live App Pipeline
 ```
-Validated Scenario              Customer Application
-├── service.json               ├── service.json (optimized)
-├── test.sh                    ├── docker-compose.yml
-├── initialization/            ├── startup.sh
-├── deployment/                ├── monitoring/
-└── README.md                  ├── customer-docs/
-                              └── support/
+Validated Scenario              Running Application
+├── service.json               ├── Running Resources (via manage.sh)
+├── test.sh                    │   ├── postgres
+├── initialization/            │   ├── n8n
+├── deployment/                │   ├── windmill  
+└── README.md                  │   └── ollama
+                              ├── Injected Data (via inject.sh)
+                              │   ├── Database schemas
+                              │   ├── Workflows
+                              │   └── UI apps
+                              └── Application Services
+                                  ├── Custom startup scripts
+                                  └── Access URLs
 ```
 
-The conversion process preserves all business functionality while optimizing for customer deployment.
+The conversion process uses existing resource infrastructure to create live applications.
 
 ## 🔧 Scenario-to-App Tool
 
 ### Basic Usage
 ```bash
-# Convert scenario to deployable app
+# Convert scenario to running application
 ./tools/scenario-to-app.sh multi-modal-ai-assistant
 
-# With options
-./tools/scenario-to-app.sh multi-modal-ai-assistant \
-  --mode docker \
-  --validate full \
-  --verbose
+# With verbose output
+./tools/scenario-to-app.sh multi-modal-ai-assistant --verbose
 ```
 
 ### Advanced Options
 ```bash
-# With dry run to preview
+# Preview what would be done without executing
 ./tools/scenario-to-app.sh document-intelligence-pipeline --dry-run
 
-# Local deployment
-./tools/scenario-to-app.sh document-intelligence-pipeline --mode local
+# Keep resources running after errors for debugging
+./tools/scenario-to-app.sh document-intelligence-pipeline --no-cleanup
 
-# Kubernetes deployment
-./tools/scenario-to-app.sh document-intelligence-pipeline --mode k8s
+# Get help and see all options
+./tools/scenario-to-app.sh --help
 ```
 
 ## 📋 Configuration Options
@@ -124,38 +127,31 @@ backup:
 }
 ```
 
-## 🏗️ Generated Application Structure
+## 🏗️ Running Application Architecture
 
-### Application Directory Layout
+### Resource-Based Runtime Structure
 ```
-customer-app/
-├── docker-compose.yml         # Main deployment configuration
-├── .env.example              # Environment variables template
-├── startup.sh                # Application startup script
-├── service.json              # Optimized resource configuration
-├── docs/                     # Customer documentation
-│   ├── README.md             # Getting started guide
-│   ├── CONFIGURATION.md      # Configuration options
-│   ├── TROUBLESHOOTING.md    # Common issues and solutions
-│   └── API.md                # API documentation
-├── config/                   # Application configuration
-│   ├── app-config.json       # Runtime application settings
-│   ├── nginx.conf            # Web server configuration
-│   └── monitoring.yml        # Monitoring configuration
-├── scripts/                  # Operational scripts
-│   ├── backup.sh             # Backup procedures
-│   ├── restore.sh            # Restore procedures
-│   ├── update.sh             # Update procedures
-│   └── health-check.sh       # Health monitoring
-├── data/                     # Application data
-│   ├── database/             # Database initialization
-│   ├── workflows/            # Deployed workflows
-│   ├── ui/                   # UI applications
-│   └── storage/              # File storage setup
-└── monitoring/               # Monitoring and logging
-    ├── prometheus.yml        # Metrics configuration
-    ├── grafana-dashboard.json # Monitoring dashboard
-    └── alerting-rules.yml    # Alert configurations
+Running Application State:
+├── Required Resources (managed by existing scripts)
+│   ├── postgres (localhost:5432)    # Started via scripts/resources/storage/postgres/manage.sh
+│   ├── n8n (localhost:5678)         # Started via scripts/resources/automation/n8n/manage.sh
+│   ├── windmill (localhost:8000)    # Started via scripts/resources/automation/windmill/manage.sh
+│   ├── ollama (localhost:11434)     # Started via scripts/resources/ai/ollama/manage.sh
+│   └── ... (other resources as needed)
+├── Data Injection (via existing inject.sh scripts)
+│   ├── Database schemas and seeds   # Injected via postgres/inject.sh
+│   ├── n8n workflows               # Injected via n8n/inject.sh
+│   ├── Windmill applications       # Injected via windmill/inject.sh
+│   └── Configuration files         # Loaded from scenario/initialization/
+├── Application Services
+│   ├── Custom startup scripts      # From scenario/deployment/startup.sh
+│   ├── Health monitoring          # Via resource manage.sh status commands
+│   └── Access point URLs          # Provided by scenario-to-app.sh
+└── Scenario-Specific Features
+    ├── Business logic (via workflows)
+    ├── User interfaces (via Windmill)
+    ├── Data processing (via n8n)
+    └── AI capabilities (via Ollama/Whisper)
 ```
 
 ## ⚙️ Resource Optimization
@@ -199,30 +195,22 @@ The conversion process analyzes scenario requirements and generates optimized `s
 }
 ```
 
-### Resource Scaling Configuration
-```yaml
-# docker-compose.yml scaling section
-services:
-  ollama:
-    deploy:
-      replicas: 2
-      resources:
-        limits:
-          memory: 4g
-          cpus: '2'
-        reservations:
-          memory: 2g
-          cpus: '1'
-          
-  postgres:
-    deploy:
-      resources:
-        limits:
-          memory: 2g
-          cpus: '1'
-        reservations:
-          memory: 1g
-          cpus: '0.5'
+### Resource Configuration
+Resource scaling and configuration is handled by the individual resource manage.sh scripts:
+
+```bash
+# Configure resource limits before starting
+export OLLAMA_MAX_MEMORY="8GB"
+export POSTGRES_MAX_CONNECTIONS="200"
+export POSTGRES_SHARED_BUFFERS="1GB"
+
+# Start resources with configuration
+./tools/scenario-to-app.sh your-scenario-name
+
+# Resources inherit configuration from:
+# - Environment variables
+# - Resource-specific config files in scripts/resources/
+# - Scenario-specific settings in .vrooli/service.json
 ```
 
 ## 🔒 Security Configuration
@@ -281,32 +269,25 @@ auth:
 ## 📊 Monitoring & Observability
 
 ### Monitoring Stack
-```yaml
-# monitoring/docker-compose.monitoring.yml
-version: '3.8'
-services:
-  prometheus:
-    image: prom/prometheus:latest
-    volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
-    ports:
-      - "9090:9090"
-      
-  grafana:
-    image: grafana/grafana:latest
-    environment:
-      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
-    volumes:
-      - ./grafana-dashboard.json:/var/lib/grafana/dashboards/
-    ports:
-      - "3001:3000"
-      
-  alertmanager:
-    image: prom/alertmanager:latest
-    volumes:
-      - ./alerting-rules.yml:/etc/alertmanager/alertmanager.yml
-    ports:
-      - "9093:9093"
+Monitoring is built into the resource management system:
+
+```bash
+# Check overall application health
+./tools/scenario-to-app.sh your-scenario --dry-run  # Preview health checks
+
+# Monitor individual resource health
+./scripts/resources/ai/ollama/manage.sh --action status
+./scripts/resources/storage/postgres/manage.sh --action status
+./scripts/resources/automation/n8n/manage.sh --action status
+
+# View resource logs
+./scripts/resources/ai/ollama/manage.sh --action logs
+./scripts/resources/automation/windmill/manage.sh --action logs
+
+# Access built-in monitoring UIs
+# - n8n workflows: http://localhost:5678
+# - Windmill apps: http://localhost:8000
+# - Resource-specific monitoring endpoints
 ```
 
 ### Application Metrics
@@ -378,23 +359,22 @@ restore_application() {
     
     echo "Restoring from backup: ${BACKUP_DATE}"
     
-    # Stop application
-    docker-compose down
+    # Stop all resources gracefully
+    ./scripts/resources/automation/n8n/manage.sh --action stop
+    ./scripts/resources/storage/postgres/manage.sh --action stop
+    ./scripts/resources/ai/ollama/manage.sh --action stop
     
     # Restore database
     psql "${DATABASE_URL}" < "${BACKUP_DIR}/database.sql"
     
-    # Restore files
-    tar -xzf "${BACKUP_DIR}/files.tar.gz" -C data/
-    
-    # Restore configuration
+    # Restore configuration files
     tar -xzf "${BACKUP_DIR}/config.tar.gz" -C ./
     
-    # Restore workflows
+    # Restore workflows and data
     tar -xzf "${BACKUP_DIR}/workflows.tar.gz" -C data/
     
-    # Start application
-    docker-compose up -d
+    # Restart application using scenario-to-app
+    ./tools/scenario-to-app.sh "${SCENARIO_NAME}"
     
     echo "Restore completed: ${BACKUP_DATE}"
 }
@@ -411,8 +391,9 @@ echo "🚀 Starting Customer Application Deployment..."
 
 # Pre-flight checks
 check_requirements() {
-    command -v docker >/dev/null 2>&1 || { echo "Docker required but not installed"; exit 1; }
-    command -v docker-compose >/dev/null 2>&1 || { echo "Docker Compose required but not installed"; exit 1; }
+    command -v jq >/dev/null 2>&1 || { echo "jq required but not installed"; exit 1; }
+    command -v curl >/dev/null 2>&1 || { echo "curl required but not installed"; exit 1; }
+    [[ -d "./scripts/resources" ]] || { echo "Vrooli resource directory not found"; exit 1; }
 }
 
 # Environment setup
@@ -426,15 +407,18 @@ setup_environment() {
 
 # Application startup
 start_application() {
-    echo "🔧 Starting application services..."
-    docker-compose up -d
+    echo "🔧 Starting application using resource infrastructure..."
     
-    echo "⏳ Waiting for services to be ready..."
-    ./scripts/health-check.sh --wait
+    # Use scenario-to-app.sh to start all resources
+    if [[ -f "./tools/scenario-to-app.sh" ]]; then
+        ./tools/scenario-to-app.sh "$(basename "$PWD")"
+    else
+        echo "❌ scenario-to-app.sh not found. Please run from Vrooli root directory."
+        exit 1
+    fi
     
     echo "🎉 Application is ready!"
-    echo "📱 Access your application at: http://localhost"
-    echo "📊 Monitoring dashboard: http://localhost:3001"
+    echo "📱 Resource access points will be displayed by scenario-to-app.sh"
     echo "📚 Documentation: docs/README.md"
 }
 
@@ -470,9 +454,10 @@ main "$@"
    ```
 
 4. **Access your application**:
-   - Application: http://localhost
-   - Admin panel: http://localhost/admin
-   - Monitoring: http://localhost:3001
+   - Application endpoints will be displayed during startup
+   - n8n workflows: http://localhost:5678
+   - Windmill UI: http://localhost:8000
+   - Individual resource interfaces as shown by the startup script
 
 ## Configuration
 
@@ -491,7 +476,7 @@ main "$@"
 - **Email**: support@yourcompany.com
 - **Documentation**: docs/
 - **Health Check**: ./scripts/health-check.sh
-- **Logs**: docker-compose logs -f
+- **Logs**: Use resource-specific log commands shown during startup
 ```
 
 ## 🔄 Update & Maintenance
@@ -507,14 +492,14 @@ update_application() {
     # Backup current state
     ./scripts/backup.sh
     
-    # Pull latest images
-    docker-compose pull
+    # Stop current resources
+    killall scenario-to-app.sh || true
     
-    # Restart with new images
-    docker-compose up -d
+    # Update Vrooli resource scripts
+    git pull origin main
     
-    # Verify health
-    ./scripts/health-check.sh
+    # Restart application
+    ./tools/scenario-to-app.sh "${SCENARIO_NAME}"
     
     echo "✅ Update completed"
 }

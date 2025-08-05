@@ -83,11 +83,10 @@ Every scenario has **four core components**:
 }
 ```
 
-### 2. **README.md** - The Business Case
-- **Executive Summary**: Why this scenario matters
-- **Target Market**: Who would pay for this
-- **Technical Architecture**: How it works
-- **Revenue Model**: Pricing and business value
+### 2. **README.md** - Optional Documentation
+- **Only needed for complex scenarios** with special setup requirements
+- **Business case information** is stored in service.json metadata section
+- **Most scenarios don't need README** - service.json contains all required information
 
 ### 3. **test.sh** - The Integration Validator
 ```bash
@@ -180,12 +179,12 @@ ls -la
 }
 ```
 
-#### 2. **Update README.md**
-Edit the business case to match your scenario:
-- Update the executive summary
-- Define your target market  
-- Explain the technical approach
-- Justify the revenue model
+#### 2. **README.md (Optional)**
+Only create a README if your scenario has complex setup requirements not covered in service.json:
+- Advanced troubleshooting steps
+- Custom development workflows  
+- Special deployment considerations
+- For most scenarios, service.json contains all needed information
 
 #### 3. **Implement test.sh**
 ```bash

@@ -32,10 +32,7 @@ Ensure these resources are installed and running:
 1. **Deploy the scenario**:
 ```bash
 # Convert scenario to running application
-./scripts/scenario-to-app.sh \
-  --scenario scenario-generator-v1 \
-  --environment development \
-  --auto-start true
+./scripts/scenarios/tools/scenario-to-app.sh scenario-generator-v1
 ```
 
 2. **Access the UI**:
@@ -247,7 +244,7 @@ mc ls minio/generated-scenarios
 
 - [Vrooli Scenario Documentation](/scripts/scenarios/README.md)
 - [Resource Ecosystem Guide](/scripts/resources/README.md)
-- [Scenario-to-App Conversion](/scripts/scenario-to-app.sh)
+- [Scenario-to-App Conversion](../../tools/scenario-to-app.sh)
 - [Integration Patterns](/docs/architecture/ai-resource-integration-plan.md)
 
 ## 🤝 Contributing
