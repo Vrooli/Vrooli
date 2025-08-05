@@ -64,19 +64,45 @@
 
 set -euo pipefail
 
-# Define log functions first (before any usage)
-log_info() { echo "[INFO] $1"; }
-log_success() { echo "[SUCCESS] $1"; }
-log_warning() { echo "[WARNING] $1"; }
-log_error() { echo "[ERROR] $1" >&2; }
-log_step() { echo "[STEP] $1"; }
-log_phase() { echo "=== $1 ==="; }
-log_banner() { echo ""; echo "=== $1 ==="; echo ""; }
+# Logging functions will be provided by cli-interface.sh module
+# (imported below after SCRIPT_DIR is defined)
 
 # Script location and imports
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 SCENARIOS_DIR="${PROJECT_ROOT}/scripts/scenarios/core"
+
+# Import service JSON processor module (REQUIRED)
+if [[ -f "${SCRIPT_DIR}/lib/service-json-processor.sh" ]]; then
+    source "${SCRIPT_DIR}/lib/service-json-processor.sh"
+else
+    echo "[ERROR] lib/service-json-processor.sh not found. This module is required." >&2
+    exit 1
+fi
+
+# Import service JSON validator module (REQUIRED)
+if [[ -f "${SCRIPT_DIR}/lib/service-json-validator.sh" ]]; then
+    source "${SCRIPT_DIR}/lib/service-json-validator.sh"
+else
+    echo "[ERROR] lib/service-json-validator.sh not found. This module is required." >&2
+    exit 1
+fi
+
+# Import file system operations module (REQUIRED)
+if [[ -f "${SCRIPT_DIR}/lib/fs-operations.sh" ]]; then
+    source "${SCRIPT_DIR}/lib/fs-operations.sh"
+else
+    echo "[ERROR] lib/fs-operations.sh not found. This module is required." >&2
+    exit 1
+fi
+
+# Import CLI interface module (REQUIRED)
+if [[ -f "${SCRIPT_DIR}/lib/cli-interface.sh" ]]; then
+    source "${SCRIPT_DIR}/lib/cli-interface.sh"
+else
+    echo "[ERROR] lib/cli-interface.sh not found. This module is required." >&2
+    exit 1
+fi
 
 # Import helper functions (override defaults if available)
 if [[ -f "${PROJECT_ROOT}/scripts/helpers/utils/log.sh" ]]; then
@@ -87,15 +113,15 @@ if [[ -f "${PROJECT_ROOT}/scripts/helpers/utils/system.sh" ]]; then
     source "${PROJECT_ROOT}/scripts/helpers/utils/system.sh"
 fi
 
-# Global variables
-DEPLOYMENT_MODE="local"
-VALIDATION_MODE="full"
-DRY_RUN=false
-VERBOSE=false
-SCENARIO_NAME=""
+
+# Global variables (will be set by cli-interface.sh parse_args function)
 SCENARIO_PATH=""
 SERVICE_JSON=""
 SERVICE_JSON_PATH=""
+
+# Configure validator for scenario-to-app usage
+export VALIDATOR_VERBOSE="false"  # Will be updated in parse_args if --verbose is set
+export VALIDATOR_STRICT="false"   # Use non-strict mode for scenario conversion
 
 # Rollback tracking
 declare -a ROLLBACK_ACTIONS=()
@@ -104,129 +130,45 @@ declare -a ROLLBACK_ACTIONS=()
 # Helper Functions
 ################################################################################
 
-# Show usage information
-show_usage() {
-    cat << 'EOF'
-Scenario-to-App Conversion Script
-
-Converts Vrooli scenarios into deployable applications using the unified
-service.json format and resource injection engine.
-
-SCHEMA REFERENCE:
-  All service.json files follow the official schema:
-  .vrooli/schemas/service.schema.json
-  
-  Key paths used in this script:
-  - .service.name           (scenario identifier)
-  - .service.displayName    (human-readable name)
-  - .resources.{category}.{resource}  (resource definitions)
-  - .resources.{category}.{resource}.required  (not .optional!)
-  - .resources.{category}.{resource}.initialization  (setup data)
-
-Usage:
-  ./scenario-to-app.sh <scenario-name> [options]
-
-Options:
-  --mode        Deployment mode (local, docker, k8s) [default: local]
-  --validate    Validation mode (none, basic, full) [default: full]
-  --dry-run     Show what would be done without executing
-  --verbose     Enable verbose logging
-  --help        Show this help message
-EOF
-}
-
-# Parse command line arguments
-parse_args() {
-    local scenario_provided=false
-    
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --mode)
-                DEPLOYMENT_MODE="$2"
-                shift 2
-                ;;
-            --validate)
-                VALIDATION_MODE="$2"
-                shift 2
-                ;;
-            --dry-run)
-                DRY_RUN=true
-                shift
-                ;;
-            --verbose)
-                VERBOSE=true
-                shift
-                ;;
-            --help)
-                show_usage
-                exit 0
-                ;;
-            --*)
-                log_error "Unknown option: $1"
-                show_usage
-                exit 1
-                ;;
-            *)
-                if [[ "$scenario_provided" == true ]]; then
-                    log_error "Multiple scenario names provided: '$SCENARIO_NAME' and '$1'"
-                    show_usage
-                    exit 1
-                fi
-                SCENARIO_NAME="$1"
-                scenario_provided=true
-                shift
-                ;;
-        esac
-    done
-    
-    if [[ "$scenario_provided" == false ]]; then
-        log_error "No scenario specified"
-        show_usage
-        exit 1
-    fi
-}
+# Usage display and argument parsing functions are provided by cli-interface.sh module
 
 # Validate scenario exists and has required files
 validate_scenario() {
-    SCENARIO_PATH="${SCENARIOS_DIR}/${SCENARIO_NAME}"
-    
-    if [[ ! -d "$SCENARIO_PATH" ]]; then
-        log_error "Scenario not found: $SCENARIO_NAME"
-        log_info "Available scenarios:"
-        ls -1 "$SCENARIOS_DIR" | sed 's/^/  - /'
+    # Initialize fs-operations module paths
+    if ! resolve_project_paths; then
+        log_error "Failed to resolve project paths"
         exit 1
     fi
     
-    # Check for service.json
+    # Use fs-operations to resolve scenario path
+    if ! SCENARIO_PATH=$(resolve_scenario_path "$SCENARIO_NAME"); then
+        exit 1  # Error already logged by resolve_scenario_path
+    fi
+    
+    # Use fs-operations to validate scenario structure
+    if ! validate_scenario_structure "$SCENARIO_PATH"; then
+        exit 1  # Error already logged by validate_scenario_structure
+    fi
+    
+    # Set service.json path for global use
     SERVICE_JSON_PATH="${SCENARIO_PATH}/service.json"
     
-    if [[ ! -f "$SERVICE_JSON_PATH" ]]; then
-        log_error "service.json not found in scenario: $SCENARIO_NAME"
-        log_info "All scenarios must have a service.json file"
-        log_info "Expected location: $SERVICE_JSON_PATH"
-        exit 1
-    fi
-    
-    # Load service.json (already verified to exist)
+    # Load service.json using fs-operations
     log_info "Loading service.json from $SERVICE_JSON_PATH"
-    SERVICE_JSON=$(cat "$SERVICE_JSON_PATH")
+    if ! SERVICE_JSON=$(load_service_json "$SERVICE_JSON_PATH"); then
+        exit 1  # Error already logged by load_service_json
+    fi
     log_info "Loaded service.json successfully"
 }
 
 # Extract resources from service.json based on condition
+# NOTE: This function now uses the service-json-processor module
 extract_resources_by_condition() {
     local condition="$1"
     local error_message="$2"
     
     local resources
-    if ! resources=$(echo "$SERVICE_JSON" | jq -r "
-      .resources | 
-      to_entries[] | 
-      .value | 
-      to_entries[] | 
-      select(.value.$condition) | 
-      .key
-    "); then
+    if ! resources=$(sjp_get_resources_by_condition "$SERVICE_JSON" "$condition" 2>/dev/null); then
         log_error "$error_message"
         return 1
     fi
@@ -245,43 +187,31 @@ validate_structure() {
     log_step "Validating scenario structure..."
     
     # Extract scenario name and version from service.json
-    # NOTE: Using official service.schema.json paths (.service.* not .metadata.*)
+    # NOTE: Using service-json-processor module for reliable extraction
     local scenario_name
     local scenario_version
-    scenario_name=$(echo "$SERVICE_JSON" | jq -r '.service.name // ""')
-    scenario_version=$(echo "$SERVICE_JSON" | jq -r '.service.version // ""')
-    
-    if [[ -z "$scenario_name" ]]; then
+    if ! scenario_name=$(sjp_get_service_info "$SERVICE_JSON" "name" 2>/dev/null); then
         log_error "Invalid service.json: missing service.name (see .vrooli/schemas/service.schema.json)"
         return 1
     fi
     
+    scenario_version=$(sjp_get_service_info "$SERVICE_JSON" "version" 2>/dev/null || echo "unknown")
+    
     [[ "$VERBOSE" == true ]] && log_info "Scenario: $scenario_name v$scenario_version"
     
-    # Check for required initialization files
-    # NOTE: Initialization data is embedded within each resource definition
-    local init_resources
-    if ! init_resources=$(extract_resources_by_condition "initialization != null" "Failed to extract initialization resources from service.json"); then
-        return 1
+    # Check for required initialization files using service-json-processor
+    # NOTE: Extract all referenced files and validate they exist
+    [[ "$VERBOSE" == true ]] && log_info "Checking initialization files..."
+    
+    local all_files
+    if ! all_files=$(sjp_get_all_referenced_files "$SERVICE_JSON" 2>/dev/null); then
+        log_warning "Failed to extract referenced files from service.json"
+        return 0  # Non-fatal, continue validation
     fi
     
-    for resource in $init_resources; do
-        [[ "$VERBOSE" == true ]] && log_info "Checking initialization data for: $resource"
-        
-        # Check for database files (find resource across all categories)
-        local db_files
-        if ! db_files=$(echo "$SERVICE_JSON" | jq -r "
-          .resources | 
-          to_entries[] | 
-          .value | 
-          to_entries[] | 
-          select(.key == \"$resource\") | 
-          .value.initialization.data[]?.file // empty
-        "); then
-            log_warning "Failed to check database files for resource: $resource"
-            continue
-        fi
-        for file in $db_files; do
+    if [[ -n "$all_files" ]]; then
+        while IFS= read -r file; do
+            [[ -z "$file" ]] && continue
             local full_path="${SCENARIO_PATH}/$file"
             if [[ -f "$full_path" ]]; then
                 [[ "$VERBOSE" == true ]] && log_success "  ✓ Found: $file"
@@ -289,31 +219,10 @@ validate_structure() {
                 log_error "  ✗ Missing: $file"
                 return 1
             fi
-        done
-        
-        # Check for workflow files (find resource across all categories)
-        local workflow_files
-        if ! workflow_files=$(echo "$SERVICE_JSON" | jq -r "
-          .resources | 
-          to_entries[] | 
-          .value | 
-          to_entries[] | 
-          select(.key == \"$resource\") | 
-          .value.initialization.workflows[]?.file // empty
-        "); then
-            log_warning "Failed to check workflow files for resource: $resource"
-            continue
-        fi
-        for file in $workflow_files; do
-            local full_path="${SCENARIO_PATH}/$file"
-            if [[ -f "$full_path" ]]; then
-                [[ "$VERBOSE" == true ]] && log_success "  ✓ Found: $file"
-            else
-                log_error "  ✗ Missing: $file"
-                return 1
-            fi
-        done
-    done
+        done <<< "$all_files"
+    else
+        [[ "$VERBOSE" == true ]] && log_info "No initialization files referenced"
+    fi
     
     log_success "Structure validation passed"
 }
@@ -366,218 +275,12 @@ validate_resources() {
 # This replaces resource connectivity checks with file/schema validation
 validate_injection_readiness() {
     local scenario_path="$1"
-    local service_config="${scenario_path}/service.json"
     
     log_step "Validating injection readiness (validation-only mode)..."
     
-    # 1. Validate service.json schema compliance
-    log_info "Checking service.json schema compliance..."
-    local schema_path="${PROJECT_ROOT}/.vrooli/schemas/service.schema.json"
-    
-    if [[ -f "$schema_path" ]]; then
-        # Use ajv-cli if available, otherwise basic jq validation
-        if command -v ajv &>/dev/null; then
-            if ! ajv validate -s "$schema_path" -d "$service_config" 2>/dev/null; then
-                log_error "Service config does not match schema"
-                return 1
-            fi
-        else
-            # Fallback to basic structure validation
-            if ! validate_service_config "$service_config" "full"; then
-                return 1
-            fi
-        fi
-        log_success "✓ Schema validation passed"
-    else
-        log_warning "Schema file not found, using basic validation"
-        if ! validate_service_config "$service_config" "full"; then
-            return 1
-        fi
-    fi
-    
-    # 2. Validate all referenced files exist
-    log_info "Checking referenced files..."
-    local missing_files=()
-    
-    # Check database files
-    local db_files
-    db_files=$(echo "$SERVICE_JSON" | jq -r '
-        .resources.storage | 
-        to_entries[] | 
-        select(.value.initialization.database // false) | 
-        .value.initialization.database[]? // empty
-    ' 2>/dev/null || true)
-    
-    while IFS= read -r file; do
-        [[ -z "$file" ]] && continue
-        local full_path="${scenario_path}/${file}"
-        if [[ ! -f "$full_path" ]]; then
-            missing_files+=("$file")
-            log_error "  ✗ Missing database file: $file"
-        else
-            [[ "$VERBOSE" == true ]] && log_success "  ✓ Found: $file"
-        fi
-    done <<< "$db_files"
-    
-    # Check workflow files
-    local workflow_files
-    workflow_files=$(echo "$SERVICE_JSON" | jq -r '
-        .resources.automation | 
-        to_entries[] | 
-        select(.value.initialization.workflows // false) | 
-        .value.initialization.workflows[]? // empty
-    ' 2>/dev/null || true)
-    
-    while IFS= read -r file; do
-        [[ -z "$file" ]] && continue
-        local full_path="${scenario_path}/${file}"
-        if [[ ! -f "$full_path" ]]; then
-            missing_files+=("$file")
-            log_error "  ✗ Missing workflow file: $file"
-        else
-            [[ "$VERBOSE" == true ]] && log_success "  ✓ Found: $file"
-        fi
-    done <<< "$workflow_files"
-    
-    # Check script files
-    local script_files
-    script_files=$(echo "$SERVICE_JSON" | jq -r '
-        .resources.automation | 
-        to_entries[] | 
-        select(.value.initialization.scripts // false) | 
-        .value.initialization.scripts[].file // empty
-    ' 2>/dev/null || true)
-    
-    while IFS= read -r file; do
-        [[ -z "$file" ]] && continue
-        local full_path="${scenario_path}/${file}"
-        if [[ ! -f "$full_path" ]]; then
-            missing_files+=("$file")
-            log_error "  ✗ Missing script file: $file"
-        else
-            [[ "$VERBOSE" == true ]] && log_success "  ✓ Found: $file"
-        fi
-    done <<< "$script_files"
-    
-    # 3. Validate JSON/YAML files are syntactically valid
-    log_info "Validating file syntax..."
-    local invalid_files=()
-    
-    # Validate JSON files
-    for json_file in "${scenario_path}"/**/*.json; do
-        [[ -f "$json_file" ]] || continue
-        if ! jq empty "$json_file" 2>/dev/null; then
-            invalid_files+=("${json_file#$scenario_path/}")
-            log_error "  ✗ Invalid JSON: ${json_file#$scenario_path/}"
-        fi
-    done
-    
-    # Validate YAML files if yq is available
-    if command -v yq &>/dev/null; then
-        for yaml_file in "${scenario_path}"/**/*.{yml,yaml}; do
-            [[ -f "$yaml_file" ]] || continue
-            if ! yq eval '.' "$yaml_file" >/dev/null 2>&1; then
-                invalid_files+=("${yaml_file#$scenario_path/}")
-                log_error "  ✗ Invalid YAML: ${yaml_file#$scenario_path/}"
-            fi
-        done
-    fi
-    
-    # 4. Validate resource configurations match expected patterns
-    log_info "Validating resource configurations..."
-    
-    # Extract all resources
-    local all_resources
-    all_resources=$(echo "$SERVICE_JSON" | jq -r '
-        .resources | 
-        to_entries[] | 
-        .value | 
-        to_entries[] | 
-        .key
-    ' 2>/dev/null || true)
-    
-    # 5. Check required inject.sh scripts exist (for runtime use)
-    log_info "Checking injection handlers (for runtime use)..."
-    local resources_without_handlers=()
-    
-    while IFS= read -r resource; do
-        [[ -z "$resource" ]] && continue
-        
-        # Check if resource has an inject.sh script
-        local inject_script
-        inject_script=$(find "${PROJECT_ROOT}/scripts/resources" \
-            -name "inject.sh" \
-            -path "*/${resource}/*" \
-            2>/dev/null | head -1)
-        
-        if [[ -z "$inject_script" ]]; then
-            # Check if resource has initialization data
-            local has_init_data
-            has_init_data=$(echo "$SERVICE_JSON" | jq -r "
-                .resources | 
-                to_entries[] | 
-                .value.\"$resource\".initialization // false
-            " 2>/dev/null || echo "false")
-            
-            if [[ "$has_init_data" != "false" ]]; then
-                resources_without_handlers+=("$resource")
-                log_warning "  ⚠ Resource '$resource' has initialization data but no injection handler"
-            fi
-        else
-            [[ "$VERBOSE" == true ]] && log_success "  ✓ Handler found: $resource"
-        fi
-    done <<< "$all_resources"
-    
-    # 6. Check for conflicting resource requirements
-    log_info "Checking for resource conflicts..."
-    
-    # Check port conflicts
-    local ports=()
-    local port_conflicts=()
-    
-    local resource_ports
-    resource_ports=$(echo "$SERVICE_JSON" | jq -r '
-        .resources | 
-        to_entries[] | 
-        .value | 
-        to_entries[] | 
-        select(.value.port // false) | 
-        "\(.key):\(.value.port)"
-    ' 2>/dev/null || true)
-    
-    while IFS=: read -r resource port; do
-        [[ -z "$port" ]] && continue
-        if [[ " ${ports[@]} " =~ " ${port} " ]]; then
-            port_conflicts+=("Port $port used by multiple resources")
-        else
-            ports+=("$port")
-        fi
-    done <<< "$resource_ports"
-    
-    # Report validation results
-    local validation_passed=true
-    
-    if [[ ${#missing_files[@]} -gt 0 ]]; then
-        log_error "Missing files: ${#missing_files[@]}"
-        validation_passed=false
-    fi
-    
-    if [[ ${#invalid_files[@]} -gt 0 ]]; then
-        log_error "Invalid files: ${#invalid_files[@]}"
-        validation_passed=false
-    fi
-    
-    if [[ ${#resources_without_handlers[@]} -gt 0 ]]; then
-        log_warning "Resources without handlers: ${#resources_without_handlers[@]}"
-        # This is a warning, not a failure
-    fi
-    
-    if [[ ${#port_conflicts[@]} -gt 0 ]]; then
-        log_error "Port conflicts detected: ${port_conflicts[*]}"
-        validation_passed=false
-    fi
-    
-    if [[ "$validation_passed" == true ]]; then
+    # Use the new service-json-validator module for comprehensive validation
+    # This replaces all the buggy JQ queries and duplicated validation logic
+    if validate_deployment_readiness "$scenario_path" "$SERVICE_JSON"; then
         log_success "✅ Injection readiness validation passed"
         log_info "Note: This is validation-only mode. Actual resource injection will happen at runtime."
         return 0
@@ -599,15 +302,24 @@ package_scenario_app() {
     
     log_step "Packaging scenario app for $deployment_mode deployment..."
     
-    # Create deployment directory structure
-    mkdir -p "${target_dir}"/{bin,config,data,scripts,manifests}
+    # Create deployment directory structure using fs-operations
+    if ! create_app_directory_structure "$target_dir"; then
+        log_error "Failed to create app directory structure"
+        return 1
+    fi
     
-    # Copy scenario files to target location
+    # Copy scenario files to target location using fs-operations
     log_info "Copying scenario files..."
-    cp -r "${scenario_path}"/* "${target_dir}/data/" 2>/dev/null || true
+    if ! copy_scenario_files "$scenario_path" "${target_dir}/data"; then
+        log_error "Failed to copy scenario files"
+        return 1
+    fi
     
-    # Copy service.json to config directory
-    cp "${scenario_path}/service.json" "${target_dir}/config/"
+    # Copy service.json to config directory using fs-operations
+    if ! copy_file_safely "${scenario_path}/service.json" "${target_dir}/config/service.json"; then
+        log_error "Failed to copy service.json to config directory"
+        return 1
+    fi
     
     # Generate runtime injection manifest
     log_info "Generating runtime injection manifest..."
@@ -644,9 +356,9 @@ package_scenario_app() {
             ;;
     esac
     
-    # Make scripts executable
-    chmod +x "${target_dir}"/bin/* 2>/dev/null || true
-    chmod +x "${target_dir}"/scripts/* 2>/dev/null || true
+    # Make scripts executable using fs-operations
+    make_executable "${target_dir}/bin" "*"
+    make_executable "${target_dir}/scripts" "*"
     
     log_success "✅ Scenario app packaged successfully"
     return 0
@@ -1100,65 +812,21 @@ validate_service_config() {
     return 0
 }
 
-# Create safe backup with metadata
-create_safe_backup() {
-    local source_file="$1"
-    local backup_reason="${2:-manual}"
-    
-    if [[ ! -f "$source_file" ]]; then
-        log_warning "Source file not found for backup: $source_file"
-        return 1
-    fi
-    
-    local timestamp
-    timestamp=$(date +%Y%m%d_%H%M%S)
-    local backup_file="${source_file}.backup.${timestamp}.${backup_reason}"
-    
-    if cp "$source_file" "$backup_file"; then
-        # Create metadata file
-        cat > "${backup_file}.meta" << EOF
-{
-  "source_file": "$source_file",
-  "backup_time": "$(date -Iseconds)",
-  "backup_reason": "$backup_reason",
-  "script_version": "scenario-to-app.sh",
-  "user": "$(whoami)",
-  "pwd": "$(pwd)"
-}
-EOF
-        [[ "$VERBOSE" == true ]] && log_info "Created backup: $backup_file"
-        echo "$backup_file"
-        return 0
-    else
-        log_error "Failed to create backup of: $source_file"
-        return 1
-    fi
-}
+# Note: create_safe_backup function now provided by fs-operations.sh module
 
 # Pre-flight safety checks before any modifications
 preflight_safety_check() {
     local service_config="$1"
     
-    [[ "$VERBOSE" == true ]] && log_step "Running pre-flight safety checks..."
-    
-    # Check if we have write permissions
+    # Use fs-operations run_preflight_checks function
     local config_dir
     config_dir=$(dirname "$service_config")
-    if [[ ! -w "$config_dir" ]]; then
-        log_error "No write permission to config directory: $config_dir"
+    
+    if ! run_preflight_checks "$config_dir"; then
         return 1
     fi
     
-    # Check for required tools
-    local required_tools=("jq" "cp" "mv" "date")
-    for tool in "${required_tools[@]}"; do
-        if ! command -v "$tool" >/dev/null 2>&1; then
-            log_error "Required tool not found: $tool"
-            return 1
-        fi
-    done
-    
-    # Validate existing config if it exists
+    # Additional validation for existing config if it exists
     if [[ -f "$service_config" ]]; then
         if ! validate_service_config "$service_config" "full"; then
             log_error "Existing service config is invalid"
@@ -1215,7 +883,9 @@ execute_rollback() {
 
 main() {
     # Parse arguments
-    parse_args "$@"
+    if ! parse_args "$@"; then
+        exit $?
+    fi
     
     # Show banner
     log_banner "Vrooli Scenario-to-App Converter (Validation-Only Mode)"
