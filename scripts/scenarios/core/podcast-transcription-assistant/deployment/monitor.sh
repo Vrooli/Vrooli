@@ -65,8 +65,8 @@ trap cleanup_and_exit SIGTERM SIGINT
 
 # Helper functions
 get_required_resources() {
-    if [[ -f "$SCENARIO_DIR/metadata.yaml" ]]; then
-        grep -A 10 "required:" "$SCENARIO_DIR/metadata.yaml" | grep "^[[:space:]]*-" | sed 's/^[[:space:]]*-[[:space:]]*//' | tr '\n' ' '
+    if [[ -f "$SCENARIO_DIR/.vrooli/service.json" ]]; then
+        jq -r '.resources | to_entries[] | .value | to_entries[] | select(.value.required == true) | .key' "$SCENARIO_DIR/.vrooli/service.json" 2>/dev/null | tr '\n' ' '
     fi
 }
 
@@ -96,13 +96,13 @@ check_service_health() {
 }
 
 check_database_health() {
-    local db_name="${SCENARIO_ID//-/_}"
+    local db_name="podcast_transcription_assistant"
     
     if command -v pg_isready >/dev/null 2>&1; then
-        if pg_isready -h localhost -p 5433 -d "$db_name" >/dev/null 2>&1; then
+        if PGPASSWORD=postgres pg_isready -h localhost -p 5433 -U postgres -d "$db_name" >/dev/null 2>&1; then
             # Test actual query performance
             local start_time=$(date +%s%3N)
-            if psql -h localhost -p 5433 -U postgres -d "$db_name" -c "SELECT 1;" >/dev/null 2>&1; then
+            if PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d "$db_name" -c "SELECT COUNT(*) FROM podcast_transcription_assistant.app_config;" >/dev/null 2>&1; then
                 local end_time=$(date +%s%3N)
                 local query_time=$((end_time - start_time))
                 log_health "✓ Database healthy (${query_time}ms)"
@@ -123,8 +123,9 @@ check_database_health() {
 
 test_webhook_performance() {
     if [[ "$REQUIRED_RESOURCES" =~ "n8n" ]]; then
-        local webhook_url="http://localhost:5678/webhook/${SCENARIO_ID}-webhook"
-        local test_payload='{"test": true, "monitoring": true, "timestamp": "'$(date -Iseconds)'"}'
+        # Test semantic search webhook (lightweight test)
+        local webhook_url="http://localhost:5678/webhook/semantic-search"
+        local test_payload='{"query": "test monitoring query", "limit": 1}'
         
         local start_time=$(date +%s%3N)
         local response_code
@@ -136,7 +137,7 @@ test_webhook_performance() {
             local response_time=$((end_time - start_time))
             
             if [[ "$response_code" -ge 200 && "$response_code" -lt 400 ]]; then
-                log_performance "Webhook response: ${response_time}ms (HTTP $response_code)"
+                log_performance "Search webhook response: ${response_time}ms (HTTP $response_code)"
                 
                 if [[ $response_time -gt $RESPONSE_TIME_THRESHOLD_MS ]]; then
                     log_alert "Webhook response time exceeded threshold: ${response_time}ms > ${RESPONSE_TIME_THRESHOLD_MS}ms"
@@ -144,12 +145,22 @@ test_webhook_performance() {
                 
                 return 0
             else
-                log_alert "Webhook test failed (HTTP $response_code)"
+                log_alert "Search webhook test failed (HTTP $response_code)"
                 return 1
             fi
         else
-            log_alert "Webhook test failed (connection error)"
+            log_alert "Search webhook test failed (connection error)"
             return 1
+        fi
+    fi
+    
+    # Test transcription functionality if available
+    if [[ "$REQUIRED_RESOURCES" =~ "whisper" ]]; then
+        local whisper_health=$(curl -s -o /dev/null -w "%{http_code}" --max-time 5 "http://localhost:8090/health" 2>/dev/null)
+        if [[ "$whisper_health" == "200" ]]; then
+            log_performance "Whisper service responsive"
+        else
+            log_alert "Whisper service not responding properly"
         fi
     fi
 }
@@ -361,6 +372,14 @@ start_monitoring() {
     # Load required resources
     REQUIRED_RESOURCES=$(get_required_resources)
     log_monitor "Monitoring resources: $REQUIRED_RESOURCES"
+    
+    # Verify we have the expected resources for podcast transcription
+    local expected_resources=("postgres" "minio" "qdrant" "whisper" "ollama" "n8n" "windmill")
+    for resource in "${expected_resources[@]}"; do
+        if [[ ! "$REQUIRED_RESOURCES" =~ "$resource" ]]; then
+            log_health "⚠ Expected resource '$resource' not found in configuration"
+        fi
+    done
     
     # Start monitoring loops in background
     health_monitoring_loop &

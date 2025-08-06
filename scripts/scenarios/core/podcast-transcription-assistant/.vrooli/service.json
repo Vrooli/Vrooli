@@ -48,23 +48,23 @@
           "data": [
             {
               "type": "schema",
-              "file": "initialization/database/schema.sql"
+              "file": "initialization/storage/schema.sql"
             },
             {
               "type": "seed",
-              "file": "initialization/database/seed.sql"
+              "file": "initialization/storage/seed.sql"
             }
           ]
         }
       },
       "minio": {
         "type": "minio",
-        "enabled": false,
-        "required": false,
+        "enabled": true,
+        "required": true,
         "initialization": {
           "buckets": [
             {
-              "name": "podcast-audio",
+              "name": "audio-files",
               "policy": "private"
             },
             {
@@ -72,7 +72,7 @@
               "policy": "private"
             },
             {
-              "name": "show-notes",
+              "name": "exports",
               "policy": "private"
             }
           ]
@@ -80,21 +80,12 @@
       },
       "qdrant": {
         "type": "qdrant",
-        "enabled": false,
-        "required": false,
+        "enabled": true,
+        "required": true,
         "initialization": {
           "collections": [
             {
-              "name": "podcast-content",
-              "config": {
-                "vectors": {
-                  "size": 384,
-                  "distance": "Cosine"
-                }
-              }
-            },
-            {
-              "name": "episode-similarity",
+              "name": "transcription-embeddings",
               "config": {
                 "vectors": {
                   "size": 384,
@@ -118,26 +109,53 @@
       }
     },
     "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "workflows": [
+            {
+              "name": "transcription-pipeline",
+              "file": "initialization/automation/n8n/transcription-pipeline.json"
+            },
+            {
+              "name": "ai-analysis-workflow",
+              "file": "initialization/automation/n8n/ai-analysis-workflow.json"
+            },
+            {
+              "name": "semantic-search",
+              "file": "initialization/automation/n8n/semantic-search.json"
+            }
+          ]
+        }
+      },
       "windmill": {
-        "enabled": false,
-        "required": false,
+        "type": "windmill",
+        "enabled": true,
+        "required": true,
         "initialization": {
           "apps": [
             {
-              "path": "f/podcast-assistant/dashboard",
-              "file": "initialization/ui/windmill-podcast-app.json",
-              "summary": "Podcast Content Management Dashboard"
+              "path": "f/podcast-transcription/manager",
+              "file": "initialization/automation/windmill/transcription-manager-app.json",
+              "summary": "Podcast Transcription Manager with AI Analysis"
             }
           ],
           "scripts": [
             {
-              "name": "transcription-processor",
-              "file": "initialization/scripts/transcription-processor.ts",
+              "name": "upload-handler",
+              "file": "initialization/automation/windmill/scripts/upload-handler.ts",
               "language": "typescript"
             },
             {
-              "name": "show-notes-generator",
-              "file": "initialization/scripts/show-notes-generator.ts",
+              "name": "search-handler",
+              "file": "initialization/automation/windmill/scripts/search-handler.ts",
+              "language": "typescript"
+            },
+            {
+              "name": "ai-analysis",
+              "file": "initialization/automation/windmill/scripts/ai-analysis.ts",
               "language": "typescript"
             }
           ]
@@ -152,21 +170,11 @@
       "application": "http://localhost:3000",
       "api": "http://localhost:3000/api/podcast-transcription-assistant",
       "health": "http://localhost:3000/api/podcast-transcription-assistant/health",
-      "windmill": "http://localhost:8000"
+      "windmill": "http://localhost:5681",
+      "n8n": "http://localhost:5678"
     },
     "initialization": {
       "phases": [
-        {
-          "name": "pre-validation",
-          "tasks": [
-            {
-              "name": "validate-resources",
-              "type": "script",
-              "script": "./deployment/validate.sh",
-              "timeout": "30s"
-            }
-          ]
-        },
         {
           "name": "database-setup",
           "tasks": [
@@ -174,13 +182,13 @@
               "name": "apply-schema",
               "type": "sql",
               "target": "storage.postgres",
-              "file": "initialization/database/schema.sql"
+              "file": "initialization/storage/schema.sql"
             },
             {
               "name": "seed-data",
               "type": "sql",
               "target": "storage.postgres",
-              "file": "initialization/database/seed.sql"
+              "file": "initialization/storage/seed.sql"
             }
           ]
         },
@@ -213,10 +221,21 @@
               "timeout": "2m"
             },
             {
+              "name": "setup-file-storage",
+              "type": "resource-inject",
+              "target": "storage.minio",
+              "timeout": "2m"
+            },
+            {
+              "name": "deploy-n8n-workflows",
+              "type": "resource-inject",
+              "target": "automation.n8n",
+              "timeout": "3m"
+            },
+            {
               "name": "deploy-windmill-apps",
               "type": "resource-inject",
               "target": "automation.windmill",
-              "config": "initialization/ui/",
               "timeout": "3m"
             }
           ]
@@ -287,7 +306,17 @@
           "timeout": "15s"
         },
         "windmill": {
-          "endpoint": "http://localhost:8000/api/version",
+          "endpoint": "http://localhost:5681/api/version",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "n8n": {
+          "endpoint": "http://localhost:5678/healthz",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "minio": {
+          "endpoint": "http://localhost:9000/minio/health/live",
           "interval": "60s",
           "timeout": "10s"
         },
@@ -298,7 +327,7 @@
         },
         "database": {
           "type": "tcp",
-          "port": 5432,
+          "port": 5433,
           "interval": "30s"
         }
       },
@@ -326,6 +355,16 @@
           "target": "automation.windmill"
         },
         {
+          "name": "delete-n8n-workflows",
+          "type": "resource-cleanup",
+          "target": "automation.n8n"
+        },
+        {
+          "name": "clear-file-storage",
+          "type": "resource-cleanup",
+          "target": "storage.minio"
+        },
+        {
           "name": "drop-database",
           "type": "sql",
           "target": "storage.postgres",
@@ -345,7 +384,7 @@
       "ui": {
         "required": false,
         "type": "windmill",
-        "url": "http://localhost:8000"
+        "url": "http://localhost:5681"
       },
       "performance": {
         "loadTest": {
@@ -490,12 +529,12 @@
           "provider": "ollama"
         },
         "vectorSearch": {
-          "enabled": false,
+          "enabled": true,
           "provider": "qdrant"
         },
         "workflowAutomation": {
-          "enabled": false,
-          "provider": "windmill"
+          "enabled": true,
+          "provider": "n8n"
         }
       },
       "integrations": [

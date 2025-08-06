@@ -1,179 +1,198 @@
 {
+  "campaign_features": {
+    "campaign_management": {
+      "enabled": true,
+      "max_campaigns_per_user": 10,
+      "campaign_templates": true,
+      "campaign_analytics": true,
+      "campaign_sharing": false
+    },
+    
+    "multi_campaign_support": {
+      "enabled": true,
+      "tab_interface": true,
+      "campaign_switching": true,
+      "bulk_operations": true
+    },
+    
+    "campaign_collaboration": {
+      "enabled": false,
+      "team_access": false,
+      "role_permissions": false,
+      "comment_system": false
+    }
+  },
+  
   "ai_features": {
+    "context_aware_generation": {
+      "enabled": true,
+      "document_context": true,
+      "semantic_search": true,
+      "relevance_scoring": true,
+      "context_preview": true
+    },
+    
     "text_generation": {
-      "enabled": {{ "true" if "ollama" in resources.required else "false" }},
-      "models": {{ '["llama3.1:8b", "qwen2.5-coder:7b"]' if "ollama" in resources.required else "[]" }},
-      "max_tokens": 2048,
-      "temperature_range": [0.1, 1.0]
+      "enabled": true,
+      "models": ["llama3.1:8b"],
+      "max_tokens": 4000,
+      "temperature_range": [0.1, 1.0],
+      "content_templates": true
     },
     
     "speech_to_text": {
-      "enabled": {{ "true" if "whisper" in resources.required else "false" }},
-      "supported_formats": {{ '["wav", "mp3", "ogg", "m4a"]' if "whisper" in resources.required else "[]" }},
-      "max_audio_duration_seconds": 300
+      "enabled": true,
+      "supported_formats": ["wav", "mp3", "ogg", "m4a"],
+      "max_audio_duration_seconds": 600,
+      "voice_to_content": true
     },
     
     "image_generation": {
-      "enabled": {{ "true" if "comfyui" in resources.required else "false" }},
-      "supported_formats": {{ '["png", "jpg", "jpeg"]' if "comfyui" in resources.required else "[]" }},
-      "max_resolution": {{ '"1024x1024"' if "comfyui" in resources.required else 'null' }}
+      "enabled": true,
+      "supported_formats": ["png", "jpg", "jpeg"],
+      "max_resolution": "1200x800",
+      "blog_headers": true,
+      "social_media_graphics": true,
+      "auto_generation": true
     },
     
     "document_processing": {
-      "enabled": {{ "true" if "unstructured-io" in resources.required else "false" }},
-      "supported_formats": {{ '["pdf", "docx", "txt", "html"]' if "unstructured-io" in resources.required else "[]" }},
-      "max_file_size_mb": 25
+      "enabled": true,
+      "supported_formats": ["pdf", "docx", "txt", "html", "md"],
+      "max_file_size_mb": 50,
+      "auto_text_extraction": true,
+      "metadata_extraction": true,
+      "content_chunking": true
     },
     
-    "vision_analysis": {
-      "enabled": {{ "true" if "llava:7b" in get_available_models() else "false" }},
-      "supported_formats": ["jpg", "jpeg", "png", "gif", "webp"],
-      "max_image_size_mb": 10
+    "embedding_generation": {
+      "enabled": true,
+      "model": "nomic-embed-text:latest",
+      "dimensions": 384,
+      "batch_processing": true,
+      "incremental_updates": true
+    }
+  },
+  
+  "content_management_features": {
+    "content_history": {
+      "enabled": true,
+      "version_tracking": true,
+      "content_analytics": true,
+      "export_options": true
+    },
+    
+    "content_templates": {
+      "enabled": true,
+      "custom_templates": true,
+      "template_sharing": false,
+      "template_marketplace": false
+    },
+    
+    "content_optimization": {
+      "enabled": true,
+      "seo_suggestions": true,
+      "readability_analysis": false,
+      "sentiment_analysis": false
     }
   },
   
   "automation_features": {
     "workflow_automation": {
-      "enabled": {{ "true" if "n8n" in resources.required else "false" }},
-      "max_concurrent_workflows": 5,
+      "enabled": true,
+      "max_concurrent_workflows": 10,
       "webhook_support": true,
-      "scheduling_support": true
+      "scheduling_support": false
     },
     
-    "screen_automation": {
-      "enabled": {{ "true" if "agent-s2" in resources.required else "false" }},
-      "screenshot_support": true,
-      "mouse_automation": true,
-      "keyboard_automation": true,
-      "requires_display": {{ testing.requires_display | default(false) }}
-    },
-    
-    "web_automation": {
-      "enabled": {{ "true" if "browserless" in resources.required else "false" }},
-      "pdf_generation": true,
-      "screenshot_capture": true,
-      "scraping_support": true
-    },
-    
-    "professional_ui": {
-      "enabled": {{ "true" if "windmill" in resources.required else "false" }},
-      "custom_branding": true,
-      "dashboard_creation": true,
-      "script_execution": true
-    },
-    
-    "real_time_dashboard": {
-      "enabled": {{ "true" if "node-red" in resources.required else "false" }},
-      "live_monitoring": true,
-      "event_processing": true,
-      "websocket_support": true
+    "batch_processing": {
+      "enabled": true,
+      "bulk_document_upload": true,
+      "batch_content_generation": false,
+      "scheduled_generation": false
     }
   },
   
   "storage_features": {
+    "campaign_isolation": {
+      "enabled": true,
+      "separate_storage_buckets": true,
+      "campaign_specific_access": true,
+      "data_segregation": true
+    },
+    
     "file_storage": {
-      "enabled": {{ "true" if "minio" in resources.required else "false" }},
+      "enabled": true,
       "public_access": false,
       "versioning": true,
-      "encryption": false
+      "encryption": false,
+      "automatic_cleanup": true
     },
     
-    "vector_search": {
-      "enabled": {{ "true" if "qdrant" in resources.required else "false" }},
+    "semantic_search": {
+      "enabled": true,
       "embedding_dimensions": 384,
       "similarity_threshold": 0.7,
-      "max_results": 100
+      "max_results": 100,
+      "campaign_scoped_search": true,
+      "real_time_search": true
     },
     
-    "time_series_analytics": {
-      "enabled": {{ "true" if "questdb" in resources.required else "false" }},
-      "real_time_ingestion": true,
-      "historical_analysis": true,
-      "performance_monitoring": true
-    },
-    
-    "caching": {
-      "enabled": {{ "true" if "redis" in resources.required else "false" }},
-      "session_storage": true,
-      "response_caching": true,
-      "pub_sub_messaging": true
-    },
-    
-    "secret_management": {
-      "enabled": {{ "true" if "vault" in resources.required else "false" }},
-      "dynamic_secrets": true,
-      "rotation_support": true,
-      "audit_logging": true
+    "content_backup": {
+      "enabled": true,
+      "automatic_backups": true,
+      "backup_retention_days": 90,
+      "point_in_time_recovery": false
     }
   },
   
   "business_features": {
-    "analytics_dashboard": {
-      "enabled": {{ "true" if testing.requires_ui else "false" }},
-      "usage_metrics": true,
-      "performance_metrics": true,
-      "cost_tracking": true,
-      "export_reports": true
+    "campaign_analytics": {
+      "enabled": true,
+      "content_performance": true,
+      "generation_metrics": true,
+      "usage_tracking": true,
+      "roi_tracking": false
     },
     
     "user_management": {
-      "enabled": false,  # Enable when auth is implemented
+      "enabled": true,
       "multi_tenancy": false,
       "role_based_access": false,
-      "session_management": true
+      "session_management": true,
+      "user_preferences": true
     },
     
     "api_access": {
       "enabled": true,
       "rate_limiting": true,
-      "api_key_auth": false,  # Enable in production
-      "webhook_support": true
+      "api_key_auth": false,
+      "webhook_support": true,
+      "rest_api": true
     },
     
     "monitoring_alerts": {
       "enabled": true,
       "error_notifications": true,
       "performance_alerts": true,
-      "resource_health_alerts": true
-    }
-  },
-  
-  "search_features": {
-    "web_search": {
-      "enabled": {{ "true" if "searxng" in resources.required else "false" }},
-      "privacy_focused": true,
-      "multiple_engines": true,
-      "result_filtering": true
-    },
-    
-    "semantic_search": {
-      "enabled": {{ "true" if "qdrant" in resources.required and "ollama" in resources.required else "false" }},
-      "auto_embedding": true,
-      "similarity_ranking": true,
-      "context_aware": true
+      "resource_health_alerts": true,
+      "campaign_alerts": true
     }
   },
   
   "integration_features": {
-    "external_apis": {
+    "campaign_import_export": {
       "enabled": true,
-      "timeout_handling": true,
-      "retry_logic": true,
-      "response_caching": true
+      "export_formats": ["json", "csv", "markdown"],
+      "bulk_export": true,
+      "campaign_templates": true
     },
     
-    "webhooks": {
+    "content_export": {
       "enabled": true,
-      "authentication": false,  # Enable in production
-      "payload_validation": true,
-      "delivery_confirmation": true
-    },
-    
-    "import_export": {
-      "enabled": true,
-      "data_formats": ["json", "csv", "yaml"],
-      "bulk_operations": true,
-      "backup_restore": true
+      "formats": ["markdown", "html", "plain_text"],
+      "bulk_export": true,
+      "scheduled_exports": false
     }
   },
   
@@ -182,41 +201,35 @@
       "enabled": true,
       "verbose_logging": true,
       "performance_profiling": true,
-      "mock_services": false
+      "mock_services": false,
+      "workflow_debugging": true
     },
     
     "testing_utilities": {
       "enabled": true,
-      "sample_data": true,
-      "load_testing": false,
+      "sample_campaigns": true,
+      "test_content_generation": true,
       "integration_tests": true
-    },
-    
-    "hot_reload": {
-      "enabled": true,
-      "auto_restart": true,
-      "config_watching": true,
-      "asset_reloading": true
     }
   },
   
   "experimental_features": {
-    "ai_workflow_generation": {
+    "ai_campaign_optimization": {
       "enabled": false,
-      "auto_optimization": false,
-      "learning_from_usage": false
+      "auto_content_suggestions": false,
+      "learning_from_performance": false
     },
     
-    "predictive_scaling": {
+    "advanced_context_understanding": {
       "enabled": false,
-      "usage_prediction": false,
-      "auto_resource_allocation": false
+      "cross_campaign_insights": false,
+      "semantic_relationships": false
     },
     
-    "advanced_analytics": {
+    "predictive_content_generation": {
       "enabled": false,
-      "behavioral_analysis": false,
-      "recommendation_engine": false
+      "trend_analysis": false,
+      "content_recommendations": false
     }
   }
 }

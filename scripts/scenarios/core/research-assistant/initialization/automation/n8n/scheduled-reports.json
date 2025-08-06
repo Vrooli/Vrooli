@@ -1,0 +1,426 @@
+{
+  "name": "Scheduled Reports - Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 5
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Check Schedules Every 5 Minutes",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM research_assistant.report_schedules \nWHERE is_active = true \nAND (next_run_at IS NULL OR next_run_at <= NOW())\nORDER BY next_run_at ASC\nLIMIT 10",
+        "additionalFields": {}
+      },
+      "id": "get-due-schedules",
+      "name": "Get Due Schedules",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [460, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-research",
+          "name": "Research Assistant DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has_schedules",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "numeric",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-schedules-exist",
+      "name": "Check if Schedules Exist",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-schedules",
+      "name": "Process Each Schedule",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [900, 240]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process scheduled report request\nconst schedule = $input.item.json;\n\n// Get current date information for template variables\nconst now = new Date();\nconst dateString = now.toISOString().split('T')[0]; // YYYY-MM-DD\nconst monthNames = ['January', 'February', 'March', 'April', 'May', 'June',\n  'July', 'August', 'September', 'October', 'November', 'December'];\nconst month = monthNames[now.getMonth()];\nconst year = now.getFullYear();\n\n// Calculate week information\nconst weekStart = new Date(now);\nweekStart.setDate(now.getDate() - now.getDay()); // Sunday\nconst weekEnd = new Date(weekStart);\nweekEnd.setDate(weekStart.getDate() + 6); // Saturday\n\nconst weekStartString = weekStart.toISOString().split('T')[0];\nconst weekEndString = weekEnd.toISOString().split('T')[0];\n\n// Template variable replacements\nconst templateVars = {\n  '{{DATE}}': dateString,\n  '{{MONTH}}': month,\n  '{{YEAR}}': year.toString(),\n  '{{WEEK_START}}': weekStartString,\n  '{{WEEK_END}}': weekEndString,\n  '{{TODAY}}': now.toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }),\n  '{{TIME}}': now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })\n};\n\n// Process topic template\nlet processedTopic = schedule.topic_template;\nObject.keys(templateVars).forEach(key => {\n  processedTopic = processedTopic.replace(new RegExp(key.replace(/[{}]/g, '\\\\$&'), 'g'), templateVars[key]);\n});\n\n// Calculate next run time based on cron expression\nfunction calculateNextRun(cronExpr) {\n  // Simple cron parser for common patterns\n  // Format: minute hour day month dayOfWeek\n  const parts = cronExpr.split(' ');\n  if (parts.length !== 5) return new Date(now.getTime() + 24 * 60 * 60 * 1000); // Default to 1 day\n  \n  const [minute, hour, day, month, dayOfWeek] = parts;\n  const nextRun = new Date(now);\n  \n  // Daily schedule (e.g., \"0 9 * * *\")\n  if (day === '*' && month === '*' && dayOfWeek === '*') {\n    nextRun.setDate(now.getDate() + 1);\n    nextRun.setHours(parseInt(hour));\n    nextRun.setMinutes(parseInt(minute));\n    nextRun.setSeconds(0);\n    return nextRun;\n  }\n  \n  // Weekly schedule (e.g., \"0 10 * * 1\")\n  if (day === '*' && month === '*' && dayOfWeek !== '*') {\n    const targetDay = parseInt(dayOfWeek);\n    const daysUntilTarget = (7 + targetDay - now.getDay()) % 7;\n    const daysToAdd = daysUntilTarget === 0 ? 7 : daysUntilTarget;\n    nextRun.setDate(now.getDate() + daysToAdd);\n    nextRun.setHours(parseInt(hour));\n    nextRun.setMinutes(parseInt(minute));\n    nextRun.setSeconds(0);\n    return nextRun;\n  }\n  \n  // Monthly schedule (e.g., \"0 8 1 * *\")\n  if (day !== '*' && month === '*' && dayOfWeek === '*') {\n    const targetDay = parseInt(day);\n    nextRun.setMonth(now.getMonth() + 1);\n    nextRun.setDate(targetDay);\n    nextRun.setHours(parseInt(hour));\n    nextRun.setMinutes(parseInt(minute));\n    nextRun.setSeconds(0);\n    return nextRun;\n  }\n  \n  // Default fallback\n  return new Date(now.getTime() + 24 * 60 * 60 * 1000);\n}\n\nconst nextRunTime = calculateNextRun(schedule.cron_expression);\n\n// Prepare research request\nconst researchRequest = {\n  id: `scheduled-${schedule.id}-${Date.now()}`,\n  topic: processedTopic,\n  depth: schedule.depth,\n  target_length: schedule.target_length,\n  language: 'en',\n  requested_by: 'scheduler',\n  organization: schedule.organization || 'default',\n  schedule_id: schedule.id,\n  custom_prompts: schedule.custom_prompts || {},\n  search_filters: schedule.search_filters || {}\n};\n\nreturn {\n  schedule: schedule,\n  research_request: researchRequest,\n  next_run_at: nextRunTime.toISOString(),\n  processed_topic: processedTopic,\n  template_vars: templateVars\n};"
+      },
+      "id": "process-schedule",
+      "name": "Process Schedule Template",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 240]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/research-request",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "body",
+              "value": "={{ JSON.stringify($json.research_request) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000,
+          "retry": {
+            "enabled": true,
+            "maxRetries": 2
+          }
+        }
+      },
+      "id": "trigger-research",
+      "name": "Trigger Research Pipeline",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1340, 240]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process the research result\nconst schedule = $input.item.json.schedule;\nconst researchResponse = $('Trigger Research Pipeline').item.json;\nconst nextRunAt = $input.item.json.next_run_at;\n\nlet updateData = {\n  schedule_id: schedule.id,\n  last_run_at: new Date().toISOString(),\n  next_run_at: nextRunAt,\n  total_runs: schedule.total_runs + 1\n};\n\nif (researchResponse.success) {\n  updateData.successful_runs = schedule.successful_runs + 1;\n  updateData.status = 'completed';\n  updateData.last_report_id = researchResponse.report_id;\n} else {\n  updateData.failed_runs = schedule.failed_runs + 1;\n  updateData.status = 'failed';\n  updateData.last_error = researchResponse.error || 'Unknown error';\n}\n\n// Prepare notification data if needed\nconst shouldNotify = schedule.notification_emails && schedule.notification_emails.length > 0;\nconst notification = shouldNotify ? {\n  emails: schedule.notification_emails,\n  subject: researchResponse.success \n    ? `Research Report Completed: ${$input.item.json.processed_topic}`\n    : `Research Report Failed: ${$input.item.json.processed_topic}`,\n  content: researchResponse.success\n    ? `Your scheduled research report has been completed successfully.\\n\\nReport Details:\\n- Title: ${$input.item.json.processed_topic}\\n- Word Count: ${researchResponse.word_count}\\n- Sources: ${researchResponse.sources_count}\\n- Confidence Score: ${researchResponse.confidence_score}\\n- Processing Time: ${researchResponse.processing_time_seconds} seconds\\n\\nView Report: http://localhost:5681/f/research-assistant/viewer?id=${researchResponse.report_id}\\nDownload PDF: ${researchResponse.pdf_url}`\n    : `Your scheduled research report failed to complete.\\n\\nError: ${researchResponse.error}\\n\\nSchedule: ${schedule.name}\\nTopic: ${$input.item.json.processed_topic}\\n\\nPlease check the schedule configuration and try again.`,\n  report_id: researchResponse.report_id\n} : null;\n\nreturn {\n  update_data: updateData,\n  notification: notification,\n  research_result: researchResponse\n};"
+      },
+      "id": "process-result",
+      "name": "Process Research Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 240]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE research_assistant.report_schedules \nSET last_run_at = '{{ $json.update_data.last_run_at }}',\n    next_run_at = '{{ $json.update_data.next_run_at }}',\n    total_runs = {{ $json.update_data.total_runs }},\n    successful_runs = {{ $json.update_data.successful_runs || 0 }},\n    failed_runs = {{ $json.update_data.failed_runs || 0 }}\nWHERE id = '{{ $json.update_data.schedule_id }}'",
+        "additionalFields": {}
+      },
+      "id": "update-schedule",
+      "name": "Update Schedule Record",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1780, 240],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-research",
+          "name": "Research Assistant DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has_notification",
+              "leftValue": "={{ $json.notification }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-notification",
+      "name": "Check if Notification Needed",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2000, 240]
+    },
+    {
+      "parameters": {
+        "operation": "sendEmail",
+        "fromEmail": "research-assistant@vrooli.local",
+        "toEmail": "={{ $json.notification.emails.join(',') }}",
+        "subject": "={{ $json.notification.subject }}",
+        "emailFormat": "text",
+        "message": "={{ $json.notification.content }}",
+        "additionalFields": {}
+      },
+      "id": "send-notification",
+      "name": "Send Email Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [2220, 180]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has_webhooks",
+              "leftValue": "={{ $('Process Schedule Template').item.json.schedule.notification_webhooks }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-webhook",
+      "name": "Check for Webhook Notifications",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2220, 300]
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "split-webhooks",
+      "name": "Split Webhook URLs",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [2440, 300]
+    },
+    {
+      "parameters": {
+        "url": "={{ $('Process Schedule Template').item.json.schedule.notification_webhooks[$json.index] }}",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "event",
+              "value": "scheduled_report_completed"
+            },
+            {
+              "name": "schedule_id",
+              "value": "={{ $('Process Schedule Template').item.json.schedule.id }}"
+            },
+            {
+              "name": "schedule_name",
+              "value": "={{ $('Process Schedule Template').item.json.schedule.name }}"
+            },
+            {
+              "name": "report_data",
+              "value": "={{ JSON.stringify($('Process Research Result').item.json.research_result) }}"
+            },
+            {
+              "name": "timestamp",
+              "value": "={{ new Date().toISOString() }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "send-webhook",
+      "name": "Send Webhook Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2660, 300]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Log completion summary\nconst completedSchedules = $input.all().length;\nconst successfulReports = $input.all().filter(item => \n  item.json.research_result && item.json.research_result.success\n).length;\nconst failedReports = completedSchedules - successfulReports;\n\nconsole.log(`Scheduled Reports Summary:`);\nconsole.log(`- Processed Schedules: ${completedSchedules}`);\nconsole.log(`- Successful Reports: ${successfulReports}`);\nconsole.log(`- Failed Reports: ${failedReports}`);\nconsole.log(`- Completion Time: ${new Date().toISOString()}`);\n\nreturn {\n  summary: {\n    processed_schedules: completedSchedules,\n    successful_reports: successfulReports,\n    failed_reports: failedReports,\n    completion_time: new Date().toISOString()\n  }\n};"
+      },
+      "id": "log-summary",
+      "name": "Log Completion Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2880, 240]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Check Schedules Every 5 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Get Due Schedules",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Due Schedules": {
+      "main": [
+        [
+          {
+            "node": "Check if Schedules Exist",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if Schedules Exist": {
+      "main": [
+        [
+          {
+            "node": "Process Each Schedule",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Each Schedule": {
+      "main": [
+        [
+          {
+            "node": "Process Schedule Template",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Schedule Template": {
+      "main": [
+        [
+          {
+            "node": "Trigger Research Pipeline",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Research Pipeline": {
+      "main": [
+        [
+          {
+            "node": "Process Research Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Research Result": {
+      "main": [
+        [
+          {
+            "node": "Update Schedule Record",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Schedule Record": {
+      "main": [
+        [
+          {
+            "node": "Check if Notification Needed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Completion Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check if Notification Needed": {
+      "main": [
+        [
+          {
+            "node": "Send Email Notification",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check for Webhook Notifications",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check for Webhook Notifications": {
+      "main": [
+        [
+          {
+            "node": "Split Webhook URLs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Webhook URLs": {
+      "main": [
+        [
+          {
+            "node": "Send Webhook Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "scheduled-reports",
+  "tags": []
+}

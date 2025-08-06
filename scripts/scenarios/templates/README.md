@@ -75,7 +75,7 @@ cd core/my-integration-test/
 
 ### **`templates/full/` Contents:**
 - `service.json` - Complete configuration with AI patterns, business models, and deployment orchestration
-- `deployment/` - startup.sh, validate.sh, monitor.sh
+- `deployment/` - startup.sh, monitor.sh
 - `initialization/` - database/, workflows/, ui/, configuration/
 - `test.sh` - Integration testing (optional)
 

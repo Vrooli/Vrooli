@@ -1,0 +1,268 @@
+{
+  "research_depths": {
+    "quick": {
+      "name": "Quick Research",
+      "description": "Fast overview with key information and basic analysis",
+      "max_sources": 10,
+      "search_rounds": 2,
+      "min_credible_sources": 5,
+      "target_processing_time_minutes": 5,
+      "search_engines": ["google", "bing", "duckduckgo"],
+      "quality_threshold": 0.6,
+      "analysis_complexity": "basic",
+      "citation_requirements": "minimal",
+      "fact_checking_level": "basic"
+    },
+    "standard": {
+      "name": "Standard Research", 
+      "description": "Comprehensive research with detailed analysis and multiple perspectives",
+      "max_sources": 20,
+      "search_rounds": 3,
+      "min_credible_sources": 10,
+      "target_processing_time_minutes": 10,
+      "search_engines": ["google", "bing", "duckduckgo", "startpage", "wikipedia"],
+      "quality_threshold": 0.7,
+      "analysis_complexity": "detailed",
+      "citation_requirements": "standard",
+      "fact_checking_level": "thorough"
+    },
+    "deep": {
+      "name": "Deep Research",
+      "description": "Exhaustive research with academic rigor and expert-level analysis",
+      "max_sources": 40,
+      "search_rounds": 4,
+      "min_credible_sources": 15,
+      "target_processing_time_minutes": 20,
+      "search_engines": ["google", "bing", "google_scholar", "arxiv", "semantic_scholar", "pubmed", "reuters"],
+      "quality_threshold": 0.8,
+      "analysis_complexity": "expert",
+      "citation_requirements": "comprehensive",
+      "fact_checking_level": "rigorous",
+      "peer_review_simulation": true,
+      "contradictions_analysis": true
+    }
+  },
+  "quality_standards": {
+    "source_credibility": {
+      "high_credibility_domains": {
+        "academic": ["arxiv.org", "scholar.google.com", "pubmed.ncbi.nlm.nih.gov", "ieee.org", "acm.org"],
+        "news": ["reuters.com", "bbc.com", "ap.org", "npr.org"],
+        "government": [".gov", "europa.eu", "who.int"],
+        "institutional": [".edu", ".ac.uk", ".edu.au"],
+        "score_multiplier": 1.5
+      },
+      "medium_credibility_domains": {
+        "established_media": ["cnn.com", "wsj.com", "ft.com", "economist.com"],
+        "wikipedia": ["wikipedia.org", "wikidata.org"],
+        "organizations": [".org"],
+        "score_multiplier": 1.0
+      },
+      "low_credibility_domains": {
+        "blogs": ["blogspot.com", "wordpress.com", "medium.com"],
+        "social": ["facebook.com", "twitter.com", "linkedin.com"],
+        "forums": ["reddit.com", "quora.com"],
+        "score_multiplier": 0.5
+      },
+      "blocked_domains": [
+        "pinterest.com",
+        "instagram.com",
+        "tiktok.com",
+        "youtube.com"
+      ]
+    },
+    "content_quality": {
+      "minimum_word_count": 100,
+      "minimum_credibility_score": 0.6,
+      "maximum_age_days": 730,
+      "required_metadata": ["title", "url", "domain"],
+      "language_requirements": ["en"],
+      "duplicate_threshold": 0.9
+    },
+    "analysis_quality": {
+      "minimum_confidence_score": 0.7,
+      "required_citations_per_claim": 2,
+      "fact_checking_sources": 3,
+      "contradiction_detection": true,
+      "bias_detection": true,
+      "sentiment_analysis": false
+    }
+  },
+  "report_generation": {
+    "word_count_targets": {
+      "1_page": {"min": 400, "max": 600, "optimal": 500},
+      "2_pages": {"min": 800, "max": 1200, "optimal": 1000},
+      "3_pages": {"min": 1200, "max": 1800, "optimal": 1500},
+      "4_pages": {"min": 1600, "max": 2400, "optimal": 2000},
+      "5_pages": {"min": 2000, "max": 3000, "optimal": 2500},
+      "6_pages": {"min": 2400, "max": 3600, "optimal": 3000},
+      "7_pages": {"min": 2800, "max": 4200, "optimal": 3500},
+      "8_pages": {"min": 3200, "max": 4800, "optimal": 4000},
+      "9_pages": {"min": 3600, "max": 5400, "optimal": 4500},
+      "10_pages": {"min": 4000, "max": 6000, "optimal": 5000}
+    },
+    "structure_requirements": {
+      "mandatory_sections": [
+        {"name": "Executive Summary", "max_percentage": 15},
+        {"name": "Key Findings", "min_percentage": 20},
+        {"name": "Detailed Analysis", "min_percentage": 40},
+        {"name": "Conclusions", "min_percentage": 10},
+        {"name": "Sources", "max_percentage": 10}
+      ],
+      "optional_sections": [
+        {"name": "Methodology", "recommended_for": ["academic", "research"]},
+        {"name": "Risk Assessment", "recommended_for": ["business", "investment"]},
+        {"name": "Future Implications", "recommended_for": ["technology", "trends"]},
+        {"name": "Recommendations", "recommended_for": ["business", "strategy"]}
+      ]
+    },
+    "citation_formats": {
+      "default": "numbered",
+      "academic": "apa",
+      "business": "numbered",
+      "journalism": "inline",
+      "technical": "ieee"
+    },
+    "tone_settings": {
+      "academic": {
+        "formality": "high",
+        "jargon_level": "domain_specific",
+        "uncertainty_expression": "explicit",
+        "voice": "third_person"
+      },
+      "business": {
+        "formality": "medium-high",
+        "jargon_level": "business_appropriate",
+        "uncertainty_expression": "balanced",
+        "voice": "professional"
+      },
+      "general": {
+        "formality": "medium",
+        "jargon_level": "accessible",
+        "uncertainty_expression": "clear",
+        "voice": "informative"
+      },
+      "technical": {
+        "formality": "high",
+        "jargon_level": "technical",
+        "uncertainty_expression": "precise",
+        "voice": "authoritative"
+      }
+    }
+  },
+  "search_optimization": {
+    "query_generation": {
+      "primary_queries": {
+        "exact_match": "{topic}",
+        "research_focused": "{topic} research analysis",
+        "trends": "{topic} trends latest developments", 
+        "expert_opinions": "{topic} expert analysis opinion"
+      },
+      "secondary_queries": {
+        "academic": "{topic} academic papers research",
+        "news": "{topic} news recent developments",
+        "industry": "{topic} industry analysis report",
+        "statistics": "{topic} statistics data trends"
+      },
+      "deep_queries": {
+        "scholarly": "{topic} systematic review meta-analysis",
+        "market": "{topic} market research competitive analysis",
+        "technical": "{topic} technical specifications implementation",
+        "regulatory": "{topic} regulations compliance policy"
+      }
+    },
+    "result_filtering": {
+      "relevance_scoring": {
+        "title_match_weight": 3.0,
+        "content_match_weight": 1.0,
+        "domain_authority_weight": 2.0,
+        "recency_weight": 1.5,
+        "length_weight": 0.5
+      },
+      "deduplication": {
+        "similarity_threshold": 0.8,
+        "content_overlap_limit": 0.7,
+        "domain_limit_per_query": 3
+      }
+    },
+    "engine_rotation": {
+      "enabled": true,
+      "round_robin": false,
+      "load_balancing": true,
+      "fallback_chain": ["google", "bing", "duckduckgo", "startpage"]
+    }
+  },
+  "ai_processing": {
+    "models": {
+      "primary_analysis": {
+        "model": "qwen2.5:32b",
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "max_tokens": 4000,
+        "timeout_seconds": 300
+      },
+      "embeddings": {
+        "model": "nomic-embed-text",
+        "timeout_seconds": 60,
+        "batch_size": 10
+      },
+      "fact_checking": {
+        "model": "llama3.2:3b",
+        "temperature": 0.3,
+        "max_tokens": 1000,
+        "timeout_seconds": 120
+      }
+    },
+    "prompting": {
+      "system_prompt_templates": {
+        "analysis": "You are a professional research analyst with expertise in {domain}. Analyze the provided sources objectively and create a comprehensive report.",
+        "fact_checking": "You are a fact-checker. Verify claims against reliable sources and identify any contradictions or inconsistencies.",
+        "synthesis": "You are an information synthesizer. Combine insights from multiple sources into a coherent narrative while maintaining objectivity."
+      },
+      "quality_controls": {
+        "hallucination_detection": true,
+        "consistency_checking": true,
+        "source_verification": true,
+        "bias_detection": true
+      }
+    }
+  },
+  "performance_targets": {
+    "processing_times": {
+      "quick_research": {"target": "5 minutes", "max": "8 minutes"},
+      "standard_research": {"target": "10 minutes", "max": "15 minutes"},
+      "deep_research": {"target": "20 minutes", "max": "30 minutes"}
+    },
+    "quality_metrics": {
+      "minimum_confidence_score": 0.75,
+      "minimum_source_credibility": 0.7,
+      "maximum_error_rate": 0.05,
+      "user_satisfaction_target": 0.85
+    },
+    "resource_utilization": {
+      "max_concurrent_researches": 5,
+      "memory_limit_gb": 4,
+      "cpu_limit_cores": 2,
+      "storage_limit_gb": 100
+    }
+  },
+  "compliance_and_ethics": {
+    "data_privacy": {
+      "store_user_queries": false,
+      "anonymize_requests": true,
+      "retention_period_days": 90,
+      "gdpr_compliant": true
+    },
+    "content_policies": {
+      "avoid_biased_sources": true,
+      "fact_check_controversial": true,
+      "cite_all_claims": true,
+      "acknowledge_limitations": true
+    },
+    "rate_limiting": {
+      "requests_per_minute": 10,
+      "requests_per_hour": 100,
+      "requests_per_day": 1000,
+      "burst_allowance": 5
+    }
+  }
+}

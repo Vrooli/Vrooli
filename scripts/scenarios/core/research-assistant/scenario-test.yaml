@@ -4,31 +4,40 @@ scenario: research-assistant
 # Structure validation
 structure:
   required_files:
-    - metadata.yaml
-    - manifest.yaml
-    - README.md
-    - initialization/database/schema.sql
-    - initialization/workflows/n8n/main-workflow.json
-    - initialization/configuration/app-config.json
-    - initialization/ui/windmill-app.json
+    - .vrooli/service.json
+    - IMPLEMENTATION_PLAN.md
+    - initialization/storage/postgres/schema.sql
+    - initialization/storage/postgres/seed.sql
+    - initialization/automation/n8n/research-orchestrator.json
+    - initialization/automation/n8n/scheduled-reports.json
+    - initialization/automation/n8n/chat-rag-workflow.json
+    - initialization/automation/windmill/dashboard-app.json
+    - initialization/configuration/research-config.json
+    - initialization/configuration/report-templates.json
+    - initialization/configuration/schedule-presets.json
+    - initialization/storage/qdrant/collections.json
+    - initialization/storage/minio/buckets.json
+    - initialization/search/searxng/engines-config.json
   
   required_dirs:
-    - initialization/database
-    - initialization/workflows
+    - initialization/storage/postgres
+    - initialization/storage/qdrant
+    - initialization/storage/minio
+    - initialization/automation/n8n
+    - initialization/automation/windmill
     - initialization/configuration
-    - initialization/vectors
+    - initialization/search/searxng
     - deployment
-    - ui
 
 # Resource requirements
 resources:
-  required: [ollama, qdrant]
-  optional: [searxng, minio]
-  health_timeout: 30
+  required: [ollama, qdrant, postgres, searxng, n8n, windmill, unstructured-io, browserless, minio]
+  optional: []
+  health_timeout: 60
 
 # Declarative tests
 tests:
-  - name: "AI Model Engine Ready"
+  - name: "Ollama AI Models Ready"
     type: http
     service: ollama
     endpoint: /api/tags
@@ -37,8 +46,9 @@ tests:
       status: 200
       body:
         type: json
+        contains: ["qwen2.5:32b", "nomic-embed-text"]
         
-  - name: "Vector Database Ready"
+  - name: "Vector Database Collections Ready"
     type: http
     service: qdrant
     endpoint: /collections
@@ -48,17 +58,162 @@ tests:
       body:
         type: json
         
-  - name: "Business Logic Validation"
-    type: custom
-    script: custom-tests.sh
-    function: test_research_assistant_workflow
+  - name: "PostgreSQL Database Schema"
+    type: database
+    service: postgres
+    database: research_assistant
+    query: "SELECT table_name FROM information_schema.tables WHERE table_schema = 'research_assistant'"
+    expect:
+      contains: ["reports", "report_sources", "report_schedules", "chat_conversations", "chat_messages"]
+      
+  - name: "SearXNG Search Engine Ready"
+    type: http
+    service: searxng
+    endpoint: /search?q=test&format=json
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+        
+  - name: "Unstructured-IO Document Processing"
+    type: http
+    service: unstructured-io
+    endpoint: /healthcheck
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Browserless Web Automation"
+    type: http
+    service: browserless
+    endpoint: /pressure
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "MinIO Object Storage"
+    type: http
+    service: minio
+    endpoint: /minio/health/ready
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "n8n Workflow Engine"
+    type: http
+    service: n8n
+    endpoint: /healthz
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Windmill App Platform"
+    type: http
+    service: windmill
+    endpoint: /api/version
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+
+  - name: "Research Pipeline Integration Test"
+    type: integration
+    description: "Test complete research report generation pipeline"
+    workflow:
+      - step: "Submit Research Request"
+        type: http
+        service: n8n
+        endpoint: /webhook/research-request
+        method: POST
+        body:
+          topic: "integration test research"
+          depth: "quick"
+          target_length: 1
+          requested_by: "test-suite"
+        expect:
+          status: 200
+          response_time: 30000
+          
+      - step: "Verify Report Creation" 
+        type: database
+        service: postgres
+        query: "SELECT COUNT(*) as count FROM research_assistant.reports WHERE topic LIKE '%integration test%'"
+        expect:
+          count: ">= 1"
+          
+  - name: "Chat RAG System Test"
+    type: integration
+    description: "Test conversational interface with knowledge retrieval"
+    workflow:
+      - step: "Send Chat Message"
+        type: http
+        service: n8n
+        endpoint: /webhook/chat-message
+        method: POST
+        body:
+          message: "Hello, what can you tell me about recent research?"
+          user_id: "test-user"
+          conversation_id: "test-conversation"
+        expect:
+          status: 200
+          response_time: 15000
+          
+      - step: "Verify Chat Storage"
+        type: database
+        service: postgres
+        query: "SELECT COUNT(*) as count FROM research_assistant.chat_messages WHERE conversation_id = 'test-conversation'"
+        expect:
+          count: ">= 2"  # User message + AI response
+          
+  - name: "Dashboard UI Accessibility"
+    type: http
+    service: windmill
+    endpoint: /f/research-assistant/dashboard
+    method: GET
+    expect:
+      status: 200
+      response_time: 5000
+
+  - name: "Vector Search Functionality"
+    type: http
+    service: qdrant
+    endpoint: /collections/research-documents/points/search
+    method: POST
+    body:
+      vector: [0.1, 0.2, 0.3, 0.4, 0.5]  # dummy vector
+      limit: 5
+      score_threshold: 0.5
+    expect:
+      status: 200
+      body:
+        type: json
+
+# Performance benchmarks
+performance:
+  targets:
+    research_generation_time: 900000  # 15 minutes max
+    chat_response_time: 10000         # 10 seconds max
+    dashboard_load_time: 5000         # 5 seconds max
+    search_time: 15000                # 15 seconds max
+    
+  load_test:
+    concurrent_users: 3
+    test_duration: 180  # 3 minutes
+    ramp_up_time: 30    # 30 seconds
 
 # Validation criteria
 validation:
-  success_rate: 75        # Allow some flexibility for optional services
-  response_time: 10000    # 10 seconds max for service responses
-  revenue_potential: 10000
+  success_rate: 90           # High success rate expected for production-ready system
+  response_time: 30000       # 30 seconds max for complex operations
+  revenue_potential: 49000   # Updated based on service.json business model
   business_criteria:
-    - "Core services operational"
-    - "Business workflow functional"
-    - "Integration points validated"
+    - "All core services operational with health checks passing"
+    - "Research pipeline generates complete reports with citations"
+    - "Chat system provides contextual responses using RAG"
+    - "Dashboard loads and displays research data correctly"
+    - "Database properly stores all research artifacts"
+    - "Vector search enables semantic report discovery"
+    - "PDF generation and storage works end-to-end"
+    - "Scheduled reports can be configured and triggered"

@@ -1,43 +1,48 @@
 {
   "app": {
-    "name": "{{ scenario.name }}",
-    "id": "{{ scenario.id }}",
-    "version": "{{ scenario.version }}",
-    "description": "{{ scenario.description }}",
-    "complexity": "{{ complexity }}",
-    "categories": {{ categories | tojson }}
+    "name": "AI Content Assistant",
+    "id": "ai-content-assistant-example",
+    "version": "1.0.0",
+    "description": "Campaign-based AI content assistant with document context management, semantic search, and multi-format content generation",
+    "complexity": "intermediate",
+    "categories": ["ai-assistant", "content-creation", "campaign-management"]
   },
   
   "runtime": {
     "environment": "development",
     "debug": true,
     "log_level": "info",
-    "session_timeout_minutes": 30,
-    "max_concurrent_users": {{ performance.throughput.concurrent_users | default(10) }},
-    "request_timeout_seconds": {{ testing.timeout_seconds | default(300) }}
+    "session_timeout_minutes": 60,
+    "max_concurrent_users": 25,
+    "request_timeout_seconds": 300
   },
   
   "features": {
-    "ai_processing": {{ "true" if "ollama" in resources.required else "false" }},
-    "speech_recognition": {{ "true" if "whisper" in resources.required else "false" }},
-    "image_generation": {{ "true" if "comfyui" in resources.required else "false" }},
-    "document_processing": {{ "true" if "unstructured-io" in resources.required else "false" }},
-    "workflow_automation": {{ "true" if "n8n" in resources.required else "false" }},
-    "screen_automation": {{ "true" if "agent-s2" in resources.required else "false" }},
-    "web_automation": {{ "true" if "browserless" in resources.required else "false" }},
-    "vector_search": {{ "true" if "qdrant" in resources.required else "false" }},
-    "file_storage": {{ "true" if "minio" in resources.required else "false" }},
-    "analytics": {{ "true" if "questdb" in resources.required else "false" }},
-    "search": {{ "true" if "searxng" in resources.required else "false" }},
-    "professional_ui": {{ "true" if "windmill" in resources.required else "false" }},
-    "real_time_dashboard": {{ "true" if "node-red" in resources.required else "false" }}
+    "campaign_management": true,
+    "document_processing": true,
+    "semantic_search": true,
+    "ai_content_generation": true,
+    "context_awareness": true,
+    "multi_format_content": true,
+    "image_generation": true,
+    "file_storage": true,
+    "vector_search": true,
+    "workflow_automation": true,
+    "professional_ui": true,
+    "content_history": true,
+    "document_embedding": true
   },
   
   "business": {
-    "value_proposition": "{{ business.value_proposition }}",
-    "target_markets": {{ business.target_markets | tojson }},
-    "revenue_potential": {{ business.revenue_potential | tojson }},
-    "market_demand": "{{ business.market_demand }}"
+    "value_proposition": "Campaign-based AI content assistant with intelligent document context and multi-format generation capabilities",
+    "target_markets": ["content_creators", "marketing_agencies", "small_businesses"],
+    "revenue_potential": {
+      "initial": "$25,000",
+      "recurring": "$45,000",
+      "expansion": "$75,000",
+      "total_estimate": "$145,000"
+    },
+    "market_demand": "very-high"
   },
   
   "ai": {
@@ -65,13 +70,21 @@
   "storage": {
     "max_file_size_mb": 50,
     "allowed_file_types": [
-      "image/jpeg", "image/png", "image/gif", "image/webp",
-      "audio/mpeg", "audio/wav", "audio/ogg",
-      "application/pdf", "text/plain", "text/csv",
-      "application/json", "application/xml"
+      "application/pdf",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "text/plain",
+      "text/markdown",
+      "text/html",
+      "text/csv",
+      "application/json"
     ],
-    "retention_days": 30,
-    "enable_compression": true
+    "retention_days": 90,
+    "enable_compression": true,
+    "vector_storage": {
+      "embedding_dimensions": 384,
+      "similarity_threshold": 0.7,
+      "max_chunks_per_document": 50
+    }
   },
   
   "performance": {
@@ -106,25 +119,74 @@
   },
   
   "ui": {
-    "theme": "default",
-    "primary_color": "#3b82f6",
-    "brand_name": "{{ scenario.name }}",
-    "show_advanced_features": false,
+    "theme": "modern",
+    "primary_color": "#2563eb",
+    "brand_name": "AI Content Assistant",
+    "show_advanced_features": true,
     "enable_dark_mode": true,
     "enable_accessibility": true,
-    "default_language": "en"
+    "default_language": "en",
+    "campaign_tabs": {
+      "max_visible_tabs": 8,
+      "enable_tab_reordering": true,
+      "show_campaign_stats": true
+    }
   },
   
   "integrations": {
     "webhook_endpoints": {
-      "status_updates": "/api/webhooks/status",
-      "completion_notifications": "/api/webhooks/completed",
-      "error_alerts": "/api/webhooks/errors"
+      "campaign_updates": "/api/ai-content-assistant/campaigns",
+      "document_processing": "/api/ai-content-assistant/documents",
+      "content_generation": "/api/ai-content-assistant/generate",
+      "search_retrieval": "/api/ai-content-assistant/search"
     },
     "external_apis": {
-      "timeout_seconds": 30,
+      "timeout_seconds": 60,
       "retry_attempts": 3,
       "cache_responses": true
+    },
+    "n8n_workflows": {
+      "campaign_management": "campaign-management",
+      "document_processing": "document-processing",
+      "content_generation": "content-generation",
+      "search_retrieval": "search-retrieval"
+    }
+  },
+  
+  "campaigns": {
+    "max_campaigns_per_user": 10,
+    "default_campaign_settings": {
+      "content_preferences": {
+        "default_content_type": "blog_post",
+        "max_content_length": 2048,
+        "include_images": true,
+        "seo_optimization": true
+      },
+      "brand_guidelines": {
+        "tone": "professional",
+        "formality": "moderate",
+        "target_audience": "general"
+      }
+    },
+    "content_generation": {
+      "max_context_documents": 10,
+      "similarity_threshold": 0.7,
+      "default_temperature": 0.7,
+      "supported_content_types": [
+        "blog_post",
+        "social_media", 
+        "email",
+        "marketing_copy",
+        "product_description"
+      ]
+    },
+    "document_management": {
+      "max_documents_per_campaign": 100,
+      "auto_processing": true,
+      "extract_metadata": true,
+      "generate_embeddings": true,
+      "chunk_size": 1000,
+      "chunk_overlap": 100
     }
   },
   

@@ -98,8 +98,8 @@ Tests that resources work together correctly to deliver the business value.
 
 ### Resource Health Checks
 ```bash
-# Pre-test validation
-./deployment/validate.sh --phase pre-test
+# Pre-test validation (handled by test.sh)
+./test.sh --check-resources
 
 # Checks:
 ✅ All required resources are running
@@ -451,14 +451,14 @@ validation_metrics:
 
 ### Quick Validation Commands
 ```bash
-# Validate single scenario
-./tools/validate.sh --scenario multi-modal-ai-assistant
+# Test single scenario
+./core/multi-modal-ai-assistant/test.sh
 
-# Validate all scenarios
-./tools/validate-all.sh
+# Test all scenarios
+for dir in core/*/; do (cd "$dir" && ./test.sh); done
 
-# Validate by category
-./tools/validate.sh --category ai-assistance
+# Test by category (example for AI scenarios)
+for dir in core/*ai*; do (cd "$dir" && ./test.sh); done
 
 # Performance testing
 ./tools/performance-test.sh --scenario research-assistant
@@ -469,8 +469,8 @@ validation_metrics:
 
 ### Debug Validation Failures
 ```bash
-# Detailed error reporting
-./tools/validate.sh --scenario failing-scenario --verbose
+# Detailed error reporting (using test.sh with verbose output)
+./core/failing-scenario/test.sh --verbose
 
 # Step-by-step debugging
 ./tools/debug-validation.sh --scenario failing-scenario --step-by-step

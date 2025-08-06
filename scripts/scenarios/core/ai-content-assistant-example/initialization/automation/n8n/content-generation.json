@@ -1,0 +1,462 @@
+{
+  "name": "AI Content Assistant - Content Generation",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "ai-content-assistant/generate",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "content-webhook",
+      "name": "Content Generation Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "content-generation-webhook"
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and structure content generation request\nconst request = $json;\n\nif (!request.campaign_id) {\n  throw new Error('Campaign ID is required');\n}\n\nif (!request.prompt || request.prompt.trim().length === 0) {\n  throw new Error('Content prompt is required');\n}\n\nif (!request.content_type) {\n  request.content_type = 'blog_post'; // default\n}\n\nconst contentRequest = {\n  campaign_id: request.campaign_id,\n  content_type: request.content_type,\n  prompt: request.prompt.trim(),\n  title: request.title || '',\n  \n  // Generation settings\n  max_context_documents: request.max_context_documents || 5,\n  temperature: request.temperature || 0.7,\n  max_tokens: request.max_tokens || 2048,\n  \n  // Context preferences\n  context_similarity_threshold: request.context_similarity_threshold || 0.7,\n  include_specific_documents: request.include_documents || [],\n  exclude_documents: request.exclude_documents || [],\n  \n  // Session context\n  session_id: request.session_id,\n  user_identifier: request.user_identifier || 'anonymous',\n  \n  // Metadata\n  generation_start: new Date().toISOString(),\n  request_id: `gen-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`\n};\n\nreturn contentRequest;"
+      },
+      "id": "validate-request",
+      "name": "Validate Content Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT c.name, c.brand_guidelines, c.content_preferences, c.target_audience FROM ai_content_assistant.campaigns c WHERE c.id = $1::uuid AND c.is_active = true",
+        "additionalFields": {
+          "mode": "independently"
+        },
+        "options": {}
+      },
+      "id": "get-campaign-context",
+      "name": "Get Campaign Context",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [680, 300],
+      "credentials": {
+        "postgres": {
+          "id": "ai-content-assistant-postgres",
+          "name": "AI Content Assistant PostgreSQL"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:11434/api/embeddings",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "nomic-embed-text:latest"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $('Validate Content Request').item.json.prompt }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "generate-query-embedding",
+      "name": "Generate Query Embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 300]
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:6333/collections/campaign_documents/points/search",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "vector",
+              "value": "={{ $json.embedding }}"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $('Validate Content Request').item.json.max_context_documents }}"
+            },
+            {
+              "name": "score_threshold",
+              "value": "={{ $('Validate Content Request').item.json.context_similarity_threshold }}"
+            },
+            {
+              "name": "with_payload",
+              "value": true
+            },
+            {
+              "name": "filter",
+              "value": "={{ {\"must\": [{\"key\": \"campaign_id\", \"match\": {\"value\": $('Validate Content Request').item.json.campaign_id}}]} }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "search-relevant-context",
+      "name": "Search Relevant Context",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 300]
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Build comprehensive prompt with campaign and document context\nconst contentRequest = $('Validate Content Request').item.json;\nconst campaignData = $('Get Campaign Context').item.json;\nconst searchResults = $json.result || [];\n\n// Extract relevant document excerpts\nconst contextExcerpts = searchResults.map(result => ({\n  text: result.payload.text,\n  score: result.score,\n  document_id: result.payload.document_id,\n  chunk_index: result.payload.chunk_index\n}));\n\n// Build context string\nconst documentContext = contextExcerpts.length > 0 \n  ? contextExcerpts.map((excerpt, index) => \n      `[Context ${index + 1}] ${excerpt.text}`\n    ).join('\\n\\n')\n  : 'No specific document context available.';\n\n// Get content template based on type\nconst contentTemplates = {\n  'blog_post': {\n    instruction: 'Write a comprehensive blog post with clear structure, engaging headlines, and SEO optimization.',\n    format: 'Use markdown formatting with # for main title, ## for sections. Include introduction, main points, and conclusion.'\n  },\n  'social_media': {\n    instruction: 'Create engaging social media content that encourages interaction.',\n    format: 'Keep concise, use relevant hashtags, include call-to-action. Optimize for the specified platform.'\n  },\n  'email': {\n    instruction: 'Write professional email content that drives action.',\n    format: 'Include subject line, greeting, clear body with value proposition, and strong call-to-action.'\n  },\n  'marketing_copy': {\n    instruction: 'Create compelling marketing copy that converts.',\n    format: 'Focus on benefits, use persuasive language, include social proof if relevant.'\n  }\n};\n\nconst template = contentTemplates[contentRequest.content_type] || contentTemplates['blog_post'];\n\n// Build comprehensive prompt\nconst systemPrompt = `You are an expert content creator for the campaign \"${campaignData.name}\". \n\nCAMPAIGN CONTEXT:\n- Target Audience: ${campaignData.target_audience}\n- Brand Guidelines: ${JSON.stringify(campaignData.brand_guidelines)}\n- Content Preferences: ${JSON.stringify(campaignData.content_preferences)}\n\nDOCUMENT CONTEXT:\n${documentContext}\n\nCONTENT REQUIREMENTS:\n- Type: ${contentRequest.content_type}\n- Instructions: ${template.instruction}\n- Format: ${template.format}\n\nUSER REQUEST:\n${contentRequest.prompt}\n\nPlease create content that:\n1. Aligns with the brand guidelines and tone\n2. Incorporates relevant information from the document context\n3. Targets the specified audience\n4. Follows the content type requirements\n5. Is engaging, accurate, and actionable`;\n\nreturn {\n  system_prompt: systemPrompt,\n  user_prompt: contentRequest.prompt,\n  context_documents_used: contextExcerpts.map(c => c.document_id),\n  context_summary: `Used ${contextExcerpts.length} relevant document excerpts`,\n  generation_parameters: {\n    temperature: contentRequest.temperature,\n    max_tokens: contentRequest.max_tokens,\n    model: 'llama3.1:8b'\n  },\n  request_metadata: contentRequest\n};"
+      },
+      "id": "build-generation-prompt",
+      "name": "Build Generation Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:11434/api/generate",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $json.generation_parameters.model }}"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.system_prompt }}"
+            },
+            {
+              "name": "stream",
+              "value": false
+            },
+            {
+              "name": "options",
+              "value": "={{ {\"temperature\": $json.generation_parameters.temperature, \"num_predict\": $json.generation_parameters.max_tokens} }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 120000
+        }
+      },
+      "id": "generate-content-ollama",
+      "name": "Generate Content (Ollama)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1560, 300]
+    },
+    
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $('Validate Content Request').item.json.content_type }}",
+              "value2": "blog_post"
+            }
+          ]
+        }
+      },
+      "id": "if-generate-image",
+      "name": "If Generate Blog Image",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1780, 200]
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:8188/api/prompt",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "Professional blog header image, modern design, relevant to: {{ $('Validate Content Request').item.json.prompt }}, high quality, 1200x600"
+            },
+            {
+              "name": "workflow",
+              "value": "blog-header-generation"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 180000
+        }
+      },
+      "id": "generate-blog-image",
+      "name": "Generate Blog Image (ComfyUI)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2000, 200]
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process generated content and prepare for storage\nconst generatedResponse = $('Generate Content (Ollama)').item.json;\nconst promptData = $('Build Generation Prompt').item.json;\nconst contentRequest = promptData.request_metadata;\n\nif (!generatedResponse.response) {\n  throw new Error('No content generated');\n}\n\n// Extract title if not provided\nlet title = contentRequest.title;\nif (!title && contentRequest.content_type === 'blog_post') {\n  const lines = generatedResponse.response.split('\\n');\n  const titleMatch = lines.find(line => line.startsWith('#'));\n  title = titleMatch ? titleMatch.replace(/^#+\\s*/, '') : 'Generated Content';\n}\n\n// Calculate generation metrics\nconst generationEnd = new Date().toISOString();\nconst generationTime = new Date(generationEnd).getTime() - new Date(contentRequest.generation_start).getTime();\n\n// Check if image was generated\nlet imageData = null;\ntry {\n  const imageResponse = $('Generate Blog Image (ComfyUI)').item.json;\n  if (imageResponse && imageResponse.image_url) {\n    imageData = {\n      url: imageResponse.image_url,\n      generated: true\n    };\n  }\n} catch (e) {\n  // No image generated - that's ok\n}\n\nreturn {\n  // Content data\n  campaign_id: contentRequest.campaign_id,\n  content_type: contentRequest.content_type,\n  title: title,\n  prompt: contentRequest.prompt,\n  generated_content: generatedResponse.response,\n  \n  // Context information\n  used_documents: promptData.context_documents_used,\n  context_summary: promptData.context_summary,\n  \n  // Generation metadata\n  model_used: promptData.generation_parameters.model,\n  generation_parameters: promptData.generation_parameters,\n  generation_time_ms: generationTime,\n  \n  // Session context\n  session_id: contentRequest.session_id,\n  user_identifier: contentRequest.user_identifier,\n  \n  // Additional assets\n  image_data: imageData,\n  \n  // Status\n  status: 'completed',\n  created_at: generationEnd\n};"
+      },
+      "id": "process-generated-content",
+      "name": "Process Generated Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 350]
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ai_content_assistant.generated_content (campaign_id, content_type, title, prompt, generated_content, used_documents, context_summary, model_used, generation_parameters, generation_time_ms, session_id, user_identifier, status) VALUES ($1::uuid, $2, $3, $4, $5, $6::uuid[], $7, $8, $9::jsonb, $10, (SELECT id FROM ai_content_assistant.user_sessions WHERE session_id = $11), $12, $13) RETURNING id, title, created_at",
+        "additionalFields": {
+          "mode": "independently"
+        },
+        "options": {}
+      },
+      "id": "save-generated-content",
+      "name": "Save Generated Content",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [2000, 350],
+      "credentials": {
+        "postgres": {
+          "id": "ai-content-assistant-postgres",
+          "name": "AI Content Assistant PostgreSQL"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ai_content_assistant.activity_log (event_type, event_data, campaign_id, session_id, user_identifier, processing_time_ms, status) VALUES ('content_generated', $1::jsonb, $2::uuid, (SELECT id FROM ai_content_assistant.user_sessions WHERE session_id = $3), $4, $5, 'completed')",
+        "additionalFields": {
+          "mode": "independently"
+        },
+        "options": {}
+      },
+      "id": "log-generation-activity",
+      "name": "Log Generation Activity",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [2220, 350],
+      "credentials": {
+        "postgres": {
+          "id": "ai-content-assistant-postgres",
+          "name": "AI Content Assistant PostgreSQL"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Build final response\nconst contentResult = $json;\nconst contentData = $('Process Generated Content').item.json;\n\nreturn {\n  success: true,\n  message: 'Content generated successfully',\n  \n  content: {\n    id: contentResult.id,\n    title: contentResult.title,\n    content_type: contentData.content_type,\n    generated_content: contentData.generated_content,\n    created_at: contentResult.created_at\n  },\n  \n  context: {\n    documents_used: contentData.used_documents.length,\n    context_summary: contentData.context_summary\n  },\n  \n  generation: {\n    model: contentData.model_used,\n    generation_time_ms: contentData.generation_time_ms,\n    parameters: contentData.generation_parameters\n  },\n  \n  assets: {\n    image: contentData.image_data\n  },\n  \n  timestamp: new Date().toISOString()\n};"
+      },
+      "id": "build-final-response",
+      "name": "Build Final Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2440, 350]
+    }
+  ],
+  
+  "connections": {
+    "Content Generation Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Content Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Validate Content Request": {
+      "main": [
+        [
+          {
+            "node": "Get Campaign Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Get Campaign Context": {
+      "main": [
+        [
+          {
+            "node": "Generate Query Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Generate Query Embedding": {
+      "main": [
+        [
+          {
+            "node": "Search Relevant Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Search Relevant Context": {
+      "main": [
+        [
+          {
+            "node": "Build Generation Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Build Generation Prompt": {
+      "main": [
+        [
+          {
+            "node": "Generate Content (Ollama)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Generate Content (Ollama)": {
+      "main": [
+        [
+          {
+            "node": "If Generate Blog Image",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Process Generated Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "If Generate Blog Image": {
+      "main": [
+        [
+          {
+            "node": "Generate Blog Image (ComfyUI)",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Process Generated Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Generate Blog Image (ComfyUI)": {
+      "main": [
+        [
+          {
+            "node": "Process Generated Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Process Generated Content": {
+      "main": [
+        [
+          {
+            "node": "Save Generated Content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Save Generated Content": {
+      "main": [
+        [
+          {
+            "node": "Log Generation Activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Log Generation Activity": {
+      "main": [
+        [
+          {
+            "node": "Build Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  
+  "versionId": "content-generation-v1",
+  "id": "ai-content-assistant-content-generation",
+  
+  "meta": {
+    "templateCreatedBy": "ai-content-assistant",
+    "instanceId": "content-generation"
+  },
+  
+  "tags": [
+    {
+      "id": "ai-content-assistant",
+      "name": "AI Content Assistant"
+    },
+    {
+      "id": "content-generation",
+      "name": "Content Generation"
+    }
+  ]
+}

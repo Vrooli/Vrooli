@@ -11,6 +11,10 @@ SCENARIO_NAME="Real-time Analytics Dashboard"
 MONITOR_LOG="/tmp/vrooli-${SCENARIO_ID}-monitor.log"
 PID_FILE="/tmp/vrooli-${SCENARIO_ID}-monitor.pid"
 
+# Source port registry for dynamic port resolution
+# shellcheck disable=SC1091
+source "${SCENARIO_DIR}/../../../resources/common.sh"
+
 # Monitoring intervals (seconds)
 HEALTH_CHECK_INTERVAL=30
 PERFORMANCE_CHECK_INTERVAL=60
@@ -278,7 +282,7 @@ health_monitoring_loop() {
                     fi
                     ;;
                 "questdb")
-                    if check_service_health "QuestDB" "http://localhost:9010/"; then
+                    if check_service_health "QuestDB" "http://localhost:$(resources::get_default_port "questdb")/"; then
                         ((health_checks_passed++))
                     else
                         ((health_checks_failed++))

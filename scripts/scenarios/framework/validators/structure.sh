@@ -331,7 +331,6 @@ validate_scenario_structure() {
     # Check deployment scripts
     if [[ -d "$scenario_dir/deployment" ]]; then
         check_file "$scenario_dir/deployment/startup.sh" "sh" false
-        check_file "$scenario_dir/deployment/validate.sh" "sh" false
         check_file "$scenario_dir/deployment/monitor.sh" "sh" false
     fi
     

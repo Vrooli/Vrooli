@@ -1,0 +1,284 @@
+{
+  "qdrant": {
+    "connection": {
+      "host": "localhost",
+      "port": 6333,
+      "https": false,
+      "timeout_seconds": 30,
+      "retry_attempts": 3,
+      "api_key": null
+    },
+    "collections": {
+      "transcription_embeddings": {
+        "name": "transcription-embeddings",
+        "description": "Vector embeddings for semantic search of podcast transcriptions",
+        "config": {
+          "vectors": {
+            "size": 384,
+            "distance": "Cosine",
+            "on_disk": false
+          }
+        },
+        "indexing": {
+          "threshold": 20000,
+          "edge_factor": 16,
+          "m": 16,
+          "ef_construct": 100,
+          "full_scan_threshold": 10000,
+          "max_indexing_threads": 0
+        },
+        "optimization": {
+          "deleted_threshold": 0.2,
+          "vacuum_min_vector_number": 1000,
+          "default_segment_number": 0
+        },
+        "write_consistency": "quorum",
+        "read_consistency": "majority",
+        "shard_number": 1,
+        "replication_factor": 1
+      }
+    }
+  },
+  
+  "embeddings": {
+    "model": "nomic-embed-text",
+    "api_endpoint": "http://localhost:11434/api/embeddings",
+    "dimensions": 384,
+    "max_tokens": 8192,
+    "chunk_strategy": {
+      "method": "sliding_window",
+      "chunk_size": 512,
+      "overlap_size": 50,
+      "preserve_sentences": true,
+      "min_chunk_size": 100
+    },
+    "preprocessing": {
+      "lowercase": false,
+      "remove_punctuation": false,
+      "remove_numbers": false,
+      "remove_stopwords": false,
+      "normalize_whitespace": true
+    },
+    "caching": {
+      "enabled": true,
+      "ttl_hours": 168,
+      "max_cache_size_mb": 1024
+    }
+  },
+  
+  "search": {
+    "default_parameters": {
+      "limit": 20,
+      "score_threshold": 0.7,
+      "exact_search": false,
+      "with_payload": true,
+      "with_vector": false
+    },
+    "limits": {
+      "max_results": 100,
+      "max_query_length": 500,
+      "timeout_seconds": 30,
+      "max_concurrent_searches": 10
+    },
+    "ranking": {
+      "rerank_enabled": false,
+      "hybrid_search": false,
+      "boost_recent": {
+        "enabled": true,
+        "decay_days": 30,
+        "boost_factor": 1.2
+      },
+      "boost_confidence": {
+        "enabled": true,
+        "threshold": 0.9,
+        "boost_factor": 1.1
+      }
+    },
+    "filtering": {
+      "date_range": {
+        "enabled": true,
+        "max_range_days": 365,
+        "default_range_days": 90
+      },
+      "duration": {
+        "enabled": true,
+        "min_seconds": 1,
+        "max_seconds": 10800
+      },
+      "language": {
+        "enabled": true,
+        "supported": ["en", "es", "fr", "de", "it", "pt", "ru", "ja", "ko", "zh"]
+      },
+      "confidence": {
+        "enabled": true,
+        "min_score": 0.0,
+        "max_score": 1.0
+      }
+    }
+  },
+  
+  "indexing": {
+    "automatic": {
+      "enabled": true,
+      "batch_size": 100,
+      "processing_interval_minutes": 5,
+      "retry_failed": true,
+      "max_retries": 3
+    },
+    "manual": {
+      "enabled": true,
+      "queue_enabled": true,
+      "priority_levels": ["high", "normal", "low"],
+      "default_priority": "normal"
+    },
+    "optimization": {
+      "auto_optimize": true,
+      "optimization_interval_hours": 24,
+      "vacuum_threshold": 1000,
+      "reindex_threshold": 0.3
+    }
+  },
+  
+  "analytics": {
+    "search_logging": {
+      "enabled": true,
+      "log_queries": true,
+      "log_results": true,
+      "log_clicks": true,
+      "retention_days": 30
+    },
+    "metrics": {
+      "enabled": true,
+      "collect_response_times": true,
+      "collect_result_counts": true,
+      "collect_click_through_rates": true,
+      "aggregation_interval_minutes": 15
+    },
+    "popular_queries": {
+      "enabled": true,
+      "track_count": 100,
+      "min_occurrences": 3,
+      "time_window_days": 7
+    }
+  },
+  
+  "suggestions": {
+    "enabled": true,
+    "sources": {
+      "search_history": {
+        "enabled": true,
+        "max_suggestions": 5,
+        "min_query_length": 2
+      },
+      "popular_queries": {
+        "enabled": true,
+        "max_suggestions": 5,
+        "min_popularity": 3
+      },
+      "content_based": {
+        "enabled": true,
+        "max_suggestions": 3,
+        "similarity_threshold": 0.8
+      }
+    },
+    "filters": {
+      "min_length": 2,
+      "max_length": 100,
+      "exclude_patterns": ["password", "secret", "private"]
+    }
+  },
+  
+  "performance": {
+    "caching": {
+      "enabled": true,
+      "query_cache": {
+        "enabled": true,
+        "ttl_minutes": 30,
+        "max_entries": 1000
+      },
+      "result_cache": {
+        "enabled": true,
+        "ttl_minutes": 60,
+        "max_entries": 500
+      }
+    },
+    "connection_pooling": {
+      "enabled": true,
+      "pool_size": 10,
+      "max_retries": 3,
+      "retry_delay_ms": 100
+    },
+    "monitoring": {
+      "slow_query_threshold_ms": 1000,
+      "log_slow_queries": true,
+      "track_memory_usage": true
+    }
+  },
+  
+  "backup_and_recovery": {
+    "snapshots": {
+      "enabled": true,
+      "schedule": "0 3 * * *",
+      "retention_days": 7,
+      "compression": true
+    },
+    "replication": {
+      "enabled": false,
+      "replicas": 1,
+      "sync_timeout_seconds": 30
+    }
+  },
+  
+  "security": {
+    "api_key_required": false,
+    "rate_limiting": {
+      "enabled": true,
+      "requests_per_minute": 100,
+      "burst_limit": 20,
+      "per_ip": true
+    },
+    "query_filtering": {
+      "enabled": true,
+      "max_length": 500,
+      "blocked_patterns": ["<script>", "javascript:", "data:"],
+      "sanitize_input": true
+    }
+  },
+  
+  "ui_integration": {
+    "real_time_search": {
+      "enabled": true,
+      "debounce_ms": 300,
+      "min_query_length": 2
+    },
+    "result_formatting": {
+      "highlight_matches": true,
+      "snippet_length": 200,
+      "show_scores": true,
+      "show_metadata": true
+    },
+    "pagination": {
+      "page_size": 20,
+      "max_pages": 10,
+      "show_total_count": true
+    }
+  },
+  
+  "experimental": {
+    "semantic_clustering": {
+      "enabled": false,
+      "cluster_threshold": 0.85,
+      "max_clusters": 50
+    },
+    "query_expansion": {
+      "enabled": false,
+      "expansion_terms": 3,
+      "similarity_threshold": 0.7
+    },
+    "personalization": {
+      "enabled": false,
+      "user_profiles": false,
+      "learning_rate": 0.1
+    }
+  }
+}

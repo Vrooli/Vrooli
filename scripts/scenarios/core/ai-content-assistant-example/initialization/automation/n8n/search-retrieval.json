@@ -1,0 +1,379 @@
+{
+  "name": "AI Content Assistant - Search & Retrieval",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "ai-content-assistant/search",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "search-webhook",
+      "name": "Search Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "search-retrieval-webhook"
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and structure search request\nconst request = $json;\n\nif (!request.campaign_id) {\n  throw new Error('Campaign ID is required');\n}\n\nif (!request.query || request.query.trim().length === 0) {\n  throw new Error('Search query is required');\n}\n\nconst searchRequest = {\n  campaign_id: request.campaign_id,\n  query: request.query.trim(),\n  \n  // Search parameters\n  limit: request.limit || 10,\n  similarity_threshold: request.similarity_threshold || 0.6,\n  search_type: request.search_type || 'semantic', // semantic, keyword, hybrid\n  \n  // Filters\n  document_types: request.document_types || [], // Filter by content type\n  date_range: request.date_range || null,\n  specific_documents: request.specific_documents || [],\n  \n  // Context\n  session_id: request.session_id,\n  user_identifier: request.user_identifier || 'anonymous',\n  \n  // Metadata\n  search_timestamp: new Date().toISOString(),\n  request_id: `search-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`\n};\n\nreturn searchRequest;"
+      },
+      "id": "validate-search-request",
+      "name": "Validate Search Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.search_type }}",
+              "value2": "semantic"
+            }
+          ]
+        }
+      },
+      "id": "if-semantic-search",
+      "name": "If Semantic Search",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 200]
+    },
+    
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.search_type }}",
+              "value2": "keyword"
+            }
+          ]
+        }
+      },
+      "id": "if-keyword-search",
+      "name": "If Keyword Search",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 400]
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:11434/api/embeddings",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "nomic-embed-text:latest"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.query }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "generate-search-embedding",
+      "name": "Generate Search Embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 200]
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT cd.id, cd.filename, cd.original_filename, cd.extracted_text, cd.upload_date, cd.content_type FROM ai_content_assistant.campaign_documents cd WHERE cd.campaign_id = $1::uuid AND cd.processing_status = 'completed' AND (cd.extracted_text ILIKE '%' || $2 || '%' OR cd.filename ILIKE '%' || $2 || '%') ORDER BY cd.upload_date DESC LIMIT $3",
+        "additionalFields": {
+          "mode": "independently"
+        },
+        "options": {}
+      },
+      "id": "keyword-search-db",
+      "name": "Keyword Search DB",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [900, 400],
+      "credentials": {
+        "postgres": {
+          "id": "ai-content-assistant-postgres",
+          "name": "AI Content Assistant PostgreSQL"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Build Qdrant search filter\nconst searchRequest = $('Validate Search Request').item.json;\nconst embeddingResponse = $json;\n\nif (!embeddingResponse.embedding) {\n  throw new Error('Failed to generate search embedding');\n}\n\n// Build filter conditions\nconst filterConditions = {\n  \"must\": [\n    {\n      \"key\": \"campaign_id\",\n      \"match\": {\n        \"value\": searchRequest.campaign_id\n      }\n    }\n  ]\n};\n\n// Add document type filters if specified\nif (searchRequest.document_types.length > 0) {\n  filterConditions.must.push({\n    \"key\": \"content_type\",\n    \"match\": {\n      \"any\": searchRequest.document_types\n    }\n  });\n}\n\n// Add specific document filters if specified\nif (searchRequest.specific_documents.length > 0) {\n  filterConditions.must.push({\n    \"key\": \"document_id\",\n    \"match\": {\n      \"any\": searchRequest.specific_documents\n    }\n  });\n}\n\nreturn {\n  vector: embeddingResponse.embedding,\n  limit: searchRequest.limit,\n  score_threshold: searchRequest.similarity_threshold,\n  with_payload: true,\n  filter: filterConditions,\n  search_request: searchRequest\n};"
+      },
+      "id": "build-qdrant-query",
+      "name": "Build Qdrant Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 200]
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:6333/collections/campaign_documents/points/search",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "vector",
+              "value": "={{ $json.vector }}"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $json.limit }}"
+            },
+            {
+              "name": "score_threshold",
+              "value": "={{ $json.score_threshold }}"
+            },
+            {
+              "name": "with_payload",
+              "value": "={{ $json.with_payload }}"
+            },
+            {
+              "name": "filter",
+              "value": "={{ $json.filter }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "semantic-search-qdrant",
+      "name": "Semantic Search Qdrant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1340, 200]
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process and format search results\nconst searchRequest = $('Validate Search Request').item.json;\n\nlet searchResults = [];\nlet searchMethod = 'unknown';\n\n// Check which search path was taken\ntry {\n  // Try to get semantic search results\n  const semanticResults = $('Semantic Search Qdrant').item.json;\n  if (semanticResults && semanticResults.result) {\n    searchMethod = 'semantic';\n    searchResults = semanticResults.result.map(result => ({\n      document_id: result.payload.document_id,\n      chunk_index: result.payload.chunk_index,\n      text_excerpt: result.payload.text,\n      similarity_score: result.score,\n      relevance: result.score > 0.8 ? 'high' : result.score > 0.6 ? 'medium' : 'low',\n      source: 'vector_search',\n      metadata: {\n        start_pos: result.payload.start_pos,\n        end_pos: result.payload.end_pos,\n        created_at: result.payload.created_at\n      }\n    }));\n  }\n} catch (e) {\n  // Fallback - try keyword search results\n  try {\n    const keywordResults = $('Keyword Search DB').item.json;\n    if (Array.isArray(keywordResults)) {\n      searchMethod = 'keyword';\n      searchResults = keywordResults.map((result, index) => {\n        // Extract relevant excerpts from full text\n        const queryTerms = searchRequest.query.toLowerCase().split(' ');\n        const text = result.extracted_text || '';\n        const sentences = text.split('.');\n        \n        // Find sentences containing query terms\n        const relevantSentences = sentences.filter(sentence => \n          queryTerms.some(term => sentence.toLowerCase().includes(term))\n        ).slice(0, 3); // Take top 3 relevant sentences\n        \n        return {\n          document_id: result.id,\n          filename: result.filename,\n          original_filename: result.original_filename,\n          text_excerpt: relevantSentences.join('. ') || text.substring(0, 300) + '...',\n          keyword_matches: queryTerms.filter(term => text.toLowerCase().includes(term)),\n          relevance: 'keyword_match',\n          source: 'keyword_search',\n          metadata: {\n            upload_date: result.upload_date,\n            content_type: result.content_type,\n            full_text_length: text.length\n          }\n        };\n      });\n    }\n  } catch (e2) {\n    // No results from either search method\n  }\n}\n\n// Group results by document for better organization\nconst documentGroups = {};\nsearchResults.forEach(result => {\n  const docId = result.document_id;\n  if (!documentGroups[docId]) {\n    documentGroups[docId] = {\n      document_id: docId,\n      filename: result.filename,\n      excerpts: [],\n      max_relevance: 0,\n      total_matches: 0\n    };\n  }\n  \n  documentGroups[docId].excerpts.push({\n    text: result.text_excerpt,\n    score: result.similarity_score || 1,\n    relevance: result.relevance,\n    metadata: result.metadata\n  });\n  \n  documentGroups[docId].total_matches++;\n  if (result.similarity_score > documentGroups[docId].max_relevance) {\n    documentGroups[docId].max_relevance = result.similarity_score;\n  }\n});\n\n// Convert to array and sort by relevance\nconst groupedResults = Object.values(documentGroups)\n  .sort((a, b) => b.max_relevance - a.max_relevance);\n\nreturn {\n  search_results: {\n    query: searchRequest.query,\n    method: searchMethod,\n    total_results: searchResults.length,\n    documents_found: groupedResults.length,\n    results: searchResults,\n    grouped_by_document: groupedResults\n  },\n  search_metadata: {\n    campaign_id: searchRequest.campaign_id,\n    search_type: searchRequest.search_type,\n    similarity_threshold: searchRequest.similarity_threshold,\n    limit: searchRequest.limit,\n    search_timestamp: searchRequest.search_timestamp,\n    processing_time_ms: new Date().getTime() - new Date(searchRequest.search_timestamp).getTime()\n  },\n  session_context: {\n    session_id: searchRequest.session_id,\n    user_identifier: searchRequest.user_identifier\n  }\n};"
+      },
+      "id": "format-search-results",
+      "name": "Format Search Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1560, 300]
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ai_content_assistant.activity_log (event_type, event_data, campaign_id, session_id, user_identifier, processing_time_ms, status) VALUES ('document_search', $1::jsonb, $2::uuid, (SELECT id FROM ai_content_assistant.user_sessions WHERE session_id = $3), $4, $5, 'completed')",
+        "additionalFields": {
+          "mode": "independently"
+        },
+        "options": {}
+      },
+      "id": "log-search-activity",
+      "name": "Log Search Activity",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1780, 300],
+      "credentials": {
+        "postgres": {
+          "id": "ai-content-assistant-postgres",
+          "name": "AI Content Assistant PostgreSQL"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Build final search response\nconst searchData = $json;\n\nreturn {\n  success: true,\n  message: `Found ${searchData.search_results.total_results} results across ${searchData.search_results.documents_found} documents`,\n  \n  query: {\n    text: searchData.search_results.query,\n    method: searchData.search_results.method,\n    campaign_id: searchData.search_metadata.campaign_id\n  },\n  \n  results: {\n    total_count: searchData.search_results.total_results,\n    documents_count: searchData.search_results.documents_found,\n    items: searchData.search_results.results,\n    grouped_by_document: searchData.search_results.grouped_by_document\n  },\n  \n  metadata: {\n    search_type: searchData.search_metadata.search_type,\n    similarity_threshold: searchData.search_metadata.similarity_threshold,\n    processing_time_ms: searchData.search_metadata.processing_time_ms,\n    timestamp: new Date().toISOString()\n  },\n  \n  suggestions: {\n    refine_query: searchData.search_results.total_results === 0 ? \n      'Try using different keywords or lowering the similarity threshold' : null,\n    expand_search: searchData.search_results.total_results > 0 && searchData.search_results.total_results < 5 ?\n      'Consider using broader search terms to find more relevant content' : null\n  }\n};"
+      },
+      "id": "build-search-response",
+      "name": "Build Search Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2000, 300]
+    }
+  ],
+  
+  "connections": {
+    "Search Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Search Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Validate Search Request": {
+      "main": [
+        [
+          {
+            "node": "If Semantic Search",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "If Keyword Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "If Semantic Search": {
+      "main": [
+        [
+          {
+            "node": "Generate Search Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "If Keyword Search": {
+      "main": [
+        [
+          {
+            "node": "Keyword Search DB",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Format Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Generate Search Embedding": {
+      "main": [
+        [
+          {
+            "node": "Build Qdrant Query",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Build Qdrant Query": {
+      "main": [
+        [
+          {
+            "node": "Semantic Search Qdrant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Semantic Search Qdrant": {
+      "main": [
+        [
+          {
+            "node": "Format Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Keyword Search DB": {
+      "main": [
+        [
+          {
+            "node": "Format Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Format Search Results": {
+      "main": [
+        [
+          {
+            "node": "Log Search Activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Log Search Activity": {
+      "main": [
+        [
+          {
+            "node": "Build Search Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  
+  "versionId": "search-retrieval-v1",
+  "id": "ai-content-assistant-search-retrieval",
+  
+  "meta": {
+    "templateCreatedBy": "ai-content-assistant",
+    "instanceId": "search-retrieval"
+  },
+  
+  "tags": [
+    {
+      "id": "ai-content-assistant",
+      "name": "AI Content Assistant"
+    },
+    {
+      "id": "search-retrieval",
+      "name": "Search & Retrieval"
+    }
+  ]
+}

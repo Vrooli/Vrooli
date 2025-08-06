@@ -49,11 +49,11 @@
           "data": [
             {
               "type": "schema",
-              "file": "initialization/database/schema.sql"
+              "file": "initialization/storage/schema.sql"
             },
             {
               "type": "seed",
-              "file": "initialization/database/seed.sql"
+              "file": "initialization/storage/seed.sql"
             }
           ]
         }
@@ -187,30 +187,19 @@
     "initialization": {
       "phases": [
         {
-          "name": "pre-validation",
-          "tasks": [
-            {
-              "name": "validate-resources",
-              "type": "script",
-              "script": "./deployment/validate.sh",
-              "timeout": "30s"
-            }
-          ]
-        },
-        {
           "name": "database-setup",
           "tasks": [
             {
               "name": "apply-schema",
               "type": "sql",
               "target": "storage.postgres",
-              "file": "initialization/database/schema.sql"
+              "file": "initialization/storage/schema.sql"
             },
             {
               "name": "seed-data",
               "type": "sql",
               "target": "storage.postgres",
-              "file": "initialization/database/seed.sql"
+              "file": "initialization/storage/seed.sql"
             }
           ]
         },

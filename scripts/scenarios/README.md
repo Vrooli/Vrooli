@@ -244,7 +244,6 @@ scenario-name/
 │   └── storage/               # MinIO, Qdrant setup
 ├── deployment/                # Orchestration scripts
 │   ├── startup.sh             # App initialization  
-│   ├── validate.sh            # Pre/post validation
 │   └── monitor.sh             # Health monitoring
 ├── test.sh                    # Integration testing (optional)
 └── README.md                  # Documentation (optional, only for complex scenarios)

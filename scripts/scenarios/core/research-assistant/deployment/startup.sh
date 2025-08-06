@@ -46,19 +46,19 @@ load_configuration() {
     log_info "Loading scenario configuration..."
     
     # Check if required file exists
-    if [[ ! -f "$SCENARIO_DIR/service.json" ]]; then
-        log_error "service.json not found in $SCENARIO_DIR"
+    if [[ ! -f "$SCENARIO_DIR/.vrooli/service.json" ]]; then
+        log_error "service.json not found in $SCENARIO_DIR/.vrooli/"
         exit 1
     fi
     
     # Extract required resources
-    REQUIRED_RESOURCES=$(jq -r '.resources | to_entries[] | .value | to_entries[] | select(.value.required == true) | .key' "$SCENARIO_DIR/service.json" 2>/dev/null | tr '\n' ' ')
+    REQUIRED_RESOURCES=$(jq -r '.resources | to_entries[] | .value | to_entries[] | select(.value.required == true) | .key' "$SCENARIO_DIR/.vrooli/service.json" 2>/dev/null | tr '\n' ' ')
     log_info "Required resources: $REQUIRED_RESOURCES"
     
     # Extract configuration
-    REQUIRES_UI=$(jq -r '.deployment.testing.ui.required // false' "$SCENARIO_DIR/service.json" 2>/dev/null || echo "false")
-    REQUIRES_DISPLAY=$(jq -r '.deployment.testing.ui.type // "none"' "$SCENARIO_DIR/service.json" 2>/dev/null || echo "none")
-    TIMEOUT_SECONDS=$(jq -r '.deployment.testing.timeout // "30m"' "$SCENARIO_DIR/service.json" 2>/dev/null | sed 's/[ms]//g' || echo "300")
+    REQUIRES_UI=$(jq -r '.deployment.testing.ui.required // false' "$SCENARIO_DIR/.vrooli/service.json" 2>/dev/null || echo "false")
+    REQUIRES_DISPLAY=$(jq -r '.deployment.testing.ui.type // "none"' "$SCENARIO_DIR/.vrooli/service.json" 2>/dev/null || echo "none")
+    TIMEOUT_SECONDS=$(jq -r '.deployment.testing.timeout // "30m"' "$SCENARIO_DIR/.vrooli/service.json" 2>/dev/null | sed 's/[ms]//g' || echo "300")
     
     log_info "UI required: $REQUIRES_UI, Display required: $REQUIRES_DISPLAY, Timeout: ${TIMEOUT_SECONDS}s"
 }
@@ -141,6 +141,27 @@ validate_resources() {
                     log_success "✓ QuestDB is healthy"
                 fi
                 ;;
+            "searxng")
+                if ! curl -sf http://localhost:9200/ >/dev/null 2>&1; then
+                    failed_resources+=("searxng")
+                else
+                    log_success "✓ SearXNG is healthy"
+                fi
+                ;;
+            "unstructured-io")
+                if ! curl -sf http://localhost:11450/healthcheck >/dev/null 2>&1; then
+                    failed_resources+=("unstructured-io")
+                else
+                    log_success "✓ Unstructured-IO is healthy"
+                fi
+                ;;
+            "browserless")
+                if ! curl -sf http://localhost:4110/pressure >/dev/null 2>&1; then
+                    failed_resources+=("browserless")
+                else
+                    log_success "✓ Browserless is healthy"
+                fi
+                ;;
             *)
                 log_warning "Unknown resource: $resource"
                 ;;
@@ -162,8 +183,8 @@ initialize_database() {
         log_info "Initializing database..."
         
         local db_name="${SCENARIO_ID//-/_}"
-        local schema_file="$SCENARIO_DIR/initialization/database/schema.sql"
-        local seed_file="$SCENARIO_DIR/initialization/database/seed.sql"
+        local schema_file="$SCENARIO_DIR/initialization/storage/postgres/schema.sql"
+        local seed_file="$SCENARIO_DIR/initialization/storage/postgres/seed.sql"
         
         # Create database if it doesn't exist
         if ! psql -h localhost -p 5433 -U postgres -lqt | cut -d \| -f 1 | grep -qw "$db_name"; then
@@ -205,7 +226,7 @@ deploy_workflows() {
     
     # Deploy n8n workflows
     if [[ "$REQUIRED_RESOURCES" =~ "n8n" ]]; then
-        local n8n_dir="$SCENARIO_DIR/initialization/workflows/n8n"
+        local n8n_dir="$SCENARIO_DIR/initialization/automation/n8n"
         if [[ -d "$n8n_dir" ]]; then
             log_info "Deploying n8n workflows..."
             for workflow_file in "$n8n_dir"/*.json; do
@@ -225,7 +246,7 @@ deploy_workflows() {
     
     # Deploy Windmill apps
     if [[ "$REQUIRED_RESOURCES" =~ "windmill" && "$REQUIRES_UI" == "true" ]]; then
-        local windmill_app="$SCENARIO_DIR/initialization/ui/windmill-app.json"
+        local windmill_app="$SCENARIO_DIR/initialization/automation/windmill/dashboard-app.json"
         if [[ -f "$windmill_app" ]]; then
             log_info "Deploying Windmill application..."
             # Note: In a real implementation, you'd use Windmill's API to deploy apps

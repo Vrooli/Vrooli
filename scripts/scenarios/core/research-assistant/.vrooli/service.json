@@ -4,7 +4,7 @@
   "service": {
     "name": "research-assistant",
     "displayName": "AI Research Assistant",
-    "description": "Privacy-respecting research assistant combining web search, AI analysis, and knowledge management",
+    "description": "Enterprise-grade AI research platform with DeepSearch-quality reports, chatbot interface, and automated scheduling",
     "version": "1.0.0",
     "type": "business-application",
     "tags": [
@@ -48,11 +48,11 @@
           "data": [
             {
               "type": "schema",
-              "file": "initialization/database/schema.sql"
+              "file": "initialization/storage/postgres/schema.sql"
             },
             {
               "type": "seed",
-              "file": "initialization/database/seed.sql"
+              "file": "initialization/storage/postgres/seed.sql"
             }
           ]
         }
@@ -95,20 +95,20 @@
       },
       "minio": {
         "type": "minio",
-        "enabled": false,
-        "required": false,
+        "enabled": true,
+        "required": true,
         "initialization": {
           "buckets": [
             {
-              "name": "research-documents",
+              "name": "research-pdfs",
               "policy": "private"
             },
             {
-              "name": "reports",
+              "name": "report-assets",
               "policy": "private"
             },
             {
-              "name": "datasets",
+              "name": "source-cache",
               "policy": "private"
             }
           ]
@@ -119,7 +119,12 @@
       "ollama": {
         "enabled": true,
         "required": true,
-        "models": ["llama3.1:8b", "nomic-embed-text"]
+        "models": ["qwen2.5:32b", "nomic-embed-text", "llama3.2:3b"]
+      },
+      "unstructured-io": {
+        "enabled": true,
+        "required": true,
+        "type": "unstructured-io"
       }
     },
     "search": {
@@ -130,30 +135,31 @@
       }
     },
     "automation": {
+      "n8n": {
+        "enabled": true,
+        "required": true,
+        "type": "n8n"
+      },
       "windmill": {
-        "enabled": false,
-        "required": false,
+        "enabled": true,
+        "required": true,
         "initialization": {
           "apps": [
             {
               "path": "f/research-assistant/dashboard",
-              "file": "initialization/ui/windmill-research-app.json",
+              "file": "initialization/automation/windmill/dashboard-app.json",
               "summary": "Research Management Dashboard"
             }
           ],
-          "scripts": [
-            {
-              "name": "research-coordinator",
-              "file": "initialization/scripts/research-coordinator.ts",
-              "language": "typescript"
-            },
-            {
-              "name": "report-generator",
-              "file": "initialization/scripts/report-generator.ts",
-              "language": "typescript"
-            }
-          ]
+          "scripts": []
         }
+      }
+    },
+    "agents": {
+      "browserless": {
+        "enabled": true,
+        "required": true,
+        "type": "browserless"
       }
     }
   },
@@ -171,30 +177,19 @@
     "initialization": {
       "phases": [
         {
-          "name": "pre-validation",
-          "tasks": [
-            {
-              "name": "validate-resources",
-              "type": "script",
-              "script": "./deployment/validate.sh",
-              "timeout": "30s"
-            }
-          ]
-        },
-        {
           "name": "database-setup",
           "tasks": [
             {
               "name": "apply-schema",
               "type": "sql",
               "target": "storage.postgres",
-              "file": "initialization/database/schema.sql"
+              "file": "initialization/storage/postgres/schema.sql"
             },
             {
               "name": "seed-data",
               "type": "sql",
               "target": "storage.postgres",
-              "file": "initialization/database/seed.sql"
+              "file": "initialization/storage/postgres/seed.sql"
             }
           ]
         },
@@ -241,7 +236,7 @@
               "name": "deploy-windmill-apps",
               "type": "resource-inject",
               "target": "automation.windmill",
-              "config": "initialization/ui/",
+              "config": "initialization/automation/windmill/",
               "timeout": "3m"
             }
           ]
@@ -257,7 +252,7 @@
             {
               "name": "set-research-settings",
               "type": "config",
-              "file": "initialization/configuration/research-settings.json"
+              "file": "initialization/configuration/research-config.json"
             }
           ]
         },
@@ -404,7 +399,7 @@
   "metadata": {
     "businessModel": {
       "purpose": "commercial",
-      "valueProposition": "Privacy-focused AI research assistant for automated market intelligence, competitive analysis, and knowledge synthesis",
+      "valueProposition": "Enterprise-grade AI research platform delivering DeepSearch-quality reports with conversational interface, automated scheduling, and complete data privacy",
       "targetMarket": "Business analysts, researchers, consultants, competitive intelligence teams, and market research professionals",
       "painPoints": [
         "Manual web research consuming hours of analyst time daily",

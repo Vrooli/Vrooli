@@ -1,0 +1,347 @@
+{
+  "name": "Semantic Search Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "semantic-search",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*",
+          "httpMethod": "POST"
+        }
+      },
+      "id": "webhook-search-request",
+      "name": "Search Request Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "semantic-search"
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Validate and process search request\nconst inputData = $input.first().json;\n\n// Validate required fields\nif (!inputData.query || inputData.query.trim() === '') {\n  throw new Error('Missing or empty required field: query');\n}\n\n// Clean and validate query\nconst cleanQuery = inputData.query.trim();\nif (cleanQuery.length < 2) {\n  throw new Error('Query must be at least 2 characters long');\n}\n\nif (cleanQuery.length > 500) {\n  throw new Error('Query must be less than 500 characters');\n}\n\n// Prepare search request data\nconst searchData = {\n  query: cleanQuery,\n  limit: Math.min(parseInt(inputData.limit) || 20, 100), // Cap at 100 results\n  minSimilarity: parseFloat(inputData.minSimilarity) || 0.7,\n  sessionId: inputData.sessionId || 'anonymous-session',\n  userIdentifier: inputData.userIdentifier || 'anonymous',\n  embeddingModel: inputData.embeddingModel || 'nomic-embed-text',\n  collectionName: 'transcription-embeddings',\n  \n  // Filters\n  dateFrom: inputData.dateFrom || null,\n  dateTo: inputData.dateTo || null,\n  minDuration: inputData.minDuration || null,\n  maxDuration: inputData.maxDuration || null,\n  \n  processingStartTime: Date.now()\n};\n\nreturn searchData;"
+      },
+      "id": "validate-search-request",
+      "name": "Validate Search Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:11434/api/embeddings",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "={{ $json.embeddingModel }}"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.query }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "generate-query-embedding",
+      "name": "Generate Query Embedding (Ollama)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300]
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare Qdrant search request\nconst searchData = $input.all()[0].json;\nconst embeddingResponse = $input.all()[1].json;\n\nconst queryEmbedding = embeddingResponse.embedding;\nif (!queryEmbedding || !Array.isArray(queryEmbedding)) {\n  throw new Error('Failed to generate query embedding');\n}\n\n// Build Qdrant search payload\nconst searchPayload = {\n  vector: queryEmbedding,\n  limit: searchData.limit,\n  with_payload: true,\n  with_vector: false,\n  score_threshold: searchData.minSimilarity\n};\n\n// Add filters if specified\nconst filters = [];\n\nif (searchData.dateFrom || searchData.dateTo) {\n  const dateFilter = {\n    key: \"created_at\",\n    range: {}\n  };\n  \n  if (searchData.dateFrom) {\n    dateFilter.range.gte = searchData.dateFrom;\n  }\n  \n  if (searchData.dateTo) {\n    dateFilter.range.lte = searchData.dateTo;\n  }\n  \n  filters.push(dateFilter);\n}\n\nif (filters.length > 0) {\n  searchPayload.filter = {\n    must: filters\n  };\n}\n\nconst qdrantRequest = {\n  searchPayload: searchPayload,\n  collectionName: searchData.collectionName,\n  searchData: searchData\n};\n\nreturn qdrantRequest;"
+      },
+      "id": "prepare-vector-search",
+      "name": "Prepare Vector Search",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:6333/collections/{{ $json.collectionName }}/points/search",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "vector",
+              "value": "={{ JSON.stringify($json.searchPayload.vector) }}"
+            },
+            {
+              "name": "limit",
+              "value": "={{ $json.searchPayload.limit }}"
+            },
+            {
+              "name": "with_payload",
+              "value": "={{ $json.searchPayload.with_payload }}"
+            },
+            {
+              "name": "with_vector",
+              "value": "={{ $json.searchPayload.with_vector }}"
+            },
+            {
+              "name": "score_threshold",
+              "value": "={{ $json.searchPayload.score_threshold }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "search-vectors",
+      "name": "Search Vectors (Qdrant)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 300]
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process Qdrant search results and fetch full transcription details\nconst qdrantResponse = $input.first().json;\nconst searchRequest = $input.all()[0].json;\n\nconst searchResults = qdrantResponse.result || [];\n\nif (searchResults.length === 0) {\n  return {\n    searchResults: [],\n    transcriptionIds: [],\n    searchData: searchRequest.searchData,\n    resultsCount: 0\n  };\n}\n\n// Extract transcription IDs and similarity scores\nconst transcriptionIds = searchResults.map(result => result.payload.transcription_id);\nconst scoreMap = {};\n\nsearchResults.forEach(result => {\n  scoreMap[result.payload.transcription_id] = {\n    similarity: result.score,\n    snippet: result.payload.text || '',\n    vectorId: result.id\n  };\n});\n\nreturn {\n  searchResults: searchResults,\n  transcriptionIds: transcriptionIds,\n  scoreMap: scoreMap,\n  searchData: searchRequest.searchData,\n  resultsCount: searchResults.length\n};"
+      },
+      "id": "process-search-results",
+      "name": "Process Search Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT id, filename, transcription_text, duration_seconds, confidence_score, language_detected, created_at, session_id, user_identifier FROM podcast_transcription_assistant.transcriptions WHERE id = ANY($1) ORDER BY created_at DESC",
+        "additionalFields": {
+          "mode": "independently"
+        }
+      },
+      "id": "fetch-transcription-details",
+      "name": "Fetch Transcription Details (PostgreSQL)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1560, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-podcast-transcription",
+          "name": "PostgreSQL - Podcast Transcription"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO podcast_transcription_assistant.search_queries (id, query_text, query_embedding_model, results_count, max_similarity_score, processing_time_ms, session_id, user_identifier, created_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id",
+        "additionalFields": {
+          "mode": "independently"
+        }
+      },
+      "id": "log-search-query",
+      "name": "Log Search Query (PostgreSQL)",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1560, 500],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-podcast-transcription",
+          "name": "PostgreSQL - Podcast Transcription"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Combine search results with transcription details and build response\nconst searchData = $input.all().find(item => item.json.searchData);\nconst transcriptionDetails = $input.all().find(item => Array.isArray(item.json));\n\nconst processingEndTime = Date.now();\nconst processingTime = processingEndTime - searchData.json.searchData.processingStartTime;\n\nconst transcriptions = transcriptionDetails ? transcriptionDetails.json : [];\nconst scoreMap = searchData.json.scoreMap || {};\nconst resultsCount = searchData.json.resultsCount || 0;\n\n// Calculate max similarity score for logging\nconst maxSimilarity = resultsCount > 0 \n  ? Math.max(...Object.values(scoreMap).map(s => s.similarity))\n  : 0;\n\n// Build enhanced results with transcription details and similarity scores\nconst enhancedResults = transcriptions.map(transcription => {\n  const scoreInfo = scoreMap[transcription.id] || {};\n  const textSnippet = scoreInfo.snippet || \n    transcription.transcription_text.substring(0, 200) + '...';\n  \n  return {\n    transcriptionId: transcription.id,\n    filename: transcription.filename,\n    similarity: scoreInfo.similarity || 0,\n    snippet: textSnippet,\n    duration: transcription.duration_seconds,\n    confidence: transcription.confidence_score,\n    language: transcription.language_detected,\n    createdAt: transcription.created_at,\n    \n    // UI-friendly data\n    durationFormatted: transcription.duration_seconds ? \n      `${Math.floor(transcription.duration_seconds / 60)}:${(transcription.duration_seconds % 60).toString().padStart(2, '0')}` : \n      'Unknown',\n    similarityFormatted: `${Math.round((scoreInfo.similarity || 0) * 100)}%`,\n    \n    // Action URLs\n    viewUrl: `http://localhost:5681/transcription/${transcription.id}`,\n    downloadUrl: `http://localhost:9000/transcriptions/${transcription.id}-transcript.txt`\n  };\n});\n\n// Sort results by similarity score (highest first)\nenhancedResults.sort((a, b) => b.similarity - a.similarity);\n\n// Prepare search query logging data\nconst searchLogData = {\n  id: crypto.randomUUID(),\n  query_text: searchData.json.searchData.query,\n  query_embedding_model: searchData.json.searchData.embeddingModel,\n  results_count: resultsCount,\n  max_similarity_score: maxSimilarity,\n  processing_time_ms: processingTime,\n  session_id: searchData.json.searchData.sessionId,\n  user_identifier: searchData.json.searchData.userIdentifier,\n  created_at: new Date().toISOString()\n};\n\n// Build final response\nconst response = {\n  success: true,\n  message: resultsCount > 0 ? `Found ${resultsCount} relevant transcriptions` : 'No transcriptions found matching your query',\n  query: searchData.json.searchData.query,\n  resultsCount: resultsCount,\n  processingTime: processingTime,\n  maxSimilarity: maxSimilarity,\n  results: enhancedResults,\n  \n  // Search metadata\n  searchParams: {\n    limit: searchData.json.searchData.limit,\n    minSimilarity: searchData.json.searchData.minSimilarity,\n    embeddingModel: searchData.json.searchData.embeddingModel\n  },\n  \n  // Search suggestions (if no results)\n  suggestions: resultsCount === 0 ? [\n    \"Try using different keywords\",\n    \"Use more general terms\",\n    \"Check for typos in your search\",\n    \"Try searching for specific topics or names mentioned in your audio\"\n  ] : [],\n  \n  searchLogData: searchLogData\n};\n\nreturn response;"
+      },
+      "id": "build-search-response",
+      "name": "Build Search Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 400]
+    },
+    
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ Object.assign({}, $json, { searchLogData: undefined }) }}",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          }
+        }
+      },
+      "id": "search-response",
+      "name": "Search Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2000, 400]
+    }
+  ],
+  
+  "connections": {
+    "Search Request Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Search Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Validate Search Request": {
+      "main": [
+        [
+          {
+            "node": "Generate Query Embedding (Ollama)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Generate Query Embedding (Ollama)": {
+      "main": [
+        [
+          {
+            "node": "Prepare Vector Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Prepare Vector Search": {
+      "main": [
+        [
+          {
+            "node": "Search Vectors (Qdrant)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Search Vectors (Qdrant)": {
+      "main": [
+        [
+          {
+            "node": "Process Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Process Search Results": {
+      "main": [
+        [
+          {
+            "node": "Fetch Transcription Details (PostgreSQL)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Search Query (PostgreSQL)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Fetch Transcription Details (PostgreSQL)": {
+      "main": [
+        [
+          {
+            "node": "Build Search Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Log Search Query (PostgreSQL)": {
+      "main": [
+        [
+          {
+            "node": "Build Search Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Build Search Response": {
+      "main": [
+        [
+          {
+            "node": "Search Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": {
+      "id": "error-handler-workflow"
+    }
+  },
+  
+  "versionId": "semantic-search-workflow-v1",
+  "id": "semantic-search-workflow",
+  
+  "meta": {
+    "templateCreatedBy": "podcast-transcription-assistant",
+    "instanceId": "semantic-search-workflow"
+  },
+  
+  "tags": [
+    {
+      "id": "podcast-transcription",
+      "name": "Podcast Transcription"
+    },
+    {
+      "id": "semantic-search",
+      "name": "Semantic Search"
+    },
+    {
+      "id": "vector-search",
+      "name": "Vector Search"
+    }
+  ]
+}

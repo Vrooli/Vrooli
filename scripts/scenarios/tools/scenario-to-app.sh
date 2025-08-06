@@ -270,6 +270,12 @@ except Exception as e:
         fi
     fi
     
+    # Validate initialization file paths
+    log::info "Validating initialization file paths..."
+    if ! validate_initialization_paths; then
+        exit 1
+    fi
+    
     # Display service information (preserve original behavior)
     if [[ "$VERBOSE" == "true" ]]; then
         local service_name service_display_name
@@ -298,6 +304,81 @@ get_enabled_resources() {
 get_resource_categories() {
     # Extract all resource category names
     echo "$SERVICE_JSON" | jq -r '.resources | keys[]' 2>/dev/null || true
+}
+
+# Validate that initialization file paths in service.json actually exist
+validate_initialization_paths() {
+    if [[ "$VERBOSE" == "true" ]]; then
+        log::info "Validating initialization file paths..."
+    fi
+    
+    local validation_errors=0
+    local total_files=0
+    
+    # Check initialization files referenced in resource configurations
+    echo "$SERVICE_JSON" | jq -r '
+        .resources | to_entries[] as $category |
+        $category.value | to_entries[] as $resource |
+        $resource.value | select(.enabled == true) |
+        .initialization? // {} |
+        (
+            (.data[]?.file // empty),
+            (.workflows[]?.file // empty),
+            (.apps[]?.file // empty),
+            (.scripts[]?.file // empty)
+        ) | select(. != null and . != "")
+    ' 2>/dev/null | while IFS= read -r file_path; do
+        total_files=$((total_files + 1))
+        local full_path="${SCENARIO_PATH}/${file_path}"
+        
+        if [[ ! -f "$full_path" ]]; then
+            log::error "Referenced file not found: $file_path"
+            log::error "  Expected at: $full_path"
+            validation_errors=$((validation_errors + 1))
+        elif [[ "$VERBOSE" == "true" ]]; then
+            log::info "✅ Found: $file_path"
+        fi
+    done
+    
+    # Check deployment initialization files
+    echo "$SERVICE_JSON" | jq -r '
+        .deployment.initialization.phases[]?.tasks[]? |
+        select(.type == "sql" or .type == "config") |
+        .file // empty | select(. != "")
+    ' 2>/dev/null | while IFS= read -r file_path; do
+        total_files=$((total_files + 1))
+        local full_path="${SCENARIO_PATH}/${file_path}"
+        
+        if [[ ! -f "$full_path" ]]; then
+            log::error "Deployment file not found: $file_path"
+            log::error "  Expected at: $full_path"
+            validation_errors=$((validation_errors + 1))
+        elif [[ "$VERBOSE" == "true" ]]; then
+            log::info "✅ Found: $file_path"
+        fi
+    done
+    
+    # Summary of validation results
+    if [[ "$VERBOSE" == "true" ]]; then
+        log::info "📋 Path Validation Summary:"
+        if [[ "$validation_errors" -eq 0 ]]; then
+            log::success "   • All $total_files initialization file paths are valid"
+        else
+            log::error "   • $validation_errors file path(s) are invalid out of $total_files total"
+        fi
+    fi
+    
+    # Fail validation if any errors found
+    if [[ "$validation_errors" -gt 0 ]]; then
+        log::error "❌ Initialization path validation failed"
+        log::error "💡 Common fixes:"
+        log::error "   • Ensure all file paths in service.json use correct relative paths"
+        log::error "   • Verify initialization files exist in the scenario directory"
+        log::error "   • Check that folder names match the scripts/resources/ convention"
+        return 1
+    fi
+    
+    return 0
 }
 
 ################################################################################

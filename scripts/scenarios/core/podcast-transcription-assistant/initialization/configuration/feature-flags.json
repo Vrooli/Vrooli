@@ -1,32 +1,32 @@
 {
   "ai_features": {
     "text_generation": {
-      "enabled": {{ "true" if "ollama" in resources.required else "false" }},
-      "models": {{ '["llama3.1:8b", "qwen2.5-coder:7b"]' if "ollama" in resources.required else "[]" }},
+      "enabled": true,
+      "models": ["llama3.1:8b", "qwen2.5-coder:7b"],
       "max_tokens": 2048,
       "temperature_range": [0.1, 1.0]
     },
     
     "speech_to_text": {
-      "enabled": {{ "true" if "whisper" in resources.required else "false" }},
-      "supported_formats": {{ '["wav", "mp3", "ogg", "m4a"]' if "whisper" in resources.required else "[]" }},
-      "max_audio_duration_seconds": 300
+      "enabled": true,
+      "supported_formats": ["wav", "mp3", "ogg", "m4a", "flac"],
+      "max_audio_duration_seconds": 10800
     },
     
     "image_generation": {
-      "enabled": {{ "true" if "comfyui" in resources.required else "false" }},
-      "supported_formats": {{ '["png", "jpg", "jpeg"]' if "comfyui" in resources.required else "[]" }},
-      "max_resolution": {{ '"1024x1024"' if "comfyui" in resources.required else 'null' }}
+      "enabled": false,
+      "supported_formats": [],
+      "max_resolution": null
     },
     
     "document_processing": {
-      "enabled": {{ "true" if "unstructured-io" in resources.required else "false" }},
-      "supported_formats": {{ '["pdf", "docx", "txt", "html"]' if "unstructured-io" in resources.required else "[]" }},
+      "enabled": false,
+      "supported_formats": [],
       "max_file_size_mb": 25
     },
     
     "vision_analysis": {
-      "enabled": {{ "true" if "llava:7b" in get_available_models() else "false" }},
+      "enabled": false,
       "supported_formats": ["jpg", "jpeg", "png", "gif", "webp"],
       "max_image_size_mb": 10
     }
@@ -34,36 +34,36 @@
   
   "automation_features": {
     "workflow_automation": {
-      "enabled": {{ "true" if "n8n" in resources.required else "false" }},
+      "enabled": true,
       "max_concurrent_workflows": 5,
       "webhook_support": true,
       "scheduling_support": true
     },
     
     "screen_automation": {
-      "enabled": {{ "true" if "agent-s2" in resources.required else "false" }},
+      "enabled": false,
       "screenshot_support": true,
       "mouse_automation": true,
       "keyboard_automation": true,
-      "requires_display": {{ testing.requires_display | default(false) }}
+      "requires_display": false
     },
     
     "web_automation": {
-      "enabled": {{ "true" if "browserless" in resources.required else "false" }},
+      "enabled": false,
       "pdf_generation": true,
       "screenshot_capture": true,
       "scraping_support": true
     },
     
     "professional_ui": {
-      "enabled": {{ "true" if "windmill" in resources.required else "false" }},
+      "enabled": true,
       "custom_branding": true,
       "dashboard_creation": true,
       "script_execution": true
     },
     
     "real_time_dashboard": {
-      "enabled": {{ "true" if "node-red" in resources.required else "false" }},
+      "enabled": false,
       "live_monitoring": true,
       "event_processing": true,
       "websocket_support": true
@@ -72,35 +72,35 @@
   
   "storage_features": {
     "file_storage": {
-      "enabled": {{ "true" if "minio" in resources.required else "false" }},
+      "enabled": true,
       "public_access": false,
       "versioning": true,
       "encryption": false
     },
     
     "vector_search": {
-      "enabled": {{ "true" if "qdrant" in resources.required else "false" }},
+      "enabled": true,
       "embedding_dimensions": 384,
       "similarity_threshold": 0.7,
       "max_results": 100
     },
     
     "time_series_analytics": {
-      "enabled": {{ "true" if "questdb" in resources.required else "false" }},
+      "enabled": false,
       "real_time_ingestion": true,
       "historical_analysis": true,
       "performance_monitoring": true
     },
     
     "caching": {
-      "enabled": {{ "true" if "redis" in resources.required else "false" }},
+      "enabled": false,
       "session_storage": true,
       "response_caching": true,
       "pub_sub_messaging": true
     },
     
     "secret_management": {
-      "enabled": {{ "true" if "vault" in resources.required else "false" }},
+      "enabled": false,
       "dynamic_secrets": true,
       "rotation_support": true,
       "audit_logging": true
@@ -109,7 +109,7 @@
   
   "business_features": {
     "analytics_dashboard": {
-      "enabled": {{ "true" if testing.requires_ui else "false" }},
+      "enabled": true,
       "usage_metrics": true,
       "performance_metrics": true,
       "cost_tracking": true,
@@ -117,7 +117,7 @@
     },
     
     "user_management": {
-      "enabled": false,  # Enable when auth is implemented
+      "enabled": false,
       "multi_tenancy": false,
       "role_based_access": false,
       "session_management": true
@@ -126,7 +126,7 @@
     "api_access": {
       "enabled": true,
       "rate_limiting": true,
-      "api_key_auth": false,  # Enable in production
+      "api_key_auth": false,
       "webhook_support": true
     },
     
@@ -140,14 +140,14 @@
   
   "search_features": {
     "web_search": {
-      "enabled": {{ "true" if "searxng" in resources.required else "false" }},
+      "enabled": false,
       "privacy_focused": true,
       "multiple_engines": true,
       "result_filtering": true
     },
     
     "semantic_search": {
-      "enabled": {{ "true" if "qdrant" in resources.required and "ollama" in resources.required else "false" }},
+      "enabled": true,
       "auto_embedding": true,
       "similarity_ranking": true,
       "context_aware": true
@@ -164,14 +164,14 @@
     
     "webhooks": {
       "enabled": true,
-      "authentication": false,  # Enable in production
+      "authentication": false,
       "payload_validation": true,
       "delivery_confirmation": true
     },
     
     "import_export": {
       "enabled": true,
-      "data_formats": ["json", "csv", "yaml"],
+      "data_formats": ["json", "csv", "yaml", "txt", "srt"],
       "bulk_operations": true,
       "backup_restore": true
     }

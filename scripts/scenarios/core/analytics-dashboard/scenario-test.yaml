@@ -4,51 +4,89 @@ scenario: analytics-dashboard
 # Structure validation
 structure:
   required_files:
-    - metadata.yaml
-    - manifest.yaml
-    - README.md
-    - initialization/database/schema.sql
-    - initialization/workflows/n8n/main-workflow.json
-    - initialization/configuration/app-config.json
-    - initialization/ui/windmill-app.json
+    - .vrooli/service.json
+    - IMPLEMENTATION_PLAN.md
+    - docs/README.md
+    - initialization/storage/postgres/schema.sql
+    - initialization/storage/postgres/seed.sql
+    - initialization/storage/questdb/tables.sql
+    - initialization/automation/n8n/resource-monitor.json
+    - initialization/automation/n8n/auto-discovery.json
+    - initialization/automation/n8n/alert-handler.json
+    - initialization/automation/node-red/metrics-collector.json
+    - initialization/ui/windmill/dashboard-app.json
+    - initialization/ui/windmill/config-panel.json
+    - initialization/configuration/monitor-config.json
+    - deployment/startup.sh
+    - test.sh
   
   required_dirs:
-    - initialization/database
-    - initialization/workflows
+    - initialization/storage
+    - initialization/automation
     - initialization/configuration
-    - initialization/vectors
+    - initialization/ui
     - deployment
-    - ui
 
 # Resource requirements
 resources:
-  required: [ollama]
-  optional: [browserless, minio]
+  required: [postgres, questdb, redis, vault, n8n, windmill]
+  optional: [browserless, node-red, minio]
   health_timeout: 30
 
 # Declarative tests
 tests:
-  - name: "AI Model Engine Ready"
+  - name: "PostgreSQL Database Ready"
     type: http
-    service: ollama
-    endpoint: /api/tags
+    service: postgres
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "QuestDB Time-Series Ready"
+    type: http
+    service: questdb
+    endpoint: /status
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: html
+        contains: "QuestDB"
+        
+  - name: "n8n Workflow Engine Ready"
+    type: http
+    service: n8n
+    endpoint: /healthz
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: text
+        contains: "ok"
+        
+  - name: "Windmill UI Ready"
+    type: http
+    service: windmill
+    endpoint: /api/version
     method: GET
     expect:
       status: 200
       body:
         type: json
         
-  - name: "Business Logic Validation"
+  - name: "Resource Monitoring Functional Test"
     type: custom
-    script: custom-tests.sh
-    function: test_analytics_dashboard_workflow
+    script: test.sh
+    function: run_test "System health check" "${SCRIPT_DIR}/deployment/monitor.sh"
 
 # Validation criteria
 validation:
-  success_rate: 75        # Allow some flexibility for optional services
-  response_time: 10000    # 10 seconds max for service responses
-  revenue_potential: 10000
+  success_rate: 80        # Higher success rate for monitoring platform
+  response_time: 15000    # 15 seconds max for service responses (monitoring can be slower)
+  revenue_potential: 15000
   business_criteria:
-    - "Core services operational"
-    - "Business workflow functional"
-    - "Integration points validated"
+    - "All core monitoring services operational"
+    - "Database schemas properly initialized"
+    - "Workflow automation functional"
+    - "Management UI accessible"

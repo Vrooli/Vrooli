@@ -1,0 +1,560 @@
+{
+  "templates": {
+    "ai_technology_analysis": {
+      "name": "AI Technology Analysis",
+      "description": "Comprehensive analysis of artificial intelligence technologies and trends",
+      "category": "technology",
+      "default_depth": "standard",
+      "default_length": 5,
+      "sections": [
+        {
+          "name": "Executive Summary",
+          "required": true,
+          "description": "High-level overview of AI developments and key findings",
+          "word_count": {"min": 200, "max": 400},
+          "position": 1
+        },
+        {
+          "name": "Technology Overview",
+          "required": true,
+          "description": "Detailed explanation of the AI technologies being analyzed",
+          "subsections": ["Core Technologies", "Architecture", "Capabilities"],
+          "position": 2
+        },
+        {
+          "name": "Market Analysis",
+          "required": true,
+          "description": "Market adoption, key players, and competitive landscape",
+          "subsections": ["Market Size", "Key Players", "Competitive Dynamics"],
+          "position": 3
+        },
+        {
+          "name": "Technical Assessment",
+          "required": false,
+          "description": "Technical strengths, limitations, and performance metrics",
+          "subsections": ["Performance Benchmarks", "Limitations", "Technical Challenges"],
+          "position": 4
+        },
+        {
+          "name": "Industry Applications",
+          "required": true,
+          "description": "Current and potential applications across industries",
+          "position": 5
+        },
+        {
+          "name": "Future Outlook",
+          "required": true,
+          "description": "Predictions and implications for the next 2-5 years",
+          "subsections": ["Short-term Developments", "Long-term Implications", "Potential Risks"],
+          "position": 6
+        },
+        {
+          "name": "Investment Analysis",
+          "required": false,
+          "description": "Investment trends, funding, and financial implications",
+          "position": 7
+        },
+        {
+          "name": "Regulatory Considerations",
+          "required": false,
+          "description": "Regulatory landscape and compliance requirements",
+          "position": 8
+        }
+      ],
+      "search_queries": [
+        "artificial intelligence {specific_technology} latest developments",
+        "AI {specific_technology} market analysis competitive landscape",
+        "machine learning {specific_technology} research breakthrough",
+        "{specific_technology} industry applications use cases",
+        "AI {specific_technology} investment funding trends"
+      ],
+      "preferred_sources": [
+        "arxiv.org",
+        "openai.com",
+        "anthropic.com",
+        "deepmind.com",
+        "nature.com",
+        "mit.edu",
+        "stanford.edu"
+      ],
+      "analysis_prompts": {
+        "technology_focus": "Emphasize technical accuracy, breakthrough significance, and practical implications",
+        "market_focus": "Include market size data, adoption rates, and competitive positioning",
+        "future_focus": "Provide realistic timelines and evidence-based predictions"
+      }
+    },
+    "competitive_intelligence": {
+      "name": "Competitive Intelligence Report",
+      "description": "Strategic analysis of competitors, market positioning, and business opportunities",
+      "category": "business",
+      "default_depth": "deep",
+      "default_length": 8,
+      "sections": [
+        {
+          "name": "Executive Overview",
+          "required": true,
+          "description": "Strategic summary of competitive landscape and key insights",
+          "word_count": {"min": 300, "max": 500},
+          "position": 1
+        },
+        {
+          "name": "Market Definition",
+          "required": true,
+          "description": "Define the market scope, segments, and boundaries",
+          "position": 2
+        },
+        {
+          "name": "Competitor Profiles",
+          "required": true,
+          "description": "Detailed analysis of key competitors",
+          "subsections": [
+            "Direct Competitors",
+            "Indirect Competitors", 
+            "Emerging Players",
+            "Financial Performance",
+            "Product Portfolio",
+            "Market Share"
+          ],
+          "position": 3
+        },
+        {
+          "name": "Competitive Positioning",
+          "required": true,
+          "description": "How competitors position themselves in the market",
+          "subsections": ["Value Propositions", "Pricing Strategies", "Brand Positioning"],
+          "position": 4
+        },
+        {
+          "name": "Strengths and Weaknesses Analysis",
+          "required": true,
+          "description": "SWOT analysis of each major competitor",
+          "position": 5
+        },
+        {
+          "name": "Market Dynamics",
+          "required": true,
+          "description": "Market trends, growth drivers, and challenges",
+          "subsections": ["Growth Trends", "Technology Disruptions", "Regulatory Changes"],
+          "position": 6
+        },
+        {
+          "name": "Customer Analysis",
+          "required": true,
+          "description": "Customer preferences, switching costs, and loyalty factors",
+          "position": 7
+        },
+        {
+          "name": "Strategic Opportunities",
+          "required": true,
+          "description": "Market gaps, expansion opportunities, and strategic recommendations",
+          "position": 8
+        },
+        {
+          "name": "Threat Assessment",
+          "required": true,
+          "description": "Competitive threats and risk mitigation strategies",
+          "position": 9
+        },
+        {
+          "name": "Strategic Recommendations",
+          "required": true,
+          "description": "Actionable recommendations based on competitive analysis",
+          "position": 10
+        }
+      ],
+      "search_queries": [
+        "{company_name} competitors market share analysis",
+        "{industry} competitive landscape market leaders",
+        "{company_name} vs {competitor} comparison analysis",
+        "{industry} market trends competitive dynamics",
+        "{company_name} financial performance revenue growth"
+      ],
+      "preferred_sources": [
+        "bloomberg.com",
+        "reuters.com",
+        "wsj.com",
+        "ft.com",
+        "crunchbase.com",
+        "sec.gov",
+        "10-k reports"
+      ],
+      "analysis_prompts": {
+        "strategic_focus": "Emphasize strategic implications and actionable insights",
+        "data_driven": "Include quantitative metrics and financial data where available",
+        "objective_analysis": "Maintain objectivity and avoid speculative conclusions"
+      }
+    },
+    "market_research_report": {
+      "name": "Market Research Report",
+      "description": "Comprehensive market analysis including size, growth, trends, and opportunities",
+      "category": "business",
+      "default_depth": "deep",
+      "default_length": 10,
+      "sections": [
+        {
+          "name": "Market Overview",
+          "required": true,
+          "description": "High-level market definition and key characteristics",
+          "position": 1
+        },
+        {
+          "name": "Market Size and Growth",
+          "required": true,
+          "description": "Quantitative analysis of market size, growth rates, and projections",
+          "subsections": [
+            "Total Addressable Market (TAM)",
+            "Serviceable Addressable Market (SAM)",
+            "Growth Rate Analysis",
+            "Regional Breakdown"
+          ],
+          "position": 2
+        },
+        {
+          "name": "Market Segmentation",
+          "required": true,
+          "description": "Detailed breakdown of market segments and sub-segments",
+          "position": 3
+        },
+        {
+          "name": "Customer Analysis",
+          "required": true,
+          "description": "Customer demographics, behavior, and preferences",
+          "subsections": ["Target Demographics", "Buying Behavior", "Customer Journey"],
+          "position": 4
+        },
+        {
+          "name": "Competitive Landscape",
+          "required": true,
+          "description": "Analysis of key players and competitive dynamics",
+          "position": 5
+        },
+        {
+          "name": "Technology Trends",
+          "required": true,
+          "description": "Technological developments impacting the market",
+          "position": 6
+        },
+        {
+          "name": "Regulatory Environment",
+          "required": false,
+          "description": "Regulatory factors affecting market development",
+          "position": 7
+        },
+        {
+          "name": "Market Drivers and Restraints",
+          "required": true,
+          "description": "Factors driving growth and potential barriers",
+          "subsections": ["Growth Drivers", "Market Restraints", "Opportunities"],
+          "position": 8
+        },
+        {
+          "name": "Investment Analysis",
+          "required": true,
+          "description": "Investment trends, funding, and M&A activity",
+          "position": 9
+        },
+        {
+          "name": "Risk Analysis",
+          "required": true,
+          "description": "Market risks and mitigation strategies",
+          "position": 10
+        },
+        {
+          "name": "Future Outlook",
+          "required": true,
+          "description": "Market forecasts and strategic implications",
+          "position": 11
+        },
+        {
+          "name": "Strategic Recommendations",
+          "required": true,
+          "description": "Actionable recommendations for market entry or expansion",
+          "position": 12
+        }
+      ],
+      "search_queries": [
+        "{market} size revenue forecast CAGR growth",
+        "{market} market research report industry analysis",
+        "{market} trends drivers restraints opportunities",
+        "{market} competitive landscape key players",
+        "{market} customer demographics behavior analysis",
+        "{market} investment funding venture capital"
+      ],
+      "preferred_sources": [
+        "statista.com",
+        "ibisworld.com", 
+        "mordorintelligence.com",
+        "grandviewresearch.com",
+        "mckinsey.com",
+        "bcg.com",
+        "pwc.com"
+      ]
+    },
+    "academic_literature_review": {
+      "name": "Academic Literature Review",
+      "description": "Systematic review and analysis of academic research on a specific topic",
+      "category": "research",
+      "default_depth": "deep",
+      "default_length": 7,
+      "sections": [
+        {
+          "name": "Abstract",
+          "required": true,
+          "description": "Concise summary of the review scope, methods, and findings",
+          "word_count": {"min": 200, "max": 300},
+          "position": 1
+        },
+        {
+          "name": "Introduction",
+          "required": true,
+          "description": "Background, research questions, and review objectives",
+          "position": 2
+        },
+        {
+          "name": "Methodology",
+          "required": true,
+          "description": "Search strategy, inclusion/exclusion criteria, and analysis methods",
+          "subsections": ["Search Strategy", "Selection Criteria", "Data Extraction"],
+          "position": 3
+        },
+        {
+          "name": "Literature Overview",
+          "required": true,
+          "description": "Quantitative overview of included studies",
+          "position": 4
+        },
+        {
+          "name": "Key Findings",
+          "required": true,
+          "description": "Synthesis of main findings across studies",
+          "subsections": ["Consensus Findings", "Contradictory Results", "Emerging Themes"],
+          "position": 5
+        },
+        {
+          "name": "Critical Analysis",
+          "required": true,
+          "description": "Critical evaluation of methodologies and findings",
+          "subsections": ["Methodological Quality", "Bias Assessment", "Limitations"],
+          "position": 6
+        },
+        {
+          "name": "Research Gaps",
+          "required": true,
+          "description": "Identification of gaps in current research",
+          "position": 7
+        },
+        {
+          "name": "Future Directions",
+          "required": true,
+          "description": "Recommendations for future research",
+          "position": 8
+        },
+        {
+          "name": "Conclusion",
+          "required": true,
+          "description": "Summary of key insights and implications",
+          "position": 9
+        },
+        {
+          "name": "References",
+          "required": true,
+          "description": "Comprehensive bibliography of reviewed sources",
+          "position": 10
+        }
+      ],
+      "search_queries": [
+        "{topic} systematic review meta-analysis",
+        "{topic} literature review academic research",
+        "{topic} peer-reviewed studies findings",
+        "{topic} research methodology approaches",
+        "{topic} empirical evidence experimental results"
+      ],
+      "preferred_sources": [
+        "arxiv.org",
+        "scholar.google.com",
+        "pubmed.ncbi.nlm.nih.gov",
+        "ieee.org",
+        "acm.org",
+        "springer.com",
+        "sciencedirect.com",
+        "jstor.org"
+      ],
+      "citation_format": "apa",
+      "analysis_prompts": {
+        "academic_rigor": "Maintain high academic standards with proper methodology and critical analysis",
+        "systematic_approach": "Follow systematic review guidelines and best practices",
+        "objective_synthesis": "Provide balanced synthesis of findings without bias"
+      }
+    },
+    "technology_trend_analysis": {
+      "name": "Technology Trend Analysis", 
+      "description": "Analysis of emerging technology trends and their potential impact",
+      "category": "technology",
+      "default_depth": "standard",
+      "default_length": 5,
+      "sections": [
+        {
+          "name": "Trend Overview",
+          "required": true,
+          "description": "High-level description of the technology trend",
+          "position": 1
+        },
+        {
+          "name": "Technology Deep Dive",
+          "required": true,
+          "description": "Technical details and capabilities",
+          "subsections": ["Core Technology", "Key Features", "Technical Specifications"],
+          "position": 2
+        },
+        {
+          "name": "Adoption Timeline",
+          "required": true,
+          "description": "Current adoption stage and projected timeline",
+          "subsections": ["Current State", "Early Adopters", "Mainstream Adoption"],
+          "position": 3
+        },
+        {
+          "name": "Industry Applications",
+          "required": true,
+          "description": "Current and potential use cases across industries",
+          "position": 4
+        },
+        {
+          "name": "Key Players and Ecosystem",
+          "required": true,
+          "description": "Companies, organizations, and stakeholders driving the trend",
+          "position": 5
+        },
+        {
+          "name": "Challenges and Limitations",
+          "required": true,
+          "description": "Technical, economic, and adoption barriers",
+          "position": 6
+        },
+        {
+          "name": "Market Impact",
+          "required": true,
+          "description": "Expected market effects and disruption potential",
+          "position": 7
+        },
+        {
+          "name": "Future Outlook",
+          "required": true,
+          "description": "Long-term implications and predictions",
+          "position": 8
+        }
+      ],
+      "search_queries": [
+        "{technology} trends latest developments",
+        "{technology} adoption rates market penetration",
+        "{technology} industry applications use cases",
+        "{technology} challenges limitations barriers",
+        "{technology} future predictions forecast"
+      ]
+    },
+    "daily_news_briefing": {
+      "name": "Daily News Briefing",
+      "description": "Concise daily briefing on latest developments in a specific area",
+      "category": "news",
+      "default_depth": "quick",
+      "default_length": 2,
+      "sections": [
+        {
+          "name": "Today's Headlines",
+          "required": true,
+          "description": "Top 5-7 most important developments",
+          "position": 1
+        },
+        {
+          "name": "Key Developments",
+          "required": true,
+          "description": "Detailed coverage of major news",
+          "position": 2
+        },
+        {
+          "name": "Market Impact",
+          "required": false,
+          "description": "Financial and market implications",
+          "position": 3
+        },
+        {
+          "name": "Looking Ahead",
+          "required": true,
+          "description": "What to watch for tomorrow/this week",
+          "position": 4
+        }
+      ],
+      "search_queries": [
+        "{topic} news today latest developments",
+        "{topic} breaking news updates",
+        "{topic} industry news developments"
+      ],
+      "time_filter": "last_24_hours",
+      "preferred_sources": [
+        "reuters.com",
+        "bbc.com",
+        "ap.org",
+        "bloomberg.com"
+      ]
+    }
+  },
+  "template_categories": {
+    "business": {
+      "color": "#2563eb",
+      "icon": "📊",
+      "description": "Business analysis, market research, and strategic intelligence"
+    },
+    "technology": {
+      "color": "#059669",
+      "icon": "🔬",
+      "description": "Technology analysis, trends, and innovation research"
+    },
+    "research": {
+      "color": "#7c3aed",
+      "icon": "📚",
+      "description": "Academic research, literature reviews, and scientific analysis"
+    },
+    "news": {
+      "color": "#dc2626",
+      "icon": "📰", 
+      "description": "News analysis, current events, and daily briefings"
+    },
+    "finance": {
+      "color": "#ea580c",
+      "icon": "💰",
+      "description": "Financial analysis, investment research, and economic trends"
+    }
+  },
+  "customization_options": {
+    "variable_substitution": {
+      "enabled": true,
+      "supported_variables": [
+        "{{DATE}}", "{{MONTH}}", "{{YEAR}}", "{{WEEK_START}}", "{{WEEK_END}}",
+        "{{COMPANY}}", "{{INDUSTRY}}", "{{TECHNOLOGY}}", "{{MARKET}}", "{{TOPIC}}"
+      ]
+    },
+    "section_customization": {
+      "add_sections": true,
+      "remove_sections": true,
+      "reorder_sections": true,
+      "modify_requirements": true
+    },
+    "output_formats": {
+      "supported": ["markdown", "pdf", "html", "docx"],
+      "default": "pdf"
+    }
+  },
+  "quality_assurance": {
+    "template_validation": {
+      "required_sections_check": true,
+      "word_count_validation": true,
+      "citation_format_check": true
+    },
+    "content_quality": {
+      "fact_checking": true,
+      "source_verification": true,
+      "plagiarism_detection": false,
+      "consistency_check": true
+    }
+  }
+}

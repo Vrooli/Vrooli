@@ -3,9 +3,9 @@
     "name": "Podcast Transcription Assistant",
     "id": "podcast-transcription-assistant",
     "version": "1.0.0",
-    "description": "{{ scenario.description }}",
-    "complexity": "{{ complexity }}",
-    "categories": {{ categories | tojson }}
+    "description": "AI-powered podcast transcription with summaries, key points extraction, and semantic search",
+    "complexity": "intermediate",
+    "categories": ["ai-content-creation", "audio-processing", "content-automation"]
   },
   
   "runtime": {
@@ -13,31 +13,36 @@
     "debug": true,
     "log_level": "info",
     "session_timeout_minutes": 30,
-    "max_concurrent_users": {{ performance.throughput.concurrent_users | default(10) }},
-    "request_timeout_seconds": {{ testing.timeout_seconds | default(300) }}
+    "max_concurrent_users": 10,
+    "request_timeout_seconds": 300
   },
   
   "features": {
-    "ai_processing": {{ "true" if "ollama" in resources.required else "false" }},
-    "speech_recognition": {{ "true" if "whisper" in resources.required else "false" }},
-    "image_generation": {{ "true" if "comfyui" in resources.required else "false" }},
-    "document_processing": {{ "true" if "unstructured-io" in resources.required else "false" }},
-    "workflow_automation": {{ "true" if "n8n" in resources.required else "false" }},
-    "screen_automation": {{ "true" if "agent-s2" in resources.required else "false" }},
-    "web_automation": {{ "true" if "browserless" in resources.required else "false" }},
-    "vector_search": {{ "true" if "qdrant" in resources.required else "false" }},
-    "file_storage": {{ "true" if "minio" in resources.required else "false" }},
-    "analytics": {{ "true" if "questdb" in resources.required else "false" }},
-    "search": {{ "true" if "searxng" in resources.required else "false" }},
-    "professional_ui": {{ "true" if "windmill" in resources.required else "false" }},
-    "real_time_dashboard": {{ "true" if "node-red" in resources.required else "false" }}
+    "ai_processing": true,
+    "speech_recognition": true,
+    "image_generation": false,
+    "document_processing": false,
+    "workflow_automation": true,
+    "screen_automation": false,
+    "web_automation": false,
+    "vector_search": true,
+    "file_storage": true,
+    "analytics": false,
+    "search": false,
+    "professional_ui": true,
+    "real_time_dashboard": false
   },
   
   "business": {
-    "value_proposition": "{{ business.value_proposition }}",
-    "target_markets": {{ business.target_markets | tojson }},
-    "revenue_potential": {{ business.revenue_potential | tojson }},
-    "market_demand": "{{ business.market_demand }}"
+    "value_proposition": "Complete podcast content automation platform for transcription, analysis, and show notes generation",
+    "target_markets": ["Podcast creators", "Media companies", "Content agencies", "Audio production studios"],
+    "revenue_potential": {
+      "initial": 3000,
+      "recurring": 12000,
+      "expansion": 25000,
+      "total_estimate": 40000
+    },
+    "market_demand": "very-high"
   },
   
   "ai": {
@@ -63,15 +68,61 @@
   },
   
   "storage": {
-    "max_file_size_mb": 50,
+    "max_file_size_mb": 500,
     "allowed_file_types": [
-      "image/jpeg", "image/png", "image/gif", "image/webp",
-      "audio/mpeg", "audio/wav", "audio/ogg",
-      "application/pdf", "text/plain", "text/csv",
-      "application/json", "application/xml"
+      "audio/mpeg", "audio/wav", "audio/m4a", "audio/ogg", "audio/flac", "audio/mp4",
+      "text/plain", "application/json"
     ],
-    "retention_days": 30,
+    "retention_days": 365,
     "enable_compression": true
+  },
+  
+  "transcription": {
+    "whisper_model": "base",
+    "language_detection": "auto",
+    "word_timestamps": true,
+    "confidence_threshold": 0.8,
+    "max_duration_minutes": 180,
+    "supported_formats": ["mp3", "wav", "m4a", "ogg", "flac", "mp4"],
+    "preprocessing": {
+      "normalize_audio": true,
+      "remove_silence": false,
+      "noise_reduction": false
+    }
+  },
+  
+  "search": {
+    "embedding_model": "nomic-embed-text",
+    "vector_dimensions": 384,
+    "similarity_threshold": 0.7,
+    "max_results": 50,
+    "chunk_size": 512,
+    "chunk_overlap": 50
+  },
+  
+  "analysis": {
+    "default_temperature": 0.7,
+    "max_tokens": 2048,
+    "auto_analyze": false,
+    "available_types": ["summary", "key_insights", "custom"],
+    "templates": [
+      {
+        "name": "Action Items",
+        "prompt": "Extract all action items and tasks mentioned in this transcription."
+      },
+      {
+        "name": "Decision Points",
+        "prompt": "Identify all decisions that were made during this conversation."
+      },
+      {
+        "name": "Questions Raised",
+        "prompt": "List all questions that were asked or discussed."
+      },
+      {
+        "name": "Technical Details",
+        "prompt": "Focus on technical concepts and implementation details."
+      }
+    ]
   },
   
   "performance": {
@@ -101,18 +152,20 @@
     "content_security": {
       "validate_uploads": true,
       "scan_for_malware": false,
-      "max_request_size_mb": 100
+      "max_request_size_mb": 500
     }
   },
   
   "ui": {
-    "theme": "default",
-    "primary_color": "#3b82f6",
+    "theme": "professional",
+    "primary_color": "#2563eb",
     "brand_name": "Podcast Transcription Assistant",
     "show_advanced_features": false,
     "enable_dark_mode": true,
     "enable_accessibility": true,
-    "default_language": "en"
+    "default_language": "en",
+    "items_per_page": 20,
+    "default_view": "grid"
   },
   
   "integrations": {
@@ -125,6 +178,38 @@
       "timeout_seconds": 30,
       "retry_attempts": 3,
       "cache_responses": true
+    },
+    "n8n_workflows": {
+      "transcription_pipeline": "http://localhost:5678/webhook/transcription-upload",
+      "ai_analysis": "http://localhost:5678/webhook/ai-analysis",
+      "semantic_search": "http://localhost:5678/webhook/semantic-search"
+    }
+  },
+  
+  "export": {
+    "formats": ["txt", "pdf", "json", "srt"],
+    "default_format": "txt",
+    "include_metadata": true,
+    "include_timestamps": true
+  },
+  
+  "notifications": {
+    "completion": {
+      "enabled": true,
+      "ui_notification": true,
+      "email_enabled": false,
+      "webhook_enabled": false
+    },
+    "errors": {
+      "enabled": true,
+      "ui_notification": true,
+      "email_enabled": false,
+      "log_level": "error"
+    },
+    "progress": {
+      "enabled": true,
+      "interval_seconds": 10,
+      "websocket_enabled": true
     }
   },
   

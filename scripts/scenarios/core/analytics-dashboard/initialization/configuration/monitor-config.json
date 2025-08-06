@@ -1,0 +1,211 @@
+{
+  "monitoring": {
+    "defaultInterval": 30,
+    "retentionDays": 30,
+    "aggregationIntervals": ["5m", "1h", "1d"],
+    "healthCheckTimeout": 5000,
+    "batchSize": 5,
+    "maxRetries": 3
+  },
+  "thresholds": {
+    "responseTime": {
+      "warning": 1000,
+      "critical": 5000,
+      "unit": "ms"
+    },
+    "availability": {
+      "warning": 95,
+      "critical": 90,
+      "unit": "percent"
+    },
+    "errorRate": {
+      "warning": 5,
+      "critical": 10,
+      "unit": "percent"
+    },
+    "diskUsage": {
+      "warning": 80,
+      "critical": 90,
+      "unit": "percent"
+    },
+    "memoryUsage": {
+      "warning": 80,
+      "critical": 90,
+      "unit": "percent"
+    },
+    "cpuUsage": {
+      "warning": 80,
+      "critical": 90,
+      "unit": "percent"
+    }
+  },
+  "alerting": {
+    "enabled": true,
+    "channels": {
+      "sms": {
+        "enabled": true,
+        "priority": 100,
+        "severities": ["critical"],
+        "cooldownMinutes": 5,
+        "maxPerHour": 10
+      },
+      "email": {
+        "enabled": true,
+        "priority": 90,
+        "severities": ["warning", "critical"],
+        "cooldownMinutes": 15,
+        "maxPerHour": 20
+      },
+      "slack": {
+        "enabled": false,
+        "priority": 80,
+        "severities": ["info", "warning", "critical"],
+        "cooldownMinutes": 10,
+        "maxPerHour": 50
+      },
+      "webhook": {
+        "enabled": false,
+        "priority": 70,
+        "severities": ["warning", "critical"],
+        "cooldownMinutes": 5,
+        "maxPerHour": 100
+      }
+    },
+    "throttling": {
+      "enabled": true,
+      "defaultCooldownMinutes": 15,
+      "criticalCooldownMinutes": 5,
+      "maxAlertsPerHour": 10,
+      "groupByResource": true
+    },
+    "escalation": {
+      "enabled": true,
+      "levels": [
+        {
+          "level": 1,
+          "afterMinutes": 0,
+          "channels": ["email"]
+        },
+        {
+          "level": 2,
+          "afterMinutes": 15,
+          "channels": ["email", "slack"]
+        },
+        {
+          "level": 3,
+          "afterMinutes": 30,
+          "channels": ["email", "slack", "sms"]
+        }
+      ]
+    }
+  },
+  "discovery": {
+    "enabled": true,
+    "intervalMinutes": 60,
+    "onStartup": true,
+    "portRanges": [
+      "1000-2000",
+      "3000-4000",
+      "5000-6000",
+      "8000-9000",
+      "9000-10000",
+      "11000-12000"
+    ],
+    "timeout": 100,
+    "parallelScans": 10,
+    "knownServices": {
+      "ollama": 11434,
+      "postgres": 5433,
+      "redis": 6380,
+      "questdb": 9009,
+      "n8n": 5678,
+      "node-red": 1880,
+      "windmill": 5681,
+      "vault": 8200,
+      "minio": 9000,
+      "qdrant": 6333,
+      "whisper": 8090,
+      "comfyui": 8188,
+      "browserless": 4110,
+      "agent-s2": 4113,
+      "huginn": 4111,
+      "judge0": 2358,
+      "searxng": 9200,
+      "unstructured-io": 11450
+    }
+  },
+  "resources": {
+    "critical": [
+      "postgres",
+      "redis",
+      "vault",
+      "n8n",
+      "questdb"
+    ],
+    "categories": {
+      "ai": {
+        "displayName": "AI Services",
+        "icon": "brain",
+        "color": "#8B5CF6"
+      },
+      "storage": {
+        "displayName": "Storage",
+        "icon": "database",
+        "color": "#3B82F6"
+      },
+      "automation": {
+        "displayName": "Automation",
+        "icon": "workflow",
+        "color": "#10B981"
+      },
+      "agent": {
+        "displayName": "Agents",
+        "icon": "robot",
+        "color": "#F59E0B"
+      },
+      "execution": {
+        "displayName": "Execution",
+        "icon": "terminal",
+        "color": "#EF4444"
+      },
+      "search": {
+        "displayName": "Search",
+        "icon": "search",
+        "color": "#06B6D4"
+      }
+    }
+  },
+  "ui": {
+    "refreshInterval": 30,
+    "theme": "light",
+    "enableAnimations": true,
+    "showNotifications": true,
+    "dashboardLayout": {
+      "gridColumns": 12,
+      "rowHeight": 60,
+      "margin": 10
+    },
+    "widgets": {
+      "statusGrid": {
+        "enabled": true,
+        "position": {"x": 0, "y": 0, "w": 12, "h": 4}
+      },
+      "alertsTimeline": {
+        "enabled": true,
+        "position": {"x": 0, "y": 4, "w": 8, "h": 3}
+      },
+      "metricsChart": {
+        "enabled": true,
+        "position": {"x": 8, "y": 4, "w": 4, "h": 3}
+      },
+      "resourceActions": {
+        "enabled": true,
+        "position": {"x": 0, "y": 7, "w": 6, "h": 2}
+      },
+      "systemLogs": {
+        "enabled": true,
+        "position": {"x": 6, "y": 7, "w": 6, "h": 2}
+      }
+    }
+  }
+}

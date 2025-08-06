@@ -4,7 +4,7 @@
   "service": {
     "name": "ai-content-assistant-example",
     "displayName": "AI Content Assistant",
-    "description": "Multi-modal AI assistant for content creation with voice input, text generation, and professional UI",
+    "description": "Campaign-based AI content assistant with document context management, semantic search, and multi-format content generation",
     "version": "1.0.0",
     "type": "business-application",
     "tags": [
@@ -49,23 +49,31 @@
           "data": [
             {
               "type": "schema",
-              "file": "initialization/database/schema.sql"
+              "file": "initialization/storage/schema.sql"
             },
             {
               "type": "seed",
-              "file": "initialization/database/seed.sql"
+              "file": "initialization/storage/seed.sql"
             }
           ]
         }
       },
       "minio": {
         "type": "minio",
-        "enabled": false,
-        "required": false,
+        "enabled": true,
+        "required": true,
         "initialization": {
           "buckets": [
             {
               "name": "ai-content-assistant",
+              "policy": "private"
+            },
+            {
+              "name": "campaign-documents",
+              "policy": "private"
+            },
+            {
+              "name": "generated-assets",
               "policy": "private"
             }
           ]
@@ -73,10 +81,20 @@
       },
       "qdrant": {
         "type": "qdrant",
-        "enabled": false,
-        "required": false,
+        "enabled": true,
+        "required": true,
         "initialization": {
-          "collections": []
+          "collections": [
+            {
+              "name": "campaign_documents",
+              "vector_size": 384,
+              "distance": "Cosine",
+              "hnsw_config": {
+                "m": 16,
+                "ef_construct": 100
+              }
+            }
+          ]
         }
       }
     },
@@ -84,11 +102,30 @@
       "ollama": {
         "enabled": true,
         "required": true,
-        "models": ["llama3.1:8b"]
+        "models": ["llama3.1:8b", "nomic-embed-text:latest"]
       },
       "whisper": {
         "enabled": true,
         "required": true
+      },
+      "comfyui": {
+        "enabled": true,
+        "required": true,
+        "workflows": [
+          {
+            "name": "blog-header-generation",
+            "type": "text-to-image"
+          },
+          {
+            "name": "social-media-graphics",
+            "type": "text-to-image"
+          }
+        ]
+      },
+      "unstructured-io": {
+        "enabled": true,
+        "required": true,
+        "supported_formats": ["pdf", "docx", "txt", "html", "md"]
       }
     },
     "automation": {
@@ -98,19 +135,48 @@
         "initialization": {
           "workflows": [
             {
-              "name": "main-workflow",
-              "file": "initialization/workflows/n8n/main-workflow.json",
+              "name": "campaign-management",
+              "file": "initialization/automation/n8n/campaign-management.json",
               "enabled": true,
-              "tags": ["core", "automation"]
+              "tags": ["core", "campaigns", "crud"]
+            },
+            {
+              "name": "document-processing",
+              "file": "initialization/automation/n8n/document-processing.json",
+              "enabled": true,
+              "tags": ["core", "documents", "processing", "embedding"]
+            },
+            {
+              "name": "content-generation",
+              "file": "initialization/automation/n8n/content-generation.json",
+              "enabled": true,
+              "tags": ["core", "ai-generation", "content"]
+            },
+            {
+              "name": "search-retrieval",
+              "file": "initialization/automation/n8n/search-retrieval.json",
+              "enabled": true,
+              "tags": ["core", "search", "retrieval"]
             }
           ],
           "credentials": [
             {
-              "name": "api-auth",
-              "type": "httpAuth",
+              "name": "ai-content-assistant-postgres",
+              "type": "postgres",
               "config": {
-                "url": "{{ API_URL }}",
-                "authType": "bearer"
+                "host": "localhost",
+                "port": 5433,
+                "database": "ai_content_assistant",
+                "username": "postgres",
+                "password": "postgres"
+              }
+            },
+            {
+              "name": "minio-credentials",
+              "type": "httpBasicAuth",
+              "config": {
+                "username": "minioadmin",
+                "password": "minioadmin"
               }
             }
           ]
@@ -123,17 +189,13 @@
           "apps": [
             {
               "path": "f/ai-content-assistant/dashboard",
-              "file": "initialization/ui/windmill-app.json",
-              "summary": "AI Content Assistant Dashboard"
+              "file": "initialization/automation/windmill/campaign-dashboard.json",
+              "summary": "AI Content Assistant - Campaign Management Dashboard"
             }
           ],
           "scripts": []
         }
       },
-      "comfyui": {
-        "enabled": false,
-        "required": false
-      }
     }
   },
   "deployment": {
@@ -147,30 +209,19 @@
     "initialization": {
       "phases": [
         {
-          "name": "pre-validation",
-          "tasks": [
-            {
-              "name": "validate-resources",
-              "type": "script",
-              "script": "./deployment/validate.sh",
-              "timeout": "30s"
-            }
-          ]
-        },
-        {
           "name": "database-setup",
           "tasks": [
             {
               "name": "apply-schema",
               "type": "sql",
               "target": "storage.postgres",
-              "file": "initialization/database/schema.sql"
+              "file": "initialization/storage/schema.sql"
             },
             {
               "name": "seed-data",
               "type": "sql",
               "target": "storage.postgres",
-              "file": "initialization/database/seed.sql"
+              "file": "initialization/storage/seed.sql"
             }
           ]
         },
@@ -182,13 +233,13 @@
               "name": "deploy-n8n-workflows",
               "type": "resource-inject",
               "target": "automation.n8n",
-              "config": "initialization/workflows/n8n/"
+              "config": "initialization/automation/n8n/"
             },
             {
               "name": "deploy-windmill-apps",
               "type": "resource-inject",
               "target": "automation.windmill",
-              "config": "initialization/ui/"
+              "config": "initialization/automation/windmill/"
             }
           ]
         },
@@ -325,25 +376,26 @@
   "metadata": {
     "businessModel": {
       "purpose": "commercial",
-      "valueProposition": "Complete AI-powered content creation suite with voice interface and professional analytics",
-      "targetMarket": "Content creators, marketing teams, and businesses needing AI-assisted content generation",
+      "valueProposition": "Campaign-based AI content assistant with intelligent document context and multi-format generation capabilities",
+      "targetMarket": "Content creators, marketing agencies, small businesses managing multiple content campaigns",
       "painPoints": [
-        "Time-consuming manual content creation",
-        "Inconsistent content quality and tone",
-        "Lack of voice-to-text workflow integration"
+        "Managing context across multiple content campaigns",
+        "Inconsistent brand messaging without proper context",
+        "Time-consuming content creation and campaign management",
+        "Difficulty maintaining relevant context for AI-generated content"
       ],
-      "solution": "Multi-modal AI assistant combining voice input, text generation, and automated workflows for efficient content creation",
-      "competitiveAdvantage": "Integrated voice interface with professional UI and workflow automation",
+      "solution": "Campaign-organized content assistant with document context management, semantic search, and AI-powered generation of blogs, social media, and images",
+      "competitiveAdvantage": "Campaign-based organization with intelligent document context retrieval and multi-format content generation",
       "revenuePotential": {
-        "initial": "$15,000",
-        "recurring": "$30,000",
-        "expansion": "$45,000",
-        "totalEstimate": "$90,000"
+        "initial": "$25,000",
+        "recurring": "$45,000",
+        "expansion": "$75,000",
+        "totalEstimate": "$145,000"
       },
       "marketDemand": {
         "level": "very-high",
         "growth": "25% annually",
-        "evidence": "Growing demand for AI content tools and voice interfaces"
+        "evidence": "Growing demand for AI content tools with intelligent context management and campaign organization"
       },
       "roi": {
         "developmentCost": "$5,000",

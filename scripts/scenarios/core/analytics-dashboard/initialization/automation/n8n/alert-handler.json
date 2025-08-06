@@ -1,0 +1,501 @@
+{
+  "name": "Alert Handler",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "alert-webhook",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "alert-webhook",
+      "name": "Alert Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "alert-handler"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process incoming alert\nconst alert = $input.item.json;\nconst timestamp = new Date().toISOString();\n\n// Validate alert data\nif (!alert.resource_name || !alert.severity || !alert.message) {\n  throw new Error('Invalid alert data: missing required fields');\n}\n\n// Determine notification channels based on severity\nlet channels = [];\nif (alert.severity === 'critical') {\n  channels = ['sms', 'email'];\n} else if (alert.severity === 'warning') {\n  channels = ['email'];\n} else {\n  channels = ['email']; // Default to email\n}\n\n// Build alert context\nreturn {\n  alert_id: `alert_${Date.now()}`,\n  timestamp,\n  resource_name: alert.resource_name,\n  resource_type: alert.resource_type || 'unknown',\n  severity: alert.severity,\n  message: alert.message,\n  metric_type: alert.metric_type || 'custom',\n  metric_value: alert.metric_value,\n  threshold_value: alert.threshold_value,\n  notification_channels: channels,\n  source: alert.source || 'manual',\n  context: alert.context || {}\n};"
+      },
+      "id": "process-alert",
+      "name": "Process Alert",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "get",
+        "key": "=alert_throttle_{{ $json.resource_name }}_{{ $json.severity }}"
+      },
+      "id": "check-throttle",
+      "name": "Check Throttle",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "credentials": {
+        "redis": {
+          "id": "redis-monitoring",
+          "name": "Redis Monitoring"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ !$json.value || $json.error }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "not-throttled",
+      "name": "Not Throttled?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.notification_channels }}",
+              "operation": "contains",
+              "value2": "sms"
+            }
+          ]
+        }
+      },
+      "id": "needs-sms",
+      "name": "Needs SMS?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1120, 240]
+    },
+    {
+      "parameters": {
+        "path": "secret/data/monitoring/twilio",
+        "method": "GET"
+      },
+      "id": "get-twilio",
+      "name": "Get Twilio Creds",
+      "type": "n8n-nodes-base.vault",
+      "typeVersion": 1,
+      "position": [1340, 180],
+      "credentials": {
+        "vault": {
+          "id": "vault-monitoring",
+          "name": "Vault Monitoring"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "send",
+        "from": "={{ $('get-twilio').item.json.data.from_number }}",
+        "to": "={{ $('get-twilio').item.json.data.to_number }}",
+        "message": "=🚨 {{ $json.severity === 'critical' ? 'CRITICAL' : $json.severity.toUpperCase() }}: {{ $json.resource_name }}\\n\\n{{ $json.message }}\\n\\nValue: {{ $json.metric_value }}\\nThreshold: {{ $json.threshold_value }}\\nTime: {{ $now.format('HH:mm:ss') }}"
+      },
+      "id": "send-sms",
+      "name": "Send SMS",
+      "type": "n8n-nodes-base.twilio",
+      "typeVersion": 1,
+      "position": [1560, 180],
+      "credentials": {
+        "twilioApi": {
+          "id": "twilio-api",
+          "name": "Twilio API"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.notification_channels }}",
+              "operation": "contains",
+              "value2": "email"
+            }
+          ]
+        }
+      },
+      "id": "needs-email",
+      "name": "Needs Email?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1120, 360]
+    },
+    {
+      "parameters": {
+        "path": "secret/data/monitoring/smtp",
+        "method": "GET"
+      },
+      "id": "get-smtp",
+      "name": "Get SMTP Creds",
+      "type": "n8n-nodes-base.vault",
+      "typeVersion": 1,
+      "position": [1340, 420],
+      "credentials": {
+        "vault": {
+          "id": "vault-monitoring",
+          "name": "Vault Monitoring"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $('get-smtp').item.json.data.from_email }}",
+        "toEmail": "={{ $('get-smtp').item.json.data.to_email }}",
+        "subject": "=[{{ $json.severity.toUpperCase() }}] Resource Alert: {{ $json.resource_name }}",
+        "html": "=<h2>Resource Monitoring Alert</h2>\\n<table style=\"border-collapse: collapse; width: 100%;\">\\n  <tr>\\n    <td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Severity:</strong></td>\\n    <td style=\"padding: 8px; border: 1px solid #ddd; color: {{ $json.severity === 'critical' ? 'red' : 'orange' }};\">{{ $json.severity.toUpperCase() }}</td>\\n  </tr>\\n  <tr>\\n    <td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Resource:</strong></td>\\n    <td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.resource_name }}</td>\\n  </tr>\\n  <tr>\\n    <td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Type:</strong></td>\\n    <td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.resource_type }}</td>\\n  </tr>\\n  <tr>\\n    <td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Message:</strong></td>\\n    <td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.message }}</td>\\n  </tr>\\n  <tr>\\n    <td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Current Value:</strong></td>\\n    <td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.metric_value || 'N/A' }}</td>\\n  </tr>\\n  <tr>\\n    <td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Threshold:</strong></td>\\n    <td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.threshold_value || 'N/A' }}</td>\\n  </tr>\\n  <tr>\\n    <td style=\"padding: 8px; border: 1px solid #ddd;\"><strong>Time:</strong></td>\\n    <td style=\"padding: 8px; border: 1px solid #ddd;\">{{ $json.timestamp }}</td>\\n  </tr>\\n</table>\\n<p><a href=\"http://localhost:5681/f/monitoring/dashboard\">View Dashboard</a></p>",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [1560, 420],
+      "credentials": {
+        "smtp": {
+          "id": "smtp-monitoring",
+          "name": "SMTP Monitoring"
+        }
+      },
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "resource": "database",
+        "operation": "set",
+        "key": "=alert_throttle_{{ $json.resource_name }}_{{ $json.severity }}",
+        "value": "={{ $now }}",
+        "expire": true,
+        "ttl": "={{ $json.severity === 'critical' ? 300 : 900 }}"
+      },
+      "id": "set-throttle",
+      "name": "Set Throttle",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1780, 300],
+      "credentials": {
+        "redis": {
+          "id": "redis-monitoring",
+          "name": "Redis Monitoring"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO resource_monitoring.alert_history (resource_id, alert_time, severity, metric_type, metric_value, threshold_value, notification_sent, notification_channels, message, context) SELECT r.id, NOW(), $1, $2, $3, $4, $5, $6::jsonb, $7, $8::jsonb FROM resource_monitoring.resources r WHERE r.resource_name = $9",
+        "options": {
+          "queryReplacement": "={{ $json.severity }}, ={{ $json.metric_type }}, ={{ $json.metric_value || null }}, ={{ $json.threshold_value || null }}, ={{ $json.notification_sent || false }}, ={{ JSON.stringify($json.notification_channels) }}, ={{ $json.message }}, ={{ JSON.stringify($json.context) }}, ={{ $json.resource_name }}"
+        }
+      },
+      "id": "log-alert",
+      "name": "Log Alert",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [2000, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-monitoring",
+          "name": "PostgreSQL Monitoring"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:9009/exec",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "query",
+              "value": "=INSERT INTO alert_events(timestamp, resource_name, alert_type, severity, message, metric_value, threshold_value, notified, notification_channels, alert_rule_id, context) VALUES(now(), '{{ $json.resource_name }}', '{{ $json.metric_type }}', '{{ $json.severity }}', '{{ $json.message }}', {{ $json.metric_value || 'null' }}, {{ $json.threshold_value || 'null' }}, {{ $json.notification_sent || false }}, '{{ JSON.stringify($json.notification_channels) }}', null, '{{ JSON.stringify($json.context) }}')"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 3000
+        }
+      },
+      "id": "log-questdb",
+      "name": "Log to QuestDB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2220, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "values": {
+          "boolean": [
+            {
+              "name": "success",
+              "value": true
+            }
+          ],
+          "string": [
+            {
+              "name": "message",
+              "value": "=Alert processed successfully for {{ $json.resource_name }}"
+            },
+            {
+              "name": "alert_id",
+              "value": "={{ $json.alert_id }}"
+            }
+          ],
+          "number": [
+            {
+              "name": "status_code",
+              "value": 200
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [2440, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "boolean": [
+            {
+              "name": "success",
+              "value": false
+            }
+          ],
+          "string": [
+            {
+              "name": "message",
+              "value": "=Alert throttled for {{ $json.resource_name }} ({{ $json.severity }})"
+            },
+            {
+              "name": "reason",
+              "value": "throttled"
+            }
+          ],
+          "number": [
+            {
+              "name": "status_code",
+              "value": 429
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "throttled-response",
+      "name": "Throttled Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [1120, 540]
+    }
+  ],
+  "connections": {
+    "Alert Webhook": {
+      "main": [
+        [
+          {
+            "node": "Process Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Alert": {
+      "main": [
+        [
+          {
+            "node": "Check Throttle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Throttle": {
+      "main": [
+        [
+          {
+            "node": "Not Throttled?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Not Throttled?": {
+      "main": [
+        [
+          {
+            "node": "Needs SMS?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Needs Email?",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Throttled Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs SMS?": {
+      "main": [
+        [
+          {
+            "node": "Get Twilio Creds",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Throttle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Twilio Creds": {
+      "main": [
+        [
+          {
+            "node": "Send SMS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send SMS": {
+      "main": [
+        [
+          {
+            "node": "Set Throttle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Needs Email?": {
+      "main": [
+        [
+          {
+            "node": "Get SMTP Creds",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Set Throttle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get SMTP Creds": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [
+          {
+            "node": "Set Throttle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Throttle": {
+      "main": [
+        [
+          {
+            "node": "Log Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Alert": {
+      "main": [
+        [
+          {
+            "node": "Log to QuestDB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to QuestDB": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "alert-handler-v1",
+  "id": "alert-handler",
+  "meta": {
+    "templateCreatedBy": "vrooli-monitoring",
+    "instanceId": "monitoring-instance"
+  },
+  "tags": [
+    {
+      "id": "alerting",
+      "name": "Alerting"
+    },
+    {
+      "id": "notifications",
+      "name": "Notifications"
+    }
+  ]
+}

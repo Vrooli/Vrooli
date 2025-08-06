@@ -1,0 +1,415 @@
+{
+  "name": "AI Content Assistant - Document Processing",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "ai-content-assistant/documents",
+        "responseMode": "lastNode",
+        "options": {},
+        "binaryPropertyName": "document_file"
+      },
+      "id": "document-webhook",
+      "name": "Document Upload Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "document-processing-webhook"
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Extract file and metadata from upload\nconst fileData = $binary.document_file;\nconst metadata = $json;\n\nif (!fileData) {\n  throw new Error('No file uploaded');\n}\n\nif (!metadata.campaign_id) {\n  throw new Error('Campaign ID is required');\n}\n\n// Generate unique filename\nconst originalName = fileData.fileName || 'unknown';\nconst timestamp = Date.now();\nconst extension = originalName.split('.').pop();\nconst uniqueFilename = `${timestamp}-${originalName.replace(/[^a-zA-Z0-9.-]/g, '_')}`;\nconst storagePath = `/campaign-documents/${metadata.campaign_id}/${uniqueFilename}`;\n\nreturn {\n  // File information\n  filename: uniqueFilename,\n  original_filename: originalName,\n  file_path: storagePath,\n  file_size_bytes: fileData.fileSize || 0,\n  content_type: fileData.mimeType || 'application/octet-stream',\n  \n  // Campaign context\n  campaign_id: metadata.campaign_id,\n  session_id: metadata.session_id,\n  user_identifier: metadata.user_identifier || 'anonymous',\n  \n  // Processing metadata\n  processing_status: 'uploaded',\n  upload_timestamp: new Date().toISOString(),\n  \n  // File binary data\n  file_data: fileData\n};"
+      },
+      "id": "extract-metadata",
+      "name": "Extract File Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:9000",
+        "sendBody": true,
+        "bodyContentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "bucket",
+              "value": "campaign-documents"
+            },
+            {
+              "name": "key",
+              "value": "={{ $json.file_path }}"
+            },
+            {
+              "name": "file",
+              "value": "={{ $binary.document_file }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth"
+      },
+      "id": "store-file-minio",
+      "name": "Store File in MinIO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [680, 300],
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "minio-credentials",
+          "name": "MinIO Credentials"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ai_content_assistant.campaign_documents (campaign_id, filename, original_filename, file_path, file_size_bytes, content_type, processing_status) VALUES ($1::uuid, $2, $3, $4, $5, $6, $7) RETURNING id, filename",
+        "additionalFields": {
+          "mode": "independently"
+        },
+        "options": {}
+      },
+      "id": "save-document-metadata",
+      "name": "Save Document Metadata",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [900, 300],
+      "credentials": {
+        "postgres": {
+          "id": "ai-content-assistant-postgres",
+          "name": "AI Content Assistant PostgreSQL"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:11450/general/v0/general",
+        "sendBody": true,
+        "bodyContentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "files",
+              "value": "={{ $binary.document_file }}"
+            },
+            {
+              "name": "strategy",
+              "value": "fast"
+            },
+            {
+              "name": "output_format",
+              "value": "text"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "extract-text-unstructured",
+      "name": "Extract Text (Unstructured.io)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1120, 300]
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process extracted text and prepare for embedding\nconst unstructuredResponse = $input.item.json;\nconst documentId = $json.id;\n\n// Extract text content from Unstructured.io response\nlet extractedText = '';\nif (Array.isArray(unstructuredResponse)) {\n  extractedText = unstructuredResponse\n    .map(item => item.text || '')\n    .filter(text => text.trim())\n    .join('\\n\\n');\n} else if (unstructuredResponse.text) {\n  extractedText = unstructuredResponse.text;\n}\n\nif (!extractedText || extractedText.trim().length < 10) {\n  throw new Error('No meaningful text extracted from document');\n}\n\n// Chunk text for embedding (1000 chars with 100 char overlap)\nconst chunkSize = 1000;\nconst overlapSize = 100;\nconst textChunks = [];\n\nfor (let i = 0; i < extractedText.length; i += (chunkSize - overlapSize)) {\n  const chunk = extractedText.slice(i, i + chunkSize);\n  if (chunk.trim().length > 50) { // Only include substantial chunks\n    textChunks.push({\n      index: Math.floor(i / (chunkSize - overlapSize)),\n      text: chunk.trim(),\n      start_pos: i,\n      end_pos: Math.min(i + chunkSize, extractedText.length)\n    });\n  }\n}\n\nreturn {\n  document_id: documentId,\n  extracted_text: extractedText,\n  text_chunks: textChunks,\n  chunk_count: textChunks.length,\n  text_length: extractedText.length,\n  processing_status: 'text_extracted'\n};"
+      },
+      "id": "process-extracted-text",
+      "name": "Process Extracted Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 300]
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:11434/api/embeddings",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "nomic-embed-text:latest"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.text_chunks[0].text }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "generate-embeddings-ollama",
+      "name": "Generate Embeddings (Ollama)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1560, 300]
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare data for Qdrant vector storage\nconst embeddingResponse = $input.item.json;\nconst documentData = $json;\n\nif (!embeddingResponse.embedding) {\n  throw new Error('No embedding generated');\n}\n\n// Create Qdrant points for each text chunk\nconst points = documentData.text_chunks.map((chunk, index) => ({\n  id: `${documentData.document_id}-chunk-${chunk.index}`,\n  vector: embeddingResponse.embedding, // In real implementation, generate embedding for each chunk\n  payload: {\n    document_id: documentData.document_id,\n    campaign_id: $('Extract File Metadata').item.json.campaign_id,\n    chunk_index: chunk.index,\n    text: chunk.text,\n    start_pos: chunk.start_pos,\n    end_pos: chunk.end_pos,\n    created_at: new Date().toISOString()\n  }\n}));\n\nreturn {\n  collection_name: 'campaign_documents',\n  points: points,\n  document_id: documentData.document_id,\n  embedding_count: points.length\n};"
+      },
+      "id": "prepare-qdrant-data",
+      "name": "Prepare Qdrant Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 300]
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:6333/collections/campaign_documents/points",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "points",
+              "value": "={{ $json.points }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "store-vectors-qdrant",
+      "name": "Store Vectors in Qdrant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2000, 300]
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE ai_content_assistant.campaign_documents SET extracted_text = $1, text_chunks = $2::jsonb, embedding_id = $3, processing_status = 'completed', processed_date = NOW() WHERE id = $4::uuid RETURNING id, filename, processing_status",
+        "additionalFields": {
+          "mode": "independently"
+        },
+        "options": {}
+      },
+      "id": "update-document-status",
+      "name": "Update Document Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [2220, 300],
+      "credentials": {
+        "postgres": {
+          "id": "ai-content-assistant-postgres",
+          "name": "AI Content Assistant PostgreSQL"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ai_content_assistant.activity_log (event_type, event_data, campaign_id, session_id, user_identifier, processing_time_ms, status) VALUES ('document_processed', $1::jsonb, $2::uuid, (SELECT id FROM ai_content_assistant.user_sessions WHERE session_id = $3), $4, $5, 'completed')",
+        "additionalFields": {
+          "mode": "independently"
+        },
+        "options": {}
+      },
+      "id": "log-processing-activity",
+      "name": "Log Processing Activity",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [2440, 300],
+      "credentials": {
+        "postgres": {
+          "id": "ai-content-assistant-postgres",
+          "name": "AI Content Assistant PostgreSQL"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Build final response\nconst documentResult = $json;\nconst processingStart = $('Extract File Metadata').item.json.upload_timestamp;\nconst processingEnd = new Date().toISOString();\n\nconst processingTime = new Date(processingEnd).getTime() - new Date(processingStart).getTime();\n\nreturn {\n  success: true,\n  message: 'Document processed successfully',\n  document: {\n    id: documentResult.id,\n    filename: documentResult.filename,\n    status: documentResult.processing_status\n  },\n  processing: {\n    processing_time_ms: processingTime,\n    text_extracted: true,\n    embeddings_created: true,\n    vector_storage: true\n  },\n  timestamp: processingEnd\n};"
+      },
+      "id": "build-final-response",
+      "name": "Build Final Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2660, 300]
+    }
+  ],
+  
+  "connections": {
+    "Document Upload Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract File Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Extract File Metadata": {
+      "main": [
+        [
+          {
+            "node": "Store File in MinIO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Store File in MinIO": {
+      "main": [
+        [
+          {
+            "node": "Save Document Metadata",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Save Document Metadata": {
+      "main": [
+        [
+          {
+            "node": "Extract Text (Unstructured.io)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Extract Text (Unstructured.io)": {
+      "main": [
+        [
+          {
+            "node": "Process Extracted Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Process Extracted Text": {
+      "main": [
+        [
+          {
+            "node": "Generate Embeddings (Ollama)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Generate Embeddings (Ollama)": {
+      "main": [
+        [
+          {
+            "node": "Prepare Qdrant Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Prepare Qdrant Data": {
+      "main": [
+        [
+          {
+            "node": "Store Vectors in Qdrant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Store Vectors in Qdrant": {
+      "main": [
+        [
+          {
+            "node": "Update Document Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Update Document Status": {
+      "main": [
+        [
+          {
+            "node": "Log Processing Activity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    
+    "Log Processing Activity": {
+      "main": [
+        [
+          {
+            "node": "Build Final Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  
+  "versionId": "document-processing-v1",
+  "id": "ai-content-assistant-document-processing",
+  
+  "meta": {
+    "templateCreatedBy": "ai-content-assistant",
+    "instanceId": "document-processing"
+  },
+  
+  "tags": [
+    {
+      "id": "ai-content-assistant",
+      "name": "AI Content Assistant"
+    },
+    {
+      "id": "document-processing",
+      "name": "Document Processing"
+    }
+  ]
+}

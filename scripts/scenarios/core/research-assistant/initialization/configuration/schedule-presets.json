@@ -1,0 +1,344 @@
+{
+  "schedule_presets": {
+    "daily_ai_progress": {
+      "name": "Daily AI Progress Report",
+      "description": "Daily briefing on the latest developments in artificial intelligence",
+      "category": "technology",
+      "frequency": "daily",
+      "cron_expression": "0 9 * * *",
+      "timezone": "America/New_York",
+      "topic_template": "Latest artificial intelligence and machine learning developments - {{DATE}}",
+      "depth": "standard",
+      "target_length": 3,
+      "tags": ["ai", "technology", "daily", "briefing"],
+      "search_filters": {
+        "time_range": "last_24_hours",
+        "exclude_domains": ["blogspot.com", "medium.com"],
+        "prefer_domains": ["arxiv.org", "openai.com", "anthropic.com", "deepmind.com", "nature.com"],
+        "required_keywords": ["artificial intelligence", "machine learning", "AI research"]
+      },
+      "custom_prompts": {
+        "focus_areas": ["research breakthroughs", "industry applications", "regulatory updates"],
+        "tone": "professional but accessible",
+        "emphasis": "practical implications and business impact"
+      },
+      "notification_settings": {
+        "email_enabled": true,
+        "webhook_enabled": false,
+        "summary_format": "executive"
+      },
+      "template": "technology_trend_analysis",
+      "estimated_processing_time": "8-12 minutes"
+    },
+    "weekly_competitive_analysis": {
+      "name": "Weekly Competitive Intelligence",
+      "description": "Weekly analysis of competitive landscape and market developments",
+      "category": "business",
+      "frequency": "weekly",
+      "cron_expression": "0 10 * * 1",
+      "timezone": "America/New_York",
+      "topic_template": "Competitive intelligence analysis for {{INDUSTRY}} sector - Week of {{WEEK_START}}",
+      "depth": "deep",
+      "target_length": 8,
+      "tags": ["competitive", "intelligence", "weekly", "business"],
+      "search_filters": {
+        "time_range": "last_7_days",
+        "focus_companies": ["configurable"],
+        "include_financial": true,
+        "geographic_focus": ["North America", "Europe"]
+      },
+      "custom_prompts": {
+        "emphasis": ["product launches", "strategic partnerships", "funding rounds", "executive changes"],
+        "comparison_framework": "SWOT analysis",
+        "competitive_metrics": ["market share", "revenue", "product features", "customer satisfaction"]
+      },
+      "notification_settings": {
+        "email_enabled": true,
+        "webhook_enabled": true,
+        "summary_format": "strategic"
+      },
+      "template": "competitive_intelligence",
+      "estimated_processing_time": "15-25 minutes"
+    },
+    "monthly_market_trends": {
+      "name": "Monthly Market Analysis",
+      "description": "Comprehensive monthly analysis of market trends and opportunities",
+      "category": "business",
+      "frequency": "monthly",
+      "cron_expression": "0 8 1 * *",
+      "timezone": "America/Los_Angeles",
+      "topic_template": "{{MARKET}} market trends and analysis - {{MONTH}} {{YEAR}}",
+      "depth": "deep",
+      "target_length": 10,
+      "tags": ["market", "analysis", "monthly", "trends"],
+      "search_filters": {
+        "time_range": "last_30_days",
+        "geographic_focus": ["Global", "North America", "Europe", "Asia-Pacific"],
+        "data_sources": ["government", "industry reports", "financial data", "trade publications"],
+        "include_statistical_data": true
+      },
+      "custom_prompts": {
+        "sections_emphasis": ["market sizing", "growth projections", "emerging opportunities", "risk factors"],
+        "include_forecasts": true,
+        "quantitative_analysis": true,
+        "regulatory_updates": true
+      },
+      "notification_settings": {
+        "email_enabled": true,
+        "webhook_enabled": true,
+        "summary_format": "comprehensive"
+      },
+      "template": "market_research_report",
+      "estimated_processing_time": "20-30 minutes"
+    },
+    "weekly_technology_roundup": {
+      "name": "Weekly Technology Roundup",
+      "description": "Weekly summary of technology news, breakthroughs, and industry developments",
+      "category": "technology",
+      "frequency": "weekly",
+      "cron_expression": "0 16 * * 5",
+      "timezone": "America/Los_Angeles",
+      "topic_template": "Technology industry roundup - Week ending {{DATE}}",
+      "depth": "standard",
+      "target_length": 5,
+      "tags": ["technology", "weekly", "roundup", "industry"],
+      "search_filters": {
+        "time_range": "last_7_days",
+        "technology_categories": ["software", "hardware", "ai", "blockchain", "cybersecurity", "fintech"],
+        "exclude_social_media": true,
+        "prefer_technical_sources": true
+      },
+      "custom_prompts": {
+        "focus_areas": ["product launches", "funding announcements", "technical breakthroughs", "industry partnerships"],
+        "tone": "technical but accessible",
+        "categorize_by_sector": true
+      },
+      "notification_settings": {
+        "email_enabled": true,
+        "webhook_enabled": false,
+        "summary_format": "digest"
+      },
+      "template": "technology_trend_analysis",
+      "estimated_processing_time": "10-15 minutes"
+    },
+    "quarterly_industry_deep_dive": {
+      "name": "Quarterly Industry Deep Dive",
+      "description": "Comprehensive quarterly analysis of a specific industry sector",
+      "category": "business",
+      "frequency": "quarterly",
+      "cron_expression": "0 9 1 1,4,7,10 *",
+      "timezone": "UTC",
+      "topic_template": "{{INDUSTRY}} industry deep dive analysis - Q{{QUARTER}} {{YEAR}}",
+      "depth": "deep",
+      "target_length": 12,
+      "tags": ["industry", "quarterly", "deep-dive", "comprehensive"],
+      "search_filters": {
+        "time_range": "last_90_days",
+        "comprehensive_analysis": true,
+        "include_financial_reports": true,
+        "regulatory_filings": true,
+        "conference_proceedings": true
+      },
+      "custom_prompts": {
+        "sections_emphasis": ["industry performance", "key trends", "regulatory changes", "competitive dynamics", "future outlook"],
+        "include_case_studies": true,
+        "financial_analysis": "detailed",
+        "strategic_recommendations": true
+      },
+      "notification_settings": {
+        "email_enabled": true,
+        "webhook_enabled": true,
+        "summary_format": "executive_briefing"
+      },
+      "template": "market_research_report",
+      "estimated_processing_time": "30-45 minutes"
+    },
+    "daily_startup_digest": {
+      "name": "Daily Startup & VC Digest",
+      "description": "Daily roundup of startup news, funding, and venture capital activity",
+      "category": "business",
+      "frequency": "daily",
+      "cron_expression": "0 11 * * 1-5",
+      "timezone": "America/New_York",
+      "topic_template": "Startup and venture capital digest - {{DATE}}",
+      "depth": "quick",
+      "target_length": 2,
+      "tags": ["startups", "vc", "funding", "daily"],
+      "search_filters": {
+        "time_range": "last_24_hours",
+        "focus_topics": ["startup funding", "venture capital", "unicorn", "IPO", "acquisition"],
+        "geographic_regions": ["Silicon Valley", "New York", "Boston", "Austin", "Global"],
+        "funding_stages": ["seed", "series A", "series B", "series C+", "IPO"]
+      },
+      "custom_prompts": {
+        "focus_areas": ["funding rounds", "new company launches", "executive moves", "market trends"],
+        "include_metrics": ["funding amount", "valuation", "investor details"],
+        "tone": "business-focused"
+      },
+      "notification_settings": {
+        "email_enabled": true,
+        "webhook_enabled": false,
+        "summary_format": "digest"
+      },
+      "template": "daily_news_briefing",
+      "estimated_processing_time": "5-8 minutes"
+    },
+    "monthly_academic_literature": {
+      "name": "Monthly Academic Literature Review",
+      "description": "Monthly review of academic literature in a specific research area",
+      "category": "research",
+      "frequency": "monthly",
+      "cron_expression": "0 14 15 * *",
+      "timezone": "UTC",
+      "topic_template": "Academic literature review: {{RESEARCH_FIELD}} - {{MONTH}} {{YEAR}}",
+      "depth": "deep",
+      "target_length": 8,
+      "tags": ["academic", "literature", "research", "monthly"],
+      "search_filters": {
+        "time_range": "last_30_days",
+        "publication_types": ["peer-reviewed", "preprints", "conference proceedings"],
+        "academic_databases": ["arxiv", "pubmed", "google scholar", "semantic scholar"],
+        "quality_threshold": "high"
+      },
+      "custom_prompts": {
+        "academic_rigor": "high",
+        "citation_format": "APA",
+        "methodology_focus": true,
+        "critical_analysis": true,
+        "research_gaps": true
+      },
+      "notification_settings": {
+        "email_enabled": true,
+        "webhook_enabled": false,
+        "summary_format": "academic"
+      },
+      "template": "academic_literature_review",
+      "estimated_processing_time": "25-35 minutes"
+    },
+    "weekly_regulatory_updates": {
+      "name": "Weekly Regulatory Updates",
+      "description": "Weekly summary of regulatory changes and policy developments",
+      "category": "regulatory",
+      "frequency": "weekly",
+      "cron_expression": "0 13 * * 3",
+      "timezone": "America/Washington",
+      "topic_template": "Regulatory and policy updates for {{INDUSTRY}} - Week of {{WEEK_START}}",
+      "depth": "standard",
+      "target_length": 4,
+      "tags": ["regulatory", "policy", "compliance", "weekly"],
+      "search_filters": {
+        "time_range": "last_7_days",
+        "government_sources": ["SEC", "FDA", "FTC", "DOJ", "FCC"],
+        "international_bodies": ["EU Commission", "UK Parliament", "Canadian Parliament"],
+        "focus_areas": ["new regulations", "policy changes", "enforcement actions", "consultation papers"]
+      },
+      "custom_prompts": {
+        "focus_areas": ["regulatory changes", "compliance requirements", "enforcement actions", "industry impact"],
+        "include_effective_dates": true,
+        "compliance_implications": true,
+        "tone": "legal-professional"
+      },
+      "notification_settings": {
+        "email_enabled": true,
+        "webhook_enabled": true,
+        "summary_format": "compliance_brief"
+      },
+      "estimated_processing_time": "12-18 minutes"
+    }
+  },
+  "frequency_templates": {
+    "daily": {
+      "typical_times": ["06:00", "09:00", "12:00", "17:00"],
+      "recommended_length": "1-3 pages",
+      "processing_time_limit": "10 minutes",
+      "max_sources": 15
+    },
+    "weekly": {
+      "typical_days": ["Monday", "Friday"],
+      "typical_times": ["09:00", "16:00"],
+      "recommended_length": "3-6 pages",
+      "processing_time_limit": "20 minutes",
+      "max_sources": 25
+    },
+    "monthly": {
+      "typical_dates": [1, 15],
+      "typical_times": ["08:00", "14:00"],
+      "recommended_length": "6-12 pages",
+      "processing_time_limit": "40 minutes",
+      "max_sources": 40
+    },
+    "quarterly": {
+      "months": [1, 4, 7, 10],
+      "typical_dates": [1, 15],
+      "recommended_length": "10-15 pages",
+      "processing_time_limit": "60 minutes",
+      "max_sources": 50
+    }
+  },
+  "customization_variables": {
+    "industry_options": [
+      "Technology",
+      "Healthcare",
+      "Financial Services", 
+      "Retail",
+      "Manufacturing",
+      "Energy",
+      "Real Estate",
+      "Transportation",
+      "Education",
+      "Government"
+    ],
+    "geographic_regions": [
+      "North America",
+      "Europe",
+      "Asia-Pacific",
+      "Latin America",
+      "Middle East & Africa",
+      "Global"
+    ],
+    "research_fields": [
+      "Artificial Intelligence",
+      "Biotechnology",
+      "Climate Science",
+      "Economics",
+      "Medicine",
+      "Physics",
+      "Computer Science",
+      "Psychology",
+      "Sociology",
+      "Environmental Science"
+    ],
+    "company_sizes": [
+      "Startup (1-50 employees)",
+      "SMB (51-500 employees)",
+      "Mid-market (501-5000 employees)",
+      "Enterprise (5000+ employees)"
+    ]
+  },
+  "notification_formats": {
+    "executive": {
+      "sections": ["Key Headlines", "Strategic Implications", "Action Items"],
+      "max_length": 500
+    },
+    "strategic": {
+      "sections": ["Executive Summary", "Key Findings", "Competitive Analysis", "Recommendations"],
+      "max_length": 1000
+    },
+    "comprehensive": {
+      "sections": ["Executive Summary", "Detailed Findings", "Market Analysis", "Risk Assessment", "Recommendations"],
+      "max_length": 1500
+    },
+    "digest": {
+      "sections": ["Top Stories", "Key Metrics", "Notable Mentions"],
+      "max_length": 300
+    },
+    "academic": {
+      "sections": ["Key Publications", "Methodology Updates", "Research Gaps", "Future Directions"],
+      "max_length": 800
+    },
+    "compliance_brief": {
+      "sections": ["New Regulations", "Compliance Deadlines", "Enforcement Actions", "Recommendations"],
+      "max_length": 600
+    }
+  }
+}

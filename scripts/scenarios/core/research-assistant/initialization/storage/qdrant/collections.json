@@ -1,0 +1,534 @@
+{
+  "collections": [
+    {
+      "name": "research-documents",
+      "description": "Complete research reports with full-document embeddings",
+      "config": {
+        "vectors": {
+          "size": 384,
+          "distance": "Cosine"
+        },
+        "optimizers_config": {
+          "default_segment_number": 2,
+          "max_segment_size": 20000,
+          "indexing_threshold": 10000,
+          "flush_interval_sec": 30
+        },
+        "hnsw_config": {
+          "m": 16,
+          "ef_construct": 100,
+          "full_scan_threshold": 10000,
+          "max_indexing_threads": 2
+        },
+        "wal_config": {
+          "wal_capacity_mb": 32,
+          "wal_segments_ahead": 0
+        }
+      },
+      "indexes": [
+        {
+          "field_name": "report_id",
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "title", 
+          "field_schema": "text"
+        },
+        {
+          "field_name": "category",
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "confidence_score",
+          "field_schema": "float"
+        },
+        {
+          "field_name": "created_at",
+          "field_schema": "datetime"
+        }
+      ],
+      "payload_schema": {
+        "report_id": {
+          "type": "string",
+          "required": true,
+          "description": "Unique identifier for the research report"
+        },
+        "title": {
+          "type": "string",
+          "required": true,
+          "description": "Report title for display and search"
+        },
+        "summary": {
+          "type": "string",
+          "required": true,
+          "description": "Executive summary of the report"
+        },
+        "category": {
+          "type": "string",
+          "required": false,
+          "default": "general",
+          "description": "Report category (technology, business, research, etc.)"
+        },
+        "depth": {
+          "type": "string",
+          "required": false,
+          "default": "standard",
+          "description": "Research depth (quick, standard, deep)"
+        },
+        "word_count": {
+          "type": "integer",
+          "required": false,
+          "description": "Total word count of the report"
+        },
+        "sources_count": {
+          "type": "integer",
+          "required": false,
+          "description": "Number of sources used in the report"
+        },
+        "confidence_score": {
+          "type": "float",
+          "required": false,
+          "description": "Confidence score of the report (0.0 to 1.0)"
+        },
+        "tags": {
+          "type": "array",
+          "items": "string",
+          "required": false,
+          "description": "Tags associated with the report"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "datetime",
+          "required": true,
+          "description": "Report creation timestamp"
+        },
+        "requested_by": {
+          "type": "string",
+          "required": false,
+          "description": "User who requested the report"
+        },
+        "organization": {
+          "type": "string",
+          "required": false,
+          "description": "Organization associated with the report"
+        },
+        "pdf_url": {
+          "type": "string",
+          "required": false,
+          "description": "URL to the PDF version of the report"
+        }
+      }
+    },
+    {
+      "name": "knowledge-base",
+      "description": "Curated knowledge chunks and insights from reports",
+      "config": {
+        "vectors": {
+          "size": 384,
+          "distance": "Cosine"
+        },
+        "optimizers_config": {
+          "default_segment_number": 3,
+          "max_segment_size": 50000,
+          "indexing_threshold": 20000,
+          "flush_interval_sec": 60
+        },
+        "hnsw_config": {
+          "m": 24,
+          "ef_construct": 200,
+          "full_scan_threshold": 20000,
+          "max_indexing_threads": 2
+        },
+        "wal_config": {
+          "wal_capacity_mb": 64,
+          "wal_segments_ahead": 0
+        }
+      },
+      "indexes": [
+        {
+          "field_name": "source_report_id",
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "chunk_type",
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "topic",
+          "field_schema": "text"
+        },
+        {
+          "field_name": "importance_score",
+          "field_schema": "float"
+        },
+        {
+          "field_name": "created_at",
+          "field_schema": "datetime"
+        }
+      ],
+      "payload_schema": {
+        "chunk_id": {
+          "type": "string",
+          "required": true,
+          "description": "Unique identifier for the knowledge chunk"
+        },
+        "source_report_id": {
+          "type": "string",
+          "required": false,
+          "description": "ID of the source report (if applicable)"
+        },
+        "chunk_type": {
+          "type": "string",
+          "required": true,
+          "description": "Type of chunk (finding, insight, fact, methodology, etc.)"
+        },
+        "title": {
+          "type": "string",
+          "required": true,
+          "description": "Title or heading of the knowledge chunk"
+        },
+        "content": {
+          "type": "string",
+          "required": true,
+          "description": "The actual content of the knowledge chunk"
+        },
+        "topic": {
+          "type": "string",
+          "required": true,
+          "description": "Primary topic or subject area"
+        },
+        "keywords": {
+          "type": "array",
+          "items": "string",
+          "required": false,
+          "description": "Key terms and concepts"
+        },
+        "importance_score": {
+          "type": "float",
+          "required": false,
+          "description": "Importance score (0.0 to 1.0)"
+        },
+        "confidence_score": {
+          "type": "float",
+          "required": false,
+          "description": "Confidence in the information (0.0 to 1.0)"
+        },
+        "citations": {
+          "type": "array",
+          "items": "string",
+          "required": false,
+          "description": "Source citations supporting this chunk"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "datetime",
+          "required": true,
+          "description": "Chunk creation timestamp"
+        },
+        "updated_at": {
+          "type": "string",
+          "format": "datetime",
+          "required": false,
+          "description": "Last update timestamp"
+        },
+        "access_count": {
+          "type": "integer",
+          "required": false,
+          "default": 0,
+          "description": "Number of times this chunk has been accessed"
+        }
+      }
+    },
+    {
+      "name": "search-results",
+      "description": "Embeddings of web search results for improved retrieval",
+      "config": {
+        "vectors": {
+          "size": 384,
+          "distance": "Cosine"
+        },
+        "optimizers_config": {
+          "default_segment_number": 4,
+          "max_segment_size": 100000,
+          "indexing_threshold": 50000,
+          "flush_interval_sec": 120
+        },
+        "hnsw_config": {
+          "m": 12,
+          "ef_construct": 64,
+          "full_scan_threshold": 50000,
+          "max_indexing_threads": 2
+        },
+        "wal_config": {
+          "wal_capacity_mb": 128,
+          "wal_segments_ahead": 1
+        },
+        "quantization_config": {
+          "scalar": {
+            "type": "int8",
+            "quantile": 0.95,
+            "always_ram": false
+          }
+        }
+      },
+      "indexes": [
+        {
+          "field_name": "domain",
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "source_engine",
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "credibility_score",
+          "field_schema": "float"
+        },
+        {
+          "field_name": "search_query",
+          "field_schema": "text"
+        },
+        {
+          "field_name": "indexed_at",
+          "field_schema": "datetime"
+        }
+      ],
+      "payload_schema": {
+        "url": {
+          "type": "string",
+          "required": true,
+          "description": "Original URL of the search result"
+        },
+        "title": {
+          "type": "string",
+          "required": true,
+          "description": "Title of the web page"
+        },
+        "snippet": {
+          "type": "string",
+          "required": true,
+          "description": "Text snippet from the search result"
+        },
+        "content": {
+          "type": "string",
+          "required": false,
+          "description": "Full extracted content (if available)"
+        },
+        "domain": {
+          "type": "string",
+          "required": true,
+          "description": "Domain name of the source"
+        },
+        "search_query": {
+          "type": "string",
+          "required": true,
+          "description": "Original search query that found this result"
+        },
+        "source_engine": {
+          "type": "string",
+          "required": true,
+          "description": "Search engine that provided this result"
+        },
+        "credibility_score": {
+          "type": "float",
+          "required": false,
+          "description": "Credibility score based on domain and content"
+        },
+        "relevance_score": {
+          "type": "float",
+          "required": false,
+          "description": "Relevance score to the original query"
+        },
+        "language": {
+          "type": "string",
+          "required": false,
+          "default": "en",
+          "description": "Language of the content"
+        },
+        "published_date": {
+          "type": "string",
+          "format": "datetime",
+          "required": false,
+          "description": "Publication date (if available)"
+        },
+        "indexed_at": {
+          "type": "string",
+          "format": "datetime",
+          "required": true,
+          "description": "When this result was indexed"
+        },
+        "used_in_reports": {
+          "type": "array",
+          "items": "string",
+          "required": false,
+          "description": "Report IDs that used this source"
+        },
+        "access_count": {
+          "type": "integer",
+          "required": false,
+          "default": 0,
+          "description": "Number of times this result has been accessed"
+        },
+        "content_type": {
+          "type": "string",
+          "required": false,
+          "description": "Type of content (article, paper, blog, news, etc.)"
+        }
+      }
+    },
+    {
+      "name": "conversation-context",
+      "description": "Chat conversation embeddings for contextual responses",
+      "config": {
+        "vectors": {
+          "size": 384,
+          "distance": "Cosine"
+        },
+        "optimizers_config": {
+          "default_segment_number": 2,
+          "max_segment_size": 10000,
+          "indexing_threshold": 5000,
+          "flush_interval_sec": 30
+        },
+        "hnsw_config": {
+          "m": 8,
+          "ef_construct": 64,
+          "full_scan_threshold": 5000,
+          "max_indexing_threads": 1
+        },
+        "wal_config": {
+          "wal_capacity_mb": 16,
+          "wal_segments_ahead": 0
+        }
+      },
+      "indexes": [
+        {
+          "field_name": "conversation_id",
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "user_id",
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "message_type",
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "created_at",
+          "field_schema": "datetime"
+        }
+      ],
+      "payload_schema": {
+        "message_id": {
+          "type": "string",
+          "required": true,
+          "description": "Unique message identifier"
+        },
+        "conversation_id": {
+          "type": "string",
+          "required": true,
+          "description": "Conversation identifier"
+        },
+        "user_id": {
+          "type": "string",
+          "required": true,
+          "description": "User identifier"
+        },
+        "message_type": {
+          "type": "string",
+          "required": true,
+          "description": "Type of message (user, assistant, system)"
+        },
+        "content": {
+          "type": "string",
+          "required": true,
+          "description": "Message content"
+        },
+        "context_used": {
+          "type": "array",
+          "items": "string",
+          "required": false,
+          "description": "Report IDs used as context for this message"
+        },
+        "intent": {
+          "type": "string",
+          "required": false,
+          "description": "Detected user intent"
+        },
+        "entities": {
+          "type": "array",
+          "items": "string",
+          "required": false,
+          "description": "Extracted entities from the message"
+        },
+        "created_at": {
+          "type": "string",
+          "format": "datetime",
+          "required": true,
+          "description": "Message timestamp"
+        }
+      }
+    }
+  ],
+  "global_settings": {
+    "default_search_params": {
+      "limit": 10,
+      "score_threshold": 0.7,
+      "exact": false,
+      "with_payload": true,
+      "with_vector": false
+    },
+    "backup_config": {
+      "enabled": true,
+      "schedule": "daily",
+      "retention_days": 30,
+      "compression": true
+    },
+    "monitoring": {
+      "enable_telemetry": true,
+      "log_level": "info",
+      "metrics_collection": true
+    },
+    "performance": {
+      "max_concurrent_searches": 100,
+      "search_timeout_sec": 30,
+      "indexing_batch_size": 1000
+    }
+  },
+  "initialization_data": {
+    "research-documents": {
+      "sample_points": [
+        {
+          "id": "sample-report-1",
+          "vector": [0.1, 0.2, 0.3],
+          "payload": {
+            "report_id": "sample-report-1",
+            "title": "Sample Research Report",
+            "summary": "This is a sample research report for testing purposes",
+            "category": "technology",
+            "confidence_score": 0.85,
+            "created_at": "2024-01-01T00:00:00Z"
+          }
+        }
+      ]
+    },
+    "knowledge-base": {
+      "sample_points": [
+        {
+          "id": "sample-knowledge-1",
+          "vector": [0.2, 0.3, 0.4],
+          "payload": {
+            "chunk_id": "sample-knowledge-1",
+            "chunk_type": "finding",
+            "title": "Sample Finding",
+            "content": "This is a sample knowledge chunk for testing",
+            "topic": "technology",
+            "importance_score": 0.9,
+            "created_at": "2024-01-01T00:00:00Z"
+          }
+        }
+      ]
+    }
+  }
+}

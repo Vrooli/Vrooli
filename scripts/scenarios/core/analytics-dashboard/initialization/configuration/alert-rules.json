@@ -1,0 +1,233 @@
+{
+  "version": "1.0.0",
+  "rules": [
+    {
+      "id": "critical-down",
+      "name": "Critical Service Down",
+      "description": "Alert when a critical service is completely down",
+      "enabled": true,
+      "conditions": {
+        "metric": "availability",
+        "operator": "eq",
+        "value": 0,
+        "duration": 60,
+        "resourceFilter": {
+          "critical": true
+        }
+      },
+      "actions": {
+        "severity": "critical",
+        "channels": ["sms", "email"],
+        "cooldown": 300,
+        "message": "CRITICAL: {{resource_name}} is DOWN - Immediate action required!"
+      }
+    },
+    {
+      "id": "service-degraded",
+      "name": "Service Degraded",
+      "description": "Alert when service response time exceeds threshold",
+      "enabled": true,
+      "conditions": {
+        "metric": "response_time",
+        "operator": "gt",
+        "value": 5000,
+        "duration": 120,
+        "resourceFilter": {}
+      },
+      "actions": {
+        "severity": "warning",
+        "channels": ["email"],
+        "cooldown": 900,
+        "message": "WARNING: {{resource_name}} response time is {{value}}ms (threshold: {{threshold}}ms)"
+      }
+    },
+    {
+      "id": "high-error-rate",
+      "name": "High Error Rate",
+      "description": "Alert when error rate exceeds acceptable threshold",
+      "enabled": true,
+      "conditions": {
+        "metric": "error_rate",
+        "operator": "gt",
+        "value": 10,
+        "duration": 300,
+        "resourceFilter": {}
+      },
+      "actions": {
+        "severity": "warning",
+        "channels": ["email", "slack"],
+        "cooldown": 1200,
+        "message": "HIGH ERROR RATE: {{resource_name}} has {{value}}% errors"
+      }
+    },
+    {
+      "id": "storage-capacity",
+      "name": "Storage Capacity Warning",
+      "description": "Alert when storage usage is high",
+      "enabled": true,
+      "conditions": {
+        "metric": "disk_usage",
+        "operator": "gt",
+        "value": 85,
+        "duration": 600,
+        "resourceFilter": {
+          "type": "storage"
+        }
+      },
+      "actions": {
+        "severity": "warning",
+        "channels": ["email"],
+        "cooldown": 3600,
+        "message": "STORAGE WARNING: {{resource_name}} at {{value}}% capacity"
+      }
+    },
+    {
+      "id": "memory-pressure",
+      "name": "Memory Pressure",
+      "description": "Alert when memory usage is critically high",
+      "enabled": true,
+      "conditions": {
+        "metric": "memory_usage",
+        "operator": "gt",
+        "value": 90,
+        "duration": 300,
+        "resourceFilter": {}
+      },
+      "actions": {
+        "severity": "critical",
+        "channels": ["email", "sms"],
+        "cooldown": 900,
+        "message": "MEMORY CRITICAL: {{resource_name}} using {{value}}% memory"
+      }
+    },
+    {
+      "id": "automation-failed",
+      "name": "Automation Workflow Failed",
+      "description": "Alert when automation workflows fail",
+      "enabled": true,
+      "conditions": {
+        "metric": "workflow_status",
+        "operator": "eq",
+        "value": "failed",
+        "duration": 0,
+        "resourceFilter": {
+          "type": "automation"
+        }
+      },
+      "actions": {
+        "severity": "warning",
+        "channels": ["email", "slack"],
+        "cooldown": 600,
+        "message": "WORKFLOW FAILED: {{resource_name}} - {{workflow_name}}"
+      }
+    },
+    {
+      "id": "ai-model-unavailable",
+      "name": "AI Model Unavailable",
+      "description": "Alert when AI models cannot be loaded",
+      "enabled": true,
+      "conditions": {
+        "metric": "model_status",
+        "operator": "eq",
+        "value": "unavailable",
+        "duration": 30,
+        "resourceFilter": {
+          "type": "ai"
+        }
+      },
+      "actions": {
+        "severity": "critical",
+        "channels": ["sms", "email"],
+        "cooldown": 600,
+        "message": "AI MODEL UNAVAILABLE: {{resource_name}} - {{model_name}}"
+      }
+    },
+    {
+      "id": "vault-sealed",
+      "name": "Vault Sealed",
+      "description": "Alert when Vault becomes sealed",
+      "enabled": true,
+      "conditions": {
+        "metric": "vault_status",
+        "operator": "eq",
+        "value": "sealed",
+        "duration": 0,
+        "resourceFilter": {
+          "name": "vault"
+        }
+      },
+      "actions": {
+        "severity": "critical",
+        "channels": ["sms", "email"],
+        "cooldown": 0,
+        "message": "VAULT SEALED: Secrets management unavailable - Manual intervention required!"
+      }
+    },
+    {
+      "id": "multiple-services-down",
+      "name": "Multiple Services Down",
+      "description": "Alert when multiple services are down simultaneously",
+      "enabled": true,
+      "conditions": {
+        "metric": "down_count",
+        "operator": "gte",
+        "value": 3,
+        "duration": 0,
+        "resourceFilter": {}
+      },
+      "actions": {
+        "severity": "critical",
+        "channels": ["sms", "email"],
+        "cooldown": 300,
+        "message": "SYSTEM FAILURE: {{value}} services are down - Check infrastructure immediately!"
+      }
+    },
+    {
+      "id": "recovery-notification",
+      "name": "Service Recovery",
+      "description": "Notify when service recovers from down state",
+      "enabled": true,
+      "conditions": {
+        "metric": "status_change",
+        "operator": "eq",
+        "value": "recovered",
+        "duration": 0,
+        "resourceFilter": {}
+      },
+      "actions": {
+        "severity": "info",
+        "channels": ["email"],
+        "cooldown": 0,
+        "message": "RECOVERED: {{resource_name}} is now healthy"
+      }
+    }
+  ],
+  "templates": {
+    "sms": "🚨 {{severity}}: {{resource_name}} - {{message}}",
+    "email": {
+      "subject": "[{{severity}}] Resource Alert: {{resource_name}}",
+      "body": "<h2>Resource Monitoring Alert</h2><p><strong>Severity:</strong> {{severity}}</p><p><strong>Resource:</strong> {{resource_name}}</p><p><strong>Message:</strong> {{message}}</p><p><strong>Time:</strong> {{timestamp}}</p><p><a href='http://localhost:5681/f/monitoring/dashboard'>View Dashboard</a></p>"
+    },
+    "slack": {
+      "text": ":warning: *{{severity}}*: {{resource_name}}",
+      "blocks": [
+        {
+          "type": "section",
+          "text": {
+            "type": "mrkdwn",
+            "text": "*{{severity}} Alert*\\n{{message}}"
+          }
+        },
+        {
+          "type": "context",
+          "elements": [
+            {
+              "type": "mrkdwn",
+              "text": "*Resource:* {{resource_name}}\\n*Time:* {{timestamp}}"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

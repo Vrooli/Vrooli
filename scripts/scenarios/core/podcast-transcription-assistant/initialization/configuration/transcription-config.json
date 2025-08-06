@@ -1,0 +1,265 @@
+{
+  "whisper": {
+    "default_model": "base",
+    "available_models": [
+      {
+        "name": "tiny",
+        "display_name": "Tiny",
+        "description": "Fastest processing, lower accuracy",
+        "size_mb": 39,
+        "vram_gb": 1,
+        "speed_multiplier": 32,
+        "languages": ["en", "es", "fr", "de", "it", "pt", "ru", "ja", "ko", "zh"]
+      },
+      {
+        "name": "base", 
+        "display_name": "Base",
+        "description": "Balanced speed and accuracy",
+        "size_mb": 142,
+        "vram_gb": 1,
+        "speed_multiplier": 16,
+        "languages": ["en", "es", "fr", "de", "it", "pt", "ru", "ja", "ko", "zh", "ar", "hi", "nl", "pl"]
+      },
+      {
+        "name": "small",
+        "display_name": "Small", 
+        "description": "Better accuracy, moderate speed",
+        "size_mb": 461,
+        "vram_gb": 2,
+        "speed_multiplier": 6,
+        "languages": ["en", "es", "fr", "de", "it", "pt", "ru", "ja", "ko", "zh", "ar", "hi", "nl", "pl", "tr", "sv"]
+      },
+      {
+        "name": "medium",
+        "display_name": "Medium",
+        "description": "High accuracy, slower processing",
+        "size_mb": 1461,
+        "vram_gb": 5,
+        "speed_multiplier": 2,
+        "languages": ["en", "es", "fr", "de", "it", "pt", "ru", "ja", "ko", "zh", "ar", "hi", "nl", "pl", "tr", "sv", "da", "no", "fi"]
+      },
+      {
+        "name": "large",
+        "display_name": "Large",
+        "description": "Best accuracy, slowest processing", 
+        "size_mb": 2888,
+        "vram_gb": 10,
+        "speed_multiplier": 1,
+        "languages": ["en", "es", "fr", "de", "it", "pt", "ru", "ja", "ko", "zh", "ar", "hi", "nl", "pl", "tr", "sv", "da", "no", "fi", "uk", "cs", "sk", "hu", "ro", "bg", "hr", "sl", "et", "lv", "lt"]
+      }
+    ],
+    "language_detection": {
+      "enabled": true,
+      "auto_detect": true,
+      "fallback_language": "en",
+      "confidence_threshold": 0.8
+    },
+    "output_options": {
+      "format": "json",
+      "word_timestamps": true,
+      "segment_timestamps": true,
+      "temperature": 0.0,
+      "best_of": 5,
+      "beam_size": 5,
+      "patience": 1.0,
+      "length_penalty": -0.05,
+      "suppress_tokens": [],
+      "initial_prompt": null,
+      "condition_on_previous_text": true,
+      "fp16": true,
+      "compression_ratio_threshold": 2.4,
+      "logprob_threshold": -1.0,
+      "no_speech_threshold": 0.6
+    },
+    "processing": {
+      "timeout_minutes": 30,
+      "retry_attempts": 3,
+      "retry_delay_seconds": 5,
+      "concurrent_limit": 2,
+      "queue_enabled": true,
+      "priority_levels": ["high", "normal", "low"],
+      "default_priority": "normal"
+    }
+  },
+  
+  "file_handling": {
+    "upload": {
+      "max_size_mb": 500,
+      "max_duration_minutes": 180,
+      "chunk_size_mb": 10,
+      "parallel_uploads": true,
+      "resume_uploads": true,
+      "virus_scan": false
+    },
+    "supported_formats": [
+      {
+        "extension": "mp3",
+        "mime_type": "audio/mpeg",
+        "description": "MP3 Audio File",
+        "max_bitrate": 320,
+        "preprocessing": "none"
+      },
+      {
+        "extension": "wav",
+        "mime_type": "audio/wav",
+        "description": "WAV Audio File", 
+        "max_bitrate": 1411,
+        "preprocessing": "none"
+      },
+      {
+        "extension": "m4a",
+        "mime_type": "audio/m4a",
+        "description": "M4A Audio File",
+        "max_bitrate": 320,
+        "preprocessing": "convert_to_wav"
+      },
+      {
+        "extension": "ogg",
+        "mime_type": "audio/ogg",
+        "description": "OGG Audio File",
+        "max_bitrate": 500,
+        "preprocessing": "convert_to_wav"
+      },
+      {
+        "extension": "flac",
+        "mime_type": "audio/flac", 
+        "description": "FLAC Audio File",
+        "max_bitrate": 1411,
+        "preprocessing": "none"
+      },
+      {
+        "extension": "mp4",
+        "mime_type": "audio/mp4",
+        "description": "MP4 Audio File",
+        "max_bitrate": 320,
+        "preprocessing": "extract_audio"
+      }
+    ],
+    "preprocessing": {
+      "normalize_audio": true,
+      "remove_silence": false,
+      "noise_reduction": false,
+      "sample_rate": 16000,
+      "channels": 1,
+      "bit_depth": 16
+    },
+    "validation": {
+      "check_format": true,
+      "check_duration": true,
+      "check_corruption": true,
+      "check_bitrate": false,
+      "reject_zero_duration": true,
+      "min_duration_seconds": 1,
+      "max_duration_seconds": 10800
+    }
+  },
+  
+  "storage": {
+    "minio": {
+      "buckets": {
+        "audio_files": {
+          "name": "audio-files",
+          "policy": "private",
+          "versioning": false,
+          "lifecycle_days": 365,
+          "compression": true
+        },
+        "transcriptions": {
+          "name": "transcriptions", 
+          "policy": "private",
+          "versioning": true,
+          "lifecycle_days": 730,
+          "compression": false
+        },
+        "exports": {
+          "name": "exports",
+          "policy": "private", 
+          "versioning": false,
+          "lifecycle_days": 30,
+          "compression": true
+        }
+      },
+      "naming_convention": {
+        "audio_files": "{transcription_id}-{filename}",
+        "transcriptions": "{transcription_id}-transcript.{format}",
+        "exports": "{transcription_id}-{export_type}-{timestamp}.{format}"
+      }
+    },
+    "cleanup": {
+      "enabled": true,
+      "schedule": "0 2 * * *",
+      "retain_audio_days": 365,
+      "retain_transcripts_days": 730,
+      "retain_exports_days": 30,
+      "retain_failed_uploads_days": 7
+    }
+  },
+  
+  "quality_control": {
+    "confidence_threshold": 0.8,
+    "auto_review_low_confidence": true,
+    "flag_for_human_review": {
+      "confidence_below": 0.6,
+      "duration_over_minutes": 120,
+      "language_detection_uncertain": true,
+      "high_noise_detected": true
+    },
+    "post_processing": {
+      "spell_check": false,
+      "grammar_check": false,
+      "auto_punctuation": true,
+      "speaker_labels": false,
+      "paragraph_breaks": true
+    }
+  },
+  
+  "notifications": {
+    "completion": {
+      "enabled": true,
+      "webhook_url": null,
+      "email_enabled": false,
+      "ui_notification": true
+    },
+    "errors": {
+      "enabled": true,
+      "webhook_url": null,
+      "email_enabled": true,
+      "log_level": "error"
+    },
+    "progress": {
+      "enabled": true,
+      "interval_seconds": 10,
+      "websocket_enabled": true
+    }
+  },
+  
+  "performance": {
+    "caching": {
+      "enabled": true,
+      "cache_duration_hours": 24,
+      "cache_results": true,
+      "cache_embeddings": true
+    },
+    "optimization": {
+      "batch_processing": true,
+      "parallel_segments": true,
+      "gpu_acceleration": true,
+      "memory_limit_gb": 8
+    }
+  },
+  
+  "integrations": {
+    "embedding_generation": {
+      "enabled": true,
+      "model": "nomic-embed-text",
+      "chunk_size": 512,
+      "overlap_size": 50,
+      "auto_generate": true
+    },
+    "ai_analysis": {
+      "auto_analyze": false,
+      "default_analyses": ["summary"],
+      "batch_analyze": true
+    }
+  }
+}

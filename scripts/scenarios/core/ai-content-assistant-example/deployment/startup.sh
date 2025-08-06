@@ -162,8 +162,8 @@ initialize_database() {
         log_info "Initializing database..."
         
         local db_name="${SCENARIO_ID//-/_}"
-        local schema_file="$SCENARIO_DIR/initialization/database/schema.sql"
-        local seed_file="$SCENARIO_DIR/initialization/database/seed.sql"
+        local schema_file="$SCENARIO_DIR/initialization/storage/schema.sql"
+        local seed_file="$SCENARIO_DIR/initialization/storage/seed.sql"
         
         # Create database if it doesn't exist
         if ! psql -h localhost -p 5433 -U postgres -lqt | cut -d \| -f 1 | grep -qw "$db_name"; then
@@ -205,7 +205,7 @@ deploy_workflows() {
     
     # Deploy n8n workflows
     if [[ "$REQUIRED_RESOURCES" =~ "n8n" ]]; then
-        local n8n_dir="$SCENARIO_DIR/initialization/workflows/n8n"
+        local n8n_dir="$SCENARIO_DIR/initialization/automation/n8n"
         if [[ -d "$n8n_dir" ]]; then
             log_info "Deploying n8n workflows..."
             for workflow_file in "$n8n_dir"/*.json; do
@@ -225,7 +225,7 @@ deploy_workflows() {
     
     # Deploy Windmill apps
     if [[ "$REQUIRED_RESOURCES" =~ "windmill" && "$REQUIRES_UI" == "true" ]]; then
-        local windmill_app="$SCENARIO_DIR/initialization/ui/windmill-app.json"
+        local windmill_app="$SCENARIO_DIR/initialization/automation/windmill/campaign-dashboard.json"
         if [[ -f "$windmill_app" ]]; then
             log_info "Deploying Windmill application..."
             # Note: In a real implementation, you'd use Windmill's API to deploy apps

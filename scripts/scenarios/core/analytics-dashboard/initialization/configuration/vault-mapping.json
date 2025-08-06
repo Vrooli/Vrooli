@@ -1,0 +1,114 @@
+{
+  "version": "1.0.0",
+  "description": "Vault secret paths for resource monitoring platform",
+  "secrets": {
+    "notifications": {
+      "twilio": {
+        "path": "secret/data/monitoring/twilio",
+        "fields": {
+          "account_sid": "TWILIO_ACCOUNT_SID",
+          "auth_token": "TWILIO_AUTH_TOKEN",
+          "from_number": "TWILIO_FROM_NUMBER",
+          "to_number": "ALERT_PHONE_NUMBER"
+        },
+        "description": "Twilio credentials for SMS alerts"
+      },
+      "smtp": {
+        "path": "secret/data/monitoring/smtp",
+        "fields": {
+          "host": "SMTP_HOST",
+          "port": "SMTP_PORT",
+          "username": "SMTP_USERNAME",
+          "password": "SMTP_PASSWORD",
+          "from_email": "ALERT_FROM_EMAIL",
+          "to_email": "ALERT_TO_EMAIL"
+        },
+        "description": "SMTP configuration for email alerts"
+      },
+      "slack": {
+        "path": "secret/data/monitoring/slack",
+        "fields": {
+          "webhook_url": "SLACK_WEBHOOK_URL",
+          "channel": "SLACK_CHANNEL",
+          "username": "SLACK_USERNAME"
+        },
+        "description": "Slack webhook for notifications"
+      }
+    },
+    "databases": {
+      "postgres": {
+        "path": "secret/data/monitoring/postgres",
+        "fields": {
+          "host": "POSTGRES_HOST",
+          "port": "POSTGRES_PORT",
+          "database": "POSTGRES_DB",
+          "username": "POSTGRES_USER",
+          "password": "POSTGRES_PASSWORD"
+        },
+        "description": "PostgreSQL monitoring database credentials"
+      },
+      "redis": {
+        "path": "secret/data/monitoring/redis",
+        "fields": {
+          "host": "REDIS_HOST",
+          "port": "REDIS_PORT",
+          "password": "REDIS_PASSWORD"
+        },
+        "description": "Redis cache credentials"
+      }
+    },
+    "api_keys": {
+      "monitoring": {
+        "path": "secret/data/monitoring/api_keys",
+        "fields": {
+          "dashboard_api_key": "DASHBOARD_API_KEY",
+          "webhook_secret": "WEBHOOK_SECRET",
+          "admin_token": "ADMIN_TOKEN"
+        },
+        "description": "API keys for monitoring platform"
+      }
+    }
+  },
+  "policies": {
+    "monitoring-read": {
+      "path": "monitoring-read",
+      "rules": [
+        {
+          "path": "secret/data/monitoring/*",
+          "capabilities": ["read", "list"]
+        }
+      ],
+      "description": "Read-only access to monitoring secrets"
+    },
+    "monitoring-admin": {
+      "path": "monitoring-admin",
+      "rules": [
+        {
+          "path": "secret/data/monitoring/*",
+          "capabilities": ["create", "read", "update", "delete", "list"]
+        }
+      ],
+      "description": "Full access to monitoring secrets"
+    }
+  },
+  "initialization": {
+    "required": [
+      "notifications.twilio",
+      "notifications.smtp"
+    ],
+    "optional": [
+      "notifications.slack",
+      "api_keys.monitoring"
+    ],
+    "setupScript": "scripts/setup-vault-secrets.sh"
+  },
+  "rotation": {
+    "enabled": false,
+    "interval": "90d",
+    "secrets": [
+      "api_keys.monitoring.admin_token",
+      "databases.postgres.password",
+      "databases.redis.password"
+    ]
+  }
+}

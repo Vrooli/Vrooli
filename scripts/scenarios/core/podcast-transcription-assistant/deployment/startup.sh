@@ -46,19 +46,19 @@ load_configuration() {
     log_info "Loading scenario configuration..."
     
     # Check if required file exists
-    if [[ ! -f "$SCENARIO_DIR/service.json" ]]; then
-        log_error "service.json not found in $SCENARIO_DIR"
+    if [[ ! -f "$SCENARIO_DIR/.vrooli/service.json" ]]; then
+        log_error "service.json not found in $SCENARIO_DIR/.vrooli/"
         exit 1
     fi
     
     # Extract required resources
-    REQUIRED_RESOURCES=$(jq -r '.resources | to_entries[] | .value | to_entries[] | select(.value.required == true) | .key' "$SCENARIO_DIR/service.json" 2>/dev/null | tr '\n' ' ')
+    REQUIRED_RESOURCES=$(jq -r '.resources | to_entries[] | .value | to_entries[] | select(.value.required == true) | .key' "$SCENARIO_DIR/.vrooli/service.json" 2>/dev/null | tr '\n' ' ')
     log_info "Required resources: $REQUIRED_RESOURCES"
     
     # Extract configuration
-    REQUIRES_UI=$(jq -r '.deployment.testing.ui.required // false' "$SCENARIO_DIR/service.json" 2>/dev/null || echo "false")
-    REQUIRES_DISPLAY=$(jq -r '.deployment.testing.ui.type // "none"' "$SCENARIO_DIR/service.json" 2>/dev/null || echo "none")
-    TIMEOUT_SECONDS=$(jq -r '.deployment.testing.timeout // "30m"' "$SCENARIO_DIR/service.json" 2>/dev/null | sed 's/[ms]//g' || echo "300")
+    REQUIRES_UI=$(jq -r '.deployment.testing.ui.required // false' "$SCENARIO_DIR/.vrooli/service.json" 2>/dev/null || echo "true")
+    REQUIRES_DISPLAY=$(jq -r '.deployment.testing.ui.type // "none"' "$SCENARIO_DIR/.vrooli/service.json" 2>/dev/null || echo "windmill")
+    TIMEOUT_SECONDS=$(jq -r '.deployment.testing.timeout // "45m"' "$SCENARIO_DIR/.vrooli/service.json" 2>/dev/null | sed 's/[ms]//g' || echo "2700")
     
     log_info "UI required: $REQUIRES_UI, Display required: $REQUIRES_DISPLAY, Timeout: ${TIMEOUT_SECONDS}s"
 }
@@ -161,9 +161,9 @@ initialize_database() {
     if [[ "$REQUIRED_RESOURCES" =~ "postgres" ]]; then
         log_info "Initializing database..."
         
-        local db_name="${SCENARIO_ID//-/_}"
-        local schema_file="$SCENARIO_DIR/initialization/database/schema.sql"
-        local seed_file="$SCENARIO_DIR/initialization/database/seed.sql"
+        local db_name="podcast_transcription_assistant"
+        local schema_file="$SCENARIO_DIR/initialization/storage/schema.sql"
+        local seed_file="$SCENARIO_DIR/initialization/storage/seed.sql"
         
         # Create database if it doesn't exist
         if ! psql -h localhost -p 5433 -U postgres -lqt | cut -d \| -f 1 | grep -qw "$db_name"; then
@@ -176,9 +176,7 @@ initialize_database() {
         # Apply schema
         if [[ -f "$schema_file" ]]; then
             log_info "Applying database schema..."
-            # Simple template variable substitution
-            sed "s/podcast-transcription-assistant/$db_name/g" "$schema_file" | \
-            psql -h localhost -p 5433 -U postgres -d "$db_name" -v ON_ERROR_STOP=1
+            PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d "$db_name" -f "$schema_file" -v ON_ERROR_STOP=1
             log_success "Database schema applied"
         else
             log_warning "No schema file found at $schema_file"
@@ -187,9 +185,7 @@ initialize_database() {
         # Apply seed data
         if [[ -f "$seed_file" ]]; then
             log_info "Applying seed data..."
-            # Simple template variable substitution
-            sed "s/podcast-transcription-assistant/$db_name/g" "$seed_file" | \
-            psql -h localhost -p 5433 -U postgres -d "$db_name" -v ON_ERROR_STOP=1
+            PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d "$db_name" -f "$seed_file" -v ON_ERROR_STOP=1
             log_success "Seed data applied"
         else
             log_warning "No seed file found at $seed_file"
@@ -205,7 +201,7 @@ deploy_workflows() {
     
     # Deploy n8n workflows
     if [[ "$REQUIRED_RESOURCES" =~ "n8n" ]]; then
-        local n8n_dir="$SCENARIO_DIR/initialization/workflows/n8n"
+        local n8n_dir="$SCENARIO_DIR/initialization/automation/n8n"
         if [[ -d "$n8n_dir" ]]; then
             log_info "Deploying n8n workflows..."
             for workflow_file in "$n8n_dir"/*.json; do
@@ -225,7 +221,7 @@ deploy_workflows() {
     
     # Deploy Windmill apps
     if [[ "$REQUIRED_RESOURCES" =~ "windmill" && "$REQUIRES_UI" == "true" ]]; then
-        local windmill_app="$SCENARIO_DIR/initialization/ui/windmill-app.json"
+        local windmill_app="$SCENARIO_DIR/initialization/automation/windmill/transcription-manager-app.json"
         if [[ -f "$windmill_app" ]]; then
             log_info "Deploying Windmill application..."
             # Note: In a real implementation, you'd use Windmill's API to deploy apps
@@ -238,7 +234,67 @@ deploy_workflows() {
     fi
 }
 
-# Step 4: Apply configuration
+# Step 4: Initialize MinIO buckets
+initialize_minio() {
+    if [[ "$REQUIRED_RESOURCES" =~ "minio" ]]; then
+        log_info "Initializing MinIO buckets..."
+        
+        # Check MinIO client availability
+        if ! command -v mc &> /dev/null; then
+            log_warning "MinIO client (mc) not found, skipping bucket initialization"
+            return 0
+        fi
+        
+        # Configure MinIO client
+        mc alias set local http://localhost:9000 minioadmin minioadmin 2>/dev/null || true
+        
+        # Create buckets
+        local buckets=("audio-files" "transcriptions" "exports")
+        for bucket in "${buckets[@]}"; do
+            if ! mc ls "local/$bucket" &>/dev/null; then
+                log_info "Creating bucket: $bucket"
+                mc mb "local/$bucket"
+                log_success "✓ Bucket $bucket created"
+            else
+                log_success "✓ Bucket $bucket already exists"
+            fi
+        done
+    else
+        log_info "Skipping MinIO initialization (not required)"
+    fi
+}
+
+# Step 5: Initialize Qdrant collections
+initialize_qdrant() {
+    if [[ "$REQUIRED_RESOURCES" =~ "qdrant" ]]; then
+        log_info "Initializing Qdrant collections..."
+        
+        # Create transcription embeddings collection
+        local collection_config='{
+            "vectors": {
+                "size": 384,
+                "distance": "Cosine"
+            }
+        }'
+        
+        if curl -sf -X GET "http://localhost:6333/collections/transcription-embeddings" >/dev/null 2>&1; then
+            log_success "✓ Collection 'transcription-embeddings' already exists"
+        else
+            log_info "Creating collection 'transcription-embeddings'..."
+            if curl -sf -X PUT "http://localhost:6333/collections/transcription-embeddings" \
+                -H "Content-Type: application/json" \
+                -d "$collection_config" >/dev/null 2>&1; then
+                log_success "✓ Collection 'transcription-embeddings' created"
+            else
+                log_error "Failed to create Qdrant collection"
+            fi
+        fi
+    else
+        log_info "Skipping Qdrant initialization (not required)"
+    fi
+}
+
+# Step 6: Apply configuration
 apply_configuration() {
     log_info "Applying configuration..."
     
@@ -264,13 +320,14 @@ apply_configuration() {
 health_checks() {
     log_info "Performing post-deployment health checks..."
     
-    # Test webhook endpoint if n8n is deployed
+    # Test webhook endpoints if n8n is deployed
     if [[ "$REQUIRED_RESOURCES" =~ "n8n" ]]; then
-        local webhook_url="http://localhost:5678/webhook/${SCENARIO_ID}-webhook"
-        log_info "Testing webhook endpoint: $webhook_url"
+        log_info "Testing n8n webhook endpoints..."
         
-        # Test with sample data
-        local test_payload='{"test": true, "scenario": "'$SCENARIO_ID'", "timestamp": "'$(date -Iseconds)'"}'
+        # Test transcription pipeline webhook
+        local webhook_url="http://localhost:5678/webhook/transcription-upload"
+        log_info "Testing transcription webhook: $webhook_url"
+        local test_payload='{"test": true, "filename": "test.mp3", "scenario": "'$SCENARIO_ID'", "timestamp": "'$(date -Iseconds)'"}'
         
         if curl -sf -X POST -H "Content-Type: application/json" -d "$test_payload" "$webhook_url" >/dev/null 2>&1; then
             log_success "✓ Webhook endpoint is responding"
@@ -306,6 +363,8 @@ main() {
     load_configuration
     validate_resources
     initialize_database
+    initialize_minio
+    initialize_qdrant
     deploy_workflows
     apply_configuration
     health_checks
@@ -315,11 +374,13 @@ main() {
     log_info "Application endpoints:"
     
     if [[ "$REQUIRED_RESOURCES" =~ "n8n" ]]; then
-        log_info "  📡 Webhook: http://localhost:5678/webhook/${SCENARIO_ID}-webhook"
+        log_info "  📡 Transcription Pipeline: http://localhost:5678/webhook/transcription-upload"
+        log_info "  📡 AI Analysis: http://localhost:5678/webhook/ai-analysis"
+        log_info "  📡 Semantic Search: http://localhost:5678/webhook/semantic-search"
     fi
     
     if [[ "$REQUIRES_UI" == "true" && "$REQUIRED_RESOURCES" =~ "windmill" ]]; then
-        log_info "  🖥️  UI: http://localhost:5681/app/$SCENARIO_ID"
+        log_info "  🖥️  Transcription Manager UI: http://localhost:5681/"
     fi
     
     if [[ "$REQUIRED_RESOURCES" =~ "postgres" ]]; then

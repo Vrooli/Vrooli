@@ -111,8 +111,8 @@ cd {{ scenario.id }}
 # View logs
 ./deployment/monitor.sh logs
 
-# Run validation
-./deployment/validate.sh post-deployment
+# Check application status
+./deployment/monitor.sh status
 ```
 
 ## 📁 **File Structure**
@@ -149,7 +149,6 @@ initialization/
 ```
 deployment/
 ├── startup.sh                 # Application initialization
-├── validate.sh               # Pre/post validation
 └── monitor.sh                # Health monitoring
 ```
 
@@ -218,20 +217,11 @@ Edit `initialization/workflows/n8n/main-workflow.json`:
 
 ### **Structure Validation**
 ```bash
-# Validate scenario structure
-./deployment/validate.sh structure
+# Validate scenario structure and content
+./test.sh
 
-# Validate content syntax
-./deployment/validate.sh content
-
-# Validate configuration
-./deployment/validate.sh configuration
-```
-
-### **Resource Health Check**
-```bash
-# Check required resources are running
-./deployment/validate.sh with-resources
+# Check application health
+./deployment/monitor.sh status
 ```
 
 ### **Integration Testing**
@@ -303,9 +293,9 @@ This scenario template targets projects in the **${{ business.revenue_potential.
 ### **Troubleshooting**
 ```bash
 # Common issues and fixes
-./deployment/validate.sh --help        # Validation options
 ./deployment/startup.sh --help         # Deployment options  
 ./deployment/monitor.sh --help         # Monitoring options
+./test.sh --help                       # Testing options
 ```
 
 ### **Getting Help**
@@ -320,7 +310,7 @@ This scenario template targets projects in the **${{ business.revenue_potential.
 1. Copy this template: `cp -r templates/full/ your-scenario/`
 2. Customize business configuration in `service.json`
 3. Adapt initialization data for your use case
-4. Test with `./deployment/validate.sh`
+4. Test with `./test.sh`
 5. Deploy with `../../../scenario-to-app.sh your-scenario`
 
 ### **For Production**

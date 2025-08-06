@@ -3,18 +3,18 @@
   "version": "1.0.0",
   "service": {
     "name": "analytics-dashboard",
-    "displayName": "Real-time Analytics Dashboard",
-    "description": "Live monitoring dashboard with streaming data, time-series storage, and AI-powered insights",
+    "displayName": "Resource Monitoring & Management Platform",
+    "description": "Auto-discover and monitor Vrooli resources with real-time alerts, historical tracking, and remote management capabilities",
     "version": "1.0.0",
-    "type": "business-application",
+    "type": "infrastructure-management",
     "tags": [
-      "real-time",
-      "time-series",
-      "iot",
       "monitoring",
+      "resource-management",
+      "alerting",
+      "auto-discovery",
       "operational-intelligence",
       "windmill-ui",
-      "enterprise-ready"
+      "infrastructure"
     ],
     "maintainers": [
       {
@@ -48,11 +48,11 @@
           "data": [
             {
               "type": "schema",
-              "file": "initialization/database/schema.sql"
+              "file": "initialization/storage/postgres/schema.sql"
             },
             {
               "type": "seed",
-              "file": "initialization/database/seed.sql"
+              "file": "initialization/storage/postgres/seed.sql"
             }
           ]
         }
@@ -62,10 +62,32 @@
         "enabled": true,
         "required": true,
         "initialization": {
-          "tables": [
+          "schema": {
+            "file": "initialization/storage/questdb/tables.sql"
+          }
+        }
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "description": "Used for alert throttling and real-time status cache"
+        }
+      },
+      "vault": {
+        "type": "vault",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "secrets": [
             {
-              "name": "metrics",
-              "schema": "CREATE TABLE metrics (timestamp TIMESTAMP, metric_name STRING, value DOUBLE, tags STRING)"
+              "path": "secret/data/monitoring/twilio",
+              "description": "Twilio credentials for SMS alerts"
+            },
+            {
+              "path": "secret/data/monitoring/smtp",
+              "description": "SMTP credentials for email alerts"
             }
           ]
         }
@@ -88,33 +110,69 @@
       "ollama": {
         "enabled": false,
         "required": false,
-        "models": ["llama3.1:8b"]
+        "models": []
       }
     },
     "automation": {
+      "n8n": {
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "workflows": [
+            {
+              "name": "resource-monitor",
+              "file": "initialization/automation/n8n/resource-monitor.json",
+              "enabled": true,
+              "tags": ["monitoring", "core"]
+            },
+            {
+              "name": "auto-discovery",
+              "file": "initialization/automation/n8n/auto-discovery.json",
+              "enabled": true,
+              "tags": ["discovery", "setup"]
+            },
+            {
+              "name": "alert-handler",
+              "file": "initialization/automation/n8n/alert-handler.json",
+              "enabled": true,
+              "tags": ["alerting", "notifications"]
+            }
+          ]
+        }
+      },
       "node-red": {
         "enabled": true,
         "required": true,
         "initialization": {
           "flows": [
             {
-              "name": "data-ingestion-flow",
-              "file": "initialization/workflows/node-red/main-flow.json",
+              "name": "metrics-collector",
+              "file": "initialization/automation/node-red/metrics-collector.json",
               "enabled": true,
-              "tags": ["core", "data-ingestion"]
+              "tags": ["core", "metrics", "real-time"]
             }
           ]
         }
       },
       "windmill": {
-        "enabled": false,
-        "required": false,
+        "enabled": true,
+        "required": true,
         "initialization": {
           "apps": [
             {
-              "path": "f/analytics-dashboard/dashboard",
-              "file": "initialization/ui/windmill-app.json",
-              "summary": "Real-time Analytics Dashboard"
+              "path": "f/monitoring/dashboard",
+              "file": "initialization/ui/windmill/dashboard-app.json",
+              "summary": "Resource Monitoring Dashboard"
+            },
+            {
+              "path": "f/monitoring/config",
+              "file": "initialization/ui/windmill/config-panel.json",
+              "summary": "Resource Configuration Panel"
+            },
+            {
+              "path": "f/monitoring/docs",
+              "file": "initialization/ui/windmill/docs-page.json",
+              "summary": "Documentation and Help"
             }
           ],
           "scripts": []
@@ -136,21 +194,10 @@
       "application": "http://localhost:3000",
       "api": "http://localhost:3000/api/analytics-dashboard",
       "health": "http://localhost:3000/api/analytics-dashboard/health",
-      "questdb": "http://localhost:9000"
+      "questdb": "http://localhost:9009"
     },
     "initialization": {
       "phases": [
-        {
-          "name": "pre-validation",
-          "tasks": [
-            {
-              "name": "validate-resources",
-              "type": "script",
-              "script": "./deployment/validate.sh",
-              "timeout": "30s"
-            }
-          ]
-        },
         {
           "name": "database-setup",
           "tasks": [
@@ -158,13 +205,13 @@
               "name": "apply-schema",
               "type": "sql",
               "target": "storage.postgres",
-              "file": "initialization/database/schema.sql"
+              "file": "initialization/storage/postgres/schema.sql"
             },
             {
               "name": "seed-data",
               "type": "sql",
               "target": "storage.postgres",
-              "file": "initialization/database/seed.sql"
+              "file": "initialization/storage/postgres/seed.sql"
             },
             {
               "name": "setup-questdb",
@@ -182,13 +229,13 @@
               "name": "deploy-node-red-flows",
               "type": "resource-inject",
               "target": "automation.node-red",
-              "config": "initialization/workflows/node-red/"
+              "config": "initialization/automation/node-red/"
             },
             {
               "name": "deploy-windmill-apps",
               "type": "resource-inject",
               "target": "automation.windmill",
-              "config": "initialization/ui/"
+              "config": "initialization/ui/windmill/"
             }
           ]
         },
@@ -248,7 +295,7 @@
           "threshold": 3
         },
         "questdb": {
-          "endpoint": "http://localhost:9000/status",
+          "endpoint": "http://localhost:9009/status",
           "interval": "60s",
           "timeout": "10s"
         },
@@ -335,25 +382,26 @@
   "metadata": {
     "businessModel": {
       "purpose": "commercial",
-      "valueProposition": "Real-time operational intelligence platform for IoT, financial, and business metrics",
-      "targetMarket": "IoT companies, financial institutions, and businesses needing real-time monitoring and analytics",
+      "valueProposition": "Comprehensive resource monitoring and management for Vrooli's infrastructure with automated alerts and self-healing capabilities",
+      "targetMarket": "DevOps teams, platform operators, and Vrooli deployments needing infrastructure visibility",
       "painPoints": [
-        "Delayed insights from batch processing systems",
-        "Complex setup for real-time data pipelines",
-        "Lack of integrated monitoring and alerting"
+        "Manual resource discovery and configuration",
+        "Alert fatigue from unthrottled notifications",
+        "Lack of unified dashboard for 20+ resources",
+        "No historical metrics for capacity planning"
       ],
-      "solution": "Complete real-time analytics platform with streaming data ingestion, time-series storage, and interactive dashboards",
-      "competitiveAdvantage": "Integrated Node-RED workflows with QuestDB time-series performance and automated monitoring",
+      "solution": "Auto-discovering monitoring platform with smart alerting, one-click management, and historical analysis",
+      "competitiveAdvantage": "Purpose-built for Vrooli's resource ecosystem with native integration and auto-discovery",
       "revenuePotential": {
-        "initial": "$5,000",
-        "recurring": "$12,000",
-        "expansion": "$25,000",
-        "totalEstimate": "$42,000"
+        "initial": "Infrastructure cost savings",
+        "recurring": "Reduced downtime and operational efficiency",
+        "expansion": "Self-healing capabilities",
+        "totalEstimate": "Critical for platform operations"
       },
       "marketDemand": {
         "level": "very-high",
         "growth": "35% annually",
-        "evidence": "Growing IoT market and real-time analytics demand"
+        "evidence": "Essential for managing 20+ local resources efficiently"
       },
       "roi": {
         "developmentCost": "$3,000",
@@ -424,7 +472,7 @@
         },
         "QUESTDB_PORT": {
           "type": "number",
-          "default": 9000,
+          "default": 9009,
           "description": "QuestDB web console port"
         }
       },

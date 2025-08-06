@@ -107,8 +107,7 @@ initialization/
 ```
 deployment/
 ├── startup.sh             # Application initialization
-├── validate.sh            # Health and integrity checks
-└── monitor.sh             # Production monitoring
+└── monitor.sh             # Production monitoring and health checks
 ```
 
 ## 🚀 From Customer Requirements to Deployed App

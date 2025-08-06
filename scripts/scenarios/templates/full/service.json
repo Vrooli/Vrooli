@@ -148,17 +148,6 @@
     "initialization": {
       "phases": [
         {
-          "name": "pre-validation",
-          "tasks": [
-            {
-              "name": "validate-resources",
-              "type": "script",
-              "script": "./deployment/validate.sh",
-              "timeout": "30s"
-            }
-          ]
-        },
-        {
           "name": "database-setup",
           "tasks": [
             {
