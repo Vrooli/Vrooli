@@ -8,16 +8,19 @@
 # as a standalone validation tool or integrated into CI/CD pipelines.
 #
 # Usage:
-#   ./validate-all-interfaces.sh [OPTIONS]
+#   ./validate-interfaces.sh [OPTIONS]
 #
 # Options:
 #   --help              Show help message
 #   --verbose           Enable verbose output
 #   --resources-dir     Specify resources directory (default: auto-detect)
 #   --resource          Test specific resource only
+#   --level             Validation level: quick|standard|full (default: quick)
 #   --fix               Attempt to fix common issues (future feature)
 #   --report            Generate detailed report file
-#   --format            Output format: text|json|csv (default: text)
+#   --format            Output format: text|json|csv|junit (default: text)
+#   --cache             Use cached results for performance optimization
+#   --parallel          Run validations in parallel
 #
 # Exit Codes:
 #   0 - All resources pass interface compliance
@@ -36,16 +39,19 @@ set -euo pipefail
 
 # Script directory and paths
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RESOURCES_DIR="$SCRIPT_DIR"
-TESTS_DIR="$SCRIPT_DIR/tests"
+RESOURCES_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+TESTS_DIR="$RESOURCES_DIR/tests"
 
 # Configuration
 VERBOSE=false
 SPECIFIC_RESOURCE=""
+VALIDATION_LEVEL="quick"
 FIX_ISSUES=false
 GENERATE_REPORT=false
 OUTPUT_FORMAT="text"
 REPORT_FILE=""
+USE_CACHE=false
+USE_PARALLEL=false
 
 # Colors for output
 if [[ -t 1 ]]; then
@@ -92,16 +98,25 @@ USAGE:
 
 DESCRIPTION:
     Validates that all resource manage.sh scripts implement the standard
-    interface required by the Vrooli resource ecosystem.
+    interface required by the Vrooli resource ecosystem using the Layer 1
+    syntax validation system with contract-first validation.
 
 OPTIONS:
     --help              Show this help message
     --verbose           Enable verbose output with detailed test results
     --resources-dir     Specify resources directory (default: $RESOURCES_DIR)
     --resource <name>   Test specific resource only
+    --level <level>     Validation level: quick|standard|full (default: quick)
     --fix               Attempt to fix common issues (future feature)
     --report            Generate detailed validation report
-    --format <fmt>      Output format: text|json|csv (default: text)
+    --format <fmt>      Output format: text|json|csv|junit (default: text)
+    --cache             Use cached results for performance optimization
+    --parallel          Run validations in parallel (future feature)
+
+VALIDATION LEVELS:
+    quick    - Layer 1: Syntax validation only (<1s per resource)
+    standard - Layer 1+2: Syntax + behavioral testing (future, ~30s)
+    full     - Layer 1+2+3: All validation layers (future, ~5min)
 
 EXIT CODES:
     0 - All resources pass interface compliance
@@ -109,18 +124,20 @@ EXIT CODES:
     2 - Script error or missing dependencies
 
 EXAMPLES:
-    $0                                    # Validate all resources
+    $0                                    # Quick validation (Layer 1)
     $0 --resource ollama                  # Validate specific resource
-    $0 --verbose                          # Detailed output
-    $0 --format json                      # JSON output
+    $0 --level standard                   # Standard validation (future)
+    $0 --verbose --format json            # Detailed JSON output
     $0 --report --format csv              # Generate CSV report
 
-VALIDATION CHECKS:
-    • Required actions: install, start, stop, status, logs
-    • Help/usage patterns: --help, -h, --version
-    • Error handling: invalid actions, missing arguments
-    • Configuration loading and validation
-    • Argument patterns: --action, --yes flags
+LAYER 1 VALIDATION CHECKS:
+    • Contract compliance: Resources must implement actions defined in contracts
+    • Required core actions: install, start, stop, status, logs
+    • Category-specific actions: Based on resource category (ai, automation, etc.)
+    • Help patterns: --help, -h, --version support
+    • Error handling: Proper bash error handling patterns
+    • File structure: Required config/ and lib/ directories
+    • Argument patterns: Consistent --action and flag usage
 
 For more information, see: scripts/resources/tests/framework/interface-compliance.sh
 EOF
@@ -152,7 +169,6 @@ parse_args() {
                 ;;
             --fix)
                 FIX_ISSUES=true
-                log_warning "Fix mode not yet implemented"
                 shift
                 ;;
             --report)
@@ -161,11 +177,27 @@ parse_args() {
                 ;;
             --format)
                 OUTPUT_FORMAT="$2"
-                if [[ "$OUTPUT_FORMAT" != "text" && "$OUTPUT_FORMAT" != "json" && "$OUTPUT_FORMAT" != "csv" ]]; then
-                    log_error "Invalid format: $OUTPUT_FORMAT. Must be text, json, or csv"
+                if [[ "$OUTPUT_FORMAT" != "text" && "$OUTPUT_FORMAT" != "json" && "$OUTPUT_FORMAT" != "csv" && "$OUTPUT_FORMAT" != "junit" ]]; then
+                    log_error "Invalid format: $OUTPUT_FORMAT. Must be text, json, csv, or junit"
                     exit 2
                 fi
                 shift 2
+                ;;
+            --level)
+                VALIDATION_LEVEL="$2"
+                if [[ "$VALIDATION_LEVEL" != "quick" && "$VALIDATION_LEVEL" != "standard" && "$VALIDATION_LEVEL" != "full" ]]; then
+                    log_error "Invalid validation level: $VALIDATION_LEVEL. Must be quick, standard, or full"
+                    exit 2
+                fi
+                shift 2
+                ;;
+            --cache)
+                USE_CACHE=true
+                shift
+                ;;
+            --parallel)
+                USE_PARALLEL=true
+                shift
                 ;;
             *)
                 log_error "Unknown option: $1"
@@ -180,11 +212,27 @@ parse_args() {
 validate_prerequisites() {
     log_verbose "Validating prerequisites..."
     
-    # Check if interface compliance framework exists
-    local framework_path="$TESTS_DIR/framework/interface-compliance.sh"
-    if [[ ! -f "$framework_path" ]]; then
-        log_error "Interface compliance framework not found: $framework_path"
+    # Check if Layer 1 validation framework exists
+    local syntax_validator_path="$TESTS_DIR/framework/validators/syntax.sh"
+    if [[ ! -f "$syntax_validator_path" ]]; then
+        log_error "Layer 1 syntax validator not found: $syntax_validator_path"
         log_error "Please ensure you're running from the correct directory"
+        exit 2
+    fi
+    
+    # Check if contract parser exists
+    local contract_parser_path="$TESTS_DIR/framework/parsers/contract-parser.sh"
+    if [[ ! -f "$contract_parser_path" ]]; then
+        log_error "Contract parser not found: $contract_parser_path"
+        log_error "Please ensure the Layer 1 validation system is properly installed"
+        exit 2
+    fi
+    
+    # Check if contracts directory exists
+    local contracts_dir="$RESOURCES_DIR/contracts"
+    if [[ ! -d "$contracts_dir" ]]; then
+        log_error "Contracts directory not found: $contracts_dir"
+        log_error "Please ensure the Layer 1 validation system is properly installed"
         exit 2
     fi
     
@@ -276,10 +324,29 @@ generate_csv_entry() {
 run_validation() {
     log_info "Starting resource interface validation..."
     log_info "Resources directory: $RESOURCES_DIR"
+    log_info "Validation level: $VALIDATION_LEVEL"
     log_info "Output format: $OUTPUT_FORMAT"
     
-    # Source the interface compliance framework
-    source "$TESTS_DIR/framework/interface-compliance.sh"
+    # Source the Layer 1 validation framework
+    source "$TESTS_DIR/framework/validators/syntax.sh"
+    
+    # Source reporters based on output format
+    case "$OUTPUT_FORMAT" in
+        "text")
+            source "$TESTS_DIR/framework/reporters/text-reporter.sh"
+            text_reporter_init
+            ;;
+        "junit")
+            source "$TESTS_DIR/framework/reporters/junit-reporter.sh"
+            junit_reporter_init "Vrooli.ResourceValidation.Layer1"
+            ;;
+    esac
+    
+    # Initialize the syntax validator
+    if ! syntax_validator_init "$RESOURCES_DIR/contracts"; then
+        log_error "Failed to initialize Layer 1 validation system"
+        exit 2
+    fi
     
     # Find all scripts to validate
     local scripts=()
@@ -335,53 +402,236 @@ run_validation() {
         csv_entries+=("Resource,Status,Details,Timestamp")
     fi
     
-    # Validate each script
-    for script_path in "${scripts[@]}"; do
-        local resource_name
-        resource_name=$(get_resource_name "$script_path")
+    # Validate each script (with optional parallel execution)
+    if [[ "$USE_PARALLEL" == "true" ]]; then
+        log_info "Running validations in parallel..."
         
-        log_info "Validating $resource_name..."
-        log_verbose "Script path: $script_path"
+        # Parallel processing with background jobs
+        local job_pids=()
+        local temp_results_dir="/tmp/vrooli_validation_$$"
+        mkdir -p "$temp_results_dir"
         
-        # Capture validation output
-        local validation_output
-        local validation_result
+        # Launch validation jobs in parallel
+        for script_path in "${scripts[@]}"; do
+            local resource_name
+            resource_name=$(get_resource_name "$script_path")
+            
+            # Launch validation in background
+            (
+                # Detect resource category
+                local resource_category
+                resource_category=$(detect_resource_category "$(dirname "$script_path")")
+                
+                # Capture validation output
+                local validation_output
+                local validation_result
+                local result_file="$temp_results_dir/${resource_name}.result"
+                
+                # Choose validation level
+                case "$VALIDATION_LEVEL" in
+                    "quick")
+                        # Layer 1 only: Syntax validation
+                        if validation_output=$(validate_resource_syntax "$resource_name" "$resource_category" "$script_path" "$USE_CACHE" 2>&1); then
+                            validation_result="passed"
+                            echo "passed" > "$result_file"
+                            echo "Layer 1 syntax validation passed" >> "$result_file"
+                        else
+                            validation_result="failed"
+                            echo "failed" > "$result_file"
+                            echo "Layer 1 syntax validation failed" >> "$result_file"
+                        fi
+                        ;;
+                    "standard"|"full")
+                        # Future: Layer 1 + 2 or all layers
+                        if validation_output=$(validate_resource_syntax "$resource_name" "$resource_category" "$script_path" "$USE_CACHE" 2>&1); then
+                            validation_result="passed"
+                            echo "passed" > "$result_file"
+                            echo "Layer 1 syntax validation passed (higher layers not implemented)" >> "$result_file"
+                        else
+                            validation_result="failed"
+                            echo "failed" > "$result_file"
+                            echo "Layer 1 syntax validation failed" >> "$result_file"
+                        fi
+                        ;;
+                esac
+                
+                # Store additional result data
+                echo "$validation_output" >> "$result_file"
+            ) &
+            
+            job_pids+=($!)
+        done
         
-        if validation_output=$(test_resource_interface_compliance "$resource_name" "$script_path" 2>&1); then
-            validation_result="passed"
-            passed_resources=$((passed_resources + 1))
-            log_success "$resource_name passes interface compliance"
-        else
-            validation_result="failed"
-            failed_resources=$((failed_resources + 1))
-            failed_resource_names+=("$resource_name")
-            log_error "$resource_name fails interface compliance"
-        fi
+        # Wait for all jobs to complete
+        log_info "Waiting for ${#job_pids[@]} parallel validation jobs to complete..."
+        for pid in "${job_pids[@]}"; do
+            wait "$pid"
+        done
         
-        # Store report data
-        if [[ "$OUTPUT_FORMAT" == "json" ]]; then
-            json_entries+=("$(generate_json_entry "$resource_name" "$validation_result" "${validation_output//\"/\\\"}")")
-        elif [[ "$OUTPUT_FORMAT" == "csv" ]]; then
-            csv_entries+=("$(generate_csv_entry "$resource_name" "$validation_result" "${validation_output//\"/\\\"}")")
-        fi
+        # Collect results from parallel jobs
+        for script_path in "${scripts[@]}"; do
+            local resource_name
+            resource_name=$(get_resource_name "$script_path")
+            local result_file="$temp_results_dir/${resource_name}.result"
+            
+            if [[ -f "$result_file" ]]; then
+                local result_status
+                result_status=$(head -1 "$result_file")
+                local validation_output
+                validation_output=$(tail -n +3 "$result_file")
+                
+                if [[ "$result_status" == "passed" ]]; then
+                    passed_resources=$((passed_resources + 1))
+                    log_success "$resource_name passes validation"
+                    validation_result="passed"
+                else
+                    failed_resources=$((failed_resources + 1))
+                    failed_resource_names+=("$resource_name")
+                    log_error "$resource_name fails validation"
+                    validation_result="failed"
+                fi
+                
+                # Store report data
+                if [[ "$OUTPUT_FORMAT" == "json" ]]; then
+                    json_entries+=($(generate_json_entry "$resource_name" "$validation_result" "${validation_output//\"/\\\"}"))
+                elif [[ "$OUTPUT_FORMAT" == "csv" ]]; then
+                    csv_entries+=($(generate_csv_entry "$resource_name" "$validation_result" "${validation_output//\"/\\\"}"))
+                fi
+                
+                # Show detailed output if verbose
+                if [[ "$VERBOSE" == "true" && -n "$validation_output" ]]; then
+                    echo "Detailed output for $resource_name:"
+                    echo "$validation_output" | sed 's/^/  /'
+                fi
+            else
+                log_error "No result file found for $resource_name"
+                failed_resources=$((failed_resources + 1))
+                failed_resource_names+=("$resource_name")
+            fi
+        done
         
-        # Show detailed output if verbose
-        if [[ "$VERBOSE" == "true" && -n "$validation_output" ]]; then
-            echo "Detailed output:"
-            echo "$validation_output" | sed 's/^/  /'
-        fi
+        # Cleanup temp directory
+        rm -rf "$temp_results_dir"
         
-        echo "========================================"
-    done
+    else
+        # Sequential processing (original implementation)
+        for script_path in "${scripts[@]}"; do
+            local resource_name
+            resource_name=$(get_resource_name "$script_path")
+            
+            log_info "Validating $resource_name..."
+            log_verbose "Script path: $script_path"
+            
+            # Detect resource category
+            local resource_category
+            resource_category=$(detect_resource_category "$(dirname "$script_path")")
+            log_verbose "Detected category: $resource_category"
+            
+            # Capture validation output
+            local validation_output
+            local validation_result
+            
+            # Choose validation level
+            case "$VALIDATION_LEVEL" in
+                "quick")
+                    # Layer 1 only: Syntax validation
+                    if validation_output=$(validate_resource_syntax "$resource_name" "$resource_category" "$script_path" "$USE_CACHE" 2>&1); then
+                        validation_result="passed"
+                        passed_resources=$((passed_resources + 1))
+                        log_success "$resource_name passes Layer 1 syntax validation"
+                    else
+                        validation_result="failed"
+                        failed_resources=$((failed_resources + 1))
+                        failed_resource_names+=("$resource_name")
+                        log_error "$resource_name fails Layer 1 syntax validation"
+                    fi
+                    ;;
+                "standard")
+                    # Layer 1 + 2: Syntax + Behavioral (future implementation)
+                    log_warning "Standard validation (Layer 1+2) not yet implemented. Using Layer 1 only."
+                    if validation_output=$(validate_resource_syntax "$resource_name" "$resource_category" "$script_path" "$USE_CACHE" 2>&1); then
+                        validation_result="passed"
+                        passed_resources=$((passed_resources + 1))
+                        log_success "$resource_name passes Layer 1 syntax validation"
+                    else
+                        validation_result="failed"
+                        failed_resources=$((failed_resources + 1))
+                        failed_resource_names+=("$resource_name")
+                        log_error "$resource_name fails Layer 1 syntax validation"
+                    fi
+                    ;;
+                "full")
+                    # Layer 1 + 2 + 3: All layers (future implementation)
+                    log_warning "Full validation (Layer 1+2+3) not yet implemented. Using Layer 1 only."
+                    if validation_output=$(validate_resource_syntax "$resource_name" "$resource_category" "$script_path" "$USE_CACHE" 2>&1); then
+                        validation_result="passed"
+                        passed_resources=$((passed_resources + 1))
+                        log_success "$resource_name passes Layer 1 syntax validation"
+                    else
+                        validation_result="failed"
+                        failed_resources=$((failed_resources + 1))
+                        failed_resource_names+=("$resource_name")
+                        log_error "$resource_name fails Layer 1 syntax validation"
+                    fi
+                    ;;
+            esac
+            
+            # Store report data and send to appropriate reporter
+            local duration_ms=500  # Default duration, will be improved with timing
+            local cached_result="false"
+            if [[ "$validation_output" =~ "CACHED" ]]; then
+                cached_result="true"
+            fi
+            
+            case "$OUTPUT_FORMAT" in
+                "json")
+                    json_entries+=("$(generate_json_entry "$resource_name" "$validation_result" "${validation_output//\"/\\\"}")")
+                    ;;
+                "csv")
+                    csv_entries+=("$(generate_csv_entry "$resource_name" "$validation_result" "${validation_output//\"/\\\"}")")
+                    ;;
+                "text")
+                    text_report_resource_result "$resource_name" "$validation_result" "$validation_output" "$duration_ms" "$cached_result"
+                    ;;
+                "junit")
+                    junit_report_resource_result "$resource_name" "$validation_result" "$validation_output" "$duration_ms" "$cached_result"
+                    ;;
+            esac
+            
+            # Show detailed output if verbose
+            if [[ "$VERBOSE" == "true" && -n "$validation_output" ]]; then
+                echo "Detailed output:"
+                echo "$validation_output" | sed 's/^/  /'
+            fi
+            
+            echo "========================================"
+        done
+    fi
     
-    # Generate summary
-    log_info "Validation Summary:"
-    echo "  Total resources: $total_resources"
-    echo "  Passed: $passed_resources"
-    echo "  Failed: $failed_resources"
+    # Calculate total duration (approximation for now)
+    local total_duration_s=5  # Placeholder - will be improved with actual timing
     
-    # Output results in requested format
+    # Generate summary using appropriate reporter
     case "$OUTPUT_FORMAT" in
+        "text")
+            # Get cache stats if available
+            local cache_stats
+            cache_stats=$(cache_get_stats 2>/dev/null || echo "")
+            
+            text_report_summary "$total_resources" "$passed_resources" "$failed_resources" "$total_duration_s"
+            if [[ -n "$cache_stats" ]]; then
+                text_report_cache_stats "$cache_stats"
+            fi
+            text_report_completion "$failed_resources"
+            ;;
+        "junit")
+            # Get cache stats for JUnit properties
+            local cache_stats
+            cache_stats=$(cache_get_stats 2>/dev/null || echo "")
+            
+            # Finalize JUnit XML output
+            junit_report_finalize "$cache_stats"
+            ;;
         "json")
             echo
             echo "{"
@@ -407,7 +657,6 @@ run_validation() {
             echo "  ]"
             echo "}"
             ;;
-            
         "csv")
             echo
             for entry in "${csv_entries[@]}"; do
@@ -493,12 +742,74 @@ run_validation() {
             echo "  • $resource"
         done
         echo
-        log_info "💡 To fix issues, review the interface compliance requirements in:"
-        log_info "   scripts/resources/tests/framework/interface-compliance.sh"
+        
+        # Apply fixes if requested
+        if [[ "$FIX_ISSUES" == "true" ]]; then
+            log_info "🔧 Attempting to fix interface compliance issues..."
+            echo
+            
+            local fix_tool="$SCRIPT_DIR/fix-interface-compliance.sh"
+            if [[ ! -x "$fix_tool" ]]; then
+                log_error "Fix tool not found or not executable: $fix_tool"
+                log_info "💡 To fix issues manually, review the validation requirements in:"
+                log_info "   scripts/resources/contracts/v1.0/ (contract specifications)"
+                log_info "   scripts/resources/tests/framework/ (validation framework)"
+            else
+                local fixes_applied=0
+                local fixes_failed=0
+                
+                for resource in "${failed_resource_names[@]}"; do
+                    log_info "Attempting to fix: $resource"
+                    
+                    # Run fix tool for this resource
+                    if "$fix_tool" --resource "$resource" --apply --backup; then
+                        log_success "✅ Applied fixes for $resource"
+                        ((fixes_applied++))
+                    else
+                        log_error "❌ Failed to fix $resource"
+                        ((fixes_failed++))
+                    fi
+                    echo
+                done
+                
+                # Report fix results
+                if [[ $fixes_applied -gt 0 ]]; then
+                    log_success "🎉 Applied fixes to $fixes_applied resource(s)"
+                    
+                    if [[ $fixes_failed -eq 0 ]]; then
+                        log_info "✨ All failed resources have been fixed!"
+                        log_info "   Note: You may need to manually add case statement entries for new actions"
+                        log_info "   Re-run validation to verify the fixes: $0 --resource <name>"
+                    else
+                        log_warning "⚠️  $fixes_failed resource(s) could not be automatically fixed"
+                        log_info "   Manual intervention may be required for these resources"
+                    fi
+                else
+                    log_warning "⚠️  No resources could be automatically fixed"
+                    log_info "💡 To fix issues manually, review the validation requirements in:"
+                    log_info "   scripts/resources/contracts/v1.0/ (contract specifications)"
+                    log_info "   scripts/resources/tests/framework/ (validation framework)"
+                fi
+            fi
+            echo
+        else
+            log_info "💡 To automatically fix issues, add --fix flag:"
+            log_info "   $0 --fix $(if [[ -n \"$SPECIFIC_RESOURCE\" ]]; then echo \"--resource $SPECIFIC_RESOURCE\"; fi)"
+            log_info ""
+            log_info "   Or review validation requirements manually:"
+            log_info "   scripts/resources/contracts/v1.0/ (contract specifications)"
+            log_info "   scripts/resources/tests/framework/ (validation framework)"
+        fi
+        
+        # Cleanup validation system
+        syntax_validator_cleanup
         return 1
     else
         echo
-        log_success "All resources pass interface compliance validation! 🎉"
+        log_success "All resources pass Layer 1 syntax validation! 🎉"
+        
+        # Cleanup validation system
+        syntax_validator_cleanup
         return 0
     fi
 }

@@ -83,27 +83,8 @@ _http_mock_init_state_file
 # ----------------------------
 # Utilities
 # ----------------------------
-# Provide logging functions if not available
-if ! command -v mock::log_and_verify &>/dev/null; then
-    mock::log_and_verify() {
-        local cmd="$1"; shift
-        # Simple logging if file exists
-        if [[ -n "${MOCK_LOG_DIR:-}" && -d "${MOCK_LOG_DIR}" ]]; then
-            echo "$(date): $cmd $*" >> "${MOCK_LOG_DIR}/command_calls.log" 2>/dev/null || true
-        fi
-    }
-    export -f mock::log_and_verify
-fi
-
-if ! command -v mock::log_state &>/dev/null; then
-    mock::log_state() {
-        local event="$1" url="$2" content="$3"
-        if [[ -n "${MOCK_LOG_DIR:-}" && -d "${MOCK_LOG_DIR}" ]]; then
-            echo "$(date): $event:$url:$content" >> "${MOCK_LOG_DIR}/state_changes.log" 2>/dev/null || true
-        fi
-    }
-    export -f mock::log_state
-fi
+# Note: Centralized logging functions are provided by logs.sh
+# which should always be loaded before this mock system
 
 _sanitize_url_key() {
   local url="$1"

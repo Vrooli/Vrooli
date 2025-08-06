@@ -12,7 +12,7 @@ setup() {
     source "${BATS_TEST_DIRNAME}/logs.sh"
     
     # Load verification system if available
-    if [[ -f "${BATS_TEST_DIRNAME}/verification.bash" ]]; then
+    if [[ -f "${BATS_TEST_DIRNAME}/verification.sh" ]]; then
         source "${BATS_TEST_DIRNAME}/verification.sh"
     fi
     
@@ -776,7 +776,7 @@ teardown() {
 # Logging Integration Tests
 # =============================================================================
 
-@test "HTTP commands should be logged to command_calls.log" {
+@test "HTTP commands should be logged to http_calls.log" {
     # Ensure we have a test log directory
     [[ -n "$TEST_LOG_DIR" ]]
     
@@ -784,10 +784,10 @@ teardown() {
     curl http://log.test >/dev/null
     wget -q http://log.test
     
-    # Check that commands were logged
-    [[ -f "$TEST_LOG_DIR/command_calls.log" ]]
+    # Check that commands were logged to the correct file (centralized logging routes HTTP commands to http_calls.log)
+    [[ -f "$TEST_LOG_DIR/http_calls.log" ]]
     
-    local log_content=$(cat "$TEST_LOG_DIR/command_calls.log")
+    local log_content=$(cat "$TEST_LOG_DIR/http_calls.log")
     [[ "$log_content" =~ "curl: http://log.test" ]]
     [[ "$log_content" =~ "wget: -q http://log.test" ]]
 }
@@ -795,10 +795,10 @@ teardown() {
 @test "HTTP state changes should be logged" {
     mock::http::set_endpoint_state "http://log.test" "healthy"
     
-    # Check that state change was logged
-    [[ -f "$TEST_LOG_DIR/state_changes.log" ]]
+    # Check that state change was logged to the correct file (centralized logging uses used_mocks.log)
+    [[ -f "$TEST_LOG_DIR/used_mocks.log" ]]
     
-    local log_content=$(cat "$TEST_LOG_DIR/state_changes.log")
+    local log_content=$(cat "$TEST_LOG_DIR/used_mocks.log")
     [[ "$log_content" =~ "http_endpoint_state:http://log.test:healthy" ]]
 }
 

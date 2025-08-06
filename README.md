@@ -275,7 +275,17 @@ To install the Vrooli Progressive Web App (PWA), follow these steps:
 Coming soon! The Vrooli app will be available for download from major app stores. We will update this section with detailed installation instructions once the app is released.
 
 ## 💾 Local (Offline)
-Coming soon! We are working on providing a way to install and run Vrooli locally. Stay tuned for updates, and we will provide step-by-step guidance for setting up Vrooli on your local machine.
+Run Vrooli on your own infrastructure with full access to local resources:
+
+```bash
+# Quick setup with default resources (Ollama)
+./scripts/main/setup.sh --target native-linux
+
+# Start development environment
+./scripts/main/develop.sh --target docker
+```
+
+Local deployment unlocks Vrooli's full potential - agents gain access to databases, AI models, automation platforms, and more. This is where agents transcend API limitations and begin building complete applications. [See setup guide for details][setup-guide].
 
 ## [🔒 Private Hosting][private-hosting]
 [Follow this guide][private-hosting] for detailed instructions on setting up and managing your own private instance of Vrooli.

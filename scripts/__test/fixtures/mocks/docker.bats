@@ -12,7 +12,7 @@ setup() {
     source "${BATS_TEST_DIRNAME}/logs.sh"
     
     # Load verification system if available
-    if [[ -f "${BATS_TEST_DIRNAME}/verification.bash" ]]; then
+    if [[ -f "${BATS_TEST_DIRNAME}/verification.sh" ]]; then
         source "${BATS_TEST_DIRNAME}/verification.sh"
     fi
     

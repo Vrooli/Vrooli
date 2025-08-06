@@ -214,9 +214,10 @@ These commands can be invoked by using the keywords listed for each:
 - **CI/CD**: Automatically defaults to `none` to prevent unwanted installations
 
 **Resource Management**:
-- Enable/disable resources by editing `.vrooli/resources.local.json`
+- Enable/disable resources by editing `.vrooli/service.json`
 - Resources marked as enabled will be installed on next setup run
 - Use `--resources <specific>` to override and install specific resources
+- Remember: More resources = more capabilities = smarter agents
 
 
 ## 🚢 Kubernetes Deployment Notes

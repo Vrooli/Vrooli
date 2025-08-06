@@ -1,0 +1,4 @@
+This file simulates content that might change during processing.
+Version: 1
+Timestamp: Tue Aug  5 05:49:27 PM EDT 2025
+Note: In real tests, this could be updated by another process.
