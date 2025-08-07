@@ -1,0 +1,77 @@
+{
+  "encryption": {
+    "provider": "vault",
+    "settings": {
+      "transit_mount": "transit",
+      "key_name": "documents",
+      "key_type": "aes256-gcm96",
+      "auto_rotate": true,
+      "rotation_period": "30d"
+    },
+    "document_encryption": {
+      "enabled": true,
+      "encrypt_at_rest": true,
+      "encrypt_in_transit": true,
+      "key_per_document": true,
+      "key_derivation": "pbkdf2"
+    },
+    "storage_encryption": {
+      "minio": {
+        "server_side_encryption": "AES256",
+        "customer_managed_keys": true,
+        "bucket_encryption": {
+          "documents": "AES256",
+          "processed": "AES256",
+          "audit": "AES256"
+        }
+      }
+    },
+    "database_encryption": {
+      "column_encryption": true,
+      "sensitive_fields": [
+        "extracted_text",
+        "processing_result",
+        "metadata"
+      ],
+      "audit_encryption": true
+    }
+  },
+  "key_management": {
+    "vault_address": "http://localhost:8200",
+    "namespace": "secure-doc-processing",
+    "auth_method": "token",
+    "policies": [
+      "document-encryption",
+      "key-rotation",
+      "audit-access"
+    ],
+    "key_lifecycle": {
+      "creation": "automatic",
+      "rotation": "30_days",
+      "archival": "365_days",
+      "deletion": "never"
+    }
+  },
+  "compliance": {
+    "standards": {
+      "HIPAA": {
+        "enabled": true,
+        "encryption_required": true,
+        "audit_required": true,
+        "access_controls": true
+      },
+      "GDPR": {
+        "enabled": true,
+        "right_to_erasure": true,
+        "data_portability": true,
+        "consent_management": true
+      },
+      "SOX": {
+        "enabled": true,
+        "audit_trail": true,
+        "data_retention": "7_years",
+        "access_logging": true
+      }
+    }
+  }
+}

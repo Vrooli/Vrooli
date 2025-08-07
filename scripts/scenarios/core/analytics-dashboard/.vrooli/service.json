@@ -1,6 +1,13 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "inheritance": {
+    "extends": "../../../../../.vrooli/service.json",
+    "merge": {
+      "strategy": "merge",
+      "arrays": "concat"
+    }
+  },
   "service": {
     "name": "analytics-dashboard",
     "displayName": "Resource Monitoring & Management Platform",
@@ -120,6 +127,12 @@
         "initialization": {
           "workflows": [
             {
+              "name": "main-orchestration",
+              "file": "initialization/automation/n8n/main-orchestration.json",
+              "enabled": true,
+              "tags": ["orchestration", "api", "gateway"]
+            },
+            {
               "name": "resource-monitor",
               "file": "initialization/automation/n8n/resource-monitor.json",
               "enabled": true,
@@ -194,7 +207,7 @@
       "application": "http://localhost:3000",
       "api": "http://localhost:3000/api/analytics-dashboard",
       "health": "http://localhost:3000/api/analytics-dashboard/health",
-      "questdb": "http://localhost:9009"
+      "questdb": "${service.questdb.url}"
     },
     "initialization": {
       "phases": [
@@ -295,18 +308,18 @@
           "threshold": 3
         },
         "questdb": {
-          "endpoint": "http://localhost:9009/status",
+          "endpoint": "${service.questdb.url}/status",
           "interval": "60s",
           "timeout": "10s"
         },
         "node-red": {
-          "endpoint": "http://localhost:1880/settings",
+          "endpoint": "${service.node-red.url}/settings",
           "interval": "60s",
           "timeout": "10s"
         },
         "database": {
           "type": "tcp",
-          "port": 5432,
+          "port": 5433,
           "interval": "30s"
         }
       },
@@ -358,7 +371,7 @@
       "ui": {
         "required": true,
         "type": "node-red",
-        "url": "http://localhost:1880"
+        "url": "${service.node-red.url}"
       },
       "performance": {
         "loadTest": {

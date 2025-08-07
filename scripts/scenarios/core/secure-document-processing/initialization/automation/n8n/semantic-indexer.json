@@ -1,0 +1,182 @@
+{
+  "name": "Semantic Indexer",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "semantic-indexer",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-semantic",
+      "name": "Semantic Indexer Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "webhookId": "semantic-indexer-webhook"
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM secure_doc_processing.documents WHERE id = $1",
+        "queryParameters": "={{ [$json.documentId] }}",
+        "options": {}
+      },
+      "id": "get-document",
+      "name": "Get Document",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [400, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-secure-doc",
+          "name": "PostgreSQL Secure Doc Processing"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:11434/api/embeddings",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "model",
+              "value": "nomic-embed-text"
+            },
+            {
+              "name": "prompt",
+              "value": "={{ $json.extracted_text || $json.metadata.summary || $json.filename }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "generate-embeddings",
+      "name": "Generate Embeddings (Ollama)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [600, 300]
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:6333/collections/document-embeddings/points",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "",
+              "value": "={{ JSON.stringify({ points: [{ id: $json.documentId, vector: $json.embedding, payload: { document_id: $json.documentId, filename: $node['Get Document'].json[0].filename, created_at: $node['Get Document'].json[0].created_at, tags: $node['Get Document'].json[0].tags } }] }) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "store-in-qdrant",
+      "name": "Store in Qdrant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [800, 300]
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO secure_doc_processing.search_indices (document_id, vector_id, collection_name, embedding_model, embedding_dimension) VALUES ($1, $2, $3, $4, $5)",
+        "queryParameters": "={{ [$json.documentId, $json.documentId, 'document-embeddings', 'nomic-embed-text', 384] }}",
+        "options": {}
+      },
+      "id": "save-index-record",
+      "name": "Save Index Record",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1000, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-secure-doc",
+          "name": "PostgreSQL Secure Doc Processing"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "message",
+              "value": "Document indexed for semantic search"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-response",
+      "name": "Prepare Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [1200, 300]
+    },
+    
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond",
+      "name": "Respond",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1400, 300]
+    }
+  ],
+  
+  "connections": {
+    "Semantic Indexer Webhook": {
+      "main": [[{"node": "Get Document", "type": "main", "index": 0}]]
+    },
+    "Get Document": {
+      "main": [[{"node": "Generate Embeddings (Ollama)", "type": "main", "index": 0}]]
+    },
+    "Generate Embeddings (Ollama)": {
+      "main": [[{"node": "Store in Qdrant", "type": "main", "index": 0}]]
+    },
+    "Store in Qdrant": {
+      "main": [[{"node": "Save Index Record", "type": "main", "index": 0}]]
+    },
+    "Save Index Record": {
+      "main": [[{"node": "Prepare Response", "type": "main", "index": 0}]]
+    },
+    "Prepare Response": {
+      "main": [[{"node": "Respond", "type": "main", "index": 0}]]
+    }
+  },
+  
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  
+  "versionId": "v1.0.0",
+  "id": "semantic-indexer"
+}

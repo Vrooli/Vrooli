@@ -1,0 +1,706 @@
+{
+  "value": {
+    "grid": [
+      {
+        "id": "header-section",
+        "data": {
+          "type": "containercomponent",
+          "configuration": {
+            "direction": "row",
+            "wrap": false
+          },
+          "customCss": {
+            "container": {
+              "padding": "20px",
+              "backgroundColor": "#f8fafc",
+              "borderBottom": "1px solid #e2e8f0",
+              "marginBottom": "20px"
+            }
+          }
+        },
+        "subGrids": [
+          {
+            "id": "header-content",
+            "data": [
+              {
+                "id": "page-title",
+                "data": {
+                  "type": "textcomponent",
+                  "configuration": {
+                    "text": "Scenario Generator V1",
+                    "style": {
+                      "fontSize": "28px",
+                      "fontWeight": "600",
+                      "color": "#1a202c"
+                    }
+                  }
+                }
+              },
+              {
+                "id": "page-subtitle",
+                "data": {
+                  "type": "textcomponent",
+                  "configuration": {
+                    "text": "Autonomous AI scenario development pipeline with Claude Code integration",
+                    "style": {
+                      "fontSize": "14px",
+                      "color": "#718096",
+                      "marginTop": "4px"
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+
+      {
+        "id": "campaign-tabs",
+        "data": {
+          "type": "tabscomponent",
+          "configuration": {
+            "tabs": [
+              {
+                "id": "saas-businesses",
+                "label": "SaaS Businesses",
+                "icon": "Building2",
+                "content": {
+                  "id": "saas-campaign-content",
+                  "type": "containercomponent"
+                }
+              },
+              {
+                "id": "ai-assistants", 
+                "label": "AI Assistants",
+                "icon": "Bot",
+                "content": {
+                  "id": "ai-campaign-content",
+                  "type": "containercomponent"
+                }
+              },
+              {
+                "id": "automation-tools",
+                "label": "Automation Tools", 
+                "icon": "Workflow",
+                "content": {
+                  "id": "automation-campaign-content",
+                  "type": "containercomponent"
+                }
+              },
+              {
+                "id": "data-analytics",
+                "label": "Data Analytics",
+                "icon": "BarChart3",
+                "content": {
+                  "id": "analytics-campaign-content", 
+                  "type": "containercomponent"
+                }
+              }
+            ],
+            "defaultTab": "saas-businesses"
+          },
+          "customCss": {
+            "container": {
+              "margin": "0 20px"
+            }
+          }
+        },
+        "subGrids": [
+          {
+            "id": "saas-campaign-content",
+            "data": [
+              {
+                "id": "saas-campaign-header",
+                "data": {
+                  "type": "containercomponent",
+                  "configuration": {
+                    "direction": "row",
+                    "justifyContent": "space-between",
+                    "alignItems": "center"
+                  },
+                  "customCss": {
+                    "container": {
+                      "padding": "20px 0",
+                      "borderBottom": "1px solid #e2e8f0",
+                      "marginBottom": "20px"
+                    }
+                  }
+                },
+                "subGrids": [
+                  {
+                    "id": "saas-campaign-info",
+                    "data": [
+                      {
+                        "id": "saas-campaign-title",
+                        "data": {
+                          "type": "textcomponent",
+                          "configuration": {
+                            "text": "SaaS Business Scenarios",
+                            "style": {
+                              "fontSize": "22px",
+                              "fontWeight": "600"
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "id": "saas-campaign-stats",
+                        "data": {
+                          "type": "textcomponent",
+                          "configuration": {
+                            "text": "{{scenarios_saas.length || 0}} scenarios • {{scenarios_saas.filter(s => s.status === 'completed').length || 0}} completed",
+                            "style": {
+                              "fontSize": "14px",
+                              "color": "#718096"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "id": "saas-campaign-actions",
+                    "data": [
+                      {
+                        "id": "add-saas-scenario-btn",
+                        "data": {
+                          "type": "buttoncomponent",
+                          "configuration": {
+                            "label": "Add New Scenario",
+                            "variant": "contained",
+                            "color": "primary",
+                            "size": "sm",
+                            "icon": "Plus",
+                            "onClick": {
+                              "type": "open-modal",
+                              "modal": "new-scenario-modal"
+                            }
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+
+              {
+                "id": "saas-scenarios-grid",
+                "data": {
+                  "type": "agGridComponent",
+                  "configuration": {
+                    "datasource": {
+                      "type": "static", 
+                      "static": "{{scenarios_saas}}"
+                    },
+                    "columnDefs": [
+                      {
+                        "field": "scenario_name",
+                        "headerName": "Scenario",
+                        "flex": 2,
+                        "cellRenderer": {
+                          "type": "custom",
+                          "template": "<div style='padding: 8px;'><div style='font-weight: 600; font-size: 14px; color: #1a202c;'>{{scenario_name}}</div><div style='font-size: 12px; color: #718096; margin-top: 2px;'>{{description}}</div></div>"
+                        }
+                      },
+                      {
+                        "field": "status",
+                        "headerName": "Status", 
+                        "width": 120,
+                        "cellRenderer": {
+                          "type": "badge",
+                          "colorMap": {
+                            "requested": "gray",
+                            "planning": "blue", 
+                            "implementing": "orange",
+                            "validating": "purple",
+                            "completed": "green",
+                            "failed": "red"
+                          }
+                        }
+                      },
+                      {
+                        "field": "progress_percent",
+                        "headerName": "Progress",
+                        "width": 150,
+                        "cellRenderer": {
+                          "type": "progress",
+                          "showLabel": true
+                        }
+                      },
+                      {
+                        "field": "current_phase",
+                        "headerName": "Phase",
+                        "width": 120
+                      },
+                      {
+                        "field": "estimated_revenue",
+                        "headerName": "Est. Revenue",
+                        "width": 120,
+                        "cellRenderer": {
+                          "type": "currency",
+                          "currency": "USD"
+                        }
+                      },
+                      {
+                        "field": "requested_at",
+                        "headerName": "Created",
+                        "width": 140,
+                        "cellRenderer": {
+                          "type": "date",
+                          "format": "MMM dd, yyyy"
+                        }
+                      },
+                      {
+                        "field": "actions",
+                        "headerName": "Actions",
+                        "width": 100,
+                        "cellRenderer": {
+                          "type": "buttonGroup",
+                          "buttons": [
+                            {
+                              "icon": "Eye",
+                              "size": "xs",
+                              "variant": "ghost",
+                              "onClick": {
+                                "type": "open-modal",
+                                "modal": "scenario-details-modal",
+                                "data": "{{row}}"
+                              }
+                            },
+                            {
+                              "icon": "ExternalLink",
+                              "size": "xs", 
+                              "variant": "ghost",
+                              "onClick": {
+                                "type": "open-url",
+                                "url": "{{scenario_url}}"
+                              }
+                            }
+                          ]
+                        }
+                      }
+                    ],
+                    "pagination": true,
+                    "paginationPageSize": 10,
+                    "sortable": true,
+                    "filterable": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+
+      {
+        "id": "new-scenario-modal",
+        "data": {
+          "type": "modalcomponent",
+          "configuration": {
+            "title": "Create New Scenario",
+            "size": "lg"
+          },
+          "content": {
+            "id": "new-scenario-form",
+            "data": {
+              "type": "formcomponent",
+              "configuration": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "campaignId": {
+                      "type": "string",
+                      "title": "Campaign",
+                      "enum": ["saas-businesses", "ai-assistants", "automation-tools", "data-analytics"],
+                      "enumNames": ["SaaS Businesses", "AI Assistants", "Automation Tools", "Data Analytics"],
+                      "default": "saas-businesses"
+                    },
+                    "userRequest": {
+                      "type": "string",
+                      "title": "Scenario Description",
+                      "description": "Describe the business scenario you want Claude Code to implement",
+                      "minLength": 20,
+                      "maxLength": 2000
+                    },
+                    "complexity": {
+                      "type": "string",
+                      "title": "Complexity Level",
+                      "enum": ["simple", "intermediate", "advanced"],
+                      "enumNames": ["Simple ($5K-15K)", "Intermediate ($15K-35K)", "Advanced ($35K-75K)"],
+                      "default": "intermediate"
+                    },
+                    "category": {
+                      "type": "string", 
+                      "title": "Category",
+                      "enum": ["marketplace", "saas", "productivity", "analytics", "automation", "ai-assistant", "e-commerce", "fintech"],
+                      "default": "saas"
+                    },
+                    "planningIterations": {
+                      "type": "integer",
+                      "title": "Planning Iterations",
+                      "description": "Number of planning refinement rounds",
+                      "minimum": 1,
+                      "maximum": 5,
+                      "default": 3
+                    },
+                    "implementationIterations": {
+                      "type": "integer",
+                      "title": "Implementation Iterations", 
+                      "description": "Number of implementation refinement rounds",
+                      "minimum": 1,
+                      "maximum": 5,
+                      "default": 2
+                    },
+                    "validationIterations": {
+                      "type": "integer",
+                      "title": "Validation Iterations",
+                      "description": "Maximum validation/debugging attempts",
+                      "minimum": 1,
+                      "maximum": 10,
+                      "default": 5
+                    }
+                  },
+                  "required": ["campaignId", "userRequest", "complexity", "category"]
+                },
+                "uiSchema": {
+                  "userRequest": {
+                    "ui:widget": "textarea",
+                    "ui:options": {
+                      "rows": 4
+                    }
+                  },
+                  "planningIterations": {
+                    "ui:widget": "updown"
+                  },
+                  "implementationIterations": {
+                    "ui:widget": "updown"
+                  },
+                  "validationIterations": {
+                    "ui:widget": "updown"
+                  }
+                },
+                "onSubmit": {
+                  "type": "run-script",
+                  "script": "submitNewScenario"
+                }
+              }
+            }
+          }
+        }
+      },
+
+      {
+        "id": "scenario-details-modal",
+        "data": {
+          "type": "modalcomponent", 
+          "configuration": {
+            "title": "{{selectedScenario.scenario_name}}",
+            "size": "xl"
+          },
+          "content": {
+            "id": "scenario-details-content",
+            "data": {
+              "type": "tabscomponent",
+              "configuration": {
+                "tabs": [
+                  {
+                    "id": "overview-tab",
+                    "label": "Overview",
+                    "content": {
+                      "id": "scenario-overview",
+                      "type": "containercomponent"
+                    }
+                  },
+                  {
+                    "id": "progress-tab",
+                    "label": "Progress",
+                    "content": {
+                      "id": "scenario-progress",
+                      "type": "containercomponent"
+                    }
+                  },
+                  {
+                    "id": "logs-tab",
+                    "label": "Logs",
+                    "content": {
+                      "id": "scenario-logs",
+                      "type": "containercomponent"
+                    }
+                  },
+                  {
+                    "id": "files-tab",
+                    "label": "Files",
+                    "content": {
+                      "id": "scenario-files",
+                      "type": "containercomponent"
+                    }
+                  }
+                ]
+              }
+            },
+            "subGrids": [
+              {
+                "id": "scenario-overview",
+                "data": [
+                  {
+                    "id": "overview-info",
+                    "data": {
+                      "type": "keyValueComponent",
+                      "configuration": {
+                        "data": {
+                          "Status": "{{selectedScenario.status}}",
+                          "Phase": "{{selectedScenario.current_phase}}",
+                          "Progress": "{{selectedScenario.progress_percent}}%",
+                          "Complexity": "{{selectedScenario.complexity}}",
+                          "Category": "{{selectedScenario.category}}",
+                          "Est. Revenue": "${{selectedScenario.estimated_revenue.toLocaleString()}}",
+                          "Created": "{{selectedScenario.requested_at}}",
+                          "Started": "{{selectedScenario.started_at}}",
+                          "Completed": "{{selectedScenario.completed_at}}"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": "overview-description",
+                    "data": {
+                      "type": "textcomponent",
+                      "configuration": {
+                        "text": "{{selectedScenario.description}}",
+                        "style": {
+                          "fontSize": "14px",
+                          "lineHeight": "1.5",
+                          "marginTop": "20px"
+                        }
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "scenario-progress",
+                "data": [
+                  {
+                    "id": "progress-timeline",
+                    "data": {
+                      "type": "timelineComponent",
+                      "configuration": {
+                        "data": "{{scenarioTimeline}}"
+                      }
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "scenario-logs",
+                "data": [
+                  {
+                    "id": "logs-table",
+                    "data": {
+                      "type": "agGridComponent",
+                      "configuration": {
+                        "datasource": {
+                          "type": "static",
+                          "static": "{{scenarioLogs}}"
+                        },
+                        "columnDefs": [
+                          {
+                            "field": "timestamp",
+                            "headerName": "Time",
+                            "width": 160,
+                            "cellRenderer": {
+                              "type": "date",
+                              "format": "MMM dd, HH:mm:ss"
+                            }
+                          },
+                          {
+                            "field": "phase",
+                            "headerName": "Phase",
+                            "width": 120
+                          },
+                          {
+                            "field": "message",
+                            "headerName": "Message",
+                            "flex": 1
+                          },
+                          {
+                            "field": "level",
+                            "headerName": "Level",
+                            "width": 80,
+                            "cellRenderer": {
+                              "type": "badge",
+                              "colorMap": {
+                                "info": "blue",
+                                "warning": "yellow",
+                                "error": "red",
+                                "success": "green"
+                              }
+                            }
+                          }
+                        ],
+                        "pagination": true,
+                        "paginationPageSize": 20
+                      }
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      },
+
+      {
+        "id": "global-stats",
+        "data": {
+          "type": "containercomponent",
+          "configuration": {
+            "direction": "row",
+            "gap": "20px"
+          },
+          "customCss": {
+            "container": {
+              "padding": "20px",
+              "margin": "20px"
+            }
+          }
+        },
+        "subGrids": [
+          {
+            "id": "stats-cards",
+            "data": [
+              {
+                "id": "total-scenarios-card",
+                "data": {
+                  "type": "statCardComponent",
+                  "configuration": {
+                    "title": "Total Scenarios",
+                    "value": "{{allScenarios.length}}",
+                    "icon": "FileText",
+                    "color": "blue"
+                  }
+                }
+              },
+              {
+                "id": "active-scenarios-card",
+                "data": {
+                  "type": "statCardComponent",
+                  "configuration": {
+                    "title": "In Progress",
+                    "value": "{{allScenarios.filter(s => !['completed', 'failed'].includes(s.status)).length}}",
+                    "icon": "Clock",
+                    "color": "orange"
+                  }
+                }
+              },
+              {
+                "id": "completed-scenarios-card",
+                "data": {
+                  "type": "statCardComponent",
+                  "configuration": {
+                    "title": "Completed",
+                    "value": "{{allScenarios.filter(s => s.status === 'completed').length}}",
+                    "icon": "CheckCircle",
+                    "color": "green"
+                  }
+                }
+              },
+              {
+                "id": "revenue-potential-card",
+                "data": {
+                  "type": "statCardComponent",
+                  "configuration": {
+                    "title": "Revenue Potential",
+                    "value": "${{allScenarios.reduce((sum, s) => sum + (s.estimated_revenue || 0), 0).toLocaleString()}}",
+                    "icon": "DollarSign",
+                    "color": "purple"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+
+  "css": {
+    "container": {
+      "fontFamily": "'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+    }
+  },
+
+  "contextualVariables": [
+    {
+      "name": "allScenarios",
+      "value": "{{fetchAllScenarios()}}"
+    },
+    {
+      "name": "scenarios_saas",
+      "value": "{{allScenarios.filter(s => s.campaign_id === 'saas-businesses')}}"
+    },
+    {
+      "name": "scenarios_ai",
+      "value": "{{allScenarios.filter(s => s.campaign_id === 'ai-assistants')}}"
+    },
+    {
+      "name": "scenarios_automation",
+      "value": "{{allScenarios.filter(s => s.campaign_id === 'automation-tools')}}"
+    },
+    {
+      "name": "scenarios_analytics",
+      "value": "{{allScenarios.filter(s => s.campaign_id === 'data-analytics')}}"
+    },
+    {
+      "name": "selectedScenario",
+      "value": "{{getSelectedScenario()}}"
+    },
+    {
+      "name": "scenarioLogs",
+      "value": "{{getScenarioLogs(selectedScenario.scenario_id)}}"
+    },
+    {
+      "name": "scenarioTimeline",
+      "value": "{{getScenarioTimeline(selectedScenario.scenario_id)}}"
+    }
+  ],
+
+  "scripts": [
+    {
+      "name": "fetchAllScenarios",
+      "code": "// Fetch all scenarios from database\nconst query = `\n  SELECT s.*, c.name as campaign_name, c.color_theme\n  FROM scenarios s \n  LEFT JOIN campaigns c ON s.campaign_id = c.id\n  ORDER BY s.requested_at DESC\n`;\n\ntry {\n  const result = await runQuery(query);\n  return result.rows || [];\n} catch (error) {\n  console.error('Failed to fetch scenarios:', error);\n  return [];\n}"
+    },
+    {
+      "name": "submitNewScenario", 
+      "code": "// Submit new scenario request\nconst { campaignId, userRequest, complexity, category, planningIterations, implementationIterations, validationIterations } = formData;\n\n// Prepare scenario data\nconst scenarioData = {\n  campaignId,\n  userRequest: userRequest.trim(),\n  complexity,\n  category,\n  planningIterations: parseInt(planningIterations),\n  implementationIterations: parseInt(implementationIterations),\n  validationIterations: parseInt(validationIterations)\n};\n\ntry {\n  // Call n8n webhook to start scenario generation\n  const response = await fetch('http://localhost:5678/webhook/scenario-generator-v1/new-scenario', {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json'\n    },\n    body: JSON.stringify(scenarioData)\n  });\n  \n  if (!response.ok) {\n    throw new Error(`HTTP ${response.status}: ${response.statusText}`);\n  }\n  \n  const result = await response.json();\n  \n  // Show success notification\n  notify({\n    title: 'Scenario Generation Started',\n    message: `Scenario ${result.scenario.id} has been queued for generation`,\n    type: 'success'\n  });\n  \n  // Close modal and refresh data\n  closeModal('new-scenario-modal');\n  refreshData();\n  \n  return result;\n} catch (error) {\n  console.error('Failed to submit scenario:', error);\n  notify({\n    title: 'Submission Failed',\n    message: error.message,\n    type: 'error'\n  });\n  throw error;\n}"
+    },
+    {
+      "name": "getSelectedScenario",
+      "code": "// Get currently selected scenario from modal context\nreturn context.modalData || {};"
+    },
+    {
+      "name": "getScenarioLogs",
+      "code": "// Fetch scenario logs\nif (!scenarioId) return [];\n\nconst query = `\n  SELECT \n    ci.completed_at as timestamp,\n    ci.phase,\n    CASE \n      WHEN ci.success = true THEN 'Claude interaction completed successfully'\n      ELSE 'Claude interaction failed'\n    END as message,\n    CASE \n      WHEN ci.success = true THEN 'success'\n      ELSE 'error'\n    END as level\n  FROM claude_interactions ci\n  WHERE ci.scenario_id = (SELECT id FROM scenarios WHERE scenario_id = $1)\n  ORDER BY ci.completed_at DESC\n`;\n\ntry {\n  const result = await runQuery(query, [scenarioId]);\n  return result.rows || [];\n} catch (error) {\n  console.error('Failed to fetch scenario logs:', error);\n  return [];\n}"
+    },
+    {
+      "name": "getScenarioTimeline",
+      "code": "// Generate scenario timeline\nif (!scenarioId) return [];\n\nconst query = `\n  SELECT \n    s.requested_at,\n    s.started_at,\n    s.plan_completed_at,\n    s.implementation_completed_at,\n    s.completed_at,\n    s.current_phase,\n    s.progress_percent\n  FROM scenarios s\n  WHERE s.scenario_id = $1\n`;\n\ntry {\n  const result = await runQuery(query, [scenarioId]);\n  const scenario = result.rows[0];\n  if (!scenario) return [];\n  \n  const timeline = [];\n  \n  if (scenario.requested_at) {\n    timeline.push({\n      timestamp: scenario.requested_at,\n      phase: 'Requested',\n      status: 'completed',\n      description: 'Scenario generation request submitted'\n    });\n  }\n  \n  if (scenario.started_at) {\n    timeline.push({\n      timestamp: scenario.started_at,\n      phase: 'Planning Started',\n      status: 'completed',\n      description: 'Claude Code planning phase initiated'\n    });\n  }\n  \n  if (scenario.plan_completed_at) {\n    timeline.push({\n      timestamp: scenario.plan_completed_at,\n      phase: 'Planning Completed',\n      status: 'completed',\n      description: 'Implementation plan finalized'\n    });\n  }\n  \n  if (scenario.implementation_completed_at) {\n    timeline.push({\n      timestamp: scenario.implementation_completed_at,\n      phase: 'Implementation Completed',\n      status: 'completed',\n      description: 'Scenario files generated'\n    });\n  }\n  \n  if (scenario.completed_at) {\n    timeline.push({\n      timestamp: scenario.completed_at,\n      phase: 'Completed',\n      status: 'completed',\n      description: 'Scenario successfully deployed'\n    });\n  }\n  \n  // Add current phase if still in progress\n  if (!scenario.completed_at && scenario.current_phase) {\n    timeline.push({\n      timestamp: new Date(),\n      phase: scenario.current_phase,\n      status: 'in_progress',\n      description: `Currently in ${scenario.current_phase} phase (${scenario.progress_percent}% complete)`\n    });\n  }\n  \n  return timeline;\n} catch (error) {\n  console.error('Failed to fetch scenario timeline:', error);\n  return [];\n}"
+    },
+    {
+      "name": "refreshData",
+      "code": "// Refresh all data sources\nawait refetch('allScenarios');\nawait refetch('scenarios_saas');\nawait refetch('scenarios_ai');\nawait refetch('scenarios_automation');\nawait refetch('scenarios_analytics');"
+    }
+  ],
+
+  "hiddenInlineScripts": [
+    {
+      "name": "runQuery",
+      "code": "// Database query wrapper\nconst runQuery = async (query, params = []) => {\n  const response = await fetch('/api/database/query', {\n    method: 'POST',\n    headers: {\n      'Content-Type': 'application/json',\n      'Authorization': `Bearer ${getToken()}`\n    },\n    body: JSON.stringify({\n      query,\n      params\n    })\n  });\n  \n  if (!response.ok) {\n    throw new Error(`Database query failed: ${response.statusText}`);\n  }\n  \n  return await response.json();\n};"
+    },
+    {
+      "name": "notify",
+      "code": "// Notification helper\nconst notify = (options) => {\n  const { title, message, type = 'info' } = options;\n  \n  // Use Windmill's notification system\n  window.windmill?.notify?.({\n    title,\n    message,\n    variant: type,\n    duration: 5000\n  });\n  \n  // Fallback to console for development\n  console.log(`[${type.toUpperCase()}] ${title}: ${message}`);\n};"
+    }
+  ]
+}

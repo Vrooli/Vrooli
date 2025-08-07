@@ -1,6 +1,13 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "inheritance": {
+    "extends": "../../../../../.vrooli/service.json",
+    "merge": {
+      "strategy": "merge",
+      "arrays": "concat"
+    }
+  },
   "service": {
     "name": "vault-secrets-integration",
     "displayName": "Vault Secrets Integration",
@@ -112,8 +119,8 @@
       "application": "http://localhost:3000",
       "api": "http://localhost:3000/api/vault-secrets-integration",
       "health": "http://localhost:3000/api/vault-secrets-integration/health",
-      "vault": "http://localhost:8200",
-      "n8n": "http://localhost:5678"
+      "vault": "${service.vault.url}",
+      "n8n": "${service.n8n.url}"
     },
     "initialization": {
       "phases": [
@@ -189,7 +196,7 @@
             {
               "name": "health-check",
               "type": "healthcheck",
-              "target": "http://localhost:3000/api/vault-secrets-integration/health",
+              "target": "${service.vrooli.url}/api/vault-secrets-integration/health",
               "timeout": "30s",
               "retries": 3
             },
@@ -213,18 +220,18 @@
       "enabled": true,
       "healthChecks": {
         "application": {
-          "endpoint": "http://localhost:3000/api/vault-secrets-integration/health",
+          "endpoint": "${service.vrooli.url}/api/vault-secrets-integration/health",
           "interval": "30s",
           "timeout": "5s",
           "threshold": 3
         },
         "vault": {
-          "endpoint": "http://localhost:8200/v1/sys/health",
+          "endpoint": "${service.vault.url}/v1/sys/health",
           "interval": "60s",
           "timeout": "10s"
         },
         "n8n": {
-          "endpoint": "http://localhost:5678/api/v1/info",
+          "endpoint": "${service.n8n.url}/api/v1/info",
           "interval": "60s",
           "timeout": "10s"
         },
@@ -277,7 +284,7 @@
       "ui": {
         "required": true,
         "type": "n8n",
-        "url": "http://localhost:5678"
+        "url": "${service.n8n.url}"
       },
       "performance": {
         "loadTest": {

@@ -1,6 +1,13 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "inheritance": {
+    "extends": "../../../../../.vrooli/service.json",
+    "merge": {
+      "strategy": "merge",
+      "arrays": "concat"
+    }
+  },
   "service": {
     "name": "intelligent-desktop-assistant",
     "displayName": "Intelligent Desktop Assistant",
@@ -106,10 +113,10 @@
     "target": "docker",
     "strategy": "rolling-update",
     "urls": {
-      "application": "http://localhost:3000",
-      "api": "http://localhost:3000/api/intelligent-desktop-assistant",
-      "health": "http://localhost:3000/api/intelligent-desktop-assistant/health",
-      "agent-s2": "http://localhost:4113"
+      "application": "${service.vrooli.url}",
+      "api": "${service.vrooli.url}/api/intelligent-desktop-assistant",
+      "health": "${service.vrooli.url}/api/intelligent-desktop-assistant/health",
+      "agent-s2": "${service.agent-s2.url}"
     },
     "initialization": {
       "phases": [
@@ -180,7 +187,7 @@
             {
               "name": "health-check",
               "type": "healthcheck",
-              "target": "http://localhost:3000/api/intelligent-desktop-assistant/health",
+              "target": "${service.vrooli.url}/api/intelligent-desktop-assistant/health",
               "timeout": "30s",
               "retries": 3
             },
@@ -198,23 +205,23 @@
       "enabled": true,
       "healthChecks": {
         "application": {
-          "endpoint": "http://localhost:3000/api/intelligent-desktop-assistant/health",
+          "endpoint": "${service.vrooli.url}/api/intelligent-desktop-assistant/health",
           "interval": "30s",
           "timeout": "5s",
           "threshold": 3
         },
         "agent-s2": {
-          "endpoint": "http://localhost:4113/health",
+          "endpoint": "${service.agent-s2.url}/health",
           "interval": "60s",
           "timeout": "10s"
         },
         "ollama": {
-          "endpoint": "http://localhost:11434/api/tags",
+          "endpoint": "${service.ollama.url}/api/tags",
           "interval": "60s",
           "timeout": "15s"
         },
         "qdrant": {
-          "endpoint": "http://localhost:6333/health",
+          "endpoint": "${service.qdrant.url}/health",
           "interval": "60s",
           "timeout": "10s"
         },
@@ -262,7 +269,7 @@
       "ui": {
         "required": false,
         "type": "api",
-        "url": "http://localhost:3000/api/intelligent-desktop-assistant"
+        "url": "${service.vrooli.url}/api/intelligent-desktop-assistant"
       },
       "performance": {
         "loadTest": {

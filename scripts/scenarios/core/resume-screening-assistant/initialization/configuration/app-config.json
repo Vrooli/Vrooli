@@ -15,14 +15,31 @@
   },
   "processing": {
     "maxFileSize": "10MB",
-    "supportedFormats": ["pdf", "docx", "txt", "rtf"],
+    "supportedFormats": ["pdf", "docx", "doc", "txt", "rtf"],
     "batchSize": 10,
     "concurrentProcessing": 3,
     "timeout": 300000,
-    "retryAttempts": 3
+    "retryAttempts": 3,
+    "validation": {
+      "enableContentScanning": true,
+      "maxFilenameLength": 255,
+      "allowedMimeTypes": [
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/msword",
+        "text/plain",
+        "application/rtf"
+      ],
+      "suspiciousContentPatterns": [
+        "<script",
+        "javascript:",
+        "on[a-z]+=",
+        "%3C%73%63%72%69%70%74"
+      ]
+    }
   },
   "assessment": {
-    "scoringModel": "llama3.2:3b",
+    "scoringModel": "llama3.1:8b",
     "scoringDimensions": [
       "technical_skills",
       "experience_level",
@@ -101,12 +118,12 @@
       "features": ["linkedin_scraping", "profile_enrichment"]
     },
     "n8n": {
-      "enabled": false,
-      "workflows": ["resume_pipeline", "notification_handler"]
+      "enabled": true,
+      "workflows": ["resume-processing-pipeline", "job-management-workflow", "semantic-search-workflow"]
     },
     "windmill": {
-      "enabled": false,
-      "apps": ["recruitment_dashboard", "candidate_portal"]
+      "enabled": true,
+      "apps": ["recruitment-dashboard"]
     }
   }
 }

@@ -67,7 +67,7 @@ Usage: $0 <scenario-name> [options]
 Generate a standalone application from a validated Vrooli scenario.
 
 Arguments:
-  scenario-name     Name of the scenario (e.g., ai-content-assistant-example)
+  scenario-name     Name of the scenario (e.g., campaign-content-studio)
 
 Options:
   --verbose         Enable verbose output
@@ -83,10 +83,10 @@ To run the generated app:
   ./scripts/main/develop.sh
 
 Examples:
-  $0 ai-content-assistant-example
+  $0 campaign-content-studio
   $0 multi-modal-ai-assistant --verbose --force
   $0 research-assistant --dry-run
-  $0 ai-content-assistant-example --start
+  $0 campaign-content-studio --start
 
 EOF
 }
@@ -147,11 +147,15 @@ validate_scenario() {
     
     log::success "Scenario directory found: $SCENARIO_PATH"
     
-    # Check for service.json
+    # Check for service.json (first in .vrooli/, then root for backwards compatibility)
     local service_json_path="${SCENARIO_PATH}/.vrooli/service.json"
     if [[ ! -f "$service_json_path" ]]; then
-        log::error "service.json not found at: $service_json_path"
-        exit 1
+        # Try root directory for backwards compatibility
+        service_json_path="${SCENARIO_PATH}/service.json"
+        if [[ ! -f "$service_json_path" ]]; then
+            log::error "service.json not found at: ${SCENARIO_PATH}/.vrooli/service.json or ${SCENARIO_PATH}/service.json"
+            exit 1
+        fi
     fi
     
     # Load JSON content (maintains global variable contract)
@@ -160,11 +164,23 @@ validate_scenario() {
         exit 1
     fi
     
+    # Clean up common JSON issues (trailing commas) before validation
+    # This uses a more lenient approach to handle real-world JSON files
+    # Handles commas before closing braces/brackets, even across lines
+    SERVICE_JSON_CLEANED=$(echo "$SERVICE_JSON" | perl -0pe 's/,(\s*[}\]])/$1/g' 2>/dev/null || echo "$SERVICE_JSON")
+    
     # Basic JSON syntax validation
-    if ! echo "$SERVICE_JSON" | jq empty 2>/dev/null; then
+    if ! echo "$SERVICE_JSON_CLEANED" | jq empty 2>/dev/null; then
         log::error "Invalid JSON in service.json"
+        log::error "Common issues to check:"
+        log::error "  - Missing quotes around strings"
+        log::error "  - Unmatched brackets or braces"
+        log::error "  - Invalid escape sequences"
         exit 1
     fi
+    
+    # Use the cleaned JSON for the rest of the script
+    SERVICE_JSON="$SERVICE_JSON_CLEANED"
     
     log::info "Loading comprehensive schema validator..."
     
@@ -385,7 +401,7 @@ validate_initialization_paths() {
 # App Generation Functions
 ################################################################################
 
-# Process template variables in files
+# Process template variables in files (conditionally based on inheritance)
 process_template_variables() {
     local file="$1"
     local service_json="$2"
@@ -394,17 +410,33 @@ process_template_variables() {
     [[ ! -f "$file" ]] && return 0
     file -b --mime-type "$file" | grep -q "text/" || return 0
     
-    # Source secrets utility for template substitution
+    # Source required utilities
     local secrets_util="${PROJECT_ROOT}/scripts/helpers/utils/secrets.sh"
-    if [[ -f "$secrets_util" ]]; then
+    local service_config_util="${PROJECT_ROOT}/scripts/helpers/utils/service-config.sh"
+    
+    # Check if the service.json has inheritance defined
+    local should_substitute="yes"
+    if [[ -f "$service_config_util" ]] && [[ "$(basename "$file")" == "service.json" ]]; then
+        # shellcheck disable=SC1090
+        source "$service_config_util"
+        
+        # Check for inheritance - if present, preserve templates for runtime resolution
+        if service_config::has_inheritance "$file"; then
+            should_substitute="no"
+            [[ "$VERBOSE" == "true" ]] && log::info "Inheritance detected in $(basename "$file"), preserving templates for runtime resolution"
+        fi
+    fi
+    
+    # Only substitute if no inheritance or if not a service.json file
+    if [[ "$should_substitute" == "yes" ]] && [[ -f "$secrets_util" ]]; then
         # shellcheck disable=SC1091
         source "$secrets_util"
         
-        # Read file content and substitute templates
+        # Read file content and substitute all templates (both secrets and service references)
         local content
         content=$(cat "$file")
         local processed
-        processed=$(echo "$content" | secrets::substitute_json)
+        processed=$(echo "$content" | secrets::substitute_all_templates)
         
         # Write back if changed
         if [[ "$content" != "$processed" ]]; then

@@ -227,7 +227,7 @@ OPTIONS:
 
 EXAMPLES:
     # Inject specific scenario from directory
-    $0 --action inject --scenario-dir /path/to/scenario/ai-content-assistant-example
+    $0 --action inject --scenario-dir /path/to/scenario/campaign-content-studio
     
     # Inject all scenarios in core directory
     $0 --action inject --all-active yes

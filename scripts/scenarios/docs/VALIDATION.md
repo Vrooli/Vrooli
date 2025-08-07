@@ -464,7 +464,7 @@ for dir in core/*ai*; do (cd "$dir" && ./test.sh); done
 ./tools/performance-test.sh --scenario research-assistant
 
 # Deployment readiness
-./tools/deployment-test.sh --scenario business-process-automation
+./tools/deployment-test.sh --scenario research-assistant
 ```
 
 ### Debug Validation Failures

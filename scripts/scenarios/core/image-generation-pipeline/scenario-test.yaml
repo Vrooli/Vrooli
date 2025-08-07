@@ -4,30 +4,56 @@ scenario: image-generation-pipeline
 # Structure validation
 structure:
   required_files:
-    - metadata.yaml
-    - manifest.yaml
-    - README.md
-    - initialization/database/schema.sql
-    - initialization/workflows/n8n/main-workflow.json
+    - .vrooli/service.json
+    - initialization/storage/schema.sql
+    - initialization/storage/seed.sql
+    - initialization/automation/n8n/main-workflow.json
+    - initialization/automation/triggers.yaml
+    - initialization/automation/windmill/windmill-app.json
     - initialization/configuration/app-config.json
-    - initialization/ui/windmill-app.json
+    - initialization/configuration/feature-flags.json
+    - initialization/configuration/resource-urls.json
+    - deployment/startup.sh
+    - deployment/monitor.sh
+    - test.sh
+    - custom-tests.sh
+    - ui/deploy-enterprise-platform.sh
+    - ui/enterprise-image-platform-app.json
+    - ui/scripts/analytics_dashboard.ts
+    - ui/scripts/asset_manager.ts
+    - ui/scripts/brand_engine.ts
+    - ui/scripts/campaign_manager.ts
+    - ui/scripts/client_portal.ts
+    - ui/scripts/generation_studio.ts
+    - ui/scripts/quality_control.ts
   
   required_dirs:
-    - initialization/database
-    - initialization/workflows
+    - .vrooli
+    - initialization/storage
+    - initialization/automation
     - initialization/configuration
-    - initialization/vectors
     - deployment
     - ui
+    - ui/scripts
 
 # Resource requirements
 resources:
-  required: [ollama, whisper, comfyui, qdrant, agent-s2, vault]
-  optional: [browserless, minio]
-  health_timeout: 30
+  required: [postgres, ollama, whisper, comfyui, qdrant, minio, agent-s2, browserless]
+  optional: [vault]
+  health_timeout: 60
 
 # Declarative tests
 tests:
+  - name: "Application Health Check"
+    type: http
+    service: app
+    endpoint: /api/image-generation-pipeline/health
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+
   - name: "AI Model Engine Ready"
     type: http
     service: ollama
@@ -57,32 +83,53 @@ tests:
   - name: "Vector Database Ready"
     type: http
     service: qdrant
-    endpoint: /collections
+    endpoint: /health
     method: GET
     expect:
       status: 200
-      body:
-        type: json
-        
-  - name: "Secrets Manager Ready"
+
+  - name: "Object Storage Ready"
     type: http
-    service: vault
-    endpoint: /v1/sys/health
+    service: minio
+    endpoint: /minio/health/ready
     method: GET
     expect:
       status: 200
+
+  - name: "Agent-S2 Automation Ready"
+    type: http
+    service: agent-s2
+    endpoint: /health
+    method: GET
+    expect:
+      status: 200
+
+  - name: "Browserless Engine Ready"
+    type: http
+    service: browserless
+    endpoint: /pressure
+    method: GET
+    expect:
+      status: 200
+
+  - name: "Database Connection"
+    type: tcp
+    service: postgres
+    port: 5432
       
-  - name: "Business Logic Validation"
+  - name: "Enterprise Image Generation Workflow"
     type: custom
     script: custom-tests.sh
     function: test_image_generation_pipeline_workflow
 
 # Validation criteria
 validation:
-  success_rate: 75        # Allow some flexibility for optional services
-  response_time: 10000    # 10 seconds max for service responses
-  revenue_potential: 10000
+  success_rate: 85        # High success rate for premium enterprise platform
+  response_time: 15000    # 15 seconds max for image generation operations
+  revenue_potential: 125000  # Total estimate from service.json
   business_criteria:
-    - "Core services operational"
-    - "Business workflow functional"
-    - "Integration points validated"
+    - "Voice-enabled image generation platform operational"
+    - "Multi-brand management system functional"
+    - "Quality control pipeline validated"
+    - "Enterprise visual content automation verified"
+    - "ComfyUI workflow integration working"

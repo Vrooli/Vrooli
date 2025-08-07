@@ -1,8 +1,8 @@
 {
   "resources": {
     "unstructured_io": {
-      "baseUrl": "http://localhost:8000",
-      "healthCheck": "http://localhost:8000/healthcheck",
+      "baseUrl": "http://localhost:11450",
+      "healthCheck": "http://localhost:11450/healthcheck",
       "endpoints": {
         "process": "/general/v0/general",
         "partition": "/partition/v0/partition"
@@ -55,6 +55,18 @@
       },
       "optional": true
     },
+    "postgres": {
+      "baseUrl": "postgresql://localhost:5432",
+      "healthCheck": "tcp://localhost:5432",
+      "endpoints": {
+        "direct": "postgresql://localhost:5432/resume_screening_assistant"
+      },
+      "database": "resume_screening_assistant",
+      "credentials": {
+        "username": "${POSTGRES_USER:-postgres}",
+        "password": "${POSTGRES_PASSWORD:-password}"
+      }
+    },
     "n8n": {
       "baseUrl": "http://localhost:5678",
       "healthCheck": "http://localhost:5678/healthz",
@@ -63,7 +75,7 @@
         "executions": "/api/v1/executions",
         "webhook": "/webhook"
       },
-      "optional": true
+      "required": true
     },
     "windmill": {
       "baseUrl": "http://localhost:8000",
@@ -75,7 +87,7 @@
         "jobs": "/api/w/{workspace}/jobs"
       },
       "workspace": "resume-screening-assistant",
-      "optional": true
+      "required": true
     }
   },
   "apiGateway": {

@@ -4,34 +4,42 @@ scenario: secure-document-processing
 # Structure validation
 structure:
   required_files:
-    - metadata.yaml
-    - manifest.yaml
-    - README.md
-    - initialization/database/schema.sql
-    - initialization/workflows/n8n/main-workflow.json
+    - .vrooli/service.json
+    - initialization/storage/postgres/schema.sql
+    - initialization/storage/postgres/seed.sql
+    - initialization/automation/n8n/document-intake.json
+    - initialization/automation/n8n/process-orchestrator.json
+    - initialization/automation/n8n/prompt-processor.json
+    - initialization/automation/n8n/workflow-executor.json
+    - initialization/automation/n8n/semantic-indexer.json
+    - initialization/automation/windmill/document-portal.json
     - initialization/configuration/app-config.json
-    - initialization/ui/windmill-app.json
+    - initialization/configuration/feature-flags.json
+    - initialization/configuration/resource-urls.json
+    - deployment/startup.sh
+    - deployment/monitor.sh
+    - test.sh
+    - custom-tests.sh
   
   required_dirs:
-    - initialization/database
-    - initialization/workflows
+    - .vrooli
+    - initialization/storage
+    - initialization/automation
     - initialization/configuration
-    - initialization/vectors
     - deployment
-    - ui
 
 # Resource requirements
 resources:
-  required: [ollama, unstructured-io, qdrant, vault]
-  optional: [minio]
-  health_timeout: 30
+  required: [postgres, unstructured-io, vault, minio, ollama, qdrant, n8n, windmill]
+  optional: []
+  health_timeout: 50
 
 # Declarative tests
 tests:
-  - name: "AI Model Engine Ready"
+  - name: "Application Health Check"
     type: http
-    service: ollama
-    endpoint: /api/tags
+    service: app
+    endpoint: /api/secure-document-processing/health
     method: GET
     expect:
       status: 200
@@ -45,16 +53,6 @@ tests:
     method: GET
     expect:
       status: 200
-      
-  - name: "Vector Database Ready"
-    type: http
-    service: qdrant
-    endpoint: /collections
-    method: GET
-    expect:
-      status: 200
-      body:
-        type: json
         
   - name: "Secrets Manager Ready"
     type: http
@@ -63,18 +61,33 @@ tests:
     method: GET
     expect:
       status: 200
+
+  - name: "Encrypted Storage Ready"
+    type: http
+    service: minio
+    endpoint: /minio/health/ready
+    method: GET
+    expect:
+      status: 200
+
+  - name: "Database Connection"
+    type: tcp
+    service: postgres
+    port: 5432
       
-  - name: "Business Logic Validation"
+  - name: "Secure Document Processing Pipeline"
     type: custom
     script: custom-tests.sh
     function: test_secure_document_processing_workflow
 
 # Validation criteria
 validation:
-  success_rate: 75        # Allow some flexibility for optional services
-  response_time: 10000    # 10 seconds max for service responses
-  revenue_potential: 10000
+  success_rate: 95        # Very high success rate for security-focused platform
+  response_time: 15000    # 15 seconds max for secure processing operations
+  revenue_potential: 160000  # Total estimate from service.json
   business_criteria:
-    - "Core services operational"
-    - "Business workflow functional"
-    - "Integration points validated"
+    - "Zero-trust document processing pipeline operational"
+    - "Military-grade encryption and security validated"
+    - "Automated compliance reporting (HIPAA, GDPR, SOX) functional"
+    - "Complete audit trail and forensic capabilities verified"
+    - "Enterprise security standards compliance confirmed"

@@ -77,7 +77,7 @@ done
 ### For App Generation
 ```bash
 # Convert scenario to running application using existing resource infrastructure
-./tools/scenario-to-app.sh ai-content-assistant-example
+./tools/scenario-to-app.sh campaign-content-studio
 
 # Run with verbose output
 ./tools/scenario-to-app.sh multi-modal-ai-assistant --verbose
@@ -141,13 +141,12 @@ cp -r templates/full/ core/ai-generated-scenario/
 
 ```
 scenarios/
-├── core/                     # All working scenarios (14 scenarios)
+├── core/                     # All working scenarios (13 scenarios)
 │   ├── multi-modal-ai-assistant/      # Voice+AI+Visual assistant
 │   ├── document-intelligence-pipeline/  # Document processing
-│   ├── ai-content-assistant-example/   # Content creation
-│   ├── business-process-automation/    # Workflow automation
+│   ├── campaign-content-studio/   # Content creation
 │   ├── research-assistant/             # Knowledge management
-│   └── ... (9 more scenarios)
+│   └── ... (8 more scenarios)
 ├── templates/                # Templates for creating new scenarios
 │   ├── full/                # Complete application template (use this)
 │   └── basic/               # Simple testing template

@@ -1,0 +1,140 @@
+{
+  "ai": {
+    "ollama": {
+      "base_url": "http://localhost:11434",
+      "health_endpoint": "/api/tags",
+      "generate_endpoint": "/api/generate",
+      "embeddings_endpoint": "/api/embeddings",
+      "timeout_seconds": 60,
+      "models": {
+        "text_generation": "llama3.1:8b",
+        "embeddings": "nomic-embed-text:latest"
+      }
+    },
+    
+    "whisper": {
+      "base_url": "http://localhost:8090",
+      "health_endpoint": "/",
+      "transcribe_endpoint": "/transcribe",
+      "timeout_seconds": 120
+    },
+    
+    "comfyui": {
+      "base_url": "http://localhost:8188",
+      "health_endpoint": "/",
+      "api_endpoint": "/api",
+      "prompt_endpoint": "/api/prompt",
+      "upload_endpoint": "/upload",
+      "timeout_seconds": 180,
+      "workflows": {
+        "blog_header": "blog-header-generation",
+        "social_media": "social-media-graphics"
+      }
+    },
+    
+    "unstructured_io": {
+      "base_url": "http://localhost:11450",
+      "health_endpoint": "/healthcheck",
+      "process_endpoint": "/general/v0/general",
+      "timeout_seconds": 90,
+      "supported_formats": ["pdf", "docx", "txt", "html", "md"]
+    }
+  },
+  
+  "automation": {
+    "n8n": {
+      "base_url": "http://localhost:5678",
+      "health_endpoint": "/healthz",
+      "api_endpoint": "/api/v1",
+      "webhook_endpoint": "/webhook",
+      "workflows_endpoint": "/api/v1/workflows",
+      "timeout_seconds": 60,
+      "workflows": {
+        "campaign_management": "/webhook/campaign-content-studio/campaigns",
+        "document_processing": "/webhook/campaign-content-studio/documents",
+        "content_generation": "/webhook/campaign-content-studio/generate",
+        "search_retrieval": "/webhook/campaign-content-studio/search"
+      }
+    },
+    
+    "windmill": {
+      "base_url": "http://localhost:5681",
+      "health_endpoint": "/api/version",
+      "api_endpoint": "/api",
+      "apps_endpoint": "/api/apps",
+      "scripts_endpoint": "/api/scripts",
+      "timeout_seconds": 30,
+      "dashboard_path": "/f/campaign-content-studio/dashboard"
+    }
+  },
+  
+  
+  "storage": {
+    "postgres": {
+      "host": "localhost",
+      "port": 5433,
+      "database": "campaign_content_studio",
+      "username": "postgres",
+      "password": "postgres",
+      "connection_url": "postgresql://postgres:postgres@localhost:5433/campaign_content_studio",
+      "max_connections": 50,
+      "timeout_seconds": 30,
+      "schema": "campaign_content_studio"
+    },
+    
+    
+    "minio": {
+      "base_url": "http://localhost:9000",
+      "console_url": "http://localhost:9001",
+      "access_key": "minioadmin",
+      "secret_key": "minioadmin",
+      "buckets": {
+        "documents": "campaign-documents",
+        "assets": "generated-assets",
+        "backups": "campaign-content-studio"
+      },
+      "timeout_seconds": 60
+    },
+    
+    "qdrant": {
+      "base_url": "http://localhost:6333",
+      "health_endpoint": "/",
+      "collections_endpoint": "/collections",
+      "points_endpoint": "/collections/{collection}/points",
+      "search_endpoint": "/collections/{collection}/points/search",
+      "timeout_seconds": 30,
+      "collections": {
+        "documents": "campaign_documents"
+      },
+      "vector_config": {
+        "size": 384,
+        "distance": "Cosine"
+      }
+    }
+  },
+  
+  "application": {
+    "base_url": "http://localhost:3000",
+    "api_prefix": "/api/campaign-content-studio",
+    "health_endpoint": "/api/campaign-content-studio/health",
+    "metrics_endpoint": "/api/campaign-content-studio/metrics",
+    "status_endpoint": "/api/campaign-content-studio/status",
+    "dashboard_url": "http://localhost:5681/f/campaign-content-studio/dashboard"
+  },
+  
+  "monitoring": {
+    "health_check_interval_seconds": 30,
+    "metrics_collection_interval_seconds": 60,
+    "alert_endpoints": {
+      "errors": "/api/campaign-content-studio/alerts/errors",
+      "performance": "/api/campaign-content-studio/alerts/performance",
+      "resource_health": "/api/campaign-content-studio/alerts/resources",
+      "campaign_alerts": "/api/campaign-content-studio/alerts/campaigns"
+    },
+    "performance_targets": {
+      "content_generation_ms": 5000,
+      "document_processing_ms": 30000,
+      "search_response_ms": 1000
+    }
+  }
+}

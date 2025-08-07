@@ -3,9 +3,9 @@
     "name": "Secure Document Processing Pipeline",
     "id": "secure-document-processing",
     "version": "1.0.0",
-    "description": "{{ scenario.description }}",
-    "complexity": "{{ complexity }}",
-    "categories": {{ categories | tojson }}
+    "description": "Enterprise-grade secure document processing with encryption, audit trails, and compliance automation",
+    "complexity": "advanced",
+    "categories": ["security", "compliance", "document-processing"]
   },
   
   "runtime": {
@@ -13,31 +13,35 @@
     "debug": true,
     "log_level": "info",
     "session_timeout_minutes": 30,
-    "max_concurrent_users": {{ performance.throughput.concurrent_users | default(10) }},
-    "request_timeout_seconds": {{ testing.timeout_seconds | default(300) }}
+    "max_concurrent_users": 10,
+    "request_timeout_seconds": 300
   },
   
   "features": {
-    "ai_processing": {{ "true" if "ollama" in resources.required else "false" }},
-    "speech_recognition": {{ "true" if "whisper" in resources.required else "false" }},
-    "image_generation": {{ "true" if "comfyui" in resources.required else "false" }},
-    "document_processing": {{ "true" if "unstructured-io" in resources.required else "false" }},
-    "workflow_automation": {{ "true" if "n8n" in resources.required else "false" }},
-    "screen_automation": {{ "true" if "agent-s2" in resources.required else "false" }},
-    "web_automation": {{ "true" if "browserless" in resources.required else "false" }},
-    "vector_search": {{ "true" if "qdrant" in resources.required else "false" }},
-    "file_storage": {{ "true" if "minio" in resources.required else "false" }},
-    "analytics": {{ "true" if "questdb" in resources.required else "false" }},
-    "search": {{ "true" if "searxng" in resources.required else "false" }},
-    "professional_ui": {{ "true" if "windmill" in resources.required else "false" }},
-    "real_time_dashboard": {{ "true" if "node-red" in resources.required else "false" }}
+    "ai_processing": true,
+    "speech_recognition": false,
+    "image_generation": false,
+    "document_processing": true,
+    "workflow_automation": true,
+    "screen_automation": false,
+    "web_automation": false,
+    "vector_search": true,
+    "file_storage": true,
+    "analytics": false,
+    "search": false,
+    "professional_ui": true,
+    "real_time_dashboard": false
   },
   
   "business": {
-    "value_proposition": "{{ business.value_proposition }}",
-    "target_markets": {{ business.target_markets | tojson }},
-    "revenue_potential": {{ business.revenue_potential | tojson }},
-    "market_demand": "{{ business.market_demand }}"
+    "value_proposition": "Zero-trust enterprise document processing platform with military-grade security and automated compliance",
+    "target_markets": ["healthcare", "finance", "government", "legal"],
+    "revenue_potential": {
+      "initial": 15000,
+      "recurring": 45000,
+      "expansion": 100000
+    },
+    "market_demand": "very-high"
   },
   
   "ai": {

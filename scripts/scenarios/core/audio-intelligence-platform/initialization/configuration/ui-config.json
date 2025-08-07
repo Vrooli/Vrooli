@@ -1,0 +1,456 @@
+{
+  "application": {
+    "name": "Audio Intelligence Platform",
+    "description": "AI-powered audio intelligence for transcription, search, and analysis",
+    "version": "1.0.0",
+    "author": "Vrooli AI Platform",
+    "homepage": "http://localhost:5681",
+    "support_email": "support@vrooli.com"
+  },
+  
+  "appearance": {
+    "theme": {
+      "default": "professional",
+      "available_themes": [
+        {
+          "name": "professional",
+          "display_name": "Professional",
+          "description": "Clean, business-focused design"
+        },
+        {
+          "name": "dark",
+          "display_name": "Dark Mode",
+          "description": "Dark theme for low-light environments"
+        },
+        {
+          "name": "high-contrast",
+          "display_name": "High Contrast",
+          "description": "Accessibility-focused high contrast theme"
+        }
+      ]
+    },
+    "colors": {
+      "primary": "#2563eb",
+      "secondary": "#64748b", 
+      "success": "#10b981",
+      "warning": "#f59e0b",
+      "error": "#ef4444",
+      "info": "#06b6d4",
+      "background": "#f8fafc",
+      "surface": "#ffffff",
+      "text_primary": "#1e293b",
+      "text_secondary": "#64748b",
+      "border": "#e2e8f0"
+    },
+    "typography": {
+      "font_family": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif",
+      "font_size_base": "14px",
+      "font_size_scale": 1.125,
+      "line_height": 1.5,
+      "letter_spacing": "normal"
+    },
+    "layout": {
+      "container_max_width": "1200px",
+      "sidebar_width": "280px",
+      "header_height": "64px",
+      "footer_height": "48px",
+      "border_radius": "0.5rem",
+      "shadow": "0 1px 3px 0 rgba(0, 0, 0, 0.1)"
+    }
+  },
+  
+  "navigation": {
+    "header": {
+      "show_logo": true,
+      "show_title": true,
+      "show_user_menu": true,
+      "show_notifications": true,
+      "show_help": true,
+      "sticky": true
+    },
+    "sidebar": {
+      "enabled": false,
+      "collapsible": true,
+      "default_collapsed": false,
+      "items": []
+    },
+    "breadcrumbs": {
+      "enabled": true,
+      "show_home": true,
+      "separator": "/"
+    }
+  },
+  
+  "features": {
+    "file_upload": {
+      "enabled": true,
+      "drag_and_drop": true,
+      "multiple_files": false,
+      "progress_indicator": true,
+      "file_preview": true,
+      "upload_restrictions": {
+        "max_size_mb": 500,
+        "allowed_types": ["audio/mpeg", "audio/wav", "audio/m4a", "audio/ogg", "audio/flac"],
+        "allowed_extensions": ["mp3", "wav", "m4a", "ogg", "flac"]
+      }
+    },
+    "transcription_browser": {
+      "enabled": true,
+      "default_view": "grid",
+      "available_views": ["grid", "list", "table"],
+      "items_per_page": 20,
+      "sorting": {
+        "enabled": true,
+        "default_sort": "created_desc",
+        "available_sorts": [
+          {"value": "created_desc", "label": "Newest First"},
+          {"value": "created_asc", "label": "Oldest First"},
+          {"value": "duration_desc", "label": "Longest First"},
+          {"value": "duration_asc", "label": "Shortest First"},
+          {"value": "filename_asc", "label": "Filename A-Z"},
+          {"value": "confidence_desc", "label": "Highest Confidence"}
+        ]
+      },
+      "filtering": {
+        "enabled": true,
+        "available_filters": ["date_range", "duration", "language", "confidence"]
+      },
+      "bulk_actions": {
+        "enabled": true,
+        "actions": ["delete", "export", "analyze"]
+      }
+    },
+    "search": {
+      "enabled": true,
+      "real_time": true,
+      "debounce_ms": 300,
+      "min_query_length": 2,
+      "max_query_length": 500,
+      "placeholder": "Search across all transcriptions...",
+      "suggestions": {
+        "enabled": true,
+        "max_suggestions": 8,
+        "show_history": true
+      },
+      "filters": {
+        "enabled": true,
+        "collapsible": true,
+        "default_collapsed": true
+      },
+      "results": {
+        "show_snippets": true,
+        "snippet_length": 200,
+        "highlight_matches": true,
+        "show_similarity_scores": true,
+        "pagination": true
+      }
+    },
+    "transcription_viewer": {
+      "enabled": true,
+      "modal_size": "xl",
+      "show_metadata": true,
+      "show_confidence": true,
+      "show_timestamps": false,
+      "text_formatting": {
+        "font_family": "monospace",
+        "font_size": "14px",
+        "line_height": "1.6",
+        "word_wrap": true
+      },
+      "copy_options": {
+        "enabled": true,
+        "formats": ["plain_text", "formatted_text", "json"]
+      }
+    },
+    "ai_analysis": {
+      "enabled": true,
+      "available_types": [
+        {
+          "id": "summary",
+          "label": "📝 Generate Summary",
+          "description": "Create a concise overview of the transcription",
+          "icon": "document-text"
+        },
+        {
+          "id": "key_insights", 
+          "label": "💡 Extract Key Insights",
+          "description": "Identify important takeaways and insights",
+          "icon": "light-bulb"
+        },
+        {
+          "id": "custom",
+          "label": "🎯 Custom Analysis",
+          "description": "Use your own prompt for specific analysis",
+          "icon": "cog"
+        }
+      ],
+      "custom_prompts": {
+        "enabled": true,
+        "templates": [
+          {
+            "name": "Action Items",
+            "prompt": "Extract all action items and tasks mentioned in this transcription."
+          },
+          {
+            "name": "Decisions Made",
+            "prompt": "Identify all decisions that were made during this conversation."
+          },
+          {
+            "name": "Questions Raised", 
+            "prompt": "List all questions that were asked or discussed."
+          },
+          {
+            "name": "Technical Details",
+            "prompt": "Focus on technical concepts and implementation details."
+          }
+        ]
+      },
+      "results": {
+        "show_processing_time": true,
+        "show_model_info": true,
+        "show_confidence": true,
+        "copy_enabled": true,
+        "save_enabled": true,
+        "export_enabled": true
+      }
+    },
+    "export": {
+      "enabled": true,
+      "formats": [
+        {
+          "id": "txt",
+          "label": "📄 Text File",
+          "description": "Plain text format",
+          "mime_type": "text/plain",
+          "extension": "txt"
+        },
+        {
+          "id": "pdf",
+          "label": "📋 PDF Document",
+          "description": "Formatted PDF document", 
+          "mime_type": "application/pdf",
+          "extension": "pdf"
+        },
+        {
+          "id": "json",
+          "label": "🔧 JSON Data",
+          "description": "Structured data format",
+          "mime_type": "application/json",
+          "extension": "json"
+        },
+        {
+          "id": "srt",
+          "label": "📺 SRT Subtitles",
+          "description": "Subtitle format with timestamps",
+          "mime_type": "text/plain",
+          "extension": "srt"
+        }
+      ]
+    }
+  },
+  
+  "user_preferences": {
+    "persistence": {
+      "enabled": true,
+      "storage_type": "localStorage",
+      "expiry_days": 365
+    },
+    "customizable_settings": [
+      {
+        "key": "theme",
+        "type": "select",
+        "label": "Theme",
+        "options": ["professional", "dark", "high-contrast"],
+        "default": "professional"
+      },
+      {
+        "key": "items_per_page",
+        "type": "number",
+        "label": "Items per Page",
+        "min": 10,
+        "max": 100,
+        "default": 20
+      },
+      {
+        "key": "auto_refresh",
+        "type": "boolean",
+        "label": "Auto Refresh",
+        "default": true
+      },
+      {
+        "key": "show_confidence_scores",
+        "type": "boolean",
+        "label": "Show Confidence Scores",
+        "default": true
+      },
+      {
+        "key": "enable_keyboard_shortcuts",
+        "type": "boolean",
+        "label": "Enable Keyboard Shortcuts",
+        "default": true
+      }
+    ]
+  },
+  
+  "keyboard_shortcuts": {
+    "enabled": true,
+    "shortcuts": [
+      {
+        "key": "ctrl+u",
+        "action": "open_upload_modal",
+        "description": "Upload new file"
+      },
+      {
+        "key": "ctrl+f",
+        "action": "focus_search",
+        "description": "Focus search input"
+      },
+      {
+        "key": "ctrl+r",
+        "action": "refresh_list",
+        "description": "Refresh transcription list"
+      },
+      {
+        "key": "escape",
+        "action": "close_modal",
+        "description": "Close open modal"
+      },
+      {
+        "key": "ctrl+enter",
+        "action": "quick_action",
+        "description": "Perform quick action"
+      }
+    ]
+  },
+  
+  "notifications": {
+    "enabled": true,
+    "position": "top-right",
+    "duration_ms": 5000,
+    "max_notifications": 5,
+    "types": {
+      "success": {
+        "icon": "check-circle",
+        "color": "#10b981"
+      },
+      "error": {
+        "icon": "x-circle", 
+        "color": "#ef4444"
+      },
+      "warning": {
+        "icon": "exclamation-triangle",
+        "color": "#f59e0b"
+      },
+      "info": {
+        "icon": "information-circle",
+        "color": "#06b6d4"
+      }
+    },
+    "sound": {
+      "enabled": false,
+      "volume": 0.3
+    }
+  },
+  
+  "loading_states": {
+    "spinners": {
+      "type": "dots",
+      "color": "#2563eb",
+      "size": "medium"
+    },
+    "skeleton": {
+      "enabled": true,
+      "animation": "pulse",
+      "color": "#e2e8f0"
+    },
+    "progress_bars": {
+      "enabled": true,
+      "show_percentage": true,
+      "color": "#2563eb"
+    }
+  },
+  
+  "accessibility": {
+    "high_contrast_mode": {
+      "enabled": true,
+      "auto_detect": true
+    },
+    "screen_reader": {
+      "optimized": true,
+      "aria_labels": true,
+      "live_regions": true
+    },
+    "keyboard_navigation": {
+      "enabled": true,
+      "focus_indicators": true,
+      "skip_links": true
+    },
+    "text_scaling": {
+      "enabled": true,
+      "min_scale": 0.8,
+      "max_scale": 1.5,
+      "default_scale": 1.0
+    }
+  },
+  
+  "performance": {
+    "virtual_scrolling": {
+      "enabled": true,
+      "item_height": 80,
+      "buffer_size": 10
+    },
+    "lazy_loading": {
+      "enabled": true,
+      "threshold": 200
+    },
+    "caching": {
+      "enabled": true,
+      "ttl_minutes": 30
+    },
+    "debouncing": {
+      "search_ms": 300,
+      "resize_ms": 100,
+      "scroll_ms": 16
+    }
+  },
+  
+  "analytics": {
+    "user_interactions": {
+      "enabled": true,
+      "track_clicks": true,
+      "track_searches": true,
+      "track_uploads": true,
+      "track_exports": true
+    },
+    "performance_metrics": {
+      "enabled": true,
+      "track_load_times": true,
+      "track_errors": true,
+      "sample_rate": 0.1
+    },
+    "privacy": {
+      "anonymize_data": true,
+      "data_retention_days": 90,
+      "opt_out_enabled": true
+    }
+  },
+  
+  "error_handling": {
+    "user_friendly_messages": true,
+    "show_error_codes": false,
+    "retry_buttons": true,
+    "error_reporting": {
+      "enabled": true,
+      "include_user_agent": true,
+      "include_url": true,
+      "include_timestamp": true
+    }
+  },
+  
+  "development": {
+    "debug_mode": false,
+    "show_performance_metrics": false,
+    "mock_api_responses": false,
+    "verbose_logging": false
+  }
+}

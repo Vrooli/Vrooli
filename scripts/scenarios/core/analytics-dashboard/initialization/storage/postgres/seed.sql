@@ -123,8 +123,8 @@ WHERE r.is_critical = true;
 -- Update system configuration with monitoring-specific settings
 INSERT INTO system_config (key, value, description) VALUES
     ('port_discovery', '{"ranges": ["1000-2000", "3000-4000", "5000-6000", "8000-9000", "9000-10000", "11000-12000"], "timeout_ms": 100}', 'Port ranges for auto-discovery'),
-    ('known_services', '{"ollama": 11434, "postgres": 5433, "redis": 6380, "questdb": 9009, "n8n": 5678, "node-red": 1880, "windmill": 5681, "vault": 8200, "minio": 9000, "qdrant": 6333, "whisper": 8090, "comfyui": 8188, "browserless": 4110, "agent-s2": 4113, "huginn": 4111, "judge0": 2358, "searxng": 9200}', 'Known service ports for quick discovery'),
-    ('health_endpoints', '{"default": ["/health", "/healthz", "/api/health", "/status", "/api/status", "/ping", "/api/ping"], "custom": {"ollama": "/api/tags", "vault": "/v1/sys/health", "windmill": "/api/version"}}', 'Health check endpoints to try'),
+    -- Note: known_services will be populated by startup script from resource-registry.json
+    ('health_endpoints', '{"default": ["/health", "/healthz", "/api/health", "/status", "/api/status", "/ping", "/api/ping"], "custom": {"ollama": "/api/tags", "vault": "/v1/sys/health", "windmill": "/api/version", "node-red": "/settings", "questdb": "/status", "minio": "/minio/health/live", "qdrant": "/health", "judge0": "/system_info", "comfyui": "/system_stats", "huginn": "/users/sign_in", "searxng": "/healthz", "whisper": "/health", "unstructured-io": "/general/v0/general", "browserless": "/health", "agent-s2": "/health", "claude-code": "/health"}}', 'Health check endpoints to try'),
     ('alert_templates', '{"sms": "🚨 {{severity}}: {{resource_name}} - {{message}}", "email": "<h2>Alert: {{resource_name}}</h2><p>Severity: {{severity}}</p><p>{{message}}</p><p>Time: {{timestamp}}</p>"}', 'Message templates for notifications')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW();
 

@@ -1,6 +1,13 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "inheritance": {
+    "extends": "../../../../../.vrooli/service.json",
+    "merge": {
+      "strategy": "merge",
+      "arrays": "concat"
+    }
+  },
   "service": {
     "name": "resume-screening-assistant",
     "displayName": "Resume Screening Assistant",
@@ -127,6 +134,58 @@
         "models": ["llama3.1:8b", "nomic-embed-text"]
       }
     },
+    "automation": {
+      "n8n": {
+        "enabled": true,
+        "required": true,
+        "type": "n8n",
+        "version": "latest",
+        "initialization": {
+          "workflows": [
+            {
+              "name": "resume-processing-pipeline",
+              "file": "initialization/automation/n8n/resume-processing-pipeline.json"
+            },
+            {
+              "name": "job-management-workflow", 
+              "file": "initialization/automation/n8n/job-management-workflow.json"
+            },
+            {
+              "name": "semantic-search-workflow",
+              "file": "initialization/automation/n8n/semantic-search-workflow.json"
+            }
+          ]
+        }
+      },
+      "windmill": {
+        "enabled": true,
+        "required": true,
+        "type": "windmill",
+        "version": "latest",
+        "initialization": {
+          "apps": [
+            {
+              "name": "recruitment-dashboard",
+              "file": "initialization/automation/windmill/recruitment-app.json"
+            }
+          ],
+          "scripts": [
+            {
+              "name": "job_matcher",
+              "file": "initialization/automation/windmill/scripts/job_matcher.py"
+            },
+            {
+              "name": "semantic_search",
+              "file": "initialization/automation/windmill/scripts/semantic_search.py"
+            },
+            {
+              "name": "resume_processor",
+              "file": "initialization/automation/windmill/scripts/resume_processor.py"
+            }
+          ]
+        }
+      }
+    },
     "agents": {
       "browserless": {
         "enabled": false,
@@ -139,14 +198,20 @@
     "target": "docker",
     "strategy": "rolling-update",
     "urls": {
-      "application": "http://localhost:3000/resume-screening-assistant",
-      "admin": "http://localhost:3000/admin/resume-screening-assistant",
-      "api": "http://localhost:3000/api/resume-screening-assistant",
-      "health": "http://localhost:3000/api/resume-screening-assistant/health",
-      "upload": "http://localhost:3000/api/resume-screening-assistant/upload",
-      "search": "http://localhost:3000/api/resume-screening-assistant/search",
-      "unstructured": "http://localhost:8000",
-      "qdrant": "http://localhost:6333"
+      "application": "${service.windmill.url}/apps/d/recruitment-dashboard",
+      "admin": "${service.windmill.url}/admin/recruitment-dashboard", 
+      "api": "${service.n8n.url}/webhook",
+      "health": "${service.n8n.url}/webhook/health",
+      "upload": "${service.n8n.url}/webhook/resume-upload",
+      "search": "${service.n8n.url}/webhook/search",
+      "jobs": "${service.n8n.url}/webhook/jobs",
+      "windmill": "${service.windmill.url}",
+      "n8n": "${service.n8n.url}",
+      "unstructured": "${service.unstructured-io.url}",
+      "qdrant": "${service.qdrant.url}",
+      "ollama": "${service.ollama.url}",
+      "postgres": "${service.postgres.url}",
+      "minio": "${service.minio.url}"
     },
     "initialization": {
       "phases": [
@@ -203,6 +268,24 @@
           ]
         },
         {
+          "name": "automation-setup",
+          "parallel": true,
+          "tasks": [
+            {
+              "name": "deploy-n8n-workflows",
+              "type": "resource-inject",
+              "target": "automation.n8n",
+              "timeout": "5m"
+            },
+            {
+              "name": "deploy-windmill-apps",
+              "type": "resource-inject", 
+              "target": "automation.windmill",
+              "timeout": "5m"
+            }
+          ]
+        },
+        {
           "name": "application-configuration",
           "tasks": [
             {
@@ -211,9 +294,9 @@
               "file": "initialization/configuration/app-config.json"
             },
             {
-              "name": "set-recruitment-settings",
+              "name": "load-windmill-config",
               "type": "config",
-              "file": "initialization/configuration/recruitment-settings.json"
+              "file": "initialization/configuration/windmill-app-config.json"
             }
           ]
         },
@@ -234,7 +317,7 @@
             {
               "name": "health-check",
               "type": "healthcheck",
-              "target": "http://localhost:3000/api/resume-screening-assistant/health",
+              "target": "${service.vrooli.url}/api/resume-screening-assistant/health",
               "timeout": "30s",
               "retries": 3
             },
@@ -251,39 +334,45 @@
     "monitoring": {
       "enabled": true,
       "healthChecks": {
-        "application": {
-          "endpoint": "http://localhost:3000/api/resume-screening-assistant/health",
+        "windmill": {
+          "endpoint": "${service.windmill.url}/api/version",
           "interval": "30s",
           "timeout": "5s",
           "threshold": 3
         },
+        "n8n": {
+          "endpoint": "${service.n8n.url}/healthz",
+          "interval": "30s", 
+          "timeout": "5s",
+          "threshold": 3
+        },
         "upload-endpoint": {
-          "endpoint": "http://localhost:3000/api/resume-screening-assistant/upload",
+          "endpoint": "${service.n8n.url}/webhook/resume-upload",
           "interval": "60s",
           "timeout": "10s"
         },
         "search-endpoint": {
-          "endpoint": "http://localhost:3000/api/resume-screening-assistant/search",
+          "endpoint": "${service.n8n.url}/webhook/search",
           "interval": "60s",
           "timeout": "10s"
         },
         "unstructured-io": {
-          "endpoint": "http://localhost:8000/general/v0/general",
+          "endpoint": "${service.unstructured-io.url}/general/v0/general",
           "interval": "60s",
           "timeout": "15s"
         },
         "qdrant": {
-          "endpoint": "http://localhost:6333/health",
+          "endpoint": "${service.qdrant.url}/health",
           "interval": "60s",
           "timeout": "10s"
         },
         "ollama": {
-          "endpoint": "http://localhost:11434/api/tags",
+          "endpoint": "${service.ollama.url}/api/tags",
           "interval": "60s",
           "timeout": "15s"
         },
         "browserless": {
-          "endpoint": "http://localhost:4110/pressure",
+          "endpoint": "${service.browserless.url}/pressure",
           "interval": "60s",
           "timeout": "10s"
         },
@@ -336,7 +425,7 @@
       "ui": {
         "required": true,
         "type": "web",
-        "url": "http://localhost:3000/resume-screening-assistant"
+        "url": "${service.vrooli.url}/resume-screening-assistant"
       },
       "performance": {
         "loadTest": {
@@ -444,12 +533,17 @@
         },
         "APP_PORT": {
           "type": "number",
-          "default": 3000,
-          "description": "Application port"
+          "default": 8000,
+          "description": "Windmill application port"
+        },
+        "N8N_PORT": {
+          "type": "number",
+          "default": 5678,
+          "description": "n8n automation port"
         },
         "UNSTRUCTURED_PORT": {
           "type": "number",
-          "default": 8000,
+          "default": 11450,
           "description": "Unstructured.io API port"
         },
         "QDRANT_PORT": {

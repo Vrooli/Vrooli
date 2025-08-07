@@ -13,7 +13,7 @@ PID_FILE="/tmp/vrooli-${SCENARIO_ID}-monitor.pid"
 
 # Source port registry for dynamic port resolution
 # shellcheck disable=SC1091
-source "${SCENARIO_DIR}/../../../resources/common.sh"
+source "${SCENARIO_DIR}/../../../../resources/common.sh"
 
 # Monitoring intervals (seconds)
 HEALTH_CHECK_INTERVAL=30

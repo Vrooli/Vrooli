@@ -4,40 +4,53 @@ scenario: multi-modal-ai-assistant
 # Structure validation
 structure:
   required_files:
-    - metadata.yaml
-    - manifest.yaml
-    - README.md
-    - initialization/database/schema.sql
-    - initialization/workflows/n8n/main-workflow.json
+    - .vrooli/service.json
+    - initialization/storage/schema.sql
+    - initialization/storage/seed.sql
+    - initialization/automation/n8n/main-workflow.json
+    - initialization/automation/windmill/windmill-app.json
+    - initialization/automation/triggers.yaml
     - initialization/configuration/app-config.json
+    - initialization/configuration/feature-flags.json
+    - initialization/configuration/resource-urls.json
     - ui/multimodal-assistant-app.json
+    - ui/deploy-ui.sh
+    - deployment/startup.sh
+    - test.sh
+    - custom-tests.sh
   
   required_dirs:
-    - initialization/database
-    - initialization/workflows
+    - initialization/storage
+    - initialization/automation
     - initialization/configuration
     - deployment
     - ui
 
 # Resource requirements
 resources:
-  required: [whisper, ollama, comfyui, agent-s2, windmill]
+  required: [postgres, whisper, ollama, comfyui, agent-s2, windmill]
   optional: [minio, qdrant]
-  health_timeout: 30
+  health_timeout: 60
 
 # Declarative tests
 tests:
-  - name: "Voice Command Processing"
+  - name: "PostgreSQL Database Ready"
+    type: database
+    service: postgres
+    database: multi_modal_ai_assistant
+    query: "SELECT table_name FROM information_schema.tables WHERE table_schema = 'multi_modal_ai_assistant'"
+    expect:
+      contains: ["conversations", "voice_interactions", "generated_images", "automation_requests"]
+      
+  - name: "Whisper Speech-to-Text Ready"
     type: http
     service: whisper
-    endpoint: /health
+    endpoint: /
     method: GET
-    required: false
-    fallback: mock
     expect:
       status: 200
       
-  - name: "Language Understanding Ready"
+  - name: "Ollama AI Models Ready"
     type: http
     service: ollama
     endpoint: /api/tags
@@ -46,86 +59,100 @@ tests:
       status: 200
       body:
         type: json
+        contains: ["llama3.1:8b", "llava:13b", "nomic-embed-text"]
         
-  - name: "Visual Generation Ready"
+  - name: "ComfyUI Visual Generation Ready"
     type: http
     service: comfyui
     endpoint: /system_stats
     method: GET
-    required: false
-    fallback: mock
     expect:
       status: 200
       
-  - name: "Screen Automation Ready"
+  - name: "Agent-S2 Screen Automation Ready"
     type: http
     service: agent-s2
     endpoint: /health
     method: GET
-    required: false
     expect:
       status: 200
       
-  - name: "UI Platform Ready"
+  - name: "Windmill UI Platform Ready"
     type: http
     service: windmill
     endpoint: /api/version
     method: GET
-    required: false
     expect:
       status: 200
       body:
         type: json
 
-  - name: "Multi-Modal Assistant Chain"
-    type: chain
-    description: "End-to-end voice-to-visual-to-action workflow"
-    steps:
-      - id: health_check
+  - name: "Multi-Modal Workflow Integration Test"
+    type: integration
+    description: "Test voice-to-action workflow pipeline"
+    workflow:
+      - step: "Process Voice Command"
+        type: http
         service: whisper
-        action: health_check
+        endpoint: /transcribe
+        method: POST
+        body:
+          audio_data: "mock_audio_command"
+          language: "en"
         expect:
-          status: available
-        
-      - id: language_model_check
-        service: ollama
-        action: health_check
-        expect:
-          status: available
+          status: 200
+          response_time: 30000
           
-      - id: visual_engine_check
+      - step: "Generate Visual Content"
+        type: http
         service: comfyui
-        action: health_check
+        endpoint: /api/prompt
+        method: POST
+        body:
+          prompt: "Create a productivity dashboard mockup"
+          workflow: "multimodal-ui-generation"
         expect:
-          status: available
+          status: 200
+          response_time: 60000
           
-      - id: automation_engine_check
+      - step: "Execute Screen Automation"
+        type: http
         service: agent-s2
-        action: health_check
+        endpoint: /mouse
+        method: POST
+        body:
+          action: "click"
+          x: 100
+          y: 100
         expect:
-          status: available
-          
-      - id: ui_platform_check
-        service: windmill
-        action: health_check
-        expect:
-          status: available
+          status: 200
+          response_time: 5000
 
   - name: "Business Logic Integration"
     type: custom
     script: custom-tests.sh
     function: test_multimodal_business_workflow
+    
+  - name: "Accessibility Dashboard UI Test"
+    type: http
+    service: windmill
+    endpoint: /f/multi-modal-ai-assistant/dashboard
+    method: GET
+    expect:
+      status: 200
+      response_time: 5000
 
 # Validation criteria
 validation:
-  success_rate: 80        # Allow some tests to fail in development
-  response_time: 15000    # 15 seconds max for service responses
-  revenue_potential: 17500  # Average of min/max from metadata
+  success_rate: 80        # Allow some flexibility for complex multi-modal operations
+  response_time: 60000    # 60 seconds max for complex AI operations
+  revenue_potential: 85000  # Based on service.json business model
   business_criteria:
-    - "Voice command processing available"
-    - "Language understanding ready"
-    - "Visual content generation ready" 
-    - "Screen automation ready"
-    - "Professional UI platform ready"
-    - "Multi-modal workflow chain functional"
-    - "Business logic integration working"
+    - "All core multi-modal services operational"
+    - "Voice command processing and transcription working"
+    - "Language understanding and visual generation ready"
+    - "Screen automation capabilities functional"
+    - "Professional accessibility-focused UI platform ready"
+    - "Multi-modal workflow chain functional end-to-end"
+    - "Database properly stores interaction history"
+    - "Integration pipeline handles voice-to-visual-to-action workflows"

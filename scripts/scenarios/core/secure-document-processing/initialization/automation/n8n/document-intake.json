@@ -1,0 +1,388 @@
+{
+  "name": "Document Intake Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "document-intake",
+        "responseMode": "responseNode",
+        "options": {
+          "responseHeaders": {
+            "entries": [
+              {
+                "name": "Access-Control-Allow-Origin",
+                "value": "*"
+              }
+            ]
+          }
+        }
+      },
+      "id": "webhook-intake",
+      "name": "Document Intake Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "webhookId": "document-intake-webhook"
+    },
+    
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Document intake processing\nconst inputData = $input.item.json;\nconst binaryData = $input.item.binary;\n\n// Generate unique job ID\nconst jobId = require('crypto').randomUUID();\nconst timestamp = new Date().toISOString();\n\n// Determine intake method\nlet intakeMethod = 'unknown';\nlet documentData = null;\n\nif (binaryData && binaryData.data) {\n  // File upload or drag-drop\n  intakeMethod = inputData.method || 'upload';\n  documentData = {\n    type: 'binary',\n    filename: binaryData.data.fileName || 'unnamed_document',\n    mimeType: binaryData.data.mimeType,\n    size: binaryData.data.fileSize\n  };\n} else if (inputData.url) {\n  // URL fetch\n  intakeMethod = 'url';\n  documentData = {\n    type: 'url',\n    url: inputData.url,\n    filename: inputData.filename || 'fetched_document'\n  };\n} else if (inputData.text) {\n  // Direct text input\n  intakeMethod = 'text';\n  documentData = {\n    type: 'text',\n    content: inputData.text,\n    filename: inputData.filename || 'text_document.txt'\n  };\n}\n\n// Extract processing configuration\nconst processingConfig = {\n  prompt: inputData.prompt || null,\n  workflowId: inputData.workflowId || null,\n  saveAsWorkflow: inputData.saveAsWorkflow || false,\n  workflowName: inputData.workflowName || null,\n  outputFolder: inputData.outputFolder || `job_${jobId}`,\n  enableSemanticSearch: inputData.enableSemanticSearch || false\n};\n\n// Validate input\nif (!documentData) {\n  throw new Error('No document data provided. Please upload a file, provide a URL, or enter text.');\n}\n\nif (!processingConfig.prompt && !processingConfig.workflowId) {\n  throw new Error('Please provide either a processing prompt or select a workflow.');\n}\n\n// Create intake record\nconst intakeRecord = {\n  jobId: jobId,\n  timestamp: timestamp,\n  intakeMethod: intakeMethod,\n  document: documentData,\n  processing: processingConfig,\n  metadata: {\n    userId: inputData.userId || 'anonymous',\n    sessionId: inputData.sessionId || null,\n    source: inputData.source || 'web',\n    tags: inputData.tags || []\n  },\n  status: 'received'\n};\n\nreturn intakeRecord;"
+      },
+      "id": "process-intake",
+      "name": "Process Intake Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 300]
+    },
+    
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "url-fetch",
+              "leftValue": "={{ $json.document.type }}",
+              "rightValue": "url",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-url-fetch",
+      "name": "Is URL Fetch?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [600, 300]
+    },
+    
+    {
+      "parameters": {
+        "url": "={{ $json.document.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Vrooli-Document-Processor/1.0"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "fetch-from-url",
+      "name": "Fetch Document from URL",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [800, 200],
+      "executeOnce": false
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:8200/v1/transit/encrypt/documents",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-Vault-Token",
+              "value": "{{ $env.VAULT_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "plaintext",
+              "value": "={{ Buffer.from(JSON.stringify($json)).toString('base64') }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "encrypt-metadata",
+      "name": "Encrypt Document Metadata (Vault)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1000, 300]
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:9000/{{ $json.processing.outputFolder }}/",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "x-amz-server-side-encryption",
+              "value": "AES256"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "data"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 60000
+        }
+      },
+      "id": "store-in-minio",
+      "name": "Store Document in MinIO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1200, 300]
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO secure_doc_processing.documents (id, filename, original_filename, mime_type, file_size_bytes, source_type, source_url, upload_method, uploaded_by, session_id, status, metadata, tags) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *",
+        "queryParameters": "={{ [$json.jobId, $json.document.filename, $json.document.filename, $json.document.mimeType, $json.document.size, $json.intakeMethod, $json.document.url, $json.intakeMethod, $json.metadata.userId, $json.metadata.sessionId, 'pending', JSON.stringify($json.metadata), $json.metadata.tags] }}",
+        "options": {}
+      },
+      "id": "save-to-postgres",
+      "name": "Save Document Metadata",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1400, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-secure-doc",
+          "name": "PostgreSQL Secure Doc Processing"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO secure_doc_processing.processing_jobs (id, job_name, job_type, processing_prompt, workflow_id, workflow_name, output_folder, enable_semantic_search, created_by, session_id, status, total_documents) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *",
+        "queryParameters": "={{ [$json.jobId, 'Document Processing Job', $json.processing.workflowId ? 'workflow' : 'prompt', $json.processing.prompt, $json.processing.workflowId, $json.processing.workflowName, $json.processing.outputFolder, $json.processing.enableSemanticSearch, $json.metadata.userId, $json.metadata.sessionId, 'queued', 1] }}",
+        "options": {}
+      },
+      "id": "create-job",
+      "name": "Create Processing Job",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1600, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-secure-doc",
+          "name": "PostgreSQL Secure Doc Processing"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO secure_doc_processing.job_documents (job_id, document_id, processing_order, status) VALUES ($1, $2, $3, $4)",
+        "queryParameters": "={{ [$json.jobId, $json.jobId, 1, 'pending'] }}",
+        "options": {}
+      },
+      "id": "link-job-document",
+      "name": "Link Document to Job",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1800, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-secure-doc",
+          "name": "PostgreSQL Secure Doc Processing"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/process-orchestrator",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "jobId",
+              "value": "={{ $json.jobId }}"
+            },
+            {
+              "name": "documentId",
+              "value": "={{ $json.jobId }}"
+            },
+            {
+              "name": "processing",
+              "value": "={{ $json.processing }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "trigger-processing",
+      "name": "Trigger Processing Pipeline",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2000, 300]
+    },
+    
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO secure_doc_processing.audit_trail (event_type, event_category, document_id, job_id, user_id, session_id, action, resource_type, resource_id, risk_level, metadata) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
+        "queryParameters": "={{ ['document_intake', 'operation', $json.jobId, $json.jobId, $json.metadata.userId, $json.metadata.sessionId, 'create', 'document', $json.jobId, 'low', JSON.stringify({intake_method: $json.intakeMethod, processing_type: $json.processing.workflowId ? 'workflow' : 'prompt'})] }}",
+        "options": {}
+      },
+      "id": "audit-log",
+      "name": "Log Audit Trail",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [2200, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-secure-doc",
+          "name": "PostgreSQL Secure Doc Processing"
+        }
+      }
+    },
+    
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "message",
+              "value": "Document received and queued for processing"
+            }
+          ],
+          "number": [
+            {
+              "name": "statusCode",
+              "value": 200
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "prepare-response",
+      "name": "Prepare Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 2,
+      "position": [2400, 300]
+    },
+    
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "respond-to-webhook",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2600, 300]
+    }
+  ],
+  
+  "connections": {
+    "Document Intake Webhook": {
+      "main": [[{"node": "Process Intake Data", "type": "main", "index": 0}]]
+    },
+    "Process Intake Data": {
+      "main": [[{"node": "Is URL Fetch?", "type": "main", "index": 0}]]
+    },
+    "Is URL Fetch?": {
+      "main": [
+        [{"node": "Fetch Document from URL", "type": "main", "index": 0}],
+        [{"node": "Encrypt Document Metadata (Vault)", "type": "main", "index": 0}]
+      ]
+    },
+    "Fetch Document from URL": {
+      "main": [[{"node": "Encrypt Document Metadata (Vault)", "type": "main", "index": 0}]]
+    },
+    "Encrypt Document Metadata (Vault)": {
+      "main": [[{"node": "Store Document in MinIO", "type": "main", "index": 0}]]
+    },
+    "Store Document in MinIO": {
+      "main": [[{"node": "Save Document Metadata", "type": "main", "index": 0}]]
+    },
+    "Save Document Metadata": {
+      "main": [[{"node": "Create Processing Job", "type": "main", "index": 0}]]
+    },
+    "Create Processing Job": {
+      "main": [[{"node": "Link Document to Job", "type": "main", "index": 0}]]
+    },
+    "Link Document to Job": {
+      "main": [[{"node": "Trigger Processing Pipeline", "type": "main", "index": 0}]]
+    },
+    "Trigger Processing Pipeline": {
+      "main": [[{"node": "Log Audit Trail", "type": "main", "index": 0}]]
+    },
+    "Log Audit Trail": {
+      "main": [[{"node": "Prepare Response", "type": "main", "index": 0}]]
+    },
+    "Prepare Response": {
+      "main": [[{"node": "Respond to Webhook", "type": "main", "index": 0}]]
+    }
+  },
+  
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": "error-handler"
+  },
+  
+  "versionId": "v1.0.0",
+  "id": "document-intake-pipeline",
+  
+  "meta": {
+    "templateCreatedBy": "vrooli-secure-doc-processing",
+    "instanceId": "secure-doc-instance"
+  },
+  
+  "tags": [
+    {
+      "id": "document-processing",
+      "name": "Document Processing"
+    },
+    {
+      "id": "intake",
+      "name": "Intake Pipeline"
+    }
+  ]
+}

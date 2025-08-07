@@ -1,6 +1,13 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "inheritance": {
+    "extends": "../../../../../.vrooli/service.json",
+    "merge": {
+      "strategy": "merge",
+      "arrays": "concat"
+    }
+  },
   "service": {
     "name": "multi-modal-ai-assistant",
     "displayName": "Multi-Modal AI Assistant",
@@ -177,12 +184,12 @@
     "target": "docker",
     "strategy": "rolling-update",
     "urls": {
-      "application": "http://localhost:8000",
+      "application": "http://localhost:3000",
       "api": "http://localhost:3000/api/multi-modal-ai-assistant",
       "health": "http://localhost:3000/api/multi-modal-ai-assistant/health",
-      "windmill": "http://localhost:8000",
-      "comfyui": "http://localhost:8188",
-      "agent-s2": "http://localhost:4113"
+      "windmill": "${service.windmill.url}",
+      "comfyui": "${service.comfyui.url}",
+      "agent-s2": "${service.agent-s2.url}"
     },
     "initialization": {
       "phases": [
@@ -291,7 +298,7 @@
             {
               "name": "health-check",
               "type": "healthcheck",
-              "target": "http://localhost:3000/api/multi-modal-ai-assistant/health",
+              "target": "${service.vrooli.url}/api/multi-modal-ai-assistant/health",
               "timeout": "30s",
               "retries": 3
             },
@@ -309,33 +316,33 @@
       "enabled": true,
       "healthChecks": {
         "application": {
-          "endpoint": "http://localhost:3000/api/multi-modal-ai-assistant/health",
+          "endpoint": "${service.vrooli.url}/api/multi-modal-ai-assistant/health",
           "interval": "30s",
           "timeout": "5s",
           "threshold": 3
         },
         "windmill": {
-          "endpoint": "http://localhost:8000/api/version",
+          "endpoint": "${service.windmill.url}/api/version",
           "interval": "60s",
           "timeout": "10s"
         },
         "comfyui": {
-          "endpoint": "http://localhost:8188/system_stats",
+          "endpoint": "${service.comfyui.url}/system_stats",
           "interval": "60s",
           "timeout": "15s"
         },
         "agent-s2": {
-          "endpoint": "http://localhost:4113/health",
+          "endpoint": "${service.agent-s2.url}/health",
           "interval": "60s",
           "timeout": "10s"
         },
         "whisper": {
-          "endpoint": "http://localhost:8090/health",
+          "endpoint": "${service.whisper.url}/health",
           "interval": "60s",
           "timeout": "10s"
         },
         "ollama": {
-          "endpoint": "http://localhost:11434/api/tags",
+          "endpoint": "${service.ollama.url}/api/tags",
           "interval": "60s",
           "timeout": "15s"
         },
@@ -398,7 +405,7 @@
       "ui": {
         "required": true,
         "type": "windmill",
-        "url": "http://localhost:8000"
+        "url": "${service.windmill.url}"
       },
       "performance": {
         "loadTest": {

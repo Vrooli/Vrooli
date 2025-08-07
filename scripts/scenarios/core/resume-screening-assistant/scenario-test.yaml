@@ -4,26 +4,47 @@ scenario: resume-screening-assistant
 # Structure validation
 structure:
   required_files:
-    - metadata.yaml
-    - manifest.yaml
-    - README.md
-    - initialization/workflows/n8n/resume-processing-pipeline.json
+    - .vrooli/service.json
+    - initialization/storage/schema.sql
+    - initialization/storage/seed.sql
+    - initialization/storage/assessment-templates.json
+    - initialization/automation/n8n/resume-processing-pipeline.json
+    - initialization/automation/triggers.yaml
+    - initialization/automation/windmill/scripts/job_matcher.py
     - initialization/configuration/app-config.json
+    - initialization/configuration/feature-flags.json
+    - initialization/configuration/resource-urls.json
+    - deployment/startup.sh
+    - deployment/monitor.sh
+    - test.sh
+    - custom-tests.sh
   
   required_dirs:
-    - initialization/workflows
+    - .vrooli
+    - initialization/storage
+    - initialization/automation
+    - initialization/automation/windmill/scripts
     - initialization/configuration
-    - initialization/vectors
     - deployment
 
 # Resource requirements
 resources:
-  required: [ollama, unstructured-io, qdrant]
-  optional: [browserless]
-  health_timeout: 30
+  required: [postgres, ollama, unstructured-io, qdrant]
+  optional: [minio, browserless]
+  health_timeout: 35
 
 # Declarative tests
 tests:
+  - name: "Application Health Check"
+    type: http
+    service: n8n
+    endpoint: /webhook/health
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+
   - name: "AI Model Engine Ready"
     type: http
     service: ollama
@@ -45,24 +66,45 @@ tests:
   - name: "Vector Database Ready"
     type: http
     service: qdrant
-    endpoint: /collections
+    endpoint: /health
     method: GET
     expect:
       status: 200
-      body:
-        type: json
+
+  - name: "Resume Upload Endpoint Ready"
+    type: http
+    service: n8n
+    endpoint: /webhook/resume-upload
+    method: POST
+    expect:
+      status: 200
+
+  - name: "Candidate Search Endpoint Ready"
+    type: http
+    service: n8n
+    endpoint: /webhook/search
+    method: GET
+    expect:
+      status: 200
+
+  - name: "Database Connection"
+    type: tcp
+    service: postgres
+    port: 5432
         
-  - name: "Business Logic Validation"
+  - name: "Resume Screening and Matching Workflow"
     type: custom
     script: custom-tests.sh
     function: test_resume_screening_assistant_workflow
 
 # Validation criteria
 validation:
-  success_rate: 75        # Allow some flexibility for optional services
-  response_time: 10000    # 10 seconds max for service responses
-  revenue_potential: 10000
+  success_rate: 85        # High success rate for HR tech platform
+  response_time: 12000    # 12 seconds max for resume processing operations
+  revenue_potential: 58000  # Total estimate from service.json
   business_criteria:
-    - "Core services operational"
-    - "Business workflow functional"
-    - "Integration points validated"
+    - "AI-powered resume parsing and analysis operational"
+    - "Intelligent candidate scoring system functional"
+    - "Vector-based job matching capabilities validated"
+    - "HR workflow automation features verified"
+    - "Talent acquisition pipeline optimization confirmed"

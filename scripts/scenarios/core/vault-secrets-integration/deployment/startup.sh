@@ -72,14 +72,14 @@ validate_resources() {
     for resource in $REQUIRED_RESOURCES; do
         case "$resource" in
             "ollama")
-                if ! curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then
+                if ! curl -sf "http://localhost:$(resources::get_default_port "ollama")/api/tags" >/dev/null 2>&1; then
                     failed_resources+=("ollama")
                 else
                     log_success "✓ Ollama is healthy"
                 fi
                 ;;
             "n8n")
-                if ! curl -sf http://localhost:5678/healthz >/dev/null 2>&1; then
+                if ! curl -sf "http://localhost:$(resources::get_default_port "n8n")/healthz" >/dev/null 2>&1; then
                     failed_resources+=("n8n")
                 else
                     log_success "✓ n8n is healthy"

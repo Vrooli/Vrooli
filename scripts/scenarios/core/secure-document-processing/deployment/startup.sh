@@ -128,10 +128,24 @@ validate_resources() {
                 fi
                 ;;
             "qdrant")
-                if ! curl -sf http://localhost:6333/ >/dev/null 2>&1; then
+                if ! curl -sf http://localhost:6333/health >/dev/null 2>&1; then
                     failed_resources+=("qdrant")
                 else
                     log_success "✓ Qdrant is healthy"
+                fi
+                ;;
+            "vault")
+                if ! curl -sf http://localhost:8200/v1/sys/health >/dev/null 2>&1; then
+                    failed_resources+=("vault")
+                else
+                    log_success "✓ Vault is healthy"
+                fi
+                ;;
+            "unstructured-io")
+                if ! curl -sf http://localhost:11450/general/v0/general >/dev/null 2>&1; then
+                    failed_resources+=("unstructured-io")
+                else
+                    log_success "✓ Unstructured-IO is healthy"
                 fi
                 ;;
             "questdb")
@@ -162,8 +176,8 @@ initialize_database() {
         log_info "Initializing database..."
         
         local db_name="${SCENARIO_ID//-/_}"
-        local schema_file="$SCENARIO_DIR/initialization/database/schema.sql"
-        local seed_file="$SCENARIO_DIR/initialization/database/seed.sql"
+        local schema_file="$SCENARIO_DIR/initialization/storage/postgres/schema.sql"
+        local seed_file="$SCENARIO_DIR/initialization/storage/postgres/seed.sql"
         
         # Create database if it doesn't exist
         if ! psql -h localhost -p 5433 -U postgres -lqt | cut -d \| -f 1 | grep -qw "$db_name"; then
@@ -205,7 +219,7 @@ deploy_workflows() {
     
     # Deploy n8n workflows
     if [[ "$REQUIRED_RESOURCES" =~ "n8n" ]]; then
-        local n8n_dir="$SCENARIO_DIR/initialization/workflows/n8n"
+        local n8n_dir="$SCENARIO_DIR/initialization/automation/n8n"
         if [[ -d "$n8n_dir" ]]; then
             log_info "Deploying n8n workflows..."
             for workflow_file in "$n8n_dir"/*.json; do
@@ -225,7 +239,7 @@ deploy_workflows() {
     
     # Deploy Windmill apps
     if [[ "$REQUIRED_RESOURCES" =~ "windmill" && "$REQUIRES_UI" == "true" ]]; then
-        local windmill_app="$SCENARIO_DIR/initialization/ui/windmill-app.json"
+        local windmill_app="$SCENARIO_DIR/initialization/automation/windmill/document-portal.json"
         if [[ -f "$windmill_app" ]]; then
             log_info "Deploying Windmill application..."
             # Note: In a real implementation, you'd use Windmill's API to deploy apps

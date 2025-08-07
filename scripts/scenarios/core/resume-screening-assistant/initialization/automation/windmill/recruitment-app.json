@@ -1,0 +1,780 @@
+{
+  "name": "Resume Screening Assistant",
+  "summary": "AI-powered recruitment dashboard with drag-and-drop resume upload and semantic search",
+  "version": "1.0.0",
+  "schema": {
+    "type": "object",
+    "properties": {},
+    "required": []
+  },
+  "value": {},
+  "app": {
+    "grid": [
+      {
+        "id": "header",
+        "data": {
+          "type": "appheadercomponent",
+          "configuration": {
+            "title": "Resume Screening Assistant",
+            "subtitle": "AI-Powered Recruitment Dashboard"
+          },
+          "customCss": {
+            "header": {
+              "style": "background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;"
+            }
+          }
+        },
+        "position": {
+          "x": 0,
+          "y": 0,
+          "w": 12,
+          "h": 2
+        }
+      },
+      {
+        "id": "search_bar",
+        "data": {
+          "type": "textinputcomponent",
+          "configuration": {
+            "placeholder": "Search candidates by skills, experience, or keywords...",
+            "defaultValue": "",
+            "label": "Semantic Search"
+          },
+          "customCss": {
+            "container": {
+              "style": "margin-bottom: 1rem;"
+            }
+          },
+          "recomputeIds": ["search_results"]
+        },
+        "position": {
+          "x": 0,
+          "y": 2,
+          "w": 10,
+          "h": 2
+        }
+      },
+      {
+        "id": "search_button",
+        "data": {
+          "type": "buttoncomponent",
+          "configuration": {
+            "label": "Search",
+            "color": "blue",
+            "size": "sm",
+            "fillContainer": false,
+            "disabled": false
+          },
+          "componentInput": {
+            "type": "runnable",
+            "runnable": {
+              "type": "runnableByName",
+              "name": "semantic_search"
+            }
+          },
+          "recomputeIds": ["search_results"]
+        },
+        "position": {
+          "x": 10,
+          "y": 2,
+          "w": 2,
+          "h": 2
+        }
+      },
+      {
+        "id": "job_tabs",
+        "data": {
+          "type": "tabscomponent",
+          "configuration": {
+            "tabsKind": "sidebar",
+            "containerHeight": 500,
+            "disabledTabs": []
+          },
+          "numberOfSubgrids": 6,
+          "subgrids": {
+            "0": {
+              "name": "All Jobs",
+              "grid": [
+                {
+                  "id": "jobs_list",
+                  "data": {
+                    "type": "aggridcomponent",
+                    "configuration": {
+                      "columnDefs": [
+                        {
+                          "headerName": "Job Title",
+                          "field": "job_title",
+                          "flex": 2,
+                          "sortable": true,
+                          "filter": true
+                        },
+                        {
+                          "headerName": "Company",
+                          "field": "company_name",
+                          "flex": 1,
+                          "sortable": true,
+                          "filter": true
+                        },
+                        {
+                          "headerName": "Location",
+                          "field": "location",
+                          "flex": 1,
+                          "sortable": true,
+                          "filter": true
+                        },
+                        {
+                          "headerName": "Experience",
+                          "field": "experience_required",
+                          "flex": 1,
+                          "sortable": true,
+                          "filter": true
+                        },
+                        {
+                          "headerName": "Candidates",
+                          "field": "candidate_count",
+                          "flex": 1,
+                          "sortable": true
+                        },
+                        {
+                          "headerName": "Actions",
+                          "field": "actions",
+                          "flex": 1,
+                          "cellRenderer": "buttonRenderer",
+                          "cellRendererParams": {
+                            "label": "View",
+                            "color": "blue"
+                          }
+                        }
+                      ],
+                      "allColumnsResizable": true,
+                      "enableRangeSelection": false,
+                      "pagination": true,
+                      "paginationPageSize": 10
+                    },
+                    "componentInput": {
+                      "type": "runnable",
+                      "runnable": {
+                        "type": "runnableByName",
+                        "name": "get_all_jobs"
+                      }
+                    }
+                  },
+                  "position": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 12,
+                    "h": 8
+                  }
+                }
+              ]
+            },
+            "1": {
+              "name": "Software Engineer",
+              "grid": [
+                {
+                  "id": "job_details_1",
+                  "data": {
+                    "type": "containercomponent",
+                    "configuration": {
+                      "title": "Senior Software Engineer"
+                    },
+                    "numberOfSubgrids": 1,
+                    "subgrids": {
+                      "0": [
+                        {
+                          "id": "upload_zone_1",
+                          "data": {
+                            "type": "fileinputcomponent",
+                            "configuration": {
+                              "label": "Drop Resume Here",
+                              "placeholder": "Drag and drop resume files (PDF, DOCX, TXT)",
+                              "acceptedFileTypes": ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"],
+                              "multiple": false,
+                              "disabled": false
+                            },
+                            "customCss": {
+                              "container": {
+                                "style": "border: 2px dashed #667eea; border-radius: 8px; padding: 2rem; text-align: center; background: #f8fafc; margin-bottom: 1rem;"
+                              }
+                            },
+                            "recomputeIds": ["candidates_1"]
+                          },
+                          "position": {
+                            "x": 0,
+                            "y": 0,
+                            "w": 12,
+                            "h": 4
+                          }
+                        },
+                        {
+                          "id": "candidates_1",
+                          "data": {
+                            "type": "aggridcomponent",
+                            "configuration": {
+                              "columnDefs": [
+                                {
+                                  "headerName": "Candidate",
+                                  "field": "candidate_name",
+                                  "flex": 2,
+                                  "sortable": true,
+                                  "filter": true
+                                },
+                                {
+                                  "headerName": "Score",
+                                  "field": "score",
+                                  "flex": 1,
+                                  "sortable": true,
+                                  "cellRenderer": "progressRenderer"
+                                },
+                                {
+                                  "headerName": "Experience",
+                                  "field": "experience_years",
+                                  "flex": 1,
+                                  "sortable": true
+                                },
+                                {
+                                  "headerName": "Skills",
+                                  "field": "parsed_skills",
+                                  "flex": 3,
+                                  "cellRenderer": "tagRenderer"
+                                },
+                                {
+                                  "headerName": "Status",
+                                  "field": "status",
+                                  "flex": 1,
+                                  "cellRenderer": "statusRenderer"
+                                }
+                              ],
+                              "allColumnsResizable": true,
+                              "enableRangeSelection": false,
+                              "pagination": true,
+                              "paginationPageSize": 10,
+                              "defaultColDef": {
+                                "sortable": true,
+                                "filter": true
+                              }
+                            },
+                            "componentInput": {
+                              "type": "runnable",
+                              "runnable": {
+                                "type": "runnableByName",
+                                "name": "get_job_candidates",
+                                "args": {
+                                  "job_id": 1
+                                }
+                              }
+                            }
+                          },
+                          "position": {
+                            "x": 0,
+                            "y": 4,
+                            "w": 12,
+                            "h": 8
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "position": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 12,
+                    "h": 12
+                  }
+                }
+              ]
+            },
+            "2": {
+              "name": "Data Scientist",
+              "grid": [
+                {
+                  "id": "upload_zone_2",
+                  "data": {
+                    "type": "fileinputcomponent",
+                    "configuration": {
+                      "label": "Drop Resume Here",
+                      "placeholder": "Drag and drop resume files (PDF, DOCX, TXT)",
+                      "acceptedFileTypes": ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"],
+                      "multiple": false,
+                      "disabled": false
+                    },
+                    "customCss": {
+                      "container": {
+                        "style": "border: 2px dashed #10b981; border-radius: 8px; padding: 2rem; text-align: center; background: #f0fdf4; margin-bottom: 1rem;"
+                      }
+                    },
+                    "recomputeIds": ["candidates_2"]
+                  },
+                  "position": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 12,
+                    "h": 4
+                  }
+                },
+                {
+                  "id": "candidates_2",
+                  "data": {
+                    "type": "aggridcomponent",
+                    "configuration": {
+                      "columnDefs": [
+                        {
+                          "headerName": "Candidate",
+                          "field": "candidate_name",
+                          "flex": 2,
+                          "sortable": true,
+                          "filter": true
+                        },
+                        {
+                          "headerName": "Score",
+                          "field": "score",
+                          "flex": 1,
+                          "sortable": true,
+                          "cellRenderer": "progressRenderer"
+                        },
+                        {
+                          "headerName": "Experience",
+                          "field": "experience_years",
+                          "flex": 1,
+                          "sortable": true
+                        },
+                        {
+                          "headerName": "Skills",
+                          "field": "parsed_skills",
+                          "flex": 3,
+                          "cellRenderer": "tagRenderer"
+                        },
+                        {
+                          "headerName": "Status",
+                          "field": "status",
+                          "flex": 1,
+                          "cellRenderer": "statusRenderer"
+                        }
+                      ],
+                      "allColumnsResizable": true,
+                      "enableRangeSelection": false,
+                      "pagination": true,
+                      "paginationPageSize": 10
+                    },
+                    "componentInput": {
+                      "type": "runnable",
+                      "runnable": {
+                        "type": "runnableByName",
+                        "name": "get_job_candidates",
+                        "args": {
+                          "job_id": 2
+                        }
+                      }
+                    }
+                  },
+                  "position": {
+                    "x": 0,
+                    "y": 4,
+                    "w": 12,
+                    "h": 8
+                  }
+                }
+              ]
+            },
+            "3": {
+              "name": "Product Manager",
+              "grid": [
+                {
+                  "id": "upload_zone_3",
+                  "data": {
+                    "type": "fileinputcomponent",
+                    "configuration": {
+                      "label": "Drop Resume Here",
+                      "placeholder": "Drag and drop resume files (PDF, DOCX, TXT)",
+                      "acceptedFileTypes": ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"],
+                      "multiple": false,
+                      "disabled": false
+                    },
+                    "customCss": {
+                      "container": {
+                        "style": "border: 2px dashed #f59e0b; border-radius: 8px; padding: 2rem; text-align: center; background: #fffbeb; margin-bottom: 1rem;"
+                      }
+                    },
+                    "recomputeIds": ["candidates_3"]
+                  },
+                  "position": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 12,
+                    "h": 4
+                  }
+                },
+                {
+                  "id": "candidates_3",
+                  "data": {
+                    "type": "aggridcomponent",
+                    "configuration": {
+                      "columnDefs": [
+                        {
+                          "headerName": "Candidate",
+                          "field": "candidate_name",
+                          "flex": 2,
+                          "sortable": true,
+                          "filter": true
+                        },
+                        {
+                          "headerName": "Score",
+                          "field": "score",
+                          "flex": 1,
+                          "sortable": true,
+                          "cellRenderer": "progressRenderer"
+                        },
+                        {
+                          "headerName": "Experience",
+                          "field": "experience_years",
+                          "flex": 1,
+                          "sortable": true
+                        },
+                        {
+                          "headerName": "Skills",
+                          "field": "parsed_skills",
+                          "flex": 3,
+                          "cellRenderer": "tagRenderer"
+                        },
+                        {
+                          "headerName": "Status",
+                          "field": "status",
+                          "flex": 1,
+                          "cellRenderer": "statusRenderer"
+                        }
+                      ],
+                      "allColumnsResizable": true,
+                      "enableRangeSelection": false,
+                      "pagination": true,
+                      "paginationPageSize": 10
+                    },
+                    "componentInput": {
+                      "type": "runnable",
+                      "runnable": {
+                        "type": "runnableByName",
+                        "name": "get_job_candidates",
+                        "args": {
+                          "job_id": 3
+                        }
+                      }
+                    }
+                  },
+                  "position": {
+                    "x": 0,
+                    "y": 4,
+                    "w": 12,
+                    "h": 8
+                  }
+                }
+              ]
+            },
+            "4": {
+              "name": "Search Results",
+              "grid": [
+                {
+                  "id": "search_results",
+                  "data": {
+                    "type": "aggridcomponent",
+                    "configuration": {
+                      "columnDefs": [
+                        {
+                          "headerName": "Type",
+                          "field": "type",
+                          "flex": 1,
+                          "sortable": true,
+                          "filter": true,
+                          "cellRenderer": "typeRenderer"
+                        },
+                        {
+                          "headerName": "Name",
+                          "field": "name",
+                          "flex": 2,
+                          "sortable": true,
+                          "filter": true
+                        },
+                        {
+                          "headerName": "Match Score",
+                          "field": "score",
+                          "flex": 1,
+                          "sortable": true,
+                          "cellRenderer": "progressRenderer"
+                        },
+                        {
+                          "headerName": "Details",
+                          "field": "details",
+                          "flex": 3,
+                          "cellRenderer": "detailsRenderer"
+                        },
+                        {
+                          "headerName": "Actions",
+                          "field": "actions",
+                          "flex": 1,
+                          "cellRenderer": "buttonRenderer"
+                        }
+                      ],
+                      "allColumnsResizable": true,
+                      "enableRangeSelection": false,
+                      "pagination": true,
+                      "paginationPageSize": 15,
+                      "defaultColDef": {
+                        "sortable": true,
+                        "filter": true
+                      }
+                    },
+                    "componentInput": {
+                      "type": "runnable",
+                      "runnable": {
+                        "type": "runnableByName",
+                        "name": "semantic_search",
+                        "args": {
+                          "query": {
+                            "type": "eval",
+                            "expr": "search_bar.result"
+                          },
+                          "type": "both",
+                          "limit": 20,
+                          "threshold": 0.6
+                        }
+                      }
+                    }
+                  },
+                  "position": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 12,
+                    "h": 12
+                  }
+                }
+              ]
+            },
+            "5": {
+              "name": "Add Job",
+              "grid": [
+                {
+                  "id": "job_form",
+                  "data": {
+                    "type": "formcomponent",
+                    "configuration": {
+                      "displayType": "card",
+                      "title": "Create New Job Posting"
+                    },
+                    "numberOfSubgrids": 1,
+                    "subgrids": {
+                      "0": [
+                        {
+                          "id": "job_title_input",
+                          "data": {
+                            "type": "textinputcomponent",
+                            "configuration": {
+                              "label": "Job Title",
+                              "placeholder": "e.g., Senior Software Engineer",
+                              "required": true
+                            }
+                          },
+                          "position": {
+                            "x": 0,
+                            "y": 0,
+                            "w": 6,
+                            "h": 2
+                          }
+                        },
+                        {
+                          "id": "company_input",
+                          "data": {
+                            "type": "textinputcomponent",
+                            "configuration": {
+                              "label": "Company Name",
+                              "placeholder": "e.g., Tech Innovations Inc",
+                              "required": true
+                            }
+                          },
+                          "position": {
+                            "x": 6,
+                            "y": 0,
+                            "w": 6,
+                            "h": 2
+                          }
+                        },
+                        {
+                          "id": "location_input",
+                          "data": {
+                            "type": "textinputcomponent",
+                            "configuration": {
+                              "label": "Location",
+                              "placeholder": "e.g., San Francisco, CA"
+                            }
+                          },
+                          "position": {
+                            "x": 0,
+                            "y": 2,
+                            "w": 6,
+                            "h": 2
+                          }
+                        },
+                        {
+                          "id": "experience_input",
+                          "data": {
+                            "type": "numberinputcomponent",
+                            "configuration": {
+                              "label": "Years of Experience Required",
+                              "placeholder": "e.g., 5",
+                              "min": 0,
+                              "max": 20,
+                              "defaultValue": 0
+                            }
+                          },
+                          "position": {
+                            "x": 6,
+                            "y": 2,
+                            "w": 6,
+                            "h": 2
+                          }
+                        },
+                        {
+                          "id": "description_input",
+                          "data": {
+                            "type": "textareainputcomponent",
+                            "configuration": {
+                              "label": "Job Description",
+                              "placeholder": "Detailed job description, responsibilities, and requirements...",
+                              "required": true
+                            }
+                          },
+                          "position": {
+                            "x": 0,
+                            "y": 4,
+                            "w": 12,
+                            "h": 4
+                          }
+                        },
+                        {
+                          "id": "required_skills_input",
+                          "data": {
+                            "type": "textareainputcomponent",
+                            "configuration": {
+                              "label": "Required Skills (comma-separated)",
+                              "placeholder": "JavaScript, React, Node.js, PostgreSQL"
+                            }
+                          },
+                          "position": {
+                            "x": 0,
+                            "y": 8,
+                            "w": 6,
+                            "h": 3
+                          }
+                        },
+                        {
+                          "id": "preferred_skills_input",
+                          "data": {
+                            "type": "textareainputcomponent",
+                            "configuration": {
+                              "label": "Preferred Skills (comma-separated)",
+                              "placeholder": "TypeScript, Docker, AWS"
+                            }
+                          },
+                          "position": {
+                            "x": 6,
+                            "y": 8,
+                            "w": 6,
+                            "h": 3
+                          }
+                        },
+                        {
+                          "id": "salary_input",
+                          "data": {
+                            "type": "textinputcomponent",
+                            "configuration": {
+                              "label": "Salary Range",
+                              "placeholder": "$120,000 - $160,000"
+                            }
+                          },
+                          "position": {
+                            "x": 0,
+                            "y": 11,
+                            "w": 8,
+                            "h": 2
+                          }
+                        },
+                        {
+                          "id": "create_job_button",
+                          "data": {
+                            "type": "buttoncomponent",
+                            "configuration": {
+                              "label": "Create Job",
+                              "color": "green",
+                              "size": "lg",
+                              "fillContainer": false
+                            },
+                            "componentInput": {
+                              "type": "runnable",
+                              "runnable": {
+                                "type": "runnableByName",
+                                "name": "create_job"
+                              }
+                            },
+                            "recomputeIds": ["jobs_list"]
+                          },
+                          "position": {
+                            "x": 8,
+                            "y": 11,
+                            "w": 4,
+                            "h": 2
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "position": {
+                    "x": 0,
+                    "y": 0,
+                    "w": 12,
+                    "h": 13
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "position": {
+          "x": 0,
+          "y": 4,
+          "w": 12,
+          "h": 16
+        }
+      }
+    ]
+  },
+  "hiddenInlineScripts": [
+    {
+      "name": "get_all_jobs",
+      "content": "import requests\n\ndef main():\n    try:\n        response = requests.get('http://localhost:5678/webhook/jobs')\n        response.raise_for_status()\n        data = response.json()\n        \n        if data.get('success'):\n            return data.get('jobs', [])\n        else:\n            return []\n    except Exception as e:\n        print(f\"Error fetching jobs: {e}\")\n        return []",
+      "language": "python3",
+      "description": "Fetch all active job postings"
+    },
+    {
+      "name": "get_job_candidates",
+      "content": "import requests\n\ndef main(job_id: int):\n    try:\n        # Get candidates for specific job from database\n        response = requests.get(f'http://localhost:5433/candidates?job_id={job_id}')\n        response.raise_for_status()\n        \n        candidates = response.json()\n        \n        # Format candidates for display\n        formatted = []\n        for candidate in candidates:\n            skills = candidate.get('parsed_skills', [])\n            if isinstance(skills, str):\n                import json\n                try:\n                    skills = json.loads(skills)\n                except:\n                    skills = skills.split(',') if skills else []\n            \n            formatted.append({\n                'id': candidate.get('id'),\n                'candidate_name': candidate.get('candidate_name', 'Unknown'),\n                'score': candidate.get('score', 0),\n                'experience_years': candidate.get('experience_years', 0),\n                'parsed_skills': ', '.join(skills[:5]) if skills else 'None listed',\n                'status': candidate.get('status', 'pending'),\n                'email': candidate.get('email', '')\n            })\n        \n        return sorted(formatted, key=lambda x: x['score'], reverse=True)\n    except Exception as e:\n        print(f\"Error fetching candidates: {e}\")\n        return []",
+      "language": "python3",
+      "description": "Get candidates for a specific job"
+    },
+    {
+      "name": "semantic_search",
+      "content": "import requests\n\ndef main(query: str, type: str = \"both\", limit: int = 20, threshold: float = 0.6):\n    try:\n        if not query or len(query.strip()) < 2:\n            return {'results': [], 'message': 'Query too short'}\n        \n        params = {\n            'query': query.strip(),\n            'type': type,\n            'limit': min(limit, 50),\n            'threshold': threshold\n        }\n        \n        response = requests.get('http://localhost:5678/webhook/search', params=params)\n        response.raise_for_status()\n        data = response.json()\n        \n        if data.get('success'):\n            search_data = data.get('data', {})\n            results = search_data.get('results', [])\n            \n            # Format results for display\n            formatted = []\n            for result in results:\n                if result['type'] == 'candidate':\n                    formatted.append({\n                        'type': 'Candidate',\n                        'name': result.get('candidate_name', 'Unknown'),\n                        'score': result.get('score', 0),\n                        'details': f\"{result.get('experience_years', 0)} years exp. | {', '.join(result.get('skills', [])[:3])}\",\n                        'actions': 'View Profile'\n                    })\n                elif result['type'] == 'job':\n                    formatted.append({\n                        'type': 'Job',\n                        'name': f\"{result.get('job_title', 'Unknown')} at {result.get('company_name', 'Unknown')}\",\n                        'score': result.get('score', 0),\n                        'details': f\"{result.get('experience_required', 0)} years req. | {result.get('location', 'Remote')}\",\n                        'actions': 'View Job'\n                    })\n            \n            return formatted\n        else:\n            return []\n    except Exception as e:\n        print(f\"Error in semantic search: {e}\")\n        return []",
+      "language": "python3",
+      "description": "Perform semantic search across candidates and jobs"
+    },
+    {
+      "name": "create_job",
+      "content": "import requests\n\ndef main(\n    job_title: str,\n    company_name: str,\n    description: str,\n    location: str = \"Remote\",\n    experience_required: int = 0,\n    required_skills: str = \"\",\n    preferred_skills: str = \"\",\n    salary_range: str = \"Competitive\"\n):\n    try:\n        # Prepare job data\n        job_data = {\n            'job_title': job_title.strip(),\n            'company_name': company_name.strip(),\n            'description': description.strip(),\n            'location': location.strip() or 'Remote',\n            'experience_required': max(0, int(experience_required or 0)),\n            'required_skills': [s.strip() for s in required_skills.split(',') if s.strip()],\n            'preferred_skills': [s.strip() for s in preferred_skills.split(',') if s.strip()],\n            'salary_range': salary_range.strip() or 'Competitive'\n        }\n        \n        # Create job via API\n        response = requests.post('http://localhost:5678/webhook/jobs', json=job_data)\n        response.raise_for_status()\n        \n        result = response.json()\n        if result.get('success'):\n            return {\n                'success': True,\n                'message': f\"Job '{job_title}' created successfully!\",\n                'job_id': result.get('job_id')\n            }\n        else:\n            return {\n                'success': False,\n                'message': f\"Failed to create job: {result.get('error', 'Unknown error')}\"\n            }\n    except Exception as e:\n        return {\n            'success': False,\n            'message': f\"Error creating job: {str(e)}\"\n        }",
+      "language": "python3",
+      "description": "Create a new job posting"
+    },
+    {
+      "name": "upload_resume",
+      "content": "import requests\nimport base64\n\ndef main(file_data: str, filename: str, job_id: int):\n    try:\n        if not file_data or not filename or not job_id:\n            return {\n                'success': False,\n                'message': 'Missing required parameters'\n            }\n        \n        # Decode base64 file data\n        file_content = base64.b64decode(file_data)\n        \n        # Prepare file for upload\n        files = {'file': (filename, file_content)}\n        data = {'job_id': job_id, 'filename': filename}\n        \n        # Upload to resume processing pipeline\n        response = requests.post(\n            'http://localhost:5678/webhook/resume-upload',\n            files=files,\n            data=data\n        )\n        response.raise_for_status()\n        \n        result = response.json()\n        if result.get('success'):\n            return {\n                'success': True,\n                'message': f\"Resume processed successfully! Candidate: {result.get('candidate_name', 'Unknown')}, Score: {result.get('score', 0)}\",\n                'candidate_data': result\n            }\n        else:\n            return {\n                'success': False,\n                'message': f\"Failed to process resume: {result.get('error', 'Unknown error')}\"\n            }\n    except Exception as e:\n        return {\n            'success': False,\n            'message': f\"Error uploading resume: {str(e)}\"\n        }",
+      "language": "python3",
+      "description": "Upload and process resume file"
+    }
+  ],
+  "theme": "light"
+}

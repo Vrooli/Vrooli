@@ -14,7 +14,7 @@ Transform the generic analytics-dashboard scenario into a **Resource Monitoring 
 
 ### Resources Used
 - **PostgreSQL**: Resource configurations, alert rules, discovered services
-- **QuestDB**: Time-series monitoring events and metrics
+- **QuestDB**: Comprehensive time-series storage with resource metrics, alert events, performance data, API metrics, and aggregated analytics
 - **n8n**: Monitoring workflows and alert notifications
 - **Node-RED**: Real-time metric collection and streaming
 - **Windmill**: Interactive UI for monitoring and management
@@ -31,7 +31,8 @@ Transform the generic analytics-dashboard scenario into a **Resource Monitoring 
 
 2. **Continuous Monitoring Loop**
    - Node-RED polls resources every 30 seconds
-   - Writes metrics to QuestDB
+   - Writes comprehensive metrics to QuestDB (availability, response times, performance data)
+   - Stores aggregated analytics (5min, hourly, daily summaries)
    - Publishes status to Redis
    - Triggers n8n for threshold violations
 
@@ -121,7 +122,7 @@ analytics-dashboard/
 - Monitors resource health every 30 seconds
 - Sends throttled SMS alerts for critical issues
 - Provides one-click restart/stop capabilities
-- Stores 30 days of metrics in QuestDB
+- Stores configurable retention of metrics in QuestDB (default 30 days)
 - Configurable alert rules via UI
 - Complete documentation accessible in-app
 
@@ -136,5 +137,5 @@ analytics-dashboard/
 - Sub-second dashboard updates
 - <100ms health check response
 - Support for 50+ monitored resources
-- 30-day metric retention
+- Configurable metric retention with multi-level aggregation (5min/hourly/daily)
 - 99.9% monitoring uptime

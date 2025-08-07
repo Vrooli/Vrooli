@@ -455,7 +455,7 @@ LEFT JOIN alert_history ah ON ar.id = ah.alert_rule_id
 GROUP BY ar.id;
 
 -- Grant permissions (adjust as needed)
-GRANT ALL ON SCHEMA resource_monitoring TO vrooli_app;
-GRANT ALL ON ALL TABLES IN SCHEMA resource_monitoring TO vrooli_app;
-GRANT ALL ON ALL SEQUENCES IN SCHEMA resource_monitoring TO vrooli_app;
-GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA resource_monitoring TO vrooli_app;
+GRANT ALL ON SCHEMA resource_monitoring TO vrooli;
+GRANT ALL ON ALL TABLES IN SCHEMA resource_monitoring TO vrooli;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA resource_monitoring TO vrooli;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA resource_monitoring TO vrooli;

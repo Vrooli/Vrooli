@@ -1,0 +1,523 @@
+{
+  "name": "Scenario Generator V1 - Planning Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "scenario-generator-v1/planning",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "planning-webhook",
+      "name": "Planning Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "webhookId": "planning-webhook"
+    },
+
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Initialize planning phase\nconst scenarioData = JSON.parse($input.item.json.scenarioData);\n\n// Validate scenario data\nif (!scenarioData.scenarioId) {\n  throw new Error('Missing scenarioId in planning data');\n}\n\nconst planningState = {\n  ...scenarioData,\n  planningPhase: 'initial',\n  currentIteration: 1,\n  maxIterations: scenarioData.planningIterations || 3,\n  plans: [],\n  issues: [],\n  startTime: Date.now()\n};\n\nconsole.log(`Starting planning for scenario ${scenarioData.scenarioId}`);\nconsole.log(`Planning iterations configured: ${planningState.maxIterations}`);\n\nreturn planningState;"
+      },
+      "id": "initialize-planning",
+      "name": "Initialize Planning",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 300]
+    },
+
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE scenarios SET status = 'planning', current_phase = 'planning', progress_percent = 10, started_at = NOW() WHERE scenario_id = $1",
+        "additionalFields": {
+          "mode": "independently",
+          "valuesUi": {
+            "values": [
+              {
+                "column": "$1",
+                "value": "={{ $json.scenarioId }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "update-planning-status",
+      "name": "Update Planning Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [600, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-scenario-generator",
+          "name": "PostgreSQL - Scenario Generator"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare prompt for initial planning\nconst state = $input.item.json;\n\n// Read initial planning prompt template (simplified for n8n)\nconst promptTemplate = `# Vrooli Scenario Initial Planning Prompt\n\n## System Context\nYou are Claude Code, an expert Vrooli scenario architect. Your task is to analyze customer requirements and create a comprehensive implementation plan.\n\n## Available Resources\n- ollama (11434): Local LLMs - text generation, code analysis\n- whisper (8090): Speech-to-text, audio transcription  \n- unstructured-io (11450): Document processing, PDF extraction\n- comfyui (8188): AI image/video generation\n- n8n (5678): Visual workflow builder\n- windmill (5681): Code-first automation platform\n- node-red (1880): Real-time data flows\n- huginn (4111): Web monitoring and intelligent agents\n- agent-s2 (4113): Desktop automation\n- browserless (4110): Headless browser automation\n- postgres (5433): Relational database\n- minio (9000): S3-compatible object storage\n- qdrant (6333): Vector database\n- redis (6380): In-memory cache\n- questdb (9010): Time-series database\n- vault (8200): Secrets management\n- searxng (9200): Privacy-respecting search\n\n## Customer Request\n{{USER_REQUEST}}\n\n## Scenario Configuration\n- Scenario ID: {{SCENARIO_ID}}\n- Complexity Target: {{COMPLEXITY}}\n- Category: {{CATEGORY}}\n- Planning Iterations: {{PLANNING_ITERATIONS}}\n\n## Required Output\nReturn a JSON response with detailed analysis including:\n- scenarioAnalysis: Basic scenario info and complexity assessment\n- requirementsAnalysis: Core functionality, user interactions, data processing\n- architectureDesign: Resource selection, component architecture, data flow\n- resourceJustification: Detailed explanation for each resource choice\n- implementationStrategy: Database schema, workflow design, UI architecture\n- businessModel: Value proposition, target market, revenue estimation\n- riskAssessment: Technical, business, and implementation risks\n- successMetrics: Functional requirements and performance benchmarks\n\nFocus on creating a thorough, implementable plan.`;\n\n// Substitute variables in prompt\nconst prompt = promptTemplate\n  .replace('{{USER_REQUEST}}', state.userRequest)\n  .replace('{{SCENARIO_ID}}', state.scenarioId)\n  .replace('{{COMPLEXITY}}', state.complexity)\n  .replace('{{CATEGORY}}', state.category)\n  .replace('{{PLANNING_ITERATIONS}}', state.maxIterations);\n\nconst claudeRequest = {\n  scenarioId: state.scenarioId,\n  iteration: state.currentIteration,\n  phase: 'planning',\n  prompt: prompt,\n  maxTokens: 8000,\n  temperature: 0.7\n};\n\nconsole.log(`Prepared Claude request for scenario ${state.scenarioId}, iteration ${state.currentIteration}`);\nreturn { ...state, claudeRequest };"
+      },
+      "id": "prepare-claude-prompt",
+      "name": "Prepare Claude Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 300]
+    },
+
+    {
+      "parameters": {
+        "command": "/bin/bash",
+        "parameters": "-c \"cd ${VROOLI_ROOT:-/home/matthalloran8/Vrooli} && echo '{{ $json.claudeRequest.prompt }}' | claude --model claude-3-sonnet-20241022 --max-tokens {{ $json.claudeRequest.maxTokens }} --temperature {{ $json.claudeRequest.temperature }}\"",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "call-claude-planning",
+      "name": "Call Claude for Planning",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1000, 300]
+    },
+
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process Claude response\nconst state = $('prepare-claude-prompt').item.json;\nconst claudeOutput = $input.item.json;\n\nif (claudeOutput.exitCode !== 0) {\n  console.error('Claude command failed:', claudeOutput.stderr);\n  throw new Error(`Claude planning failed: ${claudeOutput.stderr}`);\n}\n\nlet planData;\ntry {\n  // Try to parse Claude response as JSON\n  const responseText = claudeOutput.stdout.trim();\n  // Look for JSON block in response\n  const jsonMatch = responseText.match(/```json\\s*([\\s\\S]*?)\\s*```/) || [null, responseText];\n  planData = JSON.parse(jsonMatch[1]);\n} catch (error) {\n  console.error('Failed to parse Claude response:', error);\n  throw new Error(`Invalid JSON response from Claude: ${error.message}`);\n}\n\n// Validate required fields in plan\nconst requiredFields = ['scenarioAnalysis', 'requirementsAnalysis', 'architectureDesign', 'businessModel'];\nfor (const field of requiredFields) {\n  if (!planData[field]) {\n    throw new Error(`Missing required field in plan: ${field}`);\n  }\n}\n\n// Create plan record\nconst plan = {\n  iteration: state.currentIteration,\n  phase: state.planningPhase,\n  data: planData,\n  generatedAt: new Date().toISOString(),\n  tokens: responseText.length, // Approximate\n  quality: 'pending' // Will be assessed in next iteration\n};\n\n// Update state\nconst updatedState = {\n  ...state,\n  plans: [...state.plans, plan],\n  currentPlan: plan,\n  lastPlanData: planData\n};\n\nconsole.log(`Plan generated for ${state.scenarioId}, iteration ${state.currentIteration}`);\nreturn updatedState;"
+      },
+      "id": "process-claude-response",
+      "name": "Process Claude Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 300]
+    },
+
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO claude_interactions (scenario_id, phase, iteration_number, interaction_type, prompt_template, prompt_content, response_content, started_at, completed_at, duration_ms, success, input_tokens, output_tokens, estimated_cost_usd, claude_model, temperature) VALUES ((SELECT id FROM scenarios WHERE scenario_id = $1), $2, $3, $4, $5, $6, $7, $8, NOW(), $9, $10, $11, $12, $13, $14, $15)",
+        "additionalFields": {
+          "mode": "independently",
+          "valuesUi": {
+            "values": [
+              {
+                "column": "$1",
+                "value": "={{ $json.scenarioId }}"
+              },
+              {
+                "column": "$2",
+                "value": "planning"
+              },
+              {
+                "column": "$3",
+                "value": "={{ $json.currentIteration }}"
+              },
+              {
+                "column": "$4",
+                "value": "response"
+              },
+              {
+                "column": "$5",
+                "value": "initial-planning-prompt"
+              },
+              {
+                "column": "$6",
+                "value": "={{ $json.claudeRequest.prompt.substring(0, 1000) }}"
+              },
+              {
+                "column": "$7",
+                "value": "={{ JSON.stringify($json.lastPlanData).substring(0, 2000) }}"
+              },
+              {
+                "column": "$8",
+                "value": "={{ $json.startTime }}"
+              },
+              {
+                "column": "$9",
+                "value": "={{ Date.now() - $json.startTime }}"
+              },
+              {
+                "column": "$10",
+                "value": "true"
+              },
+              {
+                "column": "$11",
+                "value": "={{ $json.claudeRequest.prompt.length / 4 }}"
+              },
+              {
+                "column": "$12",
+                "value": "={{ JSON.stringify($json.lastPlanData).length / 4 }}"
+              },
+              {
+                "column": "$13",
+                "value": "0.05"
+              },
+              {
+                "column": "$14",
+                "value": "claude-3-sonnet"
+              },
+              {
+                "column": "$15",
+                "value": "={{ $json.claudeRequest.temperature }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "log-claude-interaction",
+      "name": "Log Claude Interaction",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1400, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-scenario-generator",
+          "name": "PostgreSQL - Scenario Generator"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.currentIteration }}",
+              "value2": "={{ $json.maxIterations }}",
+              "operation": "smaller"
+            }
+          ]
+        }
+      },
+      "id": "check-more-iterations",
+      "name": "More Iterations?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1600, 300]
+    },
+
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Prepare refinement iteration\nconst state = $input.item.json;\n\n// Create refinement prompt\nconst previousPlan = JSON.stringify(state.lastPlanData, null, 2);\nconst previousIssues = state.issues.map(issue => issue.description).join('\\n- ');\n\nconst refinementPrompt = `# Vrooli Scenario Plan Refinement Prompt\n\n## System Context\nYou are Claude Code in the PLAN REFINEMENT phase. Analyze and improve the existing scenario implementation plan.\n\n## Previous Plan\n${previousPlan}\n\n## Iteration Context\nThis is refinement iteration #${state.currentIteration + 1} of ${state.maxIterations}\n\n## Previous Issues\n${previousIssues || 'None identified yet'}\n\n## Your Task\nCritically analyze the plan and produce an improved version that addresses:\n- Architecture optimization\n- Implementation feasibility  \n- Business model validation\n- Risk mitigation enhancement\n- User experience improvements\n\n## Required Output Format\nReturn JSON with:\n- refinementSummary: Changes made and reasoning\n- improvedPlan: Complete enhanced implementation plan\n- changeLog: Specific modifications\n- qualityAssessment: Strengths and remaining weaknesses\n\nFocus on meaningful improvements that increase success probability.`;\n\nconst refinedState = {\n  ...state,\n  currentIteration: state.currentIteration + 1,\n  planningPhase: 'refinement',\n  claudeRequest: {\n    scenarioId: state.scenarioId,\n    iteration: state.currentIteration + 1,\n    phase: 'refinement',\n    prompt: refinementPrompt,\n    maxTokens: 8000,\n    temperature: 0.7\n  }\n};\n\nconsole.log(`Prepared refinement iteration ${refinedState.currentIteration} for ${state.scenarioId}`);\nreturn refinedState;"
+      },
+      "id": "prepare-refinement",
+      "name": "Prepare Refinement",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 180]
+    },
+
+    {
+      "parameters": {
+        "command": "/bin/bash",
+        "parameters": "-c \"cd ${VROOLI_ROOT:-/home/matthalloran8/Vrooli} && echo '{{ $json.claudeRequest.prompt }}' | claude --model claude-3-sonnet-20241022 --max-tokens {{ $json.claudeRequest.maxTokens }} --temperature {{ $json.claudeRequest.temperature }}\"",
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "call-claude-refinement",
+      "name": "Call Claude for Refinement",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1200, 180]
+    },
+
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process refinement response\nconst state = $('prepare-refinement').item.json;\nconst claudeOutput = $input.item.json;\n\nif (claudeOutput.exitCode !== 0) {\n  console.error('Claude refinement failed:', claudeOutput.stderr);\n  throw new Error(`Claude refinement failed: ${claudeOutput.stderr}`);\n}\n\nlet refinementData;\ntry {\n  const responseText = claudeOutput.stdout.trim();\n  const jsonMatch = responseText.match(/```json\\s*([\\s\\S]*?)\\s*```/) || [null, responseText];\n  refinementData = JSON.parse(jsonMatch[1]);\n} catch (error) {\n  console.error('Failed to parse refinement response:', error);\n  throw new Error(`Invalid JSON response from Claude refinement: ${error.message}`);\n}\n\n// Extract improved plan from refinement\nconst improvedPlan = refinementData.improvedPlan || refinementData;\n\n// Create refined plan record\nconst plan = {\n  iteration: state.currentIteration,\n  phase: 'refinement',\n  data: improvedPlan,\n  refinementSummary: refinementData.refinementSummary,\n  changes: refinementData.changeLog,\n  generatedAt: new Date().toISOString(),\n  tokens: responseText.length\n};\n\n// Update state with refined plan\nconst updatedState = {\n  ...state,\n  plans: [...state.plans, plan],\n  currentPlan: plan,\n  lastPlanData: improvedPlan\n};\n\nconsole.log(`Refinement completed for ${state.scenarioId}, iteration ${state.currentIteration}`);\nreturn updatedState;"
+      },
+      "id": "process-refinement-response",
+      "name": "Process Refinement",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1000, 180]
+    },
+
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Finalize planning phase\nconst state = $input.item.json;\n\n// Store final plan in MinIO\nconst finalPlan = {\n  scenarioId: state.scenarioId,\n  planningCompleted: new Date().toISOString(),\n  totalIterations: state.plans.length,\n  finalPlan: state.lastPlanData,\n  allIterations: state.plans,\n  planningDuration: Date.now() - state.startTime\n};\n\nconst minioPath = `scenarios/${state.scenarioId}/plans/final-plan.json`;\n\nconst completedState = {\n  ...state,\n  status: 'planning_completed',\n  finalPlan: finalPlan,\n  minioPath: minioPath,\n  nextPhase: 'implementation'\n};\n\nconsole.log(`Planning completed for ${state.scenarioId}`);\nconsole.log(`Total iterations: ${state.plans.length}`);\nconsole.log(`Planning duration: ${(Date.now() - state.startTime) / 1000} seconds`);\n\nreturn completedState;"
+      },
+      "id": "finalize-planning",
+      "name": "Finalize Planning",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1800, 300]
+    },
+
+    {
+      "parameters": {
+        "bucket": {
+          "__rl": true,
+          "value": "scenario-artifacts",
+          "mode": "name"
+        },
+        "fileName": "={{ $json.minioPath }}",
+        "binaryData": false,
+        "fileContent": "={{ JSON.stringify($json.finalPlan, null, 2) }}"
+      },
+      "id": "store-final-plan",
+      "name": "Store Final Plan",
+      "type": "n8n-nodes-base.s3",
+      "typeVersion": 1,
+      "position": [2000, 300],
+      "credentials": {
+        "s3": {
+          "id": "minio-scenario-generator",
+          "name": "MinIO - Scenario Generator"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE scenarios SET status = 'implementing', current_phase = 'implementation', progress_percent = 30, plan_path = $2 WHERE scenario_id = $1",
+        "additionalFields": {
+          "mode": "independently",
+          "valuesUi": {
+            "values": [
+              {
+                "column": "$1",
+                "value": "={{ $json.scenarioId }}"
+              },
+              {
+                "column": "$2",
+                "value": "={{ $json.minioPath }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "update-implementation-status",
+      "name": "Update to Implementation",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [2200, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-scenario-generator",
+          "name": "PostgreSQL - Scenario Generator"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/scenario-generator-v1/implementation",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "scenarioData",
+              "value": "={{ JSON.stringify($json) }}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "trigger-implementation",
+      "name": "Trigger Implementation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [2400, 300]
+    }
+  ],
+
+  "connections": {
+    "Planning Trigger": {
+      "main": [
+        [
+          {
+            "node": "Initialize Planning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Planning": {
+      "main": [
+        [
+          {
+            "node": "Update Planning Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Planning Status": {
+      "main": [
+        [
+          {
+            "node": "Prepare Claude Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Claude Prompt": {
+      "main": [
+        [
+          {
+            "node": "Call Claude for Planning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Claude for Planning": {
+      "main": [
+        [
+          {
+            "node": "Process Claude Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Claude Response": {
+      "main": [
+        [
+          {
+            "node": "Log Claude Interaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Claude Interaction": {
+      "main": [
+        [
+          {
+            "node": "More Iterations?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "More Iterations?": {
+      "main": [
+        [
+          {
+            "node": "Prepare Refinement",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Finalize Planning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Refinement": {
+      "main": [
+        [
+          {
+            "node": "Call Claude for Refinement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Claude for Refinement": {
+      "main": [
+        [
+          {
+            "node": "Process Refinement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Refinement": {
+      "main": [
+        [
+          {
+            "node": "More Iterations?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Finalize Planning": {
+      "main": [
+        [
+          {
+            "node": "Store Final Plan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Final Plan": {
+      "main": [
+        [
+          {
+            "node": "Update to Implementation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update to Implementation": {
+      "main": [
+        [
+          {
+            "node": "Trigger Implementation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+
+  "versionId": "scenario-generator-v1-planning",
+  "id": "scenario-generator-v1-planning",
+
+  "meta": {
+    "templateCreatedBy": "vrooli-scenario-generator-v1",
+    "instanceId": "scenario-generator-v1-planning"
+  },
+
+  "tags": [
+    {
+      "id": "scenario-generator-v1",
+      "name": "Scenario Generator V1"
+    },
+    {
+      "id": "planning-workflow",
+      "name": "Planning Workflow"
+    }
+  ]
+}

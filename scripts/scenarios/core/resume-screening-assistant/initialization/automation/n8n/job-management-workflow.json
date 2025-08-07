@@ -1,0 +1,368 @@
+{
+  "name": "Job Management Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "path": "jobs",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "name": "Job Management Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "jobs",
+      "id": "webhook_jobs"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.method }}",
+              "rightValue": "GET",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "name": "Check GET Request",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [440, 200],
+      "id": "check_get"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.method }}",
+              "rightValue": "POST",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ]
+        }
+      },
+      "name": "Check POST Request",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [440, 400],
+      "id": "check_post"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT j.*, COUNT(r.id) as candidate_count FROM job_descriptions j LEFT JOIN candidate_matches cm ON j.id = cm.job_id LEFT JOIN resumes r ON cm.resume_id = r.id WHERE j.status = 'active' GROUP BY j.id ORDER BY j.created_at DESC",
+        "additionalFields": {}
+      },
+      "name": "Get All Jobs",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [640, 100],
+      "credentials": {
+        "postgres": {
+          "id": "postgres_default",
+          "name": "PostgreSQL account"
+        }
+      },
+      "id": "get_jobs"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate required fields for job creation\nconst data = $input.first().json;\n\nconst required = ['job_title', 'company_name', 'description'];\nconst missing = required.filter(field => !data[field] || data[field].trim() === '');\n\nif (missing.length > 0) {\n  return {\n    valid: false,\n    error: `Missing required fields: ${missing.join(', ')}`,\n    data: null\n  };\n}\n\n// Parse skills arrays if they're strings\nlet requiredSkills = data.required_skills || [];\nlet preferredSkills = data.preferred_skills || [];\n\nif (typeof requiredSkills === 'string') {\n  try {\n    requiredSkills = JSON.parse(requiredSkills);\n  } catch (e) {\n    requiredSkills = requiredSkills.split(',').map(s => s.trim());\n  }\n}\n\nif (typeof preferredSkills === 'string') {\n  try {\n    preferredSkills = JSON.parse(preferredSkills);\n  } catch (e) {\n    preferredSkills = preferredSkills.split(',').map(s => s.trim());\n  }\n}\n\nreturn {\n  valid: true,\n  error: null,\n  data: {\n    job_title: data.job_title.trim(),\n    company_name: data.company_name.trim(),\n    description: data.description.trim(),\n    required_skills: JSON.stringify(requiredSkills),\n    preferred_skills: JSON.stringify(preferredSkills),\n    experience_required: parseInt(data.experience_required) || 0,\n    location: data.location || 'Not specified',\n    salary_range: data.salary_range || 'Competitive'\n  }\n};"
+      },
+      "name": "Validate Job Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [640, 300],
+      "id": "validate_job"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:11434/api/embeddings",
+        "requestMethod": "POST",
+        "sendBody": true,
+        "bodyContent": "{\n  \"model\": \"nomic-embed-text\",\n  \"prompt\": \"Job Title: {{ $json.data.job_title }}\\n\\nCompany: {{ $json.data.company_name }}\\n\\nDescription: {{ $json.data.description }}\\n\\nRequired Skills: {{ $json.data.required_skills }}\\n\\nExperience: {{ $json.data.experience_required }} years\\n\\nLocation: {{ $json.data.location }}\"\n}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "name": "Generate Job Embedding",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [840, 300],
+      "id": "generate_job_embedding"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO job_descriptions (job_title, company_name, description, required_skills, preferred_skills, experience_required, location, salary_range) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
+        "additionalFields": {
+          "mode": "independently"
+        }
+      },
+      "name": "Save Job to Database",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1040, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres_default",
+          "name": "PostgreSQL account"
+        }
+      },
+      "id": "save_job"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO job_embeddings (job_id, embedding_vector) VALUES ($1, $2)",
+        "additionalFields": {
+          "mode": "independently"
+        }
+      },
+      "name": "Save Job Embedding",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1240, 300],
+      "credentials": {
+        "postgres": {
+          "id": "postgres_default",
+          "name": "PostgreSQL account"
+        }
+      },
+      "id": "save_job_embedding"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:6333/collections/job-descriptions/points",
+        "requestMethod": "PUT",
+        "sendBody": true,
+        "bodyContent": "{\n  \"points\": [\n    {\n      \"id\": {{ $('Save Job to Database').first().json.id }},\n      \"vector\": {{ JSON.stringify($('Generate Job Embedding').first().json.embedding) }},\n      \"payload\": {\n        \"job_id\": {{ $('Save Job to Database').first().json.id }},\n        \"job_title\": \"{{ $('Validate Job Data').first().json.data.job_title }}\",\n        \"company_name\": \"{{ $('Validate Job Data').first().json.data.company_name }}\",\n        \"required_skills\": {{ $('Validate Job Data').first().json.data.required_skills }},\n        \"experience_required\": {{ $('Validate Job Data').first().json.data.experience_required }},\n        \"location\": \"{{ $('Validate Job Data').first().json.data.location }}\",\n        \"description\": \"{{ $('Validate Job Data').first().json.data.description }}\"\n      }\n    }\n  ]\n}"
+      },
+      "name": "Store Job in Vector DB",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1240, 500],
+      "id": "store_job_vector"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true,\n  \"jobs\": {{ JSON.stringify($json) }},\n  \"count\": {{ $json.length }}\n}"
+      },
+      "name": "Return Jobs List",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [840, 100],
+      "id": "return_jobs"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true,\n  \"job_id\": {{ $('Save Job to Database').first().json.id }},\n  \"job_title\": \"{{ $('Validate Job Data').first().json.data.job_title }}\",\n  \"company_name\": \"{{ $('Validate Job Data').first().json.data.company_name }}\",\n  \"message\": \"Job created successfully\"\n}"
+      },
+      "name": "Return Job Created",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1440, 400],
+      "id": "return_created"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"{{ $json.error || 'Invalid job data' }}\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "name": "Return Validation Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [640, 500],
+      "id": "return_error"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ]
+        }
+      },
+      "name": "Check Validation",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [640, 400],
+      "id": "check_validation"
+    }
+  ],
+  "connections": {
+    "Job Management Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check GET Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check POST Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check GET Request": {
+      "main": [
+        [
+          {
+            "node": "Get All Jobs",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check POST Request": {
+      "main": [
+        [
+          {
+            "node": "Validate Job Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get All Jobs": {
+      "main": [
+        [
+          {
+            "node": "Return Jobs List",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Job Data": {
+      "main": [
+        [
+          {
+            "node": "Check Validation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Validation": {
+      "main": [
+        [
+          {
+            "node": "Generate Job Embedding",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Return Validation Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Job Embedding": {
+      "main": [
+        [
+          {
+            "node": "Save Job to Database",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Job to Database": {
+      "main": [
+        [
+          {
+            "node": "Save Job Embedding",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Store Job in Vector DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Job Embedding": {
+      "main": [
+        [
+          {
+            "node": "Return Job Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Job in Vector DB": {
+      "main": [
+        [
+          {
+            "node": "Return Job Created",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "job_management_workflow",
+  "tags": []
+}

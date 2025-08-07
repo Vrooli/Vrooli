@@ -4,39 +4,42 @@ scenario: document-intelligence-pipeline
 # Structure validation
 structure:
   required_files:
-    - metadata.yaml
-    - manifest.yaml
-    - README.md
-    - initialization/database/schema.sql
-    - initialization/workflows/n8n/main-workflow.json
+    - .vrooli/service.json
+    - initialization/storage/schema.sql
+    - initialization/storage/seed.sql
+    - initialization/automation/n8n/main-workflow.json
+    - initialization/automation/windmill/windmill-app.json
+    - initialization/automation/triggers.yaml
     - initialization/configuration/app-config.json
-    - initialization/ui/windmill-app.json
+    - initialization/configuration/feature-flags.json
+    - initialization/configuration/resource-urls.json
+    - deployment/startup.sh
+    - test.sh
+    - custom-tests.sh
   
   required_dirs:
-    - initialization/database
-    - initialization/workflows
+    - initialization/storage
+    - initialization/automation
     - initialization/configuration
-    - initialization/vectors
     - deployment
-    - ui
 
 # Resource requirements
 resources:
-  required: [unstructured-io, qdrant, ollama]
+  required: [postgres, qdrant, unstructured-io, ollama]
   optional: [browserless]
-  health_timeout: 30
+  health_timeout: 60
 
 # Declarative tests
 tests:
-  - name: "Document Processing Engine Ready"
-    type: http
-    service: unstructured-io
-    endpoint: /general/v0/general
-    method: GET
+  - name: "PostgreSQL Database Ready"
+    type: database
+    service: postgres
+    database: document_intelligence_pipeline
+    query: "SELECT table_name FROM information_schema.tables WHERE table_schema = 'document_intelligence_pipeline'"
     expect:
-      status: 200
+      contains: ["documents", "document_chunks", "processing_jobs", "extracted_entities"]
       
-  - name: "Vector Database Ready"
+  - name: "Qdrant Vector Database Ready"
     type: http
     service: qdrant
     endpoint: /collections
@@ -46,7 +49,15 @@ tests:
       body:
         type: json
         
-  - name: "AI Analysis Engine Ready"
+  - name: "Unstructured-IO Document Processing Ready"
+    type: http
+    service: unstructured-io
+    endpoint: /healthcheck
+    method: GET
+    expect:
+      status: 200
+      
+  - name: "Ollama AI Models Ready"
     type: http
     service: ollama
     endpoint: /api/tags
@@ -55,52 +66,106 @@ tests:
       status: 200
       body:
         type: json
+        contains: ["llama3.1:8b", "nomic-embed-text"]
         
-  - name: "Web Document Fetcher Ready (Optional)"
+  - name: "Browserless Web Automation Ready (Optional)"
     type: http
     service: browserless
-    endpoint: /metrics
+    endpoint: /
     method: GET
     expect:
       status: 200
     required: false
 
-  - name: "Document Intelligence Pipeline Chain"
-    type: chain
-    description: "End-to-end document processing workflow"
-    steps:
-      - id: document_processor_check
+  - name: "Document Processing Pipeline Test"
+    type: integration
+    description: "Test document upload, processing, and search pipeline"
+    workflow:
+      - step: "Process Sample Document"
+        type: http
         service: unstructured-io
-        action: health_check
+        endpoint: /general/v0/general
+        method: POST
+        body:
+          text: "This is a sample document for processing and analysis. It contains important business information."
         expect:
-          status: available
-        
-      - id: vector_database_check
-        service: qdrant
-        action: health_check
-        expect:
-          status: available
+          status: 200
+          response_time: 30000
           
-      - id: ai_analysis_check
+      - step: "Generate Document Embeddings"
+        type: http
         service: ollama
-        action: health_check
+        endpoint: /api/embeddings
+        method: POST
+        body:
+          model: "nomic-embed-text"
+          prompt: "This is a sample document for processing and analysis."
         expect:
-          status: available
+          status: 200
+          response_time: 15000
+          
+      - step: "Store Vector Embeddings"
+        type: http
+        service: qdrant
+        endpoint: /collections/documents/points
+        method: PUT
+        body:
+          points:
+            - id: "test-doc-1"
+              vector: [0.1, 0.2, 0.3]  # Mock vector
+              payload:
+                title: "Test Document"
+                content: "Sample content"
+        expect:
+          status: 200
+          response_time: 5000
+          
+      - step: "Search Similar Documents"
+        type: http
+        service: qdrant
+        endpoint: /collections/documents/points/search
+        method: POST
+        body:
+          vector: [0.1, 0.2, 0.3]  # Mock query vector
+          limit: 5
+          score_threshold: 0.5
+        expect:
+          status: 200
+          response_time: 5000
 
-  - name: "Document Processing Business Logic"
+  - name: "AI Analysis and Classification Test"
+    type: integration
+    description: "Test AI-powered document analysis and entity extraction"
+    workflow:
+      - step: "Analyze Document Content"
+        type: http
+        service: ollama
+        endpoint: /api/generate
+        method: POST
+        body:
+          model: "llama3.1:8b"
+          prompt: "Extract key entities and classify this document: This is a business contract between Company A and Company B."
+          stream: false
+        expect:
+          status: 200
+          response_time: 30000
+
+  - name: "Document Intelligence Business Logic"
     type: custom
     script: custom-tests.sh
     function: test_document_intelligence_workflow
 
 # Validation criteria
 validation:
-  success_rate: 75        # Allow some flexibility for optional services
-  response_time: 10000    # 10 seconds max for service responses
-  revenue_potential: 8000   # Average of min/max from metadata (4K-12K)
+  success_rate: 85        # High success rate for enterprise document processing
+  response_time: 30000    # 30 seconds max for complex document processing
+  revenue_potential: 41000  # Based on service.json business model
   business_criteria:
-    - "Document parsing engine available"
-    - "Vector database operational"
-    - "AI analysis engine ready"
-    - "Document processing pipeline functional"
-    - "Semantic search capabilities working"
-    - "Business workflow integration complete"
+    - "All core document processing services operational"
+    - "Document parsing and text extraction working end-to-end"
+    - "Vector database storing and searching document embeddings"
+    - "AI analysis engine performing entity extraction and classification"
+    - "Semantic search capabilities enabling intelligent document discovery"
+    - "Database properly storing document metadata and processing results"
+    - "Integration pipeline handles document-to-insight workflows"
+    - "Enterprise-grade document intelligence capabilities functional"

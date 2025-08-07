@@ -34,11 +34,11 @@
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT value FROM resource_monitoring.system_config WHERE key = 'known_services'",
+        "query": "SELECT value FROM resource_monitoring.system_config WHERE key IN ('known_services', 'auto_discovery')",
         "options": {}
       },
-      "id": "get-known-ports",
-      "name": "Get Known Service Ports",
+      "id": "get-config",
+      "name": "Get Discovery Config",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
       "position": [460, 400],
@@ -51,32 +51,32 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "// Parse known services configuration\nconst config = $input.item.json.value;\nconst knownServices = [];\n\n// Define resource type mapping\nconst typeMapping = {\n  'ollama': 'ai',\n  'whisper': 'ai',\n  'comfyui': 'ai',\n  'unstructured-io': 'ai',\n  'postgres': 'storage',\n  'redis': 'storage',\n  'questdb': 'storage',\n  'minio': 'storage',\n  'qdrant': 'storage',\n  'vault': 'storage',\n  'n8n': 'automation',\n  'node-red': 'automation',\n  'windmill': 'automation',\n  'huginn': 'automation',\n  'browserless': 'agent',\n  'agent-s2': 'agent',\n  'claude-code': 'agent',\n  'judge0': 'execution',\n  'searxng': 'search'\n};\n\n// Define health check endpoints\nconst healthEndpoints = {\n  'ollama': '/api/tags',\n  'postgres': null, // TCP check only\n  'redis': '/ping',\n  'questdb': '/status',\n  'minio': '/minio/health/live',\n  'qdrant': '/health',\n  'vault': '/v1/sys/health',\n  'n8n': '/healthz',\n  'node-red': '/settings',\n  'windmill': '/api/version',\n  'huginn': '/users/sign_in', // Check login page\n  'browserless': '/health',\n  'agent-s2': '/health',\n  'claude-code': '/health',\n  'judge0': '/system_info',\n  'searxng': '/healthz',\n  'whisper': '/health',\n  'comfyui': '/system_stats',\n  'unstructured-io': '/health'\n};\n\n// Define display names\nconst displayNames = {\n  'ollama': 'Ollama LLM Service',\n  'postgres': 'PostgreSQL Database',\n  'redis': 'Redis Cache',\n  'questdb': 'QuestDB Time-Series',\n  'minio': 'MinIO Object Storage',\n  'qdrant': 'Qdrant Vector Database',\n  'vault': 'HashiCorp Vault',\n  'n8n': 'n8n Workflow Automation',\n  'node-red': 'Node-RED Flow Engine',\n  'windmill': 'Windmill Platform',\n  'huginn': 'Huginn Event Processor',\n  'browserless': 'Browserless Chrome',\n  'agent-s2': 'Agent-S2 Desktop Automation',\n  'claude-code': 'Claude Code Assistant',\n  'judge0': 'Judge0 Code Executor',\n  'searxng': 'SearXNG Search Engine',\n  'whisper': 'Whisper Speech-to-Text',\n  'comfyui': 'ComfyUI Image Generation',\n  'unstructured-io': 'Unstructured.io Document Processing'\n};\n\n// Parse the known services\nfor (const [service, port] of Object.entries(config)) {\n  knownServices.push({\n    service_name: service,\n    resource_type: typeMapping[service] || 'unknown',\n    display_name: displayNames[service] || service,\n    port: port,\n    health_endpoint: healthEndpoints[service] || '/health',\n    base_url: `http://localhost:${port}`\n  });\n}\n\nreturn knownServices;"
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Parse configuration and prepare port list to scan\nconst configs = $input.all();\nlet knownServices = {};\nlet discoveryConfig = {};\n\n// Extract configurations\nconfigs.forEach(item => {\n  const config = item.json;\n  if (config.key === 'known_services') {\n    knownServices = config.value || {};\n  } else if (config.key === 'auto_discovery') {\n    discoveryConfig = config.value || {};\n  }\n});\n\n// Define port ranges from monitor-config.json defaults\nconst defaultPortRanges = [\n  '1000-2000',\n  '3000-4000', \n  '5000-6000',\n  '8000-9000',\n  '9000-10000',\n  '11000-12000'\n];\n\nconst portRanges = discoveryConfig.port_range ? \n  discoveryConfig.port_range.split(',') : defaultPortRanges;\n\n// Known service mappings\nconst typeMapping = {\n  'ollama': 'ai',\n  'whisper': 'ai',\n  'comfyui': 'ai',\n  'unstructured-io': 'ai',\n  'postgres': 'storage',\n  'redis': 'storage',\n  'questdb': 'storage',\n  'minio': 'storage',\n  'qdrant': 'storage',\n  'vault': 'storage',\n  'n8n': 'automation',\n  'node-red': 'automation',\n  'windmill': 'automation',\n  'huginn': 'automation',\n  'browserless': 'agent',\n  'agent-s2': 'agent',\n  'claude-code': 'agent',\n  'judge0': 'execution',\n  'searxng': 'search'\n};\n\n// Health check endpoints\nconst healthEndpoints = {\n  'ollama': '/api/tags',\n  'postgres': null,\n  'redis': null,\n  'questdb': '/status',\n  'minio': '/minio/health/live',\n  'qdrant': '/health',\n  'vault': '/v1/sys/health',\n  'n8n': '/healthz',\n  'node-red': '/settings',\n  'windmill': '/api/version',\n  'huginn': '/users/sign_in',\n  'browserless': '/health',\n  'agent-s2': '/health',\n  'claude-code': '/health',\n  'judge0': '/system_info',\n  'searxng': '/healthz',\n  'whisper': '/health',\n  'comfyui': '/system_stats',\n  'unstructured-io': '/health'\n};\n\n// Display names\nconst displayNames = {\n  'ollama': 'Ollama LLM Service',\n  'postgres': 'PostgreSQL Database',\n  'redis': 'Redis Cache',\n  'questdb': 'QuestDB Time-Series',\n  'minio': 'MinIO Object Storage',\n  'qdrant': 'Qdrant Vector Database',\n  'vault': 'HashiCorp Vault',\n  'n8n': 'n8n Workflow Automation',\n  'node-red': 'Node-RED Flow Engine',\n  'windmill': 'Windmill Platform',\n  'huginn': 'Huginn Event Processor',\n  'browserless': 'Browserless Chrome',\n  'agent-s2': 'Agent-S2 Desktop Automation',\n  'claude-code': 'Claude Code Assistant',\n  'judge0': 'Judge0 Code Executor',\n  'searxng': 'SearXNG Search Engine',\n  'whisper': 'Whisper Speech-to-Text',\n  'comfyui': 'ComfyUI Image Generation',\n  'unstructured-io': 'Unstructured.io Document Processing'\n};\n\n// Build list of ports to scan\nconst portsToScan = [];\n\n// First add known services\nfor (const [service, port] of Object.entries(knownServices)) {\n  portsToScan.push({\n    port: port,\n    service_name: service,\n    resource_type: typeMapping[service] || 'unknown',\n    display_name: displayNames[service] || service,\n    health_endpoint: healthEndpoints[service],\n    base_url: `http://localhost:${port}`,\n    is_known: true\n  });\n}\n\n// Then add ports from ranges for unknown service discovery\nif (discoveryConfig.enabled !== false) {\n  portRanges.forEach(range => {\n    const [start, end] = range.split('-').map(Number);\n    if (start && end) {\n      // Sample ports from range (check every 10th port to avoid overwhelming)\n      for (let port = start; port <= end && port <= start + 100; port += 10) {\n        // Skip if already in known services\n        if (!Object.values(knownServices).includes(port)) {\n          portsToScan.push({\n            port: port,\n            service_name: `unknown_${port}`,\n            resource_type: 'unknown',\n            display_name: `Service on port ${port}`,\n            health_endpoint: '/health',\n            base_url: `http://localhost:${port}`,\n            is_known: false\n          });\n        }\n      }\n    }\n  });\n}\n\nreturn portsToScan;"
       },
-      "id": "parse-services",
-      "name": "Parse Known Services",
+      "id": "prepare-scan-list",
+      "name": "Prepare Port Scan List",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [680, 400]
     },
     {
       "parameters": {
-        "batchSize": 10,
+        "batchSize": 5,
         "options": {}
       },
-      "id": "batch-checks",
-      "name": "Batch Port Checks",
+      "id": "batch-ports",
+      "name": "Batch Port Scans",
       "type": "n8n-nodes-base.splitInBatches",
       "typeVersion": 3,
       "position": [900, 400]
     },
     {
       "parameters": {
-        "command": "=nc -zv localhost {{ $json.port }} -w 1 2>&1 | grep -q 'succeeded' && echo 'open' || echo 'closed'"
+        "command": "=timeout 1 bash -c 'cat < /dev/null > /dev/tcp/localhost/{{ $json.port }}' 2>/dev/null && echo 'open' || echo 'closed'"
       },
-      "id": "check-port",
-      "name": "Check Port Open",
+      "id": "tcp-check",
+      "name": "TCP Port Check",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
       "position": [1120, 400],
@@ -94,15 +94,32 @@
           ]
         }
       },
-      "id": "port-open",
-      "name": "Port Open?",
+      "id": "port-open-check",
+      "name": "Is Port Open?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [1340, 400]
     },
     {
       "parameters": {
-        "url": "={{ $json.base_url }}{{ $json.health_endpoint }}",
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.health_endpoint !== null }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "has-http-check",
+      "name": "Has HTTP Endpoint?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1560, 340]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.base_url }}{{ $json.health_endpoint || '/health' }}",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
@@ -113,51 +130,69 @@
           ]
         },
         "options": {
-          "timeout": 3000,
+          "timeout": 2000,
           "response": {
             "response": {
               "fullResponse": true
             }
+          },
+          "redirect": {
+            "redirect": {
+              "followRedirects": true,
+              "maxRedirects": 2
+            }
           }
         }
       },
-      "id": "health-probe",
-      "name": "Health Endpoint Probe",
+      "id": "http-health-check",
+      "name": "HTTP Health Check",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [1560, 340],
+      "position": [1780, 280],
       "continueOnFail": true
     },
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Process discovery result\nconst service = $input.item.json;\nconst timestamp = new Date().toISOString();\n\n// Determine if service is healthy\nlet isHealthy = false;\nlet healthDetails = {};\n\nif (service.statusCode && service.statusCode >= 200 && service.statusCode < 300) {\n  isHealthy = true;\n  healthDetails = {\n    statusCode: service.statusCode,\n    responseTime: service.responseTime || 0\n  };\n} else if (service.health_endpoint === null) {\n  // For services without HTTP health check (like PostgreSQL), port open = healthy\n  isHealthy = true;\n  healthDetails = {\n    note: 'TCP port check only'\n  };\n}\n\n// Prepare resource data\nconst resource = {\n  resource_name: service.service_name,\n  resource_type: service.resource_type,\n  display_name: service.display_name,\n  description: `Auto-discovered ${service.display_name} on port ${service.port}`,\n  host: 'localhost',\n  port: service.port,\n  base_url: service.base_url,\n  health_check_endpoint: service.health_endpoint,\n  is_enabled: isHealthy,\n  is_critical: ['postgres', 'redis', 'vault', 'n8n', 'questdb'].includes(service.service_name),\n  current_status: isHealthy ? 'healthy' : 'down',\n  auto_discovered: true,\n  config: healthDetails,\n  discovered_at: timestamp\n};\n\nreturn resource;"
+        "jsCode": "// Process health check result\nconst service = $input.item.json;\nconst timestamp = new Date().toISOString();\n\nlet status = 'unknown';\nlet responseTime = null;\nlet statusCode = null;\nlet errorMessage = null;\n\n// Check HTTP health response\nif (service.statusCode) {\n  statusCode = service.statusCode;\n  responseTime = service.responseTime || 0;\n  \n  if (statusCode >= 200 && statusCode < 300) {\n    status = 'healthy';\n  } else if (statusCode >= 400 && statusCode < 500) {\n    status = 'degraded';\n    errorMessage = `HTTP ${statusCode}`;\n  } else if (statusCode >= 500) {\n    status = 'down';\n    errorMessage = `HTTP ${statusCode}`;\n  }\n} else if (service.error) {\n  // HTTP request failed\n  status = 'down';\n  errorMessage = service.error.message || 'Connection failed';\n} else if (service.health_endpoint === null) {\n  // Service has no HTTP endpoint (like Redis/PostgreSQL)\n  // If we got here, the TCP port is open\n  status = 'healthy';\n}\n\n// Determine if this is a critical service\nconst criticalServices = ['postgres', 'redis', 'vault', 'n8n', 'questdb'];\nconst isCritical = criticalServices.includes(service.service_name);\n\n// Try to identify unknown services by response\nlet identifiedType = service.resource_type;\nlet identifiedName = service.service_name;\nlet identifiedDisplay = service.display_name;\n\nif (!service.is_known && service.body) {\n  const bodyStr = JSON.stringify(service.body).toLowerCase();\n  \n  if (bodyStr.includes('ollama')) {\n    identifiedType = 'ai';\n    identifiedName = 'ollama';\n    identifiedDisplay = 'Ollama LLM Service';\n  } else if (bodyStr.includes('n8n')) {\n    identifiedType = 'automation';\n    identifiedName = 'n8n';\n    identifiedDisplay = 'n8n Workflow Automation';\n  } else if (bodyStr.includes('windmill')) {\n    identifiedType = 'automation';\n    identifiedName = 'windmill';\n    identifiedDisplay = 'Windmill Platform';\n  } else if (bodyStr.includes('vault')) {\n    identifiedType = 'storage';\n    identifiedName = 'vault';\n    identifiedDisplay = 'HashiCorp Vault';\n  } else if (bodyStr.includes('minio')) {\n    identifiedType = 'storage';\n    identifiedName = 'minio';\n    identifiedDisplay = 'MinIO Object Storage';\n  } else if (bodyStr.includes('questdb')) {\n    identifiedType = 'storage';\n    identifiedName = 'questdb';\n    identifiedDisplay = 'QuestDB Time-Series';\n  }\n}\n\nreturn {\n  resource_name: identifiedName,\n  resource_type: identifiedType,\n  display_name: identifiedDisplay,\n  description: `${service.is_known ? 'Known' : 'Discovered'} service on port ${service.port}`,\n  host: 'localhost',\n  port: service.port,\n  base_url: service.base_url,\n  health_check_endpoint: service.health_endpoint,\n  is_enabled: true,\n  is_critical: isCritical,\n  current_status: status,\n  auto_discovered: !service.is_known,\n  config: {\n    statusCode,\n    responseTime,\n    errorMessage,\n    lastCheck: timestamp\n  },\n  discovered_at: timestamp\n};"
       },
-      "id": "prepare-resource",
-      "name": "Prepare Resource Data",
+      "id": "process-http-result",
+      "name": "Process HTTP Result",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1780, 340]
+      "position": [2000, 280]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Process TCP-only service (no HTTP endpoint)\nconst service = $input.item.json;\nconst timestamp = new Date().toISOString();\n\n// Service has open TCP port but no HTTP endpoint\nconst criticalServices = ['postgres', 'redis'];\nconst isCritical = criticalServices.includes(service.service_name);\n\nreturn {\n  resource_name: service.service_name,\n  resource_type: service.resource_type,\n  display_name: service.display_name,\n  description: `TCP service on port ${service.port} (no HTTP endpoint)`,\n  host: 'localhost',\n  port: service.port,\n  base_url: null,\n  health_check_endpoint: null,\n  is_enabled: true,\n  is_critical: isCritical,\n  current_status: 'healthy',\n  auto_discovered: !service.is_known,\n  config: {\n    tcpOnly: true,\n    lastCheck: timestamp\n  },\n  discovered_at: timestamp\n};"
+      },
+      "id": "process-tcp-result",
+      "name": "Process TCP Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 400]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO resource_monitoring.resources (resource_name, resource_type, display_name, description, host, port, base_url, health_check_endpoint, is_enabled, is_critical, current_status, auto_discovered, config, discovered_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) ON CONFLICT (resource_name) DO UPDATE SET port = $6, base_url = $7, health_check_endpoint = $8, current_status = $11, last_seen = NOW(), config = $13 RETURNING id, resource_name, resource_type",
+        "query": "INSERT INTO resource_monitoring.resources (resource_name, resource_type, display_name, description, host, port, base_url, health_check_endpoint, is_enabled, is_critical, current_status, auto_discovered, config, discovered_at, last_seen) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::jsonb, $14::timestamp, NOW()) ON CONFLICT (resource_name) DO UPDATE SET resource_type = EXCLUDED.resource_type, display_name = EXCLUDED.display_name, port = EXCLUDED.port, base_url = EXCLUDED.base_url, health_check_endpoint = EXCLUDED.health_check_endpoint, current_status = EXCLUDED.current_status, last_seen = NOW(), config = EXCLUDED.config, updated_at = NOW() RETURNING id, resource_name, current_status",
         "options": {
-          "queryReplacement": "={{ $json.resource_name }}, ={{ $json.resource_type }}, ={{ $json.display_name }}, ={{ $json.description }}, ={{ $json.host }}, ={{ $json.port }}, ={{ $json.base_url }}, ={{ $json.health_check_endpoint }}, ={{ $json.is_enabled }}, ={{ $json.is_critical }}, ={{ $json.current_status }}, ={{ $json.auto_discovered }}, ={{ JSON.stringify($json.config) }}, ={{ $json.discovered_at }}"
+          "queryReplacement": "={{ $json.resource_name }},={{ $json.resource_type }},={{ $json.display_name }},={{ $json.description }},={{ $json.host }},={{ $json.port }},={{ $json.base_url }},={{ $json.health_check_endpoint }},={{ $json.is_enabled }},={{ $json.is_critical }},={{ $json.current_status }},={{ $json.auto_discovered }},={{ JSON.stringify($json.config) }},={{ $json.discovered_at }}"
         }
       },
-      "id": "upsert-resource",
-      "name": "Upsert Resource",
+      "id": "save-resource",
+      "name": "Save Resource to DB",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [2000, 340],
+      "position": [2220, 340],
       "credentials": {
         "postgres": {
           "id": "postgres-monitoring",
           "name": "PostgreSQL Monitoring"
         }
-      }
+      },
+      "continueOnFail": true
     },
     {
       "parameters": {
@@ -167,19 +202,19 @@
           "parameters": [
             {
               "name": "query",
-              "value": "=INSERT INTO system_events(timestamp, event_type, event_source, event_action, resource_name, user_id, success, duration_ms, details) VALUES(now(), 'discovery', 'auto_discovery', 'resource_found', '{{ $json.resource_name }}', 'system', true, 0, 'Auto-discovered resource on port {{ $json.port }}')"
+              "value": "=INSERT INTO system_events(timestamp, event_type, event_source, event_action, resource_name, user_id, success, duration_ms, details) VALUES(now(), 'discovery', 'auto_discovery', '{{ $json.auto_discovered ? \"new_resource\" : \"known_resource\" }}', '{{ $json.resource_name }}', 'system', true, {{ $json.config.responseTime || 0 }}, '{{ $json.current_status === \"healthy\" ? \"Resource healthy\" : \"Resource \" + $json.current_status }}')"
             }
           ]
         },
         "options": {
-          "timeout": 3000
+          "timeout": 2000
         }
       },
-      "id": "log-discovery",
-      "name": "Log Discovery Event",
+      "id": "log-to-questdb",
+      "name": "Log to QuestDB",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.1,
-      "position": [2220, 340],
+      "position": [2440, 340],
       "continueOnFail": true
     },
     {
@@ -187,29 +222,29 @@
         "conditions": {
           "boolean": [
             {
-              "value1": "={{ $('batch-checks').context.noItemsLeft }}",
+              "value1": "={{ $('batch-ports').context.noItemsLeft }}",
               "value2": true
             }
           ]
         }
       },
-      "id": "batch-complete",
-      "name": "Batch Complete?",
+      "id": "all-batches-done",
+      "name": "All Batches Complete?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [2440, 400]
+      "position": [2660, 400]
     },
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "SELECT COUNT(*) as total_resources, COUNT(*) FILTER (WHERE current_status = 'healthy') as healthy_count, COUNT(*) FILTER (WHERE discovered_at > NOW() - INTERVAL '5 minutes') as newly_discovered FROM resource_monitoring.resources WHERE is_enabled = true",
+        "query": "SELECT COUNT(*) as total_resources, COUNT(*) FILTER (WHERE current_status = 'healthy') as healthy_count, COUNT(*) FILTER (WHERE current_status = 'degraded') as degraded_count, COUNT(*) FILTER (WHERE current_status = 'down') as down_count, COUNT(*) FILTER (WHERE auto_discovered = true AND discovered_at > NOW() - INTERVAL '5 minutes') as newly_discovered FROM resource_monitoring.resources WHERE is_enabled = true",
         "options": {}
       },
-      "id": "discovery-summary",
-      "name": "Get Discovery Summary",
+      "id": "get-summary-stats",
+      "name": "Get Summary Statistics",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2.4,
-      "position": [2660, 460],
+      "position": [2880, 460],
       "credentials": {
         "postgres": {
           "id": "postgres-monitoring",
@@ -219,26 +254,15 @@
     },
     {
       "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "// Prepare discovery summary\nconst summary = $input.item.json;\nconst timestamp = new Date().toISOString();\n\nreturn {\n  discovery_complete: true,\n  timestamp,\n  total_resources: parseInt(summary.total_resources),\n  healthy_resources: parseInt(summary.healthy_count),\n  newly_discovered: parseInt(summary.newly_discovered),\n  message: `Discovery complete: ${summary.healthy_count}/${summary.total_resources} resources healthy, ${summary.newly_discovered} newly discovered`\n};"
-      },
-      "id": "format-summary",
-      "name": "Format Summary",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [2880, 460]
-    },
-    {
-      "parameters": {
         "resource": "database",
         "operation": "set",
         "key": "discovery_summary",
-        "value": "={{ JSON.stringify($json) }}",
+        "value": "={{ JSON.stringify({timestamp: new Date().toISOString(), ...$json}) }}",
         "expire": true,
         "ttl": 3600
       },
-      "id": "cache-discovery",
-      "name": "Cache Discovery Results",
+      "id": "cache-summary",
+      "name": "Cache Summary",
       "type": "n8n-nodes-base.redis",
       "typeVersion": 1,
       "position": [3100, 460],
@@ -251,32 +275,21 @@
     },
     {
       "parameters": {
-        "command": "=/scripts/resources/port-registry.sh --action scan --range {{ $json.range }} --timeout 100"
-      },
-      "id": "port-scan",
-      "name": "Extended Port Scan",
-      "type": "n8n-nodes-base.executeCommand",
-      "typeVersion": 1,
-      "position": [1120, 600],
-      "continueOnFail": true
-    },
-    {
-      "parameters": {
         "values": {
           "string": [
             {
-              "name": "range",
-              "value": "8000-9000"
+              "name": "message",
+              "value": "=Discovery complete: {{ $json.healthy_count }}/{{ $json.total_resources }} healthy, {{ $json.degraded_count }} degraded, {{ $json.down_count }} down, {{ $json.newly_discovered }} newly discovered"
             }
           ]
         },
         "options": {}
       },
-      "id": "scan-params",
-      "name": "Set Scan Parameters",
+      "id": "format-response",
+      "name": "Format Response",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3,
-      "position": [900, 600]
+      "position": [3320, 460]
     }
   ],
   "connections": {
@@ -284,7 +297,7 @@
       "main": [
         [
           {
-            "node": "Get Known Service Ports",
+            "node": "Get Discovery Config",
             "type": "main",
             "index": 0
           }
@@ -295,164 +308,182 @@
       "main": [
         [
           {
-            "node": "Get Known Service Ports",
+            "node": "Get Discovery Config",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Known Service Ports": {
+    "Get Discovery Config": {
       "main": [
         [
           {
-            "node": "Parse Known Services",
+            "node": "Prepare Port Scan List",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Parse Known Services": {
+    "Prepare Port Scan List": {
       "main": [
         [
           {
-            "node": "Batch Port Checks",
+            "node": "Batch Port Scans",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Batch Port Checks": {
+    "Batch Port Scans": {
       "main": [
         [
           {
-            "node": "Check Port Open",
+            "node": "TCP Port Check",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Check Port Open": {
+    "TCP Port Check": {
       "main": [
         [
           {
-            "node": "Port Open?",
+            "node": "Is Port Open?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Port Open?": {
+    "Is Port Open?": {
       "main": [
         [
           {
-            "node": "Health Endpoint Probe",
+            "node": "Has HTTP Endpoint?",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Batch Complete?",
+            "node": "All Batches Complete?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Health Endpoint Probe": {
+    "Has HTTP Endpoint?": {
       "main": [
         [
           {
-            "node": "Prepare Resource Data",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Prepare Resource Data": {
-      "main": [
-        [
-          {
-            "node": "Upsert Resource",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Upsert Resource": {
-      "main": [
-        [
-          {
-            "node": "Log Discovery Event",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Log Discovery Event": {
-      "main": [
-        [
-          {
-            "node": "Batch Complete?",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Batch Complete?": {
-      "main": [
-        [
-          {
-            "node": "Get Discovery Summary",
+            "node": "HTTP Health Check",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Batch Port Checks",
+            "node": "Process TCP Result",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Discovery Summary": {
+    "HTTP Health Check": {
       "main": [
         [
           {
-            "node": "Format Summary",
+            "node": "Process HTTP Result",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Format Summary": {
+    "Process HTTP Result": {
       "main": [
         [
           {
-            "node": "Cache Discovery Results",
+            "node": "Save Resource to DB",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Set Scan Parameters": {
+    "Process TCP Result": {
       "main": [
         [
           {
-            "node": "Extended Port Scan",
+            "node": "Save Resource to DB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save Resource to DB": {
+      "main": [
+        [
+          {
+            "node": "Log to QuestDB",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log to QuestDB": {
+      "main": [
+        [
+          {
+            "node": "All Batches Complete?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "All Batches Complete?": {
+      "main": [
+        [
+          {
+            "node": "Get Summary Statistics",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Batch Port Scans",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Summary Statistics": {
+      "main": [
+        [
+          {
+            "node": "Cache Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cache Summary": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
             "type": "main",
             "index": 0
           }
@@ -466,7 +497,7 @@
     "saveManualExecutions": true,
     "callerPolicy": "workflowsFromSameOwner"
   },
-  "versionId": "auto-discovery-v1",
+  "versionId": "auto-discovery-v2",
   "id": "resource-auto-discovery",
   "meta": {
     "templateCreatedBy": "vrooli-monitoring",

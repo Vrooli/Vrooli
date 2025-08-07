@@ -1,224 +1,288 @@
 {
-  "name": "Scenario Generator V1 - Main Workflow",
+  "name": "Scenario Generator V1 - Main Pipeline",
   "nodes": [
     {
       "parameters": {
-        "path": "scenario-generator-v1-webhook",
+        "path": "scenario-generator-v1/new-scenario",
         "responseMode": "lastNode",
         "options": {}
       },
-      "id": "webhook-trigger",
-      "name": "Webhook Trigger",
-      "type": "n8n-nodes-base.webhook",
+      "id": "new-scenario-webhook",
+      "name": "New Scenario Request",
+      "type": "n8n-nodes-base.webhook", 
       "typeVersion": 1,
-      "position": [240, 300],
-      "webhookId": "scenario-generator-v1-webhook"
+      "position": [200, 300],
+      "webhookId": "new-scenario-webhook"
     },
-    
+
     {
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "// Main processing logic for Scenario Generator V1\nconst inputData = $input.item.json;\n\n// Validate input\nif (!inputData || typeof inputData !== 'object') {\n  throw new Error('Invalid input data received');\n}\n\n// Extract and process data\nconst processedData = {\n  scenario_id: 'scenario-generator-v1',\n  timestamp: new Date().toISOString(),\n  input: inputData,\n  processing_start: Date.now()\n};\n\n// Add scenario-specific processing based on category\n{% if 'ai-assistance' in categories %}\nprocessedData.ai_processing_required = true;\nprocessedData.text_content = inputData.text || inputData.content || '';\n{% endif %}\n\n{% if 'content-creation' in categories %}\nprocessedData.content_generation_required = true;\nprocessedData.content_type = inputData.type || 'text';\n{% endif %}\n\n{% if 'business-automation' in categories %}\nprocessedData.automation_workflow = inputData.workflow || 'default';\nprocessedData.automation_steps = inputData.steps || [];\n{% endif %}\n\nreturn processedData;"
+        "jsCode": "// Validate and prepare scenario request\nconst request = $input.item.json;\n\n// Input validation\nif (!request.userRequest || typeof request.userRequest !== 'string') {\n  throw new Error('Missing or invalid userRequest field');\n}\n\nif (!request.campaignId) {\n  throw new Error('Missing campaignId field');\n}\n\n// Generate scenario ID\nconst scenarioId = `scn-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;\n\n// Prepare scenario data\nconst scenarioData = {\n  scenarioId,\n  campaignId: request.campaignId,\n  userRequest: request.userRequest.trim(),\n  complexity: request.complexity || 'intermediate',\n  category: request.category || 'general',\n  planningIterations: parseInt(request.planningIterations) || 3,\n  implementationIterations: parseInt(request.implementationIterations) || 2,\n  validationIterations: parseInt(request.validationIterations) || 5,\n  requestedAt: new Date().toISOString(),\n  status: 'requested'\n};\n\nconsole.log('Prepared scenario request:', scenarioData);\nreturn scenarioData;"
       },
-      "id": "process-input",
-      "name": "Process Input",
+      "id": "validate-request",
+      "name": "Validate Request",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [460, 300]
+      "position": [400, 300]
     },
-    
-    {% if "ollama" in resources.required %}
-    {
-      "parameters": {
-        "url": "http://localhost:11434/api/generate",
-        "sendBody": true,
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "model",
-              "value": "llama3.1:8b"
-            },
-            {
-              "name": "prompt", 
-              "value": "={{ $json.text_content || 'Process this request for Scenario Generator V1' }}"
-            },
-            {
-              "name": "stream",
-              "value": "false"
-            }
-          ]
-        },
-        "options": {
-          "timeout": 30000
-        }
-      },
-      "id": "ai-processing",
-      "name": "AI Processing (Ollama)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [680, 240],
-      "executeOnce": false
-    },
-    {% endif %}
-    
-    {% if "whisper" in resources.required %}
-    {
-      "parameters": {
-        "url": "http://localhost:8090/transcribe",
-        "sendBody": true,
-        "bodyContentType": "multipart-form-data",
-        "bodyParameters": {
-          "parameters": [
-            {
-              "name": "audio",
-              "value": "={{ $json.audio_file }}"
-            }
-          ]
-        },
-        "options": {
-          "timeout": 60000
-        }
-      },
-      "id": "speech-to-text",
-      "name": "Speech to Text (Whisper)",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4,
-      "position": [680, 360],
-      "executeOnce": false
-    },
-    {% endif %}
-    
-    {% if "postgres" in resources.required %}
+
     {
       "parameters": {
         "operation": "executeQuery",
-        "query": "INSERT INTO {{ scenario.id | replace('-', '_') }}.activity_log (event_type, event_data, user_identifier, processing_time_ms, status) VALUES ($1, $2, $3, $4, $5) RETURNING id",
+        "query": "INSERT INTO scenarios (scenario_id, campaign_id, scenario_name, description, user_request, complexity, category, planning_iterations, implementation_iterations, validation_iterations, status, current_phase, progress_percent) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING id",
         "additionalFields": {
-          "mode": "independently"
-        },
-        "options": {}
+          "mode": "independently",
+          "valuesUi": {
+            "values": [
+              {
+                "column": "$1",
+                "value": "={{ $json.scenarioId }}"
+              },
+              {
+                "column": "$2", 
+                "value": "={{ $json.campaignId }}"
+              },
+              {
+                "column": "$3",
+                "value": "={{ $json.userRequest.slice(0, 100) }}..."
+              },
+              {
+                "column": "$4",
+                "value": "Scenario generated from: {{ $json.userRequest.slice(0, 200) }}..."
+              },
+              {
+                "column": "$5",
+                "value": "={{ $json.userRequest }}"
+              },
+              {
+                "column": "$6",
+                "value": "={{ $json.complexity }}"
+              },
+              {
+                "column": "$7",
+                "value": "={{ $json.category }}"
+              },
+              {
+                "column": "$8",
+                "value": "={{ $json.planningIterations }}"
+              },
+              {
+                "column": "$9",
+                "value": "={{ $json.implementationIterations }}"
+              },
+              {
+                "column": "$10",
+                "value": "={{ $json.validationIterations }}"
+              },
+              {
+                "column": "$11",
+                "value": "requested"
+              },
+              {
+                "column": "$12", 
+                "value": "planning"
+              },
+              {
+                "column": "$13",
+                "value": "0"
+              }
+            ]
+          }
+        }
       },
-      "id": "log-activity",
-      "name": "Log Activity",
+      "id": "create-scenario-record",
+      "name": "Create Scenario Record",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [900, 300],
+      "position": [600, 300],
       "credentials": {
         "postgres": {
-          "id": "postgres-scenario-generator-v1",
-          "name": "PostgreSQL - Scenario Generator V1"
+          "id": "postgres-scenario-generator",
+          "name": "PostgreSQL - Scenario Generator"
         }
       }
     },
-    {% endif %}
-    
+
     {
       "parameters": {
-        "mode": "runOnceForEachItem",
-        "jsCode": "// Finalize processing and prepare response\nconst inputData = $input.item.json;\nconst processingEndTime = Date.now();\nconst processingStartTime = inputData.processing_start || processingEndTime;\n\n// Build comprehensive response\nconst response = {\n  success: true,\n  scenario: 'Scenario Generator V1',\n  scenario_id: 'scenario-generator-v1',\n  version: '1.0.0',\n  timestamp: new Date().toISOString(),\n  processing_time_ms: processingEndTime - processingStartTime,\n  \n  // Include original input for reference\n  request: inputData.input || {},\n  \n  // Processing results\n  results: {},\n  \n  // Metadata\n  metadata: {\n    categories: {{ categories | tojson }},\n    complexity: '{{ complexity }}',\n    resources_used: {{ resources.required | tojson }}\n  }\n};\n\n// Add scenario-specific results\n{% if 'ai-assistance' in categories %}\nif (inputData.ai_processing_required) {\n  response.results.ai_response = inputData.ai_result || 'AI processing completed';\n  response.results.ai_model = 'llama3.1:8b';\n}\n{% endif %}\n\n{% if 'content-creation' in categories %}\nif (inputData.content_generation_required) {\n  response.results.content_generated = true;\n  response.results.content_type = inputData.content_type || 'text';\n  response.results.content_url = '/api/scenario-generator-v1/content/' + Date.now();\n}\n{% endif %}\n\n{% if 'business-automation' in categories %}\nif (inputData.automation_workflow) {\n  response.results.workflow_executed = inputData.automation_workflow;\n  response.results.steps_completed = (inputData.automation_steps || []).length;\n  response.results.automation_status = 'completed';\n}\n{% endif %}\n\n// Add performance metrics\nresponse.performance = {\n  processing_time_ms: response.processing_time_ms,\n  status: response.processing_time_ms < 5000 ? 'fast' : 'normal',\n  efficiency_score: Math.max(0, 100 - (response.processing_time_ms / 100))\n};\n\n// Add business value metrics\nresponse.business_impact = {\n  category: '{{ categories[0] if categories else \"general\" }}',\n  value_delivered: true,\n  estimated_time_saved_minutes: Math.round(response.processing_time_ms / 1000 / 6), // Assume 10x efficiency\n  target_market: '{{ business.target_markets[0] if business.target_markets else \"general\" }}'\n};\n\nreturn response;"
+        "mode": "runOnceForEachItem", 
+        "jsCode": "// Update status to planning and publish to Redis queue\nconst scenarioData = $('validate-request').item.json;\nconst dbResult = $input.item.json;\n\n// Add database ID to scenario data\nconst enrichedData = {\n  ...scenarioData,\n  databaseId: dbResult.id,\n  status: 'planning',\n  startedAt: new Date().toISOString()\n};\n\nconsole.log('Publishing scenario to planning queue:', enrichedData.scenarioId);\nreturn enrichedData;"
       },
-      "id": "build-response",
-      "name": "Build Response",
+      "id": "prepare-planning-queue",
+      "name": "Prepare Planning Queue",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1120, 300]
+      "position": [800, 300]
     },
-    
+
     {
       "parameters": {
-        "values": {
-          "string": [
+        "command": "LPUSH",
+        "key": "scenario-planning-queue",
+        "value": "={{ JSON.stringify($json) }}"
+      },
+      "id": "queue-for-planning",
+      "name": "Queue for Planning",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [1000, 300],
+      "credentials": {
+        "redis": {
+          "id": "redis-scenario-generator", 
+          "name": "Redis - Scenario Generator"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "url": "http://localhost:5678/webhook/scenario-generator-v1/planning",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
             {
-              "name": "status",
-              "value": "success"
-            },
-            {
-              "name": "message", 
-              "value": "Scenario Generator V1 workflow completed successfully"
-            }
-          ],
-          "number": [
-            {
-              "name": "http_code",
-              "value": 200
+              "name": "scenarioData",
+              "value": "={{ JSON.stringify($('prepare-planning-queue').item.json) }}"
             }
           ]
         },
+        "options": {
+          "timeout": 5000
+        }
+      },
+      "id": "trigger-planning-workflow",
+      "name": "Trigger Planning Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1200, 300]
+    },
+
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Build response for UI\nconst scenarioData = $('prepare-planning-queue').item.json;\n\nconst response = {\n  success: true,\n  message: 'Scenario generation pipeline started',\n  scenario: {\n    id: scenarioData.scenarioId,\n    campaignId: scenarioData.campaignId,\n    status: 'planning',\n    phase: 'planning',\n    progressPercent: 5,\n    estimatedCompletionTime: '15-30 minutes',\n    createdAt: scenarioData.requestedAt\n  },\n  pipeline: {\n    planningIterations: scenarioData.planningIterations,\n    implementationIterations: scenarioData.implementationIterations,\n    validationIterations: scenarioData.validationIterations\n  },\n  monitoring: {\n    statusUrl: `/api/scenario-generator-v1/status/${scenarioData.scenarioId}`,\n    progressUrl: `/api/scenario-generator-v1/progress/${scenarioData.scenarioId}`,\n    logsUrl: `/api/scenario-generator-v1/logs/${scenarioData.scenarioId}`\n  }\n};\n\nconsole.log('Scenario generation initiated:', scenarioData.scenarioId);\nreturn response;"
+      },
+      "id": "build-response",
+      "name": "Build Response", 
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1400, 300]
+    },
+
+    {
+      "parameters": {
+        "path": "scenario-generator-v1/status/:scenarioId",
+        "responseMode": "lastNode",
         "options": {}
       },
-      "id": "success-response",
-      "name": "Success Response",
-      "type": "n8n-nodes-base.set",
+      "id": "status-webhook",
+      "name": "Status Check",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 500],
+      "webhookId": "status-webhook"
+    },
+
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT s.*, c.name as campaign_name, c.color_theme FROM scenarios s LEFT JOIN campaigns c ON s.campaign_id = c.id WHERE s.scenario_id = $1",
+        "additionalFields": {
+          "mode": "independently",
+          "valuesUi": {
+            "values": [
+              {
+                "column": "$1",
+                "value": "={{ $node.parameter.scenarioId }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "get-scenario-status",
+      "name": "Get Scenario Status",
+      "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [1340, 300]
+      "position": [400, 500],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-scenario-generator",
+          "name": "PostgreSQL - Scenario Generator"
+        }
+      }
+    },
+
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Build status response\nconst scenario = $input.item.json;\n\nif (!scenario || !scenario.id) {\n  return {\n    success: false,\n    error: 'Scenario not found',\n    status: 'not_found'\n  };\n}\n\nconst response = {\n  success: true,\n  scenario: {\n    id: scenario.scenario_id,\n    name: scenario.scenario_name,\n    description: scenario.description,\n    status: scenario.status,\n    currentPhase: scenario.current_phase,\n    progressPercent: scenario.progress_percent,\n    campaign: {\n      id: scenario.campaign_id,\n      name: scenario.campaign_name,\n      colorTheme: scenario.color_theme\n    },\n    configuration: {\n      complexity: scenario.complexity,\n      category: scenario.category,\n      planningIterations: scenario.planning_iterations,\n      implementationIterations: scenario.implementation_iterations,\n      validationIterations: scenario.validation_iterations\n    },\n    timing: {\n      requestedAt: scenario.requested_at,\n      startedAt: scenario.started_at,\n      completedAt: scenario.completed_at,\n      totalDurationMinutes: scenario.total_duration_minutes\n    },\n    storage: {\n      planPath: scenario.plan_path,\n      implementationPath: scenario.implementation_path,\n      finalScenarioPath: scenario.final_scenario_path\n    },\n    business: {\n      estimatedRevenue: scenario.estimated_revenue\n    },\n    error: scenario.error_message\n  }\n};\n\nreturn response;"
+      },
+      "id": "format-status-response",
+      "name": "Format Status Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [600, 500]
     }
   ],
-  
+
   "connections": {
-    "Webhook Trigger": {
+    "New Scenario Request": {
       "main": [
         [
           {
-            "node": "Process Input",
+            "node": "Validate Request",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    
-    "Process Input": {
+    "Validate Request": {
       "main": [
         [
-          {% if "ollama" in resources.required %}
           {
-            "node": "AI Processing (Ollama)",
-            "type": "main",
-            "index": 0
-          },
-          {% endif %}
-          
-          {% if "whisper" in resources.required %}
-          {
-            "node": "Speech to Text (Whisper)",
-            "type": "main", 
-            "index": 0
-          },
-          {% endif %}
-          
-          {% if "postgres" in resources.required %}
-          {
-            "node": "Log Activity",
-            "type": "main",
-            "index": 0
-          },
-          {% endif %}
-          
-          {
-            "node": "Build Response",
+            "node": "Create Scenario Record",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    
-    {% if "ollama" in resources.required %}
-    "AI Processing (Ollama)": {
+    "Create Scenario Record": {
       "main": [
         [
           {
-            "node": "Build Response",
+            "node": "Prepare Planning Queue",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    {% endif %}
-    
-    {% if "whisper" in resources.required %}
-    "Speech to Text (Whisper)": {
+    "Prepare Planning Queue": {
+      "main": [
+        [
+          {
+            "node": "Queue for Planning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Queue for Planning": {
+      "main": [
+        [
+          {
+            "node": "Trigger Planning Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Planning Workflow": {
       "main": [
         [
           {
@@ -229,27 +293,22 @@
         ]
       ]
     },
-    {% endif %}
-    
-    {% if "postgres" in resources.required %}
-    "Log Activity": {
+    "Status Check": {
       "main": [
         [
           {
-            "node": "Build Response",
+            "node": "Get Scenario Status",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    {% endif %}
-    
-    "Build Response": {
+    "Get Scenario Status": {
       "main": [
         [
           {
-            "node": "Success Response",
+            "node": "Format Status Response",
             "type": "main",
             "index": 0
           }
@@ -257,30 +316,30 @@
       ]
     }
   },
-  
-  "active": false,
+
+  "active": true,
   "settings": {
     "executionOrder": "v1",
     "saveManualExecutions": true,
     "callerPolicy": "workflowsFromSameOwner"
   },
-  
-  "versionId": "scenario-generator-v1-main-workflow",
-  "id": "scenario-generator-v1-main",
-  
+
+  "versionId": "scenario-generator-v1-main-pipeline",
+  "id": "scenario-generator-v1-main-pipeline",
+
   "meta": {
-    "templateCreatedBy": "vrooli-scenario-generator",
-    "instanceId": "scenario-generator-v1-instance"
+    "templateCreatedBy": "vrooli-scenario-generator-v1",
+    "instanceId": "scenario-generator-v1-pipeline"
   },
-  
+
   "tags": [
     {
       "id": "scenario-generator-v1",
       "name": "Scenario Generator V1"
     },
     {
-      "id": "vrooli-scenario",
-      "name": "Vrooli Scenario"
+      "id": "scenario-pipeline",
+      "name": "Scenario Pipeline"
     }
   ]
 }

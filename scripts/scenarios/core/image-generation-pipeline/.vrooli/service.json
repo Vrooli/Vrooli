@@ -1,6 +1,13 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "inheritance": {
+    "extends": "../../../../../.vrooli/service.json",
+    "merge": {
+      "strategy": "merge",
+      "arrays": "concat"
+    }
+  },
   "service": {
     "name": "image-generation-pipeline",
     "displayName": "Enterprise Image Generation Pipeline",
@@ -173,11 +180,11 @@
       "application": "http://localhost:3000",
       "api": "http://localhost:3000/api/image-generation-pipeline",
       "health": "http://localhost:3000/api/image-generation-pipeline/health",
-      "comfyui": "http://localhost:8188",
-      "minio": "http://localhost:9000",
-      "qdrant": "http://localhost:6333",
-      "agent-s2": "http://localhost:4113",
-      "browserless": "http://localhost:4110"
+      "comfyui": "${service.comfyui.url}",
+      "minio": "${service.minio.url}",
+      "qdrant": "${service.qdrant.url}",
+      "agent-s2": "${service.agent-s2.url}",
+      "browserless": "${service.browserless.url}"
     },
     "initialization": {
       "phases": [
@@ -278,7 +285,7 @@
             {
               "name": "health-check",
               "type": "healthcheck",
-              "target": "http://localhost:3000/api/image-generation-pipeline/health",
+              "target": "${service.vrooli.url}/api/image-generation-pipeline/health",
               "timeout": "30s",
               "retries": 3
             },
@@ -296,43 +303,43 @@
       "enabled": true,
       "healthChecks": {
         "application": {
-          "endpoint": "http://localhost:3000/api/image-generation-pipeline/health",
+          "endpoint": "${service.vrooli.url}/api/image-generation-pipeline/health",
           "interval": "30s",
           "timeout": "5s",
           "threshold": 3
         },
         "comfyui": {
-          "endpoint": "http://localhost:8188/system_stats",
+          "endpoint": "${service.comfyui.url}/system_stats",
           "interval": "60s",
           "timeout": "15s"
         },
         "minio": {
-          "endpoint": "http://localhost:9000/minio/health/ready",
+          "endpoint": "${service.minio.url}/minio/health/ready",
           "interval": "60s",
           "timeout": "10s"
         },
         "qdrant": {
-          "endpoint": "http://localhost:6333/health",
+          "endpoint": "${service.qdrant.url}/health",
           "interval": "60s",
           "timeout": "10s"
         },
         "agent-s2": {
-          "endpoint": "http://localhost:4113/health",
+          "endpoint": "${service.agent-s2.url}/health",
           "interval": "60s",
           "timeout": "10s"
         },
         "browserless": {
-          "endpoint": "http://localhost:4110/pressure",
+          "endpoint": "${service.browserless.url}/pressure",
           "interval": "60s",
           "timeout": "10s"
         },
         "ollama": {
-          "endpoint": "http://localhost:11434/api/tags",
+          "endpoint": "${service.ollama.url}/api/tags",
           "interval": "60s",
           "timeout": "15s"
         },
         "whisper": {
-          "endpoint": "http://localhost:8090/health",
+          "endpoint": "${service.whisper.url}/health",
           "interval": "60s",
           "timeout": "10s"
         },
@@ -390,7 +397,7 @@
       "ui": {
         "required": true,
         "type": "comfyui",
-        "url": "http://localhost:8188"
+        "url": "${service.comfyui.url}"
       },
       "performance": {
         "loadTest": {

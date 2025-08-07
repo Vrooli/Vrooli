@@ -4,30 +4,45 @@ scenario: intelligent-desktop-assistant
 # Structure validation
 structure:
   required_files:
-    - metadata.yaml
-    - manifest.yaml
-    - README.md
-    - initialization/database/schema.sql
-    - initialization/workflows/n8n/main-workflow.json
+    - .vrooli/service.json
+    - initialization/storage/schema.sql
+    - initialization/storage/seed.sql
+    - initialization/automation/n8n/main-workflow.json
+    - initialization/automation/triggers.yaml
+    - initialization/automation/windmill/windmill-app.json
     - initialization/configuration/app-config.json
-    - initialization/ui/windmill-app.json
+    - initialization/configuration/feature-flags.json
+    - initialization/configuration/resource-urls.json
+    - deployment/startup.sh
+    - deployment/monitor.sh
+    - test.sh
+    - custom-tests.sh
   
   required_dirs:
-    - initialization/database
-    - initialization/workflows
+    - .vrooli
+    - initialization/storage
+    - initialization/automation
     - initialization/configuration
-    - initialization/vectors
     - deployment
-    - ui
 
 # Resource requirements
 resources:
-  required: [ollama, whisper, qdrant, agent-s2]
-  optional: []
+  required: [postgres, ollama, agent-s2]
+  optional: [qdrant, whisper]
   health_timeout: 30
 
 # Declarative tests
 tests:
+  - name: "Application Health Check"
+    type: http
+    service: app
+    endpoint: /api/intelligent-desktop-assistant/health
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+
   - name: "AI Model Engine Ready"
     type: http
     service: ollama
@@ -37,36 +52,32 @@ tests:
       status: 200
       body:
         type: json
-        
-  - name: "Audio Transcription Engine Ready"
+
+  - name: "Agent-S2 Desktop Automation Ready"
     type: http
-    service: whisper
+    service: agent-s2
     endpoint: /health
     method: GET
     expect:
       status: 200
-      
-  - name: "Vector Database Ready"
-    type: http
-    service: qdrant
-    endpoint: /collections
-    method: GET
-    expect:
-      status: 200
-      body:
-        type: json
+
+  - name: "Database Connection"
+    type: tcp
+    service: postgres
+    port: 5432
         
-  - name: "Business Logic Validation"
+  - name: "Desktop Automation Workflow"
     type: custom
     script: custom-tests.sh
     function: test_intelligent_desktop_assistant_workflow
 
 # Validation criteria
 validation:
-  success_rate: 75        # Allow some flexibility for optional services
-  response_time: 10000    # 10 seconds max for service responses
-  revenue_potential: 10000
+  success_rate: 85        # High success rate for desktop automation
+  response_time: 8000     # 8 seconds max for desktop operations
+  revenue_potential: 26000  # Total estimate from service.json
   business_criteria:
-    - "Core services operational"
-    - "Business workflow functional"
-    - "Integration points validated"
+    - "AI-powered desktop automation operational"
+    - "Screen content analysis and workflow execution functional"
+    - "Agent-S2 integration for complex desktop tasks validated"
+    - "24/7 customer service automation capabilities verified"

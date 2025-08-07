@@ -1,41 +1,74 @@
-#\!/bin/bash
-# Resource Monitoring Platform - Manual Discovery Script
+#!/bin/bash
+# Resource Discovery Script - Triggers manual resource discovery
 
 set -euo pipefail
 
-log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"; }
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-log "Running resource discovery..."
+# Function to log with timestamp
+log() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+}
 
-# Trigger n8n discovery workflow
-if curl -s -X POST "http://localhost:5678/webhook/discover-resources" | grep -q "success\|discovered"; then
-    log "✓ n8n discovery workflow triggered"
-else
-    log "✗ Failed to trigger n8n discovery workflow"
+echo "============================================"
+echo "Resource Discovery - Manual Trigger"
+echo "$(date)"
+echo "============================================"
+
+# Check if n8n is running
+if ! curl -s "http://localhost:5678/healthz" >/dev/null 2>&1; then
+    log "ERROR: n8n is not running on port 5678"
+    exit 1
 fi
 
-# Manual port scan for common services
-declare -A known_services=(
-    [5433]="postgres"
-    [6380]="redis"
-    [9009]="questdb"
-    [8200]="vault"
-    [5678]="n8n"
-    [5681]="windmill"
-    [1880]="node-red"
-    [11434]="ollama"
-    [9000]="minio"
-)
+# Trigger discovery via webhook
+log "Triggering resource discovery..."
+response=$(curl -s -X POST \
+    -H "Content-Type: application/json" \
+    -d '{"trigger": "manual", "timestamp": "'$(date -Iseconds)'"}' \
+    "http://localhost:5678/webhook/discover-resources" 2>&1)
 
-log "Scanning for known services..."
-
-for port in "${\!known_services[@]}"; do
-    service="${known_services[$port]}"
-    if nc -z localhost "$port" 2>/dev/null; then
-        log "✓ Found ${service} on port ${port}"
+if [ $? -eq 0 ]; then
+    log "✓ Discovery triggered successfully"
+    
+    # Parse response if it contains JSON
+    if echo "$response" | grep -q "{"; then
+        echo "$response" | jq '.' 2>/dev/null || echo "$response"
     else
-        log "- ${service} not found on port ${port}"
+        echo "$response"
     fi
-done
-
-log "Discovery completed"
+    
+    # Wait a moment for discovery to process
+    sleep 3
+    
+    # Check discovery summary in Redis
+    log "Checking discovery results..."
+    if command -v redis-cli >/dev/null 2>&1; then
+        summary=$(redis-cli -p 6380 GET discovery_summary 2>/dev/null || echo "{}")
+        if [ "$summary" != "{}" ] && [ -n "$summary" ]; then
+            log "Discovery Summary:"
+            echo "$summary" | jq '.' 2>/dev/null || echo "$summary"
+        fi
+    fi
+    
+    # Query database for discovered resources
+    if command -v psql >/dev/null 2>&1; then
+        log "Discovered resources:"
+        PGPASSWORD="${POSTGRES_PASSWORD:-vrooli}" psql \
+            -h "${POSTGRES_HOST:-localhost}" \
+            -p "${POSTGRES_PORT:-5433}" \
+            -U "${POSTGRES_USER:-vrooli}" \
+            -d "${POSTGRES_DB:-vrooli}" \
+            -t -c "SELECT resource_name, resource_type, current_status, port 
+                   FROM resource_monitoring.resources 
+                   WHERE is_enabled = true 
+                   ORDER BY is_critical DESC, resource_name" 2>/dev/null | \
+            column -t -s '|' || log "Could not query database"
+    fi
+    
+    exit 0
+else
+    log "✗ Failed to trigger discovery"
+    echo "Error: $response"
+    exit 1
+fi

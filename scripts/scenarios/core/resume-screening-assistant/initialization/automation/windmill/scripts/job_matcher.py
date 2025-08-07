@@ -62,7 +62,7 @@ def search_candidates(
 def assess_candidate_fit(
     candidate: Dict[str, Any],
     job_requirements: str,
-    model: str = "llama3.2:3b"
+    model: str = "llama3.1:8b"
 ) -> Dict[str, Any]:
     """
     Use AI to assess candidate fit for the job
@@ -183,7 +183,7 @@ def main(
         response = requests.post(
             f"{OLLAMA_URL}/api/embeddings",
             json={
-                "model": "llama3.2:3b",
+                "model": "llama3.1:8b",
                 "prompt": job_requirements
             }
         )

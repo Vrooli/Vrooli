@@ -1,4 +1,4 @@
-#\!/bin/bash
+#!/bin/bash
 # Resource Monitoring Platform - Integration Tests
 
 set -euo pipefail

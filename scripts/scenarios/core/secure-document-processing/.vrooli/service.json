@@ -1,6 +1,13 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "inheritance": {
+    "extends": "../../../../../.vrooli/service.json",
+    "merge": {
+      "strategy": "merge",
+      "arrays": "concat"
+    }
+  },
   "service": {
     "name": "secure-document-processing",
     "displayName": "Secure Document Processing Pipeline",
@@ -86,8 +93,8 @@
       },
       "qdrant": {
         "type": "qdrant",
-        "enabled": false,
-        "required": false,
+        "enabled": true,
+        "required": true,
         "initialization": {
           "collections": [
             {
@@ -140,9 +147,35 @@
         "type": "unstructured-io"
       },
       "ollama": {
-        "enabled": false,
-        "required": false,
+        "enabled": true,
+        "required": true,
         "models": ["llama3.1:8b", "nomic-embed-text"]
+      }
+    },
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "workflows": [
+            "initialization/automation/n8n/document-intake.json",
+            "initialization/automation/n8n/process-orchestrator.json",
+            "initialization/automation/n8n/prompt-processor.json",
+            "initialization/automation/n8n/workflow-executor.json",
+            "initialization/automation/n8n/semantic-indexer.json"
+          ]
+        }
+      },
+      "windmill": {
+        "type": "windmill",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "apps": [
+            "initialization/automation/windmill/document-portal.json"
+          ]
+        }
       }
     }
   },
@@ -150,12 +183,12 @@
     "target": "docker",
     "strategy": "rolling-update",
     "urls": {
-      "application": "http://localhost:3000",
-      "api": "http://localhost:3000/api/secure-document-processing",
-      "health": "http://localhost:3000/api/secure-document-processing/health",
-      "vault": "http://localhost:8200",
-      "minio": "http://localhost:9000",
-      "unstructured": "http://localhost:8000"
+      "application": "${service.vrooli.url}",
+      "api": "${service.vrooli.url}/api/secure-document-processing",
+      "health": "${service.vrooli.url}/api/secure-document-processing/health",
+      "vault": "${service.vault.url}",
+      "minio": "${service.minio.url}",
+      "unstructured": "${service.unstructured-io.url}"
     },
     "initialization": {
       "phases": [
@@ -260,7 +293,7 @@
             {
               "name": "health-check",
               "type": "healthcheck",
-              "target": "http://localhost:3000/api/secure-document-processing/health",
+              "target": "${service.vrooli.url}/api/secure-document-processing/health",
               "timeout": "30s",
               "retries": 3
             },
@@ -284,33 +317,33 @@
       "enabled": true,
       "healthChecks": {
         "application": {
-          "endpoint": "http://localhost:3000/api/secure-document-processing/health",
+          "endpoint": "${service.vrooli.url}/api/secure-document-processing/health",
           "interval": "30s",
           "timeout": "5s",
           "threshold": 3
         },
         "vault": {
-          "endpoint": "http://localhost:8200/v1/sys/health",
+          "endpoint": "${service.vault.url}/v1/sys/health",
           "interval": "60s",
           "timeout": "10s"
         },
         "minio": {
-          "endpoint": "http://localhost:9000/minio/health/ready",
+          "endpoint": "${service.minio.url}/minio/health/ready",
           "interval": "60s",
           "timeout": "10s"
         },
         "unstructured-io": {
-          "endpoint": "http://localhost:8000/general/v0/general",
+          "endpoint": "${service.unstructured-io.url}/general/v0/general",
           "interval": "60s",
           "timeout": "15s"
         },
         "qdrant": {
-          "endpoint": "http://localhost:6333/health",
+          "endpoint": "${service.qdrant.url}/health",
           "interval": "60s",
           "timeout": "10s"
         },
         "ollama": {
-          "endpoint": "http://localhost:11434/api/tags",
+          "endpoint": "${service.ollama.url}/api/tags",
           "interval": "60s",
           "timeout": "15s"
         },
@@ -374,7 +407,7 @@
       "ui": {
         "required": false,
         "type": "api",
-        "url": "http://localhost:3000/api/secure-document-processing"
+        "url": "${service.vrooli.url}/api/secure-document-processing"
       },
       "performance": {
         "loadTest": {

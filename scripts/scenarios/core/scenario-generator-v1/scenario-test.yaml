@@ -4,41 +4,107 @@ scenario: scenario-generator-v1
 # Structure validation
 structure:
   required_files:
-    - metadata.yaml
-    - manifest.yaml
+    - .vrooli/service.json
     - README.md
-    - initialization/database/schema.sql
-    - initialization/workflows/n8n/main-workflow.json
+    - IMPLEMENTATION_PLAN.md
+    - initialization/storage/schema.sql
+    - initialization/storage/seed.sql
+    - initialization/automation/n8n/main-workflow.json
+    - initialization/automation/n8n/planning-workflow.json
+    - initialization/automation/triggers.yaml
+    - initialization/automation/windmill/n8n-scenario-generator.json
+    - initialization/automation/windmill/windmill-app.json
     - initialization/configuration/app-config.json
-    - initialization/ui/windmill-app.json
+    - initialization/configuration/config.json
+    - initialization/configuration/feature-flags.json
+    - initialization/configuration/resource-urls.json
+    - deployment/startup.sh
+    - deployment/monitor.sh
+    - test.sh
+    - custom-tests.sh
+    - prompts/scenario-generation-prompt.md
+    - prompts/initial-planning-prompt.md
+    - prompts/plan-refinement-prompt.md
+    - prompts/implementation-prompt.md
+    - prompts/validation-prompt.md
+    - ui/windmill/idea-input.tsx
+    - ui/windmill/scenario-list.tsx
   
   required_dirs:
-    - initialization/database
-    - initialization/workflows
+    - .vrooli
+    - initialization/storage
+    - initialization/automation
+    - initialization/automation/n8n
+    - initialization/automation/windmill
     - initialization/configuration
-    - initialization/vectors
     - deployment
+    - prompts
     - ui
+    - ui/scripts
+    - ui/windmill
 
 # Resource requirements
 resources:
-  required: []
-  optional: []
-  health_timeout: 30
+  required: [postgres, windmill, n8n, minio, claude-code]
+  optional: [redis, ollama]
+  health_timeout: 60
 
 # Declarative tests
 tests:
-  - name: "Business Logic Validation"
+  - name: "Application Health Check"
+    type: http
+    service: app
+    endpoint: /api/scenario-generator-v1/health
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+
+  - name: "Windmill Platform Ready"
+    type: http
+    service: windmill
+    endpoint: /api/version
+    method: GET
+    expect:
+      status: 200
+
+  - name: "N8N Workflow Engine Ready"
+    type: http
+    service: n8n
+    endpoint: /api/v1/info
+    method: GET
+    expect:
+      status: 200
+      body:
+        type: json
+
+  - name: "Object Storage Ready"
+    type: http
+    service: minio
+    endpoint: /minio/health/ready
+    method: GET
+    expect:
+      status: 200
+
+  - name: "Database Connection"
+    type: tcp
+    service: postgres
+    port: 5432
+
+  - name: "Meta Scenario Generation Workflow"
     type: custom
     script: custom-tests.sh
     function: test_scenario_generator_v1_workflow
 
 # Validation criteria
 validation:
-  success_rate: 75        # Allow some flexibility for optional services
-  response_time: 10000    # 10 seconds max for service responses
-  revenue_potential: 10000
+  success_rate: 80        # High complexity AI development platform
+  response_time: 45000    # 45 seconds max for scenario generation operations
+  revenue_potential: 300000  # Total estimate from service.json (ultra-high)
   business_criteria:
-    - "Core services operational"
-    - "Business workflow functional"
-    - "Integration points validated"
+    - "AI-powered SaaS generation platform operational"
+    - "Claude Code integration for autonomous development validated"
+    - "Complete application generation from requirements functional"
+    - "Meta-scenario system capable of recursive improvement verified"
+    - "Revolutionary no-code development capabilities confirmed"

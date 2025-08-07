@@ -1,6 +1,13 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "inheritance": {
+    "extends": "../../../../../.vrooli/service.json",
+    "merge": {
+      "strategy": "merge",
+      "arrays": "concat"
+    }
+  },
   "service": {
     "name": "scenario-generator-v1",
     "displayName": "Scenario Generator V1",
@@ -103,27 +110,11 @@
           "apps": [
             {
               "path": "f/scenario-generator/dashboard",
-              "file": "initialization/ui/windmill-generator-app.json",
+              "file": "initialization/automation/windmill/scenario-dashboard-app.json",
               "summary": "Scenario Generation Dashboard"
             }
           ],
-          "scripts": [
-            {
-              "name": "scenario-processor",
-              "file": "initialization/scripts/scenario-processor.ts",
-              "language": "typescript"
-            },
-            {
-              "name": "code-generator",
-              "file": "initialization/scripts/code-generator.ts",
-              "language": "typescript"
-            },
-            {
-              "name": "requirement-analyzer",
-              "file": "initialization/scripts/requirement-analyzer.ts",
-              "language": "typescript"
-            }
-          ]
+          "scripts": []
         }
       },
       "n8n": {
@@ -133,15 +124,27 @@
           "workflows": [
             {
               "name": "scenario-generation-pipeline",
-              "file": "initialization/workflows/n8n/generation-pipeline.json",
+              "file": "initialization/automation/n8n/main-workflow.json",
               "enabled": true,
               "tags": ["generation", "automation"]
             },
             {
-              "name": "code-review-workflow",
-              "file": "initialization/workflows/n8n/code-review.json",
+              "name": "planning-workflow",
+              "file": "initialization/automation/n8n/planning-workflow.json",
               "enabled": true,
-              "tags": ["quality", "review"]
+              "tags": ["planning", "generation"]
+            },
+            {
+              "name": "building-workflow",
+              "file": "initialization/automation/n8n/building-workflow.json",
+              "enabled": true,
+              "tags": ["implementation", "generation"]
+            },
+            {
+              "name": "validation-workflow",
+              "file": "initialization/automation/n8n/validation-workflow.json",
+              "enabled": true,
+              "tags": ["validation", "testing"]
             }
           ]
         }
@@ -159,13 +162,12 @@
     "target": "docker",
     "strategy": "rolling-update",
     "urls": {
-      "application": "http://localhost:3000",
-      "api": "http://localhost:3000/api/scenario-generator-v1",
-      "health": "http://localhost:3000/api/scenario-generator-v1/health",
-      "windmill": "http://localhost:8000",
-      "n8n": "http://localhost:5678",
-      "minio": "http://localhost:9000",
-      "claude-code": "http://localhost:4112"
+      "application": "${service.vrooli.url}",
+      "api": "${service.vrooli.url}/api/scenario-generator-v1",
+      "health": "${service.vrooli.url}/api/scenario-generator-v1/health",
+      "windmill": "${service.windmill.url}",
+      "n8n": "${service.n8n.url}",
+      "minio": "${service.minio.url}"
     },
     "initialization": {
       "phases": [
@@ -248,11 +250,6 @@
               "name": "load-app-config",
               "type": "config",
               "file": "initialization/configuration/app-config.json"
-            },
-            {
-              "name": "set-generation-settings",
-              "type": "config",
-              "file": "initialization/configuration/generation-settings.json"
             }
           ]
         },
@@ -273,7 +270,7 @@
             {
               "name": "health-check",
               "type": "healthcheck",
-              "target": "http://localhost:3000/api/scenario-generator-v1/health",
+              "target": "${service.vrooli.url}/api/scenario-generator-v1/health",
               "timeout": "30s",
               "retries": 3
             },
@@ -291,33 +288,28 @@
       "enabled": true,
       "healthChecks": {
         "application": {
-          "endpoint": "http://localhost:3000/api/scenario-generator-v1/health",
+          "endpoint": "${service.vrooli.url}/api/scenario-generator-v1/health",
           "interval": "30s",
           "timeout": "5s",
           "threshold": 3
         },
         "windmill": {
-          "endpoint": "http://localhost:8000/api/version",
+          "endpoint": "${service.windmill.url}/api/version",
           "interval": "60s",
           "timeout": "10s"
         },
         "n8n": {
-          "endpoint": "http://localhost:5678/api/v1/info",
+          "endpoint": "${service.n8n.url}/api/v1/info",
           "interval": "60s",
           "timeout": "10s"
         },
-        "claude-code": {
-          "endpoint": "http://localhost:4112/health",
-          "interval": "60s",
-          "timeout": "15s"
-        },
         "minio": {
-          "endpoint": "http://localhost:9000/minio/health/ready",
+          "endpoint": "${service.minio.url}/minio/health/ready",
           "interval": "60s",
           "timeout": "10s"
         },
         "ollama": {
-          "endpoint": "http://localhost:11434/api/tags",
+          "endpoint": "${service.ollama.url}/api/tags",
           "interval": "60s",
           "timeout": "15s"
         },
@@ -380,7 +372,7 @@
       "ui": {
         "required": true,
         "type": "windmill",
-        "url": "http://localhost:8000"
+        "url": "${service.windmill.url}"
       },
       "performance": {
         "loadTest": {
@@ -501,11 +493,6 @@
           "type": "number",
           "default": 5678,
           "description": "n8n workflow editor port"
-        },
-        "CLAUDE_CODE_PORT": {
-          "type": "number",
-          "default": 4112,
-          "description": "Claude Code agent port"
         }
       },
       "features": {

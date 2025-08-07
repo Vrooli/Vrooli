@@ -1,265 +1,276 @@
 # Scenario Generator V1
 
-## 🎯 Overview
+An autonomous scenario development pipeline that uses Claude Code to iteratively generate, refine, validate, and deploy complete Vrooli scenarios. This system provides a campaign-based dashboard for managing multiple scenario development projects.
 
-The **Scenario Generator V1** is a meta-scenario that uses Vrooli's own platform to generate new scenarios from customer requirements. This revolutionary tool transforms simple text descriptions into complete, deployable SaaS applications worth $10,000-$50,000 each.
+## 🎯 What This Scenario Does
 
-### Key Features
-- **One-Shot Generation**: Create complete scenarios from a single prompt
-- **AI-Powered**: Uses Claude Code to generate production-ready code
-- **Self-Validating**: Tests and validates generated scenarios
-- **Revenue-Optimized**: Estimates realistic revenue potential for each scenario
-- **Resource-Efficient**: Selects only necessary resources for each use case
+The Scenario Generator V1 transforms customer requests into fully functional Vrooli scenarios through an autonomous AI pipeline:
+
+1. **Campaign Management**: Organize scenarios by business category (SaaS, AI Assistants, Automation, Analytics)
+2. **Iterative Planning**: Claude Code analyzes requirements and creates detailed implementation plans with configurable refinement loops
+3. **Autonomous Implementation**: Generates complete scenario files, workflows, and configurations
+4. **Validation Pipeline**: Tests scenarios using scenario-to-app.sh with automatic bug fixing
+5. **Pattern Learning**: Stores all interactions and issues in a database for continuous improvement
+
+### Business Value
+- **Revenue Generation**: Each scenario typically generates $10K-50K in value
+- **Autonomous Development**: Reduces scenario creation time from weeks to hours
+- **Pattern Learning**: Improves quality over time through accumulated experience
+- **Scalability**: Can generate multiple scenarios concurrently
+
+## 🏗️ Architecture
+
+### Resources Used
+- **windmill** (5681): Campaign dashboard UI with scenario management
+- **n8n** (5678): Orchestrates the entire generation pipeline 
+- **postgres** (5433): Stores campaigns, scenarios, generation logs, and improvement analytics
+- **minio** (9000): Stores generated scenario files, plans, and artifacts
+- **claude-code**: AI-driven scenario generation and refinement
+- **redis** (6380): Queue management and session caching
+
+### Pipeline Phases
+
+#### 1. Planning Phase
+- User submits scenario request through Windmill dashboard
+- Claude Code analyzes requirements and creates implementation plan
+- Configurable refinement iterations (1-5) improve plan quality
+- Final plan stored in MinIO with complete architecture and specifications
+
+#### 2. Implementation Phase  
+- Claude Code generates all scenario files from refined plan
+- Includes database schemas, workflows, configurations, and documentation
+- Bug fixing iterations (1-5) improve code quality and completeness
+- All generated files stored in MinIO with version control
+
+#### 3. Validation Phase
+- scenario-to-app.sh performs dry-run validation
+- Claude Code analyzes any validation errors and provides fixes
+- Iterative debugging (1-10 attempts) until validation passes
+- Successful scenarios are automatically deployed
+
+#### 4. Analytics Phase
+- All interactions, issues, and solutions stored in PostgreSQL
+- Pattern analysis identifies common problems and optimal solutions
+- Continuous improvement through learning from past generations
 
 ## 🚀 Quick Start
 
 ### Prerequisites
-Ensure these resources are installed and running:
-```bash
-# Check resource status
-./scripts/resources/index.sh --action discover
-
-# Required resources:
-- windmill (UI interface)
-- n8n (workflow orchestration)
-- claude-code (AI generation)
-- postgres (data storage)
-- minio (file storage)
-```
+Ensure the following resources are available:
+- PostgreSQL (port 5433)
+- n8n (port 5678) 
+- Windmill (port 5681)
+- MinIO (port 9000)
+- Redis (port 6380)
+- Claude Code CLI installed and authenticated
 
 ### Deployment
 
-1. **Deploy the scenario**:
-```bash
-# Convert scenario to running application
-./scripts/scenarios/tools/scenario-to-app.sh scenario-generator-v1
+1. **Deploy the scenario:**
+   ```bash
+   cd scripts/scenarios/core/scenario-generator-v1
+   ./deployment/startup.sh deploy
+   ```
+
+2. **Verify deployment:**
+   ```bash
+   ./test.sh
+   ```
+
+3. **Access the dashboard:**
+   Open http://localhost:5681/apps/scenario-generator
+
+### Creating Your First Scenario
+
+1. Navigate to the dashboard
+2. Select a campaign tab (SaaS Businesses, AI Assistants, etc.)
+3. Click "Add New Scenario"
+4. Fill in the scenario details:
+   - **Description**: Detailed explanation of what you want built
+   - **Complexity**: Simple ($5K-15K), Intermediate ($15K-35K), or Advanced ($35K-75K)
+   - **Category**: Business type (marketplace, saas, productivity, etc.)
+   - **Iterations**: Configure refinement loops for each phase
+5. Submit and monitor progress in real-time
+
+### Example Scenario Request
+
+```
+Create a SaaS business for managing freelance invoices and payments. The system should allow freelancers to create professional invoices, track payment status, send automated reminders, and generate financial reports. Include client management, project tracking, and integration with popular payment providers. The UI should be modern and mobile-responsive.
 ```
 
-2. **Access the UI**:
-```
-http://localhost:5681  # Windmill interface
-```
+## 📊 Dashboard Features
 
-3. **Start generating scenarios**:
-- Navigate to the "Generate New Scenario" page
-- Enter customer requirements
-- Click "Generate Scenario"
-- View and manage generated scenarios in the list page
+### Campaign Organization
+- **Tab-based Navigation**: Scenarios grouped by business category
+- **Progress Tracking**: Real-time status updates and completion percentages  
+- **Resource Management**: View estimated revenue and business metrics
+- **Batch Operations**: Manage multiple related scenarios together
 
-## 📁 Structure
+### Scenario Management
+- **Status Monitoring**: Track scenarios through planning, implementation, and validation phases
+- **Detailed Logs**: View all Claude Code interactions and system operations
+- **File Explorer**: Browse generated scenario files and configurations
+- **Error Analytics**: Understand common issues and improvement patterns
 
-```
-scenario-generator-v1/
-├── metadata.yaml                 # Scenario configuration
-├── workflows/
-│   └── n8n-scenario-generator.json  # Generation workflow
-├── ui/
-│   └── windmill/
-│       ├── idea-input.tsx       # Input interface
-│       └── scenario-list.tsx    # Scenario management
-├── prompts/
-│   └── scenario-generation-prompt.md  # Claude Code prompt
-├── initialization/
-│   ├── database/
-│   │   └── schema.sql           # PostgreSQL schema
-│   └── configuration/
-│       └── config.json          # Runtime config
-└── deployment/
-    └── startup.sh               # Deployment script
-```
-
-## 💡 Usage Examples
-
-### Example 1: Customer Support Bot
-**Input**: "I need a customer support chatbot that handles returns, tracks orders, and answers FAQs for my e-commerce store"
-
-**Generated Resources**: ollama, n8n, postgres, redis  
-**Revenue Potential**: $15,000-$25,000
-
-### Example 2: Document Processing
-**Input**: "Build a system that extracts data from invoices and automatically enters it into QuickBooks"
-
-**Generated Resources**: unstructured-io, n8n, postgres, minio, windmill  
-**Revenue Potential**: $20,000-$35,000
-
-### Example 3: Content Generator
-**Input**: "Create a social media content generator that creates posts with images based on blog articles"
-
-**Generated Resources**: ollama, comfyui, n8n, minio, postgres  
-**Revenue Potential**: $18,000-$30,000
+### Configuration Options
+- **Iteration Counts**: Customize refinement loops for each phase
+- **Complexity Levels**: Set appropriate difficulty and revenue targets
+- **Resource Allocation**: Configure timeouts and concurrent limits
+- **Feature Flags**: Enable/disable advanced features
 
 ## 🔧 Configuration
 
 ### Environment Variables
-Set in `initialization/configuration/config.json`:
-```json
-{
-  "claude_code": {
-    "api_key": "your-api-key",
-    "model": "claude-3-opus",
-    "max_tokens": 8000
-  },
-  "storage": {
-    "minio_bucket": "generated-scenarios",
-    "postgres_db": "scenario_generator"
-  }
-}
+
+```bash
+# Database Configuration
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5433
+POSTGRES_DB=vrooli
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=
+
+# Service Endpoints  
+N8N_HOST=localhost
+N8N_PORT=5678
+WINDMILL_HOST=localhost
+WINDMILL_PORT=5681
+MINIO_HOST=localhost
+MINIO_PORT=9000
+REDIS_HOST=localhost
+REDIS_PORT=6380
+
+# Feature Flags
+CLAUDE_CODE_AVAILABLE=true
 ```
 
-### Resource Configuration
-Modify `metadata.yaml` to adjust resources:
-```yaml
-resources:
-  required:
-    - windmill
-    - n8n
-    - claude-code
-    - postgres
-    - minio
-  optional:
-    - ollama  # For local validation
-    - redis   # For caching
-```
+### Configuration Files
 
-## 📊 Database Schema
-
-The PostgreSQL database tracks all generated scenarios:
-
-```sql
-CREATE TABLE scenario_generations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    customer_input TEXT NOT NULL,
-    generated_at TIMESTAMP DEFAULT NOW(),
-    scenario_id VARCHAR(100) UNIQUE NOT NULL,
-    scenario_name VARCHAR(255) NOT NULL,
-    resources_required JSONB,
-    status VARCHAR(50) DEFAULT 'generating',
-    generation_time_ms INTEGER,
-    complexity VARCHAR(20),
-    category VARCHAR(50),
-    estimated_revenue JSONB,
-    storage_path VARCHAR(500),
-    metadata JSONB
-);
-```
-
-## 🔄 Workflow Process
-
-1. **User Input** → Windmill UI receives requirements
-2. **Webhook Trigger** → n8n workflow activated
-3. **Prompt Enhancement** → Documentation references added
-4. **Claude Code Call** → AI generates complete scenario
-5. **File Storage** → Scenario saved to MinIO
-6. **Database Update** → PostgreSQL records generation
-7. **Response** → User receives scenario details
+- `initialization/configuration/app-config.json`: UI settings and iteration defaults
+- `initialization/configuration/resource-urls.json`: Service endpoint configuration
+- `initialization/configuration/feature-flags.json`: Feature toggle configuration
 
 ## 🧪 Testing
 
-### Manual Testing
+### Integration Tests
 ```bash
-# Test the generation workflow
-curl -X POST http://localhost:5678/webhook/scenario-generator \
-  -H "Content-Type: application/json" \
-  -d '{
-    "customerInput": "Build a customer support chatbot",
-    "complexity": "intermediate",
-    "category": "customer-service"
-  }'
+# Run all tests
+./test.sh
+
+# Health check only
+./deployment/startup.sh check
 ```
 
-### Validation Testing
-```bash
-# Validate a generated scenario
-curl -X POST http://localhost:5678/webhook/validate-scenario \
-  -H "Content-Type: application/json" \
-  -d '{"scenarioId": "scn-xxxxx"}'
-```
+### Test Coverage
+- Database schema and connectivity
+- n8n workflow validation
+- Windmill app deployment
+- Claude Code integration
+- File structure and JSON validity
+- SQL syntax validation
 
-## 📈 Metrics & Monitoring
+## 📈 Monitoring & Analytics
 
-Track key metrics:
-- **Total Scenarios Generated**: Count of all generations
-- **Success Rate**: Percentage of successful generations
-- **Average Generation Time**: Time from request to completion
-- **Resource Usage**: Most commonly selected resources
-- **Revenue Potential**: Total estimated revenue from scenarios
+### Success Metrics
+- **Generation Success Rate**: Target >85% of scenarios successfully deployed
+- **Average Generation Time**: Target <30 minutes per scenario
+- **First-Attempt Validation**: Target >70% pass validation without fixes
+- **Revenue Generated**: Track cumulative business value created
 
-Access metrics:
-```sql
--- Connect to PostgreSQL
-psql -h localhost -p 5433 -U postgres -d scenario_generator
+### Pattern Analysis
+The system automatically learns from:
+- Common implementation patterns that work well
+- Frequent validation errors and their solutions  
+- Resource utilization optimization opportunities
+- User request patterns and preferences
 
--- View generation statistics
-SELECT 
-    COUNT(*) as total_scenarios,
-    AVG(generation_time_ms) as avg_time_ms,
-    SUM((estimated_revenue->>'max')::int) as total_revenue_potential
-FROM scenario_generations
-WHERE status = 'completed';
-```
+### Debugging
 
-## 🚨 Troubleshooting
+**Common Issues:**
+- **Claude Code Authentication**: Run `claude auth login` to authenticate
+- **Workflow Failures**: Check n8n logs for execution errors
+- **Database Connection**: Verify PostgreSQL credentials and connectivity
+- **Validation Errors**: Review scenario-to-app.sh output for specific issues
 
-### Common Issues
-
-**1. Claude Code Not Responding**
+**Useful Commands:**
 ```bash
 # Check Claude Code status
-claude-code --version
+bash /home/matthalloran8/Vrooli/scripts/resources/agents/claude-code/manage.sh --action status
 
-# Verify API configuration
-cat ~/.vrooli/claude-code/config.json
+# View n8n workflows
+curl http://localhost:5678/api/v1/workflows
+
+# Check database connectivity
+psql -h localhost -p 5433 -U postgres -d vrooli -c "SELECT COUNT(*) FROM scenarios;"
+
+# Monitor Redis queues
+redis-cli -p 6380 LLEN scenario-planning-queue
 ```
 
-**2. n8n Workflow Not Triggering**
-```bash
-# Check n8n status
-curl http://localhost:5678/healthz
+## 🔄 Continuous Improvement
 
-# View workflow logs
-docker logs n8n
+The Scenario Generator V1 implements a learning system that:
+- **Tracks Success Patterns**: Identifies what implementations work best
+- **Learns from Failures**: Analyzes common issues and develops standard solutions
+- **Optimizes Resources**: Improves generation speed and resource utilization
+- **Predicts Success**: Develops scoring models for scenario viability
+
+This creates a compound intelligence effect where each scenario generated makes the system better at generating future scenarios.
+
+## 📚 Advanced Usage
+
+### Batch Generation
+Generate multiple related scenarios:
+1. Create scenarios with similar requirements
+2. Use pattern learning to accelerate subsequent generations
+3. Monitor resource utilization across concurrent generations
+
+### Custom Prompts
+Modify prompt templates in the `prompts/` directory:
+- `initial-planning-prompt.md`: Requirements analysis and architecture design
+- `plan-refinement-prompt.md`: Plan improvement and optimization  
+- `implementation-prompt.md`: Code generation and file creation
+- `validation-prompt.md`: Error analysis and bug fixing
+
+### Analytics Queries
+Query the database for insights:
+```sql
+-- Success rate by complexity
+SELECT complexity, 
+       COUNT(*) as total,
+       COUNT(*) FILTER (WHERE success = true) as successful,
+       ROUND(COUNT(*) FILTER (WHERE success = true) * 100.0 / COUNT(*), 2) as success_rate
+FROM scenarios 
+GROUP BY complexity;
+
+-- Common validation issues
+SELECT issue_category, COUNT(*) as frequency
+FROM validation_results 
+WHERE success = false
+GROUP BY issue_category 
+ORDER BY frequency DESC;
+
+-- Average generation time by category
+SELECT category,
+       ROUND(AVG(total_duration_minutes), 2) as avg_minutes
+FROM scenarios 
+WHERE completed_at IS NOT NULL
+GROUP BY category;
 ```
-
-**3. Storage Issues**
-```bash
-# Check MinIO connectivity
-curl http://localhost:9000/minio/health/live
-
-# Verify bucket exists
-mc ls minio/generated-scenarios
-```
-
-## 🔮 Future Enhancements (V2 and Beyond)
-
-- **AI Model Selection**: Choose between Claude, GPT-4, or local models
-- **Template Library**: Pre-built scenario templates for common use cases
-- **Deployment Pipeline**: Direct deployment to Kubernetes
-- **Customer Portal**: Self-service scenario generation for clients
-- **Version Control**: Git integration for scenario tracking
-- **A/B Testing**: Multiple scenario variations for optimization
-- **Marketplace**: Share and sell scenarios to other users
-- **Analytics Dashboard**: Real-time generation and deployment metrics
-
-## 📚 Additional Resources
-
-- [Vrooli Scenario Documentation](/scripts/scenarios/README.md)
-- [Resource Ecosystem Guide](/scripts/resources/README.md)
-- [Scenario-to-App Conversion](../../tools/scenario-to-app.sh)
-- [Integration Patterns](/docs/architecture/ai-resource-integration-plan.md)
 
 ## 🤝 Contributing
 
-To improve the scenario generator:
-1. Test with diverse customer requirements
-2. Document successful patterns
-3. Report issues and edge cases
-4. Suggest prompt improvements
-5. Add validation rules
+To extend the Scenario Generator V1:
 
-## 📝 License
+1. **Add New Prompt Templates**: Create specialized prompts for specific scenario types
+2. **Enhance Pattern Learning**: Improve the analytics and learning algorithms
+3. **Extend Validation**: Add more comprehensive testing and quality checks
+4. **Optimize Workflows**: Improve n8n workflow efficiency and error handling
+5. **Expand UI Features**: Add more dashboard capabilities and user experience improvements
 
-Part of the Vrooli platform - proprietary scenario generation system.
+The modular architecture makes it easy to enhance individual components without affecting the overall system.
 
 ---
 
-**Remember**: Each scenario generated can produce $10,000-$50,000 in revenue. Quality matters!
+**Ready to start generating scenarios?** Run the deployment script and access the dashboard to begin creating autonomous AI-powered business solutions\!
+README_EOF < /dev/null
