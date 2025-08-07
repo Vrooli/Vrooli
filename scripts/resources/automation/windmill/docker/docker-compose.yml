@@ -103,10 +103,13 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - windmill_worker_data:/tmp/windmill
       - windmill_logs:/var/log/windmill
-      # Mount host directories for native worker access
-      - /usr/bin:/usr/bin:ro
-      - /bin:/bin:ro
-      - /usr/local/bin:/usr/local/bin:ro
+      # Native worker volume mounts - CAREFULLY CONFIGURED:
+      # IMPORTANT: Do NOT mount /usr/local/bin, /bin, or /usr/bin directories entirely
+      # as this causes:
+      # 1. Windmill binary override issue (/usr/local/bin contains windmill symlink)
+      # 2. GLIBC version mismatches between host and container
+      # Instead, mount specific tools if needed or rely on container's own binaries
+      # For true native access, consider using host network mode or privileged containers
     networks:
       - windmill-network
     deploy:

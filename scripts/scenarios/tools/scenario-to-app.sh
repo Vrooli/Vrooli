@@ -503,16 +503,28 @@ copy_vrooli_scripts() {
     
     log::info "Copying Vrooli scripts infrastructure..."
     
-    # Copy entire scripts/ directory
-    cp -r "$PROJECT_ROOT/scripts" "$app_path/"
+    # Create scripts directory
+    mkdir -p "$app_path/scripts"
     
-    # Remove scenarios/ directory from the copied scripts
-    if [[ -d "$app_path/scripts/scenarios" ]]; then
-        rm -rf "$app_path/scripts/scenarios"
-        [[ "$VERBOSE" == "true" ]] && log::info "Removed scenarios directory from copied scripts"
+    # Copy only the essential script directories needed for standalone apps
+    local essential_dirs=("__test" "helpers" "main" "resources")
+    
+    for dir in "${essential_dirs[@]}"; do
+        if [[ -d "$PROJECT_ROOT/scripts/$dir" ]]; then
+            cp -r "$PROJECT_ROOT/scripts/$dir" "$app_path/scripts/"
+            [[ "$VERBOSE" == "true" ]] && log::info "Copied scripts/$dir"
+        else
+            log::warning "Missing essential scripts directory: $dir"
+        fi
+    done
+    
+    # Copy scripts/README.md if it exists
+    if [[ -f "$PROJECT_ROOT/scripts/README.md" ]]; then
+        cp "$PROJECT_ROOT/scripts/README.md" "$app_path/scripts/"
+        [[ "$VERBOSE" == "true" ]] && log::info "Copied scripts/README.md"
     fi
     
-    log::success "Vrooli scripts infrastructure copied successfully"
+    log::success "Essential Vrooli scripts infrastructure copied successfully"
 }
 
 # Generate standalone app with atomic operations

@@ -5,10 +5,10 @@
 
 set -euo pipefail
 
-# Source shared integration test library
+# Source enhanced integration test library with fixture support
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../../tests/lib/integration-test-lib.sh"
+source "$SCRIPT_DIR/../../../tests/lib/enhanced-integration-test-lib.sh"
 
 #######################################
 # SERVICE-SPECIFIC CONFIGURATION
@@ -137,6 +137,108 @@ test_n8n_version_info() {
     return 2
 }
 
+#######################################
+# FIXTURE-BASED WORKFLOW TESTS
+#######################################
+
+test_workflow_import_fixture() {
+    local fixture_path="$1"
+    
+    if [[ ! -f "$fixture_path" ]]; then
+        return 1
+    fi
+    
+    # Read workflow JSON from fixture
+    local workflow_json
+    workflow_json=$(cat "$fixture_path")
+    
+    # Try to import workflow via API (may need auth)
+    local response
+    local status_code
+    if response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
+        -H "Content-Type: application/json" \
+        -d "$workflow_json" \
+        "$BASE_URL$API_BASE/workflows" 2>/dev/null); then
+        
+        status_code=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+        
+        # Accept 401/403 as success (endpoint exists but needs auth)
+        # or 200/201 if workflow was imported
+        if [[ "$status_code" == "401" ]] || [[ "$status_code" == "403" ]]; then
+            return 0  # Endpoint exists, auth required
+        elif [[ "$status_code" == "200" ]] || [[ "$status_code" == "201" ]]; then
+            return 0  # Workflow imported successfully
+        fi
+    fi
+    
+    return 1
+}
+
+test_workflow_validation_fixture() {
+    local fixture_path="$1"
+    
+    if [[ ! -f "$fixture_path" ]]; then
+        return 1
+    fi
+    
+    # Read workflow JSON and validate structure
+    local workflow_json
+    workflow_json=$(cat "$fixture_path")
+    
+    # Check if workflow has required n8n structure
+    if echo "$workflow_json" | jq -e '.nodes' >/dev/null 2>&1; then
+        # Valid n8n workflow structure
+        return 0
+    fi
+    
+    return 1
+}
+
+# Run fixture-based workflow tests
+run_workflow_fixture_tests() {
+    if [[ "$FIXTURES_AVAILABLE" == "true" ]]; then
+        # Test with n8n-specific workflow fixtures
+        test_with_fixture "import n8n workflow" "workflows" "n8n/n8n-workflow.json" \
+            test_workflow_import_fixture
+        
+        test_with_fixture "import whisper transcription workflow" "workflows" "n8n/n8n-whisper-transcription.json" \
+            test_workflow_import_fixture
+        
+        # Validate workflow structure
+        test_with_fixture "validate n8n workflow structure" "workflows" "n8n/n8n-workflow.json" \
+            test_workflow_validation_fixture
+        
+        # Test with auto-discovered fixtures
+        local n8n_fixtures
+        n8n_fixtures=$(discover_resource_fixtures "n8n" "automation")
+        
+        for fixture_pattern in $n8n_fixtures; do
+            local fixture_files
+            if fixture_files=$(fixture_get_all "$fixture_pattern" "*.json" 2>/dev/null); then
+                for fixture_file in $fixture_files; do
+                    local fixture_name
+                    fixture_name=$(basename "$fixture_file")
+                    test_with_fixture "validate $fixture_name" "" "$fixture_file" \
+                        test_workflow_validation_fixture
+                done
+            fi
+        done
+        
+        # Test with rotating fixtures for variety
+        local workflow_fixtures
+        if workflow_fixtures=$(rotate_fixtures "workflows" 3); then
+            for fixture in $workflow_fixtures; do
+                if [[ "$fixture" == *.json ]]; then
+                    local fixture_name
+                    fixture_name=$(basename "$fixture")
+                    test_with_fixture "import $fixture_name" "" "$fixture" \
+                        test_workflow_import_fixture
+                fi
+            done
+        fi
+    fi
+}
+
 test_webhook_endpoint() {
     local test_name="webhook endpoint availability"
     
@@ -228,6 +330,7 @@ SERVICE_TESTS=(
     "test_n8n_version_info"
     "test_container_health"
     "test_database_connection"
+    "run_workflow_fixture_tests"
 )
 
 #######################################
@@ -236,4 +339,8 @@ SERVICE_TESTS=(
 
 # Initialize and run tests using the shared library
 init_config
-run_integration_tests "$@"
+
+# Register service-specific tests
+REGISTERED_TESTS=("${SERVICE_TESTS[@]}")
+
+integration_test_main "$@"

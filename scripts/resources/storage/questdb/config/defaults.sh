@@ -2,6 +2,11 @@
 # QuestDB Configuration Defaults
 # All configuration constants and default values
 
+# Source common functions for port registry access
+QUESTDB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck disable=SC1091
+source "${QUESTDB_DIR}/../../common.sh"
+
 #######################################
 # Export configuration constants
 # Idempotent - safe to call multiple times
@@ -9,7 +14,7 @@
 questdb::export_config() {
     # Service configuration (only set if not already defined)
     if [[ -z "${QUESTDB_HTTP_PORT:-}" ]]; then
-        readonly QUESTDB_HTTP_PORT="${QUESTDB_CUSTOM_HTTP_PORT:-9010}"
+        readonly QUESTDB_HTTP_PORT="${QUESTDB_CUSTOM_HTTP_PORT:-$(resources::get_default_port "questdb")}"
     fi
     if [[ -z "${QUESTDB_PG_PORT:-}" ]]; then
         readonly QUESTDB_PG_PORT="${QUESTDB_CUSTOM_PG_PORT:-8812}"

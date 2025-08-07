@@ -205,11 +205,20 @@ _vrooli_load_system_mocks() {
         return 0
     fi
     
+    # Load mock utilities first (provides centralized logging and common functions)
+    local utils_file="$VROOLI_TEST_ROOT/fixtures/mocks/logs.sh"
+    if [[ -f "$utils_file" ]]; then
+        source "$utils_file"
+        echo "[SETUP] Loaded mock utilities"
+    else
+        echo "[SETUP] WARNING: Mock utilities not found: $utils_file"
+    fi
+    
     # Load system mocks if they exist
     local system_mocks=("docker" "http" "system")
     
     for mock in "${system_mocks[@]}"; do
-        local mock_file="$VROOLI_TEST_ROOT/fixtures/mocks/$mock.bash"
+        local mock_file="$VROOLI_TEST_ROOT/fixtures/mocks/$mock.sh"
         if [[ -f "$mock_file" ]]; then
             source "$mock_file"
             echo "[SETUP] Loaded system mock: $mock"
@@ -228,7 +237,7 @@ _vrooli_load_system_mocks() {
 #######################################
 _vrooli_load_service_mock() {
     local service="$1"
-    local mock_file="$VROOLI_TEST_ROOT/fixtures/mocks/$service.bash"
+    local mock_file="$VROOLI_TEST_ROOT/fixtures/mocks/$service.sh"
     
     if [[ -f "$mock_file" ]]; then
         source "$mock_file"
@@ -300,7 +309,7 @@ _vrooli_load_minimal_mocks() {
     local essential_mocks=("system")
     
     for mock in "${essential_mocks[@]}"; do
-        local mock_file="$VROOLI_TEST_ROOT/fixtures/mocks/$mock.bash"
+        local mock_file="$VROOLI_TEST_ROOT/fixtures/mocks/$mock.sh"
         if [[ -f "$mock_file" ]]; then
             source "$mock_file"
         fi

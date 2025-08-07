@@ -155,23 +155,27 @@ vault::create_config() {
 EOF
             ;;
         "prod")
+            # Generate self-signed certificates if they don't exist
+            # vault::generate_tls_certificates  # Disabled for now to test without TLS
+            
             cat > "$config_file" << EOF
 # Vault Production Configuration
+# Note: TLS disabled for testing - enable for actual production use
 
-# Storage backend (file-based for persistence)
+# Storage backend with persistence
 storage "file" {
   path = "/vault/data"
 }
 
-# HTTP listener
+# HTTP listener (TLS disabled for testing)
 listener "tcp" {
   address       = "0.0.0.0:${VAULT_PORT}"
-  tls_disable   = ${VAULT_TLS_DISABLE}
+  tls_disable   = 1
 }
 
-# API configuration
-api_addr = "${VAULT_BASE_URL}"
-cluster_addr = "https://127.0.0.1:8201"
+# API and cluster configuration
+api_addr = "http://localhost:${VAULT_PORT}"
+cluster_addr = "http://127.0.0.1:8201"
 
 # Disable memory locking for Docker
 disable_mlock = true
@@ -179,14 +183,24 @@ disable_mlock = true
 # UI configuration
 ui = true
 
-# Audit logging
-audit "file" {
-  file_path = "/vault/logs/audit.log"
-}
-
-# Performance settings
+# Performance tuning
 max_lease_ttl = "768h"
 default_lease_ttl = "768h"
+max_request_duration = "90s"
+max_request_size = 33554432
+
+# Log level
+log_level = "info"
+log_format = "json"
+
+# Enable raw endpoint (required for some operations)
+raw_storage_endpoint = false
+
+# Telemetry configuration for monitoring
+telemetry {
+  prometheus_retention_time = "0s"
+  disable_hostname = true
+}
 EOF
             ;;
         *)
@@ -196,6 +210,265 @@ EOF
     esac
     
     log::info "Created Vault configuration: $config_file"
+}
+
+#######################################
+# Generate self-signed TLS certificates for production
+#######################################
+vault::generate_tls_certificates() {
+    local tls_dir="${VAULT_CONFIG_DIR}/tls"
+    local cert_file="${tls_dir}/server.crt"
+    local key_file="${tls_dir}/server.key"
+    
+    # Create TLS directory if it doesn't exist
+    mkdir -p "$tls_dir"
+    
+    # Generate certificates if they don't exist
+    if [[ ! -f "$cert_file" ]] || [[ ! -f "$key_file" ]]; then
+        log::info "Generating self-signed TLS certificates for Vault..."
+        
+        # Generate private key and certificate
+        openssl req -x509 -newkey rsa:4096 -sha256 -days 365 -nodes \
+            -keyout "$key_file" \
+            -out "$cert_file" \
+            -subj "/C=US/ST=State/L=City/O=Vrooli/CN=vault.local" \
+            -addext "subjectAltName=DNS:localhost,DNS:vault.local,IP:127.0.0.1,IP:${SITE_IP:-127.0.0.1}" \
+            2>/dev/null
+        
+        # Set appropriate permissions (readable by container)
+        chmod 644 "$key_file"
+        chmod 644 "$cert_file"
+        
+        log::info "TLS certificates generated successfully"
+    else
+        log::info "TLS certificates already exist"
+    fi
+}
+
+#######################################
+# Setup auto-unseal configuration
+#######################################
+vault::setup_auto_unseal() {
+    local config_file="${VAULT_CONFIG_DIR}/vault.hcl"
+    
+    # Check if we have AWS KMS configuration
+    if [[ -n "${AWS_KMS_KEY_ID:-}" ]] && [[ -n "${AWS_REGION:-}" ]]; then
+        log::info "Configuring AWS KMS auto-unseal..."
+        
+        cat >> "$config_file" << EOF
+
+# Auto-unseal configuration using AWS KMS
+seal "awskms" {
+  region     = "${AWS_REGION}"
+  kms_key_id = "${AWS_KMS_KEY_ID}"
+  
+  # Optional: specify AWS credentials if not using IAM role
+  # access_key = ""
+  # secret_key = ""
+}
+EOF
+        return 0
+    fi
+    
+    # Check if we have Azure Key Vault configuration
+    if [[ -n "${AZURE_KEY_VAULT_NAME:-}" ]] && [[ -n "${AZURE_KEY_NAME:-}" ]]; then
+        log::info "Configuring Azure Key Vault auto-unseal..."
+        
+        cat >> "$config_file" << EOF
+
+# Auto-unseal configuration using Azure Key Vault
+seal "azurekeyvault" {
+  vault_name = "${AZURE_KEY_VAULT_NAME}"
+  key_name   = "${AZURE_KEY_NAME}"
+}
+EOF
+        return 0
+    fi
+    
+    log::warn "No auto-unseal configuration provided. Manual unseal will be required."
+    return 1
+}
+
+#######################################
+# Enable audit logging in production
+#######################################
+vault::enable_audit_logging() {
+    if [[ "$VAULT_MODE" != "prod" ]]; then
+        return 0
+    fi
+    
+    log::info "Enabling audit logging..."
+    
+    # Get root token
+    local token
+    token=$(vault::get_root_token)
+    
+    if [[ -z "$token" ]]; then
+        log::error "Cannot enable audit logging: no root token available"
+        return 1
+    fi
+    
+    # Enable file audit backend
+    local audit_response
+    audit_response=$(curl -sf -X PUT \
+        -H "X-Vault-Token: $token" \
+        -d '{
+            "type": "file",
+            "options": {
+                "file_path": "/vault/logs/audit.log",
+                "log_raw": "false",
+                "hmac_accessor": "true",
+                "mode": "0600",
+                "format": "json"
+            }
+        }' \
+        "${VAULT_BASE_URL}/v1/sys/audit/file" 2>/dev/null)
+    
+    if [[ $? -eq 0 ]] || echo "$audit_response" | grep -q "path already in use"; then
+        log::info "Audit logging enabled successfully"
+        return 0
+    else
+        log::error "Failed to enable audit logging"
+        return 1
+    fi
+}
+
+#######################################
+# Setup AppRole authentication
+#######################################
+vault::setup_approle_auth() {
+    log::info "Setting up AppRole authentication..."
+    
+    local token
+    token=$(vault::get_root_token)
+    
+    if [[ -z "$token" ]]; then
+        log::error "Cannot setup AppRole: no root token available"
+        return 1
+    fi
+    
+    # Enable AppRole auth method
+    curl -sf -X POST \
+        -H "X-Vault-Token: $token" \
+        -d '{"type": "approle"}' \
+        "${VAULT_BASE_URL}/v1/sys/auth/approle" 2>/dev/null || true
+    
+    # Create a policy for Vrooli services
+    local policy_content='
+    # Read-only access to Vrooli secrets
+    path "secret/data/vrooli/*" {
+      capabilities = ["read", "list"]
+    }
+    
+    # Write access to ephemeral secrets
+    path "secret/data/vrooli/ephemeral/*" {
+      capabilities = ["create", "read", "update", "delete", "list"]
+    }
+    
+    # Access to generate dynamic credentials
+    path "auth/token/create" {
+      capabilities = ["create", "update"]
+    }
+    '
+    
+    # Create the policy
+    curl -sf -X PUT \
+        -H "X-Vault-Token: $token" \
+        -d "{\"policy\": $(echo "$policy_content" | jq -Rs .)}" \
+        "${VAULT_BASE_URL}/v1/sys/policies/acl/vrooli-service" 2>/dev/null
+    
+    # Create AppRole for Vrooli services
+    curl -sf -X POST \
+        -H "X-Vault-Token: $token" \
+        -d '{
+            "token_policies": ["vrooli-service"],
+            "token_ttl": "1h",
+            "token_max_ttl": "24h",
+            "secret_id_ttl": "0",
+            "secret_id_num_uses": 0
+        }' \
+        "${VAULT_BASE_URL}/v1/auth/approle/role/vrooli-service" 2>/dev/null
+    
+    # Get Role ID
+    local role_id
+    role_id=$(curl -sf -X GET \
+        -H "X-Vault-Token: $token" \
+        "${VAULT_BASE_URL}/v1/auth/approle/role/vrooli-service/role-id" 2>/dev/null | jq -r '.data.role_id')
+    
+    # Generate Secret ID
+    local secret_id
+    secret_id=$(curl -sf -X POST \
+        -H "X-Vault-Token: $token" \
+        "${VAULT_BASE_URL}/v1/auth/approle/role/vrooli-service/secret-id" 2>/dev/null | jq -r '.data.secret_id')
+    
+    if [[ -n "$role_id" ]] && [[ -n "$secret_id" ]]; then
+        log::info "AppRole authentication configured successfully"
+        log::info "Role ID: $role_id"
+        log::info "Secret ID: $secret_id"
+        
+        # Save to files for later use
+        echo "$role_id" > "${VAULT_CONFIG_DIR}/approle-role-id"
+        echo "$secret_id" > "${VAULT_CONFIG_DIR}/approle-secret-id"
+        chmod 600 "${VAULT_CONFIG_DIR}/approle-"*
+        
+        return 0
+    else
+        log::error "Failed to setup AppRole authentication"
+        return 1
+    fi
+}
+
+#######################################
+# Setup secret rotation policies
+#######################################
+vault::setup_secret_rotation() {
+    log::info "Setting up secret rotation policies..."
+    
+    local token
+    token=$(vault::get_root_token)
+    
+    if [[ -z "$token" ]]; then
+        log::error "Cannot setup rotation: no root token available"
+        return 1
+    fi
+    
+    # Create a rotation policy
+    local rotation_policy='{
+        "rotation_period": "30d",
+        "rotation_rules": [
+            {
+                "name": "api-keys",
+                "path_pattern": "secret/data/vrooli/*/api-key",
+                "rotation_period": "90d",
+                "notification_period": "7d"
+            },
+            {
+                "name": "database-passwords",
+                "path_pattern": "secret/data/vrooli/*/db-password",
+                "rotation_period": "30d",
+                "notification_period": "3d"
+            },
+            {
+                "name": "service-tokens",
+                "path_pattern": "secret/data/vrooli/*/token",
+                "rotation_period": "7d",
+                "notification_period": "1d"
+            }
+        ]
+    }'
+    
+    # Store rotation policy as metadata
+    curl -sf -X POST \
+        -H "X-Vault-Token: $token" \
+        -d "{\"data\": $rotation_policy}" \
+        "${VAULT_BASE_URL}/v1/secret/data/system/rotation-policy" 2>/dev/null
+    
+    log::info "Secret rotation policies configured"
+    
+    # Note: Actual rotation would be handled by a separate cron job or scheduler
+    log::info "Note: Implement a cron job to check and rotate secrets based on these policies"
+    
+    return 0
 }
 
 #######################################

@@ -9,32 +9,52 @@
 windmill::install() {
     log::header "🌪️  Installing Windmill Workflow Automation Platform"
     
+    # Initialize state management system
+    windmill::state_init "$WINDMILL_PROJECT_NAME"
+    
+    # Acquire lock to prevent concurrent operations
+    windmill::acquire_lock
+    
+    # Get or generate database password from state
+    WINDMILL_DB_PASSWORD=$(windmill::get_database_password "$WINDMILL_PROJECT_NAME" "$FORCE")
+    if [[ -z "$WINDMILL_DB_PASSWORD" ]]; then
+        log::error "Failed to determine database password"
+        windmill::release_lock
+        return 1
+    fi
+    export WINDMILL_DB_PASSWORD
+    
     # Check if already installed and running
     if windmill::is_installed && windmill::is_running && [[ "$FORCE" != "yes" ]]; then
         log::info "Windmill is already installed and running"
         log::info "Access it at: $WINDMILL_BASE_URL"
         log::info "Use --force yes to reinstall"
+        windmill::release_lock
         return 0
     fi
     
     # Pre-installation validation
     if ! windmill::validate_installation_requirements; then
+        windmill::release_lock
         return 1
     fi
     
     # Create necessary directories
     if ! windmill::create_directories; then
+        windmill::release_lock
         return 1
     fi
     
     # Generate configuration
     if ! windmill::generate_env_file; then
+        windmill::release_lock
         return 1
     fi
     
     # Deploy services
     if ! windmill::deploy; then
         log::error "Failed to deploy Windmill services"
+        windmill::release_lock
         return 1
     fi
     
@@ -42,6 +62,13 @@ windmill::install() {
     if ! windmill::post_install_setup; then
         log::warn "Post-installation setup had issues, but Windmill should still work"
     fi
+    
+    # Update state with installation info
+    windmill::update_state_config "last_installed" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    windmill::update_state_config "installation_status" "completed"
+    
+    # Release lock
+    windmill::release_lock
     
     # Show success message
     windmill::show_success_message "$SUPERADMIN_EMAIL" "$SUPERADMIN_PASSWORD"
@@ -311,28 +338,66 @@ windmill::uninstall() {
 # Returns: 0 if successful, 1 otherwise
 #######################################
 windmill::start() {
+    # Initialize state management system
+    windmill::state_init "$WINDMILL_PROJECT_NAME"
+    
+    # Acquire lock to prevent concurrent operations
+    windmill::acquire_lock
+    
+    # Get database password from state
+    WINDMILL_DB_PASSWORD=$(windmill::get_database_password "$WINDMILL_PROJECT_NAME" "false")
+    if [[ -z "$WINDMILL_DB_PASSWORD" ]]; then
+        log::error "Failed to determine database password"
+        windmill::release_lock
+        return 1
+    fi
+    export WINDMILL_DB_PASSWORD
+    
     if ! windmill::is_installed; then
         log::error "Windmill is not installed"
         log::info "Install it first with: $0 --action install"
+        windmill::release_lock
         return 1
     fi
     
     if windmill::is_running && [[ "$FORCE" != "yes" ]]; then
         log::info "Windmill is already running"
         log::info "Access it at: $WINDMILL_BASE_URL"
+        windmill::release_lock
         return 0
     fi
     
     log::info "Starting Windmill services..."
     
+    # Run preflight checks before starting
+    if ! windmill::preflight_checks; then
+        log::error "Preflight checks failed"
+        log::info "Run with WINDMILL_AUTO_RECOVER=true to attempt automatic recovery"
+        windmill::release_lock
+        return 1
+    fi
+    
+    # Update .env file with password from state
+    if [[ -f "$WINDMILL_ENV_FILE" ]]; then
+        sed -i "s|^WINDMILL_DB_PASSWORD=.*|WINDMILL_DB_PASSWORD=${WINDMILL_DB_PASSWORD}|" "$WINDMILL_ENV_FILE"
+    fi
+    
     if ! windmill::compose_up; then
+        windmill::release_lock
         return 1
     fi
     
     if ! windmill::wait_for_health; then
         log::error "Windmill failed to start properly"
+        windmill::release_lock
         return 1
     fi
+    
+    # Update state with last start time
+    windmill::update_state_config "last_started" "$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+    
+    # Release lock
+    windmill::release_lock
     
     log::success "✅ Windmill started successfully"
     log::info "Access it at: $WINDMILL_BASE_URL"

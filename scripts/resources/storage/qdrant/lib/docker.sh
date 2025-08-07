@@ -118,7 +118,7 @@ qdrant::docker::create_container() {
         "-v" "${QDRANT_SNAPSHOTS_DIR}:/qdrant/snapshots"
         "${env_vars[@]}"
         "--restart" "unless-stopped"
-        "--health-cmd" "curl -f http://localhost:6333/ || exit 1"
+        "--health-cmd" "timeout 2 bash -c 'exec 3<>/dev/tcp/localhost/6333 && echo -e \"GET / HTTP/1.0\\r\\n\\r\\n\" >&3 && head -1 <&3 | grep -q \"200 OK\"' || exit 1"
         "--health-interval" "30s"
         "--health-timeout" "10s"
         "--health-retries" "3"

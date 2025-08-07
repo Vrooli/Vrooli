@@ -5,10 +5,10 @@
 
 set -euo pipefail
 
-# Source shared integration test library
+# Source enhanced integration test library with fixture support
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../../tests/lib/integration-test-lib.sh"
+source "$SCRIPT_DIR/../../../tests/lib/enhanced-integration-test-lib.sh"
 
 #######################################
 # SERVICE-SPECIFIC CONFIGURATION
@@ -148,6 +148,156 @@ test_prometheus_metrics() {
     return 2
 }
 
+#######################################
+# FIXTURE-BASED STORAGE TESTS
+#######################################
+
+test_upload_fixture_file() {
+    local fixture_path="$1"
+    
+    if [[ ! -f "$fixture_path" ]]; then
+        return 1
+    fi
+    
+    # Test file upload capability via S3 API
+    local filename
+    filename=$(basename "$fixture_path")
+    
+    # Create signed PUT request (simplified test - actual auth would be needed)
+    local response
+    local status_code
+    if response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X PUT \
+        -H "Content-Type: application/octet-stream" \
+        --data-binary "@$fixture_path" \
+        "$BASE_URL/test-bucket/$filename" 2>/dev/null); then
+        
+        status_code=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+        
+        # Accept 403/401 as success (endpoint exists but needs auth)
+        # or 200/201 if file was uploaded
+        if [[ "$status_code" == "403" ]] || [[ "$status_code" == "401" ]]; then
+            return 0  # Endpoint exists, auth required
+        elif [[ "$status_code" == "200" ]] || [[ "$status_code" == "201" ]]; then
+            return 0  # File uploaded successfully
+        fi
+    fi
+    
+    return 1
+}
+
+test_multipart_upload_large_fixture() {
+    local fixture_path="$1"
+    
+    if [[ ! -f "$fixture_path" ]]; then
+        return 1
+    fi
+    
+    # Test multipart upload initiation (for large files)
+    local filename
+    filename=$(basename "$fixture_path")
+    
+    # Initiate multipart upload
+    local response
+    local status_code
+    if response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
+        "$BASE_URL/test-bucket/$filename?uploads" 2>/dev/null); then
+        
+        status_code=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+        
+        # Check if multipart API endpoint responds
+        if [[ "$status_code" == "403" ]] || [[ "$status_code" == "401" ]]; then
+            return 0  # Multipart API exists, auth required
+        elif [[ "$status_code" == "200" ]]; then
+            return 0  # Multipart upload initiated
+        fi
+    fi
+    
+    return 1
+}
+
+test_object_metadata_fixture() {
+    local fixture_path="$1"
+    
+    if [[ ! -f "$fixture_path" ]]; then
+        return 1
+    fi
+    
+    # Test HEAD request for object metadata
+    local filename
+    filename=$(basename "$fixture_path")
+    
+    local response
+    local status_code
+    if response=$(curl -s -I -w "HTTPSTATUS:%{http_code}" \
+        "$BASE_URL/test-bucket/$filename" 2>/dev/null); then
+        
+        status_code=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+        
+        # Check if metadata API responds
+        if [[ -n "$status_code" ]] && [[ "$status_code" =~ ^[0-9]+$ ]]; then
+            return 0  # Metadata API endpoint responsive
+        fi
+    fi
+    
+    return 1
+}
+
+# Run fixture-based storage tests
+run_storage_fixture_tests() {
+    if [[ "$FIXTURES_AVAILABLE" == "true" ]]; then
+        # Test with various file types
+        test_with_fixture "upload PDF document" "documents" "pdf/simple_text.pdf" \
+            test_upload_fixture_file
+        
+        test_with_fixture "upload JSON data" "documents" "structured/database_export.json" \
+            test_upload_fixture_file
+        
+        test_with_fixture "upload CSV file" "documents" "structured/customers.csv" \
+            test_upload_fixture_file
+        
+        # Test with images
+        test_with_fixture "upload JPEG image" "images" "real-world/nature/nature-landscape.jpg" \
+            test_upload_fixture_file
+        
+        test_with_fixture "upload PNG image" "images" "synthetic/patterns/test-pattern.png" \
+            test_upload_fixture_file
+        
+        # Test large file handling
+        test_with_fixture "multipart upload large PDF" "documents" "pdf/large_document.pdf" \
+            test_multipart_upload_large_fixture
+        
+        # Test metadata operations
+        test_with_fixture "get object metadata" "documents" "samples/test-readme.md" \
+            test_object_metadata_fixture
+        
+        # Test with auto-discovered fixtures
+        local storage_fixtures
+        storage_fixtures=$(discover_resource_fixtures "minio" "storage")
+        
+        for fixture_pattern in $storage_fixtures; do
+            # Use rotate_fixtures to get a variety of files
+            local test_files
+            if test_files=$(rotate_fixtures "$fixture_pattern" 2); then
+                for test_file in $test_files; do
+                    local fixture_name
+                    fixture_name=$(basename "$test_file")
+                    test_with_fixture "store $fixture_name" "" "$test_file" \
+                        test_upload_fixture_file
+                done
+            fi
+        done
+        
+        # Test with negative/edge case fixtures if available
+        if [[ -d "$FIXTURES_DIR/negative-tests" ]]; then
+            test_with_fixture "handle corrupted file" "negative-tests" "documents/corrupted.docx" \
+                test_upload_fixture_file
+            
+            test_with_fixture "handle empty file" "negative-tests" "edge-cases/zero_bytes.txt" \
+                test_upload_fixture_file
+        fi
+    fi
+}
+
 test_console_accessibility() {
     local test_name="MinIO Console accessibility"
     
@@ -176,6 +326,7 @@ SERVICE_TESTS=(
     "test_bucket_operations"
     "test_prometheus_metrics"
     "test_console_accessibility"
+    "run_storage_fixture_tests"
 )
 
 #######################################

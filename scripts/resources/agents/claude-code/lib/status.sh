@@ -124,3 +124,78 @@ claude_code::logs() {
     log::info "  export CLAUDE_DEBUG=1"
     log::info "  export LOG_LEVEL=debug"
 }
+
+#######################################
+# Start Claude Code (CLI tool - not applicable)
+#######################################
+claude_code::start() {
+    log::info "Claude Code is a CLI tool and doesn't run as a persistent service"
+    log::info "Use: $0 --action run --prompt \"your prompt\" to execute Claude"
+    return 2  # Success but no action needed
+}
+
+#######################################
+# Stop Claude Code (CLI tool - not applicable)
+#######################################
+claude_code::stop() {
+    log::info "Claude Code is a CLI tool and doesn't run as a persistent service"
+    log::info "Claude sessions terminate automatically when complete"
+    return 2  # Success but no action needed
+}
+
+#######################################
+# Restart Claude Code (CLI tool - not applicable)
+#######################################
+claude_code::restart() {
+    log::info "Claude Code is a CLI tool and doesn't run as a persistent service"
+    log::info "Each invocation is independent and doesn't require restart"
+    return 2  # Success but no action needed
+}
+
+#######################################
+# Test Claude Code functionality
+#######################################
+claude_code::test() {
+    log::header "🧪 Testing Claude Code Functionality"
+    
+    # Use the existing test-safe implementation
+    if ! claude_code::is_installed; then
+        log::error "Claude Code is not installed"
+        return 1
+    fi
+    
+    log::info "This mode only verifies installation and configuration"
+    log::info "No prompts will be executed to avoid file system changes"
+    
+    # Check installation
+    local version
+    version=$(claude_code::get_version 2>/dev/null || echo "unknown")
+    log::success "✓ Claude Code is installed (version: $version)"
+    
+    # Check for config directory
+    if [[ -d "$HOME/.claude-code" ]] || [[ -d "$HOME/.claude" ]]; then
+        log::success "✓ Configuration directory exists"
+    else
+        log::warn "⚠️  Configuration directory not found"
+    fi
+    
+    # Check Node.js requirements
+    if claude_code::check_node_version; then
+        local node_version
+        node_version=$(node --version)
+        log::success "✓ Node.js requirements met ($node_version)"
+    else
+        log::warn "⚠️  Node.js version requirement not met"
+        return 1
+    fi
+    
+    # Report sandbox availability
+    if [[ -f "${SCRIPT_DIR}/../sandbox/claude-sandbox.sh" ]]; then
+        log::success "✓ Sandbox is available for safe testing"
+    else
+        log::info "ℹ️  Sandbox not available"
+    fi
+    
+    log::success "✅ Claude Code test completed successfully"
+    return 0
+}

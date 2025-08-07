@@ -35,78 +35,79 @@ source "${SCRIPT_DIR}/config/messages.sh"
 #######################################
 # Main function - route actions to appropriate handlers
 #######################################
+
 comfyui::main() {
     comfyui::parse_arguments "$@"
     
     case "$ACTION" in
-        "install")
+        install)
             comfyui::install
             ;;
-        "uninstall")
+        uninstall)
             comfyui::uninstall
             ;;
-        "start")
+        start)
             comfyui::start
             ;;
-        "stop")
+        stop)
             comfyui::stop
             ;;
-        "restart")
+        restart)
             comfyui::restart
             ;;
-        "status")
+        status)
             comfyui::status
             ;;
-        "logs")
+        logs)
             comfyui::logs
             ;;
-        "info")
+        info)
             comfyui::info
             ;;
-        "download-models")
+        download-models)
             comfyui::download_models
             ;;
-        "execute-workflow")
+        execute-workflow)
             comfyui::execute_workflow
             ;;
-        "import-workflow")
+        import-workflow)
             comfyui::import_workflow
             ;;
-        "list-models")
+        list-models)
             comfyui::list_models
             ;;
-        "list-workflows")
+        list-workflows)
             comfyui::list_workflows
             ;;
-        "gpu-info")
+        gpu-info)
             comfyui::get_gpu_info
             ;;
-        "validate-nvidia")
+        validate-nvidia)
             comfyui::validate_nvidia_requirements
             ;;
-        "check-ready")
+        check-ready)
             comfyui::check_ready
             ;;
-        "cleanup-help")
+        cleanup-help)
             comfyui::cleanup_help
             ;;
-        "help")
+        help)
             # Show help using the args system
             comfyui::parse_arguments --help
             ;;
-        "extended-help")
+        extended-help)
             comfyui::show_extended_help
             ;;
-        "quickstart")
+        quickstart)
             comfyui::show_quickstart
             ;;
-        "model-sources")
+        model-sources)
             comfyui::show_model_sources
             ;;
-        "workflow-examples")
+        workflow-examples)
             comfyui::show_workflow_examples
             ;;
-        "api-examples")
+        api-examples)
             comfyui::show_api_examples
             ;;
         *)

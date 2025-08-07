@@ -281,6 +281,47 @@ For more information, visit: https://ollama.com/library
 EOF
 }
 
+#######################################
+# Get Ollama service URLs with health status
+# Outputs JSON with service URLs and health information
+#######################################
+ollama::get_urls() {
+    local health_status="unknown"
+    local health_path="/api/tags"
+    local primary_url="$OLLAMA_BASE_URL"
+    local health_url="${OLLAMA_BASE_URL}${health_path}"
+    
+    # Check if Ollama is running and healthy
+    if ollama::is_healthy >/dev/null 2>&1; then
+        health_status="healthy"
+    elif ollama::is_installed >/dev/null 2>&1; then
+        # Installed but not running
+        health_status="unhealthy"
+    else
+        # Not installed
+        health_status="unavailable"
+    fi
+    
+    # Output URL information as JSON
+    cat << EOF
+{
+  "primary": "${primary_url}",
+  "health": "${health_url}",
+  "name": "Ollama AI",
+  "type": "http",
+  "status": "${health_status}",
+  "port": ${OLLAMA_PORT},
+  "endpoints": {
+    "api": "${OLLAMA_BASE_URL}/api",
+    "generate": "${OLLAMA_BASE_URL}/api/generate",
+    "chat": "${OLLAMA_BASE_URL}/api/chat",
+    "models": "${OLLAMA_BASE_URL}/api/tags"
+  }
+}
+EOF
+}
+
 # Export functions for subshell availability
 export -f ollama::send_prompt
 export -f ollama::info
+export -f ollama::get_urls

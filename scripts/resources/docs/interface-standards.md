@@ -27,15 +27,28 @@ This document defines the standardized interface that all Vrooli resource `manag
 
 ## 🧪 Validation
 
-### Quick Validation
-```bash
-# Test specific resource
-cd scripts/resources/tests
-./run.sh --interface-only --resource <resource-name>
+Vrooli uses a **three-layer validation system** for comprehensive testing:
 
-# Test all resources  
-../validate-all-interfaces.sh
+### Layer 1: Syntax Validation (< 1 second)
+```bash
+# Quick syntax checks without execution
+./validate-interfaces.sh --level quick --resource <resource-name>
 ```
+
+### Layer 2: Behavioral Testing (< 30 seconds)
+```bash
+# Function execution in controlled environment
+./validate-interfaces.sh --level standard --resource <resource-name>
+```
+
+### Layer 3: Integration Testing (< 5 minutes)
+```bash
+# Real-world functionality testing
+./validate-interfaces.sh --level full --resource <resource-name>
+```
+
+### Complete Testing Strategy
+For detailed information on the testing architecture, see **[Testing Strategy](TESTING_STRATEGY.md)**
 
 ### Integration Test Runner
 ```bash
@@ -56,6 +69,7 @@ cd scripts/resources/tests
 
 ## 📖 Full Documentation
 
+- **Testing Strategy**: [TESTING_STRATEGY.md](TESTING_STRATEGY.md) - Complete three-layer validation system
 - **Complete Guide**: [tests/INTERFACE_COMPLIANCE_README.md](tests/INTERFACE_COMPLIANCE_README.md)
 - **Integration**: [tests/INTERFACE_COMPLIANCE_INTEGRATION.md](tests/INTERFACE_COMPLIANCE_INTEGRATION.md)
 - **Framework**: [tests/framework/interface-compliance.sh](tests/framework/interface-compliance.sh)
@@ -64,8 +78,9 @@ cd scripts/resources/tests
 ## 🎯 Benefits
 
 - **Consistent UX**: All resources behave the same way
-- **Early Detection**: Issues caught during development  
-- **Quality Assurance**: Automated compliance validation
+- **Early Detection**: Three-layer validation catches issues at the right level
+- **Quality Assurance**: Automated compliance validation from syntax to integration
+- **Development Speed**: Quick feedback with layered testing (1s → 30s → 5min)
 - **Documentation**: Tests serve as executable specs
 
 The interface compliance system ensures reliability and consistency across all Vrooli resources while maintaining their unique functionality.

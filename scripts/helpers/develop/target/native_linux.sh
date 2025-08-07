@@ -54,6 +54,21 @@ nativeLinux::start_development_native_linux() {
         env::load_env_file
     fi
     
+    # Process service.json for runtime template resolution if inheritance is used
+    local service_json="${var_ROOT_DIR}/.vrooli/service.json"
+    local service_config_util="${DEVELOP_TARGET_DIR}/../../utils/service-config.sh"
+    
+    if [[ -f "$service_json" ]] && [[ -f "$service_config_util" ]]; then
+        # shellcheck disable=SC1090
+        source "$service_config_util"
+        
+        # Check if service.json has inheritance - if so, export resolved resource URLs
+        if service_config::has_inheritance "$service_json"; then
+            log::info "Resolving service configuration templates at runtime..."
+            service_config::export_resource_urls "$service_json"
+        fi
+    fi
+    
     log::info "Starting database containers (Postgres and Redis)..."
     docker::compose up -d postgres redis
     

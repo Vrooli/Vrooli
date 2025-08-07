@@ -86,7 +86,7 @@ done
 ./tools/scenario-to-app.sh research-assistant --dry-run
 
 # Keep resources running after errors for debugging
-./tools/scenario-to-app.sh document-intelligence-pipeline --no-cleanup
+./tools/scenario-to-app.sh secure-document-processing --no-cleanup
 ```
 
 ### For Developers
@@ -141,9 +141,9 @@ cp -r templates/full/ core/ai-generated-scenario/
 
 ```
 scenarios/
-├── core/                     # All working scenarios (13 scenarios)
+├── core/                     # All working scenarios (12 scenarios)
 │   ├── multi-modal-ai-assistant/      # Voice+AI+Visual assistant
-│   ├── document-intelligence-pipeline/  # Document processing
+│   ├── secure-document-processing/     # Document processing with compliance
 │   ├── campaign-content-studio/   # Content creation
 │   ├── research-assistant/             # Knowledge management
 │   └── ... (8 more scenarios)

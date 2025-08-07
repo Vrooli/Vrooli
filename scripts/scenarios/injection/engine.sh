@@ -161,7 +161,7 @@ injection::parse_arguments() {
     args::register \
         --name "scenario-dir" \
         --flag "s" \
-        --desc "Path to scenario directory containing service.json" \
+        --desc "Path to scenario directory containing .vrooli/service.json" \
         --type "value" \
         --default ""
     
@@ -218,7 +218,7 @@ DESCRIPTION:
 OPTIONS:
     -a, --action ACTION        Action to perform (default: inject)
                               Options: inject, validate, status, rollback, list-scenarios
-    -s, --scenario-dir PATH    Path to scenario directory containing service.json
+    -s, --scenario-dir PATH    Path to scenario directory containing .vrooli/service.json
         --all-active          Process all scenarios in /scripts/scenarios/core/ (yes/no, default: no)
     -f, --force               Force injection even if validation fails (yes/no, default: no)
         --dry-run             Show what would be injected without doing it (yes/no, default: no)
@@ -325,9 +325,9 @@ injection::validate_scenario_dir() {
         return 1
     fi
     
-    local service_json="$scenario_dir/service.json"
+    local service_json="$scenario_dir/.vrooli/service.json"
     if [[ ! -f "$service_json" ]]; then
-        log::error "service.json not found in scenario directory: $scenario_dir"
+        log::error ".vrooli/service.json not found in scenario directory: $scenario_dir"
         return 1
     fi
     
@@ -364,7 +364,7 @@ injection::validate_scenario_dir() {
 #######################################
 injection::get_service_json() {
     local scenario_dir="$1"
-    local service_json="$scenario_dir/service.json"
+    local service_json="$scenario_dir/.vrooli/service.json"
     
     if ! injection::validate_scenario_dir "$scenario_dir"; then
         return 1
@@ -382,7 +382,7 @@ injection::get_service_json() {
 #######################################
 injection::get_scenario_metadata() {
     local scenario_dir="$1"
-    local service_json="$scenario_dir/service.json"
+    local service_json="$scenario_dir/.vrooli/service.json"
     
     # Validate quietly (without log output)
     if [[ ! -d "$scenario_dir" ]] || [[ ! -f "$service_json" ]] || ! jq . "$service_json" >/dev/null 2>&1; then
@@ -406,7 +406,7 @@ injection::get_scenario_metadata() {
 #######################################
 injection::get_deployment_phases() {
     local scenario_dir="$1"
-    local service_json="$scenario_dir/service.json"
+    local service_json="$scenario_dir/.vrooli/service.json"
     
     if ! injection::validate_scenario_dir "$scenario_dir"; then
         return 1
@@ -425,7 +425,7 @@ injection::get_deployment_phases() {
 #######################################
 injection::get_resource_configs() {
     local scenario_dir="$1"
-    local service_json="$scenario_dir/service.json"
+    local service_json="$scenario_dir/.vrooli/service.json"
     
     if ! injection::validate_scenario_dir "$scenario_dir"; then
         return 1
@@ -1510,7 +1510,7 @@ injection::inject_scenario_from_dir() {
     fi
     
     # Get scenario name directly from service.json
-    local service_json="$scenario_dir/service.json"
+    local service_json="$scenario_dir/.vrooli/service.json"
     local scenario_name
     scenario_name=$(jq -r '.service.name' "$service_json")
     
@@ -1611,7 +1611,7 @@ injection::list_core_scenarios() {
         scenario_name=$(basename "$scenario_dir")
         
         # Get metadata directly from service.json
-        local service_json="$scenario_dir/service.json"
+        local service_json="$scenario_dir/.vrooli/service.json"
         if [[ -f "$service_json" ]] && jq . "$service_json" >/dev/null 2>&1; then
             local display_name
             display_name=$(jq -r '.service.displayName // .service.name' "$service_json")

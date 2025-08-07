@@ -46,7 +46,7 @@ Test Categories:
     defaults           Run config/defaults.bats
     messages           Run config/messages.bats
     common             Run lib/common.bats
-    docker             Run lib/docker.bats
+    docker             Run lib/docker.sh
     install            Run lib/install.bats
     status             Run lib/status.bats
     api                Run lib/api.bats
@@ -67,7 +67,7 @@ Test Structure (following n8n pattern):
     config/defaults.bats        # Tests for config/defaults.sh
     config/messages.bats        # Tests for config/messages.sh
     lib/common.bats            # Tests for lib/common.sh
-    lib/docker.bats            # Tests for lib/docker.sh
+    lib/docker.sh            # Tests for lib/docker.sh
     lib/install.bats           # Tests for lib/install.sh
     lib/status.bats            # Tests for lib/status.sh
     lib/api.bats               # Tests for lib/api.sh
@@ -101,7 +101,7 @@ check_environment() {
         "config/defaults.bats"
         "config/messages.bats" 
         "lib/common.bats"
-        "lib/docker.bats"
+        "lib/docker.sh"
         "lib/install.bats"
         "lib/status.bats"
         "lib/api.bats"

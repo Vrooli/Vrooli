@@ -29,7 +29,7 @@ REQUIRED_TOOLS=("docker" "redis-cli")
 SERVICE_METADATA=(
     "Port: ${REDIS_PORT:-6380}"
     "Container: ${REDIS_CONTAINER_NAME:-vrooli-redis-resource}"
-    "Data Dir: ${REDIS_DATA_DIR:-${HOME}/.vrooli/redis/data}"
+    "Data Dir: ${REDIS_DATA_DIR}"
     "Max Memory: ${REDIS_MAX_MEMORY:-2gb}"
     "Databases: ${REDIS_DATABASES:-16}"
 )

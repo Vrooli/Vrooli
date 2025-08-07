@@ -5,10 +5,10 @@
 
 set -euo pipefail
 
-# Source shared integration test library
+# Source enhanced integration test library with fixture support
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../../tests/lib/integration-test-lib.sh"
+source "$SCRIPT_DIR/../../../tests/lib/enhanced-integration-test-lib.sh"
 
 #######################################
 # SERVICE-SPECIFIC CONFIGURATION
@@ -40,6 +40,131 @@ readonly API_TIMEOUT="${BROWSERLESS_API_TIMEOUT:-10}"
 #######################################
 # BROWSERLESS-SPECIFIC TEST FUNCTIONS
 #######################################
+
+#######################################
+# FIXTURE-BASED TEST FUNCTIONS
+#######################################
+
+test_screenshot_with_fixture() {
+    local fixture_path="$1"
+    local expected_response="${2:-}"
+    
+    # Create HTML that displays the fixture image
+    local html_content="<html><body><h1>Fixture Test</h1><img src='file://$fixture_path' alt='test'/></body></html>"
+    local encoded_html
+    encoded_html=$(echo "$html_content" | sed 's/"/\\"/g')
+    
+    local screenshot_data="{\"html\": \"$encoded_html\"}"
+    
+    local response
+    local status_code
+    if response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
+        -H "Content-Type: application/json" \
+        -d "$screenshot_data" \
+        "$BASE_URL/chrome/screenshot" 2>/dev/null); then
+        
+        status_code=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+        
+        if [[ "$status_code" == "200" ]]; then
+            return 0
+        fi
+    fi
+    
+    return 1
+}
+
+test_pdf_with_web_fixture() {
+    local fixture_path="$1"
+    
+    if [[ ! -f "$fixture_path" ]]; then
+        return 1
+    fi
+    
+    # Read HTML content from fixture
+    local html_content
+    html_content=$(cat "$fixture_path")
+    local encoded_html
+    encoded_html=$(echo "$html_content" | sed 's/"/\\"/g' | tr '\n' ' ')
+    
+    local pdf_data="{\"html\": \"$encoded_html\"}"
+    
+    local response
+    local status_code
+    if response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
+        -H "Content-Type: application/json" \
+        -d "$pdf_data" \
+        "$BASE_URL/chrome/pdf" 2>/dev/null); then
+        
+        status_code=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
+        
+        if [[ "$status_code" == "200" ]]; then
+            return 0
+        fi
+    fi
+    
+    return 1
+}
+
+test_scrape_with_fixture() {
+    local fixture_path="$1"
+    
+    if [[ ! -f "$fixture_path" ]]; then
+        return 1
+    fi
+    
+    # Read HTML content from fixture
+    local html_content
+    html_content=$(cat "$fixture_path")
+    local encoded_html
+    encoded_html=$(echo "$html_content" | sed 's/"/\\"/g' | tr '\n' ' ')
+    
+    local scrape_data="{\"html\": \"$encoded_html\", \"elements\": [{\"selector\": \"h1\"}]}"
+    
+    local response
+    if response=$(make_api_request "/chrome/scrape" "POST" "$API_TIMEOUT" \
+        "-H 'Content-Type: application/json' -d '$scrape_data'"); then
+        
+        if validate_json_field "$response" ".data"; then
+            return 0
+        fi
+    fi
+    
+    return 1
+}
+
+# Run fixture-based tests if fixtures are available
+run_fixture_tests() {
+    if [[ "$FIXTURES_AVAILABLE" == "true" ]]; then
+        # Test with real-world images
+        test_with_fixture "screenshot real-world image" "images" "real-world/architecture/architecture-city.jpg" \
+            test_screenshot_with_fixture
+        
+        test_with_fixture "screenshot nature image" "images" "real-world/nature/nature-landscape.jpg" \
+            test_screenshot_with_fixture
+        
+        # Test with web documents
+        test_with_fixture "PDF from HTML article" "documents" "web/article.html" \
+            test_pdf_with_web_fixture
+        
+        test_with_fixture "PDF from HTML dashboard" "documents" "web/dashboard.html" \
+            test_pdf_with_web_fixture
+        
+        # Test scraping with HTML fixtures
+        test_with_fixture "scrape HTML form" "documents" "web/form.html" \
+            test_scrape_with_fixture
+        
+        # Test with rotating fixtures for variety
+        local image_fixtures
+        if image_fixtures=$(rotate_fixtures "images/real-world" 3); then
+            for fixture in $image_fixtures; do
+                local fixture_name
+                fixture_name=$(basename "$fixture")
+                test_with_fixture "screenshot $fixture_name" "" "$fixture" \
+                    test_screenshot_with_fixture
+            done
+        fi
+    fi
+}
 
 test_pressure_endpoint() {
     local test_name="pressure/health endpoint"
@@ -328,6 +453,10 @@ register_tests \
     "test_websocket_endpoint" \
     "test_container_health" \
     "test_resource_limits"
+
+# Register fixture-based tests
+register_tests \
+    "run_fixture_tests"
 
 # Execute main test framework if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

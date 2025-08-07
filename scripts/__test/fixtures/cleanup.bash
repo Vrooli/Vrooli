@@ -116,14 +116,13 @@ _vrooli_cleanup_mocks() {
     echo "[CLEANUP] Cleaning up mocks"
     
     # Call service-specific cleanup functions if they exist
+    # Only include functions that follow the pattern: service_name_cleanup (not vrooli_* or _vrooli_*)
     local cleanup_functions
-    cleanup_functions=$(declare -F | grep "_cleanup$" | awk '{print $3}')
+    cleanup_functions=$(declare -F | grep "_cleanup$" | awk '{print $3}' | grep -v "^_\?vrooli_")
     
     for func in $cleanup_functions; do
-        if [[ "$func" != "_vrooli_cleanup_mocks" ]]; then
-            echo "[CLEANUP] Calling cleanup function: $func"
-            "$func" 2>/dev/null || true
-        fi
+        echo "[CLEANUP] Calling cleanup function: $func"
+        "$func" 2>/dev/null || true
     done
     
     # Reset mock state variables
@@ -393,9 +392,28 @@ vrooli_graceful_cleanup() {
 }
 
 #######################################
+# Backward compatibility functions
+# These provide compatibility with older test patterns
+#######################################
+
+#######################################
+# Backward compatibility wrapper for cleanup_mocks
+# This function is called by older test teardown() functions
+# Arguments: None
+# Returns: 0
+#######################################
+cleanup_mocks() {
+    echo "[CLEANUP] Using backward compatibility cleanup_mocks wrapper"
+    vrooli_cleanup_test
+}
+
+#######################################
 # Export cleanup functions
 #######################################
 export -f vrooli_cleanup_test vrooli_emergency_cleanup
 export -f vrooli_validate_cleanup vrooli_graceful_cleanup
+export -f cleanup_mocks
+export -f _vrooli_cleanup_processes _vrooli_cleanup_mocks _vrooli_cleanup_temp_files
+export -f _vrooli_cleanup_environment _vrooli_cleanup_shared_memory
 
 echo "[CLEANUP] Vrooli test cleanup functions loaded successfully"

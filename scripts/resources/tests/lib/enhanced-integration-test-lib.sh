@@ -7,8 +7,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/integration-test-lib.sh"
 
 # Load fixture loader for optional fixture testing
-if [[ -f "$SCRIPT_DIR/../../__test/fixtures/fixture-loader.bash" ]]; then
-    source "$SCRIPT_DIR/../../__test/fixtures/fixture-loader.bash"
+FIXTURE_LOADER_PATH="$SCRIPT_DIR/../../../__test/fixtures/fixture-loader.bash"
+if [[ -f "$FIXTURE_LOADER_PATH" ]]; then
+    source "$FIXTURE_LOADER_PATH"
     FIXTURES_AVAILABLE=true
 else
     FIXTURES_AVAILABLE=false
@@ -397,28 +398,9 @@ generate_enhanced_report() {
     echo "  Skipped: $TESTS_SKIPPED ⏭️"
     echo
     
-    # Enhanced metrics
+    # Generate detailed fixture report if fixtures were used
     if [[ ${#PROCESSED_FIXTURES[@]} -gt 0 ]]; then
-        echo "Fixture Testing:"
-        echo "  Fixtures processed: ${#PROCESSED_FIXTURES[@]}"
-        echo "  Fixtures used: ${PROCESSED_FIXTURES[*]}"
-        echo
-        
-        if [[ ${#FIXTURE_RESULTS[@]} -gt 0 ]]; then
-            local fixture_passed=0
-            local fixture_failed=0
-            
-            for result in "${FIXTURE_RESULTS[@]}"; do
-                if [[ "$result" =~ ^PASS: ]]; then
-                    ((fixture_passed++))
-                else
-                    ((fixture_failed++))
-                fi
-            done
-            
-            echo "  Fixture test results: $fixture_passed passed, $fixture_failed failed"
-        fi
-        echo
+        generate_fixture_report
     fi
     
     # Service-specific insights
@@ -480,6 +462,135 @@ enhanced_integration_test_main() {
     fi
 }
 
+#######################################
+# Fixture Usage Report Generation
+#######################################
+
+generate_fixture_report() {
+    echo
+    echo "=== FIXTURE USAGE REPORT ==="
+    echo "Total fixtures processed: ${#PROCESSED_FIXTURES[@]}"
+    
+    # Count unique fixtures
+    local unique_count=0
+    if [[ ${#PROCESSED_FIXTURES[@]} -gt 0 ]]; then
+        unique_count=$(printf '%s\n' "${PROCESSED_FIXTURES[@]}" | sort -u | wc -l)
+    fi
+    echo "Unique fixtures used: $unique_count"
+    
+    # Show pass/fail by fixture
+    local pass_count=0
+    local fail_count=0
+    for result in "${FIXTURE_RESULTS[@]}"; do
+        if [[ "$result" == PASS:* ]]; then
+            ((pass_count++))
+        else
+            ((fail_count++))
+        fi
+    done
+    
+    echo "Fixture test results: $pass_count passed, $fail_count failed"
+    
+    # List fixtures used in verbose mode
+    if [[ "$VERBOSE" == "true" ]] && [[ ${#PROCESSED_FIXTURES[@]} -gt 0 ]]; then
+        echo
+        echo "Detailed fixture usage:"
+        printf '%s\n' "${PROCESSED_FIXTURES[@]}" | sort -u | while read -r fixture; do
+            echo "  - $fixture"
+        done
+    fi
+}
+
+#######################################
+# Fixture Auto-Discovery
+#######################################
+
+discover_resource_fixtures() {
+    local resource_name="$1"
+    local resource_category="${2:-}"
+    
+    # If category not provided, try to determine it
+    if [[ -z "$resource_category" ]]; then
+        case "$resource_name" in
+            ollama|whisper|unstructured-io) resource_category="ai" ;;
+            n8n|comfyui|node-red|windmill|huginn) resource_category="automation" ;;
+            minio|vault|qdrant|questdb|postgres|redis) resource_category="storage" ;;
+            judge0) resource_category="execution" ;;
+            browserless|claude-code|agent-s2) resource_category="agents" ;;
+            searxng) resource_category="search" ;;
+        esac
+    fi
+    
+    # Return appropriate fixtures based on resource
+    case "$resource_category" in
+        "ai")
+            case "$resource_name" in
+                "whisper")
+                    echo "audio/whisper audio/speech_test_short.mp3 audio/speech_mlk_dream.mp3"
+                    ;;
+                "unstructured-io")
+                    echo "documents/pdf documents/office documents/structured"
+                    ;;
+                "ollama")
+                    echo "documents/llm-prompt.json images/ocr"
+                    ;;
+            esac
+            ;;
+        "automation")
+            # Check for resource-specific workflow fixtures
+            if [[ -d "$FIXTURES_DIR/workflows/$resource_name" ]]; then
+                echo "workflows/$resource_name"
+            else
+                echo "workflows"
+            fi
+            ;;
+        "storage")
+            # Storage resources should test with various file types
+            echo "documents/pdf images/synthetic documents/structured"
+            ;;
+        "execution")
+            echo "documents/code"
+            ;;
+        "agents")
+            case "$resource_name" in
+                "browserless")
+                    echo "images/real-world documents/web"
+                    ;;
+                "claude-code")
+                    echo "documents/code"
+                    ;;
+                "agent-s2")
+                    echo "images/real-world documents/web"
+                    ;;
+            esac
+            ;;
+        "search")
+            echo "documents/samples"
+            ;;
+    esac
+}
+
+#######################################
+# Fixture Rotation for Testing Variety
+#######################################
+
+rotate_fixtures() {
+    local category="$1"
+    local max_fixtures="${2:-5}"
+    
+    if [[ "$FIXTURES_AVAILABLE" != "true" ]]; then
+        return 1
+    fi
+    
+    # Get all fixtures and randomly select some
+    if command -v shuf >/dev/null 2>&1; then
+        fixture_get_all "$category" 2>/dev/null | shuf | head -n "$max_fixtures"
+    else
+        # Fallback if shuf not available
+        fixture_get_all "$category" 2>/dev/null | sort -R | head -n "$max_fixtures"
+    fi
+}
+
 # Export enhanced functions
 export -f test_with_fixture
 export -f enhanced_service_health_check  
@@ -494,3 +605,6 @@ export -f test_automation_workflow_list
 export -f test_automation_execution_capability
 export -f generate_enhanced_report
 export -f enhanced_integration_test_main
+export -f generate_fixture_report
+export -f discover_resource_fixtures
+export -f rotate_fixtures

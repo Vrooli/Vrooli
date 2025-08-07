@@ -1,19 +1,36 @@
 #!/usr/bin/env bats
 # Tests for Huginn manage.sh script
 
-load test_fixtures/test_helper
+# Load Vrooli test infrastructure
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
 
-setup() {
-    # Set up test environment
-    setup_test_environment
-    mock_docker "success"
-    mock_curl "success"
-    mock_pg_isready "success"
-    source_huginn_scripts
+# Expensive setup operations run once per file
+setup_file() {
+    # Use Vrooli service test setup
+    vrooli_setup_service_test "huginn"
     
-    # Export required variables for testing
-    export ACTION="status"
+    # Load resource specific configuration once per file
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    HUGINN_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Load configuration and manage script once
+    source "${HUGINN_DIR}/config/defaults.sh"
+    source "${HUGINN_DIR}/config/messages.sh"
+    source "${SCRIPT_DIR}/manage.sh"
+}
+
+# Lightweight per-test setup 
+setup() {
+    # Setup standard Vrooli mocks
+    vrooli_auto_setup
+    
+    # Set test environment variables (lightweight per-test)
+    export HUGINN_CUSTOM_PORT="9999"
+    export HUGINN_CONTAINER_NAME="huginn-test"
+    export HUGINN_BASE_URL="http://localhost:9999"
     export FORCE="no"
+    export YES="no"
+    export ACTION="status"
     export OPERATION="list"
     export AGENT_ID=""
     export SCENARIO_ID=""
@@ -24,10 +41,23 @@ setup() {
     export INTERVAL="30"
     export REMOVE_DATA="no"
     export REMOVE_VOLUMES="no"
+    
+    # Export config functions
+    huginn::export_config
+    huginn::export_messages
+    
+    # Mock log functions
+    log::header() { echo "=== $* ==="; }
+    log::info() { echo "[INFO] $*"; }
+    log::error() { echo "[ERROR] $*" >&2; }
+    log::success() { echo "[SUCCESS] $*"; }
+    log::warning() { echo "[WARNING] $*" >&2; }
+    export -f log::header log::info log::error log::success log::warning
 }
 
+# BATS teardown function - runs after each test
 teardown() {
-    teardown_test_environment
+    vrooli_cleanup_test
 }
 
 @test "manage.sh: help flag shows usage" {
@@ -35,136 +65,205 @@ teardown() {
     args::is_asking_for_help() { return 0; }
     export -f args::is_asking_for_help
     
-    run bash "$HUGINN_ROOT_DIR/manage.sh" --help
+    run huginn::show_help
     assert_success
-    assert_output_contains "Usage:"
-    assert_output_contains "install"
-    assert_output_contains "uninstall"
-    assert_output_contains "status"
+    [[ "$output" =~ "Usage:" ]]
+    [[ "$output" =~ "install" ]]
+    [[ "$output" =~ "uninstall" ]]
+    [[ "$output" =~ "status" ]]
 }
 
 @test "manage.sh: default action is install" {
     # Test that default action is set correctly
-    args::get() {
-        case "$1" in
-            "action") echo "install" ;;
-            *) echo "" ;;
-        esac
-    }
-    export -f args::get
+    huginn::parse_arguments
     
-    export ACTION="install"
-    
-    # The actual behavior would depend on huginn::install
-    # For now, just verify the action is parsed correctly
-    assert_success
+    [ "$ACTION" = "install" ]
 }
 
 @test "manage.sh: status command when running" {
-    mock_docker "success"
-    export DOCKER_EXEC_MOCK="system_stats"
+    # Mock docker success for status check
+    docker() {
+        case "$*" in
+            *"container inspect"*) return 0 ;;
+            *"container inspect -f"*) echo "true" ;;
+            *) return 0 ;;
+        esac
+    }
+    export -f docker
     
     run huginn::show_status
     assert_success
-    assert_output_contains "Huginn Status"
-    assert_output_contains "Running"
+    [[ "$output" =~ "Huginn Status" ]]
+    [[ "$output" =~ "Running" ]]
 }
 
 @test "manage.sh: status command when not installed" {
-    mock_docker "not_installed"
+    # Mock docker to return not installed
+    docker() {
+        case "$*" in
+            *"container inspect"*) return 1 ;;
+            *) return 1 ;;
+        esac
+    }
+    export -f docker
     
     run huginn::is_installed
     assert_failure
 }
 
 @test "manage.sh: status command when not running" {
-    mock_docker "not_running"
+    # Mock docker to return not running
+    docker() {
+        case "$*" in
+            *"container inspect"*) return 0 ;;
+            *"container inspect -f"*) echo "false" ;;
+            *) return 0 ;;
+        esac
+    }
+    export -f docker
     
     run huginn::is_running
     assert_failure
 }
 
 @test "manage.sh: agents list operation" {
-    mock_docker "success"
-    export DOCKER_EXEC_MOCK="agents_list"
+    # Mock docker exec for agents list
+    docker() {
+        case "$*" in
+            *"exec"*"agents"*) 
+                echo "RSS Weather Monitor"
+                echo "Website Status Checker"
+                ;;
+            *) return 0 ;;
+        esac
+    }
+    export -f docker
     
     run huginn::list_agents
     assert_success
-    assert_output_contains "RSS Weather Monitor"
-    assert_output_contains "Website Status Checker"
+    [[ "$output" =~ "RSS Weather Monitor" ]]
+    [[ "$output" =~ "Website Status Checker" ]]
 }
 
 @test "manage.sh: agent show requires agent ID" {
     export AGENT_ID=""
+    export OPERATION="show"
     
     run huginn::handle_agents
     assert_failure
-    assert_output_contains "Agent ID required"
+    [[ "$output" =~ "Agent ID required" ]]
 }
 
 @test "manage.sh: agent show with valid ID" {
-    mock_docker "success"
-    export DOCKER_EXEC_MOCK="agent_show"
+    # Mock docker exec for agent show
+    docker() {
+        case "$*" in
+            *"exec"*"agent"*"1"*)
+                echo "Agent Details"
+                echo "RSS Weather Monitor"
+                ;;
+            *) return 0 ;;
+        esac
+    }
+    export -f docker
+    
     export AGENT_ID="1"
     export OPERATION="show"
     
     run huginn::show_agent "1"
     assert_success
-    assert_output_contains "Agent Details"
-    assert_output_contains "RSS Weather Monitor"
+    [[ "$output" =~ "Agent Details" ]]
+    [[ "$output" =~ "RSS Weather Monitor" ]]
 }
 
 @test "manage.sh: scenarios list operation" {
-    mock_docker "success"
-    export DOCKER_EXEC_MOCK="scenarios_list"
+    # Mock docker exec for scenarios list
+    docker() {
+        case "$*" in
+            *"exec"*"scenarios"*)
+                echo "Weather Monitoring Suite"
+                ;;
+            *) return 0 ;;
+        esac
+    }
+    export -f docker
     
     run huginn::list_scenarios
     assert_success
-    assert_output_contains "Weather Monitoring Suite"
+    [[ "$output" =~ "Weather Monitoring Suite" ]]
 }
 
 @test "manage.sh: events recent operation" {
-    mock_docker "success"
-    export DOCKER_EXEC_MOCK="events_recent"
+    # Mock docker exec for recent events
+    docker() {
+        case "$*" in
+            *"exec"*"events"*"10"*)
+                echo "Weather Update"
+                ;;
+            *) return 0 ;;
+        esac
+    }
+    export -f docker
     
     run huginn::show_recent_events "10"
     assert_success
-    assert_output_contains "Weather Update"
+    [[ "$output" =~ "Weather Update" ]]
 }
 
 @test "manage.sh: health check when healthy" {
-    mock_docker "success"
-    mock_curl "success"
-    export DOCKER_EXEC_MOCK="db_check"
+    # Mock docker and curl for health check
+    docker() { return 0; }
+    curl() { return 0; }
+    export -f docker curl
     
     run huginn::health_check
     assert_success
-    assert_output_contains "Health Check"
+    [[ "$output" =~ "Health Check" ]]
 }
 
 @test "manage.sh: health check when unhealthy" {
-    mock_docker "not_running"
+    # Mock docker to return unhealthy
+    docker() { return 1; }
+    export -f docker
     
     run huginn::is_healthy
     assert_failure
 }
 
 @test "manage.sh: logs operation" {
-    mock_docker "success"
+    # Mock docker logs
+    docker() {
+        case "$*" in
+            *"logs"*"huginn"*"10"*)
+                echo "started successfully"
+                ;;
+            *) return 0 ;;
+        esac
+    }
+    export -f docker
     
     run huginn::get_logs "huginn" "10"
     assert_success
-    assert_output_contains "started successfully"
+    [[ "$output" =~ "started successfully" ]]
 }
 
 @test "manage.sh: info command shows version" {
-    mock_docker "success"
-    export DOCKER_EXEC_MOCK="version"
+    # Mock docker exec for version
+    docker() {
+        case "$*" in
+            *"exec"*"version"*)
+                echo "Huginn"
+                echo "Rails"
+                ;;
+            *) return 0 ;;
+        esac
+    }
+    export -f docker
     
     run huginn::get_version
     assert_success
-    assert_output_contains "Huginn"
-    assert_output_contains "Rails"
+    [[ "$output" =~ "Huginn" ]]
+    [[ "$output" =~ "Rails" ]]
 }
 
 @test "manage.sh: validate agent ID accepts numbers" {
@@ -188,25 +287,30 @@ teardown() {
 }
 
 @test "manage.sh: integration command" {
-    mock_docker "success"
-    
     # Mock other containers for integration check
     docker() {
         case "$*" in
             *"ps --format"*) echo -e "minio\nredis\nnode-red\nollama" ;;
-            *) command docker "$@" 2>/dev/null || true ;;
+            *) return 0 ;;
         esac
     }
     export -f docker
     
     run huginn::handle_integration
     assert_success
-    assert_output_contains "Integration"
-    assert_output_contains "MinIO"
+    [[ "$output" =~ "Integration" ]]
+    [[ "$output" =~ "MinIO" ]]
 }
 
 @test "manage.sh: monitor operation requires running container" {
-    mock_docker "not_running"
+    # Mock docker to return not running
+    docker() {
+        case "$*" in
+            *"container inspect -f"*) echo "false" ;;
+            *) return 0 ;;
+        esac
+    }
+    export -f docker
     
     run huginn::is_running
     assert_failure

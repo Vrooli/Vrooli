@@ -27,7 +27,7 @@ NEEDS_PATH_UPDATE="NO"
 
 k8s_cluster::adjust_paths() {
     # Check if sudo is available and adjust paths/commands if not
-    if ! flow::can_run_sudo; then
+    if ! flow::can_run_sudo "k8s tools installation"; then
         log::warning "Sudo not available or skipped. Installing k8s tools to user directory."
         INSTALL_DIR="$HOME/.local/bin"
         MV_CMD="mv"

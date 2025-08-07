@@ -1,4 +1,29 @@
 #!/usr/bin/env bash
+# Vault Development Token Setup
+# Script for setting up development tokens for Vault
+
+# Source shared secrets management library
+# Use the same project root detection method as the secrets library
+_vault_setup_detect_project_root() {
+    local current_dir
+    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    # Walk up directory tree looking for .vrooli directory
+    while [[ "$current_dir" != "/" ]]; do
+        if [[ -d "$current_dir/.vrooli" ]]; then
+            echo "$current_dir"
+            return 0
+        fi
+        current_dir="$(dirname "$current_dir")"
+    done
+    
+    # Fallback: assume we're in scripts and go up to project root
+    echo "/home/matthalloran8/Vrooli"
+}
+
+PROJECT_ROOT="$(_vault_setup_detect_project_root)"
+# shellcheck disable=SC1091
+source "$PROJECT_ROOT/scripts/helpers/utils/secrets.sh"
 # ====================================================================
 # Vault Development Token Setup Script  
 # ====================================================================
@@ -34,7 +59,7 @@ NC='\033[0m' # No Color
 # Configuration
 VAULT_BASE_URL="http://localhost:8200"
 TOKEN_FILE="/tmp/vault-token"
-CONFIG_FILE="$HOME/.vrooli/service.json"
+CONFIG_FILE="$(secrets::get_project_config_file)"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Parse command line arguments
@@ -395,7 +420,7 @@ interactive_setup() {
     print_info "Next steps:"
     print_info "  1. Test Vault access: curl -H \"X-Vault-Token: $token\" $VAULT_BASE_URL/v1/secret/data/test/stripe-config"
     print_info "  2. Run integration tests: ../../index.sh --action test --resources vault"
-    print_info "  3. Test n8n integration: ../../tests/scenarios/vault-n8n-integration/vault-secrets-integration.test.sh"
+    print_info "  3. Test n8n integration: ../../scenarios/core/research-assistant/test.sh"
 }
 
 #######################################

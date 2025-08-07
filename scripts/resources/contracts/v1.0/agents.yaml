@@ -1,0 +1,315 @@
+# Vrooli Resource Interface Contract - Agent Resources v1.0
+# This contract extends core.yaml with agent-specific requirements
+# Applies to: agent-s2, browserless, claude-code
+
+version: "1.0"
+contract_type: "category"
+extends: "core.yaml"
+category: "agents"
+description: "Interface requirements for autonomous agent and interaction resources"
+
+# Additional actions specific to agent resources
+additional_actions:
+  screenshot:
+    description: "Take screenshot of screen or webpage"
+    parameters:
+      - name: output
+        type: string
+        required: false
+        description: "Output file path (default: stdout or temp file)"
+      - name: format
+        type: string
+        required: false
+        values: ["png", "jpg", "pdf"]
+        default: "png"
+        description: "Image format"
+      - name: url
+        type: string
+        required: false
+        description: "URL to screenshot (for web agents)"
+      - name: selector
+        type: string
+        required: false
+        description: "CSS selector for element screenshot"
+    exit_codes:
+      0: "Screenshot taken successfully"
+      1: "Screenshot failed"
+      2: "Invalid parameters or target not found"
+    timeout_seconds: 30
+    
+  interact:
+    description: "Interact with UI elements (click, type, etc.)"
+    parameters:
+      - name: action
+        type: string
+        required: true
+        values: ["click", "type", "scroll", "wait", "navigate"]
+        description: "Interaction type"
+      - name: target
+        type: string
+        required: true
+        description: "Target element (selector, coordinates, URL)"
+      - name: value
+        type: string
+        required: false
+        description: "Value for type actions"
+      - name: timeout
+        type: integer
+        required: false
+        default: 10
+        description: "Timeout in seconds"
+    exit_codes:
+      0: "Interaction successful"
+      1: "Interaction failed"
+      2: "Target not found or not interactable"
+    timeout_seconds: 60
+    
+  automate:
+    description: "Execute automated task or workflow"
+    parameters:
+      - name: task
+        type: string
+        required: true
+        description: "Task definition or workflow name"
+      - name: input
+        type: string
+        required: false
+        description: "Input data for task (JSON string)"
+      - name: headless
+        type: flag
+        required: false
+        description: "Run in headless mode"
+    exit_codes:
+      0: "Automation successful"
+      1: "Automation failed"
+      2: "Task not found or invalid"
+    timeout_seconds: 300
+    
+  session:
+    description: "Manage agent sessions"
+    parameters:
+      - name: action
+        type: string
+        required: true
+        values: ["create", "list", "attach", "destroy", "status"]
+        description: "Session management action"
+      - name: session
+        type: string
+        required: false
+        description: "Session ID (required for attach/destroy/status)"
+    exit_codes:
+      0: "Session operation successful"
+      1: "Session operation failed"
+      2: "Session not found"
+    timeout_seconds: 30
+
+# Agent-specific configuration requirements
+agent_configuration:
+  browser_settings:
+    description: "Browser configuration for web agents"
+    optional: true
+    parameters:
+      - "headless_mode"
+      - "window_size"
+      - "user_agent"
+      - "download_directory"
+  
+  interaction_settings:
+    description: "UI interaction configuration"
+    parameters:
+      - "default_timeout"
+      - "screenshot_quality"
+      - "element_wait_time"
+      - "retry_attempts"
+  
+  security_settings:
+    description: "Security and isolation configuration"
+    required: true
+    parameters:
+      - "sandbox_mode"
+      - "network_access"
+      - "file_system_access"
+
+# Agent-specific file structure
+agent_file_structure:
+  optional_files:
+    - "sessions/"               # Session storage directory
+    - "lib/interaction.sh"      # Interaction utilities
+    - "lib/automation.sh"       # Automation utilities
+    - "lib/session.sh"          # Session management
+    - "config/browser.yaml"     # Browser configuration
+    - "screenshots/"            # Screenshot storage
+  
+  optional_directories:
+    - "sessions/"               # Active sessions
+    - "screenshots/"            # Screenshot output
+    - "downloads/"              # Downloaded files
+    - "profiles/"               # Browser profiles
+    - "scripts/"                # Automation scripts
+
+# Agent-specific environment variables
+agent_environment:
+  required_variables:
+    - "VROOLI_AGENT_SERVICE_PORT"
+    - "VROOLI_AGENT_BASE_URL"
+  
+  optional_variables:
+    - "VROOLI_AGENT_HEADLESS"
+    - "VROOLI_AGENT_SCREENSHOTS_PATH"
+    - "VROOLI_AGENT_TIMEOUT"
+    - "VROOLI_AGENT_MAX_SESSIONS"
+    - "VROOLI_AGENT_SECURITY_MODE"
+
+# Performance requirements for agent resources
+agent_performance:
+  session_start_time_max_seconds: 30
+  screenshot_time_max_seconds: 10
+  interaction_time_max_seconds: 15
+  automation_time_max_seconds: 300
+  concurrent_session_support: true
+
+# Agent-specific security requirements
+agent_security:
+  sandbox_isolation: "required"
+  network_restrictions: "recommended"
+  file_access_control: "required"
+  session_isolation: "required"
+  screenshot_privacy: "required"
+
+# Agent service health indicators
+agent_health_checks:
+  api_endpoint:
+    description: "API endpoint responds"
+    method: "GET"
+    path: "/health"
+    expected_status: 200
+    timeout_seconds: 10
+  
+  browser_engine:
+    description: "Browser engine is operational"
+    check_type: "screenshot_test"
+    test_url: "data:text/html,<h1>Health Check</h1>"
+    timeout_seconds: 20
+  
+  interaction_capability:
+    description: "Can perform basic interactions"
+    test_type: "basic_click"
+    timeout_seconds: 30
+
+# Common agent resource patterns
+agent_patterns:
+  session_management:
+    description: "Session lifecycle management"
+    required_states: ["created", "active", "idle", "destroyed"]
+    session_persistence: "optional"
+  
+  api_endpoints:
+    description: "Standard API endpoint patterns"
+    required_endpoints:
+      - "/health"
+      - "/screenshot"
+      - "/interact"
+    optional_endpoints:
+      - "/sessions"
+      - "/automate"
+      - "/recordings"
+  
+  screenshot_handling:
+    description: "Screenshot processing patterns"
+    supported_formats: ["png", "jpg", "pdf"]
+    quality_options: ["low", "medium", "high"]
+    size_options: ["thumbnail", "standard", "full"]
+
+# Integration requirements
+agent_integration:
+  browser_engines:
+    description: "Supported browser engines"
+    required: true
+    supported_engines: ["chromium", "firefox", "webkit"]
+  
+  display_systems:
+    description: "Display system integration"
+    required: true
+    supported_systems: ["x11", "wayland", "vnc", "virtual"]
+  
+  automation_frameworks:
+    description: "Automation framework integration"
+    optional: true
+    supported_frameworks: ["selenium", "playwright", "puppeteer"]
+  
+  monitoring:
+    description: "Agent-specific monitoring metrics"
+    required_metrics:
+      - "active_sessions"
+      - "screenshot_count"
+      - "interaction_count"
+      - "automation_success_rate"
+      - "average_response_time"
+
+# Session lifecycle management
+session_lifecycle:
+  states:
+    - "created"
+    - "active"
+    - "idle"
+    - "error"
+    - "destroyed"
+  
+  transitions:
+    - "created -> active"
+    - "active -> idle"
+    - "idle -> active"
+    - "active -> error"
+    - "error -> active"
+    - "* -> destroyed"
+  
+  required_operations:
+    - "create"
+    - "attach"
+    - "detach"
+    - "destroy"
+    - "list"
+
+# Stealth and anti-detection capabilities
+stealth_capabilities:
+  fingerprint_randomization:
+    description: "Browser fingerprint randomization"
+    optional: true
+    features:
+      - "user_agent_rotation"
+      - "viewport_randomization"
+      - "font_randomization"
+  
+  behavior_mimicking:
+    description: "Human-like behavior patterns"
+    optional: true
+    features:
+      - "mouse_movement_curves"
+      - "typing_rhythm_variation"
+      - "random_delays"
+  
+  detection_avoidance:
+    description: "Anti-bot detection measures"
+    optional: true
+    features:
+      - "webdriver_property_hiding"
+      - "automation_flag_masking"
+      - "canvas_fingerprint_spoofing"
+
+# Validation rules specific to agent resources
+agent_validation:
+  syntax_checks:
+    - "agent_actions_present"
+    - "session_management_implemented"
+    - "interaction_capabilities_available"
+  
+  behavioral_checks:
+    - "screenshot_functionality_works"
+    - "basic_interaction_functional"
+    - "session_lifecycle_correct"
+  
+  integration_checks:
+    - "browser_engine_accessible"
+    - "display_system_connected"
+    - "security_isolation_active"
+    - "resource_cleanup_proper"

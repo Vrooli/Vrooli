@@ -3,6 +3,27 @@
 # PostgreSQL Resource Configuration Defaults
 # This file contains all configuration constants and defaults for the PostgreSQL resource
 
+# Detect project root for proper configuration paths
+_postgres_defaults_detect_project_root() {
+    local current_dir
+    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    # Walk up directory tree looking for .vrooli directory
+    while [[ "$current_dir" != "/" ]]; do
+        if [[ -d "$current_dir/.vrooli" ]]; then
+            echo "$current_dir"
+            return 0
+        fi
+        current_dir="$(dirname "$current_dir")"
+    done
+    
+    # Fallback: assume we're in scripts and go up to project root
+    echo "/home/matthalloran8/Vrooli"
+}
+
+# Set project root for proper config paths
+POSTGRES_PROJECT_ROOT="$(_postgres_defaults_detect_project_root)"
+
 # Resource metadata
 readonly POSTGRES_RESOURCE_NAME="postgres"
 readonly POSTGRES_RESOURCE_CATEGORY="storage"
@@ -30,8 +51,8 @@ readonly POSTGRES_HEALTH_CHECK_INTERVAL=30
 readonly POSTGRES_HEALTH_CHECK_TIMEOUT=5
 readonly POSTGRES_HEALTH_CHECK_RETRIES=5
 
-# Backup configuration
-readonly POSTGRES_BACKUP_DIR="${HOME}/.vrooli/backups/postgres"
+# Backup configuration (using project root)
+readonly POSTGRES_BACKUP_DIR="${POSTGRES_PROJECT_ROOT}/.vrooli/backups/postgres"
 readonly POSTGRES_BACKUP_RETENTION_DAYS=7
 
 # Template directory
@@ -40,8 +61,8 @@ readonly POSTGRES_TEMPLATE_DIR="$(dirname "${BASH_SOURCE[0]}")/../templates"
 # Instance data directory
 readonly POSTGRES_INSTANCES_DIR="$(dirname "${BASH_SOURCE[0]}")/../instances"
 
-# Configuration directory
-readonly POSTGRES_CONFIG_DIR="${HOME}/.vrooli/postgres"
+# Configuration directory (using project root)
+readonly POSTGRES_CONFIG_DIR="${POSTGRES_PROJECT_ROOT}/.vrooli/postgres"
 
 # Default PostgreSQL configuration
 readonly POSTGRES_DEFAULT_MAX_CONNECTIONS=100

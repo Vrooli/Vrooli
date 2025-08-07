@@ -16,7 +16,6 @@ spec:
       - api-orchestration
       - data-transformation
       - scheduled-execution
-      - business-process-automation
     secondary:
       - webhook-processing
       - data-integration
@@ -68,13 +67,12 @@ spec:
   # Scenario compatibility
   scenarios:
     primary:
-      - business-process-automation
-      - document-intelligence-pipeline
+      - secure-document-processing
       - analytics-dashboard
     secondary:
       - multi-modal-ai-assistant
       - research-assistant
-      - ai-content-assistant-example
+      - campaign-content-studio
     optimal_combinations:
       - [n8n, ollama, minio]           # AI-powered automation
       - [n8n, postgres, vault]        # Secure business workflows

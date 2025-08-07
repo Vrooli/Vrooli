@@ -26,6 +26,8 @@ windmill::export_config
 
 # Source all library modules (will be created)
 # shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/state.sh"
+# shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib/common.sh"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib/docker.sh"

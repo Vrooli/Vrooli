@@ -1,0 +1,370 @@
+# Vrooli Resource Interface Contract - Execution Resources v1.0
+# This contract extends core.yaml with execution-specific requirements
+# Applies to: judge0
+
+version: "1.0"
+contract_type: "category"
+extends: "core.yaml"
+category: "execution"
+description: "Interface requirements for code execution and runtime environments"
+
+# Additional actions specific to execution resources
+additional_actions:
+  execute:
+    description: "Execute code or script"
+    parameters:
+      - name: code
+        type: string
+        required: true
+        description: "Code to execute"
+      - name: language
+        type: string
+        required: false
+        description: "Programming language (auto-detected if not specified)"
+      - name: input
+        type: string
+        required: false
+        description: "Standard input for the program"
+      - name: timeout
+        type: integer
+        required: false
+        default: 10
+        description: "Execution timeout in seconds"
+      - name: memory-limit
+        type: string
+        required: false
+        default: "128MB"
+        description: "Memory limit (e.g., 128MB, 1GB)"
+    exit_codes:
+      0: "Execution successful"
+      1: "Execution failed or error in code"
+      2: "Language not supported or invalid parameters"
+      3: "Timeout or resource limit exceeded"
+    timeout_seconds: 60
+    
+  languages:
+    description: "Manage supported programming languages"
+    parameters:
+      - name: action
+        type: string
+        required: false
+        values: ["list", "info", "test"]
+        default: "list"
+        description: "Language management action"
+      - name: language
+        type: string
+        required: false
+        description: "Specific language name or ID"
+      - name: format
+        type: string
+        required: false
+        values: ["text", "json"]
+        default: "text"
+        description: "Output format"
+    exit_codes:
+      0: "Language operation successful"
+      1: "Language operation failed"
+      2: "Language not found"
+    timeout_seconds: 15
+    
+  limits:
+    description: "Manage execution limits and quotas"
+    parameters:
+      - name: action
+        type: string
+        required: true
+        values: ["show", "set", "reset"]
+        description: "Limits management action"
+      - name: limit-type
+        type: string
+        required: false
+        values: ["time", "memory", "cpu", "disk", "network"]
+        description: "Type of limit to configure"
+      - name: value
+        type: string
+        required: false
+        description: "Limit value (required for set action)"
+    exit_codes:
+      0: "Limits operation successful"
+      1: "Limits operation failed"
+      2: "Invalid limit type or value"
+    timeout_seconds: 10
+    
+  sandbox:
+    description: "Manage execution sandbox environment"
+    parameters:
+      - name: action
+        type: string
+        required: true
+        values: ["status", "reset", "cleanup"]
+        description: "Sandbox management action"
+      - name: force
+        type: flag
+        required: false
+        description: "Force action without confirmation"
+    exit_codes:
+      0: "Sandbox operation successful"
+      1: "Sandbox operation failed"
+      2: "Sandbox not available"
+    timeout_seconds: 30
+
+# Execution-specific configuration requirements
+execution_configuration:
+  sandbox_settings:
+    description: "Execution sandbox configuration"
+    required: true
+    parameters:
+      - "isolation_level"
+      - "resource_limits"
+      - "network_access"
+      - "file_system_access"
+  
+  language_runtimes:
+    description: "Programming language runtime configuration"
+    required: true
+    environment_variable: "VROOLI_EXECUTION_RUNTIMES_CONFIG"
+  
+  security_settings:
+    description: "Execution security configuration"
+    required: true
+    parameters:
+      - "code_scanning"
+      - "dangerous_function_blocking"
+      - "resource_monitoring"
+      - "output_filtering"
+  
+  resource_limits:
+    description: "Default resource limits"
+    parameters:
+      - "max_execution_time"
+      - "max_memory_usage"
+      - "max_cpu_usage"
+      - "max_disk_usage"
+
+# Execution-specific file structure
+execution_file_structure:
+  required_files:
+    - "lib/execute.sh"          # Execution utilities
+    - "lib/sandbox.sh"          # Sandbox management
+    - "lib/security.sh"         # Security utilities
+  
+  optional_files:
+    - "languages/"              # Language runtime configurations
+    - "lib/languages.sh"        # Language management
+    - "lib/limits.sh"           # Resource limit management
+    - "config/languages.yaml"   # Language configuration
+    - "config/security.yaml"    # Security configuration
+    - "sandbox/"                # Sandbox environments
+  
+  optional_directories:
+    - "sandbox/"                # Execution sandboxes
+    - "languages/"              # Language runtimes
+    - "temp/"                   # Temporary execution files
+    - "logs/"                   # Execution logs
+    - "quarantine/"             # Quarantined dangerous code
+
+# Execution-specific environment variables
+execution_environment:
+  required_variables:
+    - "VROOLI_EXECUTION_SERVICE_PORT"
+    - "VROOLI_EXECUTION_BASE_URL"
+    - "VROOLI_EXECUTION_SANDBOX_PATH"
+  
+  optional_variables:
+    - "VROOLI_EXECUTION_TIMEOUT"
+    - "VROOLI_EXECUTION_MEMORY_LIMIT"
+    - "VROOLI_EXECUTION_CPU_LIMIT"
+    - "VROOLI_EXECUTION_NETWORK_ENABLED"
+    - "VROOLI_EXECUTION_DEBUG_MODE"
+
+# Performance requirements for execution resources
+execution_performance:
+  startup_time_max_seconds: 30
+  execution_start_time_max_seconds: 5
+  language_listing_max_seconds: 2
+  sandbox_reset_max_seconds: 15
+  concurrent_execution_support: true
+
+# Execution-specific security requirements
+execution_security:
+  code_sandboxing: "required"
+  resource_isolation: "required"
+  input_validation: "required"
+  output_sanitization: "required"
+  dangerous_function_blocking: "required"
+  network_isolation: "recommended"
+
+# Execution service health indicators
+execution_health_checks:
+  api_endpoint:
+    description: "API endpoint responds"
+    method: "GET"
+    path: "/health"
+    expected_status: 200
+    timeout_seconds: 10
+  
+  sandbox_availability:
+    description: "Execution sandbox is available"
+    check_type: "sandbox_status"
+    timeout_seconds: 10
+  
+  language_support:
+    description: "At least basic languages are supported"
+    minimum_languages: 3
+    required_languages: ["python", "javascript", "bash"]
+    timeout_seconds: 15
+  
+  execution_test:
+    description: "Can execute simple code"
+    test_code: "print('health_check')"
+    test_language: "python"
+    expected_output: "health_check"
+    timeout_seconds: 20
+
+# Common execution resource patterns
+execution_patterns:
+  submission_format:
+    description: "Standard code submission format"
+    required_fields:
+      - "source_code"
+      - "language_id"
+    optional_fields:
+      - "stdin"
+      - "expected_output"
+      - "cpu_time_limit"
+      - "memory_limit"
+  
+  api_endpoints:
+    description: "Standard API endpoint patterns"
+    required_endpoints:
+      - "/health"
+      - "/execute"
+      - "/languages"
+    optional_endpoints:
+      - "/submissions"
+      - "/statistics"
+      - "/system"
+  
+  result_format:
+    description: "Standard execution result format"
+    required_fields:
+      - "status"
+      - "stdout"
+      - "stderr"
+      - "time"
+      - "memory"
+    optional_fields:
+      - "exit_code"
+      - "signal"
+      - "message"
+
+# Integration requirements
+execution_integration:
+  container_runtime:
+    description: "Container runtime integration"
+    required: true
+    supported_runtimes: ["docker", "podman", "containerd"]
+  
+  language_runtimes:
+    description: "Programming language runtime support"
+    required: true
+    minimum_languages: 10
+    categories: ["compiled", "interpreted", "scripting"]
+  
+  resource_monitoring:
+    description: "Resource monitoring integration"
+    required: true
+    monitored_resources: ["cpu", "memory", "disk", "network"]
+  
+  monitoring:
+    description: "Execution-specific monitoring metrics"
+    required_metrics:
+      - "executions_count"
+      - "execution_success_rate"
+      - "average_execution_time"
+      - "resource_utilization"
+      - "sandbox_health"
+
+# Language support management
+language_support:
+  language_categories:
+    - "compiled"        # C, C++, Rust, Go
+    - "interpreted"     # Python, Ruby, PHP
+    - "scripting"       # Bash, PowerShell
+    - "vm_based"        # Java, C#
+    - "web"            # JavaScript, TypeScript
+  
+  runtime_requirements:
+    - "compiler_or_interpreter"
+    - "standard_library"
+    - "execution_environment"
+    - "debugging_support"
+  
+  language_metadata:
+    - "version"
+    - "compile_command"
+    - "execute_command"
+    - "file_extension"
+    - "memory_default"
+    - "time_default"
+
+# Security and sandboxing
+security_model:
+  isolation_levels:
+    - "process"         # Process-level isolation
+    - "container"       # Container-based isolation
+    - "vm"             # Virtual machine isolation
+  
+  security_controls:
+    - "file_system_restrictions"
+    - "network_restrictions"
+    - "system_call_filtering"
+    - "resource_limits"
+    - "code_analysis"
+  
+  dangerous_patterns:
+    - "file_operations"
+    - "network_operations"
+    - "system_commands"
+    - "infinite_loops"
+    - "memory_bombs"
+
+# Resource management
+resource_management:
+  limit_types:
+    - "cpu_time"
+    - "wall_time"
+    - "memory"
+    - "disk_space"
+    - "file_descriptors"
+    - "processes"
+  
+  monitoring_intervals:
+    - "real_time"
+    - "periodic"
+    - "post_execution"
+  
+  enforcement_actions:
+    - "terminate"
+    - "suspend"
+    - "throttle"
+    - "log_warning"
+
+# Validation rules specific to execution resources
+execution_validation:
+  syntax_checks:
+    - "execution_actions_present"
+    - "language_management_implemented"
+    - "sandbox_controls_available"
+  
+  behavioral_checks:
+    - "basic_execution_functional"
+    - "language_listing_works"
+    - "resource_limits_enforced"
+    - "security_controls_active"
+  
+  integration_checks:
+    - "container_runtime_accessible"
+    - "language_runtimes_available"
+    - "sandbox_isolation_verified"
+    - "resource_monitoring_active"

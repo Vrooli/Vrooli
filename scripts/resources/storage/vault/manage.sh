@@ -104,6 +104,14 @@ vault::parse_arguments() {
         --options "dev|prod" \
         --default "$VAULT_MODE"
     
+    # Storage strategy configuration
+    args::register \
+        --name "storage-strategy" \
+        --desc "Storage strategy (volumes, bind, inmem, auto)" \
+        --type "value" \
+        --options "volumes|bind|inmem|auto" \
+        --default "${VAULT_STORAGE_STRATEGY:-volumes}"
+    
     # Monitoring arguments
     args::register \
         --name "interval" \
@@ -151,6 +159,7 @@ vault::parse_arguments() {
     export ENV_FILE=$(args::get "env-file")
     export VAULT_PREFIX=$(args::get "vault-prefix")
     export VAULT_MODE=$(args::get "mode")
+    export VAULT_STORAGE_STRATEGY=$(args::get "storage-strategy")
     export MONITOR_INTERVAL=$(args::get "interval")
     export LOG_LINES=$(args::get "lines")
     export FOLLOW_LOGS=$(args::get "follow")
@@ -164,106 +173,127 @@ vault::parse_arguments() {
 #######################################
 # Main execution function
 #######################################
+
+#######################################
+# Show vault service logs
+# Arguments:
+#   None
+# Returns:
+#   0 - Success
+#   1 - Error
+#######################################
+vault::logs() {
+    # Standard interface function - delegates to existing implementation
+    if [[ "$FOLLOW_LOGS" == "yes" ]]; then
+        vault::docker::show_logs "$LOG_LINES" "follow"
+    else
+        vault::docker::show_logs "$LOG_LINES"
+    fi
+}
+
 vault::main() {
     # Set up error handling
     trap vault::cleanup EXIT
     
     case "$ACTION" in
-        "install")
+        install)
             vault::install
             ;;
-        "uninstall")
+        uninstall)
             vault::uninstall
             ;;
-        "start")
+        start)
             vault::docker::start_container
             ;;
-        "stop")
+        stop)
             vault::docker::stop_container
             ;;
-        "restart")
+        restart)
             vault::docker::restart_container
             ;;
-        "status")
+        status)
             vault::show_status
             ;;
-        "auth-info")
+        auth-info)
             vault::show_auth_info
             ;;
-        "test-functional")
+        test-functional)
             vault::test_functional
             ;;
-        "test")
+        test)
             vault::test_functional
             ;;
-        "logs")
+        logs)
             if [[ "$FOLLOW_LOGS" == "yes" ]]; then
                 vault::docker::show_logs "$LOG_LINES" "follow"
             else
                 vault::docker::show_logs "$LOG_LINES"
             fi
             ;;
-        "init-dev")
+        init-dev)
             vault::init_dev
             ;;
-        "init-prod")
+        init-prod)
             vault::init_prod
             ;;
-        "unseal")
+        unseal)
             vault::unseal
             ;;
-        "put-secret")
+        put-secret)
             if [[ -z "$SECRET_PATH" ]] || [[ -z "$SECRET_VALUE" ]]; then
                 log::error "Both --path and --value are required for put-secret"
                 exit 1
             fi
             vault::put_secret "$SECRET_PATH" "$SECRET_VALUE" "$SECRET_KEY"
             ;;
-        "get-secret")
+        get-secret)
             if [[ -z "$SECRET_PATH" ]]; then
                 log::error "--path is required for get-secret"
                 exit 1
             fi
             vault::get_secret "$SECRET_PATH" "$SECRET_KEY" "$OUTPUT_FORMAT"
             ;;
-        "list-secrets")
+        list-secrets)
             if [[ -z "$SECRET_PATH" ]]; then
                 log::error "--path is required for list-secrets"
                 exit 1
             fi
             vault::list_secrets "$SECRET_PATH" "$OUTPUT_FORMAT"
             ;;
-        "delete-secret")
+        delete-secret)
             if [[ -z "$SECRET_PATH" ]]; then
                 log::error "--path is required for delete-secret"
                 exit 1
             fi
             vault::delete_secret "$SECRET_PATH"
             ;;
-        "migrate-env")
+        migrate-env)
             if [[ -z "$ENV_FILE" ]] || [[ -z "$VAULT_PREFIX" ]]; then
                 log::error "Both --env-file and --vault-prefix are required for migrate-env"
                 exit 1
             fi
             vault::migrate_env_file "$ENV_FILE" "$VAULT_PREFIX"
             ;;
-        "backup")
+        backup)
             vault::docker::backup "$BACKUP_FILE"
             ;;
-        "restore")
+        restore)
             if [[ -z "$BACKUP_FILE" ]]; then
                 log::error "--backup-file is required for restore"
                 exit 1
             fi
             vault::docker::restore "$BACKUP_FILE"
             ;;
-        "diagnose")
+        diagnose)
             vault::diagnose
             ;;
-        "monitor")
+        monitor)
             vault::monitor "$MONITOR_INTERVAL"
             ;;
-        "help")
+        repair-permissions)
+            vault::docker::repair_permissions
+            ;;
+        help)
             vault::show_help
             ;;
         *)

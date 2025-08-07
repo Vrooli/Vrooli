@@ -50,9 +50,12 @@ permissions::make_files_in_dir_executable() {
 permissions::make_scripts_executable() {
     # Ensure required directories are defined
     : "${var_SCRIPTS_DIR:?var_SCRIPTS_DIR must be set}"
-    : "${var_POSTGRES_ENTRYPOINT_DIR:?var_POSTGRES_ENTRYPOINT_DIR must be set}"
     permissions::make_files_in_dir_executable "$var_SCRIPTS_DIR"
-    permissions::make_files_in_dir_executable "$var_POSTGRES_ENTRYPOINT_DIR"
+    
+    # Only process postgres entrypoint if it exists (for monorepo mode)
+    if [[ -n "${var_POSTGRES_ENTRYPOINT_DIR:-}" ]] && [[ -d "$var_POSTGRES_ENTRYPOINT_DIR" ]]; then
+        permissions::make_files_in_dir_executable "$var_POSTGRES_ENTRYPOINT_DIR"
+    fi
 }
 
 # If this script is run directly, apply permissions to all defined directories.

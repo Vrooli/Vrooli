@@ -2,6 +2,29 @@
 # Windmill API Functions
 # Functions for interacting with Windmill REST API
 
+# Source shared secrets management library
+# Use the same project root detection method as the secrets library
+_windmill_api_detect_project_root() {
+    local current_dir
+    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    # Walk up directory tree looking for .vrooli directory
+    while [[ "$current_dir" != "/" ]]; do
+        if [[ -d "$current_dir/.vrooli" ]]; then
+            echo "$current_dir"
+            return 0
+        fi
+        current_dir="$(dirname "$current_dir")"
+    done
+    
+    # Fallback: assume we're in scripts and go up to project root
+    echo "/home/matthalloran8/Vrooli"
+}
+
+PROJECT_ROOT="$(_windmill_api_detect_project_root)"
+# shellcheck disable=SC1091
+source "$PROJECT_ROOT/scripts/helpers/utils/secrets.sh"
+
 #######################################
 # Test API connectivity and health
 # Returns: 0 if healthy, 1 otherwise
@@ -471,11 +494,10 @@ windmill::api_status() {
 windmill::load_api_key() {
     local api_key="${WINDMILL_API_TOKEN:-}"
     
-    # Try to load API key from config if not in env
+    # Try to load API key using 3-layer resolution if not in env
     if [[ -z "$api_key" ]]; then
-        local config_file="${HOME}/.vrooli/service.json"
-        if [[ -f "$config_file" ]]; then
-            api_key=$(jq -r '.services.automation.windmill.apiKey // empty' "$config_file" 2>/dev/null)
+        if ! api_key=$(secrets::resolve "WINDMILL_API_KEY"); then
+            api_key=""
         fi
     fi
     
@@ -507,55 +529,21 @@ windmill::save_api_key() {
         return 1
     fi
     
-    # Ensure config directory exists
-    local config_dir="${HOME}/.vrooli"
-    mkdir -p "$config_dir"
-    
-    # Load existing config or create new
-    local config_file="${config_dir}/service.json"
-    local config
-    
-    if [[ -f "$config_file" ]]; then
-        # Backup existing config
-        cp "$config_file" "${config_file}.backup" 2>/dev/null || true
-        config=$(cat "$config_file")
+    # Save API key to project secrets using shared library
+    if secrets::save_key "WINDMILL_API_KEY" "$api_key"; then
+        local secrets_file
+        secrets_file="$(secrets::get_secrets_file)"
+        log::success "✅ API key saved to $secrets_file"
+        echo ""
+        echo "You can now execute workflows without setting WINDMILL_API_TOKEN:"
+        echo "  $0 --action test-api"
+        echo ""
+        echo "The API key will be loaded automatically using 3-layer resolution:"
+        echo "  1. Environment variable WINDMILL_API_KEY"
+        echo "  2. Project secrets file: $secrets_file"
+        echo "  3. HashiCorp Vault (if configured)"
     else
-        # Create default config structure
-        config='{
-  "version": "1.0.0",
-  "enabled": true,
-  "services": {
-    "ai": {},
-    "automation": {},
-    "storage": {},
-    "agents": {}
-  }
-}'
+        log::error "Failed to save API key"
+        return 1
     fi
-    
-    # Update config with API key
-    local updated_config
-    updated_config=$(echo "$config" | jq --arg key "$api_key" '
-        .services.automation.windmill = (.services.automation.windmill // {}) |
-        .services.automation.windmill.apiKey = $key |
-        .services.automation.windmill.enabled = true |
-        .services.automation.windmill.baseUrl = "http://localhost:5681" |
-        .services.automation.windmill.healthCheck = {
-            "intervalMs": 60000,
-            "timeoutMs": 5000
-        }
-    ')
-    
-    # Write updated config
-    echo "$updated_config" | jq '.' > "$config_file"
-    
-    # Set secure permissions
-    chmod 600 "$config_file"
-    
-    log::success "✅ API key saved to $config_file"
-    echo ""
-    echo "You can now execute workflows without setting WINDMILL_API_TOKEN:"
-    echo "  $0 --action test-api"
-    echo ""
-    echo "The API key will be loaded automatically from the configuration."
 }

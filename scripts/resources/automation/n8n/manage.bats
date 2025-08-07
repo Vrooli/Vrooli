@@ -2,6 +2,8 @@
 
 # Load Vrooli test infrastructure (REQUIRED)
 source "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
+# Load fixture helpers for accessing test data
+source "$(dirname "${BATS_TEST_FILENAME}")/../../tests/lib/fixture-helpers.sh" 2>/dev/null || true
 
 # Expensive setup operations (run once per file)
 setup_file() {
@@ -357,6 +359,91 @@ EOF
     run bash -c "source '$SCRIPT_PATH'; echo \"\$N8N_PORT\""
     [ "$status" -eq 0 ]
     [[ "$output" =~ ^[0-9]+$ ]]
+}
+
+# ============================================================================
+# Fixture-Based Tests
+# ============================================================================
+
+@test "n8n can validate workflow fixtures" {
+    # Test that we can access N8N workflow fixtures
+    if command -v get_workflow_fixture >/dev/null; then
+        local workflow_file
+        workflow_file=$(get_workflow_fixture "n8n" "default")
+        
+        [[ -n "$workflow_file" ]]
+        [[ "$workflow_file" =~ n8n-workflow.json$ ]]
+        
+        # Test fixture file validation
+        if command -v validate_fixture_file >/dev/null; then
+            validate_fixture_file "$workflow_file"
+            [ "$?" -eq 0 ]
+        fi
+        
+        # Test specific workflow types
+        local whisper_workflow
+        whisper_workflow=$(get_workflow_fixture "n8n" "whisper")
+        [[ -n "$whisper_workflow" ]]
+        [[ "$whisper_workflow" =~ whisper-transcription.json$ ]]
+    else
+        skip "Fixture helpers not available"
+    fi
+}
+
+@test "n8n workflow fixtures have valid JSON structure" {
+    if command -v get_workflow_fixture >/dev/null && command -v jq >/dev/null; then
+        local workflow_file
+        workflow_file=$(get_workflow_fixture "n8n" "default")
+        
+        if [[ -f "$workflow_file" ]]; then
+            # Should be valid JSON
+            jq empty < "$workflow_file"
+            [ "$?" -eq 0 ]
+            
+            # Should have typical n8n workflow structure
+            local has_nodes
+            has_nodes=$(jq -r 'has("nodes")' < "$workflow_file")
+            [[ "$has_nodes" == "true" ]]
+            
+            local has_connections
+            has_connections=$(jq -r 'has("connections")' < "$workflow_file")
+            [[ "$has_connections" == "true" ]]
+        else
+            skip "Workflow fixture file not found: $workflow_file"
+        fi
+    else
+        skip "Required tools not available (fixture helpers or jq)"
+    fi
+}
+
+@test "n8n can process documents from fixtures" {
+    # Test that N8N could work with document fixtures
+    if command -v get_document_fixture >/dev/null; then
+        local pdf_file
+        pdf_file=$(get_document_fixture "pdf" "simple")
+        
+        [[ -n "$pdf_file" ]]
+        [[ "$pdf_file" =~ \.pdf$ ]]
+        
+        # Validate the fixture file exists and is readable
+        if command -v validate_fixture_file >/dev/null; then
+            validate_fixture_file "$pdf_file"
+            [ "$?" -eq 0 ]
+        fi
+        
+        # Test various document types that N8N might process
+        local json_file
+        json_file=$(get_document_fixture "json")
+        [[ -n "$json_file" ]]
+        [[ "$json_file" =~ \.json$ ]]
+        
+        local html_file
+        html_file=$(get_document_fixture "html")
+        [[ -n "$html_file" ]]
+        [[ "$html_file" =~ \.html$ ]]
+    else
+        skip "Fixture helpers not available"
+    fi
 }
 
 # ============================================================================

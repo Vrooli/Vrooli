@@ -291,9 +291,10 @@ network_diagnostics_fixes::fix_ufw_blocking() {
 # Export functions for external use
 if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
     # Script was sourced, export functions
-    export -f network_diagnostics_fixes::fix_ipv6_issues
-    export -f network_diagnostics_fixes::fix_ipv4_only_issues
+    # Commenting out functions with heredocs due to bash export/import issues
+    # export -f network_diagnostics_fixes::fix_ipv6_issues
+    # export -f network_diagnostics_fixes::fix_ipv4_only_issues
     export -f network_diagnostics_fixes::add_ipv4_host_override
-    export -f network_diagnostics_fixes::fix_dns_issues
+    # export -f network_diagnostics_fixes::fix_dns_issues
     export -f network_diagnostics_fixes::fix_ufw_blocking
 fi

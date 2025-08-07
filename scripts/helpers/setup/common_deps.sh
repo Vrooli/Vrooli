@@ -39,6 +39,9 @@ common_deps::check_and_install() {
     system::check_and_install "yq"
     system::check_and_install "ffmpeg"
     
+    # Install native module build dependencies for isolated-vm and other packages
+    common_deps::setup_native_build_env
+    
     # Install Helm CLI for Kubernetes package management
     helm::check_and_install
 
@@ -46,6 +49,85 @@ common_deps::check_and_install() {
     common_deps::setup_nvidia_runtime
 
     log::success "✅ Common dependencies checked/installed."
+    return 0
+}
+
+# Helper to install packages that don't create commands (like -dev packages)
+common_deps::install_dev_package() {
+    local pkg="$1"
+    local check_for="${2:-$1}"  # Optional: what to check for instead
+    
+    # For dev packages, check if already installed via package manager
+    if [[ "$(system::detect_pm)" == "apt-get" ]]; then
+        if dpkg -l "$pkg" 2>/dev/null | grep -q "^ii"; then
+            log::success "$pkg is already installed."
+            return 0
+        fi
+    fi
+    
+    log::info "Installing $pkg..."
+    if system::install_pkg "$pkg"; then
+        log::success "$pkg installed successfully."
+        return 0
+    else
+        log::warning "Failed to install $pkg"
+        return 1
+    fi
+}
+
+# Setup native module build environment for Node.js packages like isolated-vm
+common_deps::setup_native_build_env() {
+    log::info "🔧 Setting up native module build environment..."
+    
+    local pm
+    pm=$(system::detect_pm)
+    
+    case "$pm" in
+        apt-get)
+            # Install build-essential meta-package if gcc not present
+            if ! system::is_command "gcc"; then
+                common_deps::install_dev_package "build-essential" "gcc"
+            fi
+            system::check_and_install "gcc"
+            system::check_and_install "python3"
+            # python3-dev is a dev package that doesn't create a command
+            common_deps::install_dev_package "python3-dev"
+            system::check_and_install "make"
+            system::check_and_install "g++"
+            ;;
+        dnf|yum)
+            system::check_and_install "gcc"
+            system::check_and_install "gcc-c++"
+            system::check_and_install "make"
+            system::check_and_install "python3"
+            # python3-devel is a dev package
+            common_deps::install_dev_package "python3-devel"
+            ;;
+        pacman)
+            # base-devel is a meta-package group
+            if ! system::is_command "gcc"; then
+                common_deps::install_dev_package "base-devel" "gcc"
+            fi
+            system::check_and_install "python"
+            ;;
+        apk)
+            # build-base is a meta-package
+            if ! system::is_command "gcc"; then
+                common_deps::install_dev_package "build-base" "gcc"
+            fi
+            system::check_and_install "python3"
+            common_deps::install_dev_package "python3-dev"
+            system::check_and_install "make"
+            system::check_and_install "g++"
+            ;;
+        *)
+            log::warning "Unknown package manager $pm, skipping native build environment setup"
+            log::info "Please ensure you have: build-essential, python3, make, g++"
+            return 0
+            ;;
+    esac
+    
+    log::success "✅ Native module build environment ready"
     return 0
 }
 

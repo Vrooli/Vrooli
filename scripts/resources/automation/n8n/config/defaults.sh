@@ -18,7 +18,7 @@ if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* N8N_CONTAINER_NAME="; then
     readonly N8N_CONTAINER_NAME="n8n"
 fi
 if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* N8N_DATA_DIR="; then
-    readonly N8N_DATA_DIR="/data/n8n"
+    readonly N8N_DATA_DIR="${HOME}/.local/share/n8n"
 fi
 if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* N8N_IMAGE="; then
     readonly N8N_IMAGE="docker.n8n.io/n8nio/n8n:latest"

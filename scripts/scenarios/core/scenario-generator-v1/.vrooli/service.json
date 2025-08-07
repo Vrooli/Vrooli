@@ -83,7 +83,7 @@
               "policy": "private"
             },
             {
-              "name": "code-artifacts",
+              "name": "scenario-artifacts",
               "policy": "private"
             }
           ]

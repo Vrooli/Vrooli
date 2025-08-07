@@ -208,7 +208,6 @@ The AI layer intelligently orchestrates core automation functions to achieve com
 Agent-S2 is used in these business scenarios:
 - **[Multi-Modal AI Assistant](../../scenarios/core/multi-modal-ai-assistant/)** - Voice + visual + screen automation ($10k-25k projects)
 - **[Intelligent Desktop Assistant](../../scenarios/core/intelligent-desktop-assistant/)** - Desktop automation workflows ($8k-18k projects)
-- **[Business Process Automation](../../scenarios/core/business-process-automation/)** - Automated business workflows ($12k-35k projects)
 
 ### Test Fixtures
 - **Shared Test Data**: `scripts/__test/resources/fixtures/images/` (test screenshots and visual validation)

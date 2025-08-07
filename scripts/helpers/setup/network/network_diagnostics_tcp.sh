@@ -259,7 +259,8 @@ if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
     export -f network_diagnostics_tcp::check_tcp_settings
     export -f network_diagnostics_tcp::fix_ecn
     export -f network_diagnostics_tcp::fix_mtu_size
-    export -f network_diagnostics_tcp::fix_pmtu_probing
+    # Commenting out due to bash export/import issues with heredocs
+    # export -f network_diagnostics_tcp::fix_pmtu_probing
     export -f network_diagnostics_tcp::test_mtu_discovery
     export -f network_diagnostics_tcp::check_pmtu_status
 fi

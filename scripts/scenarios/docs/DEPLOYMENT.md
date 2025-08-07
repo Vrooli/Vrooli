@@ -39,10 +39,10 @@ The conversion process uses existing resource infrastructure to create live appl
 ### Advanced Options
 ```bash
 # Preview what would be done without executing
-./tools/scenario-to-app.sh document-intelligence-pipeline --dry-run
+./tools/scenario-to-app.sh secure-document-processing --dry-run
 
 # Keep resources running after errors for debugging
-./tools/scenario-to-app.sh document-intelligence-pipeline --no-cleanup
+./tools/scenario-to-app.sh secure-document-processing --no-cleanup
 
 # Get help and see all options
 ./tools/scenario-to-app.sh --help

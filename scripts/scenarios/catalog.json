@@ -52,12 +52,6 @@
           "ui": true,
           "validated": false
         },
-        "document-intelligence-pipeline": {
-          "location": "core/document-intelligence-pipeline",
-          "description": "Document processing and extraction pipeline",
-          "ui": false,
-          "validated": false
-        },
         "resume-screening-assistant": {
           "location": "core/resume-screening-assistant",
           "description": "AI-powered resume screening and matching",
@@ -74,12 +68,6 @@
           "location": "core/secure-document-processing",
           "description": "Secure document handling with encryption",
           "ui": false,
-          "validated": false
-        },
-        "vault-secrets-integration": {
-          "location": "core/vault-secrets-integration",
-          "description": "Secrets management integration example",
-          "ui": true,
           "validated": false
         },
         "multi-resource-pipeline": {

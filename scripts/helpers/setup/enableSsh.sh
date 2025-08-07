@@ -11,7 +11,7 @@ source "${SETUP_DIR}/../utils/log.sh"
 
 # enable PasswordAuthentication for ssh
 enableSsh::enable_password_authentication() {
-    if ! flow::can_run_sudo; then
+    if ! flow::can_run_sudo "SSH password authentication"; then
         log::warning "Skipping PasswordAuthentication setup due to sudo mode"
         return
     fi
@@ -40,7 +40,7 @@ enableSsh::ensure_ssh_files() {
 
 # Try restarting SSH service, checking for both common service names
 enableSsh::restart_ssh() {
-    if ! flow::can_run_sudo; then
+    if ! flow::can_run_sudo "SSH service restart"; then
         log::warning "Skipping SSH restart due to sudo mode"
         return
     fi

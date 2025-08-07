@@ -1,0 +1,210 @@
+# Vrooli Resource Interface Contract - AI Resources v1.0
+# This contract extends core.yaml with AI-specific requirements
+# Applies to: ollama, whisper, unstructured-io, comfyui
+
+version: "1.0"
+contract_type: "category"
+extends: "core.yaml"
+category: "ai"
+description: "Interface requirements for AI resources (models, inference, processing)"
+
+# Additional actions specific to AI resources (OPTIONAL for initial implementation)
+optional_actions:
+  models:
+    description: "Manage AI models (list, pull, remove)"
+    parameters:
+      - name: action
+        type: string
+        required: true
+        values: ["list", "pull", "remove"]
+        description: "Model management action"
+      - name: model
+        type: string
+        required: false
+        description: "Model name (required for pull/remove)"
+      - name: format
+        type: string
+        required: false
+        values: ["text", "json"]
+        default: "text"
+        description: "Output format"
+    exit_codes:
+      0: "Model operation successful"
+      1: "Model operation failed"
+      2: "Model not found or already exists"
+    timeout_seconds: 600  # Model downloads can be slow
+    
+  generate:
+    description: "Generate content using AI model"
+    parameters:
+      - name: text
+        type: string
+        required: true
+        description: "Input text for generation"
+      - name: model
+        type: string
+        required: false
+        description: "Model to use (uses default if not specified)"
+      - name: format
+        type: string
+        required: false
+        values: ["text", "json"]
+        default: "text"
+        description: "Output format"
+    exit_codes:
+      0: "Generation successful"
+      1: "Generation failed"
+      2: "Model not available"
+    timeout_seconds: 120
+    
+  health:
+    description: "Deep health check including model functionality"
+    parameters:
+      - name: model
+        type: string
+        required: false
+        description: "Test specific model (tests default if not specified)"
+      - name: quick
+        type: flag
+        required: false
+        description: "Skip model inference test"
+    exit_codes:
+      0: "Service and models healthy"
+      1: "Health check failed"
+      2: "Service running but models unavailable"
+    timeout_seconds: 60
+
+# AI-specific configuration requirements
+ai_configuration:
+  model_storage:
+    description: "Where AI models are stored"
+    required: true
+    environment_variable: "VROOLI_AI_MODEL_PATH"
+  
+  inference_settings:
+    description: "AI inference configuration"
+    parameters:
+      - "temperature"
+      - "max_tokens"
+      - "context_length"
+  
+  gpu_support:
+    description: "GPU acceleration configuration"
+    optional: true
+    detection_required: true
+
+# AI-specific file structure
+ai_file_structure:
+  optional_files:
+    - "models/"                 # Model storage directory
+    - "lib/models.sh"          # Model management utilities
+    - "lib/inference.sh"       # Inference utilities
+    - "config/models.yaml"     # Model configuration
+  
+  optional_directories:
+    - "models/"                # Model storage
+    - "cache/"                 # Inference cache
+    - "logs/"                  # AI-specific logs
+
+# AI-specific environment variables
+ai_environment:
+  required_variables:
+    - "VROOLI_AI_SERVICE_PORT"
+    - "VROOLI_AI_BASE_URL"
+  
+  optional_variables:
+    - "VROOLI_AI_MODEL_PATH"
+    - "VROOLI_AI_GPU_ENABLED"
+    - "VROOLI_AI_CACHE_SIZE"
+    - "VROOLI_AI_MAX_MEMORY"
+
+# Performance requirements for AI resources
+ai_performance:
+  model_load_time_max_seconds: 300
+  inference_time_max_seconds: 60
+  health_check_max_seconds: 30
+  memory_usage_monitoring: true
+
+# AI-specific security requirements
+ai_security:
+  input_sanitization: "required"
+  output_filtering: "recommended"
+  model_validation: "required"
+  resource_limits: "required"
+
+# AI service health indicators
+ai_health_checks:
+  api_endpoint:
+    description: "API endpoint responds"
+    method: "GET"
+    path: "/health"
+    expected_status: 200
+    timeout_seconds: 10
+  
+  model_availability:
+    description: "At least one model is available"
+    check_type: "model_list"
+    minimum_models: 1
+  
+  inference_test:
+    description: "Can perform basic inference"
+    test_input: "Hello"
+    expected_output_type: "string"
+    timeout_seconds: 30
+
+# Common AI resource patterns
+ai_patterns:
+  model_naming:
+    description: "Standard model naming conventions"
+    format: "provider:model:version"
+    examples:
+      - "ollama:llama3.1:8b"
+      - "openai:gpt-4:latest"
+  
+  api_endpoints:
+    description: "Standard API endpoint patterns"
+    required_endpoints:
+      - "/health"
+      - "/models"
+      - "/generate"
+    optional_endpoints:
+      - "/embeddings"
+      - "/chat"
+      - "/completions"
+
+# Integration requirements
+ai_integration:
+  vector_database:
+    description: "Integration with vector databases"
+    optional: true
+    supported_formats: ["embeddings", "vectors"]
+  
+  model_hub:
+    description: "Integration with model repositories"
+    optional: true
+    supported_sources: ["huggingface", "ollama", "custom"]
+  
+  monitoring:
+    description: "AI-specific monitoring metrics"
+    required_metrics:
+      - "inference_count"
+      - "model_load_time"
+      - "generation_time"
+      - "error_rate"
+
+# Validation rules specific to AI resources
+ai_validation:
+  syntax_checks:
+    - "ai_actions_present"
+    - "model_management_implemented"
+    - "health_check_comprehensive"
+  
+  behavioral_checks:
+    - "model_listing_works"
+    - "health_check_accurate"
+    - "basic_inference_functional"
+  
+  integration_checks:
+    - "api_endpoints_accessible"
+    - "model_persistence"
+    - "resource_cleanup"

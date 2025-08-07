@@ -2,6 +2,29 @@
 # MinIO Installation Functions
 # Handles installation and uninstallation of MinIO
 
+# Source shared secrets management library
+# Use the same project root detection method as the secrets library
+_minio_install_detect_project_root() {
+    local current_dir
+    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    # Walk up directory tree looking for .vrooli directory
+    while [[ "$current_dir" != "/" ]]; do
+        if [[ -d "$current_dir/.vrooli" ]]; then
+            echo "$current_dir"
+            return 0
+        fi
+        current_dir="$(dirname "$current_dir")"
+    done
+    
+    # Fallback: assume we're in scripts and go up to project root
+    echo "/home/matthalloran8/Vrooli"
+}
+
+PROJECT_ROOT="$(_minio_install_detect_project_root)"
+# shellcheck disable=SC1091
+source "$PROJECT_ROOT/scripts/helpers/utils/secrets.sh"
+
 #######################################
 # Install MinIO
 # Returns: 0 on success, 1 on failure
@@ -118,7 +141,8 @@ minio::install::pre_checks() {
 # Returns: 0 on success, 1 on failure
 #######################################
 minio::install::update_vrooli_config() {
-    local config_file="${HOME}/.vrooli/service.json"
+    local config_file
+    config_file="$(secrets::get_project_config_file)"
     local config_dir=$(dirname "$config_file")
     
     # Create directory if it doesn't exist

@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+################################################################################
+# Vrooli Unified CLI
+#
+# Simple wrapper around the lifecycle engine that provides a clean interface
+# for all lifecycle operations.
+#
+# Usage:
+#   vrooli <command> [options]
+#   vrooli setup --target native-linux
+#   vrooli develop
+#   vrooli build --target k8s
+#   vrooli test --skip integration
+#   vrooli deploy --dry-run
+#
+# This replaces direct calls to setup.sh, develop.sh, build.sh, etc.
+################################################################################
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIFECYCLE_ENGINE="${SCRIPT_DIR}/../helpers/lifecycle/engine.sh"
+
+# Check if lifecycle engine exists
+if [[ ! -f "$LIFECYCLE_ENGINE" ]]; then
+    echo "Error: Lifecycle engine not found at: $LIFECYCLE_ENGINE" >&2
+    exit 1
+fi
+
+# Pass all arguments to the lifecycle engine
+exec "$LIFECYCLE_ENGINE" "$@"

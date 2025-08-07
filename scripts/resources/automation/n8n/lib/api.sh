@@ -2,6 +2,29 @@
 # n8n API Management Functions
 # Workflow execution, API key management, and REST API interactions
 
+# Source shared secrets management library
+# Use the same project root detection method as the secrets library
+_api_detect_project_root() {
+    local current_dir
+    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    # Walk up directory tree looking for .vrooli directory
+    while [[ "$current_dir" != "/" ]]; do
+        if [[ -d "$current_dir/.vrooli" ]]; then
+            echo "$current_dir"
+            return 0
+        fi
+        current_dir="$(dirname "$current_dir")"
+    done
+    
+    # Fallback: assume we're in scripts and go up to project root
+    echo "/home/matthalloran8/Vrooli"
+}
+
+PROJECT_ROOT="$(_api_detect_project_root)"
+# shellcheck disable=SC1091
+source "$PROJECT_ROOT/scripts/helpers/utils/secrets.sh"
+
 #######################################
 # Execute workflow via API
 #######################################
@@ -21,15 +44,10 @@ n8n::execute() {
         return 1
     fi
     
-    # Check for API key - first from env, then from config
-    local api_key="${N8N_API_KEY:-}"
-    
-    # If not in env, try to load from resources config
-    if [[ -z "$api_key" ]]; then
-        local config_file="${HOME}/.vrooli/service.json"
-        if [[ -f "$config_file" ]]; then
-            api_key=$(jq -r '.services.automation.n8n.apiKey // empty' "$config_file" 2>/dev/null)
-        fi
+    # Check for API key using 3-layer resolution (env, project secrets, vault)
+    local api_key
+    if ! api_key=$(secrets::resolve "N8N_API_KEY"); then
+        api_key=""
     fi
     
     if [[ -z "$api_key" ]]; then
@@ -185,57 +203,23 @@ n8n::save_api_key() {
         return 1
     fi
     
-    # Ensure config directory exists
-    local config_dir="${HOME}/.vrooli"
-    mkdir -p "$config_dir"
-    
-    # Load existing config or create new
-    local config_file="${config_dir}/service.json"
-    local config
-    
-    if [[ -f "$config_file" ]]; then
-        # Backup existing config
-        cp "$config_file" "${config_file}.backup" 2>/dev/null || true
-        config=$(cat "$config_file")
+    # Save API key to project secrets using shared library
+    if secrets::save_key "N8N_API_KEY" "$api_key"; then
+        local secrets_file
+        secrets_file="$(secrets::get_secrets_file)"
+        log::success "✅ API key saved to $secrets_file"
+        echo ""
+        echo "You can now execute workflows without setting N8N_API_KEY:"
+        echo "  $0 --action execute --workflow-id YOUR_WORKFLOW_ID"
+        echo ""
+        echo "The API key will be loaded automatically using 3-layer resolution:"
+        echo "  1. Environment variable N8N_API_KEY"
+        echo "  2. Project secrets file: $secrets_file"
+        echo "  3. HashiCorp Vault (if configured)"
     else
-        # Create default config structure
-        config='{
-  "version": "1.0.0",
-  "enabled": true,
-  "services": {
-    "ai": {},
-    "automation": {},
-    "storage": {},
-    "agents": {}
-  }
-}'
+        log::error "Failed to save API key"
+        return 1
     fi
-    
-    # Update config with API key
-    local updated_config
-    updated_config=$(echo "$config" | jq --arg key "$api_key" '
-        .services.automation.n8n = (.services.automation.n8n // {}) |
-        .services.automation.n8n.apiKey = $key |
-        .services.automation.n8n.enabled = true |
-        .services.automation.n8n.baseUrl = "http://localhost:5678" |
-        .services.automation.n8n.healthCheck = {
-            "intervalMs": 60000,
-            "timeoutMs": 5000
-        }
-    ')
-    
-    # Write updated config
-    echo "$updated_config" | jq '.' > "$config_file"
-    
-    # Set secure permissions
-    chmod 600 "$config_file"
-    
-    log::success "✅ API key saved to $config_file"
-    echo ""
-    echo "You can now execute workflows without setting N8N_API_KEY:"
-    echo "  $0 --action execute --workflow-id YOUR_WORKFLOW_ID"
-    echo ""
-    echo "The API key will be loaded automatically from the configuration."
 }
 
 #######################################
@@ -245,11 +229,10 @@ n8n::save_api_key() {
 n8n::list_workflows() {
     local api_key="${N8N_API_KEY:-}"
     
-    # Try to load API key from config if not in env
+    # Try to load API key using 3-layer resolution if not in env
     if [[ -z "$api_key" ]]; then
-        local config_file="${HOME}/.vrooli/service.json"
-        if [[ -f "$config_file" ]]; then
-            api_key=$(jq -r '.services.automation.n8n.apiKey // empty' "$config_file" 2>/dev/null)
+        if ! api_key=$(secrets::resolve "N8N_API_KEY"); then
+            api_key=""
         fi
     fi
     
@@ -286,11 +269,10 @@ n8n::get_executions() {
     local workflow_id="${1:-}"
     local api_key="${N8N_API_KEY:-}"
     
-    # Try to load API key from config if not in env
+    # Try to load API key using 3-layer resolution if not in env
     if [[ -z "$api_key" ]]; then
-        local config_file="${HOME}/.vrooli/service.json"
-        if [[ -f "$config_file" ]]; then
-            api_key=$(jq -r '.services.automation.n8n.apiKey // empty' "$config_file" 2>/dev/null)
+        if ! api_key=$(secrets::resolve "N8N_API_KEY"); then
+            api_key=""
         fi
     fi
     
@@ -324,11 +306,10 @@ n8n::get_executions() {
 n8n::test_api() {
     local api_key="${N8N_API_KEY:-}"
     
-    # Try to load API key from config if not in env
+    # Try to load API key using 3-layer resolution if not in env
     if [[ -z "$api_key" ]]; then
-        local config_file="${HOME}/.vrooli/service.json"
-        if [[ -f "$config_file" ]]; then
-            api_key=$(jq -r '.services.automation.n8n.apiKey // empty' "$config_file" 2>/dev/null)
+        if ! api_key=$(secrets::resolve "N8N_API_KEY"); then
+            api_key=""
         fi
     fi
     
@@ -355,4 +336,44 @@ n8n::test_api() {
             return 1
         fi
     fi
+}
+
+#######################################
+# Get n8n service URLs with health status
+# Outputs JSON with service URLs and health information
+#######################################
+n8n::get_urls() {
+    local health_status="unknown"
+    local health_path="/api/v1/info"
+    local primary_url="$N8N_BASE_URL"
+    local health_url="${N8N_BASE_URL}${health_path}"
+    
+    # Check if n8n is running and healthy
+    if n8n::is_healthy >/dev/null 2>&1; then
+        health_status="healthy"
+    elif n8n::is_installed >/dev/null 2>&1; then
+        # Installed but not running
+        health_status="unhealthy"
+    else
+        # Not installed
+        health_status="unavailable"
+    fi
+    
+    # Output URL information as JSON
+    cat << EOF
+{
+  "primary": "${primary_url}",
+  "health": "${health_url}",
+  "name": "n8n Workflow Automation",
+  "type": "http",
+  "status": "${health_status}",
+  "port": ${N8N_PORT},
+  "endpoints": {
+    "api": "${N8N_BASE_URL}/api/v1",
+    "workflows": "${N8N_BASE_URL}/api/v1/workflows",
+    "executions": "${N8N_BASE_URL}/api/v1/executions",
+    "webhooks": "${N8N_BASE_URL}/webhook"
+  }
+}
+EOF
 }

@@ -30,6 +30,21 @@ dockerOnly::start_development_docker_only() {
         log::info "Constructing derived secrets for docker-compose..."
         env::construct_derived_secrets
     fi
+    
+    # Process service.json for runtime template resolution if inheritance is used
+    local service_json="${var_ROOT_DIR}/.vrooli/service.json"
+    local service_config_util="${DEVELOP_TARGET_DIR}/../../utils/service-config.sh"
+    
+    if [[ -f "$service_json" ]] && [[ -f "$service_config_util" ]]; then
+        # shellcheck disable=SC1090
+        source "$service_config_util"
+        
+        # Check if service.json has inheritance - if so, export resolved resource URLs
+        if service_config::has_inheritance "$service_json"; then
+            log::info "Resolving service configuration templates at runtime..."
+            service_config::export_resource_urls "$service_json"
+        fi
+    fi
 
     dockerOnly::cleanup() {
         log::info "🔧 Cleaning up development environment at $var_ROOT_DIR..."

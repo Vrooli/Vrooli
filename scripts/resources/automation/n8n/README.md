@@ -204,9 +204,8 @@ ${PWD}:/workspace:ro                      # Workspace access
 
 ### Integration with Scenarios
 n8n is used in these business scenarios:
-- **[Business Process Automation](../../scenarios/core/business-process-automation/)** - Complete workflow automation ($12k-35k projects)
 - **[Multi-Modal AI Assistant](../../scenarios/core/multi-modal-ai-assistant/)** - AI workflow orchestration ($10k-25k projects)
-- **[Document Intelligence Pipeline](../../scenarios/core/document-intelligence-pipeline/)** - Document processing workflows ($15k-30k projects)
+- **[Secure Document Processing](../../scenarios/core/secure-document-processing/)** - Compliant document workflows ($20k-40k projects)
 
 ### Test Fixtures
 - **Shared Test Data**: `scripts/__test/resources/fixtures/workflows/` (sample n8n workflows)
@@ -216,9 +215,6 @@ n8n is used in these business scenarios:
 ```bash
 # Test individual n8n functionality
 ./scripts/__test/resources/quick-test.sh n8n
-
-# Test in business scenarios
-cd ./scripts/scenarios/core/business-process-automation && ./test.sh
 
 # Run all tests using n8n
 ./scripts/scenarios/tools/test-by-resource.sh --resource n8n

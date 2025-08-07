@@ -1,0 +1,269 @@
+# Vrooli Resource Interface Contract - Automation Resources v1.0
+# This contract extends core.yaml with automation-specific requirements
+# Applies to: n8n, node-red, windmill, huginn
+
+version: "1.0"
+contract_type: "category"
+extends: "core.yaml"
+category: "automation"
+description: "Interface requirements for automation and workflow resources"
+
+# Additional actions specific to automation resources
+additional_actions:
+  workflows:
+    description: "Manage workflows and automations"
+    parameters:
+      - name: action
+        type: string
+        required: true
+        values: ["list", "create", "execute", "delete", "export", "import"]
+        description: "Workflow management action"
+      - name: workflow
+        type: string
+        required: false
+        description: "Workflow name or ID"
+      - name: file
+        type: string
+        required: false
+        description: "File path for import/export operations"
+      - name: format
+        type: string
+        required: false
+        values: ["json", "yaml", "text"]
+        default: "json"
+        description: "Output format"
+    exit_codes:
+      0: "Workflow operation successful"
+      1: "Workflow operation failed"
+      2: "Workflow not found or already exists"
+    timeout_seconds: 120
+    
+  execute:
+    description: "Execute a specific workflow or automation"
+    parameters:
+      - name: workflow
+        type: string
+        required: true
+        description: "Workflow name or ID to execute"
+      - name: input
+        type: string
+        required: false
+        description: "Input data for workflow (JSON string)"
+      - name: async
+        type: flag
+        required: false
+        description: "Execute asynchronously"
+    exit_codes:
+      0: "Execution successful"
+      1: "Execution failed"
+      2: "Workflow not found"
+    timeout_seconds: 300
+    
+  backup:
+    description: "Backup automation data and configurations"
+    parameters:
+      - name: destination
+        type: string
+        required: true
+        description: "Backup destination directory"
+      - name: include-data
+        type: flag
+        required: false
+        description: "Include execution history and data"
+    exit_codes:
+      0: "Backup successful"
+      1: "Backup failed"
+      2: "Destination not accessible"
+    timeout_seconds: 180
+    
+  restore:
+    description: "Restore automation data from backup"
+    parameters:
+      - name: source
+        type: string
+        required: true
+        description: "Backup source file or directory"
+      - name: overwrite
+        type: flag
+        required: false
+        description: "Overwrite existing workflows"
+    exit_codes:
+      0: "Restore successful"
+      1: "Restore failed"
+      2: "Source not found or invalid"
+    timeout_seconds: 180
+
+# Automation-specific configuration requirements
+automation_configuration:
+  workflow_storage:
+    description: "Where workflows are stored"
+    required: true
+    environment_variable: "VROOLI_AUTOMATION_WORKFLOW_PATH"
+  
+  execution_settings:
+    description: "Workflow execution configuration"
+    parameters:
+      - "max_concurrent_executions"
+      - "execution_timeout"
+      - "retry_attempts"
+      - "error_handling_mode"
+  
+  database_connection:
+    description: "Database for execution history"
+    optional: true
+    supported_types: ["sqlite", "postgresql", "mysql"]
+
+# Automation-specific file structure
+automation_file_structure:
+  optional_files:
+    - "workflows/"              # Workflows storage directory
+    - "lib/workflows.sh"        # Workflow management utilities
+    - "lib/execution.sh"        # Execution utilities
+    - "config/workflows.yaml"   # Workflow configuration
+    - "data/"                   # Execution data
+  
+  optional_directories:
+    - "workflows/"              # Workflow definitions
+    - "data/"                   # Execution data and history
+    - "templates/"              # Workflow templates
+    - "backups/"                # Backup storage
+
+# Automation-specific environment variables
+automation_environment:
+  required_variables:
+    - "VROOLI_AUTOMATION_SERVICE_PORT"
+    - "VROOLI_AUTOMATION_BASE_URL"
+  
+  optional_variables:
+    - "VROOLI_AUTOMATION_WORKFLOW_PATH"
+    - "VROOLI_AUTOMATION_MAX_EXECUTIONS"
+    - "VROOLI_AUTOMATION_DB_PATH"
+    - "VROOLI_AUTOMATION_WEBHOOK_SECRET"
+
+# Performance requirements for automation resources
+automation_performance:
+  workflow_load_time_max_seconds: 30
+  execution_start_time_max_seconds: 10
+  health_check_max_seconds: 15
+  concurrent_execution_support: true
+
+# Automation-specific security requirements
+automation_security:
+  webhook_security: "required"
+  credential_management: "required"
+  execution_isolation: "recommended"
+  api_authentication: "required"
+
+# Automation service health indicators
+automation_health_checks:
+  api_endpoint:
+    description: "API endpoint responds"
+    method: "GET"
+    path: "/health"
+    expected_status: 200
+    timeout_seconds: 10
+  
+  workflow_engine:
+    description: "Workflow engine is operational"
+    check_type: "workflow_list"
+    expected_response: "list"
+  
+  execution_capability:
+    description: "Can execute basic workflow"
+    test_workflow: "health_check_workflow"
+    timeout_seconds: 30
+
+# Common automation resource patterns
+automation_patterns:
+  workflow_format:
+    description: "Standard workflow definition format"
+    supported_formats: ["json", "yaml"]
+    required_fields:
+      - "name"
+      - "version"
+      - "nodes"
+      - "connections"
+  
+  api_endpoints:
+    description: "Standard API endpoint patterns"
+    required_endpoints:
+      - "/health"
+      - "/workflows"
+      - "/execute"
+    optional_endpoints:
+      - "/webhooks"
+      - "/credentials"
+      - "/executions"
+  
+  webhook_handling:
+    description: "Webhook processing patterns"
+    required_features:
+      - "webhook_registration"
+      - "payload_validation"
+      - "response_handling"
+
+# Integration requirements
+automation_integration:
+  external_apis:
+    description: "Integration with external APIs"
+    required: true
+    authentication_methods: ["api_key", "oauth", "basic_auth"]
+  
+  database_systems:
+    description: "Database integration capabilities"
+    optional: true
+    supported_types: ["postgresql", "mysql", "sqlite", "mongodb"]
+  
+  message_queues:
+    description: "Message queue integration"
+    optional: true
+    supported_types: ["redis", "rabbitmq", "kafka"]
+  
+  monitoring:
+    description: "Automation-specific monitoring metrics"
+    required_metrics:
+      - "workflow_execution_count"
+      - "execution_success_rate"
+      - "average_execution_time"
+      - "active_workflows"
+      - "webhook_calls"
+
+# Workflow lifecycle management
+workflow_lifecycle:
+  states:
+    - "draft"
+    - "active"
+    - "inactive"
+    - "error"
+  
+  transitions:
+    - "draft -> active"
+    - "active -> inactive"
+    - "active -> error"
+    - "error -> active"
+    - "* -> draft"
+  
+  required_operations:
+    - "create"
+    - "activate"
+    - "deactivate"
+    - "delete"
+    - "duplicate"
+
+# Validation rules specific to automation resources
+automation_validation:
+  syntax_checks:
+    - "automation_actions_present"
+    - "workflow_management_implemented"
+    - "backup_restore_available"
+  
+  behavioral_checks:
+    - "workflow_listing_works"
+    - "basic_execution_functional"
+    - "webhook_handling_works"
+  
+  integration_checks:
+    - "api_endpoints_accessible"
+    - "workflow_persistence"
+    - "execution_history_maintained"
+    - "credential_management_secure"

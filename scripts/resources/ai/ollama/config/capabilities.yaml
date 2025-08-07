@@ -65,11 +65,10 @@ spec:
   scenarios:
     primary:
       - research-assistant
-      - ai-content-assistant-example
-      - document-intelligence-pipeline
+      - campaign-content-studio
+      - secure-document-processing
     secondary:
       - multi-modal-ai-assistant
-      - business-process-automation
       - podcast-transcription-assistant
     optimal_combinations:
       - [ollama, n8n, minio]           # AI workflow automation

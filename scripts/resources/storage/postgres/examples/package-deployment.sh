@@ -451,7 +451,8 @@ export_backups() {
     
     if "${POSTGRES_DIR}/manage.sh" --action backup --instance "$instance_name" --backup-name "$deployment_backup" --backup-type "full"; then
         # Copy backup to package
-        local backup_source="${HOME}/.vrooli/backups/postgres/${instance_name}/${deployment_backup}"
+        # Use POSTGRES_BACKUP_DIR from defaults to get proper backup path
+        local backup_source="${POSTGRES_BACKUP_DIR}/${instance_name}/${deployment_backup}"
         if [[ -d "$backup_source" ]]; then
             cp -r "$backup_source" "$package_path/backups/"
             log_success "Deployment backup included: $deployment_backup"

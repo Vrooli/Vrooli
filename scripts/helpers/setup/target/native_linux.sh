@@ -26,6 +26,19 @@ native_linux::setup_native_linux() {
         }
     fi
     
+    # Configure remote session protections (GDM3 health, memory protection)
+    # This prevents desktop crashes during high memory usage and ensures RDP availability
+    log::info "Checking for remote session protections..."
+    local remote_session_script="${SETUP_TARGET_DIR}/../remote_session_protect.sh"
+    if [[ -f "$remote_session_script" ]]; then
+        log::info "Applying remote session protections..."
+        bash "$remote_session_script" configure || {
+            log::warning "Remote session protection setup incomplete - desktop may be vulnerable to OOM"
+        }
+    else
+        log::warning "Remote session protection script not found at: $remote_session_script"
+    fi
+    
     # Setup local resources if requested
     if [[ -n "${RESOURCES:-}" && "$RESOURCES" != "none" ]]; then
         # Handle special case for "enabled" option

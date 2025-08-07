@@ -121,7 +121,7 @@ n8n::build_docker_command() {
     
     # Add tunnel flag if enabled (development only)
     if [[ "$TUNNEL_ENABLED" == "yes" ]]; then
-        docker_cmd+=" n8n start --tunnel"
+        docker_cmd+=" --tunnel"
         log::warn "⚠️  Tunnel mode enabled - for development only!"
     fi
     

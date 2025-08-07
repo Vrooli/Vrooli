@@ -1,4 +1,29 @@
 #!/usr/bin/env bash
+# PostgreSQL Status Functions
+# Functions for checking PostgreSQL health and status
+
+# Source shared secrets management library
+# Use the same project root detection method as the secrets library
+_postgres_status_detect_project_root() {
+    local current_dir
+    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    # Walk up directory tree looking for .vrooli directory
+    while [[ "$current_dir" != "/" ]]; do
+        if [[ -d "$current_dir/.vrooli" ]]; then
+            echo "$current_dir"
+            return 0
+        fi
+        current_dir="$(dirname "$current_dir")"
+    done
+    
+    # Fallback: assume we're in scripts and go up to project root
+    echo "/home/matthalloran8/Vrooli"
+}
+
+PROJECT_ROOT="$(_postgres_status_detect_project_root)"
+# shellcheck disable=SC1091
+source "$PROJECT_ROOT/scripts/helpers/utils/secrets.sh"
 # PostgreSQL Status Monitoring
 # Functions for checking PostgreSQL instances health and status
 
@@ -125,15 +150,15 @@ postgres::status::check() {
 # Returns: 0 if registered, 1 if not
 #######################################
 postgres::status::check_vrooli_config() {
-    local config_file="${HOME}/.vrooli/service.json"
+    local config_file
+    config_file="$(secrets::get_project_config_file)"
     
     if [[ ! -f "$config_file" ]]; then
         return 1
     fi
     
-    # Check if PostgreSQL is in the config
-    if grep -q '"postgres"' "$config_file" 2>/dev/null && \
-       grep -q '"enabled": true' "$config_file" 2>/dev/null; then
+    # Check if PostgreSQL is in the config using jq for proper JSON parsing
+    if jq -e '.services.storage.postgres.enabled == true' "$config_file" >/dev/null 2>&1; then
         return 0
     fi
     

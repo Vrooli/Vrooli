@@ -21,7 +21,7 @@ firewall::setup() {
         flow::exit_with_error "Environment is required to setup firewall" "$ERROR_USAGE"
     fi
 
-    if ! flow::can_run_sudo; then
+    if ! flow::can_run_sudo "firewall configuration"; then
         log::warning "Skipping firewall setup due to sudo mode"
         return
     fi

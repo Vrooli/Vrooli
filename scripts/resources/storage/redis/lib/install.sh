@@ -2,6 +2,29 @@
 # Redis Installation Functions
 # Functions for installing and uninstalling Redis resource
 
+# Source shared secrets management library
+# Use the same project root detection method as the secrets library
+_redis_install_detect_project_root() {
+    local current_dir
+    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    # Walk up directory tree looking for .vrooli directory
+    while [[ "$current_dir" != "/" ]]; do
+        if [[ -d "$current_dir/.vrooli" ]]; then
+            echo "$current_dir"
+            return 0
+        fi
+        current_dir="$(dirname "$current_dir")"
+    done
+    
+    # Fallback: assume we're in scripts and go up to project root
+    echo "/home/matthalloran8/Vrooli"
+}
+
+PROJECT_ROOT="$(_redis_install_detect_project_root)"
+# shellcheck disable=SC1091
+source "$PROJECT_ROOT/scripts/helpers/utils/secrets.sh"
+
 #######################################
 # Install Redis resource
 # Returns: 0 on success, 1 on failure
@@ -102,8 +125,10 @@ redis::install::check_prerequisites() {
 # Post-installation setup
 #######################################
 redis::install::post_install_setup() {
-    # Create backup directory
-    mkdir -p "${HOME}/.vrooli/redis/backups"
+    # Create backup directory in project root
+    local redis_config_dir
+    redis_config_dir="$(secrets::get_project_config_dir)/redis"
+    mkdir -p "${redis_config_dir}/backups"
     
     # Set up log rotation (basic)
     redis::install::setup_log_rotation
@@ -119,7 +144,9 @@ redis::install::post_install_setup() {
 # Setup log rotation for Redis logs
 #######################################
 redis::install::setup_log_rotation() {
-    local logrotate_config="${HOME}/.vrooli/redis/logrotate.conf"
+    local redis_config_dir
+    redis_config_dir="$(secrets::get_project_config_dir)/redis"
+    local logrotate_config="${redis_config_dir}/logrotate.conf"
     
     cat > "$logrotate_config" << EOF
 ${REDIS_LOG_DIR}/*.log {
@@ -140,18 +167,38 @@ EOF
 # Create CLI helper script
 #######################################
 redis::install::create_cli_helper() {
-    local cli_script="${HOME}/.vrooli/redis/redis-cli"
+    local redis_config_dir
+    redis_config_dir="$(secrets::get_project_config_dir)/redis"
+    local cli_script="${redis_config_dir}/redis-cli"
     
     cat > "$cli_script" << 'EOF'
 #!/bin/bash
 # Redis CLI Helper for Vrooli Resource
 # This script connects to the Redis resource instance
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "${SCRIPT_DIR}/../../service.json" 2>/dev/null || true
+# Use the same project root detection method as the secrets library
+_detect_project_root() {
+    local current_dir
+    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    # Walk up directory tree looking for .vrooli directory
+    while [[ "$current_dir" != "/" ]]; do
+        if [[ -d "$current_dir/.vrooli" ]]; then
+            echo "$current_dir"
+            return 0
+        fi
+        current_dir="$(dirname "$current_dir")"
+    done
+    
+    # Fallback
+    echo "/home/matthalloran8/Vrooli"
+}
+
+PROJECT_ROOT="$(_detect_project_root)"
+source "$PROJECT_ROOT/scripts/helpers/utils/secrets.sh" 2>/dev/null || true
 
 REDIS_PORT="${REDIS_PORT:-6380}"
-REDIS_PASSWORD="${REDIS_PASSWORD:-}"
+REDIS_PASSWORD="$(secrets::resolve "REDIS_PASSWORD" 2>/dev/null || echo "")"
 
 if [[ -n "$REDIS_PASSWORD" ]]; then
     docker exec -it vrooli-redis-resource redis-cli -p 6379 -a "$REDIS_PASSWORD" "$@"
@@ -168,7 +215,8 @@ EOF
 # Update resource configuration
 #######################################
 redis::install::update_resource_config() {
-    local config_file="${HOME}/.vrooli/service.json"
+    local config_file
+    config_file="$(secrets::get_project_config_file)"
     
     if [[ -f "$config_file" ]]; then
         # Use jq to update configuration if available
@@ -243,15 +291,18 @@ redis::install::uninstall() {
         return 1
     fi
     
-    # Remove CLI helper
-    rm -f "${HOME}/.vrooli/redis/redis-cli"
+    # Remove CLI helper from project config directory
+    local redis_config_dir
+    redis_config_dir="$(secrets::get_project_config_dir)/redis"
+    rm -f "${redis_config_dir}/redis-cli"
     
     # Remove configuration if data is being removed
     if [[ "$remove_data" == "yes" ]]; then
-        rm -f "${HOME}/.vrooli/redis/logrotate.conf"
+        rm -f "${redis_config_dir}/logrotate.conf"
         
         # Update resource configuration
-        local config_file="${HOME}/.vrooli/service.json"
+        local config_file
+        config_file="$(secrets::get_project_config_file)"
         if [[ -f "$config_file" ]] && command -v jq >/dev/null 2>&1; then
             local temp_config
             temp_config=$(mktemp)

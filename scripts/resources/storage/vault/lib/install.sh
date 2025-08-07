@@ -127,10 +127,20 @@ vault::init_prod() {
     # Check if already initialized
     if vault::is_initialized; then
         vault::message "info" "MSG_VAULT_ALREADY_INITIALIZED"
+        
+        # Still need to setup additional features if not already done
+        vault::enable_audit_logging
+        vault::setup_approle_auth
+        vault::setup_secret_rotation
+        vault::setup_auto_unseal
+        
         return 0
     fi
     
     vault::message "info" "MSG_VAULT_INIT_STARTING"
+    
+    # Setup auto-unseal before initialization if configured
+    vault::setup_auto_unseal
     
     # Initialize Vault
     local init_response
@@ -158,6 +168,11 @@ vault::init_prod() {
         # Enable secret engines and create default paths
         vault::setup_secret_engines
         vault::create_default_paths
+        
+        # Setup production features
+        vault::enable_audit_logging
+        vault::setup_approle_auth
+        vault::setup_secret_rotation
         
         return 0
     else

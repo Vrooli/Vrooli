@@ -56,12 +56,10 @@ Our scenario system demonstrates real-world resource combinations and generates 
 ### Popular Resource Combinations
 - **Multi-Modal AI**: Whisper + Ollama + ComfyUI + Agent-S2 
   → [Multi-Modal AI Assistant](../scenarios/core/multi-modal-ai-assistant/) ($10k-25k projects)
-- **Document Processing**: Unstructured-IO + Ollama + Qdrant 
-  → [Document Intelligence Pipeline](../scenarios/core/document-intelligence-pipeline/) ($4k-12k projects)
-- **Business Automation**: n8n + PostgreSQL + MinIO 
-  → [Business Process Automation](../scenarios/core/business-process-automation/) ($5k-15k projects)
+- **Document Processing**: Unstructured-IO + Ollama + Qdrant + Vault
+  → [Secure Document Processing](../scenarios/core/secure-document-processing/) ($20k-40k projects)
 - **Content Creation**: ComfyUI + Ollama + Windmill 
-  → [AI Content Assistant](../scenarios/core/ai-content-assistant-example/) ($8k-20k projects)
+  → [Campaign Content Studio](../scenarios/core/campaign-content-studio/) ($8k-20k projects)
 
 ### Test Resource Integration
 ```bash
@@ -143,11 +141,29 @@ cd ./scripts/__test/resources && ./run.sh
 ./scripts/scenarios/tools/test-by-resource.sh --resource ollama
 ```
 
+### Interface Validation System
+Vrooli uses a **three-layer validation system** for resource quality assurance:
+
+- **Layer 1: Syntax Validation** (< 1 second) - Static analysis of manage.sh scripts
+- **Layer 2: Behavioral Testing** (< 30 seconds) - Function execution in controlled environment  
+- **Layer 3: Integration Testing** (< 5 minutes) - Real-world functionality validation
+
+```bash
+# Quick syntax validation
+./tools/validate-interfaces.sh --level quick --resource ollama
+
+# Full three-layer validation
+./tools/validate-interfaces.sh --level full --resource ollama
+```
+
+📖 **Complete Testing Strategy**: [TESTING_STRATEGY.md](TESTING_STRATEGY.md)
+
 ### Development Workflow
 1. **Explore**: Browse scenarios in `scripts/scenarios/core/` for working examples
 2. **Test**: Use `scripts/__test/resources/single/` for individual resource validation
-3. **Integrate**: Build complex workflows following scenario patterns
-4. **Deploy**: Convert scenarios to applications using `scenario-to-app.sh`
+3. **Validate**: Run three-layer interface validation during development
+4. **Integrate**: Build complex workflows following scenario patterns
+5. **Deploy**: Convert scenarios to applications using `scenario-to-app.sh`
 
 ---
 

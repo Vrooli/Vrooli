@@ -2,8 +2,13 @@
 # Huginn Configuration Defaults
 # All configuration constants and default values
 
+# Source common functions for port registry access
+HUGINN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck disable=SC1091
+source "${HUGINN_DIR}/../../common.sh"
+
 # Huginn port configuration
-readonly HUGINN_PORT="${HUGINN_CUSTOM_PORT:-4111}"
+readonly HUGINN_PORT="${HUGINN_CUSTOM_PORT:-$(resources::get_default_port "huginn")}"
 readonly HUGINN_BASE_URL="http://localhost:${HUGINN_PORT}"
 
 # Resource metadata

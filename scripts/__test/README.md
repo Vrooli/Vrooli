@@ -27,10 +27,14 @@ Vrooli uses a three-pronged testing strategy:
 #### 1. Unit Test with Mocked Dependencies
 ```bash
 #!/usr/bin/env bats
-source "$PROJECT_ROOT/scripts/__test/fixtures/bats/core/common_setup.bash"
+source "$(dirname "${BATS_TEST_FILENAME}")/../../fixtures/setup.bash"
 
-setup() { setup_standard_mocks; }
-teardown() { cleanup_mocks; }
+setup() { 
+    vrooli_auto_setup  # Automatically detects test type and sets up mocks
+}
+teardown() { 
+    vrooli_cleanup_test  # Cleans up test environment
+}
 
 @test "docker container starts" {
     run docker run -d nginx

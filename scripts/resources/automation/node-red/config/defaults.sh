@@ -2,8 +2,13 @@
 # Node-RED Configuration Defaults
 # All configuration constants and default values
 
+# Source common functions for port registry access
+NODE_RED_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# shellcheck disable=SC1091
+source "${NODE_RED_DIR}/../../common.sh"
+
 # Node-RED port configuration
-readonly NODE_RED_PORT="${NODE_RED_CUSTOM_PORT:-1880}"
+readonly NODE_RED_PORT="${NODE_RED_CUSTOM_PORT:-$(resources::get_default_port "node-red")}"
 readonly NODE_RED_BASE_URL="http://localhost:${NODE_RED_PORT}"
 
 # Resource metadata

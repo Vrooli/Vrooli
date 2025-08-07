@@ -29,6 +29,7 @@ Local AI and automation tools that extend Vrooli's capabilities through modular 
 ## 📚 Documentation
 
 - **[Complete Guide](docs/README.md)** - Detailed resource documentation
+- **[Testing Strategy](docs/TESTING_STRATEGY.md)** - Three-layer validation system
 - **[Integration Cookbook](docs/integration-cookbook.md)** - Multi-resource workflows
 - **[Interface Standards](docs/interface-standards.md)** - Resource API contracts
 - **[Port Registry](port-registry.sh)** - Service port allocations (`./port-registry.sh --action list`)
@@ -39,7 +40,8 @@ Local AI and automation tools that extend Vrooli's capabilities through modular 
 - **Discovery**: `./index.sh --action discover`
 - **Installation**: See [setup documentation](../main/README.md)
 - **Configuration**: `~/.vrooli/service.json`
-- **Validation**: `./tools/validate-interfaces.sh`
+- **Validation**: Three-layer testing system (`./tools/validate-interfaces.sh`)
+- **Compliance**: Auto-fix interface issues (`./tools/fix-interface-compliance.sh`)
 
 ## 🎯 Scenario Deployment
 

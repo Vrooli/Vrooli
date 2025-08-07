@@ -13,6 +13,8 @@ source "${SETUP_DIR}/../utils/log.sh"
 source "${SETUP_DIR}/../utils/exit_codes.sh"
 # shellcheck disable=SC1091
 source "${SETUP_DIR}/../utils/flow.sh"
+# shellcheck disable=SC1091
+source "${SETUP_DIR}/../utils/var.sh"
 
 # Load modular components from network subfolder
 # shellcheck disable=SC1091
@@ -26,7 +28,10 @@ source "${SETUP_DIR}/network/network_diagnostics_fixes.sh"
 
 # Set appropriate SUDO_MODE if not already set
 if [[ -z "${SUDO_MODE:-}" ]]; then
-    if [[ $EUID -eq 0 ]] || sudo -n true 2>/dev/null; then
+    # In standalone mode, default to skip to avoid blocking on sudo
+    if [[ "${VROOLI_CONTEXT:-}" == "standalone" ]]; then
+        export SUDO_MODE="skip"
+    elif [[ $EUID -eq 0 ]] || sudo -n true 2>/dev/null; then
         export SUDO_MODE="error"
     else
         export SUDO_MODE="skip"
@@ -164,7 +169,8 @@ network_diagnostics::run() {
         log::info "Testing alternative DNS servers or network configuration changes"
         
         # Attempt some basic fixes if sudo is available
-        if flow::can_run_sudo "apply network fixes"; then
+        # Use a subshell to prevent flow::can_run_sudo from exiting the script
+        if (flow::can_run_sudo "apply network fixes" 2>/dev/null); then
             local primary_iface=$(ip route | grep default | awk '{print $5}' | head -1 2>/dev/null || echo "")
             if [[ -n "$primary_iface" ]] && command -v ethtool >/dev/null 2>&1; then
                 local tso_status=$(ethtool -k "$primary_iface" 2>/dev/null | grep "tcp-segmentation-offload" | awk '{print $2}' || echo "off")
@@ -175,9 +181,14 @@ network_diagnostics::run() {
                     fi
                 fi
             fi
+        else
+            log::warning "Network fixes require sudo privileges (use --sudo-mode skip to bypass)"
+            log::info "Continuing without network optimizations..."
         fi
         
-        return 1
+        # Don't fail just because of network issues - many apps work offline
+        log::info "Proceeding despite network issues (many apps work offline)"
+        return 0
     fi
     
     log::success "All network tests passed!"

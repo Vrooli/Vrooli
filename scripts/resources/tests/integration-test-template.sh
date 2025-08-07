@@ -1,22 +1,13 @@
 #!/usr/bin/env bash
-# Resource Integration Test Template
-# This template shows how to create a standardized integration test using the shared library
+# RESOURCE_NAME Integration Test Template
+# Tests real RESOURCE_NAME service functionality
 # 
-# STANDARD INTERFACE:
-# Exit Codes:
-#   0 - All tests passed
-#   1 - One or more tests failed  
-#   2 - Tests skipped (resource not available/configured)
-#
-# Environment Variables:
-#   RESOURCE_NAME        - Name of the resource being tested
-#   RESOURCE_BASE_URL    - Base URL for the resource API
-#   RESOURCE_TIMEOUT     - Test timeout in seconds (default: 30)
-#   TEST_VERBOSE         - Enable verbose output (default: false)
-#
-# Usage:
-#   Copy this template to: scripts/resources/{category}/{resource}/test/integration-test.sh
-#   Customize the service-specific configuration and test functions
+# This template should be customized for each resource:
+# 1. Replace RESOURCE_NAME with actual resource name
+# 2. Update SERVICE_SPECIFIC_CONFIGURATION section
+# 3. Implement service-specific test functions
+# 4. Register tests using register_tests function
+# 5. Ensure script calls integration_test_main "$@" at the end
 
 set -euo pipefail
 
@@ -29,145 +20,155 @@ source "$SCRIPT_DIR/../../../tests/lib/integration-test-lib.sh"
 # SERVICE-SPECIFIC CONFIGURATION
 #######################################
 
-# CUSTOMIZE: Set these values for your resource
-SERVICE_NAME="template-resource"
-BASE_URL="${TEMPLATE_RESOURCE_BASE_URL:-http://localhost:8080}"
-TIMEOUT="${RESOURCE_TIMEOUT:-30}"
+# Load resource configuration (optional - only if resource has config/defaults.sh)
+# RESOURCES_DIR="$SCRIPT_DIR/../../.."
+# # shellcheck disable=SC1091
+# source "$RESOURCES_DIR/common.sh"
+# # shellcheck disable=SC1091
+# source "$SCRIPT_DIR/../config/defaults.sh"
+# resource_name::export_config
 
-# CUSTOMIZE: Set health endpoint and required tools
-HEALTH_ENDPOINT="/health"                    # Common alternatives: /healthcheck, /api/health, /status
-REQUIRED_TOOLS=("curl")                      # Common tools: curl, jq, python3, etc.
-SERVICE_METADATA=()                          # Optional: ("Version: 1.0", "Mode: production")
+# Override library defaults with service-specific settings
+SERVICE_NAME="RESOURCE_NAME"
+BASE_URL="${RESOURCE_BASE_URL:-http://localhost:PORT}"
+HEALTH_ENDPOINT="/health"  # or service-specific health endpoint
+REQUIRED_TOOLS=("curl" "jq")  # add any additional required tools
+SERVICE_METADATA=(
+    "API Port: ${RESOURCE_PORT:-PORT}"
+    "Container: ${RESOURCE_CONTAINER_NAME:-RESOURCE_NAME}"
+    # Add any additional metadata
+)
+
+# Test configuration constants
+readonly TEST_TIMEOUT="${RESOURCE_TEST_TIMEOUT:-30}"
 
 #######################################
-# SERVICE-SPECIFIC TEST FUNCTIONS
+# RESOURCE-SPECIFIC TEST FUNCTIONS
 #######################################
 
-# CUSTOMIZE: Add your resource-specific test functions here
-# Each function should:
-# - Have a descriptive name starting with "test_"
-# - Use log_test_result() to report results
-# - Return 0 (pass), 1 (fail), or 2 (skip)
-
-test_version_endpoint() {
-    local test_name="version endpoint"
+test_basic_health() {
+    local test_name="basic health check"
     
-    # EXAMPLE: Test a version endpoint
     local response
-    if response=$(make_api_request "/version" "GET" 10); then
-        # CUSTOMIZE: Adjust JSON parsing for your API response format
-        if [[ -n "$response" ]] && echo "$response" | jq -e '.version' >/dev/null 2>&1; then
-            local version
-            version=$(echo "$response" | jq -r '.version')
-            log_test_result "$test_name" "PASS" "version: $version"
-            return 0
-        fi
+    if response=$(make_api_request "$HEALTH_ENDPOINT" "GET" 10); then
+        log_test_result "$test_name" "PASS"
+        return 0
     fi
     
-    log_test_result "$test_name" "SKIP" "version endpoint not available"
+    log_test_result "$test_name" "FAIL" "health endpoint not accessible"
+    return 1
+}
+
+test_service_version() {
+    local test_name="service version information"
+    
+    # Try common version endpoints
+    local version_endpoints=("/version" "/api/version" "/v1/version")
+    
+    for endpoint in "${version_endpoints[@]}"; do
+        local response
+        if response=$(make_api_request "$endpoint" "GET" 5); then
+            if validate_json_field "$response" ".version"; then
+                local version
+                version=$(echo "$response" | jq -r '.version')
+                log_test_result "$test_name" "PASS" "version: $version"
+                return 0
+            fi
+        fi
+    done
+    
+    log_test_result "$test_name" "SKIP" "no version endpoint found"
     return 2
 }
 
-test_basic_functionality() {
-    local test_name="basic functionality"
+test_api_endpoints() {
+    local test_name="API endpoints availability"
     
-    # CUSTOMIZE: Add tests for core functionality
-    # Example patterns:
+    # Test common API endpoints (customize for each resource)
+    local endpoints=("/api" "/api/v1")
+    local accessible_count=0
     
-    # 1. Simple GET request
-    # if make_api_request "/api/status" "GET" 10 >/dev/null; then
-    #     log_test_result "$test_name" "PASS"
-    #     return 0
-    # fi
+    for endpoint in "${endpoints[@]}"; do
+        if make_api_request "$endpoint" "GET" 5 >/dev/null 2>&1; then
+            accessible_count=$((accessible_count + 1))
+        fi
+    done
     
-    # 2. POST request with data
-    # local data='{"test": "value"}'
-    # if make_api_request "/api/test" "POST" 15 "-H 'Content-Type: application/json' -d '$data'" >/dev/null; then
-    #     log_test_result "$test_name" "PASS"
-    #     return 0
-    # fi
-    
-    # 3. File-based testing
-    # local test_file="/tmp/test_file_$$.txt"
-    # echo "test content" > "$test_file"
-    # # ... perform test with file ...
-    # rm -f "$test_file"
-    
-    log_test_result "$test_name" "SKIP" "not implemented for this resource"
-    return 2
-}
-
-test_error_handling() {
-    local test_name="error handling"
-    
-    # CUSTOMIZE: Test error conditions
-    # Example: Test invalid endpoint returns 404
-    local http_code
-    http_code=$(curl -s -w "%{http_code}" -o /dev/null "$BASE_URL/nonexistent" 2>/dev/null)
-    
-    if [[ "$http_code" == "404" ]]; then
-        log_test_result "$test_name" "PASS" "404 properly returned"
+    if [[ $accessible_count -gt 0 ]]; then
+        log_test_result "$test_name" "PASS" "$accessible_count/${#endpoints[@]} endpoints accessible"
         return 0
+    fi
+    
+    log_test_result "$test_name" "FAIL" "no API endpoints accessible"
+    return 1
+}
+
+test_docker_container_health() {
+    local test_name="Docker container health"
+    
+    if ! command -v docker >/dev/null 2>&1; then
+        log_test_result "$test_name" "SKIP" "Docker not available"
+        return 2
+    fi
+    
+    local container_name="${RESOURCE_CONTAINER_NAME:-$SERVICE_NAME}"
+    
+    # Check if container exists and is running
+    if docker ps --format '{{.Names}}' | grep -q "^${container_name}$"; then
+        local container_status
+        container_status=$(docker inspect "${container_name}" --format '{{.State.Status}}' 2>/dev/null || echo "unknown")
+        
+        if [[ "$container_status" == "running" ]]; then
+            log_test_result "$test_name" "PASS" "container running"
+            return 0
+        else
+            log_test_result "$test_name" "FAIL" "container status: $container_status"
+            return 1
+        fi
     else
-        log_test_result "$test_name" "FAIL" "expected 404, got $http_code"
+        log_test_result "$test_name" "FAIL" "container not found"
         return 1
     fi
 }
 
+# Add more service-specific test functions here
+# Examples:
+# - test_authentication()
+# - test_database_connection()
+# - test_file_upload()
+# - test_specific_api_operations()
+
 #######################################
-# SERVICE-SPECIFIC VERBOSE INFO (OPTIONAL)
+# SERVICE-SPECIFIC VERBOSE INFO
 #######################################
 
-# CUSTOMIZE: Override this function to show service-specific information in verbose mode
 show_verbose_info() {
     echo
-    echo "Template Resource Information:"
+    echo "$SERVICE_NAME Information:"
+    echo "  Base URL: $BASE_URL"
+    echo "  Health Endpoint: $HEALTH_ENDPOINT"
     echo "  API Endpoints:"
-    echo "    - Health Check: GET $BASE_URL$HEALTH_ENDPOINT"
-    echo "    - Version: GET $BASE_URL/version"
-    echo "  Documentation: https://example.com/docs"
-    echo "  Required Tools: ${REQUIRED_TOOLS[*]}"
+    echo "    - Health: GET $BASE_URL$HEALTH_ENDPOINT"
+    echo "    - Version: GET $BASE_URL/version (if available)"
+    # Add service-specific endpoint documentation
 }
 
 #######################################
 # TEST REGISTRATION AND EXECUTION
 #######################################
 
-# CUSTOMIZE: Register your test functions here
-# The shared library will run service_availability first, then these tests
+# Register standard interface tests first (manage.sh validation, config checks, etc.)
+register_standard_interface_tests
+
+# Register service-specific tests
 register_tests \
-    "test_version_endpoint" \
-    "test_basic_functionality" \
-    "test_error_handling"
+    "test_basic_health" \
+    "test_service_version" \
+    "test_api_endpoints" \
+    "test_docker_container_health"
+    # Add additional test function names here
 
 # Execute main test framework if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     integration_test_main "$@"
 fi
-
-#######################################
-# CUSTOMIZATION NOTES
-#######################################
-
-# Common Health Endpoints:
-# - REST APIs: /health, /healthcheck, /api/health
-# - Specific services: /system_stats (ComfyUI), /api/tags (Ollama)
-
-# Common Required Tools:
-# - Basic HTTP: ("curl")
-# - JSON parsing: ("curl" "jq") 
-# - Python services: ("curl" "python3")
-# - File processing: ("curl" "jq" "python3")
-
-# Test Function Patterns:
-# - Always return 0 (pass), 1 (fail), or 2 (skip)
-# - Use make_api_request() for HTTP requests
-# - Use log_test_result() to report outcomes
-# - Handle cleanup in error conditions
-# - Use descriptive test names
-
-# Advanced Patterns:
-# - For complex tests like ComfyUI workflows, create custom test runners
-# - For file cleanup, use trap functions
-# - For dependency checking, test prerequisites before main functionality
-# - For multi-step workflows, chain tests and skip later ones if earlier fail

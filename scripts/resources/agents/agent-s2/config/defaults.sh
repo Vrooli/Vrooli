@@ -1,4 +1,29 @@
 #!/usr/bin/env bash
+# Agent-S2 Resource Configuration Defaults
+# This file contains all configuration constants and defaults for the Agent-S2 resource
+
+# Source shared secrets management library
+# Use the same project root detection method as the secrets library
+_agents2_defaults_detect_project_root() {
+    local current_dir
+    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    # Walk up directory tree looking for .vrooli directory
+    while [[ "$current_dir" != "/" ]]; do
+        if [[ -d "$current_dir/.vrooli" ]]; then
+            echo "$current_dir"
+            return 0
+        fi
+        current_dir="$(dirname "$current_dir")"
+    done
+    
+    # Fallback: assume we're in scripts and go up to project root
+    echo "/home/matthalloran8/Vrooli"
+}
+
+PROJECT_ROOT="$(_agents2_defaults_detect_project_root)"
+# shellcheck disable=SC1091
+source "$PROJECT_ROOT/scripts/helpers/utils/secrets.sh"
 # Agent S2 Configuration Defaults
 # All configuration constants and default values
 
@@ -174,7 +199,8 @@ agents2::export_config() {
 # and exports the variables for docker-compose
 #######################################
 agents2::load_environment_from_config() {
-    local config_file="${HOME}/.vrooli/service.json"
+    local config_file
+    config_file="$(secrets::get_project_config_file)"
     
     # Check if config file exists and has agent-s2 configuration
     if [[ -f "$config_file" ]] && command -v jq >/dev/null 2>&1; then

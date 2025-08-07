@@ -2,6 +2,29 @@
 # Node-RED Testing and Validation Functions
 # Functions for testing Node-RED installation and functionality
 
+# Source shared secrets management library
+# Use the same project root detection method as the secrets library
+_node_red_testing_detect_project_root() {
+    local current_dir
+    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    # Walk up directory tree looking for .vrooli directory
+    while [[ "$current_dir" != "/" ]]; do
+        if [[ -d "$current_dir/.vrooli" ]]; then
+            echo "$current_dir"
+            return 0
+        fi
+        current_dir="$(dirname "$current_dir")"
+    done
+    
+    # Fallback: assume we're in scripts and go up to project root
+    echo "/home/matthalloran8/Vrooli"
+}
+
+PROJECT_ROOT="$(_node_red_testing_detect_project_root)"
+# shellcheck disable=SC1091
+source "$PROJECT_ROOT/scripts/helpers/utils/secrets.sh"
+
 #######################################
 # Run complete Node-RED test suite
 #######################################
@@ -597,7 +620,8 @@ node_red::verify_installation() {
     
     # Check configuration
     echo -n "Resource config: "
-    local config_file="$HOME/.vrooli/service.json"
+    local config_file
+    config_file="$(secrets::get_project_config_file)"
     if [[ -f "$config_file" ]] && jq -e '.services.automation."node-red"' "$config_file" >/dev/null 2>&1; then
         echo "✓"
     else

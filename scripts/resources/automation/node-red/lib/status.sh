@@ -2,6 +2,29 @@
 # Node-RED Status and Monitoring Functions
 # Functions for displaying status, metrics, and monitoring Node-RED
 
+# Source shared secrets management library
+# Use the same project root detection method as the secrets library
+_node_red_status_detect_project_root() {
+    local current_dir
+    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    # Walk up directory tree looking for .vrooli directory
+    while [[ "$current_dir" != "/" ]]; do
+        if [[ -d "$current_dir/.vrooli" ]]; then
+            echo "$current_dir"
+            return 0
+        fi
+        current_dir="$(dirname "$current_dir")"
+    done
+    
+    # Fallback: assume we're in scripts and go up to project root
+    echo "/home/matthalloran8/Vrooli"
+}
+
+PROJECT_ROOT="$(_node_red_status_detect_project_root)"
+# shellcheck disable=SC1091
+source "$PROJECT_ROOT/scripts/helpers/utils/secrets.sh"
+
 #######################################
 # Show comprehensive Node-RED status
 #######################################
@@ -124,7 +147,8 @@ node_red::show_info() {
     
     # Configuration files
     echo "Configuration:"
-    local config_file="$HOME/.vrooli/service.json"
+    local config_file
+    config_file="$(secrets::get_project_config_file)"
     if [[ -f "$config_file" ]] && jq -e '.services.automation."node-red"' "$config_file" >/dev/null 2>&1; then
         echo "- Resource Config: ✓ Configured"
     else
@@ -209,7 +233,8 @@ node_red::health_check() {
     
     # Configuration files
     echo -n "Configuration: "
-    local config_file="$HOME/.vrooli/service.json"
+    local config_file
+    config_file="$(secrets::get_project_config_file)"
     if [[ -f "$config_file" ]] && jq -e '.services.automation."node-red"' "$config_file" >/dev/null 2>&1; then
         echo "✓ Valid"
     else

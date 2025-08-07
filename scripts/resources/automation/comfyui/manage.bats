@@ -1,19 +1,33 @@
 #!/usr/bin/env bats
 # Tests for ComfyUI manage.sh script
 
-# Load test helper
-load_helper() {
-    local helper_file="$1"
-    if [[ -f "$helper_file" ]]; then
-        # shellcheck disable=SC1090
-        source "$helper_file"
-    fi
+# Load Vrooli test infrastructure
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
+
+# Expensive setup operations run once per file
+setup_file() {
+    # Use Vrooli service test setup
+    vrooli_setup_service_test "comfyui"
+    
+    # Load resource specific configuration once per file
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    COMFYUI_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Load configuration and manage script once
+    source "${COMFYUI_DIR}/config/defaults.sh"
+    source "${COMFYUI_DIR}/config/messages.sh"
+    source "${SCRIPT_DIR}/manage.sh"
 }
 
-# Setup for each test
+# Lightweight per-test setup
 setup() {
-    # Set test environment
+    # Setup standard Vrooli mocks
+    vrooli_auto_setup
+    
+    # Set test environment variables (lightweight per-test)
     export COMFYUI_CUSTOM_PORT="9999"
+    export COMFYUI_CONTAINER_NAME="comfyui-test"
+    export COMFYUI_BASE_URL="http://localhost:9999"
     export FORCE="no"
     export YES="no"
     export GPU_TYPE="auto"
@@ -21,14 +35,28 @@ setup() {
     export OUTPUT_DIR=""
     export PROMPT_ID=""
     
-    # Load the script without executing main
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
-    source "${SCRIPT_DIR}/manage.sh" || true
+    # Export config functions
+    comfyui::export_config
+    comfyui::export_messages
+    
+    # Mock log functions
+    log::header() { echo "=== $* ==="; }
+    log::info() { echo "[INFO] $*"; }
+    log::error() { echo "[ERROR] $*" >&2; }
+    log::success() { echo "[SUCCESS] $*"; }
+    log::warning() { echo "[WARNING] $*" >&2; }
+    export -f log::header log::info log::error log::success log::warning
+}
+
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
 }
 
 # Test script loading
 @test "manage.sh loads without errors" {
-    # The script should source successfully in setup
+    # Check that essential functions are available
+    declare -f comfyui::parse_arguments > /dev/null
     [ "$?" -eq 0 ]
 }
 

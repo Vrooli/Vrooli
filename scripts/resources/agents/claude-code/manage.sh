@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Handle Ctrl+C gracefully
+trap 'echo ""; log::info "Claude Code operation interrupted by user. Exiting..."; exit 130' INT TERM
+
 # Claude Code management script
 # This script manages the Claude Code CLI installation
 
@@ -64,8 +67,14 @@ claude_code::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|info|test|run|batch|session|settings|logs|register-mcp|unregister-mcp|mcp-status|mcp-test|parse-result|extract|session-manage|health-check|run-automation|batch-automation|batch-simple|batch-config|batch-multi|batch-parallel|error-report|error-validate|safe-execute|template-list|template-load|template-run|template-create|template-info|template-validate|session-extract|session-analytics|session-recover|session-cleanup|session-list-enhanced|sandbox|test-safe|help" \
+        --options "install|uninstall|start|stop|restart|status|info|test|run|logs|mcp|session|batch|template|sandbox|help" \
         --default "help"
+    
+    args::register \
+        --name "subcommand" \
+        --desc "Subcommand for composite actions (mcp: register|unregister|status|test, session: manage|extract|analytics|recover|cleanup|list, batch: automation|simple|config|multi|parallel, template: list|load|run|create|info|validate)" \
+        --type "value" \
+        --default ""
     
     args::register \
         --name "force" \
@@ -294,6 +303,7 @@ claude_code::parse_arguments() {
     args::parse "$@"
     
     export ACTION=$(args::get "action")
+    export SUBCOMMAND=$(args::get "subcommand")
     export FORCE=$(args::get "force")
     export YES=$(args::get "yes")
     export PROMPT=$(args::get "prompt")
@@ -343,6 +353,75 @@ claude_code::parse_arguments() {
 }
 
 #######################################
+# Handle MCP subcommands
+#######################################
+claude_code::handle_mcp() {
+    local subcommand="${SUBCOMMAND:-status}"
+    
+    case "$subcommand" in
+        "register")
+            claude_code::register_mcp
+            ;;
+        "unregister")
+            claude_code::unregister_mcp
+            ;;
+        "status")
+            claude_code::mcp_status
+            ;;
+        "test")
+            claude_code::mcp_test
+            ;;
+        *)
+            log::error "Unknown MCP subcommand: $subcommand"
+            log::info "Available subcommands: register, unregister, status, test"
+            exit 1
+            ;;
+    esac
+}
+
+#######################################
+# Handle batch subcommands
+#######################################
+claude_code::handle_batch() {
+    local subcommand="${SUBCOMMAND:-simple}"
+    
+    case "$subcommand" in
+        "simple")
+            claude_code::batch_simple "$PROMPT" "$MAX_TURNS" "$BATCH_SIZE" "$ALLOWED_TOOLS"
+            ;;
+        "automation")
+            claude_code::batch_automation "$PROMPT" "$MAX_TURNS" "$BATCH_SIZE"
+            ;;
+        "config")
+            if [[ -z "$CONFIG_FILE" ]]; then
+                log::error "Configuration file required for batch config"
+                log::info "Use --config-file path/to/config.json"
+                exit 1
+            fi
+            claude_code::batch_config "$CONFIG_FILE"
+            ;;
+        "multi")
+            if [[ -z "$PROMPT" ]]; then
+                log::error "At least one prompt required for batch multi"
+                exit 1
+            fi
+            claude_code::batch_multi "$PROMPT" "$MAX_TURNS"
+            ;;
+        "parallel")
+            if [[ -z "$PROMPT" ]]; then
+                log::error "At least one prompt required for batch parallel"
+                exit 1
+            fi
+            claude_code::batch_parallel "$WORKERS" "$PROMPT" "$MAX_TURNS"
+            ;;
+        *)
+            # Default to original batch behavior
+            claude_code::batch
+            ;;
+    esac
+}
+
+#######################################
 # Main execution function
 #######################################
 claude_code::main() {
@@ -377,28 +456,29 @@ claude_code::main() {
             claude_code::run
             ;;
         "batch")
-            claude_code::batch
+            claude_code::handle_batch
             ;;
         "session")
             claude_code::session
             ;;
-        "settings")
-            claude_code::settings
-            ;;
         "logs")
             claude_code::logs
             ;;
+        "mcp")
+            claude_code::handle_mcp
+            ;;
+        # Legacy MCP actions for backwards compatibility
         "register-mcp")
-            claude_code::register_mcp
+            SUBCOMMAND="register" claude_code::handle_mcp
             ;;
         "unregister-mcp")
-            claude_code::unregister_mcp
+            SUBCOMMAND="unregister" claude_code::handle_mcp
             ;;
         "mcp-status")
-            claude_code::mcp_status
+            SUBCOMMAND="status" claude_code::handle_mcp
             ;;
         "mcp-test")
-            claude_code::mcp_test
+            SUBCOMMAND="test" claude_code::handle_mcp
             ;;
         "parse-result")
             claude_code::parse_result "$INPUT_FILE" "$MCP_FORMAT"

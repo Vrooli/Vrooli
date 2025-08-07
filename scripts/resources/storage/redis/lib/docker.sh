@@ -2,6 +2,29 @@
 # Redis Docker Management
 # Functions for managing Redis Docker container
 
+# Source shared secrets management library
+# Use the same project root detection method as the secrets library
+_redis_docker_detect_project_root() {
+    local current_dir
+    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    # Walk up directory tree looking for .vrooli directory
+    while [[ "$current_dir" != "/" ]]; do
+        if [[ -d "$current_dir/.vrooli" ]]; then
+            echo "$current_dir"
+            return 0
+        fi
+        current_dir="$(dirname "$current_dir")"
+    done
+    
+    # Fallback: assume we're in scripts and go up to project root
+    echo "/home/matthalloran8/Vrooli"
+}
+
+PROJECT_ROOT="$(_redis_docker_detect_project_root)"
+# shellcheck disable=SC1091
+source "$PROJECT_ROOT/scripts/helpers/utils/secrets.sh"
+
 #######################################
 # Create Docker network if it doesn't exist
 # Returns: 0 on success, 1 on failure
@@ -319,10 +342,12 @@ redis::docker::create_client_instance() {
         docker network create "${client_network}" >/dev/null 2>&1
     fi
     
-    # Create client directories
-    local client_data_dir="${HOME}/.vrooli/clients/${client_id}/redis/data"
-    local client_config_dir="${HOME}/.vrooli/clients/${client_id}/redis/config"
-    local client_log_dir="${HOME}/.vrooli/clients/${client_id}/redis/logs"
+    # Create client directories in project root
+    local project_config_dir
+    project_config_dir="$(secrets::get_project_config_dir)"
+    local client_data_dir="${project_config_dir}/clients/${client_id}/redis/data"
+    local client_config_dir="${project_config_dir}/clients/${client_id}/redis/config"
+    local client_log_dir="${project_config_dir}/clients/${client_id}/redis/logs"
     
     mkdir -p "${client_data_dir}" "${client_config_dir}" "${client_log_dir}"
     
@@ -352,7 +377,9 @@ redis::docker::create_client_instance() {
     
     if "${docker_cmd[@]}" >/dev/null 2>&1; then
         # Save client configuration
-        local client_config_file="${HOME}/.vrooli/clients/${client_id}/redis.json"
+        local project_config_dir
+        project_config_dir="$(secrets::get_project_config_dir)"
+        local client_config_file="${project_config_dir}/clients/${client_id}/redis.json"
         cat > "${client_config_file}" << EOF
 {
   "clientId": "${client_id}",
@@ -417,8 +444,10 @@ redis::docker::destroy_client_instance() {
     fi
     
     # Remove client directories and config
-    rm -rf "${HOME}/.vrooli/clients/${client_id}/redis"
-    rm -f "${HOME}/.vrooli/clients/${client_id}/redis.json"
+    local project_config_dir
+    project_config_dir="$(secrets::get_project_config_dir)"
+    rm -rf "${project_config_dir}/clients/${client_id}/redis"
+    rm -f "${project_config_dir}/clients/${client_id}/redis.json"
     
     log::success "${MSG_CLIENT_DESTROY_SUCCESS}"
     return 0

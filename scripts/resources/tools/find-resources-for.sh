@@ -63,7 +63,7 @@ EXAMPLES:
     $0 --all --format json
 
     # Get deployment planning information
-    $0 --scenario business-process-automation --business-info
+    $0 --scenario research-assistant --business-info
 EOF
 }
 

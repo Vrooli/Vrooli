@@ -101,6 +101,9 @@ ollama::main() {
             # Send prompt with parsed parameters
             ollama::send_prompt "$PROMPT_TEXT" "$PROMPT_MODEL" "$PROMPT_TYPE"
             ;;
+        url)
+            ollama::get_urls
+            ;;
         *)
             log::error "Unknown action: $ACTION"
             ollama::usage

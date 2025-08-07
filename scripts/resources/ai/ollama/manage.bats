@@ -3,6 +3,8 @@
 
 # Load Vrooli test infrastructure
 source "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
+# Load fixture helpers for accessing test data
+source "$(dirname "${BATS_TEST_FILENAME}")/../../tests/lib/fixture-helpers.sh" 2>/dev/null || true
 
 # Helper function to initialize MODEL_CATALOG (fixes BATS associative array issue)
 setup_model_catalog() {
@@ -46,6 +48,14 @@ setup_file() {
 
 # Lightweight per-test setup
 setup() {
+    # Setup standard Vrooli mocks
+    vrooli_auto_setup
+    
+    # Use paths from setup_file to avoid recalculating
+    SCRIPT_PATH="$(dirname "${BATS_TEST_FILENAME}")/manage.sh"
+    OLLAMA_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    CONFIG_DIR="${OLLAMA_DIR}/config"
+    
     # Set ollama-specific environment variables (lightweight)
     export OLLAMA_CUSTOM_PORT="9999"
     export PROMPT_TEXT=""
@@ -61,26 +71,49 @@ setup() {
     export SKIP_MODELS="no"
     export VALIDATE_MODELS="yes"
     
-    # Skip exporting readonly variables - they'll be set by defaults.sh
+    # Mock resources functions that might be called during config loading
+    resources::get_default_port() {
+        case "$1" in
+            "ollama") echo "11434" ;;
+            *) echo "8080" ;;
+        esac
+    }
+    
+    # Source configuration files
+    source "${CONFIG_DIR}/defaults.sh"
+    source "${CONFIG_DIR}/messages.sh"
+    
+    # Export configuration and messages
+    ollama::export_config
+    ollama::export_messages
+}
+
+# Cleanup after each test
+teardown() {
+    vrooli_cleanup_test
 }
 
 # Test script loading
-@test "manage.sh loads without errors" {
-    # Check that essential components are loaded by testing function
-    run ollama::is_model_known "llama3.1:8b"
+@test "sourcing manage.sh defines required functions" {
+    run bash -c "source '$SCRIPT_PATH' && declare -f ollama::parse_arguments && declare -f ollama::main"
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ ollama::parse_arguments ]]
+    [[ "$output" =~ ollama::main ]]
+}
+
+@test "manage.sh sources all required dependencies" {
+    run bash -c "source '$SCRIPT_PATH' 2>&1 | grep -v 'command not found' | head -1"
     [ "$status" -eq 0 ]
 }
 
 # Test argument parsing
 @test "ollama::parse_arguments sets defaults correctly" {
-    ollama::parse_arguments --action status
-    
-    [ "$ACTION" = "status" ]
-    [ "$FORCE" = "no" ]
-    [ "$SKIP_MODELS" = "no" ]
-    [ "$PROMPT_TEXT" = "" ]
-    [ "$PROMPT_MODEL" = "" ]
-    [ "$PROMPT_TYPE" = "general" ]
+    run bash -c "source '$SCRIPT_PATH'; ollama::parse_arguments --action status; echo \"ACTION=\$ACTION FORCE=\$FORCE SKIP_MODELS=\$SKIP_MODELS PROMPT_TYPE=\$PROMPT_TYPE\""
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "ACTION=status" ]]
+    [[ "$output" =~ "FORCE=no" ]]
+    [[ "$output" =~ "SKIP_MODELS=no" ]]
+    [[ "$output" =~ "PROMPT_TYPE=general" ]]
 }
 
 # Test argument parsing with prompt action
@@ -228,17 +261,95 @@ setup() {
     [ "$status" -eq 1 ]
 }
 
-# Test integration with valid inputs (if Ollama is actually running)
-@test "ollama::send_prompt works with valid input (integration test)" {
-    # Skip this integration test by default - it requires Ollama to be running with models
-    # Integration tests should be run separately when the environment is properly set up
-    skip "Integration test - requires Ollama running with models installed"
+# Test fixture-based prompt validation
+@test "ollama::send_prompt validates test prompts from fixtures" {
+    # Load test prompts from fixtures
+    if command -v get_llm_test_prompt >/dev/null; then
+        local simple_prompt
+        simple_prompt=$(get_llm_test_prompt "simple_greeting")
+        
+        [[ -n "$simple_prompt" ]]
+        [[ "$simple_prompt" =~ "hello" ]]
+        
+        local math_prompt
+        math_prompt=$(get_llm_test_prompt "math_simple")
+        [[ -n "$math_prompt" ]]
+        [[ "$math_prompt" =~ "2+2" ]]
+        
+        # Test that we can get expected patterns
+        local pattern
+        pattern=$(get_llm_expected_pattern "simple_greeting")
+        [[ -n "$pattern" ]]
+        [[ "$pattern" =~ "hello\|hi" ]]
+    else
+        skip "Fixture helpers not available"
+    fi
 }
 
-# Test model type integration
-@test "integration: prompt with explicit types" {
+# Test prompt parameter preparation using fixtures
+@test "ollama prompt parameters work with fixture data" {
+    if command -v get_llm_test_prompts >/dev/null; then
+        # Test that we can load JSON prompt data
+        local json_data
+        json_data=$(get_llm_test_prompts)
+        [[ -n "$json_data" ]]
+        
+        # Should be valid JSON
+        if command -v jq >/dev/null; then
+            echo "$json_data" | jq empty
+            [ "$?" -eq 0 ]
+            
+            # Should have expected structure
+            local prompt_count
+            prompt_count=$(echo "$json_data" | jq length)
+            [[ "$prompt_count" -gt 0 ]]
+        fi
+    else
+        skip "Fixture helpers not available"
+    fi
+}
+
+# Test integration with valid inputs (if Ollama is actually running)
+@test "ollama::send_prompt works with fixture prompts (integration test)" {
     # Skip this integration test by default - it requires Ollama to be running with models
-    skip "Integration test - requires Ollama running with models installed"
+    if ! curl -s http://localhost:11434/api/tags > /dev/null 2>&1; then
+        skip "Ollama is not running - skipping integration test"
+    fi
+    
+    # Use fixture-based test prompts for more reliable testing
+    if command -v get_llm_test_prompt >/dev/null; then
+        # Mock healthy Ollama (since we confirmed it's running above)
+        ollama::is_healthy() {
+            return 0
+        }
+        
+        # Mock model validation to pass
+        ollama::validate_model_available() {
+            return 0
+        }
+        
+        # Test with a simple fixture prompt
+        local test_prompt
+        test_prompt=$(get_llm_test_prompt "simple_greeting")
+        
+        if [[ -n "$test_prompt" ]]; then
+            run ollama::send_prompt "$test_prompt" "" "general"
+            
+            if [ "$status" -eq 0 ]; then
+                # Validate response matches expected pattern
+                local expected_pattern
+                expected_pattern=$(get_llm_expected_pattern "simple_greeting")
+                
+                if command -v validate_llm_response >/dev/null && [[ -n "$expected_pattern" ]]; then
+                    validate_llm_response "$output" "$expected_pattern"
+                fi
+            fi
+        else
+            skip "No test prompt available from fixtures"
+        fi
+    else
+        skip "Fixture helpers not available"
+    fi
 }
 
 

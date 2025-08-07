@@ -706,6 +706,128 @@ resources::discover_running() {
 }
 
 #######################################
+# Run interface validation for resources
+# Arguments: List of resource names to validate
+# Returns: 0 if all pass, 1 if any fail, 2 if validation error
+#######################################
+resources::run_interface_validation() {
+    local resources_to_validate=("$@")
+    
+    if [[ ${#resources_to_validate[@]} -eq 0 ]]; then
+        log::info "🔍 No resources to validate"
+        return 0
+    fi
+    
+    log::header "🔍 Interface Validation"
+    log::info "Validating interface compliance for ${#resources_to_validate[@]} resources..."
+    
+    local validation_passed=0
+    local validation_failed=0
+    local validation_errors=0
+    local failed_resources=()
+    
+    # Load the interface validation library if available
+    local interface_lib="$RESOURCES_DIR/tests/lib/interface-validation.sh"
+    if [[ -f "$interface_lib" ]]; then
+        # shellcheck disable=SC1090
+        source "$interface_lib" 2>/dev/null || log::warn "Could not load interface validation library"
+    fi
+    
+    for resource in "${resources_to_validate[@]}"; do
+        log::info "🔍 Validating: $resource"
+        
+        # Get resource category and script path
+        local category
+        category=$(resources::get_category "$resource")
+        local script_path
+        script_path=$(resources::get_script_path "$resource")
+        
+        if [[ ! -f "$script_path" ]]; then
+            log::error "❌ $resource: manage.sh not found at $script_path"
+            validation_errors=$((validation_errors + 1))
+            failed_resources+=("$resource (missing script)")
+            continue
+        fi
+        
+        # Basic interface validation checks
+        local validation_result=0
+        local issues=()
+        
+        # Check 1: Script is executable
+        if [[ ! -x "$script_path" ]]; then
+            issues+=("Script not executable")
+            validation_result=1
+        fi
+        
+        # Check 2: Required actions exist
+        local required_actions=("install" "start" "stop" "status" "logs")
+        for action in "${required_actions[@]}"; do
+            if ! grep -q "^[[:space:]]*$action)" "$script_path"; then
+                issues+=("Missing action: $action")
+                validation_result=1
+            fi
+        done
+        
+        # Check 3: Help patterns exist
+        if ! grep -q "\-\-help\|help)\|usage" "$script_path"; then
+            issues+=("Missing --help pattern or usage function")
+            validation_result=1
+        fi
+        
+        # Check 4: Error handling present
+        if ! grep -q "set -euo pipefail\|set -e" "$script_path"; then
+            issues+=("Missing error handling (set -e)")
+            validation_result=1
+        fi
+        
+        # Check 5: Required directory structure
+        local resource_dir
+        resource_dir=$(dirname "$script_path")
+        if [[ ! -d "$resource_dir/config" ]]; then
+            issues+=("Missing config/ directory")
+            validation_result=1
+        fi
+        if [[ ! -d "$resource_dir/lib" ]]; then
+            issues+=("Missing lib/ directory")
+            validation_result=1
+        fi
+        
+        # Report results for this resource
+        if [[ $validation_result -eq 0 ]]; then
+            log::success "✅ $resource: Interface validation passed"
+            validation_passed=$((validation_passed + 1))
+        else
+            log::error "❌ $resource: Interface validation failed"
+            for issue in "${issues[@]}"; do
+                log::error "   • $issue"
+            done
+            validation_failed=$((validation_failed + 1))
+            failed_resources+=("$resource")
+        fi
+    done
+    
+    # Summary
+    echo
+    log::info "Interface Validation Summary:"
+    log::info "  ✅ Passed: $validation_passed"
+    if [[ $validation_failed -gt 0 ]]; then
+        log::warn "  ❌ Failed: $validation_failed (${failed_resources[*]})"
+    fi
+    if [[ $validation_errors -gt 0 ]]; then
+        log::error "  💥 Errors: $validation_errors"
+    fi
+    
+    # Return appropriate code
+    if [[ $validation_errors -gt 0 ]]; then
+        return 2  # Validation errors (missing scripts, etc.)
+    elif [[ $validation_failed -gt 0 ]]; then
+        return 1  # Interface compliance failures
+    else
+        return 0  # All passed
+    fi
+}
+
+#######################################
 # Run integration tests with auto-discovery
 #######################################
 resources::run_tests() {
@@ -786,7 +908,15 @@ resources::run_tests() {
         test_resources=("${filtered_resources[@]}")
     fi
     
-    # Step 3: Execute tests with proper environment
+    # Step 3: Run interface validation before integration tests
+    resources::run_interface_validation "${test_resources[@]}"
+    local interface_validation_result=$?
+    if [[ $interface_validation_result -ne 0 ]]; then
+        log::warn "⚠️  Interface validation issues found, but continuing with integration tests"
+        log::info "💡 Fix interface issues for better test reliability"
+    fi
+    
+    # Step 4: Execute integration tests with proper environment
     local tests_dir="${RESOURCES_DIR}/tests"
     export HEALTHY_RESOURCES_STR="${test_resources[*]}"
     export SCRIPT_DIR="$tests_dir"

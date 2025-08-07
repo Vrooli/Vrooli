@@ -25,7 +25,8 @@ readonly WINDMILL_DB_CONTAINER_NAME="${WINDMILL_PROJECT_NAME}-db"
 readonly WINDMILL_DB_PORT="5432"
 readonly WINDMILL_DB_NAME="windmill"
 readonly WINDMILL_DB_USER="postgres"
-readonly WINDMILL_DB_PASSWORD="${WINDMILL_DB_PASSWORD:-windmill-secure-$(date +%s | sha256sum | head -c 16)}"
+# Password will be managed by state system - placeholder for now
+WINDMILL_DB_PASSWORD="${WINDMILL_DB_PASSWORD:-}"
 
 # Worker configuration
 readonly WINDMILL_WORKER_REPLICAS="${WINDMILL_WORKER_REPLICAS:-3}"

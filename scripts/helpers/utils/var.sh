@@ -9,10 +9,25 @@ export var_HELPERS_DIR=$(cd "$var_UTILS_DIR"/.. && pwd)
 export var_SCRIPTS_DIR=$(cd "$var_HELPERS_DIR"/.. && pwd)
 export var_SCRIPT_TESTS_DIR="$var_SCRIPTS_DIR/__test"
 export var_ROOT_DIR=$(cd "$var_SCRIPTS_DIR"/.. && pwd)
+
+# Detect if we're in Vrooli monorepo or standalone app based on package.json
+if [[ -f "$var_ROOT_DIR/package.json" ]] && \
+   jq -e '.name == "vrooli" and .workspaces' "$var_ROOT_DIR/package.json" >/dev/null 2>&1; then
+    export VROOLI_CONTEXT="monorepo"
+else
+    export VROOLI_CONTEXT="standalone"
+fi
+
 export var_PACKAGES_DIR="$var_ROOT_DIR/packages"
 export var_BACKUPS_DIR="$var_ROOT_DIR/backups"
 export var_DATA_DIR="$var_ROOT_DIR/data"
 export var_DEST_DIR="$var_ROOT_DIR/dist"
+
+# Vrooli configuration directory and files
+export var_VROOLI_CONFIG_DIR="$var_ROOT_DIR/.vrooli"
+export var_SERVICE_JSON_FILE="$var_VROOLI_CONFIG_DIR/service.json"
+export var_EXAMPLES_DIR="$var_VROOLI_CONFIG_DIR/examples"
+export var_SCHEMAS_DIR="$var_VROOLI_CONFIG_DIR/schemas"
 
 # Environment files
 export var_ENV_DEV_FILE="$var_ROOT_DIR/.env-dev"

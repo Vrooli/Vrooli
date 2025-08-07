@@ -25,7 +25,7 @@ clean::clear_node_modules() {
 # Clear apt cache and 
 # WARNING: This is not recommended, and should only be used in an emergency.
 clean::clear_apt() {
-    if ! flow::can_run_sudo; then
+    if ! flow::can_run_sudo "apt cache cleaning"; then
         log::warning "Skipping apt cache cleaning due to lack of sudo access"
         return
     fi

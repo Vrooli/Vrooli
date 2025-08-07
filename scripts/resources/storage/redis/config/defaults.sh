@@ -2,6 +2,27 @@
 # Redis Resource Configuration Defaults
 # This file contains all configuration variables for the Redis resource
 
+# Detect project root for proper configuration paths
+_redis_defaults_detect_project_root() {
+    local current_dir
+    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    # Walk up directory tree looking for .vrooli directory
+    while [[ "$current_dir" != "/" ]]; do
+        if [[ -d "$current_dir/.vrooli" ]]; then
+            echo "$current_dir"
+            return 0
+        fi
+        current_dir="$(dirname "$current_dir")"
+    done
+    
+    # Fallback: assume we're in scripts and go up to project root
+    echo "/home/matthalloran8/Vrooli"
+}
+
+# Set project root for proper config paths
+REDIS_PROJECT_ROOT="$(_redis_defaults_detect_project_root)"
+
 # Redis Docker Configuration
 REDIS_IMAGE="${REDIS_IMAGE:-redis:7-alpine}"
 REDIS_CONTAINER_NAME="${REDIS_CONTAINER_NAME:-vrooli-redis-resource}"
@@ -11,10 +32,10 @@ REDIS_NETWORK_NAME="${REDIS_NETWORK_NAME:-vrooli-resources}"
 REDIS_PORT="${REDIS_PORT:-6380}"
 REDIS_INTERNAL_PORT="${REDIS_INTERNAL_PORT:-6379}"
 
-# Data and Configuration Paths
-REDIS_DATA_DIR="${REDIS_DATA_DIR:-${HOME}/.vrooli/redis/data}"
-REDIS_CONFIG_DIR="${REDIS_CONFIG_DIR:-${HOME}/.vrooli/redis/config}"
-REDIS_LOG_DIR="${REDIS_LOG_DIR:-${HOME}/.vrooli/redis/logs}"
+# Data and Configuration Paths (using project root)
+REDIS_DATA_DIR="${REDIS_DATA_DIR:-${REDIS_PROJECT_ROOT}/.vrooli/redis/data}"
+REDIS_CONFIG_DIR="${REDIS_CONFIG_DIR:-${REDIS_PROJECT_ROOT}/.vrooli/redis/config}"
+REDIS_LOG_DIR="${REDIS_LOG_DIR:-${REDIS_PROJECT_ROOT}/.vrooli/redis/logs}"
 REDIS_CONFIG_FILE="${REDIS_CONFIG_FILE:-${REDIS_CONFIG_DIR}/redis.conf}"
 
 # Redis Configuration

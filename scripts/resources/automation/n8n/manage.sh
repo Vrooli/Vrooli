@@ -54,7 +54,7 @@ n8n::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|reset-password|logs|info|test|execute|api-setup|save-api-key|inject|validate-injection" \
+        --options "install|uninstall|start|stop|restart|status|reset-password|logs|info|test|execute|api-setup|save-api-key|inject|validate-injection|url" \
         --default "install"
     
     args::register \
@@ -169,50 +169,51 @@ n8n::parse_arguments() {
 #######################################
 # Main execution function
 #######################################
+
 n8n::main() {
     n8n::parse_arguments "$@"
     
     case "$ACTION" in
-        "install")
+        install)
             n8n::install
             ;;
-        "uninstall")
+        uninstall)
             n8n::uninstall
             ;;
-        "start")
+        start)
             n8n::start
             ;;
-        "stop")
+        stop)
             n8n::stop
             ;;
-        "restart")
+        restart)
             n8n::restart
             ;;
-        "status")
+        status)
             n8n::status
             ;;
-        "reset-password")
+        reset-password)
             n8n::reset_password
             ;;
-        "logs")
+        logs)
             n8n::logs
             ;;
-        "info")
+        info)
             n8n::info
             ;;
-        "test")
+        test)
             n8n::test
             ;;
-        "execute")
+        execute)
             n8n::execute
             ;;
-        "api-setup")
+        api-setup)
             n8n::api_setup
             ;;
-        "save-api-key")
+        save-api-key)
             n8n::save_api_key
             ;;
-        "inject")
+        inject)
             if [[ -z "$INJECTION_CONFIG" ]]; then
                 log::error "Injection configuration required for inject action"
                 log::info "Use: --injection-config 'JSON_CONFIG'"
@@ -220,13 +221,16 @@ n8n::main() {
             fi
             "${SCRIPT_DIR}/inject.sh" --inject "$INJECTION_CONFIG"
             ;;
-        "validate-injection")
+        validate-injection)
             if [[ -z "$INJECTION_CONFIG" ]]; then
                 log::error "Injection configuration required for validate-injection action"
                 log::info "Use: --injection-config 'JSON_CONFIG'"
                 exit 1
             fi
             "${SCRIPT_DIR}/inject.sh" --validate "$INJECTION_CONFIG"
+            ;;
+        url)
+            n8n::get_urls
             ;;
         *)
             log::error "Unknown action: $ACTION"

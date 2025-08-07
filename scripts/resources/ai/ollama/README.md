@@ -209,8 +209,8 @@ See the [Models Guide](docs/MODELS.md) for 50+ additional models.
 Ollama is used in these business scenarios:
 - **[Multi-Modal AI Assistant](../../scenarios/core/multi-modal-ai-assistant/)** - Voice + AI + visual workflows ($10k-25k projects)
 - **[Research Assistant](../../scenarios/core/research-assistant/)** - Knowledge management and analysis ($10k-25k projects)  
-- **[AI Content Assistant](../../scenarios/core/ai-content-assistant-example/)** - Content creation workflows ($8k-20k projects)
-- **[Document Intelligence Pipeline](../../scenarios/core/document-intelligence-pipeline/)** - Document processing ($15k-30k projects)
+- **[Campaign Content Studio](../../scenarios/core/campaign-content-studio/)** - Content creation workflows ($8k-20k projects)
+- **[Secure Document Processing](../../scenarios/core/secure-document-processing/)** - Compliant document processing ($20k-40k projects)
 
 ### Test Fixtures
 - **Shared Test Data**: `scripts/__test/resources/fixtures/documents/` (prompts, text samples)

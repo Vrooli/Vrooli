@@ -2,63 +2,69 @@
 # Judge0 Resource Management Tests
 # Tests for Judge0 installation, configuration, and management
 
-# Test environment setup
-setup() {
-    # Load test helper
-    load '../../../helpers/test/test_helper'
+# Load Vrooli test infrastructure
+source "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
+
+# Expensive setup operations run once per file
+setup_file() {
+    # Use Vrooli service test setup
+    vrooli_setup_service_test "judge0"
     
-    # Set test environment
+    # Load resource specific configuration once per file
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    JUDGE0_DIR="$(dirname "$SCRIPT_DIR")"
+    
+    # Load configuration and manage script once
+    source "${JUDGE0_DIR}/config/defaults.sh"
+    source "${JUDGE0_DIR}/config/messages.sh"
+    source "${SCRIPT_DIR}/manage.sh"
+}
+
+# Lightweight per-test setup
+setup() {
+    # Setup standard Vrooli mocks
+    vrooli_auto_setup
+    
+    # Set test environment variables (lightweight per-test)
+    export JUDGE0_CUSTOM_PORT="9999"
+    export JUDGE0_CONTAINER_NAME="judge0-test"
+    export JUDGE0_WORKERS_NAME="judge0-workers-test"
+    export JUDGE0_NETWORK_NAME="judge0-network-test"
+    export JUDGE0_VOLUME_NAME="judge0-data-test"
+    export JUDGE0_BASE_URL="http://localhost:9999"
+    export JUDGE0_DATA_DIR="${VROOLI_TEST_TMPDIR}/judge0"
+    export JUDGE0_CONFIG_DIR="${JUDGE0_DATA_DIR}/config"
+    export FORCE="no"
+    export YES="no"
     export TEST_MODE="true"
     export JUDGE0_TEST_MODE="true"
     
-    # Store original values
-    export ORIGINAL_JUDGE0_PORT="${JUDGE0_PORT:-2358}"
-    export ORIGINAL_JUDGE0_API_KEY="${JUDGE0_API_KEY:-}"
-    
-    # Use test port to avoid conflicts
-    export JUDGE0_PORT="12358"
-    export JUDGE0_CONTAINER_NAME="test-judge0-server"
-    export JUDGE0_WORKERS_NAME="test-judge0-workers"
-    export JUDGE0_NETWORK_NAME="test-judge0-network"
-    export JUDGE0_VOLUME_NAME="test-judge0-data"
-    export JUDGE0_DATA_DIR="${BATS_TEST_TMPDIR}/judge0"
-    export JUDGE0_CONFIG_DIR="${JUDGE0_DATA_DIR}/config"
-    
     # Create test directories
     mkdir -p "$JUDGE0_CONFIG_DIR"
+    
+    # Export config functions
+    judge0::export_config
+    judge0::export_messages
+    
+    # Mock log functions
+    log::header() { echo "=== $* ==="; }
+    log::info() { echo "[INFO] $*"; }
+    log::error() { echo "[ERROR] $*" >&2; }
+    log::success() { echo "[SUCCESS] $*"; }
+    log::warning() { echo "[WARNING] $*" >&2; }
+    export -f log::header log::info log::error log::success log::warning
 }
 
-# Test environment cleanup
+# BATS teardown function - runs after each test
 teardown() {
-    # Cleanup test containers
-    docker stop "$JUDGE0_CONTAINER_NAME" >/dev/null 2>&1 || true
-    docker rm "$JUDGE0_CONTAINER_NAME" >/dev/null 2>&1 || true
-    docker stop "${JUDGE0_CONTAINER_NAME}-db" >/dev/null 2>&1 || true
-    docker rm "${JUDGE0_CONTAINER_NAME}-db" >/dev/null 2>&1 || true
-    docker stop "${JUDGE0_CONTAINER_NAME}-redis" >/dev/null 2>&1 || true
-    docker rm "${JUDGE0_CONTAINER_NAME}-redis" >/dev/null 2>&1 || true
-    
-    # Cleanup workers
-    for i in {1..5}; do
-        docker stop "${JUDGE0_WORKERS_NAME}-${i}" >/dev/null 2>&1 || true
-        docker rm "${JUDGE0_WORKERS_NAME}-${i}" >/dev/null 2>&1 || true
-    done
-    
-    # Cleanup network and volume
-    docker network rm "$JUDGE0_NETWORK_NAME" >/dev/null 2>&1 || true
-    docker volume rm "$JUDGE0_VOLUME_NAME" >/dev/null 2>&1 || true
-    
-    # Restore original values
-    export JUDGE0_PORT="$ORIGINAL_JUDGE0_PORT"
-    export JUDGE0_API_KEY="$ORIGINAL_JUDGE0_API_KEY"
-    
-    # Cleanup test directories
-    rm -rf "$JUDGE0_DATA_DIR"
+    vrooli_cleanup_test
 }
 
-# Helper function to run manage.sh
+# Helper function to run manage actions
 run_manage() {
-    run "${BATS_TEST_DIRNAME}/manage.sh" "$@"
+    local action="$1"
+    shift
+    judge0::handle_action "$action" "$@"
 }
 
 # =============================================================================
@@ -71,17 +77,26 @@ run_manage() {
 }
 
 @test "Judge0: Help command displays usage" {
-    run_manage --help
+    run judge0::show_help
     assert_success
-    assert_output --partial "Judge0 Code Execution"
-    assert_output --partial "USAGE:"
-    assert_output --partial "OPTIONS:"
+    [[ "$output" =~ "Judge0 Code Execution" ]]
+    [[ "$output" =~ "USAGE:" ]]
+    [[ "$output" =~ "OPTIONS:" ]]
 }
 
 @test "Judge0: Version information available" {
-    run_manage --action info --yes yes
-    # Should fail if not installed, but show proper error
-    assert_output --partial "Judge0"
+    # Mock docker for version info
+    docker() {
+        case "$*" in
+            *"exec"*"version"*) echo "Judge0" ;;
+            *) return 0 ;;
+        esac
+    }
+    export -f docker
+    
+    run judge0::get_info
+    assert_success
+    [[ "$output" =~ "Judge0" ]]
 }
 
 # =============================================================================
@@ -95,9 +110,9 @@ run_manage() {
     docker() { return 1; }
     export -f docker
     
-    run_manage --action install --yes yes
+    run judge0::install
     assert_failure
-    assert_output --partial "Docker is not running"
+    [[ "$output" =~ "Docker is not running" ]]
 }
 
 @test "Judge0: Installation creates required directories" {
@@ -195,9 +210,18 @@ run_manage() {
 # =============================================================================
 
 @test "Judge0: Status command when not installed" {
-    run_manage --action status --yes yes
+    # Mock docker to return not installed
+    docker() {
+        case "$*" in
+            *"container inspect"*) return 1 ;;
+            *) return 1 ;;
+        esac
+    }
+    export -f docker
+    
+    run judge0::show_status
     assert_failure
-    assert_output --partial "not installed"
+    [[ "$output" =~ "not installed" ]]
 }
 
 @test "Judge0: Health check JSON format" {
@@ -216,7 +240,7 @@ run_manage() {
 
 @test "Judge0: Language list parsing" {
     # Test language validation
-    run bash -c "source ${BATS_TEST_DIRNAME}/lib/common.sh && source ${BATS_TEST_DIRNAME}/config/defaults.sh && judge0::validate_language 'javascript'"
+    run judge0::validate_language 'javascript'
     assert_success
 }
 
@@ -224,9 +248,9 @@ run_manage() {
     skip "Requires API mock"
     
     # Test that submission requires code
-    run_manage --action submit --language javascript --yes yes
+    run judge0::submit_code "" "javascript"
     assert_failure
-    assert_output --partial "Code is required"
+    [[ "$output" =~ "Code is required" ]]
 }
 
 # =============================================================================
@@ -257,9 +281,13 @@ run_manage() {
 # =============================================================================
 
 @test "Judge0: Usage information completeness" {
-    run_manage --action usage --yes yes
+    # Mock docker to return not running
+    docker() { return 1; }
+    export -f docker
+    
+    run judge0::show_usage
     assert_failure  # Not running
-    assert_output --partial "not running"
+    [[ "$output" =~ "not running" ]]
 }
 
 @test "Judge0: Example files exist" {
@@ -277,23 +305,23 @@ run_manage() {
 # =============================================================================
 
 @test "Judge0: Handles invalid action gracefully" {
-    run_manage --action invalid-action --yes yes
+    run judge0::handle_action "invalid-action"
     assert_failure
-    assert_output --partial "Unknown action"
+    [[ "$output" =~ "Unknown action" ]]
 }
 
 @test "Judge0: Handles missing required parameters" {
-    run_manage --action submit --yes yes
+    run judge0::submit_code "" ""
     assert_failure
-    assert_output --partial "Code is required"
+    [[ "$output" =~ "Code is required" ]]
 }
 
 @test "Judge0: Handles invalid language gracefully" {
     skip "Requires running instance"
     
-    run_manage --action submit --code "print('test')" --language "invalid-lang" --yes yes
+    run judge0::submit_code "print('test')" "invalid-lang"
     assert_failure
-    assert_output --partial "Language not supported"
+    [[ "$output" =~ "Language not supported" ]]
 }
 
 # =============================================================================

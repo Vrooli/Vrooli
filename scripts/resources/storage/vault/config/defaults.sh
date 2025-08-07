@@ -32,7 +32,32 @@ vault::export_config() {
 
     # Vault mode configuration
     if [[ -z "${VAULT_MODE:-}" ]]; then
-        VAULT_MODE="${VAULT_CUSTOM_MODE:-dev}"  # dev or prod
+        VAULT_MODE="${VAULT_CUSTOM_MODE:-dev}"  # dev or prod - defaulting to dev for now until TLS issues are resolved
+    fi
+    
+    # Storage strategy configuration
+    if [[ -z "${VAULT_STORAGE_STRATEGY:-}" ]]; then
+        # Options: volumes (Docker volumes), bind (bind mounts), auto (auto-detect)
+        VAULT_STORAGE_STRATEGY="${VAULT_CUSTOM_STORAGE_STRATEGY:-volumes}"
+    fi
+    
+    # Docker volume names (for volume strategy)
+    if [[ -z "${VAULT_VOLUME_DATA:-}" ]]; then
+        readonly VAULT_VOLUME_DATA="vault-data"
+    fi
+    if [[ -z "${VAULT_VOLUME_CONFIG:-}" ]]; then
+        readonly VAULT_VOLUME_CONFIG="vault-config"
+    fi
+    if [[ -z "${VAULT_VOLUME_LOGS:-}" ]]; then
+        readonly VAULT_VOLUME_LOGS="vault-logs"
+    fi
+    
+    # Container UID/GID for permission mapping
+    if [[ -z "${VAULT_CONTAINER_UID:-}" ]]; then
+        readonly VAULT_CONTAINER_UID="100"
+    fi
+    if [[ -z "${VAULT_CONTAINER_GID:-}" ]]; then
+        readonly VAULT_CONTAINER_GID="1000"
     fi
 
     # Development mode configuration
@@ -45,7 +70,8 @@ vault::export_config() {
 
     # Production mode configuration
     if [[ -z "${VAULT_TLS_DISABLE:-}" ]]; then
-        readonly VAULT_TLS_DISABLE="${VAULT_CUSTOM_TLS_DISABLE:-1}"  # 1 for dev, 0 for prod
+        # Note: TLS will be enabled automatically in prod mode when certificates are generated
+        readonly VAULT_TLS_DISABLE="${VAULT_CUSTOM_TLS_DISABLE:-1}"  # 1 to disable TLS (will be overridden in prod)
     fi
     if [[ -z "${VAULT_STORAGE_TYPE:-}" ]]; then
         readonly VAULT_STORAGE_TYPE="${VAULT_CUSTOM_STORAGE_TYPE:-file}"  # file or consul
@@ -119,6 +145,8 @@ vault::export_config() {
     export VAULT_DATA_DIR VAULT_CONFIG_DIR VAULT_LOGS_DIR VAULT_IMAGE
     export VAULT_MODE VAULT_DEV_ROOT_TOKEN_ID VAULT_DEV_LISTEN_ADDRESS
     export VAULT_TLS_DISABLE VAULT_STORAGE_TYPE
+    export VAULT_STORAGE_STRATEGY VAULT_VOLUME_DATA VAULT_VOLUME_CONFIG VAULT_VOLUME_LOGS
+    export VAULT_CONTAINER_UID VAULT_CONTAINER_GID
     export VAULT_NAMESPACE_PREFIX VAULT_SECRET_ENGINE VAULT_SECRET_VERSION
     export VAULT_NETWORK_NAME
     export VAULT_HEALTH_CHECK_INTERVAL VAULT_HEALTH_CHECK_MAX_ATTEMPTS

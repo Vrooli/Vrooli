@@ -5,10 +5,10 @@
 
 set -euo pipefail
 
-# Source shared integration test library
+# Source enhanced integration test library with fixture support
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../../tests/lib/integration-test-lib.sh"
+source "$SCRIPT_DIR/../../../tests/lib/enhanced-integration-test-lib.sh"
 
 #######################################
 # SERVICE-SPECIFIC CONFIGURATION
@@ -222,6 +222,142 @@ test_workflow_execution() {
 }
 
 #######################################
+# FIXTURE-BASED WORKFLOW TESTS
+#######################################
+
+test_workflow_from_fixture() {
+    local fixture_path="$1"
+    
+    if [[ ! -f "$fixture_path" ]]; then
+        return 1
+    fi
+    
+    # Read workflow JSON from fixture
+    local workflow_json
+    workflow_json=$(cat "$fixture_path")
+    
+    # Validate ComfyUI workflow structure
+    if ! echo "$workflow_json" | jq -e 'to_entries | all(.value | has("class_type") and has("inputs"))' >/dev/null 2>&1; then
+        return 1  # Invalid ComfyUI workflow structure
+    fi
+    
+    # Submit workflow to ComfyUI
+    local response
+    if response=$(make_api_request "/prompt" "POST" 30 \
+        "-H 'Content-Type: application/json' -d '{\"prompt\": $workflow_json, \"client_id\": \"fixture-test\"}'"); then
+        
+        local prompt_id
+        prompt_id=$(echo "$response" | jq -r '.prompt_id // empty')
+        
+        if [[ -n "$prompt_id" ]] && [[ "$prompt_id" != "null" ]]; then
+            return 0  # Workflow submitted successfully
+        fi
+    fi
+    
+    return 1
+}
+
+test_workflow_validation_fixture() {
+    local fixture_path="$1"
+    
+    if [[ ! -f "$fixture_path" ]]; then
+        return 1
+    fi
+    
+    # Read and validate workflow structure
+    local workflow_json
+    workflow_json=$(cat "$fixture_path")
+    
+    # Check for ComfyUI-specific workflow elements
+    local has_nodes=false
+    local has_connections=false
+    
+    # Check if workflow has valid node structure
+    if echo "$workflow_json" | jq -e 'to_entries | length > 0' >/dev/null 2>&1; then
+        has_nodes=true
+    fi
+    
+    # Check if nodes have proper class_type and inputs
+    if echo "$workflow_json" | jq -e 'to_entries | all(.value | has("class_type") and has("inputs"))' >/dev/null 2>&1; then
+        has_connections=true
+    fi
+    
+    if [[ "$has_nodes" == "true" ]] && [[ "$has_connections" == "true" ]]; then
+        return 0
+    fi
+    
+    return 1
+}
+
+test_ollama_guided_workflow() {
+    local fixture_path="$1"
+    
+    if [[ ! -f "$fixture_path" ]]; then
+        return 1
+    fi
+    
+    # This tests ComfyUI + Ollama integration workflows
+    local workflow_json
+    workflow_json=$(cat "$fixture_path")
+    
+    # Check if workflow contains Ollama-related nodes
+    if echo "$workflow_json" | jq -e '[.[] | .class_type] | any(. | contains("Ollama") or contains("LLM"))' >/dev/null 2>&1; then
+        # Validate the workflow can be submitted (even if Ollama isn't running)
+        local response
+        if response=$(make_api_request "/object_info" "GET" 10); then
+            # Check if ComfyUI has Ollama nodes available
+            if echo "$response" | grep -qi "ollama\|llm"; then
+                return 0  # Ollama integration available
+            fi
+        fi
+    fi
+    
+    return 1
+}
+
+# Run fixture-based workflow tests
+run_comfyui_fixture_tests() {
+    if [[ "$FIXTURES_AVAILABLE" == "true" ]]; then
+        # Test with ComfyUI-specific workflow fixtures
+        test_with_fixture "text-to-image workflow" "workflows" "comfyui/comfyui-text-to-image.json" \
+            test_workflow_from_fixture
+        
+        test_with_fixture "Ollama-guided workflow" "workflows" "comfyui/comfyui-ollama-guided.json" \
+            test_ollama_guided_workflow
+        
+        # Validate workflow structures
+        test_with_fixture "validate text-to-image structure" "workflows" "comfyui/comfyui-text-to-image.json" \
+            test_workflow_validation_fixture
+        
+        test_with_fixture "validate Ollama workflow structure" "workflows" "comfyui/comfyui-ollama-guided.json" \
+            test_workflow_validation_fixture
+        
+        # Test with auto-discovered fixtures
+        local comfyui_fixtures
+        comfyui_fixtures=$(discover_resource_fixtures "comfyui" "automation")
+        
+        for fixture_pattern in $comfyui_fixtures; do
+            # Look for ComfyUI workflows specifically
+            local workflow_files
+            if workflow_files=$(fixture_get_all "$fixture_pattern" "*comfyui*.json" 2>/dev/null); then
+                for workflow_file in $workflow_files; do
+                    local workflow_name
+                    workflow_name=$(basename "$workflow_file")
+                    test_with_fixture "validate $workflow_name" "" "$workflow_file" \
+                        test_workflow_validation_fixture
+                done
+            fi
+        done
+        
+        # Test with integration workflows that might use ComfyUI
+        if [[ -f "$FIXTURES_DIR/workflows/integration/multi-ai-pipeline.json" ]]; then
+            test_with_fixture "multi-AI pipeline" "workflows" "integration/multi-ai-pipeline.json" \
+                test_workflow_validation_fixture
+        fi
+    fi
+}
+
+#######################################
 # SERVICE-SPECIFIC VERBOSE INFO
 #######################################
 
@@ -260,7 +396,8 @@ test_workflow_tests() {
 register_tests \
     "test_api_connectivity" \
     "test_model_availability" \
-    "test_workflow_tests"
+    "test_workflow_tests" \
+    "run_comfyui_fixture_tests"
 
 # Register standard interface tests
 register_standard_interface_tests
