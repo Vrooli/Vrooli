@@ -37,11 +37,31 @@ declare -A MOCK_CLAUDE_EXIT_CODES=()       # prompt_hash -> exit_code
 export CLAUDE_MOCK_CALL_COUNTER=0
 export CLAUDE_MOCK_SESSION_COUNTER=0
 
-# File-based state persistence for subshell access (BATS compatibility)  
-export CLAUDE_MOCK_STATE_FILE="${MOCK_LOG_DIR:-/tmp}/claude_mock_state.$$"
+# File-based state persistence for subshell access (BATS compatibility)
+# Ensure MOCK_LOG_DIR exists before using it
+if [[ -z "${MOCK_LOG_DIR:-}" ]]; then
+  # Try common test output directories
+  if [[ -d "/home/matthalloran8/Vrooli/data/test-outputs/mock-logs" ]]; then
+    export MOCK_LOG_DIR="/home/matthalloran8/Vrooli/data/test-outputs/mock-logs"
+  elif [[ -d "/tmp" ]]; then
+    export MOCK_LOG_DIR="/tmp"
+  else
+    export MOCK_LOG_DIR="."
+  fi
+fi
+
+# Ensure the directory exists
+[[ ! -d "$MOCK_LOG_DIR" ]] && mkdir -p "$MOCK_LOG_DIR" 2>/dev/null || true
+
+export CLAUDE_MOCK_STATE_FILE="${MOCK_LOG_DIR}/claude_mock_state.$$"
 
 # Initialize state file
 _claude_mock_init_state_file() {
+  # Ensure directory exists first
+  local state_dir
+  state_dir=$(dirname "${CLAUDE_MOCK_STATE_FILE}")
+  [[ ! -d "$state_dir" ]] && mkdir -p "$state_dir" 2>/dev/null || true
+  
   if [[ -n "${CLAUDE_MOCK_STATE_FILE}" ]]; then
     {
       echo "declare -A MOCK_CLAUDE_RESPONSES=()"
@@ -59,6 +79,14 @@ _claude_mock_init_state_file() {
 # Save current state to file
 _claude_mock_save_state() {
   if [[ -n "${CLAUDE_MOCK_STATE_FILE}" ]]; then
+    # Ensure directory exists first
+    local state_dir
+    state_dir=$(dirname "${CLAUDE_MOCK_STATE_FILE}")
+    [[ ! -d "$state_dir" ]] && mkdir -p "$state_dir" 2>/dev/null || true
+    
+    # Ensure state file exists
+    [[ ! -f "${CLAUDE_MOCK_STATE_FILE}" ]] && _claude_mock_init_state_file
+    
     {
       declare -p MOCK_CLAUDE_RESPONSES 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA MOCK_CLAUDE_RESPONSES=()"
       declare -p MOCK_CLAUDE_SESSIONS 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA MOCK_CLAUDE_SESSIONS=()"
@@ -66,9 +94,9 @@ _claude_mock_save_state() {
       declare -p MOCK_CLAUDE_CONFIGS 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA MOCK_CLAUDE_CONFIGS=()"
       declare -p MOCK_CLAUDE_CALL_HISTORY 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA MOCK_CLAUDE_CALL_HISTORY=()"
       declare -p MOCK_CLAUDE_EXIT_CODES 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA MOCK_CLAUDE_EXIT_CODES=()"
-      echo "export CLAUDE_MOCK_CALL_COUNTER=$CLAUDE_MOCK_CALL_COUNTER"
-      echo "export CLAUDE_MOCK_SESSION_COUNTER=$CLAUDE_MOCK_SESSION_COUNTER"
-    } > "$CLAUDE_MOCK_STATE_FILE"
+      echo "export CLAUDE_MOCK_CALL_COUNTER=${CLAUDE_MOCK_CALL_COUNTER:-0}"
+      echo "export CLAUDE_MOCK_SESSION_COUNTER=${CLAUDE_MOCK_SESSION_COUNTER:-0}"
+    } > "$CLAUDE_MOCK_STATE_FILE" 2>/dev/null || true
   fi
 }
 
@@ -76,7 +104,7 @@ _claude_mock_save_state() {
 _claude_mock_load_state() {
   if [[ -n "${CLAUDE_MOCK_STATE_FILE}" && -f "$CLAUDE_MOCK_STATE_FILE" ]]; then
     # Use eval to execute in global scope, not function scope
-    eval "$(cat "$CLAUDE_MOCK_STATE_FILE")" 2>/dev/null || true
+    eval "$(cat "$CLAUDE_MOCK_STATE_FILE" 2>/dev/null)" 2>/dev/null || true
   fi
 }
 
@@ -585,6 +613,11 @@ EOF
 
 # Set up common scenarios
 mock::claude::scenario::setup_healthy() {
+  # Ensure state file is initialized before trying to use it
+  if [[ ! -f "${CLAUDE_MOCK_STATE_FILE:-}" ]]; then
+    _claude_mock_init_state_file
+  fi
+  
   mock::claude::set_config "auth_status" "logged_in"
   mock::claude::set_config "model_access" "claude-3-5-sonnet,claude-3-haiku"
   mock::claude::set_response "health check" "Claude Code is running and healthy. All systems operational."

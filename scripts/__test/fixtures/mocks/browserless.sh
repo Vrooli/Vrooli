@@ -23,6 +23,11 @@ declare -g BROWSERLESS_MOCK_LOADED=1
 MOCK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [[ -f "$MOCK_DIR/logs.sh" ]] && source "$MOCK_DIR/logs.sh"
 
+# Initialize mock logging system
+if declare -f mock::init_logging >/dev/null 2>&1; then
+    mock::init_logging >/dev/null 2>&1 || true
+fi
+
 # Global configuration
 declare -g BROWSERLESS_MOCK_STATE_DIR="${BROWSERLESS_MOCK_STATE_DIR:-/tmp/browserless-mock-state}"
 declare -g BROWSERLESS_MOCK_DEBUG="${BROWSERLESS_MOCK_DEBUG:-}"
@@ -51,8 +56,15 @@ declare -gA BROWSERLESS_MOCK_PRESSURE_DATA=()   # Browser pool pressure data
 declare -gA BROWSERLESS_MOCK_ERROR_INJECTION=() # Error injection for testing
 declare -gA BROWSERLESS_MOCK_REQUEST_LOG=()     # Log of API requests made
 
-# Initialize state directory
-mkdir -p "$BROWSERLESS_MOCK_STATE_DIR"
+# Initialize state directory with error handling
+if ! mkdir -p "$BROWSERLESS_MOCK_STATE_DIR" 2>/dev/null; then
+    # Fallback to a more accessible temp directory
+    BROWSERLESS_MOCK_STATE_DIR="${TMPDIR:-/tmp}/browserless-mock-state-$$"
+    mkdir -p "$BROWSERLESS_MOCK_STATE_DIR" 2>/dev/null || {
+        echo "[BROWSERLESS_MOCK] WARNING: Could not create state directory, using memory-only state" >&2
+        BROWSERLESS_MOCK_STATE_DIR=""
+    }
+fi
 
 # Default pressure data
 BROWSERLESS_MOCK_PRESSURE_DATA=(
@@ -67,9 +79,14 @@ BROWSERLESS_MOCK_PRESSURE_DATA=(
 
 # State persistence functions
 mock::browserless::save_state() {
+    # Skip file-based persistence if no state directory available
+    if [[ -z "$BROWSERLESS_MOCK_STATE_DIR" ]]; then
+        return 0
+    fi
+    
     local state_file="$BROWSERLESS_MOCK_STATE_DIR/browserless-state.sh"
-    {
-        echo "# Browserless mock state - $(date)"
+    if ! {
+        echo "# Browserless mock state - $(command date 2>/dev/null || echo "unknown time")"
         
         # Save arrays using declare -p for proper restoration
         declare -p BROWSERLESS_MOCK_CONFIG 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA BROWSERLESS_MOCK_CONFIG=()"
@@ -79,22 +96,31 @@ mock::browserless::save_state() {
         declare -p BROWSERLESS_MOCK_PRESSURE_DATA 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA BROWSERLESS_MOCK_PRESSURE_DATA=()"
         declare -p BROWSERLESS_MOCK_ERROR_INJECTION 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA BROWSERLESS_MOCK_ERROR_INJECTION=()"
         declare -p BROWSERLESS_MOCK_REQUEST_LOG 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA BROWSERLESS_MOCK_REQUEST_LOG=()"
-    } > "$state_file"
+    } > "$state_file" 2>/dev/null; then
+        # Fallback: continue without file persistence
+        return 0
+    fi
     
     # Use centralized logging if available
     if declare -f mock::log_state >/dev/null 2>&1; then
-        mock::log_state "browserless" "Saved Browserless state to $state_file"
+        mock::log_state "browserless" "state_saved" "Saved Browserless state to $state_file"
     fi
 }
 
 mock::browserless::load_state() {
+    # Skip file-based loading if no state directory available
+    if [[ -z "$BROWSERLESS_MOCK_STATE_DIR" ]]; then
+        return 0
+    fi
+    
     local state_file="$BROWSERLESS_MOCK_STATE_DIR/browserless-state.sh"
     if [[ -f "$state_file" ]]; then
-        source "$state_file"
-        
-        # Use centralized logging if available
-        if declare -f mock::log_state >/dev/null 2>&1; then
-            mock::log_state "browserless" "Loaded Browserless state from $state_file"
+        # Attempt to source the state file safely
+        if source "$state_file" 2>/dev/null; then
+            # Use centralized logging if available
+            if declare -f mock::log_state >/dev/null 2>&1; then
+                mock::log_state "browserless" "state_loaded" "Loaded Browserless state from $state_file"
+            fi
         fi
     fi
 }
@@ -140,7 +166,7 @@ mock::browserless::reset() {
         [recentlyRejected]="0"
     )
     
-    mock::browserless::save_state
+    mock::browserless::save_state 2>/dev/null || true
     
     # Use centralized logging if available
     if declare -f mock::log_state >/dev/null 2>&1; then
@@ -158,7 +184,7 @@ mock::browserless::set_container_state() {
     [[ -z "$name" ]] && name="__empty__"
     
     BROWSERLESS_MOCK_CONTAINERS["$name"]="$state|$image"
-    mock::browserless::save_state
+    mock::browserless::save_state 2>/dev/null || true
     
     # Use centralized logging if available
     if declare -f mock::log_state >/dev/null 2>&1; then
@@ -172,7 +198,7 @@ mock::browserless::set_api_response() {
     local response="$2"
     
     BROWSERLESS_MOCK_API_RESPONSES["$endpoint"]="$response"
-    mock::browserless::save_state
+    mock::browserless::save_state 2>/dev/null || true
     
     # Use centralized logging if available
     if declare -f mock::log_state >/dev/null 2>&1; then
@@ -201,7 +227,7 @@ mock::browserless::set_pressure() {
     BROWSERLESS_MOCK_PRESSURE_DATA[cpu]="$cpu"
     BROWSERLESS_MOCK_PRESSURE_DATA[memory]="$memory"
     
-    mock::browserless::save_state
+    mock::browserless::save_state 2>/dev/null || true
     
     # Use centralized logging if available
     if declare -f mock::log_state >/dev/null 2>&1; then
@@ -215,7 +241,7 @@ mock::browserless::inject_error() {
     local error_type="${2:-generic}"
     
     BROWSERLESS_MOCK_ERROR_INJECTION["$endpoint"]="$error_type"
-    mock::browserless::save_state
+    mock::browserless::save_state 2>/dev/null || true
     
     # Use centralized logging if available
     if declare -f mock::log_state >/dev/null 2>&1; then
@@ -227,7 +253,7 @@ mock::browserless::inject_error() {
 mock::browserless::set_health_status() {
     local status="${1:-healthy}"
     BROWSERLESS_MOCK_CONFIG[health_status]="$status"
-    mock::browserless::save_state
+    mock::browserless::save_state 2>/dev/null || true
     
     # Use centralized logging if available
     if declare -f mock::log_state >/dev/null 2>&1; then
@@ -239,7 +265,7 @@ mock::browserless::set_health_status() {
 mock::browserless::set_server_status() {
     local status="${1:-running}"
     BROWSERLESS_MOCK_CONFIG[server_status]="$status"
-    mock::browserless::save_state
+    mock::browserless::save_state 2>/dev/null || true
     
     # Use centralized logging if available
     if declare -f mock::log_state >/dev/null 2>&1; then
@@ -252,13 +278,13 @@ mock::browserless::set_server_status() {
 # ----------------------------
 
 curl() {
-    # Use centralized logging if available
+    # Use centralized logging if available, with error handling
     if declare -f mock::log_and_verify >/dev/null 2>&1; then
-        mock::log_and_verify "curl" "$@"
+        mock::log_and_verify "curl" "$@" 2>/dev/null || true
     fi
     
     # Always reload state at the beginning to handle BATS subshells
-    mock::browserless::load_state
+    mock::browserless::load_state 2>/dev/null || true
     
     # Parse curl arguments
     local url="" method="GET" output_file="" data="" headers=() max_time=""
@@ -269,28 +295,64 @@ curl() {
     while [[ $i -lt ${#args[@]} ]]; do
         case "${args[$i]}" in
             -X)
-                method="${args[$((i+1))]}"
-                i=$((i + 2))
+                # Check if next argument exists and is not another flag
+                if [[ $((i + 1)) -lt ${#args[@]} && "${args[$((i+1))]}" != -* ]]; then
+                    method="${args[$((i+1))]}"
+                    i=$((i + 2))
+                else
+                    # Missing method argument, default to GET
+                    i=$((i + 1))
+                fi
                 ;;
             --output|-o)
-                output_file="${args[$((i+1))]}"
-                i=$((i + 2))
+                # Check if next argument exists and is not another flag
+                if [[ $((i + 1)) -lt ${#args[@]} && "${args[$((i+1))]}" != -* ]]; then
+                    output_file="${args[$((i+1))]}"
+                    i=$((i + 2))
+                else
+                    # Missing output file argument
+                    i=$((i + 1))
+                fi
                 ;;
             -d|--data)
-                data="${args[$((i+1))]}"
-                i=$((i + 2))
+                # Check if next argument exists and is not another flag
+                if [[ $((i + 1)) -lt ${#args[@]} && "${args[$((i+1))]}" != -* ]]; then
+                    data="${args[$((i+1))]}"
+                    i=$((i + 2))
+                else
+                    # Missing data argument
+                    i=$((i + 1))
+                fi
                 ;;
             -H|--header)
-                headers+=("${args[$((i+1))]}")
-                i=$((i + 2))
+                # Check if next argument exists and is not another flag
+                if [[ $((i + 1)) -lt ${#args[@]} && "${args[$((i+1))]}" != -* ]]; then
+                    headers+=("${args[$((i+1))]}")
+                    i=$((i + 2))
+                else
+                    # Missing header argument
+                    i=$((i + 1))
+                fi
                 ;;
             --max-time)
-                max_time="${args[$((i+1))]}"
-                i=$((i + 2))
+                # Check if next argument exists and is not another flag
+                if [[ $((i + 1)) -lt ${#args[@]} && "${args[$((i+1))]}" != -* ]]; then
+                    max_time="${args[$((i+1))]}"
+                    i=$((i + 2))
+                else
+                    # Missing max-time argument
+                    i=$((i + 1))
+                fi
                 ;;
             --write-out)
-                write_out="${args[$((i+1))]}"
-                i=$((i + 2))
+                # Check if next argument exists and is not another flag
+                if [[ $((i + 1)) -lt ${#args[@]} && "${args[$((i+1))]}" != -* ]]; then
+                    write_out="${args[$((i+1))]}"
+                    i=$((i + 2))
+                else
+                    # Missing write-out argument
+                    i=$((i + 1))
+                fi
                 ;;
             -s|--silent)
                 silent=true
@@ -309,41 +371,84 @@ curl() {
                 i=$((i + 1))
                 ;;
             *)
+                # Skip unknown arguments
                 i=$((i + 1))
                 ;;
         esac
     done
     
-    # Check if this is a Browserless API request
-    if [[ "$url" == *"/pressure"* || "$url" == *"/chrome/"* || "$url" =~ :300[0-9] ]]; then
+    # Validate that we have a URL
+    if [[ -z "$url" ]]; then
+        echo "curl: try 'curl --help' or 'curl --manual' for more information" >&2
+        return 2  # curl error code for command line error
+    fi
+    
+    # Check if this is a Browserless API request with safer pattern matching
+    local is_browserless_request=false
+    if [[ -n "$url" ]]; then
+        # Check for pressure endpoint
+        if [[ "$url" == *"/pressure"* ]]; then
+            is_browserless_request=true
+        # Check for chrome endpoints
+        elif [[ "$url" == *"/chrome/"* ]]; then
+            is_browserless_request=true
+        # Check for port patterns (safer than regex)
+        elif [[ "$url" == *":3001"* || "$url" == *":3002"* || "$url" == *":3003"* || "$url" == *":3004"* || "$url" == *":3005"* || "$url" == *":3006"* || "$url" == *":3007"* || "$url" == *":3008"* || "$url" == *":3009"* ]]; then
+            is_browserless_request=true
+        fi
+    fi
+    
+    if [[ "$is_browserless_request" == "true" ]]; then
         mock::browserless::handle_api_request "$method" "$url" "$data" "$output_file" "$write_out" "$fail_on_error"
         return $?
     fi
     
     # For non-Browserless requests, simulate a generic successful response
     if [[ -n "$output_file" ]]; then
-        echo "Mock curl response" > "$output_file"
+        # Try to write to output file safely
+        if ! echo "Mock curl response" > "$output_file" 2>/dev/null; then
+            # Output file write failed, return error like real curl would
+            if [[ "$fail_on_error" == "true" ]]; then
+                return 23  # curl error code for write error
+            fi
+            # In non-fail mode, output to stdout instead
+            echo "Mock curl response"
+        fi
     else
         echo "Mock curl response"
     fi
     
     [[ -n "$write_out" ]] && echo "200"
-    mock::browserless::save_state
+    mock::browserless::save_state 2>/dev/null || true
     return 0
 }
 
 # Handle Browserless API requests
 mock::browserless::handle_api_request() {
-    local method="$1"
-    local url="$2"
-    local data="$3"
-    local output_file="$4"
-    local write_out="$5"
-    local fail_on_error="$6"
+    local method="${1:-GET}"
+    local url="${2:-}"
+    local data="${3:-}"
+    local output_file="${4:-}"
+    local write_out="${5:-}"
+    local fail_on_error="${6:-false}"
+    
+    # Validate essential parameters
+    if [[ -z "$url" ]]; then
+        if [[ "$fail_on_error" == "true" ]]; then
+            return 3  # curl error code for malformed URL
+        fi
+        echo "curl: no URL specified!" >&2
+        return 3
+    fi
     
     # Log the request with microsecond precision to avoid collisions
-    local timestamp=$(date '+%Y-%m-%d %H:%M:%S.%N' | head -c 23)
-    BROWSERLESS_MOCK_REQUEST_LOG["$timestamp"]="$method $url"
+    local timestamp
+    timestamp=$(command date '+%Y-%m-%d %H:%M:%S.%N' 2>/dev/null | head -c 23) || timestamp=$(command date '+%Y-%m-%d %H:%M:%S' 2>/dev/null) || timestamp="unknown-$($$)"
+    
+    # Safely log the request
+    if [[ -n "$timestamp" && -n "$method" && -n "$url" ]]; then
+        BROWSERLESS_MOCK_REQUEST_LOG["$timestamp"]="$method $url"
+    fi
     
     # Extract endpoint from URL
     local endpoint=""
@@ -408,7 +513,7 @@ mock::browserless::handle_api_request() {
     esac
     
     [[ -n "$write_out" ]] && echo "200"
-    mock::browserless::save_state
+    mock::browserless::save_state 2>/dev/null || true
     return 0
 }
 
@@ -471,7 +576,12 @@ EOF
 )
     
     if [[ -n "$output_file" ]]; then
-        echo "$response" > "$output_file"
+        # Safely write to output file
+        if ! echo "$response" > "$output_file" 2>/dev/null; then
+            # File write failed, output to stdout as fallback
+            echo "$response"
+            return 1
+        fi
     else
         echo "$response"
     fi
@@ -564,7 +674,12 @@ mock::browserless::generate_content_response() {
 </html>"
     
     if [[ -n "$output_file" ]]; then
-        echo "$response" > "$output_file"
+        # Safely write to output file
+        if ! echo "$response" > "$output_file" 2>/dev/null; then
+            # File write failed, output to stdout as fallback
+            echo "$response"
+            return 1
+        fi
     else
         echo "$response"
     fi
@@ -584,7 +699,12 @@ mock::browserless::generate_function_response() {
     local response='{"title":"Mock Page Title","url":"https://example.com","viewport":{"width":1280,"height":720},"result":"Mock function execution completed successfully"}'
     
     if [[ -n "$output_file" ]]; then
-        echo "$response" > "$output_file"
+        # Safely write to output file
+        if ! echo "$response" > "$output_file" 2>/dev/null; then
+            # File write failed, output to stdout as fallback
+            echo "$response"
+            return 1
+        fi
     else
         echo "$response"
     fi

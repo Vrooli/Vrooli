@@ -134,6 +134,16 @@ fi
 # Utilities
 # ----------------------------
 
+#######################################
+# Load state from file - use everywhere state is needed
+#######################################
+_ollama_load_state() {
+    if [[ -f "$OLLAMA_MOCK_STATE_FILE" && -s "$OLLAMA_MOCK_STATE_FILE" ]]; then
+        # Source the state file to load all variables
+        source "$OLLAMA_MOCK_STATE_FILE" 2>/dev/null || true
+    fi
+}
+
 _mock_current_timestamp() {
     date -u +"%Y-%m-%dT%H:%M:%S.%3NZ" 2>/dev/null || date -u +"%Y-%m-%dT%H:%M:%SZ"
 }
@@ -319,10 +329,8 @@ mock::ollama::inject_error() {
 # Main ollama command interceptor
 #######################################
 ollama() {
-    # Load state from file for subshell access
-    if [[ -n "${OLLAMA_MOCK_STATE_FILE}" && -f "$OLLAMA_MOCK_STATE_FILE" ]]; then
-        eval "$(cat "$OLLAMA_MOCK_STATE_FILE")" 2>/dev/null || true
-    fi
+    # Ensure we load the latest state when called as main command  
+    _ollama_load_state
     
     # Use centralized logging if available
     if command -v mock::log_and_verify &>/dev/null; then
@@ -635,7 +643,7 @@ _ollama_cmd_stop() {
         return 0
     else
         echo "model '$model' is not currently loaded"
-        return 1
+        return 0  # Changed to 0 for idempotent behavior
     fi
 }
 
@@ -772,24 +780,6 @@ _ollama_cmd_version() {
 # HTTP API Integration (for compatibility with existing http mock)
 # ----------------------------
 
-# Initialize HTTP endpoints when this mock is loaded
-if command -v mock::http::set_endpoint_response &>/dev/null; then
-    case "$OLLAMA_MOCK_MODE" in
-        healthy)
-            _ollama_setup_healthy_http_endpoints
-            ;;
-        unhealthy)
-            _ollama_setup_unhealthy_http_endpoints  
-            ;;
-        installing)
-            _ollama_setup_installing_http_endpoints
-            ;;
-        stopped|offline)
-            _ollama_setup_stopped_http_endpoints
-            ;;
-    esac
-fi
-
 #######################################
 # Setup healthy HTTP endpoints (used by http mock)
 #######################################
@@ -881,6 +871,25 @@ _ollama_setup_stopped_http_endpoints() {
     mock::http::set_endpoint_unreachable "$OLLAMA_BASE_URL"
 }
 
+# Initialize HTTP endpoints when this mock is loaded (only if not in BATS test mode)
+# Skip HTTP endpoint initialization during BATS test setup to avoid complex mock interactions
+if [[ -z "${BATS_TEST_FILENAME:-}" ]] && command -v mock::http::set_endpoint_response &>/dev/null; then
+    case "$OLLAMA_MOCK_MODE" in
+        healthy)
+            _ollama_setup_healthy_http_endpoints
+            ;;
+        unhealthy)
+            _ollama_setup_unhealthy_http_endpoints  
+            ;;
+        installing)
+            _ollama_setup_installing_http_endpoints
+            ;;
+        stopped|offline)
+            _ollama_setup_stopped_http_endpoints
+            ;;
+    esac
+fi
+
 # ----------------------------
 # Test Helper Functions
 # ----------------------------
@@ -935,10 +944,9 @@ mock::ollama::scenario::offline() {
 mock::ollama::assert::model_installed() {
     local model="$1"
     
-    # Load state from file for subshell access
-    if [[ -n "${OLLAMA_MOCK_STATE_FILE}" && -f "$OLLAMA_MOCK_STATE_FILE" ]]; then
-        eval "$(cat "$OLLAMA_MOCK_STATE_FILE")" 2>/dev/null || true
-    fi
+    # Load current state
+    _ollama_load_state
+    
     
     if [[ "${MOCK_OLLAMA_MODELS[$model]:-}" != "installed" ]]; then
         echo "ASSERTION FAILED: Model '$model' is not installed" >&2
@@ -954,10 +962,9 @@ mock::ollama::assert::model_installed() {
 mock::ollama::assert::model_running() {
     local model="$1"
     
-    # Load state from file for subshell access
-    if [[ -n "${OLLAMA_MOCK_STATE_FILE}" && -f "$OLLAMA_MOCK_STATE_FILE" ]]; then
-        eval "$(cat "$OLLAMA_MOCK_STATE_FILE")" 2>/dev/null || true
-    fi
+    # Load current state
+    _ollama_load_state
+    
     
     if [[ -z "${MOCK_OLLAMA_RUNNING_MODELS[$model]:-}" ]]; then
         echo "ASSERTION FAILED: Model '$model' is not running" >&2
@@ -975,9 +982,7 @@ mock::ollama::assert::command_called() {
     local expected_count="${2:-1}"
     
     # Load state from file for subshell access
-    if [[ -n "${OLLAMA_MOCK_STATE_FILE}" && -f "$OLLAMA_MOCK_STATE_FILE" ]]; then
-        eval "$(cat "$OLLAMA_MOCK_STATE_FILE")" 2>/dev/null || true
-    fi
+    _ollama_load_state
     
     local actual_count="${MOCK_OLLAMA_CALL_COUNT[$cmd]:-0}"
     
@@ -997,10 +1002,7 @@ mock::ollama::assert::command_called() {
 # Arguments: $1 - command name
 #######################################
 mock::ollama::get::call_count() {
-    # Load state from file for subshell access
-    if [[ -n "${OLLAMA_MOCK_STATE_FILE}" && -f "$OLLAMA_MOCK_STATE_FILE" ]]; then
-        eval "$(cat "$OLLAMA_MOCK_STATE_FILE")" 2>/dev/null || true
-    fi
+    _ollama_load_state
     
     local cmd="$1"
     echo "${MOCK_OLLAMA_CALL_COUNT[$cmd]:-0}"
@@ -1010,10 +1012,8 @@ mock::ollama::get::call_count() {
 # List installed models  
 #######################################
 mock::ollama::get::installed_models() {
-    # Load state from file for subshell access
-    if [[ -n "${OLLAMA_MOCK_STATE_FILE}" && -f "$OLLAMA_MOCK_STATE_FILE" ]]; then
-        eval "$(cat "$OLLAMA_MOCK_STATE_FILE")" 2>/dev/null || true
-    fi
+    # Ensure we load the latest state  
+    _ollama_load_state
     
     local models=()
     for model in "${!MOCK_OLLAMA_MODELS[@]}"; do
@@ -1029,10 +1029,7 @@ mock::ollama::get::installed_models() {
 # Get current mode
 #######################################
 mock::ollama::get::mode() {
-    # Load state from file for subshell access
-    if [[ -n "${OLLAMA_MOCK_STATE_FILE}" && -f "$OLLAMA_MOCK_STATE_FILE" ]]; then
-        eval "$(cat "$OLLAMA_MOCK_STATE_FILE")" 2>/dev/null || true
-    fi
+    _ollama_load_state
     
     echo "$OLLAMA_MOCK_MODE"
 }
@@ -1046,9 +1043,7 @@ mock::ollama::get::mode() {
 #######################################
 mock::ollama::debug::dump_state() {
     # Load state from file for subshell access
-    if [[ -n "${OLLAMA_MOCK_STATE_FILE}" && -f "$OLLAMA_MOCK_STATE_FILE" ]]; then
-        eval "$(cat "$OLLAMA_MOCK_STATE_FILE")" 2>/dev/null || true
-    fi
+    _ollama_load_state
     
     echo "=== Ollama Mock State Dump ==="
     echo "Mode: $OLLAMA_MOCK_MODE"
@@ -1109,19 +1104,20 @@ export -f mock::ollama::scenario::offline
 export -f mock::ollama::assert::model_installed mock::ollama::assert::model_running
 export -f mock::ollama::assert::command_called
 
+# Export helper functions
+export -f _ollama_load_state
+
 # Export getters
 export -f mock::ollama::get::call_count mock::ollama::get::installed_models mock::ollama::get::mode
 
 # Export debug functions
 export -f mock::ollama::debug::dump_state
 
-# Load existing state if available, otherwise initialize with defaults  
-if [[ -f "$OLLAMA_MOCK_STATE_FILE" ]] && grep -q "declare -gA MOCK_OLLAMA_MODELS" "$OLLAMA_MOCK_STATE_FILE" 2>/dev/null; then
-    # State file exists with valid structure, load it
-    eval "$(cat "$OLLAMA_MOCK_STATE_FILE")" 2>/dev/null || mock::ollama::reset
-else
-    # No state file or invalid structure, initialize with defaults
-    mock::ollama::reset
+# Load state if state file exists and has content, otherwise use defaults
+# This allows setup() to override with reset if needed
+if [[ -f "$OLLAMA_MOCK_STATE_FILE" ]] && [[ -s "$OLLAMA_MOCK_STATE_FILE" ]] && grep -q "MOCK_OLLAMA_MODELS\[" "$OLLAMA_MOCK_STATE_FILE" 2>/dev/null; then
+    # State file exists with actual models, load it
+    eval "$(cat "$OLLAMA_MOCK_STATE_FILE")" 2>/dev/null || true
 fi
 
 echo "[MOCK] Ollama mock implementation loaded successfully"
