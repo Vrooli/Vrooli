@@ -9,7 +9,7 @@ Local AI and automation tools that extend Vrooli's capabilities through modular 
 ./index.sh --action discover
 
 # Install specific resources
-./scripts/main/setup.sh --resources "ollama,n8n,agent-s2"
+./scripts/manage.sh setup --resources "ollama,n8n,agent-s2"
 
 # Check resource status
 ./index.sh --action status --resources ollama

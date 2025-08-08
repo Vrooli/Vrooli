@@ -6,12 +6,12 @@ MINIO_DIR="$BATS_TEST_DIRNAME/.."
 
 # Source dependencies
 RESOURCES_DIR="$MINIO_DIR/../.."
-HELPERS_DIR="$RESOURCES_DIR/../helpers"
+HELPERS_DIR="$RESOURCES_DIR/../lib"
 
 # Source required utilities (suppress errors during test setup)
 . "$HELPERS_DIR/utils/log.sh" 2>/dev/null || true
-. "$HELPERS_DIR/utils/system.sh" 2>/dev/null || true
-. "$HELPERS_DIR/utils/ports.sh" 2>/dev/null || true
+. "$HELPERS_DIR/utils/system_commands.sh" 2>/dev/null || true
+. "$HELPERS_DIR/network/ports.sh" 2>/dev/null || true
 
 # ============================================================================
 # Script Loading Tests

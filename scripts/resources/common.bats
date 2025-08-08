@@ -5,12 +5,12 @@
 
 # Source dependencies
 RESOURCES_DIR="$BATS_TEST_DIRNAME"
-HELPERS_DIR="$RESOURCES_DIR/../helpers"
+HELPERS_DIR="$RESOURCES_DIR/../lib"
 
 . "$HELPERS_DIR/utils/log.sh"
 . "$HELPERS_DIR/utils/flow.sh"
-. "$HELPERS_DIR/utils/ports.sh"
-. "$HELPERS_DIR/utils/system.sh"
+. "$HELPERS_DIR/network/ports.sh"
+. "$HELPERS_DIR/utils/system_commands.sh"
 . "$RESOURCES_DIR/port-registry.sh"
 
 # Source only the functions we need to test
@@ -133,7 +133,7 @@ HELPERS_DIR="$RESOURCES_DIR/../helpers"
 #!/bin/bash
 # Source all dependencies
 source "$1/utils/log.sh" 2>/dev/null || true
-source "$1/utils/ports.sh"
+source "$1/network/ports.sh"
 source "$2/port-registry.sh"
 source "$2/common.sh"
 

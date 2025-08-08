@@ -23,7 +23,7 @@ _redis_backup_detect_project_root() {
 
 PROJECT_ROOT="$(_redis_backup_detect_project_root)"
 # shellcheck disable=SC1091
-source "$PROJECT_ROOT/scripts/helpers/utils/secrets.sh"
+source "$PROJECT_ROOT/scripts/lib/service/secrets.sh"
 
 #######################################
 # Create Redis backup
@@ -153,8 +153,8 @@ redis::backup::create_rdb() {
 redis::backup::copy_data_dir() {
     local backup_path="$1"
     
-    # Create a tar archive of the data directory
-    if tar -czf "${backup_path}.tar.gz" -C "${REDIS_DATA_DIR}" . 2>/dev/null; then
+    # Create a tar archive of the data directory from the container
+    if docker exec "${REDIS_CONTAINER_NAME}" tar -czf - -C /data . > "${backup_path}.tar.gz" 2>/dev/null; then
         log::debug "Data directory archived successfully"
         return 0
     else
@@ -249,8 +249,8 @@ redis::backup::restore() {
 redis::backup::restore_rdb() {
     local backup_path="$1"
     
-    # Copy RDB file to data directory
-    if cp "$backup_path" "${REDIS_DATA_DIR}/dump.rdb"; then
+    # Copy RDB file to container's data directory
+    if docker cp "$backup_path" "${REDIS_CONTAINER_NAME}:/data/dump.rdb"; then
         log::debug "RDB file restored successfully"
         return 0
     else
@@ -268,11 +268,11 @@ redis::backup::restore_rdb() {
 redis::backup::restore_tar() {
     local backup_path="$1"
     
-    # Clear existing data
-    rm -rf "${REDIS_DATA_DIR:?}"/*
+    # Clear existing data in container
+    docker exec "${REDIS_CONTAINER_NAME}" sh -c 'rm -rf /data/*'
     
-    # Extract tar archive
-    if tar -xzf "$backup_path" -C "${REDIS_DATA_DIR}"; then
+    # Extract tar archive to container
+    if cat "$backup_path" | docker exec -i "${REDIS_CONTAINER_NAME}" tar -xzf - -C /data; then
         log::debug "Data directory restored successfully"
         return 0
     else

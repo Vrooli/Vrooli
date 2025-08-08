@@ -70,7 +70,6 @@ spec:
       - secure-document-processing
       - analytics-dashboard
     secondary:
-      - multi-modal-ai-assistant
       - research-assistant
       - campaign-content-studio
     optimal_combinations:

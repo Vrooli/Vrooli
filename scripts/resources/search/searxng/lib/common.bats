@@ -6,12 +6,12 @@ SEARXNG_DIR="$BATS_TEST_DIRNAME/.."
 
 # Source dependencies in correct order (matching manage.sh)
 RESOURCES_DIR="$SEARXNG_DIR/../.."
-HELPERS_DIR="$RESOURCES_DIR/../helpers"
+HELPERS_DIR="$RESOURCES_DIR/../lib"
 
 # Source utilities first
 . "$HELPERS_DIR/utils/log.sh"
-. "$HELPERS_DIR/utils/system.sh"
-. "$HELPERS_DIR/utils/ports.sh"
+. "$HELPERS_DIR/utils/system_commands.sh"
+. "$HELPERS_DIR/network/ports.sh"
 . "$HELPERS_DIR/utils/flow.sh"
 . "$RESOURCES_DIR/port-registry.sh"
 
@@ -19,12 +19,12 @@ HELPERS_DIR="$RESOURCES_DIR/../helpers"
 setup_searxng_test_env() {
     local script_dir="$SEARXNG_DIR"
     local resources_dir="$SEARXNG_DIR/../.."
-    local helpers_dir="$resources_dir/../helpers"
+    local helpers_dir="$resources_dir/../lib"
     
     # Source utilities first
     source "$helpers_dir/utils/log.sh"
-    source "$helpers_dir/utils/system.sh"
-    source "$helpers_dir/utils/ports.sh"
+    source "$helpers_dir/utils/system_commands.sh"
+    source "$helpers_dir/network/ports.sh"
     source "$helpers_dir/utils/flow.sh"
     source "$resources_dir/port-registry.sh"
     
@@ -136,11 +136,11 @@ setup_searxng_test_env() {
 setup_searxng_test_env_no_defaults() {
     local script_dir="$SEARXNG_DIR"
     local resources_dir="$SEARXNG_DIR/../.."
-    local helpers_dir="$resources_dir/../helpers"
+    local helpers_dir="$resources_dir/../lib"
     
     source "$helpers_dir/utils/log.sh"
-    source "$helpers_dir/utils/system.sh"
-    source "$helpers_dir/utils/ports.sh"
+    source "$helpers_dir/utils/system_commands.sh"
+    source "$helpers_dir/network/ports.sh"
     source "$helpers_dir/utils/flow.sh"
     source "$resources_dir/port-registry.sh"
     source "$resources_dir/common.sh"

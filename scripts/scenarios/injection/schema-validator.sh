@@ -13,7 +13,7 @@ RESOURCES_DIR="${SCRIPT_DIR}/.."
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../helpers/utils/args.sh"
+source "${RESOURCES_DIR}/../lib/utils/args.sh"
 
 # Schema file paths - use official schemas
 readonly PROJECT_ROOT=$(cd "${SCRIPT_DIR}/../../.." && pwd)

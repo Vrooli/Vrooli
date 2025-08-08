@@ -182,7 +182,7 @@ cd scripts/__test/resources
 ./run.sh --resource ollama
 
 # Run scenario tests
-./run.sh --scenario multi-modal-ai-assistant
+./run.sh --scenario research-assistant
 
 # Profile test performance
 cd scripts/__test/shell/core

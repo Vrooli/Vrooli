@@ -73,8 +73,7 @@ spec:
   # Scenario compatibility
   scenarios:
     primary:
-      - multi-modal-ai-assistant
-      - intelligent-desktop-assistant
+      - analytics-dashboard
     secondary:
       - secure-document-processing
       - analytics-dashboard

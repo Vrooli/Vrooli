@@ -109,7 +109,7 @@ Once generated, run your app like any Vrooli instance:
 cd ~/generated-apps/research-assistant
 
 # Start the application (uses standard Vrooli scripts)
-./scripts/main/develop.sh --target docker --detached yes
+./scripts/manage.sh develop --target docker --detached yes
 
 # The app will:
 # 1. Start required resources based on service.json
@@ -161,7 +161,7 @@ Ready to deploy a scenario as a standalone application?
 
 1. **Choose a scenario**: Browse `/scripts/scenarios/core/` for available scenarios
 2. **Generate the app**: `./tools/scenario-to-app.sh <scenario-name>`  
-3. **Run the app**: `cd ~/generated-apps/<scenario-name> && ./scripts/main/develop.sh`
+3. **Run the app**: `cd ~/generated-apps/<scenario-name> && ./scripts/manage.sh develop`
 
 That's it! The generated app is a complete, standalone business application ready for customer deployment.
 

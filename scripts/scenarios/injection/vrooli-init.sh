@@ -43,8 +43,8 @@ RESOURCES_DIR="${PROJECT_ROOT}/scripts/resources"
 INIT_STATE_FILE="${PROJECT_ROOT}/.vrooli/.initialization-state.json"
 
 # Import helper functions if available
-if [[ -f "${PROJECT_ROOT}/scripts/helpers/utils/log.sh" ]]; then
-    source "${PROJECT_ROOT}/scripts/helpers/utils/log.sh"
+if [[ -f "${PROJECT_ROOT}/scripts/lib/utils/log.sh" ]]; then
+    source "${PROJECT_ROOT}/scripts/lib/utils/log.sh"
 fi
 
 # Global variables

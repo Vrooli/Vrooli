@@ -206,8 +206,8 @@ The AI layer intelligently orchestrates core automation functions to achieve com
 
 ### Integration with Scenarios
 Agent-S2 is used in these business scenarios:
-- **[Multi-Modal AI Assistant](../../scenarios/core/multi-modal-ai-assistant/)** - Voice + visual + screen automation ($10k-25k projects)
-- **[Intelligent Desktop Assistant](../../scenarios/core/intelligent-desktop-assistant/)** - Desktop automation workflows ($8k-18k projects)
+- **[Research Assistant](../../scenarios/core/research-assistant/)** - AI-powered research with automated data collection ($15k-30k projects)
+- **[Analytics Dashboard](../../scenarios/core/analytics-dashboard/)** - Automated dashboard creation and data visualization ($12k-25k projects)
 
 ### Test Fixtures
 - **Shared Test Data**: `scripts/__test/resources/fixtures/images/` (test screenshots and visual validation)
@@ -219,7 +219,7 @@ Agent-S2 is used in these business scenarios:
 ./scripts/__test/resources/quick-test.sh agent-s2
 
 # Test in business scenarios
-cd ./scripts/scenarios/core/multi-modal-ai-assistant && ./test.sh
+cd ./scripts/scenarios/core/research-assistant && ./test.sh
 
 # Run all tests using Agent-S2
 ./scripts/scenarios/tools/test-by-resource.sh --resource agent-s2

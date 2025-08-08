@@ -6,12 +6,12 @@ N8N_DIR="$BATS_TEST_DIRNAME/.."
 
 # Source dependencies
 RESOURCES_DIR="$N8N_DIR/../.."
-HELPERS_DIR="$RESOURCES_DIR/../helpers"
+HELPERS_DIR="$RESOURCES_DIR/../lib"
 
 # Source required utilities 
 . "$HELPERS_DIR/utils/log.sh"
-. "$HELPERS_DIR/utils/system.sh"
-. "$HELPERS_DIR/utils/ports.sh"
+. "$HELPERS_DIR/utils/system_commands.sh"
+. "$HELPERS_DIR/network/ports.sh"
 . "$HELPERS_DIR/utils/flow.sh"
 . "$RESOURCES_DIR/port-registry.sh"
 
@@ -20,12 +20,12 @@ setup_n8n_docker_test() {
     # Source dependencies directly in test context
     SCRIPT_DIR="$N8N_DIR"  
     RESOURCES_DIR="$N8N_DIR/../.."
-    HELPERS_DIR="$RESOURCES_DIR/../helpers"
+    HELPERS_DIR="$RESOURCES_DIR/../lib"
     
     # Source in correct order
     source "$HELPERS_DIR/utils/log.sh"
-    source "$HELPERS_DIR/utils/system.sh"
-    source "$HELPERS_DIR/utils/ports.sh"
+    source "$HELPERS_DIR/utils/system_commands.sh"
+    source "$HELPERS_DIR/network/ports.sh"
     source "$HELPERS_DIR/utils/flow.sh"
     source "$RESOURCES_DIR/port-registry.sh"
     source "$RESOURCES_DIR/common.sh"

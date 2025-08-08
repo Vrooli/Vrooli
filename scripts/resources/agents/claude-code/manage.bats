@@ -26,7 +26,7 @@ setup_file() {
     # Load all dependencies needed by manage.sh
     export RESOURCES_DIR="${SCRIPT_DIR}/../.."
     source "${RESOURCES_DIR}/common.sh" || true
-    source "${RESOURCES_DIR}/../helpers/utils/args.sh" || true
+    source "${RESOURCES_DIR}/../app/utils/args.sh" || true
     
     # Load lib files that manage.sh needs
     for lib_file in "${SCRIPT_DIR}"/lib/*.sh; do

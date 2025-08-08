@@ -207,7 +207,6 @@ See the [Models Guide](docs/MODELS.md) for 50+ additional models.
 
 ### Integration with Scenarios
 Ollama is used in these business scenarios:
-- **[Multi-Modal AI Assistant](../../scenarios/core/multi-modal-ai-assistant/)** - Voice + AI + visual workflows ($10k-25k projects)
 - **[Research Assistant](../../scenarios/core/research-assistant/)** - Knowledge management and analysis ($10k-25k projects)  
 - **[Campaign Content Studio](../../scenarios/core/campaign-content-studio/)** - Content creation workflows ($8k-20k projects)
 - **[Secure Document Processing](../../scenarios/core/secure-document-processing/)** - Compliant document processing ($20k-40k projects)

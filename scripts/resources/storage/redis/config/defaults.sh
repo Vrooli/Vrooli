@@ -32,11 +32,13 @@ REDIS_NETWORK_NAME="${REDIS_NETWORK_NAME:-vrooli-resources}"
 REDIS_PORT="${REDIS_PORT:-6380}"
 REDIS_INTERNAL_PORT="${REDIS_INTERNAL_PORT:-6379}"
 
-# Data and Configuration Paths (using project root)
-REDIS_DATA_DIR="${REDIS_DATA_DIR:-${REDIS_PROJECT_ROOT}/.vrooli/redis/data}"
-REDIS_CONFIG_DIR="${REDIS_CONFIG_DIR:-${REDIS_PROJECT_ROOT}/.vrooli/redis/config}"
-REDIS_LOG_DIR="${REDIS_LOG_DIR:-${REDIS_PROJECT_ROOT}/.vrooli/redis/logs}"
-REDIS_CONFIG_FILE="${REDIS_CONFIG_FILE:-${REDIS_CONFIG_DIR}/redis.conf}"
+# Volume Configuration (using Docker volumes)
+REDIS_VOLUME_NAME="${REDIS_VOLUME_NAME:-vrooli-redis-data}"
+REDIS_LOG_VOLUME_NAME="${REDIS_LOG_VOLUME_NAME:-vrooli-redis-logs}"
+
+# Temporary config directory (for generating config file)
+REDIS_TEMP_CONFIG_DIR="${REDIS_TEMP_CONFIG_DIR:-/tmp/vrooli-redis-config}"
+REDIS_CONFIG_FILE="${REDIS_CONFIG_FILE:-${REDIS_TEMP_CONFIG_DIR}/redis.conf}"
 
 # Redis Configuration
 REDIS_MAX_MEMORY="${REDIS_MAX_MEMORY:-2gb}"
@@ -83,9 +85,9 @@ redis::export_config() {
     export REDIS_NETWORK_NAME
     export REDIS_PORT
     export REDIS_INTERNAL_PORT
-    export REDIS_DATA_DIR
-    export REDIS_CONFIG_DIR
-    export REDIS_LOG_DIR
+    export REDIS_VOLUME_NAME
+    export REDIS_LOG_VOLUME_NAME
+    export REDIS_TEMP_CONFIG_DIR
     export REDIS_CONFIG_FILE
     export REDIS_MAX_MEMORY
     export REDIS_MAX_MEMORY_POLICY

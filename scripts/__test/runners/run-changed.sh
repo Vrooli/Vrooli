@@ -225,7 +225,7 @@ map_affected_tests() {
                 ;;
                 
             # Docker and deployment files
-            *Dockerfile*|docker-compose*|*.k8s.*|scripts/main/*)
+            *Dockerfile*|docker-compose*|*.k8s.*|scripts/manage.sh)
                 map_deployment_tests "$file" test_map
                 ;;
         esac

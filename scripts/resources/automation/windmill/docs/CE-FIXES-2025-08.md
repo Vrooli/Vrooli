@@ -118,4 +118,5 @@ Watch for:
 - **Windmill Version**: v1.518.0 CE
 - **Image Digest**: sha256:b8b578c89adb3f0049459644bdad32437fd876c4a6d215396904378ddafec16f
 - **Date Fixed**: August 7, 2025
+- **Configuration Applied**: August 7, 2025 (17:30 EST)
 - **Fixed By**: Claude (AI Assistant)

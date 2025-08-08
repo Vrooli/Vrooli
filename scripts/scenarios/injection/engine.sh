@@ -18,9 +18,9 @@ if [[ -f "${RESOURCES_DIR}/common.sh" ]]; then
 fi
 
 # Source argument helpers if available
-if [[ -f "${PROJECT_ROOT}/scripts/helpers/utils/args.sh" ]]; then
+if [[ -f "${PROJECT_ROOT}/scripts/lib/utils/args.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${PROJECT_ROOT}/scripts/helpers/utils/args.sh"
+    source "${PROJECT_ROOT}/scripts/lib/utils/args.sh"
 fi
 
 # Default scenarios directory path

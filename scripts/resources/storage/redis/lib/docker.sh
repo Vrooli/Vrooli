@@ -23,7 +23,7 @@ _redis_docker_detect_project_root() {
 
 PROJECT_ROOT="$(_redis_docker_detect_project_root)"
 # shellcheck disable=SC1091
-source "$PROJECT_ROOT/scripts/helpers/utils/secrets.sh"
+source "$PROJECT_ROOT/scripts/lib/service/secrets.sh"
 
 #######################################
 # Create Docker network if it doesn't exist
@@ -73,8 +73,8 @@ redis::docker::create_container() {
     # Ensure network exists
     redis::docker::create_network || return 1
     
-    # Ensure directories exist
-    redis::common::create_directories || return 1
+    # Ensure volumes exist
+    redis::common::create_volumes || return 1
     
     # Generate configuration
     redis::common::generate_config || return 1
@@ -87,9 +87,9 @@ redis::docker::create_container() {
         "--name" "${REDIS_CONTAINER_NAME}"
         "--network" "${REDIS_NETWORK_NAME}"
         "-p" "${REDIS_PORT}:${REDIS_INTERNAL_PORT}"
-        "-v" "${REDIS_DATA_DIR}:/data"
-        "-v" "${REDIS_CONFIG_DIR}:/usr/local/etc/redis"
-        "-v" "${REDIS_LOG_DIR}:/var/log/redis"
+        "-v" "${REDIS_VOLUME_NAME}:/data"
+        "-v" "${REDIS_TEMP_CONFIG_DIR}:/usr/local/etc/redis:ro"
+        "-v" "${REDIS_LOG_VOLUME_NAME}:/var/log/redis"
         "--restart" "unless-stopped"
         "--health-cmd" "redis-cli ping || exit 1"
         "--health-interval" "${REDIS_HEALTH_CHECK_INTERVAL}"

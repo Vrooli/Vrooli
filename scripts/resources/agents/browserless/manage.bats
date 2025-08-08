@@ -17,7 +17,7 @@ setup_file() {
     
     # Load all dependencies once (expensive operations)
     source "${RESOURCES_DIR}/common.sh"
-    source "${RESOURCES_DIR}/../helpers/utils/args.sh"
+    source "${RESOURCES_DIR}/../app/utils/args.sh"
     source "${SCRIPT_DIR}/config/defaults.sh"
     source "${SCRIPT_DIR}/config/messages.sh"
     

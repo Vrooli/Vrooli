@@ -23,7 +23,7 @@ _redis_install_detect_project_root() {
 
 PROJECT_ROOT="$(_redis_install_detect_project_root)"
 # shellcheck disable=SC1091
-source "$PROJECT_ROOT/scripts/helpers/utils/secrets.sh"
+source "$PROJECT_ROOT/scripts/lib/service/secrets.sh"
 
 #######################################
 # Install Redis resource
@@ -144,23 +144,10 @@ redis::install::post_install_setup() {
 # Setup log rotation for Redis logs
 #######################################
 redis::install::setup_log_rotation() {
-    local redis_config_dir
-    redis_config_dir="$(secrets::get_project_config_dir)/redis"
-    local logrotate_config="${redis_config_dir}/logrotate.conf"
-    
-    cat > "$logrotate_config" << EOF
-${REDIS_LOG_DIR}/*.log {
-    daily
-    rotate 7
-    compress
-    delaycompress
-    missingok
-    notifempty
-    copytruncate
-}
-EOF
-    
-    log::debug "Log rotation configuration created: $logrotate_config"
+    # Log rotation is handled by Docker's logging driver
+    # No need for custom logrotate configuration with volumes
+    log::debug "Log rotation handled by Docker"
+    return 0
 }
 
 #######################################
@@ -195,7 +182,7 @@ _detect_project_root() {
 }
 
 PROJECT_ROOT="$(_detect_project_root)"
-source "$PROJECT_ROOT/scripts/helpers/utils/secrets.sh" 2>/dev/null || true
+source "$PROJECT_ROOT/scripts/lib/service/secrets.sh" 2>/dev/null || true
 
 REDIS_PORT="${REDIS_PORT:-6380}"
 REDIS_PASSWORD="$(secrets::resolve "REDIS_PASSWORD" 2>/dev/null || echo "")"

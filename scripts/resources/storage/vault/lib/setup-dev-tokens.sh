@@ -23,7 +23,7 @@ _vault_setup_detect_project_root() {
 
 PROJECT_ROOT="$(_vault_setup_detect_project_root)"
 # shellcheck disable=SC1091
-source "$PROJECT_ROOT/scripts/helpers/utils/secrets.sh"
+source "$PROJECT_ROOT/scripts/lib/service/secrets.sh"
 # ====================================================================
 # Vault Development Token Setup Script  
 # ====================================================================

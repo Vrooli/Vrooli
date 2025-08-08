@@ -32,9 +32,9 @@ fi
 if ! declare -f log::info >/dev/null 2>&1; then
     # Try to source log utilities
     RESOURCES_DIR_COMMON="${SCRIPT_DIR_COMMON}/../.."
-    if [[ -f "${RESOURCES_DIR_COMMON}/../helpers/utils/log.sh" ]]; then
+    if [[ -f "${RESOURCES_DIR_COMMON}/../lib/utils/log.sh" ]]; then
         # shellcheck disable=SC1091
-        source "${RESOURCES_DIR_COMMON}/../helpers/utils/log.sh"
+        source "${RESOURCES_DIR_COMMON}/../lib/utils/log.sh"
     else
         # Fallback logging functions
         log::info() { echo "[INFO] $*"; }

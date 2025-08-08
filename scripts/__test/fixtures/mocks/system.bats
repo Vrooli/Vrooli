@@ -1,8 +1,8 @@
 #!/usr/bin/env bats
-# System Command Mock Tests - Comprehensive test suite for system.sh mock
+# System Command Mock Tests - Comprehensive test suite for system_commands.sh mock
 # Tests systemctl, ps, kill, pgrep, pkill, which, id, whoami, uname, date with consistent state management
 
-load "$HOME/Vrooli/scripts/__test/fixtures/mocks/system.sh"
+load "$HOME/Vrooli/scripts/__test/fixtures/mocks/system_commands.sh"
 
 # Test setup and teardown
 setup() {

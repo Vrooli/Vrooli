@@ -83,20 +83,31 @@ redis::common::wait_for_ready() {
 # Create necessary directories
 # Returns: 0 on success, 1 on failure
 #######################################
-redis::common::create_directories() {
-    local dirs=(
-        "$REDIS_DATA_DIR"
-        "$REDIS_CONFIG_DIR"
-        "$REDIS_LOG_DIR"
+redis::common::create_volumes() {
+    # Create Docker volumes if they don't exist
+    local volumes=(
+        "$REDIS_VOLUME_NAME"
+        "$REDIS_LOG_VOLUME_NAME"
     )
     
-    for dir in "${dirs[@]}"; do
-        if ! mkdir -p "$dir"; then
-            log::error "Failed to create directory: $dir"
-            return 1
+    for volume in "${volumes[@]}"; do
+        if ! docker volume inspect "$volume" >/dev/null 2>&1; then
+            if ! docker volume create "$volume" >/dev/null 2>&1; then
+                log::error "Failed to create volume: $volume"
+                return 1
+            fi
+            log::debug "Created volume: $volume"
+        else
+            log::debug "Volume already exists: $volume"
         fi
-        log::debug "Created directory: $dir"
     done
+    
+    # Create temporary config directory
+    if ! mkdir -p "$REDIS_TEMP_CONFIG_DIR"; then
+        log::error "Failed to create temporary config directory: $REDIS_TEMP_CONFIG_DIR"
+        return 1
+    fi
+    log::debug "Created temporary config directory: $REDIS_TEMP_CONFIG_DIR"
     
     return 0
 }

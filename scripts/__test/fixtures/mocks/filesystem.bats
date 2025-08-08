@@ -9,11 +9,11 @@ setup() {
     command mkdir -p "$MOCK_LOG_DIR"
     
     # Load test helpers if available
-    if [[ -f "${BATS_TEST_DIRNAME}/../../../helpers/bats-support/load.bash" ]]; then
-        load "${BATS_TEST_DIRNAME}/../../../helpers/bats-support/load.bash"
+    if [[ -f "${BATS_TEST_DIRNAME}/../../helpers/bats-support/load.bash" ]]; then
+        load "${BATS_TEST_DIRNAME}/../../helpers/bats-support/load.bash"
     fi
-    if [[ -f "${BATS_TEST_DIRNAME}/../../../helpers/bats-assert/load.bash" ]]; then
-        load "${BATS_TEST_DIRNAME}/../../../helpers/bats-assert/load.bash"
+    if [[ -f "${BATS_TEST_DIRNAME}/../../helpers/bats-assert/load.bash" ]]; then
+        load "${BATS_TEST_DIRNAME}/../../helpers/bats-assert/load.bash"
     else
         # Define basic assertion functions if bats-assert is not available
         assert_success() {

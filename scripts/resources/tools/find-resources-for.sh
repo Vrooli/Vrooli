@@ -7,8 +7,8 @@
 # business scenario by analyzing scenario metadata and dependencies.
 #
 # Usage:
-#   ./find-resources-for.sh --scenario multi-modal-ai-assistant
-#   ./find-resources-for.sh --scenario multi-modal-ai-assistant --show-alternatives
+#   ./find-resources-for.sh --scenario research-assistant
+#   ./find-resources-for.sh --scenario research-assistant --show-alternatives
 #   ./find-resources-for.sh --all
 #
 # ====================================================================
@@ -45,7 +45,7 @@ USAGE:
     $0 --all [OPTIONS]
 
 OPTIONS:
-    --scenario SCENARIO     Scenario name (e.g., multi-modal-ai-assistant)
+    --scenario SCENARIO     Scenario name (e.g., research-assistant)
     --all                   Analyze all scenarios
     --show-alternatives     Include alternative resource suggestions
     --business-info         Include business value and cost information
@@ -54,7 +54,7 @@ OPTIONS:
 
 EXAMPLES:
     # Basic resource analysis
-    $0 --scenario multi-modal-ai-assistant
+    $0 --scenario research-assistant
 
     # Detailed analysis with alternatives
     $0 --scenario research-assistant --show-alternatives --business-info

@@ -7,7 +7,7 @@ COMMON_PATH="$BATS_TEST_DIRNAME/common.sh"
 
 # Source dependencies
 RESOURCES_DIR="$VAULT_DIR/../.."
-HELPERS_DIR="$RESOURCES_DIR/../helpers"
+HELPERS_DIR="$RESOURCES_DIR/../lib"
 
 # Standard test setup for docker tests
 VAULT_DOCKER_TEST_SETUP="
@@ -19,8 +19,8 @@ VAULT_DOCKER_TEST_SETUP="
         COMMON_PATH='$COMMON_PATH'
         
         source \"\$HELPERS_DIR/utils/log.sh\"
-        source \"\$HELPERS_DIR/utils/system.sh\"
-        source \"\$HELPERS_DIR/utils/ports.sh\"
+        source \"\$HELPERS_DIR/utils/system_commands.sh\"
+        source \"\$HELPERS_DIR/network/ports.sh\"
         source \"\$RESOURCES_DIR/port-registry.sh\"
         source \"\$RESOURCES_DIR/common.sh\"
         

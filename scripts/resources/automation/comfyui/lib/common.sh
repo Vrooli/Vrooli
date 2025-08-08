@@ -14,7 +14,7 @@ RESOURCES_DIR="${COMFYUI_SCRIPT_DIR}/../.."
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../helpers/utils/args.sh"
+source "${RESOURCES_DIR}/../app/utils/args.sh"
 
 # Global variables for script state
 declare -g ACTION=""

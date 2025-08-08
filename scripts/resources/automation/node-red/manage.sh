@@ -15,7 +15,7 @@ RESOURCES_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 # Source common functions
 source "$RESOURCES_DIR/common.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../helpers/utils/args.sh"
+source "${RESOURCES_DIR}/../app/utils/args.sh"
 
 # Source configuration
 # shellcheck disable=SC1091

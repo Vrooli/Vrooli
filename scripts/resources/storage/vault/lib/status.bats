@@ -7,14 +7,14 @@ COMMON_PATH="$BATS_TEST_DIRNAME/common.sh"
 
 # Source dependencies
 RESOURCES_DIR="$VAULT_DIR/../.."
-HELPERS_DIR="$RESOURCES_DIR/../helpers"
+HELPERS_DIR="$RESOURCES_DIR/../lib"
 
 # Helper function to setup test environment
 setup_vault_status_test_env() {
     # Source required utilities
     source "$HELPERS_DIR/utils/log.sh"
-    source "$HELPERS_DIR/utils/system.sh"
-    source "$HELPERS_DIR/utils/ports.sh"
+    source "$HELPERS_DIR/utils/system_commands.sh"
+    source "$HELPERS_DIR/network/ports.sh"
     source "$RESOURCES_DIR/port-registry.sh"
     source "$RESOURCES_DIR/common.sh"
     
@@ -49,8 +49,8 @@ VAULT_STATUS_TEST_SETUP="
         COMMON_PATH='$COMMON_PATH'
         
         source \"\$HELPERS_DIR/utils/log.sh\"
-        source \"\$HELPERS_DIR/utils/system.sh\"
-        source \"\$HELPERS_DIR/utils/ports.sh\"
+        source \"\$HELPERS_DIR/utils/system_commands.sh\"
+        source \"\$HELPERS_DIR/network/ports.sh\"
         source \"\$RESOURCES_DIR/port-registry.sh\"
         source \"\$RESOURCES_DIR/common.sh\"
         

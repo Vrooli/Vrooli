@@ -286,7 +286,7 @@ Add injection to resource startup:
 
 ```bash
 # Start resources and inject active scenarios
-./scripts/main/setup.sh --target native-linux --resources enabled
+./scripts/manage.sh setup --target native-linux --resources enabled
 # (automatically injects active scenarios after resource startup)
 ```
 

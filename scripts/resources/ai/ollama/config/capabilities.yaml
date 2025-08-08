@@ -68,8 +68,7 @@ spec:
       - campaign-content-studio
       - secure-document-processing
     secondary:
-      - multi-modal-ai-assistant
-      - podcast-transcription-assistant
+      - audio-intelligence-platform
     optimal_combinations:
       - [ollama, n8n, minio]           # AI workflow automation
       - [ollama, qdrant, unstructured-io]  # Document intelligence

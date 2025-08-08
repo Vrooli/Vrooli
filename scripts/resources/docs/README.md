@@ -30,13 +30,13 @@ cat ~/.vrooli/service.json | jq '.services'
 ### Installation
 ```bash
 # Install enabled resources (recommended)
-./scripts/main/setup.sh --target native-linux --resources enabled
+./scripts/manage.sh setup --target native-linux --resources enabled
 
 # Install specific resources
-./scripts/main/setup.sh --target native-linux --resources "ollama,n8n,agent-s2"
+./scripts/manage.sh setup --target native-linux --resources "ollama,n8n,agent-s2"
 
 # Install by category
-./scripts/main/setup.sh --target native-linux --resources ai-only
+./scripts/manage.sh setup --target native-linux --resources ai-only
 ```
 
 ### Management
@@ -54,8 +54,8 @@ cat ~/.vrooli/service.json | jq '.services'
 Our scenario system demonstrates real-world resource combinations and generates deployable applications:
 
 ### Popular Resource Combinations
-- **Multi-Modal AI**: Whisper + Ollama + ComfyUI + Agent-S2 
-  → [Multi-Modal AI Assistant](../scenarios/core/multi-modal-ai-assistant/) ($10k-25k projects)
+- **Analytics Platform**: PostgreSQL + QuestDB + Redis + n8n + Node-RED
+  → [Analytics Dashboard](../scenarios/core/analytics-dashboard/) ($15k-30k projects)
 - **Document Processing**: Unstructured-IO + Ollama + Qdrant + Vault
   → [Secure Document Processing](../scenarios/core/secure-document-processing/) ($20k-40k projects)
 - **Content Creation**: ComfyUI + Ollama + Windmill 
@@ -67,7 +67,7 @@ Our scenario system demonstrates real-world resource combinations and generates 
 ./scripts/scenarios/tools/test-by-resource.sh --resource ollama
 
 # Test multi-resource combinations
-cd ../scenarios/core/multi-modal-ai-assistant && ./test.sh
+cd ../scenarios/core/analytics-dashboard && ./test.sh
 
 # Browse all available scenarios
 cat ../scenarios/catalog.json
@@ -77,7 +77,7 @@ cat ../scenarios/catalog.json
 ```bash
 # Convert any scenario into a deployable app
 ./scripts/scenarios/tools/scenario-to-app.sh \
-  --scenario multi-modal-ai-assistant \
+  --scenario research-assistant \
   --output ~/my-customer-app
 ```
 
@@ -99,7 +99,7 @@ Our testing system is distributed across multiple layers for comprehensive valid
 #### **Multi-Resource Integration Tests**  
 - **Location**: `scripts/scenarios/core/scenario-name/test.sh`
 - **Purpose**: Test complex business scenarios using multiple resources
-- **Examples**: `scripts/scenarios/core/multi-modal-ai-assistant/test.sh`
+- **Examples**: `scripts/scenarios/core/analytics-dashboard/test.sh`
 - **Documentation**: [Scenario Testing](../scenarios/README.md)
 
 #### **Resource Unit Tests**
@@ -132,7 +132,7 @@ Resource usage examples are organized by complexity and integration level:
 ./scripts/__test/resources/quick-test.sh ollama
 
 # Test business scenario
-cd ./scripts/scenarios/core/multi-modal-ai-assistant && ./test.sh
+cd ./scripts/scenarios/core/research-assistant && ./test.sh
 
 # Run all resource tests
 cd ./scripts/__test/resources && ./run.sh
@@ -648,7 +648,7 @@ A complete **voice-to-visual-to-action** workflow combining:
 
 ```bash
 # Test the complete workflow
-./scripts/resources/tests/run.sh --scenarios "scenario=multi-modal-ai-assistant"
+./scripts/resources/tests/run.sh --scenarios "scenario=analytics-dashboard"
 
 # Access the interfaces
 open http://localhost:5681  # Windmill professional interface
@@ -742,7 +742,7 @@ echo "test_metric value=1" | nc localhost 9011  # InfluxDB line protocol (was 90
 ## Getting Help
 
 - **Individual Resource Issues**: See specific resource README files
-- **General Setup**: [scripts/main/setup.sh documentation](../main/README.md)
+- **General Setup**: [scripts/manage.sh documentation](../README.md)
 - **Integration Questions**: [docs/architecture/ai-resource-integration-plan.md](../../docs/architecture/ai-resource-integration-plan.md)
 
 ---

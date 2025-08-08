@@ -14,9 +14,9 @@ trap 'echo ""; log::info "Resource installation interrupted by user. Exiting..."
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../helpers/utils/args.sh"
+source "${RESOURCES_DIR}/../app/utils/args.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../helpers/utils/repository.sh"
+source "${RESOURCES_DIR}/../lib/service/repository.sh"
 
 # Available resources organized by category
 declare -A AVAILABLE_RESOURCES=(

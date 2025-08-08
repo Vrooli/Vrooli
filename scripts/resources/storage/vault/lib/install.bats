@@ -14,11 +14,11 @@ setup_file() {
     
     # Source dependencies once per file
     RESOURCES_DIR="$VAULT_DIR/../.."
-    HELPERS_DIR="$RESOURCES_DIR/../helpers"
+    HELPERS_DIR="$RESOURCES_DIR/../lib"
     
     # Source utilities once
     source "$HELPERS_DIR/utils/log.sh"
-    source "$HELPERS_DIR/utils/system.sh"
+    source "$HELPERS_DIR/utils/system_commands.sh"
     source "$HELPERS_DIR/utils/flow.sh"
     source "$RESOURCES_DIR/common.sh"
     

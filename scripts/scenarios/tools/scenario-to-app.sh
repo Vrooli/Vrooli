@@ -17,7 +17,7 @@ set -euo pipefail
 # 
 # To run a generated app:
 #   cd ~/generated-apps/<scenario-name>
-#   ./scripts/main/develop.sh
+#   ./scripts/manage.sh develop
 #
 # Architecture:
 # - Validates scenario files and structure using project schema
@@ -80,7 +80,7 @@ The generated app will be created at: ~/generated-apps/<scenario-name>/
 
 To run the generated app:
   cd ~/generated-apps/<scenario-name>
-  ./scripts/main/develop.sh
+  ./scripts/manage.sh develop
 
 Examples:
   $0 campaign-content-studio
@@ -570,8 +570,8 @@ process_template_variables() {
     file -b --mime-type "$file" | grep -q "text/" || return 0
     
     # Source required utilities
-    local secrets_util="${PROJECT_ROOT}/scripts/helpers/utils/secrets.sh"
-    local service_config_util="${PROJECT_ROOT}/scripts/helpers/utils/service-config.sh"
+    local secrets_util="${PROJECT_ROOT}/scripts/lib/service/secrets.sh"
+    local service_config_util="${PROJECT_ROOT}/scripts/lib/service/service_config.sh"
     
     # Check if the service.json has inheritance defined
     local should_substitute="yes"
@@ -658,257 +658,41 @@ copy_scenario_files() {
     log::success "Scenario files copied successfully"
 }
 
-# Copy universal scripts infrastructure for standalone apps
+# Copy scripts infrastructure for standalone apps
 copy_universal_scripts() {
     local app_path="$1"
     
     if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would copy universal scripts to: $app_path/scripts"
+        log::info "[DRY RUN] Would copy scripts infrastructure to: $app_path/scripts"
         return 0
     fi
     
-    log::info "Copying universal scripts infrastructure with lifecycle engine..."
+    log::info "Copying scripts infrastructure..."
     
-    # Create base scripts directory structure
-    mkdir -p "$app_path/scripts/"{helpers/utils/core,helpers/lifecycle,main,helpers/setup/target}
+    # Create scripts directory
+    mkdir -p "$app_path/scripts"
     
-    # Copy core universal utilities (safe for standalone apps)
-    if [[ -d "$PROJECT_ROOT/scripts/helpers/utils/core" ]]; then
-        cp -r "$PROJECT_ROOT/scripts/helpers/utils/core/"* "$app_path/scripts/helpers/utils/core/"
-        mkdir -p "$app_path/scripts/helpers/utils"
-        # Create redirect files for core utilities
-        for util in args domainCheck exit_codes flow log ports repository system targetMatcher var vault version zip; do
-            echo '#!/usr/bin/env bash' > "$app_path/scripts/helpers/utils/${util}.sh"
-            echo "source \"\$(dirname \"\${BASH_SOURCE[0]}\")/core/${util}.sh\"" >> "$app_path/scripts/helpers/utils/${util}.sh"
-        done
-        [[ "$VERBOSE" == "true" ]] && log::info "Copied core universal utilities"
-    fi
-    
-    # Copy lifecycle engine (universal execution system) - ALWAYS include
-    if [[ -d "$PROJECT_ROOT/scripts/helpers/lifecycle" ]]; then
-        cp -r "$PROJECT_ROOT/scripts/helpers/lifecycle/"* "$app_path/scripts/helpers/lifecycle/"
-        [[ "$VERBOSE" == "true" ]] && log::info "Copied lifecycle engine"
-    else
-        log::error "Lifecycle engine not found - generated app will not work properly"
-        return 1
-    fi
-    
-    # Create minimal main scripts that delegate to lifecycle engine
-    for script in setup.sh develop.sh build.sh deploy.sh test.sh clean.sh; do
-        create_lifecycle_main_script "$script" "$app_path/scripts/main/$script"
-        [[ "$VERBOSE" == "true" ]] && log::info "Created lifecycle main/$script"
-    done
-    
-    # Create minimal target scripts for basic compatibility
-    for target in native_linux docker_only k8s_cluster; do
-        create_minimal_target_script "$target" "$app_path/scripts/helpers/setup/target/${target//_/-}.sh"
-        [[ "$VERBOSE" == "true" ]] && log::info "Created minimal target/${target//_/-}.sh"
-    done
-    
-    # Create minimal setup index for basic functionality
-    create_minimal_setup_index "$app_path/scripts/helpers/setup/index.sh"
-    
-    # Copy scripts/README.md if it exists
-    if [[ -f "$PROJECT_ROOT/scripts/README.md" ]]; then
-        cp "$PROJECT_ROOT/scripts/README.md" "$app_path/scripts/"
-        [[ "$VERBOSE" == "true" ]] && log::info "Copied scripts/README.md"
-    fi
-    
-    log::success "Universal scripts infrastructure with lifecycle engine copied successfully"
-}
-
-#######################################
-# Create lifecycle-based main script
-# Arguments:
-#   $1 - Script name (setup.sh, develop.sh, etc.)
-#   $2 - Destination script path
-#######################################
-create_lifecycle_main_script() {
-    local script_name="$1"
-    local dest="$2"
-    local phase_name="${script_name%.sh}"  # Remove .sh extension
-    
-    # Create minimal script that delegates to lifecycle engine
-    cat > "$dest" << EOF
-#!/usr/bin/env bash
-set -euo pipefail
-
-################################################################################
-# Generated Standalone App Script: $script_name
-# 
-# This script delegates to the Vrooli Lifecycle Engine for execution.
-# All behavior is controlled by the service.json lifecycle configuration.
-#
-# Generated by: scenario-to-app.sh
-# Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-################################################################################
-
-MAIN_DIR="\$(cd \"\$(dirname \"\${BASH_SOURCE[0]}\")\" && pwd)"
-SCRIPT_DIR="\$(cd \"\${MAIN_DIR}/../..\" && pwd)"
-
-# Source core utilities
-if [[ -f "\${MAIN_DIR}/../helpers/utils/universal/index.sh" ]]; then
-    # shellcheck disable=SC1091
-    source "\${MAIN_DIR}/../helpers/utils/universal/index.sh"
-else
-    echo "❌ ERROR: Core utilities not found. Generated app may be corrupted."
-    exit 1
-fi
-
-# Set standalone context
-export VROOLI_CONTEXT="standalone"
-export PROJECT_ROOT="\${SCRIPT_DIR}"
-
-# Execute via lifecycle engine
-if [[ -f "\${MAIN_DIR}/../helpers/lifecycle/engine.sh" ]]; then
-    log::info "Executing $phase_name via lifecycle engine..."
-    exec "\${MAIN_DIR}/../helpers/lifecycle/engine.sh" "$phase_name" "\$@"
-else
-    log::error "Lifecycle engine not found: \${MAIN_DIR}/../helpers/lifecycle/engine.sh"
-    log::error "Generated app is missing required infrastructure."
-    log::error "Please regenerate the app or check the scenario-to-app.sh script."
-    exit 1
-fi
-EOF
-
-    chmod +x "$dest"
-}
-
-#######################################
-# Create minimal target script
-# Arguments:
-#   $1 - Target name (native_linux, docker_only, etc.)
-#   $2 - Destination script path
-#######################################
-create_minimal_target_script() {
-    local target_name="$1"
-    local dest="$2"
-    
-    cat > "$dest" << EOF
-#!/usr/bin/env bash
-set -euo pipefail
-
-################################################################################
-# Generated Standalone Target Script: $target_name
-# 
-# Minimal target-specific setup for standalone apps.
-# Most functionality should be defined in service.json lifecycle configuration.
-#
-# Generated by: scenario-to-app.sh
-# Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-################################################################################
-
-SCRIPT_DIR="\$(cd \"\$(dirname \"\${BASH_SOURCE[0]}\")\" && pwd)"
-
-# Source core utilities
-if [[ -f "\${SCRIPT_DIR}/../../utils/core/index.sh" ]]; then
-    # shellcheck disable=SC1091
-    source "\${SCRIPT_DIR}/../../utils/core/index.sh"
-else
-    echo "❌ ERROR: Core utilities not found at \${SCRIPT_DIR}/../../utils/core/index.sh"
-    exit 1
-fi
-
-log::info "Target script: $target_name"
-log::info "Most setup should be handled by lifecycle engine and service.json configuration"
-
-# Basic environment detection
-case "$target_name" in
-    native_linux)
-        if command -v apt-get >/dev/null 2>&1; then
-            log::debug "Detected Debian/Ubuntu system"
-        elif command -v yum >/dev/null 2>&1; then
-            log::debug "Detected RHEL/CentOS system"
-        fi
-        ;;
-    docker_only)
-        if ! command -v docker >/dev/null 2>&1; then
-            log::warning "Docker not found - may need manual installation"
-        fi
-        ;;
-    k8s_cluster)
-        if ! command -v kubectl >/dev/null 2>&1; then
-            log::warning "kubectl not found - may need manual installation"
-        fi
-        ;;
-esac
-
-log::success "Target $target_name setup complete"
-EOF
-
-    chmod +x "$dest"
-}
-
-#######################################
-# Create minimal setup index
-# Arguments:
-#   $1 - Destination index path
-#######################################
-create_minimal_setup_index() {
-    local dest="$1"
-    
-    cat > "$dest" << EOF
-#!/usr/bin/env bash
-
-################################################################################
-# Generated Standalone Setup Index
-# 
-# Provides minimal setup functions for standalone apps.
-# Most functionality should be defined in service.json lifecycle configuration.
-#
-# Generated by: scenario-to-app.sh
-# Date: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-################################################################################
-
-SETUP_DIR="\$(cd \"\$(dirname \"\${BASH_SOURCE[0]}\")\" && pwd)"
-
-# Source core utilities
-if [[ -f "\${SETUP_DIR}/../utils/core/index.sh" ]]; then
-    # shellcheck disable=SC1091
-    source "\${SETUP_DIR}/../utils/core/index.sh"
-else
-    echo "❌ ERROR: Core utilities not found"
-    exit 1
-fi
-
-# Basic setup functions for standalone apps
-permissions::make_scripts_executable() {
-    find "\${PROJECT_ROOT:-\$(pwd)}/scripts" -name "*.sh" -type f -exec chmod +x {} + 2>/dev/null || true
-}
-
-clock::fix() {
-    log::debug "Clock sync not needed for standalone apps"
-}
-
-common_deps::check_and_install() {
-    log::info "Checking common dependencies..."
-    
-    # Check for essential tools
-    for tool in git curl jq; do
-        if ! command -v "\$tool" >/dev/null 2>&1; then
-            log::warning "Missing recommended tool: \$tool"
-        fi
-    done
-    
-    # Check Node.js/npm if package.json exists
-    if [[ -f "package.json" ]]; then
-        if ! command -v node >/dev/null 2>&1; then
-            log::warning "Node.js not found but package.json exists"
-            log::info "Please install Node.js manually"
+    # Copy entire scripts/ directory from PROJECT_ROOT, excluding main and scenarios
+    if [[ -d "$PROJECT_ROOT/scripts" ]]; then
+        # Use rsync for selective copying with excludes
+        if command -v rsync >/dev/null 2>&1; then
+            rsync -a --exclude='main/' --exclude='scenarios/' "$PROJECT_ROOT/scripts/" "$app_path/scripts/"
+            [[ "$VERBOSE" == "true" ]] && log::info "Copied scripts/ using rsync (excluded main/ and scenarios/)"
+        else
+            # Fallback: copy everything first, then remove excluded directories
+            cp -r "$PROJECT_ROOT/scripts/"* "$app_path/scripts/" 2>/dev/null || true
+            rm -rf "$app_path/scripts/main" "$app_path/scripts/scenarios" 2>/dev/null || true
+            [[ "$VERBOSE" == "true" ]] && log::info "Copied scripts/ using cp (removed main/ and scenarios/)"
         fi
     fi
-}
-
-config::init() {
-    # Initialize basic configuration
-    mkdir -p .vrooli
-    if [[ ! -f ".vrooli/service.json" ]]; then
-        log::info "service.json should already exist in generated apps"
-    fi
-}
-EOF
     
-    chmod +x "$dest"
+    # Copy scenario-specific scripts/ directory if it exists (overlay on top)
+    if [[ -d "$SCENARIO_PATH/scripts" ]]; then
+        cp -r "$SCENARIO_PATH/scripts/"* "$app_path/scripts/" 2>/dev/null || true
+        [[ "$VERBOSE" == "true" ]] && log::info "Overlaid scenario-specific scripts from: $SCENARIO_PATH/scripts/"
+    fi
+    
+    log::success "Scripts infrastructure copied successfully"
 }
 
 # Generate standalone app with atomic operations
@@ -986,7 +770,7 @@ generate_app() {
     fi
     
     log::success "Generated app: $app_path"
-    log::info "To run: cd $app_path && ./scripts/main/develop.sh"
+    log::info "To run: cd $app_path && ./scripts/manage.sh develop"
     
     return 0
 }
@@ -1006,8 +790,8 @@ start_generated_app() {
         return 1
     fi
     
-    if [[ ! -f "$app_path/scripts/main/develop.sh" ]]; then
-        log::error "develop.sh script not found: $app_path/scripts/main/develop.sh"
+    if [[ ! -f "$app_path/scripts/manage.sh" ]]; then
+        log::error "manage.sh script not found: $app_path/scripts/manage.sh"
         return 1
     fi
     
@@ -1020,8 +804,8 @@ start_generated_app() {
         return 1
     }
     
-    log::info "Executing: ./scripts/main/develop.sh --target docker --detached yes"
-    if ./scripts/main/develop.sh --target docker --detached yes; then
+    log::info "Executing: ./scripts/manage.sh develop --target docker --detached yes"
+    if ./scripts/manage.sh develop --target docker --detached yes; then
         log::success "Generated app started successfully!"
         log::info "App should be available at the URLs defined in service.json"
         return 0
@@ -1112,7 +896,7 @@ main() {
     if [[ "$START" != "true" ]]; then
         log::info "To run the app:"
         log::info "  cd $HOME/generated-apps/$SCENARIO_NAME"
-        log::info "  ./scripts/main/develop.sh"
+        log::info "  ./scripts/manage.sh develop"
     else
         log::info "App has been started and should be available at the configured URLs"
     fi

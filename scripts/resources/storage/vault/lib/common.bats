@@ -11,12 +11,12 @@ setup() {
     
     # Source dependencies
     RESOURCES_DIR="$VAULT_DIR/../.."
-    HELPERS_DIR="$RESOURCES_DIR/../helpers"
+    HELPERS_DIR="$RESOURCES_DIR/../lib"
     
     # Source utilities first
     . "$HELPERS_DIR/utils/log.sh"
-    . "$HELPERS_DIR/utils/system.sh"
-    . "$HELPERS_DIR/utils/ports.sh" 
+    . "$HELPERS_DIR/utils/system_commands.sh"
+    . "$HELPERS_DIR/network/ports.sh" 
     . "$HELPERS_DIR/utils/flow.sh"
     . "$RESOURCES_DIR/port-registry.sh"
     

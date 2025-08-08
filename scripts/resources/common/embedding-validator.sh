@@ -8,7 +8,7 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Source logging utilities
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../helpers/utils/log.sh"
+source "${SCRIPT_DIR}/../../lib/utils/log.sh"
 
 #######################################
 # Validate embedding model exists and works

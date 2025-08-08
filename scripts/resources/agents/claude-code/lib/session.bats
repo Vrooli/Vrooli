@@ -18,12 +18,12 @@ setup() {
     export BATS_TEST_DIRNAME="${BATS_TEST_DIRNAME:-$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)}"
     export CLAUDE_CODE_DIR="$BATS_TEST_DIRNAME/.."
     export RESOURCES_DIR="$CLAUDE_CODE_DIR/../.."
-    export HELPERS_DIR="$RESOURCES_DIR/../helpers"
+    export HELPERS_DIR="$RESOURCES_DIR/../lib"
     export SCRIPT_PATH="$BATS_TEST_DIRNAME/session.sh"
     
     # Source dependencies in order
     source "$HELPERS_DIR/utils/log.sh" 2>/dev/null || true
-    source "$HELPERS_DIR/utils/system.sh" 2>/dev/null || true
+    source "$HELPERS_DIR/utils/system_commands.sh" 2>/dev/null || true
     source "$HELPERS_DIR/utils/flow.sh" 2>/dev/null || true
     source "$RESOURCES_DIR/common.sh" 2>/dev/null || true
     

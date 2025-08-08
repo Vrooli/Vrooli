@@ -13,17 +13,17 @@ MAIN_DIR="${RESOURCES_DIR}/../main"
 
 # Source required utilities
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../helpers/utils/log.sh"
+source "${RESOURCES_DIR}/../lib/utils/log.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../helpers/utils/flow.sh"
+source "${RESOURCES_DIR}/../lib/utils/flow.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../helpers/utils/ports.sh"
+source "${RESOURCES_DIR}/../lib/network/ports.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../helpers/utils/system.sh"
+source "${RESOURCES_DIR}/../lib/system/system_commands.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../helpers/utils/docker.sh"
+source "${RESOURCES_DIR}/../app/utils/docker.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../helpers/utils/repository.sh"
+source "${RESOURCES_DIR}/../lib/service/repository.sh"
 
 # Resource configuration paths
 # Use the project's .vrooli directory, not the home directory

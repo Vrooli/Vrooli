@@ -204,8 +204,8 @@ ${PWD}:/workspace:ro                      # Workspace access
 
 ### Integration with Scenarios
 n8n is used in these business scenarios:
-- **[Multi-Modal AI Assistant](../../scenarios/core/multi-modal-ai-assistant/)** - AI workflow orchestration ($10k-25k projects)
 - **[Secure Document Processing](../../scenarios/core/secure-document-processing/)** - Compliant document workflows ($20k-40k projects)
+- **[Analytics Dashboard](../../scenarios/core/analytics-dashboard/)** - Resource monitoring workflows ($15k-30k projects)
 
 ### Test Fixtures
 - **Shared Test Data**: `scripts/__test/resources/fixtures/workflows/` (sample n8n workflows)

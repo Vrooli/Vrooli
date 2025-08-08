@@ -18,12 +18,12 @@ setup() {
     
     # Source dependencies
     local resources_dir="$SEARXNG_DIR/../.."
-    local helpers_dir="$resources_dir/../helpers"
+    local helpers_dir="$resources_dir/../lib"
     
     # Source utilities first
     source "$helpers_dir/utils/log.sh"
-    source "$helpers_dir/utils/system.sh"
-    source "$helpers_dir/utils/ports.sh"
+    source "$helpers_dir/utils/system_commands.sh"
+    source "$helpers_dir/network/ports.sh"
     source "$helpers_dir/utils/flow.sh"
     source "$resources_dir/port-registry.sh"
     source "$resources_dir/common.sh"

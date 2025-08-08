@@ -99,12 +99,12 @@ setup_n8n_test_env_no_defaults() {
     # Source dependencies directly in test context
     SCRIPT_DIR="$N8N_DIR"
     RESOURCES_DIR="$N8N_DIR/../.."
-    HELPERS_DIR="$RESOURCES_DIR/../helpers"
+    HELPERS_DIR="$RESOURCES_DIR/../lib"
     
     # Source in correct order
     source "$HELPERS_DIR/utils/log.sh"
-    source "$HELPERS_DIR/utils/system.sh"
-    source "$HELPERS_DIR/utils/ports.sh"
+    source "$HELPERS_DIR/utils/system_commands.sh"
+    source "$HELPERS_DIR/network/ports.sh"
     source "$HELPERS_DIR/utils/flow.sh"
     source "$RESOURCES_DIR/port-registry.sh"
     source "$RESOURCES_DIR/common.sh"
@@ -125,12 +125,12 @@ setup_n8n_test_env_no_defaults() {
     # Source dependencies directly in test context
     SCRIPT_DIR="$N8N_DIR"
     RESOURCES_DIR="$N8N_DIR/../.."
-    HELPERS_DIR="$RESOURCES_DIR/../helpers"
+    HELPERS_DIR="$RESOURCES_DIR/../lib"
     
     # Source in correct order
     source "$HELPERS_DIR/utils/log.sh"
-    source "$HELPERS_DIR/utils/system.sh"
-    source "$HELPERS_DIR/utils/ports.sh"
+    source "$HELPERS_DIR/utils/system_commands.sh"
+    source "$HELPERS_DIR/network/ports.sh"
     source "$HELPERS_DIR/utils/flow.sh"
     source "$RESOURCES_DIR/port-registry.sh"
     source "$RESOURCES_DIR/common.sh"
@@ -185,12 +185,12 @@ setup_n8n_test_env_no_defaults() {
         # Source in correct order (matching manage.sh)
         SCRIPT_DIR='$N8N_DIR'
         RESOURCES_DIR='$N8N_DIR/../..'
-        HELPERS_DIR=\"\$RESOURCES_DIR/../helpers\"
+        HELPERS_DIR=\"\$RESOURCES_DIR/../lib\"
         
         # Source utilities first
         source \"\$HELPERS_DIR/utils/log.sh\"
-        source \"\$HELPERS_DIR/utils/system.sh\"
-        source \"\$HELPERS_DIR/utils/ports.sh\"
+        source \"\$HELPERS_DIR/utils/system_commands.sh\"
+        source \"\$HELPERS_DIR/network/ports.sh\"
         source \"\$HELPERS_DIR/utils/flow.sh\"
         source \"\$RESOURCES_DIR/port-registry.sh\"
         
@@ -213,12 +213,12 @@ setup_n8n_test_env_no_defaults() {
         # Source in correct order (matching manage.sh)
         SCRIPT_DIR='$N8N_DIR'
         RESOURCES_DIR='$N8N_DIR/../..'
-        HELPERS_DIR=\"\$RESOURCES_DIR/../helpers\"
+        HELPERS_DIR=\"\$RESOURCES_DIR/../lib\"
         
         # Source utilities first
         source \"\$HELPERS_DIR/utils/log.sh\"
-        source \"\$HELPERS_DIR/utils/system.sh\"
-        source \"\$HELPERS_DIR/utils/ports.sh\"
+        source \"\$HELPERS_DIR/utils/system_commands.sh\"
+        source \"\$HELPERS_DIR/network/ports.sh\"
         source \"\$HELPERS_DIR/utils/flow.sh\"
         source \"\$RESOURCES_DIR/port-registry.sh\"
         
@@ -241,12 +241,12 @@ setup_n8n_test_env_no_defaults() {
         # Source in correct order (matching manage.sh)
         SCRIPT_DIR='$N8N_DIR'
         RESOURCES_DIR='$N8N_DIR/../..'
-        HELPERS_DIR=\"\$RESOURCES_DIR/../helpers\"
+        HELPERS_DIR=\"\$RESOURCES_DIR/../lib\"
         
         # Source utilities first
         source \"\$HELPERS_DIR/utils/log.sh\"
-        source \"\$HELPERS_DIR/utils/system.sh\"
-        source \"\$HELPERS_DIR/utils/ports.sh\"
+        source \"\$HELPERS_DIR/utils/system_commands.sh\"
+        source \"\$HELPERS_DIR/network/ports.sh\"
         source \"\$HELPERS_DIR/utils/flow.sh\"
         source \"\$RESOURCES_DIR/port-registry.sh\"
         

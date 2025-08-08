@@ -9,7 +9,7 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
 # Source utilities
 # shellcheck disable=SC1091
-source "$PROJECT_ROOT/scripts/helpers/utils/log.sh"
+source "$PROJECT_ROOT/scripts/lib/utils/log.sh"
 
 # Port mappings (most common ones)
 declare -A PORT_REPLACEMENTS=(

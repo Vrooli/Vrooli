@@ -1,22 +1,22 @@
-# Multi-Modal AI Assistant Tutorial
+# AI Research Assistant Tutorial
 
-**Build a complete voice-to-visual-to-action AI interface using Windmill + Vrooli resources**
+**Build a complete AI-powered research interface using Windmill + Vrooli resources**
 
-A step-by-step guide to creating a professional multi-modal AI assistant that combines **Whisper** (voice), **Ollama** (intelligence), **ComfyUI** (visuals), and **Agent-S2** (automation) into a seamless user interface.
+A step-by-step guide to creating a professional AI research assistant that combines **Ollama** (intelligence), **SearXNG** (search), **Qdrant** (vector storage), and **PostgreSQL** (data) into a seamless research interface.
 
 ## 🎯 What You'll Build
 
-### **Complete AI Assistant Interface**
-- **Voice Input**: Upload audio files or type text commands
-- **Intelligence Layer**: AI understanding and response generation
-- **Visual Creation**: Automated image generation based on commands
-- **Screen Automation**: File management and application control
-- **Professional UI**: Dashboard with real-time progress tracking
+### **Complete Research Assistant Interface**
+- **Query Input**: Research questions and topic exploration
+- **Intelligence Layer**: AI understanding and research strategy
+- **Data Collection**: Automated web search and content gathering
+- **Knowledge Storage**: Vector embeddings and structured data
+- **Professional UI**: Dashboard with research progress and results
 
 ### **Business Value**
-- **Revenue Potential**: $10,000-25,000 per project
-- **Target Markets**: Accessibility services, creative professionals, enterprise productivity
-- **Unique Selling Point**: Complete voice-to-visual-to-action automation
+- **Revenue Potential**: $15,000-30,000 per project
+- **Target Markets**: Consulting firms, research organizations, legal practices
+- **Unique Selling Point**: Automated research with AI-powered synthesis and storage
 
 ## 🏗️ Architecture Overview
 
@@ -24,10 +24,10 @@ A step-by-step guide to creating a professional multi-modal AI assistant that co
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   Windmill UI   │    │  AI Orchestrator │    │   AI Resources  │
 │                 │    │                  │    │                 │
-│ - Audio Upload  │───▶│ - Workflow Mgmt  │───▶│ - Whisper API   │
-│ - Progress View │    │ - State Tracking │    │ - Ollama LLM    │
-│ - Results Panel │◄───│ - Error Handling │◄───│ - ComfyUI Gen   │
-│ - Export Tools  │    │ - Context Memory │    │ - Agent-S2 Auto │
+│ - Query Input   │───▶│ - Workflow Mgmt  │───▶│ - Ollama LLM    │
+│ - Progress View │    │ - State Tracking │    │ - SearXNG API   │
+│ - Results Panel │◄───│ - Error Handling │◄───│ - Qdrant Vector │
+│ - Export Tools  │    │ - Data Storage   │    │ - PostgreSQL DB │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
 ```
 
@@ -39,10 +39,10 @@ A step-by-step guide to creating a professional multi-modal AI assistant that co
 ./scripts/resources/index.sh --action discover
 
 # Should show these services as healthy:
-# ✅ whisper is running on port 8090
 # ✅ ollama is running on port 11434  
-# ✅ comfyui is running on port 8188
-# ✅ agent-s2 is running on port 4113
+# ✅ searxng is running on port 9200
+# ✅ qdrant is running on port 6333
+# ✅ postgres is running on port 5433
 # ✅ windmill is running on port 5681
 ```
 
@@ -1072,20 +1072,20 @@ windmill monitoring enable --app multi_modal_assistant --metrics all
 ### **Testing the Complete System**
 ```bash
 # Run the complete test scenario
-./scripts/resources/tests/run.sh --scenarios "scenario=multi-modal-ai-assistant"
+./scripts/resources/tests/run.sh --scenarios "scenario=research-assistant"
 
 # This will test:
-# ✅ Voice command processing
-# ✅ Visual content generation  
-# ✅ Screen interaction automation
-# ✅ Multi-modal context understanding
-# ✅ End-to-end workflow execution
+# ✅ Research query processing
+# ✅ Automated web search  
+# ✅ Data collection and storage
+# ✅ AI-powered content synthesis
+# ✅ End-to-end research workflow
 ```
 
 ### **Accessing Your Assistant**
 ```bash
 # Access the complete interface
-open http://localhost:5681/apps/multi_modal_assistant
+open http://localhost:5681/apps/research_assistant
 
 # Monitor real-time status
 open http://localhost:1880/ui/  # Node-RED dashboard for monitoring
