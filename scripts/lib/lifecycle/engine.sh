@@ -118,7 +118,15 @@ engine::load_config() {
 engine::execute() {
     log::debug "Executing phase: $LIFECYCLE_PHASE"
     
-    # Validate target if specified
+    # Load phase configuration first (needed for target validation)
+    if ! config::get_phase "$LIFECYCLE_PHASE"; then
+        log::error "Phase not found: $LIFECYCLE_PHASE"
+        log::info "Available phases:"
+        config::list_phases | sed 's/^/  - /'
+        return 1
+    fi
+    
+    # Validate target if specified (now that PHASE_CONFIG is loaded)
     if [[ -n "${TARGET:-}" ]]; then
         if ! targets::validate "$TARGET"; then
             return 1

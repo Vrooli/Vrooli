@@ -1,64 +1,78 @@
 {
-  "version": "1.0",
-  "last_updated": "2025-01-06",
-  "scenarios": {
-    "vrooli-helpers": {
-      "description": "Internal tools that enhance Vrooli's capabilities",
-      "scenarios": {
-        "scenario-generator-v1": {
-          "location": "core/scenario-generator-v1",
-          "description": "Generates new scenarios from user requirements",
-          "ui": true,
-          "validated": false
-        },
-        "analytics-dashboard": {
-          "location": "core/analytics-dashboard",
-          "description": "Monitors resource health and performance metrics",
-          "ui": true,
-          "validated": false
-        }
-      }
+  "version": "2.0",
+  "last_updated": "2025-01-08",
+  "scenarios": [
+    {
+      "name": "scenario-generator-v1",
+      "description": "Generates new scenarios from user requirements",
+      "location": "core/scenario-generator-v1",
+      "category": "vrooli-helpers",
+      "validated": false,
+      "enabled": false,
+      "ui": true
     },
-    "saas-applications": {
-      "description": "Deployable business applications",
-      "scenarios": {
-        "campaign-content-studio": {
-          "location": "core/campaign-content-studio",
-          "description": "Campaign-based content management with AI generation",
-          "ui": true,
-          "validated": false
-        },
-        "research-assistant": {
-          "location": "core/research-assistant",
-          "description": "AI-powered research and report generation",
-          "ui": true,
-          "validated": false
-        },
-        "image-generation-pipeline": {
-          "location": "core/image-generation-pipeline",
-          "description": "Automated image generation and management pipeline",
-          "ui": true,
-          "validated": false
-        },
-        "audio-intelligence-platform": {
-          "location": "core/audio-intelligence-platform",
-          "description": "Audio transcription and analysis platform",
-          "ui": true,
-          "validated": false
-        },
-        "resume-screening-assistant": {
-          "location": "core/resume-screening-assistant",
-          "description": "AI-powered resume screening and matching",
-          "ui": false,
-          "validated": false
-        },
-        "secure-document-processing": {
-          "location": "core/secure-document-processing",
-          "description": "Secure document handling with encryption",
-          "ui": false,
-          "validated": false
-        }
-      }
+    {
+      "name": "analytics-dashboard",
+      "description": "Monitors resource health and performance metrics",
+      "location": "core/analytics-dashboard",
+      "category": "vrooli-helpers",
+      "validated": false,
+      "enabled": false,
+      "ui": true
+    },
+    {
+      "name": "campaign-content-studio",
+      "description": "Campaign-based content management with AI generation",
+      "location": "core/campaign-content-studio",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "research-assistant",
+      "description": "AI-powered research and report generation",
+      "location": "core/research-assistant",
+      "category": "saas-applications",
+      "validated": true,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "image-generation-pipeline",
+      "description": "Automated image generation and management pipeline",
+      "location": "core/image-generation-pipeline",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": false,
+      "ui": true
+    },
+    {
+      "name": "audio-intelligence-platform",
+      "description": "Audio transcription and analysis platform",
+      "location": "core/audio-intelligence-platform",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": false,
+      "ui": true
+    },
+    {
+      "name": "resume-screening-assistant",
+      "description": "AI-powered resume screening and matching",
+      "location": "core/resume-screening-assistant",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": false,
+      "ui": false
+    },
+    {
+      "name": "secure-document-processing",
+      "description": "Secure document handling with encryption",
+      "location": "core/secure-document-processing",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": false,
+      "ui": false
     }
-  }
+  ]
 }

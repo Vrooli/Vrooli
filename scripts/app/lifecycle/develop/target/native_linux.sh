@@ -143,6 +143,24 @@ nativeLinux::start_development_native_linux() {
     fi
     cd "$var_ROOT_DIR"
 
+    # Auto-convert enabled scenarios to standalone apps
+    log::info "Auto-converting enabled scenarios to apps..."
+    if [[ -f "${var_ROOT_DIR}/scripts/scenarios/auto-converter.sh" ]]; then
+        # Run with verbose output if in debug mode
+        local converter_opts=""
+        if [[ "${DEBUG:-}" == "true" ]]; then
+            converter_opts="--verbose"
+        fi
+        
+        if "${var_ROOT_DIR}/scripts/scenarios/auto-converter.sh" $converter_opts; then
+            log::success "Scenario auto-conversion completed"
+        else
+            log::warning "Some scenarios failed to convert (check logs above)"
+        fi
+    else
+        log::warning "Scenario auto-converter not found, skipping..."
+    fi
+
     log::info "Starting watchers and development servers (server, jobs, UI)..."
     # Export all environment variables for child processes
     export REDIS_URL="${REDIS_URL}"
@@ -156,9 +174,9 @@ nativeLinux::start_development_native_linux() {
     # Add staggered startup to prevent database connection race conditions
     local watchers=(
         # Server starts first (handles migrations)
-        "cd packages/server && PROJECT_DIR=$var_ROOT_DIR NODE_ENV=development DB_URL=${DB_URL} REDIS_URL=${REDIS_URL} npm_package_name=@vrooli/server bash ../../scripts/package/server/start.sh"
+        "cd packages/server && PROJECT_DIR=$var_ROOT_DIR NODE_ENV=development DB_URL=${DB_URL} REDIS_URL=${REDIS_URL} npm_package_name=@vrooli/server bash ../../scripts/app/package/server/start.sh"
         # Jobs service starts after a delay to avoid DB connection race
-        "sleep 10 && cd packages/jobs && PROJECT_DIR=$var_ROOT_DIR NODE_ENV=development DB_URL=${DB_URL} REDIS_URL=${REDIS_URL} npm_package_name=@vrooli/jobs bash ../../scripts/package/jobs/start.sh"
+        "sleep 10 && cd packages/jobs && PROJECT_DIR=$var_ROOT_DIR NODE_ENV=development DB_URL=${DB_URL} REDIS_URL=${REDIS_URL} npm_package_name=@vrooli/jobs bash ../../scripts/app/package/jobs/start.sh"
         # UI development server (starts immediately, no DB dependency)
         "pnpm --filter @vrooli/ui run start-development -- --port ${PORT_UI:-3000}"
     )

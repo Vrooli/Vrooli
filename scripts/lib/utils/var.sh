@@ -39,9 +39,10 @@ if [[ -f "$var_ROOT_DIR/package.json" ]] && \
     export var_ENV_PROD_FILE="$var_ROOT_DIR/.env-prod"
     export var_ENV_EXAMPLE_FILE="$var_ROOT_DIR/.env-example"
 
-    # Docker Compose files
-    export var_DOCKER_COMPOSE_DEV_FILE="$var_ROOT_DIR/docker-compose.yml"
-    export var_DOCKER_COMPOSE_PROD_FILE="$var_ROOT_DIR/docker-compose-prod.yml"
+    # Docker directory and compose files
+    export var_DOCKER_DIR="$var_ROOT_DIR/docker"
+    export var_DOCKER_COMPOSE_DEV_FILE="$var_DOCKER_DIR/docker-compose.yml"
+    export var_DOCKER_COMPOSE_PROD_FILE="$var_DOCKER_DIR/docker-compose-prod.yml"
 
     # Key pairs
     export var_STAGING_CI_SSH_PRIV_KEY_FILE="$var_ROOT_DIR/ci_ssh_priv_staging.pem"

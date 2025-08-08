@@ -45,6 +45,41 @@ docker::get_compose_file() {
     fi
 }
 
+# Override docker::compose to handle docker directory
+# This wrapper ensures we're in the right directory for docker-compose
+docker::compose() {
+    local current_dir=$(pwd)
+    local compose_file=$(docker::get_compose_file)
+    local docker_dir="${var_DOCKER_DIR:-$var_ROOT_DIR/docker}"
+    
+    # Change to docker directory for compose operations
+    cd "$docker_dir" || { 
+        log::error "Failed to change to docker directory: $docker_dir"
+        return 1
+    }
+    
+    # Get the compose command from universal docker.sh
+    local compose_cmd
+    if ! compose_cmd=$(docker::_get_compose_command); then
+        cd "$current_dir"
+        log::error "No Docker Compose version found"
+        return 1
+    fi
+    
+    # Execute compose command
+    local exit_code=0
+    if [[ "$compose_cmd" == "docker compose" ]]; then
+        docker::_execute_with_permissions "docker" "compose" "$@" || exit_code=$?
+    else
+        docker::_execute_with_permissions "docker-compose" "$@" || exit_code=$?
+    fi
+    
+    # Return to original directory
+    cd "$current_dir"
+    
+    return $exit_code
+}
+
 # Build Docker images for Vrooli services
 docker::build_images() {
     log::header "Building Docker images"

@@ -50,7 +50,7 @@ develop::check_port() {
     local service="$1"
     local port="$2"
     
-    if ports::is_in_use "$port"; then
+    if ports::is_port_in_use "$port"; then
         log::warning "Port $port for $service is already in use"
         return 1
     fi
@@ -253,11 +253,30 @@ develop::universal::main() {
     if ! flow::is_yes "$skip_instance_check"; then
         log::header "🔍 Checking for Running Instances"
         
-        if ! develop::check_instances; then
-            log::error "Instance conflicts detected"
-            log::info "Use --skip-instance-check to bypass this check"
-            log::info "Or use --clean-instances yes to stop all instances"
-            return "${ERROR_INSTANCE_CONFLICT:-1}"
+        # Load instance manager if available
+        local instance_script="${var_APP_LIFECYCLE_DEVELOP_DIR}/instance_manager.sh"
+        if [[ -f "$instance_script" ]]; then
+            # shellcheck disable=SC1090
+            source "$instance_script"
+            
+            # Use the handle_conflicts function which includes prompting
+            if function_exists "instance::handle_conflicts"; then
+                if ! instance::handle_conflicts "$target"; then
+                    log::info "Development cancelled or conflict resolution failed"
+                    return "${ERROR_INSTANCE_CONFLICT:-1}"
+                fi
+            else
+                # Fallback to simple check
+                if ! develop::check_instances; then
+                    log::error "Instance conflicts detected"
+                    log::info "Use --skip-instance-check to bypass this check"
+                    log::info "Or use --clean-instances yes to stop all instances"
+                    return "${ERROR_INSTANCE_CONFLICT:-1}"
+                fi
+            fi
+        else
+            # No instance manager available, skip check
+            log::debug "Instance manager not available, skipping check"
         fi
     fi
     
