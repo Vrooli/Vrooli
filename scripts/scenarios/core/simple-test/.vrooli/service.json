@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "simple-test",
+    "displayName": "Simple Test App",
+    "description": "Minimal test app for lifecycle validation",
+    "version": "1.0.0",
+    "type": "application"
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "setup": {
+      "description": "Simple app setup",
+      "steps": [
+        {
+          "name": "install",
+          "run": "npm install"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start development server",
+      "steps": [
+        {
+          "name": "start",
+          "run": "npm start"
+        }
+      ]
+    },
+    "build": {
+      "description": "Build app",
+      "steps": [
+        {
+          "name": "build",
+          "run": "npm run build"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run tests",
+      "steps": [
+        {
+          "name": "test",
+          "run": "npm test"
+        }
+      ]
+    }
+  }
+}

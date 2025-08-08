@@ -64,7 +64,7 @@ All scenarios have been migrated to the new framework:
 ### For Validation Testing
 ```bash
 # Run integration tests for a specific scenario
-cd core/multi-modal-ai-assistant
+cd core/research-assistant
 ./test.sh
 
 # Run all scenario tests  
@@ -80,7 +80,7 @@ done
 ./tools/scenario-to-app.sh campaign-content-studio
 
 # Run with verbose output
-./tools/scenario-to-app.sh multi-modal-ai-assistant --verbose
+./tools/scenario-to-app.sh research-assistant --verbose
 
 # Preview what would be done without executing
 ./tools/scenario-to-app.sh research-assistant --dry-run
@@ -141,8 +141,8 @@ cp -r templates/full/ core/ai-generated-scenario/
 
 ```
 scenarios/
-├── core/                     # All working scenarios (12 scenarios)
-│   ├── multi-modal-ai-assistant/      # Voice+AI+Visual assistant
+├── core/                     # All working scenarios (9 scenarios)
+│   ├── analytics-dashboard/            # Resource monitoring
 │   ├── secure-document-processing/     # Document processing with compliance
 │   ├── campaign-content-studio/   # Content creation
 │   ├── research-assistant/             # Knowledge management
@@ -203,7 +203,7 @@ scenarios/
 ## 📊 Current Ecosystem
 
 ### **Scenario Statistics**
-- **Total Scenarios**: 11 validated business applications
+- **Total Scenarios**: 9 validated business applications
 - **UI-Enabled**: 6 scenarios with professional Windmill interfaces
 - **Resource Coverage**: 15+ integrated resources (AI, automation, storage, agents)
 - **Business Value**: $10K-$25K average project potential

@@ -34,12 +34,6 @@
           "ui": true,
           "validated": false
         },
-        "multi-modal-ai-assistant": {
-          "location": "core/multi-modal-ai-assistant",
-          "description": "Voice, image, and text AI assistant",
-          "ui": true,
-          "validated": false
-        },
         "image-generation-pipeline": {
           "location": "core/image-generation-pipeline",
           "description": "Automated image generation and management pipeline",
@@ -58,21 +52,9 @@
           "ui": false,
           "validated": false
         },
-        "intelligent-desktop-assistant": {
-          "location": "core/intelligent-desktop-assistant",
-          "description": "Desktop automation and assistance",
-          "ui": false,
-          "validated": false
-        },
         "secure-document-processing": {
           "location": "core/secure-document-processing",
           "description": "Secure document handling with encryption",
-          "ui": false,
-          "validated": false
-        },
-        "multi-resource-pipeline": {
-          "location": "core/multi-resource-pipeline",
-          "description": "Example of multiple resource integration",
           "ui": false,
           "validated": false
         }

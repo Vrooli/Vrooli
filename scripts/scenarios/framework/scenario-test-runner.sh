@@ -103,7 +103,7 @@ Options:
 
 Examples:
     # Run tests for a scenario
-    $(basename "$0") --scenario ./core/multi-modal-ai-assistant
+    $(basename "$0") --scenario ./core/research-assistant
 
     # Run with custom config file
     $(basename "$0") --scenario ./core/my-scenario --config custom-test.yaml

@@ -126,7 +126,14 @@
       "ollama": {
         "enabled": true,
         "required": true,
-        "models": ["qwen2.5:32b", "nomic-embed-text", "llama3.2:3b"]
+        "models": ["qwen2.5:32b", "nomic-embed-text", "llama3.2:3b"],
+        "configuration": {
+          "default_model": "qwen2.5:32b",
+          "temperature": 0.7,
+          "max_tokens": 2048,
+          "timeout_seconds": 30,
+          "retry_attempts": 3
+        }
       },
       "unstructured-io": {
         "enabled": true,

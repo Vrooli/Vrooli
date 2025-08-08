@@ -45,24 +45,24 @@ Every scenario contains the complete genetic code for a deployable application:
 ```json
 {
   "metadata": {
-    "name": "multi-modal-ai-assistant",
-    "displayName": "Multi-Modal AI Assistant",
-    "description": "Voice-to-visual-to-action AI assistant"
+    "name": "research-assistant",
+    "displayName": "AI Research Assistant",
+    "description": "Automated research collection and synthesis"
   },
   "spec": {
     "business": {
-      "valueProposition": "Complete accessibility solution",
-      "revenueRange": { "min": 10000, "max": 25000 },
-      "targetMarkets": ["accessibility", "enterprise"]
+      "valueProposition": "Automated research and data synthesis",
+      "revenueRange": { "min": 15000, "max": 30000 },
+      "targetMarkets": ["consulting", "research", "legal"]
     },
     "dependencies": {
       "resources": [
-        {"name": "whisper", "type": "ai", "optional": false},
         {"name": "ollama", "type": "ai", "optional": false},
-        {"name": "comfyui", "type": "ai", "optional": false},
-        {"name": "agent-s2", "type": "agent", "optional": false},
+        {"name": "searxng", "type": "search", "optional": false},
+        {"name": "qdrant", "type": "vectordb", "optional": false},
+        {"name": "postgres", "type": "database", "optional": false},
         {"name": "minio", "type": "storage", "optional": true},
-        {"name": "qdrant", "type": "vectordb", "optional": true}
+        {"name": "windmill", "type": "automation", "optional": false}
       ]
     }
   }

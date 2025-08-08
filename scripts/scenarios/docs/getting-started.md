@@ -40,7 +40,7 @@ ls -la                                    # See all scenarios
 ls -la                                    # List all scenarios
 
 # Look at a simple example
-cd multi-resource-pipeline/
+cd research-assistant/
 cat service.json                        # Scenario configuration
 cat README.md                           # Business documentation
 ```

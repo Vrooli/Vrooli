@@ -452,7 +452,7 @@ validation_metrics:
 ### Quick Validation Commands
 ```bash
 # Test single scenario
-./core/multi-modal-ai-assistant/test.sh
+./core/research-assistant/test.sh
 
 # Test all scenarios
 for dir in core/*/; do (cd "$dir" && ./test.sh); done
@@ -483,7 +483,7 @@ for dir in core/*ai*; do (cd "$dir" && ./test.sh); done
 
 ### Success Report Format
 ```
-✅ Scenario: multi-modal-ai-assistant
+✅ Scenario: analytics-dashboard
 ├── ✅ Structural Validation (2s)
 ├── ✅ Resource Health (5s)
 ├── ✅ Integration Tests (840s)
