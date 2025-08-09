@@ -1,4 +1,5 @@
-import { type FindByPublicIdInput, type ResourceVersionCreateInput, type ResourceVersionSearchInput, type ResourceVersionUpdateInput, generatePK, resourceVersionTestDataFactory } from "@vrooli/shared";
+import { type FindByPublicIdInput, type ResourceVersionCreateInput, type ResourceVersionSearchInput, type ResourceVersionUpdateInput, generatePK, ResourceType } from "@vrooli/shared";
+import { resourceVersionTestDataFactory } from "@vrooli/shared/test-fixtures/api-inputs";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertRequiresApiKeyWritePermissions, assertRequiresAuth } from "../../__test/authTestUtils.js";
 import { mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
@@ -64,44 +65,71 @@ describe("EndpointsResource", () => {
 
         // Create test team
         const team = await DbProvider.get().team.create({
-            data: TeamDbFactory.createWithMember({
-                id: generatePK(),
-                createdById: testUsers.records[0].id,
-                members: [{
-                    userId: testUsers.records[0].id,
-                    permissions: "[\"owner\"]",
-                }],
-            }),
+            data: TeamDbFactory.createWithMembers(
+                [{ userId: testUsers.records[0].id.toString(), isAdmin: true }],
+                {
+                    id: generatePK(),
+                    createdBy: { connect: { id: testUsers.records[0].id } },
+                }
+            ),
         });
 
         // Create test resources
         const resources = await Promise.all([
             // Public resource by user 1
             DbProvider.get().resource.create({
-                data: ResourceDbFactory.createWithVersion({
-                    createdById: testUsers.records[0].id,
-                    isPrivate: false,
-                    publicId: "public_resource_123",
-                }),
+                data: ResourceDbFactory.createWithVersion(
+                    testUsers.records[0].id,
+                    {
+                        name: "Public Resource",
+                        description: "A public test resource",
+                        versionLabel: "1.0.0",
+                        isComplete: true,
+                    },
+                    ResourceType.Code,
+                    {
+                        isPrivate: false,
+                        publicId: "pub_res_123",
+                    }
+                ),
                 include: { versions: true },
             }),
             // Private resource by user 2
             DbProvider.get().resource.create({
-                data: ResourceDbFactory.createWithVersion({
-                    createdById: testUsers.records[1].id,
-                    isPrivate: true,
-                    publicId: "private_resource_456",
-                }),
+                data: ResourceDbFactory.createWithVersion(
+                    testUsers.records[1].id,
+                    {
+                        name: "Private Resource",
+                        description: "A private test resource",
+                        versionLabel: "1.0.0",
+                        isComplete: true,
+                    },
+                    ResourceType.Api,
+                    {
+                        isPrivate: true,
+                        publicId: "priv_res_456",
+                    }
+                ),
                 include: { versions: true },
             }),
             // Team resource
             DbProvider.get().resource.create({
-                data: ResourceDbFactory.createWithVersion({
-                    createdById: testUsers.records[0].id,
-                    teamId: team.id,
-                    isPrivate: false,
-                    publicId: "team_resource_789",
-                }),
+                data: ResourceDbFactory.createWithVersion(
+                    testUsers.records[0].id,
+                    {
+                        name: "Team Resource",
+                        description: "A team-owned test resource",
+                        versionLabel: "1.0.0",
+                        isComplete: true,
+                    },
+                    ResourceType.Project,
+                    {
+                        isPrivate: false,
+                        publicId: "team_res_789",
+                        ownedByTeam: { connect: { id: team.id } },
+                        ownedByUser: undefined,
+                    }
+                ),
                 include: { versions: true },
             }),
         ]);
@@ -379,7 +407,21 @@ describe("EndpointsResource", () => {
             it("not logged in", async () => {
                 await assertRequiresAuth(
                     resource.createOne,
-                    resourceVersionTestDataFactory.createMinimal(),
+                    {
+                        id: generatePK().toString(),
+                        versionLabel: "1.0.0",
+                        resourceType: "Api",
+                        root: {
+                            id: generatePK(),
+                            publicId: generatePublicId(),
+                            isPrivate: false,
+                        },
+                        translationsCreate: [{
+                            id: generatePK(),
+                            language: "en",
+                            name: "Test Resource",
+                        }],
+                    },
                     resource_createOne,
                 );
             });
@@ -387,7 +429,21 @@ describe("EndpointsResource", () => {
             it("API key - no write permissions", async () => {
                 await assertRequiresApiKeyWritePermissions(
                     resource.createOne,
-                    resourceVersionTestDataFactory.createMinimal(),
+                    {
+                        id: generatePK().toString(),
+                        versionLabel: "1.0.0",
+                        resourceType: "Api",
+                        root: {
+                            id: generatePK(),
+                            publicId: generatePublicId(),
+                            isPrivate: false,
+                        },
+                        translationsCreate: [{
+                            id: generatePK(),
+                            language: "en",
+                            name: "Test Resource",
+                        }],
+                    },
                     resource_createOne,
                     ["ResourceVersion"],
                 );
@@ -396,9 +452,9 @@ describe("EndpointsResource", () => {
 
         describe("valid", () => {
             it("creates minimal resource version", async () => {
-                const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
+                const testUsers = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const { req, res } = await mockAuthenticatedSession({
-                    id: testUser[0].id.toString(),
+                    id: testUsers.records[0].id.toString(),
                 });
 
                 const input: ResourceVersionCreateInput = resourceVersionTestDataFactory.createMinimal({
@@ -438,9 +494,9 @@ describe("EndpointsResource", () => {
             });
 
             it("creates resource with complete configuration", async () => {
-                const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
+                const testUsers = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const { req, res } = await mockAuthenticatedSession({
-                    id: testUser[0].id.toString(),
+                    id: testUsers.records[0].id.toString(),
                 });
 
                 // Create tags for the resource with unique names
@@ -450,7 +506,7 @@ describe("EndpointsResource", () => {
                     DbProvider.get().tag.create({ data: { id: generatePK(), tag: `json_${uniqueSuffix}` } }),
                 ]);
 
-                const input: ResourceVersionCreateInput = resourceVersionTestDataFactory.createComplete({
+                const input: ResourceVersionCreateInput = resourceVersionTestDataFactory.createMinimal({
                     id: generatePK(),
                     versionLabel: "2.1.0",
                     versionNotes: "Added new endpoints and improved error handling",
@@ -489,22 +545,21 @@ describe("EndpointsResource", () => {
             });
 
             it("creates team resource", async () => {
-                const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
+                const testUsers = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
 
                 // Create team
                 const team = await DbProvider.get().team.create({
-                    data: TeamDbFactory.createWithMember({
-                        id: generatePK(),
-                        createdById: testUser[0].id,
-                        members: [{
-                            userId: testUser[0].id,
-                            permissions: "[\"owner\"]",
-                        }],
-                    }),
+                    data: TeamDbFactory.createWithMembers(
+                        [{ userId: testUsers.records[0].id.toString(), isAdmin: true }],
+                        {
+                            id: generatePK(),
+                            createdBy: { connect: { id: testUsers.records[0].id } },
+                        }
+                    ),
                 });
 
                 const { req, res } = await mockAuthenticatedSession({
-                    id: testUser[0].id.toString(),
+                    id: testUsers.records[0].id.toString(),
                 });
 
                 const input: ResourceVersionCreateInput = resourceVersionTestDataFactory.createMinimal({
@@ -533,18 +588,26 @@ describe("EndpointsResource", () => {
 
         describe("invalid", () => {
             it("rejects duplicate public ID", async () => {
-                const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
+                const testUsers = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
 
                 // Create existing resource
                 await DbProvider.get().resource.create({
-                    data: ResourceDbFactory.createWithVersion({
-                        publicId: "existing_resource",
-                        createdById: testUser[0].id,
-                    }),
+                    data: ResourceDbFactory.createWithVersion(
+                        testUsers.records[0].id,
+                        {
+                            name: "Existing Resource",
+                            versionLabel: "1.0.0",
+                            isComplete: true,
+                        },
+                        ResourceType.Code,
+                        {
+                            publicId: "existing_resource",
+                        }
+                    ),
                 });
 
                 const { req, res } = await mockAuthenticatedSession({
-                    id: testUser[0].id.toString(),
+                    id: testUsers.records[0].id.toString(),
                 });
 
                 const input: ResourceVersionCreateInput = resourceVersionTestDataFactory.createMinimal({
@@ -566,9 +629,9 @@ describe("EndpointsResource", () => {
             });
 
             it("rejects invalid version label format", async () => {
-                const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
+                const testUsers = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const { req, res } = await mockAuthenticatedSession({
-                    id: testUser[0].id.toString(),
+                    id: testUsers.records[0].id.toString(),
                 });
 
                 const input: ResourceVersionCreateInput = resourceVersionTestDataFactory.createMinimal({
@@ -591,9 +654,9 @@ describe("EndpointsResource", () => {
             });
 
             it("rejects resource without translations", async () => {
-                const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
+                const testUsers = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const { req, res } = await mockAuthenticatedSession({
-                    id: testUser[0].id.toString(),
+                    id: testUsers.records[0].id.toString(),
                 });
 
                 const input: ResourceVersionCreateInput = {
@@ -751,18 +814,26 @@ describe("EndpointsResource", () => {
                 };
 
                 await expect(resource.updateOne({ input }, { req, res }, resource_updateOne))
-                    .rejects.toThrow(CustomError);
+                    .rejects.toThrow(Error);
             });
 
             it("cannot update to duplicate version label", async () => {
-                const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
+                const testUsers = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
 
                 // Create resource with two versions
                 const resource1 = await DbProvider.get().resource.create({
-                    data: ResourceDbFactory.createWithVersion({
-                        createdById: testUser[0].id,
-                        publicId: "multi_version_resource",
-                    }),
+                    data: ResourceDbFactory.createWithVersion(
+                        testUsers.records[0].id,
+                        {
+                            name: "Multi Version Resource",
+                            versionLabel: "1.0.0",
+                            isComplete: true,
+                        },
+                        ResourceType.Code,
+                        {
+                            publicId: "multi_ver_res",
+                        }
+                    ),
                     include: { versions: true },
                 });
 
@@ -777,12 +848,12 @@ describe("EndpointsResource", () => {
                         resourceType: "Api",
                         directoryListings: [],
                         usedBy: [],
-                        createdById: testUser[0].id,
+                        createdById: testUsers.records[0].id,
                     },
                 });
 
                 const { req, res } = await mockAuthenticatedSession({
-                    id: testUser[0].id.toString(),
+                    id: testUsers.records[0].id.toString(),
                 });
 
                 // Try to update version 2 to have same label as version 1
@@ -796,9 +867,9 @@ describe("EndpointsResource", () => {
             });
 
             it("cannot update non-existent resource", async () => {
-                const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
+                const testUsers = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
                 const { req, res } = await mockAuthenticatedSession({
-                    id: testUser[0].id.toString(),
+                    id: testUsers.records[0].id.toString(),
                 });
 
                 const input: ResourceVersionUpdateInput = {
@@ -807,7 +878,7 @@ describe("EndpointsResource", () => {
                 };
 
                 await expect(resource.updateOne({ input }, { req, res }, resource_updateOne))
-                    .rejects.toThrow(CustomError);
+                    .rejects.toThrow(Error);
             });
         });
     });

@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-08-05
 /* eslint-disable @typescript-eslint/ban-ts-comment */
 import { CodeLanguage } from "@vrooli/shared";
 import { expect, describe, it, beforeEach, afterEach, vi } from "vitest";

@@ -9,11 +9,11 @@ import type {
 } from "./types.js";
 
 interface ResourceVersionRelationConfig extends RelationConfig {
-    root?: { resourceId: string };
+    root?: { resourceId: bigint };
     translations?: Array<{ language: string; name: string; description?: string; instructions?: string; details?: string }>;
     relations?: Array<{
-        relationshipType: string;
-        targetVersionId: string;
+        relationType: string;
+        targetVersionId: bigint;
         isManualEntry?: boolean;
         sequence?: number;
     }>;
@@ -187,15 +187,17 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                     versionNotes: "Major update with new features",
                     link: "https://example.com/resource/v2-updated",
                     complexity: 8,
-                    translations: {
-                        update: [{
-                            where: { id: "translation_id" },
-                            data: {
-                                description: "Updated description",
-                                instructions: "Updated instructions",
-                            },
-                        }],
-                    },
+                    // Note: Translation updates would require existing translation IDs
+                    // This is left empty as update operations need real existing IDs
+                    // translations: {
+                    //     update: [{
+                    //         where: { id: existingTranslationId },
+                    //         data: {
+                    //             description: "Updated description",
+                    //             instructions: "Updated instructions",
+                    //         },
+                    //     }],
+                    // },
                 },
             },
         };
@@ -210,6 +212,9 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
             isPrivate: false,
             versionLabel: "1.0.0",
             complexity: 1,
+            root: {
+                connect: { id: this.generateId() },
+            },
             ...overrides,
         };
     }
@@ -347,14 +352,14 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
                     }],
                     relations: [
                         {
-                            relationshipType: "DependsOn",
-                            targetVersionId: "dependency_1",
+                            relationType: "DependsOn",
+                            targetVersionId: this.generateId(),
                             isManualEntry: false,
                             sequence: 1,
                         },
                         {
-                            relationshipType: "DependsOn",
-                            targetVersionId: "dependency_2",
+                            relationType: "DependsOn",
+                            targetVersionId: this.generateId(),
                             isManualEntry: false,
                             sequence: 2,
                         },
@@ -422,11 +427,10 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
             data.relations = {
                 create: config.relations.map(relation => ({
                     id: this.generateId(),
-                    fromId: data.id as string,
-                    toId: relation.targetVersionId,
-                    relationshipType: relation.relationshipType,
-                    isManualEntry: relation.isManualEntry ?? false,
-                    sequence: relation.sequence,
+                    fromVersionId: data.id as bigint,
+                    toVersionId: relation.targetVersionId,
+                    relationType: relation.relationType,
+                    labels: [],
                 })),
             };
         }
@@ -437,7 +441,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a documentation version
      */
-    async createDocumentationVersion(resourceId: string): Promise<Prisma.ResourceVersion> {
+    async createDocumentationVersion(resourceId: bigint): Promise<Prisma.ResourceVersion> {
         return this.createWithRelations({
             root: { resourceId },
             overrides: {
@@ -460,7 +464,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a tutorial version
      */
-    async createTutorialVersion(resourceId: string): Promise<Prisma.ResourceVersion> {
+    async createTutorialVersion(resourceId: bigint): Promise<Prisma.ResourceVersion> {
         return this.createWithRelations({
             root: { resourceId },
             overrides: {
@@ -483,7 +487,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create a beta/pre-release version
      */
-    async createBetaVersion(resourceId: string): Promise<Prisma.ResourceVersion> {
+    async createBetaVersion(resourceId: bigint): Promise<Prisma.ResourceVersion> {
         return this.seedScenario("betaVersion");
     }
 
@@ -491,14 +495,14 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
      * Create version with dependencies
      */
     async createVersionWithDependencies(
-        resourceId: string,
-        dependencyIds: string[],
+        resourceId: bigint,
+        dependencyIds: (string | bigint)[],
     ): Promise<Prisma.ResourceVersion> {
         return this.createWithRelations({
             root: { resourceId },
             relations: dependencyIds.map((depId, index) => ({
-                relationshipType: "DependsOn",
-                targetVersionId: depId,
+                relationType: "DependsOn",
+                targetVersionId: typeof depId === 'string' ? BigInt(depId) : depId,
                 isManualEntry: false,
                 sequence: index + 1,
             })),
@@ -591,7 +595,7 @@ export class ResourceVersionDbFactory extends EnhancedDatabaseFactory<
     /**
      * Create version history for testing
      */
-    async createVersionHistory(resourceId: string, count = 3): Promise<Prisma.ResourceVersion[]> {
+    async createVersionHistory(resourceId: bigint, count = 3): Promise<Prisma.ResourceVersion[]> {
         const versions: Prisma.ResourceVersion[] = [];
 
         for (let i = 0; i < count; i++) {

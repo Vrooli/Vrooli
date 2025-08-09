@@ -9,6 +9,7 @@
  */
 
 import { type PrismaClient } from "@prisma/client";
+import { validateCleanup } from "./testValidation.js";
 
 /**
  * Comprehensive cleanup for tests that create complex data structures
@@ -254,3 +255,145 @@ export const cleanupGroups = {
 } as const;
 
 export type CleanupGroup = keyof typeof cleanupGroups;
+
+/**
+ * Enhanced cleanup function with race condition protection for parallel test execution
+ * 
+ * This function ensures clean database state by retrying cleanup operations if
+ * orphaned records are detected. This is crucial for parallel test execution
+ * where race conditions can cause cleanup validation to fail.
+ * 
+ * @param prisma - The Prisma client
+ * @param options - Configuration options
+ */
+export async function ensureCleanState(
+    prisma: PrismaClient,
+    options: {
+        /** Cleanup function to use (default: cleanupMinimal) */
+        cleanupFn?: (prisma: PrismaClient) => Promise<void>;
+        /** Tables to validate (default: critical tables) */
+        tables?: string[];
+        /** Maximum retry attempts (default: 3) */
+        maxRetries?: number;
+        /** Base delay between retries in ms (default: 100) */
+        retryDelayMs?: number;
+        /** Whether to throw on persistent orphans (default: true) */
+        throwOnFailure?: boolean;
+    } = {},
+): Promise<void> {
+    const {
+        cleanupFn = cleanupMinimal,
+        tables = ["user", "user_auth", "email", "session"],
+        maxRetries = 3,
+        retryDelayMs = 100,
+        throwOnFailure = true,
+    } = options;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            // Perform cleanup
+            await cleanupFn(prisma);
+            
+            // Validate cleanup completed successfully
+            const orphans = await validateCleanup(prisma, {
+                tables,
+                logOrphans: false,
+                throwOnOrphans: false,
+            });
+            
+            if (orphans.length === 0) {
+                return; // Success!
+            }
+            
+            // If this is our last attempt, decide whether to throw
+            if (attempt === maxRetries) {
+                if (throwOnFailure) {
+                    const orphanDetails = orphans.map(({ table, count }) => `${table}(${count})`).join(", ");
+                    throw new Error(
+                        `Failed to achieve clean database state after ${maxRetries} attempts. ` +
+                        `Remaining orphaned records: ${orphanDetails}`,
+                    );
+                } else {
+                    console.warn(
+                        `Warning: Clean state not achieved after ${maxRetries} attempts. ` +
+                        `Orphaned records: ${orphans.map(({ table, count }) => `${table}(${count})`).join(", ")}`,
+                    );
+                    return;
+                }
+            }
+            
+            // Wait before retry with exponential backoff
+            const delay = retryDelayMs * Math.pow(2, attempt - 1);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            
+        } catch (error) {
+            if (attempt === maxRetries) {
+                throw new Error(
+                    `Cleanup operation failed after ${maxRetries} attempts: ${
+                        error instanceof Error ? error.message : String(error)
+                    }`,
+                );
+            }
+            
+            // Wait before retry on error
+            await new Promise(resolve => setTimeout(resolve, retryDelayMs * attempt));
+        }
+    }
+}
+
+/**
+ * Enhanced test cleanup pattern for use in afterEach hooks
+ * 
+ * This function performs immediate cleanup after a test and validates
+ * that the cleanup was successful, throwing an error if orphaned records remain.
+ * This prevents test pollution and race conditions in parallel execution.
+ * 
+ * @param prisma - The Prisma client
+ * @param options - Configuration options
+ */
+export async function performTestCleanup(
+    prisma: PrismaClient,
+    options: {
+        /** Cleanup function to use (default: cleanupMinimal) */
+        cleanupFn?: (prisma: PrismaClient) => Promise<void>;
+        /** Tables to validate (default: critical tables) */
+        tables?: string[];
+        /** Maximum retry attempts for validation (default: 2) */
+        maxRetries?: number;
+    } = {},
+): Promise<void> {
+    const {
+        cleanupFn = cleanupMinimal,
+        tables = ["user", "user_auth", "email", "session"],
+        maxRetries = 2,
+    } = options;
+
+    // Perform cleanup immediately
+    await cleanupFn(prisma);
+    
+    // Validate cleanup with retry logic for race conditions
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        const orphans = await validateCleanup(prisma, {
+            tables,
+            logOrphans: attempt === maxRetries, // Only log on final attempt
+            throwOnOrphans: false,
+        });
+        
+        if (orphans.length === 0) {
+            return; // Success!
+        }
+        
+        if (attempt < maxRetries) {
+            // One more cleanup attempt for race condition recovery
+            await cleanupFn(prisma);
+            await new Promise(resolve => setTimeout(resolve, 50));
+        } else {
+            // Final attempt failed - this is a test isolation violation
+            const orphanDetails = orphans.map(({ table, count }) => `${table}(${count})`).join(", ");
+            throw new Error(
+                `Test cleanup validation failed: orphaned records remain after cleanup: ${orphanDetails}. ` +
+                "This indicates a test isolation violation that must be fixed.",
+            );
+        }
+    }
+}

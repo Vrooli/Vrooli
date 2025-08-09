@@ -36,7 +36,7 @@ export function getAwardDbFixtures(): DbTestFixtures<Prisma.awardCreateInput> {
             user: { connect: { id: getAwardDbIds().user1 } },
             category: "CompleteCategory",
             progress: 100,
-            timeCompleted: new Date(),
+            tierCompletedAt: new Date(),
         },
         invalid: {
             missingRequired: {
@@ -75,7 +75,7 @@ export function getAwardDbFixtures(): DbTestFixtures<Prisma.awardCreateInput> {
                 user: { connect: { id: getAwardDbIds().user1 } },
                 category: "MaxProgress",
                 progress: 100,
-                timeCompleted: new Date(),
+                tierCompletedAt: new Date(),
             },
             partialProgress: {
                 id: generatePK(),
@@ -100,14 +100,14 @@ export function getAwardDbFixtures(): DbTestFixtures<Prisma.awardCreateInput> {
                 user: { connect: { id: getAwardDbIds().user1 } },
                 category: "RecentlyCompleted",
                 progress: 100,
-                timeCompleted: new Date(Date.now() - 1000), // 1 second ago
+                tierCompletedAt: new Date(Date.now() - 1000), // 1 second ago
             },
             completedLongAgo: {
                 id: generatePK(),
                 user: { connect: { id: getAwardDbIds().user1 } },
                 category: "LongAgoCompleted",
                 progress: 100,
-                timeCompleted: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), // 1 year ago
+                tierCompletedAt: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000), // 1 year ago
             },
         },
     };
@@ -148,7 +148,7 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.awardCreateInput> {
                 },
                 foreignKeyViolation: {
                     id: generatePK(),
-                    user: { connect: { id: "non-existent-user-id" } },
+                    user: { connect: { id: BigInt("999999999") } },
                     category: "ForeignKeyViolation",
                     progress: 0,
                 },
@@ -175,7 +175,7 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.awardCreateInput> {
                     user: { connect: { id: getAwardDbIds().user1 } },
                     category: "InconsistentCompletion",
                     progress: 50, // Not 100 but has completion time
-                    timeCompleted: new Date(),
+                    tierCompletedAt: new Date(),
                 },
                 notCompletedWithFullProgress: {
                     id: generatePK(),
@@ -207,11 +207,11 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.awardCreateInput> {
             if (data.progress > 100) {
                 warnings.push("Progress over 100 is unusual");
             }
-            if (data.progress === 100 && !data.timeCompleted) {
-                warnings.push("Completed award should have timeCompleted");
+            if (data.progress === 100 && !data.tierCompletedAt) {
+                warnings.push("Completed award should have tierCompletedAt");
             }
-            if (data.progress < 100 && data.timeCompleted) {
-                warnings.push("Incomplete award should not have timeCompleted");
+            if (data.progress < 100 && data.tierCompletedAt) {
+                warnings.push("Incomplete award should not have tierCompletedAt");
             }
         }
 
@@ -245,12 +245,12 @@ export class AwardDbFactory extends EnhancedDbFactory<Prisma.awardCreateInput> {
     static createCompleted(
         userId: bigint,
         category: string,
-        timeCompleted: Date,
+        tierCompletedAt: Date,
         overrides?: Partial<Prisma.awardCreateInput>,
     ): Prisma.awardCreateInput {
         return this.createMinimal(userId, category, {
             progress: 100,
-            timeCompleted,
+            tierCompletedAt,
             ...overrides,
         });
     }

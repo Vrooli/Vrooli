@@ -3,7 +3,7 @@ import { randomBytes } from "crypto";
 import { constants, promises as fs } from "fs";
 import { dirname, resolve } from "path";
 import { logger } from "../../events/logger.js";
-import type { TypedResourcesConfig } from "./resourcesConfig.js";
+import type { ServiceConfig } from "./resourcesConfig.js";
 import type { ResourceId } from "./typeRegistry.js";
 
 // Constants
@@ -23,7 +23,7 @@ interface FileLock {
  */
 export interface ConfigurationUpdate {
     operation: "set" | "delete" | "merge";
-    path: string; // JSON path (e.g., "services.ai.ollama")
+    path: string; // JSON path (e.g., "resources.ai.ollama")
     value?: any;
     backup?: boolean; // Whether to create a backup before update
 }
@@ -65,7 +65,7 @@ export class ConfigurationManager {
     private readonly activeLocks = new Map<string, FileLock>();
 
     constructor(configPath?: string, options: { lockTimeout?: number } = {}) {
-        this.configPath = configPath || resolve(process.cwd(), ".vrooli", "resources.local.json");
+        this.configPath = configPath || resolve(process.cwd(), ".vrooli", "service.json");
         this.lockTimeout = options.lockTimeout || SECONDS_30_MS;
 
         logger.debug("[ConfigurationManager] Initialized", {
@@ -153,7 +153,7 @@ export class ConfigurationManager {
     /**
      * Load and validate current configuration
      */
-    async loadConfiguration(): Promise<TypedResourcesConfig> {
+    async loadConfiguration(): Promise<ServiceConfig> {
         try {
             // Check if file exists
             try {
@@ -171,7 +171,7 @@ export class ConfigurationManager {
                 return this.getDefaultConfiguration();
             }
 
-            let config: TypedResourcesConfig;
+            let config: ServiceConfig;
             try {
                 config = JSON.parse(content);
             } catch (parseError) {
@@ -204,12 +204,12 @@ export class ConfigurationManager {
      */
     async updateResourceConfiguration(
         resourceId: ResourceId,
-        category: keyof NonNullable<TypedResourcesConfig["services"]>,
+        category: keyof NonNullable<ServiceConfig["resources"]>,
         resourceConfig: any,
     ): Promise<ConfigurationResult> {
         return this.updateConfiguration({
             operation: "set",
-            path: `services.${category}.${resourceId}`,
+            path: `resources.${category}.${resourceId}`,
             value: resourceConfig,
             backup: true,
         });
@@ -220,11 +220,11 @@ export class ConfigurationManager {
      */
     async removeResourceConfiguration(
         resourceId: ResourceId,
-        category: keyof NonNullable<TypedResourcesConfig["services"]>,
+        category: keyof NonNullable<ServiceConfig["resources"]>,
     ): Promise<ConfigurationResult> {
         return this.updateConfiguration({
             operation: "delete",
-            path: `services.${category}.${resourceId}`,
+            path: `resources.${category}.${resourceId}`,
             backup: true,
         });
     }
@@ -232,10 +232,15 @@ export class ConfigurationManager {
     /**
      * Create a configuration backup
      */
-    async createBackup(config?: TypedResourcesConfig): Promise<string> {
+    async createBackup(config?: ServiceConfig): Promise<string> {
         const configToBackup = config || await this.loadConfiguration();
         const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-        const backupPath = `${this.configPath}.backup.${timestamp}`;
+        const backupsDir = resolve(dirname(this.configPath), "backups");
+        const backupFilename = `${resolve(this.configPath).split("/").pop()}.backup.${timestamp}`;
+        const backupPath = resolve(backupsDir, backupFilename);
+
+        // Ensure backups directory exists
+        await fs.mkdir(backupsDir, { recursive: true });
 
         await this.atomicWrite(backupPath, configToBackup);
 
@@ -253,7 +258,7 @@ export class ConfigurationManager {
 
             // Load backup configuration
             const backupContent = await fs.readFile(backupPath, "utf8");
-            const backupConfig: TypedResourcesConfig = JSON.parse(backupContent);
+            const backupConfig: ServiceConfig = JSON.parse(backupContent);
 
             // Validate backup configuration
             const validationResult = await this.validateConfiguration(backupConfig);
@@ -326,25 +331,25 @@ export class ConfigurationManager {
                 });
             }
 
-            // Validate services structure
-            if (config.services) {
-                if (typeof config.services !== "object") {
+            // Validate resources structure (new service.json format)
+            if ((config as any).resources) {
+                if (typeof (config as any).resources !== "object") {
                     errors.push({
-                        path: "services",
-                        message: "Services must be an object",
+                        path: "resources",
+                        message: "Resources must be an object",
                     });
                 } else {
-                    // Validate each service category
-                    const validCategories = ["ai", "automation", "agents", "storage"];
-                    for (const [category, services] of Object.entries(config.services)) {
+                    // Validate each resource category
+                    const validCategories = ["ai", "automation", "agents", "storage", "execution"];
+                    for (const [category, resources] of Object.entries((config as any).resources)) {
                         if (!validCategories.includes(category)) {
-                            warnings.push(`Unknown service category: ${category}`);
+                            warnings.push(`Unknown resource category: ${category}`);
                             continue;
                         }
 
-                        if (services && typeof services === "object") {
-                            for (const [serviceId, serviceConfig] of Object.entries(services as any)) {
-                                this.validateServiceConfig(serviceId, serviceConfig as any, `services.${category}.${serviceId}`, errors);
+                        if (resources && typeof resources === "object") {
+                            for (const [resourceId, resourceConfig] of Object.entries(resources as any)) {
+                                this.validateServiceConfig(resourceId, resourceConfig as any, `resources.${category}.${resourceId}`, errors);
                             }
                         }
                     }
@@ -456,7 +461,7 @@ export class ConfigurationManager {
         }
     }
 
-    private async atomicWrite(filePath: string, config: TypedResourcesConfig): Promise<void> {
+    private async atomicWrite(filePath: string, config: ServiceConfig): Promise<void> {
         // Create temporary file in the same directory to ensure atomic move
         const tempPath = `${filePath}.tmp.${randomBytes(TEMP_SUFFIX_LENGTH).toString("hex")}`;
 
@@ -481,8 +486,8 @@ export class ConfigurationManager {
         }
     }
 
-    private applyUpdate(config: TypedResourcesConfig, update: ConfigurationUpdate): {
-        config: TypedResourcesConfig;
+    private applyUpdate(config: ServiceConfig, update: ConfigurationUpdate): {
+        config: ServiceConfig;
         warnings?: string[];
     } {
         const warnings: string[] = [];
@@ -631,24 +636,20 @@ export class ConfigurationManager {
         }
     }
 
-    private getDefaultConfiguration(): TypedResourcesConfig {
+    private getDefaultConfiguration(): ServiceConfig {
         return {
             version: "1.0.0",
-            enabled: true,
-            services: {
+            service: {
+                name: "vrooli",
+                version: "1.0.0",
+                type: "platform",
+            },
+            resources: {
                 ai: {},
                 automation: {},
                 agents: {},
                 storage: {},
-            },
-            security: {
-                network: {
-                    allowedHosts: ["localhost", "127.0.0.1"],
-                    allowCustomHosts: false,
-                },
-                authentication: {
-                    keyPrefix: "VROOLI_RESOURCE_",
-                },
+                execution: {},
             },
         };
     }

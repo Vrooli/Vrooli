@@ -4,7 +4,9 @@
  * Comprehensive type definitions for the execution test framework
  */
 
-import type { Session } from "../../types.js";
+// Import Session from @vrooli/shared (GraphQL type), not from server types
+// This is used for test scenarios that simulate GraphQL responses
+import type { Session } from "@vrooli/shared";
 
 // Base test entity types
 export interface TestEntity {

@@ -213,9 +213,9 @@ export class MessageTypeAdapters {
      * @throws Error if message state is invalid
      */
     static messageStateToLLMMessage(msg: MessageState): LLMMessage {
-        if (!msg?.text || !msg?.config) {
+        if (msg?.text == null || !msg?.config) {
             logger.error("[MessageTypeAdapters] Invalid MessageState for LLM conversion", {
-                hasText: !!msg?.text,
+                hasText: msg?.text != null,
                 hasConfig: !!msg?.config,
                 msgId: msg?.id,
             });

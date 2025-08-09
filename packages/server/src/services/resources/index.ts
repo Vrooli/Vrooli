@@ -71,7 +71,7 @@
  * ```
  * 
  * ### 3. Configuration:
- * Create `.vrooli/resources.local.json`:
+ * Create `.vrooli/service.json`:
  * ```json
  * {
  *   "enabled": true,

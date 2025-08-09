@@ -1,6 +1,6 @@
 // AI_CHECK: TEST_QUALITY=1, TEST_COVERAGE=1 | LAST: 2025-06-18
+import { generatePK, initIdGenerator } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { generatePK } from "../../__test/fixtures/db/idHelpers.js";
 import { createIsolatedQueueTestHarness } from "../../__test/helpers/queueTestUtils.js";
 import { clearRedisCache } from "../queueFactory.js";
 import { QueueService } from "../queues.js";
@@ -51,9 +51,15 @@ describe("Swarm Queue", () => {
     const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 
     beforeEach(async () => {
+        // Initialize ID generator first
+        await initIdGenerator(0);
+        
         // Get fresh instance and initialize
         queueService = QueueService.get();
         await queueService.init(redisUrl);
+        
+        // Pre-initialize all queues to avoid race conditions
+        await queueService.initializeAllQueues();
     });
 
     afterEach(async () => {

@@ -15,22 +15,44 @@ import { user } from "./user.js";
 // Import database fixtures for seeding
 import { UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
+// eslint-disable-next-line import/extensions
 import { userTestDataFactory } from "@vrooli/shared/test-fixtures/api-inputs";
-import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { cleanupGroups, ensureCleanState, performTestCleanup } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
-// Helper function to create admin user for tests
+// Helper function to create admin user for tests (idempotent)
 async function createTestAdminUser() {
-    return await DbProvider.get().user.create({
-        data: UserDbFactory.createWithAuth({
-            id: generatePK(),
-            publicId: SEEDED_PUBLIC_IDS.Admin,
-            name: "Admin User",
-            handle: "__admin__",
-            isPrivate: false,
-            theme: "light",
-        }),
-    });
+    try {
+        // Try to find existing admin user first
+        const existing = await DbProvider.get().user.findUnique({
+            where: { publicId: SEEDED_PUBLIC_IDS.Admin },
+        });
+        
+        if (existing) {
+            return existing; // Admin user already exists
+        }
+        
+        // Create new admin user if it doesn't exist
+        return await DbProvider.get().user.create({
+            data: UserDbFactory.createWithAuth({
+                id: generatePK(),
+                publicId: SEEDED_PUBLIC_IDS.Admin,
+                name: "Admin User",
+                handle: "__admin__",
+                isPrivate: false,
+                theme: "light",
+            }),
+        });
+    } catch (error) {
+        // If creation fails due to duplicate, try to find the existing one
+        const existing = await DbProvider.get().user.findUnique({
+            where: { publicId: SEEDED_PUBLIC_IDS.Admin },
+        });
+        if (existing) {
+            return existing;
+        }
+        throw error; // Re-throw if it's a different error
+    }
 }
 
 describe("EndpointsUser", () => {
@@ -39,24 +61,32 @@ describe("EndpointsUser", () => {
         vi.spyOn(logger, "error").mockImplementation(() => logger);
         vi.spyOn(logger, "info").mockImplementation(() => logger);
         vi.spyOn(logger, "warning").mockImplementation(() => logger);
+        
+        // Create admin user required by the system
+        await createTestAdminUser();
     });
 
     beforeEach(async () => {
-        // Clean up using dependency-ordered cleanup helpers
-        await cleanupGroups.minimal(DbProvider.get());
+        // Ensure clean database state with race condition protection
+        await ensureCleanState(DbProvider.get(), {
+            cleanupFn: cleanupGroups.minimal,
+            tables: ["user", "user_auth", "email", "session"],
+            throwOnFailure: true,
+        });
+        
+        // Recreate admin user after cleanup (required by system)
+        await createTestAdminUser();
+        
         // Clear Redis cache to reset rate limiting
         await CacheService.get().flushAll();
     });
 
     afterEach(async () => {
-        // Validate cleanup to detect any missed records
-        const orphans = await validateCleanup(DbProvider.get(), {
+        // Perform immediate cleanup after test to prevent test pollution
+        await performTestCleanup(DbProvider.get(), {
+            cleanupFn: cleanupGroups.minimal,
             tables: ["user", "user_auth", "email", "session"],
-            logOrphans: true,
         });
-        if (orphans.length > 0) {
-            console.warn("Test cleanup incomplete:", orphans);
-        }
     });
 
     afterAll(async () => {
@@ -184,7 +214,7 @@ describe("EndpointsUser", () => {
                     }),
                 });
 
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUser1.id.toString() };
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUser1.id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -341,7 +371,7 @@ describe("EndpointsUser", () => {
                     }),
                 });
 
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUser1.id.toString() };
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUser1.id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -396,7 +426,7 @@ describe("EndpointsUser", () => {
                     }),
                 });
 
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id.toString() };
+                const testUser = { ...loggedInUserNoPremiumData(), id: testUserRecord.id };
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
 

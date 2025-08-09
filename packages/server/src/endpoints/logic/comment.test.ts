@@ -1,5 +1,5 @@
 import { type CommentCreateInput, CommentFor, type CommentSearchInput, type CommentUpdateInput, type FindByIdInput } from "@vrooli/shared";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions, seedMockAdminUser } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
@@ -15,7 +15,7 @@ import { seedCommentThread } from "../../__test/fixtures/db/commentFixtures.js";
 import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
 import { commentTestDataFactory } from "@vrooli/shared";
-import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { cleanupGroups, ensureCleanState, performTestCleanup } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsComment", () => {
@@ -30,20 +30,17 @@ describe("EndpointsComment", () => {
         vi.spyOn(logger, "info").mockImplementation(() => logger);
     });
 
-    afterEach(async () => {
-        // Validate cleanup to detect any missed records
-        const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user","user_auth","email","session"],
-            logOrphans: true,
-        });
-        if (orphans.length > 0) {
-            console.warn("Test cleanup incomplete:", orphans);
-        }
-    });
-
     beforeEach(async () => {
-        // Clean up using dependency-ordered cleanup helpers
-        await cleanupGroups.minimal(DbProvider.get());
+        // Ensure clean database state with race condition protection
+        await ensureCleanState(DbProvider.get(), {
+            cleanupFn: cleanupGroups.minimal,
+            tables: ["user", "user_auth", "email", "session"],
+            throwOnFailure: true,
+        });
+
+        // Create test users first
+        const { records: users } = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+        testUsers = users;
 
         // Ensure admin user exists for update tests
         adminUser = await seedMockAdminUser();
@@ -67,10 +64,17 @@ describe("EndpointsComment", () => {
         });
     });
 
+    afterEach(async () => {
+        // Perform immediate cleanup after test to prevent test pollution
+        await performTestCleanup(DbProvider.get(), {
+            cleanupFn: cleanupGroups.minimal,
+            tables: ["user", "user_auth", "email", "session"],
+        });
+    });
+
     afterAll(async () => {
         // Clean up
         await CacheService.get().flushAll();
-        await DbProvider.deleteAll();
 
         // Restore all mocks
         vi.restoreAllMocks();

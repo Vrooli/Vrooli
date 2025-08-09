@@ -12,13 +12,13 @@ export const scheduleRecurrenceDbFixtures: DbTestFixtures<
     Prisma.schedule_recurrenceUpdateInput
 > = {
     minimal: {
-        id: generatePK(),
+        id: BigInt("1234567890123456789"),
         recurrenceType: "Daily",
         interval: 1,
-        schedule: { connect: { id: generatePK() } },
+        schedule: { connect: { id: BigInt("9876543210987654321") } },
     },
     complete: {
-        id: generatePK(),
+        id: BigInt("1234567890123456790"),
         recurrenceType: "Monthly",
         interval: 1,
         dayOfWeek: null,
@@ -26,16 +26,16 @@ export const scheduleRecurrenceDbFixtures: DbTestFixtures<
         month: null,
         endDate: new Date("2026-12-31T23:59:59Z"),
         duration: 90, // 90 minutes
-        schedule: { connect: { id: generatePK() } },
+        schedule: { connect: { id: BigInt("9876543210987654322") } },
     },
     invalid: {
         missingRequired: {
             // Missing required recurrenceType and schedule
-            id: generatePK(),
+            id: BigInt("1234567890123456791"),
             interval: 1,
         },
         invalidTypes: {
-            id: "not-a-valid-snowflake",
+            id: BigInt("-1"), // Invalid negative bigint
             recurrenceType: "InvalidType", // Not in enum
             interval: "not-a-number", // Should be number
             dayOfWeek: 8, // Out of range (1-7)
@@ -46,97 +46,97 @@ export const scheduleRecurrenceDbFixtures: DbTestFixtures<
             schedule: "not-an-object", // Should be object
         },
         invalidRanges: {
-            id: generatePK(),
+            id: BigInt("1234567890123456792"),
             recurrenceType: "Weekly",
             interval: 0, // Should be at least 1
             dayOfWeek: 8, // Should be 1-7
-            schedule: { connect: { id: generatePK() } },
+            schedule: { connect: { id: BigInt("9876543210987654323") } },
         },
     },
     edgeCases: {
         dailyForever: {
-            id: generatePK(),
+            id: BigInt("1234567890123456793"),
             recurrenceType: "Daily",
             interval: 1,
             endDate: null, // No end date
-            schedule: { connect: { id: generatePK() } },
+            schedule: { connect: { id: BigInt("9876543210987654324") } },
         },
         weeklyMWF: {
-            id: generatePK(),
+            id: BigInt("1234567890123456794"),
             recurrenceType: "Weekly",
             interval: 1,
             dayOfWeek: 1, // Monday (would need multiple recurrences for MWF)
             duration: 60,
-            schedule: { connect: { id: generatePK() } },
+            schedule: { connect: { id: BigInt("9876543210987654325") } },
         },
         biWeekly: {
-            id: generatePK(),
+            id: BigInt("1234567890123456795"),
             recurrenceType: "Weekly",
             interval: 2,
             dayOfWeek: 3, // Wednesday
             duration: 120,
-            schedule: { connect: { id: generatePK() } },
+            schedule: { connect: { id: BigInt("9876543210987654326") } },
         },
         monthlyFirstMonday: {
-            id: generatePK(),
+            id: BigInt("1234567890123456796"),
             recurrenceType: "Monthly",
             interval: 1,
             dayOfWeek: 1, // Monday (first of month logic would be handled elsewhere)
             dayOfMonth: null,
             duration: 180,
-            schedule: { connect: { id: generatePK() } },
+            schedule: { connect: { id: BigInt("9876543210987654327") } },
         },
         monthlyLastDay: {
-            id: generatePK(),
+            id: BigInt("1234567890123456797"),
             recurrenceType: "Monthly",
             interval: 1,
             dayOfMonth: 31, // Will adjust to last day of month
             duration: 60,
-            schedule: { connect: { id: generatePK() } },
+            schedule: { connect: { id: BigInt("9876543210987654328") } },
         },
         quarterly: {
-            id: generatePK(),
+            id: BigInt("1234567890123456798"),
             recurrenceType: "Monthly",
             interval: 3,
             dayOfMonth: 15,
             duration: 240, // 4 hours
-            schedule: { connect: { id: generatePK() } },
+            schedule: { connect: { id: BigInt("9876543210987654329") } },
         },
         yearlyBirthday: {
-            id: generatePK(),
+            id: BigInt("1234567890123456799"),
             recurrenceType: "Yearly",
             interval: 1,
             month: 6, // June
             dayOfMonth: 15,
             duration: 1440, // All day (24 hours)
-            schedule: { connect: { id: generatePK() } },
+            schedule: { connect: { id: BigInt("9876543210987654330") } },
         },
         leapYearEvent: {
-            id: generatePK(),
+            id: BigInt("1234567890123456800"),
             recurrenceType: "Yearly",
             interval: 1,
             month: 2, // February
             dayOfMonth: 29, // Only occurs on leap years
             duration: 60,
-            schedule: { connect: { id: generatePK() } },
+            schedule: { connect: { id: BigInt("9876543210987654331") } },
         },
         everyThreeHours: {
-            id: generatePK(),
+            id: BigInt("1234567890123456801"),
             recurrenceType: "Daily",
             interval: 1, // Daily recurrence, but duration implies multiple per day
             duration: 180, // 3 hours
             endDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // One week
-            schedule: { connect: { id: generatePK() } },
+            schedule: { connect: { id: BigInt("9876543210987654332") } },
         },
         longRunningEvent: {
-            id: generatePK(),
+            id: BigInt("1234567890123456802"),
             recurrenceType: "Yearly",
             interval: 1,
             month: 12,
             dayOfMonth: 1,
             duration: 43200, // 30 days in minutes
             endDate: new Date("2050-12-31T23:59:59Z"),
-            schedule: { connect: { id: generatePK() } },
+            schedule: { connect: { id: BigInt("9876543210987654333") } },
         },
     },
 };
@@ -148,6 +148,13 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<
     Prisma.schedule_recurrenceCreateInput,
     Prisma.schedule_recurrenceUpdateInput
 > {
+
+    /**
+     * Generate a new BigInt ID
+     */
+    protected generateId(): bigint {
+        return generatePK();
+    }
 
     /**
      * Get the test fixtures for ScheduleRecurrence model
@@ -166,65 +173,65 @@ export class ScheduleRecurrenceDbFactory extends EnhancedDbFactory<
         return {
             constraints: {
                 uniqueViolation: {
-                    id: generatePK(),
+                    id: BigInt("1234567890123456803"),
                     recurrenceType: "Daily",
                     interval: 1,
-                    schedule: { connect: { id: generatePK() } },
+                    schedule: { connect: { id: BigInt("9876543210987654334") } },
                 },
                 foreignKeyViolation: {
-                    id: generatePK(),
+                    id: BigInt("1234567890123456804"),
                     recurrenceType: "Daily",
                     interval: 1,
                     schedule: { connect: { id: BigInt("999999999") } },
                 },
                 checkConstraintViolation: {
-                    id: generatePK(),
+                    id: BigInt("1234567890123456805"),
                     recurrenceType: "Weekly",
                     interval: 1,
                     dayOfWeek: 0, // Invalid day (should be 1-7)
-                    schedule: { connect: { id: generatePK() } },
+                    schedule: { connect: { id: BigInt("9876543210987654335") } },
                 },
             },
             validation: {
                 requiredFieldMissing: scheduleRecurrenceDbFixtures.invalid.missingRequired,
                 invalidDataType: scheduleRecurrenceDbFixtures.invalid.invalidTypes,
                 outOfRange: {
-                    id: generatePK(),
+                    id: BigInt("1234567890123456806"),
                     recurrenceType: "Monthly",
                     interval: 1,
                     dayOfMonth: 32, // Invalid day of month
-                    schedule: { connect: { id: generatePK() } },
+                    schedule: { connect: { id: BigInt("9876543210987654336") } },
                 },
             },
             businessLogic: {
                 invalidInterval: {
-                    id: generatePK(),
+                    id: BigInt("1234567890123456807"),
                     recurrenceType: "Daily",
                     interval: 0, // Should be at least 1
-                    schedule: { connect: { id: generatePK() } },
+                    schedule: { connect: { id: BigInt("9876543210987654337") } },
                 },
                 weeklyWithoutDayOfWeek: {
-                    id: generatePK(),
+                    id: BigInt("1234567890123456808"),
                     recurrenceType: "Weekly",
                     interval: 1,
                     dayOfWeek: null, // Weekly needs day of week
-                    schedule: { connect: { id: generatePK() } },
+                    schedule: { connect: { id: BigInt("9876543210987654338") } },
                 },
                 monthlyConflict: {
-                    id: generatePK(),
+                    id: BigInt("1234567890123456809"),
                     recurrenceType: "Monthly",
                     interval: 1,
                     dayOfWeek: 1, // Both day of week and day of month specified
                     dayOfMonth: 15,
-                    schedule: { connect: { id: generatePK() } },
+                    schedule: { connect: { id: BigInt("9876543210987654339") } },
                 },
                 yearlyWithoutMonthDay: {
-                    id: generatePK(),
+                    id: BigInt("1234567890123456810"),
                     recurrenceType: "Yearly",
                     interval: 1,
                     month: null, // Yearly needs month
                     dayOfMonth: null, // And day
-                    schedule: { connect: { id: generatePK() } },
+                    schedule: { connect: { id: BigInt("9876543210987654340") } },
                 },
             },
         };

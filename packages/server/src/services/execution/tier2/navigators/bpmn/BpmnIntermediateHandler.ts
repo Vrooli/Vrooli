@@ -43,6 +43,13 @@ export interface IntermediateEventResult {
     thrownEvents: EventInstance[];
     // Events caught and consumed
     caughtEvents: EventInstance[];
+    // Convenience properties for backward compatibility
+    eventThrown?: EventInstance;
+    waitingForEvent?: {
+        type: string;
+        [key: string]: any;
+    };
+    eventCaught?: EventInstance;
 }
 
 /**
@@ -174,6 +181,7 @@ export class BpmnIntermediateHandler {
         };
 
         result.thrownEvents.push(signalEvent);
+        result.eventThrown = signalEvent; // Add convenience property
         result.updatedContext = ContextUtils.fireEvent(result.updatedContext, signalEvent);
 
         // Add signal to external events for other processes to catch
@@ -188,7 +196,13 @@ export class BpmnIntermediateHandler {
         result.updatedContext.external.signalEvents.push(externalSignal);
 
         // Continue to next element
-        return this.continueAfterEvent(model, event, currentLocation, result.updatedContext);
+        const continueResult = this.continueAfterEvent(model, event, currentLocation, result.updatedContext);
+        // Merge results, preserving thrown events
+        return {
+            ...continueResult,
+            thrownEvents: [...result.thrownEvents, ...continueResult.thrownEvents],
+            eventThrown: result.eventThrown,
+        };
     }
 
     /**
@@ -225,10 +239,17 @@ export class BpmnIntermediateHandler {
         };
 
         result.thrownEvents.push(messageEvent);
+        result.eventThrown = messageEvent; // Add convenience property
         result.updatedContext = ContextUtils.fireEvent(result.updatedContext, messageEvent);
 
         // Continue to next element
-        return this.continueAfterEvent(model, event, currentLocation, result.updatedContext);
+        const continueResult = this.continueAfterEvent(model, event, currentLocation, result.updatedContext);
+        // Merge results, preserving thrown events
+        return {
+            ...continueResult,
+            thrownEvents: [...result.thrownEvents, ...continueResult.thrownEvents],
+            eventThrown: result.eventThrown,
+        };
     }
 
     /**
@@ -313,12 +334,23 @@ export class BpmnIntermediateHandler {
                 },
             );
 
+            // Create a link event for tracking
+            const linkEvent: EventInstance = {
+                id: `link_${event.id}_${Date.now()}`,
+                eventId: event.id,
+                type: "link",
+                payload: { linkName: linkDefinition.linkName },
+                firedAt: new Date(),
+                source: "intermediate_throw",
+            };
+
             return {
                 nextLocations: [linkLocation],
                 updatedContext: context,
                 shouldWait: false,
-                thrownEvents: [],
+                thrownEvents: [linkEvent],
                 caughtEvents: [],
+                eventThrown: linkEvent,
             };
         }
 
@@ -362,6 +394,14 @@ export class BpmnIntermediateHandler {
             };
 
             result.updatedContext = ContextUtils.addTimerEvent(result.updatedContext, timerEvent);
+            
+            // Add convenience property for tests
+            result.waitingForEvent = {
+                type: "timer",
+                duration: timerDefinition.duration,
+                dueDate: timerDefinition.dueDate,
+                cycle: timerDefinition.cycle,
+            };
 
             // Create waiting location
             const waitingLocation = model.createAbstractLocation(
@@ -393,6 +433,7 @@ export class BpmnIntermediateHandler {
                 };
 
                 result.caughtEvents.push(caughtEvent);
+                result.eventCaught = caughtEvent; // Add convenience property
                 result.updatedContext = ContextUtils.fireEvent(result.updatedContext, caughtEvent);
 
                 // Remove expired timer
@@ -400,7 +441,13 @@ export class BpmnIntermediateHandler {
                     .filter(t => t.id !== existingTimer.id);
 
                 result.shouldWait = false;
-                return this.continueAfterEvent(model, event, currentLocation, result.updatedContext);
+                const continueResult = this.continueAfterEvent(model, event, currentLocation, result.updatedContext);
+                // Merge results, preserving caught events
+                return {
+                    ...continueResult,
+                    caughtEvents: [...result.caughtEvents, ...continueResult.caughtEvents],
+                    eventCaught: result.eventCaught,
+                };
             } else {
                 // Still waiting
                 const waitingLocation = model.createAbstractLocation(
@@ -459,6 +506,7 @@ export class BpmnIntermediateHandler {
             };
 
             result.caughtEvents.push(caughtEvent);
+            result.eventCaught = caughtEvent; // Add convenience property
             result.updatedContext = ContextUtils.fireEvent(result.updatedContext, caughtEvent);
 
             // Remove consumed signal
@@ -466,9 +514,20 @@ export class BpmnIntermediateHandler {
                 .filter(signal => signal.id !== matchingSignal.id);
 
             result.shouldWait = false;
-            return this.continueAfterEvent(model, event, currentLocation, result.updatedContext);
+            const continueResult = this.continueAfterEvent(model, event, currentLocation, result.updatedContext);
+            // Merge results, preserving caught events
+            return {
+                ...continueResult,
+                caughtEvents: [...result.caughtEvents, ...continueResult.caughtEvents],
+                eventCaught: result.eventCaught,
+            };
         } else {
             // Wait for signal
+            result.waitingForEvent = {
+                type: "signal",
+                signalRef: signalDefinition.signalRef,
+                scope: signalDefinition.scope,
+            };
             const waitingLocation = model.createAbstractLocation(
                 event.id,
                 currentLocation.routineId,
@@ -521,6 +580,7 @@ export class BpmnIntermediateHandler {
             };
 
             result.caughtEvents.push(caughtEvent);
+            result.eventCaught = caughtEvent; // Add convenience property
             result.updatedContext = ContextUtils.fireEvent(result.updatedContext, caughtEvent);
 
             // Remove consumed message
@@ -528,13 +588,24 @@ export class BpmnIntermediateHandler {
                 .filter(msg => msg.id !== matchingMessage.id);
 
             result.shouldWait = false;
-            return this.continueAfterEvent(model, event, currentLocation, result.updatedContext);
+            const continueResult = this.continueAfterEvent(model, event, currentLocation, result.updatedContext);
+            // Merge results, preserving caught events
+            return {
+                ...continueResult,
+                caughtEvents: [...result.caughtEvents, ...continueResult.caughtEvents],
+                eventCaught: result.eventCaught,
+            };
         } else {
             // Wait for message
+            result.waitingForEvent = {
+                type: "message",
+                messageRef: messageDefinition.messageRef,
+                correlationKey: messageDefinition.correlationKey,
+            };
             const waitingLocation = model.createAbstractLocation(
                 event.id,
                 currentLocation.routineId,
-                "message_waiting",
+                "intermediate_waiting",
                 {
                     parentNodeId: event.id,
                     eventId: event.id,
@@ -572,6 +643,7 @@ export class BpmnIntermediateHandler {
 
             const result = this.continueAfterEvent(model, event, currentLocation, context);
             result.caughtEvents.push(caughtEvent);
+            result.eventCaught = caughtEvent; // Add convenience property
             result.updatedContext = ContextUtils.fireEvent(result.updatedContext, caughtEvent);
             result.shouldWait = false;
             return result;
@@ -594,6 +666,10 @@ export class BpmnIntermediateHandler {
                 shouldWait: true,
                 thrownEvents: [],
                 caughtEvents: [],
+                waitingForEvent: {
+                    type: "conditional",
+                    condition: conditionDefinition.condition,
+                },
             };
         }
     }
@@ -780,12 +856,95 @@ export class BpmnIntermediateHandler {
 
     // Escalation and compensation handlers (placeholders for advanced features)
     private processEscalationThrowEvent(model: BpmnModel, event: any, currentLocation: AbstractLocation, context: EnhancedExecutionContext): IntermediateEventResult {
-        // Placeholder for escalation handling
-        return this.continueAfterEvent(model, event, currentLocation, context);
+        // Create escalation event for tracking
+        const escalationEvent: EventInstance = {
+            id: `escalation_${event.id}_${Date.now()}`,
+            eventId: event.id,
+            type: "escalation",
+            payload: { escalationCode: "default" },
+            firedAt: new Date(),
+            source: "intermediate_throw",
+        };
+
+        const result = this.continueAfterEvent(model, event, currentLocation, context);
+        result.thrownEvents.push(escalationEvent);
+        result.eventThrown = escalationEvent;
+        return result;
     }
 
     private processCompensationThrowEvent(model: BpmnModel, event: any, currentLocation: AbstractLocation, context: EnhancedExecutionContext): IntermediateEventResult {
-        // Placeholder for compensation handling
-        return this.continueAfterEvent(model, event, currentLocation, context);
+        // Create compensation event for tracking
+        const compensationEvent: EventInstance = {
+            id: `compensation_${event.id}_${Date.now()}`,
+            eventId: event.id,
+            type: "compensation",
+            payload: { compensationActivity: event.id },
+            firedAt: new Date(),
+            source: "intermediate_throw",
+        };
+
+        const result = this.continueAfterEvent(model, event, currentLocation, context);
+        result.thrownEvents.push(compensationEvent);
+        result.eventThrown = compensationEvent;
+        return result;
+    }
+
+    /**
+     * Get pending intermediate events, optionally filtered by type
+     */
+    getPendingIntermediateEvents(
+        context: EnhancedExecutionContext,
+        eventType?: string,
+    ): IntermediateEvent[] {
+        let pendingEvents = context.events.pending;
+
+        if (eventType) {
+            pendingEvents = pendingEvents.filter(event => event.type === eventType);
+        }
+
+        return pendingEvents.filter(event => event.waiting);
+    }
+
+    /**
+     * Complete an intermediate event
+     */
+    completeIntermediateEvent(
+        context: EnhancedExecutionContext,
+        eventId: string,
+    ): { updatedContext: EnhancedExecutionContext } {
+        const result = {
+            updatedContext: { ...context },
+        };
+
+        // Find the intermediate event and mark it as completed
+        result.updatedContext.events.pending = result.updatedContext.events.pending.map(event => {
+            if (event.id === eventId) {
+                return {
+                    ...event,
+                    waiting: false,
+                };
+            }
+            return event;
+        });
+
+        // Move to fired events
+        const completedEvent = result.updatedContext.events.pending.find(
+            event => event.id === eventId && !event.waiting,
+        );
+
+        if (completedEvent) {
+            const eventInstance: EventInstance = {
+                id: `intermediate_${eventId}_${Date.now()}`,
+                eventId,
+                type: completedEvent.type,
+                payload: completedEvent.eventDefinition,
+                firedAt: new Date(),
+                source: "intermediate_event",
+            };
+
+            result.updatedContext.events.fired.push(eventInstance);
+        }
+
+        return result;
     }
 }

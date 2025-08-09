@@ -4,10 +4,10 @@
  * Simple test to verify execution tests have proper access to test infrastructure
  */
 
-import { describe, it, expect } from "vitest";
+import { generatePK, generatePublicId } from "@vrooli/shared";
+import { describe, expect, it } from "vitest";
 import { DbProvider } from "../../db/provider.js";
 import { getEventBus } from "../../services/events/eventBus.js";
-import { generatePK } from "@vrooli/shared";
 
 describe("Execution Test Infrastructure Verification", () => {
     it("should have access to database provider", async () => {
@@ -15,8 +15,7 @@ describe("Execution Test Infrastructure Verification", () => {
         const db = DbProvider.get();
         expect(db).toBeDefined();
         expect(db.user).toBeDefined();
-        expect(db.routine).toBeDefined();
-        expect(db.bot).toBeDefined();
+        expect(db.resource).toBeDefined();
         expect(db.team).toBeDefined();
     });
 
@@ -24,7 +23,8 @@ describe("Execution Test Infrastructure Verification", () => {
         const db = DbProvider.get();
         const testUser = await db.user.create({
             data: {
-                id: generatePK().toString(),
+                id: generatePK(),
+                publicId: generatePublicId(),
                 name: "Test User for Execution Tests",
                 isPrivate: false,
                 handle: `test-exec-${Date.now()}`,
@@ -46,8 +46,8 @@ describe("Execution Test Infrastructure Verification", () => {
         // Test that we can subscribe
         const subscriptionId = await eventBus.subscribe(
             "test/execution/verify",
-            () => {},
-            { mode: "standard" },
+            async () => { },
+            {},
         );
         expect(subscriptionId).toBeDefined();
 
@@ -59,7 +59,7 @@ describe("Execution Test Infrastructure Verification", () => {
         // Import shared to test if ID generator works
         const id1 = generatePK();
         const id2 = generatePK();
-        
+
         expect(id1).toBeDefined();
         expect(id2).toBeDefined();
         expect(id1).not.toBe(id2); // Should generate unique IDs

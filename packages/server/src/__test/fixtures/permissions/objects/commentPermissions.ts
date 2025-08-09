@@ -13,14 +13,31 @@ import { ObjectPermissionFactory } from "../factories/ObjectPermissionFactory.js
  */
 const USER_ID_SUFFIX_LENGTH = 16;
 
+// Consistent test user IDs for permissions testing - using lazy initialization
+let _testUserIds: Record<string, string> | null = null;
+function getTestUserIds() {
+    if (!_testUserIds) {
+        _testUserIds = {
+            commentOwner: generatePK().toString(),
+            issueOwner: generatePK().toString(),
+            otherUser: generatePK().toString(),
+            teamMember: generatePK().toString(),
+            resourceOwner: generatePK().toString(),
+            threadStarter: generatePK().toString(),
+            replyAuthor: generatePK().toString(),
+        };
+    }
+    return _testUserIds;
+}
+
 // Minimal comment object for testing
 function createMinimalComment(overrides: Record<string, unknown> = {}) {
     return {
         __typename: "Comment",
-        id: generatePK(),
+        id: generatePK().toString(),
         owner: {
             __typename: "User",
-            id: "222222222222222222",
+            id: getTestUserIds().commentOwner,
         },
         commentedOn: {
             __typename: "Issue",
@@ -28,7 +45,7 @@ function createMinimalComment(overrides: Record<string, unknown> = {}) {
         },
         translations: [{
             __typename: "CommentTranslation",
-            id: generatePK(),
+            id: generatePK().toString(),
             language: "en",
             text: "Test comment",
         }],
@@ -40,10 +57,10 @@ function createMinimalComment(overrides: Record<string, unknown> = {}) {
 function createCompleteComment(overrides: Record<string, unknown> = {}) {
     return {
         __typename: "Comment",
-        id: generatePK(),
+        id: generatePK().toString(),
         owner: {
             __typename: "User",
-            id: "222222222222222222",
+            id: getTestUserIds().commentOwner,
             handle: "commenter",
             name: "Test Commenter",
         },
@@ -52,11 +69,11 @@ function createCompleteComment(overrides: Record<string, unknown> = {}) {
             id: DUMMY_ID,
             title: "Test Issue",
             isPublic: true,
-            owner: { id: "333333333333333333" },
+            owner: { id: getTestUserIds().issueOwner },
         },
         translations: [{
             __typename: "CommentTranslation",
-            id: generatePK(),
+            id: generatePK().toString(),
             language: "en",
             text: "This is a comprehensive test comment with detailed content.",
         }],
@@ -205,13 +222,13 @@ export const commentScenarios = {
                 id: DUMMY_ID,
                 title: "Public Issue",
                 isPublic: true,
-                owner: { id: "333333333333333333" },
+                owner: { id: getTestUserIds().issueOwner },
             },
         }),
         actors: [
             {
                 id: "comment_owner",
-                session: { id: "222222222222222222" } as Record<string, unknown>,
+                session: { id: getTestUserIds().commentOwner } as Record<string, unknown>,
                 permissions: {
                     read: true,
                     create: true,
@@ -223,7 +240,7 @@ export const commentScenarios = {
             },
             {
                 id: "issue_owner",
-                session: { id: "333333333333333333" } as Record<string, unknown>,
+                session: { id: getTestUserIds().issueOwner } as Record<string, unknown>,
                 permissions: {
                     read: true,
                     create: true,
@@ -235,7 +252,7 @@ export const commentScenarios = {
             },
             {
                 id: "other_user",
-                session: { id: "444444444444444444" } as Record<string, unknown>,
+                session: { id: getTestUserIds().otherUser } as Record<string, unknown>,
                 permissions: {
                     read: true,
                     create: true,
@@ -261,13 +278,13 @@ export const commentScenarios = {
                 id: DUMMY_ID,
                 name: "Private Resource",
                 isPublic: false,
-                owner: { id: "333333333333333333" },
+                owner: { id: getTestUserIds().resourceOwner },
             },
         }),
         actors: [
             {
                 id: "comment_owner",
-                session: { id: "222222222222222222" } as Record<string, unknown>,
+                session: { id: getTestUserIds().commentOwner } as Record<string, unknown>,
                 permissions: {
                     read: false, // Can't read comment on private resource they can't access
                     create: false,
@@ -279,7 +296,7 @@ export const commentScenarios = {
             },
             {
                 id: "resource_owner",
-                session: { id: "333333333333333333" } as Record<string, unknown>,
+                session: { id: getTestUserIds().resourceOwner } as Record<string, unknown>,
                 permissions: {
                     read: true,
                     create: true,
@@ -300,6 +317,12 @@ export const commentScenarios = {
         id: "comment_team_pull_request",
         description: "Comment on team pull request",
         resource: createCompleteComment({
+            owner: {
+                __typename: "User",
+                id: getTestUserIds().teamMember,
+                handle: "teammember",
+                name: "Team Member",
+            },
             commentedOn: {
                 __typename: "PullRequest",
                 id: DUMMY_ID,
@@ -312,7 +335,7 @@ export const commentScenarios = {
             {
                 id: "team_member",
                 session: { 
-                    id: "222222222222222222",
+                    id: getTestUserIds().teamMember,
                     _testTeamMembership: { teamId: "team_123", role: "Member" },
                 } as Record<string, unknown>,
                 permissions: {
@@ -326,7 +349,7 @@ export const commentScenarios = {
             },
             {
                 id: "non_member",
-                session: { id: "444444444444444444" } as Record<string, unknown>,
+                session: { id: getTestUserIds().otherUser } as Record<string, unknown>,
                 permissions: {
                     read: false,
                     create: false,
@@ -347,16 +370,22 @@ export const commentScenarios = {
         id: "comment_thread",
         description: "Nested comment thread",
         resource: createCompleteComment({
+            owner: {
+                __typename: "User",
+                id: getTestUserIds().replyAuthor,
+                handle: "replyauthor",
+                name: "Reply Author",
+            },
             parent: {
                 __typename: "Comment",
                 id: "parent_comment_id",
-                owner: { id: "333333333333333333" },
+                owner: { id: getTestUserIds().threadStarter },
             },
         }),
         actors: [
             {
                 id: "thread_starter",
-                session: { id: "333333333333333333" } as Record<string, unknown>,
+                session: { id: getTestUserIds().threadStarter } as Record<string, unknown>,
                 permissions: {
                     read: true,
                     create: true,
@@ -368,7 +397,7 @@ export const commentScenarios = {
             },
             {
                 id: "reply_author",
-                session: { id: "222222222222222222" } as Record<string, unknown>,
+                session: { id: getTestUserIds().replyAuthor } as Record<string, unknown>,
                 permissions: {
                     read: true,
                     create: true,
@@ -469,7 +498,7 @@ export const commentPermissionHelpers = {
             });
             
             comments.push(comment);
-            parentId = comment.id;
+            parentId = comment.id.toString();
         }
         
         return comments;

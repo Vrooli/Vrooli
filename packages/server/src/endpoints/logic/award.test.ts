@@ -3,7 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vites
 import { seedAwards } from "../../__test/fixtures/db/awardFixtures.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 import { assertFindManyResultIds } from "../../__test/helpers.js";
-import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { cleanupGroups, ensureCleanState, performTestCleanup } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
@@ -27,19 +27,20 @@ describe("EndpointsAward", () => {
     });
 
     afterEach(async () => {
-        // Validate cleanup to detect any missed records
-        const orphans = await validateCleanup(DbProvider.get(), {
+        // Perform immediate cleanup after test to prevent test pollution
+        await performTestCleanup(DbProvider.get(), {
+            cleanupFn: cleanupGroups.minimal,
             tables: ["user", "user_auth", "email", "session"],
-            logOrphans: true,
         });
-        if (orphans.length > 0) {
-            console.warn("Test cleanup incomplete:", orphans);
-        }
     });
 
     beforeEach(async () => {
-        // Clean up using dependency-ordered cleanup helpers
-        await cleanupGroups.minimal(DbProvider.get());
+        // Ensure clean database state with race condition protection
+        await ensureCleanState(DbProvider.get(), {
+            cleanupFn: cleanupGroups.minimal,
+            tables: ["user", "user_auth", "email", "session"],
+            throwOnFailure: true,
+        });
 
         // Create test users
         const seedResult = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
@@ -47,20 +48,20 @@ describe("EndpointsAward", () => {
 
         // Seed awards using database fixtures
         const awards1 = await seedAwards(DbProvider.get(), {
-            userId: testUsers[0].id.toString(),
+            userId: testUsers[0].id,
             categories: [
                 { name: AwardCategory.RoutineCreate, progress: 75 },
             ],
         });
-        userAward1 = awards1[0];
+        userAward1 = awards1.records[0];
 
         const awards2 = await seedAwards(DbProvider.get(), {
-            userId: testUsers[1].id.toString(),
+            userId: testUsers[1].id,
             categories: [
                 { name: AwardCategory.ProjectCreate, progress: 25 },
             ],
         });
-        userAward2 = awards2[0];
+        userAward2 = awards2.records[0];
 
         // Update created/updated times for time filtering tests
         await DbProvider.get().award.update({

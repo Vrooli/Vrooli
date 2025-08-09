@@ -145,7 +145,7 @@ describe("EndpointsChatParticipant", () => {
             });
 
             it("returns participant record for public chat with API key", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: BigInt(testUsers[0].id) };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -238,7 +238,7 @@ describe("EndpointsChatParticipant", () => {
             });
 
             it("returns participants for public chat with API key", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: BigInt(testUsers[0].id) };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);
@@ -304,7 +304,7 @@ describe("EndpointsChatParticipant", () => {
             });
 
             it("API key with write permissions can update participant", async () => {
-                const testUser = { ...loggedInUserNoPremiumData(), id: testUsers[0].id };
+                const testUser = { ...loggedInUserNoPremiumData(), id: BigInt(testUsers[0].id) };
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);

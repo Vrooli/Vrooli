@@ -1,14 +1,19 @@
 /**
  * Port Registry Integration for TypeScript
  * 
- * This module provides TypeScript access to the port registry defined in shell scripts,
+ * This module provides TypeScript access to the port_registry defined in shell scripts,
  * enabling smart discovery and auto-correction of misconfigured resources.
- * Dynamically loads ports from scripts/resources/port-registry.sh at startup.
+ * Dynamically loads ports from scripts/resources/port_registry.sh at startup.
  */
 
 import { execSync } from "child_process";
 import path from "path";
+import { fileURLToPath } from "url";
 import { logger } from "../../events/logger.js";
+
+// ES modules equivalent of __dirname
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Standard HTTP/HTTPS ports for URL validation
 const STANDARD_HTTP_PORT = 80;
@@ -23,12 +28,12 @@ interface PortsJson {
 }
 
 /**
- * Possible locations for the port registry shell script
+ * Possible locations for the port_registry shell script
  */
 const POSSIBLE_SCRIPT_PATHS = [
-    path.join(process.cwd(), "scripts/resources/port-registry.sh"),
-    path.join(__dirname, "../../../../../scripts/resources/port-registry.sh"),
-    "/app/scripts/resources/port-registry.sh",  // Docker path
+    path.join(process.cwd(), "scripts/resources/port_registry.sh"),
+    path.join(__dirname, "../../../../../scripts/resources/port_registry.sh"),
+    "/app/scripts/resources/port_registry.sh",  // Docker path
 ];
 
 /**
@@ -74,7 +79,7 @@ function loadPortsFromShellScript(): Record<string, number> {
     }
 
     // If we get here, all paths failed
-    const errorMsg = `Failed to load port registry from shell script. Last error: ${lastError?.message}`;
+    const errorMsg = `Failed to load port_registry from shell script. Last error: ${lastError?.message}`;
     logger.error(`[PortRegistry] ${errorMsg}`);
     throw new Error(errorMsg);
 }
@@ -138,7 +143,7 @@ export function getAllResourceIds(): string[] {
 }
 
 /**
- * Log port registry information (for debugging)
+ * Log port_registry information (for debugging)
  */
 export function logPortRegistry(): void {
     logger.info("[PortRegistry] Known resource ports:");

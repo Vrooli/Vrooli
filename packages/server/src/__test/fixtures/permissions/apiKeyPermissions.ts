@@ -1,4 +1,5 @@
-import { ApiKeyType, generatePK } from "@vrooli/shared";
+import { generatePK } from "@vrooli/shared";
+import { ApiKeyType } from "./types.js";
 
 // Type definition for API key authentication data
 export interface ApiKeyFullAuthData {

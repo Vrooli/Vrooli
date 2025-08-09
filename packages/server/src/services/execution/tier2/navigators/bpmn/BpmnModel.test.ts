@@ -172,12 +172,15 @@ describe("BpmnModel", () => {
         test("should create abstract location with default type", () => {
             const location = model.createAbstractLocation("node1", "routine1");
             
-            expect(location).toEqual({
-                nodeId: "node1",
-                routineId: "routine1",
-                type: "node",
-                metadata: {},
-            });
+            // Test required properties
+            expect(location.nodeId).toBe("node1");
+            expect(location.routineId).toBe("routine1");
+            expect(location.type).toBe("node");
+            expect(location.locationType).toBe("node");
+            expect(location.metadata).toEqual({});
+            
+            // Ensure id is generated correctly
+            expect(location.id).toBe("node1_node");
         });
 
         test("should create abstract location with custom type and metadata", () => {

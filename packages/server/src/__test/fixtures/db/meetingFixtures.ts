@@ -86,12 +86,13 @@ export const meetingDbFixtures: DbTestFixtures<Prisma.meetingCreateInput> = {
             showOnTeamProfile: true,
         },
         invalidTypes: {
-            id: "not-a-valid-snowflake",
-            publicId: 123, // Should be string
-            openToAnyoneWithInvite: "yes", // Should be boolean
-            showOnTeamProfile: "no", // Should be boolean
-            scheduledFor: "not-a-date", // Should be Date
-        },
+            id: "not-a-valid-snowflake" as any, // String instead of bigint
+            publicId: 123 as any, // Number instead of string
+            openToAnyoneWithInvite: "yes" as any, // String instead of boolean
+            showOnTeamProfile: "no" as any, // String instead of boolean
+            scheduledFor: "not-a-date" as any, // String instead of Date
+            team: { connect: { id: "string-team-id" as any } }, // String instead of bigint
+        } as any,
         invalidTeamConnection: {
             id: getMeetingDbIds().meeting3,
             publicId: generatePublicId(),
@@ -138,7 +139,7 @@ export const meetingDbFixtures: DbTestFixtures<Prisma.meetingCreateInput> = {
             invites: {
                 create: Array.from({ length: 50 }, (_, i) => ({
                     id: generatePK(),
-                    user: { connect: { id: generatePK() } }, // Generate unique user IDs
+                    user: { connect: { id: getMeetingDbIds()[i % 3 === 0 ? 'user1' : i % 3 === 1 ? 'user2' : 'user3'] } }, // Cycle through existing user IDs
                 })),
             },
         },

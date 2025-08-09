@@ -119,8 +119,8 @@ describe("OpenRouterService", () => {
     describe("generateContext", () => {
         it("should generate context with system message", () => {
             const messages = [
-                { id: "msg-1", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") },
-                { id: "msg-2", text: "Hi there", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "assistant" }, language: "en", createdAt: new Date("2024-01-01T00:01:00Z") },
+                { id: "123456789012345678", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") },
+                { id: "123456789012345679", text: "Hi there", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "assistant" }, language: "en", createdAt: new Date("2024-01-01T00:01:00Z") },
             ] as unknown as MessageState[];
 
             const context = service.generateContext(messages, "You are a helpful assistant");
@@ -142,7 +142,7 @@ describe("OpenRouterService", () => {
 
         it("should generate context without system message", () => {
             const messages = [
-                { id: "msg-1", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") },
+                { id: "123456789012345680", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") },
             ] as unknown as MessageState[];
 
             const context = service.generateContext(messages);
@@ -156,9 +156,9 @@ describe("OpenRouterService", () => {
 
         it("should filter out invalid roles", () => {
             const messages = [
-                { id: "msg-1", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") },
-                { id: "msg-2", text: "Invalid", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "invalid" as any }, language: "en", createdAt: new Date("2024-01-01T00:01:00Z") },
-                { id: "msg-3", text: "Hi there", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "assistant" }, language: "en", createdAt: new Date("2024-01-01T00:02:00Z") },
+                { id: "123456789012345680", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") },
+                { id: "123456789012345682", text: "Invalid", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "invalid" as any }, language: "en", createdAt: new Date("2024-01-01T00:01:00Z") },
+                { id: "123456789012345683", text: "Hi there", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "assistant" }, language: "en", createdAt: new Date("2024-01-01T00:02:00Z") },
             ] as unknown as MessageState[];
 
             const context = service.generateContext(messages);
@@ -170,8 +170,8 @@ describe("OpenRouterService", () => {
 
         it("should handle messages with missing text", () => {
             const messages = [
-                { id: "msg-1", text: undefined, config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") },
-                { id: "msg-2", text: "Hi there", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "assistant" }, language: "en", createdAt: new Date("2024-01-01T00:01:00Z") },
+                { id: "123456789012345684", text: undefined, config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") },
+                { id: "123456789012345681", text: "Hi there", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "assistant" }, language: "en", createdAt: new Date("2024-01-01T00:01:00Z") },
             ] as unknown as MessageState[];
 
             const context = service.generateContext(messages);
@@ -211,7 +211,7 @@ describe("OpenRouterService", () => {
 
             const options = {
                 model: "openai/gpt-4o",
-                input: [{ id: "msg-1", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
+                input: [{ id: "123456789012345685", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
                 systemMessage: "You are helpful",
                 maxTokens: 100,
                 signal: mockAbortController.signal,
@@ -272,7 +272,7 @@ describe("OpenRouterService", () => {
 
             const options = {
                 model: "openai/gpt-4o",
-                input: [{ id: "msg-1", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
+                input: [{ id: "123456789012345685", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
                 tools: [],
             };
 
@@ -289,7 +289,7 @@ describe("OpenRouterService", () => {
         it("should throw error for unsupported model", async () => {
             const options = {
                 model: "gpt-4o", // Not in OpenRouter format
-                input: [{ id: "msg-1", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
+                input: [{ id: "123456789012345685", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
                 tools: [],
             };
 
@@ -309,7 +309,7 @@ describe("OpenRouterService", () => {
 
             const options = {
                 model: "openai/gpt-4o",
-                input: [{ id: "msg-1", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
+                input: [{ id: "123456789012345685", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
                 tools: [],
             };
 
@@ -328,7 +328,7 @@ describe("OpenRouterService", () => {
 
             const options = {
                 model: "openai/gpt-4o",
-                input: [{ id: "msg-1", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
+                input: [{ id: "123456789012345685", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
                 tools: [],
             };
 
@@ -343,7 +343,8 @@ describe("OpenRouterService", () => {
             const mockResponseBody = 
                 "data: {\"choices\":[{\"delta\":{\"content\":\"Hello\"}}]}\n" +
                 "data: {invalid json}\n" +
-                "data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n";
+                "data: {\"choices\":[{\"finish_reason\":\"stop\"}]}\n" +
+                "data: [DONE]\n";
 
             const mockReader = {
                 read: vi.fn()
@@ -363,7 +364,7 @@ describe("OpenRouterService", () => {
 
             const options = {
                 model: "openai/gpt-4o",
-                input: [{ id: "msg-1", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
+                input: [{ id: "123456789012345685", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
                 tools: [],
             };
 

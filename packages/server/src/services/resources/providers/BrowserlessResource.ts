@@ -9,12 +9,16 @@
  * - Integration with unified configuration system
  */
 
+import { SECONDS_30_MS, SECONDS_5_MS } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
 import { ResourceProvider } from "../ResourceProvider.js";
 import { RegisterResource } from "../ResourceRegistry.js";
 import type { AgentMetadata, BrowserlessConfig } from "../typeRegistry.js";
 import type { HealthCheckResult, IAgentResource, ResourceEventData } from "../types.js";
 import { DeploymentType, DiscoveryStatus, ResourceCategory, ResourceEvent } from "../types.js";
+
+// Default maximum concurrent browser instances
+const DEFAULT_MAX_CONCURRENT = 10;
 
 /**
  * Browserless stats information
@@ -84,7 +88,7 @@ export class BrowserlessResource extends ResourceProvider<"browserless", Browser
     private stats?: BrowserlessStats;
     private pressure?: BrowserlessPressure;
     private configInfo?: BrowserlessConfigInfo;
-    private readonly STATS_CACHE_TTL_MS = 30 * 1000; // 30 seconds
+    private readonly STATS_CACHE_TTL_MS = SECONDS_30_MS;
 
     /**
      * Enhanced discovery with browserless-specific checks
@@ -97,7 +101,7 @@ export class BrowserlessResource extends ResourceProvider<"browserless", Browser
             const pressureResult = await this.httpClient!.makeRequest({
                 url: `${this.config!.baseUrl}/pressure`,
                 method: "GET",
-                timeout: 5000,
+                timeout: SECONDS_5_MS,
                 auth: this.getAuthConfig(),
             });
 
@@ -116,7 +120,7 @@ export class BrowserlessResource extends ResourceProvider<"browserless", Browser
                 const configResult = await this.httpClient!.makeRequest({
                     url: `${this.config!.baseUrl}/config`,
                     method: "GET",
-                    timeout: 3000,
+                    timeout: SECONDS_5_MS,
                     auth: this.getAuthConfig(),
                 });
 
@@ -163,7 +167,7 @@ export class BrowserlessResource extends ResourceProvider<"browserless", Browser
             const result = await this.httpClient!.makeRequest({
                 url: `${this.config!.baseUrl}/pressure`,
                 method: "GET",
-                timeout: this.config!.healthCheck?.timeoutMs || 5000,
+                timeout: this.config!.healthCheck?.timeoutMs || SECONDS_5_MS,
                 auth: this.getAuthConfig(),
             });
 
@@ -180,7 +184,7 @@ export class BrowserlessResource extends ResourceProvider<"browserless", Browser
                 }
 
                 const isUnderPressure = this.pressure?.reason !== "OK";
-                const maxConcurrent = this.configInfo?.concurrent || this.config!.concurrent || 10;
+                const maxConcurrent = this.configInfo?.concurrent || this.config!.concurrent || DEFAULT_MAX_CONCURRENT;
                 const utilization = (this.activeInstances / maxConcurrent) * 100;
 
                 const details = {
@@ -285,6 +289,20 @@ export class BrowserlessResource extends ResourceProvider<"browserless", Browser
         // Convert http/https to ws/wss
         const wsUrl = baseUrl.replace(/^http/, "ws");
         return `${wsUrl}/chrome`;
+    }
+
+    /**
+     * Get base URL for making HTTP requests
+     */
+    getBaseUrl(): string | undefined {
+        return this.config?.baseUrl;
+    }
+
+    /**
+     * Get authentication token
+     */
+    getToken(): string | undefined {
+        return this.config?.token;
     }
 
     /**

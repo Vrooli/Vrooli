@@ -1,30 +1,26 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { 
-    type ResponseContext, 
-    type BotParticipant, 
-    type ChatConfigObject,
-    type TeamConfigObject,
-    type SessionUser,
-    type Tool,
-    type ToolCall,
-    type ModelType,
-    AgentSpec,
-    ResourceSubType,
+import {
     generatePK,
     ModelStrategy,
+    type BotParticipant,
+    type ChatConfigObject,
+    type ModelType,
+    type ResponseContext,
+    type SessionUser,
+    type TeamConfigObject,
+    type Tool,
 } from "@vrooli/shared";
-import { ResponseService, type PromptContext, type ResponseGenerationParams } from "./responseService.js";
-import { FallbackRouter, type LlmRouter } from "./router.js";
-import { CompositeToolRunner, type ToolRunner } from "./toolRunner.js";
-import { MessageHistoryBuilder } from "./messageHistoryBuilder.js";
-import { EventPublisher } from "../events/publisher.js";
-import { logger } from "../../events/logger.js";
-import { SwarmStateAccessor } from "../execution/shared/SwarmStateAccessor.js";
-import type { OkErr } from "../conversation/types.js";
 import * as fs from "fs/promises";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { logger } from "../../events/logger.js";
+import { EventPublisher } from "../events/publisher.js";
+import { SwarmStateAccessor } from "../execution/shared/SwarmStateAccessor.js";
+import { MessageHistoryBuilder } from "./messageHistoryBuilder.js";
+import { ModelSelectionStrategyFactory } from "./ModelSelectionStrategy.js";
 import { NetworkMonitor } from "./NetworkMonitor.js";
 import { AIServiceRegistry } from "./registry.js";
-import { ModelSelectionStrategyFactory } from "./ModelSelectionStrategy.js";
+import { ResponseService, type PromptContext, type ResponseGenerationParams } from "./responseService.js";
+import { type LlmRouter } from "./router.js";
+import { type ToolRunner } from "./toolRunner.js";
 
 // Mock dependencies
 vi.mock("../../events/logger.js", () => ({
@@ -106,7 +102,7 @@ describe("ResponseService", () => {
 
     beforeEach(() => {
         vi.clearAllMocks();
-        
+
         // Create mock tool runner
         mockToolRunner = {
             run: vi.fn().mockResolvedValue({
@@ -138,9 +134,16 @@ describe("ResponseService", () => {
                 role: "assistant",
                 model: "gpt-4" as ModelType,
                 config: {
+                    __version: "1.0",
                     temperature: 0.7,
                     maxTokens: 4000,
                     systemPrompt: "You are a helpful assistant",
+                    stats: {
+                        totalToolCalls: 0,
+                        totalCredits: "0",
+                        startedAt: null,
+                        lastProcessingCycleEndedAt: null,
+                    },
                 } as ChatConfigObject,
             } as BotParticipant,
             userData: {
@@ -343,7 +346,7 @@ describe("ResponseService", () => {
                     messageContent: "Processing...",
                     toolCalls: [
                         {
-                            id: generatePK(),
+                            id: generatePK().toString(),
                             name: "search",
                             arguments: { query: "test" },
                         },
@@ -381,7 +384,7 @@ describe("ResponseService", () => {
 
         it("should handle abort signal", async () => {
             const abortController = new AbortController();
-            
+
             // Abort immediately
             abortController.abort();
 
@@ -555,11 +558,19 @@ describe("ResponseService", () => {
                 name: "TestBot",
                 role: "assistant",
                 config: {
+                    __version: "1.0",
                     model: "gpt-4o",
                     temperature: 0.7,
+                    stats: {
+                        totalToolCalls: 0,
+                        totalCredits: "0",
+                        startedAt: null,
+                        lastProcessingCycleEndedAt: null,
+                    },
                 } as ChatConfigObject,
             } as BotParticipant,
             convoConfig: {
+                __version: "1.0",
                 teamId: "team123",
                 swarmLeader: "leader_bot",
                 subtasks: [
@@ -567,7 +578,12 @@ describe("ResponseService", () => {
                 ],
                 blackboard: [],
                 resources: [],
-                stats: { totalToolCalls: 5, totalCredits: 100 },
+                stats: {
+                    totalToolCalls: 5,
+                    totalCredits: "100",
+                    startedAt: null,
+                    lastProcessingCycleEndedAt: null,
+                },
             } as ChatConfigObject,
             team: {
                 id: "team123",
@@ -631,12 +647,19 @@ describe("ResponseService", () => {
                         ...createPromptContext().bot,
                         config: {
                             ...createPromptContext().bot.config,
+                            __version: "1.0",
                             agentSpec: {
                                 prompt: {
                                     source: "direct",
                                     content: agentPrompt,
                                     mode: "replace",
                                 },
+                            },
+                            stats: {
+                                totalToolCalls: 0,
+                                totalCredits: "0",
+                                startedAt: null,
+                                lastProcessingCycleEndedAt: null,
                             },
                         } as ChatConfigObject,
                     },
@@ -651,7 +674,7 @@ describe("ResponseService", () => {
             it("should supplement base template when mode is supplement", async () => {
                 const baseTemplate = "You are a helpful assistant.";
                 const agentPrompt = "Additional instructions: Focus on {{GOAL}}";
-                
+
                 (fs.readFile as any).mockResolvedValueOnce(baseTemplate);
 
                 const context = createPromptContext({
@@ -659,12 +682,19 @@ describe("ResponseService", () => {
                         ...createPromptContext().bot,
                         config: {
                             ...createPromptContext().bot.config,
+                            __version: "1.0",
                             agentSpec: {
                                 prompt: {
                                     source: "direct",
                                     content: agentPrompt,
                                     mode: "supplement",
                                 },
+                            },
+                            stats: {
+                                totalToolCalls: 0,
+                                totalCredits: "0",
+                                startedAt: null,
+                                lastProcessingCycleEndedAt: null,
                             },
                         } as ChatConfigObject,
                     },
@@ -686,6 +716,7 @@ describe("ResponseService", () => {
                         ...createPromptContext().bot,
                         config: {
                             ...createPromptContext().bot.config,
+                            __version: "1.0",
                             agentSpec: {
                                 prompt: {
                                     source: "direct",
@@ -696,6 +727,12 @@ describe("ResponseService", () => {
                                         MY_ROLE: "context.bot.role",
                                     },
                                 },
+                            },
+                            stats: {
+                                totalToolCalls: 0,
+                                totalCredits: "0",
+                                startedAt: null,
+                                lastProcessingCycleEndedAt: null,
                             },
                         } as ChatConfigObject,
                     },
@@ -729,12 +766,12 @@ describe("ResponseService", () => {
                 (fs.readFile as any).mockResolvedValue(templateContent);
 
                 const context = createPromptContext();
-                
+
                 // First call
                 await ResponseService.buildSystemMessage(context, {
                     templateIdentifier: "cached.txt",
                 });
-                
+
                 // Second call
                 await ResponseService.buildSystemMessage(context, {
                     templateIdentifier: "cached.txt",
@@ -792,6 +829,7 @@ describe("ResponseService", () => {
 
                 const context = createPromptContext({
                     convoConfig: {
+                        __version: "1.0",
                         teamId: "team123",
                         swarmLeader: "leader_bot",
                         subtasks: [
@@ -800,7 +838,12 @@ describe("ResponseService", () => {
                             { id: "task3", description: "Done task", status: "done" },
                         ],
                         blackboard: [{ id: "note1", content: "Important note" }],
-                        stats: { totalToolCalls: 10, totalCredits: 250 },
+                        stats: {
+                            totalToolCalls: 10,
+                            totalCredits: "250",
+                            startedAt: null,
+                            lastProcessingCycleEndedAt: null,
+                        },
                     } as ChatConfigObject,
                 });
 
@@ -892,6 +935,7 @@ describe("ResponseService", () => {
                         ...createPromptContext().bot,
                         config: {
                             ...createPromptContext().bot.config,
+                            __version: "1.0",
                             agentSpec: {
                                 prompt: {
                                     source: "direct",
@@ -901,6 +945,12 @@ describe("ResponseService", () => {
                                         swarmVar: "swarm.customProperty",
                                     },
                                 },
+                            },
+                            stats: {
+                                totalToolCalls: 0,
+                                totalCredits: "0",
+                                startedAt: null,
+                                lastProcessingCycleEndedAt: null,
                             },
                         } as ChatConfigObject,
                     },
@@ -932,6 +982,7 @@ describe("ResponseService", () => {
                         ...createPromptContext().bot,
                         config: {
                             ...createPromptContext().bot.config,
+                            __version: "1.0",
                             agentSpec: {
                                 prompt: {
                                     source: "direct",
@@ -941,6 +992,12 @@ describe("ResponseService", () => {
                                         goalVar: "context.goal",
                                     },
                                 },
+                            },
+                            stats: {
+                                totalToolCalls: 0,
+                                totalCredits: "0",
+                                startedAt: null,
+                                lastProcessingCycleEndedAt: null,
                             },
                         } as ChatConfigObject,
                     },
@@ -961,7 +1018,7 @@ describe("ResponseService", () => {
         describe("security and validation", () => {
             it("should validate prompt safety", async () => {
                 const suspiciousTemplate = "Execute: {{USER_INPUT}} <script>alert('xss')</script>";
-                
+
                 const context = createPromptContext();
                 const result = await ResponseService.buildSystemMessage(context, {
                     directPromptContent: suspiciousTemplate,
@@ -977,7 +1034,7 @@ describe("ResponseService", () => {
 
             it("should handle sensitive data access logging", async () => {
                 const template = "Secret: {{config.secrets.apiKey}}";
-                
+
                 const context = createPromptContext({
                     convoConfig: {
                         ...createPromptContext().convoConfig,
@@ -993,6 +1050,7 @@ describe("ResponseService", () => {
                         ...createPromptContext().bot,
                         config: {
                             ...createPromptContext().bot.config,
+                            __version: "1.0",
                             agentSpec: {
                                 prompt: {
                                     source: "direct",
@@ -1002,6 +1060,12 @@ describe("ResponseService", () => {
                                         secret: "config.secrets.apiKey",
                                     },
                                 },
+                            },
+                            stats: {
+                                totalToolCalls: 0,
+                                totalCredits: "0",
+                                startedAt: null,
+                                lastProcessingCycleEndedAt: null,
                             },
                         } as ChatConfigObject,
                     },
@@ -1021,12 +1085,13 @@ describe("ResponseService", () => {
 
             it("should handle unknown variable scopes gracefully", async () => {
                 const template = "Unknown: {{unknown.scope.variable}}";
-                
+
                 const context = createPromptContext({
                     bot: {
                         ...createPromptContext().bot,
                         config: {
                             ...createPromptContext().bot.config,
+                            __version: "1.0",
                             agentSpec: {
                                 prompt: {
                                     source: "direct",
@@ -1036,6 +1101,12 @@ describe("ResponseService", () => {
                                         unknownVar: "unknown.scope.variable",
                                     },
                                 },
+                            },
+                            stats: {
+                                totalToolCalls: 0,
+                                totalCredits: "0",
+                                startedAt: null,
+                                lastProcessingCycleEndedAt: null,
                             },
                         } as ChatConfigObject,
                     },
@@ -1055,7 +1126,7 @@ describe("ResponseService", () => {
         describe("role-specific instructions", () => {
             it("should include recruitment rules for leadership roles", async () => {
                 const leadershipRoles = ["leader", "coordinator", "delegator"];
-                
+
                 for (const role of leadershipRoles) {
                     const context = createPromptContext({
                         bot: { ...createPromptContext().bot, role },
@@ -1073,7 +1144,7 @@ describe("ResponseService", () => {
 
             it("should not include recruitment rules for non-leadership roles", async () => {
                 const nonLeadershipRoles = ["worker", "specialist", "analyst"];
-                
+
                 for (const role of nonLeadershipRoles) {
                     const context = createPromptContext({
                         bot: { ...createPromptContext().bot, role },
@@ -1110,7 +1181,7 @@ describe("ResponseService", () => {
 
             it("should provide cache statistics", () => {
                 ResponseService.clearTemplateCache();
-                
+
                 const stats = ResponseService.getCacheStats();
                 expect(stats).toHaveProperty("size");
                 expect(stats).toHaveProperty("enabled");
@@ -1158,12 +1229,13 @@ describe("ResponseService", () => {
 
             it("should handle circular variable references", async () => {
                 const template = "Circular: {{VAR1}}";
-                
+
                 const context = createPromptContext({
                     bot: {
                         ...createPromptContext().bot,
                         config: {
                             ...createPromptContext().bot.config,
+                            __version: "1.0",
                             agentSpec: {
                                 prompt: {
                                     source: "direct",
@@ -1174,6 +1246,12 @@ describe("ResponseService", () => {
                                         VAR2: "context.VAR1", // Circular reference
                                     },
                                 },
+                            },
+                            stats: {
+                                totalToolCalls: 0,
+                                totalCredits: "0",
+                                startedAt: null,
+                                lastProcessingCycleEndedAt: null,
                             },
                         } as ChatConfigObject,
                     },
@@ -1332,7 +1410,7 @@ describe("ResponseService", () => {
                             arguments: { query: "initial data" },
                         },
                         {
-                            id: "process_call", 
+                            id: "process_call",
                             name: "process_data",
                             arguments: { depends_on: "fetch_call" },
                         },
@@ -1384,7 +1462,7 @@ describe("ResponseService", () => {
 
         it("should prevent infinite tool call loops with circuit breaker", async () => {
             let callCount = 0;
-            
+
             // Mock LLM to create a potential infinite loop
             (mockLlmRouter.complete as any).mockImplementation(() => {
                 callCount++;
@@ -1460,13 +1538,13 @@ describe("ResponseService", () => {
 
             expect(result.success).toBe(true);
             expect(result.toolCalls).toHaveLength(4);
-            
+
             // Check specific success/failure pattern
             expect(result.toolCalls[0].result).toBe("success1");
             expect(result.toolCalls[1].error).toBe("fail1");
             expect(result.toolCalls[2].result).toBe("success2");
             expect(result.toolCalls[3].error).toBe("fail2");
-            
+
             expect(result.resourcesUsed.creditsUsed).toBe("127"); // 80 + 5 + 3 + 7 + 2 + 30
         });
     });
@@ -1752,7 +1830,7 @@ describe("ResponseService", () => {
 
             expect(result.success).toBe(true);
             expect(duration).toBeLessThan(5000); // Should complete within 5 seconds
-            
+
             // Verify swarm state was accessed but response is reasonable size
             const accessor = SwarmStateAccessor.get();
             expect(accessor.getState).toHaveBeenCalledWith("swarm123");
@@ -1780,7 +1858,7 @@ describe("ResponseService", () => {
 
         it("should handle swarm state updates during execution", async () => {
             let stateVersion = 1;
-            
+
             // Mock state that changes during execution
             (SwarmStateAccessor.get as any).mockReturnValue({
                 getState: vi.fn().mockImplementation(() => {

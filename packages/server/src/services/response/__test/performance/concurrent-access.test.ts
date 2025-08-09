@@ -126,7 +126,7 @@ describe("Concurrent Access and Performance Tests", () => {
                     (async () => {
                         const state = await chatStore.loadState(conversationId);
                         state.config.stats.totalToolCalls += 1;
-                        state.config.stats.totalCredits += i * 10;
+                        state.config.stats.totalCredits = (parseInt(state.config.stats.totalCredits) + i * 10).toString();
                         chatStore.saveState(conversationId, state);
                     })(),
                 );
@@ -155,7 +155,7 @@ describe("Concurrent Access and Performance Tests", () => {
                     config: expect.objectContaining({
                         stats: expect.objectContaining({
                             totalToolCalls: 10,
-                            totalCredits: 450, // Sum of 0+10+20+...+90
+                            totalCredits: "450", // Sum of 0+10+20+...+90
                         }),
                     }),
                 }),
@@ -217,7 +217,7 @@ describe("Concurrent Access and Performance Tests", () => {
                 (async () => {
                     for (let i = 0; i < 3; i++) {
                         const state = await chatStore.loadState(conversationId);
-                        state.config.stats.totalCredits += 50;
+                        state.config.stats.totalCredits = (parseInt(state.config.stats.totalCredits) + 50).toString();
                         chatStore.saveState(conversationId, state);
                         await new Promise(resolve => setTimeout(resolve, 15));
                     }
@@ -282,7 +282,7 @@ describe("Concurrent Access and Performance Tests", () => {
             const messagePromises = [];
             for (let i = 0; i < 100; i++) {
                 const message: MessageState = {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     content: `Message ${i}`,
                     role: i % 2 === 0 ? "user" : "bot",
                     timestamp: Date.now() + i,
@@ -312,7 +312,7 @@ describe("Concurrent Access and Performance Tests", () => {
             // Pre-populate some messages
             for (let i = 0; i < 10; i++) {
                 await messageStore.addMessage(conversationId, {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     content: `Initial message ${i}`,
                     role: "user",
                     timestamp: Date.now() + i,
@@ -328,7 +328,7 @@ describe("Concurrent Access and Performance Tests", () => {
                 (async () => {
                     for (let i = 0; i < 20; i++) {
                         await messageStore.addMessage(conversationId, {
-                            id: generatePK(),
+                            id: generatePK().toString(),
                             content: `New message ${i}`,
                             role: "bot",
                             timestamp: Date.now() + 100 + i,
@@ -444,7 +444,7 @@ describe("Concurrent Access and Performance Tests", () => {
                 status: "in_progress",
                 config: {
                     model: "gpt-4o",
-                    stats: { totalToolCalls: 0, totalCredits: 0 },
+                    stats: { totalToolCalls: 0, totalCredits: "0" },
                 },
             }));
 
@@ -504,7 +504,7 @@ describe("Concurrent Access and Performance Tests", () => {
                         model: "gpt-4o",
                         stats: {
                             totalToolCalls: 0,
-                            totalCredits: 0,
+                            totalCredits: "0",
                         },
                     } as ChatConfigObject,
                 };
@@ -521,12 +521,12 @@ describe("Concurrent Access and Performance Tests", () => {
                         (async () => {
                             const state = await chatStore.loadState(conversationId);
                             state.config.stats.totalToolCalls += 1;
-                            state.config.stats.totalCredits += Math.random() * 100;
+                            state.config.stats.totalCredits = (parseInt(state.config.stats.totalCredits) + Math.random() * 100).toString();
                             chatStore.saveState(conversationId, state);
 
                             // Add a message
                             await messageStore.addMessage(conversationId, {
-                                id: generatePK(),
+                                id: generatePK().toString(),
                                 content: `Message ${updateIdx} for conversation ${convIdx}`,
                                 role: updateIdx % 2 === 0 ? "user" : "bot",
                                 timestamp: Date.now() + updateIdx,
@@ -594,7 +594,7 @@ describe("Concurrent Access and Performance Tests", () => {
                 // Add some messages
                 for (let j = 0; j < 10; j++) {
                     await messageStore.addMessage(conversationId, {
-                        id: generatePK(),
+                        id: generatePK().toString(),
                         content: `Message ${j}`,
                         role: "user",
                         timestamp: Date.now() + j,

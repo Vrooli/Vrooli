@@ -99,6 +99,20 @@ export class ModelMap {
                 ]);
                 
                 const modelExport = module[`${modelName}Model`];
+                
+                // Debug logging for model loading issues
+                if (process.env.TEST_LOG_LEVEL === "DEBUG") {
+                    console.log(`Loading ${modelName}Model from ${importPath}:`);
+                    console.log(`  - Module keys: ${Object.keys(module).join(", ")}`);
+                    console.log(`  - Looking for: ${modelName}Model`);
+                    console.log("  - Found export:", modelExport ? "YES" : "NO");
+                    console.log("  - Export type:", typeof modelExport);
+                    if (modelExport) {
+                        console.log("  - Has __typename:", "__typename" in modelExport);
+                        console.log("  - Has idField:", "idField" in modelExport);
+                    }
+                }
+                
                 if (modelExport && typeof modelExport === "object") {
                     this.map[modelName] = modelExport as BaseModelLogic;
                 } else {
@@ -192,14 +206,17 @@ export class ModelMap {
         return object as unknown as GetLogicReturn<Logic[number]>;
     }
 
-    public static async init() {
+    public static async init(requiredModels?: string[]) {
         // If already initializing, wait for the existing promise
         if (ModelMap.initPromise) {
             return ModelMap.initPromise;
         }
 
-        // If already initialized, return immediately
+        // If already initialized, validate required models and return
         if (ModelMap.instance && ModelMap.isMapInitialized) {
+            if (requiredModels) {
+                ModelMap.validateRequiredModels(requiredModels);
+            }
             return;
         }
 
@@ -210,6 +227,11 @@ export class ModelMap {
                     ModelMap.instance = new ModelMap();
                 }
                 await ModelMap.instance.initializeMap();
+                
+                // Validate required models after initialization
+                if (requiredModels) {
+                    ModelMap.validateRequiredModels(requiredModels);
+                }
             } catch (error) {
                 // Reset on error so it can be retried
                 ModelMap.initPromise = null;
@@ -223,6 +245,74 @@ export class ModelMap {
 
     public static isInitialized() {
         return !!ModelMap.instance && ModelMap.isMapInitialized;
+    }
+
+    /**
+     * Validate that all required models were successfully loaded
+     * Throws detailed error if any required model is missing or malformed
+     */
+    private static validateRequiredModels(requiredModels: string[]) {
+        if (!ModelMap.instance) {
+            throw new Error("ModelMap instance not found - initialization may have failed");
+        }
+
+        const missingModels: string[] = [];
+        const malformedModels: { model: string; issue: string }[] = [];
+
+        for (const modelName of requiredModels) {
+            try {
+                if (!ModelMap.isModel(modelName as ModelType)) {
+                    missingModels.push(modelName);
+                    continue;
+                }
+
+                // Additional validation: check if model has essential properties
+                const model = ModelMap.instance.map[modelName as ModelType];
+                if (!model || typeof model !== "object") {
+                    malformedModels.push({ model: modelName, issue: "model is not an object" });
+                    continue;
+                }
+
+                // Check for essential model properties using ModelMap's own logic
+                if (!("__typename" in model)) {
+                    malformedModels.push({ model: modelName, issue: "missing __typename property" });
+                    continue;
+                }
+
+                // Validate idField using ModelMap's getLogic method (which handles defaults)
+                try {
+                    const logic = ModelMap.getLogic(["idField"] as const, modelName as ModelType, false);
+                    if (!logic.idField) {
+                        malformedModels.push({ model: modelName, issue: "idField could not be resolved" });
+                        continue;
+                    }
+                } catch (logicError) {
+                    malformedModels.push({ model: modelName, issue: `idField validation failed: ${logicError}` });
+                    continue;
+                }
+            } catch (error) {
+                malformedModels.push({ 
+                    model: modelName, 
+                    issue: `validation error: ${error instanceof Error ? error.message : String(error)}`, 
+                });
+            }
+        }
+
+        // Report detailed errors
+        if (missingModels.length > 0 || malformedModels.length > 0) {
+            const errorParts = [];
+            
+            if (missingModels.length > 0) {
+                errorParts.push(`Missing models: ${missingModels.join(", ")}`);
+            }
+            
+            if (malformedModels.length > 0) {
+                const malformedDetails = malformedModels.map(({ model, issue }) => `${model} (${issue})`);
+                errorParts.push(`Malformed models: ${malformedDetails.join(", ")}`);
+            }
+
+            throw new Error(`ModelMap validation failed - ${errorParts.join("; ")}`);
+        }
     }
 
     /**

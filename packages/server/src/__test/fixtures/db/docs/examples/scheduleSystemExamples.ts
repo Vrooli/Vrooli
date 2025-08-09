@@ -12,7 +12,7 @@ import {
     RRuleHelpers,
     scheduleExceptionPatterns,
     scheduleRecurrencePatterns,
-} from "../index.js";
+} from "../../index.js";
 
 /**
  * Example 1: One-time event

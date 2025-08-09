@@ -156,6 +156,7 @@ export function createStandardCrudEndpoints<T extends StandardCrudConfig>(
                 throw new Error("objectType is required for standard CRUD endpoints without custom implementation");
             }
 
+
             if (useEmbeddings) {
                 if (!isEmbeddableType(objectType)) {
                     throw new Error(`objectType "${objectType}" does not support embeddings. Only these types support embeddings: Chat, Issue, Meeting, Reminder, ResourceVersion, Run, Tag, Team, User`);

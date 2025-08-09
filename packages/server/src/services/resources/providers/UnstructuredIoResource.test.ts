@@ -16,7 +16,7 @@ const PROCESSING_TIMEOUT = 120000; // 2 minutes
 
 describe("UnstructuredIoResource Integration Tests", () => {
     let resource: UnstructuredIoResource;
-    const testFixturesPath = path.join(__dirname, "../../../../../../../scripts/resources/tests/fixtures/documents");
+    const testFixturesPath = path.join(__dirname, "../../../../../../scripts/resources/tests/fixtures/documents");
 
     beforeAll(async () => {
         // Initialize resource with test configuration
@@ -41,7 +41,7 @@ describe("UnstructuredIoResource Integration Tests", () => {
         const maxRetries = 10;
         let retries = 0;
         while (retries < maxRetries) {
-            const health = await resource.checkHealth();
+            const health = await resource.healthCheck();
             if (health.healthy) {
                 break;
             }
@@ -55,7 +55,7 @@ describe("UnstructuredIoResource Integration Tests", () => {
     });
 
     afterAll(async () => {
-        await resource.cleanup();
+        await resource.shutdown();
     });
 
     describe("Service Health and Discovery", () => {
@@ -65,7 +65,7 @@ describe("UnstructuredIoResource Integration Tests", () => {
         });
 
         test("should report healthy status", async () => {
-            const health = await resource.checkHealth();
+            const health = await resource.healthCheck();
             expect(health.healthy).toBe(true);
             expect(health.message).toContain("Unstructured.io service is healthy");
             expect(health.details?.baseUrl).toBe("http://localhost:11450");
@@ -167,7 +167,7 @@ describe("UnstructuredIoResource Integration Tests", () => {
 
     describe("Document Processing - Office Documents", () => {
         test("should process Word document (.docx)", async () => {
-            const docxPath = path.join(testFixturesPath, "samples/iup_test_document.docx");
+            const docxPath = path.join(testFixturesPath, "office/word/educational/iup_test_document.docx");
             const testFile = await fs.readFile(docxPath);
 
             const result = await resource.processDocument(testFile, {
@@ -184,7 +184,7 @@ describe("UnstructuredIoResource Integration Tests", () => {
         }, PROCESSING_TIMEOUT);
 
         test("should process Excel spreadsheet (.xlsx)", async () => {
-            const xlsxPath = path.join(testFixturesPath, "samples/ou_sample_data.xlsx");
+            const xlsxPath = path.join(testFixturesPath, "office/excel/educational/ou_sample_data.xlsx");
             const testFile = await fs.readFile(xlsxPath);
 
             const result = await resource.processDocument(testFile, {
@@ -203,7 +203,7 @@ describe("UnstructuredIoResource Integration Tests", () => {
 
     describe("Document Processing - PDFs", () => {
         test("should process PDF with text content", async () => {
-            const pdfPath = path.join(testFixturesPath, "samples/constitution_annotated.pdf");
+            const pdfPath = path.join(testFixturesPath, "office/pdf/government/constitution_annotated.pdf");
             const testFile = await fs.readFile(pdfPath);
 
             const result = await resource.processDocument(testFile, {
@@ -414,14 +414,14 @@ describe("UnstructuredIoResource Integration Tests", () => {
                 },
             });
 
-            const health = await badResource.checkHealth();
+            const health = await badResource.healthCheck();
             expect(health.healthy).toBe(false);
 
             await expect(
                 badResource.processDocument(Buffer.from("test")),
             ).rejects.toThrow("Unstructured.io service is not healthy");
 
-            await badResource.cleanup();
+            await badResource.shutdown();
         });
     });
 
@@ -480,7 +480,7 @@ describe("UnstructuredIoResource Integration Tests", () => {
         }, PROCESSING_TIMEOUT);
 
         test("should check health endpoint", async () => {
-            const health = await resource.checkHealth();
+            const health = await resource.healthCheck();
             expect(health.healthy).toBe(true);
 
             // The health check uses /healthcheck endpoint

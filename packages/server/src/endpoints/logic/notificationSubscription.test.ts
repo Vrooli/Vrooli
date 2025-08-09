@@ -167,7 +167,7 @@ describe("EndpointsNotificationSubscription", () => {
             // User 1 subscriptions
             DbProvider.get().notification_subscription.create({
                 data: {
-                    ...NotificationSubscriptionDbFactory.createMinimal(testUsers[0].id.toString()),
+                    ...NotificationSubscriptionDbFactory.createMinimal(testUsers[0].id),
                     context: "Project updates subscription",
                     silent: false,
                     resource: { connect: { id: resource1.id } },
@@ -179,7 +179,7 @@ describe("EndpointsNotificationSubscription", () => {
             }),
             DbProvider.get().notification_subscription.create({
                 data: {
-                    ...NotificationSubscriptionDbFactory.createMinimal(testUsers[0].id.toString()),
+                    ...NotificationSubscriptionDbFactory.createMinimal(testUsers[0].id),
                     context: "Routine updates subscription",
                     silent: false,
                     resource: { connect: { id: resource2.id } },
@@ -192,7 +192,7 @@ describe("EndpointsNotificationSubscription", () => {
             // User 2 subscription
             DbProvider.get().notification_subscription.create({
                 data: {
-                    ...NotificationSubscriptionDbFactory.createMinimal(testUsers[1].id.toString()),
+                    ...NotificationSubscriptionDbFactory.createMinimal(testUsers[1].id),
                     context: "Team updates subscription",
                     silent: false,
                     team: { connect: { id: team.id } },
@@ -447,7 +447,7 @@ describe("EndpointsNotificationSubscription", () => {
                 const testUser = await createUserWithAuth();
 
                 // Create a resource to subscribe to
-                const resource = await createTestResource(testUser.id.toString());
+                const resource = await createTestResource(testUser.id);
 
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
@@ -483,7 +483,7 @@ describe("EndpointsNotificationSubscription", () => {
                 // Create resources to subscribe to
                 const resources = await Promise.all(
                     ["Project updates", "Routine notifications", "Team announcements", "User messages"].map(() =>
-                        createTestResource(testUser.id.toString()),
+                        createTestResource(testUser.id),
                     ),
                 );
 
@@ -516,7 +516,7 @@ describe("EndpointsNotificationSubscription", () => {
                 const silentSettings = [true, false];
 
                 for (const silent of silentSettings) {
-                    const resource = await createTestResource(testUser.id.toString());
+                    const resource = await createTestResource(testUser.id);
                     const input: NotificationSubscriptionCreateInput = notificationSubscriptionTestDataFactory.createMinimal({
                         id: generatePK().toString(),
                         objectConnect: resource.id.toString(),
@@ -535,7 +535,7 @@ describe("EndpointsNotificationSubscription", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 // Create objects to subscribe to
-                const resource = await createTestResource(testUser.id.toString());
+                const resource = await createTestResource(testUser.id);
                 const team = await createTestTeam();
 
                 // Create two subscriptions with different contexts
@@ -574,7 +574,7 @@ describe("EndpointsNotificationSubscription", () => {
                 // Create existing subscription
                 await DbProvider.get().notification_subscription.create({
                     data: NotificationSubscriptionDbFactory.createMinimal(
-                        testUser.id.toString(),
+                        testUser.id,
                         {
                             context: "Existing subscription",
                             silent: false,
@@ -585,7 +585,7 @@ describe("EndpointsNotificationSubscription", () => {
                 const { req, res } = await mockAuthenticatedSession(testUser);
 
                 // Create a resource to subscribe to
-                const resource = await createTestResource(testUser.id.toString());
+                const resource = await createTestResource(testUser.id);
 
                 // Try to create subscription with invalid data
                 const input: NotificationSubscriptionCreateInput = notificationSubscriptionTestDataFactory.createMinimal({

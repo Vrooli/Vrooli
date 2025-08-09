@@ -1,3 +1,4 @@
+/* eslint-disable no-magic-numbers */
 import { type Prisma } from "@prisma/client";
 import { generatePK } from "@vrooli/shared";
 

@@ -447,7 +447,7 @@ export class ReportResponseDbFactory extends EnhancedDatabaseFactory<
         };
     }> {
         const responses = await this.prisma.report_response.findMany({
-            where: { reportId },
+            where: { reportId: typeof reportId === "string" ? BigInt(reportId) : reportId },
             select: { actionSuggested: true },
         });
 

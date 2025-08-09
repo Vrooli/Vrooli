@@ -1,7 +1,10 @@
 import { type Server as McpServer } from "@modelcontextprotocol/sdk/server/index.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 import { HttpStatus } from "@vrooli/shared";
+import { execSync } from "child_process";
 import type * as http from "http";
+import path from "path";
+import { fileURLToPath } from "url";
 import { logger } from "../../events/logger.js";
 
 /**
@@ -130,14 +133,84 @@ export class TransportManager {
     }
 
     /**
-     * Returns health information about SSE connections
+     * Returns health information about SSE connections and Claude Code registration
      * @returns Object with health status
      */
     getHealthInfo(): Record<string, any> {
-        return {
+        const healthInfo: Record<string, any> = {
             status: "ok",
             activeConnections: this.connections.size,
         };
+
+        // Add Claude Code registration status
+        try {
+            healthInfo.claudeCodeIntegration = this.getClaudeCodeRegistrationStatus();
+        } catch (error) {
+            logger.warn("Failed to get Claude Code registration status:", error);
+            healthInfo.claudeCodeIntegration = {
+                error: "Failed to check registration status",
+            };
+        }
+
+        return healthInfo;
+    }
+
+    /**
+     * Get Claude Code registration status by calling the bash script
+     * @returns Object with registration information
+     */
+    private getClaudeCodeRegistrationStatus(): Record<string, any> {
+        // Get __dirname equivalent for ESM
+        const __filename = fileURLToPath(import.meta.url);
+        const __dirname = path.dirname(__filename);
+        
+        try {
+            // Construct path to the Claude Code management script
+            const scriptPath = path.resolve(__dirname, "../../../scripts/resources/agents/claude-code/manage.sh");
+            
+            // Execute the mcp-status command with JSON format
+            const statusOutput = execSync(
+                `"${scriptPath}" --action mcp-status --format json`,
+                { 
+                    encoding: "utf8", 
+                    timeout: 10000, // 10 second timeout
+                    stdio: ["ignore", "pipe", "pipe"], // Ignore stdin, capture stdout/stderr
+                },
+            );
+            
+            // Parse the JSON response
+            const status = JSON.parse(statusOutput.trim());
+            
+            return {
+                available: true,
+                ...status,
+            };
+        } catch (error) {
+            // Handle various error cases
+            if (error instanceof Error) {
+                if (error.message.includes("ENOENT")) {
+                    return {
+                        available: false,
+                        error: "Claude Code management script not found",
+                    };
+                } else if (error.message.includes("timeout")) {
+                    return {
+                        available: false,
+                        error: "Registration status check timed out",
+                    };
+                } else {
+                    return {
+                        available: false,
+                        error: `Registration check failed: ${error.message}`,
+                    };
+                }
+            }
+            
+            return {
+                available: false,
+                error: "Unknown error checking registration status",
+            };
+        }
     }
 
     /**

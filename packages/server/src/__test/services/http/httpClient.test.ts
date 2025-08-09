@@ -11,11 +11,13 @@ import { fetchWrapper } from "@vrooli/shared";
 import { logger } from "../../../events/logger.js";
 
 // Mock dependencies
-vi.mock("@vrooli/shared", () => ({
-    fetchWrapper: vi.fn(),
-    MB_10_BYTES: 10 * 1024 * 1024,
-    SECONDS_30_MS: 30000,
-}));
+vi.mock("@vrooli/shared", async () => {
+    const actual = await vi.importActual("@vrooli/shared");
+    return {
+        ...actual,
+        fetchWrapper: vi.fn(),
+    };
+});
 
 vi.mock("../../../events/logger.js", () => ({
     logger: {

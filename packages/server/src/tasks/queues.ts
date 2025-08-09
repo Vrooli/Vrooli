@@ -153,33 +153,9 @@ export class QueueService {
     private processListeners: { signal: string; handler: () => void }[] = []; // Track process listeners
 
     private constructor() {
-        // Graceful shutdown: ensure all queues are cleaned up on SIGTERM and SIGINT
-        const shutdownHandler = async (signal: string) => {
-            logger.info(`QueueService received ${signal}. Shutting down all queues...`);
-            try {
-                await this.shutdown();
-            } catch (err) {
-                logger.error(`Error shutting down queues on ${signal}`, { error: err });
-            } finally {
-                process.exit(0);
-            }
-        };
-
-        function sigtermHandler() {
-            shutdownHandler("SIGTERM");
-        }
-        function sigintHandler() {
-            shutdownHandler("SIGINT");
-        }
-
-        process.once("SIGTERM", sigtermHandler);
-        process.once("SIGINT", sigintHandler);
-
-        // Store references for cleanup
-        this.processListeners.push(
-            { signal: "SIGTERM", handler: sigtermHandler },
-            { signal: "SIGINT", handler: sigintHandler },
-        );
+        // Note: Signal handling is now managed by the central shutdown coordinator in index.ts
+        // This prevents competing signal handlers and ensures proper cleanup order
+        logger.debug("QueueService: Initialized without signal handlers (managed centrally)");
     }
 
     /**
@@ -274,16 +250,9 @@ export class QueueService {
         this.queueCreationPromises = {};
         this.allQueuesInitialized = false;
 
-        // Also shutdown SocketService if it was initialized by queue operations
-        try {
-            const { SocketService } = await import("../sockets/io.js");
-            if (SocketService) {
-                await SocketService.shutdown();
-                logger.debug("QueueService: SocketService shutdown completed during queue shutdown");
-            }
-        } catch (e) {
-            logger.debug("QueueService: SocketService not available or failed to shutdown", { error: e });
-        }
+        // Note: SocketService shutdown is now handled by the central shutdown coordinator in index.ts
+        // This prevents duplicate shutdown calls and ensures proper coordination
+        logger.debug("QueueService: SocketService shutdown delegated to central coordinator");
     }
 
     /**
@@ -515,7 +484,7 @@ export class QueueService {
         queueName?: string,
     ): Promise<TaskStatusInfo[]> {
         // Reuse existing managed queues for efficient status checks
-        this.initializeAllQueues();
+        await this.initializeAllQueues();
         const queueNames = queueName
             ? [queueName]
             : Object.keys(this.queueInstances);

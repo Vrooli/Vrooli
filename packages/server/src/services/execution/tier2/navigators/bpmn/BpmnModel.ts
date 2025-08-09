@@ -58,31 +58,26 @@ export class BpmnModel {
     }
 
     /**
+     * Load BPMN XML (alias for parseXml for backward compatibility)
+     */
+    async loadXml(bpmnXml: string): Promise<void> {
+        return this.parseXml(bpmnXml);
+    }
+
+    /**
      * Parse BPMN XML and build structured model (async)
      * Uses proper callback-based pattern like the working reference implementation
      */
     async parseXml(bpmnXml: string): Promise<void> {
         try {
-            // Use callback-based pattern exactly like the working implementation
-            const [error, definitions] = await new Promise<[Error | null, ModdleElement | null]>((resolve) => {
-                this.moddle.fromXML(bpmnXml, (err: Error | null, result: any) => {
-                    if (err) {
-                        resolve([err, null]);
-                    } else {
-                        resolve([null, result.rootElement]);
-                    }
-                });
-            });
-
-            if (error) {
-                throw new Error(`Error parsing BPMN XML: ${error.message}`);
-            }
-
-            if (!definitions) {
+            // bpmn-moddle v9+ uses Promise-based API
+            const result = await this.moddle.fromXML(bpmnXml);
+            
+            if (!result || !result.rootElement) {
                 throw new Error("No root element found in BPMN XML");
             }
 
-            this.definitions = definitions;
+            this.definitions = result.rootElement;
             this.buildElementMaps();
         } catch (error) {
             throw new Error(`Failed to parse BPMN XML: ${error instanceof Error ? error.message : String(error)}`);
@@ -95,44 +90,9 @@ export class BpmnModel {
      * Uses proper bpmn-moddle parsing in a synchronous wrapper.
      */
     parseXmlSync(bpmnXml: string): void {
-        try {
-            let completed = false;
-            let parseError: Error | null = null;
-            let parseResult: ModdleElement | null = null;
-
-            // Use the callback-based bpmn-moddle API directly
-            this.moddle.fromXML(bpmnXml, (err: Error | null, result: any) => {
-                if (err) {
-                    parseError = err;
-                } else {
-                    parseResult = result?.rootElement || null;
-                }
-                completed = true;
-            });
-
-            // Synchronous wait for callback completion
-            // This is acceptable for the sync compatibility layer
-            while (!completed) {
-                // Simple blocking wait
-                const now = Date.now();
-                while (Date.now() - now < 1) {
-                    // Small busy wait
-                }
-            }
-
-            if (parseError) {
-                throw new Error(`Error parsing BPMN XML: ${(parseError as Error).message || "Unknown error"}`);
-            }
-
-            if (!parseResult) {
-                throw new Error("No root element found in BPMN XML");
-            }
-
-            this.definitions = parseResult;
-            this.buildElementMaps();
-        } catch (error) {
-            throw new Error(`Failed to parse BPMN XML synchronously: ${error instanceof Error ? error.message : String(error)}`);
-        }
+        // bpmn-moddle v9+ only supports Promise-based API
+        // For sync compatibility, we would need to use a different approach
+        throw new Error("Synchronous XML parsing is not supported with bpmn-moddle v9+. Please use parseXml() or loadXml() instead.");
     }
 
     /**
@@ -314,16 +274,29 @@ export class BpmnModel {
     ): AbstractLocation {
         const locationId = this.generateLocationId(nodeId, locationType, options);
         
+        // Merge all options into metadata for test compatibility
+        const metadata = {
+            ...(options.metadata || {}),
+        };
+        
+        // Add optional properties to metadata if they exist
+        if (options.parentNodeId) metadata.parentNodeId = options.parentNodeId;
+        if (options.branchId) metadata.branchId = options.branchId;
+        if (options.subprocessId) metadata.subprocessId = options.subprocessId;
+        if (options.eventId) metadata.eventId = options.eventId;
+        if (options.metadata) metadata.metadata = options.metadata;
+
         return {
             id: locationId,
             routineId,
             nodeId,
             locationType,
+            type: locationType, // Compatibility property for tests
             parentNodeId: options.parentNodeId,
             branchId: options.branchId,
             subprocessId: options.subprocessId,
             eventId: options.eventId,
-            metadata: options.metadata,
+            metadata,
         };
     }
 

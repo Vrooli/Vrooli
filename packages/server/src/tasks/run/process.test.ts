@@ -1,6 +1,6 @@
 // AI_CHECK: TEST_QUALITY=1, TEST_COVERAGE=1 | LAST: 2025-06-18
 
-import { generatePK, initIdGenerator, MINUTES_5_MS } from "@vrooli/shared";
+import { generatePK, generatePublicId, initIdGenerator, MINUTES_5_MS } from "@vrooli/shared";
 import { type Job } from "bullmq";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRunTask, runTaskScenarios } from "../../__test/fixtures/tasks/runTaskFactory.js";
@@ -21,6 +21,11 @@ vi.mock("../../services/execution/tier2/tierTwoOrchestrator.js", () => ({
 
 vi.mock("../../services/events/eventBus.js", () => ({
     EventBus: vi.fn().mockImplementation(() => ({})),
+    getEventBus: vi.fn().mockReturnValue({
+        subscribe: vi.fn(),
+        unsubscribe: vi.fn(),
+        emit: vi.fn(),
+    }),
 }));
 
 vi.mock("../../services/execution/tier3/stepExecutor.js", () => ({
@@ -32,7 +37,6 @@ vi.mock("../../services/execution/tier3/stepExecutor.js", () => ({
 // Import after mocking to avoid loading the heavy dependencies
 let runProcess: any;
 let activeRunRegistry: any;
-let NewRunStateMachineAdapter: any;
 
 describe("runProcess", () => {
     beforeEach(async () => {
@@ -45,7 +49,6 @@ describe("runProcess", () => {
         const processModule = await import("./process.js");
         runProcess = processModule.runProcess;
         activeRunRegistry = processModule.activeRunRegistry;
-        NewRunStateMachineAdapter = processModule.NewRunStateMachineAdapter;
 
         // Clear the active run registry
         if (activeRunRegistry && activeRunRegistry.clear) {
@@ -95,7 +98,7 @@ describe("runProcess", () => {
             // Verify registry tracking
             const activeRuns = activeRunRegistry.listActive();
             expect(activeRuns).toHaveLength(1);
-            expect(activeRuns[0].userId).toBe(runTask.userData.id);
+            expect(activeRuns[0].userId).toBe(job.data.context.userData.id);
             expect(activeRuns[0].hasPremium).toBe(true);
         });
 
@@ -174,9 +177,10 @@ describe("runProcess", () => {
         });
 
         it("should handle missing resource version", async () => {
+            const invalidResourceId = generatePK().toString();
             const job = createMockRunJob({
                 input: {
-                    resourceVersionId: "invalid-resource-id",
+                    resourceVersionId: invalidResourceId,
                 },
             });
 
@@ -188,16 +192,26 @@ describe("runProcess", () => {
         });
 
         it("should handle invalid user data", async () => {
+            const invalidUserId = generatePK().toString();
             const job = createMockRunJob({
                 context: {
                     userData: {
-                        id: "invalid-user-id",
+                        __typename: "SessionUser",
+                        id: invalidUserId,
                         name: "invalidUser",
                         hasPremium: false,
+                        hasReceivedPhoneVerificationReward: false,
                         languages: ["en"],
-                        roles: [],
-                        wallets: [],
                         theme: "light",
+                        credits: "1000",
+                        phoneNumberVerified: false,
+                        publicId: generatePublicId(),
+                        updatedAt: new Date(),
+                        session: {
+                            __typename: "SessionUserSession",
+                            id: generatePK().toString(),
+                            lastRefreshAt: new Date(),
+                        },
                     },
                 },
             });
@@ -209,7 +223,7 @@ describe("runProcess", () => {
             // Verify run tracking with invalid user ID
             const activeRuns = activeRunRegistry.listActive();
             expect(activeRuns).toHaveLength(1);
-            expect(activeRuns[0].userId).toBe("invalid-user-id");
+            expect(activeRuns[0].userId).toBe(invalidUserId);
         });
 
         it("should handle missing configuration gracefully", async () => {
@@ -229,20 +243,29 @@ describe("runProcess", () => {
             const job = createMockRunJob({
                 context: {
                     userData: {
+                        __typename: "SessionUser",
                         id: generatePK().toString(),
                         name: "freeUser",
                         hasPremium: false,
+                        hasReceivedPhoneVerificationReward: false,
                         languages: ["en"],
-                        roles: [],
-                        wallets: [],
                         theme: "light",
+                        credits: "1000",
+                        phoneNumberVerified: false,
+                        publicId: generatePublicId(),
+                        updatedAt: new Date(),
+                        session: {
+                            __typename: "SessionUserSession",
+                            id: generatePK().toString(),
+                            lastRefreshAt: new Date(),
+                        },
                     },
                 },
                 input: {
                     config: {
                         botConfig: {
                             strategy: "simple",
-                            model: "gpt-3.5-turbo",
+                            model: "gpt-4",
                         },
                         limits: {
                             maxSteps: 10,
@@ -275,13 +298,22 @@ describe("runProcess", () => {
             const job1 = createMockRunJob({
                 context: {
                     userData: {
+                        __typename: "SessionUser",
                         id: userId,
                         name: "testUser",
                         hasPremium: false,
+                        hasReceivedPhoneVerificationReward: false,
                         languages: ["en"],
-                        roles: [],
-                        wallets: [],
                         theme: "light",
+                        credits: "1000",
+                        phoneNumberVerified: false,
+                        publicId: generatePublicId(),
+                        updatedAt: new Date(),
+                        session: {
+                            __typename: "SessionUserSession",
+                            id: generatePK().toString(),
+                            lastRefreshAt: new Date(),
+                        },
                     },
                 },
             });
@@ -289,13 +321,22 @@ describe("runProcess", () => {
             const job2 = createMockRunJob({
                 context: {
                     userData: {
+                        __typename: "SessionUser",
                         id: userId,
                         name: "testUser",
                         hasPremium: false,
+                        hasReceivedPhoneVerificationReward: false,
                         languages: ["en"],
-                        roles: [],
-                        wallets: [],
                         theme: "light",
+                        credits: "1000",
+                        phoneNumberVerified: false,
+                        publicId: generatePublicId(),
+                        updatedAt: new Date(),
+                        session: {
+                            __typename: "SessionUserSession",
+                            id: generatePK().toString(),
+                            lastRefreshAt: new Date(),
+                        },
                     },
                 },
             });
@@ -362,26 +403,4 @@ describe("runProcess", () => {
         });
     });
 
-    describe("NewRunStateMachineAdapter", () => {
-        it("should provide correct task ID", () => {
-            const adapter = new NewRunStateMachineAdapter("test-run-123", {} as any, "user-123");
-            expect(adapter.getTaskId()).toBe("test-run-123");
-        });
-
-        it("should provide user ID", () => {
-            const adapter = new NewRunStateMachineAdapter("test-run-123", {} as any, "user-123");
-            expect(adapter.getAssociatedUserId?.()).toBe("user-123");
-        });
-
-        it("should return default status", () => {
-            const adapter = new NewRunStateMachineAdapter("test-run-123", {} as any, "user-123");
-            expect(adapter.getState()).toBe("RUNNING");
-        });
-
-        it("should handle pause requests", async () => {
-            const adapter = new NewRunStateMachineAdapter("test-run-123", {} as any, "user-123");
-            const result = await adapter.requestPause();
-            expect(result).toBe(false); // Pause not currently supported
-        });
-    });
 });

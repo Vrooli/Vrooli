@@ -564,16 +564,24 @@ export class ManagedQueue<Data extends BaseTaskData | Record<string, unknown> = 
             }
 
             // Use the task ID as the job ID if available
+            // BullMQ doesn't allow numeric strings as job IDs, so prefix with task type
             const jobOpts: Partial<JobsOptions> = { ...opts };
+            const taskId = data.id;
             if (jobOpts.jobId == null && "id" in data && typeof data.id === "string") {
-                jobOpts.jobId = data.id;
+                // Prefix numeric IDs to make them valid for BullMQ
+                if (/^\d+$/.test(data.id)) {
+                    jobOpts.jobId = `task-${data.id}`;
+                } else {
+                    jobOpts.jobId = data.id;
+                }
             }
 
             const job = await this.add(data, jobOpts);
+            // Return the original task ID, not the BullMQ job ID
             return {
                 __typename: "Success" as const,
                 success: true,
-                data: { id: job.id as string },
+                data: { id: taskId || job.id as string },
             };
 
         } catch (error) {

@@ -13,173 +13,160 @@ import type {
 } from "./typeRegistry.js";
 import { isResourceInCategory } from "./typeRegistry.js";
 import { ResourceCategory } from "./types.js";
+import type { ExecutionConfig } from "../../tasks/sandbox/executionConfig.js";
 
 /**
- * Type definitions matching the JSON schema
+ * Security configuration interface for resources
  */
-export interface ResourcesConfig {
-    version: string;
-    enabled: boolean;
-    services?: {
-        ai?: Record<string, any>;
-        automation?: Record<string, any>;
-        agents?: Record<string, any>;
-        storage?: Record<string, any>;
+export interface ResourceSecurityConfig {
+    network?: {
+        allowedHosts?: string[];
+        allowCustomHosts?: boolean;
+        enforceHttps?: boolean;
     };
-    discovery?: {
-        enabled: boolean;
-        strategy: "automatic" | "manual" | "hybrid";
-        methods?: {
-            portScanning?: {
-                enabled: boolean;
-                scanIntervalMs?: number;
-                ports?: Record<string, number>;
-            };
-            dockerIntegration?: {
-                enabled: boolean;
-                socketPath?: string;
-                labelPrefix?: string;
-            };
-            processScanning?: {
-                enabled: boolean;
-                patterns?: string[];
-            };
-        };
-        notifications?: {
-            onDiscovery?: boolean;
-            onLoss?: boolean;
-        };
+    authentication?: {
+        requireForAll?: boolean;
+        keyStorage?: "environment" | "vault" | "file";
+        keyPrefix?: string;
     };
-    security?: {
-        network?: {
-            allowedHosts?: string[];
-            allowCustomHosts?: boolean;
-            enforceHttps?: boolean;
-        };
-        authentication?: {
-            requireForAll?: boolean;
-            keyStorage?: "environment" | "vault" | "file";
-            keyPrefix?: string;
-        };
-        rateLimit?: {
-            enabled?: boolean;
-            requestsPerMinute?: number;
-            burstSize?: number;
-        };
-        audit?: {
-            enabled?: boolean;
-            logLevel?: "error" | "warn" | "info" | "debug";
-            retentionDays?: number;
-        };
+    rateLimit?: {
+        enabled?: boolean;
+        requestsPerMinute?: number;
+        burstSize?: number;
     };
-    _documentation?: any;
+    audit?: {
+        enabled?: boolean;
+        logLevel?: "error" | "warn" | "info" | "debug";
+        retentionDays?: number;
+    };
 }
 
 /**
- * Fully typed version of ResourcesConfig with proper type safety for services
- * Uses the comprehensive type system from typeRegistry.ts
+ * Unified Service Configuration interface matching service.json schema
  */
-export interface TypedResourcesConfig extends Omit<ResourcesConfig, "services" | "_documentation"> {
-    services?: {
+export interface ServiceConfig {
+    $schema?: string;
+    version: string;
+    service?: {
+        name: string;
+        displayName?: string;
+        description?: string;
+        version: string;
+        type: "application" | "api" | "worker" | "cron" | "daemon" | "library" | "tool" | "platform";
+        tags?: string[];
+        maintainers?: Array<{
+            name: string;
+            email?: string;
+            url?: string;
+        }>;
+        repository?: {
+            type: "git" | "svn" | "mercurial" | "perforce";
+            url: string;
+            directory?: string;
+        };
+        license?: string;
+        homepage?: string;
+        documentation?: string;
+        support?: {
+            email?: string;
+            url?: string;
+            issues?: string;
+            forum?: string;
+            chat?: string;
+        };
+    };
+    resources?: {
         ai?: Partial<Pick<ResourceConfigMap, AIResourceId>>;
         automation?: Partial<Pick<ResourceConfigMap, AutomationResourceId>>;
         agents?: Partial<Pick<ResourceConfigMap, AgentResourceId>>;
         storage?: Partial<Pick<ResourceConfigMap, StorageResourceId>>;
         execution?: Partial<Pick<ResourceConfigMap, ExecutionResourceId>>;
     };
-    /** Documentation field for JSON configs - ignored during processing */
-    _documentation?: Record<string, unknown>;
+    execution?: ExecutionConfig;
+    scenarios?: Record<string, any>;
+    serve?: Record<string, any>;
+    inheritance?: {
+        extends?: string | string[];
+        overrides?: {
+            resources?: boolean;
+            execution?: boolean;
+            scenarios?: boolean;
+            serve?: boolean;
+        };
+        merge?: {
+            strategy?: "replace" | "merge" | "append" | "prepend";
+            arrays?: "replace" | "concat" | "union";
+        };
+    };
+    lifecycle?: Record<string, any>;
+    documentation?: Record<string, any>;
+    /** Security configuration for resources */
+    security?: ResourceSecurityConfig;
 }
 
+
 /**
- * Default configuration with full type safety
+ * Default service configuration
  */
-const DEFAULT_CONFIG: TypedResourcesConfig = {
+const DEFAULT_SERVICE_CONFIG: ServiceConfig = {
     version: "1.0.0",
-    enabled: false,
-    services: {
+    service: {
+        name: "vrooli",
+        version: "1.0.0",
+        type: "platform",
+    },
+    resources: {
         ai: {},
         automation: {},
         agents: {},
         storage: {},
         execution: {},
     },
-    security: {
-        network: {
-            allowedHosts: ["localhost", "127.0.0.1"],
-            allowCustomHosts: false,
-            enforceHttps: false,
-        },
-        authentication: {
-            requireForAll: false,
-            keyStorage: "environment",
-            keyPrefix: "VROOLI_RESOURCE_",
-        },
-        rateLimit: {
-            enabled: true,
-            requestsPerMinute: 100,
-            burstSize: 20,
-        },
-        audit: {
-            enabled: true,
-            logLevel: "info",
-            retentionDays: 30,
-        },
-    },
 };
 
+
 /**
- * Load resources configuration from JSON files with full type safety
+ * Load unified service configuration from service.json
  */
-export async function loadResourcesConfig(customPath?: string): Promise<TypedResourcesConfig> {
+export async function loadServiceConfig(customPath?: string): Promise<ServiceConfig> {
     const projectRoot = process.env.PROJECT_DIR || process.cwd();
     const vrooliDir = resolve(projectRoot, ".vrooli");
 
-    // Configuration file paths in order of precedence
-    const configPaths = [
-        customPath,
-        resolve(vrooliDir, "resources.local.json"),
-        resolve(vrooliDir, "resources.json"),
-    ].filter(Boolean) as string[];
+    // Configuration file path
+    const configPath = customPath || resolve(vrooliDir, "service.json");
 
-    let config: TypedResourcesConfig = JSON.parse(JSON.stringify(DEFAULT_CONFIG));
+    let config: ServiceConfig = JSON.parse(JSON.stringify(DEFAULT_SERVICE_CONFIG));
     let configLoaded = false;
 
-    // Try to load configuration files
-    for (const configPath of configPaths) {
-        if (existsSync(configPath)) {
-            try {
-                const fileContent = readFileSync(configPath, "utf8");
-                const fileConfig = JSON.parse(fileContent);
+    // Try to load service configuration
+    if (existsSync(configPath)) {
+        try {
+            const fileContent = readFileSync(configPath, "utf8");
+            const fileConfig = JSON.parse(fileContent);
 
-                // Merge with existing config (later files override earlier ones)
-                config = mergeConfigs(config, fileConfig);
-                configLoaded = true;
+            // Merge with default config
+            config = mergeConfigs(config, fileConfig);
+            configLoaded = true;
 
-                logger.info(`[ResourcesConfig] Loaded configuration from: ${configPath}`);
-
-                // If we loaded a local config, stop here (highest precedence)
-                if (configPath.endsWith("resources.local.json")) {
-                    break;
-                }
-            } catch (error) {
-                logger.error(`[ResourcesConfig] Failed to load config from ${configPath}`, error);
-            }
+            logger.info(`[ServiceConfig] Loaded configuration from: ${configPath}`);
+        } catch (error) {
+            logger.error(`[ServiceConfig] Failed to load config from ${configPath}`, error);
         }
     }
 
     if (!configLoaded) {
-        logger.info("[ResourcesConfig] No configuration files found, using defaults");
+        logger.info("[ServiceConfig] No service.json found, using defaults");
     }
 
     // Apply environment variable substitutions
     config = substituteEnvironmentVariables(config);
 
     // Validate configuration
-    validateConfig(config);
+    validateServiceConfig(config);
 
     return config;
 }
+
 
 /**
  * Deep merge two configuration objects
@@ -241,22 +228,17 @@ function substituteEnvironmentVariables(config: any): any {
 }
 
 /**
- * Validate configuration
+ * Validate service configuration
  */
-function validateConfig(config: ResourcesConfig): void {
+function validateServiceConfig(config: ServiceConfig): void {
     // Check version format
     if (!config.version.match(/^\d+\.\d+\.\d+$/)) {
         throw new Error(`Invalid version format: ${config.version}`);
     }
 
-    // Validate discovery settings
-    if (config.discovery?.enabled && !config.discovery.strategy) {
-        throw new Error("Discovery enabled but no strategy specified");
-    }
-
     // Validate security settings
     if (config.security?.network?.allowedHosts && config.security.network.allowedHosts.length === 0) {
-        logger.warn("[ResourcesConfig] No allowed hosts specified, this may block all connections");
+        logger.warn("[ServiceConfig] No allowed hosts specified, this may block all connections");
     }
 
     // Validate rate limiting
@@ -268,35 +250,39 @@ function validateConfig(config: ResourcesConfig): void {
 }
 
 /**
- * Get a specific service configuration (legacy - untyped)
+ * Get a specific resource configuration from service config
  */
-export function getServiceConfig(
-    config: TypedResourcesConfig,
-    category: keyof NonNullable<TypedResourcesConfig["services"]>,
-    serviceId: string,
+export function getResourceConfig(
+    config: ServiceConfig,
+    category: keyof NonNullable<ServiceConfig["resources"]>,
+    resourceId: string,
 ): unknown {
-    return config.services?.[category]?.[serviceId];
+    // Get from resources section
+    return config.resources?.[category]?.[resourceId];
 }
 
 /**
- * Get a specific service configuration with full type safety
+ * Get a specific resource configuration with full type safety
  */
-export function getTypedServiceConfig<TId extends ResourceId>(
-    config: TypedResourcesConfig,
+export function getTypedResourceConfig<TId extends ResourceId>(
+    config: ServiceConfig,
     resourceId: TId,
 ): GetConfig<TId> | undefined {
     const category = getResourceCategory(resourceId);
-    const categoryServices = config.services?.[category];
-    if (!categoryServices) {
-        return undefined;
+    
+    // Get from resources section
+    const categoryResources = config.resources?.[category];
+    if (categoryResources) {
+        return (categoryResources as any)[resourceId] as GetConfig<TId> | undefined;
     }
-    return (categoryServices as any)[resourceId] as GetConfig<TId> | undefined;
+    
+    return undefined;
 }
 
 /**
  * Helper function to get resource category from resource ID
  */
-function getResourceCategory(resourceId: ResourceId): keyof NonNullable<TypedResourcesConfig["services"]> {
+function getResourceCategory(resourceId: ResourceId): keyof NonNullable<ServiceConfig["resources"]> {
     // Use static import for proper category mapping
     if (isResourceInCategory(resourceId, ResourceCategory.AI)) {
         return "ai";
@@ -321,7 +307,7 @@ function getResourceCategory(resourceId: ResourceId): keyof NonNullable<TypedRes
 /**
  * Check if a host is allowed based on security configuration
  */
-export function isHostAllowed(config: TypedResourcesConfig, host: string): boolean {
+export function isHostAllowed(config: ServiceConfig, host: string): boolean {
     const allowedHosts = config.security?.network?.allowedHosts || ["localhost", "127.0.0.1"];
     const allowCustom = config.security?.network?.allowCustomHosts || false;
 
@@ -333,9 +319,9 @@ export function isHostAllowed(config: TypedResourcesConfig, host: string): boole
 }
 
 /**
- * Get environment variable name for a service key
+ * Get environment variable name for a resource key
  */
-export function getEnvVarName(config: TypedResourcesConfig, serviceId: string, keyName: string): string {
+export function getEnvVarName(config: ServiceConfig, resourceId: string, keyName: string): string {
     const prefix = config.security?.authentication?.keyPrefix || "VROOLI_RESOURCE_";
-    return `${prefix}${serviceId.toUpperCase()}_${keyName.toUpperCase()}`;
+    return `${prefix}${resourceId.toUpperCase()}_${keyName.toUpperCase()}`;
 }

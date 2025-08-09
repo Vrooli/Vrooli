@@ -1,6 +1,10 @@
 import { BUSINESS_NAME, generatePK } from "@vrooli/shared";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { clearRedisCache } from "../queueFactory.js";
+
+// Unmock QueueService for this test file since we need to test the real implementation
+vi.unmock("../queues.js");
+
 import { QueueService } from "../queues.js";
 import { QueueTaskType } from "../taskTypes.js";
 import { AUTH_EMAIL_TEMPLATES } from "./queue.js";
@@ -19,6 +23,9 @@ describe("Email Queue Tests (BullMQ)", () => {
         // Get fresh instance and initialize
         queueService = QueueService.get();
         await queueService.init(redisUrl);
+        
+        // Wait for the email queue to be ready
+        await queueService.email.ready;
     });
 
     afterEach(async () => {
@@ -27,14 +34,13 @@ describe("Email Queue Tests (BullMQ)", () => {
 
         // Clean shutdown - order is critical to prevent "Connection is closed" errors
         try {
-            await queueService.shutdown();
+            // Use the static reset method instead of manually manipulating instance
+            await QueueService.reset();
             // Wait for shutdown to fully complete and event handlers to detach
             await new Promise(resolve => setTimeout(resolve, 100));
         } catch (error) {
             console.log("Shutdown error (ignored):", error);
         }
-        // Clear singleton before clearing cache to prevent any access during cleanup
-        (QueueService as any).instance = null;
         // Clear Redis cache last to avoid disconnecting connections still in use
         clearRedisCache();
         // Final delay to ensure all async operations complete
@@ -44,15 +50,32 @@ describe("Email Queue Tests (BullMQ)", () => {
     /**
      * Helper function to get the latest job from email queue and verify its properties
      * @param expectedData The expected data object to validate against.
+     * @param jobId Optional job ID to look up directly
      */
-    async function expectEmailToBeEnqueuedWith(expectedData) {
-        // Get all jobs from the email queue
-        const jobs = await queueService.email.queue.getJobs(["waiting", "active", "completed", "failed"]);
-        expect(jobs.length).toBeGreaterThan(0);
-
-        // Get the most recent job
-        const latestJob = jobs[jobs.length - 1];
-        const actualData = latestJob.data;
+    async function expectEmailToBeEnqueuedWith(expectedData, jobId?: string) {
+        let actualData;
+        
+        if (jobId) {
+            // Use direct job lookup if ID provided
+            const bullMQJobId = /^\d+$/.test(jobId) ? `task-${jobId}` : jobId;
+            const job = await queueService.email.queue.getJob(bullMQJobId);
+            expect(job).toBeDefined();
+            actualData = job!.data;
+        } else {
+            // Try to get jobs with a delay to ensure they're indexed
+            await new Promise(resolve => setTimeout(resolve, 100));
+            const jobs = await queueService.email.queue.getJobs(["waiting", "active", "completed", "failed", "delayed"]);
+            if (jobs.length === 0) {
+                // If no jobs found, try different approach - get job counts to see what's there
+                const counts = await queueService.email.queue.getJobCounts();
+                console.log("Job counts:", counts);
+                throw new Error("No jobs found in queue, but test expected to find jobs");
+            }
+            
+            // Get the most recent job
+            const latestJob = jobs[jobs.length - 1];
+            actualData = latestJob.data;
+        }
 
         // Check if it matches expected data
         if (expectedData) {
@@ -63,7 +86,7 @@ describe("Email Queue Tests (BullMQ)", () => {
                 expect(actualData.subject).toBe(expectedData.subject);
             }
             if (expectedData.text) {
-                expect(actualData.text).toBe(expectedData.text);
+                expect(actualData.text).toEqual(expectedData.text);
             }
             // Special handling for html field, which can be undefined
             if ("html" in expectedData) {
@@ -96,18 +119,23 @@ describe("Email Queue Tests (BullMQ)", () => {
                 { delay },
             );
 
+            if (!result.success) {
+                console.error("Failed to add task:", result);
+            }
             expect(result.success).toBe(true);
             expect(result.data?.id).toBeDefined();
-
+            
             await expectEmailToBeEnqueuedWith({
                 to: testEmails,
                 subject,
                 text,
                 html,
-            });
+            }, result.data!.id);
 
             // Check if the delay option is set correctly
-            const job = await queueService.email.queue.getJob(result.data!.id);
+            // The job ID might be prefixed with "task-" if it was numeric
+            const jobId = /^\d+$/.test(result.data!.id) ? `task-${result.data!.id}` : result.data!.id;
+            const job = await queueService.email.queue.getJob(jobId);
             expect(job?.opts.delay).toBe(delay);
         });
 
@@ -134,7 +162,9 @@ describe("Email Queue Tests (BullMQ)", () => {
             });
 
             // Check that default delay is 0
-            const job = await queueService.email.queue.getJob(result.data!.id);
+            // The job ID might be prefixed with "task-" if it was numeric
+            const jobId = /^\d+$/.test(result.data!.id) ? `task-${result.data!.id}` : result.data!.id;
+            const job = await queueService.email.queue.getJob(jobId);
             expect(job?.opts.delay).toBeUndefined(); // BullMQ doesn't set delay if it's 0
         });
 
@@ -157,10 +187,12 @@ describe("Email Queue Tests (BullMQ)", () => {
                 subject: "Delayed Email",
                 text: "This is a delayed email.",
                 html: undefined,
-            });
+            }, result.data!.id);
 
             // Check if the delay option is set correctly
-            const job = await queueService.email.queue.getJob(result.data!.id);
+            // The job ID might be prefixed with "task-" if it was numeric
+            const jobId = /^\d+$/.test(result.data!.id) ? `task-${result.data!.id}` : result.data!.id;
+            const job = await queueService.email.queue.getJob(jobId);
             expect(job?.opts.delay).toBe(delay);
         });
 
@@ -401,8 +433,10 @@ describe("Email Queue Tests (BullMQ)", () => {
             expect(lowPriorityResult.success).toBe(true);
 
             // Verify priorities
-            const highPriorityJob = await queueService.email.queue.getJob(highPriorityResult.data!.id);
-            const lowPriorityJob = await queueService.email.queue.getJob(lowPriorityResult.data!.id);
+            const highPriorityJobId = /^\d+$/.test(highPriorityResult.data!.id) ? `task-${highPriorityResult.data!.id}` : highPriorityResult.data!.id;
+            const lowPriorityJobId = /^\d+$/.test(lowPriorityResult.data!.id) ? `task-${lowPriorityResult.data!.id}` : lowPriorityResult.data!.id;
+            const highPriorityJob = await queueService.email.queue.getJob(highPriorityJobId);
+            const lowPriorityJob = await queueService.email.queue.getJob(lowPriorityJobId);
 
             expect(highPriorityJob?.opts.priority).toBe(10);
             expect(lowPriorityJob?.opts.priority).toBe(100);
@@ -435,8 +469,8 @@ describe("Email Queue Tests (BullMQ)", () => {
             // Should only have one job with this ID
             const job = await queueService.email.queue.getJob(duplicateId);
             expect(job).toBeDefined();
-            // The second add should have replaced the first
-            expect(job?.data.subject).toBe("Second Version");
+            // BullMQ preserves the first job when duplicate IDs are added
+            expect(job?.data.subject).toBe("First Version");
         });
 
         it("should handle concurrent job additions", async () => {
@@ -476,13 +510,15 @@ describe("Email Queue Tests (BullMQ)", () => {
 
             expect(result.success).toBe(true);
             const jobId = result.data!.id;
+            // Use the BullMQ job ID for status lookup (prefixed if numeric)
+            const bullMQJobId = /^\d+$/.test(jobId) ? `task-${jobId}` : jobId;
 
             // Get job status
-            const statuses = await queueService.getTaskStatuses([jobId], "email");
+            const statuses = await queueService.getTaskStatuses([bullMQJobId], "email-send");
             expect(statuses).toHaveLength(1);
-            expect(statuses[0].id).toBe(jobId);
+            expect(statuses[0].id).toBe(bullMQJobId);  // ID returned should match what we passed
             expect(statuses[0].status).toBeDefined();
-            expect(statuses[0].queueName).toBe("email");
+            expect(statuses[0].queueName).toBe("email-send");
         });
 
         it("should handle job removal", async () => {
@@ -496,16 +532,17 @@ describe("Email Queue Tests (BullMQ)", () => {
 
             expect(result.success).toBe(true);
             const jobId = result.data!.id;
+            const bullMQJobId = /^\d+$/.test(jobId) ? `task-${jobId}` : jobId;
 
             // Verify job exists
-            let job = await queueService.email.queue.getJob(jobId);
+            let job = await queueService.email.queue.getJob(bullMQJobId);
             expect(job).toBeDefined();
 
             // Remove the job
             await job!.remove();
 
             // Verify job is removed
-            job = await queueService.email.queue.getJob(jobId);
+            job = await queueService.email.queue.getJob(bullMQJobId);
             expect(job).toBeNull();
         });
     });
@@ -551,8 +588,13 @@ describe("Email Queue Tests (BullMQ)", () => {
             const result = await queueService.email.addTask(complexData);
             expect(result.success).toBe(true);
 
-            const job = await queueService.email.queue.getJob(result.data!.id);
-            expect(job?.data).toMatchObject(complexData);
+            const bullMQJobId = /^\d+$/.test(result.data!.id) ? `task-${result.data!.id}` : result.data!.id;
+            const job = await queueService.email.queue.getJob(bullMQJobId);
+            // Remove undefined fields from complexData for comparison
+            const expectedData = Object.fromEntries(
+                Object.entries(complexData).filter(([_, v]) => v !== undefined)
+            );
+            expect(job?.data).toMatchObject(expectedData);
         });
 
         it("should handle queue shutdown and restart", async () => {
@@ -566,19 +608,20 @@ describe("Email Queue Tests (BullMQ)", () => {
             );
             expect(beforeResult.success).toBe(true);
             const beforeJobId = beforeResult.data!.id;
+            const beforeBullMQJobId = /^\d+$/.test(beforeJobId) ? `task-${beforeJobId}` : beforeJobId;
 
-            // Shutdown the queue service
-            await queueService.shutdown();
-
-            // Clear instance to force new one
-            (QueueService as any).instance = null;
+            // Shutdown the queue service and reset the singleton
+            await QueueService.reset();
 
             // Get new instance and reinitialize
             const newQueueService = QueueService.get();
             await newQueueService.init(process.env.REDIS_URL || "redis://localhost:6379");
+            
+            // Wait for the email queue to be ready
+            await newQueueService.email.ready;
 
             // Verify the job still exists after restart
-            const job = await newQueueService.email.queue.getJob(beforeJobId);
+            const job = await newQueueService.email.queue.getJob(beforeBullMQJobId);
             expect(job).toBeDefined();
             expect(job?.data.subject).toBe("Before Shutdown");
 
@@ -592,8 +635,9 @@ describe("Email Queue Tests (BullMQ)", () => {
             );
             expect(afterResult.success).toBe(true);
 
-            // Clean up
-            await newQueueService.shutdown();
+            // Update the module-level queueService reference to the new instance
+            // so afterEach can properly clean it up
+            queueService = newQueueService;
         });
     });
 });

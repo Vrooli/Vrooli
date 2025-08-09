@@ -1,7 +1,7 @@
 import { AnthropicModel, MistralModel, OpenAIModel } from "@vrooli/shared";
-import { expect, describe, it, beforeEach, afterEach, vi } from "vitest";
-import { AIServiceErrorType, LlmServiceId, AIServiceRegistry, AIServiceState } from "./registry.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NetworkMonitor } from "./NetworkMonitor.js";
+import { AIServiceErrorType, AIServiceRegistry, AIServiceState, LlmServiceId } from "./registry.js";
 
 // Mock NetworkMonitor
 vi.mock("./NetworkMonitor.js", () => ({
@@ -120,6 +120,8 @@ describe("AIServiceRegistry", () => {
                 getState: vi.fn(),
             };
             vi.mocked(NetworkMonitor.getInstance).mockReturnValue(mockNetworkMonitor);
+            // Reset singleton to ensure it uses the mocked NetworkMonitor
+            AIServiceRegistry["instance"] = undefined;
         });
 
         afterEach(() => {

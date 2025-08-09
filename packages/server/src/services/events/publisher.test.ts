@@ -39,9 +39,9 @@ describe("EventPublisher", () => {
     let mockGetEventBehavior: any;
     let mockEventUsageValidator: any;
 
-    beforeEach(() => {
-        const { getEventBus } = require("./eventBus.js");
-        const { getEventBehavior, EventUsageValidator } = require("./registry.js");
+    beforeEach(async () => {
+        const { getEventBus } = await import("./eventBus.js");
+        const { getEventBehavior, EventUsageValidator } = await import("./registry.js");
 
         mockEventBus = {
             publish: vi.fn(),

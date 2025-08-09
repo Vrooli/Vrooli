@@ -7,18 +7,32 @@
 import { generatePK, DUMMY_ID } from "@vrooli/shared";
 import { ObjectPermissionFactory } from "../factories/ObjectPermissionFactory.js";
 
+// Consistent test user IDs for permissions testing - using lazy initialization
+let _testUserIds: Record<string, string> | null = null;
+function getTestUserIds() {
+    if (!_testUserIds) {
+        _testUserIds = {
+            bookmarkOwner: generatePK().toString(),
+            projectOwner: generatePK().toString(),
+            otherUser: generatePK().toString(),
+            admin: generatePK().toString(),
+        };
+    }
+    return _testUserIds;
+}
+
 // Minimal bookmark object for testing
 function createMinimalBookmark(overrides: Record<string, unknown> = {}) {
     return {
         __typename: "Bookmark",
-        id: generatePK(),
+        id: generatePK().toString(),
         to: {
             __typename: "Project",
             id: DUMMY_ID,
         },
         list: {
             __typename: "BookmarkList", 
-            id: generatePK(),
+            id: generatePK().toString(),
         },
         ...overrides,
     };
@@ -28,7 +42,7 @@ function createMinimalBookmark(overrides: Record<string, unknown> = {}) {
 function createCompleteBookmark(overrides: Record<string, unknown> = {}) {
     return {
         __typename: "Bookmark",
-        id: generatePK(),
+        id: generatePK().toString(),
         to: {
             __typename: "Project",
             id: DUMMY_ID,
@@ -37,9 +51,9 @@ function createCompleteBookmark(overrides: Record<string, unknown> = {}) {
         },
         list: {
             __typename: "BookmarkList",
-            id: generatePK(),
+            id: generatePK().toString(),
             label: "My Bookmarks",
-            owner: { id: "222222222222222222" },
+            owner: { id: getTestUserIds().bookmarkOwner },
             isPrivate: false,
         },
         createdAt: new Date().toISOString(),
@@ -118,16 +132,16 @@ export const bookmarkScenarios = {
                 id: DUMMY_ID,
                 name: "Private Project",
                 isPublic: false,
-                owner: { id: "333333333333333333" }, // Different owner
+                owner: { id: getTestUserIds().projectOwner }, // Different owner
             },
             list: {
-                owner: { id: "222222222222222222" }, // User's list
+                owner: { id: getTestUserIds().bookmarkOwner }, // User's list
             },
         }),
         actors: [
             {
                 id: "user",
-                session: { id: "222222222222222222" } as Record<string, unknown>,
+                session: { id: getTestUserIds().bookmarkOwner } as Record<string, unknown>,
                 permissions: {
                     read: false,
                     create: false, // Cannot bookmark private object they don't own
@@ -147,13 +161,13 @@ export const bookmarkScenarios = {
         description: "Attempting to access another user's bookmark list",
         resource: createCompleteBookmark({
             list: {
-                owner: { id: "333333333333333333" }, // Different user's list
+                owner: { id: getTestUserIds().otherUser }, // Different user's list
             },
         }),
         actors: [
             {
                 id: "user",
-                session: { id: "222222222222222222" } as Record<string, unknown>,
+                session: { id: getTestUserIds().bookmarkOwner } as Record<string, unknown>,
                 permissions: {
                     read: false, // Cannot read other user's bookmark
                     create: false,
@@ -164,7 +178,7 @@ export const bookmarkScenarios = {
             {
                 id: "admin",
                 session: { 
-                    id: "111111111111111111",
+                    id: getTestUserIds().admin,
                     roles: [{ role: { name: "Admin", permissions: "[\"*\"]" } }],
                 } as Record<string, unknown>,
                 permissions: {
@@ -188,7 +202,7 @@ export const bookmarkPermissionHelpers = {
         return createCompleteBookmark({
             to: { id: targetObjectId },
             list: {
-                id: listId || generatePK(),
+                id: listId || generatePK().toString(),
                 owner: { id: userId },
             },
         });
@@ -200,7 +214,7 @@ export const bookmarkPermissionHelpers = {
     createUserBookmarkList: (userId: string, isPrivate = false) => {
         return {
             __typename: "BookmarkList",
-            id: generatePK(),
+            id: generatePK().toString(),
             label: "Test Bookmark List",
             owner: { id: userId },
             isPrivate,

@@ -17,7 +17,7 @@ export class OllamaResource extends LocalResourceProvider<OllamaConfig> {
 ```
 
 ### 2. Configuration
-Resources are configured via `.vrooli/resources.local.json`:
+Resources are configured via `.vrooli/service.json`:
 
 ```json
 {
@@ -156,7 +156,7 @@ export class MyResource extends LocalResourceProvider<MyConfig> {
 ```
 
 2. Add to `SUPPORTED_RESOURCES` in `constants.ts`
-3. Configure in `.vrooli/resources.local.json`
+3. Configure in `.vrooli/service.json`
 4. The resource will be automatically discovered and monitored
 
 ## Best Practices

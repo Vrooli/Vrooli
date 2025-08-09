@@ -125,7 +125,7 @@ export class BookmarkDbFactory extends EnhancedDbFactory<Prisma.bookmarkCreateIn
                 },
                 foreignKeyViolation: {
                     id: generatePK(),
-                    resource: { connect: { id: "non-existent-resource-id" } },
+                    resource: { connect: { id: generatePK() } },
                 },
                 checkConstraintViolation: {
                     id: generatePK(),

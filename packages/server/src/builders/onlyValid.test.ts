@@ -170,7 +170,7 @@ describe("onlyValidIds", () => {
         it("should filter out non-string values", () => {
             const input = [
                 "123456789012345678", // valid ID
-                123456789012345678 as any, // number
+                Number("123456789012345678") as any, // number
                 { id: "123456789012345678" } as any, // object
                 ["123456789012345678"] as any, // array
                 true as any, // boolean
@@ -181,7 +181,7 @@ describe("onlyValidIds", () => {
             // Should only contain string IDs that are valid
             expect(result).toContain("123456789012345678");
             expect(result).toContain("987654321098765432");
-            expect(result).not.toContain(123456789012345678);
+            expect(result).not.toContain(Number("123456789012345678"));
         });
 
         it("should handle empty strings", () => {

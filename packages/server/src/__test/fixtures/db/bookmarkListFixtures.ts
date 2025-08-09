@@ -1,3 +1,4 @@
+/* eslint-disable no-magic-numbers */
 import { type Prisma } from "@prisma/client";
 import { generatePK } from "@vrooli/shared";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
@@ -512,21 +513,10 @@ export async function seedBookmarkLists(
             include: {
                 bookmarks: {
                     include: {
-                        api: true,
-                        code: true,
                         comment: true,
                         issue: true,
-                        note: true,
-                        post: true,
-                        project: true,
-                        prompt: true,
-                        question: true,
-                        quiz: true,
-                        routine: true,
-                        runProject: true,
-                        runRoutine: true,
-                        smartContract: true,
-                        standard: true,
+                        resource: true,
+                        tag: true,
                         team: true,
                         user: true,
                     },

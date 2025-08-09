@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-08-05
 // This file should only be imported by the child process manager
 import ivm from "isolated-vm";
 // import SuperJSON from "superjson";

@@ -5,7 +5,48 @@
  * unified fixture architecture.
  */
 
+import { type AccountStatus } from "@vrooli/shared";
+import { type Request, type Response } from "express";
 import { type SessionData } from "../../../types.js";
+
+/**
+ * Extended session data for testing that includes user properties
+ * This makes it easier to create test fixtures without having to deal with
+ * the complex nested structure of real SessionData
+ */
+export interface TestSessionData extends SessionData {
+    // User properties for easier testing
+    id?: string;
+    handle?: string;
+    name?: string;
+    email?: string;
+    emailVerified?: boolean;
+    accountStatus?: AccountStatus;
+    hasPremium?: boolean;
+    isBot?: boolean;
+    isAdmin?: boolean;
+    roles?: Array<{
+        role: {
+            name: string;
+            permissions: string;
+        };
+    }>;
+    permissions?: Record<string, boolean>;
+
+    // Test-specific properties
+    _testTeamMembership?: {
+        teamId: string;
+        role: "Owner" | "Admin" | "Member";
+    };
+    _testExpired?: boolean;
+    _testRateLimit?: RateLimitInfo;
+    _testPreviouslyPremium?: boolean;
+
+    // Session properties that might be added during testing
+    currentToken?: string;
+    csrfToken?: string;
+    marketplaceUrl?: string;
+}
 
 /**
  * API Key types for testing
@@ -13,6 +54,15 @@ import { type SessionData } from "../../../types.js";
 export enum ApiKeyType {
     Internal = "Internal",
     External = "External",
+}
+
+/**
+ * Member roles for team permissions
+ */
+export enum MemberRole {
+    Owner = "Owner",
+    Admin = "Admin",
+    Member = "Member",
 }
 
 /**
@@ -149,19 +199,19 @@ export interface PermissionInheritance {
 export interface PermissionFixtureFactory<TSession = SessionData> {
     /** Create a session with specific overrides */
     createSession: (overrides?: Partial<TSession>) => TSession;
-    
+
     /** Create a session with specific permissions */
     withPermissions: (session: TSession, permissions: string[]) => TSession;
-    
+
     /** Create a session with a specific role */
     withRole: (session: TSession, role: string) => TSession;
-    
+
     /** Create a session with team membership */
     withTeam: (session: TSession, teamId: string, role: "Owner" | "Admin" | "Member") => TSession;
-    
+
     /** Create an expired session */
     asExpired: (session: TSession) => TSession;
-    
+
     /** Create a rate-limited session */
     asRateLimited: (session: TSession, info: RateLimitInfo) => TSession;
 }
@@ -171,14 +221,14 @@ export interface PermissionFixtureFactory<TSession = SessionData> {
  */
 export interface PermissionValidator {
     /** Check if a session has a specific permission */
-    hasPermission: (session: SessionData | ApiKeyAuthData, permission: string) => boolean;
-    
+    hasPermission: (session: SessionData | ApiKeyAuthData | TestSessionData, permission: string) => boolean;
+
     /** Check if a session can perform an action on a resource */
-    canAccess: (session: SessionData | ApiKeyAuthData, action: string, resource: Record<string, unknown>) => boolean;
-    
+    canAccess: (session: SessionData | ApiKeyAuthData | TestSessionData, action: string, resource: Record<string, unknown>) => boolean;
+
     /** Get all permissions for a session */
-    getPermissions: (session: SessionData | ApiKeyAuthData) => string[];
-    
+    getPermissions: (session: SessionData | ApiKeyAuthData | TestSessionData) => string[];
+
     /** Validate permission inheritance chain */
     validateInheritance: (chain: PermissionInheritance[]) => boolean;
 }
@@ -200,32 +250,32 @@ export interface SessionOptions {
 }
 
 /**
- * Test helper function signatures
+ * Test helpers for permission testing
  */
 export interface PermissionTestHelpers {
     /** Expect a permission to be denied */
     expectPermissionDenied: (fn: () => Promise<unknown>, expectedError?: string | RegExp) => Promise<void>;
-    
+
     /** Expect a permission to be granted */
     expectPermissionGranted: (fn: () => Promise<unknown>) => Promise<void>;
-    
+
     /** Test a permission matrix against multiple personas */
     testPermissionMatrix: (
-        testFn: (session: SessionData | ApiKeyAuthData) => Promise<unknown>,
+        testFn: (session: { req: Request; res: Response }) => Promise<unknown>,
         matrix: PermissionMatrix
     ) => Promise<void>;
-    
+
     /** Test permission changes over time */
     testPermissionChange: (
-        testFn: (session: SessionData | ApiKeyAuthData) => Promise<unknown>,
-        before: SessionData,
-        after: SessionData,
+        testFn: (session: { req: Request; res: Response }) => Promise<unknown>,
+        before: SessionData | TestSessionData,
+        after: SessionData | TestSessionData,
         expectations: { beforeShouldPass: boolean; afterShouldPass: boolean }
     ) => Promise<void>;
-    
+
     /** Test bulk permissions */
     testBulkPermissions: (
-        operations: Array<{ name: string; fn: (session: SessionData | ApiKeyAuthData) => Promise<unknown> }>,
+        operations: Array<{ name: string; fn: (session: { req: Request; res: Response }) => Promise<unknown> }>,
         sessions: Array<{ name: string; session: SessionData | ApiKeyAuthData; isApiKey?: boolean }>,
         expectations: Record<string, Record<string, boolean>>
     ) => Promise<void>;
@@ -242,7 +292,7 @@ export interface SecurityEdgeCases {
         hijacked: SessionData;
         replayed: SessionData;
     };
-    
+
     /** Input validation edge cases */
     inputEdgeCases: {
         sqlInjection: string;
@@ -250,7 +300,7 @@ export interface SecurityEdgeCases {
         pathTraversal: string;
         commandInjection: string;
     };
-    
+
     /** Permission escalation attempts */
     escalationEdgeCases: {
         roleManipulation: SessionData;

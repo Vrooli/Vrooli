@@ -11,23 +11,23 @@ describe("BpmnAdvancedActivityHandler", () => {
 
     const advancedActivitiesXml = `<?xml version="1.0" encoding="UTF-8"?>
     <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
-        <bpmn:process id="Process_1">
+        <bpmn:process id="Process_1" isExecutable="true">
             <bpmn:task id="MultiInstanceTask">
                 <bpmn:multiInstanceLoopCharacteristics isSequential="false">
-                    <bpmn:loopCardinality>3</bpmn:loopCardinality>
+                    <bpmn:loopCardinality>#{3}</bpmn:loopCardinality>
                 </bpmn:multiInstanceLoopCharacteristics>
                 <bpmn:outgoing>Flow1</bpmn:outgoing>
             </bpmn:task>
             <bpmn:task id="SequentialMultiTask">
                 <bpmn:multiInstanceLoopCharacteristics isSequential="true">
                     <bpmn:loopDataInputRef>items</bpmn:loopDataInputRef>
-                    <bpmn:inputDataItem name="item" />
+                    <bpmn:inputDataItem>item</bpmn:inputDataItem>
                 </bpmn:multiInstanceLoopCharacteristics>
                 <bpmn:outgoing>Flow2</bpmn:outgoing>
             </bpmn:task>
             <bpmn:task id="LoopTask">
                 <bpmn:standardLoopCharacteristics testBefore="true">
-                    <bpmn:loopCondition>counter < 5</bpmn:loopCondition>
+                    <bpmn:loopCondition>#{counter &lt; 5}</bpmn:loopCondition>
                     <bpmn:loopMaximum>10</bpmn:loopMaximum>
                 </bpmn:standardLoopCharacteristics>
                 <bpmn:outgoing>Flow3</bpmn:outgoing>
@@ -74,24 +74,18 @@ describe("BpmnAdvancedActivityHandler", () => {
                 joinPoints: [],
             },
             subprocesses: {
-                activeSubprocesses: [],
-                completedSubprocesses: [],
+                stack: [],
                 eventSubprocesses: [],
-            },
-            gateways: {
-                exclusiveStates: [],
-                inclusiveStates: [],
-            },
-            compensation: {
-                completedActivities: [],
-                compensationHandlers: [],
             },
             external: {
                 messageEvents: [],
+                webhookEvents: [],
                 signalEvents: [],
             },
-            loopIterations: {},
-            multiInstanceStates: {},
+            gateways: {
+                inclusiveStates: [],
+                complexConditions: [],
+            },
         };
     });
 

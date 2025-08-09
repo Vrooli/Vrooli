@@ -1,4 +1,4 @@
-import type { TypedResourcesConfig } from "./resourcesConfig.js";
+import type { ServiceConfig } from "./resourcesConfig.js";
 import type {
     AgentResourceId,
     AIResourceId,
@@ -225,8 +225,8 @@ export interface TypedHealthCheckResult<TCategory extends ResourceCategory = Res
  */
 export interface ResourceInitOptions<TId extends ResourceId = ResourceId> {
     config: GetConfig<TId>;
-    /** Global resources config for cross-resource access */
-    globalConfig: TypedResourcesConfig;
+    /** Global service config for cross-resource access */
+    globalConfig: ServiceConfig;
     /** Signal for cancellation */
     signal?: AbortSignal;
 }
@@ -236,8 +236,8 @@ export interface ResourceInitOptions<TId extends ResourceId = ResourceId> {
  */
 export interface UntypedResourceInitOptions {
     config: unknown;
-    /** Global resources config for cross-resource access */
-    globalConfig: TypedResourcesConfig;
+    /** Global service config for cross-resource access */
+    globalConfig: ServiceConfig;
     /** Signal for cancellation */
     signal?: AbortSignal;
 }

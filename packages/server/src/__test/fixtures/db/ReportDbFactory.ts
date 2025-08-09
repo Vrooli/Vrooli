@@ -1,5 +1,5 @@
 /* eslint-disable no-magic-numbers */
-import { type Prisma, type PrismaClient, type report } from "@prisma/client";
+import type { Prisma, PrismaClient, report } from "@prisma/client";
 import { generatePublicId, ReportStatus, ReportSuggestedAction } from "@vrooli/shared";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
 import type {
@@ -85,7 +85,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
                     reason: null, // Should be string
                     language: true, // Should be string
                     status: "open", // Should be ReportStatus enum
-                    createdById: null, // Should be string
+                    createdBy: null, // Should be relation object
                 },
                 noTarget: {
                     id: this.generateId(),
@@ -180,7 +180,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
                     language: "en",
                     status: ReportStatus.Open,
                     createdBy: { connect: { id: this.generateId() } },
-                    chatMessageId: this.generateId(),
+                    chatMessage: { connect: { id: this.generateId() } },
                 },
                 reportOfTeam: {
                     id: this.generateId(),
@@ -301,7 +301,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
                     },
                     withResponses: [
                         {
-                            createdBy: { connect: { id: this.generateId() } },
+                            createdById: this.generateId(),
                             actionSuggested: ReportSuggestedAction.Delete,
                             details: "Content violated terms of service and has been removed",
                         },
@@ -317,12 +317,12 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
                     },
                     withResponses: [
                         {
-                            createdBy: { connect: { id: this.generateId() } },
+                            createdById: this.generateId(),
                             actionSuggested: ReportSuggestedAction.Delete,
                             details: "This is clearly misleading",
                         },
                         {
-                            createdBy: { connect: { id: this.generateId() } },
+                            createdById: this.generateId(),
                             actionSuggested: ReportSuggestedAction.NonIssue,
                             details: "This is just an opinion, not misleading",
                         },
@@ -351,26 +351,22 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
             chatMessage: {
                 select: {
                     id: true,
-                    publicId: true,
                 },
             },
             comment: {
                 select: {
                     id: true,
-                    publicId: true,
                 },
             },
             issue: {
                 select: {
                     id: true,
                     publicId: true,
-                    title: true,
                 },
             },
             tag: {
                 select: {
                     id: true,
-                    publicId: true,
                     tag: true,
                 },
             },
@@ -378,7 +374,6 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
                 select: {
                     id: true,
                     publicId: true,
-                    name: true,
                     handle: true,
                 },
             },
@@ -424,42 +419,42 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
 
         // Handle creator association
         if (config.createdById) {
-            data.createdById = config.createdById;
+            data.createdBy = { connect: { id: config.createdById } };
         }
 
         // Handle target type
         if (config.targetType && config.targetId) {
             // Clear any existing targets
-            delete data.resourceVersionId;
-            delete data.chatMessageId;
-            delete data.commentId;
-            delete data.issueId;
-            delete data.tagId;
-            delete data.teamId;
-            delete data.userId;
+            delete data.resourceVersion;
+            delete data.chatMessage;
+            delete data.comment;
+            delete data.issue;
+            delete data.tag;
+            delete data.team;
+            delete data.user;
 
             // Set the appropriate target
             switch (config.targetType) {
                 case "resourceVersion":
-                    data.resourceVersionId = config.targetId;
+                    data.resourceVersion = { connect: { id: config.targetId } };
                     break;
                 case "chatMessage":
-                    data.chatMessageId = config.targetId;
+                    data.chatMessage = { connect: { id: config.targetId } };
                     break;
                 case "comment":
-                    data.commentId = config.targetId;
+                    data.comment = { connect: { id: config.targetId } };
                     break;
                 case "issue":
-                    data.issueId = config.targetId;
+                    data.issue = { connect: { id: config.targetId } };
                     break;
                 case "tag":
-                    data.tagId = config.targetId;
+                    data.tag = { connect: { id: config.targetId } };
                     break;
                 case "team":
-                    data.teamId = config.targetId;
+                    data.team = { connect: { id: config.targetId } };
                     break;
                 case "user":
-                    data.userId = config.targetId;
+                    data.user = { connect: { id: config.targetId } };
                     break;
             }
         }
@@ -469,7 +464,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
             data.responses = {
                 create: config.withResponses.map(response => ({
                     id: this.generateId(),
-                    createdById: response.createdById,
+                    createdBy: { connect: { id: response.createdById } },
                     actionSuggested: response.actionSuggested,
                     details: response.details,
                     language: data.language,
@@ -485,23 +480,23 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
      */
     async createReportFor(
         targetType: "resourceVersion" | "chatMessage" | "comment" | "issue" | "tag" | "team" | "user",
-        targetId: string,
-        createdById: string,
+        targetId: string | bigint,
+        createdById: string | bigint,
         reason: string,
         details?: string,
-    ): Promise<Prisma.report> {
+    ): Promise<report> {
         return await this.createWithRelations({
             overrides: { reason, details },
-            createdById,
+            createdById: typeof createdById === "string" ? BigInt(createdById) : createdById,
             targetType,
-            targetId,
+            targetId: typeof targetId === "string" ? BigInt(targetId) : targetId,
         });
     }
 
     /**
      * Create common report types
      */
-    async createSpamReport(targetType: string, targetId: string, createdById: string): Promise<Prisma.report> {
+    async createSpamReport(targetType: string, targetId: string | bigint, createdById: string | bigint): Promise<report> {
         return await this.createReportFor(
             targetType as any,
             targetId,
@@ -511,7 +506,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
         );
     }
 
-    async createHarassmentReport(targetType: string, targetId: string, createdById: string): Promise<Prisma.report> {
+    async createHarassmentReport(targetType: string, targetId: string | bigint, createdById: string | bigint): Promise<report> {
         return await this.createReportFor(
             targetType as any,
             targetId,
@@ -521,7 +516,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
         );
     }
 
-    async createInappropriateContentReport(targetType: string, targetId: string, createdById: string): Promise<Prisma.report> {
+    async createInappropriateContentReport(targetType: string, targetId: string | bigint, createdById: string | bigint): Promise<report> {
         return await this.createReportFor(
             targetType as any,
             targetId,
@@ -535,12 +530,12 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
      * Update report status
      */
     async closeReport(
-        reportId: string,
+        reportId: string | bigint,
         status: ReportStatus,
         responseDetails?: string,
-    ): Promise<Prisma.report> {
+    ): Promise<report> {
         return await this.prisma.report.update({
-            where: { id: reportId },
+            where: { id: typeof reportId === "string" ? BigInt(reportId) : reportId },
             data: {
                 status,
                 updatedAt: new Date(),
@@ -549,7 +544,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
         });
     }
 
-    protected async checkModelConstraints(record: Prisma.report): Promise<string[]> {
+    protected async checkModelConstraints(record: report): Promise<string[]> {
         const violations: string[] = [];
 
         // Check that only one target is specified
@@ -620,7 +615,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: Prisma.report,
+        record: report,
         remainingDepth: number,
         tx: any,
         includeOnly?: string[],
@@ -630,14 +625,14 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
             !includeOnly || includeOnly.includes(relation);
 
         // Delete responses
-        if (shouldDelete("responses") && record.responses?.length) {
+        if (shouldDelete("responses")) {
             await tx.report_response.deleteMany({
                 where: { reportId: record.id },
             });
         }
 
         // Delete notification subscriptions
-        if (shouldDelete("subscriptions") && record.subscriptions?.length) {
+        if (shouldDelete("subscriptions")) {
             await tx.notification_subscription.deleteMany({
                 where: { reportId: record.id },
             });
@@ -649,16 +644,16 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
      */
     async createReportWithWorkflow(
         targetType: string,
-        targetId: string,
+        targetId: string | bigint,
         workflow: Array<{
             status: ReportStatus;
             response?: {
-                createdById: string;
+                createdById: string | bigint;
                 actionSuggested: ReportSuggestedAction;
                 details?: string;
             };
         }>,
-    ): Promise<Prisma.report> {
+    ): Promise<report> {
         // Create initial report
         const report = await this.createReportFor(
             targetType as any,
@@ -676,7 +671,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
                     data: {
                         id: this.generateId(),
                         reportId: report.id,
-                        createdById: step.response.createdById,
+                        createdById: typeof step.response.createdById === "string" ? BigInt(step.response.createdById) : step.response.createdById,
                         actionSuggested: step.response.actionSuggested,
                         details: step.response.details,
                         language: report.language,
@@ -694,7 +689,7 @@ export class ReportDbFactory extends EnhancedDatabaseFactory<
         return await this.prisma.report.findUnique({
             where: { id: report.id },
             include: this.getDefaultInclude(),
-        }) as Prisma.report;
+        }) as report;
     }
 
     /**

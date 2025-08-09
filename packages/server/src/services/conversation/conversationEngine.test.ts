@@ -10,9 +10,7 @@ import type {
     SwarmId,
 } from "@vrooli/shared";
 import { generatePK, ModelStrategy } from "@vrooli/shared";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { ISwarmContextManager } from "../execution/shared/SwarmContextManager.js";
-import type { ResponseService } from "../response/responseService.js";
+import { afterEach, beforeEach, describe, expect, it, vi, type MockedFunction } from "vitest";
 import type { AgentSelectionResult } from "./agentGraph.js";
 import { ConversationEngine } from "./conversationEngine.js";
 
@@ -36,8 +34,21 @@ vi.mock("./agentGraph.js", () => ({
 
 describe("ConversationEngine", () => {
     let conversationEngine: ConversationEngine;
-    let mockResponseService: jest.Mocked<ResponseService>;
-    let mockContextManager: jest.Mocked<ISwarmContextManager>;
+    let mockResponseService: {
+        generateResponse: MockedFunction<any>;
+        generateResponseStreaming: MockedFunction<any>;
+        safeInputCheck: MockedFunction<any>;
+        getServiceConfig: MockedFunction<any>;
+        updateState: MockedFunction<any>;
+        getNativeToolCapabilities: MockedFunction<any>;
+    };
+    let mockContextManager: {
+        getContext: MockedFunction<any>;
+        updateContext: MockedFunction<any>;
+        allocateResources: MockedFunction<any>;
+        releaseResources: MockedFunction<any>;
+        cleanup: MockedFunction<any>;
+    };
 
     const defaultConfig: ConversationEngineConfig = {
         maxConcurrentTurns: 5,
@@ -421,6 +432,8 @@ describe("ConversationEngine", () => {
         });
 
         it("should handle context manager errors", async () => {
+            // Clear the mock first to override the beforeEach setup
+            mockContextManager.getContext.mockClear();
             mockContextManager.getContext.mockRejectedValue(
                 new Error("Context manager error"),
             );

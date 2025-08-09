@@ -1,8 +1,8 @@
 import { PeriodType } from "@prisma/client";
 import { StatPeriodType, type StatsUserSearchInput, type StatsUserSearchResult, generatePK } from "@vrooli/shared";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
-import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { cleanupGroups, ensureCleanState, performTestCleanup } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
@@ -33,19 +33,20 @@ describe("EndpointsStatsUser", () => {
     });
 
     beforeEach(async () => {
-        // Clean up using dependency-ordered cleanup helpers
-        await cleanupGroups.minimal(DbProvider.get());
+        // Ensure clean database state with race condition protection
+        await ensureCleanState(DbProvider.get(), {
+            cleanupFn: cleanupGroups.minimal,
+            tables: ["user", "user_auth", "email", "session"],
+            throwOnFailure: true,
+        });
     });
 
     afterEach(async () => {
-        // Validate cleanup to detect any missed records
-        const orphans = await validateCleanup(DbProvider.get(), {
+        // Perform immediate cleanup after test to prevent test pollution
+        await performTestCleanup(DbProvider.get(), {
+            cleanupFn: cleanupGroups.minimal,
             tables: ["user", "user_auth", "email", "session"],
-            logOrphans: true,
         });
-        if (orphans.length > 0) {
-            console.warn("Test cleanup incomplete:", orphans);
-        }
     });
 
     afterAll(async () => {
@@ -334,7 +335,7 @@ describe("EndpointsStatsUser", () => {
                     ],
                 });
 
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);

@@ -1,7 +1,7 @@
 import type {
     BotParticipant,
     ServiceEvent,
-    SwarmState
+    SwarmState,
 } from "@vrooli/shared";
 import { generatePK } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -16,7 +16,7 @@ import { getEventBehavior } from "./registry.js";
 import type {
     BotDecisionContext,
     ILockService,
-    ISwarmContextManager
+    ISwarmContextManager,
 } from "./types.js";
 import { extractChatId } from "./types.js";
 
@@ -963,6 +963,9 @@ describe("EventInterceptor", () => {
 
             // Create new interceptor with failing factory
             const testInterceptor = new EventInterceptor(mockLockService, mockContextManager, mockRoutineExecutorFactory);
+
+            // Register a bot that matches the sample event so an execution gets started
+            testInterceptor.registerBot(sampleBot);
 
             await testInterceptor.checkInterception(sampleEvent, sampleSwarmState);
             await testInterceptor.stopAllActiveExecutions();

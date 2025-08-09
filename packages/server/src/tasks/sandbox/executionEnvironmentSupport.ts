@@ -102,7 +102,7 @@ export function generateEnvironmentRequirementsError(environment: ExecutionEnvir
     let message = `Requirements not met for execution environment '${environment}'. Required: ${envSupport.requirements.join(", ")}`;
     
     if (environment === "local") {
-        message += "\n\nFor detailed configuration, see .vrooli/execution.example.json";
+        message += "\n\nFor detailed configuration, see the execution section in .vrooli/service.json or examples in .vrooli/examples/components/";
     }
     
     return message;

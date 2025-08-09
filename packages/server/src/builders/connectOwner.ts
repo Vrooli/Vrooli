@@ -12,12 +12,12 @@ type ConnectOwnerInput = {
  * @returns Partial query to connect an owner to a new object
  */
 export const connectOwner = <T extends ConnectOwnerInput>(createInput: T, session: SessionUser) => {
-    // If team is specified, connect to that
-    if (createInput.teamConnect) {
+    // If team is specified (including empty string), connect to that
+    if (createInput.teamConnect !== null && createInput.teamConnect !== undefined) {
         return ({ ownedByTeam: { connect: { id: createInput.teamConnect } } });
     }
-    // If user is specified, connect to that
-    if (createInput.userConnect) {
+    // If user is specified (including empty string), connect to that
+    if (createInput.userConnect !== null && createInput.userConnect !== undefined) {
         return ({ ownedByUser: { connect: { id: createInput.userConnect } } });
     }
     // If neither is specified, connect to the current user

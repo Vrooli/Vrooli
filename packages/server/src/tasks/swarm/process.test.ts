@@ -1,34 +1,12 @@
 // AI_CHECK: TEST_QUALITY=1, TEST_COVERAGE=1 | LAST: 2025-06-18
-import { generatePK, initIdGenerator, MINUTES_1_MS, MINUTES_5_MS } from "@vrooli/shared";
+import { generatePK, initIdGenerator, MINUTES_1_MS, MINUTES_5_MS, type ExecutionOptions } from "@vrooli/shared";
 import { type Job } from "bullmq";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type LLMCompletionTask, QueueTaskType, type SwarmExecutionTask } from "../taskTypes.js";
 
 // Mock the simplified swarm coordinator factory
 vi.mock("../../services/execution/swarmCoordinatorFactory.js", () => ({
-    getSwarmCoordinator: vi.fn().mockReturnValue({
-        execute: vi.fn().mockResolvedValue({
-            executionId: "swarm-123",
-            status: "completed",
-            result: {
-                swarmId: "swarm-123",
-                swarmName: "Test Swarm",
-                agentCount: 2,
-                conversationId: "conv-456",
-            },
-            resourceUsage: {
-                credits: 0,
-                tokens: 0,
-                duration: 100,
-            },
-            duration: 100,
-        }),
-        getTaskId: vi.fn().mockReturnValue("swarm-123"),
-        getState: vi.fn().mockReturnValue("RUNNING"),
-        requestPause: vi.fn().mockResolvedValue(true),
-        requestStop: vi.fn().mockResolvedValue(true),
-        getAssociatedUserId: vi.fn().mockReturnValue("user-123"),
-    }),
+    getSwarmCoordinator: vi.fn(),
     resetSwarmCoordinator: vi.fn(),
     isSwarmCoordinatorInitialized: vi.fn().mockReturnValue(false),
 }));
@@ -43,6 +21,42 @@ describe("llmProcess", () => {
 
         // Initialize ID generator for test data creation
         await initIdGenerator(0);
+
+        // Set up mock implementations with generated IDs
+        const mockExecutionId = generatePK().toString();
+        const mockSwarmId = generatePK().toString();
+        const mockConversationId = generatePK().toString();
+        const mockUserId = generatePK().toString();
+
+        const { getSwarmCoordinator } = await import("../../services/execution/swarmCoordinatorFactory.js");
+        vi.mocked(getSwarmCoordinator).mockReturnValue({
+            execute: vi.fn().mockResolvedValue({
+                executionId: mockExecutionId,
+                status: "completed",
+                result: {
+                    swarmId: mockSwarmId,
+                    swarmName: "Test Swarm",
+                    agentCount: 2,
+                    conversationId: mockConversationId,
+                },
+                resourceUsage: {
+                    credits: 0,
+                    tokens: 0,
+                    duration: 100,
+                },
+                duration: 100,
+            }),
+            start: vi.fn().mockResolvedValue({
+                success: true,
+                executionId: mockExecutionId,
+                swarmId: mockSwarmId,
+            }),
+            getTaskId: vi.fn().mockReturnValue(mockSwarmId),
+            getState: vi.fn().mockReturnValue("RUNNING"),
+            requestPause: vi.fn().mockResolvedValue(true),
+            requestStop: vi.fn().mockResolvedValue(true),
+            getAssociatedUserId: vi.fn().mockReturnValue(mockUserId),
+        });
 
         // Dynamically import after mocks are set up
         const processModule = await import("./process.js");
@@ -66,40 +80,48 @@ describe("llmProcess", () => {
         const swarmId = generatePK().toString();
         const userId = generatePK().toString();
 
-        return {
+        const base: SwarmExecutionTask = {
+            id: generatePK().toString(),
             type: QueueTaskType.SWARM_EXECUTION,
-            swarmId,
-            config: {
-                name: "Test Swarm",
-                description: "A test swarm for automated testing",
-                goal: "Complete the test objectives efficiently",
-                resources: {
-                    maxCredits: 1000,
-                    maxTokens: 50000,
-                    maxTime: MINUTES_5_MS,
-                    tools: [
-                        { name: "calculator", description: "Perform mathematical calculations" },
-                        { name: "researcher", description: "Research and gather information" },
-                    ],
+            context: {
+                swarmId,
+                userData: {
+                    id: userId,
+                    name: "testUser",
+                    hasPremium: false,
+                    languages: ["en"],
+                    roles: [],
+                    wallets: [],
+                    theme: "light",
                 },
-                config: {
+                timestamp: new Date(),
+            },
+            input: {
+                swarmId,
+                goal: "Complete the test objectives efficiently",
+                availableTools: [
+                    { name: "calculator", description: "Perform mathematical calculations" },
+                    { name: "researcher", description: "Research and gather information" },
+                ],
+                executionConfig: {
                     model: "gpt-4",
                     temperature: 0.7,
-                    autoApproveTools: false,
                     parallelExecutionLimit: 3,
                 },
-                organizationId: undefined,
-                leaderBotId: undefined,
             },
-            userData: {
-                id: userId,
-                name: "testUser",
-                hasPremium: false,
-                languages: ["en"],
-                roles: [],
-                wallets: [],
-                theme: "light",
+            allocation: {
+                maxCredits: "1000",
+                maxTokens: 50000,
+                maxDurationMs: MINUTES_5_MS,
             },
+            options: {
+                strategy: "conversational",
+                timeout: 30000,
+            },
+        };
+
+        return {
+            ...base,
             ...overrides,
         };
     }
@@ -157,7 +179,7 @@ describe("llmProcess", () => {
             : createTestSwarmExecutionTask(data as Partial<SwarmExecutionTask>);
 
         return {
-            id: "swarm-job-id",
+            id: generatePK().toString(),
             data: defaultData,
             name: "swarm",
             attemptsMade: 0,
@@ -177,7 +199,7 @@ describe("llmProcess", () => {
             // Verify swarm was added to active registry
             const activeSwarms = activeSwarmRegistry.listActive();
             expect(activeSwarms).toHaveLength(1);
-            expect(activeSwarms[0].id).toBe(swarmTask.swarmId);
+            expect(activeSwarms[0].id).toBe(swarmTask.context.swarmId);
         });
 
         it("should handle different model configurations", async () => {
@@ -371,8 +393,8 @@ describe("llmProcess", () => {
                 llmProcess(job2),
             ]);
 
-            expect(result1).toEqual({ swarmId: swarmTask1.swarmId });
-            expect(result2).toEqual({ swarmId: swarmTask2.swarmId });
+            expect(result1).toEqual({ swarmId: swarmTask1.context.swarmId });
+            expect(result2).toEqual({ swarmId: swarmTask2.context.swarmId });
 
             const activeSwarms = activeSwarmRegistry.listActive();
             expect(activeSwarms).toHaveLength(2);
@@ -409,9 +431,12 @@ describe("llmProcess", () => {
         // AI_CHECK: COMPLETION_SERVICE_FIX=completionService-test-fix | LAST: 2025-07-09 - Updated test to expect success instead of deprecated error
 
         it("should handle swarm state machine failures", async () => {
-            // Mock SwarmStateMachine to throw an error
-            const { SwarmStateMachine } = await import("../../services/execution/tier1/swarmStateMachine.js");
-            vi.mocked(SwarmStateMachine).mockImplementationOnce(() => {
+            // Save the original mock
+            const { getSwarmCoordinator } = await import("../../services/execution/swarmCoordinatorFactory.js");
+            const originalMock = vi.mocked(getSwarmCoordinator).getMockImplementation();
+            
+            // Mock getSwarmCoordinator to throw an error
+            vi.mocked(getSwarmCoordinator).mockImplementationOnce(() => {
                 throw new Error("Service unavailable");
             });
 
@@ -423,6 +448,11 @@ describe("llmProcess", () => {
             // Verify no swarm was added to registry on error
             const activeSwarms = activeSwarmRegistry.listActive();
             expect(activeSwarms).toHaveLength(0);
+            
+            // Restore the original mock
+            if (originalMock) {
+                vi.mocked(getSwarmCoordinator).mockImplementation(originalMock);
+            }
         });
 
         it("should handle missing swarm configuration", async () => {
@@ -454,8 +484,8 @@ describe("llmProcess", () => {
             // Verify swarm was tracked
             const activeSwarms = activeSwarmRegistry.listActive();
             expect(activeSwarms).toHaveLength(1);
-            expect(activeSwarms[0].id).toBe(swarmTask.swarmId);
-            expect(activeSwarms[0].userId).toBe(swarmTask.userData.id);
+            expect(activeSwarms[0].id).toBe(swarmTask.context.swarmId);
+            expect(activeSwarms[0].userId).toBe(swarmTask.context.userData.id);
             expect(activeSwarms[0].startTime).toBeTypeOf("number");
         });
 
@@ -485,8 +515,8 @@ describe("llmProcess", () => {
 
             // Test adapter functionality indirectly through registry
             const swarmRecord = activeSwarms[0];
-            expect(swarmRecord.id).toBe(swarmTask.swarmId);
-            expect(swarmRecord.userId).toBe(swarmTask.userData.id);
+            expect(swarmRecord.id).toBe(swarmTask.context.swarmId);
+            expect(swarmRecord.userId).toBe(swarmTask.context.userData.id);
         });
 
         it("should handle registry cleanup", async () => {
@@ -610,10 +640,10 @@ describe("llmProcess", () => {
             // Verify swarm was added to registry
             const activeSwarms = activeSwarmRegistry.listActive();
             expect(activeSwarms).toHaveLength(1);
-            expect(activeSwarms[0].id).toBe(swarmTask.swarmId);
+            expect(activeSwarms[0].id).toBe(swarmTask.context.swarmId);
 
             // Verify the coordinator is stored in the registry (not an adapter)
-            const coordinatorInRegistry = activeSwarmRegistry.get(swarmTask.swarmId);
+            const coordinatorInRegistry = activeSwarmRegistry.get(swarmTask.context.swarmId);
             expect(coordinatorInRegistry).toBeDefined();
             expect(coordinatorInRegistry.getTaskId).toBeDefined();
             expect(coordinatorInRegistry.getState).toBeDefined();
@@ -629,6 +659,15 @@ describe("llmProcess", () => {
                     status: "failed",
                     error: { message: "Test execution error" },
                 }),
+                start: vi.fn().mockResolvedValue({
+                    success: false,
+                    error: { message: "Test execution error" },
+                }),
+                getTaskId: vi.fn(),
+                getState: vi.fn(),
+                requestPause: vi.fn(),
+                requestStop: vi.fn(),
+                getAssociatedUserId: vi.fn(),
             } as any);
 
             const swarmTask = createTestSwarmExecutionTask();

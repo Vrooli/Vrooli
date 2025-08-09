@@ -3,17 +3,30 @@ import { NetworkMonitor } from "./NetworkMonitor.js";
 import * as fetch from "node-fetch";
 import dns from "dns";
 
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-08-05
+
 // Mock fetch
 vi.mock("node-fetch", () => ({
     default: vi.fn(),
 }));
 
 // Mock dns
-vi.mock("dns", () => ({
-    default: {
-        resolve4: vi.fn(),
-    },
-}));
+vi.mock("dns", async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...actual,
+        default: {
+            resolve4: vi.fn((hostname, callback) => {
+                // Default mock implementation for callback style
+                callback(null, ["8.8.8.8"]);
+            }),
+        },
+        resolve4: vi.fn((hostname, callback) => {
+            // Also mock the named export for direct access pattern
+            callback(null, ["8.8.8.8"]);
+        }),
+    };
+});
 
 // Mock logger
 vi.mock("../../events/logger.js", () => ({
@@ -35,6 +48,18 @@ describe("NetworkMonitor", () => {
 
     afterEach(() => {
         networkMonitor.stop();
+        
+        // Reset internal state to prevent cross-test contamination
+        (networkMonitor as any).state = {
+            isOnline: true,
+            connectivity: "online",
+            lastChecked: new Date(),
+            cloudServicesReachable: true,
+            localServicesReachable: true,
+        };
+        (networkMonitor as any).lastUpdateTime = 0;
+        
+        vi.clearAllMocks();
     });
 
     describe("getInstance", () => {
@@ -67,6 +92,12 @@ describe("NetworkMonitor", () => {
 
     describe("getState", () => {
         it("should return initial state", async () => {
+            // Setup successful mocks before calling getState()
+            vi.mocked(fetch.default)
+                .mockResolvedValueOnce({ ok: true, status: 200 } as any) // OpenRouter
+                .mockResolvedValueOnce({ ok: true, status: 200 } as any) // Cloudflare  
+                .mockResolvedValueOnce({ ok: true, status: 200 } as any); // Ollama
+
             const state = await networkMonitor.getState();
             expect(state).toEqual({
                 isOnline: true,
@@ -91,7 +122,9 @@ describe("NetworkMonitor", () => {
     describe("forceUpdate", () => {
         it("should force an immediate update", async () => {
             // Mock successful DNS resolution
-            vi.mocked(dns.resolve4).mockResolvedValue(["8.8.8.8"]);
+            vi.mocked(dns.resolve4).mockImplementation((hostname, callback) => {
+                callback(null, ["8.8.8.8"]);
+            });
             
             // Mock successful fetch responses
             vi.mocked(fetch.default).mockResolvedValue({
@@ -167,14 +200,18 @@ describe("NetworkMonitor", () => {
 
     describe("checkDns", () => {
         it("should return true for successful DNS resolution", async () => {
-            vi.mocked(dns.resolve4).mockResolvedValue(["8.8.8.8"]);
+            vi.mocked(dns.resolve4).mockImplementation((hostname, callback) => {
+                callback(null, ["8.8.8.8"]);
+            });
 
             const result = await networkMonitor["checkDns"]();
             expect(result).toBe(true);
         });
 
         it("should return false for failed DNS resolution", async () => {
-            vi.mocked(dns.resolve4).mockRejectedValue(new Error("DNS error"));
+            vi.mocked(dns.resolve4).mockImplementation((hostname, callback) => {
+                callback(new Error("DNS error"), null);
+            });
 
             const result = await networkMonitor["checkDns"]();
             expect(result).toBe(false);
@@ -183,11 +220,15 @@ describe("NetworkMonitor", () => {
 
     describe("updateState", () => {
         beforeEach(() => {
-            vi.mocked(dns.resolve4).mockResolvedValue(["8.8.8.8"]);
+            vi.mocked(dns.resolve4).mockImplementation((hostname, callback) => {
+                callback(null, ["8.8.8.8"]);
+            });
         });
 
         it("should set offline state when DNS fails", async () => {
-            vi.mocked(dns.resolve4).mockRejectedValue(new Error("DNS error"));
+            vi.mocked(dns.resolve4).mockImplementation((hostname, callback) => {
+                callback(new Error("DNS error"), null);
+            });
 
             await networkMonitor["updateState"]();
 

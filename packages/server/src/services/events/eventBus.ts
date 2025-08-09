@@ -186,6 +186,7 @@ export class EventBus implements IEventBus {
 
             // Fast path: emit without barrier
             await this.emitToSubscribers(fullEvent);
+            this.emitToSocketClients(fullEvent);
             this.metrics.eventsDelivered++;
 
             // Record event in monitor
@@ -668,6 +669,7 @@ export class EventBus implements IEventBus {
 
             // Emit the event for agents to respond
             this.emitToSubscribers(event).then(() => {
+                this.emitToSocketClients(event);
                 logger.debug("[EventBus] Published barrier event", {
                     eventId: event.id,
                     eventType: event.type,

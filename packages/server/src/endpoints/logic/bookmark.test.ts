@@ -1,9 +1,8 @@
-import { type BookmarkCreateInput, BookmarkFor, type BookmarkSearchInput, bookmarkTestDataFactory, type BookmarkUpdateInput, type FindByIdInput, generatePK } from "@vrooli/shared";
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { type BookmarkCreateInput, BookmarkFor, type BookmarkSearchInput, type BookmarkUpdateInput, type FindByIdInput, generatePK } from "@vrooli/shared";
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { BookmarkListDbFactory, seedBookmarks } from "../../__test/fixtures/db/bookmarkFixtures.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
-import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
-import { validateCleanup } from "../../__test/helpers/testValidation.js";
+import { cleanupGroups, ensureCleanState, performTestCleanup } from "../../__test/helpers/testCleanupHelpers.js";
 import { loggedInUserNoPremiumData, mockAuthenticatedSession, mockLoggedOutSession } from "../../__test/session.js";
 import { DbProvider } from "../../db/provider.js";
 import { logger } from "../../events/logger.js";
@@ -22,19 +21,20 @@ describe("EndpointsBookmark", () => {
     });
 
     beforeEach(async () => {
-        // Clean up using dependency-ordered cleanup helpers
-        await cleanupGroups.minimal(DbProvider.get());
+        // Ensure clean database state with race condition protection
+        await ensureCleanState(DbProvider.get(), {
+            cleanupFn: cleanupGroups.minimal,
+            tables: ["user", "user_auth", "email", "session"],
+            throwOnFailure: true,
+        });
     });
 
     afterEach(async () => {
-        // Validate cleanup to detect any missed records
-        const orphans = await validateCleanup(DbProvider.get(), {
+        // Perform immediate cleanup after test to prevent test pollution
+        await performTestCleanup(DbProvider.get(), {
+            cleanupFn: cleanupGroups.minimal,
             tables: ["user", "user_auth", "email", "session"],
-            logOrphans: true,
         });
-        if (orphans.length > 0) {
-            console.warn("Test cleanup incomplete:", orphans);
-        }
     });
 
     afterAll(async () => {
@@ -47,7 +47,8 @@ describe("EndpointsBookmark", () => {
         await CacheService.get().flushAll();
 
         // Seed test users using database fixtures
-        const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+        const seedResult = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
+        const testUsers = seedResult.records;
 
         // Create tags to be bookmarked with unique names
         const uniqueSuffix = Date.now().toString();
@@ -58,13 +59,13 @@ describe("EndpointsBookmark", () => {
 
         // Seed bookmarks with lists using database fixtures
         const bookmarkData = await seedBookmarks(DbProvider.get(), {
-            userId: testUsers[0].id,
+            listUserId: testUsers[0].id,
             objects: [
                 { id: tags[0].id, type: "Tag" },
                 { id: tags[1].id, type: "Tag" },
             ],
             withList: true,
-            listName: "My Tag Collection",
+            listLabel: "My Tag Collection",
         });
 
         return { testUsers, tags, bookmarkData };
@@ -77,10 +78,10 @@ describe("EndpointsBookmark", () => {
                 ...loggedInUserNoPremiumData(),
                 id: testUsers[0].id,
             });
-            const input: FindByIdInput = { id: bookmarkData.bookmarks[0].id.toString() };
+            const input: FindByIdInput = { id: bookmarkData.records[0].bookmarks[0].id.toString() };
             const result = await bookmark.findOne({ input }, { req, res }, bookmark_findOne);
             expect(result).not.toBeNull();
-            expect(result.id).toEqual(bookmarkData.bookmarks[0].id);
+            expect(result.id).toEqual(bookmarkData.records[0].bookmarks[0].id);
         });
 
         it("does not return bookmark for non-owner", async () => {
@@ -89,7 +90,7 @@ describe("EndpointsBookmark", () => {
                 ...loggedInUserNoPremiumData(),
                 id: testUsers[1].id,
             });
-            const input: FindByIdInput = { id: bookmarkData.bookmarks[0].id.toString() };
+            const input: FindByIdInput = { id: bookmarkData.records[0].bookmarks[0].id.toString() };
 
             await expect(async () => {
                 await bookmark.findOne({ input }, { req, res }, bookmark_findOne);
@@ -99,7 +100,7 @@ describe("EndpointsBookmark", () => {
         it("throws error when not authenticated", async () => {
             const { bookmarkData } = await createTestData();
             const { req, res } = await mockLoggedOutSession();
-            const input: FindByIdInput = { id: bookmarkData.bookmarks[0].id.toString() };
+            const input: FindByIdInput = { id: bookmarkData.records[0].bookmarks[0].id.toString() };
 
             await expect(async () => {
                 await bookmark.findOne({ input }, { req, res }, bookmark_findOne);
@@ -115,7 +116,7 @@ describe("EndpointsBookmark", () => {
                 id: testUsers[0].id,
             });
             const input: BookmarkSearchInput = {
-                forObjectType: BookmarkFor.Tag,
+                limitTo: [BookmarkFor.Tag],
                 take: 10,
             };
             const result = await bookmark.findMany({ input }, { req, res }, bookmark_findMany);
@@ -155,15 +156,17 @@ describe("EndpointsBookmark", () => {
                 id: testUsers[1].id,
             });
 
-            // Use validation fixtures for API input
-            const input: BookmarkCreateInput = bookmarkTestDataFactory.createMinimal({
+            // Use minimal bookmark create input
+            const input: BookmarkCreateInput = {
+                id: generatePK().toString(),
+                bookmarkFor: BookmarkFor.Tag,
                 forConnect: tags[0].id.toString(),
-            });
+            };
 
             const result = await bookmark.createOne({ input }, { req, res }, bookmark_createOne);
             expect(result).not.toBeNull();
-            expect(result.tagId).toEqual(tags[0].id);
-            expect(result.byId).toEqual(testUsers[1].id);
+            expect(result.to.id).toEqual(tags[0].id.toString());
+            expect(result.by.id).toEqual(testUsers[1].id);
         });
 
         it("creates a bookmark with list", async () => {
@@ -181,25 +184,29 @@ describe("EndpointsBookmark", () => {
                 id: testUsers[1].id,
             });
 
-            // Use validation fixtures with list connection
-            const input: BookmarkCreateInput = bookmarkTestDataFactory.createComplete({
+            // Use bookmark create input with list connection
+            const input: BookmarkCreateInput = {
+                id: generatePK().toString(),
+                bookmarkFor: BookmarkFor.Tag,
                 forConnect: tags[1].id.toString(),
                 listConnect: list.id.toString(),
-            });
+            };
 
             const result = await bookmark.createOne({ input }, { req, res }, bookmark_createOne);
             expect(result).not.toBeNull();
-            expect(result.listId).toEqual(list.id);
-            expect(result.tagId).toEqual(tags[1].id);
+            expect(result.list.id).toEqual(list.id);
+            expect(result.to.id).toEqual(tags[1].id.toString());
         });
 
         it("throws error for not logged in user", async () => {
             const { tags } = await createTestData();
             const { req, res } = await mockLoggedOutSession();
 
-            const input: BookmarkCreateInput = bookmarkTestDataFactory.createMinimal({
+            const input: BookmarkCreateInput = {
+                id: generatePK().toString(),
+                bookmarkFor: BookmarkFor.Tag,
                 forConnect: tags[0].id.toString(),
-            });
+            };
 
             await expect(async () => {
                 await bookmark.createOne({ input }, { req, res }, bookmark_createOne);
@@ -224,13 +231,13 @@ describe("EndpointsBookmark", () => {
             });
 
             const input: BookmarkUpdateInput = {
-                id: bookmarkData.bookmarks[0].id.toString(),
+                id: bookmarkData.records[0].bookmarks[0].id.toString(),
                 listConnect: newList.id.toString(),
             };
 
             const result = await bookmark.updateOne({ input }, { req, res }, bookmark_updateOne);
             expect(result).not.toBeNull();
-            expect(result.listId).toEqual(newList.id);
+            expect(result.list.id).toEqual(newList.id);
         });
 
         it("disconnects bookmark from list", async () => {
@@ -241,13 +248,12 @@ describe("EndpointsBookmark", () => {
             });
 
             const input: BookmarkUpdateInput = {
-                id: bookmarkData.bookmarks[0].id.toString(),
-                listDisconnect: true,
+                id: bookmarkData.records[0].bookmarks[0].id.toString(),
             };
 
             const result = await bookmark.updateOne({ input }, { req, res }, bookmark_updateOne);
             expect(result).not.toBeNull();
-            expect(result.listId).toBeNull();
+            expect(result.list).toBeNull();
         });
 
         it("throws error for non-owner", async () => {
@@ -258,8 +264,7 @@ describe("EndpointsBookmark", () => {
             });
 
             const input: BookmarkUpdateInput = {
-                id: bookmarkData.bookmarks[0].id.toString(),
-                listDisconnect: true,
+                id: bookmarkData.records[0].bookmarks[0].id.toString(),
             };
 
             await expect(async () => {
@@ -272,8 +277,7 @@ describe("EndpointsBookmark", () => {
             const { req, res } = await mockLoggedOutSession();
 
             const input: BookmarkUpdateInput = {
-                id: bookmarkData.bookmarks[0].id.toString(),
-                listDisconnect: true,
+                id: bookmarkData.records[0].bookmarks[0].id.toString(),
             };
 
             await expect(async () => {

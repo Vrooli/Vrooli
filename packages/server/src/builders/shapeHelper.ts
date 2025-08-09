@@ -198,10 +198,15 @@ export async function shapeHelper<
     if (mutate?.shape.update && Array.isArray(result.update) && result.update.length > 0) {
         const shaped: { [x: string]: any }[] = [];
         for (const update of result.update) {
-            const updated = await mutate.shape.update({ additionalData, adminFlags, data: update.data, idsCreateToConnect, preMap, userData });
-            // Exclude parent relationship to prevent circular references
-            const { [parentRelationshipName]: _, ...rest } = updated;
-            shaped.push({ where: update.where, data: rest });
+            // Skip nested shaping if this update was created from a soft delete to preserve isDeleted field
+            if (update.data.isDeleted === true && Object.keys(update.data).length === 1) {
+                shaped.push(update); // Use as-is to preserve soft delete data
+            } else {
+                const updated = await mutate.shape.update({ additionalData, adminFlags, data: update.data, idsCreateToConnect, preMap, userData });
+                // Exclude parent relationship to prevent circular references
+                const { [parentRelationshipName]: _, ...rest } = updated;
+                shaped.push({ where: update.where, data: rest });
+            }
         }
         result.update = shaped;
     }

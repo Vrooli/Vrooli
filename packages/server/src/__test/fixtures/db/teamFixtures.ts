@@ -589,7 +589,7 @@ export class TeamDbFactory extends EnhancedDbFactory<Prisma.teamCreateInput> {
                 create: members.map(member => ({
                     id: generatePK(),
                     publicId: generatePublicId(),
-                    userId: generatePK(), // Use bigint user ID
+                    userId: BigInt(member.userId), // Convert string to bigint
                     isAdmin: member.isAdmin ?? false,
                 })),
             },

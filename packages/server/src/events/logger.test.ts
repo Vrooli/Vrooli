@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi, type MockedFunction } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi, type MockedFunction } from "vitest";
 
 // Mock winston - must be defined inline in the factory function to avoid hoisting issues
 vi.mock("winston", () => {
@@ -10,6 +10,10 @@ vi.mock("winston", () => {
         Console: vi.fn().mockImplementation((options) => ({
             ...options,
             type: "console",
+        })),
+        Stream: vi.fn().mockImplementation((options) => ({
+            ...options,
+            type: "stream",
         })),
     };
 
@@ -277,30 +281,35 @@ describe("logger", () => {
 // Additional test suite for error serialization (without mocking winston)
 describe("Logger Error Serialization (Integration)", () => {
     let logOutput: any[] = [];
+    let testLogger: any;
+    let errorSerializer: any;
 
-    // Create a test logger with a custom transport that captures output
-    const testTransport = new winston.transports.Stream({
-        stream: {
-            write: (message: string) => {
-                try {
-                    logOutput.push(JSON.parse(message));
-                } catch {
-                    logOutput.push(message);
-                }
-            },
-        } as any,
-    });
+    beforeAll(async () => {
+        // Import the actual error serializer
+        const loggerModule = await import("./logger.js");
+        errorSerializer = loggerModule.errorSerializer;
 
-    // Import the actual error serializer
-    const { errorSerializer } = require("./logger.js");
+        // Create a test logger with a custom transport that captures output
+        const testTransport = new winston.transports.Stream({
+            stream: {
+                write: (message: string) => {
+                    try {
+                        logOutput.push(JSON.parse(message));
+                    } catch {
+                        logOutput.push(message);
+                    }
+                },
+            } as any,
+        });
 
-    const testLogger = winston.createLogger({
-        format: winston.format.combine(
-            winston.format.errors({ stack: true }),
-            errorSerializer?.() || winston.format.json(), // Use the actual errorSerializer if available
-            winston.format.json(),
-        ),
-        transports: [testTransport],
+        testLogger = winston.createLogger({
+            format: winston.format.combine(
+                winston.format.errors({ stack: true }),
+                errorSerializer?.() || winston.format.json(), // Use the actual errorSerializer if available
+                winston.format.json(),
+            ),
+            transports: [testTransport],
+        });
     });
 
     beforeEach(() => {

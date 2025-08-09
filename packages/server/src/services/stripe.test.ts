@@ -238,7 +238,7 @@ describe("Redis Price Operations", () => {
             // CacheService doesn't have delPattern, keys are already cleared above
         });
 
-        it("correctly stores and fetches the price for a given payment type", async function () {
+        it("correctly stores and fetches the price for a given payment type", async function storeFetchPriceTest() {
             const paymentType = PaymentType.PremiumMonthly;
             const price = 999;
 
@@ -252,7 +252,7 @@ describe("Redis Price Operations", () => {
             expect(fetchedPrice).toBe(price);
         });
 
-        it("returns null for a price that was not stored", async function () {
+        it("returns null for a price that was not stored", async function nonExistentPriceTest() {
             const paymentType = "NonExistentType" as unknown as PaymentType;
 
             // Attempt to fetch a price for a payment type that hasn't been stored
@@ -262,7 +262,7 @@ describe("Redis Price Operations", () => {
             expect(fetchedPrice).toBeNull();
         });
 
-        it("returns null when the stored price is not a number", async function () {
+        it("returns null when the stored price is not a number", async function invalidPriceDataTest() {
             const paymentType = PaymentType.PremiumMonthly;
 
             // Use CacheService to manually set an invalid value in Redis
@@ -282,7 +282,7 @@ describe("Redis Price Operations", () => {
             expect(fetchedPrice).toBeNull();
         });
 
-        it("returns null when the price is less than 0", async function () {
+        it("returns null when the price is less than 0", async function negativePriceTest() {
             const paymentType = PaymentType.PremiumMonthly;
             const price = -1;
 
@@ -296,7 +296,7 @@ describe("Redis Price Operations", () => {
             expect(fetchedPrice).toBeNull();
         });
 
-        it("returns null when the price is NaN", async function () {
+        it("returns null when the price is NaN", async function nanPriceTest() {
             const paymentType = PaymentType.PremiumMonthly;
             const price = NaN;
 

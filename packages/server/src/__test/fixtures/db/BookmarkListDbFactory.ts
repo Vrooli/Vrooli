@@ -60,15 +60,15 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
                     create: [
                         {
                             id: this.generateId(),
-                            resourceId: this.generateId(),
+                            resource: { connect: { id: this.generateId() } },
                         },
                         {
                             id: this.generateId(),
-                            resourceId: this.generateId(),
+                            resource: { connect: { id: this.generateId() } },
                         },
                         {
                             id: this.generateId(),
-                            commentId: this.generateId(),
+                            comment: { connect: { id: this.generateId() } },
                         },
                     ],
                 },
@@ -132,7 +132,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
                     bookmarks: {
                         create: Array.from({ length: 100 }, () => ({
                             id: this.generateId(),
-                            resourceId: this.generateId(),
+                            resource: { connect: { id: this.generateId() } },
                         })),
                     },
                 },
@@ -142,11 +142,11 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
                     user: { connect: { id: this.generateId() } },
                     bookmarks: {
                         create: [
-                            { id: this.generateId(), resourceId: this.generateId() },
-                            { id: this.generateId(), commentId: this.generateId() },
-                            { id: this.generateId(), issueId: this.generateId() },
-                            { id: this.generateId(), tagId: this.generateId() },
-                            { id: this.generateId(), teamId: this.generateId() },
+                            { id: this.generateId(), resource: { connect: { id: this.generateId() } } },
+                            { id: this.generateId(), comment: { connect: { id: this.generateId() } } },
+                            { id: this.generateId(), issue: { connect: { id: this.generateId() } } },
+                            { id: this.generateId(), tag: { connect: { id: this.generateId() } } },
+                            { id: this.generateId(), team: { connect: { id: this.generateId() } } },
                         ],
                     },
                 },
@@ -161,11 +161,11 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
                         create: [
                             {
                                 id: this.generateId(),
-                                resourceId: this.generateId(),
+                                resource: { connect: { id: this.generateId() } },
                             },
                         ],
                         deleteMany: {
-                            listId: this.generateId(),
+                            list: { id: this.generateId() },
                         },
                     },
                 },
@@ -274,7 +274,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     async createWithBookmarks(userId: bigint, label: string, bookmarkCount: number) {
         const bookmarks = Array.from({ length: bookmarkCount }, () => ({
             id: this.generateId(),
-            resourceId: this.generateId(),
+            resource: { connect: { id: this.generateId() } },
         }));
 
         return await this.createMinimal({
@@ -367,7 +367,7 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
             data.bookmarks = {
                 create: Array.from({ length: bookmarkCount }, () => ({
                     id: this.generateId(),
-                    resourceId: this.generateId(),
+                    resource: { connect: { id: this.generateId() } },
                 })),
             };
         }
@@ -466,11 +466,11 @@ export class BookmarkListDbFactory extends EnhancedDatabaseFactory<
     /**
      * Add a bookmark to a list
      */
-    async addBookmarkToList(listId: bigint, bookmarkData: Partial<Prisma.bookmarkUncheckedCreateInput>) {
+    async addBookmarkToList(listId: bigint, bookmarkData: Partial<Prisma.bookmarkCreateInput>) {
         return await this.prisma.bookmark.create({
             data: {
                 id: this.generateId(),
-                listId,
+                list: { connect: { id: listId } },
                 ...bookmarkData,
             },
         });

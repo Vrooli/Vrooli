@@ -6,6 +6,7 @@
  */
 
 import { type Request, type Response } from "express";
+import { expect, vi } from "vitest";
 import { type SessionData } from "../../../types.js";
 import { ApiKeyFactory } from "./factories/ApiKeyFactory.js";
 import { UserSessionFactory } from "./factories/UserSessionFactory.js";
@@ -13,6 +14,7 @@ import {
     type ApiKeyAuthData,
     type PermissionMatrix,
     type PermissionTestHelpers,
+    type TestSessionData,
 } from "./types.js";
 import { PermissionValidator } from "./validators/PermissionValidator.js";
 
@@ -24,17 +26,17 @@ const validator = new PermissionValidator();
 /**
  * Create a mock Express request with session data
  */
-export function createMockRequest(session: SessionData | ApiKeyAuthData): Request {
+export function createMockRequest(session: SessionData | TestSessionData | ApiKeyAuthData): Request {
     return {
         session,
         headers: {
-            "x-csrf-token": session.csrfToken,
-            "authorization": session.isLoggedIn ? `Bearer ${session.currentToken || "test-token"}` : undefined,
+            "x-csrf-token": "csrfToken" in session ? session.csrfToken : undefined,
+            "authorization": session.isLoggedIn ? `Bearer ${"currentToken" in session ? session.currentToken || "test-token" : "test-token"}` : undefined,
         },
         ip: "127.0.0.1",
         get: (header: string) => {
             const headers = {
-                "x-csrf-token": session.csrfToken,
+                "x-csrf-token": "csrfToken" in session ? session.csrfToken : undefined,
                 "user-agent": "test-agent",
             };
             return headers[header.toLowerCase()];
@@ -47,12 +49,12 @@ export function createMockRequest(session: SessionData | ApiKeyAuthData): Reques
  */
 export function createMockResponse(): Response {
     const res = {
-        status: jest.fn().mockReturnThis(),
-        json: jest.fn().mockReturnThis(),
-        send: jest.fn().mockReturnThis(),
-        set: jest.fn().mockReturnThis(),
-        cookie: jest.fn().mockReturnThis(),
-        clearCookie: jest.fn().mockReturnThis(),
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn().mockReturnThis(),
+        send: vi.fn().mockReturnThis(),
+        set: vi.fn().mockReturnThis(),
+        cookie: vi.fn().mockReturnThis(),
+        clearCookie: vi.fn().mockReturnThis(),
         locals: {},
     } as unknown as Response;
 
@@ -63,7 +65,7 @@ export function createMockResponse(): Response {
  * Create a session with request/response objects
  */
 export async function createSession(
-    sessionData: SessionData | ApiKeyAuthData,
+    sessionData: SessionData | TestSessionData | ApiKeyAuthData,
 ): Promise<{ req: Request; res: Response }> {
     const req = createMockRequest(sessionData);
     const res = createMockResponse();
@@ -164,7 +166,7 @@ export const testHelpers: PermissionTestHelpers = {
      * Test a permission matrix
      */
     testPermissionMatrix: async (
-        testFn: (session: SessionData | ApiKeyAuthData) => Promise<unknown>,
+        testFn: (session: { req: Request; res: Response }) => Promise<unknown>,
         matrix: PermissionMatrix,
     ): Promise<void> => {
         const personas = {
@@ -203,7 +205,7 @@ export const testHelpers: PermissionTestHelpers = {
      * Test permission changes
      */
     testPermissionChange: async (
-        testFn: (session: SessionData | ApiKeyAuthData) => Promise<unknown>,
+        testFn: (session: { req: Request; res: Response }) => Promise<unknown>,
         before: SessionData,
         after: SessionData,
         expectations: { beforeShouldPass: boolean; afterShouldPass: boolean },
@@ -239,7 +241,7 @@ export const testHelpers: PermissionTestHelpers = {
      * Test bulk permissions
      */
     testBulkPermissions: async (
-        operations: Array<{ name: string; fn: (session: SessionData | ApiKeyAuthData) => Promise<unknown> }>,
+        operations: Array<{ name: string; fn: (session: { req: Request; res: Response }) => Promise<unknown> }>,
         sessions: Array<{ name: string; session: SessionData | ApiKeyAuthData; isApiKey?: boolean }>,
         expectations: Record<string, Record<string, boolean>>,
     ): Promise<void> => {

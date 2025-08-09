@@ -153,7 +153,7 @@ describe("EndpointsActions", () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
 
                 // Create team with user as member
-                const teamFactory = new TeamDbFactory();
+                const teamFactory = new TeamDbFactory(DbProvider.get());
                 const team = await teamFactory.createMinimal({
                     ownedByUser: { connect: { id: testUser[0].id } },
                 });
@@ -294,7 +294,7 @@ describe("EndpointsActions", () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
 
                 // Create team with user as owner
-                const teamFactory = new TeamDbFactory();
+                const teamFactory = new TeamDbFactory(DbProvider.get());
                 const team = await teamFactory.createMinimal({
                     ownedByUser: { connect: { id: testUser[0].id } },
                 });
@@ -354,7 +354,7 @@ describe("EndpointsActions", () => {
                 const testUsers = await seedTestUsers(DbProvider.get(), 2, { withAuth: true });
 
                 // Create team with user 1 as owner, user 2 as member without delete permission
-                const teamFactory = new TeamDbFactory();
+                const teamFactory = new TeamDbFactory(DbProvider.get());
                 const team = await teamFactory.createMinimal({
                     ownedByUser: { connect: { id: testUsers[0].id } },
                 });

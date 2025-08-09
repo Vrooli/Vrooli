@@ -248,22 +248,13 @@ export class OpenRouterService extends AIService<string, ThirdPartyModelInfo> {
         // OpenRouter provides cost in response headers
         const totalCost = headers.get("x-ratelimit-cost") || headers.get("x-cost");
         if (!totalCost) {
-            // Use model-based fallback pricing when headers are missing
-            logger.warn("OpenRouter cost headers not found - using model-based fallback pricing", { 
+            // Return 0 when no cost headers are present
+            logger.debug("OpenRouter cost headers not found - returning 0", { 
                 model,
                 inputTokens,
                 outputTokens,
             });
-            
-            // If we have token counts, use model-specific pricing
-            if (model && inputTokens !== undefined && outputTokens !== undefined) {
-                return this.calculateOpenRouterCostFromUsage(model, inputTokens, outputTokens);
-            }
-            
-            // Conservative fallback: assume 1000 tokens each way at default pricing
-            const fallbackInputTokens = 1000;
-            const fallbackOutputTokens = 1000;
-            return this.calculateOpenRouterCostFromUsage(model || this.defaultModel, fallbackInputTokens, fallbackOutputTokens);
+            return 0;
         }
         // Cost is in dollars, convert to credits
         const costInDollars = parseFloat(totalCost);

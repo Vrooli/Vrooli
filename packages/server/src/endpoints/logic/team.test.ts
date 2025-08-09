@@ -1,4 +1,5 @@
 import { type FindByPublicIdInput, type TeamCreateInput, type TeamSearchInput, type TeamUpdateInput, generatePK, generatePublicId } from "@vrooli/shared";
+// eslint-disable-next-line import/extensions
 import { teamTestDataFactory } from "@vrooli/shared/test-fixtures/api-inputs";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
@@ -15,7 +16,7 @@ import { team } from "./team.js";
 // Import database fixtures
 import { TeamDbFactory } from "../../__test/fixtures/db/teamFixtures.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
-import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { cleanupGroups, ensureCleanState, performTestCleanup } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 describe("EndpointsTeam", function describeEndpointsTeam() {
@@ -26,44 +27,24 @@ describe("EndpointsTeam", function describeEndpointsTeam() {
         vi.spyOn(logger, "warning").mockImplementation(function mockWarning() { return logger; });
     });
 
-    afterEach(async () => {
-        // Perform cleanup using dependency-ordered cleanup helpers
-        await cleanupGroups.team(DbProvider.get());
-
-        // Validate cleanup to detect any missed records
-        const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["team", "member", "member_invite", "meeting", "user"],
-            logOrphans: true,
-        });
-        if (orphans.length > 0) {
-            console.warn("Test cleanup incomplete:", orphans);
-        }
-    });
-
     beforeEach(async function setupBeforeEach() {
-        // Clean up using dependency-ordered cleanup helpers
-        await cleanupGroups.team(DbProvider.get());
-
-        // Clean teams before users to avoid FK constraints
-        await DbProvider.get().team.deleteMany();
-
-        // Clean user-related data (all potential relationships created by seedTestUsers)
-        await DbProvider.get().session.deleteMany();
-        await DbProvider.get().user_auth.deleteMany();
-        await DbProvider.get().email.deleteMany();
-        await DbProvider.get().phone.deleteMany();
-        await DbProvider.get().user_translation.deleteMany();
-        await DbProvider.get().push_device.deleteMany();
-        await DbProvider.get().wallet.deleteMany();
-        await DbProvider.get().api_key.deleteMany();
-        await DbProvider.get().credit_account.deleteMany();
-        await DbProvider.get().award.deleteMany();
-
-        // Finally clean users
-        await DbProvider.get().user.deleteMany();
+        // Ensure clean database state with race condition protection
+        await ensureCleanState(DbProvider.get(), {
+            cleanupFn: cleanupGroups.team,
+            tables: ["team", "member", "member_invite", "meeting", "user"],
+            throwOnFailure: true,
+        });
 
         // Clear Redis cache
         await CacheService.get().flushAll();
+    });
+
+    afterEach(async function cleanupAfterEach() {
+        // Perform immediate cleanup after test to prevent test pollution
+        await performTestCleanup(DbProvider.get(), {
+            cleanupFn: cleanupGroups.team,
+            tables: ["team", "member", "member_invite", "meeting", "user"],
+        });
     });
 
     afterAll(async function cleanupAfterAll() {

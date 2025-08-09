@@ -1,4 +1,5 @@
 import { type FindByIdInput, type RunCreateInput, type RunSearchInput, type RunUpdateInput, generatePK, RunStatus } from "@vrooli/shared";
+// eslint-disable-next-line import/extensions
 import { runTestDataFactory } from "@vrooli/shared/test-fixtures/api-inputs";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertRequiresApiKeyReadPermissions, assertRequiresApiKeyWritePermissions, assertRequiresAuth } from "../../__test/authTestUtils.js";

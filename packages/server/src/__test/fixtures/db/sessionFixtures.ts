@@ -1,3 +1,4 @@
+/* eslint-disable no-magic-numbers */
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { generatePK } from "@vrooli/shared";
@@ -603,7 +604,7 @@ export async function seedTestSessions(db: PrismaClient) {
         data: {
             id: generatePK(),
             provider: "Password",
-            userId: user1.id,
+            user_id: user1.id,
             hashed_password: "$2b$10$dummy.hashed.password.for.testing",
         },
     });
@@ -625,7 +626,7 @@ export async function seedTestSessions(db: PrismaClient) {
         data: {
             id: generatePK(),
             provider: "Password",
-            userId: user2.id,
+            user_id: user2.id,
             hashed_password: "$2b$10$dummy.hashed.password.for.testing",
         },
     });

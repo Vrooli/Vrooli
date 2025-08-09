@@ -30,6 +30,12 @@ export interface ParallelProcessingResult {
     parallelExecutionComplete: boolean;
     // Information about branch state changes
     branchUpdates: BranchUpdate[];
+    // Information about branching state
+    branchingInfo?: {
+        activatedBranches: number;
+        joinGatewayId?: string;
+        synchronizationComplete?: boolean;
+    };
 }
 
 /**
@@ -96,6 +102,9 @@ export class BpmnParallelHandler {
             updatedContext: { ...context },
             parallelExecutionComplete: false,
             branchUpdates: [],
+            branchingInfo: {
+                activatedBranches: outgoingFlows.length,
+            },
         };
 
         const splitId = `split_${gatewayId}_${Date.now()}`;
@@ -114,6 +123,7 @@ export class BpmnParallelHandler {
                     parentNodeId: (flow.targetRef as any).id,
                     branchId,
                     metadata: {
+                        parallelGateway: gatewayId,
                         splitGateway: gatewayId,
                         branchIndex: i,
                         totalBranches: outgoingFlows.length,
@@ -125,9 +135,11 @@ export class BpmnParallelHandler {
             // Create parallel branch tracking
             const parallelBranch: ParallelBranch = {
                 id: branchId,
+                sourceGatewayId: gatewayId,
+                targetNodeId: (flow.targetRef as any).id,
+                status: "active",
                 branchId,
                 currentLocation: branchLocation,
-                status: "running",
                 startedAt: new Date(),
             };
 
@@ -141,6 +153,20 @@ export class BpmnParallelHandler {
                 location: branchLocation,
                 timestamp: new Date(),
             });
+        }
+
+        // Create join point for the corresponding join gateway
+        const joinGatewayId = this.findCorrespondingJoinGateway(model, gatewayId);
+        if (joinGatewayId) {
+            const branchIds = result.nextLocations.map((_, index) => `${splitId}_${index}`);
+            const joinPoint: JoinPoint = {
+                gatewayId: joinGatewayId,
+                expectedBranches: branchIds,
+                arrivedBranches: [],
+                sourceGatewayId: gatewayId,
+            };
+            
+            result.updatedContext.parallelExecution.joinPoints.push(joinPoint);
         }
 
         return result;
@@ -162,6 +188,10 @@ export class BpmnParallelHandler {
             updatedContext: { ...context },
             parallelExecutionComplete: false,
             branchUpdates: [],
+            branchingInfo: {
+                activatedBranches: 0,
+                synchronizationComplete: false,
+            },
         };
 
         // Check if there's already a join point for this gateway
@@ -169,22 +199,22 @@ export class BpmnParallelHandler {
         
         if (!joinPoint) {
             // Create new join point
-            const requiredBranches = this.identifyRequiredBranches(model, incomingFlows, context);
+            const expectedBranches = this.identifyRequiredBranches(model, incomingFlows, context);
             joinPoint = {
                 id: `join_${gatewayId}_${Date.now()}`,
                 gatewayId,
-                requiredBranches,
-                completedBranches: [],
-                isReady: false,
+                expectedBranches,
+                arrivedBranches: [],
+                sourceGatewayId: gatewayId, // We'll set this properly when we identify the split
             };
 
             result.updatedContext.parallelExecution.joinPoints.push(joinPoint);
         }
 
-        // Update join point with current branch completion
-        const currentBranchId = currentLocation.branchId;
-        if (currentBranchId && !joinPoint.completedBranches.includes(currentBranchId)) {
-            joinPoint.completedBranches.push(currentBranchId);
+        // Update join point with current branch arrival
+        const currentBranchId = currentLocation.branchId || currentLocation.metadata?.branchId as string;
+        if (currentBranchId && !joinPoint.arrivedBranches.includes(currentBranchId)) {
+            joinPoint.arrivedBranches.push(currentBranchId);
 
             // Mark branch as completed in context
             result.updatedContext = ContextUtils.completeParallelBranch(
@@ -201,15 +231,18 @@ export class BpmnParallelHandler {
             });
         }
 
-        // Check if all required branches have completed
-        const allBranchesCompleted = joinPoint.requiredBranches.every(branchId => 
-            joinPoint!.completedBranches.includes(branchId),
+        // Check if all expected branches have arrived
+        const allBranchesCompleted = joinPoint.expectedBranches.every(branchId => 
+            joinPoint!.arrivedBranches.includes(branchId),
         );
 
         if (allBranchesCompleted) {
             // All branches completed - proceed with join
             joinPoint.isReady = true;
             result.parallelExecutionComplete = true;
+            if (result.branchingInfo) {
+                result.branchingInfo.synchronizationComplete = true;
+            }
 
             // Create location for continuing after join
             if (outgoingFlow.targetRef) {
@@ -237,13 +270,13 @@ export class BpmnParallelHandler {
             const waitingLocation = model.createAbstractLocation(
                 gatewayId,
                 currentLocation.routineId,
-                "gateway_evaluation",
+                "parallel_join_waiting",
                 {
                     parentNodeId: gatewayId,
                     metadata: {
                         joinPoint,
-                        waitingForBranches: joinPoint.requiredBranches.filter(branchId => 
-                            !joinPoint!.completedBranches.includes(branchId),
+                        waitingForBranches: joinPoint.expectedBranches.filter(branchId => 
+                            !joinPoint!.arrivedBranches.includes(branchId),
                         ),
                     },
                 },
@@ -360,7 +393,7 @@ export class BpmnParallelHandler {
         // Check if any required branch has failed
         const failedBranches = context.parallelExecution.activeBranches
             .filter(branch => 
-                joinPoint.requiredBranches.includes(branch.branchId) && 
+                joinPoint.expectedBranches.includes(branch.branchId) && 
                 branch.status === "failed",
             );
 
@@ -492,5 +525,145 @@ export class BpmnParallelHandler {
         }
 
         return updatedContext;
+    }
+
+    /**
+     * Complete a parallel branch
+     */
+    completeBranch(
+        context: EnhancedExecutionContext,
+        branchId: string,
+    ): { updatedContext: EnhancedExecutionContext } {
+        const result = {
+            updatedContext: { ...context },
+        };
+
+        // Find the branch and mark it as completed
+        const branchIndex = result.updatedContext.parallelExecution.activeBranches.findIndex(
+            branch => branch.branchId === branchId,
+        );
+
+        if (branchIndex !== -1) {
+            const branch = result.updatedContext.parallelExecution.activeBranches[branchIndex];
+            const completedBranch = {
+                ...branch,
+                status: "completed" as const,
+                completedAt: new Date(),
+            };
+
+            // Move from active to completed
+            result.updatedContext.parallelExecution.activeBranches.splice(branchIndex, 1);
+            result.updatedContext.parallelExecution.completedBranches.push(completedBranch);
+        }
+
+        return result;
+    }
+
+    /**
+     * Check if all branches for a join gateway are complete
+     */
+    isAllBranchesComplete(
+        context: EnhancedExecutionContext,
+        joinGatewayId: string,
+    ): boolean {
+        // Find the join point for this gateway
+        const joinPoint = context.parallelExecution.joinPoints.find(
+            jp => jp.gatewayId === joinGatewayId,
+        );
+
+        if (!joinPoint) {
+            return false; // No join point found
+        }
+
+        // Check if all expected branches have completed
+        const completedBranchCount = context.parallelExecution.completedBranches.filter(
+            branch => joinPoint.waitingFor.includes(branch.branchId),
+        ).length;
+
+        return completedBranchCount === joinPoint.waitingFor.length;
+    }
+
+    /**
+     * Find the corresponding join gateway for a split gateway by following all outgoing paths
+     */
+    private findCorrespondingJoinGateway(
+        model: BpmnModel,
+        splitGatewayId: string,
+    ): string | null {
+        const visitedNodes = new Set<string>();
+        const gatewayPairs: { [splitId: string]: string } = {};
+        
+        // Simple approach: look for common naming patterns first
+        // In many BPMN models, gateways follow naming conventions like Split/Join, Fork/Merge
+        const processes = model.getAllProcesses();
+        for (const process of processes) {
+            if (process.flowElements) {
+                for (const element of process.flowElements) {
+                    if (element.$type === "bpmn:ParallelGateway") {
+                        const elementId = element.id;
+                        
+                        // Check for common naming patterns
+                        if (splitGatewayId.includes("Split") && elementId.includes("Join")) {
+                            const baseNameSplit = splitGatewayId.replace(/Split.*/, "");
+                            const baseNameJoin = elementId.replace(/Join.*/, "");
+                            if (baseNameSplit === baseNameJoin) {
+                                return elementId;
+                            }
+                        }
+                        
+                        // Check for sequential numbering patterns
+                        if (elementId !== splitGatewayId) {
+                            const incomingFlows = model.getIncomingFlows(elementId);
+                            const outgoingFlows = model.getOutgoingFlows(elementId);
+                            
+                            // A join gateway typically has multiple incoming and one outgoing
+                            if (incomingFlows.length > 1 && outgoingFlows.length === 1) {
+                                // This could be our join gateway
+                                if (this.isReachableFromSplit(model, splitGatewayId, elementId, visitedNodes)) {
+                                    return elementId;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Check if a join gateway is reachable from a split gateway by following all paths
+     */
+    private isReachableFromSplit(
+        model: BpmnModel,
+        splitGatewayId: string,
+        joinGatewayId: string,
+        visitedNodes: Set<string>,
+    ): boolean {
+        if (visitedNodes.has(splitGatewayId)) {
+            return false; // Avoid infinite loops
+        }
+        
+        visitedNodes.add(splitGatewayId);
+        
+        const outgoingFlows = model.getOutgoingFlows(splitGatewayId);
+        
+        for (const flow of outgoingFlows) {
+            if (!flow.targetRef) continue;
+            
+            const targetId = (flow.targetRef as any).id;
+            
+            if (targetId === joinGatewayId) {
+                return true; // Direct connection found
+            }
+            
+            // Recursively check reachability from target
+            if (this.isReachableFromSplit(model, targetId, joinGatewayId, new Set(visitedNodes))) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 }

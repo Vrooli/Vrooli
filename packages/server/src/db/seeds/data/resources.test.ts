@@ -38,7 +38,8 @@ describe("Seeded Code Tests", () => {
                     });
 
                     // Create an individual test for each test case
-                    version.shape.data.testCases.forEach((testCase, tIndex) => {
+                    const testCases = version.shape.data?.testCases || [];
+                    testCases.forEach((testCase, tIndex) => {
                         const testDesc = testCase.description || `Test case ${tIndex + 1}`;
                         it(testDesc, () => {
                             const result = testResults[tIndex];

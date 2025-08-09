@@ -1,5 +1,5 @@
 // AI_CHECK: TEST_QUALITY=1, TEST_COVERAGE=1 | LAST: 2025-06-18
-import { RunTriggeredFrom } from "@vrooli/shared";
+import { generatePK, initIdGenerator, RunTriggeredFrom } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createRunTask } from "../../__test/fixtures/tasks/runTaskFactory.js";
 import "../../__test/setup.js";
@@ -12,7 +12,33 @@ describe("Run Queue", () => {
     let queueService: QueueService;
     const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
 
+    // Base run data for tests that don't use createBaseRunData helper
+    let baseRunData: {
+        runId: string;
+        routineId: string;
+        routineVersionId: string;
+        isNewRun: boolean;
+        runFrom: RunTriggeredFrom;
+        userData: { id: string; hasPremium: boolean };
+        config: { isTimeSensitive: boolean };
+    };
+
     beforeEach(async () => {
+        // Initialize ID generator first
+        await initIdGenerator(0);
+        
+        // Create base run data after ID generator is initialized
+        const userId = generatePK().toString();
+        baseRunData = {
+            runId: generatePK().toString(),
+            routineId: generatePK().toString(),
+            routineVersionId: generatePK().toString(),
+            isNewRun: true,
+            runFrom: RunTriggeredFrom.RunView,
+            userData: { id: userId, hasPremium: false },
+            config: { isTimeSensitive: false },
+        };
+        
         // Get fresh instance and initialize
         queueService = QueueService.get();
         await queueService.init(redisUrl);
@@ -136,7 +162,7 @@ describe("Run Queue", () => {
                 const runData = createBaseRunData({
                     context: {
                         userData: {
-                            id: "user-123",
+                            id: generatePK().toString(),
                             hasPremium: true,
                             name: "premiumUser",
                             languages: ["en"],
@@ -179,7 +205,7 @@ describe("Run Queue", () => {
                 const runData = createBaseRunData({
                     context: {
                         userData: {
-                            id: "user-123",
+                            id: generatePK().toString(),
                             hasPremium: true,
                             name: "premiumUser",
                             languages: ["en"],
@@ -211,7 +237,7 @@ describe("Run Queue", () => {
                 const runData = createBaseRunData({
                     context: {
                         userData: {
-                            id: "user-123",
+                            id: generatePK().toString(),
                             hasPremium: true,
                             name: "premiumUser",
                             languages: ["en"],
@@ -238,7 +264,7 @@ describe("Run Queue", () => {
             const promises = [];
             for (let i = 0; i < 5; i++) {
                 const runData = createBaseRunData({
-                    input: { runId: `run-${i}` },
+                    input: { runId: generatePK().toString() },
                 });
                 promises.push(processRun(runData, queueService));
             }
@@ -258,30 +284,31 @@ describe("Run Queue", () => {
         beforeEach(async () => {
             // Add a test job
             const result = await processRun({
-                runId: "test-run-456",
-                routineId: "routine-456",
-                routineVersionId: "version-789",
+                runId: generatePK().toString(),
+                routineId: generatePK().toString(),
+                routineVersionId: generatePK().toString(),
                 isNewRun: true,
                 runFrom: RunTriggeredFrom.RunView,
-                userData: { id: "user-123", hasPremium: false },
+                userData: { id: generatePK().toString(), hasPremium: false },
                 config: { isTimeSensitive: false },
             }, queueService);
             jobId = result.data!.id;
         });
 
         it("should change task status", async () => {
-            const result = await changeRunTaskStatus(jobId, "Running", "user-123", queueService);
+            const result = await changeRunTaskStatus(jobId, "Running", generatePK().toString(), queueService);
             expect(result.success).toBe(true);
         });
 
         it("should verify status change is delegated to QueueService", async () => {
             const spy = vi.spyOn(queueService, "changeTaskStatus");
-            await changeRunTaskStatus(jobId, "Running", "user-123", queueService);
-            expect(spy).toHaveBeenCalledWith(jobId, "Running", "user-123", "run");
+            const userId = generatePK().toString();
+            await changeRunTaskStatus(jobId, "Running", userId, queueService);
+            expect(spy).toHaveBeenCalledWith(jobId, "Running", userId, "run");
         });
 
         it("should handle invalid job ID", async () => {
-            const result = await changeRunTaskStatus("invalid-id", "Running", "user-123", queueService);
+            const result = await changeRunTaskStatus("invalid-id", "Running", generatePK().toString(), queueService);
             expect(result.success).toBe(false);
         });
     });
@@ -293,12 +320,12 @@ describe("Run Queue", () => {
             // Add multiple test jobs
             for (let i = 0; i < 3; i++) {
                 const result = await processRun({
-                    runId: `test-run-${i}`,
-                    routineId: "routine-456",
-                    routineVersionId: "version-789",
+                    runId: generatePK().toString(),
+                    routineId: generatePK().toString(),
+                    routineVersionId: generatePK().toString(),
                     isNewRun: true,
                     runFrom: RunTriggeredFrom.RunView,
-                    userData: { id: "user-123", hasPremium: false },
+                    userData: { id: generatePK().toString(), hasPremium: false },
                     config: { isTimeSensitive: false },
                 }, queueService);
                 jobIds.push(result.data!.id);
@@ -356,12 +383,12 @@ describe("Run Queue", () => {
             }));
 
             const runData = {
-                runId: "test-run-789",
-                routineId: "routine-456",
-                routineVersionId: "version-789",
+                runId: generatePK().toString(),
+                routineId: generatePK().toString(),
+                routineVersionId: generatePK().toString(),
                 isNewRun: true,
                 runFrom: RunTriggeredFrom.RunView,
-                userData: { id: "user-123", hasPremium: false },
+                userData: { id: generatePK().toString(), hasPremium: false },
                 config: { isTimeSensitive: false },
             };
 
@@ -393,12 +420,12 @@ describe("Run Queue", () => {
             }));
 
             const runData = {
-                runId: "test-run-fail",
-                routineId: "routine-456",
-                routineVersionId: "version-789",
+                runId: generatePK().toString(),
+                routineId: generatePK().toString(),
+                routineVersionId: generatePK().toString(),
                 isNewRun: true,
                 runFrom: RunTriggeredFrom.RunView,
-                userData: { id: "user-123", hasPremium: false },
+                userData: { id: generatePK().toString(), hasPremium: false },
                 config: { isTimeSensitive: false },
             };
 
@@ -416,7 +443,7 @@ describe("Run Queue", () => {
             const data = {
                 ...baseRunData,
                 runFrom: RunTriggeredFrom.RunView, // -20
-                userData: { id: "user-123", hasPremium: true }, // -5
+                userData: { id: generatePK().toString(), hasPremium: true }, // -5
                 config: { isTimeSensitive: true }, // -15
                 isNewRun: false, // -10 (with mock)
             };
@@ -460,7 +487,7 @@ describe("Run Queue", () => {
             expect(job).toBeDefined();
 
             // Cancel the job
-            await changeRunTaskStatus(jobId, "Cancelled", "user-123", queueService);
+            await changeRunTaskStatus(jobId, "Cancelled", generatePK().toString(), queueService);
 
             // Verify status change
             const statuses = await getRunTaskStatuses([jobId], queueService);
@@ -481,23 +508,24 @@ describe("Run Queue", () => {
             ];
 
             for (const state of progressStates) {
-                const updateResult = await changeRunTaskStatus(jobId, state, "user-123", queueService);
+                const updateResult = await changeRunTaskStatus(jobId, state, generatePK().toString(), queueService);
                 expect(updateResult.success).toBe(true);
             }
         });
 
         it("should handle job dependencies", async () => {
             // Create parent job
+            const parentRunId = generatePK().toString();
             const parentResult = await processRun({
                 ...baseRunData,
-                runId: "parent-run",
+                runId: parentRunId,
             }, queueService);
 
             // Create dependent job
             const dependentResult = await processRun({
                 ...baseRunData,
-                runId: "dependent-run",
-                parentRunId: "parent-run",
+                runId: generatePK().toString(),
+                parentRunId,
             }, queueService);
 
             expect(parentResult.success).toBe(true);
@@ -516,11 +544,11 @@ describe("Run Queue", () => {
         it("should handle missing required fields", async () => {
             const invalidData = {
                 // Missing runId
-                routineId: "routine-456",
-                routineVersionId: "version-789",
+                routineId: generatePK().toString(),
+                routineVersionId: generatePK().toString(),
                 isNewRun: true,
                 runFrom: RunTriggeredFrom.RunView,
-                userData: { id: "user-123", hasPremium: false },
+                userData: { id: generatePK().toString(), hasPremium: false },
                 config: { isTimeSensitive: false },
             } as any;
 
@@ -551,9 +579,9 @@ describe("Run Queue", () => {
 
             // Attempt multiple concurrent status updates
             const updates = [
-                changeRunTaskStatus(jobId, "Running", "user-123", queueService),
-                changeRunTaskStatus(jobId, "Processing", "user-456", queueService),
-                changeRunTaskStatus(jobId, "Paused", "user-789", queueService),
+                changeRunTaskStatus(jobId, "Running", generatePK().toString(), queueService),
+                changeRunTaskStatus(jobId, "Processing", generatePK().toString(), queueService),
+                changeRunTaskStatus(jobId, "Paused", generatePK().toString(), queueService),
             ];
 
             const results = await Promise.allSettled(updates);

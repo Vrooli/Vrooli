@@ -54,11 +54,11 @@ export class ObjectPermissionFactory<TObject extends { id?: string; __typename?:
      */
     createPublicUserOwned(userId = "222222222222222222"): PermissionScenario<TObject> {
         const object = this.config.createComplete({
-            id: generatePK(),
+            id: generatePK().toString(),
             __typename: this.config.objectType,
             owner: { id: userId },
             isPublic: true,
-        } as Partial<TObject>);
+        } as unknown as Partial<TObject>);
 
         return {
             id: `${this.config.objectType.toLowerCase()}_public_user_owned`,
@@ -74,11 +74,11 @@ export class ObjectPermissionFactory<TObject extends { id?: string; __typename?:
      */
     createPrivateUserOwned(userId = "222222222222222222"): PermissionScenario<TObject> {
         const object = this.config.createComplete({
-            id: generatePK(),
+            id: generatePK().toString(),
             __typename: this.config.objectType,
             owner: { id: userId },
             isPublic: false,
-        } as Partial<TObject>);
+        } as unknown as Partial<TObject>);
 
         return {
             id: `${this.config.objectType.toLowerCase()}_private_user_owned`,
@@ -92,33 +92,33 @@ export class ObjectPermissionFactory<TObject extends { id?: string; __typename?:
     /**
      * Create a team-owned object
      */
-    createTeamOwned(teamId = "team_123"): PermissionScenario<TObject> | null {
+    createTeamOwned(teamId?: string): PermissionScenario<TObject> | null {
         if (!this.config.canBeTeamOwned) {
             return null;
         }
 
+        const teamIdString = teamId || generatePK().toString();
         const object = this.config.createComplete({
-            id: generatePK(),
+            id: generatePK().toString(),
             __typename: this.config.objectType,
-            team: { id: teamId },
+            team: { id: teamIdString },
             isPublic: false,
-        } as Partial<TObject>);
-
+        } as unknown as Partial<TObject>);
         const owner = this.userFactory.withTeam(
             this.userFactory.createSession({ id: "111111111111111111" }),
-            teamId,
+            teamIdString,
             "Owner",
         );
 
         const admin = this.userFactory.withTeam(
             this.userFactory.createSession({ id: "222222222222222222" }),
-            teamId,
+            teamIdString,
             "Admin",
         );
 
         const member = this.userFactory.withTeam(
             this.userFactory.createSession({ id: "333333333333333333" }),
-            teamId,
+            teamIdString,
             "Member",
         );
 
@@ -163,11 +163,11 @@ export class ObjectPermissionFactory<TObject extends { id?: string; __typename?:
         }
 
         const object = this.config.createComplete({
-            id: generatePK(),
+            id: generatePK().toString(),
             __typename: this.config.objectType,
             owner: { id: userId },
             visibility: "Unlisted" as VisibilityType,
-        } as Partial<TObject>);
+        } as unknown as Partial<TObject>);
 
         return {
             id: `${this.config.objectType.toLowerCase()}_unlisted`,
@@ -255,11 +255,11 @@ export class ObjectPermissionFactory<TObject extends { id?: string; __typename?:
     private createApiKeyScenario(): PermissionScenario<TObject> {
         const userId = "222222222222222222";
         const object = this.config.createComplete({
-            id: generatePK(),
+            id: generatePK().toString(),
             __typename: this.config.objectType,
             owner: { id: userId },
             isPublic: true,
-        } as Partial<TObject>);
+        } as unknown as Partial<TObject>);
 
         const readOnlyKey = this.apiKeyFactory.createReadOnlyPublic({ userId });
         const writeKey = this.apiKeyFactory.createWrite({ userId });
@@ -310,11 +310,11 @@ export class ObjectPermissionFactory<TObject extends { id?: string; __typename?:
      */
     private createDeletedOwnerScenario(): PermissionScenario<TObject> {
         const object = this.config.createComplete({
-            id: generatePK(),
+            id: generatePK().toString(),
             __typename: this.config.objectType,
-            owner: { id: "DELETED_USER_ID" },
+            owner: { id: "999999999999999999" }, // Use a valid string ID for deleted user
             isPublic: true,
-        } as Partial<TObject>);
+        } as unknown as Partial<TObject>);
 
         const admin = this.userFactory.createAdmin();
         const user = this.userFactory.createStandard();
@@ -350,11 +350,11 @@ export class ObjectPermissionFactory<TObject extends { id?: string; __typename?:
     private createSuspendedOwnerScenario(): PermissionScenario<TObject> {
         const suspendedUser = this.userFactory.createSuspended();
         const object = this.config.createComplete({
-            id: generatePK(),
+            id: generatePK().toString(),
             __typename: this.config.objectType,
             owner: { id: suspendedUser.id },
             isPublic: false,
-        } as Partial<TObject>);
+        } as unknown as Partial<TObject>);
 
         const admin = this.userFactory.createAdmin();
 

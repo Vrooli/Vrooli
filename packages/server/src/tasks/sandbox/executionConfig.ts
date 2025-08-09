@@ -2,6 +2,8 @@ import { CodeLanguage } from "@vrooli/shared";
 import { readFileSync, existsSync } from "fs";
 import { resolve } from "path";
 import { logger } from "../../events/logger.js";
+import type { ServiceConfig } from "../../services/resources/resourcesConfig.js";
+import { loadServiceConfig } from "../../services/resources/resourcesConfig.js";
 
 // Security limit constants
 const MAX_TIMEOUT_MS = 600000; // 10 minutes
@@ -255,55 +257,92 @@ function loadConfigFromFile(filePath: string): RawExecutionConfig | null {
 }
 
 /**
- * Load execution configuration with proper precedence:
- * 1. .vrooli/execution.local.json (local overrides)
- * 2. .vrooli/execution.json (shared base config)
- * 3. Environment variables (backward compatibility)
- * 4. Built-in defaults
+ * Load execution configuration from unified service.json
+ */
+export async function loadExecutionConfigFromService(): Promise<ExecutionConfig> {
+    try {
+        // Load unified service config
+        const serviceConfig = await loadServiceConfig();
+        
+        // Extract execution config or use defaults
+        const executionSection = serviceConfig.execution;
+        
+        if (executionSection) {
+            // Convert from service.json format to ExecutionConfig format
+            const rawConfig: RawExecutionConfig = {
+                enabled: executionSection.enabled,
+                allowedLanguages: executionSection.allowedLanguages?.map(lang => lang.toLowerCase()),
+                security: executionSection.security,
+                defaults: executionSection.defaults,
+                runtime: executionSection.runtime,
+                logging: executionSection.logging,
+            };
+            
+            const config = validateConfig(rawConfig);
+            
+            if (config.logging.enabled) {
+                logger.info("Loaded execution configuration from service.json", {
+                    enabled: config.enabled,
+                    allowedLanguages: config.allowedLanguages,
+                    trace: "loadExecutionConfigFromService-success",
+                });
+            }
+            
+            return config;
+        }
+        
+        // No execution config in service.json, use defaults
+        logger.info("No execution configuration found in service.json, using defaults");
+        return DEFAULT_CONFIG;
+        
+    } catch (error) {
+        logger.error("Failed to load execution config from service.json, using defaults", error);
+        return DEFAULT_CONFIG;
+    }
+}
+
+/**
+ * Load execution configuration from service.json ONLY
  */
 export function loadExecutionConfig(projectRoot?: string): ExecutionConfig {
     const root = projectRoot || process.env.PROJECT_DIR || process.cwd();
     
-    // Load local config (highest precedence)
-    const localConfigPath = resolve(root, ".vrooli/execution.local.json");
-    const localConfig = loadConfigFromFile(localConfigPath);
-    
-    // Load shared config (fallback)
-    const sharedConfigPath = resolve(root, ".vrooli/execution.json");
-    const sharedConfig = loadConfigFromFile(sharedConfigPath);
-    
-    // Merge configurations with precedence
-    const mergedRaw: RawExecutionConfig = {
-        ...sharedConfig,
-        ...localConfig,
-    };
-    
-    // Apply environment variable overrides for backward compatibility
-    const envEnabled = process.env.VROOLI_ENABLE_LOCAL_EXECUTION === "true";
-    const isDevOrTest = process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
-    
-    // If environment variables suggest enabling, but no config files exist, provide warning
-    if (envEnabled && isDevOrTest && !localConfig && !sharedConfig) {
-        logger.warn("Local execution enabled via environment variable but no configuration file found", {
-            suggestion: "Create .vrooli/execution.local.json with enabled: true",
-            trace: "loadExecutionConfig-env-fallback",
-        });
-        mergedRaw.enabled = true;
+    try {
+        const serviceConfigPath = resolve(root, ".vrooli/service.json");
+        if (existsSync(serviceConfigPath)) {
+            const serviceContent = readFileSync(serviceConfigPath, "utf8");
+            const serviceConfig: ServiceConfig = JSON.parse(serviceContent);
+            
+            if (serviceConfig.execution) {
+                const rawConfig: RawExecutionConfig = {
+                    enabled: serviceConfig.execution.enabled,
+                    allowedLanguages: serviceConfig.execution.allowedLanguages?.map(lang => lang.toLowerCase()),
+                    security: serviceConfig.execution.security,
+                    defaults: serviceConfig.execution.defaults,
+                    runtime: serviceConfig.execution.runtime,
+                    logging: serviceConfig.execution.logging,
+                };
+                
+                const config = validateConfig(rawConfig);
+                
+                if (config.logging.enabled) {
+                    logger.info("Loaded execution configuration from service.json", {
+                        enabled: config.enabled,
+                        allowedLanguages: config.allowedLanguages,
+                        trace: "loadExecutionConfig-service-json",
+                    });
+                }
+                
+                return config;
+            }
+        }
+    } catch (error) {
+        logger.error("Failed to load execution config from service.json", error);
     }
     
-    // Validate and normalize
-    const config = validateConfig(mergedRaw);
-    
-    if (config.logging.enabled) {
-        logger.info("Loaded execution configuration", {
-            enabled: config.enabled,
-            allowedLanguages: config.allowedLanguages,
-            configSource: localConfig ? "local" : (sharedConfig ? "shared" : "default"),
-            trace: "loadExecutionConfig-success",
-        });
-    }
-    
-    return config;
+    // No service.json or no execution config found - use defaults
+    logger.info("No execution configuration found in service.json, using defaults");
+    return DEFAULT_CONFIG;
 }
 
 /**
@@ -311,25 +350,18 @@ export function loadExecutionConfig(projectRoot?: string): ExecutionConfig {
  */
 export function generateConfigurationErrorMessage(): string {
     const projectRoot = process.cwd();
-    const localConfigPath = resolve(projectRoot, ".vrooli/execution.local.json");
-    const exampleConfigPath = resolve(projectRoot, ".vrooli/execution.example.json");
+    const serviceConfigPath = resolve(projectRoot, ".vrooli/service.json");
     
     let message = "Local code execution is disabled. To enable:\n\n";
     
-    if (existsSync(exampleConfigPath)) {
-        message += `1. Copy ${exampleConfigPath} to ${localConfigPath}\n`;
-        message += `2. Edit ${localConfigPath} and set "enabled": true\n`;
-        message += "3. Add required languages to the \"allowedLanguages\" array\n";
-        message += "4. Configure \"allowedPaths\" for your security needs\n\n";
-    } else {
-        message += `1. Create ${localConfigPath}\n`;
-        message += "2. Set minimum configuration: {\"enabled\": true, \"allowedLanguages\": [\"shell\"]}\n\n";
-    }
+    message += "Add execution configuration to service.json:\n";
+    message += `1. Edit ${serviceConfigPath}\n`;
+    message += "2. Add execution section: {\"execution\": {\"enabled\": true, \"allowedLanguages\": [\"shell\"]}}\n\n";
     
     message += "For security, local execution requires both:\n";
-    message += "- Configuration file with enabled: true\n";
+    message += "- Configuration with enabled: true\n";
     message += "- Development or test environment (NODE_ENV)\n\n";
-    message += "See .vrooli/execution.example.json for full configuration options.";
+    message += "See .vrooli/service.json's 'execution' section for configuration options.";
     
     return message;
 }

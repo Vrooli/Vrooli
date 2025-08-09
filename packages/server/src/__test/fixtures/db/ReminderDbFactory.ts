@@ -411,7 +411,7 @@ export class ReminderDbFactory extends EnhancedDatabaseFactory<
         // Handle reminder list relationship
         if (config.withList) {
             data.reminderList = {
-                connect: { id: config.withList.reminderListId },
+                connect: { id: BigInt(config.withList.reminderListId) },
             };
         }
 
@@ -787,7 +787,7 @@ export class ReminderListDbFactory extends EnhancedDatabaseFactory<
         // Handle user relationship
         if (config.withUser) {
             data.user = {
-                connect: { id: config.withUser.userId },
+                connect: { id: BigInt(config.withUser.userId) },
             };
         }
 

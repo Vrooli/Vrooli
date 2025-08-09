@@ -6,13 +6,13 @@
  */
 
 import { AccountStatus, generatePK } from "@vrooli/shared";
-import { type SessionData } from "../../../../types.js";
+import { type TestSessionData } from "../types.js";
 import { BasePermissionFactory } from "./BasePermissionFactory.js";
 
 /**
  * Factory for creating user session fixtures
  */
-export class UserSessionFactory extends BasePermissionFactory<SessionData> {
+export class UserSessionFactory extends BasePermissionFactory<TestSessionData> {
 
     /**
      * ID counter for generating consistent test IDs
@@ -22,10 +22,10 @@ export class UserSessionFactory extends BasePermissionFactory<SessionData> {
     /**
      * Create a session with specific overrides
      */
-    createSession(overrides?: Partial<SessionData>): SessionData {
+    createSession(overrides?: Partial<TestSessionData>): TestSessionData {
         this.idCounter++;
 
-        const baseSession: SessionData = {
+        const baseSession: TestSessionData = {
             ...this.baseUserData,
             id: this.generateTestId("", this.idCounter),
             handle: `user${this.idCounter}`,
@@ -45,9 +45,9 @@ export class UserSessionFactory extends BasePermissionFactory<SessionData> {
     /**
      * Create an admin user session
      */
-    createAdmin(overrides?: Partial<SessionData>): SessionData {
+    createAdmin(overrides?: Partial<TestSessionData>): TestSessionData {
         return this.createSession({
-            id: "111111111111111111",
+            id: generatePK().toString(),
             handle: "admin",
             name: "System Admin",
             email: "admin@vrooli.com",
@@ -65,9 +65,9 @@ export class UserSessionFactory extends BasePermissionFactory<SessionData> {
     /**
      * Create a standard user session
      */
-    createStandard(overrides?: Partial<SessionData>): SessionData {
+    createStandard(overrides?: Partial<TestSessionData>): TestSessionData {
         return this.createSession({
-            id: "222222222222222222",
+            id: generatePK().toString(),
             handle: "johndoe",
             name: "John Doe",
             email: "john@example.com",
@@ -78,9 +78,9 @@ export class UserSessionFactory extends BasePermissionFactory<SessionData> {
     /**
      * Create a premium user session
      */
-    createPremium(overrides?: Partial<SessionData>): SessionData {
+    createPremium(overrides?: Partial<TestSessionData>): TestSessionData {
         return this.createSession({
-            id: "333333333333333333",
+            id: generatePK().toString(),
             handle: "premiumuser",
             name: "Premium User",
             email: "premium@example.com",
@@ -92,9 +92,9 @@ export class UserSessionFactory extends BasePermissionFactory<SessionData> {
     /**
      * Create an unverified user session
      */
-    createUnverified(overrides?: Partial<SessionData>): SessionData {
+    createUnverified(overrides?: Partial<TestSessionData>): TestSessionData {
         return this.createSession({
-            id: "444444444444444444",
+            id: generatePK().toString(),
             handle: "unverified",
             name: "Unverified User",
             email: "unverified@example.com",
@@ -106,9 +106,9 @@ export class UserSessionFactory extends BasePermissionFactory<SessionData> {
     /**
      * Create a banned user session
      */
-    createBanned(overrides?: Partial<SessionData>): SessionData {
+    createBanned(overrides?: Partial<TestSessionData>): TestSessionData {
         return this.createSession({
-            id: "555555555555555555",
+            id: generatePK().toString(),
             handle: "banned",
             name: "Banned User",
             email: "banned@example.com",
@@ -120,9 +120,9 @@ export class UserSessionFactory extends BasePermissionFactory<SessionData> {
     /**
      * Create a suspended user session
      */
-    createSuspended(overrides?: Partial<SessionData>): SessionData {
+    createSuspended(overrides?: Partial<TestSessionData>): TestSessionData {
         return this.createSession({
-            id: "666666666666666666",
+            id: generatePK().toString(),
             handle: "suspended",
             name: "Suspended User",
             email: "suspended@example.com",
@@ -134,9 +134,9 @@ export class UserSessionFactory extends BasePermissionFactory<SessionData> {
     /**
      * Create a bot user session
      */
-    createBot(overrides?: Partial<SessionData>): SessionData {
+    createBot(overrides?: Partial<TestSessionData>): TestSessionData {
         return this.createSession({
-            id: "777777777777777777",
+            id: generatePK().toString(),
             handle: "testbot",
             name: "Test Bot",
             email: "bot@vrooli.com",
@@ -148,7 +148,7 @@ export class UserSessionFactory extends BasePermissionFactory<SessionData> {
     /**
      * Create a guest user session (not logged in)
      */
-    createGuest(overrides?: Partial<SessionData>): SessionData {
+    createGuest(overrides?: Partial<TestSessionData>): TestSessionData {
         return {
             ...this.baseUserData,
             id: "",
@@ -156,7 +156,7 @@ export class UserSessionFactory extends BasePermissionFactory<SessionData> {
             isLoggedIn: false,
             timeZone: this.defaultOptions.timeZone ?? "UTC",
             ...overrides,
-        } as SessionData;
+        } as TestSessionData;
     }
 
     /**
@@ -165,10 +165,10 @@ export class UserSessionFactory extends BasePermissionFactory<SessionData> {
     createWithCustomRole(
         roleName: string,
         permissions: string[],
-        overrides?: Partial<SessionData>,
-    ): SessionData {
+        overrides?: Partial<TestSessionData>,
+    ): TestSessionData {
         return this.createSession({
-            id: "888888888888888888",
+            id: generatePK().toString(),
             handle: "customrole",
             name: "Custom Role User",
             email: "custom@example.com",
@@ -185,9 +185,9 @@ export class UserSessionFactory extends BasePermissionFactory<SessionData> {
     /**
      * Create a user with expired premium
      */
-    createExpiredPremium(overrides?: Partial<SessionData>): SessionData {
+    createExpiredPremium(overrides?: Partial<TestSessionData>): TestSessionData {
         return this.createSession({
-            id: "999999999999999999",
+            id: generatePK().toString(),
             handle: "expiredpremium",
             name: "Expired Premium User",
             email: "expired@example.com",
@@ -200,22 +200,22 @@ export class UserSessionFactory extends BasePermissionFactory<SessionData> {
     /**
      * Create a user with partial data (edge case)
      */
-    createPartial(overrides?: Partial<SessionData>): SessionData {
+    createPartial(overrides?: Partial<TestSessionData>): TestSessionData {
         return {
             ...this.baseUserData,
-            id: "000000000000000001",
+            id: generatePK().toString(),
             isLoggedIn: true,
             timeZone: this.defaultOptions.timeZone ?? "UTC",
             ...overrides,
-        } as SessionData;
+        } as TestSessionData;
     }
 
     /**
      * Create a user with conflicting permissions
      */
-    createConflictingPermissions(overrides?: Partial<SessionData>): SessionData {
+    createConflictingPermissions(overrides?: Partial<TestSessionData>): TestSessionData {
         return this.createSession({
-            id: "000000000000000002",
+            id: generatePK().toString(),
             handle: "conflicted",
             name: "Conflicted User",
             email: "conflict@example.com",
@@ -240,9 +240,9 @@ export class UserSessionFactory extends BasePermissionFactory<SessionData> {
     /**
      * Create a user with all possible permissions
      */
-    createMaxPermissions(overrides?: Partial<SessionData>): SessionData {
+    createMaxPermissions(overrides?: Partial<TestSessionData>): TestSessionData {
         return this.createSession({
-            id: "000000000000000003",
+            id: generatePK().toString(),
             handle: "maxperms",
             name: "Max Permissions User",
             email: "max@example.com",
@@ -262,9 +262,9 @@ export class UserSessionFactory extends BasePermissionFactory<SessionData> {
     /**
      * Create a user in the process of deletion
      */
-    createDeleting(overrides?: Partial<SessionData>): SessionData {
+    createDeleting(overrides?: Partial<TestSessionData>): TestSessionData {
         return this.createSession({
-            id: "000000000000000004",
+            id: generatePK().toString(),
             handle: "deleting",
             name: "Deleting User",
             email: "deleting@example.com",
@@ -276,9 +276,9 @@ export class UserSessionFactory extends BasePermissionFactory<SessionData> {
     /**
      * Create multiple users with relationships
      */
-    createTeam(teamSize = 3): SessionData[] {
-        const team: SessionData[] = [];
-        const teamId = generatePK();
+    createTeam(teamSize = 3): TestSessionData[] {
+        const team: TestSessionData[] = [];
+        const teamId = generatePK().toString();
 
         // Owner
         team.push(this.withTeam(

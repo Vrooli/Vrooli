@@ -2,10 +2,12 @@ import { ModelType, DUMMY_ID } from "@vrooli/shared";
 import { describe, expect, it, vi, beforeAll } from "vitest";
 import { initIdGenerator } from "@vrooli/shared";
 import { oneIsPublic } from "./oneIsPublic.js";
+import { ModelMap } from "../models/base/index.js";
 
 describe("oneIsPublic", () => {
     beforeAll(async () => {
         await initIdGenerator();
+        await ModelMap.init();
     });
 
     describe("basic functionality", () => {
@@ -140,15 +142,15 @@ describe("oneIsPublic", () => {
 
         it("should check all fields when none are public", () => {
             const list: [string, ModelType][] = [
-                ["tag1", ModelType.Tag],
-                ["tag2", ModelType.Tag],
-                ["tag3", ModelType.Tag],
+                ["user1", ModelType.User],
+                ["user2", ModelType.User],
+                ["team1", ModelType.Team],
             ];
 
             const permissionsData = {
-                tag1: { id: DUMMY_ID, tag: "private1" },
-                tag2: { id: DUMMY_ID, tag: "private2" },
-                tag3: { id: DUMMY_ID, tag: "private3" },
+                user1: { id: DUMMY_ID, isPrivate: true, handle: "private1" },
+                user2: { id: DUMMY_ID, isPrivate: true, handle: "private2" },
+                team1: { id: DUMMY_ID, isPrivate: true, handle: "private3" },
             };
 
             const getParentInfo = vi.fn();
@@ -224,7 +226,7 @@ describe("oneIsPublic", () => {
             const getParentInfo = vi.fn();
 
             const result = oneIsPublic(list, permissionsData, getParentInfo);
-            expect(result).toBe(true); // Awards are always public
+            expect(result).toBe(false); // Awards are always private
         });
 
         it("should handle version models with parent objects", () => {

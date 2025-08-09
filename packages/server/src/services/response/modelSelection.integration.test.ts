@@ -24,62 +24,66 @@ vi.mock("../../events/logger.js", () => ({
     },
 }));
 
-vi.mock("@vrooli/shared", () => ({
-    ModelStrategy: {
-        FIXED: "fixed",
-        FALLBACK: "fallback",
-        COST_OPTIMIZED: "cost",
-        QUALITY_FIRST: "quality",
-        LOCAL_FIRST: "local",
-    },
-    aiServicesInfo: {
-        services: {
-            LocalOllama: {
-                models: {
-                    "llama3.1:8b": {
-                        enabled: true,
-                        inputCost: 0.001,
-                        outputCost: 0.001,
-                        contextWindow: 128000,
-                        maxOutputTokens: 4096,
-                        features: {},
-                        supportsReasoning: false,
+vi.mock("@vrooli/shared", async () => {
+    const actual = await vi.importActual("@vrooli/shared");
+    return {
+        ...actual,
+        ModelStrategy: {
+            FIXED: "fixed",
+            FALLBACK: "fallback",
+            COST_OPTIMIZED: "cost",
+            QUALITY_FIRST: "quality",
+            LOCAL_FIRST: "local",
+        },
+        aiServicesInfo: {
+            services: {
+                LocalOllama: {
+                    models: {
+                        "llama3.1:8b": {
+                            enabled: true,
+                            inputCost: 0.001,
+                            outputCost: 0.001,
+                            contextWindow: 128000,
+                            maxOutputTokens: 4096,
+                            features: {},
+                            supportsReasoning: false,
+                        },
+                    },
+                },
+                CloudflareGateway: {
+                    models: {
+                        "gpt-4o": {
+                            enabled: true,
+                            inputCost: 250,
+                            outputCost: 1000,
+                            contextWindow: 128000,
+                            maxOutputTokens: 4096,
+                            features: { vision: true },
+                            supportsReasoning: false,
+                        },
+                    },
+                },
+                OpenRouter: {
+                    models: {
+                        "openai/gpt-4o": {
+                            enabled: true,
+                            inputCost: 250,
+                            outputCost: 1000,
+                            contextWindow: 128000,
+                            maxOutputTokens: 4096,
+                            features: { vision: true },
+                            supportsReasoning: false,
+                        },
                     },
                 },
             },
-            CloudflareGateway: {
-                models: {
-                    "gpt-4o": {
-                        enabled: true,
-                        inputCost: 250,
-                        outputCost: 1000,
-                        contextWindow: 128000,
-                        maxOutputTokens: 4096,
-                        features: { vision: true },
-                        supportsReasoning: false,
-                    },
-                },
-            },
-            OpenRouter: {
-                models: {
-                    "openai/gpt-4o": {
-                        enabled: true,
-                        inputCost: 250,
-                        outputCost: 1000,
-                        contextWindow: 128000,
-                        maxOutputTokens: 4096,
-                        features: { vision: true },
-                        supportsReasoning: false,
-                    },
-                },
+            fallbacks: {
+                "llama3.1:8b": ["gpt-4o", "openai/gpt-4o"],
+                "gpt-4o": ["openai/gpt-4o"],
             },
         },
-        fallbacks: {
-            "llama3.1:8b": ["gpt-4o", "openai/gpt-4o"],
-            "gpt-4o": ["openai/gpt-4o"],
-        },
-    },
-}));
+    };
+});
 
 describe("Model Selection - Integration Tests", () => {
     let networkMonitor: NetworkMonitor;

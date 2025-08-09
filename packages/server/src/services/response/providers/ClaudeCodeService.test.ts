@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-08-05
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { LlmServiceId, LATEST_CONFIG_VERSION, type MessageState, ClaudeCodeModel } from "@vrooli/shared";
 import { ClaudeCodeService, TOOL_PROFILES, isClaudeCodeConfig } from "./ClaudeCodeService.js";
@@ -19,6 +20,10 @@ vi.mock("../../../events/logger.js", () => ({
 // Mock child_process
 vi.mock("child_process", () => ({
     spawn: vi.fn(),
+    exec: vi.fn(),
+    execSync: vi.fn(),
+    execFile: vi.fn(),
+    fork: vi.fn(),
 }));
 
 // Mock message validation functions
@@ -116,8 +121,16 @@ describe("ClaudeCodeService", () => {
     describe("generateContext", () => {
         it("should delegate to generateContextFromMessages", () => {
             const messages = [
-                { id: "msg-1", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") },
-            ] as unknown as MessageState[];
+                { 
+                    id: "msg-1", 
+                    text: "Hello", 
+                    config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                    language: "en", 
+                    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                    parent: null,
+                    user: { id: "user123" },
+                },
+            ] as MessageState[];
 
             const context = service.generateContext(messages, "System message");
 
@@ -129,7 +142,15 @@ describe("ClaudeCodeService", () => {
         it("should generate streaming response successfully", async () => {
             const options = {
                 model: "sonnet",
-                input: [{ id: "msg-1", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
+                input: [{ 
+                    id: "msg-1", 
+                    text: "Hello", 
+                    config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                    language: "en", 
+                    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                    parent: null,
+                    user: { id: "user123" },
+                }] as MessageState[],
                 systemMessage: "You are helpful",
                 maxTokens: 100,
                 signal: mockAbortController.signal,
@@ -198,7 +219,15 @@ describe("ClaudeCodeService", () => {
         it("should handle tool calls", async () => {
             const options = {
                 model: "sonnet",
-                input: [{ id: "msg-1", text: "List files", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
+                input: [{ 
+                    id: "msg-1", 
+                    text: "List files", 
+                    config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                    language: "en", 
+                    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                    parent: null,
+                    user: { id: "user123" },
+                }] as MessageState[],
                 tools: [],
             };
 
@@ -247,7 +276,15 @@ describe("ClaudeCodeService", () => {
         it("should throw error for unsupported model", async () => {
             const options = {
                 model: "unsupported-model",
-                input: [{ id: "msg-1", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
+                input: [{ 
+                    id: "msg-1", 
+                    text: "Hello", 
+                    config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                    language: "en", 
+                    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                    parent: null,
+                    user: { id: "user123" },
+                }] as MessageState[],
                 tools: [],
             };
 
@@ -265,7 +302,15 @@ describe("ClaudeCodeService", () => {
 
             const options = {
                 model: "sonnet",
-                input: [{ id: "msg-1", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
+                input: [{ 
+                    id: "msg-1", 
+                    text: "Hello", 
+                    config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                    language: "en", 
+                    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                    parent: null,
+                    user: { id: "user123" },
+                }] as MessageState[],
                 tools: [],
             };
 
@@ -284,7 +329,15 @@ describe("ClaudeCodeService", () => {
 
             const options = {
                 model: "sonnet",
-                input: [{ id: "msg-1", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
+                input: [{ 
+                    id: "msg-1", 
+                    text: "Hello", 
+                    config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                    language: "en", 
+                    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                    parent: null,
+                    user: { id: "user123" },
+                }] as MessageState[],
                 tools: [],
             };
 
@@ -325,7 +378,15 @@ describe("ClaudeCodeService", () => {
         it("should handle malformed JSON lines", async () => {
             const options = {
                 model: "sonnet",
-                input: [{ id: "msg-1", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
+                input: [{ 
+                    id: "msg-1", 
+                    text: "Hello", 
+                    config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                    language: "en", 
+                    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                    parent: null,
+                    user: { id: "user123" },
+                }] as MessageState[],
                 tools: [],
             };
 
@@ -547,8 +608,24 @@ describe("ClaudeCodeService", () => {
             const options1 = {
                 model: "sonnet",
                 input: [
-                    { id: "msg-1", text: "Hello" },
-                    { id: "msg-2", text: "World" },
+                    { 
+                        id: "msg-1", 
+                        text: "Hello",
+                        config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                        language: "en", 
+                        createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                        parent: null,
+                        user: { id: "user123" },
+                    },
+                    { 
+                        id: "msg-2", 
+                        text: "World",
+                        config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                        language: "en", 
+                        createdAt: new Date("2024-01-01T00:01:00Z").toISOString(),
+                        parent: null,
+                        user: { id: "user123" },
+                    },
                 ] as MessageState[],
                 tools: [],
             };
@@ -556,8 +633,24 @@ describe("ClaudeCodeService", () => {
             const options2 = {
                 model: "sonnet", 
                 input: [
-                    { id: "msg-1", text: "Hello" },
-                    { id: "msg-2", text: "World" },
+                    { 
+                        id: "msg-1", 
+                        text: "Hello",
+                        config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                        language: "en", 
+                        createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                        parent: null,
+                        user: { id: "user123" },
+                    },
+                    { 
+                        id: "msg-2", 
+                        text: "World",
+                        config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                        language: "en", 
+                        createdAt: new Date("2024-01-01T00:01:00Z").toISOString(),
+                        parent: null,
+                        user: { id: "user123" },
+                    },
                 ] as MessageState[],
                 tools: [],
             };
@@ -571,13 +664,29 @@ describe("ClaudeCodeService", () => {
         it("should generate different session keys for different models/messages", () => {
             const options1 = {
                 model: "sonnet",
-                input: [{ id: "msg-1", text: "Hello" }] as MessageState[],
+                input: [{ 
+                    id: "msg-1", 
+                    text: "Hello",
+                    config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                    language: "en", 
+                    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                    parent: null,
+                    user: { id: "user123" },
+                }] as MessageState[],
                 tools: [],
             };
 
             const options2 = {
                 model: "opus",
-                input: [{ id: "msg-1", text: "Hello" }] as MessageState[],
+                input: [{ 
+                    id: "msg-1", 
+                    text: "Hello",
+                    config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                    language: "en", 
+                    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                    parent: null,
+                    user: { id: "user123" },
+                }] as MessageState[],
                 tools: [],
             };
 
@@ -591,7 +700,15 @@ describe("ClaudeCodeService", () => {
         it("should build correct command arguments", () => {
             const options = {
                 model: "sonnet",
-                input: [{ id: "msg-1", text: "Hello", config: { role: "user" } }] as MessageState[],
+                input: [{ 
+                    id: "msg-1", 
+                    text: "Hello", 
+                    config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                    language: "en", 
+                    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                    parent: null,
+                    user: { id: "user123" },
+                }] as MessageState[],
                 systemMessage: "You are helpful",
                 maxTokens: 100,
                 tools: [],
@@ -612,7 +729,15 @@ describe("ClaudeCodeService", () => {
         it("should include max-turns when maxTokens specified", () => {
             const options = {
                 model: "sonnet",
-                input: [{ id: "msg-1", text: "Hello", config: { role: "user" } }] as MessageState[],
+                input: [{ 
+                    id: "msg-1", 
+                    text: "Hello", 
+                    config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                    language: "en", 
+                    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                    parent: null,
+                    user: { id: "user123" },
+                }] as MessageState[],
                 maxTokens: 100,
                 tools: [],
             };
@@ -629,7 +754,15 @@ describe("ClaudeCodeService", () => {
         it("should use readonly tool profile", () => {
             const options = {
                 model: "sonnet",
-                input: [{ id: "msg-1", text: "Hello", config: { role: "user" } }] as MessageState[],
+                input: [{ 
+                    id: "msg-1", 
+                    text: "Hello", 
+                    config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                    language: "en", 
+                    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                    parent: null,
+                    user: { id: "user123" },
+                }] as MessageState[],
                 tools: [],
                 serviceConfig: {
                     toolProfile: "readonly",
@@ -647,7 +780,15 @@ describe("ClaudeCodeService", () => {
         it("should use explicit allowed tools list", () => {
             const options = {
                 model: "sonnet",
-                input: [{ id: "msg-1", text: "Hello", config: { role: "user" } }] as MessageState[],
+                input: [{ 
+                    id: "msg-1", 
+                    text: "Hello", 
+                    config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                    language: "en", 
+                    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                    parent: null,
+                    user: { id: "user123" },
+                }] as MessageState[],
                 tools: [],
                 serviceConfig: {
                     allowedTools: ["Read", "WebFetch"],
@@ -665,7 +806,15 @@ describe("ClaudeCodeService", () => {
         it("should prioritize explicit tools over profile", () => {
             const options = {
                 model: "sonnet",
-                input: [{ id: "msg-1", text: "Hello", config: { role: "user" } }] as MessageState[],
+                input: [{ 
+                    id: "msg-1", 
+                    text: "Hello", 
+                    config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                    language: "en", 
+                    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                    parent: null,
+                    user: { id: "user123" },
+                }] as MessageState[],
                 tools: [],
                 serviceConfig: {
                     toolProfile: "full",
@@ -683,15 +832,18 @@ describe("ClaudeCodeService", () => {
 
         it("should use custom working directory", async () => {
             const customWorkingDir = "/custom/working/dir";
-            
-            mockFetch.mockResolvedValueOnce({
-                ok: true,
-                json: vi.fn().mockResolvedValue({ models: [{ name: "sonnet" }] }),
-            });
 
             const options = {
                 model: "sonnet",
-                input: [{ id: "msg-1", text: "Hello", config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, language: "en", createdAt: new Date("2024-01-01T00:00:00Z") }] as unknown as MessageState[],
+                input: [{ 
+                    id: "msg-1", 
+                    text: "Hello", 
+                    config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                    language: "en", 
+                    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                    parent: null,
+                    user: { id: "user123" },
+                }] as MessageState[],
                 tools: [],
                 serviceConfig: {
                     workingDirectory: customWorkingDir,
@@ -725,7 +877,15 @@ describe("ClaudeCodeService", () => {
         it("should handle invalid service config gracefully", () => {
             const options = {
                 model: "sonnet",
-                input: [{ id: "msg-1", text: "Hello", config: { role: "user" } }] as MessageState[],
+                input: [{ 
+                    id: "msg-1", 
+                    text: "Hello", 
+                    config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                    language: "en", 
+                    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                    parent: null,
+                    user: { id: "user123" },
+                }] as MessageState[],
                 tools: [],
                 serviceConfig: {
                     invalidOption: "should be ignored",
@@ -746,7 +906,15 @@ describe("ClaudeCodeService", () => {
         it("should maintain backwards compatibility without serviceConfig", () => {
             const options = {
                 model: "sonnet",
-                input: [{ id: "msg-1", text: "Hello", config: { role: "user" } }] as MessageState[],
+                input: [{ 
+                    id: "msg-1", 
+                    text: "Hello", 
+                    config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                    language: "en", 
+                    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                    parent: null,
+                    user: { id: "user123" },
+                }] as MessageState[],
                 tools: [],
                 // No serviceConfig
             };
@@ -764,7 +932,15 @@ describe("ClaudeCodeService", () => {
         it("should use analysis profile", () => {
             const options = {
                 model: "sonnet",
-                input: [{ id: "msg-1", text: "Analyze this code", config: { role: "user" } }] as MessageState[],
+                input: [{ 
+                    id: "msg-1", 
+                    text: "Analyze this code", 
+                    config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                    language: "en", 
+                    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                    parent: null,
+                    user: { id: "user123" },
+                }] as MessageState[],
                 tools: [],
                 serviceConfig: {
                     toolProfile: "analysis",
@@ -782,7 +958,15 @@ describe("ClaudeCodeService", () => {
         it("should use safe profile", () => {
             const options = {
                 model: "sonnet",
-                input: [{ id: "msg-1", text: "Edit this file", config: { role: "user" } }] as MessageState[],
+                input: [{ 
+                    id: "msg-1", 
+                    text: "Edit this file", 
+                    config: { __version: LATEST_CONFIG_VERSION, resources: [], role: "user" }, 
+                    language: "en", 
+                    createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+                    parent: null,
+                    user: { id: "user123" },
+                }] as MessageState[],
                 tools: [],
                 serviceConfig: {
                     toolProfile: "safe",

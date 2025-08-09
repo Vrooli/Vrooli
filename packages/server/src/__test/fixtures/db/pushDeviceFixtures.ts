@@ -6,20 +6,20 @@ import { type Prisma } from "@prisma/client";
  * These fixtures represent web push notification devices registered for users
  */
 
-// Consistent IDs for testing
+// Consistent IDs for testing - generated inside functions to avoid module-level execution
 export const pushDeviceDbIds = {
-    device1: generatePK(),
-    device2: generatePK(),
-    device3: generatePK(),
-    expiredDevice: generatePK(),
-    namedDevice: generatePK(),
+    device1: () => generatePK(),
+    device2: () => generatePK(),
+    device3: () => generatePK(),
+    expiredDevice: () => generatePK(),
+    namedDevice: () => generatePK(),
 };
 
 /**
  * Minimal push device data for database creation
  */
 export const minimalPushDeviceDb: Omit<Prisma.push_deviceCreateInput, "user"> = {
-    id: pushDeviceDbIds.device1,
+    id: pushDeviceDbIds.device1(),
     endpoint: "https://fcm.googleapis.com/fcm/send/test-endpoint-123",
     p256dh: "BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM=",
     auth: "tBHItJI5svbpez7KI4CCXg==",
@@ -29,7 +29,7 @@ export const minimalPushDeviceDb: Omit<Prisma.push_deviceCreateInput, "user"> = 
  * Push device with expiration date
  */
 export const pushDeviceWithExpirationDb: Omit<Prisma.push_deviceCreateInput, "user"> = {
-    id: pushDeviceDbIds.expiredDevice,
+    id: pushDeviceDbIds.expiredDevice(),
     endpoint: "https://fcm.googleapis.com/fcm/send/expired-endpoint-456",
     p256dh: "BLc4xRzKlKORKWlbdgFaBrrPK3ydWAHo4M0gs0HPQyrdH0n8vUy1PErkjLIOXEJwBNgSq5BIPd1cJhO3e2ANQ2A=",
     auth: "R9siYqNVHMSGgv0Rmr6N4A==",
@@ -40,7 +40,7 @@ export const pushDeviceWithExpirationDb: Omit<Prisma.push_deviceCreateInput, "us
  * Complete push device with all fields
  */
 export const completePushDeviceDb: Omit<Prisma.push_deviceCreateInput, "user"> = {
-    id: pushDeviceDbIds.namedDevice,
+    id: pushDeviceDbIds.namedDevice(),
     endpoint: "https://fcm.googleapis.com/fcm/send/complete-endpoint-789",
     p256dh: "BGEEGjvAycqfE7MmrYJaiRpFbE9f7yg7Lzwrh3qipBD8CxNel6X5V5jmoF5eazsJlkZ2wveJQU6kJHcqUIIKdmU=",
     auth: "ufn2jFsZSRpJu7rKn1VgvQ==",
@@ -95,7 +95,7 @@ export class PushDeviceDbFactory {
     }
 
     static createMinimal(
-        userId: string,
+        userId: bigint,
         overrides?: Partial<Prisma.push_deviceCreateInput>,
     ): Prisma.push_deviceCreateInput {
         return {
@@ -109,7 +109,7 @@ export class PushDeviceDbFactory {
     }
 
     static createWithExpiration(
-        userId: string,
+        userId: bigint,
         daysUntilExpiration = 30,
         overrides?: Partial<Prisma.push_deviceCreateInput>,
     ): Prisma.push_deviceCreateInput {
@@ -121,7 +121,7 @@ export class PushDeviceDbFactory {
     }
 
     static createExpired(
-        userId: string,
+        userId: bigint,
         overrides?: Partial<Prisma.push_deviceCreateInput>,
     ): Prisma.push_deviceCreateInput {
         return {
@@ -132,7 +132,7 @@ export class PushDeviceDbFactory {
     }
 
     static createNamed(
-        userId: string,
+        userId: bigint,
         name: string,
         overrides?: Partial<Prisma.push_deviceCreateInput>,
     ): Prisma.push_deviceCreateInput {
@@ -147,7 +147,7 @@ export class PushDeviceDbFactory {
      * Create multiple devices for a user (simulating multiple browsers/devices)
      */
     static createMultiple(
-        userId: string,
+        userId: bigint,
         count = 3,
         options?: {
             withNames?: boolean;
@@ -191,7 +191,7 @@ export class PushDeviceDbFactory {
 export async function seedPushDevices(
     prisma: any,
     options: {
-        userId: string;
+        userId: bigint;
         count?: number;
         includeExpired?: boolean;
         includeNamed?: boolean;
@@ -233,7 +233,7 @@ export async function seedPushDevices(
  */
 export async function cleanupPushDevices(
     prisma: any,
-    deviceIds: string[],
+    deviceIds: bigint[],
 ) {
     await prisma.push_device.deleteMany({
         where: { id: { in: deviceIds } },
@@ -245,12 +245,12 @@ export async function cleanupPushDevices(
  */
 export async function verifyPushDeviceState(
     prisma: any,
-    deviceId: string,
+    deviceId: bigint,
     expected: {
         endpoint?: string;
         name?: string;
         expires?: Date;
-        userId?: string;
+        userId?: bigint;
     },
 ) {
     const device = await prisma.push_device.findUnique({

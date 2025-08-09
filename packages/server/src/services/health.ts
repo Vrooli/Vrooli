@@ -1,3 +1,4 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-08-05
 import { HeadBucketCommand, type S3Client } from "@aws-sdk/client-s3";
 import { ApiKeyPermission, DAYS_1_S, GB_1_BYTES, HOURS_1_MS, HttpStatus, MINUTES_15_MS, MINUTES_1_MS, MINUTES_2_S, MINUTES_30_MS, McpToolName, ResourceSubType, SECONDS_1_MS, SECONDS_5_MS } from "@vrooli/shared";
 import { exec as execCb } from "child_process";
@@ -1578,7 +1579,7 @@ export function setupHealthCheck(app: Express): void {
         });
 
         // Development endpoint to send a test notification
-        // Example: http://localhost:5329/healthcheck/send-test-notification?userId=3f038f3b-f8f9-4f9b-8f9b-c8f4b8f9b8d2
+        // Example: http://localhost:5329/healthcheck/send-test-notification?userId=1234567890123456789
         app.get("/healthcheck/send-test-notification", async (req, res) => {
             const userId = req.query.userId as string;
 

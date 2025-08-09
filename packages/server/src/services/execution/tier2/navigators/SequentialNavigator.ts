@@ -19,7 +19,7 @@ export class SequentialNavigator extends BaseNavigator {
                 config.__version &&
                 config.graph?.__type === "Sequential" &&
                 Array.isArray(config.graph.schema?.steps) &&
-                config.graph.schema.steps.length >= 0
+                config.graph.schema.steps.length > 0
             );
         } catch {
             return false;

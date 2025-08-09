@@ -59,7 +59,7 @@ export default defineProject({
             // Use optimizer instead of deprecated inline
             optimizer: {
                 ssr: {
-                    include: ['bcrypt'],
+                    include: ['bcrypt', 'rrule'],
                 },
             },
         },

@@ -2,7 +2,7 @@ import {
     type BotParticipant,
     type ChatConfigObject,
     type ModelType,
-    type SessionUser
+    type SessionUser,
 } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { logger } from "../../../../events/logger.js";

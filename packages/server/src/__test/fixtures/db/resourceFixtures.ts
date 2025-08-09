@@ -315,6 +315,17 @@ export const resourceDbFixtures: DbTestFixtures<Prisma.resourceCreateInput> = {
 export class ResourceDbFactory extends EnhancedDbFactory<Prisma.resourceCreateInput> {
 
     /**
+     * Override to exclude handle field which doesn't exist on resource model
+     */
+    protected generateFreshIdentifiers() {
+        return {
+            id: generatePK(),
+            publicId: generatePublicId(),
+            // No handle field for resource model
+        };
+    }
+
+    /**
      * Get the test fixtures for Resource model
      */
     protected getFixtures(): DbTestFixtures<Prisma.resourceCreateInput> {

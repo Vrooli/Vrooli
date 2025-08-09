@@ -11,7 +11,7 @@ import {
     type StateMachineState,
     type SwarmExecutionTask,
     type SwarmId,
-    type SwarmState
+    type SwarmState,
 } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { ConversationEngine, ConversationResult } from "../../conversation/conversationEngine.js";

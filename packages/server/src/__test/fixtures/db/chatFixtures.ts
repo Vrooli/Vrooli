@@ -1,8 +1,7 @@
 /* eslint-disable no-magic-numbers */
-// AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced as any with proper type cast for Prisma.chatUpsertArgs["create"]
+// AI_CHECK: TYPE_SAFETY=2 | LAST: 2025-08-01 - Fixed ID type issues: converted string team ID to BigInt in invalidTeamConnection fixture
 import { type Prisma } from "@prisma/client";
 import { generatePK, generatePublicId } from "@vrooli/shared";
-// eslint-disable-next-line import/extensions
 import { chatConfigFixtures } from "@vrooli/shared/test-fixtures/config";
 import { EnhancedDbFactory } from "./EnhancedDbFactory.js";
 import type { BulkSeedOptions, BulkSeedResult, DbErrorScenarios, DbTestFixtures } from "./types.js";
@@ -42,7 +41,7 @@ export const minimalChatDb = {
             publicId: generatePublicId(),
             isPrivate: false,
             openToAnyoneWithInvite: true,
-            config: chatConfigFixtures.minimal as any,
+            config: chatConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
         };
     },
 };
@@ -58,7 +57,7 @@ export const privateChatDb = {
             publicId: generatePublicId(),
             isPrivate: true,
             openToAnyoneWithInvite: false,
-            config: chatConfigFixtures.variants.restrictedTeamSwarm as any,
+            config: chatConfigFixtures.variants.restrictedTeamSwarm as unknown as Prisma.InputJsonValue,
             translations: {
                 create: [
                     {
@@ -84,7 +83,7 @@ export const completeChatDb = {
             publicId: generatePublicId(),
             isPrivate: false,
             openToAnyoneWithInvite: true,
-            config: chatConfigFixtures.complete as any,
+            config: chatConfigFixtures.complete as unknown as Prisma.InputJsonValue,
             translations: {
                 create: [
                     {
@@ -115,14 +114,14 @@ export function getChatDbFixtures(): DbTestFixtures<Prisma.chatUpsertArgs["creat
             publicId: generatePublicId(),
             isPrivate: false,
             openToAnyoneWithInvite: true,
-            config: chatConfigFixtures.minimal as any,
+            config: chatConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
         },
         complete: {
             id: generatePK(),
             publicId: generatePublicId(),
             isPrivate: false,
             openToAnyoneWithInvite: true,
-            config: chatConfigFixtures.complete as any,
+            config: chatConfigFixtures.complete as unknown as Prisma.InputJsonValue,
             translations: {
                 create: [
                     {
@@ -162,7 +161,7 @@ export function getChatDbFixtures(): DbTestFixtures<Prisma.chatUpsertArgs["creat
                 publicId: generatePublicId(),
                 isPrivate: false,
                 openToAnyoneWithInvite: true,
-                team: { connect: { id: "non-existent-team-id" } },
+                team: { connect: { id: BigInt("999999999999999") } }, // Non-existent team ID
             },
             privateWithPublicInvite: {
                 id: generatePK(),
@@ -177,14 +176,14 @@ export function getChatDbFixtures(): DbTestFixtures<Prisma.chatUpsertArgs["creat
                 publicId: generatePublicId(),
                 isPrivate: true,
                 openToAnyoneWithInvite: false,
-                config: chatConfigFixtures.minimal as any,
+                config: chatConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
             },
             chatWithManyTranslations: {
                 id: generatePK(),
                 publicId: generatePublicId(),
                 isPrivate: false,
                 openToAnyoneWithInvite: true,
-                config: chatConfigFixtures.minimal as any,
+                config: chatConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
                 translations: {
                     create: [
                         { id: generatePK(), language: "en", name: "Multi Lang Chat", description: "English description" },
@@ -201,7 +200,7 @@ export function getChatDbFixtures(): DbTestFixtures<Prisma.chatUpsertArgs["creat
                 publicId: generatePublicId(),
                 isPrivate: true,
                 openToAnyoneWithInvite: false,
-                config: chatConfigFixtures.variants.restrictedTeamSwarm as any,
+                config: chatConfigFixtures.variants.restrictedTeamSwarm as unknown as Prisma.InputJsonValue,
                 translations: {
                     create: [{
                         id: generatePK(),
@@ -216,7 +215,7 @@ export function getChatDbFixtures(): DbTestFixtures<Prisma.chatUpsertArgs["creat
                 publicId: generatePublicId(),
                 isPrivate: false,
                 openToAnyoneWithInvite: true,
-                config: chatConfigFixtures.variants.publicSwarm as any,
+                config: chatConfigFixtures.variants.publicSwarm as unknown as Prisma.InputJsonValue,
                 translations: {
                     create: [{
                         id: generatePK(),
@@ -231,7 +230,7 @@ export function getChatDbFixtures(): DbTestFixtures<Prisma.chatUpsertArgs["creat
                 publicId: generatePublicId(),
                 isPrivate: false,
                 openToAnyoneWithInvite: true,
-                config: chatConfigFixtures.variants.highLimitSwarm as any,
+                config: chatConfigFixtures.variants.highLimitSwarm as unknown as Prisma.InputJsonValue,
                 translations: {
                     create: [{
                         id: generatePK(),
@@ -468,7 +467,7 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
         return factory.createMinimal({
             isPrivate: true,
             openToAnyoneWithInvite: false,
-            config: chatConfigFixtures.minimal as any,
+            config: chatConfigFixtures.minimal as unknown as Prisma.InputJsonValue,
             participants: {
                 create: [
                     {
@@ -515,7 +514,7 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
             team: { connect: { id: BigInt(teamId) } },
             isPrivate: config.isPrivate ?? true,
             openToAnyoneWithInvite: false,
-            config: chatConfig as any,
+            config: chatConfig as unknown as Prisma.InputJsonValue,
             translations: {
                 create: [{
                     id: generatePK(),
@@ -540,7 +539,7 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
         return factory.createMinimal({
             isPrivate: false,
             openToAnyoneWithInvite: true,
-            config: chatConfigFixtures.variants.publicSwarm as any,
+            config: chatConfigFixtures.variants.publicSwarm as unknown as Prisma.InputJsonValue,
             participants: {
                 create: [{
                     id: generatePK(),
@@ -589,7 +588,7 @@ export class ChatDbFactory extends EnhancedDbFactory<Prisma.chatUpsertArgs["crea
         return factory.createMinimal({
             isPrivate: true,
             openToAnyoneWithInvite: false,
-            config: chatConfig as any,
+            config: chatConfig as unknown as Prisma.InputJsonValue,
             participants: {
                 create: [
                     {
@@ -721,7 +720,7 @@ export async function seedTestChats(
         // Add team connection if requested
         if (options?.teamId) {
             // Create fresh data with team relation to avoid conflicts
-            const { teamId: _, ...dataWithoutTeamId } = chatData as any;
+            const { teamId: _, ...dataWithoutTeamId } = chatData as unknown as Prisma.InputJsonValue;
             chatData = {
                 ...dataWithoutTeamId,
                 team: { connect: { id: BigInt(options.teamId) } },

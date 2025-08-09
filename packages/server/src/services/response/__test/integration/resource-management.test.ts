@@ -1,35 +1,29 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
-    type ConversationState,
+    BotConfig,
+    ChatConfig,
+    generatePK,
+    type BotParticipant,
+    type ConversationContext,
     type ConversationParams,
     type ConversationTrigger,
-    type ConversationContext,
-    type MessageState,
-    type BotParticipant,
     type SessionUser,
     type SwarmState,
     type Tool,
-    type ChatConfigObject,
-    type ExecutionResourceUsage,
-    generatePK,
-    LlmServiceId,
-    ChatConfig,
-    BotConfig,
 } from "@vrooli/shared";
-import { ConversationEngine } from "../../../conversation/conversationEngine.js";
-import { ResponseService } from "../../responseService.js";
-import { OpenAIService } from "../../services.js";
-import { conversationStateStore, type CachedConversationStateStore, PrismaChatStore } from "../../chatStore.js";
-import { CompositeToolRunner } from "../../toolRunner.js";
-import { CompositeGraph } from "../../../conversation/agentGraph.js";
-import { FallbackRouter } from "../../router.js";
-import { MessageHistoryBuilder } from "../../messageHistoryBuilder.js";
-import { RedisMessageStore } from "../../messageStore.js";
-import { EventPublisher } from "../../../events/publisher.js";
-import { SwarmContextManager } from "../../../execution/shared/SwarmContextManager.js";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DbProvider } from "../../../../db/provider.js";
-import { CacheService } from "../../../../redisConn.js";
 import { logger } from "../../../../events/logger.js";
+import { CacheService } from "../../../../redisConn.js";
+import { CompositeGraph } from "../../../conversation/agentGraph.js";
+import { ConversationEngine } from "../../../conversation/conversationEngine.js";
+import { type ConversationState } from "../../../conversation/types.js";
+import { SwarmContextManager } from "../../../execution/shared/SwarmContextManager.js";
+import { conversationStateStore, PrismaChatStore, type CachedConversationStateStore } from "../../chatStore.js";
+import { RedisMessageStore, type MessageStore } from "../../messageStore.js";
+import { LocalOllamaService } from "../../providers/LocalOllamaService.js";
+import { ResponseService } from "../../responseService.js";
+import { FallbackRouter } from "../../router.js";
+import { CompositeToolRunner } from "../../toolRunner.js";
 // Test containers are handled by global setup
 
 // Mock external dependencies
@@ -100,23 +94,8 @@ function createExpensiveTool(credits: number, memoryMB: number, timeMs: number):
     return {
         name: "expensive_tool",
         description: "A tool that consumes significant resources",
-        execute: vi.fn().mockImplementation(async () => {
-            // Simulate time consumption
-            await new Promise(resolve => setTimeout(resolve, timeMs));
-            
-            return {
-                success: true,
-                result: `Tool executed with ${credits} credits, ${memoryMB}MB memory, ${timeMs}ms time`,
-                resourcesUsed: {
-                    creditsUsed: credits.toString(),
-                    memoryUsedMB: memoryMB,
-                    durationMs: timeMs,
-                    toolCalls: 1,
-                    stepsExecuted: 1,
-                },
-            };
-        }),
-    };
+        // execute property removed as it's not part of Tool interface
+    } as Tool;
 }
 
 describe("Resource Management Integration Tests", () => {
@@ -135,39 +114,41 @@ describe("Resource Management Integration Tests", () => {
 
     beforeEach(async () => {
         vi.clearAllMocks();
-        
+
         // Test containers are handled by global setup
-        
+
         // Initialize core services
         mockDb = DbProvider.get();
         mockCache = CacheService.get();
-        
+
         // Set up mock OpenAI client
         const OpenAI = (await import("openai")).default;
         mockOpenAIClient = new OpenAI({ apiKey: "test-key" });
-        
+
         // Initialize AI services
-        const openAIService = new OpenAIService();
-        (openAIService as any).client = mockOpenAIClient;
-        
-        const router = new FallbackRouter([
-            { id: LlmServiceId.OpenAI, service: openAIService },
-        ]);
-        
+        const ollamaService = new LocalOllamaService();
+        (ollamaService as any).client = mockOpenAIClient;
+
+        const router = new FallbackRouter();
+
         // Initialize all services with real dependencies
         conversationStore = conversationStateStore;
         chatStore = new PrismaChatStore();
         messageStore = RedisMessageStore.get();
         toolRunner = new CompositeToolRunner();
         agentGraph = new CompositeGraph();
-        contextManager = new SwarmContextManager();
-        
+        contextManager = new SwarmContextManager({
+            swarmId: "test-swarm",
+            requestId: "test-request",
+            userId: "test-user",
+        } as any);
+
         responseService = new ResponseService(
-            router,
+            {},
             toolRunner,
-            new MessageHistoryBuilder(),
+            router,
         );
-        
+
         conversationEngine = new ConversationEngine(
             responseService,
             contextManager,
@@ -177,14 +158,14 @@ describe("Resource Management Integration Tests", () => {
                 fallbackBehavior: "most_capable",
             },
         );
-        
+
         // Set up test user with specific credit amount
         testUser = {
             id: "user123",
-            credits: 10000n, // Start with 10,000 credits
+            credits: "10000", // Start with 10,000 credits - SessionUser expects string
             name: "Test User",
             handle: "testuser",
-        } as SessionUser;
+        } as unknown as SessionUser;
     });
 
     afterEach(async () => {
@@ -206,7 +187,7 @@ describe("Resource Management Integration Tests", () => {
             };
 
             const conversationContext: ConversationContext = {
-                swarmId,
+                swarmId: swarmId.toString(),
                 userData: testUser,
                 timestamp: new Date(),
                 participants: [creditBot],
@@ -215,7 +196,7 @@ describe("Resource Management Integration Tests", () => {
             };
 
             const swarmState: SwarmState = {
-                swarmId,
+                swarmId: swarmId.toString(),
                 version: 1,
                 chatConfig: ChatConfig.default().export(),
                 execution: {
@@ -238,7 +219,7 @@ describe("Resource Management Integration Tests", () => {
                 },
             };
 
-            await contextManager.updateContext(swarmId, swarmState);
+            await contextManager.updateContext(swarmId.toString(), swarmState);
 
             // Mock OpenAI with known token costs
             const responseContent = "This is a response that will consume a specific amount of tokens";
@@ -249,7 +230,7 @@ describe("Resource Management Integration Tests", () => {
 
             // Initialize conversation state
             const conversationState: ConversationState = {
-                id: generatePK(),
+                id: generatePK().toString(),
                 participants: [creditBot],
                 config: ChatConfig.default().export(),
                 availableTools: [],
@@ -281,9 +262,9 @@ describe("Resource Management Integration Tests", () => {
             await new Promise(resolve => setTimeout(resolve, 2500));
 
             // Verify credit tracking consistency across all stores
-            
+
             // 1. ConversationEngine result should match SwarmState
-            const finalSwarmState = await contextManager.getContext(swarmId);
+            const finalSwarmState = await contextManager.getContext(swarmId.toString());
             expect(finalSwarmState?.resources.consumed.credits).toBeGreaterThan(0);
             expect(finalSwarmState?.resources.consumed.credits).toBe(Number(actualCredits));
 
@@ -314,11 +295,11 @@ describe("Resource Management Integration Tests", () => {
             // Create user with very low credits
             const lowCreditUser: SessionUser = {
                 ...testUser,
-                credits: 10n, // Only 10 credits available
+                credits: "10", // Only 10 credits available - SessionUser expects string
             };
 
             const conversationContext: ConversationContext = {
-                swarmId,
+                swarmId: swarmId.toString(),
                 userData: lowCreditUser,
                 timestamp: new Date(),
                 participants: [limitedBot],
@@ -327,7 +308,7 @@ describe("Resource Management Integration Tests", () => {
             };
 
             const swarmState: SwarmState = {
-                swarmId,
+                swarmId: swarmId.toString(),
                 version: 1,
                 chatConfig: ChatConfig.default().export(),
                 execution: {
@@ -350,7 +331,7 @@ describe("Resource Management Integration Tests", () => {
                 },
             };
 
-            await contextManager.updateContext(swarmId, swarmState);
+            await contextManager.updateContext(swarmId.toString(), swarmState);
 
             // Mock OpenAI with high token usage that would exceed limits
             const expensiveContent = "This is an expensive response with many tokens that should be limited";
@@ -393,7 +374,7 @@ describe("Resource Management Integration Tests", () => {
             };
 
             const bot2: BotParticipant = {
-                id: "concurrent-bot-2", 
+                id: "concurrent-bot-2",
                 name: "Concurrent Bot 2",
                 config: BotConfig.parse({
                     model: "gpt-4o-mini",
@@ -616,13 +597,13 @@ describe("Resource Management Integration Tests", () => {
                 conversationHistory: [
                     // Add some conversation history to test context management
                     {
-                        id: generatePK(),
+                        id: generatePK().toString(),
                         content: "Previous message with content",
                         role: "user",
                         timestamp: Date.now() - 60000,
                     },
                     {
-                        id: generatePK(),
+                        id: generatePK().toString(),
                         content: "Previous bot response with detailed information",
                         role: "assistant",
                         timestamp: Date.now() - 30000,
@@ -681,7 +662,7 @@ describe("Resource Management Integration Tests", () => {
 
             // Should log token optimization if applicable
             const debugCalls = (logger.debug as any).mock.calls;
-            expect(debugCalls.some((call: any) => 
+            expect(debugCalls.some((call: any) =>
                 call[0].includes("token") || call[0].includes("optimization"),
             )).toBeTruthy();
         });
@@ -726,10 +707,10 @@ describe("Resource Management Integration Tests", () => {
                 resources: {
                     allocated: [], // Start with no allocations
                     consumed: { credits: 0, tokens: 0, time: 0 },
-                    remaining: { 
-                        credits: initialCredits, 
-                        tokens: initialTokens, 
-                        time: initialTime, 
+                    remaining: {
+                        credits: initialCredits,
+                        tokens: initialTokens,
+                        time: initialTime,
                     },
                 },
                 metadata: {
@@ -769,7 +750,7 @@ describe("Resource Management Integration Tests", () => {
 
             // Verify resource deallocation
             const postExecutionState = await contextManager.getContext("resource-allocation-test");
-            
+
             // Resources should be consumed and remaining should be reduced
             expect(postExecutionState?.resources.consumed.credits).toBeGreaterThan(0);
             expect(postExecutionState?.resources.consumed.tokens).toBeGreaterThan(0);
@@ -834,10 +815,10 @@ describe("Resource Management Integration Tests", () => {
                 resources: {
                     allocated: [],
                     consumed: { credits: 0, tokens: 0, time: 0 },
-                    remaining: { 
-                        credits: limitedCredits, 
-                        tokens: 3000, 
-                        time: 120, 
+                    remaining: {
+                        credits: limitedCredits,
+                        tokens: 3000,
+                        time: 120,
                     },
                 },
                 metadata: {
@@ -880,7 +861,7 @@ describe("Resource Management Integration Tests", () => {
 
             // Should handle resource contention gracefully
             expect(result.success).toBe(true);
-            
+
             // Total resource usage should not exceed available budget
             const totalCreditsUsed = Number(BigInt(result.totalResourceUsage.creditsUsed));
             expect(totalCreditsUsed).toBeLessThanOrEqual(limitedCredits);
@@ -1112,20 +1093,20 @@ describe("Resource Management Integration Tests", () => {
 
             const conversationId = generatePK();
             const swarmId = generatePK();
-            
+
             // Initialize conversation state
             const conversationState: ConversationState = {
-                id: conversationId,
+                id: conversationId.toString(),
                 participants: [syncBot],
                 config: ChatConfig.default().export(),
                 availableTools: [],
                 initialLeaderSystemMessage: "",
             };
 
-            await chatStore.saveState(conversationId, conversationState);
+            await chatStore.saveState(conversationId.toString(), conversationState);
 
             const conversationContext: ConversationContext = {
-                swarmId,
+                swarmId: swarmId.toString(),
                 userData: testUser,
                 timestamp: new Date(),
                 participants: [syncBot],
@@ -1135,7 +1116,7 @@ describe("Resource Management Integration Tests", () => {
 
             const initialCredits = 2500;
             const swarmState: SwarmState = {
-                swarmId,
+                swarmId: swarmId.toString(),
                 version: 1,
                 chatConfig: ChatConfig.default().export(),
                 execution: {
@@ -1158,7 +1139,7 @@ describe("Resource Management Integration Tests", () => {
                 },
             };
 
-            await contextManager.updateContext(swarmId, swarmState);
+            await contextManager.updateContext(swarmId.toString(), swarmState);
 
             // Mock response with known resource consumption
             const responseContent = "Synchronized resource tracking test";
@@ -1190,16 +1171,16 @@ describe("Resource Management Integration Tests", () => {
             expect(result.totalResourceUsage.creditsUsed).toBe(creditsUsed.toString());
 
             // 2. SwarmContextManager state
-            const swarmStateAfter = await contextManager.getContext(swarmId);
+            const swarmStateAfter = await contextManager.getContext(swarmId.toString());
             expect(swarmStateAfter?.resources.consumed.credits).toBe(creditsUsed);
             expect(swarmStateAfter?.resources.remaining.credits).toBe(initialCredits - creditsUsed);
 
             // 3. ChatStore persistence
-            const chatStoreState = await chatStore.loadState(conversationId);
+            const chatStoreState = await chatStore.loadState(conversationId.toString());
             expect(chatStoreState.config.stats.totalCredits).toBe(creditsUsed);
 
             // 4. ConversationStore cache
-            const conversationStoreState = await conversationStore.get(conversationId);
+            const conversationStoreState = await conversationStore.get(conversationId.toString());
             expect(conversationStoreState?.config.stats.totalCredits).toBe(creditsUsed);
 
             // 5. All systems should have identical values

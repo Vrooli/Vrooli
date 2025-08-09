@@ -1,8 +1,11 @@
+// AI_CHECK: TEST_QUALITY=1 | LAST: 2025-08-05
+/* eslint-disable no-magic-numbers */
 import { CodeLanguage } from "@vrooli/shared";
 import { type ChildProcess, fork } from "child_process";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import { logger } from "../../events/logger.js";
 import { DEFAULT_HEARTBEAT_CHECK_INTERVAL_MS, DEFAULT_HEARTBEAT_TIMEOUT_MS, DEFAULT_IDLE_TIMEOUT_MS, DEFAULT_JOB_TIMEOUT_MS, DEFAULT_MEMORY_LIMIT_MB, MB, WORKER_READY_TIMEOUT_MS } from "./consts.js";
 import { type RunUserCodeInput, type RunUserCodeOutput, type SandboxWorkerInput, type SandboxWorkerMessage } from "./types.js";
 import { bufferRegister, urlRegister } from "./utils.js";
@@ -374,11 +377,37 @@ export class SandboxChildProcessManager extends AbstractSandboxWorkerManager {
 
     /**
      * Terminates the child process and waits for it to exit.
+     * Implements graceful shutdown with force-kill fallback.
      */
     protected async _terminateWorker(): Promise<void> {
         if (this.childProcess) {
-            this.childProcess.kill(); // Send SIGTERM to the child process
-            await this._getWorkerExitPromise(); // Wait for the process to exit
+            const pid = this.childProcess.pid;
+            logger.debug(`Terminating sandbox worker (PID: ${pid}) with SIGTERM...`);
+
+            // Send SIGTERM for graceful shutdown
+            this.childProcess.kill("SIGTERM");
+
+            // Race between graceful exit and force-kill timeout
+            const forceKillTimeout = new Promise<void>((resolve) => {
+                setTimeout(() => {
+                    if (this.childProcess && !this.childProcess.killed) {
+                        logger.warn(`Sandbox worker (PID: ${pid}) did not exit gracefully, force killing with SIGKILL`);
+                        this.childProcess.kill("SIGKILL");
+                    }
+                    resolve();
+                }, 10000); // 10 second grace period
+            });
+
+            // Wait for either graceful exit or force-kill timeout
+            await Promise.race([
+                this._getWorkerExitPromise(),
+                forceKillTimeout,
+            ]);
+
+            // Ensure we wait for actual process exit after potential force-kill
+            await this._getWorkerExitPromise();
+
+            logger.debug(`Sandbox worker (PID: ${pid}) terminated successfully`);
             this.childProcess = null;
         }
     }

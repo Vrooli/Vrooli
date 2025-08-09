@@ -10,6 +10,7 @@ import { generatePK } from "@vrooli/shared";
 // Create the mock QueueService
 export const mockQueueService = {
     get: vi.fn().mockReturnValue({
+        init: vi.fn().mockResolvedValue(undefined),
         email: {
             addTask: vi.fn().mockImplementation(async () => ({ 
                 __typename: "Success" as const, 

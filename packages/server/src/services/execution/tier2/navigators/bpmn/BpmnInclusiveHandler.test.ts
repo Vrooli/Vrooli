@@ -93,24 +93,18 @@ describe("BpmnInclusiveHandler", () => {
                 joinPoints: [],
             },
             subprocesses: {
-                activeSubprocesses: [],
-                completedSubprocesses: [],
+                stack: [],
                 eventSubprocesses: [],
-            },
-            gateways: {
-                exclusiveStates: [],
-                inclusiveStates: [],
-            },
-            compensation: {
-                completedActivities: [],
-                compensationHandlers: [],
             },
             external: {
                 messageEvents: [],
+                webhookEvents: [],
                 signalEvents: [],
             },
-            loopIterations: {},
-            multiInstanceStates: {},
+            gateways: {
+                inclusiveStates: [],
+                complexConditions: [],
+            },
         };
     });
 

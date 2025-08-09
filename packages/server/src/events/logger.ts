@@ -19,10 +19,16 @@ function getTransports() {
                 filename: `${LOG_DIR}/error.log`,
                 level: "error",
                 maxsize: MAX_LOG_SIZE,
+                maxFiles: 5,
+                zippedArchive: true,
+                tailable: true,
             }),
             new winston.transports.File({
                 filename: `${LOG_DIR}/combined.log`,
                 maxsize: MAX_LOG_SIZE,
+                maxFiles: 10,
+                zippedArchive: true,
+                tailable: true,
             }),
         );
     }

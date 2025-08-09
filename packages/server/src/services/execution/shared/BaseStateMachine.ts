@@ -83,6 +83,13 @@ export abstract class BaseStateMachine<TEvent extends ServiceEvent = ServiceEven
     }
 
     /**
+     * Check if the state machine has been disposed
+     */
+    public isDisposed(): boolean {
+        return this.disposed;
+    }
+
+    /**
      * Queue an event for processing
      */
     public async handleEvent(event: TEvent): Promise<void> {

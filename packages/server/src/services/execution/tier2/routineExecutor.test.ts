@@ -59,6 +59,7 @@ vi.mock("./routineStateMachine.js", () => ({
         if (!mockStateMachineInstance) {
             mockStateMachineInstance = {
                 initializeExecution: vi.fn().mockResolvedValue(undefined),
+                setExecutionRequest: vi.fn().mockImplementation(() => {}), // Missing method added
                 start: vi.fn().mockResolvedValue(undefined),
                 complete: vi.fn().mockResolvedValue(undefined),
                 fail: vi.fn().mockResolvedValue(undefined),
@@ -311,6 +312,7 @@ describe("RoutineExecutor", () => {
         // Directly replace the state machine with our mock
         (routineExecutor as any).stateMachine = mockStateMachineInstance || {
             initializeExecution: vi.fn().mockResolvedValue(undefined),
+            setExecutionRequest: vi.fn().mockImplementation(() => {}), // Missing method added
             start: vi.fn().mockResolvedValue(undefined),
             complete: vi.fn().mockResolvedValue(undefined),
             fail: vi.fn().mockResolvedValue(undefined),
@@ -324,7 +326,7 @@ describe("RoutineExecutor", () => {
             }),
             addCreditsUsed: vi.fn(),
             incrementStepCount: vi.fn(),
-            canProceed: vi.fn().mockResolvedValue(true),
+            canProceed: vi.fn().mockResolvedValue(undefined),
             pause: vi.fn().mockResolvedValue(undefined),
             resume: vi.fn().mockResolvedValue(undefined),
             stop: vi.fn().mockResolvedValue(undefined),

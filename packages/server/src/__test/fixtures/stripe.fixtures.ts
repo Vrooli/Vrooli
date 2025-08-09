@@ -20,25 +20,52 @@ export interface StripeTestPayment {
     status: string;
 }
 
-// Lazy initialization for consistent IDs - following established patterns
-const _stripeTestIds: { [key: string]: bigint | undefined } = {};
+// Lazy initialization for consistent IDs - using function-based initialization to avoid module-level generatePK() calls
+// IMPORTANT: The ID generator is NOT initialized in global test setup to avoid worker crashes.
+// This pattern ensures generatePK() is only called when fixtures are actually used, not at module import time.
+// Tests that use these fixtures should ensure initIdGenerator() is called first if needed.
+let _stripeTestIds: { [key: string]: bigint } | null = null;
 
+function getStripeTestIds() {
+    if (!_stripeTestIds) {
+        _stripeTestIds = {
+            user1: generatePK(),
+            user2: generatePK(),
+            user3: generatePK(),
+            user4: generatePK(),
+            user5: generatePK(),
+            user6: generatePK(),
+            user7: generatePK(),
+            email1: generatePK(),
+            email2: generatePK(),
+            email3: generatePK(),
+            email4: generatePK(),
+            email5: generatePK(),
+            email6: generatePK(),
+            plan1: generatePK(),
+            plan2: generatePK(),
+        };
+    }
+    return _stripeTestIds;
+}
+
+// Maintain the same interface for backward compatibility
 export const stripeTestIds = {
-    get user1() { return _stripeTestIds.user1 ??= generatePK(); },
-    get user2() { return _stripeTestIds.user2 ??= generatePK(); },
-    get user3() { return _stripeTestIds.user3 ??= generatePK(); },
-    get user4() { return _stripeTestIds.user4 ??= generatePK(); },
-    get user5() { return _stripeTestIds.user5 ??= generatePK(); },
-    get user6() { return _stripeTestIds.user6 ??= generatePK(); },
-    get user7() { return _stripeTestIds.user7 ??= generatePK(); },
-    get email1() { return _stripeTestIds.email1 ??= generatePK(); },
-    get email2() { return _stripeTestIds.email2 ??= generatePK(); },
-    get email3() { return _stripeTestIds.email3 ??= generatePK(); },
-    get email4() { return _stripeTestIds.email4 ??= generatePK(); },
-    get email5() { return _stripeTestIds.email5 ??= generatePK(); },
-    get email6() { return _stripeTestIds.email6 ??= generatePK(); },
-    get plan1() { return _stripeTestIds.plan1 ??= generatePK(); },
-    get plan2() { return _stripeTestIds.plan2 ??= generatePK(); },
+    get user1() { return getStripeTestIds().user1; },
+    get user2() { return getStripeTestIds().user2; },
+    get user3() { return getStripeTestIds().user3; },
+    get user4() { return getStripeTestIds().user4; },
+    get user5() { return getStripeTestIds().user5; },
+    get user6() { return getStripeTestIds().user6; },
+    get user7() { return getStripeTestIds().user7; },
+    get email1() { return getStripeTestIds().email1; },
+    get email2() { return getStripeTestIds().email2; },
+    get email3() { return getStripeTestIds().email3; },
+    get email4() { return getStripeTestIds().email4; },
+    get email5() { return getStripeTestIds().email5; },
+    get email6() { return getStripeTestIds().email6; },
+    get plan1() { return getStripeTestIds().plan1; },
+    get plan2() { return getStripeTestIds().plan2; },
 };
 
 /**

@@ -23,6 +23,9 @@ import {
 } from "../__test/helpers/queueTestUtils.js";
 import "../__test/setup.js";
 
+// Unmock QueueService for this test since we want to test the real implementation
+vi.unmock("./queues.js");
+
 describe("Queue System Resilience Tests", () => {
     const redisUrl = process.env.REDIS_URL || "redis://localhost:6379";
     let queueService: QueueService;
@@ -413,13 +416,13 @@ describe("Queue System Resilience Tests", () => {
                 const result = await queueService.swarm.addTask({
                     type: QueueTaskType.SWARM_RUN,
                     status: "Scheduled",
-                    swarmId: `free-swarm-${i}`,
-                    routineVersionId: "version-123",
-                    runId: `free-run-${i}`,
-                    userData: { id: `free-user-${i}`, hasPremium: false },
+                    swarmId: `freeswarm${i}`,
+                    routineVersionId: "123",
+                    runId: `freerun${i}`,
+                    userData: { id: `${i}`, hasPremium: false },
                     inputs: {},
                     model: "gpt-4",
-                    teamId: "team-free",
+                    teamId: "1001",
                 });
                 if (result.success) jobs.push({ type: "free", jobId: result.data!.id });
             }
@@ -429,13 +432,13 @@ describe("Queue System Resilience Tests", () => {
                 const result = await queueService.swarm.addTask({
                     type: QueueTaskType.SWARM_RUN,
                     status: "Scheduled",
-                    swarmId: `premium-swarm-${i}`,
-                    routineVersionId: "version-123",
-                    runId: `premium-run-${i}`,
-                    userData: { id: `premium-user-${i}`, hasPremium: true },
+                    swarmId: `premiumswarm${i}`,
+                    routineVersionId: "123",
+                    runId: `premiumrun${i}`,
+                    userData: { id: `${i + 100}`, hasPremium: true },
                     inputs: {},
                     model: "gpt-4",
-                    teamId: "team-premium",
+                    teamId: "1002",
                 });
                 if (result.success) jobs.push({ type: "premium", jobId: result.data!.id });
             }

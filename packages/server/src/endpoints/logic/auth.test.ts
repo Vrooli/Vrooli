@@ -21,9 +21,9 @@ import { auth } from "./auth.js";
 // Import database fixtures for seeding
 import { UserDbFactory, seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
-import { emailLogInFixtures, emailRequestPasswordChangeFixtures, emailResetPasswordFixtures, switchCurrentAccountFixtures, validateSessionFixtures } from "@vrooli/shared/test-fixtures/api-inputs.js";
+import { emailLogInFixtures, emailRequestPasswordChangeFixtures, emailResetPasswordFixtures, switchCurrentAccountFixtures, validateSessionFixtures } from "@vrooli/shared/test-fixtures/api-inputs";
 import { expectCustomErrorAsync } from "../../__test/errorTestUtils.js";
-import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { cleanupGroups, ensureCleanState, performTestCleanup } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 // Mock the notification system to prevent unhandled promise rejections
@@ -75,22 +75,20 @@ describe("EndpointsAuth", () => {
     });
 
     beforeEach(async () => {
-        // Clean up using dependency-ordered cleanup helpers
-        await cleanupGroups.userAuth(DbProvider.get());
+        // Ensure clean database state with race condition protection
+        await ensureCleanState(DbProvider.get(), {
+            cleanupFn: cleanupGroups.userAuth,
+            tables: ["user", "user_auth", "email", "phone", "push_device", "session", "wallet"],
+            throwOnFailure: true,
+        });
     });
 
     afterEach(async () => {
-        // Perform cleanup using dependency-ordered cleanup helpers
-        await cleanupGroups.userAuth(DbProvider.get());
-
-        // Validate cleanup to detect any missed records
-        const orphans = await validateCleanup(DbProvider.get(), {
+        // Perform immediate cleanup after test to prevent test pollution
+        await performTestCleanup(DbProvider.get(), {
+            cleanupFn: cleanupGroups.userAuth,
             tables: ["user", "user_auth", "email", "phone", "push_device", "session", "wallet"],
-            logOrphans: true,
         });
-        if (orphans.length > 0) {
-            console.warn("Test cleanup incomplete:", orphans);
-        }
     });
 
     afterAll(async () => {

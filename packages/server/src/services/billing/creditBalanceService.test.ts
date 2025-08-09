@@ -230,7 +230,7 @@ describe("getCreditBalancesBySource", () => {
         await DbProvider.get().credit_account.deleteMany({
             where: { userId: testUserId },
         });
-        await DbProvider.get().user.delete({
+        await DbProvider.get().user.deleteMany({
             where: { id: testUserId },
         });
     });

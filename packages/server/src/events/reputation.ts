@@ -1,3 +1,4 @@
+/* eslint-disable no-magic-numbers */
 /**
  * Handles giving reputation to users when some action is performed.
  */
@@ -66,7 +67,14 @@ export function nextRewardThreshold(curr: number, direction: 1 | -1) {
     // NOTE: We move curr by 1 when signs are opposite because not doing so would cause 
     // situations like nextRewardThreshold(-10, 1) to return 0 instead of -9.
     // eslint-disable-next-line no-magic-numbers
-    const magnitude = Math.pow(10, (Math.abs(curr + (diffSigns ? direction : 0)) + "").length - 1);
+    let magnitude = Math.pow(10, (Math.abs(curr + (diffSigns ? direction : 0)) + "").length - 1);
+
+    // Special case: for exact powers of 10 going down, use smaller magnitude
+    // e.g., 1000 should go to 900 (not 0), 100 should go to 90 (not 0)
+    if (direction < 0 && curr > 0 && curr % magnitude === 0 && curr !== magnitude) {
+        magnitude = magnitude / 10;
+    }
+
     return direction > 0 ?
         Math.ceil((curr + 1) / magnitude) * magnitude :
         Math.floor((curr - 1) / magnitude) * magnitude;

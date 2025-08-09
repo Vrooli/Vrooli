@@ -367,10 +367,11 @@ async function main() {
     logger.info(`🚀 Server running at ${SERVER_URL}`);
 }
 
-// Only call this from the "server" package when not testing
+// Only call main() when explicitly running as the server package
+// This prevents the server from starting when imported as a dependency
 if (
     process.env.NODE_ENV !== "test" &&
-    (process.env.npm_package_name === "@vrooli/server" || !process.env.npm_package_name)
+    process.env.npm_package_name === "@vrooli/server"
 ) {
     main();
 }

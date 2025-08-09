@@ -11,7 +11,7 @@ describe("BpmnSubprocessHandler", () => {
 
     const subprocessXml = `<?xml version="1.0" encoding="UTF-8"?>
     <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
-        <bpmn:process id="Process_1">
+        <bpmn:process id="Process_1" isExecutable="true">
             <bpmn:startEvent id="MainStart">
                 <bpmn:outgoing>ToSubprocess</bpmn:outgoing>
             </bpmn:startEvent>
@@ -71,24 +71,18 @@ describe("BpmnSubprocessHandler", () => {
                 joinPoints: [],
             },
             subprocesses: {
-                activeSubprocesses: [],
-                completedSubprocesses: [],
+                stack: [],
                 eventSubprocesses: [],
-            },
-            gateways: {
-                exclusiveStates: [],
-                inclusiveStates: [],
-            },
-            compensation: {
-                completedActivities: [],
-                compensationHandlers: [],
             },
             external: {
                 messageEvents: [],
+                webhookEvents: [],
                 signalEvents: [],
             },
-            loopIterations: {},
-            multiInstanceStates: {},
+            gateways: {
+                inclusiveStates: [],
+                complexConditions: [],
+            },
         };
     });
 
@@ -169,7 +163,7 @@ describe("BpmnSubprocessHandler", () => {
             test("should handle input/output mappings", async () => {
                 const mappingXml = `<?xml version="1.0" encoding="UTF-8"?>
                 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
-                    <bpmn:process id="Process_1">
+                    <bpmn:process id="Process_1" isExecutable="true">
                         <bpmn:callActivity id="CallWithMapping" calledElement="Process_2">
                             <bpmn:extensionElements>
                                 <inputOutput>
@@ -259,7 +253,7 @@ describe("BpmnSubprocessHandler", () => {
             test("should propagate errors from subprocess", async () => {
                 const errorXml = `<?xml version="1.0" encoding="UTF-8"?>
                 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
-                    <bpmn:process id="Process_1">
+                    <bpmn:process id="Process_1" isExecutable="true">
                         <bpmn:subProcess id="ErrorSubprocess">
                             <bpmn:endEvent id="ErrorEnd">
                                 <bpmn:errorEventDefinition errorRef="Error_1" />
@@ -397,7 +391,7 @@ describe("BpmnSubprocessHandler", () => {
             test("should handle transaction subprocess", async () => {
                 const transactionXml = `<?xml version="1.0" encoding="UTF-8"?>
                 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
-                    <bpmn:process id="Process_1">
+                    <bpmn:process id="Process_1" isExecutable="true">
                         <bpmn:transaction id="TransactionSub">
                             <bpmn:startEvent id="TxStart" />
                             <bpmn:task id="TxTask" />
@@ -426,7 +420,7 @@ describe("BpmnSubprocessHandler", () => {
             test("should handle adhoc subprocess", async () => {
                 const adhocXml = `<?xml version="1.0" encoding="UTF-8"?>
                 <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
-                    <bpmn:process id="Process_1">
+                    <bpmn:process id="Process_1" isExecutable="true">
                         <bpmn:adHocSubProcess id="AdhocSub" ordering="Parallel">
                             <bpmn:task id="AdTask1" />
                             <bpmn:task id="AdTask2" />
@@ -467,7 +461,7 @@ describe("BpmnSubprocessHandler", () => {
         test("should handle missing start event in subprocess", async () => {
             const noStartXml = `<?xml version="1.0" encoding="UTF-8"?>
             <bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL">
-                <bpmn:process id="Process_1">
+                <bpmn:process id="Process_1" isExecutable="true">
                     <bpmn:subProcess id="NoStartSub">
                         <bpmn:task id="Task1" />
                     </bpmn:subProcess>

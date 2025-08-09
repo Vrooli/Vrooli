@@ -6,50 +6,75 @@
  */
 
 import { describe, expect, it, beforeEach, beforeAll } from "vitest";
-import { type ModelType, generatePK, type SessionUser } from "@vrooli/shared";
+import { type ModelType, generatePK, type SessionUser, SEEDED_PUBLIC_IDS, AccountStatus } from "@vrooli/shared";
+import { DbProvider } from "../db/provider.js";
 
 // Delay imports that use ModelMap to avoid initialization issues
+/* eslint-disable @typescript-eslint/consistent-type-imports */
 let shapeHelper: typeof import("./shapeHelper.js").shapeHelper;
 let addRels: typeof import("./shapeHelper.js").addRels;
 let updateRels: typeof import("./shapeHelper.js").updateRels;
 type ShapeHelperProps<T, U> = import("./shapeHelper.js").ShapeHelperProps<T, U>;
+/* eslint-enable @typescript-eslint/consistent-type-imports */
 
 
 describe("shapeHelper", () => {
+    let defaultProps: ShapeHelperProps<false, typeof addRels>;
+    
     beforeAll(async () => {
+        // Create admin user that some shapeHelper operations require
+        await DbProvider.get().user.create({
+            data: {
+                id: BigInt("111111111111111111"),
+                publicId: SEEDED_PUBLIC_IDS.Admin,
+                name: "Admin User",
+                handle: "admin",
+                status: AccountStatus.Unlocked,
+                isBot: false,
+                isBotDepictingPerson: false,
+                isPrivate: false,
+            },
+        });
+        
         // Import after setup has run to ensure ModelMap is initialized
         const shapeHelperModule = await import("./shapeHelper.js");
         shapeHelper = shapeHelperModule.shapeHelper;
         addRels = shapeHelperModule.addRels;
         updateRels = shapeHelperModule.updateRels;
+        
+        // Initialize default props after imports
+        const mockUserData: SessionUser = {
+            id: "123",
+            languages: ["en"],
+        };
+        
+        defaultProps = {
+            additionalData: {},
+            data: {},
+            isOneToOne: false,
+            objectType: "Bookmark",
+            parentRelationshipName: "parent",
+            preMap: {
+                Bookmark: {
+                    embeddingNeedsUpdateMap: {},
+                },
+            },
+            relation: "bookmarks",
+            relTypes: addRels,
+            userData: mockUserData,
+        };
     });
-    const mockUserData: SessionUser = {
-        id: "user123",
-        languages: ["en"],
-    };
 
-    const defaultProps: ShapeHelperProps<false, typeof addRels> = {
-        additionalData: {},
-        data: {},
-        isOneToOne: false,
-        objectType: "User",
-        parentRelationshipName: "parent",
-        preMap: {},
-        relation: "bookmarks",
-        relTypes: addRels,
-        userData: mockUserData,
-    };
-
-    // Generate test IDs for predictable testing
-    let testId1: string;
-    let testId2: string;
-    let testId3: string;
+    // Generate test IDs for predictable testing - let TypeScript infer string type
+    let testId1;
+    let testId2;
+    let testId3;
     
     beforeEach(() => {
         // Generate fresh IDs for each test
-        testId1 = generatePK();
-        testId2 = generatePK();
-        testId3 = generatePK();
+        testId1 = generatePK().toString();
+        testId2 = generatePK().toString();
+        testId3 = generatePK().toString();
     });
 
     describe("basic operations", () => {
@@ -82,9 +107,17 @@ describe("shapeHelper", () => {
                 ...defaultProps,
                 data: {
                     bookmarksCreate: [
-                        { id: "new1", label: "Bookmark 1" },
-                        { id: "new2", label: "Bookmark 2" },
+                        { id: "1", bookmarkFor: "Resource", forConnect: "101" },
+                        { id: "2", bookmarkFor: "Resource", forConnect: "102" },
                     ],
+                },
+                preMap: {
+                    Bookmark: {
+                        embeddingNeedsUpdateMap: {
+                            "1": false,
+                            "2": false,
+                        },
+                    },
                 },
                 relTypes: ["Create"],
             };
@@ -92,10 +125,16 @@ describe("shapeHelper", () => {
             const result = await shapeHelper(props);
 
             expect(result).toEqual({
-                create: [
-                    { id: "new1", label: "Bookmark 1" },
-                    { id: "new2", label: "Bookmark 2" },
-                ],
+                create: expect.arrayContaining([
+                    expect.objectContaining({
+                        id: BigInt("1"),
+                        resource: { connect: { id: BigInt("101") } },
+                    }),
+                    expect.objectContaining({
+                        id: BigInt("2"),
+                        resource: { connect: { id: BigInt("102") } },
+                    }),
+                ]),
             });
         });
 
@@ -203,7 +242,14 @@ describe("shapeHelper", () => {
             const props: ShapeHelperProps<true, ["Create"]> = {
                 ...defaultProps,
                 data: {
-                    profileCreate: { id: "new1", bio: "My bio" },
+                    profileCreate: { id: "1", bio: "My bio" },
+                },
+                preMap: {
+                    Bookmark: {
+                        embeddingNeedsUpdateMap: {
+                            "1": false,
+                        },
+                    },
                 },
                 relation: "profile",
                 relTypes: ["Create"],
@@ -213,7 +259,7 @@ describe("shapeHelper", () => {
             const result = await shapeHelper(props);
 
             expect(result).toEqual({
-                create: { id: "new1", bio: "My bio" },
+                create: { id: "1", bio: "My bio" },
             });
         });
 
@@ -242,8 +288,8 @@ describe("shapeHelper", () => {
                 ...defaultProps,
                 data: {
                     membersCreate: [
-                        { userId: "user1", role: "Admin" },
-                        { userId: "user2", role: "Member" },
+                        { userId: "111111111111111111", role: "Admin" },
+                        { userId: "222222222222222222", role: "Member" },
                     ],
                 },
                 joinData: {
@@ -265,7 +311,7 @@ describe("shapeHelper", () => {
                                 role: "Admin", 
                             }), 
                         },
-                        user: { connect: { id: "111111" } },
+                        user: { connect: { id: BigInt("111111111111111111") } },
                     }),
                     expect.objectContaining({
                         member: { 
@@ -274,7 +320,7 @@ describe("shapeHelper", () => {
                                 role: "Member", 
                             }), 
                         },
-                        user: { connect: { id: "222222" } },
+                        user: { connect: { id: BigInt("222222222222222222") } },
                     }),
                 ]),
             });
@@ -328,9 +374,17 @@ describe("shapeHelper", () => {
                 ...defaultProps,
                 data: {
                     bookmarksConnect: ["12345"],
-                    bookmarksCreate: [{ id: "new1", label: "New Bookmark" }],
+                    bookmarksCreate: [{ id: "1", label: "New Bookmark" }],
                     bookmarksUpdate: [{ id: "67890", label: "Updated Bookmark" }],
                     bookmarksDisconnect: ["11111"],
+                },
+                preMap: {
+                    Bookmark: {
+                        embeddingNeedsUpdateMap: {
+                            "1": false,
+                            "67890": false,
+                        },
+                    },
                 },
                 relTypes: ["Connect", "Create", "Update", "Disconnect"],
             };
@@ -339,7 +393,7 @@ describe("shapeHelper", () => {
 
             expect(result).toEqual({
                 connect: [{ id: BigInt("12345") }],
-                create: [{ id: "new1", label: "New Bookmark" }],
+                create: [{ id: "1", label: "New Bookmark" }],
                 update: [
                     {
                         where: { id: BigInt("67890") },
@@ -351,8 +405,8 @@ describe("shapeHelper", () => {
         });
 
         it("handles idsCreateToConnect conversion", async () => {
-            const connectId = generatePK();
-            const createId = generatePK();
+            const connectId = generatePK().toString();
+            const createId = generatePK().toString();
             
             const props: ShapeHelperProps<false, ["Create"]> = {
                 ...defaultProps,
@@ -362,9 +416,16 @@ describe("shapeHelper", () => {
                         { id: createId, label: "Will be created" },
                     ],
                 },
+                preMap: {
+                    Bookmark: {
+                        embeddingNeedsUpdateMap: {
+                            [connectId]: false,
+                            [createId]: false,
+                        },
+                    },
+                },
                 idsCreateToConnect: {
-                    User: [],
-                    Bookmark: [connectId],
+                    [connectId]: connectId,
                 },
                 relTypes: ["Create"],
             };
@@ -432,7 +493,14 @@ describe("shapeHelper", () => {
             const props: ShapeHelperProps<false, ["Create"]> = {
                 ...defaultProps,
                 data: {
-                    tagsCreate: [{ id: "tag1", name: "JavaScript" }],
+                    tagsCreate: [{ id: "1", name: "JavaScript" }],
+                },
+                preMap: {
+                    Bookmark: {
+                        embeddingNeedsUpdateMap: {
+                            "1": false,
+                        },
+                    },
                 },
                 relation: "tags",
                 relTypes: ["Create"],
@@ -440,7 +508,7 @@ describe("shapeHelper", () => {
 
             const result = await shapeHelper(props);
             expect(result).toEqual({
-                create: [{ id: "tag1", name: "JavaScript" }],
+                create: [{ id: "1", name: "JavaScript" }],
             });
         });
     });

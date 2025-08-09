@@ -1,13 +1,14 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { checkLongRunningTasksInRegistry } from "./activeTaskRegistry.js";
+import { generatePK } from "@vrooli/shared";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { logger } from "../events/logger.js";
+import { checkLongRunningTasksInRegistry } from "./activeTaskRegistry.js";
 
 // Mock registry for testing
 interface MockActiveTaskRecord {
     hasPremium: boolean;
     startTime: number;
     id: string;
-    userId?: string;
+    userId: string;
 }
 
 interface MockRegistry {
@@ -45,6 +46,7 @@ describe("activeTaskRegistry", () => {
         };
 
         // Add test records
+        // eslint-disable-next-line func-style
         const addRecord = (record: MockActiveTaskRecord) => {
             records.push(record);
         };
@@ -54,8 +56,8 @@ describe("activeTaskRegistry", () => {
         (mockRegistry as any).records = records;
 
         // Setup logger spies
-        loggerWarnSpy = vi.spyOn(logger, "warn").mockImplementation(() => {});
-        loggerInfoSpy = vi.spyOn(logger, "info").mockImplementation(() => {});
+        loggerWarnSpy = vi.spyOn(logger, "warn").mockImplementation(() => { });
+        loggerInfoSpy = vi.spyOn(logger, "info").mockImplementation(() => { });
     });
 
     afterEach(() => {
@@ -66,16 +68,21 @@ describe("activeTaskRegistry", () => {
     describe("checkLongRunningTasksInRegistry", () => {
         it("should not take action when under limits", async () => {
             // Add tasks within limits
+            const task1Id = generatePK().toString();
+            const user1Id = generatePK().toString();
+            const task2Id = generatePK().toString();
+            const user2Id = generatePK().toString();
+
             (mockRegistry as any).addRecord({
-                id: "task1",
-                userId: "user1",
+                id: task1Id,
+                userId: user1Id,
                 hasPremium: false,
                 startTime: Date.now() - 60000, // 1 minute ago
             });
 
             (mockRegistry as any).addRecord({
-                id: "task2", 
-                userId: "user2",
+                id: task2Id,
+                userId: user2Id,
                 hasPremium: true,
                 startTime: Date.now() - 120000, // 2 minutes ago
             });
@@ -93,17 +100,21 @@ describe("activeTaskRegistry", () => {
 
         it("should timeout old tasks", async () => {
             const oldTaskTime = Date.now() - mockLimits.taskTimeoutMs - 10000; // Beyond timeout
+            const oldTaskId = generatePK().toString();
+            const user1Id = generatePK().toString();
+            const newTaskId = generatePK().toString();
+            const user2Id = generatePK().toString();
 
             (mockRegistry as any).addRecord({
-                id: "old-task",
-                userId: "user1",
+                id: oldTaskId,
+                userId: user1Id,
                 hasPremium: false,
                 startTime: oldTaskTime,
             });
 
             (mockRegistry as any).addRecord({
-                id: "new-task",
-                userId: "user2", 
+                id: newTaskId,
+                userId: user2Id,
                 hasPremium: false,
                 startTime: Date.now() - 60000, // Recent
             });
@@ -116,21 +127,26 @@ describe("activeTaskRegistry", () => {
 
             // Should log timeout warning and remove old task
             expect(loggerWarnSpy).toHaveBeenCalledWith(
-                expect.stringContaining("Test task old-task has exceeded timeout"),
+                expect.stringContaining(`Test task ${oldTaskId} has exceeded timeout`),
                 expect.any(Object),
             );
             expect(mockRegistry.count()).toBe(1);
-            expect(mockRegistry.getOrderedActiveRecords()[0].id).toBe("new-task");
+            expect(mockRegistry.getOrderedRecords()[0].id).toBe(newTaskId);
         });
 
         it("should handle high load by removing oldest free tier tasks", async () => {
             const currentTime = Date.now();
+            const taskIds: string[] = [];
 
             // Add tasks to exceed limit
             for (let i = 0; i < 7; i++) {
+                const taskId = generatePK().toString();
+                const userId = generatePK().toString();
+                taskIds.push(taskId);
+
                 (mockRegistry as any).addRecord({
-                    id: `task${i}`,
-                    userId: `user${i}`,
+                    id: taskId,
+                    userId,
                     hasPremium: false,
                     startTime: currentTime - (i * 10000), // Stagger times
                 });
@@ -155,36 +171,43 @@ describe("activeTaskRegistry", () => {
 
             // Should remove 2 oldest tasks (7 - 5 = 2)
             expect(mockRegistry.count()).toBe(5);
-            
-            // Verify oldest tasks were removed
-            const remaining = mockRegistry.getOrderedActiveRecords();
-            expect(remaining.map(r => r.id)).not.toContain("task5");
-            expect(remaining.map(r => r.id)).not.toContain("task6");
+
+            // Verify oldest tasks were removed (tasks 5 and 6 were oldest)
+            const remaining = mockRegistry.getOrderedRecords();
+            expect(remaining.map(r => r.id)).not.toContain(taskIds[5]);
+            expect(remaining.map(r => r.id)).not.toContain(taskIds[6]);
         });
 
         it("should prioritize premium users during high load", async () => {
             const currentTime = Date.now();
+            const premiumTaskId = generatePK().toString();
+            const premiumUserId = generatePK().toString();
+            const freeTaskId = generatePK().toString();
+            const freeUserId = generatePK().toString();
 
             // Add mix of premium and free tasks
             (mockRegistry as any).addRecord({
-                id: "premium1",
-                userId: "premium-user1",
+                id: premiumTaskId,
+                userId: premiumUserId,
                 hasPremium: true,
                 startTime: currentTime - 60000, // Older
             });
 
             (mockRegistry as any).addRecord({
-                id: "free1",
-                userId: "free-user1", 
+                id: freeTaskId,
+                userId: freeUserId,
                 hasPremium: false,
                 startTime: currentTime - 30000, // Newer
             });
 
             // Add more to exceed limits
             for (let i = 0; i < 5; i++) {
+                const taskId = generatePK().toString();
+                const userId = generatePK().toString();
+
                 (mockRegistry as any).addRecord({
-                    id: `free${i + 2}`,
-                    userId: `free-user${i + 2}`,
+                    id: taskId,
+                    userId,
                     hasPremium: false,
                     startTime: currentTime - (i * 5000),
                 });
@@ -199,10 +222,10 @@ describe("activeTaskRegistry", () => {
             );
 
             // Should preserve premium task and remove free tasks
-            const remaining = mockRegistry.getOrderedActiveRecords();
+            const remaining = mockRegistry.getOrderedRecords();
             const premiumRemaining = remaining.filter(r => r.hasPremium);
             expect(premiumRemaining).toHaveLength(1);
-            expect(premiumRemaining[0].id).toBe("premium1");
+            expect(premiumRemaining[0].id).toBe(premiumTaskId);
         });
 
         it("should handle empty registry gracefully", async () => {
@@ -224,9 +247,12 @@ describe("activeTaskRegistry", () => {
 
             // Add tasks to trigger removal
             for (let i = 0; i < 3; i++) {
+                const taskId = generatePK().toString();
+                const userId = generatePK().toString();
+
                 (mockRegistry as any).addRecord({
-                    id: `timeout-task${i}`,
-                    userId: `user${i}`,
+                    id: taskId,
+                    userId,
                     hasPremium: false,
                     startTime: currentTime - mockLimits.taskTimeoutMs - 10000, // All old
                 });
@@ -250,27 +276,34 @@ describe("activeTaskRegistry", () => {
 
         it("should handle mixed timeout and high load scenarios", async () => {
             const currentTime = Date.now();
+            const old1Id = generatePK().toString();
+            const user1Id = generatePK().toString();
+            const old2Id = generatePK().toString();
+            const user2Id = generatePK().toString();
 
             // Add old tasks that should timeout
             (mockRegistry as any).addRecord({
-                id: "old1",
-                userId: "user1",
+                id: old1Id,
+                userId: user1Id,
                 hasPremium: false,
                 startTime: currentTime - mockLimits.taskTimeoutMs - 5000,
             });
 
             (mockRegistry as any).addRecord({
-                id: "old2",
-                userId: "user2",
+                id: old2Id,
+                userId: user2Id,
                 hasPremium: true,
                 startTime: currentTime - mockLimits.taskTimeoutMs - 3000,
             });
 
             // Add new tasks that cause high load
             for (let i = 0; i < 6; i++) {
+                const taskId = generatePK().toString();
+                const userId = generatePK().toString();
+
                 (mockRegistry as any).addRecord({
-                    id: `new${i}`,
-                    userId: `user${i + 3}`,
+                    id: taskId,
+                    userId,
                     hasPremium: false,
                     startTime: currentTime - (i * 5000),
                 });

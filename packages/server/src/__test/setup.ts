@@ -7,6 +7,7 @@
 import { afterAll, beforeAll, vi } from "vitest";
 
 // Note: Sharp mocking is handled in vitest-sharp-mock-simple.ts
+// Note: isolated-vm now works with proper native build environment
 
 // Global singleton for error handlers to prevent memory leaks
 const errorHandlerSingleton = (() => {
@@ -112,9 +113,14 @@ import { setupQueueServiceMock } from "./mocks/queueServiceMock.js";
 
 setupQueueServiceMock();
 
-// Global state to track what's been initialized across all test files
-const globalTestState = (() => {
-    const state = (global as any).__TEST_STATE__ || {
+// Process-specific state to track what's been initialized in THIS test process
+// This fixes the ModelMap singleton issue where parallel test processes
+// incorrectly shared initialization state across separate process boundaries
+const processTestState = (() => {
+    const processId = process.pid;
+    const PROCESS_STATE_KEY = `__TEST_STATE_PID_${processId}__`;
+    
+    const state = (global as any)[PROCESS_STATE_KEY] || {
         componentsInitialized: {
             modelMap: false,
             dbProvider: false,
@@ -125,12 +131,19 @@ const globalTestState = (() => {
             i18n: false,
         },
         initCount: 0,
+        processId: processId,
     };
-    (global as any).__TEST_STATE__ = state;
+    (global as any)[PROCESS_STATE_KEY] = state;
+    
+    // Debug log for parallel execution troubleshooting
+    if (process.env.TEST_LOG_LEVEL === "DEBUG") {
+        console.log(`Test setup using process-specific state for PID ${processId}`);
+    }
+    
     return state;
 })();
 
-const componentsInitialized = globalTestState.componentsInitialized;
+const componentsInitialized = processTestState.componentsInitialized;
 
 // Log level control for test setup
 const LOG_LEVEL = process.env.TEST_LOG_LEVEL || "ERROR";
@@ -188,22 +201,38 @@ beforeAll(async function setup() {
                     }
                 }
 
-                // ModelMapClass.init() is already thread-safe and idempotent
-                await ModelMapClass.init();
+                // Enhanced ModelMap initialization with validation of critical models
+                // These models are essential for most tests to function properly
+                const criticalModels = [
+                    "User",           // Core user functionality
+                    "Team",           // Team operations
+                    "Chat",           // Chat functionality  
+                    "ChatMessage",    // Message handling
+                    "Run",            // Routine execution
+                    "Resource",       // Resource management
+                    "Comment",        // Comments and interactions
+                ];
+
+                testLog("DEBUG", "Initializing ModelMap with critical models:", criticalModels.join(", "));
+                await ModelMapClass.init(criticalModels);
 
                 // Verify that ModelMap is actually functional
                 if (!ModelMapClass.isInitialized()) {
                     throw new Error("ModelMap.init() succeeded but ModelMap.isInitialized() returns false");
                 }
 
-                // Test that we can actually get a model
+                // Additional verification: double-check User model specifically since it's the most commonly failing
                 try {
-                    const testModel = ModelMapClass.get("User", false);
-                    if (!testModel) {
-                        throw new Error("ModelMap.init() succeeded but cannot retrieve User model");
+                    const userModel = ModelMapClass.get("User", false);
+                    if (!userModel) {
+                        throw new Error("User model validation failed - model is null/undefined after successful init");
                     }
+                    if (!userModel.__typename || userModel.__typename !== "User") {
+                        throw new Error(`User model validation failed - invalid __typename: ${userModel.__typename}`);
+                    }
+                    testLog("DEBUG", "✓ User model validation passed");
                 } catch (testError) {
-                    throw new Error(`ModelMap functional test failed: ${testError}`);
+                    throw new Error(`Critical User model validation failed: ${testError}`);
                 }
 
                 componentsInitialized.modelMap = true;
@@ -212,7 +241,12 @@ beforeAll(async function setup() {
                 throw error; // Critical - tests cannot proceed without ModelMap
             }
         } else {
-            console.log("Step 1: ModelMap already initialized, skipping...");
+            testLog("DEBUG", `Step 1: ModelMap already initialized in process ${processTestState.processId}, skipping...`);
+            // In parallel mode, this indicates the process-specific state is working correctly
+            // Each process should initialize ModelMap independently, so this branch should rarely execute
+            if (process.env.TEST_LOG_LEVEL === "DEBUG") {
+                console.log(`Process ${process.pid}: ModelMap initialization skipped (already done in this process)`);
+            }
         }
 
         // Step 2: Initialize i18n for notification translations

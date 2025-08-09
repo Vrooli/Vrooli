@@ -3,9 +3,7 @@ import {
     type BotParticipant,
     ChatConfig,
     type ChatConfigObject,
-    type ConversationState,
     generatePK,
-    LlmServiceId,
     type MessageState,
     type SessionUser,
     type SwarmState,
@@ -14,13 +12,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DbProvider } from "../../../../db/provider.js";
 import { logger } from "../../../../events/logger.js";
 import { CacheService } from "../../../../redisConn.js";
+import { type ConversationState } from "../../../conversation/types.js";
 import { SwarmContextManager } from "../../../execution/shared/SwarmContextManager.js";
 import { type CachedConversationStateStore, conversationStateStore, PrismaChatStore } from "../../chatStore.js";
-import { MessageHistoryBuilder } from "../../messageHistoryBuilder.js";
-import { RedisMessageStore } from "../../messageStore.js";
+import { type MessageStore, RedisMessageStore } from "../../messageStore.js";
+import { LocalOllamaService } from "../../providers/LocalOllamaService.js";
 import { ResponseService } from "../../responseService.js";
 import { FallbackRouter } from "../../router.js";
-import { OpenAIService } from "../../services.js";
 import { CompositeToolRunner } from "../../toolRunner.js";
 // Note: Container setup is handled by global vitest setup
 
@@ -104,24 +102,26 @@ describe("State Consistency Integration Tests", () => {
         mockOpenAIClient = new OpenAI({ apiKey: "test-key" });
 
         // Initialize AI services
-        const openAIService = new OpenAIService();
-        (openAIService as any).client = mockOpenAIClient;
+        const ollamaService = new LocalOllamaService();
+        (ollamaService as any).client = mockOpenAIClient;
 
-        const router = new FallbackRouter([
-            { id: LlmServiceId.OpenAI, service: openAIService },
-        ]);
+        const router = new FallbackRouter();
 
         // Initialize all services with real dependencies
         conversationStore = conversationStateStore;
         chatStore = new PrismaChatStore();
         messageStore = RedisMessageStore.get();
         toolRunner = new CompositeToolRunner();
-        contextManager = new SwarmContextManager();
+        contextManager = new SwarmContextManager({
+            swarmId: "test-swarm",
+            requestId: "test-request",
+            userId: "test-user",
+        } as any);
 
         responseService = new ResponseService(
-            router,
+            {},
             toolRunner,
-            new MessageHistoryBuilder(),
+            router,
         );
 
         // Set up test user
@@ -130,7 +130,7 @@ describe("State Consistency Integration Tests", () => {
             credits: 50000n,
             name: "Test User",
             handle: "testuser",
-        } as SessionUser;
+        } as unknown as SessionUser;
     });
 
     afterEach(async () => {
@@ -140,7 +140,7 @@ describe("State Consistency Integration Tests", () => {
 
     describe("Cross-Service State Synchronization", () => {
         it("should maintain state consistency between ChatStore and ConversationStore", async () => {
-            const conversationId = generatePK();
+            const conversationId = generatePK().toString();
 
             // Create initial conversation state
             const initialState: ConversationState = {
@@ -148,7 +148,7 @@ describe("State Consistency Integration Tests", () => {
                 participants: [{
                     id: "bot1",
                     name: "Test Bot",
-                    config: BotConfig.parse({ model: "gpt-4o" }),
+                    config: BotConfig.parse({ botSettings: {} }, logger),
                     state: "ready",
                 }],
                 config: ChatConfig.default().export(),
@@ -171,10 +171,10 @@ describe("State Consistency Integration Tests", () => {
                 ...initialState.config,
                 stats: {
                     ...initialState.config.stats,
-                    totalCredits: 150,
+                    totalCredits: "150",
                     totalToolCalls: 3,
                 },
-            } as ChatConfigObject;
+            } as unknown as ChatConfigObject;
 
             await conversationStore.updateConfig(conversationId, updatedConfig);
 
@@ -183,18 +183,18 @@ describe("State Consistency Integration Tests", () => {
             await chatStore.finalizeSave();
 
             const loadedFromChatStore = await chatStore.loadState(conversationId);
-            expect(loadedFromChatStore.config.stats.totalCredits).toBe(150);
+            expect(loadedFromChatStore.config.stats.totalCredits).toBe("150");
             expect(loadedFromChatStore.config.stats.totalToolCalls).toBe(3);
 
             // 5. Verify ConversationStore cache is consistent
             const reloadedFromConversationStore = await conversationStore.get(conversationId);
-            expect(reloadedFromConversationStore?.config.stats.totalCredits).toBe(150);
+            expect(reloadedFromConversationStore?.config.stats.totalCredits).toBe("150");
             expect(reloadedFromConversationStore?.config.stats.totalToolCalls).toBe(3);
         });
 
         it("should synchronize state updates between SwarmContextManager and ChatStore", async () => {
-            const swarmId = generatePK();
-            const conversationId = generatePK();
+            const swarmId = generatePK().toString();
+            const conversationId = generatePK().toString();
 
             const testBot: BotParticipant = {
                 id: "sync-bot",
@@ -247,7 +247,7 @@ describe("State Consistency Integration Tests", () => {
                 updatedSwarmState.resources.consumed = { credits: 250, tokens: 1500, time: 30 };
                 updatedSwarmState.chatConfig.stats = {
                     ...updatedSwarmState.chatConfig.stats,
-                    totalCredits: 250,
+                    totalCredits: "250",
                     totalToolCalls: 2,
                 };
                 await contextManager.updateContext(swarmId, updatedSwarmState);
@@ -258,7 +258,7 @@ describe("State Consistency Integration Tests", () => {
             mockOpenAIClient.chat.completions.create.mockResolvedValueOnce(mockStream);
 
             const userMessage: MessageState = {
-                id: generatePK(),
+                id: generatePK().toString(),
                 content: "Test message",
                 role: "user",
                 timestamp: Date.now(),
@@ -285,16 +285,16 @@ describe("State Consistency Integration Tests", () => {
             const finalConversationState = await chatStore.loadState(conversationId);
 
             expect(finalSwarmState?.resources.consumed.credits).toBeGreaterThan(250);
-            expect(finalConversationState.config.stats.totalCredits).toBeGreaterThan(250);
+            expect(Number(finalConversationState.config.stats.totalCredits)).toBeGreaterThan(250);
 
             // Both should reflect similar credit usage (allowing for small differences in timing)
             const swarmCredits = finalSwarmState?.resources.consumed.credits || 0;
-            const conversationCredits = finalConversationState.config.stats.totalCredits;
+            const conversationCredits = Number(finalConversationState.config.stats.totalCredits);
             expect(Math.abs(swarmCredits - conversationCredits)).toBeLessThan(50); // Allow small variance
         });
 
         it("should handle cache invalidation cascades correctly", async () => {
-            const conversationId = generatePK();
+            const conversationId = generatePK().toString();
 
             const initialState: ConversationState = {
                 id: conversationId,
@@ -331,7 +331,7 @@ describe("State Consistency Integration Tests", () => {
                     ...initialState.config,
                     stats: {
                         ...initialState.config.stats,
-                        totalCredits: 500,
+                        totalCredits: "500",
                     },
                 },
             };
@@ -340,17 +340,17 @@ describe("State Consistency Integration Tests", () => {
 
             // 5. Load from conversation store should get fresh data from database
             const freshState = await conversationStore.get(conversationId, true); // Force invalidation
-            expect(freshState?.config.stats.totalCredits).toBe(500);
+            expect(freshState?.config.stats.totalCredits).toBe("500");
 
             // 6. Verify L2 cache is now populated with fresh data
             const fromL2 = await conversationStore.get(conversationId);
-            expect(fromL2?.config.stats.totalCredits).toBe(500);
+            expect(fromL2?.config.stats.totalCredits).toBe("500");
         });
     });
 
     describe("Atomic Operations Across Services", () => {
         it("should handle atomic conversation state updates with rollback on failure", async () => {
-            const conversationId = generatePK();
+            const conversationId = generatePK().toString();
 
             const initialState: ConversationState = {
                 id: conversationId,
@@ -376,7 +376,7 @@ describe("State Consistency Integration Tests", () => {
             mockOpenAIClient.chat.completions.create.mockResolvedValueOnce(mockStream);
 
             const userMessage: MessageState = {
-                id: generatePK(),
+                id: generatePK().toString(),
                 content: "Test atomic operation",
                 role: "user",
                 timestamp: Date.now(),
@@ -401,7 +401,7 @@ describe("State Consistency Integration Tests", () => {
             const chatStoreState = await chatStore.loadState(conversationId);
             const conversationStoreState = await conversationStore.get(conversationId, true);
 
-            expect(chatStoreState.config.stats.totalCredits).toBeGreaterThan(initialCredits);
+            expect(Number(chatStoreState.config.stats.totalCredits)).toBeGreaterThan(Number(initialCredits));
             expect(conversationStoreState?.config.stats.totalCredits).toBe(
                 chatStoreState.config.stats.totalCredits,
             );
@@ -411,7 +411,7 @@ describe("State Consistency Integration Tests", () => {
         });
 
         it("should maintain consistency during concurrent state modifications", async () => {
-            const conversationId = generatePK();
+            const conversationId = generatePK().toString();
 
             const initialState: ConversationState = {
                 id: conversationId,
@@ -434,7 +434,7 @@ describe("State Consistency Integration Tests", () => {
                     ...initialState.config,
                     stats: {
                         ...initialState.config.stats,
-                        totalCredits: (i + 1) * 100,
+                        totalCredits: ((i + 1) * 100).toString(),
                         totalToolCalls: i + 1,
                     },
                 } as ChatConfigObject),
@@ -465,7 +465,7 @@ describe("State Consistency Integration Tests", () => {
 
     describe("L1/L2 Cache Consistency", () => {
         it("should maintain consistency between L1 (LRU) and L2 (Redis) caches", async () => {
-            const conversationId = generatePK();
+            const conversationId = generatePK().toString();
 
             const testState: ConversationState = {
                 id: conversationId,
@@ -499,7 +499,7 @@ describe("State Consistency Integration Tests", () => {
                 ...testState.config,
                 stats: {
                     ...testState.config.stats,
-                    totalCredits: 300,
+                    totalCredits: "300",
                 },
             } as ChatConfigObject;
 
@@ -509,16 +509,16 @@ describe("State Consistency Integration Tests", () => {
             conversationStoreInternal.cache.delete(conversationId);
 
             const thirdLoad = await conversationStore.get(conversationId);
-            expect(thirdLoad?.config.stats.totalCredits).toBe(300);
+            expect(thirdLoad?.config.stats.totalCredits).toBe("300");
 
             // 6. Verify L1 and L2 are consistent
             const fourthLoad = await conversationStore.get(conversationId);
-            expect(fourthLoad?.config.stats.totalCredits).toBe(300);
+            expect(fourthLoad?.config.stats.totalCredits).toBe("300");
             expect(fourthLoad).toEqual(thirdLoad);
         });
 
         it("should handle L2 cache failures gracefully and maintain L1 consistency", async () => {
-            const conversationId = generatePK();
+            const conversationId = generatePK().toString();
 
             const testState: ConversationState = {
                 id: conversationId,
@@ -566,7 +566,7 @@ describe("State Consistency Integration Tests", () => {
 
     describe("Database vs Cache Consistency", () => {
         it("should detect and resolve inconsistencies between database and cache", async () => {
-            const conversationId = generatePK();
+            const conversationId = generatePK().toString();
 
             const initialState: ConversationState = {
                 id: conversationId,
@@ -592,7 +592,7 @@ describe("State Consistency Integration Tests", () => {
                     ...initialState.config,
                     stats: {
                         ...initialState.config.stats,
-                        totalCredits: 999,
+                        totalCredits: "999",
                         totalToolCalls: 99,
                     },
                 },
@@ -604,19 +604,19 @@ describe("State Consistency Integration Tests", () => {
 
             // 3. Cache should still have old data
             const cachedData = await conversationStore.get(conversationId);
-            expect(cachedData?.config.stats.totalCredits).toBe(0); // Original value
+            expect(cachedData?.config.stats.totalCredits).toBe("0"); // Original value
 
             // 4. Force cache invalidation and reload
             const freshData = await conversationStore.get(conversationId, true);
-            expect(freshData?.config.stats.totalCredits).toBe(999); // Updated value
+            expect(freshData?.config.stats.totalCredits).toBe("999"); // Updated value
 
             // 5. Verify subsequent loads get the updated data
             const confirmedData = await conversationStore.get(conversationId);
-            expect(confirmedData?.config.stats.totalCredits).toBe(999);
+            expect(confirmedData?.config.stats.totalCredits).toBe("999");
         });
 
         it("should handle database connection failures with cache fallback", async () => {
-            const conversationId = generatePK();
+            const conversationId = generatePK().toString();
 
             const testState: ConversationState = {
                 id: conversationId,
@@ -687,7 +687,7 @@ describe("State Consistency Integration Tests", () => {
                 return responseService.generateResponse({
                     conversationId,
                     messages: [{
-                        id: generatePK(),
+                        id: generatePK().toString(),
                         content: `Message ${i + 1}`,
                         role: "user",
                         timestamp: Date.now(),
@@ -721,7 +721,7 @@ describe("State Consistency Integration Tests", () => {
             const finalChatStoreState = await chatStore.loadState(conversationId);
             const finalConversationStoreState = await conversationStore.get(conversationId, true);
 
-            expect(finalChatStoreState.config.stats.totalCredits).toBeGreaterThan(0);
+            expect(Number(finalChatStoreState.config.stats.totalCredits)).toBeGreaterThan(0);
             expect(finalConversationStoreState?.config.stats.totalCredits).toBe(
                 finalChatStoreState.config.stats.totalCredits,
             );
@@ -732,7 +732,7 @@ describe("State Consistency Integration Tests", () => {
                 return sum + (doneEvent?.cost || 0);
             }, 0);
 
-            expect(finalChatStoreState.config.stats.totalCredits).toBeGreaterThanOrEqual(totalCost * 0.8); // Allow for rounding
+            expect(Number(finalChatStoreState.config.stats.totalCredits)).toBeGreaterThanOrEqual(totalCost * 0.8); // Allow for rounding
         });
     });
 });

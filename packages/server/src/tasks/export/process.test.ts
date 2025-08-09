@@ -1,9 +1,7 @@
-import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { type Job } from "bullmq";
-import { exportProcess } from "./process.js";
-import { type ExportUserDataTask, QueueTaskType } from "../taskTypes.js";
-import { logger } from "../../events/logger.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createMockJob } from "../taskFactory.js";
+import { type ExportUserDataTask, QueueTaskType } from "../taskTypes.js";
 
 describe("exportProcess", () => {
     beforeEach(() => {
@@ -16,7 +14,7 @@ describe("exportProcess", () => {
             {
                 config: data.config || {
                     __type: "User",
-                    userId: "user-123",
+                    userId: "123",
                     afterExport: "NoAction" as any,
                     downloadable: true,
                     flags: {

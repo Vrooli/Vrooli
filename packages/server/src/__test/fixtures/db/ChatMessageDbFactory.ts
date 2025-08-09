@@ -158,7 +158,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
                     text: "I'm an AI assistant. Here's the information you requested:",
                     score: 0,
                     versionIndex: 0,
-                    config: messageConfigFixtures.variants.assistantWithTools,
+                    config: messageConfigFixtures.variants.assistantWithTools as unknown as Prisma.InputJsonValue,
                     chat: { connect: { id: this.generateId() } },
                     user: { connect: { id: this.generateId() } },
                 },
@@ -216,7 +216,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
                 config: {
                     overrides: {
                         text: "Hey everyone!",
-                        config: messageConfigFixtures.variants.userMessage,
+                        config: messageConfigFixtures.variants.userMessage as unknown as Prisma.InputJsonValue,
                     },
                     chat: { chatId: this.generateId() },
                     user: { userId: this.generateId() },
@@ -228,7 +228,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
                 config: {
                     overrides: {
                         text: "I've searched for that information. Here's what I found:",
-                        config: messageConfigFixtures.variants.assistantWithTools,
+                        config: messageConfigFixtures.variants.assistantWithTools as unknown as Prisma.InputJsonValue,
                     },
                     chat: { chatId: this.generateId() },
                     user: { userId: this.generateId() },
@@ -276,7 +276,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
                 config: {
                     overrides: {
                         text: "User joined the chat",
-                        config: messageConfigFixtures.variants.systemMessage,
+                        config: messageConfigFixtures.variants.systemMessage as unknown as Prisma.InputJsonValue,
                     },
                     chat: { chatId: this.generateId() },
                     // No user for system messages
@@ -382,7 +382,7 @@ export class ChatMessageDbFactory extends EnhancedDatabaseFactory<
             overrides: {
                 text,
                 language,
-                config: messageConfigFixtures.variants.userMessage,
+                config: messageConfigFixtures.variants.userMessage as unknown as Prisma.InputJsonValue,
             },
             chat: { chatId },
             user: { userId },

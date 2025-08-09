@@ -1,10 +1,10 @@
-import { generatePublicId, nanoid } from "@vrooli/shared";
-import { type Prisma, type PrismaClient } from "@prisma/client";
+/* eslint-disable no-magic-numbers */
+import { type PrismaClient } from "@prisma/client";
+import { generatePublicId } from "@vrooli/shared";
+import { routineConfigFixtures } from "@vrooli/shared/test-fixtures/config";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-// TODO: Import from @vrooli/shared when test-fixtures are properly exported
-import { routineConfigFixtures } from "@vrooli/shared/src/__test/fixtures/config/routineConfigFixtures.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
@@ -12,33 +12,25 @@ import type {
 interface RoutineVersionRelationConfig extends RelationConfig {
     root?: { routineId: bigint };
     translations?: Array<{ language: string; name: string; description?: string; instructions?: string }>;
-    nodes?: Array<{
-        nodeType: string;
-        coordinateX?: number;
-        coordinateY?: number;
-        data?: object;
-    }>;
-    nodeLinks?: Array<{
-        fromNodeId: bigint;
-        toNodeId: bigint;
-        operation?: string;
-        whens?: object;
-    }>;
+    // Nodes and node links are now stored in the config.graph JSONB field
+    // No separate database relations needed
 }
 
 /**
  * Enhanced database fixture factory for RoutineVersion model
- * Handles versioned routine content with configurations, nodes, and workflow logic
+ * Handles versioned routine content with configurations and workflow logic
  * 
- * NOTE: This factory uses legacy routine_version model types that need to be migrated to resource_version model.
- * Routine versions are now stored as resource_version with resourceType: ResourceType.Routine
+ * MIGRATION STATUS: Updated to use resource_version model and config-based graph system
+ * - Routine versions are stored as resource_version with resourceType: ResourceType.Routine
+ * - Graph data (nodes/links) is now stored in config.graph JSONB field, not separate tables
+ * - Supports BPMN-2.0 and Sequential graph types via config
  * 
  * Features:
  * - Type-safe Prisma integration
  * - Version management (latest/complete flags)
  * - Multi-language translations
  * - Routine configuration with various types (action, generate, multi-step)
- * - Node and link management for workflow visualization
+ * - Config-based workflow definitions (BPMN/Sequential)
  * - Automation capabilities
  * - Predefined test scenarios
  * - Comprehensive validation
@@ -56,8 +48,8 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected getPrismaDelegate() {
-        // TODO: Update to use resource_version when migrated
-        return this.prisma.routine_version;
+        // Updated to use resource_version after migration
+        return this.prisma.resource_version;
     }
 
     /**
@@ -246,7 +238,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                     translations: {
                         update: [{
                             where: { id: "translation_id" },
-                            data: { 
+                            data: {
                                 description: "Updated routine description",
                                 instructions: "Updated execution instructions",
                             },
@@ -365,30 +357,8 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                         description: "Advanced multi-step automation workflow",
                         instructions: "Review all steps before execution",
                     }],
-                    nodes: [
-                        {
-                            nodeType: "start",
-                            coordinateX: 100,
-                            coordinateY: 100,
-                        },
-                        {
-                            nodeType: "action",
-                            coordinateX: 200,
-                            coordinateY: 200,
-                            data: { action: "fetchData" },
-                        },
-                        {
-                            nodeType: "decision",
-                            coordinateX: 300,
-                            coordinateY: 300,
-                            data: { condition: "dataExists" },
-                        },
-                        {
-                            nodeType: "end",
-                            coordinateX: 400,
-                            coordinateY: 400,
-                        },
-                    ],
+                    // Graph data is now defined in routineConfig.graph field using BPMN or Sequential format
+                    // No separate nodes array needed - workflow structure is in the config
                 },
             },
             dataTransformationVersion: {
@@ -465,42 +435,11 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                 },
             },
             translations: true,
-            nodes: {
-                select: {
-                    id: true,
-                    nodeType: true,
-                    coordinateX: true,
-                    coordinateY: true,
-                    data: true,
-                },
-                orderBy: {
-                    coordinateX: "asc",
-                },
-            },
-            nodeLinks: {
-                select: {
-                    id: true,
-                    operation: true,
-                    whens: true,
-                    from: {
-                        select: {
-                            id: true,
-                            nodeType: true,
-                        },
-                    },
-                    to: {
-                        select: {
-                            id: true,
-                            nodeType: true,
-                        },
-                    },
-                },
-            },
+            // Graph data (nodes/nodeLinks) is now stored in the config JSONB field
+            // No separate database relations needed
             _count: {
                 select: {
                     translations: true,
-                    nodes: true,
-                    nodeLinks: true,
                     runs: true,
                 },
             },
@@ -529,31 +468,8 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
             };
         }
 
-        // Handle nodes (workflow visualization)
-        if (config.nodes && Array.isArray(config.nodes)) {
-            data.nodes = {
-                create: config.nodes.map(node => ({
-                    id: this.generateId(),
-                    nodeType: node.nodeType,
-                    coordinateX: node.coordinateX ?? 0,
-                    coordinateY: node.coordinateY ?? 0,
-                    data: node.data ?? {},
-                })),
-            };
-        }
-
-        // Handle node links (workflow connections)
-        if (config.nodeLinks && Array.isArray(config.nodeLinks)) {
-            data.nodeLinks = {
-                create: config.nodeLinks.map(link => ({
-                    id: this.generateId(),
-                    from: { connect: { id: link.fromNodeId } },
-                    to: { connect: { id: link.toNodeId } },
-                    operation: link.operation,
-                    whens: link.whens,
-                })),
-            };
-        }
+        // Graph data (nodes/nodeLinks) is now stored in the routineConfig.graph field
+        // No separate database entities need to be created
 
         return data;
     }
@@ -661,27 +577,34 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
     }
 
     /**
-     * Create version with workflow nodes and links
+     * Create version with config-based workflow (using Sequential graph type)
      */
     async createVersionWithWorkflow(routineId: bigint): Promise<any> {
-        const nodes = [
-            {
-                nodeType: "start",
-                coordinateX: 100,
-                coordinateY: 100,
+        // Use Sequential graph configuration instead of separate node/nodeLink tables
+        const workflowConfig = {
+            ...routineConfigFixtures.multiStep.sequential,
+            graph: {
+                __version: "1.0",
+                __type: "Sequential" as const,
+                schema: {
+                    steps: [
+                        {
+                            id: "step1",
+                            name: "Process Data",
+                            description: "Main data processing step",
+                            subroutineId: "sub_process_data",
+                            inputMap: { "data": "inputData" },
+                            outputMap: { "result": "processedData" },
+                        },
+                    ],
+                    rootContext: {
+                        inputMap: { "inputData": "workflowInput" },
+                        outputMap: { "workflowOutput": "processedData" },
+                    },
+                    executionMode: "sequential" as const,
+                },
             },
-            {
-                nodeType: "action",
-                coordinateX: 200,
-                coordinateY: 200,
-                data: { action: "processData" },
-            },
-            {
-                nodeType: "end",
-                coordinateX: 300,
-                coordinateY: 300,
-            },
-        ];
+        };
 
         const version = await this.createWithRelations({
             root: { routineId },
@@ -689,45 +612,16 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
                 isComplete: true,
                 isLatest: true,
                 complexity: 5,
-                routineConfig: routineConfigFixtures.multiStep.sequential,
+                routineConfig: workflowConfig,
             },
             translations: [{
                 language: "en",
-                name: "Workflow with Nodes",
-                description: "Routine with visual workflow representation",
+                name: "Workflow with Config-based Graph",
+                description: "Routine with config-based workflow representation",
             }],
-            nodes,
         });
 
-        // Create links after nodes are created
-        // TODO: Update to use resource_version_node when migrated
-        const createdNodes = await this.prisma.routine_version_node.findMany({
-            where: { routineVersionId: version.id },
-            orderBy: { coordinateX: "asc" },
-        });
-
-        if (createdNodes.length >= 3) {
-            // TODO: Update to use resource_version_nodeLink when migrated
-            await this.prisma.routine_version_nodeLink.createMany({
-                data: [
-                    {
-                        id: this.generateId(),
-                        routineVersionId: version.id,
-                        fromId: createdNodes[0].id,
-                        toId: createdNodes[1].id,
-                        operation: "next",
-                    },
-                    {
-                        id: this.generateId(),
-                        routineVersionId: version.id,
-                        fromId: createdNodes[1].id,
-                        toId: createdNodes[2].id,
-                        operation: "complete",
-                    },
-                ],
-            });
-        }
-
+        // No need to create separate node/nodeLink records - workflow is now stored in config
         return version;
     }
 
@@ -761,8 +655,8 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
 
         // Check that only one version is marked as latest per routine
         if (record.isLatest && record.rootId) {
-            // TODO: Update to use resource_version when migrated
-            const otherLatest = await this.prisma.routine_version.count({
+            // Updated to use resource_version after migration
+            const otherLatest = await this.prisma.resource_version.count({
                 where: {
                     rootId: record.rootId,
                     isLatest: true,
@@ -775,9 +669,9 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
         }
 
         // Check routineConfig structure
-        if (record.routineConfig && 
-            (!record.routineConfig.__version || 
-             typeof record.routineConfig.__version !== "string")) {
+        if (record.routineConfig &&
+            (!record.routineConfig.__version ||
+                typeof record.routineConfig.__version !== "string")) {
             violations.push("Routine config must have a valid __version field");
         }
 
@@ -787,9 +681,8 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
     protected getCascadeInclude(): any {
         return {
             translations: true,
-            nodes: true,
-            nodeLinks: true,
             runs: true,
+            // Graph data (nodes/nodeLinks) is stored in config field - no separate cascade needed
         };
     }
 
@@ -800,7 +693,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
         includeOnly?: string[],
     ): Promise<void> {
         // Helper to check if a relation should be deleted
-        const shouldDelete = (relation: string) => 
+        const shouldDelete = (relation: string) =>
             !includeOnly || includeOnly.includes(relation);
 
         // Delete runs
@@ -810,24 +703,14 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
             });
         }
 
-        // Delete node links
-        if (shouldDelete("nodeLinks") && record.nodeLinks?.length) {
-            await tx.routine_version_node_link.deleteMany({
-                where: { routineVersionId: record.id },
-            });
-        }
-
-        // Delete nodes
-        if (shouldDelete("nodes") && record.nodes?.length) {
-            await tx.routineVersionNode.deleteMany({
-                where: { routineVersionId: record.id },
-            });
-        }
+        // Node links and nodes are now part of the config JSONB field
+        // They are automatically deleted when the resource_version record is deleted
+        // No separate cleanup needed for config-based workflow data
 
         // Delete translations
         if (shouldDelete("translations") && record.translations?.length) {
-            await tx.routine_version_translation.deleteMany({
-                where: { routineVersionId: record.id },
+            await tx.resource_version_translation.deleteMany({
+                where: { resourceVersionId: record.id },
             });
         }
     }
@@ -842,7 +725,7 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
             routineConfigFixtures.generate.basic,
             routineConfigFixtures.multiStep.sequential,
         ];
-        
+
         for (let i = 0; i < count; i++) {
             const isLatest = i === count - 1;
             const version = await this.createWithRelations({
@@ -864,13 +747,13 @@ export class RoutineVersionDbFactory extends EnhancedDatabaseFactory<
             });
             versions.push(version);
         }
-        
+
         return versions;
     }
 }
 
 // Export factory creator function
-export const createRoutineVersionDbFactory = (prisma: PrismaClient) => 
+export const createRoutineVersionDbFactory = (prisma: PrismaClient) =>
     new RoutineVersionDbFactory(prisma);
 
 // Export the class for type usage

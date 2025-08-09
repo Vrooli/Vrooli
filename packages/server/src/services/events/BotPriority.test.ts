@@ -69,13 +69,13 @@ describe("BotPriority", () => {
 
     describe("BotPriorityCalculator", () => {
         describe("calculatePriority", () => {
-            it("should return 0 for bot with no configuration", () => {
+            it("should return base priority for bot with no configuration", () => {
                 const bot = createTestBot();
                 const event = createTestEvent();
 
                 const priority = calculator.calculatePriority(bot, event);
 
-                expect(priority).toBe(0);
+                expect(priority).toBe(20);
             });
 
             it("should calculate priority with explicit config priority", () => {

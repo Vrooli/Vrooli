@@ -3,10 +3,10 @@
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ResourceProvider } from "../ResourceProvider.js";
-import type { AIMetadata } from "../typeRegistry.js";
-import type { HealthCheckResult, ResourceInitOptions } from "../types.js";
-import { DeploymentType, DiscoveryStatus, ResourceCategory, ResourceEvent, ResourceHealth } from "../types.js";
+import { ResourceProvider } from "./ResourceProvider.js";
+import type { AIMetadata } from "./typeRegistry.js";
+import type { HealthCheckResult, ResourceInitOptions } from "./types.js";
+import { DeploymentType, DiscoveryStatus, ResourceCategory, ResourceEvent, ResourceHealth } from "./types.js";
 
 // Mock HTTPClient
 vi.mock("../http/httpClient.js", () => ({

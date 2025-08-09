@@ -14,7 +14,7 @@ import { DbProvider } from "../../../../db/provider.js";
 import { CacheService } from "../../../../redisConn.js";
 import { type CachedConversationStateStore, conversationStateStore, PrismaChatStore } from "../../chatStore.js";
 import { MessageHistoryBuilder } from "../../messageHistoryBuilder.js";
-import { RedisMessageStore } from "../../messageStore.js";
+import { type MessageStore, RedisMessageStore } from "../../messageStore.js";
 import { ResponseService } from "../../responseService.js";
 import { FallbackRouter } from "../../router.js";
 import { OpenAIService } from "../../services.js";
@@ -116,12 +116,13 @@ describe("End-to-End Conversation Flow Integration Tests", () => {
                 {
                     id: "bot123",
                     name: "Assistant",
-                    config: { model: "gpt-4o" },
+                    config: { __version: "1.0", resources: [], model: "gpt-4o" },
                     state: "ready",
                 } as BotParticipant,
             ],
             status: "in_progress",
             config: {
+                __version: "1.0",
                 model: "gpt-4o",
                 stats: {
                     totalToolCalls: 0,
@@ -166,7 +167,7 @@ describe("End-to-End Conversation Flow Integration Tests", () => {
 
             // User message
             const userMessage: MessageState = {
-                id: generatePK(),
+                id: generatePK().toString(),
                 content: "Hello, can you help me?",
                 role: "user",
                 timestamp: Date.now(),
@@ -264,7 +265,7 @@ describe("End-to-End Conversation Flow Integration Tests", () => {
 
             // User message
             const userMessage: MessageState = {
-                id: generatePK(),
+                id: generatePK().toString(),
                 content: "What's the weather in New York?",
                 role: "user",
                 timestamp: Date.now(),
@@ -366,7 +367,7 @@ describe("End-to-End Conversation Flow Integration Tests", () => {
             mockOpenAIClient.chat.completions.create.mockResolvedValueOnce(toolCallStream);
 
             const userMessage: MessageState = {
-                id: generatePK(),
+                id: generatePK().toString(),
                 content: "Run the data processing routine",
                 role: "user",
                 timestamp: Date.now(),
@@ -404,13 +405,13 @@ describe("End-to-End Conversation Flow Integration Tests", () => {
             // Initial conversation history
             const messages: MessageState[] = [
                 {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     content: "My name is Alice",
                     role: "user",
                     timestamp: Date.now() - 60000,
                 },
                 {
-                    id: generatePK(),
+                    id: generatePK().toString(),
                     content: "Nice to meet you, Alice!",
                     role: "bot",
                     timestamp: Date.now() - 50000,
@@ -424,7 +425,7 @@ describe("End-to-End Conversation Flow Integration Tests", () => {
 
             // New user message
             const newMessage: MessageState = {
-                id: generatePK(),
+                id: generatePK().toString(),
                 content: "What's my name?",
                 role: "user",
                 timestamp: Date.now(),
@@ -475,7 +476,7 @@ describe("End-to-End Conversation Flow Integration Tests", () => {
             mockOpenAIClient.chat.completions.create.mockRejectedValueOnce(apiError);
 
             const userMessage: MessageState = {
-                id: generatePK(),
+                id: generatePK().toString(),
                 content: "Hello",
                 role: "user",
                 timestamp: Date.now(),
@@ -744,7 +745,7 @@ describe("End-to-End Conversation Flow Integration Tests", () => {
             mockOpenAIClient.chat.completions.create.mockResolvedValueOnce(firstStream);
 
             const firstMessage: MessageState = {
-                id: generatePK(),
+                id: generatePK().toString(),
                 content: "Hello",
                 role: "user",
                 timestamp: Date.now(),
@@ -777,7 +778,7 @@ describe("End-to-End Conversation Flow Integration Tests", () => {
             mockAnthropicService.generateResponseStreaming.mockResolvedValueOnce(anthropicStream);
 
             const secondMessage: MessageState = {
-                id: generatePK(),
+                id: generatePK().toString(),
                 content: "Are you still there?",
                 role: "user",
                 timestamp: Date.now(),

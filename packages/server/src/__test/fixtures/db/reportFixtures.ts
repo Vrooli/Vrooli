@@ -1,4 +1,4 @@
-import { generatePK, generatePublicId } from "@vrooli/shared";
+import { generatePK, generatePublicId, ReportStatus, ReportSuggestedAction } from "@vrooli/shared";
 import { type Prisma } from "@prisma/client";
 
 /**
@@ -7,49 +7,40 @@ import { type Prisma } from "@prisma/client";
 
 export class ReportDbFactory {
     static createMinimal(
-        createdById: string,
+        createdById: string | bigint,
         reason: string,
         overrides?: Partial<Prisma.reportCreateInput>,
     ): Prisma.reportCreateInput {
         return {
             id: generatePK(),
             publicId: generatePublicId(),
-            createdBy: { connect: { id: createdById } },
+            createdBy: { connect: { id: typeof createdById === "string" ? BigInt(createdById) : createdById } },
             reason,
             language: "en",
-            isDeleted: false,
+            status: ReportStatus.Open,
             ...overrides,
         };
     }
 
     static createForObject(
-        createdById: string,
-        objectId: string,
+        createdById: string | bigint,
+        objectId: string | bigint,
         objectType: string,
         reason: string,
         overrides?: Partial<Prisma.reportCreateInput>,
     ): Prisma.reportCreateInput {
         const base = this.createMinimal(createdById, reason, overrides);
+        const id = typeof objectId === "string" ? BigInt(objectId) : objectId;
         
         // Add the appropriate connection based on object type
         const connections: Record<string, any> = {
-            Api: { api: { connect: { id: objectId } } },
-            ChatMessage: { chatMessage: { connect: { id: objectId } } },
-            Code: { code: { connect: { id: objectId } } },
-            Comment: { comment: { connect: { id: objectId } } },
-            Issue: { issue: { connect: { id: objectId } } },
-            Note: { note: { connect: { id: objectId } } },
-            Post: { post: { connect: { id: objectId } } },
-            Project: { project: { connect: { id: objectId } } },
-            Prompt: { prompt: { connect: { id: objectId } } },
-            Question: { question: { connect: { id: objectId } } },
-            Quiz: { quiz: { connect: { id: objectId } } },
-            Routine: { routine: { connect: { id: objectId } } },
-            SmartContract: { smartContract: { connect: { id: objectId } } },
-            Standard: { standard: { connect: { id: objectId } } },
-            Tag: { tag: { connect: { id: objectId } } },
-            Team: { team: { connect: { id: objectId } } },
-            User: { user: { connect: { id: objectId } } },
+            ResourceVersion: { resourceVersion: { connect: { id } } },
+            ChatMessage: { chatMessage: { connect: { id } } },
+            Comment: { comment: { connect: { id } } },
+            Issue: { issue: { connect: { id } } },
+            Tag: { tag: { connect: { id } } },
+            Team: { team: { connect: { id } } },
+            User: { user: { connect: { id } } },
         };
 
         return {
@@ -59,7 +50,7 @@ export class ReportDbFactory {
     }
 
     static createWithDetails(
-        createdById: string,
+        createdById: string | bigint,
         reason: string,
         details: string,
         overrides?: Partial<Prisma.reportCreateInput>,
@@ -76,28 +67,27 @@ export class ReportDbFactory {
  */
 export class ReportResponseDbFactory {
     static createMinimal(
-        createdById: string,
-        reportId: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>,
-    ): Prisma.ReportResponseCreateInput {
+        createdById: string | bigint,
+        reportId: string | bigint,
+        overrides?: Partial<Prisma.report_responseCreateInput>,
+    ): Prisma.report_responseCreateInput {
         return {
             id: generatePK(),
-            publicId: generatePublicId(),
-            createdBy: { connect: { id: createdById } },
-            report: { connect: { id: reportId } },
-            actionSuggested: "NoAction",
+            createdBy: { connect: { id: typeof createdById === "string" ? BigInt(createdById) : createdById } },
+            report: { connect: { id: typeof reportId === "string" ? BigInt(reportId) : reportId } },
+            actionSuggested: ReportSuggestedAction.NonIssue,
             language: "en",
             ...overrides,
         };
     }
 
     static createWithDetails(
-        createdById: string,
-        reportId: string,
-        actionSuggested: string,
+        createdById: string | bigint,
+        reportId: string | bigint,
+        actionSuggested: ReportSuggestedAction,
         details: string,
-        overrides?: Partial<Prisma.ReportResponseCreateInput>,
-    ): Prisma.ReportResponseCreateInput {
+        overrides?: Partial<Prisma.report_responseCreateInput>,
+    ): Prisma.report_responseCreateInput {
         return this.createMinimal(createdById, reportId, {
             actionSuggested,
             details,
@@ -112,9 +102,9 @@ export class ReportResponseDbFactory {
 export async function seedReports(
     prisma: any,
     options: {
-        createdById: string;
-        objects: Array<{ id: string; type: string; reason: string; details?: string }>;
-        withResponses?: Array<{ responderId: string; action: string; details?: string }>;
+        createdById: string | bigint;
+        objects: Array<{ id: string | bigint; type: string; reason: string; details?: string }>;
+        withResponses?: Array<{ responderId: string | bigint; action: ReportSuggestedAction; details?: string }>;
     },
 ) {
     const reports = [];
@@ -155,7 +145,7 @@ export async function seedReports(
                         { actionSuggested: respData.action },
                     );
 
-                const response = await prisma.reportResponse.create({ data: responseData });
+                const response = await prisma.report_response.create({ data: responseData });
                 responses.push(response);
             }
         }

@@ -2,7 +2,7 @@ import { PeriodType } from "@prisma/client";
 import { StatPeriodType, type StatsTeamSearchInput, generatePK, generatePublicId } from "@vrooli/shared";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { UserDbFactory } from "../../__test/fixtures/db/userFixtures.js";
-import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { cleanupGroups, ensureCleanState, performTestCleanup } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
 import { loggedInUserNoPremiumData, mockApiSession, mockAuthenticatedSession, mockLoggedOutSession, mockReadPublicPermissions } from "../../__test/session.js";
 import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
@@ -21,22 +21,20 @@ describe("EndpointsStatsTeam", () => {
     });
 
     beforeEach(async () => {
-        // Clean up using dependency-ordered cleanup helpers
-        await cleanupGroups.team(DbProvider.get());
+        // Ensure clean database state with race condition protection
+        await ensureCleanState(DbProvider.get(), {
+            cleanupFn: cleanupGroups.team,
+            tables: ["team", "member", "member_invite", "meeting", "user"],
+            throwOnFailure: true,
+        });
     });
 
     afterEach(async () => {
-        // Clean up test data after each test
-        await cleanupGroups.team(DbProvider.get());
-
-        // Validate cleanup to detect any missed records
-        const orphans = await validateCleanup(DbProvider.get(), {
+        // Perform immediate cleanup after test to prevent test pollution
+        await performTestCleanup(DbProvider.get(), {
+            cleanupFn: cleanupGroups.team,
             tables: ["team", "member", "member_invite", "meeting", "user"],
-            logOrphans: true,
         });
-        if (orphans.length > 0) {
-            console.warn("Test cleanup incomplete:", orphans);
-        }
     });
 
     afterAll(async () => {
@@ -659,7 +657,7 @@ describe("EndpointsStatsTeam", () => {
                     },
                 });
 
-                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id.toString() };
+                const testUser = { ...loggedInUserNoPremiumData(), id: user1.id };
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
                 const { req, res } = await mockApiSession(apiToken, permissions, testUser);

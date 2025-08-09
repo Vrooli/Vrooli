@@ -593,14 +593,14 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
         // Delete comments
         if (shouldDelete("comments")) {
             await tx.comment.deleteMany({
-                where: { userId: record.id },
+                where: { ownedByUserId: record.id },
             });
         }
 
         // Delete bookmarks
         if (shouldDelete("bookmarkedBy")) {
             await tx.bookmark.deleteMany({
-                where: { byId: record.id },
+                where: { userId: record.id },
             });
         }
 
@@ -621,7 +621,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
         // Delete sessions
         if (shouldDelete("sessions")) {
             await tx.session.deleteMany({
-                where: { userId: record.id },
+                where: { user_id: record.id },
             });
         }
 
@@ -642,7 +642,7 @@ export class UserDbFactory extends EnhancedDatabaseFactory<
         // Delete auth records
         if (shouldDelete("auths")) {
             await tx.user_auth.deleteMany({
-                where: { userId: record.id },
+                where: { user_id: record.id },
             });
         }
     }

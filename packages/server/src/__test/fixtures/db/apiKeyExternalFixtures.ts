@@ -1,4 +1,5 @@
-import { type Prisma } from "@prisma/client";
+/* eslint-disable no-magic-numbers */
+import { type Prisma, type PrismaClient } from "@prisma/client";
 import { generatePK } from "@vrooli/shared";
 
 /**
@@ -6,14 +7,26 @@ import { generatePK } from "@vrooli/shared";
  * These fixtures represent external API keys for third-party services (e.g., OpenAI, GitHub, etc.)
  */
 
-// Consistent IDs for testing
+// Consistent IDs for testing - using lazy initialization
+const _apiKeyExternalDbIds: { [key: string]: bigint | undefined } = {};
+
 export const apiKeyExternalDbIds = {
-    openai1: generatePK(),
-    openai2: generatePK(),
-    github1: generatePK(),
-    stripe1: generatePK(),
-    twilio1: generatePK(),
-    disabled1: generatePK(),
+    get openai1() { return _apiKeyExternalDbIds.openai1 ??= generatePK(); },
+    get openai2() { return _apiKeyExternalDbIds.openai2 ??= generatePK(); },
+    get github1() { return _apiKeyExternalDbIds.github1 ??= generatePK(); },
+    get stripe1() { return _apiKeyExternalDbIds.stripe1 ??= generatePK(); },
+    get twilio1() { return _apiKeyExternalDbIds.twilio1 ??= generatePK(); },
+    get disabled1() { return _apiKeyExternalDbIds.disabled1 ??= generatePK(); },
+};
+
+// Cached IDs for consistent user/team relationships
+const _apiKeyExternalRelationIds: { [key: string]: bigint | undefined } = {};
+export const apiKeyExternalRelationIds = {
+    get user1() { return _apiKeyExternalRelationIds.user1 ??= generatePK(); },
+    get user2() { return _apiKeyExternalRelationIds.user2 ??= generatePK(); },
+    get team1() { return _apiKeyExternalRelationIds.team1 ??= generatePK(); },
+    get team2() { return _apiKeyExternalRelationIds.team2 ??= generatePK(); },
+    get resource1() { return _apiKeyExternalRelationIds.resource1 ??= generatePK(); },
 };
 
 /**
@@ -34,7 +47,7 @@ export const userApiKeyExternalDb: Prisma.api_key_externalCreateInput = {
     name: "GitHub Personal Access Token",
     service: "github",
     key: "ghp_testtoken123456789",
-    user: { connect: { id: generatePK() } },
+    user: { connect: { id: apiKeyExternalRelationIds.user1 } },
 };
 
 /**
@@ -45,7 +58,7 @@ export const teamApiKeyExternalDb: Prisma.api_key_externalCreateInput = {
     name: "Team Stripe API Key",
     service: "stripe",
     key: "sk_test_fake_stripe_key_for_testing_12345",
-    team: { connect: { id: generatePK() } },
+    team: { connect: { id: apiKeyExternalRelationIds.team1 } },
 };
 
 /**
@@ -78,7 +91,7 @@ export class ApiKeyExternalDbFactory {
      * Create an API key for a specific user
      */
     static createForUser(
-        userId: string,
+        userId: bigint,
         service: string,
         overrides?: Partial<Prisma.api_key_externalCreateInput>,
     ): Prisma.api_key_externalCreateInput {
@@ -96,7 +109,7 @@ export class ApiKeyExternalDbFactory {
      * Create an API key for a specific team
      */
     static createForTeam(
-        teamId: string,
+        teamId: bigint,
         service: string,
         overrides?: Partial<Prisma.api_key_externalCreateInput>,
     ): Prisma.api_key_externalCreateInput {
@@ -131,7 +144,7 @@ export class ApiKeyExternalDbFactory {
      * Create an API key with a linked resource
      */
     static createWithResource(
-        resourceId: string,
+        resourceId: bigint,
         service: string,
         overrides?: Partial<Prisma.api_key_externalCreateInput>,
     ): Prisma.api_key_externalCreateInput {
@@ -149,7 +162,7 @@ export class ApiKeyExternalDbFactory {
      * Create multiple API keys for common services
      */
     static createCommonServices(
-        ownerId: string,
+        ownerId: bigint,
         ownerType: "user" | "team" = "user",
     ): Prisma.api_key_externalCreateInput[] {
         const services = [
@@ -177,10 +190,10 @@ export class ApiKeyExternalDbFactory {
  * Helper to seed API keys for testing
  */
 export async function seedApiKeysExternal(
-    prisma: any,
+    prisma: PrismaClient,
     options: {
-        userId?: string;
-        teamId?: string;
+        userId?: bigint;
+        teamId?: bigint;
         services?: string[];
         count?: number;
         includeDisabled?: boolean;
@@ -236,8 +249,8 @@ export async function seedApiKeysExternal(
  * Helper to clean up API keys after tests
  */
 export async function cleanupApiKeysExternal(
-    prisma: any,
-    apiKeyIds: string[],
+    prisma: PrismaClient,
+    apiKeyIds: bigint[],
 ) {
     await prisma.api_key_external.deleteMany({
         where: { id: { in: apiKeyIds } },

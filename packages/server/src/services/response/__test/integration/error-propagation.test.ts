@@ -54,8 +54,11 @@ vi.mock("../../../events/publisher.js", () => ({
 // Helper to create mock error streams
 function createMockErrorStream(errorMessage: string) {
     return {
-        async *[Symbol.asyncIterator]() {
-            throw new Error(errorMessage);
+        [Symbol.asyncIterator]() {
+            // eslint-disable-next-line require-yield
+            return (async function* () {
+                throw new Error(errorMessage);
+            })();
         },
     };
 }
@@ -565,7 +568,7 @@ describe("Error Propagation Integration Tests", () => {
                 state: "ready",
             };
 
-            const conversationId = generatePK();
+            const conversationId = generatePK().toString();
 
             // Set up initial state
             const initialState: ConversationState = {

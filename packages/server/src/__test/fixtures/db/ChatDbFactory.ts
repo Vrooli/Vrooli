@@ -106,7 +106,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
                     publicId: this.generatePublicId(),
                     isPrivate: false,
                     openToAnyoneWithInvite: false,
-                    config: chatConfigFixtures.invalid.malformedStructure,
+                    config: chatConfigFixtures.invalid.malformedStructure as unknown as Prisma.InputJsonValue,
                 },
             },
             edgeCases: {
@@ -158,7 +158,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
                     publicId: this.generatePublicId(),
                     isPrivate: false,
                     openToAnyoneWithInvite: false,
-                    config: chatConfigFixtures.variants.highLimitSwarm,
+                    config: chatConfigFixtures.variants.highLimitSwarm as unknown as Prisma.InputJsonValue,
                 },
             },
             updates: {
@@ -263,7 +263,7 @@ export class ChatDbFactory extends EnhancedDatabaseFactory<
                     overrides: {
                         isPrivate: false,
                         openToAnyoneWithInvite: true,
-                        config: chatConfigFixtures.variants.publicSwarm,
+                        config: chatConfigFixtures.variants.publicSwarm as unknown as Prisma.InputJsonValue,
                     },
                     translations: [{
                         language: "en",

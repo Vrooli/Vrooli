@@ -2,8 +2,8 @@ import { EventEmitter } from "events";
 import { logger } from "../../events/logger.js";
 import type { IResource, PublicResourceInfo, ResourceEventData } from "./types.js";
 import { ResourceEvent , ResourceCategory, DiscoveryStatus} from "./types.js";
-import type { ResourcesConfig } from "./resourcesConfig.js";
-import { loadResourcesConfig } from "./resourcesConfig.js";
+import type { ServiceConfig } from "./resourcesConfig.js";
+import { loadServiceConfig } from "./resourcesConfig.js";
 import type { ResourceSystemHealthCheck } from "./healthCheck.js";
 import { buildHealthCheck } from "./healthCheck.js";
 import { ResourceDependencyManager, type ResourceDependency } from "./resourceDependency.js";
@@ -26,7 +26,7 @@ export class ResourceRegistry extends EventEmitter {
     private resourceClasses = new Map<string, new () => IResource>();
     
     /** Current configuration */
-    private config?: ResourcesConfig;
+    private config?: ServiceConfig;
     
     /** Whether the registry has been initialized */
     private initialized = false;
@@ -75,7 +75,7 @@ export class ResourceRegistry extends EventEmitter {
         
         // If already initialized, we need to re-plan initialization
         // For now, just instantiate the single resource (this maintains backward compatibility)
-        if (this.initialized && this.config?.enabled) {
+        if (this.initialized && this.config) {
             this.instantiateResource(id).catch(error => {
                 logger.error(`[ResourceRegistry] Failed to instantiate ${id}`, error);
             });
@@ -114,10 +114,10 @@ export class ResourceRegistry extends EventEmitter {
         
         try {
             // Load configuration
-            this.config = await loadResourcesConfig(configPath);
+            this.config = await loadServiceConfig(configPath);
             
-            if (!this.config.enabled) {
-                logger.info("[ResourceRegistry] Resources disabled in configuration");
+            if (!this.config.resources) {
+                logger.info("[ResourceRegistry] No resources configured");
                 this.initialized = true;
                 return;
             }
@@ -125,10 +125,8 @@ export class ResourceRegistry extends EventEmitter {
             // Instantiate all registered resources
             await this.instantiateAllResources();
             
-            // Start discovery if configured
-            if (this.config.discovery?.enabled) {
-                this.startDiscovery();
-            }
+            // Discovery functionality temporarily disabled during service.json migration
+            // TODO: Re-implement discovery configuration in service.json schema if needed
             
             this.initialized = true;
             logger.info("[ResourceRegistry] Initialized successfully");
@@ -147,8 +145,10 @@ export class ResourceRegistry extends EventEmitter {
         for (const [id] of Array.from(this.resourceClasses)) {
             const category = this.getResourceCategory(id as ResourceId);
             if (category) {
-                const serviceConfig = this.config?.services?.[category]?.[id];
-                if (serviceConfig?.enabled) {
+                // Check resources section
+                const config = this.config?.resources?.[category]?.[id];
+                
+                if (config?.enabled) {
                     enabledResources.add(id as ResourceId);
                 }
             }
@@ -228,7 +228,7 @@ export class ResourceRegistry extends EventEmitter {
     /**
      * Get resource category for dependency management
      */
-    private getResourceCategory(resourceId: ResourceId): keyof NonNullable<ResourcesConfig["services"]> | undefined {
+    private getResourceCategory(resourceId: ResourceId): keyof NonNullable<ServiceConfig["resources"]> | undefined {
         try {
             // This would normally use the function from resourcesConfig.ts,
             // but to avoid circular imports, we'll implement basic category detection
@@ -305,12 +305,13 @@ export class ResourceRegistry extends EventEmitter {
             
             // Get configuration for this resource
             const category = resource.category;
-            const serviceConfig = this.config?.services?.[category]?.[id];
+            // Get from resources section
+            const config = this.config?.resources?.[category]?.[id];
             
-            if (serviceConfig?.enabled) {
+            if (config?.enabled) {
                 await resource.initialize({
-                    config: serviceConfig,
-                    globalConfig: this.config as ResourcesConfig,
+                    config,
+                    globalConfig: this.config as any,
                 });
             } else {
                 logger.debug(`[ResourceRegistry] Resource ${id} not enabled in configuration`);
@@ -321,28 +322,11 @@ export class ResourceRegistry extends EventEmitter {
     }
     
     /**
-     * Start periodic discovery
+     * Start periodic discovery (disabled during service.json migration)
      */
     private startDiscovery(): void {
-        if (!this.config?.discovery?.methods?.portScanning?.enabled) {
-            return;
-        }
-        
-        const intervalMs = this.config.discovery.methods.portScanning.scanIntervalMs || DEFAULT_DISCOVERY_INTERVAL_MS;
-        
-        // Perform initial discovery
-        this.performDiscovery().catch(error => {
-            logger.error("[ResourceRegistry] Initial discovery failed", error);
-        });
-        
-        // Start periodic discovery
-        this.discoveryInterval = setInterval(() => {
-            this.performDiscovery().catch(error => {
-                logger.error("[ResourceRegistry] Periodic discovery failed", error);
-            });
-        }, intervalMs);
-        
-        logger.info(`[ResourceRegistry] Started discovery with interval ${intervalMs}ms`);
+        logger.info("[ResourceRegistry] Discovery functionality temporarily disabled");
+        // TODO: Re-implement discovery configuration in service.json schema if needed
     }
     
     /**
@@ -532,12 +516,14 @@ export class ResourceRegistry extends EventEmitter {
         
         // Determine which resources are enabled in config
         const enabledResourceIds = new Set<string>();
-        if (this.config?.services) {
+        
+        // Check resources section (preferred)
+        if (this.config?.resources) {
             for (const category of Object.values(ResourceCategory)) {
-                const categoryServices = this.config.services[category];
-                if (categoryServices) {
-                    for (const [id, serviceConfig] of Object.entries(categoryServices)) {
-                        if ((serviceConfig as any)?.enabled) {
+                const categoryResources = this.config.resources[category];
+                if (categoryResources) {
+                    for (const [id, resourceConfig] of Object.entries(categoryResources)) {
+                        if ((resourceConfig as any)?.enabled) {
                             enabledResourceIds.add(id);
                         }
                     }

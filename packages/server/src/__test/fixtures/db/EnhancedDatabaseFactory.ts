@@ -1,7 +1,7 @@
 // AI_CHECK: TYPE_SAFETY=server-factory-bigint-migration | LAST: 2025-06-29 - Removed old interfaces, enforced BigInt IDs only
 import { type PrismaClient } from "@prisma/client";
+import { generatePK, generatePublicId } from "@vrooli/shared";
 import { TestRecordTracker } from "../../helpers/testRecordTracker.js";
-import { generatePK, generatePublicId } from "./idHelpers.js";
 import type { DbFactoryConfig, RelationConfig } from "./types.js";
 
 /**

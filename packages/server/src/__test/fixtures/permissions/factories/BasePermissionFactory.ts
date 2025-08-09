@@ -13,6 +13,7 @@ import {
     type PermissionTestResult,
     type RateLimitInfo,
     type SessionOptions,
+    type TestSessionData,
 } from "../types.js";
 
 /**
@@ -23,7 +24,7 @@ const TEST_ID_PADDING = 17;
 /**
  * Base factory for creating permission-related fixtures
  */
-export abstract class BasePermissionFactory<TSession extends SessionData | ApiKeyAuthData>
+export abstract class BasePermissionFactory<TSession extends SessionData | ApiKeyAuthData | TestSessionData>
     implements PermissionFixtureFactory<TSession> {
 
     /**
@@ -142,14 +143,14 @@ export abstract class BasePermissionFactory<TSession extends SessionData | ApiKe
     /**
      * Check if session is a user session
      */
-    protected isUserSession(session: TSession): session is SessionData {
+    protected isUserSession(session: TSession): boolean {
         return !("__type" in session);
     }
 
     /**
      * Check if session is an API key session
      */
-    protected isApiKeySession(session: TSession): session is ApiKeyAuthData {
+    protected isApiKeySession(session: TSession): boolean {
         return "__type" in session;
     }
 

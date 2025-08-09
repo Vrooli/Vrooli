@@ -72,20 +72,20 @@ export const completeScheduleRecurrenceDb: Prisma.schedule_recurrenceCreateInput
  */
 export class ScheduleRecurrenceDbFactory {
     static createMinimal(
-        scheduleId: string,
+        scheduleId: string | bigint,
         overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
     ): Prisma.schedule_recurrenceCreateInput {
         return {
             id: generatePK(),
             recurrenceType: ScheduleRecurrenceType.Daily,
             interval: 1,
-            schedule: { connect: { id: scheduleId } },
+            schedule: { connect: { id: typeof scheduleId === "string" ? BigInt(scheduleId) : scheduleId } },
             ...overrides,
         };
     }
 
     static createDaily(
-        scheduleId: string,
+        scheduleId: string | bigint,
         interval = 1,
         overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
     ): Prisma.schedule_recurrenceCreateInput {
@@ -97,7 +97,7 @@ export class ScheduleRecurrenceDbFactory {
     }
 
     static createWeekly(
-        scheduleId: string,
+        scheduleId: string | bigint,
         dayOfWeek: number,
         interval = 1,
         overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
@@ -111,7 +111,7 @@ export class ScheduleRecurrenceDbFactory {
     }
 
     static createMonthly(
-        scheduleId: string,
+        scheduleId: string | bigint,
         dayOfMonth: number,
         interval = 1,
         overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
@@ -125,7 +125,7 @@ export class ScheduleRecurrenceDbFactory {
     }
 
     static createYearly(
-        scheduleId: string,
+        scheduleId: string | bigint,
         month: number,
         dayOfMonth: number,
         interval = 1,
@@ -141,7 +141,7 @@ export class ScheduleRecurrenceDbFactory {
     }
 
     static createWithEndDate(
-        scheduleId: string,
+        scheduleId: string | bigint,
         endDate: Date,
         overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
     ): Prisma.schedule_recurrenceCreateInput {
@@ -152,7 +152,7 @@ export class ScheduleRecurrenceDbFactory {
     }
 
     static createWithDuration(
-        scheduleId: string,
+        scheduleId: string | bigint,
         duration: number,
         overrides?: Partial<Prisma.schedule_recurrenceCreateInput>,
     ): Prisma.schedule_recurrenceCreateInput {
@@ -169,7 +169,7 @@ export class ScheduleRecurrenceDbFactory {
 export async function seedScheduleRecurrences(
     prisma: any,
     options: {
-        scheduleId: string;
+        scheduleId: string | bigint;
         recurrences: Array<{
             type: "Daily" | "Weekly" | "Monthly" | "Yearly";
             interval?: number;
@@ -252,7 +252,7 @@ export const scheduleRecurrencePatterns = {
     /**
      * Daily at 9 AM for 1 hour, ends in 6 months
      */
-    dailyMorningMeeting: (scheduleId: string) =>
+    dailyMorningMeeting: (scheduleId: string | bigint) =>
         ScheduleRecurrenceDbFactory.createDaily(scheduleId, 1, {
             duration: 60,
             endDate: new Date(Date.now() + 6 * 30 * 24 * 60 * 60 * 1000), // ~6 months
@@ -261,7 +261,7 @@ export const scheduleRecurrencePatterns = {
     /**
      * Weekly on Fridays for 2 hours (team retrospective)
      */
-    weeklyRetrospective: (scheduleId: string) =>
+    weeklyRetrospective: (scheduleId: string | bigint) =>
         ScheduleRecurrenceDbFactory.createWeekly(scheduleId, 5, 1, {
             duration: 120,
         }),
@@ -269,7 +269,7 @@ export const scheduleRecurrencePatterns = {
     /**
      * Bi-weekly on Wednesdays for 1 hour (sprint planning)
      */
-    biWeeklyPlanning: (scheduleId: string) =>
+    biWeeklyPlanning: (scheduleId: string | bigint) =>
         ScheduleRecurrenceDbFactory.createWeekly(scheduleId, 3, 2, {
             duration: 60,
         }),
@@ -277,7 +277,7 @@ export const scheduleRecurrencePatterns = {
     /**
      * Monthly on the 1st for 30 minutes (monthly review)
      */
-    monthlyReview: (scheduleId: string) =>
+    monthlyReview: (scheduleId: string | bigint) =>
         ScheduleRecurrenceDbFactory.createMonthly(scheduleId, 1, 1, {
             duration: 30,
         }),
@@ -285,7 +285,7 @@ export const scheduleRecurrencePatterns = {
     /**
      * Quarterly on the 15th for 3 hours (quarterly planning)
      */
-    quarterlyPlanning: (scheduleId: string) =>
+    quarterlyPlanning: (scheduleId: string | bigint) =>
         ScheduleRecurrenceDbFactory.createMonthly(scheduleId, 15, 3, {
             duration: 180,
         }),
@@ -293,7 +293,7 @@ export const scheduleRecurrencePatterns = {
     /**
      * Annual on June 15th for all day (company retreat)
      */
-    annualRetreat: (scheduleId: string) =>
+    annualRetreat: (scheduleId: string | bigint) =>
         ScheduleRecurrenceDbFactory.createYearly(scheduleId, 6, 15, 1, {
             duration: 480, // 8 hours
             endDate: new Date("2030-12-31T23:59:59Z"),

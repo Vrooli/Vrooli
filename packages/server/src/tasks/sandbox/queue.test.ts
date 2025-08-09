@@ -34,12 +34,12 @@ describe("Sandbox Queue", () => {
 
     describe("processSandbox", () => {
         const baseSandboxData: Omit<SandboxTask, "type" | "status"> = {
-            taskId: "task-123",
+            taskId: "123",
             code: "console.log('Hello, world!');",
             language: "javascript",
-            userId: "user-456",
-            runId: "run-789",
-            stepId: "step-012",
+            userId: "456",
+            runId: "789",
+            stepId: "012",
             timeLimit: 5000,
             memoryLimit: 128,
             environment: {
@@ -92,7 +92,7 @@ describe("Sandbox Queue", () => {
             const languages = ["javascript", "python", "typescript", "bash"];
 
             for (const language of languages) {
-                const data = { ...baseSandboxData, language, taskId: `task-${language}` };
+                const data = { ...baseSandboxData, language, taskId: `${language}1` };
                 const result = await processSandbox(data, queueService);
                 expect(result.success).toBe(true);
 
@@ -104,7 +104,7 @@ describe("Sandbox Queue", () => {
         it("should handle concurrent task additions", async () => {
             const promises = [];
             for (let i = 0; i < 5; i++) {
-                const data = { ...baseSandboxData, taskId: `task-concurrent-${i}` };
+                const data = { ...baseSandboxData, taskId: `concurrent${i}` };
                 promises.push(processSandbox(data, queueService));
             }
 
@@ -127,7 +127,7 @@ describe("Sandbox Queue", () => {
                 const data = {
                     ...baseSandboxData,
                     ...limits,
-                    taskId: `task-limit-${limits.timeLimit}`,
+                    taskId: `limit${limits.timeLimit}`,
                 };
                 const result = await processSandbox(data, queueService);
                 expect(result.success).toBe(true);
@@ -158,7 +158,7 @@ describe("Sandbox Queue", () => {
                 const data = {
                     ...baseSandboxData,
                     code: testCase.code,
-                    taskId: `task-security-${testCase.description.replace(/\s+/g, "-")}`,
+                    taskId: `security${testCase.description.replace(/\s+/g, "")}`,
                 };
                 const result = await processSandbox(data, queueService);
                 expect(result.success).toBe(true);
@@ -176,12 +176,12 @@ describe("Sandbox Queue", () => {
         beforeEach(async () => {
             // Add a test job
             const result = await processSandbox({
-                taskId: "test-task-456",
+                taskId: "456",
                 code: "console.log('test');",
                 language: "javascript",
-                userId: "user-456",
-                runId: "run-789",
-                stepId: "step-012",
+                userId: "456",
+                runId: "789",
+                stepId: "012",
                 timeLimit: 5000,
                 memoryLimit: 128,
                 environment: {},
@@ -190,14 +190,14 @@ describe("Sandbox Queue", () => {
         });
 
         it("should change task status", async () => {
-            const result = await changeSandboxTaskStatus(jobId, "Running", "user-456", queueService);
+            const result = await changeSandboxTaskStatus(jobId, "Running", "456", queueService);
             expect(result.success).toBe(true);
         });
 
         it("should verify status change is delegated to QueueService", async () => {
             const spy = vi.spyOn(queueService, "changeTaskStatus");
-            await changeSandboxTaskStatus(jobId, "Running", "user-456", queueService);
-            expect(spy).toHaveBeenCalledWith(jobId, "Running", "user-456", "sandbox");
+            await changeSandboxTaskStatus(jobId, "Running", "456", queueService);
+            expect(spy).toHaveBeenCalledWith(jobId, "Running", "456", "sandbox");
         });
 
         it("should handle all valid task statuses", async () => {
@@ -206,12 +206,12 @@ describe("Sandbox Queue", () => {
             for (const status of statuses) {
                 // Add a new job for each status test
                 const result = await processSandbox({
-                    taskId: `test-task-status-${status}`,
+                    taskId: `status${status}`,
                     code: "console.log('test');",
                     language: "javascript",
-                    userId: "user-456",
-                    runId: "run-789",
-                    stepId: "step-012",
+                    userId: "456",
+                    runId: "789",
+                    stepId: "012",
                     timeLimit: 5000,
                     memoryLimit: 128,
                     environment: {},
@@ -220,7 +220,7 @@ describe("Sandbox Queue", () => {
                 const statusResult = await changeSandboxTaskStatus(
                     result.data!.id,
                     status,
-                    "user-456",
+                    "456",
                     queueService,
                 );
                 expect(statusResult.success).toBe(true);
@@ -228,7 +228,7 @@ describe("Sandbox Queue", () => {
         });
 
         it("should handle invalid job ID", async () => {
-            const result = await changeSandboxTaskStatus("invalid-id", "Running", "user-456", queueService);
+            const result = await changeSandboxTaskStatus("999999", "Running", "456", queueService);
             expect(result.success).toBe(false);
         });
     });
@@ -240,12 +240,12 @@ describe("Sandbox Queue", () => {
             // Add multiple test jobs
             for (let i = 0; i < 3; i++) {
                 const result = await processSandbox({
-                    taskId: `test-task-${i}`,
+                    taskId: `task${i}`,
                     code: `console.log('Task ${i}');`,
                     language: "javascript",
-                    userId: "user-456",
-                    runId: `run-${i}`,
-                    stepId: `step-${i}`,
+                    userId: "456",
+                    runId: `${i}00`,
+                    stepId: `${i}01`,
                     timeLimit: 5000,
                     memoryLimit: 128,
                     environment: {},
@@ -266,7 +266,7 @@ describe("Sandbox Queue", () => {
         });
 
         it("should handle mixed valid and invalid IDs", async () => {
-            const mixedIds = [...jobIds, "invalid-id-1", "invalid-id-2"];
+            const mixedIds = [...jobIds, "999998", "999997"];
             const statuses = await getSandboxTaskStatuses(mixedIds, queueService);
 
             // Should return status for all IDs, with null for invalid ones
@@ -308,12 +308,12 @@ describe("Sandbox Queue", () => {
             }));
 
             const sandboxData = {
-                taskId: "test-sandbox-integration",
+                taskId: "1001",
                 code: "console.log('Hello, world!');",
                 language: "javascript",
-                userId: "user-456",
-                runId: "run-integration",
-                stepId: "step-integration",
+                userId: "456",
+                runId: "2001",
+                stepId: "3001",
                 timeLimit: 5000,
                 memoryLimit: 128,
                 environment: {},
@@ -350,12 +350,12 @@ describe("Sandbox Queue", () => {
             }));
 
             const sandboxData = {
-                taskId: "test-sandbox-fail",
+                taskId: "1002",
                 code: "throw new Error('test error');",
                 language: "javascript",
-                userId: "user-456",
-                runId: "run-fail",
-                stepId: "step-fail",
+                userId: "456",
+                runId: "2002",
+                stepId: "3002",
                 timeLimit: 5000,
                 memoryLimit: 128,
                 environment: {},
@@ -382,12 +382,12 @@ describe("Sandbox Queue", () => {
             }));
 
             const sandboxData = {
-                taskId: "test-sandbox-timeout",
+                taskId: "1003",
                 code: "while(true) { }",
                 language: "javascript",
-                userId: "user-456",
-                runId: "run-timeout",
-                stepId: "step-timeout",
+                userId: "456",
+                runId: "2003",
+                stepId: "3003",
                 timeLimit: 1000, // 1 second timeout
                 memoryLimit: 128,
                 environment: {},
@@ -417,12 +417,12 @@ describe("Sandbox Queue", () => {
             }));
 
             const sandboxData = {
-                taskId: "test-sandbox-memory",
+                taskId: "1004",
                 code: "const arr = new Array(1000000000).fill(0);",
                 language: "javascript",
-                userId: "user-456",
-                runId: "run-memory",
-                stepId: "step-memory",
+                userId: "456",
+                runId: "2004",
+                stepId: "3004",
                 timeLimit: 5000,
                 memoryLimit: 64, // Small memory limit
                 environment: {},
@@ -438,17 +438,17 @@ describe("Sandbox Queue", () => {
 
     describe("Security isolation", () => {
         it("should handle tasks with different user contexts", async () => {
-            const users = ["user-1", "user-2", "user-3"];
+            const users = ["1", "2", "3"];
             const results = [];
 
             for (const userId of users) {
                 const data = {
-                    taskId: `task-${userId}`,
+                    taskId: `task${userId}`,
                     code: `console.log('User: ${userId}');`,
                     language: "javascript",
                     userId,
-                    runId: `run-${userId}`,
-                    stepId: `step-${userId}`,
+                    runId: `run${userId}`,
+                    stepId: `step${userId}`,
                     timeLimit: 5000,
                     memoryLimit: 128,
                     environment: { USER_ID: userId },
@@ -475,12 +475,12 @@ describe("Sandbox Queue", () => {
             const results = [];
             for (let i = 0; i < tasks.length; i++) {
                 const data = {
-                    taskId: `task-env-${i}`,
+                    taskId: `env${i}`,
                     code: "console.log(process.env);",
                     language: "javascript",
-                    userId: "user-456",
-                    runId: `run-env-${i}`,
-                    stepId: `step-env-${i}`,
+                    userId: "456",
+                    runId: `env${i}0`,
+                    stepId: `env${i}1`,
                     timeLimit: 5000,
                     memoryLimit: 128,
                     environment: tasks[i].env,
@@ -504,12 +504,12 @@ describe("Sandbox Queue", () => {
 
             for (let i = 0; i < taskCount; i++) {
                 const data = {
-                    taskId: `high-volume-${i}`,
+                    taskId: `volume${i}`,
                     code: `console.log('Task ${i}');`,
                     language: "javascript",
-                    userId: `user-${i % 5}`, // Distribute across 5 users
-                    runId: `run-volume-${i}`,
-                    stepId: `step-volume-${i}`,
+                    userId: `${i % 5}`, // Distribute across 5 users
+                    runId: `volume${i}0`,
+                    stepId: `volume${i}1`,
                     timeLimit: 5000,
                     memoryLimit: 128,
                     environment: {},
@@ -531,12 +531,12 @@ describe("Sandbox Queue", () => {
         it("should clean up completed jobs", async () => {
             // Add a job
             const result = await processSandbox({
-                taskId: "cleanup-test",
+                taskId: "4001",
                 code: "console.log('cleanup');",
                 language: "javascript",
-                userId: "user-456",
-                runId: "run-cleanup",
-                stepId: "step-cleanup",
+                userId: "456",
+                runId: "2005",
+                stepId: "3005",
                 timeLimit: 5000,
                 memoryLimit: 128,
                 environment: {},
@@ -545,7 +545,7 @@ describe("Sandbox Queue", () => {
             const jobId = result.data!.id;
 
             // Mark as completed
-            await changeSandboxTaskStatus(jobId, "Completed", "user-456", queueService);
+            await changeSandboxTaskStatus(jobId, "Completed", "456", queueService);
 
             // Job should still exist initially
             const job = await queueService.sandbox.queue.getJob(jobId);

@@ -1,12 +1,12 @@
 // AI_CHECK: TEST_QUALITY=1, TEST_COVERAGE=1 | LAST: 2025-06-19
-import type IORedis from "ioredis";
+import { generatePK } from "@vrooli/shared";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { createIsolatedQueueTestHarness } from "../__test/helpers/queueTestUtils.js";
 import { logger } from "../events/logger.js";
 import { clearRedisCache } from "./queueFactory.js";
 import { QueueService } from "./queues.js";
-import type { EmailTask, RunTask, SwarmTask } from "./taskTypes.js";
+import type { EmailTask, LLMCompletionTask } from "./taskTypes.js";
 import { QueueTaskType } from "./taskTypes.js";
-import { createIsolatedQueueTestHarness } from "../__test/helpers/queueTestUtils.js";
 
 describe("QueueService", () => {
     let queueService: QueueService;
@@ -60,7 +60,7 @@ describe("QueueService", () => {
             // Verify queues can be accessed and used
             const emailQueue = queueService.email;
             expect(emailQueue).toBeDefined();
-            
+
             // Verify we can add a job (indicates connection is working)
             const job = await emailQueue.add({
                 taskType: QueueTaskType.Email,
@@ -98,7 +98,7 @@ describe("QueueService", () => {
                     text: "Test 2",
                 }),
             ]);
-            
+
             expect(jobs).toHaveLength(2);
             expect(jobs[0]).toBeDefined();
             expect(jobs[1]).toBeDefined();
@@ -107,15 +107,15 @@ describe("QueueService", () => {
         it("should handle init after shutdown", async () => {
             // Use isolated harness to prevent connection state interference
             const isolatedHarness = await createIsolatedQueueTestHarness(redisUrl);
-            
+
             try {
                 // Create fresh QueueService instance for this test
                 (QueueService as any).instance = null;
                 const isolatedQueueService = QueueService.get();
-                
+
                 // First init
                 await isolatedQueueService.init(redisUrl);
-                
+
                 // Add a job to verify it's working
                 const job1 = await isolatedQueueService.email.add({
                     taskType: QueueTaskType.Email,
@@ -140,10 +140,10 @@ describe("QueueService", () => {
                 });
                 expect(job2).toBeDefined();
                 expect(job2.id).toBeDefined();
-                
+
                 // Clean shutdown
                 await isolatedQueueService.shutdown();
-                
+
                 // Reset the instance to ensure clean state
                 (QueueService as any).instance = null;
             } finally {
@@ -155,20 +155,20 @@ describe("QueueService", () => {
         it("should handle invalid Redis URL gracefully", async () => {
             // Use isolated harness to prevent connection cache pollution
             const isolatedHarness = await createIsolatedQueueTestHarness(redisUrl);
-            
+
             try {
                 // Create fresh QueueService instance for this test to prevent cache pollution
                 (QueueService as any).instance = null;
                 const isolatedQueueService = QueueService.get();
-                
+
                 const invalidUrl = "redis://invalid-host-that-does-not-exist-12345:6379";
                 // Init doesn't throw anymore - it just sets the URL
                 await expect(isolatedQueueService.init(invalidUrl)).resolves.not.toThrow();
-                
+
                 // Accessing the queue should work (lazy creation)
                 const emailQueue = isolatedQueueService.email;
                 expect(emailQueue).toBeDefined();
-                
+
                 // Jobs can be added to the queue (they queue locally)
                 // But processing will fail when worker tries to connect
                 // For now, let's just verify the queue was created
@@ -180,7 +180,7 @@ describe("QueueService", () => {
                 } catch (error) {
                     // Expected - connection was never established
                 }
-                
+
                 // Reset the instance to ensure clean state
                 (QueueService as any).instance = null;
             } finally {
@@ -252,34 +252,91 @@ describe("QueueService", () => {
             });
         });
 
-        describe("Run queue", () => {
-            it("should add run task with priority", async () => {
-                const runTask: RunTask = {
-                    taskType: QueueTaskType.Run,
-                    runId: "test-run-123",
-                    userId: "user-123",
-                    hasPremium: true,
+        describe("LLM Completion queue", () => {
+            it("should add LLM completion task with priority", async () => {
+                const llmTask: LLMCompletionTask = {
+                    type: QueueTaskType.LLM_COMPLETION,
+                    id: generatePK().toString(),
+                    chatId: generatePK().toString(),
+                    messageId: generatePK().toString(),
+                    model: "gpt-4o",
+                    taskContexts: [],
+                    userData: {
+                        __typename: "SessionUser",
+                        id: generatePK().toString(),
+                        name: "Test User",
+                        credits: "1000",
+                        creditAccountId: null,
+                        creditSettings: null,
+                        handle: "testuser",
+                        hasPremium: true,
+                        hasReceivedPhoneVerificationReward: false,
+                        languages: ["en"],
+                        phoneNumberVerified: false,
+                        profileImage: null,
+                        publicId: generatePK().toString(),
+                        session: {
+                            __typename: "SessionUserSession",
+                            id: generatePK().toString(),
+                            lastRefreshAt: new Date().toISOString(),
+                        },
+                        theme: null,
+                    },
+                    allocation: {
+                        maxCredits: "1000",
+                        maxDurationMs: 300000,
+                        maxMemoryMB: 512,
+                        maxSteps: 100,
+                    },
                 };
 
                 const priority = 10;
-                const job = await queueService.run.add(runTask, { priority });
+                const job = await queueService.llm.add(llmTask, { priority });
 
                 expect(job).toBeDefined();
-                expect(job.data).toEqual(runTask);
+                expect(job.data).toEqual(llmTask);
                 expect(job.opts.priority).toBe(priority);
             });
 
-            it("should respect run queue limits", async () => {
-                // Add multiple run tasks
+            it("should respect LLM completion queue limits", async () => {
+                // Add multiple LLM completion tasks
                 const tasks: Promise<any>[] = [];
                 for (let i = 0; i < 10; i++) {
-                    const runTask: RunTask = {
-                        taskType: QueueTaskType.Run,
-                        runId: `run-${i}`,
-                        userId: `user-${i}`,
-                        hasPremium: false,
+                    const llmTask: LLMCompletionTask = {
+                        type: QueueTaskType.LLM_COMPLETION,
+                        id: generatePK().toString(),
+                        chatId: generatePK().toString(),
+                        messageId: generatePK().toString(),
+                        taskContexts: [],
+                        userData: {
+                            __typename: "SessionUser",
+                            id: generatePK().toString(),
+                            name: `Test User ${i}`,
+                            credits: "1000",
+                            creditAccountId: null,
+                            creditSettings: null,
+                            handle: `testuser${i}`,
+                            hasPremium: false,
+                            hasReceivedPhoneVerificationReward: false,
+                            languages: ["en"],
+                            phoneNumberVerified: false,
+                            profileImage: null,
+                            publicId: generatePK().toString(),
+                            session: {
+                                __typename: "SessionUserSession",
+                                id: generatePK().toString(),
+                                lastRefreshAt: new Date().toISOString(),
+                            },
+                            theme: null,
+                        },
+                        allocation: {
+                            maxCredits: "500",
+                            maxDurationMs: 180000,
+                            maxMemoryMB: 256,
+                            maxSteps: 50,
+                        },
                     };
-                    tasks.push(queueService.run.add(runTask));
+                    tasks.push(queueService.llm.add(llmTask));
                 }
 
                 // All should be added successfully
@@ -290,17 +347,44 @@ describe("QueueService", () => {
         });
 
         describe("Swarm queue", () => {
-            it("should add swarm task", async () => {
-                const swarmTask: SwarmTask = {
-                    taskType: QueueTaskType.Swarm,
-                    conversationId: "conv-123",
-                    userId: "user-123",
-                    hasPremium: false,
-                    swarmModel: "gpt-4",
-                    execType: "chat",
+            it("should add swarm execution task", async () => {
+                const swarmTask: LLMCompletionTask = {
+                    type: QueueTaskType.LLM_COMPLETION,
+                    id: generatePK().toString(),
+                    chatId: generatePK().toString(),
+                    messageId: generatePK().toString(),
+                    model: "gpt-4o",
+                    taskContexts: [],
+                    userData: {
+                        __typename: "SessionUser",
+                        id: generatePK().toString(),
+                        name: "Test User",
+                        credits: "1000",
+                        creditAccountId: null,
+                        creditSettings: null,
+                        handle: "testuser",
+                        hasPremium: false,
+                        hasReceivedPhoneVerificationReward: false,
+                        languages: ["en"],
+                        phoneNumberVerified: false,
+                        profileImage: null,
+                        publicId: generatePK().toString(),
+                        session: {
+                            __typename: "SessionUserSession",
+                            id: generatePK().toString(),
+                            lastRefreshAt: new Date().toISOString(),
+                        },
+                        theme: null,
+                    },
+                    allocation: {
+                        maxCredits: "2000",
+                        maxDurationMs: 600000,
+                        maxMemoryMB: 1024,
+                        maxSteps: 200,
+                    },
                 };
 
-                const job = await queueService.swarm.add(swarmTask);
+                const job = await queueService.llm.add(swarmTask);
                 expect(job).toBeDefined();
                 expect(job.data).toEqual(swarmTask);
             });
@@ -382,12 +466,12 @@ describe("QueueService", () => {
 
             // Queue instances should be cleared
             expect((queueService as any).queueInstances).toEqual({});
-            
+
             // After shutdown, accessing queues creates new instances
             // This is the current behavior - queues are lazily recreated
             const newEmailQueue = queueService.email;
             expect(newEmailQueue).toBeDefined();
-            
+
             // But the new instance is different from the old one
             expect((queueService as any).queueInstances).not.toEqual({});
         });
@@ -451,37 +535,37 @@ describe("QueueService", () => {
         it("should handle Redis connection errors gracefully", async () => {
             // Use isolated harness to prevent connection cache pollution
             const isolatedHarness = await createIsolatedQueueTestHarness(redisUrl);
-            
+
             try {
                 const spy = vi.spyOn(logger, "error");
-                
+
                 // Create a fresh QueueService instance for this test
                 (QueueService as any).instance = null;
                 const isolatedQueueService = QueueService.get();
 
                 // Init with invalid URL (doesn't throw anymore)
                 await isolatedQueueService.init("redis://totally-invalid-host-99999:6379");
-                
+
                 // Create a queue - this works lazily
                 const queue = isolatedQueueService.email;
                 expect(queue).toBeDefined();
-                
+
                 // Wait a bit for any connection errors to be logged
                 await new Promise(resolve => setTimeout(resolve, 1000));
-                
+
                 // Connection errors might be logged by BullMQ internally
                 // Let's just verify the queue was created
                 expect(queue.queue).toBeDefined();
-                
+
                 spy.mockRestore();
-                
+
                 // Clean up the isolated service
                 try {
                     await isolatedQueueService.shutdown();
                 } catch (error) {
                     // Expected - connection was never established
                 }
-                
+
                 // Reset the instance to ensure clean state
                 (QueueService as any).instance = null;
             } finally {
@@ -576,14 +660,14 @@ describe("QueueService", () => {
         it("should handle rapid init/shutdown cycles", async () => {
             // Use isolated harness to prevent connection cache pollution during rapid cycles
             const isolatedHarness = await createIsolatedQueueTestHarness(redisUrl);
-            
+
             try {
                 // Reduce cycles to 3 and increase delays to prevent connection exhaustion
                 for (let i = 0; i < 3; i++) {
                     // Create fresh QueueService instance for each cycle to prevent state pollution
                     (QueueService as any).instance = null;
                     const cycleQueueService = QueueService.get();
-                    
+
                     try {
                         await cycleQueueService.init(redisUrl);
 
@@ -635,7 +719,7 @@ describe("QueueService", () => {
             // Queue getter works even before init (lazy creation)
             const emailQueue = freshService.email;
             expect(emailQueue).toBeDefined();
-            
+
             // If no REDIS_URL is set, it will use default localhost
             // Jobs can be added, but may fail during processing if Redis isn't available
             // Let's just verify the queue was created
@@ -675,12 +759,12 @@ describe("QueueService", () => {
         it("should track queue metrics", async () => {
             // Use isolated harness to prevent job processing from corrupting connections
             const isolatedHarness = await createIsolatedQueueTestHarness(redisUrl);
-            
+
             try {
                 // Create fresh QueueService instance for this complex test
                 (QueueService as any).instance = null;
                 const isolatedQueueService = QueueService.get();
-                
+
                 await isolatedQueueService.init(redisUrl);
 
                 // Add various types of tasks - use simplified task types to avoid execution complexity
@@ -717,7 +801,7 @@ describe("QueueService", () => {
 
                 // Check that jobs were added (they should be in waiting state)
                 const totalJobs = emailCounts.waiting + emailCounts.active + emailCounts.completed + emailCounts.failed;
-                
+
                 // Jobs might be processed quickly, so be flexible with the assertion
                 if (totalJobs === 0) {
                     // All jobs were processed very quickly
@@ -727,17 +811,17 @@ describe("QueueService", () => {
                     // At least some jobs should be present
                     expect(totalJobs).toBeGreaterThan(0);
                 }
-                
+
                 // Also verify the queue metrics structure is correct
                 expect(emailCounts).toBeDefined();
                 expect(typeof emailCounts.waiting).toBe("number");
                 expect(typeof emailCounts.active).toBe("number");
                 expect(typeof emailCounts.completed).toBe("number");
                 expect(typeof emailCounts.failed).toBe("number");
-                
+
                 // Clean shutdown
                 await isolatedQueueService.shutdown();
-                
+
                 // Reset the instance to ensure clean state
                 (QueueService as any).instance = null;
             } finally {
@@ -749,12 +833,12 @@ describe("QueueService", () => {
         it("should handle queue pause and resume", async () => {
             // Use isolated harness to prevent queue state manipulation from affecting other tests
             const isolatedHarness = await createIsolatedQueueTestHarness(redisUrl);
-            
+
             try {
                 // Create fresh QueueService instance for this test
                 (QueueService as any).instance = null;
                 const isolatedQueueService = QueueService.get();
-                
+
                 await isolatedQueueService.init(redisUrl);
 
                 // Pause the email queue
@@ -777,10 +861,10 @@ describe("QueueService", () => {
                 await isolatedQueueService.email.queue.resume();
                 const isResumed = !(await isolatedQueueService.email.queue.isPaused());
                 expect(isResumed).toBe(true);
-                
+
                 // Clean shutdown
                 await isolatedQueueService.shutdown();
-                
+
                 // Reset the instance to ensure clean state
                 (QueueService as any).instance = null;
             } finally {
@@ -794,12 +878,12 @@ describe("QueueService", () => {
         it("should handle invalid task data gracefully", async () => {
             // Use isolated harness to prevent task processing from affecting connection state
             const isolatedHarness = await createIsolatedQueueTestHarness(redisUrl);
-            
+
             try {
                 // Create fresh QueueService instance for this test
                 (QueueService as any).instance = null;
                 const isolatedQueueService = QueueService.get();
-                
+
                 await isolatedQueueService.init(redisUrl);
 
                 // Test with invalid email data
@@ -829,10 +913,10 @@ describe("QueueService", () => {
                     const result = await isolatedQueueService.email.add(task);
                     expect(result).toBeDefined();
                 }
-                
+
                 // Clean shutdown
                 await isolatedQueueService.shutdown();
-                
+
                 // Reset the instance to ensure clean state
                 (QueueService as any).instance = null;
             } finally {
@@ -844,12 +928,12 @@ describe("QueueService", () => {
         it("should handle circular references in task data", async () => {
             // Use isolated harness to prevent serialization errors from affecting connection state
             const isolatedHarness = await createIsolatedQueueTestHarness(redisUrl);
-            
+
             try {
                 // Create fresh QueueService instance for this test
                 (QueueService as any).instance = null;
                 const isolatedQueueService = QueueService.get();
-                
+
                 await isolatedQueueService.init(redisUrl);
 
                 // Create object with circular reference
@@ -863,10 +947,10 @@ describe("QueueService", () => {
 
                 // Should handle serialization gracefully
                 await expect(isolatedQueueService.email.add(circularData)).rejects.toThrow();
-                
+
                 // Clean shutdown
                 await isolatedQueueService.shutdown();
-                
+
                 // Reset the instance to ensure clean state
                 (QueueService as any).instance = null;
             } finally {

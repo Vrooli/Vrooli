@@ -42,7 +42,7 @@ vi.mock("./credits.js", () => ({
 
 // Helper to create async generator from events
 function createMockServiceStream(events: any[]): AsyncGenerator<any> {
-    return (async function* () {
+    return (async function* mockEventGenerator() {
         for (const event of events) {
             yield event;
         }
@@ -213,8 +213,11 @@ describe("FallbackRouter", () => {
                 ]);
 
                 // First service throws error
-                failingService.generateResponseStreaming = vi.fn().mockImplementation(async function* () {
-                    throw new Error("Service unavailable");
+                failingService.generateResponseStreaming = vi.fn().mockImplementation(() => {
+                    // eslint-disable-next-line require-yield
+                    return (async function* failingServiceGenerator() {
+                        throw new Error("Service unavailable");
+                    })();
                 });
 
                 mockRegistry.getBestService
@@ -255,8 +258,11 @@ describe("FallbackRouter", () => {
                     .mockReturnValueOnce(null);
 
                 const failingService = createMockService("failing");
-                failingService.generateResponseStreaming = vi.fn().mockImplementation(async function* () {
-                    throw new Error("All services down");
+                failingService.generateResponseStreaming = vi.fn().mockImplementation(() => {
+                    // eslint-disable-next-line require-yield
+                    return (async function* downServiceGenerator() {
+                        throw new Error("All services down");
+                    })();
                 });
 
                 mockRegistry.getService.mockReturnValue(failingService);
@@ -273,8 +279,11 @@ describe("FallbackRouter", () => {
 
             it("should respect retry limit", async () => {
                 const failingService = createMockService("failing");
-                failingService.generateResponseStreaming = vi.fn().mockImplementation(async function* () {
-                    throw new Error("Persistent failure");
+                failingService.generateResponseStreaming = vi.fn().mockImplementation(() => {
+                    // eslint-disable-next-line require-yield
+                    return (async function* persistentFailureGenerator() {
+                        throw new Error("Persistent failure");
+                    })();
                 });
 
                 // Return same service ID repeatedly to test retry limit
@@ -370,8 +379,11 @@ describe("FallbackRouter", () => {
                 ]);
 
                 const failingService = createMockService("failing");
-                failingService.generateResponseStreaming = vi.fn().mockImplementation(async function* () {
-                    throw new Error("Stream failed");
+                failingService.generateResponseStreaming = vi.fn().mockImplementation(() => {
+                    // eslint-disable-next-line require-yield
+                    return (async function* streamFailureGenerator() {
+                        throw new Error("Stream failed");
+                    })();
                 });
 
                 mockRegistry.getService
@@ -450,7 +462,7 @@ describe("FallbackRouter", () => {
 
             it("should handle service errors during stream iteration", async () => {
                 const erroringService = createMockService("erroring");
-                erroringService.generateResponseStreaming = vi.fn().mockImplementation(async function* () {
+                erroringService.generateResponseStreaming = vi.fn().mockImplementation(async function* midStreamErrorGenerator() {
                     yield { type: "text", content: "Starting..." };
                     throw new Error("Mid-stream error");
                 });

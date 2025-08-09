@@ -82,6 +82,10 @@ export class BpmnSubprocessHandler {
                 return this.processEmbeddedSubprocess(model, subprocess, currentLocation, context);
             case "event_subprocess":
                 return this.processEventSubprocess(model, subprocess, currentLocation, context);
+            case "transaction":
+                return this.processTransactionSubprocess(model, subprocess, currentLocation, context);
+            case "adhoc":
+                return this.processAdhocSubprocess(model, subprocess, currentLocation, context);
             default:
                 throw new Error(`Unknown subprocess type: ${subprocessType}`);
         }
@@ -304,10 +308,43 @@ export class BpmnSubprocessHandler {
         const subprocessElements = model.getSubprocessElements(subprocess.id);
         
         // Find start events within subprocess
-        const startEvents = subprocessElements.filter(el => isElementType(el, "bpmn:StartEvent"));
+        let startEvents = subprocessElements.filter(el => isElementType(el, "bpmn:StartEvent"));
         
+        // If no start events found, look for any elements without incoming flows
         if (startEvents.length === 0) {
-            throw new Error(`No start event found in subprocess: ${subprocess.id}`);
+            startEvents = subprocessElements.filter(element => 
+                !model.hasIncomingFlows(element.id),
+            );
+        }
+        
+        // If still no elements found, create a default entry point
+        if (startEvents.length === 0) {
+            // For transaction and adhoc subprocesses, create a synthetic start location
+            const startLocation = model.createAbstractLocation(
+                subprocess.id,
+                currentLocation.routineId,
+                "subprocess_context",
+                { 
+                    parentNodeId: subprocess.id,
+                    subprocessId: subprocess.id,
+                    metadata: { synthetic: true },
+                },
+            );
+            
+            const updatedContext = ContextUtils.enterSubprocess(context, {
+                id: `subprocess_${subprocess.id}_${Date.now()}`,
+                subprocessId: subprocess.id,
+                parentLocation: currentLocation,
+                variables: { ...context.variables },
+                startedAt: new Date(),
+                status: "running",
+            });
+            
+            return {
+                nextLocations: [startLocation],
+                updatedContext,
+                subprocessState: "starting",
+            };
         }
 
         // Create subprocess context with isolated variables
@@ -496,6 +533,63 @@ export class BpmnSubprocessHandler {
     }
 
     /**
+     * Process transaction subprocess
+     */
+    private processTransactionSubprocess(
+        model: BpmnModel,
+        subprocess: any,
+        currentLocation: AbstractLocation,
+        context: EnhancedExecutionContext,
+    ): SubprocessResult {
+        // For now, treat transaction subprocesses like embedded subprocesses
+        // with additional transaction properties
+        const result = this.processEmbeddedSubprocess(model, subprocess, currentLocation, context);
+        
+        // Add transaction-specific metadata
+        if (result.nextLocations.length > 0) {
+            result.nextLocations[0].metadata = {
+                ...result.nextLocations[0].metadata,
+                isTransaction: true,
+                subprocessType: "transaction",
+            };
+        }
+        
+        return {
+            ...result,
+            subprocessState: "starting",
+        };
+    }
+
+    /**
+     * Process adhoc subprocess
+     */
+    private processAdhocSubprocess(
+        model: BpmnModel,
+        subprocess: any,
+        currentLocation: AbstractLocation,
+        context: EnhancedExecutionContext,
+    ): SubprocessResult {
+        // For now, treat adhoc subprocesses like embedded subprocesses
+        // with additional adhoc properties
+        const result = this.processEmbeddedSubprocess(model, subprocess, currentLocation, context);
+        
+        // Add adhoc-specific metadata
+        if (result.nextLocations.length > 0) {
+            result.nextLocations[0].metadata = {
+                ...result.nextLocations[0].metadata,
+                isAdhoc: true,
+                subprocessType: "adhoc",
+                ordering: subprocess.ordering || "Sequential",
+            };
+        }
+        
+        return {
+            ...result,
+            subprocessState: "starting",
+        };
+    }
+
+    /**
      * Get subprocess nesting level
      */
     getSubprocessNestingLevel(context: EnhancedExecutionContext): number {
@@ -513,6 +607,10 @@ export class BpmnSubprocessHandler {
                 return "event_subprocess";
             }
             return "embedded_subprocess";
+        } else if (isElementType(subprocess, "bpmn:Transaction")) {
+            return "transaction";
+        } else if (isElementType(subprocess, "bpmn:AdHocSubProcess")) {
+            return "adhoc";
         }
         return "unknown";
     }
@@ -579,5 +677,150 @@ export class BpmnSubprocessHandler {
         }
 
         return mappedVariables;
+    }
+
+    /**
+     * Complete a subprocess and return next locations
+     */
+    completeSubprocess(
+        model: BpmnModel,
+        subprocessId: string,
+        location: AbstractLocation,
+        context: EnhancedExecutionContext,
+    ): { nextLocations: AbstractLocation[]; updatedContext: EnhancedExecutionContext } {
+        const result = {
+            nextLocations: [] as AbstractLocation[],
+            updatedContext: { ...context },
+        };
+
+        // Find the subprocess in stack
+        const subprocessIndex = result.updatedContext.subprocesses.stack.findIndex(
+            sp => sp.subprocessId === subprocessId,
+        );
+
+        if (subprocessIndex === -1) {
+            return result; // Subprocess not found
+        }
+
+        const subprocess = result.updatedContext.subprocesses.stack[subprocessIndex];
+
+        // Mark subprocess as completed and remove from stack
+        result.updatedContext.subprocesses.stack.splice(subprocessIndex, 1);
+
+        // Get outgoing flows from the subprocess
+        const outgoingFlows = model.getOutgoingFlows(subprocessId);
+        for (const flow of outgoingFlows) {
+            if (flow.targetRef) {
+                const targetLocation = model.createAbstractLocation(
+                    flow.targetRef.id,
+                    location.routineId,
+                    "node",
+                    { parentNodeId: flow.targetRef.id },
+                );
+                result.nextLocations.push(targetLocation);
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Navigate within a subprocess boundary
+     */
+    navigateWithinSubprocess(
+        model: BpmnModel,
+        nodeId: string,
+        location: AbstractLocation,
+        context: EnhancedExecutionContext,
+    ): { nextLocations: AbstractLocation[] } {
+        const result = {
+            nextLocations: [] as AbstractLocation[],
+        };
+
+        // Check if current location is within a subprocess
+        const subprocessId = location.metadata?.subprocessId;
+        if (!subprocessId) {
+            return result;
+        }
+
+        // Get current subprocess context
+        const subprocessContext = context.subprocesses.stack.find(
+            sp => sp.subprocessId === subprocessId,
+        );
+
+        if (!subprocessContext) {
+            return result;
+        }
+
+        // Navigate within subprocess boundaries
+        const currentNode = model.getElementById(nodeId);
+        
+        if (currentNode) {
+            const outgoingFlows = model.getOutgoingFlows(nodeId);
+            
+            if (outgoingFlows.length > 0) {
+                for (const flow of outgoingFlows) {
+                    if (flow.targetRef) {
+                        const targetLocation = model.createAbstractLocation(
+                            flow.targetRef.id,
+                            location.routineId,
+                            "subprocess_context",
+                            { 
+                                parentNodeId: flow.targetRef.id,
+                                subprocessId,
+                            },
+                        );
+                        result.nextLocations.push(targetLocation);
+                    }
+                }
+            } else {
+                // If no outgoing flows, this might be an end event
+                // Navigate to the subprocess's end location
+                const subprocessEndLocation = model.createAbstractLocation(
+                    subprocessId,
+                    location.routineId,
+                    "node",
+                    { 
+                        parentNodeId: subprocessId,
+                        metadata: { completed: true },
+                    },
+                );
+                result.nextLocations.push(subprocessEndLocation);
+            }
+        } else {
+            // Node not found - return empty result (will be handled upstream)
+        }
+
+        return result;
+    }
+
+    /**
+     * Get active subprocesses, optionally filtered by type
+     */
+    getActiveSubprocesses(
+        context: EnhancedExecutionContext,
+        type?: string,
+    ): Array<{
+        id: string;
+        subprocessId: string;
+        type: string;
+        parentProcessId: string;
+        status: string;
+        startedAt: Date;
+    }> {
+        let activeSubprocesses = context.subprocesses.stack;
+
+        if (type) {
+            activeSubprocesses = activeSubprocesses.filter(sp => (sp as any).type === type);
+        }
+
+        return activeSubprocesses.map(sp => ({
+            id: sp.id,
+            subprocessId: sp.subprocessId,
+            type: (sp as any).type || "embedded", // Default type
+            parentProcessId: (sp as any).parentProcessId || "",
+            status: sp.status,
+            startedAt: sp.startedAt,
+        }));
     }
 }

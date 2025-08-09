@@ -215,11 +215,19 @@ export interface EnhancedExecutionContext {
 
 export interface BoundaryEvent {
     id: string;
-    type: "timer" | "error" | "message" | "signal" | "compensation";
-    attachedToRef: string; // ID of the activity this event is attached to
+    eventId: string; // ID of the BPMN boundary event element
+    activityId: string; // ID of the activity this event is attached to
+    eventType: "timer" | "error" | "message" | "signal" | "compensation";
     interrupting: boolean;
+    status: "monitoring" | "triggered" | "completed";
+    attachedAt: Date;
     config: Record<string, unknown>;
-    activatedAt: Date;
+    // Resource tracking for proper cleanup
+    resources?: {
+        timerId?: string;
+        subscriptionId?: string;
+        messagePattern?: string;
+    };
 }
 
 export interface IntermediateEvent {
@@ -251,20 +259,25 @@ export interface TimerEvent {
 
 export interface ParallelBranch {
     id: string;
-    branchId: string;
-    currentLocation: Location;
-    status: "pending" | "running" | "completed" | "failed";
-    startedAt: Date;
+    sourceGatewayId: string;
+    targetNodeId: string;
+    status: "pending" | "running" | "completed" | "failed" | "active";
+    branchId?: string;
+    currentLocation?: Location;
+    startedAt?: Date;
     completedAt?: Date;
     result?: unknown;
 }
 
 export interface JoinPoint {
-    id: string;
+    id?: string;
     gatewayId: string;
-    requiredBranches: string[];
-    completedBranches: string[];
-    isReady: boolean;
+    expectedBranches: string[];
+    arrivedBranches: string[];
+    sourceGatewayId: string;
+    requiredBranches?: string[];
+    completedBranches?: string[];
+    isReady?: boolean;
 }
 
 export interface SubprocessContext {
@@ -337,6 +350,7 @@ export interface ComplexGatewayState {
 export type LocationType = 
     | "node"                    // Simple BPMN node
     | "boundary_event_monitor"  // Monitoring a boundary event
+    | "boundary_event_triggered" // Boundary event has been triggered
     | "parallel_branch"         // Executing in parallel branch
     | "subprocess_context"      // Inside a subprocess
     | "event_waiting"          // Waiting for intermediate event
@@ -351,11 +365,39 @@ export type LocationType =
 
 export interface AbstractLocation extends Location {
     locationType: LocationType;
+    type?: LocationType;        // Compatibility property for tests
     parentNodeId?: string;      // Original BPMN node this state derives from
     branchId?: string;          // For parallel execution
     subprocessId?: string;      // For subprocess execution
     eventId?: string;           // For event-related states
     metadata?: Record<string, unknown>; // Additional state-specific data
+}
+
+// BPMN Event Handler Result Types
+
+export interface BoundaryEventAttachResult {
+    boundaryEventsAttached: BoundaryEvent[];
+    updatedContext: EnhancedExecutionContext;
+    resourcesAllocated: string[]; // Timer IDs, subscription IDs, etc.
+}
+
+export interface BoundaryEventCheckResult {
+    triggeredEvents: BoundaryEvent[];
+    shouldInterruptActivity: boolean;
+    nextLocations: AbstractLocation[];
+    updatedContext: EnhancedExecutionContext;
+}
+
+export interface BoundaryEventCompleteResult {
+    completedEventId: string;
+    updatedContext: EnhancedExecutionContext;
+    resourcesReleased: string[];
+}
+
+export interface BoundaryEventDetachResult {
+    detachedEvents: BoundaryEvent[];
+    updatedContext: EnhancedExecutionContext;
+    resourcesReleased: string[];
 }
 
 /**

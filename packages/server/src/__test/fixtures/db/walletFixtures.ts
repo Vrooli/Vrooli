@@ -1,3 +1,4 @@
+/* eslint-disable no-magic-numbers */
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
 import { type Prisma, type PrismaClient } from "@prisma/client";
 import { generatePK } from "@vrooli/shared";

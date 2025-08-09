@@ -4,6 +4,7 @@ import { DbProvider } from "../../../db/provider.js";
 import { type PrismaClient, Prisma } from "@prisma/client";
 import {
     generatePK,
+    initIdGenerator,
     AccountStatus,
     type RunState,
     type StepStatus,
@@ -34,6 +35,9 @@ describe("RunPersistenceService", () => {
     let prisma: PrismaClient;
 
     beforeAll(async () => {
+        // Initialize ID generator
+        await initIdGenerator(0);
+        
         // Get Prisma client from provider
         prisma = DbProvider.get();
     });

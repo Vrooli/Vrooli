@@ -2,6 +2,7 @@
 import { Queue, QueueEvents, Worker, type Job } from "bullmq";
 import IORedis from "ioredis";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { generatePK } from "@vrooli/shared";
 import { logger } from "../events/logger.js";
 import {
     buildRedis,
@@ -343,8 +344,8 @@ describe("queueFactory - Queue Functionality (Mocked)", () => {
             it("should add and process jobs", async () => {
                 const testData: TestTaskData = {
                     type: "test",
-                    id: "test-1",
-                    userId: "user-1",
+                    id: generatePK().toString(),
+                    userId: generatePK().toString(),
                     message: "Hello World",
                 };
 
@@ -369,7 +370,7 @@ describe("queueFactory - Queue Functionality (Mocked)", () => {
                     Array.from({ length: 10 }, (_, i) =>
                         testQueue.add({
                             type: "test",
-                            id: `test-${i}`,
+                            id: generatePK().toString(),
                             message: `Message ${i}`,
                         }),
                     ),
@@ -389,7 +390,7 @@ describe("queueFactory - Queue Functionality (Mocked)", () => {
             it("should apply default job options", async () => {
                 const job = await testQueue.add({
                     type: "test",
-                    id: "default-opts",
+                    id: generatePK().toString(),
                     message: "Testing defaults",
                 });
 
@@ -408,7 +409,7 @@ describe("queueFactory - Queue Functionality (Mocked)", () => {
 
                 const job = await testQueue.add({
                     type: "test",
-                    id: "custom-opts",
+                    id: generatePK().toString(),
                     message: "Custom options",
                 }, customOpts);
 
@@ -436,7 +437,7 @@ describe("queueFactory - Queue Functionality (Mocked)", () => {
 
                     const job = await delayedQueue.add({
                         type: "test",
-                        id: "delayed-job",
+                        id: generatePK().toString(),
                         message: "Delayed message",
                     }, { delay });
 
@@ -478,12 +479,13 @@ describe("queueFactory - Queue Functionality (Mocked)", () => {
                 }, mockRedisClient);
 
                 try {
+                    const jobId = generatePK().toString();
                     const job = await failQueue.add({
                         type: "test",
-                        id: "failing-job",
+                        id: jobId,
                         message: "This will fail",
                         shouldFail: true,
-                    }, { jobId: "failing-job" }); // Explicitly set the jobId
+                    }, { jobId }); // Explicitly set the jobId
 
                     // Wait for the job to fail
                     try {
@@ -499,7 +501,7 @@ describe("queueFactory - Queue Functionality (Mocked)", () => {
                     expect(errorSpy).toHaveBeenCalledWith(
                         "Job failed in queue fail-test-queue",
                         expect.objectContaining({
-                            jobId: "failing-job",
+                            jobId,
                             failedReason: "Test error: Job configured to fail",
                             queue: "fail-test-queue",
                         }),
@@ -530,7 +532,7 @@ describe("queueFactory - Queue Functionality (Mocked)", () => {
 
                 const job = await retryQueue.add({
                     type: "test",
-                    id: "retry-job",
+                    id: generatePK().toString(),
                     message: "Will retry",
                 });
 
@@ -556,18 +558,16 @@ describe("queueFactory - Queue Functionality (Mocked)", () => {
                     validator: validatorMock,
                 }, mockRedisClient);
 
-                const result = await validatedQueue.addTask({
-                    type: "test",
-                    id: "validated-task",
+                const taskData = {
+                    type: "test" as const,
+                    id: generatePK().toString(),
                     message: "Testing validation",
-                });
+                };
+                
+                const result = await validatedQueue.addTask(taskData);
 
                 expect(result.success).toBe(true);
-                expect(validatorMock).toHaveBeenCalledWith({
-                    type: "test",
-                    id: "validated-task",
-                    message: "Testing validation",
-                });
+                expect(validatorMock).toHaveBeenCalledWith(taskData);
 
                 await validatedQueue.worker.close();
                 await validatedQueue.events.close();
@@ -589,7 +589,7 @@ describe("queueFactory - Queue Functionality (Mocked)", () => {
 
                 const result = await validatedQueue.addTask({
                     type: "test",
-                    id: "invalid-task",
+                    id: generatePK().toString(),
                     message: "Invalid",
                 });
 
@@ -609,7 +609,7 @@ describe("queueFactory - Queue Functionality (Mocked)", () => {
 
             it("should get task statuses", async () => {
                 // Add some tasks
-                const taskIds = ["status-1", "status-2", "status-3"];
+                const taskIds = Array.from({ length: 3 }, () => generatePK().toString());
                 await Promise.all(
                     taskIds.map(id =>
                         testQueue.add({
@@ -631,8 +631,9 @@ describe("queueFactory - Queue Functionality (Mocked)", () => {
             });
 
             it("should return null for non-existent tasks", async () => {
-                const statuses = await testQueue.getTaskStatuses(["non-existent"]);
-                expect(statuses).toEqual([{ id: "non-existent", status: null }]);
+                const nonExistentId = generatePK().toString();
+                const statuses = await testQueue.getTaskStatuses([nonExistentId]);
+                expect(statuses).toEqual([{ id: nonExistentId, status: null }]);
             });
         });
 
@@ -674,7 +675,7 @@ describe("queueFactory - Queue Functionality (Mocked)", () => {
                     Array.from({ length: 10 }, (_, i) =>
                         concurrentQueue.add({
                             type: "test",
-                            id: `concurrent-${i}`,
+                            id: generatePK().toString(),
                             message: `Concurrent ${i}`,
                         }),
                     ),
@@ -950,7 +951,7 @@ describe("queueFactory - Queue Functionality (Mocked)", () => {
                 const promises = Array.from({ length: jobCount }, (_, i) =>
                     perfQueue.add({
                         type: "test",
-                        id: `perf-${i}`,
+                        id: generatePK().toString(),
                         message: `Performance test ${i}`,
                     }),
                 );
@@ -986,7 +987,7 @@ describe("queueFactory - Queue Functionality (Mocked)", () => {
             try {
                 const jobs = await Promise.all(
                     Array.from({ length: 50 }, (_, i) => {
-                        const id = `integrity-${i}-${Date.now()}`;
+                        const id = generatePK().toString();
                         return integrityQueue.add({
                             type: "test",
                             id,

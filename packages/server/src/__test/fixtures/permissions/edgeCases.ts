@@ -1,5 +1,5 @@
 import { AccountStatus, generatePK } from "@vrooli/shared";
-import { type SessionData } from "../../../types.js";
+import { type TestSessionData } from "./types.js";
 import { standardUser } from "./userPersonas.js";
 
 /**
@@ -9,7 +9,7 @@ import { standardUser } from "./userPersonas.js";
 /**
  * Expired session data
  */
-export const expiredSession: SessionData = {
+export const expiredSession: TestSessionData = {
     ...standardUser,
     id: "888888888888888888",
     csrfToken: "expired-token",
@@ -20,7 +20,7 @@ export const expiredSession: SessionData = {
 /**
  * User with partial data (migration scenario)
  */
-export const partialUser: SessionData = {
+export const partialUser: TestSessionData = {
     ...standardUser,
     id: "999999999999999999",
     email: null, // No email
@@ -32,7 +32,7 @@ export const partialUser: SessionData = {
 /**
  * User with conflicting permissions
  */
-export const conflictingPermissionsUser: SessionData = {
+export const conflictingPermissionsUser: TestSessionData = {
     ...standardUser,
     id: "101010101010101010",
     roles: [
@@ -44,7 +44,7 @@ export const conflictingPermissionsUser: SessionData = {
 /**
  * User with maximum permissions (stress test)
  */
-export const maxPermissionsUser: SessionData = {
+export const maxPermissionsUser: TestSessionData = {
     ...standardUser,
     id: "111111111111111112",
     hasPremium: true,
@@ -72,17 +72,17 @@ export const maxPermissionsUser: SessionData = {
 /**
  * User in deletion process
  */
-export const deletingUser: SessionData = {
+export const deletingUser: TestSessionData = {
     ...standardUser,
     id: "121212121212121212",
-    accountStatus: AccountStatus.Deleting,
+    accountStatus: AccountStatus.Deleted,
     // Should have limited access while deletion is processing
 };
 
 /**
  * User with rate limit exceeded
  */
-export const rateLimitedUser: SessionData = {
+export const rateLimitedUser: TestSessionData = {
     ...standardUser,
     id: "131313131313131313",
     // In real scenario, rate limit would be tracked separately
@@ -92,7 +92,7 @@ export const rateLimitedUser: SessionData = {
 /**
  * Cross-origin session (CORS testing)
  */
-export const corsTestUser: SessionData = {
+export const corsTestUser: TestSessionData = {
     ...standardUser,
     id: "141414141414141414",
     // Would include origin headers in actual request
@@ -101,7 +101,7 @@ export const corsTestUser: SessionData = {
 /**
  * Session hijacking attempt simulation
  */
-export const hijackedSession: SessionData = {
+export const hijackedSession: TestSessionData = {
     ...standardUser,
     id: "151515151515151515",
     csrfToken: "wrong-csrf-token", // Mismatched CSRF
@@ -110,7 +110,7 @@ export const hijackedSession: SessionData = {
 /**
  * User with special characters in data
  */
-export const specialCharsUser: SessionData = {
+export const specialCharsUser: TestSessionData = {
     ...standardUser,
     id: "161616161616161616",
     handle: "user-with_special.chars",
@@ -185,10 +185,9 @@ export const timeBasedPermissions = {
 /**
  * Malformed session data - missing required fields
  */
-export const malformedSession: Partial<SessionData> = {
+export const malformedSession: Partial<TestSessionData> = {
     // Missing required fields like id, isLoggedIn, etc.
     handle: "malformed_user",
-    // @ts-expect-error - Intentionally incomplete session
     csrfToken: undefined,
     currentToken: "invalid-format-token",
 };
@@ -198,8 +197,7 @@ export const malformedSession: Partial<SessionData> = {
  */
 export const invalidTypeSession = {
     ...standardUser,
-    // @ts-expect-error - Intentionally wrong types
-    id: 12345, // Should be string
+    id: 12345 as any, // Should be string
     isLoggedIn: "yes", // Should be boolean
     hasPremium: 1, // Should be boolean
     languages: "en,es", // Should be array
@@ -211,7 +209,7 @@ export const invalidTypeSession = {
  */
 export function createEdgeCaseUser(
     scenario: "corrupted" | "null-fields" | "overflow" | "injection" | "malformed",
-): SessionData | Partial<SessionData> {
+): TestSessionData | Partial<TestSessionData> {
     switch (scenario) {
         case "corrupted":
             return {
@@ -225,8 +223,7 @@ export function createEdgeCaseUser(
             return {
                 ...standardUser,
                 id: generatePK().toString(),
-                // @ts-expect-error - Testing null handling
-                languages: null,
+                languages: null as any,
                 timeZone: null,
             };
         

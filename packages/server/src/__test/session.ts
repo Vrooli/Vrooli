@@ -232,7 +232,7 @@ export async function mockApiSession(apiToken: string, permissions: Record<ApiKe
     const res = mockResponse();
 
     // Generate API token - ensure ID is a string
-    const userId = typeof userData.id === "bigint" ? userData.id.toString() : userData.id.toString();
+    const userId = userData.id.toString();
     await AuthTokensService.generateApiToken(res, apiToken, permissions, userId);
 
     // Transfer cookies from response to request to simulate a real browser flow

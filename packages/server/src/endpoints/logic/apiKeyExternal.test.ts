@@ -1,7 +1,8 @@
 import { type ApiKeyExternalCreateInput, type ApiKeyExternalUpdateInput, generatePK } from "@vrooli/shared";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { assertRequiresAuth } from "../../__test/authTestUtils.js";
-import { mockApiSession, mockWriteAuthPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { loggedInUserNoPremiumData, mockApiSession, mockWriteAuthPermissions, mockWritePrivatePermissions } from "../../__test/session.js";
+import { ApiKeyEncryptionService } from "../../auth/apiKeyEncryption.js";
 import { DbProvider } from "../../db/provider.js";
 import { CustomError } from "../../events/error.js";
 import { logger } from "../../events/logger.js";
@@ -72,10 +73,10 @@ describe("EndpointsApiKeyExternal", () => {
                     },
                 });
 
-                const { req, res } = await mockApiSession({
-                    userId: guestUser.id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
+                const apiToken = ApiKeyEncryptionService.generateSiteKey();
+                const { req, res } = await mockApiSession(apiToken, mockWriteAuthPermissions(), {
+                    ...loggedInUserNoPremiumData(),
+                    id: guestUser.id,
                 });
 
                 const input: ApiKeyExternalCreateInput = {
@@ -91,10 +92,10 @@ describe("EndpointsApiKeyExternal", () => {
 
             it("requires API key with auth write permissions", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWritePrivatePermissions(["ApiKeyExternal"]), // Wrong permission type
+                const apiToken = ApiKeyEncryptionService.generateSiteKey();
+                const { req, res } = await mockApiSession(apiToken, mockWritePrivatePermissions(["ApiKeyExternal"]), {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser[0].id,
                 });
 
                 const input: ApiKeyExternalCreateInput = {
@@ -112,10 +113,10 @@ describe("EndpointsApiKeyExternal", () => {
         describe("valid", () => {
             it("creates external API key for official user", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
+                const apiToken = ApiKeyEncryptionService.generateSiteKey();
+                const { req, res } = await mockApiSession(apiToken, mockWriteAuthPermissions(), {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser[0].id,
                 });
 
                 const input: ApiKeyExternalCreateInput = {
@@ -150,10 +151,10 @@ describe("EndpointsApiKeyExternal", () => {
 
             it("creates API key with minimal required fields", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
+                const apiToken = ApiKeyEncryptionService.generateSiteKey();
+                const { req, res } = await mockApiSession(apiToken, mockWriteAuthPermissions(), {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser[0].id,
                 });
 
                 const input: ApiKeyExternalCreateInput = {
@@ -172,10 +173,10 @@ describe("EndpointsApiKeyExternal", () => {
 
             it("creates API key for different providers", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
+                const apiToken = ApiKeyEncryptionService.generateSiteKey();
+                const { req, res } = await mockApiSession(apiToken, mockWriteAuthPermissions(), {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser[0].id,
                 });
 
                 const providers = ["github", "gitlab", "bitbucket", "openai", "anthropic"];
@@ -197,10 +198,10 @@ describe("EndpointsApiKeyExternal", () => {
 
             it("encrypts key data in storage", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
+                const apiToken = ApiKeyEncryptionService.generateSiteKey();
+                const { req, res } = await mockApiSession(apiToken, mockWriteAuthPermissions(), {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser[0].id,
                 });
 
                 const sensitiveKey = "very_secret_api_key_12345";
@@ -238,10 +239,10 @@ describe("EndpointsApiKeyExternal", () => {
                     }),
                 });
 
-                const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
+                const apiToken = ApiKeyEncryptionService.generateSiteKey();
+                const { req, res } = await mockApiSession(apiToken, mockWriteAuthPermissions(), {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser[0].id,
                 });
 
                 const input: ApiKeyExternalCreateInput = {
@@ -257,10 +258,10 @@ describe("EndpointsApiKeyExternal", () => {
 
             it("rejects empty key data", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
+                const apiToken = ApiKeyEncryptionService.generateSiteKey();
+                const { req, res } = await mockApiSession(apiToken, mockWriteAuthPermissions(), {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser[0].id,
                 });
 
                 const input: ApiKeyExternalCreateInput = {
@@ -276,10 +277,10 @@ describe("EndpointsApiKeyExternal", () => {
 
             it("rejects invalid provider name", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
+                const apiToken = ApiKeyEncryptionService.generateSiteKey();
+                const { req, res } = await mockApiSession(apiToken, mockWriteAuthPermissions(), {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser[0].id,
                 });
 
                 const input: ApiKeyExternalCreateInput = {
@@ -319,10 +320,10 @@ describe("EndpointsApiKeyExternal", () => {
                     },
                 });
 
-                const { req, res } = await mockApiSession({
-                    userId: guestUser.id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
+                const apiToken = ApiKeyEncryptionService.generateSiteKey();
+                const { req, res } = await mockApiSession(apiToken, mockWriteAuthPermissions(), {
+                    ...loggedInUserNoPremiumData(),
+                    id: guestUser.id,
                 });
 
                 const input: ApiKeyExternalUpdateInput = {
@@ -336,10 +337,10 @@ describe("EndpointsApiKeyExternal", () => {
 
             it("requires API key with auth write permissions", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWritePrivatePermissions(["ApiKeyExternal"]), // Wrong permission type
+                const apiToken = ApiKeyEncryptionService.generateSiteKey();
+                const { req, res } = await mockApiSession(apiToken, mockWritePrivatePermissions(["ApiKeyExternal"]), {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser[0].id,
                 });
 
                 const input: ApiKeyExternalUpdateInput = {
@@ -366,10 +367,10 @@ describe("EndpointsApiKeyExternal", () => {
                     }),
                 });
 
-                const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
+                const apiToken = ApiKeyEncryptionService.generateSiteKey();
+                const { req, res } = await mockApiSession(apiToken, mockWriteAuthPermissions(), {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser[0].id,
                 });
 
                 const input: ApiKeyExternalUpdateInput = {
@@ -397,10 +398,10 @@ describe("EndpointsApiKeyExternal", () => {
                     }),
                 });
 
-                const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
+                const apiToken = ApiKeyEncryptionService.generateSiteKey();
+                const { req, res } = await mockApiSession(apiToken, mockWriteAuthPermissions(), {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser[0].id,
                 });
 
                 const newKeyData = "updated_api_key_data_456";
@@ -436,10 +437,10 @@ describe("EndpointsApiKeyExternal", () => {
                     }),
                 });
 
-                const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
+                const apiToken = ApiKeyEncryptionService.generateSiteKey();
+                const { req, res } = await mockApiSession(apiToken, mockWriteAuthPermissions(), {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser[0].id,
                 });
 
                 const lastUsedAt = new Date();
@@ -467,10 +468,10 @@ describe("EndpointsApiKeyExternal", () => {
                     }),
                 });
 
-                const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
+                const apiToken = ApiKeyEncryptionService.generateSiteKey();
+                const { req, res } = await mockApiSession(apiToken, mockWriteAuthPermissions(), {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser[0].id,
                 });
 
                 // Disable the key
@@ -507,10 +508,10 @@ describe("EndpointsApiKeyExternal", () => {
                 });
 
                 // Try to update as user 2
-                const { req, res } = await mockApiSession({
-                    userId: testUsers[1].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
+                const apiToken = ApiKeyEncryptionService.generateSiteKey();
+                const { req, res } = await mockApiSession(apiToken, mockWriteAuthPermissions(), {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[1].id,
                 });
 
                 const input: ApiKeyExternalUpdateInput = {
@@ -524,10 +525,10 @@ describe("EndpointsApiKeyExternal", () => {
 
             it("rejects update to non-existent key", async () => {
                 const testUser = await seedTestUsers(DbProvider.get(), 1, { withAuth: true });
-                const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
+                const apiToken = ApiKeyEncryptionService.generateSiteKey();
+                const { req, res } = await mockApiSession(apiToken, mockWriteAuthPermissions(), {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser[0].id,
                 });
 
                 const input: ApiKeyExternalUpdateInput = {
@@ -559,10 +560,10 @@ describe("EndpointsApiKeyExternal", () => {
                     }),
                 });
 
-                const { req, res } = await mockApiSession({
-                    userId: testUser[0].id.toString(),
-                    apiKeyId: generatePK(),
-                    permissions: mockWriteAuthPermissions(),
+                const apiToken = ApiKeyEncryptionService.generateSiteKey();
+                const { req, res } = await mockApiSession(apiToken, mockWriteAuthPermissions(), {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUser[0].id,
                 });
 
                 // Try to update key2 to have the same name as key1

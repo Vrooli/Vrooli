@@ -1,5 +1,6 @@
 import { type Job } from "bullmq";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { generatePK } from "@vrooli/shared";
 import { createMockJob } from "../taskFactory.js";
 import { type NotificationCreateTask, QueueTaskType } from "../taskTypes.js";
 
@@ -12,8 +13,8 @@ describe("notificationCreateProcess", () => {
         return createMockJob<NotificationCreateTask>(
             QueueTaskType.NOTIFICATION_CREATE,
             {
-                id: data.id || "notification-123",
-                userId: data.userId || "user-123",
+                id: data.id || generatePK().toString(),
+                userId: data.userId || generatePK().toString(),
                 category: data.category || "SystemUpdate",
                 title: data.title || "System Update",
                 description: data.description || "A new feature has been released",

@@ -8,9 +8,11 @@ import { expect, describe, it, beforeAll } from "vitest";
 import { type ModelType } from "@vrooli/shared";
 
 // Delay imports that use ModelMap  
+/* eslint-disable @typescript-eslint/consistent-type-imports */
 let permissionsSelectHelper: typeof import("./permissionsSelectHelper.js").permissionsSelectHelper;
 type ModelRegistry = import("./permissionsSelectHelper.js").ModelRegistry;
 type PermissionsMap = import("../models/types.js").PermissionsMap;
+/* eslint-enable @typescript-eslint/consistent-type-imports */
 
 // Simple test configuration factory (inline for this migration)
 function createTestModelRegistry(configs: Record<string, any>): ModelRegistry {

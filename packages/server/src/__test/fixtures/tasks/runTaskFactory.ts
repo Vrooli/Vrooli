@@ -29,11 +29,11 @@ export function createRunTask(overrides: Partial<RunTask> = {}): RunTask {
         credits: "1000",
         phoneNumberVerified: false,
         publicId: generatePublicId(),
-        updatedAt: new Date(),
+        updatedAt: new Date().toISOString(),
         session: {
             __typename: "SessionUserSession",
             id: generatePK().toString(),
-            lastRefreshAt: new Date(),
+            lastRefreshAt: new Date().toISOString(),
         },
     };
 
@@ -126,11 +126,11 @@ export const runTaskScenarios = {
                 credits: "5000",
                 phoneNumberVerified: true,
                 publicId: generatePublicId(),
-                updatedAt: new Date(),
+                updatedAt: new Date().toISOString(),
                 session: {
                     __typename: "SessionUserSession",
                     id: generatePK().toString(),
-                    lastRefreshAt: new Date(),
+                    lastRefreshAt: new Date().toISOString(),
                 },
             },
         },

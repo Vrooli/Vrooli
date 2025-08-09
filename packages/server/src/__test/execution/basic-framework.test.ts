@@ -185,7 +185,7 @@ describe("Basic Execution Framework", () => {
                     type: "subscription",
                     cleanup: async () => {},
                 }),
-            ).rejects.toThrow("RESOURCE_LIMIT_EXCEEDED");
+            ).rejects.toThrow("Event subscription limit exceeded: 2");
 
             await manager.destroy();
         });

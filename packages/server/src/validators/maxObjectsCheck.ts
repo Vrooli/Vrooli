@@ -10,6 +10,10 @@
  * 
  * We want objects to be owned by teams rather than users, as this means the objects are tied to 
  * the team's governance structure.
+ * 
+ * TESTING: This validator is tested through integration tests in endpoint logic files
+ * (team.test.ts, user.test.ts, etc.) that exercise the full CRUD pipeline. 
+ * No dedicated unit tests due to complex dependencies with ModelMap and DbProvider.
  */
 // AI_CHECK: TYPE_SAFETY=server-type-safety-fixes | LAST: 2025-06-29 - Fixed undefined index access
 import { type ModelType, type ObjectLimit, type ObjectLimitOwner, type ObjectLimitPremium, type ObjectLimitPrivacy, type SessionUser } from "@vrooli/shared";

@@ -9,8 +9,8 @@ import type {
 } from "./types.js";
 
 interface TeamRelationConfig extends RelationConfig {
-    owner?: { userId: string };
-    members?: Array<{ userId: string; role: string }>;
+    owner?: { userId: bigint };
+    members?: Array<{ userId: bigint; role: string }>;
     translations?: Array<{ language: string; name: string; bio?: string }>;
     projects?: number;
     resourceLists?: number;
@@ -99,10 +99,10 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                 },
                 invalidTypes: {
                     id: BigInt(-1), // Invalid bigint (negative)
-                    publicId: 123, // Should be string
-                    handle: true, // Should be string
-                    isPrivate: "yes", // Should be boolean
-                    isOpenToNewMembers: 1, // Should be boolean
+                    publicId: 123 as any, // Should be string - intentionally wrong for testing
+                    handle: true as any, // Should be string - intentionally wrong for testing
+                    isPrivate: "yes" as any, // Should be boolean - intentionally wrong for testing
+                    isOpenToNewMembers: 1 as any, // Should be boolean - intentionally wrong for testing
                 },
                 duplicateHandle: {
                     id: this.generateId(),
@@ -188,10 +188,14 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                     isOpenToNewMembers: false,
                     bannerImage: "https://example.com/new-banner.jpg",
                     profileImage: "https://example.com/new-logo.jpg",
+                    // Note: For fixture updates, we'll create new translations instead
+                    // since we don't have existing translation IDs to reference
                     translations: {
-                        update: [{
-                            where: { id: BigInt(1) },
-                            data: { bio: "Updated team bio" },
+                        create: [{
+                            id: this.generateId(),
+                            language: "en",
+                            name: "Updated Team",
+                            bio: "Updated team bio",
                         }],
                     },
                 },
@@ -349,13 +353,13 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
 
         // Generate owner ID if needed
         if (scenario.config.owner) {
-            config.owner = { userId: this.generateId().toString() };
+            config.owner = { userId: this.generateId() };
         }
 
         // Generate member IDs if needed  
         if (scenario.config.memberCount && scenario.config.memberRoles) {
             config.members = scenario.config.memberRoles.map(role => ({
-                userId: this.generateId().toString(),
+                userId: this.generateId(),
                 role,
             }));
         }
@@ -413,7 +417,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.teamCreateInput,
         config: TeamRelationConfig,
-        tx: any,
+        tx: PrismaClient,
     ): Promise<Prisma.teamCreateInput> {
         const data = { ...baseData };
 
@@ -423,7 +427,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
                 create: [{
                     id: this.generateId(),
                     publicId: generatePublicId(),
-                    user: { connect: { id: BigInt(config.owner.userId) } },
+                    user: { connect: { id: config.owner.userId } },
                     isAdmin: true,
                     permissions: { manageTeam: true, manageMembers: true },
                 }],
@@ -435,7 +439,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
             const memberCreates = config.members.map(member => ({
                 id: this.generateId(),
                 publicId: generatePublicId(),
-                user: { connect: { id: BigInt(member.userId) } },
+                user: { connect: { id: member.userId } },
                 isAdmin: member.role === "Admin" || member.role === "Owner",
                 permissions: member.role === "Owner" ? { manageTeam: true, manageMembers: true } :
                     member.role === "Admin" ? { manageMembers: true } : {},
@@ -472,8 +476,8 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
      * Create a team with owner and members
      */
     async createWithOwnerAndMembers(
-        ownerId: string,
-        memberIds: string[] = [],
+        ownerId: bigint,
+        memberIds: bigint[] = [],
     ): Promise<team> {
         const members = [
             { userId: ownerId, role: "Owner" },
@@ -644,7 +648,7 @@ export class TeamDbFactory extends EnhancedDatabaseFactory<
     async seedTeamsWithMembers(
         teamCount: number,
         membersPerTeam: number,
-        userIds: string[],
+        userIds: bigint[],
     ): Promise<team[]> {
         const teams: team[] = [];
 

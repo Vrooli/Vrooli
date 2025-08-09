@@ -1,17 +1,18 @@
+/* eslint-disable no-magic-numbers */
 // AI_CHECK: TYPE_SAFETY=1 | LAST: 2025-07-03 - Fixed type safety issues: replaced any with PrismaClient type
-import { generatePublicId, nanoid } from "./idHelpers.js";
-import { type view, type Prisma, type PrismaClient } from "@prisma/client";
+import { type Prisma, type PrismaClient, type view } from "@prisma/client";
+import { nanoid } from "@vrooli/shared";
 import { EnhancedDatabaseFactory } from "./EnhancedDatabaseFactory.js";
-import type { 
-    DbTestFixtures, 
+import type {
+    DbTestFixtures,
     RelationConfig,
     TestScenario,
 } from "./types.js";
 
 interface ViewRelationConfig extends RelationConfig {
-    userId?: string;
+    userId?: bigint;
     targetType?: "issue" | "resource" | "team" | "user";
-    targetId?: string;
+    targetId?: bigint;
     isAuthenticated?: boolean;
 }
 
@@ -288,7 +289,7 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
 
         // Handle user association
         if (config.userId) {
-            data.by = { connect: { id: BigInt(config.userId) } };
+            data.by = { connect: { id: config.userId } };
         }
 
         // Handle anonymous views
@@ -308,16 +309,16 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
             // Set the appropriate target
             switch (config.targetType) {
                 case "issue":
-                    data.issue = { connect: { id: BigInt(config.targetId) } };
+                    data.issue = { connect: { id: config.targetId } };
                     break;
                 case "resource":
-                    data.resource = { connect: { id: BigInt(config.targetId) } };
+                    data.resource = { connect: { id: config.targetId } };
                     break;
                 case "team":
-                    data.team = { connect: { id: BigInt(config.targetId) } };
+                    data.team = { connect: { id: config.targetId } };
                     break;
                 case "user":
-                    data.user = { connect: { id: BigInt(config.targetId) } };
+                    data.user = { connect: { id: config.targetId } };
                     break;
             }
         }
@@ -330,12 +331,12 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
      */
     async createViewFor(
         targetType: "issue" | "resource" | "team" | "user",
-        targetId: string,
-        viewerId: string,
+        targetId: bigint,
+        viewerId: bigint,
         viewName?: string,
     ): Promise<view> {
         return await this.createWithRelations({
-            overrides: { 
+            overrides: {
                 name: viewName || `view_${nanoid()}`,
             },
             userId: viewerId,
@@ -349,7 +350,7 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
      */
     async createAnonymousView(
         targetType: "issue" | "resource" | "team" | "user",
-        targetId: string,
+        targetId: bigint,
         sessionId?: string,
     ): Promise<view> {
         return await this.createWithRelations({
@@ -368,7 +369,7 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
      */
     async createViewsForAnalytics(
         targetType: "issue" | "resource" | "team" | "user",
-        targetId: string,
+        targetId: bigint,
         viewCount: number,
         options?: {
             authenticatedRatio?: number; // 0-1, percentage of authenticated views
@@ -388,7 +389,7 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
                 ? await this.createViewFor(
                     targetType,
                     targetId,
-                    this.generateId().toString(),
+                    this.generateId(),
                     `user_view_${i}`,
                 )
                 : await this.createAnonymousView(
@@ -413,7 +414,7 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
     /**
      * Update view timestamp (for repeat views)
      */
-    async updateViewTime(viewId: string): Promise<view> {
+    async updateViewTime(viewId: bigint): Promise<view> {
         return await this.prisma.view.update({
             where: { id: viewId },
             data: { lastViewedAt: new Date() },
@@ -423,7 +424,7 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
 
     protected async checkModelConstraints(record: view): Promise<string[]> {
         const violations: string[] = [];
-        
+
         // Check that only one target is specified
         const targetCount = [
             record.issueId,
@@ -480,7 +481,7 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
      */
     async getViewStats(
         targetType: "issue" | "resource" | "team" | "user",
-        targetId: string,
+        targetId: bigint,
         options?: {
             startDate?: Date;
             endDate?: Date;
@@ -514,8 +515,8 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
         });
 
         const uniqueViewers = new Set(views.map(v => v.byId)).size;
-        const authenticatedViews = views.filter(v => v.byId !== "0").length;
-        const anonymousViews = views.filter(v => v.byId === "0").length;
+        const authenticatedViews = views.filter(v => v.byId !== BigInt(0)).length;
+        const anonymousViews = views.filter(v => v.byId === BigInt(0)).length;
 
         // Group by day
         const viewsByDay: Record<string, number> = {};
@@ -538,7 +539,7 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
      */
     async cleanupOldAnonymousViews(daysOld: number): Promise<number> {
         const cutoffDate = new Date(Date.now() - daysOld * 24 * 60 * 60 * 1000);
-        
+
         const result = await this.prisma.view.deleteMany({
             where: {
                 by: { id: this.generateId() }, // Anonymous user ID placeholder
@@ -551,7 +552,7 @@ export class ViewDbFactory extends EnhancedDatabaseFactory<
 }
 
 // Export factory creator function
-export const createViewDbFactory = (prisma: PrismaClient) => 
+export const createViewDbFactory = (prisma: PrismaClient) =>
     new ViewDbFactory(prisma);
 
 // Export the class for type usage

@@ -311,8 +311,22 @@ export class ResponseService {
             // Returns MessageState[] directly - no conversion needed
             const fullMessages = await MessageHistoryBuilder.get().buildMessages(context);
 
-            // Main response generation loop (handles tool calls)
-            await this.runResponseLoop(context, fullMessages, state, abortSignal, effectiveConfig);
+            // Determine timeout value from context
+            const timeoutMs = (context as any).resourceLimits?.timeoutMs || context.constraints?.timeoutMs || effectiveConfig.defaultTimeoutMs;
+
+            // Main response generation loop (handles tool calls) with timeout
+            if (timeoutMs && timeoutMs > 0) {
+                const timeoutPromise = new Promise<never>((_, reject) => {
+                    setTimeout(() => reject(new Error("TIMEOUT")), timeoutMs);
+                });
+
+                await Promise.race([
+                    this.runResponseLoop(context, fullMessages, state, abortSignal, effectiveConfig),
+                    timeoutPromise,
+                ]);
+            } else {
+                await this.runResponseLoop(context, fullMessages, state, abortSignal, effectiveConfig);
+            }
 
             // Emit processing complete status
             await this.emitBotStatus(context.bot.id, "processing_complete", "Finished processing turn.");
@@ -347,6 +361,16 @@ export class ResponseService {
                 error: error instanceof Error ? error.message : String(error),
                 iterationCount: state.iterationCount,
             });
+
+            // Handle timeout specifically
+            if (error instanceof Error && error.message === "TIMEOUT") {
+                return this.createErrorResult(
+                    context.bot.id,
+                    startTime,
+                    error,
+                    "TIMEOUT",
+                );
+            }
 
             return this.createErrorResult(
                 context.bot.id,

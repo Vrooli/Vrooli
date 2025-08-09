@@ -19,14 +19,14 @@ import { seedTestChat } from "../../__test/fixtures/db/chatFixtures.js";
 import { seedChatInvites } from "../../__test/fixtures/db/chatInviteFixtures.js";
 import { seedTestUsers } from "../../__test/fixtures/db/userFixtures.js";
 // Import validation fixtures for API input testing
-import { chatInviteTestDataFactory } from "../../../shared/src/__test/fixtures/api-inputs/chatInviteFixtures.js";
-import { cleanupGroups } from "../../__test/helpers/testCleanupHelpers.js";
+import { chatInviteTestDataFactory } from "@vrooli/shared";
+import { cleanupGroups, ensureCleanState, performTestCleanup } from "../../__test/helpers/testCleanupHelpers.js";
 import { validateCleanup } from "../../__test/helpers/testValidation.js";
 
 // AI_CHECK: TYPE_SAFETY=phase1-test-5 | LAST: 2025-07-04 - Replaced any[] with proper User[], Chat, ChatInvite types
 
 describe("EndpointsChatInvite", () => {
-    let testUsers: User[];
+    let testUsers: any[];
     let chat1: Chat;
     let chat2: Chat;
     let invite1: ChatInvite;
@@ -38,20 +38,13 @@ describe("EndpointsChatInvite", () => {
         vi.spyOn(logger, "info").mockImplementation(() => logger);
     });
 
-    afterEach(async () => {
-        // Validate cleanup to detect any missed records
-        const orphans = await validateCleanup(DbProvider.get(), {
-            tables: ["user", "user_auth", "email", "phone", "push_device", "session"],
-            logOrphans: true,
-        });
-        if (orphans.length > 0) {
-            console.warn("Test cleanup incomplete:", orphans);
-        }
-    });
-
     beforeEach(async () => {
-        // Clean up using dependency-ordered cleanup helpers
-        await cleanupGroups.userAuth(DbProvider.get());
+        // Ensure clean database state with race condition protection
+        await ensureCleanState(DbProvider.get(), {
+            cleanupFn: cleanupGroups.userAuth,
+            tables: ["user", "user_auth", "email", "phone", "push_device", "session"],
+            throwOnFailure: true,
+        });
 
         // Seed test users using database fixtures
         const { records: users } = await seedTestUsers(DbProvider.get(), 3, { withAuth: true });
@@ -84,10 +77,17 @@ describe("EndpointsChatInvite", () => {
         invite2 = invites2[0];
     });
 
+    afterEach(async () => {
+        // Perform immediate cleanup after test to prevent test pollution
+        await performTestCleanup(DbProvider.get(), {
+            cleanupFn: cleanupGroups.userAuth,
+            tables: ["user", "user_auth", "email", "phone", "push_device", "session"],
+        });
+    });
+
     afterAll(async () => {
         // Clean up
         await CacheService.get().flushAll();
-        await DbProvider.deleteAll();
 
         // Restore all mocks
         vi.restoreAllMocks();
@@ -98,7 +98,7 @@ describe("EndpointsChatInvite", () => {
             it("returns invite when user is the chat creator", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id,  // User 0 is the creator of chat1
+                    id: testUsers[0].id.toString(),  // User 0 is the creator of chat1
                 });
                 const input: FindByIdInput = { id: invite1.id }; // invite1 is for chat1
                 const result = await chatInvite.findOne({ input }, { req, res }, chatInvite_findOne);
@@ -109,7 +109,7 @@ describe("EndpointsChatInvite", () => {
             it("returns invite when user is the invited user", async () => {
                 const { req, res } = await mockAuthenticatedSession({
                     ...loggedInUserNoPremiumData(),
-                    id: testUsers[0].id,  // User 0 is invited in invite2
+                    id: testUsers[0].id.toString(),  // User 0 is invited in invite2
                 });
                 const input: FindByIdInput = { id: invite2.id };
                 const result = await chatInvite.findOne({ input }, { req, res }, chatInvite_findOne);
@@ -126,11 +126,12 @@ describe("EndpointsChatInvite", () => {
             });
 
             it("returns invite for API key with private read permissions", async () => {
-                const testUser = loggedInUserNoPremiumData();
-                testUser.id = testUsers[0].id;
                 const permissions = mockReadPrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const { req, res } = await mockApiSession(apiToken, permissions, testUser);
+                const { req, res } = await mockApiSession(apiToken, permissions, {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[0].id,
+                });
                 const input: FindByIdInput = { id: invite1.id };
                 const result = await chatInvite.findOne({ input }, { req, res }, chatInvite_findOne);
                 expect(result).not.toBeNull();
@@ -142,7 +143,7 @@ describe("EndpointsChatInvite", () => {
     describe("findMany", () => {
         describe("valid", () => {
             it("returns only invites visible to authenticated user", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id.toString() });
                 const input: ChatInviteSearchInput = { take: 10 };
                 const result = await chatInvite.findMany({ input }, { req, res }, chatInvite_findMany);
                 expect(result).not.toBeNull();
@@ -176,7 +177,7 @@ describe("EndpointsChatInvite", () => {
         describe("valid", () => {
             it("creates an invite for authenticated user", async () => {
                 // User0 can create invites for chat1 (which they own)
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id.toString() });
 
                 // Use validation fixtures for API input
                 const input: ChatInviteCreateInput = chatInviteTestDataFactory.createMinimal({
@@ -194,9 +195,10 @@ describe("EndpointsChatInvite", () => {
             it("API key with write permissions can create invite", async () => {
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const userData = loggedInUserNoPremiumData();
-                userData.id = testUsers[0].id;
-                const { req, res } = await mockApiSession(apiToken, permissions, userData);
+                const { req, res } = await mockApiSession(apiToken, permissions, {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[0].id,
+                });
 
                 // Use validation fixtures for API input
                 const input: ChatInviteCreateInput = chatInviteTestDataFactory.createMinimal({
@@ -214,8 +216,8 @@ describe("EndpointsChatInvite", () => {
             it("not logged in user cannot create invite", async () => {
                 const { req, res } = await mockLoggedOutSession();
                 const input: ChatInviteCreateInput = chatInviteTestDataFactory.createMinimal({
-                    chatConnect: chat1.id,
-                    userConnect: testUsers[1].id,
+                    chatConnect: chat1.id.toString(),
+                    userConnect: testUsers[1].id.toString(),
                 });
                 await expect(async () => {
                     await chatInvite.createOne({ input }, { req, res }, chatInvite_createOne);
@@ -224,10 +226,10 @@ describe("EndpointsChatInvite", () => {
 
             it("authenticated user cannot create invite for chat they don't own", async () => {
                 // User2 tries to create invite for chat2 (owned by user1)
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[2].id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[2].id.toString() });
                 const input: ChatInviteCreateInput = chatInviteTestDataFactory.createMinimal({
-                    chatConnect: chat2.id,
-                    userConnect: testUsers[2].id,
+                    chatConnect: chat2.id.toString(),
+                    userConnect: testUsers[2].id.toString(),
                 });
                 await expect(async () => {
                     await chatInvite.createOne({ input }, { req, res }, chatInvite_createOne);
@@ -237,9 +239,10 @@ describe("EndpointsChatInvite", () => {
             it("API key without write permissions cannot create invite", async () => {
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const userData = loggedInUserNoPremiumData();
-                userData.id = testUsers[0].id;
-                const { req, res } = await mockApiSession(apiToken, permissions, userData);
+                const { req, res } = await mockApiSession(apiToken, permissions, {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[0].id,
+                });
                 const input: ChatInviteCreateInput = chatInviteTestDataFactory.createMinimal({
                     chatConnect: chat2.id.toString(),
                     userConnect: testUsers[2].id.toString(),
@@ -254,7 +257,7 @@ describe("EndpointsChatInvite", () => {
     describe("createMany", () => {
         describe("valid", () => {
             it("creates multiple invites for chats user owns", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id.toString() });
                 // Only creates invite for chat1 which user0 owns
                 const input: ChatInviteCreateInput[] = [
                     chatInviteTestDataFactory.createMinimal({
@@ -274,8 +277,8 @@ describe("EndpointsChatInvite", () => {
                 const { req, res } = await mockLoggedOutSession();
                 const input: ChatInviteCreateInput[] = [
                     chatInviteTestDataFactory.createMinimal({
-                        chatConnect: chat1.id,
-                        userConnect: testUsers[2].id,
+                        chatConnect: chat1.id.toString(),
+                        userConnect: testUsers[2].id.toString(),
                     }),
                 ];
                 await expect(async () => {
@@ -286,9 +289,10 @@ describe("EndpointsChatInvite", () => {
             it("API key without write permissions cannot create many invites", async () => {
                 const permissions = mockReadPublicPermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const userData = loggedInUserNoPremiumData();
-                userData.id = testUsers[0].id;
-                const { req, res } = await mockApiSession(apiToken, permissions, userData);
+                const { req, res } = await mockApiSession(apiToken, permissions, {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[0].id,
+                });
                 const input: ChatInviteCreateInput[] = [
                     chatInviteTestDataFactory.createMinimal({
                         chatConnect: chat2.id.toString(),
@@ -305,7 +309,7 @@ describe("EndpointsChatInvite", () => {
     describe("updateOne", () => {
         describe("valid", () => {
             it("updates invite for chat owner", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id.toString() });
                 // User0 is the owner of chat1, and invite1 is for chat1
                 const input: ChatInviteUpdateInput = { id: invite1.id, message: "Updated Msg" };
                 const result = await chatInvite.updateOne({ input }, { req, res }, chatInvite_updateOne);
@@ -314,7 +318,7 @@ describe("EndpointsChatInvite", () => {
             });
 
             it("cannot update invite as invite recipient", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id.toString() });
                 const input: ChatInviteUpdateInput = { id: invite2.id, message: "Updated By Recipient" };
                 await expect(async () => {
                     await chatInvite.updateOne({ input }, { req, res }, chatInvite_updateOne);
@@ -324,9 +328,10 @@ describe("EndpointsChatInvite", () => {
             it("API key with write permissions can update an invite", async () => {
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const userData = loggedInUserNoPremiumData();
-                userData.id = testUsers[0].id;
-                const { req, res } = await mockApiSession(apiToken, permissions, userData);
+                const { req, res } = await mockApiSession(apiToken, permissions, {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[0].id,
+                });
                 const input: ChatInviteUpdateInput = { id: invite1.id, message: "API Update" };
                 const result = await chatInvite.updateOne({ input }, { req, res }, chatInvite_updateOne);
                 expect(result).not.toBeNull();
@@ -348,7 +353,7 @@ describe("EndpointsChatInvite", () => {
     describe("updateMany", () => {
         describe("valid", () => {
             it("updates multiple invites where user has visibility", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id.toString() });
                 const input: ChatInviteUpdateInput[] = [
                     { id: invite1.id, message: "Bulk Update 1" }, // User0 is chat owner
                 ];
@@ -361,9 +366,10 @@ describe("EndpointsChatInvite", () => {
             it("API key with write permissions can update many invites", async () => {
                 const permissions = mockWritePrivatePermissions();
                 const apiToken = ApiKeyEncryptionService.generateSiteKey();
-                const userData = loggedInUserNoPremiumData();
-                userData.id = testUsers[0].id;
-                const { req, res } = await mockApiSession(apiToken, permissions, userData);
+                const { req, res } = await mockApiSession(apiToken, permissions, {
+                    ...loggedInUserNoPremiumData(),
+                    id: testUsers[0].id,
+                });
                 const input: ChatInviteUpdateInput[] = [{ id: invite1.id, message: "API Bulk" }];
                 const result = await chatInvite.updateMany({ input }, { req, res }, chatInvite_updateMany);
                 expect(result).toHaveLength(input.length);
@@ -382,7 +388,7 @@ describe("EndpointsChatInvite", () => {
             });
 
             it("Cannot update invite as invite recipient", async () => {
-                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id });
+                const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id.toString() });
                 const input: ChatInviteUpdateInput[] = [{ id: invite2.id, message: "Fail Bulk" }];
                 await expect(async () => {
                     await chatInvite.updateMany({ input }, { req, res }, chatInvite_updateMany);
@@ -394,7 +400,7 @@ describe("EndpointsChatInvite", () => {
     describe("acceptOne", () => {
         it("invited user can accept invite", async () => {
             // user1 is invited to chat1 via invite1
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[1].id });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[1].id.toString() });
             const input: FindByIdInput = { id: invite1.id };
 
             const result = await chatInvite.acceptOne({ input }, { req, res }, chatInvite_acceptOne);
@@ -410,7 +416,7 @@ describe("EndpointsChatInvite", () => {
 
         it("non-invited user cannot accept invite", async () => {
             // user2 tries to accept invite1 (for user1)
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[2].id });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[2].id.toString() });
             const input: FindByIdInput = { id: invite1.id };
             await expect(async () => {
                 await chatInvite.acceptOne({ input }, { req, res }, chatInvite_acceptOne);
@@ -419,11 +425,11 @@ describe("EndpointsChatInvite", () => {
 
         it("cannot accept non-pending invite", async () => {
             // First, user1 accepts invite1
-            const { req: req1, res: res1 } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[1].id });
+            const { req: req1, res: res1 } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[1].id.toString() });
             await chatInvite.acceptOne({ input: { id: invite1.id } }, { req: req1, res: res1 }, chatInvite_acceptOne);
 
             // Then, user1 tries to accept it again
-            const { req: req2, res: res2 } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[1].id });
+            const { req: req2, res: res2 } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[1].id.toString() });
             await expect(async () => {
                 await chatInvite.acceptOne({ input: { id: invite1.id } }, { req: req2, res: res2 }, chatInvite_acceptOne);
             }).rejects.toThrow();
@@ -433,7 +439,7 @@ describe("EndpointsChatInvite", () => {
     describe("declineOne", () => {
         it("invited user can decline invite", async () => {
             // user0 is invited to chat2 via invite2
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id.toString() });
             const input: FindByIdInput = { id: invite2.id };
 
             const result = await chatInvite.declineOne({ input }, { req, res }, chatInvite_declineOne);
@@ -449,7 +455,7 @@ describe("EndpointsChatInvite", () => {
 
         it("chat owner can't decline invite (they must delete it)", async () => {
             // user1 owns chat2, user0 is invited via invite2
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[1].id });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[1].id.toString() });
             const input: FindByIdInput = { id: invite2.id };
 
             await expect(async () => {
@@ -459,7 +465,7 @@ describe("EndpointsChatInvite", () => {
 
         it("non-involved user cannot decline invite", async () => {
             // user2 tries to decline invite2 (for user0, chat owned by user1)
-            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[2].id });
+            const { req, res } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[2].id.toString() });
             const input: FindByIdInput = { id: invite2.id };
             await expect(async () => {
                 await chatInvite.declineOne({ input }, { req, res }, chatInvite_declineOne);
@@ -468,11 +474,11 @@ describe("EndpointsChatInvite", () => {
 
         it("cannot decline non-pending invite", async () => {
             // First, user0 declines invite2
-            const { req: req1, res: res1 } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id });
+            const { req: req1, res: res1 } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id.toString() });
             await chatInvite.declineOne({ input: { id: invite2.id } }, { req: req1, res: res1 }, chatInvite_declineOne);
 
             // Then, user0 tries to decline it again
-            const { req: req2, res: res2 } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id });
+            const { req: req2, res: res2 } = await mockAuthenticatedSession({ ...loggedInUserNoPremiumData(), id: testUsers[0].id.toString() });
             await expect(async () => {
                 await chatInvite.declineOne({ input: { id: invite2.id } }, { req: req2, res: res2 }, chatInvite_declineOne);
             }).rejects.toThrow();

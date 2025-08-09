@@ -308,7 +308,7 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
     protected async applyRelationships(
         baseData: Prisma.reaction_summaryCreateInput,
         config: ReactionSummaryRelationConfig,
-        tx: any,
+        _tx: any,
     ): Promise<Prisma.reaction_summaryCreateInput> {
         const data = { ...baseData };
 
@@ -454,15 +454,25 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
         }
 
         // Check uniqueness (one summary per emoji per target)
+        // Build WHERE clause dynamically based on which foreign key is set
+        const whereClause: any = {
+            emoji: record.emoji,
+            id: { not: record.id },
+        };
+        
+        // Only include the foreign key that is actually set (not null)
+        if (record.resourceId !== null) {
+            whereClause.resourceId = record.resourceId;
+        } else if (record.chatMessageId !== null) {
+            whereClause.chatMessageId = record.chatMessageId;
+        } else if (record.commentId !== null) {
+            whereClause.commentId = record.commentId;
+        } else if (record.issueId !== null) {
+            whereClause.issueId = record.issueId;
+        }
+        
         const existingSummary = await this.prisma.reaction_summary.findFirst({
-            where: {
-                emoji: record.emoji,
-                resourceId: record.resourceId,
-                chatMessageId: record.chatMessageId,
-                commentId: record.commentId,
-                issueId: record.issueId,
-                id: { not: record.id },
-            },
+            where: whereClause,
         });
         if (existingSummary) {
             violations.push("Reaction summary already exists for this emoji and target");
@@ -478,10 +488,10 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
     }
 
     protected async deleteRelatedRecords(
-        record: reaction_summary,
-        remainingDepth: number,
-        tx: any,
-        includeOnly?: string[],
+        _record: reaction_summary,
+        _remainingDepth: number,
+        _tx: any,
+        _includeOnly?: string[],
     ): Promise<void> {
         // Reaction summaries don't have dependent records
     }
@@ -557,8 +567,9 @@ export class ReactionSummaryDbFactory extends EnhancedDatabaseFactory<
 }
 
 // Export factory creator function
-export const createReactionSummaryDbFactory = (prisma: PrismaClient) =>
-    new ReactionSummaryDbFactory(prisma);
+export function createReactionSummaryDbFactory(prisma: PrismaClient) {
+    return new ReactionSummaryDbFactory(prisma);
+}
 
 // Export the class for type usage
 export { ReactionSummaryDbFactory as ReactionSummaryDbFactoryClass };

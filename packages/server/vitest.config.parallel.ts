@@ -77,15 +77,19 @@ export default defineProject({
         sequence: {
             shuffle: true,
         },
-        // Fail fast in parallel mode to save time
-        bail: process.env.CI ? 0 : 1, // Don't bail in CI to see all failures
+        // CRITICAL: Always set bail to 0 to run ALL tests and see complete picture
+        // When bail=1, vitest stops after FIRST failure, making it appear like only
+        // a few test files are "discovered" when actually all 189 files are found
+        // but execution stops early. This creates confusing "test discovery issues"
+        // that are actually just early bailout from the first failing test.
+        bail: 0, // Run all tests regardless of failures - essential for proper test coverage analysis
         // Retry flaky tests
         retry: process.env.CI ? 2 : 0,
         deps: {
             // Use optimizer instead of deprecated inline
             optimizer: {
                 ssr: {
-                    include: ['bcrypt'],
+                    include: ['bcrypt', 'rrule'],
                 },
             },
         },

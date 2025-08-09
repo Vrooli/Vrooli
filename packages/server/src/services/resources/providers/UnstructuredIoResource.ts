@@ -84,6 +84,7 @@ export class UnstructuredIoResource extends ResourceProvider<"unstructured-io", 
         // Spreadsheets
         { extension: "xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", category: "spreadsheet" },
         { extension: "xls", mimeType: "application/vnd.ms-excel", category: "spreadsheet" },
+        { extension: "csv", mimeType: "text/csv", category: "spreadsheet" },
 
         // Presentations
         { extension: "pptx", mimeType: "application/vnd.openxmlformats-officedocument.presentationml.presentation", category: "presentation" },
@@ -232,21 +233,31 @@ export class UnstructuredIoResource extends ResourceProvider<"unstructured-io", 
         strategy?: "fast" | "hi_res" | "auto";
         languages?: string[];
         includePageBreaks?: boolean;
-        outputFormat?: "json" | "markdown" | "text";
+        outputFormat?: "json" | "markdown" | "text" | "elements";
     }): Promise<any> {
         if (this._health !== ResourceHealth.Healthy) {
             throw new Error("Unstructured.io service is not healthy");
         }
 
+        // Validate file size
+        const MAX_FILE_SIZE_BYTES = 52428800; // 50MB
+        if (file.length > MAX_FILE_SIZE_BYTES) {
+            throw new Error(`File size (${Math.round(file.length / 1048576)}MB) exceeds maximum allowed size of 50MB`);
+        }
+
         const formData = new FormData();
         formData.append("files", new Blob([file]));
-        formData.append("strategy", options?.strategy || this.config.processing?.defaultStrategy || "hi_res");
+        formData.append("strategy", options?.strategy || this.config?.processing?.defaultStrategy || "hi_res");
 
         if (options?.languages) {
             formData.append("languages", options.languages.join(","));
         }
 
         formData.append("include_page_breaks", String(options?.includePageBreaks ?? true));
+
+        if (!this.config?.baseUrl) {
+            throw new Error("UnstructuredIO baseUrl not configured");
+        }
 
         const result = await this.httpClient!.makeRequest({
             url: `${this.config.baseUrl}/general/v0/general`,
@@ -265,6 +276,77 @@ export class UnstructuredIoResource extends ResourceProvider<"unstructured-io", 
         }
 
         return result.data;
+    }
+
+    /**
+     * Process multiple documents in batch
+     */
+    async processMultipleDocuments(
+        files: Array<{ name: string; content: Buffer }>,
+        options?: {
+            strategy?: "fast" | "hi_res" | "auto";
+            languages?: string[];
+            includePageBreaks?: boolean;
+            outputFormat?: "json" | "markdown" | "text" | "elements";
+            maxConcurrency?: number;
+            onProgress?: (processed: number, total: number, currentFile: string) => void;
+        },
+    ): Promise<{
+        successful: Array<{ name: string; result: any }>;
+        failed: Array<{ name: string; error: string }>;
+        summary: {
+            total: number;
+            succeeded: number;
+            failed: number;
+            processingTime: number;
+        };
+    }> {
+        const startTime = Date.now();
+        const maxConcurrency = options?.maxConcurrency || 3; // Process 3 files at a time
+        const results: Array<{ name: string; result: any }> = [];
+        const errors: Array<{ name: string; error: string }> = [];
+        
+        // Process files in batches to avoid overwhelming the service
+        for (let i = 0; i < files.length; i += maxConcurrency) {
+            const batch = files.slice(i, i + maxConcurrency);
+            const batchPromises = batch.map(async (file) => {
+                try {
+                    // Report progress if callback provided
+                    if (options?.onProgress) {
+                        options.onProgress(i + batch.indexOf(file), files.length, file.name);
+                    }
+
+                    const result = await this.processDocument(file.content, {
+                        strategy: options?.strategy,
+                        languages: options?.languages,
+                        includePageBreaks: options?.includePageBreaks,
+                        outputFormat: options?.outputFormat,
+                    });
+
+                    results.push({ name: file.name, result });
+                } catch (error) {
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    errors.push({ name: file.name, error: errorMessage });
+                    logger.error(`[${this.id}] Failed to process ${file.name}:`, error);
+                }
+            });
+
+            // Wait for current batch to complete before starting next
+            await Promise.all(batchPromises);
+        }
+
+        const processingTime = Date.now() - startTime;
+
+        return {
+            successful: results,
+            failed: errors,
+            summary: {
+                total: files.length,
+                succeeded: results.length,
+                failed: errors.length,
+                processingTime,
+            },
+        };
     }
 
     /**
@@ -296,7 +378,7 @@ export class UnstructuredIoResource extends ResourceProvider<"unstructured-io", 
         this.capabilities = {
             strategies: ["fast", "hi_res", "auto"],
             outputFormats: ["json", "markdown", "text", "elements"],
-            supportedLanguages: this.config.processing?.ocrLanguages || ["eng"],
+            supportedLanguages: this.config?.processing?.ocrLanguages || ["eng"],
             maxFileSize: 52428800, // 50MB
             ocrEnabled: true,
             tableExtraction: true,
@@ -309,13 +391,17 @@ export class UnstructuredIoResource extends ResourceProvider<"unstructured-io", 
     /**
      * Convert JSON output to other formats
      */
-    private convertOutput(data: any, format: "markdown" | "text"): string {
+    private convertOutput(data: any, format: "markdown" | "text" | "elements"): string {
         if (!Array.isArray(data)) {
             return "";
         }
 
         if (format === "text") {
             return data.map(element => element.text || "").join("\n");
+        }
+
+        if (format === "elements") {
+            return data.map(element => `[${element.type}] ${element.text || ""}`).join("\n");
         }
 
         // Convert to markdown

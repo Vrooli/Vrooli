@@ -495,9 +495,11 @@ export async function cudHelper({
     inputData,
     userData,
 }: CudHelperParams): Promise<CudHelperResult> {
-    const adminId = await DbProvider.getAdminId();
-    if (adminFlags && userData.id !== adminId) {
-        throw new CustomError("0562", "Unauthorized", { adminFlags });
+    if (adminFlags) {
+        const adminId = await DbProvider.getAdminId();
+        if (userData.id !== adminId) {
+            throw new CustomError("0562", "Unauthorized", { adminFlags });
+        }
     }
 
     const result = new Array(inputData.length).fill(false);
