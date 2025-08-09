@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # Tests for Node-RED installation functions (lib/install.sh)
 
-load ../test_fixtures/test_helper
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 setup() {
     setup_test_environment

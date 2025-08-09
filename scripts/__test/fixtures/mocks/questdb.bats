@@ -13,7 +13,7 @@ setup() {
     cd "$TEST_DIR"
     
     # Set up mock directory
-    export MOCK_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
+    export MOCK_DIR="${BATS_TEST_DIRNAME}"
     
     # Configure QuestDB mock state directory
     export QUESTDB_MOCK_STATE_DIR="$TEST_DIR/questdb-state"

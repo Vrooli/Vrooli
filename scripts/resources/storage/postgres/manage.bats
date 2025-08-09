@@ -2,7 +2,7 @@
 # Tests for PostgreSQL manage.sh script
 
 # Load Vrooli test infrastructure
-source "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../../../__test/fixtures/setup.bash"
 
 # Setup for each test
 setup() {
@@ -19,7 +19,7 @@ setup() {
     export YES="no"
     
     # Load the script without executing main
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     source "${SCRIPT_DIR}/manage.sh" || true
 }
 
@@ -144,19 +144,19 @@ teardown() {
 # ============================================================================
 
 @test "postgres config directory exists" {
-    [ -d "$(dirname "${BATS_TEST_FILENAME}")/config" ]
+    [ -d "${BATS_TEST_DIRNAME}/config" ]
 }
 
 @test "postgres lib directory exists" {
-    [ -d "$(dirname "${BATS_TEST_FILENAME}")/lib" ]
+    [ -d "${BATS_TEST_DIRNAME}/lib" ]
 }
 
 @test "postgres defaults.sh config exists" {
-    [ -f "$(dirname "${BATS_TEST_FILENAME}")/config/defaults.sh" ]
+    [ -f "${BATS_TEST_DIRNAME}/config/defaults.sh" ]
 }
 
 @test "postgres messages.sh config exists" {
-    [ -f "$(dirname "${BATS_TEST_FILENAME}")/config/messages.sh" ]
+    [ -f "${BATS_TEST_DIRNAME}/config/messages.sh" ]
 }
 
 # ============================================================================

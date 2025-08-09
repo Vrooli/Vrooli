@@ -4,7 +4,6 @@ set -euo pipefail
 
 APP_LIFECYCLE_DEPLOY_TOOLS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Source var.sh first to get all directory variables
 # shellcheck disable=SC1091
 source "${APP_LIFECYCLE_DEPLOY_TOOLS_DIR}/../../../../lib/utils/var.sh"
 

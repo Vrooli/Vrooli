@@ -49,7 +49,7 @@
               "file": "initialization/storage/postgres/schema.sql"
             },
             {
-              "type": "seed", 
+              "type": "seed",
               "file": "initialization/storage/postgres/seed.sql"
             }
           ]
@@ -112,7 +112,11 @@
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "models": ["llama3.2", "mistral", "codellama"]
+        "models": [
+          "llama3.2",
+          "mistral",
+          "codellama"
+        ]
       }
     }
   },
@@ -127,9 +131,8 @@
       "description": "Initialize agent metareasoning manager environment",
       "steps": [
         {
-          "name": "setup-infrastructure",
-          "run": "./scripts/manage.sh setup --target docker",
-          "condition": "${SKIP_SETUP} != \\\"true\\\""
+          "name": "universal-setup",
+          "run": "./scripts/lib/lifecycle/phases/setup.sh"
         }
       ]
     },
@@ -137,8 +140,12 @@
       "description": "Start agent metareasoning manager services",
       "steps": [
         {
-          "name": "start-services",
-          "run": "../deployment/startup.sh"
+          "name": "universal-develop",
+          "run": "./scripts/lib/lifecycle/phases/develop.sh"
+        },
+        {
+          "name": "custom-develop",
+          "run": "./scripts/app/lifecycle/phases/develop.sh"
         }
       ]
     },
@@ -146,8 +153,8 @@
       "description": "Build agent metareasoning manager artifacts",
       "steps": [
         {
-          "name": "build-artifacts",
-          "run": "./scripts/manage.sh build"
+          "name": "universal-build",
+          "run": "./scripts/lib/lifecycle/phases/build.sh"
         }
       ]
     },
@@ -155,8 +162,8 @@
       "description": "Run agent metareasoning manager tests",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "./test.sh"
+          "name": "universal-test",
+          "run": "./scripts/lib/lifecycle/phases/test.sh"
         }
       ]
     },
@@ -164,8 +171,8 @@
       "description": "Clean build artifacts and temporary files",
       "steps": [
         {
-          "name": "clean-artifacts",
-          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+          "name": "universal-clean",
+          "run": "./scripts/lib/lifecycle/phases/clean.sh"
         }
       ]
     }

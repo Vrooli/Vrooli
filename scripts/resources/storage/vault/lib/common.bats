@@ -3,7 +3,7 @@
 # Setup for each test  
 setup() {
     # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    source "${BATS_TEST_DIRNAME}/../../../tests/bats-fixtures/common_setup.bash"
     
     # Path to the script under test
     SCRIPT_PATH="$BATS_TEST_DIRNAME/common.sh"
@@ -18,7 +18,7 @@ setup() {
     . "$HELPERS_DIR/utils/system_commands.sh"
     . "$HELPERS_DIR/network/ports.sh" 
     . "$HELPERS_DIR/utils/flow.sh"
-    . "$RESOURCES_DIR/port-registry.sh"
+    . "$RESOURCES_DIR/port_registry.sh"
     
     # Set test environment variables
     export VAULT_CONTAINER_NAME='vault'

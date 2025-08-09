@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
 # Load Vrooli test infrastructure (REQUIRED)
-source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # Expensive setup operations (run once per file)
 setup_file() {
@@ -9,10 +9,10 @@ setup_file() {
     vrooli_setup_service_test "windmill"
     
     # Export paths for use in setup()
-    export SETUP_FILE_SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
-    export SETUP_FILE_WINDMILL_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")" 
-    export SETUP_FILE_CONFIG_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")/config"
-    export SETUP_FILE_LIB_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")/lib"
+    export SETUP_FILE_SCRIPT_DIR="${BATS_TEST_DIRNAME}"
+    export SETUP_FILE_WINDMILL_DIR="$(dirname "${BATS_TEST_DIRNAME}")" 
+    export SETUP_FILE_CONFIG_DIR="$(dirname "${BATS_TEST_DIRNAME}")/config"
+    export SETUP_FILE_LIB_DIR="$(dirname "${BATS_TEST_DIRNAME}")/lib"
 }
 
 # Lightweight per-test setup

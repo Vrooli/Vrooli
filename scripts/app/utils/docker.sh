@@ -10,15 +10,10 @@ set -euo pipefail
 
 APP_UTILS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Source var.sh first to get all directory variables
 # shellcheck disable=SC1091
 source "${APP_UTILS_DIR}/../../lib/utils/var.sh"
-
-# Source universal docker functions
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/docker.sh"
-
-# Source Vrooli-specific dependencies
 # shellcheck disable=SC1091
 source "${var_APP_UTILS_DIR}/env.sh"
 # shellcheck disable=SC1091
@@ -26,7 +21,7 @@ source "${var_LIB_UTILS_DIR}/exit_codes.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/flow.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/log.sh"
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 # shellcheck disable=SC1091

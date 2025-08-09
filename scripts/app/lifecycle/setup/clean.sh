@@ -4,17 +4,14 @@ DESCRIPTION="Cleans up volumes, caches, packages, and other build artifacts. Whe
 
 APP_LIFECYCLE_SETUP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Source var.sh first to get all directory variables
 # shellcheck disable=SC1091
 source "${APP_LIFECYCLE_SETUP_DIR}/../../../lib/utils/var.sh"
-
-# Now use the variables for cleaner paths
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/flow.sh"
+source "${var_FLOW_FILE}"
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/log.sh"
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
+source "${var_SYSTEM_COMMANDS_FILE}"
 # shellcheck disable=SC1091
 source "${var_APP_UTILS_DIR}/docker.sh"
 

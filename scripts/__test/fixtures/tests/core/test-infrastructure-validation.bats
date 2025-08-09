@@ -62,7 +62,7 @@ teardown() {
 
 @test "service setup functions work" {
     # Test service-specific setup
-    run bash -c "cd /home/matthalloran8/Vrooli/scripts/__test && source fixtures/setup.bash && vrooli_setup_service_test 'ollama' && echo 'success'"
+    run bash -c "cd \"${BATS_TEST_DIRNAME}/../../../..\" && source fixtures/setup.bash && vrooli_setup_service_test 'ollama' && echo 'success'"
     assert_success
     assert_output_contains "success"
 }

@@ -13,7 +13,7 @@ HELPERS_DIR="$RESOURCES_DIR/../lib"
 . "$HELPERS_DIR/utils/system_commands.sh"
 . "$HELPERS_DIR/network/ports.sh"
 . "$HELPERS_DIR/utils/flow.sh"
-. "$RESOURCES_DIR/port-registry.sh"
+. "$RESOURCES_DIR/port_registry.sh"
 
 # Helper function for proper sourcing in tests
 setup_searxng_test_env() {
@@ -26,7 +26,7 @@ setup_searxng_test_env() {
     source "$helpers_dir/utils/system_commands.sh"
     source "$helpers_dir/network/ports.sh"
     source "$helpers_dir/utils/flow.sh"
-    source "$resources_dir/port-registry.sh"
+    source "$resources_dir/port_registry.sh"
     
     # Source common.sh (provides resources functions)
     source "$resources_dir/common.sh"
@@ -142,7 +142,7 @@ setup_searxng_test_env_no_defaults() {
     source "$helpers_dir/utils/system_commands.sh"
     source "$helpers_dir/network/ports.sh"
     source "$helpers_dir/utils/flow.sh"
-    source "$resources_dir/port-registry.sh"
+    source "$resources_dir/port_registry.sh"
     source "$resources_dir/common.sh"
     source "$script_dir/config/messages.sh"
     source "$SCRIPT_PATH"

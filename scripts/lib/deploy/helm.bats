@@ -2,14 +2,12 @@
 # Comprehensive test suite for helm.sh deployment library
 
 # Set current directory
-LIB_DEPLOY_DIR="${BATS_TEST_DIRNAME:-$(cd "$(dirname "${BATS_TEST_FILENAME}")" && pwd)}"
+LIB_DEPLOY_DIR="${BATS_TEST_DIRNAME}"
 
-# Source var.sh to get all standard path variables
 # shellcheck disable=SC1091
 source "${LIB_DEPLOY_DIR}/../utils/var.sh"
 
 # Test environment setup
-export BATS_TEST_DIRNAME="${LIB_DEPLOY_DIR}"
 export TEST_TEMP_DIR=""
 
 # Load dependencies

@@ -8,7 +8,7 @@
 # Define the current directory
 LIB_UTILS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Source var.sh to get path variables
+# shellcheck disable=SC1091
 source "$LIB_UTILS_DIR/var.sh"
 
 #######################################
@@ -34,7 +34,7 @@ args::parse() {
             --*)
                 # Handle --key value format
                 local key="${1#--}"
-                if [[ $# -gt 1 && ! "$2" =~ ^-- ]]; then
+                if [[ $# -gt 1 && ! "$2" =~ ^- ]]; then
                     ARGS["$key"]="$2"
                     shift 2
                 else

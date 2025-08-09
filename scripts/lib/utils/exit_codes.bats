@@ -4,8 +4,6 @@
 # Tests standard exit code definitions and helper functions
 
 setup() {
-    export BATS_TEST_DIRNAME="${BATS_TEST_DIRNAME:-$(dirname "$BATS_TEST_FILENAME")}"
-    
     # Create a temporary test script for exit codes
     TEST_EXIT_CODES="${BATS_TEST_DIRNAME}/exit_codes.sh"
     

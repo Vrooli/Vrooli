@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
 # Load test infrastructure
-source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # Lightweight per-test setup
 setup() {
@@ -9,7 +9,7 @@ setup() {
     vrooli_auto_setup
     
     # Load the functions we are testing (required for bats isolation)
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     source "${SCRIPT_DIR}/api.sh"
     
     # Use paths from setup_file

@@ -4,7 +4,7 @@ set -euo pipefail
 # Define the current directory
 LIB_UTILS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Source var.sh to get path variables
+# shellcheck disable=SC1091
 source "$LIB_UTILS_DIR/var.sh"
 
 # Set default terminal type if not set

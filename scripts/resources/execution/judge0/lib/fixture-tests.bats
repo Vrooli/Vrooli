@@ -3,10 +3,10 @@
 # Demonstrates how to use the rich fixture system for actual code execution testing
 
 # Load Vrooli test infrastructure
-source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # Load fixture helper functions
-source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/fixture-loader.bash"
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/fixture-loader.bash"
 
 # Expensive setup operations (run once per file)
 setup_file() {
@@ -14,7 +14,7 @@ setup_file() {
     vrooli_setup_service_test "judge0-fixtures"
     
     # Load dependencies once
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     JUDGE0_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Load configuration and functions once
@@ -28,7 +28,7 @@ setup_file() {
     export SETUP_FILE_JUDGE0_DIR="$JUDGE0_DIR"
     
     # Load fixture data paths
-    export FIXTURE_DATA_DIR="$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/data"
+    export FIXTURE_DATA_DIR="${BATS_TEST_DIRNAME}/../../../../__test/fixtures/data"
     export CODE_FIXTURES_DIR="$FIXTURE_DATA_DIR/documents/code"
 }
 

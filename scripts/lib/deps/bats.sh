@@ -10,7 +10,7 @@ source "${LIB_DEPS_DIR}/../utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/flow.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/log.sh"
+source "${var_LOG_FILE}"
 
 # Ensure var_SCRIPTS_TEST_DIR is defined
 if [ -z "${var_SCRIPTS_TEST_DIR:-}" ]; then

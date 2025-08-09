@@ -13,7 +13,7 @@ setup() {
     cd "$TEST_DIR"
     
     # Set up mock directory
-    export MOCK_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
+    export MOCK_DIR="${BATS_TEST_DIRNAME}"
     
     # Configure Vault mock state directory
     export VAULT_MOCK_STATE_DIR="$TEST_DIR/vault-state"

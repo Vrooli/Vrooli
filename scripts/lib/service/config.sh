@@ -5,11 +5,11 @@
 LIB_SERVICE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck disable=SC1091
-source "${LIB_SERVICE_DIR}/../utils/log.sh"
-# shellcheck disable=SC1091
 source "${LIB_SERVICE_DIR}/../utils/var.sh"
 # shellcheck disable=SC1091
-source "${LIB_SERVICE_DIR}/repository.sh"
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_REPOSITORY_FILE}"
 
 # Simple environment check function (universal replacement for env::in_development)
 config::is_development() {

@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 
 # Load Vrooli test infrastructure (REQUIRED)
-source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # Expensive setup operations (run once per file)
 setup_file() {
@@ -106,7 +106,7 @@ setup_n8n_test_env_no_defaults() {
     source "$HELPERS_DIR/utils/system_commands.sh"
     source "$HELPERS_DIR/network/ports.sh"
     source "$HELPERS_DIR/utils/flow.sh"
-    source "$RESOURCES_DIR/port-registry.sh"
+    source "$RESOURCES_DIR/port_registry.sh"
     source "$RESOURCES_DIR/common.sh"
     source "$SCRIPT_DIR/config/defaults.sh"
     source "$SCRIPT_PATH"
@@ -132,7 +132,7 @@ setup_n8n_test_env_no_defaults() {
     source "$HELPERS_DIR/utils/system_commands.sh"
     source "$HELPERS_DIR/network/ports.sh"
     source "$HELPERS_DIR/utils/flow.sh"
-    source "$RESOURCES_DIR/port-registry.sh"
+    source "$RESOURCES_DIR/port_registry.sh"
     source "$RESOURCES_DIR/common.sh"
     source "$SCRIPT_DIR/config/defaults.sh"
     source "$SCRIPT_PATH"
@@ -192,7 +192,7 @@ setup_n8n_test_env_no_defaults() {
         source \"\$HELPERS_DIR/utils/system_commands.sh\"
         source \"\$HELPERS_DIR/network/ports.sh\"
         source \"\$HELPERS_DIR/utils/flow.sh\"
-        source \"\$RESOURCES_DIR/port-registry.sh\"
+        source \"\$RESOURCES_DIR/port_registry.sh\"
         
         # Source common.sh (provides resources functions)
         source \"\$RESOURCES_DIR/common.sh\"
@@ -220,7 +220,7 @@ setup_n8n_test_env_no_defaults() {
         source \"\$HELPERS_DIR/utils/system_commands.sh\"
         source \"\$HELPERS_DIR/network/ports.sh\"
         source \"\$HELPERS_DIR/utils/flow.sh\"
-        source \"\$RESOURCES_DIR/port-registry.sh\"
+        source \"\$RESOURCES_DIR/port_registry.sh\"
         
         # Source common.sh (provides resources functions)
         source \"\$RESOURCES_DIR/common.sh\"
@@ -248,7 +248,7 @@ setup_n8n_test_env_no_defaults() {
         source \"\$HELPERS_DIR/utils/system_commands.sh\"
         source \"\$HELPERS_DIR/network/ports.sh\"
         source \"\$HELPERS_DIR/utils/flow.sh\"
-        source \"\$RESOURCES_DIR/port-registry.sh\"
+        source \"\$RESOURCES_DIR/port_registry.sh\"
         
         # Source common.sh (provides resources functions)
         source \"\$RESOURCES_DIR/common.sh\"

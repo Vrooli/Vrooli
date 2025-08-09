@@ -8,7 +8,7 @@ source "${LIB_NETWORK_DIR}/../utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/flow.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/log.sh"
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 

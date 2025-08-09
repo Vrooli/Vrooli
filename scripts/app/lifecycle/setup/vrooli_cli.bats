@@ -4,7 +4,6 @@ bats_require_minimum_version 1.5.0
 # Define location for this test file
 APP_LIFECYCLE_SETUP_DIR="$BATS_TEST_DIRNAME"
 
-# Source var.sh to get all directory variables
 # shellcheck disable=SC1091
 source "${APP_LIFECYCLE_SETUP_DIR}/../../../lib/utils/var.sh"
 

@@ -7,8 +7,9 @@ set -e
 SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCRIPTS_DIR="${SCENARIO_DIR}/../../.."
 
-# Source helper functions
+# shellcheck disable=SC1091
 source "${SCRIPTS_DIR}/lib/utils/var.sh"
+# shellcheck disable=SC1091
 source "${SCRIPTS_DIR}/resources/lib/common.sh"
 
 echo "🚀 Starting Issue Tracker Services..."

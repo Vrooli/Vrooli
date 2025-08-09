@@ -3,7 +3,7 @@
 bats_require_minimum_version 1.5.0
 
 # Load Vrooli test infrastructure
-source "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../../../__test/fixtures/setup.bash"
 
 # Expensive setup operations run once per file
 setup_file() {
@@ -11,7 +11,7 @@ setup_file() {
     vrooli_setup_service_test "browserless"
     
     # Set up directories and paths once
-    export SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    export SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     export RESOURCES_DIR="${SCRIPT_DIR}/../.."
     export MOCK_DIR="${SCRIPT_DIR}/../../../__test/fixtures/mocks"
     

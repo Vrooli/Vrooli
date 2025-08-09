@@ -2,7 +2,7 @@
 # Tests for Whisper docker.sh functions
 
 # Load Vrooli test infrastructure
-source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # Expensive setup operations (run once per file)
 setup_file() {
@@ -10,7 +10,7 @@ setup_file() {
     vrooli_setup_service_test "whisper"
     
     # Load dependencies once
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     WHISPER_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Load configuration and messages once
@@ -43,7 +43,7 @@ setup() {
     export YES="no"
     
     # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     WHISPER_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Mock system functions

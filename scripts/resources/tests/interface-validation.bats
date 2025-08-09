@@ -3,13 +3,13 @@
 # Tests that all resources follow standardized interface patterns
 
 # Load test infrastructure
-load "$(dirname "${BATS_TEST_FILENAME}")/../../__test/fixtures/setup.bash"
+load "${BATS_TEST_DIRNAME}/../../__test/fixtures/setup.bash"
 
 # Load interface validation library
-source "$(dirname "${BATS_TEST_FILENAME}")/../tests/lib/interface-validation.sh"
+source "${BATS_TEST_DIRNAME}/../tests/lib/interface-validation.sh"
 
 # Test configuration
-RESOURCES_DIR="$(dirname "${BATS_TEST_FILENAME}")/.."
+RESOURCES_DIR="${BATS_TEST_DIRNAME}/.."
 
 setup() {
     # Basic test setup

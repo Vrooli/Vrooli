@@ -13,7 +13,7 @@ HELPERS_DIR="$RESOURCES_DIR/../lib"
 . "$HELPERS_DIR/utils/system_commands.sh"
 . "$HELPERS_DIR/network/ports.sh"
 . "$HELPERS_DIR/utils/flow.sh"
-. "$RESOURCES_DIR/port-registry.sh"
+. "$RESOURCES_DIR/port_registry.sh"
 
 # Helper function to setup n8n test environment
 setup_n8n_docker_test() {
@@ -27,7 +27,7 @@ setup_n8n_docker_test() {
     source "$HELPERS_DIR/utils/system_commands.sh"
     source "$HELPERS_DIR/network/ports.sh"
     source "$HELPERS_DIR/utils/flow.sh"
-    source "$RESOURCES_DIR/port-registry.sh"
+    source "$RESOURCES_DIR/port_registry.sh"
     source "$RESOURCES_DIR/common.sh"
     source "$SCRIPT_DIR/config/defaults.sh"
     source "$SCRIPT_DIR/lib/common.sh"

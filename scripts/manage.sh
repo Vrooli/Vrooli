@@ -17,19 +17,11 @@ set -euo pipefail
 #######################################
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-PROJECT_ROOT=$(cd "$SCRIPT_DIR/.." && pwd)
 
-# Minimal bootstrap - only source what we absolutely need
-if [[ -f "$SCRIPT_DIR/lib/utils/log.sh" ]]; then
-    # shellcheck disable=SC1091
-    source "$SCRIPT_DIR/lib/utils/log.sh"
-else
-    # Fallback if log.sh doesn't exist
-    log::info() { echo "[INFO] $*"; }
-    log::error() { echo "[ERROR] $*" >&2; }
-    log::warning() { echo "[WARN] $*" >&2; }
-    log::success() { echo "[SUCCESS] $*"; }
-fi
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
 
 #######################################
 # Display help information
@@ -78,9 +70,9 @@ EXAMPLES:
 
 CONFIGURATION:
     All lifecycle phases and their steps are defined in:
-    $PROJECT_ROOT/.vrooli/service.json
+    $var_ROOT_DIR/.vrooli/service.json
     
-    The lifecycle engine at scripts/lib/lifecycle/engine.sh
+    The lifecycle engine at $var_LIFECYCLE_ENGINE_FILE
     executes the configured steps for each phase.
 
 EOF
@@ -90,28 +82,24 @@ EOF
 # Display version information
 #######################################
 manage::show_version() {
-    local service_json="$PROJECT_ROOT/.vrooli/service.json"
-    
-    if [[ -f "$service_json" ]]; then
+    if [[ -f "$var_SERVICE_JSON_FILE" ]]; then
         local app_version
-        app_version=$(jq -r '.version // "unknown"' "$service_json" 2>/dev/null || echo "unknown")
+        app_version=$(jq -r '.version // "unknown"' "$var_SERVICE_JSON_FILE" 2>/dev/null || echo "unknown")
         echo "Application version: $app_version"
     else
         echo "Version: unknown (no service.json found)"
     fi
     
     echo "Manage script: 1.0.0"
-    echo "Project root: $PROJECT_ROOT"
+    echo "Project root: $var_ROOT_DIR"
 }
 
 #######################################
 # List available phases from service.json
 #######################################
 manage::list_phases() {
-    local service_json="$PROJECT_ROOT/.vrooli/service.json"
-    
-    if [[ ! -f "$service_json" ]]; then
-        log::error "No service.json found at $service_json"
+    if [[ ! -f "$var_SERVICE_JSON_FILE" ]]; then
+        log::error "No service.json found at $var_SERVICE_JSON_FILE"
         echo "Cannot list phases without service.json configuration"
         return 1
     fi
@@ -121,13 +109,13 @@ manage::list_phases() {
     
     # Check if jq is available
     if command -v jq &> /dev/null; then
-        jq -r '.lifecycle | to_entries[] | "  \(.key)\t\(.value.description // "No description")"' "$service_json" 2>/dev/null || {
+        jq -r '.lifecycle | to_entries[] | "  \(.key)\t\(.value.description // "No description")"' "$var_SERVICE_JSON_FILE" 2>/dev/null || {
             log::warning "Failed to parse service.json"
             echo "  (Unable to list phases - invalid JSON or missing lifecycle key)"
         }
     else
         log::warning "jq is not installed - showing raw phase names only"
-        grep -o '"[^"]*"[[:space:]]*:' "$service_json" | grep -v "lifecycle" | sed 's/"//g' | sed 's/://' | sed 's/^/  /'
+        grep -o '"[^"]*"[[:space:]]*:' "$var_SERVICE_JSON_FILE" | grep -v "lifecycle" | sed 's/"//g' | sed 's/://' | sed 's/^/  /'
     fi
     
     echo
@@ -257,9 +245,8 @@ manage::main() {
     esac
     
     # Check for service.json
-    local service_json="$PROJECT_ROOT/.vrooli/service.json"
-    if [[ ! -f "$service_json" ]]; then
-        log::error "No service.json found at $service_json"
+    if [[ ! -f "$var_SERVICE_JSON_FILE" ]]; then
+        log::error "No service.json found at $var_SERVICE_JSON_FILE"
         log::error "This directory does not appear to be a properly configured application"
         echo
         echo "To initialize a new application, create .vrooli/service.json with lifecycle configuration"
@@ -267,13 +254,12 @@ manage::main() {
     fi
     
     # Check for lifecycle engine
-    local lifecycle_engine="$SCRIPT_DIR/lib/lifecycle/engine.sh"
-    if [[ ! -f "$lifecycle_engine" ]]; then
-        log::error "Lifecycle engine not found at $lifecycle_engine"
+    if [[ ! -f "$var_LIFECYCLE_ENGINE_FILE" ]]; then
+        log::error "Lifecycle engine not found at $var_LIFECYCLE_ENGINE_FILE"
         log::error "The scripts/lib directory may be missing or incomplete"
         
         # Provide helpful message based on context
-        if [[ -d "$PROJECT_ROOT/packages" ]]; then
+        if [[ -d "$var_ROOT_DIR/packages" ]]; then
             echo "This appears to be the Vrooli monorepo. Try running:"
             echo "  git restore scripts/lib"
         else
@@ -291,7 +277,7 @@ manage::main() {
     
     # Validate phase exists in service.json
     local phase_exists
-    phase_exists=$(jq --arg phase "$phase" '.lifecycle | has($phase)' "$service_json" 2>/dev/null || echo "false")
+    phase_exists=$(jq --arg phase "$phase" '.lifecycle | has($phase)' "$var_SERVICE_JSON_FILE" 2>/dev/null || echo "false")
     
     if [[ "$phase_exists" == "false" ]]; then
         log::error "Phase '$phase' not found in service.json"
@@ -314,7 +300,7 @@ manage::main() {
     # Set VROOLI_CONTEXT if not already set
     # Detect context based on presence of packages directory and other markers
     if [[ -z "${VROOLI_CONTEXT:-}" ]]; then
-        if [[ -d "$PROJECT_ROOT/packages" ]] && [[ -f "$PROJECT_ROOT/packages/server/package.json" ]]; then
+        if [[ -d "$var_ROOT_DIR/packages" ]] && [[ -f "$var_ROOT_DIR/packages/server/package.json" ]]; then
             export VROOLI_CONTEXT="monorepo"
             log::info "Detected Vrooli monorepo context"
         else
@@ -323,8 +309,8 @@ manage::main() {
         fi
     fi
     
-    # Export PROJECT_ROOT for child scripts
-    export PROJECT_ROOT
+    # Export var_ROOT_DIR for child scripts
+    export var_ROOT_DIR
     
     # Set default ENVIRONMENT, LOCATION, and TARGET if not already set (commonly needed by many phases)
     export ENVIRONMENT="${ENVIRONMENT:-development}"

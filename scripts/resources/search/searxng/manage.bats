@@ -2,7 +2,7 @@
 # Tests for SearXNG manage.sh script
 
 # Load Vrooli test infrastructure
-source "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../../../__test/fixtures/setup.bash"
 
 # Setup for each test
 setup() {
@@ -19,7 +19,7 @@ setup() {
     export YES="no"
     
     # Load the script without executing main
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     source "${SCRIPT_DIR}/manage.sh" || true
 }
 

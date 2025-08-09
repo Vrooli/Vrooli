@@ -4,13 +4,10 @@ set -euo pipefail
 
 APP_LIFECYCLE_DEVELOP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Source var.sh first to get all directory variables
 # shellcheck disable=SC1091
 source "${APP_LIFECYCLE_DEVELOP_DIR}/../../../lib/utils/var.sh"
-
-# Now use the variables for cleaner paths
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/log.sh"
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/flow.sh"
 # shellcheck disable=SC1091

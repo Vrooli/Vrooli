@@ -3,21 +3,6 @@
 # This file prevents port conflicts between Vrooli services and local resources
 
 # ============================================================================
-# VROOLI CORE SERVICES - DO NOT USE THESE PORTS FOR RESOURCES
-# ============================================================================
-declare -g -A VROOLI_PORTS=(
-    ["ui"]="3000"              # Frontend web application
-    ["api"]="5329"             # Backend API server
-    ["jobs"]="4001"            # Background jobs service
-    ["postgres"]="5432"        # PostgreSQL database
-    ["redis"]="6379"           # Redis cache
-    ["adminer"]="8080"         # Database admin UI
-    ["nsfw"]="8000"            # NSFW detector service (internal)
-    ["debug_server"]="9229"    # Server debugger
-    ["debug_jobs"]="9230"      # Jobs debugger
-)
-
-# ============================================================================
 # LOCAL RESOURCE SERVICES - CAREFULLY CHOSEN TO AVOID CONFLICTS
 # ============================================================================
 declare -g -A RESOURCE_PORTS=(
@@ -85,18 +70,6 @@ declare -g -A RESERVED_RANGES=(
 # ============================================================================
 
 #######################################
-# Get port for a Vrooli service
-# Arguments:
-#   $1 - service name
-# Returns:
-#   Port number or empty string
-#######################################
-ports::get_vrooli_port() {
-    local service="$1"
-    echo "${VROOLI_PORTS[$service]:-}"
-}
-
-#######################################
 # Get port for a resource service
 # Arguments:
 #   $1 - resource name
@@ -106,35 +79,6 @@ ports::get_vrooli_port() {
 ports::get_resource_port() {
     local resource="$1"
     echo "${RESOURCE_PORTS[$resource]:-}"
-}
-
-#######################################
-# Check if port is reserved by Vrooli
-# Arguments:
-#   $1 - port number
-# Returns:
-#   0 if reserved, 1 if available
-#######################################
-ports::is_vrooli_reserved() {
-    local port="$1"
-    
-    # Check exact matches
-    for vrooli_port in "${VROOLI_PORTS[@]}"; do
-        if [[ "$port" == "$vrooli_port" ]]; then
-            return 0
-        fi
-    done
-    
-    # Check reserved ranges
-    if [[ "$port" -ge 3000 && "$port" -le 4100 ]]; then
-        return 0  # In Vrooli core range
-    fi
-    
-    if [[ "$port" -ge 9200 && "$port" -le 9299 ]]; then
-        return 0  # In debug range
-    fi
-    
-    return 1
 }
 
 #######################################
@@ -160,12 +104,6 @@ ports::validate_assignment() {
         echo "WARNING: Port $port for $service requires root privileges"
     fi
     
-    # Check if it conflicts with Vrooli
-    if ports::is_vrooli_reserved "$port"; then
-        echo "ERROR: Port $port for $service conflicts with Vrooli services"
-        return 1
-    fi
-    
     return 0
 }
 
@@ -176,11 +114,6 @@ ports::validate_assignment() {
 #######################################
 ports::get_all_assigned() {
     local -a all_ports=()
-    
-    # Add Vrooli ports
-    for port in "${VROOLI_PORTS[@]}"; do
-        all_ports+=("$port")
-    done
     
     # Add resource ports
     for port in "${RESOURCE_PORTS[@]}"; do
@@ -212,7 +145,7 @@ ports::find_available_in_range() {
             fi
         done
         
-        if [[ "$found" -eq 0 ]] && ! ports::is_vrooli_reserved "$port"; then
+        if [[ "$found" -eq 0 ]]; then
             echo "$port"
             return 0
         fi
@@ -226,12 +159,7 @@ ports::find_available_in_range() {
 #######################################
 ports::show_registry() {
     echo "=== Vrooli Port Registry ==="
-    echo
-    echo "VROOLI CORE SERVICES:"
-    for service in "${!VROOLI_PORTS[@]}"; do
-        printf "  %-15s : %s\n" "$service" "${VROOLI_PORTS[$service]}"
-    done | sort
-    
+
     echo
     echo "LOCAL RESOURCES:"
     for resource in "${!RESOURCE_PORTS[@]}"; do

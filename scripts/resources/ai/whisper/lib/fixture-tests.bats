@@ -3,7 +3,7 @@
 # Demonstrates how BATS tests can use real fixture files with mocked responses
 
 # Load Vrooli test infrastructure
-source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # Expensive setup operations (run once per file)
 setup_file() {
@@ -11,7 +11,7 @@ setup_file() {
     vrooli_setup_service_test "whisper"
     
     # Load dependencies once
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     WHISPER_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Load configuration and messages once
@@ -19,7 +19,7 @@ setup_file() {
     source "${WHISPER_DIR}/config/messages.sh"
     
     # Load test fixture utilities
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/fixture-loader.bash"
+    source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/fixture-loader.bash"
     
     # Export paths for use in setup()
     export SETUP_FILE_SCRIPT_DIR="$SCRIPT_DIR"
@@ -42,7 +42,7 @@ setup() {
     export WHISPER_API_TIMEOUT="5"
     
     # Source the whisper functions to test
-    source "$(dirname "${BATS_TEST_FILENAME}")/../common.sh"
+    source "${BATS_TEST_DIRNAME}/../common.sh"
     
     # Mock system functions
     system::is_port_in_use() { return 1; }  # Port available

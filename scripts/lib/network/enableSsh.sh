@@ -9,7 +9,7 @@ source "${LIB_NETWORK_DIR}/../utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/flow.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/log.sh"
+source "${var_LOG_FILE}"
 
 # enable PasswordAuthentication for ssh
 enableSsh::enable_password_authentication() {

@@ -305,7 +305,7 @@ validate_port_registry() {
     resource_name=$(basename "$resource_path")
     
     # Check if resource is registered in port registry
-    local port_registry="/home/matthalloran8/Vrooli/scripts/resources/port-registry.sh"
+    local port_registry="/home/matthalloran8/Vrooli/scripts/resources/port_registry.sh"
     
     if [[ ! -f "$port_registry" ]]; then
         echo "SKIP: Port registry not found"

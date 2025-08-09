@@ -7,12 +7,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Source var.sh first to get all directory variables
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
 
-PROJECT_ROOT="${var_ROOT_DIR}"
-AGENT_DIR="$PROJECT_ROOT/docs/ai-creation/agent"
+AGENT_DIR="$var_ROOT_DIR/docs/ai-creation/agent"
 STAGED_DIR="$AGENT_DIR/staged"
 
 # Colors for output
@@ -118,7 +118,7 @@ check_environment() {
 
 # Create TypeScript import script
 create_import_script() {
-    cat > "$PROJECT_ROOT/temp-agent-import.ts" << 'EOF'
+    cat > "$var_ROOT_DIR/temp-agent-import.ts" << 'EOF'
 import { PrismaClient } from '@prisma/client';
 import fs from 'fs';
 import path from 'path';
@@ -267,11 +267,11 @@ run_import() {
     export LIMIT="$LIMIT"
     
     # Run the import script
-    cd "$PROJECT_ROOT/packages/server"
-    npx tsx "$PROJECT_ROOT/temp-agent-import.ts"
+    cd "$var_ROOT_DIR/packages/server"
+    npx tsx "$var_ROOT_DIR/temp-agent-import.ts"
     
     # Clean up
-    rm -f "$PROJECT_ROOT/temp-agent-import.ts"
+    rm -f "$var_ROOT_DIR/temp-agent-import.ts"
 }
 
 # Count agents by category

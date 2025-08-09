@@ -21,7 +21,6 @@
 # Get the script's directory and project root
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Source var.sh first to get all directory variables
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
 

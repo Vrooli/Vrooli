@@ -4,7 +4,7 @@
 # Setup for each test
 setup() {
     # Load shared test infrastructure with timeout protection
-    timeout 10s bash -c 'source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"' || {
+    timeout 10s bash -c 'source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"' || {
         echo "WARNING: common_setup.bash took too long, using fallback mocks" >&2
         export MOCK_RESPONSES_DIR="${BATS_TEST_TMPDIR:-/tmp}/mock_responses"
         mkdir -p "$MOCK_RESPONSES_DIR"
@@ -27,7 +27,7 @@ setup() {
     export YES="no"
     
     # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     N8N_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Create test directory

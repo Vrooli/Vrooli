@@ -2,9 +2,9 @@
 # Tests for Ollama manage.sh script
 
 # Load Vrooli test infrastructure
-source "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../../../__test/fixtures/setup.bash"
 # Load fixture helpers for accessing test data
-source "$(dirname "${BATS_TEST_FILENAME}")/../../tests/lib/fixture-helpers.sh" 2>/dev/null || true
+source "${BATS_TEST_DIRNAME}/../../tests/lib/fixture-helpers.sh" 2>/dev/null || true
 
 # Helper function to initialize MODEL_CATALOG (fixes BATS associative array issue)
 setup_model_catalog() {
@@ -52,8 +52,8 @@ setup() {
     vrooli_auto_setup
     
     # Use paths from setup_file to avoid recalculating
-    SCRIPT_PATH="$(dirname "${BATS_TEST_FILENAME}")/manage.sh"
-    OLLAMA_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_PATH="${BATS_TEST_DIRNAME}/manage.sh"
+    OLLAMA_DIR="${BATS_TEST_DIRNAME}"
     CONFIG_DIR="${OLLAMA_DIR}/config"
     
     # Set ollama-specific environment variables (lightweight)

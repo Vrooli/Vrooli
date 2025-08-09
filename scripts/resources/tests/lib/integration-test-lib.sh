@@ -639,8 +639,8 @@ test_port_registration() {
     # Get resource name from path
     local resource_name=$(basename "$resource_dir")
     
-    # Check if resource has a port in port-registry.sh
-    local port_registry="$resource_dir/../../port-registry.sh"
+    # Check if resource has a port in port_registry.sh
+    local port_registry="$resource_dir/../../port_registry.sh"
     if [[ -f "$port_registry" ]]; then
         if grep -q "$resource_name" "$port_registry" 2>/dev/null; then
             log_test_result "$test_name" "PASS"

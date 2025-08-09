@@ -32,7 +32,7 @@ Local AI and automation tools that extend Vrooli's capabilities through modular 
 - **[Testing Strategy](docs/TESTING_STRATEGY.md)** - Three-layer validation system
 - **[Integration Cookbook](docs/integration-cookbook.md)** - Multi-resource workflows
 - **[Interface Standards](docs/interface-standards.md)** - Resource API contracts
-- **[Port Registry](port-registry.sh)** - Service port allocations (`./port-registry.sh --action list`)
+- **[Port Registry](port_registry.sh)** - Service port allocations (`./port_registry.sh --action list`)
 - **[Architecture Overview](docs/README.md#-integration-patterns)** - How resources work together
 
 ## 🔧 Management

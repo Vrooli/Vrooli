@@ -2,7 +2,7 @@
 
 
 # Load test infrastructure
-source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # Setup for each test
 setup() {

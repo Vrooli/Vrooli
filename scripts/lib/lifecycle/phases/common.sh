@@ -11,13 +11,10 @@ set -euo pipefail
 # Get the phases directory
 LIB_LIFECYCLE_PHASES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Source var.sh first to get all directory variables
 # shellcheck disable=SC1091
 source "${LIB_LIFECYCLE_PHASES_DIR}/../../utils/var.sh"
-
-# Source essential utilities
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/log.sh"
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/flow.sh"
 

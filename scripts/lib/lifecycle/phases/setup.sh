@@ -17,15 +17,10 @@ set -euo pipefail
 # Get script directory
 LIB_LIFECYCLE_PHASES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Source var.sh first to get all directory variables
 # shellcheck disable=SC1091
 source "${LIB_LIFECYCLE_PHASES_DIR}/../../utils/var.sh"
-
-# Source common utilities
 # shellcheck disable=SC1091
 source "${LIB_LIFECYCLE_PHASES_DIR}/common.sh"
-
-# Source required libraries
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/args.sh"
 # shellcheck disable=SC1091
@@ -74,7 +69,7 @@ source "${var_LIB_DEPS_DIR}/shellcheck.sh"
 # Returns:
 #   0 on success, 1 on failure
 #######################################
-setup::universal::main() {
+setup::universal_main() {
     # Initialize phase
     phase::init "Setup"
     
@@ -227,7 +222,7 @@ setup::universal::main() {
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     # Check if being called by lifecycle engine
     if [[ "${LIFECYCLE_PHASE:-}" == "setup" ]]; then
-        setup::universal::main "$@"
+        setup::universal_main "$@"
     else
         log::error "This script should be called through the lifecycle engine"
         log::info "Use: ./scripts/manage.sh setup [options]"

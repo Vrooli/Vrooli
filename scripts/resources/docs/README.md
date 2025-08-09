@@ -715,7 +715,7 @@ Install by logical groupings:
 sudo lsof -i :5678
 
 # Check port registry
-./scripts/resources/port-registry.sh --action list
+./scripts/resources/port_registry.sh --action list
 ```
 
 **Docker Issues**:

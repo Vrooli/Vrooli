@@ -4,11 +4,11 @@
 bats_require_minimum_version 1.5.0
 
 # Load test infrastructure
-source "${BATS_TEST_DIRNAME}/../__test/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../../__test/fixtures/setup.bash"
 
 # Load BATS helpers
-load "${BATS_TEST_DIRNAME}/../__test/helpers/bats-support/load"
-load "${BATS_TEST_DIRNAME}/../__test/helpers/bats-assert/load"
+load "${BATS_TEST_DIRNAME}/../../__test/helpers/bats-support/load"
+load "${BATS_TEST_DIRNAME}/../../__test/helpers/bats-assert/load"
 
 # Load the logging library
 source "${BATS_TEST_DIRNAME}/log.sh"

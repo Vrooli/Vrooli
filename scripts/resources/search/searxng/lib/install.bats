@@ -3,7 +3,7 @@
 # Setup for each test
 setup() {
     # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    source "${BATS_TEST_DIRNAME}/../../../tests/bats-fixtures/common_setup.bash"
     
     # Setup standard mocks
     vrooli_auto_setup
@@ -25,7 +25,7 @@ setup() {
     source "$helpers_dir/utils/system_commands.sh"
     source "$helpers_dir/network/ports.sh"
     source "$helpers_dir/utils/flow.sh"
-    source "$resources_dir/port-registry.sh"
+    source "$resources_dir/port_registry.sh"
     source "$resources_dir/common.sh"
     
     # Source config and messages

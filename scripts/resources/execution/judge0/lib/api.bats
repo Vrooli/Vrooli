@@ -4,7 +4,7 @@
 
 
 # Load test infrastructure
-source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # Setup for each test
 setup() {
@@ -44,7 +44,7 @@ setup() {
     export YES="no"
     
     # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     JUDGE0_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Mock system functions

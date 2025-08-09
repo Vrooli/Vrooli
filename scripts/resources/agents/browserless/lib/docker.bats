@@ -4,7 +4,7 @@
 # Setup for each test
 setup() {
     # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+    source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
     
     # Setup standard mocks
     vrooli_auto_setup
@@ -20,7 +20,7 @@ setup() {
     export BROWSERLESS_IMAGE="ghcr.io/browserless/chrome:test"
     
     # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     BROWSERLESS_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Load configuration and messages

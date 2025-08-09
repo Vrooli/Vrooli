@@ -13,7 +13,7 @@ setup() {
     }
     
     # Source the defaults
-    source "$(dirname "$BATS_TEST_FILENAME")/defaults.sh"
+    source "${BATS_TEST_DIRNAME}/defaults.sh"
 }
 
 @test "configuration constants are set correctly" {

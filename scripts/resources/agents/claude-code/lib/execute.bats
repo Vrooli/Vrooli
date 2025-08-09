@@ -1,21 +1,20 @@
 #!/usr/bin/env bats
 
-load ./test_helper.bash
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # BATS setup function - runs before each test
 setup() {
     # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+    source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
     
     # Setup test environment
     vrooli_auto_setup
     
     # Load the functions we are testing (required for bats isolation)
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     source "${SCRIPT_DIR}/execute.sh"
     
     # Set up paths
-    export BATS_TEST_DIRNAME="${BATS_TEST_DIRNAME:-$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)}"
     export CLAUDE_CODE_DIR="$BATS_TEST_DIRNAME/.."
     export RESOURCES_DIR="$CLAUDE_CODE_DIR/../.."
     export HELPERS_DIR="$RESOURCES_DIR/../lib"

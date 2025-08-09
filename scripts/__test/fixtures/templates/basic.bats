@@ -5,7 +5,7 @@
 bats_require_minimum_version 1.5.0
 
 # Load test infrastructure (single entry point)
-source "$(dirname "$0")/../setup.bash"
+source "${BATS_TEST_DIRNAME}/../setup.bash"
 
 setup() {
     vrooli_setup_unit_test  # Basic mocks and environment

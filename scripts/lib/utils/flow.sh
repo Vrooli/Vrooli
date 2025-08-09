@@ -4,11 +4,10 @@ set -euo pipefail
 # Define the current directory
 LIB_UTILS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Source var.sh to get path variables
-source "$LIB_UTILS_DIR/var.sh"
-
 # shellcheck disable=SC1091
-source "$var_LIB_UTILS_DIR/log.sh"
+source "${LIB_UTILS_DIR}/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
 
 # Returns 0 if the first argument is a recognized "yes" (y/yes), else 1.
 flow::is_yes() {

@@ -13,7 +13,7 @@ setup() {
     cd "$TEST_DIR"
     
     # Set up mock directory
-    export MOCK_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
+    export MOCK_DIR="${BATS_TEST_DIRNAME}"
     
     # Configure n8n mock state directory
     export N8N_MOCK_STATE_DIR="$TEST_DIR/n8n-state"

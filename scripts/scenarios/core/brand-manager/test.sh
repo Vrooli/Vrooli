@@ -8,14 +8,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCENARIO_DIR="$SCRIPT_DIR"
 PROJECT_ROOT="$(dirname "$(dirname "$(dirname "$SCENARIO_DIR")")")"
 
-# Source common utilities
-source "$PROJECT_ROOT/scripts/lib/utils/var.sh" 2>/dev/null || echo "Warning: Could not source var.sh"
-source "$PROJECT_ROOT/scripts/lib/utils/logging.sh" 2>/dev/null || {
-    # Fallback logging functions if not available
-    log_info() { echo "[INFO] $*"; }
-    log_error() { echo "[ERROR] $*" >&2; }
-    log_warn() { echo "[WARN] $*"; }
-}
+# shellcheck disable=SC1091
+source "$PROJECT_ROOT/scripts/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "$PROJECT_ROOT/scripts/lib/utils/log.sh"
 
 # Configuration
 TEST_CONFIG="$SCENARIO_DIR/scenario-test.yaml"

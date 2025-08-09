@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
 # Tests for Node-RED status functions (lib/status.sh)
 
-load ../test_fixtures/test_helper
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # Run expensive setup once per file instead of per test
 setup_file() {

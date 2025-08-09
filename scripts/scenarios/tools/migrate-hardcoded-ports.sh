@@ -12,13 +12,13 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 # shellcheck disable=SC1091
 source "$PROJECT_ROOT/scripts/lib/utils/log.sh"
 # shellcheck disable=SC1091
-source "$PROJECT_ROOT/scripts/resources/port-registry.sh"
+source "$PROJECT_ROOT/scripts/resources/port_registry.sh"
 
 #######################################
 # Configuration and constants
 #######################################
 
-# Port mappings from port-registry.sh to service names
+# Port mappings from port_registry.sh to service names
 declare -A PORT_TO_SERVICE_MAP=()
 for service in "${!RESOURCE_PORTS[@]}"; do
     port="${RESOURCE_PORTS[$service]}"

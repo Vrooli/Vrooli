@@ -3,7 +3,7 @@
 # Expensive setup operations run once per file
 setup_file() {
     # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    source "${BATS_TEST_DIRNAME}/../../../tests/bats-fixtures/common_setup.bash"
     
     # Path to the scripts under test
     SCRIPT_PATH="$BATS_TEST_DIRNAME/install.sh"

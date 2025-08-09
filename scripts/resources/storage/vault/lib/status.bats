@@ -15,7 +15,7 @@ setup_vault_status_test_env() {
     source "$HELPERS_DIR/utils/log.sh"
     source "$HELPERS_DIR/utils/system_commands.sh"
     source "$HELPERS_DIR/network/ports.sh"
-    source "$RESOURCES_DIR/port-registry.sh"
+    source "$RESOURCES_DIR/port_registry.sh"
     source "$RESOURCES_DIR/common.sh"
     
     # Set test environment variables
@@ -51,7 +51,7 @@ VAULT_STATUS_TEST_SETUP="
         source \"\$HELPERS_DIR/utils/log.sh\"
         source \"\$HELPERS_DIR/utils/system_commands.sh\"
         source \"\$HELPERS_DIR/network/ports.sh\"
-        source \"\$RESOURCES_DIR/port-registry.sh\"
+        source \"\$RESOURCES_DIR/port_registry.sh\"
         source \"\$RESOURCES_DIR/common.sh\"
         
         # Test environment variables

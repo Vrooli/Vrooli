@@ -3,9 +3,6 @@
 # Comprehensive test coverage for SearXNG mock functionality
 
 setup() {
-    # Set test directory
-    export BATS_TEST_DIRNAME="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
-    
     # Set up test environment
     export TEST_TEMP_DIR=$(mktemp -d)
     export SEARXNG_MOCK_STATE_FILE="$TEST_TEMP_DIR/searxng_state"

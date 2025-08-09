@@ -19,34 +19,26 @@ set -euo pipefail
 # Define current directory
 LIB_LIFECYCLE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Source environment variables
+# shellcheck disable=SC1091
 source "${LIB_LIFECYCLE_DIR}/../utils/var.sh"
-
-# Export PROJECT_ROOT for compatibility
-export PROJECT_ROOT="${var_ROOT_DIR}"
-
-# Source all modules
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
 source "${var_LIB_LIFECYCLE_DIR}/lib/parser.sh"
+# shellcheck disable=SC1091
 source "${var_LIB_LIFECYCLE_DIR}/lib/config.sh"
+# shellcheck disable=SC1091
 source "${var_LIB_LIFECYCLE_DIR}/lib/condition.sh"
+# shellcheck disable=SC1091
 source "${var_LIB_LIFECYCLE_DIR}/lib/output.sh"
+# shellcheck disable=SC1091
 source "${var_LIB_LIFECYCLE_DIR}/lib/executor.sh"
+# shellcheck disable=SC1091
 source "${var_LIB_LIFECYCLE_DIR}/lib/parallel.sh"
+# shellcheck disable=SC1091
 source "${var_LIB_LIFECYCLE_DIR}/lib/targets.sh"
+# shellcheck disable=SC1091
 source "${var_LIB_LIFECYCLE_DIR}/lib/phase.sh"
-
-# Source utilities if available
-if [[ -f "${var_LIB_UTILS_DIR}/log.sh" ]]; then
-    # shellcheck source=../utils/log.sh
-    source "${var_LIB_UTILS_DIR}/log.sh"
-else
-    # Fallback logging functions
-    log::info() { echo "[INFO] $*" >&2; }
-    log::error() { echo "[ERROR] $*" >&2; }
-    log::warning() { echo "[WARN] $*" >&2; }
-    log::success() { echo "[OK] $*" >&2; }
-    log::debug() { [[ "${DEBUG:-}" == "true" ]] && echo "[DEBUG] $*" >&2 || true; }
-fi
 
 # Global exit code
 declare -g EXIT_CODE=0

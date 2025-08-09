@@ -2,7 +2,7 @@
 # Tests for Ollama model management functions
 
 # Load Vrooli test infrastructure
-source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # Expensive setup operations (run once per file)
 setup_file() {
@@ -10,7 +10,7 @@ setup_file() {
     vrooli_setup_service_test "ollama"
     
     # Load dependencies once
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     OLLAMA_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Load configuration and messages once
@@ -143,7 +143,7 @@ setup() {
     ollama::export_messages
     
     # Source the model management functions
-    source "$(dirname "$BATS_TEST_FILENAME")/models.sh"
+    source "${BATS_TEST_DIRNAME}/models.sh"
 }
 
 # BATS teardown function - runs after each test

@@ -760,7 +760,6 @@ set -euo pipefail
 
 APP_LIFECYCLE_DEVELOP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Source var.sh first to get all directory variables (same path as monorepo)
 # shellcheck disable=SC1091
 source "${APP_LIFECYCLE_DEVELOP_DIR}/../../../lib/utils/var.sh"
 

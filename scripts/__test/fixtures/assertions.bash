@@ -71,7 +71,7 @@ assert_exit_code() {
 #######################################
 assert_output_contains() {
     local expected="$1"
-    if [[ "${output:-}" =~ $expected ]]; then
+    if [[ "${output:-}" == *"$expected"* ]]; then
         return 0
     else
         echo "Expected output to contain: '$expected'"

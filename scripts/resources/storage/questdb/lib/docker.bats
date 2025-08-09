@@ -3,7 +3,7 @@
 # QuestDB Docker Functions Tests
 
 setup() {
-    load '../../../../testing/test_helper'
+    source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
     source "${BATS_TEST_DIRNAME}/../config/defaults.sh"
     source "${BATS_TEST_DIRNAME}/docker.sh"
     

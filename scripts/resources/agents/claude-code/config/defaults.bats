@@ -10,7 +10,7 @@ setup() {
     mkdir -p "$MOCK_RESPONSES_DIR"
     
     # Load mock framework
-    MOCK_DIR="/home/matthalloran8/Vrooli/scripts/resources/tests/bats-fixtures/mocks"
+    MOCK_DIR="${BATS_TEST_DIRNAME}/../../../tests/bats-fixtures/mocks"
     source "$MOCK_DIR/system_mocks.bash"
     source "$MOCK_DIR/mock_helpers.bash"
     source "$MOCK_DIR/resource_mocks.bash"

@@ -5,7 +5,7 @@
 # Expensive setup operations run once per file
 setup_file() {
     # Load shared test infrastructure
-    source "${VROOLI_TEST_ROOT:-/home/matthalloran8/Vrooli/scripts/__test}/fixtures/setup.bash"
+    source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
     
     # Get resource directory path
     AGENTS2_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"

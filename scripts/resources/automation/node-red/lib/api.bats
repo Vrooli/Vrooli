@@ -2,7 +2,7 @@
 # Tests for Node-RED API functions (lib/api.sh)
 
 # Load Vrooli test infrastructure
-source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # Expensive setup operations run once per file
 setup_file() {
@@ -10,7 +10,7 @@ setup_file() {
     vrooli_setup_service_test "node-red"
     
     # Load Node-RED specific configuration once per file
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     NODE_RED_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Load configuration and API functions once

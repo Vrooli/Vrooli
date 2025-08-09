@@ -3,8 +3,8 @@
 # Demonstrates document processing validation with real fixture files
 
 # Load test infrastructure
-load "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
-load "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/fixture-loader.bash"
+load "${BATS_TEST_DIRNAME}/../../../__test/fixtures/setup.bash"
+load "${BATS_TEST_DIRNAME}/../../../__test/fixtures/fixture-loader.bash"
 
 setup() {
     # Setup standard mocks and environment
@@ -17,7 +17,7 @@ setup() {
     export UNSTRUCTURED_IO_API_TIMEOUT="30"
     
     # Source the unstructured-io functions to test
-    source "$(dirname "${BATS_TEST_FILENAME}")/../common.sh"
+    source "${BATS_TEST_DIRNAME}/../common.sh"
     
     # Mock system functions
     system::is_port_in_use() { return 1; }

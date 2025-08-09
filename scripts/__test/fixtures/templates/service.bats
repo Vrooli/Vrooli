@@ -5,7 +5,7 @@
 bats_require_minimum_version 1.5.0
 
 # Load test infrastructure
-source "$(dirname "$0")/../setup.bash"
+source "${BATS_TEST_DIRNAME}/../setup.bash"
 
 # TODO: Replace with your service name
 SERVICE_NAME="ollama"

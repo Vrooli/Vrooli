@@ -7,7 +7,7 @@ set -euo pipefail
 # Get script directory
 LIB_LIFECYCLE_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Source common environment variables
+# shellcheck disable=SC1091
 source "$LIB_LIFECYCLE_LIB_DIR/../../utils/var.sh"
 
 # Guard against re-sourcing

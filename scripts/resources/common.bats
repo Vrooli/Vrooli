@@ -11,7 +11,7 @@ HELPERS_DIR="$RESOURCES_DIR/../lib"
 . "$HELPERS_DIR/utils/flow.sh"
 . "$HELPERS_DIR/network/ports.sh"
 . "$HELPERS_DIR/utils/system_commands.sh"
-. "$RESOURCES_DIR/port-registry.sh"
+. "$RESOURCES_DIR/port_registry.sh"
 
 # Source only the functions we need to test
 # We'll source common.sh in a subshell to avoid readonly conflicts
@@ -48,7 +48,7 @@ HELPERS_DIR="$RESOURCES_DIR/../lib"
 @test "rollback context functions work correctly" {
     # Run test in a subshell to avoid variable conflicts
     output=$(bash -c '
-        source "scripts/resources/port-registry.sh"
+        source "scripts/resources/port_registry.sh"
         source "scripts/resources/common.sh"
         
         # Start rollback context
@@ -84,7 +84,7 @@ HELPERS_DIR="$RESOURCES_DIR/../lib"
 
 @test "resources::handle_error provides correct guidance" {
     # Source dependencies in test context
-    . "$RESOURCES_DIR/port-registry.sh"
+    . "$RESOURCES_DIR/port_registry.sh"
     . "$RESOURCES_DIR/common.sh"
     
     # Test network error
@@ -115,7 +115,7 @@ HELPERS_DIR="$RESOURCES_DIR/../lib"
 @test "DEFAULT_PORTS populated correctly from RESOURCE_PORTS" {
     # Check in isolated environment
     output=$(bash -c "
-        source '$RESOURCES_DIR/port-registry.sh'
+        source '$RESOURCES_DIR/port_registry.sh'
         source '$RESOURCES_DIR/common.sh'
         echo \"OLLAMA:\${DEFAULT_PORTS[ollama]}\"
         echo \"BROWSERLESS:\${DEFAULT_PORTS[browserless]}\"
@@ -134,7 +134,7 @@ HELPERS_DIR="$RESOURCES_DIR/../lib"
 # Source all dependencies
 source "$1/utils/log.sh" 2>/dev/null || true
 source "$1/network/ports.sh"
-source "$2/port-registry.sh"
+source "$2/port_registry.sh"
 source "$2/common.sh"
 
 # Test validation of a Vrooli-conflicting port
@@ -152,7 +152,7 @@ EOF
 @test "port registry and common.sh work together correctly" {
     # Integration test
     output=$(bash -c "
-        source '$RESOURCES_DIR/port-registry.sh'
+        source '$RESOURCES_DIR/port_registry.sh'
         source '$RESOURCES_DIR/common.sh'
         
         # Test that we can get ports

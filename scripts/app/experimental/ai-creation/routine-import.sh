@@ -20,7 +20,6 @@ if ! command -v vrooli &> /dev/null; then
     # Ensure we're in the right directory
     SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" &>/dev/null && pwd)
     
-    # Source var.sh first to get all directory variables
     # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
     

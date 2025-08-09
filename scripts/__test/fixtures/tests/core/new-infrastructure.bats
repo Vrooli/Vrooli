@@ -3,7 +3,7 @@
 # Validates that the simplified infrastructure works correctly
 
 # Load Vrooli test infrastructure
-source "${VROOLI_TEST_ROOT:-/home/matthalloran8/Vrooli/scripts/__test}/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../../setup.bash"
 
 setup() {
     # Test basic unit test setup

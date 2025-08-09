@@ -6,6 +6,7 @@ set -euo pipefail
 
 # Source required utilities
 LIB_SERVICE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # shellcheck disable=SC1091
 source "${LIB_SERVICE_DIR}/../utils/var.sh"
 # shellcheck disable=SC1091
@@ -239,7 +240,7 @@ service_config::export_resource_urls() {
     fi
     
     # Source port registry for resource port information
-    local port_registry="${var_SCRIPTS_RESOURCES_DIR:-${LIB_SERVICE_DIR}/../../resources}/port-registry.sh"
+    local port_registry="${var_SCRIPTS_RESOURCES_DIR:-${LIB_SERVICE_DIR}/../../resources}/port_registry.sh"
     if [[ -f "$port_registry" ]]; then
         # shellcheck disable=SC1090
         source "$port_registry"

@@ -1,28 +1,12 @@
 #!/usr/bin/env bats
 
 # Source the port registry
-SCRIPT_PATH="$BATS_TEST_DIRNAME/port-registry.sh"
+SCRIPT_PATH="$BATS_TEST_DIRNAME/port_registry.sh"
 . "$SCRIPT_PATH"
 
 # ============================================================================
 # Basic Port Retrieval Tests
 # ============================================================================
-
-@test "ports::get_vrooli_port returns correct port for UI service" {
-    [ "$(ports::get_vrooli_port "ui")" = "3000" ]
-}
-
-@test "ports::get_vrooli_port returns correct port for API service" {
-    [ "$(ports::get_vrooli_port "api")" = "5329" ]
-}
-
-@test "ports::get_vrooli_port returns correct port for postgres" {
-    [ "$(ports::get_vrooli_port "postgres")" = "5432" ]
-}
-
-@test "ports::get_vrooli_port returns empty for invalid service" {
-    [ "$(ports::get_vrooli_port "nonexistent")" = "" ]
-}
 
 @test "ports::get_resource_port returns correct port for ollama" {
     [ "$(ports::get_resource_port "ollama")" = "11434" ]
@@ -38,50 +22,6 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/port-registry.sh"
 
 @test "ports::get_resource_port returns empty for invalid resource" {
     [ "$(ports::get_resource_port "nonexistent")" = "" ]
-}
-
-# ============================================================================
-# Port Reservation Tests
-# ============================================================================
-
-@test "ports::is_vrooli_reserved detects UI port as reserved" {
-    run ports::is_vrooli_reserved "3000"
-    [ "$status" -eq 0 ]
-}
-
-@test "ports::is_vrooli_reserved detects API port as reserved" {
-    run ports::is_vrooli_reserved "5329"
-    [ "$status" -eq 0 ]
-}
-
-@test "ports::is_vrooli_reserved detects Adminer port as reserved" {
-    run ports::is_vrooli_reserved "8080"
-    [ "$status" -eq 0 ]
-}
-
-@test "ports::is_vrooli_reserved detects port 3500 in core range" {
-    run ports::is_vrooli_reserved "3500"
-    [ "$status" -eq 0 ]
-}
-
-@test "ports::is_vrooli_reserved detects port 9250 in debug range" {
-    run ports::is_vrooli_reserved "9250"
-    [ "$status" -eq 0 ]
-}
-
-@test "ports::is_vrooli_reserved returns false for ollama port" {
-    run ports::is_vrooli_reserved "11434"
-    [ "$status" -eq 1 ]
-}
-
-@test "ports::is_vrooli_reserved returns false for n8n port" {
-    run ports::is_vrooli_reserved "5678"
-    [ "$status" -eq 1 ]
-}
-
-@test "ports::is_vrooli_reserved returns false for random high port" {
-    run ports::is_vrooli_reserved "50000"
-    [ "$status" -eq 1 ]
 }
 
 # ============================================================================
@@ -202,37 +142,6 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/port-registry.sh"
 # Integration Tests
 # ============================================================================
 
-@test "no resource port conflicts with Vrooli ports" {
-    # Ensure no resource port is in Vrooli's reserved list
-    for resource in "${!RESOURCE_PORTS[@]}"; do
-        local port="${RESOURCE_PORTS[$resource]}"
-        run ports::is_vrooli_reserved "$port"
-        if [ "$status" -eq 0 ]; then
-            echo "Resource $resource port $port conflicts with Vrooli!"
-            false
-        fi
-    done
-}
-
-@test "all Vrooli ports are valid numbers in range" {
-    # Check all Vrooli ports
-    for service in "${!VROOLI_PORTS[@]}"; do
-        local port="${VROOLI_PORTS[$service]}"
-        
-        # Check if numeric
-        if ! [[ "$port" =~ ^[0-9]+$ ]]; then
-            echo "Invalid Vrooli port for $service: $port"
-            false
-        fi
-        
-        # Check range
-        if [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then
-            echo "Vrooli port out of range for $service: $port"
-            false
-        fi
-    done
-}
-
 @test "all resource ports are valid numbers in range" {
     # Check all resource ports
     for resource in "${!RESOURCE_PORTS[@]}"; do
@@ -255,9 +164,6 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/port-registry.sh"
 @test "no duplicate ports across all services" {
     # Collect all ports
     local all_ports=()
-    for service in "${!VROOLI_PORTS[@]}"; do
-        all_ports+=("${VROOLI_PORTS[$service]}")
-    done
     for resource in "${!RESOURCE_PORTS[@]}"; do
         all_ports+=("${RESOURCE_PORTS[$resource]}")
     done

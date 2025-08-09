@@ -1,16 +1,17 @@
 #!/usr/bin/env bats
 # Tests for Huginn lib/common.sh
 
-load ../test_fixtures/test_helper
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 setup() {
-    setup_test_environment
-    mock_docker "success"
-    source_huginn_scripts
+    vrooli_setup_service_test "huginn"
+    # Load huginn scripts
+    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    source "${SCRIPT_DIR}/common.sh"
 }
 
 teardown() {
-    teardown_test_environment
+    vrooli_cleanup_test
 }
 
 @test "common.sh: check_docker succeeds when Docker is available" {

@@ -4,13 +4,12 @@ set -euo pipefail
 # Define the current directory
 LIB_UTILS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Source var.sh to get path variables
+# shellcheck disable=SC1091
 source "$LIB_UTILS_DIR/var.sh"
-
 # shellcheck disable=SC1091
-source "$var_LIB_UTILS_DIR/log.sh"
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "$var_LIB_UTILS_DIR/exit_codes.sh"
+source "$var_EXIT_CODES_FILE"
 
 # Function to match target strings to their canonical form
 # Usage: target_matcher::match_target "target_string"

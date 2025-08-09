@@ -3,7 +3,6 @@ set -euo pipefail
 
 APP_UTILS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Source var.sh first to get all directory variables
 # shellcheck disable=SC1091
 source "${APP_UTILS_DIR}/../../lib/utils/var.sh"
 

@@ -4,7 +4,7 @@
 # Expensive setup operations run once per file
 setup_file() {
     # Load dependencies once per file
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     BROWSERLESS_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Load configuration and messages once
@@ -52,7 +52,7 @@ setup() {
     export OUTPUT="/tmp/browserless-test-output.png"
     
     # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+    source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
     vrooli_auto_setup
     
     # Basic mock functions (lightweight)

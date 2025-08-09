@@ -1,11 +1,10 @@
 #!/usr/bin/env bats
 
-load ./test_helper.bash
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # BATS setup function - runs before each test
 setup() {
     # Set up paths
-    export BATS_TEST_DIRNAME="${BATS_TEST_DIRNAME:-$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)}"
     export CLAUDE_CODE_DIR="$BATS_TEST_DIRNAME/.."
     export RESOURCES_DIR="$CLAUDE_CODE_DIR/../.."
     export HELPERS_DIR="$RESOURCES_DIR/../lib"

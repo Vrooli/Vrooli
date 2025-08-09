@@ -2,7 +2,7 @@
 # Simple test to verify infrastructure
 
 # Load test setup
-source "${VROOLI_TEST_ROOT:-/home/matthalloran8/Vrooli/scripts/__test}/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../../setup.bash"
 
 @test "simple test: setup loads successfully" {
     # Just verify we can run a test

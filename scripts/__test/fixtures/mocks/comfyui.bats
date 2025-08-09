@@ -16,7 +16,7 @@ setup() {
     cd "$TEST_DIR"
     
     # Set up mock directory
-    export MOCK_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
+    export MOCK_DIR="${BATS_TEST_DIRNAME}"
     
     # Configure ComfyUI mock state directory
     export COMFYUI_MOCK_STATE_DIR="$TEST_DIR/comfyui-state"

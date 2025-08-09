@@ -3,7 +3,7 @@
 # Setup for each test
 setup() {
     # Load Vrooli test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+    source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
     
     # Setup SearXNG test environment
     vrooli_setup_service_test "searxng"
@@ -25,7 +25,7 @@ setup() {
     source "$helpers_dir/utils/system_commands.sh"
     source "$helpers_dir/network/ports.sh"
     source "$helpers_dir/utils/flow.sh"
-    source "$resources_dir/port-registry.sh"
+    source "$resources_dir/port_registry.sh"
     source "$resources_dir/common.sh"
     
     # Source config and messages

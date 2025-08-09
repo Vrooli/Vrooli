@@ -4,7 +4,7 @@
 # Setup for each test
 setup() {
     # Load Vrooli test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+    source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
     
     # Setup Qdrant test environment
     vrooli_setup_service_test "qdrant"
@@ -23,7 +23,7 @@ setup() {
     export YES="no"
     
     # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     QDRANT_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Create test directories

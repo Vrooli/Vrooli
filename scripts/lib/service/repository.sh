@@ -5,15 +5,14 @@ set -euo pipefail
 
 LIB_SERVICE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Source core utilities
+# shellcheck disable=SC1091
+source "${LIB_SERVICE_DIR}/../utils/var.sh"
 # shellcheck disable=SC1091
 source "${LIB_SERVICE_DIR}/../utils/exit_codes.sh"
 # shellcheck disable=SC1091
 source "${LIB_SERVICE_DIR}/../utils/log.sh"
 # shellcheck disable=SC1091
 source "${LIB_SERVICE_DIR}/../system/system_commands.sh"
-# shellcheck disable=SC1091
-source "${LIB_SERVICE_DIR}/../utils/var.sh"
 
 # Path to service.json file
 SERVICE_JSON_PATH="${SERVICE_JSON_PATH:-${var_SERVICE_JSON_FILE:-$(cd "${LIB_SERVICE_DIR}/../../.." && pwd)/.vrooli/service.json}}"

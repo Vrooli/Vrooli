@@ -8,9 +8,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCENARIO_DIR="$(dirname "$SCRIPT_DIR")"
 PROJECT_ROOT="$(dirname "$(dirname "$(dirname "$SCENARIO_DIR")")")"
 
-# Source common utilities
-source "$PROJECT_ROOT/scripts/lib/utils/var.sh" 
-source "$PROJECT_ROOT/scripts/lib/utils/logging.sh"
+# shellcheck disable=SC1091
+source "$PROJECT_ROOT/scripts/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "$PROJECT_ROOT/scripts/lib/utils/log.sh"
 
 # Configuration
 MONITOR_INTERVAL="${MONITOR_INTERVAL:-30}"

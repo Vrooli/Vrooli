@@ -4,7 +4,7 @@
 
 setup() {
     # Source the messages
-    source "$(dirname "$BATS_TEST_FILENAME")/messages.sh"
+    source "${BATS_TEST_DIRNAME}/messages.sh"
 }
 
 @test "installation messages are defined" {

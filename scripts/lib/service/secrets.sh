@@ -96,7 +96,7 @@ secrets::resolve() {
 
 # Source the port registry directly for service resolution
 secrets::source_port_registry() {
-    local port_registry="${var_SCRIPTS_RESOURCES_DIR:-$(secrets::get_project_root)/scripts/resources}/port-registry.sh"
+    local port_registry="${var_SCRIPTS_RESOURCES_DIR:-$(secrets::get_project_root)/scripts/resources}/port_registry.sh"
     
     # Check if RESOURCE_PORTS array is already populated
     if [[ "${#RESOURCE_PORTS[@]}" -gt 0 ]] 2>/dev/null; then

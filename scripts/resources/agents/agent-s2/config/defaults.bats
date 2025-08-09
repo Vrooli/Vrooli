@@ -5,7 +5,7 @@
 # Expensive setup operations run once per file
 setup_file() {
     # Load shared test infrastructure once per file
-    source "${VROOLI_TEST_ROOT:-/home/matthalloran8/Vrooli/scripts/__test}/fixtures/setup.bash"
+    source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
     # Setup standard mocks once
     vrooli_auto_setup
     

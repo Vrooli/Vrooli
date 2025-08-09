@@ -7,7 +7,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
 
-# Source utilities
 # shellcheck disable=SC1091
 source "$PROJECT_ROOT/scripts/lib/utils/log.sh"
 
@@ -25,7 +24,7 @@ FILE_PATTERNS=(
     "*.sh"
 )
 
-# Ports that should be abstracted (from port-registry.sh)
+# Ports that should be abstracted (from port_registry.sh)
 PORTS_TO_ABSTRACT=(
     "11434"  # ollama
     "5678"   # n8n

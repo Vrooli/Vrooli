@@ -4,9 +4,8 @@
 
 
 # Load test infrastructure
-source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
-load ../test_fixtures/test_helper
 
 # Lightweight per-test setup
 setup() {
@@ -14,7 +13,7 @@ setup() {
     vrooli_auto_setup
     
     # Source scripts directly without expensive environment setup
-    HUGINN_ROOT_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")/.." && pwd)"
+    HUGINN_ROOT_DIR="$(cd "${BATS_TEST_DIRNAME}/.." && pwd)"
     source "$HUGINN_ROOT_DIR/../../../app/utils/args.sh" 2>/dev/null || true
     source "$HUGINN_ROOT_DIR/../../../common.sh" 2>/dev/null || true
     source "$HUGINN_ROOT_DIR/config/defaults.sh" 2>/dev/null || true

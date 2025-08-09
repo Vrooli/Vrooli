@@ -36,7 +36,7 @@ readonly CONFIG_MANAGER_SCRIPT="${RESOURCES_DIR}/config-manager.js"
 
 # Source the port registry for centralized port management
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/port-registry.sh"
+source "${RESOURCES_DIR}/port_registry.sh"
 
 # Common default ports for local resources (from port registry)
 declare -A DEFAULT_PORTS

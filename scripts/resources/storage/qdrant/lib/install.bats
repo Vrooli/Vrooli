@@ -2,7 +2,7 @@
 # Tests for Qdrant install.sh functions
 
 # Load standard test setup
-load "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/setup/standard_setup.bash"
+load "${BATS_TEST_DIRNAME}/../../../tests/bats-fixtures/setup/standard_setup.bash"
 
 # Setup for each test
 setup() {

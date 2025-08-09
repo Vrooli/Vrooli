@@ -4,7 +4,7 @@
 # Setup for each test
 setup() {
     # Load Vrooli test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
+    source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
     
     # Setup Judge0 test environment
     vrooli_setup_service_test "judge0"

@@ -3,7 +3,7 @@
 # Setup for each test
 setup() {
     # Load shared test infrastructure
-    source "$(dirname "${BATS_TEST_FILENAME}")/../../../tests/bats-fixtures/common_setup.bash"
+    source "${BATS_TEST_DIRNAME}/../../../tests/bats-fixtures/common_setup.bash"
     
     # Path to the script under test
     SCRIPT_PATH="$BATS_TEST_DIRNAME/config.sh"

@@ -3,7 +3,7 @@
 bats_require_minimum_version 1.5.0
 
 # Load Vrooli test infrastructure
-source "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../../../__test/fixtures/setup.bash"
 
 # Expensive setup operations run once per file
 setup_file() {
@@ -11,7 +11,7 @@ setup_file() {
     vrooli_setup_service_test "claude-code"
     
     # Load Claude Code specific configuration once per file
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     
     # Load configuration and manage script once
     source "${SCRIPT_DIR}/config/defaults.sh"
@@ -88,7 +88,7 @@ setup_file() {
 # Lightweight per-test setup
 setup() {
     # Load claude-code mock in each test to ensure functions are available
-    MOCK_DIR="$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/mocks"
+    MOCK_DIR="${BATS_TEST_DIRNAME}/../../../__test/fixtures/mocks"
     if [[ -f "$MOCK_DIR/claude-code.sh" ]]; then
         source "$MOCK_DIR/claude-code.sh"
     fi
@@ -107,7 +107,7 @@ setup() {
     fi
     
     # Set test environment variables (lightweight per-test)
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     export CLAUDE_CODE_CUSTOM_PORT="8080"
     export CLAUDE_CODE_CONTAINER_NAME="claude-code-test"
     export CLAUDE_CODE_BASE_URL="http://localhost:8080"
@@ -366,19 +366,19 @@ teardown() {
 # ============================================================================
 
 @test "claude code config directory exists" {
-    [ -d "$(dirname "${BATS_TEST_FILENAME}")/config" ]
+    [ -d "${BATS_TEST_DIRNAME}/config" ]
 }
 
 @test "claude code lib directory exists" {
-    [ -d "$(dirname "${BATS_TEST_FILENAME}")/lib" ]
+    [ -d "${BATS_TEST_DIRNAME}/lib" ]
 }
 
 @test "claude code defaults.sh config exists" {
-    [ -f "$(dirname "${BATS_TEST_FILENAME}")/config/defaults.sh" ]
+    [ -f "${BATS_TEST_DIRNAME}/config/defaults.sh" ]
 }
 
 @test "claude code messages.sh config exists" {
-    [ -f "$(dirname "${BATS_TEST_FILENAME}")/config/messages.sh" ]
+    [ -f "${BATS_TEST_DIRNAME}/config/messages.sh" ]
 }
 
 @test "claude_code::parse_arguments handles session-id parameter" {

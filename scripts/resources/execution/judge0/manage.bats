@@ -3,7 +3,7 @@
 # Tests for Judge0 installation, configuration, and management
 
 # Load Vrooli test infrastructure
-source "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
+source "${BATS_TEST_DIRNAME}/../../../__test/fixtures/setup.bash"
 
 # Expensive setup operations run once per file
 setup_file() {
@@ -11,7 +11,7 @@ setup_file() {
     vrooli_setup_service_test "judge0"
     
     # Load resource specific configuration once per file
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     JUDGE0_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Load configuration and manage script once

@@ -16,6 +16,7 @@ export var_SCRIPTS_DIR=$(cd "$var_LIB_DIR"/.. && pwd)
 export var_SCRIPTS_TEST_DIR="$var_SCRIPTS_DIR/__test"
 export var_SCRIPTS_RESOURCES_DIR="$var_SCRIPTS_DIR/resources"
 export var_SCRIPTS_SCENARIOS_DIR="$var_SCRIPTS_DIR/scenarios"
+export var_SCRIPTS_SCENARIOS_INJECTION_DIR="$var_SCRIPTS_SCENARIOS_DIR/injection"
 export var_ROOT_DIR=$(cd "$var_SCRIPTS_DIR"/.. && pwd)
 
 # Vrooli configuration directory and files
@@ -23,6 +24,16 @@ export var_VROOLI_CONFIG_DIR="$var_ROOT_DIR/.vrooli"
 export var_SERVICE_JSON_FILE="$var_VROOLI_CONFIG_DIR/service.json"
 export var_EXAMPLES_DIR="$var_VROOLI_CONFIG_DIR/examples"
 export var_SCHEMAS_DIR="$var_VROOLI_CONFIG_DIR/schemas"
+
+# Common files
+export var_LIFECYCLE_ENGINE_FILE="$var_LIB_LIFECYCLE_DIR/engine.sh"
+export var_REPOSITORY_FILE="$var_LIB_SERVICE_DIR/repository.sh"
+export var_SYSTEM_COMMANDS_FILE="$var_LIB_SYSTEM_DIR/system_commands.sh"
+export var_EXIT_CODES_FILE="$var_LIB_UTILS_DIR/exit_codes.sh"
+export var_FLOW_FILE="$var_LIB_UTILS_DIR/flow.sh"
+export var_LOG_FILE="$var_LIB_UTILS_DIR/log.sh"
+export var_PORT_REGISTRY_FILE="$var_SCRIPTS_RESOURCES_DIR/port_registry.sh"
+export var_RUNTIME_ENGINE="$var_SCRIPTS_SCENARIOS_INJECTION_DIR/runtime-engine.sh"
 
 # Detect if we're in Vrooli monorepo or standalone app based on package.json
 if [[ -f "$var_ROOT_DIR/package.json" ]] && \

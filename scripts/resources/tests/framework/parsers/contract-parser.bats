@@ -276,7 +276,7 @@ EOF
 
 @test "contract_parser_init: auto-detects contracts directory" {
     # Change to project root directory
-    cd /home/matthalloran8/Vrooli
+    cd "${BATS_TEST_DIRNAME}/../../../../.."
     
     run contract_parser_init
     
