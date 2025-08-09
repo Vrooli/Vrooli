@@ -1,9 +1,41 @@
 {
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "name": "resource-experimenter",
-  "description": "Fully automated resource discovery and testing platform that generates complete standalone applications with their own resource providers and scenarios",
-  "type": "scenario",
-  "category": "vrooli-helpers",
+  "inheritance": {
+    "extends": "../../../../../.vrooli/service.json",
+    "merge": {
+      "strategy": "merge",
+      "arrays": "concat"
+    }
+  },
+  "service": {
+    "name": "resource-experimenter",
+    "displayName": "Resource Experimenter",
+    "description": "Fully automated resource discovery and testing platform that generates complete standalone applications with their own resource providers and scenarios",
+    "version": "1.0.0",
+    "type": "business-application",
+    "category": "vrooli-helpers",
+    "tags": [
+      "resource-discovery",
+      "automation",
+      "testing",
+      "generator"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "team@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scripts/scenarios/core/resource-experimenter"
+    },
+    "license": "GPL-3.0",
+    "homepage": "https://github.com/Vrooli/Vrooli"
+  },
   "resources": {
     "storage": {
       "postgres": {
@@ -12,7 +44,8 @@
           "database": "resource_experiments",
           "schema": "public",
           "initialization": {
-            "scripts": ["initialization/storage/postgres/schema.sql", "initialization/storage/postgres/seed.sql"]
+            "schema": "initialization/storage/postgres/schema.sql",
+            "seed": "initialization/storage/postgres/seed.sql"
           }
         }
       },
@@ -30,7 +63,7 @@
           "buckets": ["generated-apps", "resource-artifacts", "test-reports"],
           "public_buckets": ["generated-apps"],
           "initialization": {
-            "scripts": ["initialization/storage/minio/buckets.json"]
+            "buckets": "initialization/storage/minio/buckets.json"
           }
         }
       },
@@ -39,7 +72,7 @@
         "config": {
           "collections": ["resources", "test-results", "compatibility"],
           "initialization": {
-            "scripts": ["initialization/storage/qdrant/collections.json"]
+            "collections": "initialization/storage/qdrant/collections.json"
           }
         }
       }
@@ -167,59 +200,39 @@
     }
   },
   "lifecycle": {
+    "version": "1.0.0",
     "setup": {
-      "description": "Initialize experiment platform",
+      "description": "Initialize Resource Experimenter environment with Docker orchestration and experiment templates",
       "steps": [
         {
-          "name": "validate-environment",
-          "run": "deployment/validate.sh"
-        },
-        {
-          "name": "setup-storage",
-          "run": "deployment/setup-storage.sh"
-        },
-        {
-          "name": "setup-templates",
-          "run": "deployment/setup-templates.sh"
+          "name": "inject-resource-data",
+          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/resource-experimenter/.vrooli/service.json",
+          "description": "Inject SQL schemas, workflows, and configurations"
         },
         {
           "name": "configure-docker",
-          "run": "deployment/configure-docker.sh"
-        }
-      ]
-    },
-    "start": {
-      "description": "Start experiment platform",
-      "steps": [
-        {
-          "name": "cleanup-old-experiments",
-          "run": "deployment/cleanup.sh"
+          "run": "deployment/configure-docker.sh",
+          "description": "Configure Docker daemon for container orchestration and resource management"
         },
         {
-          "name": "start-services",
-          "run": "deployment/startup.sh"
+          "name": "validate-environment",
+          "run": "deployment/validate.sh",
+          "description": "Validate system requirements and Docker configuration"
         },
         {
-          "name": "initialize-workflows",
-          "run": "deployment/init-workflows.sh"
-        }
-      ]
-    },
-    "experiment": {
-      "description": "Run full resource experiment pipeline",
-      "steps": [
+          "name": "setup-experiment-templates",
+          "run": "deployment/setup-templates.sh",
+          "description": "Initialize resource provider and scenario templates"
+        },
         {
-          "name": "run-experiment",
-          "run": "sandbox/experiment-runner.sh"
-        }
-      ]
-    },
-    "generate-app": {
-      "description": "Generate standalone app for a tested resource",
-      "steps": [
+          "name": "start-core-services",
+          "run": "deployment/startup.sh",
+          "description": "Start PostgreSQL, Redis, MinIO, Qdrant, Ollama, n8n, and Windmill"
+        },
         {
-          "name": "package-app",
-          "run": "sandbox/app-packager.sh"
+          "name": "show-access-urls",
+          "run": "echo '✅ Resource Experimenter initialized\\n  🎯 Windmill Dashboard: http://localhost:8000\\n  🔧 n8n Workflows: http://localhost:5678\\n  📊 MinIO Console: http://localhost:9001\\n  🔍 Qdrant API: http://localhost:6333\\n  🤖 Ollama API: http://localhost:11434\\n  📦 Experiment Sandbox: ./sandbox/\\n  🏗️  Generated Apps: ./generated-apps/'",
+          "description": "Display service access URLs and directories"
         }
       ]
     }

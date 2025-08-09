@@ -124,5 +124,64 @@
       "enabled": true,
       "max_personas": 10
     }
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "defaults": {
+      "timeout": "5m",
+      "error": "stop",
+      "shell": "bash"
+    },
+    "setup": {
+      "description": "Initialize Personal Digital Twin environment",
+      "steps": [
+        {
+          "name": "inject-resource-data",
+          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/personal-digital-twin/.vrooli/service.json",
+          "description": "Inject SQL schemas, workflows, and configurations"
+        },
+        {
+          "name": "show-access-urls",
+          "run": "echo '✅ Personal Digital Twin initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  N8n Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Vector Search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Model Training: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Chat Interface: http://localhost:8201'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Personal Digital Twin services",
+      "steps": [
+        {
+          "name": "start-services",
+          "run": "../deployment/startup.sh"
+        }
+      ]
+    },
+    "build": {
+      "description": "Build Personal Digital Twin artifacts",
+      "steps": [
+        {
+          "name": "build-artifacts",
+          "run": "./scripts/manage.sh build"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run Personal Digital Twin tests",
+      "steps": [
+        {
+          "name": "run-scenario-tests",
+          "run": "../../tools/scenario-test-runner.sh scenario-test.yaml"
+        }
+      ]
+    },
+    "clean": {
+      "description": "Clean build artifacts and temporary files",
+      "steps": [
+        {
+          "name": "clean-artifacts",
+          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+        }
+      ]
+    }
   }
 }

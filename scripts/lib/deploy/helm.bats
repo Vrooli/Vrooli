@@ -11,9 +11,9 @@ source "${LIB_DEPLOY_DIR}/../utils/var.sh"
 export TEST_TEMP_DIR=""
 
 # Load dependencies
-load "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
-load "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/helm.sh"
-load "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/system.sh"
+load "${BATS_TEST_DIRNAME}/../../__test/fixtures/setup.bash"
+load "${BATS_TEST_DIRNAME}/../../__test/fixtures/mocks/helm.sh"
+load "${BATS_TEST_DIRNAME}/../../__test/fixtures/mocks/system.sh"
 
 # Source the library being tested
 setup() {
@@ -35,7 +35,7 @@ setup() {
   
   # Source the library
   # shellcheck disable=SC1091
-  source "${var_LIB_DEPLOY_DIR}/helm.sh"
+  source "${BATS_TEST_DIRNAME}/helm.sh"
 }
 
 teardown() {
@@ -606,7 +606,7 @@ EOF
 # ========================================
 
 @test "shows help when requested" {
-  run bash "${var_LIB_DEPLOY_DIR}/helm.sh" --help
+  run bash "${BATS_TEST_DIRNAME}/helm.sh" --help
   assert_success
   assert_output --partial "Helm deployment library"
   assert_output --partial "Available functions:"

@@ -23,7 +23,7 @@ source "${RESOURCES_DIR}/../app/utils/docker.sh"
 # shellcheck disable=SC1091
 source "${var_PORT_REGISTRY_FILE}"
 # shellcheck disable=SC1091
-source "${var_REPOSITIRY_FILE}"
+source "${var_REPOSITORY_FILE}"
 # shellcheck disable=SC1091
 source "${var_SYSTEM_COMMANDS_FILE}"
 

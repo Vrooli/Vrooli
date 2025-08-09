@@ -1,9 +1,41 @@
 {
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "name": "task-planner",
-  "description": "General task planner and scheduler with AI-powered task refinement and implementation",
-  "type": "scenario",
-  "category": "saas-applications",
+  "inheritance": {
+    "extends": "../../../../../.vrooli/service.json",
+    "merge": {
+      "strategy": "merge",
+      "arrays": "concat"
+    }
+  },
+  "service": {
+    "name": "task-planner",
+    "displayName": "Task Planner",
+    "description": "General task planner and scheduler with AI-powered task refinement and implementation",
+    "version": "1.0.0",
+    "type": "business-application",
+    "category": "saas-applications",
+    "tags": [
+      "task-management",
+      "planning",
+      "scheduling",
+      "ai"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "team@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scripts/scenarios/core/task-planner"
+    },
+    "license": "GPL-3.0",
+    "homepage": "https://github.com/Vrooli/Vrooli"
+  },
   "resources": {
     "storage": {
       "postgres": {
@@ -31,7 +63,10 @@
         "config": {
           "collections": ["task_embeddings", "research_embeddings"],
           "port": 6334,
-          "vectorSize": 1536
+          "vectorSize": 1536,
+          "initialization": {
+            "collections": "initialization/storage/qdrant/collections.json"
+          }
         }
       }
     },
@@ -122,38 +157,49 @@
     }
   },
   "lifecycle": {
+    "version": "1.0.0",
     "setup": {
-      "description": "Initialize task planner database and services",
+      "description": "Initialize Task Planner environment with API server and CLI tool",
       "steps": [
         {
-          "name": "database-setup",
-          "run": "deployment/setup-postgres.sh"
+          "name": "inject-resource-data",
+          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/task-planner/.vrooli/service.json",
+          "description": "Inject SQL schemas, workflows, and configurations"
         },
         {
-          "name": "vector-db-setup",
-          "run": "deployment/setup-qdrant.sh"
+          "name": "install-cli-tool",
+          "run": "chmod +x cli/task-planner-cli.sh && sudo ln -sf $PWD/cli/task-planner-cli.sh /usr/local/bin/task-planner",
+          "description": "Install task-planner CLI tool globally"
         },
         {
-          "name": "automation-import",
-          "run": "deployment/import-automations.sh"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start task planner services",
-      "steps": [
+          "name": "install-api-dependencies",
+          "run": "cd deployment && npm install express cors helmet express-rate-limit pg ioredis axios uuid",
+          "description": "Install Node.js dependencies for API server"
+        },
         {
-          "name": "start-services",
-          "run": "../deployment/startup.sh"
-        }
-      ]
-    },
-    "build": {
-      "description": "Build task planner artifacts",
-      "steps": [
+          "name": "setup-database",
+          "run": "deployment/setup-postgres.sh",
+          "description": "Initialize PostgreSQL database with schemas"
+        },
         {
-          "name": "build-artifacts",
-          "run": "deployment/build.sh"
+          "name": "setup-vector-db",
+          "run": "deployment/setup-qdrant.sh",
+          "description": "Initialize Qdrant vector database with collections"
+        },
+        {
+          "name": "import-automations",
+          "run": "deployment/import-automations.sh",
+          "description": "Import n8n workflows and Windmill scripts"
+        },
+        {
+          "name": "start-api-server",
+          "run": "deployment/startup.sh",
+          "description": "Start API server and all required services"
+        },
+        {
+          "name": "show-access-urls",
+          "run": "echo '✅ Task Planner initialized\\n  🎯 Task Dashboard: http://localhost:8001/apps/get/task-dashboard\\n  🔧 API Endpoint: http://localhost:8092/api\\n  🔍 n8n Workflows: http://localhost:5679\\n  ⚙️  Windmill Workspace: http://localhost:8001/w/task_planner\\n  📊 PostgreSQL: localhost:5434/task_planner\\n  🔍 Qdrant: http://localhost:6334\\n  📦 CLI: task-planner --help'",
+          "description": "Display service access URLs and CLI usage"
         }
       ]
     }

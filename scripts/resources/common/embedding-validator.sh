@@ -4,11 +4,12 @@ set -euo pipefail
 # Embedding Validation Utilities
 # Prevents silent failures in vector operations by validating dimensions and models
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+RESOURCES_COMMON_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Source logging utilities
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../lib/utils/log.sh"
+source "${RESOURCES_COMMON_DIR}/../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
 
 #######################################
 # Validate embedding model exists and works

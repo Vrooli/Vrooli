@@ -2,7 +2,7 @@
 # Comprehensive tests for logs.sh mock utilities
 # Tests both normal operation and edge cases
 
-load "../setup.bash"
+load "${BATS_TEST_DIRNAME}/../setup.bash"
 
 # Test configuration - set BEFORE loading logs.sh
 export MOCK_UTILS_VERBOSE="false"  # Keep tests quiet

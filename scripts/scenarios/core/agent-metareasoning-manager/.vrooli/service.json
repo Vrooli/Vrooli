@@ -39,11 +39,11 @@
           "data": [
             {
               "type": "schema",
-              "file": "../initialization/storage/postgres/schema.sql"
+              "file": "initialization/storage/postgres/schema.sql"
             },
             {
               "type": "seed",
-              "file": "../initialization/storage/postgres/seed.sql"
+              "file": "initialization/storage/postgres/seed.sql"
             }
           ]
         }
@@ -67,19 +67,19 @@
         "initialization": {
           "workflows": [
             {
-              "file": "../initialization/automation/n8n/pros-cons-analyzer.json"
+              "file": "initialization/automation/n8n/pros-cons-analyzer.json"
             },
             {
-              "file": "../initialization/automation/n8n/swot-analysis.json"
+              "file": "initialization/automation/n8n/swot-analysis.json"
             },
             {
-              "file": "../initialization/automation/n8n/risk-assessment.json"
+              "file": "initialization/automation/n8n/risk-assessment.json"
             },
             {
-              "file": "../initialization/automation/n8n/self-review.json"
+              "file": "initialization/automation/n8n/self-review.json"
             },
             {
-              "file": "../initialization/automation/n8n/reasoning-chain.json"
+              "file": "initialization/automation/n8n/reasoning-chain.json"
             }
           ]
         }
@@ -91,10 +91,10 @@
         "initialization": {
           "apps": [
             {
-              "file": "../initialization/automation/windmill/metareasoning-orchestrator.json"
+              "file": "initialization/automation/windmill/metareasoning-orchestrator.json"
             },
             {
-              "file": "../initialization/automation/windmill/prompt-tester.json"
+              "file": "initialization/automation/windmill/prompt-tester.json"
             }
           ]
         }
@@ -118,8 +118,14 @@
     "setup": {
       "steps": [
         {
-          "name": "initialize-scenario",
-          "run": "../initialization/init.sh"
+          "name": "inject-resource-data",
+          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/agent-metareasoning-manager/.vrooli/service.json",
+          "description": "Inject SQL schemas, workflows, and configurations"
+        },
+        {
+          "name": "show-access-urls",
+          "run": "echo '🚀 Agent Metareasoning Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}'",
+          "description": "Display service access URLs"
         }
       ]
     }

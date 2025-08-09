@@ -383,6 +383,65 @@
       }
     }
   },
+  "lifecycle": {
+    "version": "1.0.0",
+    "defaults": {
+      "timeout": "5m",
+      "error": "stop",
+      "shell": "bash"
+    },
+    "setup": {
+      "description": "Initialize Web Scraper Manager environment",
+      "steps": [
+        {
+          "name": "inject-resource-data",
+          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/web-scraper-manager/.vrooli/service.json",
+          "description": "Inject SQL schemas, workflows, and configurations"
+        },
+        {
+          "name": "show-access-urls",
+          "run": "echo '✅ Web Scraper Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Huginn: http://localhost:${RESOURCE_PORTS[huginn]}\\n  Browserless: http://localhost:${RESOURCE_PORTS[browserless]}\\n  Agent-S2: http://localhost:${RESOURCE_PORTS[agent-s2]}\\n  N8n Orchestrator: http://localhost:${RESOURCE_PORTS[n8n]}'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start Web Scraper Manager services",
+      "steps": [
+        {
+          "name": "start-services",
+          "run": "../deployment/startup.sh"
+        }
+      ]
+    },
+    "build": {
+      "description": "Build Web Scraper Manager artifacts",
+      "steps": [
+        {
+          "name": "build-artifacts",
+          "run": "./scripts/manage.sh build"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run Web Scraper Manager tests",
+      "steps": [
+        {
+          "name": "run-scenario-tests",
+          "run": "../../tools/scenario-test-runner.sh scenario-test.yaml"
+        }
+      ]
+    },
+    "clean": {
+      "description": "Clean build artifacts and temporary files",
+      "steps": [
+        {
+          "name": "clean-artifacts",
+          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+        }
+      ]
+    }
+  },
   "metadata": {
     "businessModel": {
       "purpose": "commercial",

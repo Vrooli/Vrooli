@@ -1,9 +1,20 @@
 {
   "version": "1.0.0",
-  "name": "smart-file-photo-manager",
-  "description": "Semantic file and photo management with AI-powered organization suggestions",
-  "type": "scenario",
-  "category": "saas-applications",
+  "service": {
+    "name": "smart-file-photo-manager",
+    "displayName": "Smart File Photo Manager",
+    "description": "Semantic file and photo management with AI-powered organization suggestions",
+    "version": "1.0.0",
+    "type": "business-application",
+    "tags": ["file-management", "photo-management", "ai-organization", "semantic-search"],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "team@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ]
+  },
   "resources": {
     "storage": {
       "postgres": {
@@ -138,28 +149,19 @@
     }
   },
   "lifecycle": {
+    "version": "1.0.0",
     "setup": {
-      "description": "Initialize file manager database and services",
+      "description": "Initialize smart file photo manager environment",
       "steps": [
         {
-          "name": "database-setup",
-          "run": "deployment/setup-postgres.sh"
+          "name": "inject-resource-data",
+          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/smart-file-photo-manager/.vrooli/service.json",
+          "description": "Inject SQL schemas, workflows, and configurations"
         },
         {
-          "name": "vector-db-setup",
-          "run": "deployment/setup-qdrant.sh"
-        },
-        {
-          "name": "storage-setup",
-          "run": "deployment/setup-minio.sh"
-        },
-        {
-          "name": "automation-import",
-          "run": "deployment/import-automations.sh"
-        },
-        {
-          "name": "model-pull",
-          "run": "deployment/pull-models.sh"
+          "name": "show-access-urls",
+          "run": "echo '✅ Smart File Photo Manager initialized\\n  File Manager UI: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Workflow Manager: http://localhost:${RESOURCE_PORTS[n8n]}\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio_console]}\\n  Qdrant Dashboard: http://localhost:${RESOURCE_PORTS[qdrant]}/dashboard'",
+          "description": "Display service access URLs"
         }
       ]
     },

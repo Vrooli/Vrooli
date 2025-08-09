@@ -148,10 +148,107 @@ config::get_phase() {
         PHASE_CONFIG=$(echo "$LIFECYCLE_CONFIG" | jq -r ".hooks.\"$phase\" // empty")
     fi
     
+    # If still not found, try to inherit from parent configuration
+    if [[ -z "$PHASE_CONFIG" ]] || [[ "$PHASE_CONFIG" == "null" ]]; then
+        if config::try_inherit_phase "$phase"; then
+            return 0
+        fi
+    fi
+    
     # Check if phase was found
     if [[ -z "$PHASE_CONFIG" ]] || [[ "$PHASE_CONFIG" == "null" ]]; then
         return 1
     fi
+    
+    return 0
+}
+
+#######################################
+# Try to inherit phase configuration from parent
+# Arguments:
+#   $1 - Phase name
+# Returns:
+#   0 if phase found in parent, 1 if not found
+# Sets:
+#   PHASE_CONFIG global variable
+#######################################
+config::try_inherit_phase() {
+    local phase="${1:-}"
+    
+    # Check if inheritance is configured
+    local inheritance_config
+    inheritance_config=$(echo "$SERVICE_JSON" | jq -r '.inheritance // empty')
+    
+    if [[ -z "$inheritance_config" ]] || [[ "$inheritance_config" == "null" ]]; then
+        return 1
+    fi
+    
+    # Get the extends path
+    local extends_path
+    extends_path=$(echo "$inheritance_config" | jq -r '.extends // empty')
+    
+    if [[ -z "$extends_path" ]] || [[ "$extends_path" == "null" ]]; then
+        return 1
+    fi
+    
+    # Resolve the parent service.json path
+    local parent_path=""
+    if [[ "$extends_path" == /* ]]; then
+        # Absolute path
+        parent_path="$extends_path"
+    else
+        # Relative path from service.json location
+        local service_dir
+        service_dir=$(dirname "$SERVICE_JSON_PATH")
+        parent_path="$service_dir/$extends_path"
+    fi
+    
+    # Normalize path
+    parent_path=$(cd "$(dirname "$parent_path")" 2>/dev/null && pwd)/$(basename "$parent_path") || return 1
+    
+    if [[ ! -f "$parent_path" ]]; then
+        echo "Warning: Parent service.json not found at: $parent_path" >&2
+        return 1
+    fi
+    
+    # Load parent configuration
+    local parent_json
+    if ! parent_json=$(cat "$parent_path" 2>/dev/null); then
+        return 1
+    fi
+    
+    # Validate parent JSON
+    if ! echo "$parent_json" | jq empty 2>/dev/null; then
+        echo "Warning: Invalid JSON in parent configuration: $parent_path" >&2
+        return 1
+    fi
+    
+    # Extract parent lifecycle configuration
+    local parent_lifecycle
+    parent_lifecycle=$(echo "$parent_json" | jq -r '.lifecycle // {}')
+    
+    if [[ "$parent_lifecycle" == "{}" ]] || [[ "$parent_lifecycle" == "null" ]]; then
+        return 1
+    fi
+    
+    # Try to get phase from parent
+    local parent_phase_config
+    parent_phase_config=$(echo "$parent_lifecycle" | jq -r ".\"$phase\" // empty")
+    
+    # If not found in direct phases, try hooks
+    if [[ -z "$parent_phase_config" ]] || [[ "$parent_phase_config" == "null" ]]; then
+        parent_phase_config=$(echo "$parent_lifecycle" | jq -r ".hooks.\"$phase\" // empty")
+    fi
+    
+    if [[ -z "$parent_phase_config" ]] || [[ "$parent_phase_config" == "null" ]]; then
+        return 1
+    fi
+    
+    # Set the phase config from parent
+    PHASE_CONFIG="$parent_phase_config"
+    
+    # Log inheritance if verbose
+    echo "Info: Phase '$phase' inherited from parent configuration at: $parent_path" >&2
     
     return 0
 }

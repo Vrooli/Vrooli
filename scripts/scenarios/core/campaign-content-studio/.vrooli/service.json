@@ -55,11 +55,11 @@
           "data": [
             {
               "type": "schema",
-              "file": "initialization/storage/schema.sql"
+              "file": "initialization/storage/postgres/schema.sql"
             },
             {
               "type": "seed",
-              "file": "initialization/storage/seed.sql"
+              "file": "initialization/storage/postgres/seed.sql"
             }
           ]
         }
@@ -221,13 +221,13 @@
               "name": "apply-schema",
               "type": "sql",
               "target": "storage.postgres",
-              "file": "initialization/storage/schema.sql"
+              "file": "initialization/storage/postgres/schema.sql"
             },
             {
               "name": "seed-data",
               "type": "sql",
               "target": "storage.postgres",
-              "file": "initialization/storage/seed.sql"
+              "file": "initialization/storage/postgres/seed.sql"
             }
           ]
         },
@@ -503,12 +503,17 @@
       "shell": "bash"
     },
     "setup": {
-      "description": "Initialize campaign content studio environment",
+      "description": "Initialize Campaign Content Studio environment",
       "steps": [
         {
-          "name": "setup-infrastructure",
-          "run": "./scripts/manage.sh setup --target docker",
-          "condition": "${SKIP_SETUP} != \\\"true\\\""
+          "name": "inject-resource-data",
+          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/campaign-content-studio/.vrooli/service.json",
+          "description": "Inject SQL schemas, workflows, and configurations"
+        },
+        {
+          "name": "show-access-urls",
+          "run": "echo '✅ Campaign Content Studio initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Ollama: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  ComfyUI: http://localhost:${RESOURCE_PORTS[comfyui]}\\n  Unstructured: http://localhost:${RESOURCE_PORTS[unstructured-io]}'",
+          "description": "Display service access URLs"
         }
       ]
     },

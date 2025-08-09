@@ -575,12 +575,17 @@
       "shell": "bash"
     },
     "setup": {
-      "description": "Initialize brand manager environment",
+      "description": "Initialize Brand Manager environment",
       "steps": [
         {
-          "name": "setup-infrastructure",
-          "run": "./scripts/manage.sh setup --target docker",
-          "condition": "${SKIP_SETUP} != 'true'"
+          "name": "inject-resource-data",
+          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/brand-manager/.vrooli/service.json",
+          "description": "Inject SQL schemas, workflows, and configurations"
+        },
+        {
+          "name": "show-access-urls",
+          "run": "echo '✅ Brand Manager initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ComfyUI Studio: http://localhost:${RESOURCE_PORTS[comfyui]}\\n  Vault Config: http://localhost:${RESOURCE_PORTS[vault]}'",
+          "description": "Display service access URLs"
         }
       ]
     },

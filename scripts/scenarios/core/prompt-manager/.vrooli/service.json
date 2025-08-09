@@ -1,5 +1,13 @@
 {
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "inheritance": {
+    "extends": "../../../../../.vrooli/service.json",
+    "merge": {
+      "strategy": "merge",
+      "arrays": "concat"
+    }
+  },
   "service": {
     "name": "prompt-manager",
     "displayName": "Prompt Manager",
@@ -145,12 +153,17 @@
       "shell": "bash"
     },
     "setup": {
-      "description": "Initialize prompt manager environment",
+      "description": "Initialize Prompt Manager environment",
       "steps": [
         {
-          "name": "setup-infrastructure",
-          "run": "./scripts/manage.sh setup --target docker",
-          "condition": "${SKIP_SETUP} != \\\"true\\\""
+          "name": "inject-resource-data",
+          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/prompt-manager/.vrooli/service.json",
+          "description": "Inject SQL schemas, workflows, and configurations"
+        },
+        {
+          "name": "show-access-urls",
+          "run": "echo '✅ Prompt Manager initialized\\n  n8n Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Redis Cache: redis://localhost:${RESOURCE_PORTS[redis]}\\n  PostgreSQL DB: postgres://localhost:${RESOURCE_PORTS[postgres]}'",
+          "description": "Display service access URLs"
         }
       ]
     },

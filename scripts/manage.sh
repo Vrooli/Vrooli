@@ -327,7 +327,7 @@ manage::main() {
         log::info "Executing phase '$phase' via lifecycle engine..."
     fi
     
-    exec "$lifecycle_engine" "$phase" "$@"
+    exec "${var_LIFECYCLE_ENGINE_FILE}" "$phase" "$@"
 }
 
 # Execute main with all arguments

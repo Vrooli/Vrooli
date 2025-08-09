@@ -1,6 +1,13 @@
 {
-  "$schema": "../schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
+  "inheritance": {
+    "extends": "../../../../../.vrooli/service.json",
+    "merge": {
+      "strategy": "merge",
+      "arrays": "concat"
+    }
+  },
   "service": {
     "name": "app-monitor",
     "displayName": "App Monitor",
@@ -120,6 +127,24 @@
     "kubernetes": {
       "enabled": false,
       "namespace": "generated-apps"
+    }
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize App Monitor environment",
+      "steps": [
+        {
+          "name": "inject-resource-data",
+          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/app-monitor/.vrooli/service.json",
+          "description": "Inject SQL schemas, workflows, and configurations"
+        },
+        {
+          "name": "show-access-urls",
+          "run": "echo '✅ App Monitor initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  API: http://localhost:8081\\n  WebSocket: http://localhost:3002'",
+          "description": "Display service access URLs"
+        }
+      ]
     }
   }
 }

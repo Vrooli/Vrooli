@@ -254,6 +254,9 @@ convert_scenario() {
 main() {
     parse_args "$@"
     
+    # Track start time
+    local start_time=$(date +%s)
+    
     # Show header
     log::header "🚀 Vrooli Scenario Auto-Converter"
     if [[ "$DRY_RUN" == "true" ]]; then
@@ -308,6 +311,9 @@ main() {
     local conversion_count=0
     local skip_count=0
     local error_count=0
+    local failed_scenarios=()
+    local converted_scenarios=()
+    local skipped_scenarios=()
     
     for scenario_info in "${enabled_scenarios[@]}"; do
         local scenario_name="${scenario_info%:*}"
@@ -355,16 +361,20 @@ main() {
                     # Update hash on successful conversion
                     updated_hashes=$(echo "$updated_hashes" | jq --arg name "$scenario_name" --arg hash "$current_hash" '.[$name] = $hash')
                     conversion_count=$((conversion_count + 1))
+                    converted_scenarios+=("$scenario_name")
                 else
                     error_count=$((error_count + 1))
+                    failed_scenarios+=("$scenario_name")
                 fi
             else
                 log::info "  ⏭️  Skipping: $conversion_reason"
                 skip_count=$((skip_count + 1))
+                skipped_scenarios+=("$scenario_name")
             fi
         else
             log::error "  ❌ Failed to calculate hash for: $scenario_name"
             error_count=$((error_count + 1))
+            failed_scenarios+=("$scenario_name")
         fi
         
         echo ""
@@ -376,26 +386,74 @@ main() {
         save_hashes "$updated_hashes"
     fi
     
-    # Show summary
+    # Calculate total time
+    local end_time=$(date +%s)
+    local total_time=$((end_time - start_time))
+    local minutes=$((total_time / 60))
+    local seconds=$((total_time % 60))
+    
+    # Show detailed summary
+    echo ""
     log::header "📊 Conversion Summary"
-    log::info "Total enabled scenarios: ${#enabled_scenarios[@]}"
-    log::success "Converted: $conversion_count"
-    log::info "Skipped (unchanged): $skip_count"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    log::info "Total Scenarios:     ${#enabled_scenarios[@]}"
+    log::success "✅ Converted:        $conversion_count"
+    log::info "⏭️  Skipped:          $skip_count"
     if [[ $error_count -gt 0 ]]; then
-        log::error "Errors: $error_count"
+        log::error "❌ Failed:           $error_count"
+    else
+        log::info "❌ Failed:           0"
+    fi
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    log::info "Total Time:          ${minutes}m ${seconds}s"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    
+    # Show detailed lists if verbose or if there were failures
+    if [[ "$VERBOSE" == "true" ]] || [[ ${#failed_scenarios[@]} -gt 0 ]]; then
+        echo ""
+        
+        if [[ ${#converted_scenarios[@]} -gt 0 ]]; then
+            log::success "✅ Successfully Converted:"
+            for scenario in "${converted_scenarios[@]}"; do
+                echo "     • $scenario"
+            done
+            echo ""
+        fi
+        
+        if [[ ${#skipped_scenarios[@]} -gt 0 ]] && [[ "$VERBOSE" == "true" ]]; then
+            log::info "⏭️  Skipped (unchanged):"
+            for scenario in "${skipped_scenarios[@]}"; do
+                echo "     • $scenario"
+            done
+            echo ""
+        fi
+        
+        if [[ ${#failed_scenarios[@]} -gt 0 ]]; then
+            log::error "❌ Failed Conversions:"
+            for scenario in "${failed_scenarios[@]}"; do
+                echo "     • $scenario"
+            done
+            echo ""
+            log::warning "💡 To debug failures, run with --verbose flag:"
+            log::info "   ./auto-converter.sh --verbose"
+            echo ""
+        fi
     fi
     
     if [[ $conversion_count -gt 0 ]]; then
-        echo ""
-        log::success "🎉 Successfully processed $conversion_count scenario(s)!"
+        log::success "🎉 Successfully converted $conversion_count scenario(s)!"
         log::info "Generated apps are available at: ~/generated-apps/"
         log::info "To run a generated app:"
         log::info "  cd ~/generated-apps/<scenario-name>"
         log::info "  ./scripts/manage.sh develop"
     elif [[ $skip_count -gt 0 && $error_count -eq 0 ]]; then
-        echo ""
         log::success "🎯 All scenarios are up to date!"
         log::info "No conversions needed - all enabled scenarios already have current apps."
+    elif [[ $error_count -gt 0 ]]; then
+        log::warning "⚠️  Some scenarios failed to convert (see details above)"
+        if [[ "$VERBOSE" != "true" ]]; then
+            log::info "Run with --verbose for more details"
+        fi
     fi
     
     # Return appropriate exit code

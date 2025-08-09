@@ -600,9 +600,14 @@
       "description": "Initialize secure document processing environment",
       "steps": [
         {
-          "name": "setup-infrastructure",
-          "run": "./scripts/manage.sh setup --target docker",
-          "condition": "${SKIP_SETUP} != \\\"true\\\""
+          "name": "inject-resource-data",
+          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/secure-document-processing/.vrooli/service.json",
+          "description": "Inject SQL schemas, workflows, and configurations"
+        },
+        {
+          "name": "show-access-urls",
+          "run": "echo '✅ Secure Document Processing Pipeline initialized\\n  🔐 Application: ${service.vrooli.url}/api/secure-document-processing\\n  🛡️ Vault: ${service.vault.url}\\n  📦 MinIO: ${service.minio.url}\\n  🔍 Unstructured: ${service.unstructured-io.url}'",
+          "description": "Display service access URLs"
         }
       ]
     },

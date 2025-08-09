@@ -86,9 +86,14 @@
       "description": "Initialize idea generator environment",
       "steps": [
         {
-          "name": "setup-infrastructure",
-          "run": "./scripts/manage.sh setup --target docker",
-          "condition": "${SKIP_SETUP} != \\\"true\\\""
+          "name": "inject-resource-data",
+          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/idea-generator/.vrooli/service.json",
+          "description": "Inject SQL schemas, workflows, and configurations"
+        },
+        {
+          "name": "show-access-urls",
+          "run": "echo '✅ Idea Generator initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  N8n Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Vector Search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Document Storage: http://localhost:${RESOURCE_PORTS[minio]}'",
+          "description": "Display service access URLs"
         }
       ]
     },

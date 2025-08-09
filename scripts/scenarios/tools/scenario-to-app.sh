@@ -38,24 +38,8 @@ SCENARIO_TOOLS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${SCENARIO_TOOLS_DIR}/../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
-
-# Script configuration
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
-SCENARIOS_DIR="${PROJECT_ROOT}/scripts/scenarios/core"
-RESOURCES_DIR="${PROJECT_ROOT}/scripts/resources"
-
-# Source utilities or define fallback logging
-if [[ -f "${RESOURCES_DIR}/common.sh" ]]; then
-    # shellcheck disable=SC1091
-    source "${RESOURCES_DIR}/common.sh"
-else
-    # Fallback logging functions
-    log::info() { echo "ℹ️  $*"; }
-    log::success() { echo "✅ $*"; }
-    log::warning() { echo "⚠️  $*"; }
-    log::error() { echo "❌ $*"; }
-fi
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
 
 # Global variables
 SCENARIO_NAME=""
@@ -145,7 +129,7 @@ parse_args() {
 
 # Validate scenario structure with comprehensive schema validation
 validate_scenario() {
-    SCENARIO_PATH="${SCENARIOS_DIR}/${SCENARIO_NAME}"
+    SCENARIO_PATH="${var_SCRIPTS_SCENARIOS_DIR}/core/${SCENARIO_NAME}"
     
     if [[ ! -d "$SCENARIO_PATH" ]]; then
         log::error "Scenario directory not found: $SCENARIO_PATH"
@@ -191,11 +175,8 @@ validate_scenario() {
     
     log::info "Loading comprehensive schema validator..."
     
-    # Check for schema validation
-    local schema_file="${PROJECT_ROOT}/.vrooli/schemas/service.schema.json"
-    
     # Use python/node for JSON schema validation if available
-    if command -v python3 >/dev/null 2>&1 && [[ -f "$schema_file" ]]; then
+    if command -v python3 >/dev/null 2>&1 && [[ -f "$var_SERVICE_JSON_FILE" ]]; then
         log::info "Running JSON schema validation using Python..."
         
         # Create a simple Python validation script
@@ -263,7 +244,7 @@ except Exception as e:
             log::info "Falling back to basic validation..."
         fi
         
-    elif command -v node >/dev/null 2>&1 && [[ -f "$schema_file" ]]; then
+    elif command -v node >/dev/null 2>&1 && [[ -f "$var_SERVICE_JSON_FILE" ]]; then
         log::info "Running JSON schema validation using Node.js..."
         # TODO: Implement Node.js-based validation if Python not available
         log::warning "Node.js validation not yet implemented, using basic validation"
@@ -339,6 +320,11 @@ validate_initialization_paths() {
     local total_files=0
     
     # Check initialization files referenced in resource configurations
+    # Note: Paths can be:
+    #   - Relative to service.json location: ../initialization/file.sql
+    #   - Relative to scenario root: initialization/file.sql
+    #   - Absolute: /path/to/file.sql
+    local service_json_dir="${SCENARIO_PATH}/.vrooli"
     echo "$SERVICE_JSON" | jq -r '
         .resources | to_entries[] as $category |
         $category.value | to_entries[] as $resource |
@@ -352,7 +338,20 @@ validate_initialization_paths() {
         ) | select(. != null and . != "")
     ' 2>/dev/null | while IFS= read -r file_path; do
         total_files=$((total_files + 1))
-        local full_path="${SCENARIO_PATH}/${file_path}"
+        # Resolve path based on type
+        local full_path
+        if [[ "$file_path" == /* ]]; then
+            # Absolute path
+            full_path="$file_path"
+        elif [[ "$file_path" == ../* ]] || [[ "$file_path" == ./* ]]; then
+            # Relative path from service.json location (.vrooli/ directory)
+            full_path="${service_json_dir}/${file_path}"
+            # Normalize the path (resolve .. and .)
+            full_path=$(cd "$(dirname "$full_path")" 2>/dev/null && pwd)/$(basename "$full_path")
+        else
+            # Simple path - relative to scenario root directory
+            full_path="${SCENARIO_PATH}/${file_path}"
+        fi
         
         if [[ ! -f "$full_path" ]]; then
             log::error "Referenced file not found: $file_path"
@@ -370,7 +369,20 @@ validate_initialization_paths() {
         .file // empty | select(. != "")
     ' 2>/dev/null | while IFS= read -r file_path; do
         total_files=$((total_files + 1))
-        local full_path="${SCENARIO_PATH}/${file_path}"
+        # Resolve path based on type (same logic as above)
+        local full_path
+        if [[ "$file_path" == /* ]]; then
+            # Absolute path
+            full_path="$file_path"
+        elif [[ "$file_path" == ../* ]] || [[ "$file_path" == ./* ]]; then
+            # Relative path from service.json location (.vrooli/ directory)
+            full_path="${service_json_dir}/${file_path}"
+            # Normalize the path (resolve .. and .)
+            full_path=$(cd "$(dirname "$full_path")" 2>/dev/null && pwd)/$(basename "$full_path")
+        else
+            # Simple path - relative to scenario root directory
+            full_path="${SCENARIO_PATH}/${file_path}"
+        fi
         
         if [[ ! -f "$full_path" ]]; then
             log::error "Deployment file not found: $file_path"
@@ -540,6 +552,69 @@ EOF
 }
 
 #######################################
+# Adjust inheritance path in service.json for standalone app
+# Arguments:
+#   $1 - Service.json path
+#######################################
+adjust_inheritance_path() {
+    local service_json_path="$1"
+    
+    # Check if inheritance.extends exists
+    if jq -e '.inheritance.extends' "$service_json_path" >/dev/null 2>&1; then
+        [[ "$VERBOSE" == "true" ]] && log::info "Processing inheritance for standalone app"
+        
+        local base_service_json="${var_ROOT_DIR}/.vrooli/service.json"
+        
+        if [[ -f "$base_service_json" ]]; then
+            # Load both service.json files
+            local app_json
+            app_json=$(cat "$service_json_path")
+            local base_json
+            base_json=$(cat "$base_service_json")
+            
+            # Extract base lifecycle if present
+            local base_lifecycle
+            base_lifecycle=$(echo "$base_json" | jq -r '.lifecycle // {}')
+            
+            # Check if app has lifecycle section
+            local app_lifecycle
+            app_lifecycle=$(echo "$app_json" | jq -r '.lifecycle // {}')
+            
+            # Merge lifecycles - app lifecycle phases override base phases
+            local merged_lifecycle
+            if [[ "$app_lifecycle" == "{}" ]]; then
+                # App has no lifecycle, use base entirely
+                merged_lifecycle="$base_lifecycle"
+            else
+                # Merge base and app lifecycles (app takes precedence)
+                merged_lifecycle=$(jq -n --argjson base "$base_lifecycle" --argjson app "$app_lifecycle" '
+                    $base * $app
+                ')
+            fi
+            
+            # Update app service.json with merged lifecycle and remove inheritance
+            local temp_file="${service_json_path}.tmp"
+            jq --argjson lifecycle "$merged_lifecycle" '
+                del(.inheritance) | .lifecycle = $lifecycle
+            ' "$service_json_path" > "$temp_file"
+            mv "$temp_file" "$service_json_path"
+            
+            [[ "$VERBOSE" == "true" ]] && log::info "Merged inherited lifecycle configuration into app service.json"
+        else
+            log::warning "Base service.json not found at: $base_service_json"
+            log::warning "Removing inheritance configuration as base is unavailable"
+            
+            # Remove inheritance configuration if base doesn't exist
+            local temp_file="${service_json_path}.tmp"
+            jq 'del(.inheritance)' "$service_json_path" > "$temp_file"
+            mv "$temp_file" "$service_json_path"
+        fi
+    else
+        [[ "$VERBOSE" == "true" ]] && log::info "No inheritance configuration found in service.json"
+    fi
+}
+
+#######################################
 # Enhance existing service.json with basic lifecycle if missing
 # Arguments:
 #   $1 - Service.json path
@@ -628,8 +703,8 @@ process_template_variables() {
     file -b --mime-type "$file" | grep -q "text/" || return 0
     
     # Source required utilities
-    local secrets_util="${PROJECT_ROOT}/scripts/lib/service/secrets.sh"
-    local service_config_util="${PROJECT_ROOT}/scripts/lib/service/service_config.sh"
+    local secrets_util="${var_ROOT_DIR}/scripts/lib/service/secrets.sh"
+    local service_config_util="${var_ROOT_DIR}/scripts/lib/service/service_config.sh"
     
     # Check if the service.json has inheritance defined
     local should_substitute="yes"
@@ -683,6 +758,8 @@ copy_scenario_files() {
         # Process template variables in service.json if needed
         if [[ -f "$app_path/.vrooli/service.json" ]]; then
             process_template_variables "$app_path/.vrooli/service.json" "$SERVICE_JSON"
+            # Adjust inheritance path for standalone app
+            adjust_inheritance_path "$app_path/.vrooli/service.json"
             # Ensure service.json has basic lifecycle configuration
             enhance_service_json_lifecycle "$app_path/.vrooli/service.json"
         fi
@@ -730,15 +807,15 @@ copy_universal_scripts() {
     # Create scripts directory
     mkdir -p "$app_path/scripts"
     
-    # Copy entire scripts/ directory from PROJECT_ROOT, excluding app and scenarios
-    if [[ -d "$PROJECT_ROOT/scripts" ]]; then
+    # Copy entire scripts/ directory from var_ROOT_DIR, excluding app and scenarios
+    if [[ -d "$var_ROOT_DIR/scripts" ]]; then
         # Use rsync for selective copying with excludes
         if command -v rsync >/dev/null 2>&1; then
-            rsync -a --exclude='app/' --exclude='scenarios/' "$PROJECT_ROOT/scripts/" "$app_path/scripts/"
+            rsync -a --exclude='app/' --exclude='scenarios/' "$var_ROOT_DIR/scripts/" "$app_path/scripts/"
             [[ "$VERBOSE" == "true" ]] && log::info "Copied scripts/ using rsync (excluded app/ and scenarios/)"
         else
             # Fallback: copy everything first, then remove excluded directories
-            cp -r "$PROJECT_ROOT/scripts/"* "$app_path/scripts/" 2>/dev/null || true
+            cp -r "$var_ROOT_DIR/scripts/"* "$app_path/scripts/" 2>/dev/null || true
             rm -rf "$app_path/scripts/app" "$app_path/scripts/scenarios" 2>/dev/null || true
             [[ "$VERBOSE" == "true" ]] && log::info "Copied scripts/ using cp (removed app/ and scenarios/)"
         fi

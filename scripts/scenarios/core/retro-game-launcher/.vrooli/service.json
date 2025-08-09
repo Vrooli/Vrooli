@@ -19,17 +19,37 @@
     "storage": {
       "postgres": {
         "enabled": true,
+        "config": {
+          "database": "retro_games",
+          "port": 5436,
+          "username": "retro_user",
+          "password": "${POSTGRES_PASSWORD}",
+          "initialization": {
+            "schema": "initialization/storage/postgres/schema.sql",
+            "seed": "initialization/storage/postgres/seed.sql"
+          }
+        },
         "purpose": "Store game metadata, user progress, and settings"
       }
     },
     "automation": {
       "n8n": {
         "enabled": true,
-        "workflows": ["game-generation-workflow"],
+        "config": {
+          "workflows": [
+            "initialization/automation/n8n/game-generation-workflow.json"
+          ]
+        },
         "purpose": "Orchestrate game generation and management workflows"
       },
       "windmill": {
         "enabled": true,
+        "config": {
+          "workspace": "retro_games",
+          "apps": [
+            "initialization/automation/windmill/retro-game-launcher-ui.json"
+          ]
+        },
         "purpose": "Game launcher UI and management interface"
       }
     },
@@ -43,8 +63,20 @@
   },
   "deployment": {
     "ports": {
-      "ui": 3400,
-      "api": 8400
+      "windmill": 8001,
+      "api": 8400,
+      "n8n": 5679,
+      "ui": 3400
+    },
+    "environment": {
+      "NODE_ENV": "production",
+      "LOG_LEVEL": "info",
+      "RETRO_GAMES_API_PORT": "8400",
+      "RETRO_GAMES_SECRET": "${RETRO_GAMES_SECRET}",
+      "OLLAMA_BASE_URL": "http://localhost:11434",
+      "POSTGRES_HOST": "localhost",
+      "POSTGRES_PORT": "5436",
+      "N8N_WEBHOOK_URL": "http://localhost:5679"
     }
   },
   "features": {
@@ -72,9 +104,14 @@
       "description": "Initialize retro game launcher environment",
       "steps": [
         {
-          "name": "setup-infrastructure",
-          "run": "./scripts/manage.sh setup --target docker",
-          "condition": "${SKIP_SETUP} != \\\"true\\\""
+          "name": "inject-resource-data",
+          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/retro-game-launcher/.vrooli/service.json",
+          "description": "Inject SQL schemas, workflows, and configurations"
+        },
+        {
+          "name": "show-access-urls",
+          "run": "echo '✅ Retro Game Launcher initialized\\n  Game Launcher: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Workflow Manager: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Database Admin: http://localhost:8080'",
+          "description": "Display service access URLs"
         }
       ]
     },

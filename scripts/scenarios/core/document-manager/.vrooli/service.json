@@ -81,12 +81,17 @@
       "shell": "bash"
     },
     "setup": {
-      "description": "Initialize document manager environment",
+      "description": "Initialize Document Manager environment",
       "steps": [
         {
-          "name": "setup-infrastructure",
-          "run": "./scripts/manage.sh setup --target docker",
-          "condition": "${SKIP_SETUP} != \\\"true\\\""
+          "name": "inject-resource-data",
+          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/document-manager/.vrooli/service.json",
+          "description": "Inject SQL schemas, workflows, and configurations"
+        },
+        {
+          "name": "show-access-urls",
+          "run": "echo '✅ Document Manager initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Qdrant Vector DB: http://localhost:${RESOURCE_PORTS[qdrant]}'",
+          "description": "Display service access URLs"
         }
       ]
     },

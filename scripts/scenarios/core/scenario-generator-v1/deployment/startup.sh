@@ -154,7 +154,7 @@ main() {
     
     # Initialize database schema
     log_info "Setting up database schema..."
-    if execute_sql "$SCENARIO_DIR/initialization/storage/schema.sql" "Database schema creation"; then
+    if execute_sql "$SCENARIO_DIR/initialization/storage/postgres/schema.sql" "Database schema creation"; then
         log_success "Database schema initialized"
     else
         log_error "Failed to initialize database schema"
@@ -163,7 +163,7 @@ main() {
     
     # Load seed data
     log_info "Loading seed data..."
-    if execute_sql "$SCENARIO_DIR/initialization/storage/seed.sql" "Seed data loading"; then
+    if execute_sql "$SCENARIO_DIR/initialization/storage/postgres/seed.sql" "Seed data loading"; then
         log_success "Seed data loaded"
     else
         log_warn "Failed to load seed data (this may be okay if data already exists)"

@@ -26,26 +26,17 @@
 
 set -euo pipefail
 
-# Define log functions first
-log_info() { echo "[INFO] $1"; }
-log_success() { echo "[SUCCESS] $1"; }
-log_warning() { echo "[WARNING] $1"; }
-log_error() { echo "[ERROR] $1" >&2; }
-log_step() { echo "[STEP] $1"; }
-log_phase() { echo ""; echo "=== $1 ==="; echo ""; }
-log_banner() { echo ""; echo "=== $1 ==="; echo ""; }
+SCRIPTS_SCENARIOS_INJECTION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Script location
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
-SCENARIOS_DIR="${PROJECT_ROOT}/scripts/scenarios/core"
-RESOURCES_DIR="${PROJECT_ROOT}/scripts/resources"
-INIT_STATE_FILE="${PROJECT_ROOT}/.vrooli/.initialization-state.json"
+# shellcheck disable=SC1091
+source "${SCENARIO_TOOLS_DIR}/../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
 
-# Import helper functions if available
-if [[ -f "${PROJECT_ROOT}/scripts/lib/utils/log.sh" ]]; then
-    source "${PROJECT_ROOT}/scripts/lib/utils/log.sh"
-fi
+SCENARIOS_DIR="${var_ROOT_DIR}/scripts/scenarios/core"
+RESOURCES_DIR="${var_ROOT_DIR}/scripts/resources"
+INIT_STATE_FILE="${var_ROOT_DIR}/.vrooli/.initialization-state.json"
+
 
 # Global variables
 DRY_RUN=false
@@ -93,7 +84,7 @@ parse_args() {
                 exit 0
                 ;;
             *)
-                log_error "Unknown option: $1"
+                log::error "Unknown option: $1"
                 show_usage
                 exit 1
                 ;;
@@ -104,7 +95,7 @@ parse_args() {
 # Check if initialization has been done
 check_init_state() {
     if [[ "$FORCE" == true ]]; then
-        log_info "Force flag set, skipping state check"
+        log::info "Force flag set, skipping state check"
         return 0
     fi
     
@@ -116,7 +107,7 @@ check_init_state() {
         local state=$(jq -r ".scenarios[\"$scenario\"].resources[\"$resource\"] // false" "$INIT_STATE_FILE" 2>/dev/null)
         
         if [[ "$state" == "true" ]]; then
-            [[ "$VERBOSE" == true ]] && log_info "Already initialized: $scenario/$resource"
+            [[ "$VERBOSE" == true ]] && log::info "Already initialized: $scenario/$resource"
             return 1
         fi
     fi
@@ -130,7 +121,7 @@ update_init_state() {
     local resource="$2"
     
     if [[ "$DRY_RUN" == true ]]; then
-        log_info "[DRY RUN] Would update init state: $scenario/$resource"
+        log::info "[DRY RUN] Would update init state: $scenario/$resource"
         return 0
     fi
     
@@ -147,7 +138,7 @@ update_init_state() {
     jq ".scenarios[\"$scenario\"].resources[\"$resource\"] = true" "$INIT_STATE_FILE" > "$temp_file"
     mv "$temp_file" "$INIT_STATE_FILE"
     
-    [[ "$VERBOSE" == true ]] && log_info "Updated init state: $scenario/$resource"
+    [[ "$VERBOSE" == true ]] && log::info "Updated init state: $scenario/$resource"
 }
 
 # Get list of scenarios to process
@@ -157,7 +148,7 @@ get_scenarios() {
         if [[ -d "${SCENARIOS_DIR}/${SCENARIO_NAME}" ]]; then
             echo "$SCENARIO_NAME"
         else
-            log_error "Scenario not found: $SCENARIO_NAME"
+            log::error "Scenario not found: $SCENARIO_NAME"
             exit 1
         fi
     else
@@ -187,26 +178,26 @@ init_n8n() {
     local workflow_dir="${SCENARIOS_DIR}/${scenario}/initialization/workflows/n8n"
     
     if [[ ! -d "$workflow_dir" ]]; then
-        [[ "$VERBOSE" == true ]] && log_info "No n8n workflows in scenario: $scenario"
+        [[ "$VERBOSE" == true ]] && log::info "No n8n workflows in scenario: $scenario"
         return 0
     fi
     
-    log_info "Initializing n8n workflows from: $scenario"
+    log::info "Initializing n8n workflows from: $scenario"
     
     # Find all workflow JSON files
     local workflows=$(find "$workflow_dir" -name "*.json" 2>/dev/null)
     
     if [[ -z "$workflows" ]]; then
-        log_warning "No workflow files found"
+        log::warning "No workflow files found"
         return 0
     fi
     
     for workflow_file in $workflows; do
         local workflow_name=$(basename "$workflow_file" .json)
-        log_info "  Importing workflow: $workflow_name"
+        log::info "  Importing workflow: $workflow_name"
         
         if [[ "$DRY_RUN" == true ]]; then
-            log_info "  [DRY RUN] Would import: $workflow_file"
+            log::info "  [DRY RUN] Would import: $workflow_file"
         else
             # Use n8n CLI or API to import workflow
             # This would require n8n to be running and accessible
@@ -214,7 +205,7 @@ init_n8n() {
             local n8n_import_dir="${HOME}/.n8n/workflows"
             mkdir -p "$n8n_import_dir"
             cp "$workflow_file" "$n8n_import_dir/"
-            log_success "  ✓ Imported: $workflow_name"
+            log::success "  ✓ Imported: $workflow_name"
         fi
     done
     
@@ -227,11 +218,11 @@ init_windmill() {
     local windmill_dir="${SCENARIOS_DIR}/${scenario}/initialization/workflows/windmill"
     
     if [[ ! -d "$windmill_dir" ]]; then
-        [[ "$VERBOSE" == true ]] && log_info "No Windmill workflows in scenario: $scenario"
+        [[ "$VERBOSE" == true ]] && log::info "No Windmill workflows in scenario: $scenario"
         return 0
     fi
     
-    log_info "Initializing Windmill scripts from: $scenario"
+    log::info "Initializing Windmill scripts from: $scenario"
     
     # Find all scripts and flows
     local scripts=$(find "$windmill_dir/scripts" -type f 2>/dev/null)
@@ -240,26 +231,26 @@ init_windmill() {
     # Import scripts
     for script_file in $scripts; do
         local script_name=$(basename "$script_file")
-        log_info "  Importing script: $script_name"
+        log::info "  Importing script: $script_name"
         
         if [[ "$DRY_RUN" == true ]]; then
-            log_info "  [DRY RUN] Would import: $script_file"
+            log::info "  [DRY RUN] Would import: $script_file"
         else
             # Copy to Windmill workspace directory
             # In production, use Windmill API
-            log_success "  ✓ Imported: $script_name"
+            log::success "  ✓ Imported: $script_name"
         fi
     done
     
     # Import flows
     for flow_file in $flows; do
         local flow_name=$(basename "$flow_file" .json)
-        log_info "  Importing flow: $flow_name"
+        log::info "  Importing flow: $flow_name"
         
         if [[ "$DRY_RUN" == true ]]; then
-            log_info "  [DRY RUN] Would import: $flow_file"
+            log::info "  [DRY RUN] Would import: $flow_file"
         else
-            log_success "  ✓ Imported: $flow_name"
+            log::success "  ✓ Imported: $flow_name"
         fi
     done
     
@@ -272,27 +263,27 @@ init_nodered() {
     local nodered_dir="${SCENARIOS_DIR}/${scenario}/initialization/workflows/node-red"
     
     if [[ ! -d "$nodered_dir" ]]; then
-        [[ "$VERBOSE" == true ]] && log_info "No Node-RED flows in scenario: $scenario"
+        [[ "$VERBOSE" == true ]] && log::info "No Node-RED flows in scenario: $scenario"
         return 0
     fi
     
-    log_info "Initializing Node-RED flows from: $scenario"
+    log::info "Initializing Node-RED flows from: $scenario"
     
     # Find all flow JSON files
     local flows=$(find "$nodered_dir" -name "*.json" 2>/dev/null)
     
     for flow_file in $flows; do
         local flow_name=$(basename "$flow_file" .json)
-        log_info "  Importing flow: $flow_name"
+        log::info "  Importing flow: $flow_name"
         
         if [[ "$DRY_RUN" == true ]]; then
-            log_info "  [DRY RUN] Would import: $flow_file"
+            log::info "  [DRY RUN] Would import: $flow_file"
         else
             # Copy to Node-RED flows directory
             local nodered_flows_dir="${HOME}/.node-red/flows"
             mkdir -p "$nodered_flows_dir"
             cp "$flow_file" "$nodered_flows_dir/"
-            log_success "  ✓ Imported: $flow_name"
+            log::success "  ✓ Imported: $flow_name"
         fi
     done
     
@@ -305,23 +296,23 @@ init_postgres() {
     local db_dir="${SCENARIOS_DIR}/${scenario}/initialization/database"
     
     if [[ ! -d "$db_dir" ]]; then
-        [[ "$VERBOSE" == true ]] && log_info "No database initialization in scenario: $scenario"
+        [[ "$VERBOSE" == true ]] && log::info "No database initialization in scenario: $scenario"
         return 0
     fi
     
-    log_info "Initializing PostgreSQL data from: $scenario"
+    log::info "Initializing PostgreSQL data from: $scenario"
     
     # Create scenario-specific schema
     local schema_name="scenario_${scenario//-/_}"
     
     if [[ "$DRY_RUN" == true ]]; then
-        log_info "  [DRY RUN] Would create schema: $schema_name"
-        [[ -f "${db_dir}/schema.sql" ]] && log_info "  [DRY RUN] Would run: schema.sql"
-        [[ -f "${db_dir}/seed.sql" ]] && log_info "  [DRY RUN] Would run: seed.sql"
+        log::info "  [DRY RUN] Would create schema: $schema_name"
+        [[ -f "${db_dir}/schema.sql" ]] && log::info "  [DRY RUN] Would run: schema.sql"
+        [[ -f "${db_dir}/seed.sql" ]] && log::info "  [DRY RUN] Would run: seed.sql"
     else
         # In production, connect to PostgreSQL and execute
         # For now, we'll prepare the SQL files
-        local init_sql="${PROJECT_ROOT}/.vrooli/db-init/${scenario}.sql"
+        local init_sql="${var_ROOT_DIR}/.vrooli/db-init/${scenario}.sql"
         mkdir -p "$(dirname "$init_sql")"
         
         echo "-- Initialization for scenario: $scenario" > "$init_sql"
@@ -331,7 +322,7 @@ init_postgres() {
         [[ -f "${db_dir}/schema.sql" ]] && cat "${db_dir}/schema.sql" >> "$init_sql"
         [[ -f "${db_dir}/seed.sql" ]] && cat "${db_dir}/seed.sql" >> "$init_sql"
         
-        log_success "  ✓ Prepared database initialization: $init_sql"
+        log::success "  ✓ Prepared database initialization: $init_sql"
     fi
     
     update_init_state "$scenario" "postgres"
@@ -343,23 +334,23 @@ init_minio() {
     local storage_config="${SCENARIOS_DIR}/${scenario}/initialization/configuration/storage-config.json"
     
     if [[ ! -f "$storage_config" ]]; then
-        [[ "$VERBOSE" == true ]] && log_info "No MinIO configuration in scenario: $scenario"
+        [[ "$VERBOSE" == true ]] && log::info "No MinIO configuration in scenario: $scenario"
         return 0
     fi
     
-    log_info "Initializing MinIO from: $scenario"
+    log::info "Initializing MinIO from: $scenario"
     
     # Extract bucket configurations
     local buckets=$(jq -r '.minio.buckets[]? | .name' "$storage_config" 2>/dev/null)
     
     for bucket in $buckets; do
-        log_info "  Creating bucket: $bucket"
+        log::info "  Creating bucket: $bucket"
         
         if [[ "$DRY_RUN" == true ]]; then
-            log_info "  [DRY RUN] Would create bucket: $bucket"
+            log::info "  [DRY RUN] Would create bucket: $bucket"
         else
             # In production, use MinIO client (mc) to create buckets
-            log_success "  ✓ Created bucket: $bucket"
+            log::success "  ✓ Created bucket: $bucket"
         fi
     done
     
@@ -372,23 +363,23 @@ init_ollama() {
     local ai_config="${SCENARIOS_DIR}/${scenario}/initialization/configuration/ai-config.json"
     
     if [[ ! -f "$ai_config" ]]; then
-        [[ "$VERBOSE" == true ]] && log_info "No Ollama configuration in scenario: $scenario"
+        [[ "$VERBOSE" == true ]] && log::info "No Ollama configuration in scenario: $scenario"
         return 0
     fi
     
-    log_info "Initializing Ollama models from: $scenario"
+    log::info "Initializing Ollama models from: $scenario"
     
     # Extract model requirements
     local models=$(jq -r '.ollama.models[]?' "$ai_config" 2>/dev/null)
     
     for model in $models; do
-        log_info "  Pulling model: $model"
+        log::info "  Pulling model: $model"
         
         if [[ "$DRY_RUN" == true ]]; then
-            log_info "  [DRY RUN] Would pull model: $model"
+            log::info "  [DRY RUN] Would pull model: $model"
         else
             # In production, use ollama pull
-            log_success "  ✓ Model ready: $model"
+            log::success "  ✓ Model ready: $model"
         fi
     done
     
@@ -402,7 +393,7 @@ init_resource() {
     
     # Check if already initialized
     if ! check_init_state "$scenario" "$resource"; then
-        log_info "Skipping already initialized: $scenario/$resource"
+        log::info "Skipping already initialized: $scenario/$resource"
         return 0
     fi
     
@@ -426,17 +417,17 @@ init_resource() {
             init_ollama "$scenario"
             ;;
         *)
-            log_warning "Unsupported resource for self-init: $resource"
+            log::warning "Unsupported resource for self-init: $resource"
             ;;
     esac
 }
 
 # Generate initialization report
 generate_report() {
-    log_phase "Initialization Report"
+    log::subheader "Initialization Report"
     
     if [[ -f "$INIT_STATE_FILE" ]]; then
-        log_info "Initialized resources:"
+        log::info "Initialized resources:"
         jq -r '
             .scenarios | to_entries[] | 
             .key as $scenario | 
@@ -445,11 +436,11 @@ generate_report() {
             "  ✓ \($scenario)/\(.key)"
         ' "$INIT_STATE_FILE" 2>/dev/null || echo "  (none)"
     else
-        log_info "No resources initialized yet"
+        log::info "No resources initialized yet"
     fi
     
     if [[ ${#INITIALIZED_RESOURCES[@]} -gt 0 ]]; then
-        log_success "This session initialized:"
+        log::success "This session initialized:"
         for item in "${INITIALIZED_RESOURCES[@]}"; do
             echo "  + $item"
         done
@@ -463,34 +454,34 @@ generate_report() {
 main() {
     parse_args "$@"
     
-    log_banner "Vrooli Self-Initialization"
+    log::header "Vrooli Self-Initialization"
     
     if [[ "$DRY_RUN" == true ]]; then
-        log_warning "DRY RUN MODE - No actual changes will be made"
+        log::warning "DRY RUN MODE - No actual changes will be made"
     fi
     
     # Get scenarios and resources to process
     local scenarios=$(get_scenarios)
     local resources=$(get_resources)
     
-    log_info "Scenarios to process: $(echo $scenarios | tr '\n' ' ')"
-    log_info "Resources to initialize: $resources"
+    log::info "Scenarios to process: $(echo $scenarios | tr '\n' ' ')"
+    log::info "Resources to initialize: $resources"
     echo ""
     
     # Process each scenario
     for scenario in $scenarios; do
-        log_phase "Processing Scenario: $scenario"
+        log::subheader "Processing Scenario: $scenario"
         
         # Check if scenario has service.json
         local service_json="${SCENARIOS_DIR}/${scenario}/service.json"
         if [[ ! -f "$service_json" ]]; then
-            log_warning "No service.json found, skipping: $scenario"
+            log::warning "No service.json found, skipping: $scenario"
             continue
         fi
         
         # Process each resource
         for resource in $resources; do
-            [[ "$VERBOSE" == true ]] && log_info "Checking resource: $resource"
+            [[ "$VERBOSE" == true ]] && log::info "Checking resource: $resource"
             
             # Check if scenario uses this resource
             local uses_resource=$(jq -r "
@@ -500,11 +491,11 @@ main() {
             " "$service_json" 2>/dev/null)
             
             if [[ -n "$uses_resource" ]]; then
-                log_step "Initializing $resource from $scenario"
+                log::info "Initializing $resource from $scenario"
                 init_resource "$scenario" "$resource"
                 INITIALIZED_RESOURCES+=("$scenario/$resource")
             else
-                [[ "$VERBOSE" == true ]] && log_info "Scenario doesn't use resource: $resource"
+                [[ "$VERBOSE" == true ]] && log::info "Scenario doesn't use resource: $resource"
             fi
         done
     done
@@ -514,11 +505,11 @@ main() {
     
     echo ""
     if [[ "$DRY_RUN" == true ]]; then
-        log_success "Dry run completed successfully!"
-        log_info "Run without --dry-run to perform actual initialization"
+        log::success "Dry run completed successfully!"
+        log::info "Run without --dry-run to perform actual initialization"
     else
-        log_success "Vrooli self-initialization completed!"
-        log_info "The platform has been enriched with capabilities from scenarios"
+        log::success "Vrooli self-initialization completed!"
+        log::info "The platform has been enriched with capabilities from scenarios"
     fi
 }
 

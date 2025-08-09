@@ -55,11 +55,11 @@
           "data": [
             {
               "type": "schema",
-              "file": "initialization/storage/schema.sql"
+              "file": "initialization/storage/postgres/schema.sql"
             },
             {
               "type": "seed",
-              "file": "initialization/storage/seed.sql"
+              "file": "initialization/storage/postgres/seed.sql"
             }
           ]
         }
@@ -193,13 +193,13 @@
               "name": "apply-schema",
               "type": "sql",
               "target": "storage.postgres",
-              "file": "initialization/storage/schema.sql"
+              "file": "initialization/storage/postgres/schema.sql"
             },
             {
               "name": "seed-data",
               "type": "sql",
               "target": "storage.postgres",
-              "file": "initialization/storage/seed.sql"
+              "file": "initialization/storage/postgres/seed.sql"
             }
           ]
         },
@@ -572,9 +572,19 @@
       "description": "Initialize scenario generator environment",
       "steps": [
         {
-          "name": "setup-infrastructure",
-          "run": "./scripts/manage.sh setup --target docker",
-          "condition": "${SKIP_SETUP} != \\\"true\\\""
+          "name": "inject-resource-data",
+          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/scenario-generator-v1/.vrooli/service.json",
+          "description": "Inject SQL schemas and workflow configurations"
+        },
+        {
+          "name": "check-claude-code",
+          "run": "bash ${VROOLI_ROOT:-/home/matthalloran8/Vrooli}/scripts/resources/agents/claude-code/manage.sh --action health-check --check-type basic || echo 'Claude Code not available - generation features will be limited'",
+          "description": "Verify Claude Code availability for AI generation"
+        },
+        {
+          "name": "show-access-urls",
+          "run": "echo '✅ Scenario Generator V1 initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}/apps/scenario-generator\\n  n8n Workflows: http://localhost:${RESOURCE_PORTS[n8n]}'",
+          "description": "Display service access URLs"
         }
       ]
     },

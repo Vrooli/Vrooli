@@ -55,11 +55,11 @@
           "data": [
             {
               "type": "schema",
-              "file": "initialization/storage/schema.sql"
+              "file": "initialization/storage/postgres/schema.sql"
             },
             {
               "type": "seed",
-              "file": "initialization/storage/seed.sql"
+              "file": "initialization/storage/postgres/seed.sql"
             }
           ]
         }
@@ -194,13 +194,13 @@
               "name": "apply-schema",
               "type": "sql",
               "target": "storage.postgres",
-              "file": "initialization/storage/schema.sql"
+              "file": "initialization/storage/postgres/schema.sql"
             },
             {
               "name": "seed-data",
               "type": "sql",
               "target": "storage.postgres",
-              "file": "initialization/storage/seed.sql"
+              "file": "initialization/storage/postgres/seed.sql"
             }
           ]
         },
@@ -574,12 +574,17 @@
       "shell": "bash"
     },
     "setup": {
-      "description": "Initialize audio intelligence platform environment",
+      "description": "Initialize Audio Intelligence Platform environment",
       "steps": [
         {
-          "name": "setup-infrastructure",
-          "run": "./scripts/manage.sh setup --target docker",
-          "condition": "${SKIP_SETUP} != \\\"true\\\""
+          "name": "inject-resource-data",
+          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/audio-intelligence-platform/.vrooli/service.json",
+          "description": "Inject SQL schemas, workflows, and configurations"
+        },
+        {
+          "name": "show-access-urls",
+          "run": "echo '✅ Audio Intelligence Platform initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Whisper: http://localhost:${RESOURCE_PORTS[whisper]}\\n  Ollama: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}'",
+          "description": "Display service access URLs"
         }
       ]
     },
