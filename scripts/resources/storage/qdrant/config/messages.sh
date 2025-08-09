@@ -61,8 +61,29 @@ qdrant::messages::init() {
     [[ -z "${MSG_HELP_ACCESS:-}" ]] && readonly MSG_HELP_ACCESS="Access Qdrant Web UI at ${QDRANT_BASE_URL:-http://localhost:6333}/dashboard"
     [[ -z "${MSG_HELP_API:-}" ]] && readonly MSG_HELP_API="REST API available at ${QDRANT_BASE_URL:-http://localhost:6333}"
     [[ -z "${MSG_HELP_GRPC:-}" ]] && readonly MSG_HELP_GRPC="gRPC API available at ${QDRANT_GRPC_URL:-grpc://localhost:6334}"
-    [[ -z "${MSG_HELP_COLLECTIONS:-}" ]] && readonly MSG_HELP_COLLECTIONS="Use 'manage.sh --action list-collections' to view collections"
+    [[ -z "${MSG_HELP_COLLECTIONS:-}" ]] && readonly MSG_HELP_COLLECTIONS="Use \"manage.sh --action list-collections\" to view collections"
     [[ -z "${MSG_HELP_PORT_CONFLICT:-}" ]] && readonly MSG_HELP_PORT_CONFLICT="To use different ports, set QDRANT_CUSTOM_PORT and QDRANT_CUSTOM_GRPC_PORT environment variables"
     [[ -z "${MSG_HELP_AUTHENTICATION:-}" ]] && readonly MSG_HELP_AUTHENTICATION="To enable authentication, set QDRANT_CUSTOM_API_KEY environment variable"
-    [[ -z "${MSG_HELP_BACKUP:-}" ]] && readonly MSG_HELP_BACKUP="Use 'manage.sh --action backup' to create snapshots"
+    [[ -z "${MSG_HELP_BACKUP:-}" ]] && readonly MSG_HELP_BACKUP="Use \"manage.sh --action backup\" to create snapshots"
+}
+
+#######################################
+# Export message constants for use in other scripts
+# Idempotent - safe to call multiple times
+#######################################
+qdrant::export_messages() {
+    # Export all message variables for global access
+    export MSG_INSTALL_SUCCESS MSG_START_SUCCESS MSG_STOP_SUCCESS MSG_RESTART_SUCCESS MSG_UNINSTALL_SUCCESS
+    export MSG_COLLECTION_CREATED MSG_COLLECTIONS_INITIALIZED MSG_SNAPSHOT_CREATED MSG_BACKUP_RESTORED
+    export MSG_HEALTHY MSG_RUNNING MSG_WEB_UI_AVAILABLE MSG_GRPC_API_AVAILABLE
+    export MSG_CHECKING_DOCKER MSG_CHECKING_PORTS MSG_PULLING_IMAGE MSG_CREATING_DIRECTORIES
+    export MSG_STARTING_CONTAINER MSG_WAITING_STARTUP MSG_CREATING_COLLECTIONS MSG_CONFIGURING_COLLECTIONS
+    export MSG_CHECKING_COLLECTIONS MSG_CREATING_SNAPSHOT
+    export MSG_PORT_IN_USE MSG_GRPC_PORT_IN_USE MSG_CONTAINER_EXISTS MSG_LOW_DISK_SPACE
+    export MSG_NO_API_KEY MSG_COLLECTION_EXISTS MSG_COLLECTION_NOT_EMPTY
+    export MSG_DOCKER_NOT_FOUND MSG_INSTALL_FAILED MSG_START_FAILED MSG_HEALTH_CHECK_FAILED
+    export MSG_COLLECTION_CREATE_FAILED MSG_COLLECTION_DELETE_FAILED MSG_INSUFFICIENT_DISK
+    export MSG_API_NOT_ACCESSIBLE MSG_SNAPSHOT_FAILED MSG_RESTORE_FAILED
+    export MSG_HELP_ACCESS MSG_HELP_API MSG_HELP_GRPC MSG_HELP_COLLECTIONS
+    export MSG_HELP_PORT_CONFLICT MSG_HELP_AUTHENTICATION MSG_HELP_BACKUP
 }

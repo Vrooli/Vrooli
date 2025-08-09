@@ -7,13 +7,16 @@ set -euo pipefail
 DESCRIPTION="Install and manage PostgreSQL database instances for client isolation using Docker"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
 
-# Source common resources
+# Source var.sh first for directory variables
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+
+# Source common resources using var_ variables
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../app/utils/args.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/args-cli.sh"
 
 # Source configuration
 # shellcheck disable=SC1091

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Define the current directory
-LIB_UTILS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
+# Source var.sh with relative path first
 # shellcheck disable=SC1091
-source "${LIB_UTILS_DIR}/var.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/var.sh"
+# shellcheck disable=SC1091
+source "${var_EXIT_CODES_FILE}"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 
@@ -93,7 +93,7 @@ flow::can_run_sudo() {
 
     # If error mode, abort; otherwise just skip
     if [[ "$mode" == "error" ]]; then
-        flow::exit_with_error "Unable to run sudo for: $operation. Either run setup with 'sudo' prefix, or use --sudo-mode skip to bypass privileged operations." "$ERROR_DEFAULT"
+        flow::exit_with_error "Unable to run sudo for: $operation. Either run setup with 'sudo' prefix, or use --sudo-mode skip to bypass privileged operations." "$EXIT_GENERAL_ERROR"
     else
         log::info "sudo requires password or is blocked, skipping $operation"
         return 1

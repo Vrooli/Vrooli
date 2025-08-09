@@ -3,12 +3,12 @@
 # This file contains all constants and default values
 
 # Helper function to detect test environment
-is_test_environment() {
+defaults::is_test_environment() {
     [[ -n "${BATS_TEST_DIRNAME:-}" ]] || [[ "${TEST_MODE:-}" == "true" ]]
 }
 
 # Resource configuration
-if is_test_environment; then
+if defaults::is_test_environment; then
     RESOURCE_NAME="claude-code"
     MIN_NODE_VERSION="18"
     CLAUDE_PACKAGE="@anthropic-ai/claude-code"
@@ -19,7 +19,7 @@ else
 fi
 
 # MCP configuration constants
-if is_test_environment; then
+if defaults::is_test_environment; then
     VROOLI_MCP_SERVER_NAME="vrooli-local"
     VROOLI_DEFAULT_PORT="3000"
     VROOLI_MCP_ENDPOINT="/mcp/sse"
@@ -32,7 +32,7 @@ else
 fi
 
 # Default values for CLI arguments
-if is_test_environment; then
+if defaults::is_test_environment; then
     DEFAULT_MAX_TURNS="5"
     DEFAULT_TIMEOUT="600"
     DEFAULT_OUTPUT_FORMAT="text"
@@ -45,7 +45,7 @@ else
 fi
 
 # Common directories and paths
-if is_test_environment; then
+if defaults::is_test_environment; then
     CLAUDE_CONFIG_DIR="$HOME/.claude"
     CLAUDE_SESSIONS_DIR="$CLAUDE_CONFIG_DIR/sessions"
     CLAUDE_SETTINGS_FILE="$CLAUDE_CONFIG_DIR/settings.json"
@@ -58,7 +58,7 @@ else
 fi
 
 # Log file locations
-if is_test_environment; then
+if defaults::is_test_environment; then
     CLAUDE_LOG_LOCATIONS=(
         "$HOME/.claude/logs"
         "$HOME/.cache/claude/logs"

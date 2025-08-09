@@ -1603,6 +1603,41 @@ ln() {
     return 0
 }
 
+#######################################
+# Compatibility aliases for lifecycle tests
+#######################################
+
+#######################################
+# Alias for create_file to match test expectations
+# Arguments: Same as mock::fs::create_file
+#######################################
+mock::filesystem::create_file() {
+    mock::fs::create_file "$@"
+}
+
+#######################################
+# Alias for create_directory to match test expectations
+# Arguments: Same as mock::fs::create_directory
+#######################################
+mock::filesystem::create_directory() {
+    mock::fs::create_directory "$@"
+}
+
+#######################################
+# Alias for create_symlink to match test expectations
+# Arguments: Same as mock::fs::create_symlink
+#######################################
+mock::filesystem::create_symlink() {
+    mock::fs::create_symlink "$@"
+}
+
+#######################################
+# Alias for reset to match test expectations
+#######################################
+mock::filesystem::reset() {
+    mock::fs::reset "$@"
+}
+
 # ----------------------------
 # Export functions into subshells
 # ----------------------------
@@ -1619,6 +1654,9 @@ export -f mock::fs::assert::file_exists mock::fs::assert::directory_exists mock:
 export -f mock::fs::scenario::create_project_structure
 export -f mock::fs::scenario::create_home_directory
 export -f mock::fs::debug::dump_state
+
+# Export compatibility aliases
+export -f mock::filesystem::create_file mock::filesystem::create_directory mock::filesystem::create_symlink mock::filesystem::reset
 
 # Initialize with root directory
 # Don't call reset here - let the test setup do it

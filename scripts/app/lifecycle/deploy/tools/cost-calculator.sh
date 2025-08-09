@@ -6,28 +6,23 @@ APP_LIFECYCLE_DEPLOY_TOOLS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck disable=SC1091
 source "${APP_LIFECYCLE_DEPLOY_TOOLS_DIR}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
 
-# Color codes for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-cost::header() {
-    echo -e "${BLUE}$1${NC}"
-    echo "=============================================="
+# Wrapper functions for cost calculator display
+cost_calculator::header() {
+    log::header "$1"
 }
 
-cost::info() {
-    echo -e "${GREEN}$1${NC}"
+cost_calculator::info() {
+    log::info "$1"
 }
 
-cost::warning() {
-    echo -e "${YELLOW}$1${NC}"
+cost_calculator::warning() {
+    log::warning "$1"
 }
 
-cost::calculate() {
+cost_calculator::calculate() {
     local node_size=$1
     local node_count=$2
     local include_databases=$3
@@ -79,8 +74,8 @@ cost::calculate() {
     return $total_cost
 }
 
-cost::show_configurations() {
-    cost::header "DigitalOcean Kubernetes Cost Calculator"
+cost_calculator::show_configurations() {
+    cost_calculator::header "DigitalOcean Kubernetes Cost Calculator"
     
     echo "Node Size Options:"
     echo "=================="
@@ -99,34 +94,34 @@ cost::show_configurations() {
     echo "Block Storage:     \$0.10/GB/month"
     echo ""
     
-    cost::header "Configuration Examples"
+    cost_calculator::header "Configuration Examples"
     
     echo ""
-    cost::info "💡 Minimal Setup (Development/Testing)"
+    cost_calculator::info "💡 Minimal Setup (Development/Testing)"
     echo "3 × s-1vcpu-2gb nodes + Load Balancer + Databases"
-    cost::calculate "s-1vcpu-2gb" 3 true true
+    cost_calculator::calculate "s-1vcpu-2gb" 3 true true
     total_minimal=$?
     
     echo ""
-    cost::info "⭐ Recommended Setup (Production)"
+    cost_calculator::info "⭐ Recommended Setup (Production)"
     echo "3 × s-2vcpu-4gb nodes + Load Balancer + Databases"
-    cost::calculate "s-2vcpu-4gb" 3 true true
+    cost_calculator::calculate "s-2vcpu-4gb" 3 true true
     total_recommended=$?
     
     echo ""
-    cost::info "🚀 High Performance Setup"
+    cost_calculator::info "🚀 High Performance Setup"
     echo "3 × s-4vcpu-8gb nodes + Load Balancer + Databases"
-    cost::calculate "s-4vcpu-8gb" 3 true true
+    cost_calculator::calculate "s-4vcpu-8gb" 3 true true
     total_high_perf=$?
     
     echo ""
-    cost::info "💰 Budget Option (Self-managed DB)"
+    cost_calculator::info "💰 Budget Option (Self-managed DB)"
     echo "3 × s-1vcpu-2gb nodes + Load Balancer (no managed databases)"
-    cost::calculate "s-1vcpu-2gb" 3 false true
+    cost_calculator::calculate "s-1vcpu-2gb" 3 false true
     total_budget=$?
     
     echo ""
-    cost::header "Annual Cost Comparison"
+    cost_calculator::header "Annual Cost Comparison"
     printf "%-25s %10s %12s\n" "Configuration" "Monthly" "Annual"
     printf "%-25s %10s %12s\n" "=============" "=======" "======"
     printf "%-25s %9s%s %11s%s\n" "Minimal Setup" "\$" "${total_minimal}" "\$" "$((total_minimal * 12))"
@@ -135,7 +130,7 @@ cost::show_configurations() {
     printf "%-25s %9s%s %11s%s\n" "Budget Option" "\$" "${total_budget}" "\$" "$((total_budget * 12))"
     
     echo ""
-    cost::header "Cost Optimization Tips"
+    cost_calculator::header "Cost Optimization Tips"
     echo "✅ Start with the Recommended setup - you can always scale up"
     echo "✅ Use horizontal pod autoscaling to handle traffic spikes efficiently"
     echo "✅ Consider DigitalOcean Reserved Instances (20% discount for 1-year commitment)"
@@ -144,7 +139,7 @@ cost::show_configurations() {
     echo "✅ Enable automatic node upgrades to get latest features and security patches"
     
     echo ""
-    cost::header "Traffic Capacity Estimates"
+    cost_calculator::header "Traffic Capacity Estimates"
     echo "Minimal Setup:     ~1,000-5,000 daily active users"
     echo "Recommended:       ~10,000-50,000 daily active users"
     echo "High Performance:  ~100,000+ daily active users"
@@ -152,8 +147,8 @@ cost::show_configurations() {
     echo "Note: Actual capacity depends on your application's resource usage patterns"
 }
 
-cost::interactive_calculator() {
-    cost::header "Interactive Cost Calculator"
+cost_calculator::interactive_calculator() {
+    cost_calculator::header "Interactive Cost Calculator"
     
     echo "Configure your setup:"
     echo ""
@@ -204,35 +199,35 @@ cost::interactive_calculator() {
     fi
     
     echo ""
-    cost::header "Your Custom Configuration"
+    cost_calculator::header "Your Custom Configuration"
     echo "Node Size: $node_size"
     echo "Node Count: $node_count"
     echo "Managed Databases: $include_databases"
     echo "Load Balancer: $include_load_balancer"
     echo ""
     
-    cost::calculate "$node_size" "$node_count" "$include_databases" "$include_load_balancer"
+    cost_calculator::calculate "$node_size" "$node_count" "$include_databases" "$include_load_balancer"
     local total_cost=$?
     
     echo ""
     echo "Annual cost: \$$(($total_cost * 12))"
     
     if [[ $total_cost -lt 60 ]]; then
-        cost::warning "💡 This is a budget configuration. Consider upgrading for production workloads."
+        cost_calculator::warning "💡 This is a budget configuration. Consider upgrading for production workloads."
     elif [[ $total_cost -lt 150 ]]; then
-        cost::info "✅ This is a good production configuration."
+        cost_calculator::info "✅ This is a good production configuration."
     else
-        cost::warning "💰 This is a high-performance configuration. Make sure you need this capacity."
+        cost_calculator::warning "💰 This is a high-performance configuration. Make sure you need this capacity."
     fi
 }
 
-cost::main() {
+cost_calculator::main() {
     case "${1:-show}" in
         "show")
-            cost::show_configurations
+            cost_calculator::show_configurations
             ;;
         "interactive")
-            cost::interactive_calculator
+            cost_calculator::interactive_calculator
             ;;
         "help")
             echo "Usage: $0 [show|interactive|help]"
@@ -249,4 +244,4 @@ cost::main() {
 }
 
 # Run the calculator
-cost::main "$@"
+cost_calculator::main "$@"

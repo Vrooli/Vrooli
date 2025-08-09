@@ -4,18 +4,20 @@
 
 set -euo pipefail
 
-# Get script directory
-LIB_LIFECYCLE_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Determine script directory
+_HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck disable=SC1091
-source "$LIB_LIFECYCLE_LIB_DIR/../../utils/var.sh"
+source "${_HERE}/../../utils/var.sh"
 
 # Guard against re-sourcing
 [[ -n "${_TARGETS_MODULE_LOADED:-}" ]] && return 0
 declare -gr _TARGETS_MODULE_LOADED=1
 
 # Source dependencies
-# shellcheck source=./config.sh
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
 source "$var_LIB_LIFECYCLE_DIR/lib/config.sh"
 
 # Target resolution cache
@@ -169,7 +171,7 @@ targets::get_single_parent() {
     parent_config=$(echo "$targets" | jq ".\"$parent\" // empty")
     
     if [[ -z "$parent_config" ]] || [[ "$parent_config" == "null" ]]; then
-        targets::log_warning "Parent target not found: $parent"
+        log::warning "Parent target not found: $parent"
         echo "{}"
         return 0
     fi
@@ -208,7 +210,7 @@ targets::merge_configs() {
             targets::merge_deep "$base" "$override"
             ;;
         *)
-            targets::log_warning "Unknown merge strategy: $merge_strategy"
+            log::warning "Unknown merge strategy: $merge_strategy"
             targets::merge_append "$base" "$override"
             ;;
     esac
@@ -339,7 +341,7 @@ targets::validate() {
     local target="$1"
     
     if [[ -z "$target" ]]; then
-        targets::log_error "Target name required"
+        log::error "Target name required"
         return 1
     fi
     
@@ -357,11 +359,11 @@ targets::validate() {
     if ! config::target_exists "$target"; then
         # Check for default
         if config::target_exists "default"; then
-            targets::log_info "Using default target configuration"
+            log::info "Using default target configuration"
             return 0
         else
-            targets::log_error "Target not found: $target"
-            targets::log_info "Available targets:"
+            log::error "Target not found: $target"
+            log::info "Available targets:"
             targets::list | sed 's/^/  - /'
             return 1
         fi
@@ -372,7 +374,7 @@ targets::validate() {
     target_config=$(targets::get_config "$target")
     
     if [[ "$target_config" == "{}" ]]; then
-        targets::log_warning "Empty target configuration: $target"
+        log::warning "Empty target configuration: $target"
     fi
     
     return 0
@@ -428,19 +430,9 @@ targets::clear_cache() {
 # Logging functions
 #######################################
 targets::log_debug() {
-    [[ "${DEBUG:-false}" == "true" ]] && echo "[TARGETS-DEBUG] $*" >&2 || true
-}
-
-targets::log_info() {
-    echo "[TARGETS] $*" >&2
-}
-
-targets::log_warning() {
-    echo "[TARGETS-WARNING] $*" >&2
-}
-
-targets::log_error() {
-    echo "[TARGETS-ERROR] $*" >&2
+    if [[ "${DEBUG:-false}" == "true" ]]; then
+        log::debug "$*"
+    fi
 }
 
 # If sourced for testing, don't auto-execute

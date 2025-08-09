@@ -8,11 +8,14 @@ set -euo pipefail
 DESCRIPTION="Inject configurations and scripts into Browserless headless browser service"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
 
-# Source common utilities
+# Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "$(dirname "$(dirname "$(dirname "${SCRIPT_DIR}")")")/lib/utils/var.sh"
+
+# Source common utilities using var_ variables
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 
 # Source Browserless configuration if available
 if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
@@ -21,7 +24,7 @@ if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
 fi
 
 # Default Browserless settings
-readonly DEFAULT_BROWSERLESS_HOST="http://localhost:3003"
+readonly DEFAULT_BROWSERLESS_HOST="http://localhost:3001"
 readonly DEFAULT_BROWSERLESS_DATA_DIR="${HOME}/.browserless"
 readonly DEFAULT_BROWSERLESS_SCRIPTS_DIR="${DEFAULT_BROWSERLESS_DATA_DIR}/scripts"
 readonly DEFAULT_BROWSERLESS_FUNCTIONS_DIR="${DEFAULT_BROWSERLESS_DATA_DIR}/functions"
@@ -791,6 +794,18 @@ browserless_inject::main() {
     local action="$1"
     local config="${2:-}"
     
+    # Handle help first, before checking for config
+    if [[ "$action" == "--help" ]]; then
+        browserless_inject::usage
+        exit 0
+    fi
+    
+    # Handle rollback, which doesn't require config
+    if [[ "$action" == "--rollback" ]]; then
+        browserless_inject::execute_rollback
+        exit 0
+    fi
+    
     if [[ -z "$config" ]]; then
         log::error "Configuration JSON required"
         browserless_inject::usage
@@ -806,12 +821,6 @@ browserless_inject::main() {
             ;;
         "--status")
             browserless_inject::check_status "$config"
-            ;;
-        "--rollback")
-            browserless_inject::execute_rollback
-            ;;
-        "--help")
-            browserless_inject::usage
             ;;
         *)
             log::error "Unknown action: $action"

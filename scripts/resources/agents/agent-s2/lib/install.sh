@@ -403,3 +403,11 @@ agents2::uninstall_service() {
     log::success "$MSG_UNINSTALL_SUCCESS"
     return 0
 }
+
+# Export functions for subshell availability
+export -f agents2::update_config
+export -f agents2::show_installation_success
+export -f agents2::install_security_components
+export -f agents2::install_service
+export -f agents2::uninstall_security_components
+export -f agents2::uninstall_service

@@ -1,19 +1,36 @@
 #!/usr/bin/env bats
+# Tests for flow.sh - Flow control and confirmation utilities
+
 bats_require_minimum_version 1.5.0
 
-SCRIPT_PATH="$BATS_TEST_DIRNAME/../utils/flow.sh"
-. "$SCRIPT_PATH"
+# Load test infrastructure
+source "${BATS_TEST_DIRNAME}/../../__test/fixtures/setup.bash"
+
+# Load BATS helpers
+load "${BATS_TEST_DIRNAME}/../../__test/helpers/bats-support/load"
+load "${BATS_TEST_DIRNAME}/../../__test/helpers/bats-assert/load"
+
+setup() {
+    vrooli_setup_unit_test
+    
+    # Source the flow utility
+    source "${BATS_TEST_DIRNAME}/flow.sh"
+}
+
+teardown() {
+    vrooli_cleanup_test
+}
 
 @test "flow::confirm accepts 'y' input" {
     # Create a simple shell script that sources flow.sh and runs flow::confirm
-    cat > "${BATS_TEST_TMPDIR}/test_script.sh" << 'EOL'
+    cat > "${VROOLI_TEST_TMPDIR:-${BATS_TEST_TMPDIR}}/test_script.sh" << 'EOL'
 #!/bin/bash
 source "$1"
 echo "$2" | flow::confirm "Do you want to continue?"
 exit $?
 EOL
-    chmod +x "${BATS_TEST_TMPDIR}/test_script.sh"
-    run "${BATS_TEST_TMPDIR}/test_script.sh" "$SCRIPT_PATH" "y"
+    chmod +x "${VROOLI_TEST_TMPDIR:-${BATS_TEST_TMPDIR}}/test_script.sh"
+    run "${VROOLI_TEST_TMPDIR:-${BATS_TEST_TMPDIR}}/test_script.sh" "${BATS_TEST_DIRNAME}/flow.sh" "y"
     echo "Output: $output"
     echo "Status: $status"
     [ "$status" -eq 0 ]
@@ -21,14 +38,14 @@ EOL
 
 @test "flow::confirm accepts 'Y' input" {
     # Create a simple shell script that sources flow.sh and runs flow::confirm
-    cat > "${BATS_TEST_TMPDIR}/test_script.sh" << 'EOL'
+    cat > "${VROOLI_TEST_TMPDIR:-${BATS_TEST_TMPDIR}}/test_script.sh" << 'EOL'
 #!/bin/bash
 source "$1"
 echo "$2" | flow::confirm "Do you want to continue?"
 exit $?
 EOL
-    chmod +x "${BATS_TEST_TMPDIR}/test_script.sh"
-    run "${BATS_TEST_TMPDIR}/test_script.sh" "$SCRIPT_PATH" "Y"
+    chmod +x "${VROOLI_TEST_TMPDIR:-${BATS_TEST_TMPDIR}}/test_script.sh"
+    run "${VROOLI_TEST_TMPDIR:-${BATS_TEST_TMPDIR}}/test_script.sh" "${BATS_TEST_DIRNAME}/flow.sh" "Y"
     echo "Output: $output"
     echo "Status: $status"
     [ "$status" -eq 0 ]

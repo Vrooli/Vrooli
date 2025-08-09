@@ -1,32 +1,37 @@
 #!/usr/bin/env bats
 
+# Source var.sh to get path variables
+source "${BATS_TEST_DIRNAME}/../../../../lib/utils/var.sh"
+
 # Path to the script under test
 SCRIPT_PATH="$BATS_TEST_DIRNAME/common.sh"
 SEARXNG_DIR="$BATS_TEST_DIRNAME/.."
 
-# Source dependencies in correct order (matching manage.sh)
-RESOURCES_DIR="$SEARXNG_DIR/../.."
-HELPERS_DIR="$RESOURCES_DIR/../lib"
-
-# Source utilities first
-. "$HELPERS_DIR/utils/log.sh"
-. "$HELPERS_DIR/utils/system_commands.sh"
-. "$HELPERS_DIR/network/ports.sh"
-. "$HELPERS_DIR/utils/flow.sh"
-. "$RESOURCES_DIR/port_registry.sh"
+# Source utilities using var_ variables
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_SYSTEM_COMMANDS_FILE}"
+# shellcheck disable=SC1091
+source "${var_LIB_NETWORK_DIR}/ports.sh"
+# shellcheck disable=SC1091
+source "${var_FLOW_FILE}"
+# shellcheck disable=SC1091
+source "${var_PORT_REGISTRY_FILE}"
 
 # Helper function for proper sourcing in tests
 setup_searxng_test_env() {
-    local script_dir="$SEARXNG_DIR"
-    local resources_dir="$SEARXNG_DIR/../.."
-    local helpers_dir="$resources_dir/../lib"
-    
-    # Source utilities first
-    source "$helpers_dir/utils/log.sh"
-    source "$helpers_dir/utils/system_commands.sh"
-    source "$helpers_dir/network/ports.sh"
-    source "$helpers_dir/utils/flow.sh"
-    source "$resources_dir/port_registry.sh"
+    # Source utilities using var_ variables
+    # shellcheck disable=SC1091
+    source "${var_LOG_FILE}"
+    # shellcheck disable=SC1091
+    source "${var_SYSTEM_COMMANDS_FILE}"
+    # shellcheck disable=SC1091
+    source "${var_LIB_NETWORK_DIR}/ports.sh"
+    # shellcheck disable=SC1091
+    source "${var_FLOW_FILE}"
+    # shellcheck disable=SC1091
+    source "${var_PORT_REGISTRY_FILE}"
     
     # Source common.sh (provides resources functions)
     source "$resources_dir/common.sh"

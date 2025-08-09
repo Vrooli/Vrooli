@@ -5,21 +5,24 @@
 
 set -euo pipefail
 
-# Source shared integration test library
+# Source var.sh to get proper directory variables
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../../tests/lib/integration-test-lib.sh"
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+
+# Source shared integration test library
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_DIR}/tests/lib/integration-test-lib.sh"
 
 #######################################
 # SERVICE-SPECIFIC CONFIGURATION
 #######################################
 
 # Load Redis configuration
-RESOURCES_DIR="$SCRIPT_DIR/../../.."
 # shellcheck disable=SC1091
-source "$RESOURCES_DIR/common.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../config/defaults.sh"
+source "${SCRIPT_DIR}/../config/defaults.sh"
 
 # Override library defaults with Redis-specific settings
 SERVICE_NAME="redis"

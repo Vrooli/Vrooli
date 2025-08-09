@@ -5,21 +5,24 @@
 
 set -euo pipefail
 
-# Source enhanced integration test library with fixture support
+# Source var.sh first to get directory variables
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../../tests/lib/enhanced-integration-test-lib.sh"
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+
+# Source enhanced integration test library using var_ variables
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_DIR}/tests/lib/enhanced-integration-test-lib.sh"
 
 #######################################
 # SERVICE-SPECIFIC CONFIGURATION
 #######################################
 
-# Load MinIO configuration
-RESOURCES_DIR="$SCRIPT_DIR/../../.."
+# Load MinIO configuration using var_ variables
 # shellcheck disable=SC1091
-source "$RESOURCES_DIR/common.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../config/defaults.sh"
+source "${SCRIPT_DIR}/../config/defaults.sh"
 minio::export_config
 
 # Override library defaults with MinIO-specific settings

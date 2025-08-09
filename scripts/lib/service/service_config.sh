@@ -4,17 +4,15 @@
 
 set -euo pipefail
 
-# Source required utilities
-LIB_SERVICE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
+# Source var.sh with relative path first
 # shellcheck disable=SC1091
-source "${LIB_SERVICE_DIR}/../utils/var.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_SYSTEM_COMMANDS_FILE}"
 # shellcheck disable=SC1091
-source "${LIB_SERVICE_DIR}/secrets.sh"
+source "${var_LIB_SERVICE_DIR}/secrets.sh"
 
 #######################################
 # Check if service.json has inheritance defined

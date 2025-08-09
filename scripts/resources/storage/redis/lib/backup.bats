@@ -1,8 +1,14 @@
 #!/usr/bin/env bats
 # Tests for Redis Backup Operations
 
+# Source var.sh to get proper directory variables
+_BACKUP_BATS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${_BACKUP_BATS_DIR}/../../../../lib/utils/var.sh"
+
 # Load Vrooli test infrastructure
-source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
 
 # Expensive setup operations (run once per file)
 setup_file() {

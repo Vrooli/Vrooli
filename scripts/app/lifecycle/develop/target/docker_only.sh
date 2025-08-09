@@ -17,7 +17,7 @@ source "${var_LIB_UTILS_DIR}/exit_codes.sh"
 # shellcheck disable=SC1091
 source "${var_APP_UTILS_DIR}/docker.sh"
 
-dockerOnly::start_development_docker_only() {
+docker_only::start_development_docker_only() {
     local detached=${DETACHED:-No}
 
     log::header "🚀 Starting Docker only development environment..."
@@ -46,7 +46,7 @@ dockerOnly::start_development_docker_only() {
         fi
     fi
 
-    dockerOnly::cleanup() {
+    docker_only::cleanup() {
         log::info "🔧 Cleaning up development environment at $var_ROOT_DIR..."
         
         # Use instance manager for cleanup if available
@@ -62,7 +62,7 @@ dockerOnly::start_development_docker_only() {
         exit "$EXIT_USER_INTERRUPT"
     }
     if ! flow::is_yes "$detached"; then
-        trap dockerOnly::cleanup SIGINT SIGTERM
+        trap docker_only::cleanup SIGINT SIGTERM
     fi
     log::info "Starting all services in detached mode (Postgres, Redis, server, jobs, UI)..."
     
@@ -82,5 +82,5 @@ dockerOnly::start_development_docker_only() {
 
 # If this script is run directly, invoke its main function.
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    dockerOnly::start_development_docker_only "$@"
+    docker_only::start_development_docker_only "$@"
 fi

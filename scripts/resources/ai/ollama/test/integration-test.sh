@@ -7,8 +7,14 @@ set -euo pipefail
 
 # Source enhanced integration test library with fixture support
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../../tests/lib/enhanced-integration-test-lib.sh"
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+
+# Source enhanced integration test library with fixture support
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_DIR}/tests/lib/enhanced-integration-test-lib.sh"
 
 #######################################
 # SERVICE-SPECIFIC CONFIGURATION

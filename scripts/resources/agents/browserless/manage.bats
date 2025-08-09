@@ -2,7 +2,7 @@
 # Tests for Browserless manage.sh script
 bats_require_minimum_version 1.5.0
 
-# Load Vrooli test infrastructure
+# Load Vrooli test infrastructure  
 source "${BATS_TEST_DIRNAME}/../../../__test/fixtures/setup.bash"
 
 # Expensive setup operations run once per file
@@ -12,30 +12,45 @@ setup_file() {
     
     # Set up directories and paths once
     export SCRIPT_DIR="${BATS_TEST_DIRNAME}"
-    export RESOURCES_DIR="${SCRIPT_DIR}/../.."
     export MOCK_DIR="${SCRIPT_DIR}/../../../__test/fixtures/mocks"
     
+    # Load var.sh for directory variables
+    # shellcheck disable=SC1091
+    source "$(dirname "$(dirname "$(dirname "${SCRIPT_DIR}")")")/lib/utils/var.sh"
+    
     # Load all dependencies once (expensive operations)
-    source "${RESOURCES_DIR}/common.sh"
-    source "${RESOURCES_DIR}/../app/utils/args.sh"
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
+    # shellcheck disable=SC1091
+    source "${var_LIB_UTILS_DIR}/args-cli.sh"
+    # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/config/defaults.sh"
+    # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/config/messages.sh"
     
     # Load the browserless mock once
     if [[ -f "$MOCK_DIR/browserless.sh" ]]; then
+        # shellcheck disable=SC1091
         source "$MOCK_DIR/browserless.sh"
     fi
     
     # Load manage.sh once with all its dependencies
     # First source the lib files directly to ensure they're loaded
+    # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/lib/common.sh"
+    # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/lib/docker.sh"
+    # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/lib/status.sh"
+    # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/lib/install.sh"
+    # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/lib/api.sh"
+    # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/lib/usage.sh"
     
     # Now source manage.sh
+    # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/manage.sh"
     
     # Export key functions for BATS subshells

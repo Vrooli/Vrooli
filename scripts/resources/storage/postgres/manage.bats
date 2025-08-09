@@ -92,7 +92,7 @@ teardown() {
 @test "postgres::parse_arguments handles instance parameter" {
     postgres::parse_arguments --action create --instance test-db
     [ "$ACTION" = "create" ]
-    [ "$INSTANCE" = "test-db" ]
+    [ "$INSTANCE_NAME" = "test-db" ]
 }
 
 @test "postgres::parse_arguments handles port parameter" {

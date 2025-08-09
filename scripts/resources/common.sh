@@ -7,6 +7,9 @@ readonly VROOLI_COMMON_SOURCED=1
 
 # Common utilities for local resource setup and management
 # This file provides shared functionality for all resource setup scripts
+# 
+# Updated to use standardized JSON utilities for consistent service.json
+# parsing and configuration management.
 
 RESOURCES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
@@ -17,15 +20,17 @@ source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_FLOW_FILE}"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../lib/network/ports.sh"
+source "${var_LIB_NETWORK_DIR}/ports.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../app/utils/docker.sh"
+source "${var_LIB_SYSTEM_DIR}/docker.sh"
 # shellcheck disable=SC1091
 source "${var_PORT_REGISTRY_FILE}"
 # shellcheck disable=SC1091
 source "${var_REPOSITORY_FILE}"
 # shellcheck disable=SC1091
 source "${var_SYSTEM_COMMANDS_FILE}"
+# shellcheck disable=SC1091
+source "${RESOURCES_DIR}/../lib/utils/json.sh"
 
 # Resource configuration paths
 # Use the project's .vrooli directory, not the home directory
@@ -982,6 +987,7 @@ resources::remove_config() {
 
 #######################################
 # Get list of enabled resources from configuration
+# Uses standardized JSON utilities for consistent parsing
 # Returns:
 #   Space-separated list of enabled resource names
 #######################################
@@ -992,24 +998,12 @@ resources::get_enabled_from_config() {
         return 0
     fi
     
-    if ! system::is_command "jq"; then
-        log::warn "jq not available, cannot parse resource configuration" >&2
-        echo ""
-        return 0
-    fi
-    
-    # Extract all resources where enabled=true
+    # Use standardized JSON utility for robust resource extraction
     local enabled_resources
-    enabled_resources=$(jq -r '
-        .resources | to_entries | map(
-            .value | to_entries | map(
-                select(.value.enabled == true) | .key
-            )
-        ) | flatten | join(" ")
-    ' "$VROOLI_RESOURCES_CONFIG" 2>/dev/null)
+    enabled_resources=$(json::get_enabled_resources "" "$VROOLI_RESOURCES_CONFIG" 2>/dev/null)
     
     if [[ $? -ne 0 ]]; then
-        log::warn "Failed to parse resource configuration" >&2
+        log::warn "Failed to parse resource configuration using JSON utilities" >&2
         echo ""
         return 0
     fi
@@ -1271,14 +1265,23 @@ resources::print_status() {
         fi
     fi
     
-    # Check configuration
-    if [[ -f "$VROOLI_RESOURCES_CONFIG" ]] && system::is_command "jq"; then
-        local config_exists
-        config_exists=$(jq -r --arg name "$resource_name" \
-            '.resources.ai[$name] // .resources.automation[$name] // .resources.storage[$name] // .resources.agents[$name] // empty' \
-            "$VROOLI_RESOURCES_CONFIG" 2>/dev/null)
+    # Check configuration using standardized JSON utilities
+    if [[ -f "$VROOLI_RESOURCES_CONFIG" ]]; then
+        local config_exists=false
         
-        if [[ -n "$config_exists" && "$config_exists" != "null" ]]; then
+        # Check common resource categories
+        for category in ai automation storage agents; do
+            if json::get_resource_config "$category" "$resource_name" "$VROOLI_RESOURCES_CONFIG" >/dev/null 2>&1; then
+                local resource_config
+                resource_config=$(json::get_resource_config "$category" "$resource_name" "$VROOLI_RESOURCES_CONFIG")
+                if [[ -n "$resource_config" && "$resource_config" != "{}" ]]; then
+                    config_exists=true
+                    break
+                fi
+            fi
+        done
+        
+        if [[ "$config_exists" == "true" ]]; then
             log::success "✅ Resource configuration found"
         else
             log::warn "⚠️  Resource not configured in $VROOLI_RESOURCES_CONFIG"

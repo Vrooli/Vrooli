@@ -1,10 +1,18 @@
 #!/usr/bin/env bats
 # Tests for Ollama manage.sh script
 
-# Load Vrooli test infrastructure
-source "${BATS_TEST_DIRNAME}/../../../__test/fixtures/setup.bash"
+# Get script directory first
+MANAGE_BATS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# Source var.sh first to get directory variables
+# shellcheck disable=SC1091
+source "${MANAGE_BATS_DIR}/../../../lib/utils/var.sh"
+
+# Load Vrooli test infrastructure using var_ variables
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
 # Load fixture helpers for accessing test data
-source "${BATS_TEST_DIRNAME}/../../tests/lib/fixture-helpers.sh" 2>/dev/null || true
+source "${var_SCRIPTS_RESOURCES_DIR}/tests/lib/fixture-helpers.sh" 2>/dev/null || true
 
 # Helper function to initialize MODEL_CATALOG (fixes BATS associative array issue)
 setup_model_catalog() {

@@ -8,11 +8,14 @@ set -euo pipefail
 DESCRIPTION="Inject configurations and automations into Agent-S2 web automation agent"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
 
-# Source common utilities
+# Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+
+# Source common utilities using var_ variables
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 
 # Source Agent-S2 configuration if available
 if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
@@ -38,7 +41,7 @@ declare -a AGENT_S2_ROLLBACK_ACTIONS=()
 #######################################
 # Display usage information
 #######################################
-agent_s2_inject::usage() {
+inject::usage() {
     cat << EOF
 Agent-S2 Data Injection Adapter
 
@@ -119,7 +122,7 @@ EOF
 # Returns:
 #   0 if accessible, 1 otherwise
 #######################################
-agent_s2_inject::check_accessibility() {
+inject::check_accessibility() {
     # Check if Agent-S2 is running
     if curl -s --max-time 5 "${AGENT_S2_HOST}/health" 2>/dev/null | grep -q "healthy"; then
         log::debug "Agent-S2 is accessible at $AGENT_S2_HOST"
@@ -137,7 +140,7 @@ agent_s2_inject::check_accessibility() {
 #   $1 - description
 #   $2 - rollback command
 #######################################
-agent_s2_inject::add_rollback_action() {
+inject::add_rollback_action() {
     local description="$1"
     local command="$2"
     
@@ -148,7 +151,7 @@ agent_s2_inject::add_rollback_action() {
 #######################################
 # Execute rollback actions
 #######################################
-agent_s2_inject::execute_rollback() {
+inject::execute_rollback() {
     if [[ ${#AGENT_S2_ROLLBACK_ACTIONS[@]} -eq 0 ]]; then
         log::info "No Agent-S2 rollback actions to execute"
         return 0
@@ -185,7 +188,7 @@ agent_s2_inject::execute_rollback() {
 # Returns:
 #   0 if valid, 1 if invalid
 #######################################
-agent_s2_inject::validate_profiles() {
+inject::validate_profiles() {
     local profiles_config="$1"
     
     log::debug "Validating profile configurations..."
@@ -230,7 +233,7 @@ agent_s2_inject::validate_profiles() {
 # Returns:
 #   0 if valid, 1 if invalid
 #######################################
-agent_s2_inject::validate_workflows() {
+inject::validate_workflows() {
     local workflows_config="$1"
     
     log::debug "Validating workflow configurations..."
@@ -268,7 +271,7 @@ agent_s2_inject::validate_workflows() {
         fi
         
         # Check if file exists
-        local workflow_path="$VROOLI_PROJECT_ROOT/$file"
+        local workflow_path="$var_ROOT_DIR/$file"
         if [[ ! -f "$workflow_path" ]]; then
             log::error "Workflow file not found: $workflow_path"
             return 1
@@ -288,7 +291,7 @@ agent_s2_inject::validate_workflows() {
 # Returns:
 #   0 if valid, 1 if invalid
 #######################################
-agent_s2_inject::validate_config() {
+inject::validate_config() {
     local config="$1"
     
     log::info "Validating Agent-S2 injection configuration..."
@@ -316,7 +319,7 @@ agent_s2_inject::validate_config() {
         local profiles
         profiles=$(echo "$config" | jq -c '.profiles')
         
-        if ! agent_s2_inject::validate_profiles "$profiles"; then
+        if ! inject::validate_profiles "$profiles"; then
             return 1
         fi
     fi
@@ -326,7 +329,7 @@ agent_s2_inject::validate_config() {
         local workflows
         workflows=$(echo "$config" | jq -c '.workflows')
         
-        if ! agent_s2_inject::validate_workflows "$workflows"; then
+        if ! inject::validate_workflows "$workflows"; then
             return 1
         fi
     fi
@@ -342,7 +345,7 @@ agent_s2_inject::validate_config() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-agent_s2_inject::create_profile() {
+inject::create_profile() {
     local profile_config="$1"
     
     local name
@@ -358,7 +361,7 @@ agent_s2_inject::create_profile() {
     echo "$profile_config" > "$profile_file"
     
     # Send profile to Agent-S2 if it's running
-    if agent_s2_inject::check_accessibility; then
+    if inject::check_accessibility; then
         curl -s -X POST "${AGENT_S2_HOST}/api/profiles" \
             -H "Content-Type: application/json" \
             -d "@${profile_file}" >/dev/null 2>&1 || true
@@ -367,7 +370,7 @@ agent_s2_inject::create_profile() {
     log::success "Created browser profile: $name"
     
     # Add rollback action
-    agent_s2_inject::add_rollback_action \
+    inject::add_rollback_action \
         "Remove browser profile: $name" \
         "rm -f '${profile_file}' 2>/dev/null || true"
     
@@ -381,7 +384,7 @@ agent_s2_inject::create_profile() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-agent_s2_inject::install_workflow() {
+inject::install_workflow() {
     local workflow_config="$1"
     
     local name file autoload
@@ -392,7 +395,7 @@ agent_s2_inject::install_workflow() {
     log::info "Installing workflow: $name"
     
     # Resolve file path
-    local workflow_path="$VROOLI_PROJECT_ROOT/$file"
+    local workflow_path="$var_ROOT_DIR/$file"
     
     # Create workflows directory if it doesn't exist
     mkdir -p "$AGENT_S2_WORKFLOWS_DIR"
@@ -412,7 +415,7 @@ agent_s2_inject::install_workflow() {
 EOF
     
     # Load workflow if Agent-S2 is running and autoload is enabled
-    if [[ "$autoload" == "true" ]] && agent_s2_inject::check_accessibility; then
+    if [[ "$autoload" == "true" ]] && inject::check_accessibility; then
         curl -s -X POST "${AGENT_S2_HOST}/api/workflows/load" \
             -H "Content-Type: application/json" \
             -d "{\"workflow\": \"$name\"}" >/dev/null 2>&1 || true
@@ -421,7 +424,7 @@ EOF
     log::success "Installed workflow: $name"
     
     # Add rollback actions
-    agent_s2_inject::add_rollback_action \
+    inject::add_rollback_action \
         "Remove workflow: $name" \
         "rm -f '${dest_file}' '${metadata_file}' 2>/dev/null || true"
     
@@ -435,7 +438,7 @@ EOF
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-agent_s2_inject::configure_proxy() {
+inject::configure_proxy() {
     local proxy_config="$1"
     
     local name
@@ -452,7 +455,7 @@ agent_s2_inject::configure_proxy() {
     echo "$proxy_config" > "$proxy_file"
     
     # Apply proxy if Agent-S2 is running
-    if agent_s2_inject::check_accessibility; then
+    if inject::check_accessibility; then
         curl -s -X POST "${AGENT_S2_HOST}/api/proxy/configure" \
             -H "Content-Type: application/json" \
             -d "@${proxy_file}" >/dev/null 2>&1 || true
@@ -461,7 +464,7 @@ agent_s2_inject::configure_proxy() {
     log::success "Configured proxy: $name"
     
     # Add rollback action
-    agent_s2_inject::add_rollback_action \
+    inject::add_rollback_action \
         "Remove proxy configuration: $name" \
         "rm -f '${proxy_file}' 2>/dev/null || true"
     
@@ -475,7 +478,7 @@ agent_s2_inject::configure_proxy() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-agent_s2_inject::inject_profiles() {
+inject::inject_profiles() {
     local profiles_config="$1"
     
     log::info "Injecting Agent-S2 browser profiles..."
@@ -497,7 +500,7 @@ agent_s2_inject::inject_profiles() {
         local name
         name=$(echo "$profile" | jq -r '.name')
         
-        if ! agent_s2_inject::create_profile "$profile"; then
+        if ! inject::create_profile "$profile"; then
             failed_profiles+=("$name")
         fi
     done
@@ -518,7 +521,7 @@ agent_s2_inject::inject_profiles() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-agent_s2_inject::inject_workflows() {
+inject::inject_workflows() {
     local workflows_config="$1"
     
     log::info "Injecting Agent-S2 workflows..."
@@ -540,7 +543,7 @@ agent_s2_inject::inject_workflows() {
         local name
         name=$(echo "$workflow" | jq -r '.name')
         
-        if ! agent_s2_inject::install_workflow "$workflow"; then
+        if ! inject::install_workflow "$workflow"; then
             failed_workflows+=("$name")
         fi
     done
@@ -561,7 +564,7 @@ agent_s2_inject::inject_workflows() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-agent_s2_inject::inject_proxies() {
+inject::inject_proxies() {
     local proxies_config="$1"
     
     log::info "Injecting Agent-S2 proxy configurations..."
@@ -583,7 +586,7 @@ agent_s2_inject::inject_proxies() {
         local name
         name=$(echo "$proxy" | jq -r '.name')
         
-        if ! agent_s2_inject::configure_proxy "$proxy"; then
+        if ! inject::configure_proxy "$proxy"; then
             failed_proxies+=("$name")
         fi
     done
@@ -604,7 +607,7 @@ agent_s2_inject::inject_proxies() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-agent_s2_inject::apply_configurations() {
+inject::apply_configurations() {
     local configurations="$1"
     
     log::info "Applying Agent-S2 configurations..."
@@ -622,7 +625,7 @@ agent_s2_inject::apply_configurations() {
     echo "$configurations" > "$config_file"
     
     # Apply configurations if Agent-S2 is running
-    if agent_s2_inject::check_accessibility; then
+    if inject::check_accessibility; then
         for ((i=0; i<config_count; i++)); do
             local config_item
             config_item=$(echo "$configurations" | jq -c ".[$i]")
@@ -636,7 +639,7 @@ agent_s2_inject::apply_configurations() {
     log::success "Applied configuration settings"
     
     # Add rollback action
-    agent_s2_inject::add_rollback_action \
+    inject::add_rollback_action \
         "Remove configuration file" \
         "rm -f '${config_file}' 2>/dev/null || true"
     
@@ -650,14 +653,14 @@ agent_s2_inject::apply_configurations() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-agent_s2_inject::inject_data() {
+inject::inject_data() {
     local config="$1"
     
     log::header "🔄 Injecting data into Agent-S2"
     
     # Note: Agent-S2 might not need to be running for file-based injection
     # but we check anyway for API-based operations
-    agent_s2_inject::check_accessibility || true
+    inject::check_accessibility || true
     
     # Clear previous rollback actions
     AGENT_S2_ROLLBACK_ACTIONS=()
@@ -670,9 +673,9 @@ agent_s2_inject::inject_data() {
         local profiles
         profiles=$(echo "$config" | jq -c '.profiles')
         
-        if ! agent_s2_inject::inject_profiles "$profiles"; then
+        if ! inject::inject_profiles "$profiles"; then
             log::error "Failed to inject profiles"
-            agent_s2_inject::execute_rollback
+            inject::execute_rollback
             return 1
         fi
     fi
@@ -685,9 +688,9 @@ agent_s2_inject::inject_data() {
         local workflows
         workflows=$(echo "$config" | jq -c '.workflows')
         
-        if ! agent_s2_inject::inject_workflows "$workflows"; then
+        if ! inject::inject_workflows "$workflows"; then
             log::error "Failed to inject workflows"
-            agent_s2_inject::execute_rollback
+            inject::execute_rollback
             return 1
         fi
     fi
@@ -700,9 +703,9 @@ agent_s2_inject::inject_data() {
         local proxies
         proxies=$(echo "$config" | jq -c '.proxy_configs')
         
-        if ! agent_s2_inject::inject_proxies "$proxies"; then
+        if ! inject::inject_proxies "$proxies"; then
             log::error "Failed to inject proxy configurations"
-            agent_s2_inject::execute_rollback
+            inject::execute_rollback
             return 1
         fi
     fi
@@ -715,9 +718,9 @@ agent_s2_inject::inject_data() {
         local configurations
         configurations=$(echo "$config" | jq -c '.configurations')
         
-        if ! agent_s2_inject::apply_configurations "$configurations"; then
+        if ! inject::apply_configurations "$configurations"; then
             log::error "Failed to apply configurations"
-            agent_s2_inject::execute_rollback
+            inject::execute_rollback
             return 1
         fi
     fi
@@ -733,14 +736,14 @@ agent_s2_inject::inject_data() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-agent_s2_inject::check_status() {
+inject::check_status() {
     local config="$1"
     
     log::header "📊 Checking Agent-S2 injection status"
     
     # Check Agent-S2 accessibility
     local is_running=false
-    if agent_s2_inject::check_accessibility; then
+    if inject::check_accessibility; then
         is_running=true
         log::success "✅ Agent-S2 is running"
     else
@@ -813,35 +816,35 @@ agent_s2_inject::check_status() {
 #######################################
 # Main execution function
 #######################################
-agent_s2_inject::main() {
+inject::main() {
     local action="$1"
     local config="${2:-}"
     
     if [[ -z "$config" ]]; then
         log::error "Configuration JSON required"
-        agent_s2_inject::usage
+        inject::usage
         exit 1
     fi
     
     case "$action" in
         "--validate")
-            agent_s2_inject::validate_config "$config"
+            inject::validate_config "$config"
             ;;
         "--inject")
-            agent_s2_inject::inject_data "$config"
+            inject::inject_data "$config"
             ;;
         "--status")
-            agent_s2_inject::check_status "$config"
+            inject::check_status "$config"
             ;;
         "--rollback")
-            agent_s2_inject::execute_rollback
+            inject::execute_rollback
             ;;
         "--help")
-            agent_s2_inject::usage
+            inject::usage
             ;;
         *)
             log::error "Unknown action: $action"
-            agent_s2_inject::usage
+            inject::usage
             exit 1
             ;;
     esac
@@ -850,9 +853,9 @@ agent_s2_inject::main() {
 # Execute main function if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     if [[ $# -eq 0 ]]; then
-        agent_s2_inject::usage
+        inject::usage
         exit 1
     fi
     
-    agent_s2_inject::main "$@"
+    inject::main "$@"
 fi

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ====================================================================
 # JUnit XML Reporter - Layer 1 Validation CI/CD Integration
 # ====================================================================
@@ -8,9 +8,9 @@
 #
 # Usage:
 #   source junit-reporter.sh
-#   junit_reporter_init "test_suite_name"
-#   junit_report_resource_result "resource_name" "status" "details" "duration_ms"
-#   junit_report_finalize > output.xml
+#   junit_reporter::init "test_suite_name"
+#   junit_reporter::report_resource_result "resource_name" "status" "details" "duration_ms"
+#   junit_reporter::report_finalize > output.xml
 #
 # Output Format:
 #   Standard JUnit XML compatible with:
@@ -23,6 +23,11 @@
 # ====================================================================
 
 set -euo pipefail
+
+_HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# shellcheck disable=SC1091
+source "${_HERE}/../../../../lib/utils/var.sh"
 
 # JUnit XML components
 JUNIT_TEST_SUITE_NAME=""
@@ -39,7 +44,7 @@ JUNIT_SUITE_TIMESTAMP=""
 # Arguments: $1 - test suite name (optional, defaults to "ResourceValidation")
 # Returns: 0 on success
 #######################################
-junit_reporter_init() {
+junit_reporter::init() {
     local suite_name="${1:-ResourceValidation}"
     
     JUNIT_TEST_SUITE_NAME="$suite_name"
@@ -59,15 +64,15 @@ junit_reporter_init() {
 # Arguments: $1 - text to escape
 # Returns: 0, outputs escaped text
 #######################################
-junit_xml_escape() {
+junit_reporter::xml_escape() {
     local text="$1"
     
-    # Escape XML special characters
-    text="${text//&/&amp;}"
-    text="${text//</&lt;}"
-    text="${text//>/&gt;}"
-    text="${text//\"/&quot;}"
-    text="${text//\'/&#39;}"
+    # Escape XML special characters using sed for reliable escaping
+    text=$(echo "$text" | sed -e 's/&/\&amp;/g' \
+                              -e 's/</\&lt;/g' \
+                              -e 's/>/\&gt;/g' \
+                              -e 's/"/\&quot;/g' \
+                              -e "s/'/\&#39;/g")
     
     # Remove or replace problematic control characters
     text=$(echo "$text" | tr -d '\000-\010\013\014\016-\037' | tr '\011\012\015' '   ')
@@ -80,7 +85,7 @@ junit_xml_escape() {
 # Arguments: $1 - resource name, $2 - status, $3 - details, $4 - duration_ms, $5 - cached
 # Returns: 0, outputs XML test case element
 #######################################
-junit_generate_test_case() {
+junit_reporter::generate_test_case() {
     local resource_name="$1"
     local status="$2"
     local details="$3"
@@ -89,13 +94,22 @@ junit_generate_test_case() {
     
     # Convert duration to seconds (JUnit expects seconds with decimal)
     local duration_seconds
-    duration_seconds=$(echo "scale=3; $duration_ms / 1000" | bc 2>/dev/null || echo "0.000")
+    if command -v bc >/dev/null 2>&1; then
+        duration_seconds=$(echo "scale=3; $duration_ms / 1000" | bc 2>/dev/null)
+        # bc might output .150 instead of 0.150, so fix that
+        if [[ "$duration_seconds" =~ ^\. ]]; then
+            duration_seconds="0$duration_seconds"
+        fi
+    else
+        # Fallback if bc is not available
+        duration_seconds="$(( duration_ms / 1000 )).$(( (duration_ms % 1000) / 10 ))"
+    fi
     
     # Escape XML content
     local escaped_resource_name
-    escaped_resource_name=$(junit_xml_escape "$resource_name")
+    escaped_resource_name=$(junit_reporter::xml_escape "$resource_name")
     local escaped_details
-    escaped_details=$(junit_xml_escape "$details")
+    escaped_details=$(junit_reporter::xml_escape "$details")
     
     # Create test case classname (resource category + resource name)
     local classname="vrooli.resources.$resource_name"
@@ -171,7 +185,7 @@ junit_generate_test_case() {
 # Arguments: $1 - resource name, $2 - status, $3 - details, $4 - duration_ms, $5 - cached (optional)
 # Returns: 0
 #######################################
-junit_report_resource_result() {
+junit_reporter::report_resource_result() {
     local resource_name="$1"
     local status="$2"
     local details="$3"
@@ -180,7 +194,7 @@ junit_report_resource_result() {
     
     # Generate test case XML and store it
     local test_case_xml
-    test_case_xml=$(junit_generate_test_case "$resource_name" "$status" "$details" "$duration_ms" "$cached")
+    test_case_xml=$(junit_reporter::generate_test_case "$resource_name" "$status" "$details" "$duration_ms" "$cached")
     JUNIT_TEST_CASES+=("$test_case_xml")
     
     # Update totals
@@ -207,7 +221,7 @@ junit_report_resource_result() {
 # Arguments: $1 - cache stats JSON (optional)
 # Returns: 0, outputs XML properties
 #######################################
-junit_generate_system_properties() {
+junit_reporter::generate_system_properties() {
     local cache_stats_json="${1:-}"
     
     echo "    <properties>"
@@ -240,7 +254,7 @@ junit_generate_system_properties() {
 # Arguments: None
 # Returns: 0, outputs XML system-out content
 #######################################
-junit_generate_system_out() {
+junit_reporter::generate_system_out() {
     echo "    <system-out><![CDATA["
     echo "Vrooli Resource Interface Validation"
     echo "Generated: $(date)"
@@ -265,12 +279,21 @@ junit_generate_system_out() {
 # Arguments: $1 - cache stats JSON (optional)
 # Returns: 0, outputs complete JUnit XML to stdout
 #######################################
-junit_report_finalize() {
+junit_reporter::report_finalize() {
     local cache_stats_json="${1:-}"
     
     # Calculate total time in seconds
     local total_time_seconds
-    total_time_seconds=$(echo "scale=3; $JUNIT_TOTAL_TIME / 1000" | bc 2>/dev/null || echo "0.000")
+    if command -v bc >/dev/null 2>&1; then
+        total_time_seconds=$(echo "scale=3; $JUNIT_TOTAL_TIME / 1000" | bc 2>/dev/null)
+        # bc might output .150 instead of 0.150, so fix that
+        if [[ "$total_time_seconds" =~ ^\. ]]; then
+            total_time_seconds="0$total_time_seconds"
+        fi
+    else
+        # Fallback if bc is not available
+        total_time_seconds="$(( JUNIT_TOTAL_TIME / 1000 )).$(( (JUNIT_TOTAL_TIME % 1000) / 10 ))"
+    fi
     
     # Output XML header
     echo '<?xml version="1.0" encoding="UTF-8"?>'
@@ -278,7 +301,7 @@ junit_report_finalize() {
     
     # Test suite opening tag with summary statistics
     echo "    <testsuite"
-    echo "        name=\"$(junit_xml_escape "$JUNIT_TEST_SUITE_NAME")\""
+    echo "        name=\"$(junit_reporter::xml_escape "$JUNIT_TEST_SUITE_NAME")\""
     echo "        tests=\"$JUNIT_TOTAL_TESTS\""
     echo "        failures=\"$JUNIT_TOTAL_FAILURES\""
     echo "        errors=\"$JUNIT_TOTAL_ERRORS\""
@@ -287,7 +310,7 @@ junit_report_finalize() {
     echo "        timestamp=\"$JUNIT_SUITE_TIMESTAMP\">"
     
     # System properties
-    junit_generate_system_properties "$cache_stats_json"
+    junit_reporter::generate_system_properties "$cache_stats_json"
     
     # Output all test cases
     for test_case in "${JUNIT_TEST_CASES[@]}"; do
@@ -295,7 +318,7 @@ junit_report_finalize() {
     done
     
     # System output
-    junit_generate_system_out
+    junit_reporter::generate_system_out
     
     # Close test suite and test suites
     echo "    </testsuite>"
@@ -309,7 +332,7 @@ junit_report_finalize() {
 # Arguments: $1 - total, $2 - passed, $3 - failed, $4 - duration_ms
 # Returns: 0
 #######################################
-junit_report_batch_summary() {
+junit_reporter::report_batch_summary() {
     local total="$1"
     local passed="$2"
     local failed="$3"
@@ -323,7 +346,7 @@ junit_report_batch_summary() {
         details="Batch validation failed: $failed out of $total resources failed validation"
     fi
     
-    junit_report_resource_result "batch_summary" "$status" "$details" "$duration_ms" "false"
+    junit_reporter::report_resource_result "batch_summary" "$status" "$details" "$duration_ms" "false"
     
     return 0
 }
@@ -333,7 +356,7 @@ junit_report_batch_summary() {
 # Arguments: $1 - XML content (via stdin if not provided)
 # Returns: 0 if valid, 1 if invalid
 #######################################
-junit_validate_xml() {
+junit_reporter::validate_xml() {
     local xml_content="${1:-}"
     
     if [[ -z "$xml_content" ]]; then
@@ -370,7 +393,7 @@ junit_validate_xml() {
 }
 
 # Export functions for use in other scripts
-export -f junit_reporter_init junit_xml_escape junit_generate_test_case
-export -f junit_report_resource_result junit_generate_system_properties
-export -f junit_generate_system_out junit_report_finalize junit_report_batch_summary
-export -f junit_validate_xml
+export -f junit_reporter::init junit_reporter::xml_escape junit_reporter::generate_test_case
+export -f junit_reporter::report_resource_result junit_reporter::generate_system_properties
+export -f junit_reporter::generate_system_out junit_reporter::report_finalize junit_reporter::report_batch_summary
+export -f junit_reporter::validate_xml

@@ -3,11 +3,10 @@
 # Handles IPv6/IPv4 fixes, DNS fixes, and host overrides
 set -eo pipefail
 
-# Script directory
+# Source var.sh with relative path first
 LIB_NETWORK_DIAGNOSTICS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
 # shellcheck disable=SC1091
-source "${LIB_NETWORK_DIAGNOSTICS_DIR}/../../../lib/utils/var.sh"
+source "${LIB_NETWORK_DIAGNOSTICS_DIR}/../../utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091

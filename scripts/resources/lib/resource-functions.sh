@@ -48,6 +48,15 @@ else
     exit 1
 fi
 
+# Source JSON utilities for robust service.json parsing
+if [[ -f "${VROOLI_RUNTIME_DIR}/scripts/lib/utils/json.sh" ]]; then
+    # shellcheck disable=SC1091
+    source "${VROOLI_RUNTIME_DIR}/scripts/lib/utils/json.sh"
+else
+    echo "ERROR: Cannot find JSON utilities - ensure Vrooli is properly installed"
+    exit 1
+fi
+
 # Track health monitoring PID
 HEALTH_MONITOR_PID=""
 
@@ -64,16 +73,9 @@ start_required_resources() {
     
     log_info "Starting required resources..."
     
-    # Extract required resources from service.json
+    # Extract required resources using JSON utilities
     local required_resources
-    required_resources=$(jq -r '
-        .resources | 
-        to_entries[] | 
-        .value | 
-        to_entries[] | 
-        select(.value.required == true) | 
-        .key
-    ' "$service_config" 2>/dev/null || echo "")
+    required_resources=$(json::get_required_resources "" "$service_config" || echo "")
     
     if [[ -z "$required_resources" ]]; then
         log_info "No required resources defined"
@@ -129,16 +131,21 @@ wait_for_resource_health() {
     
     log_info "Waiting for resources to be healthy..."
     
-    # Extract resources with health checks
+    # Extract resources with health checks using JSON utilities
     local resources_with_health
-    resources_with_health=$(jq -r '
-        .resources | 
-        to_entries[] | 
-        .value | 
-        to_entries[] | 
-        select(.value.healthCheck // false) | 
-        "\(.key)|\(.value.healthCheck.type // "tcp")|\(.value.healthCheck.port // 0)|\(.value.healthCheck.endpoint // "")"
-    ' "$service_config" 2>/dev/null || echo "")
+    # Note: For complex health check extraction, we use a targeted approach
+    if json::load_service_config "$service_config"; then
+        resources_with_health=$(echo "$JSON_CONFIG_CACHE" | jq -r '
+            .resources | 
+            to_entries[] | 
+            .value | 
+            to_entries[] | 
+            select(.value.healthCheck // false) | 
+            "\(.key)|\(.value.healthCheck.type // "tcp")|\(.value.healthCheck.port // 0)|\(.value.healthCheck.endpoint // "")"
+        ' 2>/dev/null || echo "")
+    else
+        resources_with_health=""
+    fi
     
     if [[ -z "$resources_with_health" ]]; then
         log_info "No health checks defined"
@@ -264,16 +271,9 @@ stop_required_resources() {
     
     log_info "Stopping required resources..."
     
-    # Extract required resources
+    # Extract required resources using JSON utilities
     local required_resources
-    required_resources=$(jq -r '
-        .resources | 
-        to_entries[] | 
-        .value | 
-        to_entries[] | 
-        select(.value.required == true) | 
-        .key
-    ' "$service_config" 2>/dev/null || echo "")
+    required_resources=$(json::get_required_resources "" "$service_config" || echo "")
     
     for resource in $required_resources; do
         log_info "Stopping resource: $resource"

@@ -22,7 +22,7 @@ source "${LIB_LIFECYCLE_PHASES_DIR}/../../utils/var.sh"
 # shellcheck disable=SC1091
 source "${LIB_LIFECYCLE_PHASES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/args.sh"
+source "${var_LIB_UTILS_DIR}/flow.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/exit_codes.sh"
 # shellcheck disable=SC1091

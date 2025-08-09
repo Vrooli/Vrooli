@@ -7,17 +7,18 @@ set -euo pipefail
 
 DESCRIPTION="Inject scripts, apps, and resources into Windmill workflow platform"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
-
-# Source common utilities
+# Source var.sh first with relative path
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "../../../lib/utils/var.sh"
+
+# Source common utilities using var_ variables
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 
 # Source Windmill configuration if available
-if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
+if [[ -f "${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/config/defaults.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
+    source "${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/config/defaults.sh" 2>/dev/null || true
     
     # Export configuration if function exists
     if declare -f windmill::export_config >/dev/null 2>&1; then
@@ -103,6 +104,13 @@ EOF
 windmill_inject::check_accessibility() {
     if ! system::is_command "curl"; then
         log::error "curl command not available"
+        log::info "Please install curl to use Windmill injection features"
+        return 1
+    fi
+    
+    if ! system::is_command "jq"; then
+        log::error "jq command not available"
+        log::info "Please install jq to use Windmill injection features"
         return 1
     fi
     
@@ -113,7 +121,7 @@ windmill_inject::check_accessibility() {
     fi
     
     log::error "Windmill is not accessible at $WINDMILL_BASE_URL"
-    log::info "Ensure Windmill is running: ./scripts/resources/automation/windmill/manage.sh --action start"
+    log::info "Ensure Windmill is running: ${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/manage.sh --action start"
     return 1
 }
 
@@ -245,7 +253,7 @@ windmill_inject::validate_scripts() {
         fi
         
         # Check if file exists
-        local script_file="$VROOLI_PROJECT_ROOT/$file"
+        local script_file="$var_ROOT_DIR/$file"
         if [[ ! -f "$script_file" ]]; then
             log::error "Script file not found: $script_file"
             return 1
@@ -303,7 +311,7 @@ windmill_inject::validate_apps() {
         fi
         
         # Check if file exists
-        local app_file="$VROOLI_PROJECT_ROOT/$file"
+        local app_file="$var_ROOT_DIR/$file"
         if [[ ! -f "$app_file" ]]; then
             log::error "App file not found: $app_file"
             return 1
@@ -400,7 +408,7 @@ windmill_inject::import_script() {
     log::info "Importing script: $path"
     
     # Resolve file path
-    local script_file="$VROOLI_PROJECT_ROOT/$file"
+    local script_file="$var_ROOT_DIR/$file"
     
     # Read script content
     local script_content
@@ -429,7 +437,7 @@ windmill_inject::import_script() {
     
     # Add schema if provided
     if [[ -n "$schema" ]]; then
-        local schema_file="$VROOLI_PROJECT_ROOT/$schema"
+        local schema_file="$var_ROOT_DIR/$schema"
         if [[ -f "$schema_file" ]]; then
             local schema_content
             schema_content=$(cat "$schema_file")
@@ -476,7 +484,7 @@ windmill_inject::import_app() {
     log::info "Importing app: $path"
     
     # Resolve file path
-    local app_file="$VROOLI_PROJECT_ROOT/$file"
+    local app_file="$var_ROOT_DIR/$file"
     
     # Read app configuration
     local app_content
@@ -499,11 +507,10 @@ windmill_inject::import_app() {
         }')
     
     # Import app via API
-    local response
-    if response=$(curl -s -X POST \
+    if curl -s -X POST \
         -H "Content-Type: application/json" \
         -d "$payload" \
-        "$WINDMILL_API_BASE/w/$DEFAULT_WORKSPACE/apps/create" 2>/dev/null); then
+        "$WINDMILL_API_BASE/w/$DEFAULT_WORKSPACE/apps/create" >/dev/null 2>&1; then
         
         log::success "Imported app: $path"
         

@@ -2,11 +2,9 @@
 # Standard exit codes used throughout the Vrooli project
 # These codes provide consistent error handling across all scripts
 
-# Define the current directory
-LIB_UTILS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
+# Source var.sh with relative path first
 # shellcheck disable=SC1091
-source "$LIB_UTILS_DIR/var.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/var.sh"
 
 # Prevent multiple sourcing
 if [[ -n "${_EXIT_CODES_SOURCED:-}" ]]; then

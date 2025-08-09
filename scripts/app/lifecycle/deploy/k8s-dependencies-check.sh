@@ -15,7 +15,7 @@ source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 source "${var_LIB_UTILS_DIR}/args.sh"
 
 # Parse command line arguments
-k8s_dependencies::parse_arguments() {
+k8s_dependencies_check::parse_arguments() {
     args::reset
     
     args::register_help
@@ -53,7 +53,7 @@ k8s_dependencies::parse_arguments() {
 }
 
 # Check if all required operators are installed and healthy
-k8s_dependencies::check_operators() {
+k8s_dependencies_check::check_operators() {
     log::header "Checking Kubernetes operator dependencies..."
     
     local issues=0
@@ -113,7 +113,7 @@ k8s_dependencies::check_operators() {
 }
 
 # Check Vault connectivity and configuration
-k8s_dependencies::check_vault() {
+k8s_dependencies_check::check_vault() {
     log::header "Checking Vault dependencies..."
     
     local issues=0
@@ -190,7 +190,7 @@ k8s_dependencies::check_vault() {
 }
 
 # Check container registry access
-k8s_dependencies::check_registry() {
+k8s_dependencies_check::check_registry() {
     log::header "Checking container registry dependencies..."
     
     local issues=0
@@ -237,7 +237,7 @@ k8s_dependencies::check_registry() {
 }
 
 # Check storage classes and persistent volumes
-k8s_dependencies::check_storage() {
+k8s_dependencies_check::check_storage() {
     log::header "Checking storage dependencies..."
     
     local issues=0
@@ -269,7 +269,7 @@ k8s_dependencies::check_storage() {
 }
 
 # Check ingress and networking
-k8s_dependencies::check_networking() {
+k8s_dependencies_check::check_networking() {
     log::header "Checking networking dependencies..."
     
     local issues=0
@@ -310,7 +310,7 @@ k8s_dependencies::check_networking() {
 }
 
 # Generate setup instructions for missing dependencies
-k8s_dependencies::generate_setup_instructions() {
+k8s_dependencies_check::generate_setup_instructions() {
     local issues_found="$1"
     
     if [[ "$issues_found" -gt 0 ]]; then
@@ -377,8 +377,8 @@ k8s_dependencies::generate_setup_instructions() {
 }
 
 # Main function
-k8s_dependencies::main() {
-    k8s_dependencies::parse_arguments "$@"
+k8s_dependencies_check::main() {
+    k8s_dependencies_check::parse_arguments "$@"
     
     local environment
     environment=$(args::get "environment")
@@ -395,19 +395,19 @@ k8s_dependencies::main() {
     # Perform all checks
     local total_issues=0
     
-    k8s_dependencies::check_operators
+    k8s_dependencies_check::check_operators
     total_issues=$((total_issues + $?))
     
-    k8s_dependencies::check_vault
+    k8s_dependencies_check::check_vault
     total_issues=$((total_issues + $?))
     
-    k8s_dependencies::check_registry
+    k8s_dependencies_check::check_registry
     total_issues=$((total_issues + $?))
     
-    k8s_dependencies::check_storage
+    k8s_dependencies_check::check_storage
     total_issues=$((total_issues + $?))
     
-    k8s_dependencies::check_networking
+    k8s_dependencies_check::check_networking
     total_issues=$((total_issues + $?))
     
     # Summary and instructions
@@ -424,7 +424,7 @@ k8s_dependencies::main() {
             log::error "Dependencies not ready. Fix the issues above and retry."
             exit 1
         else
-            k8s_dependencies::generate_setup_instructions "$total_issues"
+            k8s_dependencies_check::generate_setup_instructions "$total_issues"
             exit 1
         fi
     fi
@@ -432,5 +432,5 @@ k8s_dependencies::main() {
 
 # Run if executed directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    k8s_dependencies::main "$@"
+    k8s_dependencies_check::main "$@"
 fi

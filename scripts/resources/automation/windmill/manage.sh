@@ -6,43 +6,44 @@ set -euo pipefail
 
 DESCRIPTION="Install and manage Windmill developer-centric workflow automation platform"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
+# Source var.sh first with relative path
+# shellcheck disable=SC1091
+source "../../../lib/utils/var.sh"
 
-# Source common resources
+# Source common resources using var_ variables
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../app/utils/args.sh"
+source "${var_LIB_UTILS_DIR}/args-cli.sh"
 
-# Source configuration
+# Source configuration using var_ variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/defaults.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/messages.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/config/messages.sh"
 
 # Export configuration
 windmill::export_config
 
-# Source all library modules (will be created)
+# Source all library modules using var_ variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/state.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/lib/state.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/common.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/lib/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/docker.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/lib/docker.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/database.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/lib/database.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/api.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/lib/api.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/workers.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/lib/workers.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/status.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/lib/status.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/install.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/lib/install.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/apps.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/lib/apps.sh"
 
 #######################################
 # Parse command line arguments
@@ -184,26 +185,32 @@ windmill::parse_arguments() {
     
     args::parse "$@"
     
-    export ACTION=$(args::get "action")
-    export FORCE=$(args::get "force")
-    export YES=$(args::get "yes")
-    export WORKER_COUNT=$(args::get "workers")
-    export EXTERNAL_DB=$(args::get "external-db")
-    export DB_URL=$(args::get "db-url")
-    export DISABLE_LSP=$(args::get "no-lsp")
-    export ENABLE_MULTIPLAYER=$(args::get "enable-multiplayer")
-    export DISABLE_NATIVE_WORKER=$(args::get "no-native-worker")
-    export WORKER_MEMORY_LIMIT=$(args::get "memory-limit")
-    export SUPERADMIN_EMAIL=$(args::get "superadmin-email")
-    export SUPERADMIN_PASSWORD=$(args::get "superadmin-password")
-    export SERVICE_NAME=$(args::get "service")
-    export FOLLOW_LOGS=$(args::get "follow")
-    export BACKUP_PATH=$(args::get "backup-path")
-    export APP_NAME=$(args::get "app-name")
-    export OUTPUT_DIR=$(args::get "output-dir")
-    export WORKSPACE=$(args::get "workspace")
-    export API_KEY=$(args::get "api-key")
-    export INJECTION_CONFIG=$(args::get "injection-config")
+    ACTION=$(args::get "action")
+    FORCE=$(args::get "force")
+    YES=$(args::get "yes")
+    WORKER_COUNT=$(args::get "workers")
+    EXTERNAL_DB=$(args::get "external-db")
+    DB_URL=$(args::get "db-url")
+    DISABLE_LSP=$(args::get "no-lsp")
+    ENABLE_MULTIPLAYER=$(args::get "enable-multiplayer")
+    DISABLE_NATIVE_WORKER=$(args::get "no-native-worker")
+    WORKER_MEMORY_LIMIT=$(args::get "memory-limit")
+    SUPERADMIN_EMAIL=$(args::get "superadmin-email")
+    SUPERADMIN_PASSWORD=$(args::get "superadmin-password")
+    SERVICE_NAME=$(args::get "service")
+    FOLLOW_LOGS=$(args::get "follow")
+    BACKUP_PATH=$(args::get "backup-path")
+    APP_NAME=$(args::get "app-name")
+    OUTPUT_DIR=$(args::get "output-dir")
+    WORKSPACE=$(args::get "workspace")
+    API_KEY=$(args::get "api-key")
+    INJECTION_CONFIG=$(args::get "injection-config")
+    
+    export ACTION FORCE YES WORKER_COUNT EXTERNAL_DB DB_URL
+    export DISABLE_LSP ENABLE_MULTIPLAYER DISABLE_NATIVE_WORKER
+    export WORKER_MEMORY_LIMIT SUPERADMIN_EMAIL SUPERADMIN_PASSWORD
+    export SERVICE_NAME FOLLOW_LOGS BACKUP_PATH APP_NAME
+    export OUTPUT_DIR WORKSPACE API_KEY INJECTION_CONFIG
 }
 
 #######################################
@@ -279,7 +286,7 @@ windmill::main() {
                 log::info "Use: --injection-config 'JSON_CONFIG'"
                 exit 1
             fi
-            "${SCRIPT_DIR}/inject.sh" --inject "$INJECTION_CONFIG"
+            "${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/inject.sh" --inject "$INJECTION_CONFIG"
             ;;
         "validate-injection")
             if [[ -z "$INJECTION_CONFIG" ]]; then
@@ -287,7 +294,7 @@ windmill::main() {
                 log::info "Use: --injection-config 'JSON_CONFIG'"
                 exit 1
             fi
-            "${SCRIPT_DIR}/inject.sh" --validate "$INJECTION_CONFIG"
+            "${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/inject.sh" --validate "$INJECTION_CONFIG"
             ;;
         *)
             log::error "Unknown action: $ACTION"

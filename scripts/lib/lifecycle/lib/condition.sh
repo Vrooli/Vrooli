@@ -4,17 +4,19 @@
 
 set -euo pipefail
 
-# Get script directory
-LIB_LIFECYCLE_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Determine script directory
+_HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck disable=SC1091
-source "$LIB_LIFECYCLE_LIB_DIR/../../utils/var.sh"
+source "${_HERE}/../../utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
 
 # Guard against re-sourcing
 [[ -n "${_CONDITION_MODULE_LOADED:-}" ]] && return 0
 declare -gr _CONDITION_MODULE_LOADED=1
 
-# Supported condition types
+# Supported condition types (exported for potential external use)
 readonly CONDITION_TYPES=(
     "equals"      # VAR == value
     "not_equals"  # VAR != value
@@ -25,6 +27,9 @@ readonly CONDITION_TYPES=(
     "always"      # Always true
     "never"       # Always false
 )
+
+# Export for external validation
+export CONDITION_TYPES
 
 #######################################
 # Evaluate a condition expression

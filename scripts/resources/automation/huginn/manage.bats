@@ -11,18 +11,29 @@ setup_file() {
     
     # Load resource specific configuration once per file
     SCRIPT_DIR="${BATS_TEST_DIRNAME}"
-    HUGINN_DIR="$(dirname "$SCRIPT_DIR")"
+    HUGINN_DIR="${SCRIPT_DIR}"
     
     # Load configuration and manage script once
     source "${HUGINN_DIR}/config/defaults.sh"
     source "${HUGINN_DIR}/config/messages.sh"
     source "${SCRIPT_DIR}/manage.sh"
+    
+    # Export config functions (only needed once per file)
+    huginn::export_config
 }
 
 # Lightweight per-test setup 
 setup() {
     # Setup standard Vrooli mocks
     vrooli_auto_setup
+    
+    # Load configuration and functions for each test (BATS requirement)
+    # shellcheck disable=SC1091
+    source "${BATS_TEST_DIRNAME}/config/defaults.sh"
+    # shellcheck disable=SC1091
+    source "${BATS_TEST_DIRNAME}/config/messages.sh"
+    # shellcheck disable=SC1091
+    source "${BATS_TEST_DIRNAME}/manage.sh"
     
     # Set test environment variables (lightweight per-test)
     export HUGINN_CUSTOM_PORT="9999"
@@ -41,10 +52,6 @@ setup() {
     export INTERVAL="30"
     export REMOVE_DATA="no"
     export REMOVE_VOLUMES="no"
-    
-    # Export config functions
-    huginn::export_config
-    huginn::export_messages
     
     # Mock log functions
     log::header() { echo "=== $* ==="; }
@@ -65,7 +72,7 @@ teardown() {
     args::is_asking_for_help() { return 0; }
     export -f args::is_asking_for_help
     
-    run huginn::show_help
+    run huginn::usage
     assert_success
     [[ "$output" =~ "Usage:" ]]
     [[ "$output" =~ "install" ]]

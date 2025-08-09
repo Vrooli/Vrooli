@@ -1,8 +1,16 @@
 #!/usr/bin/env bats
 # Tests for Ollama model management functions
 
-# Load Vrooli test infrastructure
-source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
+# Get script directory first
+MODELS_BATS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# Source var.sh first to get directory variables
+# shellcheck disable=SC1091
+source "${MODELS_BATS_DIR}/../../../../lib/utils/var.sh"
+
+# Load Vrooli test infrastructure using var_ variables
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
 
 # Expensive setup operations (run once per file)
 setup_file() {

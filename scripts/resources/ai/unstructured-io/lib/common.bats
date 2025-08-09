@@ -1,8 +1,16 @@
 #!/usr/bin/env bats
 # Tests for Unstructured.io common.sh functions
 
-# Load Vrooli test infrastructure (REQUIRED)
-source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
+# Get script directory first
+COMMON_BATS_DIR="${BATS_TEST_DIRNAME}"
+
+# Source var.sh first to get directory variables
+# shellcheck disable=SC1091
+source "${COMMON_BATS_DIR}/../../../../lib/utils/var.sh"
+
+# Load Vrooli test infrastructure using var_ variables
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
 
 # Expensive setup operations (run once per file)
 setup_file() {
@@ -38,7 +46,7 @@ setup() {
     
     # Use paths from setup_file
     SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
-    UNSTRUCTURED_IO_DIR="${SETUP_FILE_UNSTRUCTURED_IO_DIR}""
+    UNSTRUCTURED_IO_DIR="${SETUP_FILE_UNSTRUCTURED_IO_DIR}"
     
     # Mock system functions for testing
     

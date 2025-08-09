@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ====================================================================
 # Cache Manager for Layer 1 Syntax Validation
 # ====================================================================
@@ -21,6 +21,13 @@
 
 set -euo pipefail
 
+_HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# shellcheck disable=SC1091
+source "${_HERE}/../../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091,SC2154,SC1090
+source "${var_LOG_FILE}" 2>/dev/null || true
+
 # Cache configuration
 CACHE_DIR=""
 CACHE_TTL_SECONDS=3600  # 1 hour
@@ -38,7 +45,7 @@ CACHE_WRITES=0
 # Arguments: None
 # Returns: 0 on success, 1 on failure
 #######################################
-cache_manager_init() {
+cache_manager::init() {
     # Determine cache directory
     local script_dir
     script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -69,7 +76,7 @@ cache_manager_init() {
 # Arguments: $1 - resource name, $2 - file path
 # Returns: 0 on success, outputs cache key
 #######################################
-cache_generate_key() {
+cache_manager::generate_key() {
     local resource_name="$1"
     local file_path="$2"
     
@@ -91,7 +98,7 @@ cache_generate_key() {
 # Arguments: $1 - cache key
 # Returns: 0 on success, outputs file path
 #######################################
-cache_get_file_path() {
+cache_manager::get_file_path() {
     local cache_key="$1"
     echo "${CACHE_DIR}/${cache_key}.${CACHE_EXTENSION}"
 }
@@ -101,7 +108,7 @@ cache_get_file_path() {
 # Arguments: $1 - cache file path
 # Returns: 0 if valid, 1 if expired or missing
 #######################################
-cache_is_valid() {
+cache_manager::is_valid() {
     local cache_file="$1"
     
     # Check if file exists
@@ -131,20 +138,20 @@ cache_is_valid() {
 # Arguments: $1 - resource name, $2 - file path
 # Returns: 0 if found, 1 if miss, outputs cached result
 #######################################
-cache_get() {
+cache_manager::get() {
     local resource_name="$1"
     local file_path="$2"
     
     # Generate cache key
     local cache_key
-    cache_key=$(cache_generate_key "$resource_name" "$file_path") || return 1
+    cache_key=$(cache_manager::generate_key "$resource_name" "$file_path") || return 1
     
     # Get cache file path
     local cache_file
-    cache_file=$(cache_get_file_path "$cache_key")
+    cache_file=$(cache_manager::get_file_path "$cache_key")
     
     # Check if cache is valid
-    if cache_is_valid "$cache_file"; then
+    if cache_manager::is_valid "$cache_file"; then
         # Cache hit - return cached result
         cat "$cache_file"
         CACHE_HITS=$((CACHE_HITS + 1))
@@ -161,18 +168,18 @@ cache_get() {
 # Arguments: $1 - resource name, $2 - file path, $3 - validation result (JSON)
 # Returns: 0 on success, 1 on failure
 #######################################
-cache_set() {
+cache_manager::set() {
     local resource_name="$1"
     local file_path="$2"
     local validation_result="$3"
     
     # Generate cache key
     local cache_key
-    cache_key=$(cache_generate_key "$resource_name" "$file_path") || return 1
+    cache_key=$(cache_manager::generate_key "$resource_name" "$file_path") || return 1
     
     # Get cache file path
     local cache_file
-    cache_file=$(cache_get_file_path "$cache_key")
+    cache_file=$(cache_manager::get_file_path "$cache_key")
     
     # Write validation result to cache
     if echo "$validation_result" > "$cache_file"; then
@@ -189,12 +196,12 @@ cache_set() {
 # Arguments: None
 # Returns: 0 on success, outputs number of cleared entries
 #######################################
-cache_clear_expired() {
+cache_manager::clear_expired() {
     local cleared_count=0
     
     # Find and remove expired cache files
     while IFS= read -r -d '' cache_file; do
-        if [[ -f "$cache_file" ]] && ! cache_is_valid "$cache_file"; then
+        if [[ -f "$cache_file" ]] && ! cache_manager::is_valid "$cache_file"; then
             rm -f "$cache_file"
             cleared_count=$((cleared_count + 1))
         fi
@@ -209,7 +216,7 @@ cache_clear_expired() {
 # Arguments: None
 # Returns: 0 on success, outputs number of cleared entries
 #######################################
-cache_clear_all() {
+cache_manager::clear_all() {
     local cleared_count=0
     
     # Count and remove all cache files
@@ -229,7 +236,7 @@ cache_clear_all() {
 # Arguments: None
 # Returns: 0 on success, outputs cache stats in JSON format
 #######################################
-cache_get_stats() {
+cache_manager::get_stats() {
     local total_entries
     total_entries=$(find "$CACHE_DIR" -name "${CACHE_PREFIX}-*.${CACHE_EXTENSION}" 2>/dev/null | wc -l)
     
@@ -261,7 +268,7 @@ EOF
 # Arguments: $1 - status (passed/failed), $2 - details, $3 - duration_ms
 # Returns: 0 on success, outputs JSON
 #######################################
-cache_create_result_json() {
+cache_manager::create_result_json() {
     local status="$1"
     local details="$2"
     local duration_ms="$3"
@@ -270,7 +277,7 @@ cache_create_result_json() {
     
     # Escape quotes in details
     local escaped_details
-    escaped_details=$(echo "$details" | sed 's/"/\\"/g')
+    escaped_details="${details//\"/\\\"}"
     
     cat << EOF
 {
@@ -288,7 +295,7 @@ EOF
 # Arguments: $1 - cached JSON result
 # Returns: 0 if passed, 1 if failed, outputs details to stderr
 #######################################
-cache_parse_result() {
+cache_manager::parse_result() {
     local cached_json="$1"
     
     # Extract status and details from JSON
@@ -315,7 +322,7 @@ cache_parse_result() {
 # Arguments: None
 # Returns: 0 on success, outputs validation report
 #######################################
-cache_validate_integrity() {
+cache_manager::validate_integrity() {
     local total_files=0
     local valid_files=0
     local invalid_files=0
@@ -358,6 +365,6 @@ EOF
 }
 
 # Export functions for use in other scripts
-export -f cache_manager_init cache_generate_key cache_get_file_path cache_is_valid
-export -f cache_get cache_set cache_clear_expired cache_clear_all cache_get_stats
-export -f cache_create_result_json cache_parse_result cache_validate_integrity
+export -f cache_manager::init cache_manager::generate_key cache_manager::get_file_path cache_manager::is_valid
+export -f cache_manager::get cache_manager::set cache_manager::clear_expired cache_manager::clear_all cache_manager::get_stats
+export -f cache_manager::create_result_json cache_manager::parse_result cache_manager::validate_integrity

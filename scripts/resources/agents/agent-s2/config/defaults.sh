@@ -2,28 +2,14 @@
 # Agent-S2 Resource Configuration Defaults
 # This file contains all configuration constants and defaults for the Agent-S2 resource
 
-# Source shared secrets management library
-# Use the same project root detection method as the secrets library
-_agents2_defaults_detect_project_root() {
-    local current_dir
-    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    
-    # Walk up directory tree looking for .vrooli directory
-    while [[ "$current_dir" != "/" ]]; do
-        if [[ -d "$current_dir/.vrooli" ]]; then
-            echo "$current_dir"
-            return 0
-        fi
-        current_dir="$(dirname "$current_dir")"
-    done
-    
-    # Fallback: assume we're in scripts and go up to project root
-    echo "/home/matthalloran8/Vrooli"
-}
-
-PROJECT_ROOT="$(_agents2_defaults_detect_project_root)"
+# Source var.sh first to get proper directory variables
+_DEFAULTS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
-source "$PROJECT_ROOT/scripts/lib/service/secrets.sh"
+source "${_DEFAULTS_DIR}/../../../lib/utils/var.sh"
+
+# Source shared secrets management library using var_ variables
+# shellcheck disable=SC1091
+source "${var_LIB_SERVICE_DIR}/secrets.sh"
 # Agent S2 Configuration Defaults
 # All configuration constants and default values
 
@@ -181,7 +167,7 @@ agents2::export_config() {
     # Export for global access
     export AGENTS2_PORT AGENTS2_BASE_URL AGENTS2_VNC_PORT AGENTS2_VNC_URL
     export AGENTS2_CONTAINER_NAME AGENTS2_DATA_DIR AGENTS2_IMAGE_NAME
-    export AGENTS2_LLM_PROVIDER AGENTS2_LLM_MODEL AGENTS2_API_KEY
+    export AGENTS2_LLM_PROVIDER AGENTS2_LLM_MODEL
     export AGENTS2_OPENAI_API_KEY AGENTS2_ANTHROPIC_API_KEY AGENTS2_OLLAMA_BASE_URL
     export AGENTS2_DISPLAY AGENTS2_SCREEN_RESOLUTION AGENTS2_VNC_PASSWORD
     export AGENTS2_ENABLE_HOST_DISPLAY AGENTS2_NETWORK_NAME
@@ -191,6 +177,7 @@ agents2::export_config() {
     export AGENTS2_STARTUP_MAX_WAIT AGENTS2_STARTUP_WAIT_INTERVAL
     export AGENTS2_INITIALIZATION_WAIT
     export AGENTS2_MEMORY_LIMIT AGENTS2_CPU_LIMIT AGENTS2_SHM_SIZE
+    export AGENTS2_ENABLE_AI AGENTS2_ENABLE_SEARCH
 }
 
 #######################################

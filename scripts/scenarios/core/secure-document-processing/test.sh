@@ -6,6 +6,10 @@ set -euo pipefail
 
 # Resolve paths
 SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck disable=SC1091
+source "$(cd "$SCENARIO_DIR" && cd ../../lib/utils && pwd)/var.sh"
+
 FRAMEWORK_DIR="$(cd "$SCENARIO_DIR/../../framework" && pwd)"
 
 echo "🚀 Testing Secure Document Processing Business Scenario"

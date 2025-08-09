@@ -4,10 +4,10 @@ set -euo pipefail
 # Embedding Validation Utilities
 # Prevents silent failures in vector operations by validating dimensions and models
 
-RESOURCES_COMMON_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+_HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck disable=SC1091
-source "${RESOURCES_COMMON_DIR}/../../lib/utils/var.sh"
+source "${_HERE}/../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 
@@ -18,7 +18,7 @@ source "${var_LOG_FILE}"
 # Returns:
 #   0 if model is valid, 1 otherwise
 #######################################
-embedding::validate_model() {
+embedding_validator::validate_model() {
     local model="$1"
     
     log::info "Validating model: $model"
@@ -65,7 +65,7 @@ embedding::validate_model() {
 # Returns:
 #   0 on success, 1 on failure
 #######################################
-embedding::get_model_dimensions() {
+embedding_validator::get_model_dimensions() {
     local model="$1"
     
     local response
@@ -89,7 +89,7 @@ embedding::get_model_dimensions() {
 # Returns:
 #   0 on success, 1 on failure
 #######################################
-embedding::get_collection_dimensions() {
+embedding_validator::get_collection_dimensions() {
     local collection="$1"
     
     # Check if Qdrant is running
@@ -117,7 +117,7 @@ embedding::get_collection_dimensions() {
 # Returns:
 #   0 if compatible, 1 if not
 #######################################
-embedding::validate_compatibility() {
+embedding_validator::validate_compatibility() {
     local model="$1"
     local collection="$2"
     
@@ -125,14 +125,14 @@ embedding::validate_compatibility() {
     
     # Get model dimensions
     local model_dims
-    if ! model_dims=$(embedding::get_model_dimensions "$model"); then
+    if ! model_dims=$(embedding_validator::get_model_dimensions "$model"); then
         log::error "Failed to get dimensions for model: $model"
         return 1
     fi
     
     # Get collection dimensions
     local collection_dims
-    if ! collection_dims=$(embedding::get_collection_dimensions "$collection"); then
+    if ! collection_dims=$(embedding_validator::get_collection_dimensions "$collection"); then
         log::error "Failed to get dimensions for collection: $collection"
         return 1
     fi
@@ -176,19 +176,19 @@ embedding::validate_compatibility() {
 # Returns:
 #   0 on success, 1 on failure
 #######################################
-embedding::generate_validated() {
+embedding_validator::generate_validated() {
     local model="$1"
     local input="$2"
     local collection="${3:-}"
     
     # Validate model first
-    if ! embedding::validate_model "$model"; then
+    if ! embedding_validator::validate_model "$model"; then
         return 1
     fi
     
     # Validate compatibility if collection specified
     if [[ -n "$collection" ]]; then
-        if ! embedding::validate_compatibility "$model" "$collection"; then
+        if ! embedding_validator::validate_compatibility "$model" "$collection"; then
             log::error "Aborting embedding generation due to compatibility issues"
             return 1
         fi
@@ -231,7 +231,7 @@ embedding::generate_validated() {
 # Returns:
 #   0 on success, 1 on failure
 #######################################
-embedding::insert_validated() {
+embedding_validator::insert_validated() {
     local collection="$1"
     local point_id="$2"
     local vector="$3"
@@ -244,7 +244,7 @@ embedding::insert_validated() {
     vector_dims=$(echo "$vector" | jq 'length')
     
     local collection_dims
-    if ! collection_dims=$(embedding::get_collection_dimensions "$collection"); then
+    if ! collection_dims=$(embedding_validator::get_collection_dimensions "$collection"); then
         return 1
     fi
     
@@ -304,7 +304,7 @@ embedding::insert_validated() {
 # Returns:
 #   0 on success, 1 on failure
 #######################################
-embedding::pipeline_validated() {
+embedding_validator::pipeline_validated() {
     local model="$1"
     local input="$2"
     local collection="$3"
@@ -318,7 +318,7 @@ embedding::pipeline_validated() {
     
     # Generate embedding with validation
     local embedding_response
-    if ! embedding_response=$(embedding::generate_validated "$model" "$input" "$collection"); then
+    if ! embedding_response=$(embedding_validator::generate_validated "$model" "$input" "$collection"); then
         log::error "Pipeline failed at embedding generation"
         return 1
     fi
@@ -328,7 +328,7 @@ embedding::pipeline_validated() {
     vector=$(echo "$embedding_response" | jq '.embeddings[0]')
     
     # Insert with validation
-    if embedding::insert_validated "$collection" "$point_id" "$vector" "$payload"; then
+    if embedding_validator::insert_validated "$collection" "$point_id" "$vector" "$payload"; then
         log::success "🎉 Pipeline completed successfully!"
         return 0
     else
@@ -342,7 +342,7 @@ embedding::pipeline_validated() {
 # Returns:
 #   0 if all systems healthy, 1 otherwise
 #######################################
-embedding::diagnose() {
+embedding_validator::diagnose() {
     log::header "🔍 Embedding System Diagnostics"
     
     local all_healthy=true
@@ -367,7 +367,7 @@ embedding::diagnose() {
     
     # Check recommended model
     log::info "Checking recommended embedding model..."
-    if embedding::validate_model "nomic-embed-text:latest" >/dev/null 2>&1; then
+    if embedding_validator::validate_model "nomic-embed-text:latest" >/dev/null 2>&1; then
         log::success "✅ nomic-embed-text:latest is available"
     else
         log::warn "⚠️  nomic-embed-text:latest not available"
@@ -398,5 +398,5 @@ embedding::diagnose() {
 
 # If script is run directly, run diagnostics
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    embedding::diagnose
+    embedding_validator::diagnose
 fi

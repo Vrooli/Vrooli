@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Define the current directory
-LIB_UTILS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
+# Source var.sh with relative path first
 # shellcheck disable=SC1091
-source "$LIB_UTILS_DIR/var.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091

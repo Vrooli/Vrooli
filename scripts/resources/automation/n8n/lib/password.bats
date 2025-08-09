@@ -1,34 +1,35 @@
 #!/usr/bin/env bats
 # Tests for n8n password.sh functions
 
-# Setup for each test
+# Load Vrooli test infrastructure (REQUIRED)
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
+
+# Expensive setup operations (run once per file)
+setup_file() {
+    # Use appropriate setup function
+    vrooli_setup_service_test "n8n"
+    
+    # Export paths for use in setup()
+    export SETUP_FILE_SCRIPT_DIR="${BATS_TEST_DIRNAME}"
+    export SETUP_FILE_N8N_DIR="$(dirname "${BATS_TEST_DIRNAME}")"
+}
+
+# Lightweight per-test setup
 setup() {
-    # Load shared test infrastructure with timeout protection
-    timeout 10s bash -c 'source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"' || {
-        echo "WARNING: common_setup.bash took too long, using fallback mocks" >&2
-        export MOCK_RESPONSES_DIR="${BATS_TEST_TMPDIR:-/tmp}/mock_responses"
-        mkdir -p "$MOCK_RESPONSES_DIR"
-    }
+    # Setup standard mocks
+    vrooli_auto_setup
     
-    # Setup standard mocks with timeout protection
-    timeout 5s vrooli_auto_setup 2>/dev/null || {
-        echo "WARNING: vrooli_auto_setup failed, using minimal setup" >&2
-        export FORCE="${FORCE:-no}"
-        export YES="${YES:-no}"
-        export OUTPUT_FORMAT="${OUTPUT_FORMAT:-text}"
-    }
+    # Use paths from setup_file
+    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
+    N8N_DIR="${SETUP_FILE_N8N_DIR}"
     
-    # Set test environment
+    # Set test environment BEFORE sourcing config files to avoid readonly conflicts
     export N8N_CUSTOM_PORT="5678"
     export N8N_CONTAINER_NAME="n8n-test"
     export N8N_DATA_DIR="/tmp/n8n-test"
     export N8N_BASIC_AUTH_USER="admin"
     export N8N_BASIC_AUTH_PASSWORD="password123"
     export YES="no"
-    
-    # Load dependencies
-    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
-    N8N_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Create test directory
     mkdir -p "$N8N_DATA_DIR"

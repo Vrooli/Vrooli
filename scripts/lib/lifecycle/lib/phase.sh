@@ -4,24 +4,26 @@
 
 set -euo pipefail
 
-# Get script directory
-LIB_LIFECYCLE_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Determine script directory
+_HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck disable=SC1091
-source "$LIB_LIFECYCLE_LIB_DIR/../../utils/var.sh"
+source "${_HERE}/../../utils/var.sh"
 
 # Guard against re-sourcing
 [[ -n "${_PHASE_MODULE_LOADED:-}" ]] && return 0
 declare -gr _PHASE_MODULE_LOADED=1
 
 # Source dependencies
-# shellcheck source=./config.sh
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
 source "$var_LIB_LIFECYCLE_DIR/lib/config.sh"
-# shellcheck source=./targets.sh
+# shellcheck disable=SC1091
 source "$var_LIB_LIFECYCLE_DIR/lib/targets.sh"
-# shellcheck source=./parallel.sh
+# shellcheck disable=SC1091
 source "$var_LIB_LIFECYCLE_DIR/lib/parallel.sh"
-# shellcheck source=./condition.sh
+# shellcheck disable=SC1091
 source "$var_LIB_LIFECYCLE_DIR/lib/condition.sh"
 
 # Phase execution state
@@ -43,8 +45,8 @@ phase::execute() {
     
     # Load phase configuration
     if ! config::get_phase "$phase_name"; then
-        phase::log_error "Phase not found: $phase_name"
-        phase::log_info "Available phases:"
+        log::error "Phase not found: $phase_name"
+        log::info "Available phases:"
         config::list_phases | sed 's/^/  - /'
         return 1
     fi
@@ -57,13 +59,13 @@ phase::execute() {
     
     # Check requirements
     if ! phase::check_requirements; then
-        phase::log_error "Requirements not met for phase: $phase_name"
+        log::error "Requirements not met for phase: $phase_name"
         return 1
     fi
     
     # Prompt for confirmation if needed
     if ! phase::confirm_execution; then
-        phase::log_info "Phase execution cancelled by user"
+        log::info "Phase execution cancelled by user"
         return 0
     fi
     
@@ -152,7 +154,7 @@ phase::check_requirements() {
         return 0
     fi
     
-    phase::log_info "Checking requirements..."
+    log::info "Checking requirements..."
     
     # Parse requirements array
     local req_count
@@ -191,33 +193,33 @@ phase::check_single_requirement() {
         command:*)
             local cmd="${req#command:}"
             if ! command -v "$cmd" >/dev/null 2>&1; then
-                phase::log_error "Required command not found: $cmd"
+                log::error "Required command not found: $cmd"
                 return 1
             fi
             ;;
         file:*)
             local file="${req#file:}"
             if [[ ! -f "$file" ]]; then
-                phase::log_error "Required file not found: $file"
+                log::error "Required file not found: $file"
                 return 1
             fi
             ;;
         dir:*)
             local dir="${req#dir:}"
             if [[ ! -d "$dir" ]]; then
-                phase::log_error "Required directory not found: $dir"
+                log::error "Required directory not found: $dir"
                 return 1
             fi
             ;;
         phase:*)
             local phase="${req#phase:}"
             # Check if phase was previously completed (would need state tracking)
-            phase::log_info "Requires prior phase: $phase"
+            log::info "Requires prior phase: $phase"
             ;;
         *)
             # Treat as command by default
             if ! command -v "$req" >/dev/null 2>&1; then
-                phase::log_error "Required command not found: $req"
+                log::error "Required command not found: $req"
                 return 1
             fi
             ;;
@@ -252,11 +254,11 @@ phase::confirm_execution() {
     
     # Skip confirmation if non-interactive
     if [[ ! -t 0 ]] || [[ "${CI:-false}" == "true" ]]; then
-        phase::log_warning "Non-interactive mode, skipping confirmation"
+        log::warning "Non-interactive mode, skipping confirmation"
         return 0
     fi
     
-    phase::log_warning "This action requires confirmation"
+    log::warning "This action requires confirmation"
     read -rp "Continue? (y/N): " response
     
     if [[ "$response" =~ ^[Yy]$ ]]; then
@@ -297,7 +299,7 @@ phase::setup_environment() {
         
         if [[ -n "$target_env" ]]; then
             while IFS= read -r env_pair; do
-                export "$env_pair"
+                eval "export $env_pair"
             done <<< "$target_env"
         fi
     fi
@@ -320,10 +322,10 @@ phase::execute_hook() {
         return 0
     fi
     
-    phase::log_info "Executing ${hook_type}-phase hooks..."
+    log::info "Executing ${hook_type}-phase hooks..."
     
     if ! parallel::execute_sequential "$hook_steps"; then
-        phase::log_error "${hook_type^}-phase hooks failed"
+        log::error "${hook_type^}-phase hooks failed"
         return 1
     fi
     
@@ -344,16 +346,16 @@ phase::execute_steps() {
     # Check for universal phase handler first
     local universal_handler="$var_LIB_LIFECYCLE_DIR/phases/${phase_name}.sh"
     if [[ -f "$universal_handler" ]]; then
-        phase::log_info "Executing universal phase handler: $phase_name"
+        log::info "Executing universal phase handler: $phase_name"
         
         # Export phase name for handler to use
         export LIFECYCLE_PHASE="$phase_name"
         
         # Execute the universal handler
         if bash "$universal_handler"; then
-            phase::log_success "Universal phase handler completed successfully"
+            log::success "Universal phase handler completed successfully"
         else
-            phase::log_error "Universal phase handler failed"
+            log::error "Universal phase handler failed"
             return 1
         fi
         
@@ -369,10 +371,10 @@ phase::execute_steps() {
     universal_steps=$(config::get_phase_steps "steps")
     
     if [[ "$universal_steps" != "[]" ]] && [[ "$universal_steps" != "null" ]]; then
-        phase::log_info "Executing service.json defined steps..."
+        log::info "Executing service.json defined steps..."
         
         if ! parallel::execute_sequential "$universal_steps"; then
-            phase::log_error "Service.json steps failed"
+            log::error "Service.json steps failed"
             return 1
         fi
     fi
@@ -387,26 +389,26 @@ phase::execute_steps() {
             target_steps=$(echo "$target_config" | jq '.steps // []')
             
             if [[ "$target_steps" != "[]" ]]; then
-                phase::log_info "Executing target-specific steps for: $target"
+                log::info "Executing target-specific steps for: $target"
                 
                 if ! parallel::execute_sequential "$target_steps"; then
-                    phase::log_error "Target steps failed"
+                    log::error "Target steps failed"
                     return 1
                 fi
             fi
         fi
     elif [[ $(config::get_targets) != "{}" ]]; then
         # No target specified but targets exist
-        phase::log_warning "No target specified. Available targets:"
+        log::warning "No target specified. Available targets:"
         targets::list | sed 's/^/  - /'
         
         # Check for default target
         if config::target_exists "default"; then
-            phase::log_info "Using default target configuration"
+            log::info "Using default target configuration"
             phase::execute_steps "default"
             return $?
         else
-            phase::log_info "Use --target <name> to specify target"
+            log::info "Use --target <name> to specify target"
         fi
     fi
     
@@ -423,7 +425,7 @@ phase::execute_steps() {
 phase::execute_subphase() {
     local subphase="$1"
     
-    phase::log_info "Executing sub-phase: $subphase"
+    log::info "Executing sub-phase: $subphase"
     
     # Temporarily save current phase
     local saved_phase="$LIFECYCLE_PHASE"
@@ -458,19 +460,19 @@ phase::get_stats() {
 #######################################
 # Logging functions
 #######################################
-phase::log_info() {
+log::info() {
     echo "[INFO] $*" >&2
 }
 
-phase::log_success() {
+log::success() {
     echo "[SUCCESS] $*" >&2
 }
 
-phase::log_warning() {
+log::warning() {
     echo "[WARNING] $*" >&2
 }
 
-phase::log_error() {
+log::error() {
     echo "[ERROR] $*" >&2
 }
 

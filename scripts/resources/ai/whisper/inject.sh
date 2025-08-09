@@ -8,11 +8,18 @@ set -euo pipefail
 DESCRIPTION="Inject models and configurations into Whisper speech-to-text service"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
 
-# Source common utilities
+# Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+
+# Source common utilities using var.sh variables
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
 
 # Source Whisper configuration if available
 if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
@@ -281,7 +288,7 @@ whisper_inject::validate_config() {
             fi
             
             # Check if file exists
-            local audio_path="$VROOLI_PROJECT_ROOT/$file"
+            local audio_path="$var_ROOT_DIR/$file"
             if [[ ! -f "$audio_path" ]]; then
                 log::error "Audio file not found: $audio_path"
                 return 1
@@ -361,7 +368,7 @@ whisper_inject::upload_audio() {
     name=$(echo "$audio_config" | jq -r '.name // empty')
     
     # Resolve file path
-    local audio_path="$VROOLI_PROJECT_ROOT/$file"
+    local audio_path="$var_ROOT_DIR/$file"
     
     if [[ -z "$name" ]]; then
         name=$(basename "$file")

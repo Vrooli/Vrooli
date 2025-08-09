@@ -3,11 +3,10 @@
 # Handles TCP-specific fixes like TSO, MTU, ECN, etc.
 set -eo pipefail
 
-# Script directory
+# Source var.sh with relative path first
 LIB_NETWORK_DIAGNOSTICS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
 # shellcheck disable=SC1091
-source "${LIB_NETWORK_DIAGNOSTICS_DIR}/../../../lib/utils/var.sh"
+source "${LIB_NETWORK_DIAGNOSTICS_DIR}/../../utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
@@ -92,23 +91,28 @@ network_diagnostics_tcp::check_tcp_settings() {
     log::info "Checking TCP settings..."
     
     # Check TCP congestion control
-    local congestion_control=$(sysctl net.ipv4.tcp_congestion_control 2>/dev/null | awk '{print $3}')
+    local congestion_control
+    congestion_control=$(sysctl net.ipv4.tcp_congestion_control 2>/dev/null | awk '{print $3}')
     log::info "  TCP congestion control: ${congestion_control:-unknown}"
     
     # Check TCP keepalive settings
-    local keepalive_time=$(sysctl net.ipv4.tcp_keepalive_time 2>/dev/null | awk '{print $3}')
+    local keepalive_time
+    keepalive_time=$(sysctl net.ipv4.tcp_keepalive_time 2>/dev/null | awk '{print $3}')
     log::info "  TCP keepalive time: ${keepalive_time:-unknown} seconds"
     
     # Check TCP window scaling
-    local window_scaling=$(sysctl net.ipv4.tcp_window_scaling 2>/dev/null | awk '{print $3}')
+    local window_scaling
+    window_scaling=$(sysctl net.ipv4.tcp_window_scaling 2>/dev/null | awk '{print $3}')
     log::info "  TCP window scaling: ${window_scaling:-unknown}"
     
     # Check TCP timestamps
-    local timestamps=$(sysctl net.ipv4.tcp_timestamps 2>/dev/null | awk '{print $3}')
+    local timestamps
+    timestamps=$(sysctl net.ipv4.tcp_timestamps 2>/dev/null | awk '{print $3}')
     log::info "  TCP timestamps: ${timestamps:-unknown}"
     
     # Check ECN
-    local ecn=$(sysctl net.ipv4.tcp_ecn 2>/dev/null | awk '{print $3}')
+    local ecn
+    ecn=$(sysctl net.ipv4.tcp_ecn 2>/dev/null | awk '{print $3}')
     log::info "  TCP ECN: ${ecn:-unknown}"
     
     return 0
@@ -158,7 +162,8 @@ network_diagnostics_tcp::fix_mtu_size() {
                 fi
             elif command -v nmcli >/dev/null 2>&1; then
                 # NetworkManager
-                local connection=$(nmcli -t -f NAME,DEVICE con show --active | grep ":$interface" | cut -d: -f1)
+                local connection
+                connection=$(nmcli -t -f NAME,DEVICE con show --active | grep ":$interface" | cut -d: -f1)
                 if [[ -n "$connection" ]]; then
                     sudo nmcli con mod "$connection" ethernet.mtu "$new_mtu" 2>/dev/null
                     log::success "  ✓ Made MTU change permanent in NetworkManager"
@@ -216,7 +221,7 @@ network_diagnostics_tcp::test_mtu_discovery() {
         local working_mtu=""
         
         for mtu in "${mtu_sizes[@]}"; do
-            if ping -M do -s $((mtu - 28)) -c 1 -W 2 "$target" >/dev/null 2>&1; then
+            if ping -M "do" -s $((mtu - 28)) -c 1 -W 2 "$target" >/dev/null 2>&1; then
                 working_mtu=$mtu
                 break
             fi
@@ -240,7 +245,8 @@ network_diagnostics_tcp::test_mtu_discovery() {
 network_diagnostics_tcp::check_pmtu_status() {
     log::info "Checking Path MTU discovery status..."
     
-    local mtu_probing=$(sysctl net.ipv4.tcp_mtu_probing 2>/dev/null | awk '{print $3}')
+    local mtu_probing
+    mtu_probing=$(sysctl net.ipv4.tcp_mtu_probing 2>/dev/null | awk '{print $3}')
     case "$mtu_probing" in
         0) log::info "  PMTU probing: Disabled" ;;
         1) log::info "  PMTU probing: Enabled (disabled by default)" ;;
@@ -248,7 +254,8 @@ network_diagnostics_tcp::check_pmtu_status() {
         *) log::info "  PMTU probing: Unknown status" ;;
     esac
     
-    local base_mss=$(sysctl net.ipv4.tcp_base_mss 2>/dev/null | awk '{print $3}')
+    local base_mss
+    base_mss=$(sysctl net.ipv4.tcp_base_mss 2>/dev/null | awk '{print $3}')
     log::info "  TCP base MSS: ${base_mss:-unknown}"
     
     return 0

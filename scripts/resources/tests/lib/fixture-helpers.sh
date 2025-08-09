@@ -4,30 +4,35 @@
 
 set -euo pipefail
 
+_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck disable=SC1091
+source "${_HERE}/../../../../lib/utils/var.sh"
+
 # Fixture data base path
-FIXTURE_BASE="${FIXTURE_BASE:-$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../__test/fixtures/data" && pwd)}"
+FIXTURE_BASE="${FIXTURE_BASE:-${var_SCRIPTS_TEST_DIR}/fixtures/data}"
 
 #######################################
 # FIXTURE PATH HELPERS
 #######################################
 
 # Get path to audio fixtures
-get_audio_fixture_path() {
+fixture_helpers::get_audio_fixture_path() {
     echo "$FIXTURE_BASE/audio"
 }
 
 # Get path to document fixtures
-get_document_fixture_path() {
+fixture_helpers::get_document_fixture_path() {
     echo "$FIXTURE_BASE/documents"
 }
 
 # Get path to image fixtures
-get_image_fixture_path() {
+fixture_helpers::get_image_fixture_path() {
     echo "$FIXTURE_BASE/images"
 }
 
 # Get path to workflow fixtures
-get_workflow_fixture_path() {
+fixture_helpers::get_workflow_fixture_path() {
     echo "$FIXTURE_BASE/workflows"
 }
 
@@ -36,9 +41,9 @@ get_workflow_fixture_path() {
 #######################################
 
 # Get a test audio file for speech transcription
-get_speech_audio_fixture() {
+fixture_helpers::get_speech_audio_fixture() {
     local type="${1:-short}"
-    local audio_dir="$(get_audio_fixture_path)"
+    local audio_dir="$(fixture_helpers::get_audio_fixture_path)"
     
     case "$type" in
         "short")
@@ -69,7 +74,7 @@ get_speech_audio_fixture() {
 }
 
 # Get expected transcription for validation
-get_expected_transcription() {
+fixture_helpers::get_expected_transcription() {
     local audio_file="$1"
     local filename=$(basename "$audio_file")
     
@@ -92,10 +97,10 @@ get_expected_transcription() {
 #######################################
 
 # Get a test document for processing
-get_document_fixture() {
+fixture_helpers::get_document_fixture() {
     local type="${1:-pdf}"
     local subtype="${2:-simple}"
-    local doc_dir="$(get_document_fixture_path)"
+    local doc_dir="$(fixture_helpers::get_document_fixture_path)"
     
     case "$type" in
         "pdf")
@@ -152,10 +157,10 @@ get_document_fixture() {
 #######################################
 
 # Get a test image for processing
-get_image_fixture() {
+fixture_helpers::get_image_fixture() {
     local type="${1:-synthetic}"
     local subtype="${2:-small}"
-    local image_dir="$(get_image_fixture_path)"
+    local image_dir="$(fixture_helpers::get_image_fixture_path)"
     
     case "$type" in
         "synthetic")
@@ -204,10 +209,10 @@ get_image_fixture() {
 #######################################
 
 # Get a workflow fixture for testing
-get_workflow_fixture() {
+fixture_helpers::get_workflow_fixture() {
     local platform="${1:-n8n}"
     local type="${2:-default}"
-    local workflow_dir="$(get_workflow_fixture_path)"
+    local workflow_dir="$(fixture_helpers::get_workflow_fixture_path)"
     
     case "$platform" in
         "n8n")
@@ -253,7 +258,7 @@ get_workflow_fixture() {
 #######################################
 
 # Get test prompts for LLM testing
-get_llm_test_prompts() {
+fixture_helpers::get_llm_test_prompts() {
     cat <<EOF
 [
     {
@@ -291,15 +296,15 @@ EOF
 }
 
 # Get a specific test prompt
-get_llm_test_prompt() {
+fixture_helpers::get_llm_test_prompt() {
     local prompt_id="${1:-simple_greeting}"
-    get_llm_test_prompts | jq -r ".[] | select(.id == \"$prompt_id\") | .prompt"
+    fixture_helpers::get_llm_test_prompts | jq -r ".[] | select(.id == \"$prompt_id\") | .prompt"
 }
 
 # Get expected pattern for a prompt
-get_llm_expected_pattern() {
+fixture_helpers::get_llm_expected_pattern() {
     local prompt_id="$1"
-    get_llm_test_prompts | jq -r ".[] | select(.id == \"$prompt_id\") | .expected_pattern"
+    fixture_helpers::get_llm_test_prompts | jq -r ".[] | select(.id == \"$prompt_id\") | .expected_pattern"
 }
 
 #######################################
@@ -307,7 +312,7 @@ get_llm_expected_pattern() {
 #######################################
 
 # Check if a file exists and is readable
-validate_fixture_file() {
+fixture_helpers::validate_fixture_file() {
     local file="$1"
     
     if [[ ! -f "$file" ]]; then
@@ -324,7 +329,7 @@ validate_fixture_file() {
 }
 
 # Validate transcription accuracy (fuzzy match)
-validate_transcription() {
+fixture_helpers::validate_transcription() {
     local actual="$1"
     local expected="$2"
     local threshold="${3:-0.7}"  # 70% similarity by default
@@ -346,16 +351,21 @@ validate_transcription() {
     
     local similarity
     if [[ ${#expected_words[@]} -gt 0 ]]; then
-        similarity=$(echo "scale=2; $matches / ${#expected_words[@]}" | bc)
+        # Calculate similarity as percentage (multiply by 100 for integer math)
+        similarity=$((matches * 100 / ${#expected_words[@]}))
     else
         similarity=0
     fi
     
+    # Convert threshold to percentage for comparison (e.g., 0.7 -> 70)
+    local threshold_percent
+    threshold_percent=$(awk "BEGIN{print int($threshold * 100)}")
+    
     # Check if similarity meets threshold
-    if (( $(echo "$similarity >= $threshold" | bc -l) )); then
+    if [[ $similarity -ge $threshold_percent ]]; then
         return 0
     else
-        echo "Transcription validation failed. Similarity: $similarity (threshold: $threshold)" >&2
+        echo "Transcription validation failed. Similarity: ${similarity}% (threshold: ${threshold_percent}%)" >&2
         echo "Expected: $expected" >&2
         echo "Actual: $actual" >&2
         return 1
@@ -363,7 +373,7 @@ validate_transcription() {
 }
 
 # Validate JSON structure
-validate_json_structure() {
+fixture_helpers::validate_json_structure() {
     local json="$1"
     local expected_keys="${2:-}"
     
@@ -387,7 +397,7 @@ validate_json_structure() {
 }
 
 # Validate LLM response against pattern
-validate_llm_response() {
+fixture_helpers::validate_llm_response() {
     local response="$1"
     local pattern="$2"
     
@@ -406,15 +416,15 @@ validate_llm_response() {
 #######################################
 
 # Get path to negative test fixtures
-get_negative_fixture_path() {
+fixture_helpers::get_negative_fixture_path() {
     echo "$FIXTURE_BASE/negative-tests"
 }
 
 # Get a fixture that should fail processing
-get_negative_fixture() {
+fixture_helpers::get_negative_fixture() {
     local type="${1:-document}"
     local subtype="${2:-invalid}"
-    local negative_dir="$(get_negative_fixture_path)"
+    local negative_dir="$(fixture_helpers::get_negative_fixture_path)"
     
     case "$type" in
         "audio")
@@ -524,7 +534,7 @@ get_negative_fixture() {
 }
 
 # Test that a service properly handles invalid input
-test_negative_case() {
+fixture_helpers::test_negative_case() {
     local service_name="$1"
     local fixture_file="$2"
     local expected_behavior="${3:-error}"  # error, skip, or sanitize
@@ -557,22 +567,22 @@ test_negative_case() {
 }
 
 # Export all functions for use in tests
-export -f get_audio_fixture_path
-export -f get_document_fixture_path
-export -f get_image_fixture_path
-export -f get_workflow_fixture_path
-export -f get_negative_fixture_path
-export -f get_speech_audio_fixture
-export -f get_expected_transcription
-export -f get_document_fixture
-export -f get_image_fixture
-export -f get_workflow_fixture
-export -f get_llm_test_prompts
-export -f get_llm_test_prompt
-export -f get_llm_expected_pattern
-export -f validate_fixture_file
-export -f validate_transcription
-export -f validate_json_structure
-export -f validate_llm_response
-export -f get_negative_fixture
-export -f test_negative_case
+export -f fixture_helpers::get_audio_fixture_path
+export -f fixture_helpers::get_document_fixture_path
+export -f fixture_helpers::get_image_fixture_path
+export -f fixture_helpers::get_workflow_fixture_path
+export -f fixture_helpers::get_negative_fixture_path
+export -f fixture_helpers::get_speech_audio_fixture
+export -f fixture_helpers::get_expected_transcription
+export -f fixture_helpers::get_document_fixture
+export -f fixture_helpers::get_image_fixture
+export -f fixture_helpers::get_workflow_fixture
+export -f fixture_helpers::get_llm_test_prompts
+export -f fixture_helpers::get_llm_test_prompt
+export -f fixture_helpers::get_llm_expected_pattern
+export -f fixture_helpers::validate_fixture_file
+export -f fixture_helpers::validate_transcription
+export -f fixture_helpers::validate_json_structure
+export -f fixture_helpers::validate_llm_response
+export -f fixture_helpers::get_negative_fixture
+export -f fixture_helpers::test_negative_case

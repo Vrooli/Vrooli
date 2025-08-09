@@ -22,7 +22,7 @@ source "${var_LIB_UTILS_DIR}/exit_codes.sh"
 # Global variable to store original Docker env to revert
 ORIGINAL_DOCKER_ENV=""
 
-develop::k8s_revert_docker_env() {
+k8s_cluster::revert_docker_env() {
     if [[ -n "$ORIGINAL_DOCKER_ENV" ]]; then
         log::info "Reverting Docker environment..."
         eval "$ORIGINAL_DOCKER_ENV"
@@ -31,7 +31,7 @@ develop::k8s_revert_docker_env() {
     fi
 }
 
-develop::k8s_ensure_minikube_running() {
+k8s_cluster::ensure_minikube_running() {
     log::info "Checking Minikube status..."
     if ! minikube status &> /dev/null; then
         log::warning "Minikube does not appear to be running."
@@ -75,23 +75,23 @@ develop::k8s_ensure_minikube_running() {
     fi
 }
 
-develop::k8s_cleanup() {
+k8s_cluster::cleanup() {
     log::info "🔧 Cleaning up Kubernetes development environment..."
-    develop::k8s_revert_docker_env
+    k8s_cluster::revert_docker_env
     exit "$EXIT_USER_INTERRUPT"
 }
 
-develop::k8s_cluster_main() {
+k8s_cluster::main() {
     log::header "🚀 Starting Kubernetes Development Environment Setup (Target: k8s-cluster)"
 
     # The main develop.sh script sources setup.sh, which for k8s-cluster target,
     # should have installed kubectl, helm, and minikube and potentially started minikube.
     # We'll re-verify minikube status here.
-    develop::k8s_ensure_minikube_running
+    k8s_cluster::ensure_minikube_running
 
     # Trap to cleanup on exit
-    trap develop::k8s_cleanup SIGINT SIGTERM
-    trap develop::k8s_revert_docker_env EXIT
+    trap k8s_cluster::cleanup SIGINT SIGTERM
+    trap k8s_cluster::revert_docker_env EXIT
 
     log::info "Configuring shell to use Minikube's Docker daemon..."
     # Save current Docker environment variables to revert later
@@ -183,7 +183,7 @@ develop::k8s_cluster_main() {
     fi
 
     # Revert Docker env explicitly before exiting, though trap should also catch it.
-    develop::k8s_revert_docker_env
+    k8s_cluster::revert_docker_env
     log::success "Kubernetes Development script finished."
 }
 
@@ -192,4 +192,4 @@ develop::k8s_cluster_main() {
 # bash "scripts/app/lifecycle/develop/target/k8s_cluster.sh" "$@"
 # So, we can assume this script itself might be called with arguments,
 # but the primary arguments from CLI are already parsed and exported as env vars by the parent.
-develop::k8s_cluster_main "$@"
+k8s_cluster::main "$@"

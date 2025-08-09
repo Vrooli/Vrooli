@@ -1,6 +1,7 @@
 #!/usr/bin/env bats
 # Tests for Node-RED common functions (lib/common.sh)
 
+# shellcheck disable=SC1091
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 setup() {

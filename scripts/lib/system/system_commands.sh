@@ -2,10 +2,9 @@
 # system.sh - Cross-platform package manager helpers
 set -euo pipefail
 
-LIB_SYSTEM_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
+# Source var.sh with relative path first
 # shellcheck disable=SC1091
-source "$LIB_SYSTEM_DIR/../utils/var.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../utils/var.sh"
 # shellcheck disable=SC1091
 source "$var_LIB_UTILS_DIR/exit_codes.sh"
 # shellcheck disable=SC1091

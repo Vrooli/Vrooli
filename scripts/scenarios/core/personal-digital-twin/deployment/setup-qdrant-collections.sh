@@ -7,14 +7,16 @@ set -euo pipefail
 ################################################################################
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+
 SCENARIO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 QDRANT_HOST="${QDRANT_HOST:-localhost}"
 QDRANT_PORT="${QDRANT_PORT:-6333}"
 QDRANT_API_URL="http://${QDRANT_HOST}:${QDRANT_PORT}"
-
-log::info() { echo "[INFO] $*"; }
-log::error() { echo "[ERROR] $*" >&2; }
-log::success() { echo "[SUCCESS] $*"; }
 
 # Wait for Qdrant to be ready
 log::info "Waiting for Qdrant to be ready..."

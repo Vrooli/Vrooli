@@ -2,10 +2,12 @@
 # Node-RED Configuration Defaults
 # All configuration constants and default values
 
-# Source common functions for port registry access
-NODE_RED_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Source var.sh first to get standard directory variables
+NODE_RED_CONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "${NODE_RED_DIR}/../../common.sh"
+source "${NODE_RED_CONFIG_DIR}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 
 # Node-RED port configuration
 readonly NODE_RED_PORT="${NODE_RED_CUSTOM_PORT:-$(resources::get_default_port "node-red")}"
@@ -28,7 +30,8 @@ readonly OFFICIAL_IMAGE="nodered/node-red:latest"
 
 # Default settings
 readonly DEFAULT_FLOW_FILE="flows.json"
-readonly DEFAULT_SECRET=$(openssl rand -hex 32 2>/dev/null || echo "default-insecure-secret")
+DEFAULT_SECRET=$(openssl rand -hex 32 2>/dev/null || echo "default-insecure-secret")
+readonly DEFAULT_SECRET
 
 # Health check configuration
 readonly NODE_RED_HEALTH_CHECK_INTERVAL=5

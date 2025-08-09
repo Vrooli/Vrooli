@@ -3,27 +3,8 @@
 # Workflow execution, API key management, and REST API interactions
 
 # Source shared secrets management library
-# Use the same project root detection method as the secrets library
-_api_detect_project_root() {
-    local current_dir
-    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    
-    # Walk up directory tree looking for .vrooli directory
-    while [[ "$current_dir" != "/" ]]; do
-        if [[ -d "$current_dir/.vrooli" ]]; then
-            echo "$current_dir"
-            return 0
-        fi
-        current_dir="$(dirname "$current_dir")"
-    done
-    
-    # Fallback: assume we're in scripts and go up to project root
-    echo "/home/matthalloran8/Vrooli"
-}
-
-PROJECT_ROOT="$(_api_detect_project_root)"
 # shellcheck disable=SC1091
-source "$PROJECT_ROOT/scripts/lib/service/secrets.sh"
+source "${var_LIB_SERVICE_DIR}/secrets.sh"
 
 #######################################
 # Execute workflow via API

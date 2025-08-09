@@ -3,20 +3,18 @@
 # Detects and manages running application instances across Docker and native deployments
 set -euo pipefail
 
-LIB_SERVICE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
 # shellcheck disable=SC1091
-source "${LIB_SERVICE_DIR}/../utils/var.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/flow.sh"
+source "${var_FLOW_FILE}"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
+source "${var_SYSTEM_COMMANDS_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/docker.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/exit_codes.sh"
+source "${var_EXIT_CODES_FILE}"
 
 # Data structures to hold instance information
 declare -gA DOCKER_INSTANCES=()
@@ -82,6 +80,12 @@ instance::load_config() {
             while IFS= read -r service; do
                 [[ -n "$service" ]] && APP_SERVICES+=("$service")
             done <<< "$config_services"
+            
+            # Ensure we have at least some services
+            if [[ ${#APP_SERVICES[@]} -eq 0 ]]; then
+                log::debug "No services configured, using defaults"
+                APP_SERVICES=("server" "ui" "database")
+            fi
         fi
         
         # Load ports object
@@ -175,6 +179,12 @@ instance::get_docker_containers() {
         return 0
     fi
     
+    # Check if we got any containers
+    if [[ -z "$containers_json" ]]; then
+        log::debug "No Docker containers found"
+        return 0
+    fi
+    
     # Parse containers and filter for app patterns
     while IFS= read -r container_json; do
         [[ -z "$container_json" ]] && continue
@@ -198,12 +208,14 @@ instance::get_docker_containers() {
                     fi
                 done
                 
-                # Store container info
-                DOCKER_INSTANCES["${service}_container"]="$name"
-                DOCKER_INSTANCES["${service}_id"]="$id"
-                DOCKER_INSTANCES["${service}_state"]="$state"
-                DOCKER_INSTANCES["${service}_created"]="$created_at"
-                DOCKER_INSTANCES["${service}_ports"]="$ports"
+                # Store container info - ensure all values are safe to store
+                if [[ -n "$name" ]] && [[ -n "$service" ]]; then
+                    DOCKER_INSTANCES["${service}_container"]="$name"
+                    [[ -n "$id" ]] && DOCKER_INSTANCES["${service}_id"]="$id"
+                    [[ -n "$state" ]] && DOCKER_INSTANCES["${service}_state"]="$state"
+                    [[ -n "$created_at" ]] && DOCKER_INSTANCES["${service}_created"]="$created_at"
+                    [[ -n "$ports" ]] && DOCKER_INSTANCES["${service}_ports"]="$ports"
+                fi
                 
                 log::debug "Found Docker container: $name ($service) - $state"
                 break
@@ -289,6 +301,11 @@ instance::get_native_processes() {
         
         if [[ -n "$pids" ]]; then
             for pid in $pids; do
+                # Skip invalid PIDs
+                if ! [[ "$pid" =~ ^[0-9]+$ ]]; then
+                    log::debug "Skipping invalid PID: $pid"
+                    continue
+                fi
                 local info cmd start_time cwd
                 info=$(instance::get_process_info "$pid")
                 IFS='|' read -r cmd start_time cwd <<< "$info"
@@ -332,9 +349,16 @@ instance::get_native_processes() {
     local all_pids=""
     if [[ -n "$pattern_search" ]]; then
         all_pids=$(pgrep -f "$pattern_search" 2>/dev/null || echo "")
+        log::debug "Pattern search '$pattern_search' found PIDs: ${all_pids:-none}"
     fi
     
     for pid in $all_pids; do
+        # Skip invalid PIDs
+        if ! [[ "$pid" =~ ^[0-9]+$ ]]; then
+            log::debug "Skipping invalid PID: $pid"
+            continue
+        fi
+        
         # Skip if we already tracked this PID
         local already_tracked=false
         for service in "${APP_SERVICES[@]}"; do
@@ -524,20 +548,20 @@ instance::shutdown_docker() {
     
     # Add configured compose files from service.json
     for file in "${DOCKER_COMPOSE_FILES[@]}"; do
-        compose_files+=("${var_ROOT_DIR}/$file")
+        [[ -n "$file" ]] && compose_files+=("${var_ROOT_DIR}/$file")
     done
     
     # Try each compose file
     for compose_file in "${compose_files[@]}"; do
         if [[ -f "$compose_file" ]]; then
             log::info "Stopping Docker containers via docker-compose..."
-            cd "$(dirname "$compose_file")"
-            if docker::compose down; then
+            local compose_dir
+            compose_dir="$(dirname "$compose_file")"
+            if (cd "$compose_dir" && docker::compose down); then
                 log::success "Docker containers stopped successfully"
                 return 0
             else
-                log::error "Failed to stop Docker containers"
-                return 1
+                log::warning "Failed to stop Docker containers via $compose_file, trying next..."
             fi
         fi
     done
@@ -640,6 +664,7 @@ instance::shutdown_native() {
     for cmd in node npm pnpm; do
         local cmd_pids
         cmd_pids=$(pgrep -f "$cmd.*${var_ROOT_DIR}" 2>/dev/null || echo "")
+        [[ -z "$cmd_pids" ]] && continue
         
         for pid in $cmd_pids; do
             # Skip if it's in our exclude list
@@ -867,8 +892,11 @@ instance::handle_conflicts() {
 
 # Get preference file path
 instance::get_preference_file() {
-    local app_dir="${HOME}/.${var_APP_NAME:-app}"
-    mkdir -p "$app_dir"
+    local app_dir="${HOME}/.${var_APP_NAME:-vrooli}"
+    if ! mkdir -p "$app_dir"; then
+        log::error "Failed to create preference directory: $app_dir"
+        return 1
+    fi
     echo "$app_dir/.instance_preferences"
 }
 
@@ -877,8 +905,15 @@ instance::save_preference() {
     local action="$1"
     local duration="${2:-86400}"  # Default: 24 hours
     
+    if [[ -z "$action" ]]; then
+        log::error "Action required for saving preference"
+        return 1
+    fi
+    
     local pref_file
-    pref_file=$(instance::get_preference_file)
+    if ! pref_file=$(instance::get_preference_file); then
+        return 1
+    fi
     
     local expiry=$(($(date +%s) + duration))
     
@@ -896,7 +931,9 @@ EOF
 # Load user preference
 instance::load_preference() {
     local pref_file
-    pref_file=$(instance::get_preference_file)
+    if ! pref_file=$(instance::get_preference_file); then
+        return 1
+    fi
     
     if [[ ! -f "$pref_file" ]]; then
         return 0
@@ -923,9 +960,16 @@ instance::load_preference() {
 # Clear saved preferences
 instance::clear_preferences() {
     local pref_file
-    pref_file=$(instance::get_preference_file)
-    rm -f "$pref_file"
-    log::info "Cleared instance preferences"
+    if ! pref_file=$(instance::get_preference_file); then
+        return 1
+    fi
+    
+    if [[ -f "$pref_file" ]]; then
+        rm -f "$pref_file"
+        log::info "Cleared instance preferences"
+    else
+        log::debug "No preference file to clear"
+    fi
 }
 
 # ==============================================================================

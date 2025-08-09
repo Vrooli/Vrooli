@@ -10,6 +10,14 @@ SCENARIO_ID="campaign-content-studio"
 SCENARIO_NAME="Campaign Content Studio"
 LOG_FILE="/tmp/vrooli-${SCENARIO_ID}-startup.log"
 
+# Import Vrooli utilities (if available)  
+if [[ -f "${SCENARIO_DIR}/../../../../lib/utils/var.sh" ]]; then
+    # shellcheck disable=SC1091
+    source "${SCENARIO_DIR}/../../../../lib/utils/var.sh"
+    # shellcheck disable=SC1091
+    source "${var_ROOT_DIR}/scripts/lib/utils/json.sh"
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -51,14 +59,24 @@ load_configuration() {
         exit 1
     fi
     
-    # Extract required resources
-    REQUIRED_RESOURCES=$(jq -r '.resources | to_entries[] | .value | to_entries[] | select(.value.required == true) | .key' "$SCENARIO_DIR/service.json" 2>/dev/null | tr '\n' ' ')
+    # Extract required resources using JSON utilities (if available) or fallback to jq
+    if command -v json::get_required_resources &> /dev/null; then
+        REQUIRED_RESOURCES=$(json::get_required_resources "" "$SCENARIO_DIR/service.json" || echo "")
+    else
+        REQUIRED_RESOURCES=$(jq -r '.resources | to_entries[] | .value | to_entries[] | select(.value.required == true) | .key' "$SCENARIO_DIR/service.json" 2>/dev/null | tr '\n' ' ' || echo "")
+    fi
     log_info "Required resources: $REQUIRED_RESOURCES"
     
-    # Extract configuration
-    REQUIRES_UI=$(jq -r '.deployment.testing.ui.required // false' "$SCENARIO_DIR/service.json" 2>/dev/null || echo "false")
-    REQUIRES_DISPLAY=$(jq -r '.deployment.testing.ui.type // "none"' "$SCENARIO_DIR/service.json" 2>/dev/null || echo "none")
-    TIMEOUT_SECONDS=$(jq -r '.deployment.testing.timeout // "30m"' "$SCENARIO_DIR/service.json" 2>/dev/null | sed 's/[ms]//g' || echo "300")
+    # Extract configuration using JSON utilities (if available) or fallback to jq
+    if command -v json::get_deployment_config &> /dev/null; then
+        REQUIRES_UI=$(json::get_deployment_config 'testing.ui.required' 'false' "$SCENARIO_DIR/service.json")
+        REQUIRES_DISPLAY=$(json::get_deployment_config 'testing.ui.type' 'none' "$SCENARIO_DIR/service.json")
+        TIMEOUT_SECONDS=$(json::get_deployment_config 'testing.timeout' '30m' "$SCENARIO_DIR/service.json" | sed 's/[ms]//g')
+    else
+        REQUIRES_UI=$(jq -r '.deployment.testing.ui.required // false' "$SCENARIO_DIR/service.json" 2>/dev/null || echo "false")
+        REQUIRES_DISPLAY=$(jq -r '.deployment.testing.ui.type // "none"' "$SCENARIO_DIR/service.json" 2>/dev/null || echo "none")
+        TIMEOUT_SECONDS=$(jq -r '.deployment.testing.timeout // "30m"' "$SCENARIO_DIR/service.json" 2>/dev/null | sed 's/[ms]//g' || echo "300")
+    fi
     
     log_info "UI required: $REQUIRES_UI, Display required: $REQUIRES_DISPLAY, Timeout: ${TIMEOUT_SECONDS}s"
 }

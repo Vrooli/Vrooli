@@ -28,7 +28,7 @@ qdrant::common::is_port_available() {
     local port=$1
     
     if command -v lsof >/dev/null 2>&1; then
-        ! lsof -Pi :${port} -sTCP:LISTEN -t >/dev/null 2>&1
+        ! lsof -Pi :"${port}" -sTCP:LISTEN -t >/dev/null 2>&1
     else
         ! netstat -tuln 2>/dev/null | grep -q ":${port} "
     fi

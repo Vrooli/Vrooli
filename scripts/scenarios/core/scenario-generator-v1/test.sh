@@ -5,34 +5,15 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# shellcheck disable=SC1091
+source "$(cd "$SCRIPT_DIR" && cd ../../../lib/utils && pwd)/var.sh"
+# shellcheck disable=SC1091
+source "$var_LOG_FILE"
 
 # Test counters
 TESTS_RUN=0
 TESTS_PASSED=0
 TESTS_FAILED=0
-
-# Logging functions
-log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-log_warn() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
 
 # Test function wrapper
 run_test() {
@@ -40,14 +21,14 @@ run_test() {
     local test_function="$2"
     
     TESTS_RUN=$((TESTS_RUN + 1))
-    log_info "Running test: $test_name"
+    log::info "Running test: $test_name"
     
     if $test_function; then
-        log_success "✅ $test_name"
+        log::success "✅ $test_name"
         TESTS_PASSED=$((TESTS_PASSED + 1))
         return 0
     else
-        log_error "❌ $test_name"
+        log::error "❌ $test_name"
         TESTS_FAILED=$((TESTS_FAILED + 1))
         return 1
     fi
@@ -62,7 +43,7 @@ test_database_schema() {
     
     # Test connection
     if \! timeout 10 psql -h "$postgres_host" -p "$postgres_port" -U "$postgres_user" -d "$postgres_db" -c "SELECT 1;" >/dev/null 2>&1; then
-        log_error "Cannot connect to PostgreSQL database"
+        log::error "Cannot connect to PostgreSQL database"
         return 1
     fi
     
@@ -71,7 +52,7 @@ test_database_schema() {
     
     for table in "${required_tables[@]}"; do
         if \! psql -h "$postgres_host" -p "$postgres_port" -U "$postgres_user" -d "$postgres_db" -c "SELECT 1 FROM $table LIMIT 1;" >/dev/null 2>&1; then
-            log_error "Required table '$table' does not exist or is not accessible"
+            log::error "Required table '$table' does not exist or is not accessible"
             return 1
         fi
     done
@@ -99,7 +80,7 @@ test_scenario_files() {
     
     for file in "${required_files[@]}"; do
         if [ \! -f "$SCRIPT_DIR/$file" ]; then
-            log_error "Required file missing: $file"
+            log::error "Required file missing: $file"
             return 1
         fi
     done
@@ -121,7 +102,7 @@ test_json_validity() {
         local file_path="$SCRIPT_DIR/$json_file"
         if [ -f "$file_path" ]; then
             if \! jq empty < "$file_path" >/dev/null 2>&1; then
-                log_error "Invalid JSON in file: $json_file"
+                log::error "Invalid JSON in file: $json_file"
                 return 1
             fi
         fi
@@ -147,7 +128,7 @@ test_sql_validity() {
         if [ -f "$file_path" ]; then
             # Test SQL syntax by doing a dry run
             if \! timeout 30 psql -h "$postgres_host" -p "$postgres_port" -U "$postgres_user" -d "$postgres_db" --set ON_ERROR_STOP=1 --set AUTOCOMMIT=off -f "$file_path" -v ON_ERROR_STOP=1 >/dev/null 2>&1; then
-                log_error "SQL syntax error or execution error in: $sql_file"
+                log::error "SQL syntax error or execution error in: $sql_file"
                 return 1
             fi
         fi
@@ -158,16 +139,16 @@ test_sql_validity() {
 
 # Test Claude Code integration
 test_claude_code_integration() {
-    local claude_script="${VROOLI_ROOT:-/home/matthalloran8/Vrooli}/scripts/resources/agents/claude-code/manage.sh"
+    local claude_script="$var_SCRIPTS_RESOURCES_DIR/agents/claude-code/manage.sh"
     
     if [ \! -f "$claude_script" ]; then
-        log_error "Claude Code management script not found"
+        log::error "Claude Code management script not found"
         return 1
     fi
     
     # Test basic health check
     if \! bash "$claude_script" --action health-check --check-type basic --format json >/dev/null 2>&1; then
-        log_warn "Claude Code health check failed (may need authentication)"
+        log::warning "Claude Code health check failed (may need authentication)"
         return 1
     fi
     
@@ -179,7 +160,7 @@ test_scenario_configuration() {
     local config_file="$SCRIPT_DIR/scenario-test.yaml"
     
     if [ \! -f "$config_file" ]; then
-        log_error "scenario-test.yaml not found"
+        log::error "scenario-test.yaml not found"
         return 1
     fi
     
@@ -188,7 +169,7 @@ test_scenario_configuration() {
     
     for resource in "${required_resources[@]}"; do
         if \! grep -q "$resource" "$config_file"; then
-            log_error "Required resource '$resource' not found in scenario-test.yaml"
+            log::error "Required resource '$resource' not found in scenario-test.yaml"
             return 1
         fi
     done
@@ -201,18 +182,18 @@ test_deployment_script() {
     local deploy_script="$SCRIPT_DIR/deployment/startup.sh"
     
     if [ \! -f "$deploy_script" ]; then
-        log_error "Deployment script not found"
+        log::error "Deployment script not found"
         return 1
     fi
     
     if [ \! -x "$deploy_script" ]; then
-        log_error "Deployment script is not executable"
+        log::error "Deployment script is not executable"
         return 1
     fi
     
     # Test help command works
     if \! "$deploy_script" help >/dev/null 2>&1; then
-        log_error "Deployment script help command failed"
+        log::error "Deployment script help command failed"
         return 1
     fi
     
@@ -231,7 +212,7 @@ test_sample_data() {
     campaign_count=$(psql -h "$postgres_host" -p "$postgres_port" -U "$postgres_user" -d "$postgres_db" -t -c "SELECT COUNT(*) FROM campaigns;" 2>/dev/null | xargs)
     
     if [ "$campaign_count" -lt 1 ]; then
-        log_error "No sample campaigns found in database"
+        log::error "No sample campaigns found in database"
         return 1
     fi
     
@@ -240,7 +221,7 @@ test_sample_data() {
 
 # Main test function
 main() {
-    log_info "🧪 Starting Scenario Generator V1 Integration Tests"
+    log::info "🧪 Starting Scenario Generator V1 Integration Tests"
     echo ""
     
     # Run all tests
@@ -254,17 +235,17 @@ main() {
     run_test "Claude Code integration" test_claude_code_integration
     
     echo ""
-    log_info "📊 Test Results"
+    log::info "📊 Test Results"
     echo "=============================================="
     echo "Tests Run:    $TESTS_RUN"
     echo "Tests Passed: $TESTS_PASSED"
     echo "Tests Failed: $TESTS_FAILED"
     
     if [ $TESTS_FAILED -eq 0 ]; then
-        log_success "🎉 All tests passed\! Scenario Generator V1 is ready for use."
+        log::success "🎉 All tests passed! Scenario Generator V1 is ready for use."
         exit 0
     else
-        log_error "❌ $TESTS_FAILED tests failed. Please address the issues above."
+        log::error "❌ $TESTS_FAILED tests failed. Please address the issues above."
         exit 1
     fi
 }
@@ -290,9 +271,8 @@ case "${1:-test}" in
         echo "  POSTGRES_USER     PostgreSQL user (default: postgres)"
         ;;
     *)
-        log_error "Unknown command: $1"
-        log_info "Run '$0 help' for usage information"
+        log::error "Unknown command: $1"
+        log::info "Run '$0 help' for usage information"
         exit 1
         ;;
 esac
-TEST_EOF < /dev/null

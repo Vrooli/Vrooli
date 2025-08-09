@@ -119,7 +119,7 @@
       "steps": [
         {
           "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/agent-metareasoning-manager/.vrooli/service.json",
+          "run": "scripts/lib/resources/runtime-engine.sh .",
           "description": "Inject SQL schemas, workflows, and configurations"
         },
         {

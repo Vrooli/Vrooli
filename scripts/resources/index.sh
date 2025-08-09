@@ -8,15 +8,18 @@ DESCRIPTION="Manages local development resources (AI, automation, storage, agent
 
 RESOURCES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
+# shellcheck disable=SC1091
+source "${RESOURCES_DIR}/../lib/utils/var.sh"
+
 # Handle Ctrl+C and other signals gracefully
 trap 'echo ""; log::info "Resource installation interrupted by user. Exiting..."; exit 130' INT TERM
 
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../app/utils/args.sh"
+source "${var_LIB_UTILS_DIR}/args-cli.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../lib/service/repository.sh"
+source "${var_REPOSITORY_FILE}"
 
 # Available resources organized by category
 declare -A AVAILABLE_RESOURCES=(
@@ -224,7 +227,7 @@ resources::resolve_list() {
             # Need to source common.sh if not already sourced
             if ! declare -f resources::get_enabled_from_config >/dev/null 2>&1; then
                 # shellcheck disable=SC1091
-                source "$SCRIPT_DIR/common.sh"
+                source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
             fi
             resolved=$(resources::get_enabled_from_config)
             if [[ -z "$resolved" ]]; then
@@ -957,7 +960,7 @@ resources::main() {
             ;;
         "inject")
             if [[ -n "$SCENARIO_NAME" ]]; then
-                "${PROJECT_ROOT}/scripts/scenarios/injection/engine.sh" --action inject --scenario "$SCENARIO_NAME" --config-file "$SCENARIOS_CONFIG"
+                "${var_ROOT_DIR}/scripts/scenarios/injection/engine.sh" --action inject --scenario "$SCENARIO_NAME" --config-file "$SCENARIOS_CONFIG"
             else
                 log::error "Scenario name required for injection action"
                 log::info "Use: --scenario SCENARIO_NAME"
@@ -966,7 +969,7 @@ resources::main() {
             return 0
             ;;
         "inject-all")
-            "${PROJECT_ROOT}/scripts/scenarios/injection/engine.sh" --action inject --all-active yes --config-file "$SCENARIOS_CONFIG"
+            "${var_ROOT_DIR}/scripts/scenarios/injection/engine.sh" --action inject --all-active yes --config-file "$SCENARIOS_CONFIG"
             return 0
             ;;
     esac

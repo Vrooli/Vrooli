@@ -1,7 +1,5 @@
 -- App Personalizer Database Schema
-
-CREATE DATABASE IF NOT EXISTS app_personalizer;
-\c app_personalizer;
+-- Note: Database creation should be handled by the deployment script
 
 -- Registry of apps available for personalization
 CREATE TABLE app_registry (

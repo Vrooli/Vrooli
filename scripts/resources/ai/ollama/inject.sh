@@ -8,11 +8,14 @@ set -euo pipefail
 DESCRIPTION="Inject models and configurations into Ollama AI server"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
 
-# Source common utilities
+# Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+
+# Source common utilities using var_ variables
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 
 # Source Ollama configuration if available
 if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then

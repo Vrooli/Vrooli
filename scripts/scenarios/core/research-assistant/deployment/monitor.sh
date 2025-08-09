@@ -4,12 +4,23 @@
 
 set -euo pipefail
 
+# Source var.sh first with proper relative path
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../../lib/utils/var.sh"
+
+# Source resources common for port management
+# shellcheck disable=SC1091
+source "$var_RESOURCES_COMMON_FILE"
+
 # Configuration
 SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCENARIO_ID="research-assistant"
 SCENARIO_NAME="AI Research Assistant"
-MONITOR_LOG="/tmp/vrooli-${SCENARIO_ID}-monitor.log"
-PID_FILE="/tmp/vrooli-${SCENARIO_ID}-monitor.pid"
+MONITOR_LOG="$var_ROOT_DIR/tmp/vrooli-${SCENARIO_ID}-monitor.log"
+PID_FILE="$var_ROOT_DIR/tmp/vrooli-${SCENARIO_ID}-monitor.pid"
+
+# Ensure log directory exists
+mkdir -p "$(dirname "$MONITOR_LOG")"
 
 # Monitoring intervals (seconds)
 HEALTH_CHECK_INTERVAL=30
@@ -34,34 +45,34 @@ CONSECUTIVE_FAILURES=0
 MAX_CONSECUTIVE_FAILURES=3
 
 # Logging functions
-log_monitor() {
+monitor::log_monitor() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] [MONITOR] $1" | tee -a "$MONITOR_LOG"
 }
 
-log_health() {
+monitor::log_health() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] [HEALTH] $1" | tee -a "$MONITOR_LOG"
 }
 
-log_alert() {
+monitor::log_alert() {
     echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] ${RED}[ALERT]${NC} $1" | tee -a "$MONITOR_LOG"
 }
 
-log_performance() {
+monitor::log_performance() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] [PERF] $1" | tee -a "$MONITOR_LOG"
 }
 
-log_recovery() {
+monitor::log_recovery() {
     echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] ${GREEN}[RECOVERY]${NC} $1" | tee -a "$MONITOR_LOG"
 }
 
 # Signal handlers
-cleanup_and_exit() {
-    log_monitor "Monitoring stopped for $SCENARIO_NAME"
+monitor::cleanup_and_exit() {
+    monitor::log_monitor "Monitoring stopped for $SCENARIO_NAME"
     rm -f "$PID_FILE"
     exit 0
 }
 
-trap cleanup_and_exit SIGTERM SIGINT
+trap monitor::cleanup_and_exit SIGTERM SIGINT
 
 # Helper functions
 get_required_resources() {
@@ -83,14 +94,14 @@ check_service_health() {
         local response_time=$((end_time - start_time))
         
         if [[ "$response_code" -ge 200 && "$response_code" -lt 400 ]]; then
-            log_health "✓ $service_name healthy (${response_time}ms, HTTP $response_code)"
+            monitor::log_health "✓ $service_name healthy (${response_time}ms, HTTP $response_code)"
             return 0
         else
-            log_alert "✗ $service_name unhealthy (HTTP $response_code)"
+            monitor::log_alert "✗ $service_name unhealthy (HTTP $response_code)"
             return 1
         fi
     else
-        log_alert "✗ $service_name unreachable"
+        monitor::log_alert "✗ $service_name unreachable"
         return 1
     fi
 }
@@ -99,31 +110,31 @@ check_database_health() {
     local db_name="${SCENARIO_ID//-/_}"
     
     if command -v pg_isready >/dev/null 2>&1; then
-        if pg_isready -h localhost -p 5433 -d "$db_name" >/dev/null 2>&1; then
+        if pg_isready -h localhost -p "$(resources::get_default_port "postgres")" -d "$db_name" >/dev/null 2>&1; then
             # Test actual query performance
             local start_time=$(date +%s%3N)
-            if psql -h localhost -p 5433 -U postgres -d "$db_name" -c "SELECT 1;" >/dev/null 2>&1; then
+            if psql -h localhost -p "$(resources::get_default_port "postgres")" -U postgres -d "$db_name" -c "SELECT 1;" >/dev/null 2>&1; then
                 local end_time=$(date +%s%3N)
                 local query_time=$((end_time - start_time))
-                log_health "✓ Database healthy (${query_time}ms)"
+                monitor::log_health "✓ Database healthy (${query_time}ms)"
                 return 0
             else
-                log_alert "✗ Database query failed"
+                monitor::log_alert "✗ Database query failed"
                 return 1
             fi
         else
-            log_alert "✗ Database connection failed"
+            monitor::log_alert "✗ Database connection failed"
             return 1
         fi
     else
-        log_health "⚠ pg_isready not available, skipping database health check"
+        monitor::log_health "⚠ pg_isready not available, skipping database health check"
         return 0
     fi
 }
 
 test_webhook_performance() {
     if [[ "$REQUIRED_RESOURCES" =~ "n8n" ]]; then
-        local webhook_url="http://localhost:5678/webhook/${SCENARIO_ID}-webhook"
+        local webhook_url="http://localhost:$(resources::get_default_port "n8n")/webhook/${SCENARIO_ID}-webhook"
         local test_payload='{"test": true, "monitoring": true, "timestamp": "'$(date -Iseconds)'"}'
         
         local start_time=$(date +%s%3N)
@@ -136,19 +147,19 @@ test_webhook_performance() {
             local response_time=$((end_time - start_time))
             
             if [[ "$response_code" -ge 200 && "$response_code" -lt 400 ]]; then
-                log_performance "Webhook response: ${response_time}ms (HTTP $response_code)"
+                monitor::log_performance "Webhook response: ${response_time}ms (HTTP $response_code)"
                 
                 if [[ $response_time -gt $RESPONSE_TIME_THRESHOLD_MS ]]; then
-                    log_alert "Webhook response time exceeded threshold: ${response_time}ms > ${RESPONSE_TIME_THRESHOLD_MS}ms"
+                    monitor::log_alert "Webhook response time exceeded threshold: ${response_time}ms > ${RESPONSE_TIME_THRESHOLD_MS}ms"
                 fi
                 
                 return 0
             else
-                log_alert "Webhook test failed (HTTP $response_code)"
+                monitor::log_alert "Webhook test failed (HTTP $response_code)"
                 return 1
             fi
         else
-            log_alert "Webhook test failed (connection error)"
+            monitor::log_alert "Webhook test failed (connection error)"
             return 1
         fi
     fi
@@ -160,9 +171,9 @@ check_resource_usage() {
         local cpu_usage
         cpu_usage=$(top -bn1 | grep "Cpu(s)" | awk '{print $2}' | awk -F'%' '{print $1}' | tr -d ' ')
         if [[ -n "$cpu_usage" ]] && (( $(echo "$cpu_usage > $RESOURCE_USAGE_THRESHOLD_PERCENT" | bc -l 2>/dev/null || echo 0) )); then
-            log_alert "High CPU usage: ${cpu_usage}%"
+            monitor::log_alert "High CPU usage: ${cpu_usage}%"
         else
-            log_performance "CPU usage: ${cpu_usage}%"
+            monitor::log_performance "CPU usage: ${cpu_usage}%"
         fi
     fi
     
@@ -171,9 +182,9 @@ check_resource_usage() {
         local mem_usage
         mem_usage=$(free | grep Mem | awk '{printf("%.1f", $3/$2 * 100.0)}')
         if [[ -n "$mem_usage" ]] && (( $(echo "$mem_usage > $RESOURCE_USAGE_THRESHOLD_PERCENT" | bc -l 2>/dev/null || echo 0) )); then
-            log_alert "High memory usage: ${mem_usage}%"
+            monitor::log_alert "High memory usage: ${mem_usage}%"
         else
-            log_performance "Memory usage: ${mem_usage}%"
+            monitor::log_performance "Memory usage: ${mem_usage}%"
         fi
     fi
     
@@ -181,9 +192,9 @@ check_resource_usage() {
     local disk_usage
     disk_usage=$(df "$SCENARIO_DIR" | awk 'NR==2 {print $5}' | tr -d '%')
     if [[ -n "$disk_usage" ]] && [[ $disk_usage -gt $RESOURCE_USAGE_THRESHOLD_PERCENT ]]; then
-        log_alert "High disk usage: ${disk_usage}%"
+        monitor::log_alert "High disk usage: ${disk_usage}%"
     else
-        log_performance "Disk usage: ${disk_usage}%"
+        monitor::log_performance "Disk usage: ${disk_usage}%"
     fi
 }
 
@@ -200,36 +211,36 @@ collect_metrics() {
         metrics_data+="${timestamp}"
         
         # Send to QuestDB via InfluxDB line protocol
-        if echo "$metrics_data" | nc -w 1 localhost 9011 >/dev/null 2>&1; then
-            log_performance "Metrics stored to QuestDB"
+        if echo "$metrics_data" | nc -w 1 localhost "$(resources::get_default_port "questdb")" >/dev/null 2>&1; then
+            monitor::log_performance "Metrics stored to QuestDB"
         else
-            log_health "⚠ Could not store metrics to QuestDB"
+            monitor::log_health "⚠ Could not store metrics to QuestDB"
         fi
     fi
 }
 
 # Main monitoring functions
 health_monitoring_loop() {
-    log_monitor "Starting health monitoring loop (interval: ${HEALTH_CHECK_INTERVAL}s)"
+    monitor::log_monitor "Starting health monitoring loop (interval: ${HEALTH_CHECK_INTERVAL}s)"
     
     while $MONITORING_ACTIVE; do
         local health_checks_passed=0
         local health_checks_failed=0
         
-        log_health "=== Health Check Round ==="
+        monitor::log_health "=== Health Check Round ==="
         
         # Check required resources
         for resource in $REQUIRED_RESOURCES; do
             case "$resource" in
                 "ollama")
-                    if check_service_health "Ollama" "http://localhost:11434/api/tags"; then
+                    if check_service_health "Ollama" "http://localhost:$(resources::get_default_port "ollama")/api/tags"; then
                         ((health_checks_passed++))
                     else
                         ((health_checks_failed++))
                     fi
                     ;;
                 "n8n")
-                    if check_service_health "n8n" "http://localhost:5678/healthz"; then
+                    if check_service_health "n8n" "http://localhost:$(resources::get_default_port "n8n")/healthz"; then
                         ((health_checks_passed++))
                     else
                         ((health_checks_failed++))
@@ -243,42 +254,42 @@ health_monitoring_loop() {
                     fi
                     ;;
                 "windmill")
-                    if check_service_health "Windmill" "http://localhost:5681/api/version"; then
+                    if check_service_health "Windmill" "http://localhost:$(resources::get_default_port "windmill")/api/version"; then
                         ((health_checks_passed++))
                     else
                         ((health_checks_failed++))
                     fi
                     ;;
                 "whisper")
-                    if check_service_health "Whisper" "http://localhost:8090/"; then
+                    if check_service_health "Whisper" "http://localhost:$(resources::get_default_port "whisper")/"; then
                         ((health_checks_passed++))
                     else
                         ((health_checks_failed++))
                     fi
                     ;;
                 "comfyui")
-                    if check_service_health "ComfyUI" "http://localhost:8188/"; then
+                    if check_service_health "ComfyUI" "http://localhost:$(resources::get_default_port "comfyui")/"; then
                         ((health_checks_passed++))
                     else
                         ((health_checks_failed++))
                     fi
                     ;;
                 "minio")
-                    if check_service_health "MinIO" "http://localhost:9000/minio/health/live"; then
+                    if check_service_health "MinIO" "http://localhost:$(resources::get_default_port "minio")/minio/health/live"; then
                         ((health_checks_passed++))
                     else
                         ((health_checks_failed++))
                     fi
                     ;;
                 "qdrant")
-                    if check_service_health "Qdrant" "http://localhost:6333/"; then
+                    if check_service_health "Qdrant" "http://localhost:$(resources::get_default_port "qdrant")/"; then
                         ((health_checks_passed++))
                     else
                         ((health_checks_failed++))
                     fi
                     ;;
                 "questdb")
-                    if check_service_health "QuestDB" "http://localhost:9010/"; then
+                    if check_service_health "QuestDB" "http://localhost:$(resources::get_default_port "questdb")/"; then
                         ((health_checks_passed++))
                     else
                         ((health_checks_failed++))
@@ -290,18 +301,18 @@ health_monitoring_loop() {
         # Update failure counter
         if [[ $health_checks_failed -gt 0 ]]; then
             ((CONSECUTIVE_FAILURES++))
-            log_alert "Health check round failed: $health_checks_failed failures"
+            monitor::log_alert "Health check round failed: $health_checks_failed failures"
             
             if [[ $CONSECUTIVE_FAILURES -ge $MAX_CONSECUTIVE_FAILURES ]]; then
-                log_alert "CRITICAL: $CONSECUTIVE_FAILURES consecutive failures detected!"
+                monitor::log_alert "CRITICAL: $CONSECUTIVE_FAILURES consecutive failures detected!"
                 # In a production environment, you might want to trigger recovery actions here
             fi
         else
             if [[ $CONSECUTIVE_FAILURES -gt 0 ]]; then
-                log_recovery "System recovered after $CONSECUTIVE_FAILURES failures"
+                monitor::log_recovery "System recovered after $CONSECUTIVE_FAILURES failures"
             fi
             CONSECUTIVE_FAILURES=0
-            log_health "All health checks passed ($health_checks_passed/$((health_checks_passed + health_checks_failed)))"
+            monitor::log_health "All health checks passed ($health_checks_passed/$((health_checks_passed + health_checks_failed)))"
         fi
         
         # Export for metrics collection
@@ -313,10 +324,10 @@ health_monitoring_loop() {
 }
 
 performance_monitoring_loop() {
-    log_monitor "Starting performance monitoring loop (interval: ${PERFORMANCE_CHECK_INTERVAL}s)"
+    monitor::log_monitor "Starting performance monitoring loop (interval: ${PERFORMANCE_CHECK_INTERVAL}s)"
     
     while $MONITORING_ACTIVE; do
-        log_performance "=== Performance Check Round ==="
+        monitor::log_performance "=== Performance Check Round ==="
         
         # Test webhook performance
         test_webhook_performance
@@ -329,10 +340,10 @@ performance_monitoring_loop() {
 }
 
 resource_monitoring_loop() {
-    log_monitor "Starting resource monitoring loop (interval: ${RESOURCE_CHECK_INTERVAL}s)"
+    monitor::log_monitor "Starting resource monitoring loop (interval: ${RESOURCE_CHECK_INTERVAL}s)"
     
     while $MONITORING_ACTIVE; do
-        log_performance "=== Resource Usage Check ==="
+        monitor::log_performance "=== Resource Usage Check ==="
         
         check_resource_usage
         
@@ -354,13 +365,13 @@ start_monitoring() {
     fi
     
     echo $$ > "$PID_FILE"
-    log_monitor "Starting monitoring for $SCENARIO_NAME ($SCENARIO_ID)"
-    log_monitor "Monitor log: $MONITOR_LOG"
-    log_monitor "PID file: $PID_FILE"
+    monitor::log_monitor "Starting monitoring for $SCENARIO_NAME ($SCENARIO_ID)"
+    monitor::log_monitor "Monitor log: $MONITOR_LOG"
+    monitor::log_monitor "PID file: $PID_FILE"
     
     # Load required resources
     REQUIRED_RESOURCES=$(get_required_resources)
-    log_monitor "Monitoring resources: $REQUIRED_RESOURCES"
+    monitor::log_monitor "Monitoring resources: $REQUIRED_RESOURCES"
     
     # Start monitoring loops in background
     health_monitoring_loop &
@@ -372,7 +383,7 @@ start_monitoring() {
     resource_monitoring_loop &
     local resource_pid=$!
     
-    log_monitor "Monitoring loops started (Health: $health_pid, Performance: $perf_pid, Resource: $resource_pid)"
+    monitor::log_monitor "Monitoring loops started (Health: $health_pid, Performance: $perf_pid, Resource: $resource_pid)"
     
     # Wait for any loop to exit
     wait
@@ -383,7 +394,7 @@ stop_monitoring() {
         local monitor_pid
         monitor_pid=$(cat "$PID_FILE")
         if kill -0 "$monitor_pid" 2>/dev/null; then
-            log_monitor "Stopping monitoring (PID: $monitor_pid)"
+            monitor::log_monitor "Stopping monitoring (PID: $monitor_pid)"
             kill -TERM "$monitor_pid"
             rm -f "$PID_FILE"
             echo "Monitoring stopped"
@@ -425,7 +436,7 @@ show_logs() {
 }
 
 # Main function
-main() {
+monitor::main() {
     case "${1:-start}" in
         "start")
             start_monitoring
@@ -472,4 +483,4 @@ main() {
 }
 
 # Run main function
-main "$@"
+monitor::main "$@"

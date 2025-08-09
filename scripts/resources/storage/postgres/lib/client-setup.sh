@@ -30,7 +30,7 @@ declare -A PROJECT_CONFIGS=(
 #######################################
 # Show usage information
 #######################################
-show_usage() {
+client_setup::show_usage() {
     cat << EOF
 PostgreSQL Client Setup Automation
 
@@ -83,11 +83,11 @@ EOF
 #######################################
 # Parse command line arguments
 #######################################
-parse_args() {
+client_setup::parse_args() {
     while [[ $# -gt 0 ]]; do
         case $1 in
             -h|--help)
-                show_usage
+                client_setup::show_usage
                 exit 0
                 ;;
             -c|--client-name)
@@ -120,7 +120,7 @@ parse_args() {
                 ;;
             *)
                 echo "Unknown option: $1" >&2
-                show_usage >&2
+                client_setup::show_usage >&2
                 exit 1
                 ;;
         esac
@@ -130,7 +130,7 @@ parse_args() {
 #######################################
 # Validate inputs
 #######################################
-validate_inputs() {
+client_setup::validate_inputs() {
     if [[ -z "$CLIENT_NAME" ]]; then
         echo "❌ Error: Client name is required" >&2
         echo "Use: $0 --client-name <name> --project-type <type>" >&2
@@ -160,7 +160,7 @@ validate_inputs() {
 #######################################
 # Parse project configuration
 #######################################
-parse_project_config() {
+client_setup::parse_project_config() {
     local config="${PROJECT_CONFIGS[$PROJECT_TYPE]}"
     
     # Extract template if not specified
@@ -182,7 +182,7 @@ parse_project_config() {
 #######################################
 # Show setup plan
 #######################################
-show_setup_plan() {
+client_setup::show_setup_plan() {
     echo "🚀 PostgreSQL Client Setup Plan"
     echo "================================"
     echo "Client Name:     $CLIENT_NAME"
@@ -206,7 +206,7 @@ show_setup_plan() {
 #######################################
 # Generate secure password
 #######################################
-generate_password() {
+client_setup::generate_password() {
     if command -v openssl >/dev/null 2>&1; then
         openssl rand -base64 32
     else
@@ -218,7 +218,7 @@ generate_password() {
 #######################################
 # Create PostgreSQL instance
 #######################################
-create_instance() {
+client_setup::create_instance() {
     echo "🗄️  Creating PostgreSQL instance..."
     
     if ! "${SCRIPT_DIR}/manage.sh" --action create \
@@ -235,7 +235,7 @@ create_instance() {
 #######################################
 # Create databases
 #######################################
-create_databases() {
+client_setup::create_databases() {
     if [[ -z "$DATABASES" ]]; then
         echo "⚠️  No databases specified, skipping database creation"
         return 0
@@ -263,7 +263,7 @@ create_databases() {
 #######################################
 # Create users
 #######################################
-create_users() {
+client_setup::create_users() {
     if [[ -z "$USERS" ]]; then
         echo "⚠️  No users specified, skipping user creation"
         return 0
@@ -280,7 +280,7 @@ create_users() {
     IFS=',' read -ra USER_ARRAY <<< "$USERS"
     for user in "${USER_ARRAY[@]}"; do
         user=$(echo "$user" | xargs)  # Trim whitespace
-        local password=$(generate_password)
+        local password=$(client_setup::generate_password)
         
         echo "  Creating user: $user"
         
@@ -304,7 +304,7 @@ create_users() {
 #######################################
 # Create backup
 #######################################
-create_backup() {
+client_setup::create_backup() {
     echo "💾 Creating initial backup..."
     
     local backup_name="initial-setup-$(date +%Y%m%d-%H%M%S)"
@@ -323,7 +323,7 @@ create_backup() {
 #######################################
 # Generate client package
 #######################################
-generate_client_package() {
+client_setup::generate_client_package() {
     if [[ "$GENERATE_PACKAGE" != "yes" ]]; then
         echo "⚠️  Skipping client package generation"
         return 0
@@ -521,7 +521,7 @@ EOF
 #######################################
 # Show completion summary
 #######################################
-show_completion_summary() {
+client_setup::show_completion_summary() {
     echo ""
     echo "🎉 Client Setup Complete!"
     echo "========================"
@@ -547,24 +547,24 @@ show_completion_summary() {
 #######################################
 # Main execution
 #######################################
-main() {
+client_setup::main() {
     echo "🚀 PostgreSQL Client Setup Automation"
     echo "====================================="
     
-    parse_args "$@"
-    validate_inputs
-    parse_project_config
-    show_setup_plan
+    client_setup::parse_args "$@"
+    client_setup::validate_inputs
+    client_setup::parse_project_config
+    client_setup::show_setup_plan
     
     # Execute setup steps
-    create_instance
-    create_databases
-    create_users
-    create_backup
-    generate_client_package
+    client_setup::create_instance
+    client_setup::create_databases
+    client_setup::create_users
+    client_setup::create_backup
+    client_setup::generate_client_package
     
-    show_completion_summary
+    client_setup::show_completion_summary
 }
 
 # Run main function with all arguments
-main "$@"
+client_setup::main "$@"

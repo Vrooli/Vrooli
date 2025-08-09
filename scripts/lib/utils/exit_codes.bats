@@ -3,36 +3,24 @@
 # Test suite for exit_codes.sh
 # Tests standard exit code definitions and helper functions
 
+bats_require_minimum_version 1.5.0
+
+# Load test infrastructure
+source "${BATS_TEST_DIRNAME}/../../__test/fixtures/setup.bash"
+
+# Load BATS helpers
+load "${BATS_TEST_DIRNAME}/../../__test/helpers/bats-support/load"
+load "${BATS_TEST_DIRNAME}/../../__test/helpers/bats-assert/load"
+
 setup() {
-    # Create a temporary test script for exit codes
-    TEST_EXIT_CODES="${BATS_TEST_DIRNAME}/exit_codes.sh"
+    vrooli_setup_unit_test
     
-    # Check if the file exists and source it
-    if [[ -f "$TEST_EXIT_CODES" ]]; then
-        # shellcheck disable=SC1090
-        source "$TEST_EXIT_CODES" 2>/dev/null || true
-    fi
-    
-    # Define expected exit codes if not already defined
-    # These are standard exit codes used throughout the project
-    : "${EXIT_SUCCESS:=0}"
-    : "${EXIT_GENERAL_ERROR:=1}"
-    : "${EXIT_MISUSE:=2}"
-    : "${EXIT_USER_INTERRUPT:=130}"
-    : "${EXIT_INVALID_ARGUMENT:=3}"
-    : "${EXIT_FILE_NOT_FOUND:=4}"
-    : "${EXIT_PERMISSION_DENIED:=5}"
-    : "${EXIT_DEPENDENCY_ERROR:=6}"
-    : "${EXIT_NETWORK_ERROR:=7}"
-    : "${EXIT_TIMEOUT:=124}"
-    : "${EXIT_CONFIGURATION_ERROR:=8}"
-    : "${EXIT_STATE_ERROR:=9}"
-    : "${EXIT_RESOURCE_ERROR:=10}"
+    # Source the exit codes utility
+    source "${BATS_TEST_DIRNAME}/exit_codes.sh"
 }
 
 teardown() {
-    # Clean up any test artifacts
-    unset TEST_EXIT_CODES
+    vrooli_cleanup_test
 }
 
 # Test that exit codes are defined
@@ -149,7 +137,7 @@ teardown() {
     if declare -f exit_with_code >/dev/null 2>&1; then
         # Test in a subshell to avoid exiting the test
         run bash -c "
-            source '$TEST_EXIT_CODES' 2>/dev/null || true
+            source '${BATS_TEST_DIRNAME}/exit_codes.sh' 2>/dev/null || true
             declare -f exit_with_code >/dev/null 2>&1 && exit_with_code 42
         "
         [[ "$status" -eq 42 ]]
@@ -161,7 +149,7 @@ teardown() {
 @test "exit_success function works if defined" {
     if declare -f exit_success >/dev/null 2>&1; then
         run bash -c "
-            source '$TEST_EXIT_CODES' 2>/dev/null || true
+            source '${BATS_TEST_DIRNAME}/exit_codes.sh' 2>/dev/null || true
             declare -f exit_success >/dev/null 2>&1 && exit_success
         "
         [[ "$status" -eq 0 ]]
@@ -173,7 +161,7 @@ teardown() {
 @test "exit_error function works if defined" {
     if declare -f exit_error >/dev/null 2>&1; then
         run bash -c "
-            source '$TEST_EXIT_CODES' 2>/dev/null || true
+            source '${BATS_TEST_DIRNAME}/exit_codes.sh' 2>/dev/null || true
             declare -f exit_error >/dev/null 2>&1 && exit_error
         "
         [[ "$status" -eq 1 ]]
@@ -203,10 +191,10 @@ teardown() {
 
 # Test that file can be sourced multiple times without errors
 @test "exit_codes.sh can be sourced multiple times" {
-    if [[ -f "$TEST_EXIT_CODES" ]]; then
+    if [[ -f "${BATS_TEST_DIRNAME}/exit_codes.sh" ]]; then
         run bash -c "
-            source '$TEST_EXIT_CODES'
-            source '$TEST_EXIT_CODES'
+            source '${BATS_TEST_DIRNAME}/exit_codes.sh'
+            source '${BATS_TEST_DIRNAME}/exit_codes.sh'
             echo 'success'
         "
         [[ "$status" -eq 0 ]]

@@ -1,20 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-LIB_NETWORK_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Source var.sh first with relative path
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../utils/var.sh"
 
-# shellcheck disable=SC1091
-source "${LIB_NETWORK_DIR}/../utils/var.sh"
+# Now source everything else using var_ variables
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/flow.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
+# shellcheck disable=SC1091
+source "${var_EXIT_CODES_FILE}"
 
 ports::preflight() {
     if ! system::is_command "lsof"; then
-        flow::exit_with_error "Required command 'lsof' not found; please install 'lsof'" "$ERROR_USAGE"
+        flow::exit_with_error "Required command 'lsof' not found; please install 'lsof'" "$EXIT_DEPENDENCY_ERROR"
     fi
 }
 
@@ -22,14 +24,14 @@ ports::preflight() {
 ports::validate_port() {
     local port=$1
     if [[ -z "$port" ]]; then
-        flow::exit_with_error "Invalid port: '$port'" "$ERROR_USAGE"
+        flow::exit_with_error "Invalid port: '$port'" "$EXIT_INVALID_ARGUMENT"
     fi
     if ! [[ "$port" =~ ^[0-9]+$ ]]; then
-        flow::exit_with_error "Invalid port: '$port'" "$ERROR_USAGE"
+        flow::exit_with_error "Invalid port: '$port'" "$EXIT_INVALID_ARGUMENT"
     fi
     # Force decimal interpretation to avoid octal parsing on leading zeros
     if (( 10#$port < 1 || 10#$port > 65535 )); then
-        flow::exit_with_error "Port out of range: $port" "$ERROR_USAGE"
+        flow::exit_with_error "Port out of range: $port" "$EXIT_INVALID_ARGUMENT"
     fi
 }
 
@@ -45,7 +47,7 @@ ports::get_listening_pids() {
         echo ""
         return 0
     elif (( code != 0 )); then
-        flow::exit_with_error "Error checking port $port: $output" "$ERROR_DEFAULT"
+        flow::exit_with_error "Error checking port $port: $output" "$EXIT_GENERAL_ERROR"
     fi
     echo "$output"
 }
@@ -73,7 +75,7 @@ ports::kill() {
         if (( kill_status == 0 )); then
             log::success "Killed processes on port $port: $pids"
         else
-            flow::exit_with_error "Failed to kill processes on port $port: $pids" "$ERROR_RUNTIME"
+            flow::exit_with_error "Failed to kill processes on port $port: $pids" "$EXIT_RESOURCE_ERROR"
         fi
     fi
 }
@@ -95,7 +97,7 @@ ports::check_and_free() {
             if flow::confirm "Kill process(es) listening on port $port?"; then
                 ports::kill "$port"
             else
-                flow::exit_with_error "Please free port $port and retry" "$ERROR_USAGE"
+                flow::exit_with_error "Please free port $port and retry" "$EXIT_RESOURCE_ERROR"
             fi
         fi
     fi

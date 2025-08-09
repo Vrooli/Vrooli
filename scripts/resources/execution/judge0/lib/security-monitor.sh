@@ -4,15 +4,25 @@
 
 set -euo pipefail
 
-# Source logging functions
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/../../common/logging.sh" || {
+
+# Source var.sh first to get directory variables
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+
+# Source logging functions
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_DIR}/common/logging.sh" || {
     echo "ERROR: Failed to source logging functions" >&2
     exit 1
 }
 
-# Configuration
-ALERT_LOG="/home/matthalloran8/.vrooli/resources/judge0/logs/security-alerts.log"
+# Load Judge0 config for proper data directory
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../config/defaults.sh"
+
+# Configuration using proper variables instead of hardcoded paths
+ALERT_LOG="${JUDGE0_LOGS_DIR}/security-alerts.log"
 MONITOR_INTERVAL=5  # seconds
 CPU_ALERT_THRESHOLD=80  # percent
 MEMORY_ALERT_THRESHOLD=90  # percent

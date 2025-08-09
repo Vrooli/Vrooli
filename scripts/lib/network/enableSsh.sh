@@ -2,10 +2,10 @@
 # Posix-compliant script to make sure they keyless ssh login is enabled
 set -euo pipefail
 
-LIB_NETWORK_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Source var.sh first with relative path
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../utils/var.sh"
 
-# shellcheck disable=SC1091
-source "${LIB_NETWORK_DIR}/../utils/var.sh"
+# Now source everything else using var_ variables
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/flow.sh"
 # shellcheck disable=SC1091

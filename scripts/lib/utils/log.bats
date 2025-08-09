@@ -74,82 +74,82 @@ teardown() {
 @test "log::header outputs message with HEADER prefix" {
     run log::header "Test Header"
     assert_success
-    assert_output_contains "[HEADER]  Test Header"
+    assert_output --partial "[HEADER]  Test Header"
 }
 
 @test "log::subheader outputs message with SECTION prefix" {
     run log::subheader "Test Section"
     assert_success
-    assert_output_contains "[SECTION] Test Section"
+    assert_output --partial "[SECTION] Test Section"
 }
 
 @test "log::info outputs message with INFO prefix" {
     run log::info "Test Info"
     assert_success
-    assert_output_contains "[INFO]    Test Info"
+    assert_output --partial "[INFO]    Test Info"
 }
 
 @test "log::success outputs message with SUCCESS prefix" {
     run log::success "Test Success"
     assert_success
-    assert_output_contains "[SUCCESS] Test Success"
+    assert_output --partial "[SUCCESS] Test Success"
 }
 
 @test "log::error outputs message with ERROR prefix" {
     run log::error "Test Error"
     assert_success
-    assert_output_contains "[ERROR]   Test Error"
+    assert_output --partial "[ERROR]   Test Error"
 }
 
 @test "log::warning outputs message with WARNING prefix" {
     run log::warning "Test Warning"
     assert_success
-    assert_output_contains "[WARNING] Test Warning"
+    assert_output --partial "[WARNING] Test Warning"
 }
 
 @test "log::prompt outputs message with PROMPT prefix" {
     run log::prompt "Test Prompt"
     assert_success
-    assert_output_contains "[PROMPT]  Test Prompt"
+    assert_output --partial "[PROMPT]  Test Prompt"
 }
 
 # Test logging functions with multiple arguments
 @test "log::header handles multiple arguments" {
     run log::header "Test" "Multiple" "Args"
     assert_success
-    assert_output_contains "[HEADER]  Test Multiple Args"
+    assert_output --partial "[HEADER]  Test Multiple Args"
 }
 
 @test "log::info handles multiple arguments" {
     run log::info "File" "not" "found"
     assert_success
-    assert_output_contains "[INFO]    File not found"
+    assert_output --partial "[INFO]    File not found"
 }
 
 @test "log::error handles multiple arguments with special characters" {
     run log::error "Failed to process file:" "/path/to/file.txt"
     assert_success
-    assert_output_contains "[ERROR]   Failed to process file: /path/to/file.txt"
+    assert_output --partial "[ERROR]   Failed to process file: /path/to/file.txt"
 }
 
 # Test logging functions with empty arguments
 @test "log::info handles empty arguments" {
     run log::info ""
     assert_success
-    assert_output_contains "[INFO]    "
+    assert_output --partial "[INFO]    "
 }
 
 @test "log::error handles no arguments" {
     run log::error
     assert_success
-    assert_output_contains "[ERROR]   "
+    assert_output --partial "[ERROR]   "
 }
 
 # Test alias functions
 @test "log::warn is alias for log::warning" {
     run log::warn "Test Warning Alias"
     assert_success
-    assert_output_contains "[WARNING] Test Warning Alias"
+    assert_output --partial "[WARNING] Test Warning Alias"
 }
 
 @test "log::warn and log::warning produce identical output" {
@@ -166,7 +166,7 @@ teardown() {
     
     run log::debug "Debug message"
     assert_success
-    assert_output_contains "[DEBUG]   Debug message"
+    assert_output --partial "[DEBUG]   Debug message"
 }
 
 @test "log::debug hides message when DEBUG is false" {
@@ -206,13 +206,13 @@ teardown() {
 @test "logging functions handle special characters" {
     run log::info "Message with \$variables and 'quotes' and \"double quotes\""
     assert_success
-    assert_output_contains "[INFO]    Message with \$variables and 'quotes' and \"double quotes\""
+    assert_output --partial "[INFO]    Message with \$variables and 'quotes' and \"double quotes\""
 }
 
 @test "logging functions handle backslashes" {
     run log::error "Path: \\path\\to\\file"
     assert_success
-    assert_output_contains "[ERROR]   Path: \\path\\to\\file"
+    assert_output --partial "[ERROR]   Path: \\path\\to\\file"
 }
 
 # Test TERM environment variable handling
@@ -221,7 +221,7 @@ teardown() {
     
     run log::info "Test message"
     assert_success
-    assert_output_contains "[INFO]    Test message"
+    assert_output --partial "[INFO]    Test message"
 }
 
 @test "functions work with TERM=dumb" {
@@ -229,7 +229,7 @@ teardown() {
     
     run log::success "Test message"
     assert_success
-    assert_output_contains "[SUCCESS] Test message"
+    assert_output --partial "[SUCCESS] Test message"
 }
 
 @test "functions work with custom TERM value" {
@@ -237,7 +237,7 @@ teardown() {
     
     run log::header "Test message"
     assert_success
-    assert_output_contains "[HEADER]  Test message"
+    assert_output --partial "[HEADER]  Test message"
 }
 
 # Test error handling
@@ -247,13 +247,13 @@ teardown() {
     
     run log::info "$long_message"
     assert_success
-    assert_output_contains "[INFO]"
+    assert_output --partial "[INFO]"
 }
 
 @test "functions handle unicode characters" {
     run log::success "Success: Complete"
     assert_success
-    assert_output_contains "[SUCCESS] Success: Complete"
+    assert_output --partial "[SUCCESS] Success: Complete"
 }
 
 # Test basic functionality integration
@@ -261,23 +261,23 @@ teardown() {
     # Test that each function produces output in the expected format
     run log::header "Header Test"
     assert_success
-    assert_output_contains "[HEADER]  Header Test"
+    assert_output --partial "[HEADER]  Header Test"
     
     run log::info "Info Test"
     assert_success
-    assert_output_contains "[INFO]    Info Test"
+    assert_output --partial "[INFO]    Info Test"
     
     run log::success "Success Test"
     assert_success
-    assert_output_contains "[SUCCESS] Success Test"
+    assert_output --partial "[SUCCESS] Success Test"
     
     run log::warning "Warning Test"
     assert_success
-    assert_output_contains "[WARNING] Warning Test"
+    assert_output --partial "[WARNING] Warning Test"
     
     run log::error "Error Test"
     assert_success
-    assert_output_contains "[ERROR]   Error Test"
+    assert_output --partial "[ERROR]   Error Test"
 }
 
 # Test that functions don't crash
@@ -291,7 +291,7 @@ teardown() {
     
     run log::warning "test with \n newlines \t tabs"
     assert_success
-    assert_output_contains "[WARNING]"
+    assert_output --partial "[WARNING]"
 }
 
 # Simple performance test

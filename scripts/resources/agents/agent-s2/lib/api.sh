@@ -573,3 +573,20 @@ agent_s2::batch_automate() {
     
     agents2::api_request "POST" "/api/batch" "$request_json"
 }
+
+# Export functions for subshell availability
+export -f agents2::api_request
+export -f agents2::test_screenshot
+export -f agents2::test_mouse_automation
+export -f agents2::test_keyboard_automation
+export -f agents2::test_automation_sequence
+export -f agents2::test_async_task
+export -f agents2::api_test_menu
+export -f agents2::execute_ai_task
+export -f agent_s2::automate_browser
+export -f agent_s2::capture_screenshot
+export -f agent_s2::extract_data
+export -f agent_s2::health_check
+export -f agent_s2::create_session
+export -f agent_s2::destroy_session
+export -f agent_s2::batch_automate

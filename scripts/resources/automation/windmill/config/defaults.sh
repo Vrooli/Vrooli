@@ -8,8 +8,8 @@ readonly WINDMILL_BASE_URL="http://localhost:${WINDMILL_SERVER_PORT}"
 
 # Project and container configuration
 readonly WINDMILL_PROJECT_NAME="windmill-vrooli"
-readonly WINDMILL_COMPOSE_FILE="${SCRIPT_DIR}/docker/docker-compose.yml"
-readonly WINDMILL_ENV_FILE="${SCRIPT_DIR}/docker/.env"
+readonly WINDMILL_COMPOSE_FILE="${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/docker/docker-compose.yml"
+readonly WINDMILL_ENV_FILE="${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/docker/.env"
 readonly WINDMILL_DATA_DIR="${HOME}/.windmill"
 readonly WINDMILL_NETWORK_NAME="${WINDMILL_PROJECT_NAME}_default"
 

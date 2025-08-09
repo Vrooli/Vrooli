@@ -7,15 +7,17 @@ set -euo pipefail
 DESCRIPTION="Install and manage Qdrant vector database using Docker"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
+
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
 
 # Source common resources
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../app/utils/args.sh"
+source "${var_LIB_UTILS_DIR}/args-cli.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../app/utils/docker.sh"
+source "${var_APP_DIR}/utils/docker.sh"
 
 # Source configuration
 # shellcheck disable=SC1091

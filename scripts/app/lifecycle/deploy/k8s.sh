@@ -13,7 +13,7 @@ source "${var_LOG_FILE}"
 source "${var_LIB_SERVICE_DIR}/repository.sh"
 
 # Deploy application to Kubernetes using Helm
-deploy::deploy_k8s() {
+k8s::deploy_k8s() {
   local target_env="${1:-}"
   if [[ -z "$target_env" ]]; then
     log::error "Kubernetes Helm deployment: target environment (e.g., dev, staging, prod) not specified as the first argument."
@@ -160,5 +160,5 @@ deploy::deploy_k8s() {
 
 # If this script is run directly, invoke its main function.
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    deploy::deploy_k8s "$@"
+    k8s::deploy_k8s "$@"
 fi

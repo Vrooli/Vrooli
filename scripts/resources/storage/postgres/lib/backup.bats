@@ -2,6 +2,7 @@
 # Tests for PostgreSQL Backup Operations
 
 # Load Vrooli test infrastructure
+# shellcheck disable=SC1091
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # Expensive setup operations (run once per file)
@@ -60,128 +61,52 @@ setup() {
     export -f postgres::common::container_exists postgres::common::is_running
     export -f postgres::common::health_check postgres::common::wait_for_ready
     
-    # Mock Docker functions for backup operations
-    docker() {
-        case "$*" in
-            *"exec"*"pg_dump"*"--schema-only"*)
-                # Mock schema-only backup
-                echo "-- PostgreSQL database dump (schema only)"
-                echo "-- Dumped by pg_dump version 14.5"
-                echo "CREATE TABLE users (id SERIAL PRIMARY KEY, name TEXT);"
-                return 0
-                ;;
-            *"exec"*"pg_dump"*"--data-only"*)
-                # Mock data-only backup
-                echo "-- PostgreSQL database dump (data only)"
-                echo "COPY users (id, name) FROM stdin;"
-                echo "1	Alice"
-                echo "2	Bob"
-                echo "\\."
-                return 0
-                ;;
-            *"exec"*"pg_dump"*)
-                # Mock full backup
-                echo "-- PostgreSQL database dump"
-                echo "-- Dumped by pg_dump version 14.5"
-                echo "-- Database: $DATABASE_NAME"
-                echo "CREATE TABLE users (id SERIAL PRIMARY KEY, name TEXT);"
-                echo "COPY users (id, name) FROM stdin;"
-                echo "1	Alice"
-                echo "\\."
-                return 0
-                ;;
-            *"exec"*"psql"*"-f"*)
-                # Mock restore operation
-                echo "CREATE TABLE"
-                echo "COPY 1"
-                return 0
-                ;;
-            *"exec"*"pg_isready"*)
-                # Mock health check
-                echo "postgres-test-instance:5432 - accepting connections"
-                return 0
-                ;;
-            *)
-                return 0
-                ;;
-        esac
-    }
-    export -f docker
+    # Load official mocks
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_DIR}/__test/fixtures/mocks/docker.sh"
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_DIR}/__test/fixtures/mocks/postgres.sh"
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_DIR}/__test/fixtures/mocks/filesystem.sh"
     
-    # Mock file system operations
-    mkdir() { return 0; }
-    cp() { return 0; }
-    mv() { return 0; }
-    rm() { return 0; }
-    chmod() { return 0; }
-    chown() { return 0; }
-    ls() {
-        case "$*" in
-            *"$POSTGRES_BACKUP_DIR"*)
-                echo "test_backup_20240115_103000"
-                echo "test_backup_20240114_153000"
-                echo "old_backup_20240101_120000"
-                return 0
-                ;;
-            *) return 0 ;;
-        esac
-    }
-    export -f mkdir cp mv rm chmod chown ls
+    # Configure Docker mock for PostgreSQL backup operations
+    mock::docker::add_container "postgres-test-instance" "running" "postgres:16-alpine"
     
-    # Mock file operations
+    # Configure PostgreSQL mock for backup data
+    mock::postgres::set_query_result "pg_dump --schema-only" "-- PostgreSQL database dump (schema only)
+-- Dumped by pg_dump version 14.5
+CREATE TABLE users (id SERIAL PRIMARY KEY, name TEXT);"
+    
+    mock::postgres::set_query_result "pg_dump --data-only" "-- PostgreSQL database dump (data only)
+COPY users (id, name) FROM stdin;
+1	Alice
+2	Bob
+\\."
+    
+    mock::postgres::set_query_result "pg_dump" "-- PostgreSQL database dump
+-- Dumped by pg_dump version 14.5
+CREATE TABLE users (id SERIAL PRIMARY KEY, name TEXT);
+COPY users (id, name) FROM stdin;
+1	Alice
+\\."
+    
+    # Configure filesystem mock for backup files
+    mock::fs::add_file "$POSTGRES_BACKUP_DIR/test_backup_20240115_103000" "d" "755" "user" "group" "4096"
+    mock::fs::add_file "$POSTGRES_BACKUP_DIR/test_backup_20240114_153000" "d" "755" "user" "group" "4096"
+    mock::fs::add_file "$POSTGRES_BACKUP_DIR/old_backup_20240101_120000" "d" "755" "user" "group" "4096"
+    
+    # Load system mocks for additional commands
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_DIR}/__test/fixtures/mocks/system.sh"
+    
+    # Configure system mock responses for backup operations
+    mock::system::set_command_output "date" "20240115_103000"
+    mock::system::set_command_output "du /path/to/backup" "1024	/path/to/backup"
+    mock::system::set_command_output "stat --format=%s" "1048576"
+    
+    # Mock file operations (minimal, most handled by filesystem mock)
     test_file() { return 0; }  # Mock file existence check
     export -f test_file
-    stat() {
-        case "$*" in
-            *"--format=%s"*)
-                echo "1048576"  # 1MB backup file size
-                return 0
-                ;;
-            *)
-                echo "Access: 2024-01-15 10:30:00"
-                echo "Modify: 2024-01-15 10:30:00"
-                return 0
-                ;;
-        esac
-    }
-    export -f [[ stat
-    
-    # Mock compression tools
-    gzip() {
-        case "$*" in
-            *"-t"*) return 0 ;;  # Test archive integrity
-            *) return 0 ;;       # Compress file
-        esac
-    }
-    gunzip() { return 0; }
-    export -f gzip gunzip
-    
-    # Mock log functions
-    log::info() { echo "[INFO] $*"; }
-    log::error() { echo "[ERROR] $*" >&2; }
-    log::warning() { echo "[WARNING] $*" >&2; }
-    log::success() { echo "[SUCCESS] $*"; }
-    log::debug() { [[ "${DEBUG:-}" == "true" ]] && echo "[DEBUG] $*" >&2 || true; }
-    export -f log::info log::error log::warning log::success log::debug
-    
-    # Mock system commands
-    date() { echo "20240115_103000"; }
-    du() { echo "1024	/path/to/backup"; }
-    find() {
-        case "$*" in
-            *"-name"*"*.sql"*)
-                echo "/var/backups/postgres/test-instance/backup1.sql"
-                echo "/var/backups/postgres/test-instance/backup2.sql"
-                return 0
-                ;;
-            *"-mtime"*)
-                echo "/var/backups/postgres/test-instance/old_backup.sql"
-                return 0
-                ;;
-            *) return 0 ;;
-        esac
-    }
-    export -f date du find
 }
 
 # BATS teardown function - runs after each test

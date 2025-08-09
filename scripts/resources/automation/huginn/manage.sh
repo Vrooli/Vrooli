@@ -11,12 +11,13 @@ DESCRIPTION="Install and manage Huginn agent-based workflow automation platform"
 
 # Get the directory of this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RESOURCES_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Source common functions
-source "$RESOURCES_DIR/common.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../app/utils/args.sh"
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/args-cli.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
@@ -433,5 +434,7 @@ main() {
     esac
 }
 
-# Execute main function with all arguments
-main "$@"
+# Execute main function with all arguments only if script is run directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

@@ -1,24 +1,27 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-LIB_NETWORK_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Source var.sh first with relative path
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../utils/var.sh"
 
-# shellcheck disable=SC1091
-source "${LIB_NETWORK_DIR}/../utils/var.sh"
+# Now source everything else using var_ variables
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/exit_codes.sh"
+source "${var_EXIT_CODES_FILE}"
+# shellcheck disable=SC1091
+source "${var_FLOW_FILE}"
 
-extract_domain() {
+domainCheck::extract_domain() {
     local server_url="$1"
     local domain="${server_url#*://}" # Remove protocol and '://', if present
+    domain="${domain#*@}"             # Remove user credentials (user:pass@), if present
     domain="${domain%%/*}"            # Remove everything after the first '/'
     domain="${domain%%:*}"            # Remove port, if present
     echo "$domain"
 }
 
-get_domain_ip() {
+domainCheck::get_domain_ip() {
     local domain="$1"
     local ipv4
     local ipv6
@@ -30,12 +33,12 @@ get_domain_ip() {
     # Make sure output is not empty/whitespace
     if [ -z "$ipv4" ] && [ -z "$ipv6" ]; then
         log::error "Failed to resolve domain $domain"
-        return "$ERROR_DOMAIN_RESOLVE"
+        return "$EXIT_NETWORK_ERROR"
     fi
     echo "$all_ips" | grep -v '^$'
 }
 
-get_current_ip() {
+domainCheck::get_current_ip() {
     local ipv4
     local ipv6
 
@@ -44,14 +47,14 @@ get_current_ip() {
 
     if [[ -z "$ipv4" && -z "$ipv6" ]]; then
         log::error "Failed to retrieve current IP"
-        return "$ERROR_CURRENT_IP_FAIL"
+        return "$EXIT_NETWORK_ERROR"
     fi
 
     echo "$ipv4"$'\n'"$ipv6" | grep -v '^$'
     return 0
 }
 
-validate_ip() {
+domainCheck::validate_ip() {
     local ip="$1"
     
     # Handle localhost as a special case
@@ -64,34 +67,34 @@ validate_ip() {
     elif [[ $ip =~ ^([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}$|^([0-9a-fA-F]{1,4}:){1,7}:|^([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}$|^([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}$|^([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}$|^([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}$|^([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}$|^[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})$|^:((:[0-9a-fA-F]{1,4}){1,7}|:)$ ]]; then
         return 0 # Valid IPv6
     else
-        flow::exit_with_error "Invalid IP address format: $ip" "$ERROR_INVALID_SITE_IP"
+        flow::exit_with_error "Invalid IP address format: $ip" "$EXIT_INVALID_ARGUMENT"
     fi
 }
 
-validate_url() {
+domainCheck::validate_url() {
     local server_url="$1"
 
     if ! [[ $server_url =~ ^(http|https):// ]]; then
-        flow::exit_with_error "Invalid URL format. Must start with http:// or https://" "$ERROR_USAGE"
+        flow::exit_with_error "Invalid URL format. Must start with http:// or https://" "$EXIT_INVALID_ARGUMENT"
     fi
 }
 
 # Returns "remote" if the domain resolves to the current IP address, or "local" otherwise
-check_location() {
+domainCheck::check_location() {
     # Get values from parsed arguments or environment
-    local site_ip="${1:-$SITE_IP}"
-    local server_url="${2:-$API_URL}"
+    local site_ip="${1:-${SITE_IP:-}}"
+    local server_url="${2:-${API_URL:-}}"
     
     # Check required parameters 
     if [[ -z "$site_ip" ]]; then
-        flow::exit_with_error "Required parameter: SITE_IP" "$ERROR_USAGE"
+        flow::exit_with_error "Required parameter: SITE_IP" "$EXIT_INVALID_ARGUMENT"
     fi
     if [[ -z "$server_url" ]]; then
-        flow::exit_with_error "Required parameter: SERVER_URL" "$ERROR_USAGE"
+        flow::exit_with_error "Required parameter: SERVER_URL" "$EXIT_INVALID_ARGUMENT"
     fi
 
-    validate_ip "$site_ip"
-    validate_url "$server_url"
+    domainCheck::validate_ip "$site_ip"
+    domainCheck::validate_url "$server_url"
 
     # Normalize localhost to 127.0.0.1 for comparisons
     local normalized_site_ip="$site_ip"
@@ -101,16 +104,23 @@ check_location() {
 
     local domain
 
-    domain="$(extract_domain "$server_url")"
+    domain="$(domainCheck::extract_domain "$server_url")"
     local extract_domain_status=$?
     if [ $extract_domain_status -ne 0 ]; then
         exit $extract_domain_status
     fi
     log::info "Domain: $domain"
 
-    domain_ips="$(get_domain_ip "$domain")"
+    local domain_ips
+    domain_ips="$(domainCheck::get_domain_ip "$domain" 2>&1)"
     local get_domain_ip_status=$?
     if [ $get_domain_ip_status -ne 0 ]; then
+        # Re-log the error so it's visible in the output
+        if [[ "$domain_ips" == *"ERROR"* ]]; then
+            echo "$domain_ips" >&2
+        else
+            log::error "Failed to resolve domain $domain"
+        fi
         exit $get_domain_ip_status
     fi
     log::info "Domain IPs:"
@@ -118,14 +128,16 @@ check_location() {
     echo "$domain_ips" | sed 's/^/  /'
 
     if [[ -z "$domain_ips" ]]; then
-        flow::exit_with_error "Failed to resolve domain $domain" "$ERROR_DOMAIN_RESOLVE"
+        flow::exit_with_error "Failed to resolve domain $domain" "$EXIT_NETWORK_ERROR"
     fi
 
     if ! echo "$domain_ips" | grep -q "^$normalized_site_ip$"; then
-        flow::continue_with_error "SITE_IP does not point to the server associated with $domain. Check DNS settings." "$ERROR_INVALID_SITE_IP"
+        flow::continue_with_error "SITE_IP does not point to the server associated with $domain. Check DNS settings." "$EXIT_CONFIGURATION_ERROR"
+        local error_status=$?
     fi
 
-    current_ips="$(get_current_ip)"
+    local current_ips
+    current_ips="$(domainCheck::get_current_ip)"
     local get_current_ip_status=$?
     if [ $get_current_ip_status -ne 0 ]; then
         exit $get_current_ip_status
@@ -136,14 +148,18 @@ check_location() {
 
     if echo "$current_ips" | grep -q "^$normalized_site_ip$"; then
         echo "remote"
-        return 0 # Return success status
     else
         echo "local"
-        return 0 # Return success status
     fi
+    
+    # Return error status if SITE_IP didn't match domain
+    if [[ -n "${error_status:-}" ]]; then
+        return "$error_status"
+    fi
+    return 0
 }
 
-is_location_valid() {
+domainCheck::is_location_valid() {
     local server_location="$1"
     if [[ "$server_location" != "local" && "$server_location" != "remote" ]]; then
         return 1
@@ -152,7 +168,7 @@ is_location_valid() {
     return 0
 }
 
-check_location_if_not_set() {
+domainCheck::check_location_if_not_set() {
     # Get values from parsed arguments or environment
     local server_location="${1:-}"
     if [[ -z "$server_location" ]]; then
@@ -160,9 +176,9 @@ check_location_if_not_set() {
     fi
 
     # Detect location if not set or invalid
-    if ! is_location_valid "$server_location"; then
+    if ! domainCheck::is_location_valid "$server_location"; then
         log::info "Detecting server location..."
-        LOCATION=$(check_location | tail -n 1)
+        LOCATION=$(domainCheck::check_location | tail -n 1)
         export LOCATION
         log::info "Detected server location: $LOCATION"
     fi

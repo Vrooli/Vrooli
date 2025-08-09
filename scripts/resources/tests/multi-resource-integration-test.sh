@@ -5,12 +5,14 @@
 
 set -euo pipefail
 
-# Source necessary libraries
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/lib/integration-test-lib.sh"
+source "${_HERE}/../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/lib/fixture-helpers.sh"
+source "${_HERE}/lib/integration-test-lib.sh"
+# shellcheck disable=SC1091
+source "${_HERE}/lib/fixture-helpers.sh"
 
 #######################################
 # CONFIGURATION

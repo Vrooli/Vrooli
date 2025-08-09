@@ -22,7 +22,7 @@ source "${LIB_LIFECYCLE_PHASES_DIR}/../../utils/var.sh"
 # shellcheck disable=SC1091
 source "${LIB_LIFECYCLE_PHASES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/args.sh"
+source "${var_LIB_UTILS_DIR}/flow.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/exit_codes.sh"
 
@@ -206,9 +206,9 @@ build::docker_artifacts() {
             log::info "Found compose file: $compose_file"
             
             if command -v docker-compose &> /dev/null; then
-                (cd "$PROJECT_ROOT" && docker-compose build)
+                (cd "${var_ROOT_DIR}" && docker-compose build)
             else
-                (cd "$PROJECT_ROOT" && docker compose build)
+                (cd "${var_ROOT_DIR}" && docker compose build)
             fi
             
             log::success "✅ Docker artifacts built"
@@ -349,13 +349,13 @@ build::universal::main() {
         if [[ -f "${var_ROOT_DIR}/package.json" ]]; then
             if command -v pnpm &> /dev/null; then
                 log::info "Running: pnpm build"
-                (cd "$PROJECT_ROOT" && pnpm build) || {
+                (cd "${var_ROOT_DIR}" && pnpm build) || {
                     log::error "Build failed"
                     return 1
                 }
             elif command -v npm &> /dev/null; then
                 log::info "Running: npm run build"
-                (cd "$PROJECT_ROOT" && npm run build) || {
+                (cd "${var_ROOT_DIR}" && npm run build) || {
                     log::error "Build failed"
                     return 1
                 }

@@ -4,33 +4,15 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCENARIO_ROOT="$SCRIPT_DIR"
-VROOLI_ROOT="$(cd "$SCENARIO_ROOT/../../.." && pwd)"
+
+# shellcheck disable=SC1091
+source "$(cd "$SCRIPT_DIR" && cd ../../lib/utils && pwd)/var.sh"
+# shellcheck disable=SC1091
+source "$var_LOG_FILE"
 
 # Load test configuration
 TEST_CONFIG_FILE="$SCENARIO_ROOT/scenario-test.yaml"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
 
 # Test counters
 TESTS_TOTAL=0

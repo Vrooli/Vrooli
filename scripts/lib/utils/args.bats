@@ -7,6 +7,10 @@ bats_require_minimum_version 1.5.0
 # Load test infrastructure
 source "${BATS_TEST_DIRNAME}/../../__test/fixtures/setup.bash"
 
+# Load BATS helpers
+load "${BATS_TEST_DIRNAME}/../../__test/helpers/bats-support/load"
+load "${BATS_TEST_DIRNAME}/../../__test/helpers/bats-assert/load"
+
 setup() {
     vrooli_setup_unit_test
     
@@ -41,9 +45,9 @@ teardown() {
     [[ -v ARGS[version] ]] || { echo "ARGS[version] not set"; return 1; }
     [[ -v ARGS[enable-feature] ]] || { echo "ARGS[enable-feature] not set"; return 1; }
     
-    assert_equals "${ARGS[environment]}" "production"
-    assert_equals "${ARGS[version]}" "1.2.3" 
-    assert_equals "${ARGS[enable-feature]}" "true"
+    assert_equal "${ARGS[environment]}" "production"
+    assert_equal "${ARGS[version]}" "1.2.3" 
+    assert_equal "${ARGS[enable-feature]}" "true"
 }
 
 @test "args::parse handles long options with space format" {
@@ -58,9 +62,9 @@ teardown() {
     [[ -v ARGS[port] ]] || { echo "ARGS[port] not set"; return 1; }
     [[ -v ARGS[debug] ]] || { echo "ARGS[debug] not set"; return 1; }
     
-    assert_equals "${ARGS[environment]}" "staging"
-    assert_equals "${ARGS[port]}" "3000"
-    assert_equals "${ARGS[debug]}" "false"
+    assert_equal "${ARGS[environment]}" "staging"
+    assert_equal "${ARGS[port]}" "3000"
+    assert_equal "${ARGS[debug]}" "false"
 }
 
 @test "args::parse handles long options as boolean flags" {
@@ -75,9 +79,9 @@ teardown() {
     [[ -v ARGS[dry-run] ]] || { echo "ARGS[dry-run] not set"; return 1; }
     [[ -v ARGS[force] ]] || { echo "ARGS[force] not set"; return 1; }
     
-    assert_equals "${ARGS[verbose]}" "true"
-    assert_equals "${ARGS[dry-run]}" "true"
-    assert_equals "${ARGS[force]}" "true"
+    assert_equal "${ARGS[verbose]}" "true"
+    assert_equal "${ARGS[dry-run]}" "true"
+    assert_equal "${ARGS[force]}" "true"
 }
 
 @test "args::parse handles short options with values" {
@@ -92,9 +96,9 @@ teardown() {
     [[ -v ARGS[p] ]] || { echo "ARGS[p] not set"; return 1; }
     [[ -v ARGS[v] ]] || { echo "ARGS[v] not set"; return 1; }
     
-    assert_equals "${ARGS[e]}" "development"
-    assert_equals "${ARGS[p]}" "8080"
-    assert_equals "${ARGS[v]}" "2.1.0"
+    assert_equal "${ARGS[e]}" "development"
+    assert_equal "${ARGS[p]}" "8080"
+    assert_equal "${ARGS[v]}" "2.1.0"
 }
 
 @test "args::parse handles short options as boolean flags" {
@@ -109,9 +113,9 @@ teardown() {
     [[ -v ARGS[d] ]] || { echo "ARGS[d] not set"; return 1; }
     [[ -v ARGS[f] ]] || { echo "ARGS[f] not set"; return 1; }
     
-    assert_equals "${ARGS[v]}" "true"
-    assert_equals "${ARGS[d]}" "true"
-    assert_equals "${ARGS[f]}" "true"
+    assert_equal "${ARGS[v]}" "true"
+    assert_equal "${ARGS[d]}" "true"
+    assert_equal "${ARGS[f]}" "true"
 }
 
 @test "args::parse handles mixed argument formats" {
@@ -128,11 +132,11 @@ teardown() {
     [[ -v ARGS[f] ]] || { echo "ARGS[f] not set"; return 1; }
     [[ -v ARGS[version] ]] || { echo "ARGS[version] not set"; return 1; }
     
-    assert_equals "${ARGS[environment]}" "production"
-    assert_equals "${ARGS[p]}" "8080"
-    assert_equals "${ARGS[verbose]}" "true"
-    assert_equals "${ARGS[f]}" "true"
-    assert_equals "${ARGS[version]}" "1.0.0"
+    assert_equal "${ARGS[environment]}" "production"
+    assert_equal "${ARGS[p]}" "8080"
+    assert_equal "${ARGS[verbose]}" "true"
+    assert_equal "${ARGS[f]}" "true"
+    assert_equal "${ARGS[version]}" "1.0.0"
 }
 
 @test "args::parse ignores positional arguments" {
@@ -146,8 +150,8 @@ teardown() {
     [[ -v ARGS[environment] ]] || { echo "ARGS[environment] not set"; return 1; }
     [[ -v ARGS[port] ]] || { echo "ARGS[port] not set"; return 1; }
     
-    assert_equals "${ARGS[environment]}" "test"
-    assert_equals "${ARGS[port]}" "3000"
+    assert_equal "${ARGS[environment]}" "test"
+    assert_equal "${ARGS[port]}" "3000"
     # Positional arguments should not be in ARGS
     [[ ! -v ARGS[positional1] ]]
     [[ ! -v ARGS[positional2] ]]
@@ -162,7 +166,7 @@ teardown() {
     
     # Assert
     # ARGS should be empty
-    assert_equals "$(echo "${!ARGS[@]}")" ""
+    assert_equal "$(echo "${!ARGS[@]}")" ""
 }
 
 @test "args::parse handles arguments with spaces in values" {
@@ -176,8 +180,8 @@ teardown() {
     [[ -v ARGS[message] ]] || { echo "ARGS[message] not set"; return 1; }
     [[ -v ARGS[path] ]] || { echo "ARGS[path] not set"; return 1; }
     
-    assert_equals "${ARGS[message]}" "Hello World"
-    assert_equals "${ARGS[path]}" "/home/user/My Documents"
+    assert_equal "${ARGS[message]}" "Hello World"
+    assert_equal "${ARGS[path]}" "/home/user/My Documents"
 }
 
 @test "args::parse handles arguments with special characters" {
@@ -192,9 +196,9 @@ teardown() {
     [[ -v ARGS[password] ]] || { echo "ARGS[password] not set"; return 1; }
     [[ -v ARGS[url] ]] || { echo "ARGS[url] not set"; return 1; }
     
-    assert_equals "${ARGS[regex]}" "^[a-zA-Z]+$"
-    assert_equals "${ARGS[password]}" "p@ssw0rd!"
-    assert_equals "${ARGS[url]}" "https://example.com/path?param=value"
+    assert_equal "${ARGS[regex]}" "^[a-zA-Z]+$"
+    assert_equal "${ARGS[password]}" "p@ssw0rd!"
+    assert_equal "${ARGS[url]}" "https://example.com/path?param=value"
 }
 
 @test "args::parse handles consecutive flag options" {
@@ -209,9 +213,9 @@ teardown() {
     [[ -v ARGS[flag2] ]] || { echo "ARGS[flag2] not set"; return 1; }
     [[ -v ARGS[flag3] ]] || { echo "ARGS[flag3] not set"; return 1; }
     
-    assert_equals "${ARGS[flag1]}" "true"
-    assert_equals "${ARGS[flag2]}" "true"
-    assert_equals "${ARGS[flag3]}" "true"
+    assert_equal "${ARGS[flag1]}" "true"
+    assert_equal "${ARGS[flag2]}" "true"
+    assert_equal "${ARGS[flag3]}" "true"
 }
 
 @test "args::parse overwrites duplicate keys with latest value" {
@@ -224,7 +228,7 @@ teardown() {
     # Assert
     [[ -v ARGS[env] ]] || { echo "ARGS[env] not set"; return 1; }
     
-    assert_equals "${ARGS[env]}" "production"
+    assert_equal "${ARGS[env]}" "production"
 }
 
 #######################################
@@ -244,8 +248,8 @@ teardown() {
     local port_result="$output"
     
     # Assert
-    assert_equals "$env_result" "production"
-    assert_equals "$port_result" "8080"
+    assert_equal "$env_result" "production"
+    assert_equal "$port_result" "8080"
 }
 
 @test "args::get returns default value when argument does not exist" {
@@ -256,7 +260,7 @@ teardown() {
     local result="$output"
     
     # Assert
-    assert_equals "$result" "default_value"
+    assert_equal "$result" "default_value"
 }
 
 @test "args::get returns empty string when argument does not exist and no default provided" {
@@ -267,7 +271,7 @@ teardown() {
     local result="$output"
     
     # Assert
-    assert_equals "$result" ""
+    assert_equal "$result" ""
 }
 
 @test "args::get handles arguments with empty values" {
@@ -279,7 +283,7 @@ teardown() {
     local result="$output"
     
     # Assert
-    assert_equals "$result" ""
+    assert_equal "$result" ""
 }
 
 @test "args::get handles arguments with whitespace values" {
@@ -290,16 +294,16 @@ teardown() {
     
     # Act & Assert - Test spaces
     run args::get "spaces"
-    assert_equals "$output" "   "
+    assert_equal "$output" "   "
     
     # Test tabs
     run args::get "tabs"
-    assert_equals "$output" $'\t\t\t'
+    assert_equal "$output" $'\t\t\t'
     
     # Test mixed whitespace (capture directly to avoid potential output trimming)
     local mixed_result
     mixed_result=$(args::get "mixed_whitespace")
-    assert_equals "$mixed_result" $' \t \n \t '
+    assert_equal "$mixed_result" $' \t \n \t '
 }
 
 #######################################
@@ -370,9 +374,9 @@ teardown() {
     # Assert
     assert_success
     # Keys should contain all three keys (order may vary)
-    assert_output_contains "env"
-    assert_output_contains "port"
-    assert_output_contains "debug"
+    assert_output --partial "env"
+    assert_output --partial "port"
+    assert_output --partial "debug"
 }
 
 @test "args::keys returns empty string when no arguments" {
@@ -383,7 +387,7 @@ teardown() {
     
     # Assert
     assert_success
-    assert_output_equals ""
+    assert_output ""
 }
 
 @test "args::keys returns keys in consistent format" {
@@ -424,20 +428,20 @@ teardown() {
     
     # Test args::get functionality
     run args::get "environment"
-    assert_output_equals "production"
+    assert_output "production"
     
     run args::get "port"
-    assert_output_equals "8080"
+    assert_output "8080"
     
     run args::get "nonexistent" "default"
-    assert_output_equals "default"
+    assert_output "default"
     
     # Test boolean flags
     run args::get "verbose"
-    assert_output_equals "true"
+    assert_output "true"
     
     run args::get "d"
-    assert_output_equals "true"
+    assert_output "true"
     
     # Test args::keys functionality
     run args::keys
@@ -468,21 +472,21 @@ teardown() {
     args::parse "${deployment_args[@]}"
     
     # Assert - Verify all arguments are parsed correctly
-    assert_equals "${ARGS[environment]}" "production"
-    assert_equals "${ARGS[version]}" "2.1.0"
-    assert_equals "${ARGS[replicas]}" "3"
-    assert_equals "${ARGS[memory]}" "2Gi"
-    assert_equals "${ARGS[cpu]}" "1000m"
-    assert_equals "${ARGS[enable-monitoring]}" "true"
-    assert_equals "${ARGS[dry-run]}" "true"
-    assert_equals "${ARGS[config-file]}" "/path/to/config.yaml"
-    assert_equals "${ARGS[namespace]}" "vrooli-prod"
-    assert_equals "${ARGS[wait-timeout]}" "600"
+    assert_equal "${ARGS[environment]}" "production"
+    assert_equal "${ARGS[version]}" "2.1.0"
+    assert_equal "${ARGS[replicas]}" "3"
+    assert_equal "${ARGS[memory]}" "2Gi"
+    assert_equal "${ARGS[cpu]}" "1000m"
+    assert_equal "${ARGS[enable-monitoring]}" "true"
+    assert_equal "${ARGS[dry-run]}" "true"
+    assert_equal "${ARGS[config-file]}" "/path/to/config.yaml"
+    assert_equal "${ARGS[namespace]}" "vrooli-prod"
+    assert_equal "${ARGS[wait-timeout]}" "600"
     
     # Verify keys count
     run args::keys
     local key_count=$(echo "$output" | wc -w)
-    assert_equals "$key_count" "10"
+    assert_equal "$key_count" "10"
 }
 
 @test "integration: argument validation and defaults" {
@@ -494,19 +498,19 @@ teardown() {
     
     # Test with defaults for missing values
     run args::get "port"
-    assert_output_equals "8080"
+    assert_output "8080"
     
     run args::get "host" "localhost"
-    assert_output_equals "localhost"
+    assert_output "localhost"
     
     run args::get "timeout" "30"
-    assert_output_equals "30"
+    assert_output "30"
     
     run args::get "debug"
-    assert_output_equals "true"
+    assert_output "true"
     
     run args::get "verbose" "false"
-    assert_output_equals "false"
+    assert_output "false"
 }
 
 #######################################
@@ -524,8 +528,8 @@ teardown() {
     [[ -v ARGS[query] ]] || { echo "ARGS[query] not set"; return 1; }
     [[ -v ARGS[url] ]] || { echo "ARGS[url] not set"; return 1; }
     
-    assert_equals "${ARGS[query]}" "SELECT * FROM users WHERE id=123"
-    assert_equals "${ARGS[url]}" "http://localhost:8080/api/v1/data?param=value"
+    assert_equal "${ARGS[query]}" "SELECT * FROM users WHERE id=123"
+    assert_equal "${ARGS[url]}" "http://localhost:8080/api/v1/data?param=value"
 }
 
 @test "edge case: empty values in different formats" {
@@ -539,8 +543,8 @@ teardown() {
     [[ -v ARGS[empty] ]] || { echo "ARGS[empty] not set"; return 1; }
     [[ -v ARGS[also-empty] ]] || { echo "ARGS[also-empty] not set"; return 1; }
     
-    assert_equals "${ARGS[empty]}" ""
-    assert_equals "${ARGS[also-empty]}" ""
+    assert_equal "${ARGS[empty]}" ""
+    assert_equal "${ARGS[also-empty]}" ""
 }
 
 @test "edge case: numeric and boolean-like values" {
@@ -557,11 +561,11 @@ teardown() {
     [[ -v ARGS[bool-false] ]] || { echo "ARGS[bool-false] not set"; return 1; }
     [[ -v ARGS[zero] ]] || { echo "ARGS[zero] not set"; return 1; }
     
-    assert_equals "${ARGS[number]}" "42"
-    assert_equals "${ARGS[float]}" "3.14"
-    assert_equals "${ARGS[bool-true]}" "true"
-    assert_equals "${ARGS[bool-false]}" "false"
-    assert_equals "${ARGS[zero]}" "0"
+    assert_equal "${ARGS[number]}" "42"
+    assert_equal "${ARGS[float]}" "3.14"
+    assert_equal "${ARGS[bool-true]}" "true"
+    assert_equal "${ARGS[bool-false]}" "false"
+    assert_equal "${ARGS[zero]}" "0"
 }
 
 @test "edge case: very long argument names and values" {
@@ -576,13 +580,13 @@ teardown() {
     # Assert
     [[ -v ARGS[$long_name] ]] || { echo "ARGS[$long_name] not set"; return 1; }
     
-    assert_equals "${ARGS[$long_name]}" "$long_value"
+    assert_equal "${ARGS[$long_name]}" "$long_value"
     
     run args::has "$long_name"
     assert_success
     
     run args::get "$long_name"
-    assert_output_equals "$long_value"
+    assert_output "$long_value"
 }
 
 #######################################
@@ -591,10 +595,10 @@ teardown() {
 
 @test "functions are properly exported and available" {
     # Test that all main functions are available
-    assert_function_exists "args::parse"
-    assert_function_exists "args::get" 
-    assert_function_exists "args::has"
-    assert_function_exists "args::keys"
+    declare -f args::parse >/dev/null || { echo "args::parse function not available"; return 1; }
+    declare -f args::get >/dev/null || { echo "args::get function not available"; return 1; }
+    declare -f args::has >/dev/null || { echo "args::has function not available"; return 1; }
+    declare -f args::keys >/dev/null || { echo "args::keys function not available"; return 1; }
 }
 
 @test "ARGS array is accessible after sourcing" {
@@ -605,7 +609,7 @@ teardown() {
     ARGS["test"]="value"
     
     # Assert
-    assert_equals "${ARGS[test]}" "value"
+    assert_equal "${ARGS[test]}" "value"
     
     # Test that the array behaves like an associative array
     [[ -v ARGS[test] ]] || { echo "ARGS[test] not accessible"; return 1; }

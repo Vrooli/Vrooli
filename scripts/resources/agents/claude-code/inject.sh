@@ -8,11 +8,14 @@ set -euo pipefail
 DESCRIPTION="Inject templates, prompts, and configurations into Claude Code assistant"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
 
-# Source common utilities
+# Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+
+# Source common utilities using var_ variables
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 
 # Source Claude Code configuration if available
 if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
@@ -228,7 +231,7 @@ claude_code_inject::validate_templates() {
         fi
         
         # Check if file exists
-        local template_path="$VROOLI_PROJECT_ROOT/$file"
+        local template_path="$var_ROOT_DIR/$file"
         if [[ ! -f "$template_path" ]]; then
             log::error "Template file not found: $template_path"
             return 1
@@ -309,7 +312,7 @@ claude_code_inject::validate_config() {
             fi
             
             # Check if file exists
-            local prompt_path="$VROOLI_PROJECT_ROOT/$file"
+            local prompt_path="$var_ROOT_DIR/$file"
             if [[ ! -f "$prompt_path" ]]; then
                 log::error "Prompt file not found: $prompt_path"
                 return 1
@@ -340,7 +343,7 @@ claude_code_inject::install_template() {
     log::info "Installing template: $name"
     
     # Resolve file path
-    local template_path="$VROOLI_PROJECT_ROOT/$file"
+    local template_path="$var_ROOT_DIR/$file"
     
     # Create templates directory if it doesn't exist
     mkdir -p "$CLAUDE_CODE_TEMPLATES_DIR"
@@ -392,7 +395,7 @@ claude_code_inject::install_prompt() {
     log::info "Installing prompt: $name"
     
     # Resolve file path
-    local prompt_path="$VROOLI_PROJECT_ROOT/$file"
+    local prompt_path="$var_ROOT_DIR/$file"
     
     # Create prompts directory with category subdirectory
     local category_dir="${CLAUDE_CODE_PROMPTS_DIR}/${category}"
@@ -440,7 +443,7 @@ claude_code_inject::install_session() {
     log::info "Installing session: $name"
     
     # Resolve file path
-    local session_path="$VROOLI_PROJECT_ROOT/$file"
+    local session_path="$var_ROOT_DIR/$file"
     
     # Create sessions directory
     mkdir -p "$CLAUDE_CODE_SESSIONS_DIR"

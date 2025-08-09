@@ -4,16 +4,19 @@
 
 set -euo pipefail
 
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RESOURCES_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
+_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Source the contract parser
-source "$SCRIPT_DIR/parsers/contract-parser.sh"
-source "$SCRIPT_DIR/parsers/script-analyzer.sh"
+# shellcheck disable=SC1091
+source "${_HERE}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091,SC2154
+source "${var_SCRIPTS_RESOURCES_DIR}/tests/framework/parsers/contract-parser.sh"
+# shellcheck disable=SC1091,SC2154
+source "${var_SCRIPTS_RESOURCES_DIR}/tests/framework/parsers/script-analyzer.sh"
 
 # Initialize contract parser
-contract_parser_init "$RESOURCES_DIR/contracts"
+contract_parser::init "${var_SCRIPTS_RESOURCES_DIR}/contracts"
 
 echo "=== Contract Parsing Test Suite ==="
 echo
@@ -21,7 +24,7 @@ echo
 #######################################
 # Test contract loading and merging
 #######################################
-test_contract_loading() {
+test_contract_parsing::test_contract_loading() {
     echo "--- Testing Contract Loading ---"
     
     local test_passed=0
@@ -29,7 +32,7 @@ test_contract_loading() {
     
     # Test core contract loading
     echo "Testing core contract..."
-    if core_contract=$(load_contract "core.yaml"); then
+    if core_contract=$(contract_parser::load_contract "core.yaml"); then
         echo "✅ Core contract loaded: $core_contract"
         ((test_passed++))
     else
@@ -42,7 +45,7 @@ test_contract_loading() {
     
     for category in "${categories[@]}"; do
         echo "Testing $category contract..."
-        if category_contract=$(load_contract "${category}.yaml"); then
+        if category_contract=$(contract_parser::load_contract "${category}.yaml"); then
             echo "✅ $category contract loaded: $category_contract"
             ((test_passed++))
         else
@@ -54,13 +57,13 @@ test_contract_loading() {
     echo "Contract loading: $test_passed passed, $test_failed failed"
     echo
     
-    return $([[ $test_failed -eq 0 ]] && echo 0 || echo 1)
+    return "$([[ $test_failed -eq 0 ]] && echo 0 || echo 1)"
 }
 
 #######################################
 # Test required actions extraction
 #######################################
-test_required_actions() {
+test_contract_parsing::test_required_actions() {
     echo "--- Testing Required Actions Extraction ---"
     
     local test_passed=0
@@ -72,7 +75,7 @@ test_required_actions() {
     for category in "${categories[@]}"; do
         echo "Testing required actions for $category..."
         
-        if required_actions=$(get_required_actions "$category"); then
+        if required_actions=$(contract_parser::get_required_actions "$category"); then
             local action_count
             action_count=$(echo "$required_actions" | wc -l)
             
@@ -93,13 +96,13 @@ test_required_actions() {
     echo "Required actions: $test_passed passed, $test_failed failed"
     echo
     
-    return $([[ $test_failed -eq 0 ]] && echo 0 || echo 1)
+    return "$([[ $test_failed -eq 0 ]] && echo 0 || echo 1)"
 }
 
 #######################################
 # Test help patterns extraction
 #######################################
-test_help_patterns() {
+test_contract_parsing::test_help_patterns() {
     echo "--- Testing Help Patterns Extraction ---"
     
     local test_passed=0
@@ -108,7 +111,7 @@ test_help_patterns() {
     # Test help patterns for core
     echo "Testing help patterns..."
     
-    if help_patterns=$(get_help_patterns "ai"); then
+    if help_patterns=$(contract_parser::get_help_patterns "ai"); then
         local pattern_count
         pattern_count=$(echo "$help_patterns" | wc -l)
         
@@ -128,13 +131,13 @@ test_help_patterns() {
     echo "Help patterns: $test_passed passed, $test_failed failed"
     echo
     
-    return $([[ $test_failed -eq 0 ]] && echo 0 || echo 1)
+    return "$([[ $test_failed -eq 0 ]] && echo 0 || echo 1)"
 }
 
 #######################################
 # Test with real resource scripts
 #######################################
-test_real_resources() {
+test_contract_parsing::test_real_resources() {
     echo "--- Testing with Real Resource Scripts ---"
     
     local test_passed=0
@@ -142,10 +145,10 @@ test_real_resources() {
     
     # Find some real manage.sh scripts
     local sample_resources=(
-        "$RESOURCES_DIR/ai/ollama"
-        "$RESOURCES_DIR/automation/n8n"
-        "$RESOURCES_DIR/agents/agent-s2"
-        "$RESOURCES_DIR/storage/postgres"
+        "${var_SCRIPTS_RESOURCES_DIR}/ai/ollama"
+        "${var_SCRIPTS_RESOURCES_DIR}/automation/n8n"
+        "${var_SCRIPTS_RESOURCES_DIR}/agents/agent-s2"
+        "${var_SCRIPTS_RESOURCES_DIR}/storage/postgres"
     )
     
     for resource_dir in "${sample_resources[@]}"; do
@@ -155,7 +158,7 @@ test_real_resources() {
             echo "Testing $resource_name..."
             
             # Test script analysis
-            if extract_script_actions "$resource_dir/manage.sh" >/dev/null; then
+            if script_analyzer::extract_script_actions "$resource_dir/manage.sh" >/dev/null; then
                 echo "✅ $resource_name: Actions extracted successfully"
                 ((test_passed++))
             else
@@ -164,7 +167,7 @@ test_real_resources() {
             fi
             
             # Test basic script checks
-            if check_script_basics "$resource_dir/manage.sh" >/dev/null; then
+            if script_analyzer::check_script_basics "$resource_dir/manage.sh" >/dev/null; then
                 echo "✅ $resource_name: Basic script checks passed"
                 ((test_passed++))
             else
@@ -179,13 +182,13 @@ test_real_resources() {
     echo "Real resources: $test_passed passed, $test_failed failed"
     echo
     
-    return $([[ $test_failed -eq 0 ]] && echo 0 || echo 1)
+    return "$([[ $test_failed -eq 0 ]] && echo 0 || echo 1)"
 }
 
 #######################################
 # Test contract validation
 #######################################
-test_contract_validation() {
+test_contract_parsing::test_contract_validation() {
     echo "--- Testing Contract Validation ---"
     
     local test_passed=0
@@ -195,10 +198,10 @@ test_contract_validation() {
     local contract_files=("core.yaml" "ai.yaml" "automation.yaml" "agents.yaml" "storage.yaml" "search.yaml" "execution.yaml")
     
     for contract_file in "${contract_files[@]}"; do
-        local contract_path="$RESOURCES_DIR/contracts/v1.0/$contract_file"
+        local contract_path="${var_SCRIPTS_RESOURCES_DIR}/contracts/v1.0/$contract_file"
         echo "Validating $contract_file..."
         
-        if validate_contract_syntax "$contract_path"; then
+        if contract_parser::validate_contract_syntax "$contract_path"; then
             echo "✅ $contract_file: Syntax validation passed"
             ((test_passed++))
         else
@@ -210,13 +213,13 @@ test_contract_validation() {
     echo "Contract validation: $test_passed passed, $test_failed failed"
     echo
     
-    return $([[ $test_failed -eq 0 ]] && echo 0 || echo 1)
+    return "$([[ $test_failed -eq 0 ]] && echo 0 || echo 1)"
 }
 
 #######################################
 # Run all tests
 #######################################
-run_all_tests() {
+test_contract_parsing::run_all_tests() {
     local total_passed=0
     local total_failed=0
     
@@ -226,11 +229,11 @@ run_all_tests() {
     
     # Run test suites
     local test_suites=(
-        "test_contract_validation"
-        "test_contract_loading"
-        "test_required_actions"
-        "test_help_patterns"
-        "test_real_resources"
+        "test_contract_parsing::test_contract_validation"
+        "test_contract_parsing::test_contract_loading"
+        "test_contract_parsing::test_required_actions"
+        "test_contract_parsing::test_help_patterns"
+        "test_contract_parsing::test_real_resources"
     )
     
     for test_suite in "${test_suites[@]}"; do
@@ -261,15 +264,15 @@ run_all_tests() {
 }
 
 # Cleanup function
-cleanup_tests() {
-    contract_parser_cleanup
+test_contract_parsing::cleanup_tests() {
+    contract_parser::cleanup
     echo "Test cleanup completed"
 }
 
 # Set up cleanup trap
-trap cleanup_tests EXIT
+trap test_contract_parsing::cleanup_tests EXIT
 
 # Run the tests
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    run_all_tests
+    test_contract_parsing::run_all_tests
 fi

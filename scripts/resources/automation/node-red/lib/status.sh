@@ -2,28 +2,12 @@
 # Node-RED Status and Monitoring Functions
 # Functions for displaying status, metrics, and monitoring Node-RED
 
-# Source shared secrets management library
-# Use the same project root detection method as the secrets library
-_node_red_status_detect_project_root() {
-    local current_dir
-    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    
-    # Walk up directory tree looking for .vrooli directory
-    while [[ "$current_dir" != "/" ]]; do
-        if [[ -d "$current_dir/.vrooli" ]]; then
-            echo "$current_dir"
-            return 0
-        fi
-        current_dir="$(dirname "$current_dir")"
-    done
-    
-    # Fallback: assume we're in scripts and go up to project root
-    echo "/home/matthalloran8/Vrooli"
-}
-
-PROJECT_ROOT="$(_node_red_status_detect_project_root)"
+# Source var.sh first to get standard directory variables  
+LIB_STATUS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$PROJECT_ROOT/scripts/lib/service/secrets.sh"
+source "${LIB_STATUS_DIR}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SERVICE_DIR}/secrets.sh"
 
 #######################################
 # Show comprehensive Node-RED status

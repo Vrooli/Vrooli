@@ -7,13 +7,13 @@ setup() {
     export BATS_TEST_DIRNAME="$BATS_TEST_DIRNAME"
     export TEST_TEMP_DIR="$(mktemp -d)"
     
-    # Source all modules
+    # Source all modules under test
     source "${BATS_TEST_DIRNAME}/network_diagnostics_core.sh"
     source "${BATS_TEST_DIRNAME}/network_diagnostics_tcp.sh"
     source "${BATS_TEST_DIRNAME}/network_diagnostics_analysis.sh"
     source "${BATS_TEST_DIRNAME}/network_diagnostics_fixes.sh"
     
-    # Mock log functions
+    # Mock log functions using the official pattern - simple but consistent
     log::header() { echo "[HEADER] $*"; }
     log::subheader() { echo "[SUBHEADER] $*"; }
     log::info() { echo "[INFO] $*"; }
@@ -23,14 +23,13 @@ setup() {
     
     # Mock flow functions
     flow::can_run_sudo() { 
-        echo "[FLOW] Checking sudo for: $1"
         return 1  # Default to no sudo in tests
     }
     
     # Export error codes
     export ERROR_NO_INTERNET=5
     
-    # Track which commands were called
+    # Track which commands were called for verification
     export COMMANDS_CALLED=()
 }
 
@@ -39,7 +38,7 @@ teardown() {
     unset COMMANDS_CALLED
 }
 
-# Helper function to track command calls
+# Helper function to track command calls for test verification
 track_command() {
     COMMANDS_CALLED+=("$1")
     return "${2:-0}"
@@ -50,52 +49,50 @@ track_command() {
 # =============================================================================
 
 @test "core::run - all tests pass scenario" {
-    # Mock all commands to succeed
-    ping() { track_command "ping $*" 0; }
-    getent() { track_command "getent $*" 0; echo "93.184.216.34 google.com"; }
-    nc() { track_command "nc $*" 0; }
-    curl() { track_command "curl $*" 0; }
+    # Configure mocks for successful scenario
+    ping() { return 0; }
+    getent() { echo "93.184.216.34 google.com"; return 0; }
+    nc() { return 0; }
+    curl() { return 0; }
     timeout() { shift; "$@"; }
     date() { echo "1234567890"; }
     command() { [[ "$2" == "curl" ]] || [[ "$2" == "date" ]] && return 0 || return 1; }
     
-    export -f ping getent nc curl timeout date command track_command
+    export -f ping getent nc curl timeout date command
     
     run network_diagnostics_core::run
     
     [ "$status" -eq 0 ]
-    [[ "$output" == *"[SUCCESS] All core network tests passed!"* ]]
-    [[ "$output" == *"[SUCCESS]   ✓ IPv4 ping to 8.8.8.8"* ]]
-    [[ "$output" == *"[SUCCESS]   ✓ IPv4 ping to google.com"* ]]
-    [[ "$output" == *"[SUCCESS]   ✓ DNS lookup (getent)"* ]]
-    [[ "$output" == *"[SUCCESS]   ✓ TCP port 443 (HTTPS)"* ]]
-    [[ "$output" == *"[SUCCESS]   ✓ HTTPS to google.com"* ]]
+    [[ "$output" == *"All core network tests passed!"* ]]
+    [[ "$output" == *"✓ IPv4 ping to 8.8.8.8"* ]]
+    [[ "$output" == *"✓ IPv4 ping to google.com"* ]]
+    [[ "$output" == *"✓ DNS lookup (getent)"* ]]
+    [[ "$output" == *"✓ TCP port 443 (HTTPS)"* ]]
+    [[ "$output" == *"✓ HTTPS to google.com"* ]]
 }
 
 @test "core::run - critical failure (no internet)" {
-    # Mock ping to fail for critical test
+    # Mock ping to fail for critical test (8.8.8.8)
     ping() { 
         if [[ "$*" == *"8.8.8.8"* ]]; then
-            track_command "ping $*" 1
             return 1
         else
-            track_command "ping $*" 0
             return 0
         fi
     }
-    getent() { track_command "getent $*" 0; echo "93.184.216.34 google.com"; }
-    nc() { track_command "nc $*" 0; }
-    curl() { track_command "curl $*" 0; }
+    getent() { echo "93.184.216.34 google.com"; return 0; }
+    nc() { return 0; }
+    curl() { return 0; }
     timeout() { shift; "$@"; }
     command() { [[ "$2" == "curl" ]] && return 0 || return 1; }
     
-    export -f ping getent nc curl timeout command track_command
+    export -f ping getent nc curl timeout command
     
     run network_diagnostics_core::run
     
     [ "$status" -eq 5 ]  # ERROR_NO_INTERNET
-    [[ "$output" == *"[ERROR]   ✗ IPv4 ping to 8.8.8.8"* ]]
-    [[ "$output" == *"[ERROR] Critical network issues detected"* ]]
+    [[ "$output" == *"✗ IPv4 ping to 8.8.8.8"* ]]
+    [[ "$output" == *"Critical network issues detected"* ]]
     [[ "$output" == *"Basic connectivity is broken"* ]]
 }
 

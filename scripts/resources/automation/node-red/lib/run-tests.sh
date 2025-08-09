@@ -21,7 +21,7 @@ FILTER=""
 OUTPUT_FORMAT="pretty"
 JOBS=4
 
-show_help() {
+run_tests::show_help() {
     cat << EOF
 Node-RED Test Runner
 
@@ -77,7 +77,7 @@ Test Structure (following n8n pattern):
 EOF
 }
 
-check_bats() {
+run_tests::check_bats() {
     if ! command -v bats >/dev/null 2>&1; then
         echo -e "${RED}Error: bats is not installed${NC}"
         echo "Install with:"
@@ -90,10 +90,10 @@ check_bats() {
     echo -e "${GREEN}✓ bats found: $(bats --version)${NC}"
 }
 
-check_environment() {
+run_tests::check_environment() {
     echo "Checking test environment..."
     
-    check_bats
+    run_tests::check_bats
     
     # Check test files exist
     local test_files=(
@@ -141,7 +141,7 @@ check_environment() {
     echo -e "${GREEN}Environment check complete${NC}"
 }
 
-list_tests() {
+run_tests::list_tests() {
     echo "Available test files:"
     echo
     
@@ -173,7 +173,7 @@ list_tests() {
     fi
 }
 
-get_test_files() {
+run_tests::get_test_files() {
     local category="$1"
     local files=()
     
@@ -236,7 +236,7 @@ get_test_files() {
     printf '%s\n' "${existing_files[@]}"
 }
 
-run_bats() {
+run_tests::run_bats() {
     local files=("$@")
     local bats_args=()
     
@@ -297,7 +297,7 @@ main() {
     while [[ $# -gt 0 ]]; do
         case $1 in
             -h|--help)
-                show_help
+                run_tests::show_help
                 exit 0
                 ;;
             -v|--verbose)
@@ -321,11 +321,11 @@ main() {
                 shift 2
                 ;;
             --list)
-                list_tests
+                run_tests::list_tests
                 exit 0
                 ;;
             --check)
-                check_environment
+                run_tests::check_environment
                 exit 0
                 ;;
             all|unit|integration|config|lib|defaults|messages|common|docker|install|status|api|testing|manage)
@@ -335,7 +335,7 @@ main() {
             *.bats)
                 # Direct file specification
                 if [[ -f "$1" ]]; then
-                    run_bats "$1"
+                    run_tests::run_bats "$1"
                     exit $?
                 else
                     echo -e "${RED}Error: Test file not found: $1${NC}"
@@ -344,14 +344,14 @@ main() {
                 ;;
             *)
                 echo -e "${RED}Error: Unknown option '$1'${NC}"
-                show_help
+                run_tests::show_help
                 exit 1
                 ;;
         esac
     done
     
     # Check environment first
-    check_bats
+    run_tests::check_bats
     
     # Default to all tests if no categories specified
     if [[ ${#categories[@]} -eq 0 ]]; then
@@ -364,7 +364,7 @@ main() {
         echo -e "${BLUE}Collecting tests for category: $category${NC}"
         
         local category_files
-        if ! category_files=$(get_test_files "$category"); then
+        if ! category_files=$(run_tests::get_test_files "$category"); then
             exit 1
         fi
         
@@ -378,7 +378,7 @@ main() {
     
     # Run tests
     if [[ ${#all_files[@]} -gt 0 ]]; then
-        run_bats "${all_files[@]}"
+        run_tests::run_bats "${all_files[@]}"}
     else
         echo -e "${RED}Error: No test files found${NC}"
         exit 1

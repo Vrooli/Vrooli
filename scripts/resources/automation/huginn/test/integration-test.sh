@@ -5,19 +5,21 @@
 
 set -euo pipefail
 
-# Source shared integration test library
+# Get the directory of this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../../tests/lib/integration-test-lib.sh"
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_DIR}/resources/tests/lib/integration-test-lib.sh"
 
 #######################################
 # SERVICE-SPECIFIC CONFIGURATION
 #######################################
 
 # Load Huginn configuration
-RESOURCES_DIR="$SCRIPT_DIR/../../.."
 # shellcheck disable=SC1091
-source "$RESOURCES_DIR/common.sh"
+source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/../config/defaults.sh"
 huginn::export_config

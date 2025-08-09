@@ -18,13 +18,25 @@ vault::export_config() {
         readonly VAULT_CONTAINER_NAME="vault"
     fi
     if [[ -z "${VAULT_DATA_DIR:-}" ]]; then
-        readonly VAULT_DATA_DIR="${HOME}/.vault/data"
+        if [[ "${VROOLI_CONTEXT:-}" == "monorepo" ]]; then
+            readonly VAULT_DATA_DIR="${var_DATA_DIR}/vault/data"
+        else
+            readonly VAULT_DATA_DIR="${HOME}/.vault/data"
+        fi
     fi
     if [[ -z "${VAULT_CONFIG_DIR:-}" ]]; then
-        readonly VAULT_CONFIG_DIR="${HOME}/.vault/config"
+        if [[ "${VROOLI_CONTEXT:-}" == "monorepo" ]]; then
+            readonly VAULT_CONFIG_DIR="${var_DATA_DIR}/vault/config"
+        else
+            readonly VAULT_CONFIG_DIR="${HOME}/.vault/config"
+        fi
     fi
     if [[ -z "${VAULT_LOGS_DIR:-}" ]]; then
-        readonly VAULT_LOGS_DIR="${HOME}/.vault/logs"
+        if [[ "${VROOLI_CONTEXT:-}" == "monorepo" ]]; then
+            readonly VAULT_LOGS_DIR="${var_DATA_DIR}/vault/logs"
+        else
+            readonly VAULT_LOGS_DIR="${HOME}/.vault/logs"
+        fi
     fi
     if [[ -z "${VAULT_IMAGE:-}" ]]; then
         readonly VAULT_IMAGE="hashicorp/vault:1.17"

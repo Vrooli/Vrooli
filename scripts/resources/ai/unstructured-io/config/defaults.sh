@@ -3,6 +3,14 @@
 # Unstructured.io Resource Configuration Defaults
 # This file contains all configuration constants and defaults for the Unstructured.io resource
 
+# Get script directory for relative path resolution
+CONFIG_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# shellcheck disable=SC1091
+source "${CONFIG_DIR}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
+
 # Service configuration
 # Check if variables are already set to avoid readonly conflicts in tests
 if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* UNSTRUCTURED_IO_PORT="; then

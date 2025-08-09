@@ -2,6 +2,15 @@
 # Resource Interface Validation Library
 # Provides standardized validation of resource manage.sh interfaces and common functions
 
+set -euo pipefail
+
+_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck disable=SC1091
+source "${_HERE}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+
 #######################################
 # Category-specific function requirements
 #######################################
@@ -100,7 +109,7 @@ declare -A AGENT_OPTIONAL_FUNCTIONS=(
 # Resource category detection
 #######################################
 
-detect_resource_category() {
+interface_validation::detect_resource_category() {
     local resource_path="$1"
     
     # Extract category from path (e.g., scripts/resources/ai/ollama -> ai)
@@ -115,7 +124,7 @@ detect_resource_category() {
 # Validate manage.sh exists and is executable
 #######################################
 
-validate_manage_script() {
+interface_validation::validate_manage_script() {
     local resource_path="$1"
     local manage_script="$resource_path/manage.sh"
     
@@ -139,7 +148,7 @@ validate_manage_script() {
 # Extract available actions from manage.sh
 #######################################
 
-extract_available_actions() {
+interface_validation::extract_available_actions() {
     local resource_path="$1"
     local manage_script="$resource_path/manage.sh"
     
@@ -153,7 +162,7 @@ extract_available_actions() {
 # Validate required functions exist
 #######################################
 
-validate_required_functions() {
+interface_validation::validate_required_functions() {
     local resource_path="$1"
     local category="$2"
     
@@ -171,7 +180,7 @@ validate_required_functions() {
     esac
     
     local available_actions
-    available_actions=$(extract_available_actions "$resource_path")
+    available_actions=$(interface_validation::extract_available_actions "$resource_path")
     
     local missing_functions=()
     local found_functions=()
@@ -200,7 +209,7 @@ validate_required_functions() {
 # Validate function help/usage patterns
 #######################################
 
-validate_function_help() {
+interface_validation::validate_function_help() {
     local resource_path="$1"
     local manage_script="$resource_path/manage.sh"
     
@@ -224,7 +233,7 @@ validate_function_help() {
 # Validate configuration file structure
 #######################################
 
-validate_config_structure() {
+interface_validation::validate_config_structure() {
     local resource_path="$1"
     local config_dir="$resource_path/config"
     
@@ -257,7 +266,7 @@ validate_config_structure() {
 # Validate error handling patterns
 #######################################
 
-validate_error_handling() {
+interface_validation::validate_error_handling() {
     local resource_path="$1"
     local manage_script="$resource_path/manage.sh"
     
@@ -299,13 +308,13 @@ validate_error_handling() {
 # Validate port registry integration
 #######################################
 
-validate_port_registry() {
+interface_validation::validate_port_registry() {
     local resource_path="$1"
     local resource_name
     resource_name=$(basename "$resource_path")
     
     # Check if resource is registered in port registry
-    local port_registry="/home/matthalloran8/Vrooli/scripts/resources/port_registry.sh"
+    local port_registry="$var_PORT_REGISTRY_FILE"
     
     if [[ ! -f "$port_registry" ]]; then
         echo "SKIP: Port registry not found"
@@ -325,12 +334,12 @@ validate_port_registry() {
 # Main interface validation function
 #######################################
 
-validate_resource_interface() {
+interface_validation::validate_resource_interface() {
     local resource_path="$1"
     local resource_name
     resource_name=$(basename "$resource_path")
     local category
-    category=$(detect_resource_category "$resource_path")
+    category=$(interface_validation::detect_resource_category "$resource_path")
     
     echo "Validating resource interface: $resource_name (category: $category)"
     echo "========================================"
@@ -341,12 +350,12 @@ validate_resource_interface() {
     
     # Array of validation functions to run
     local validations=(
-        "validate_manage_script"
-        "validate_required_functions $resource_path $category"
-        "validate_function_help"
-        "validate_config_structure"
-        "validate_error_handling"
-        "validate_port_registry"
+        "interface_validation::validate_manage_script"
+        "interface_validation::validate_required_functions $resource_path $category"
+        "interface_validation::validate_function_help"
+        "interface_validation::validate_config_structure"
+        "interface_validation::validate_error_handling"
+        "interface_validation::validate_port_registry"
     )
     
     for validation in "${validations[@]}"; do
@@ -388,12 +397,12 @@ validate_resource_interface() {
 }
 
 # Export functions for use in BATS tests
-export -f detect_resource_category
-export -f validate_manage_script
-export -f extract_available_actions
-export -f validate_required_functions
-export -f validate_function_help
-export -f validate_config_structure
-export -f validate_error_handling
-export -f validate_port_registry
-export -f validate_resource_interface
+export -f interface_validation::detect_resource_category
+export -f interface_validation::validate_manage_script
+export -f interface_validation::extract_available_actions
+export -f interface_validation::validate_required_functions
+export -f interface_validation::validate_function_help
+export -f interface_validation::validate_config_structure
+export -f interface_validation::validate_error_handling
+export -f interface_validation::validate_port_registry
+export -f interface_validation::validate_resource_interface

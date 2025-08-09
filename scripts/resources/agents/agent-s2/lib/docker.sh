@@ -264,3 +264,14 @@ agents2::docker_cleanup() {
     
     $success && return 0 || return 1
 }
+
+# Export functions for subshell availability
+export -f agents2::docker_build
+export -f agents2::docker_create_network
+export -f agents2::docker_start
+export -f agents2::docker_stop
+export -f agents2::docker_restart
+export -f agents2::docker_logs
+export -f agents2::docker_exec
+export -f agents2::docker_stats
+export -f agents2::docker_cleanup

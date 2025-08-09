@@ -5,23 +5,26 @@
 
 set -euo pipefail
 
-# Source enhanced integration test library with fixture support
+# Source var.sh first for directory variables
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../../tests/lib/enhanced-integration-test-lib.sh"
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+
+# Source enhanced integration test library with fixture support
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_DIR}/__test/lib/enhanced-integration-test-lib.sh"
 
 #######################################
 # SERVICE-SPECIFIC CONFIGURATION
 #######################################
 
-# Load PostgreSQL configuration
-RESOURCES_DIR="$SCRIPT_DIR/../../.."
+# Load PostgreSQL configuration using var_ variables
 # shellcheck disable=SC1091
-source "$RESOURCES_DIR/common.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../config/defaults.sh"
+source "${SCRIPT_DIR}/../config/defaults.sh"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../lib/common.sh"
+source "${SCRIPT_DIR}/../lib/common.sh"
 
 # Override library defaults with PostgreSQL-specific settings
 SERVICE_NAME="postgres"

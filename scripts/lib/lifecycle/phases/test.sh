@@ -21,7 +21,7 @@ source "${LIB_LIFECYCLE_PHASES_DIR}/../../utils/var.sh"
 # shellcheck disable=SC1091
 source "${LIB_LIFECYCLE_PHASES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/args.sh"
+source "${var_LIB_UTILS_DIR}/flow.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/exit_codes.sh"
 
@@ -104,13 +104,37 @@ test::run_unit() {
         return 0
     fi
     
+    # Check what test scripts are available
+    local has_test_unit=false
+    local has_test=false
+    local test_script=""
+    
+    if command -v jq &> /dev/null; then
+        if jq -e '.scripts["test:unit"]' "${var_ROOT_DIR}/package.json" &> /dev/null; then
+            has_test_unit=true
+            test_script="test:unit"
+        elif jq -e '.scripts["test"]' "${var_ROOT_DIR}/package.json" &> /dev/null; then
+            has_test=true
+            test_script="test"
+        fi
+    fi
+    
+    if [[ "$has_test_unit" == "false" ]] && [[ "$has_test" == "false" ]]; then
+        log::info "No unit test configuration found (tried 'test:unit' and 'test' scripts)"
+        return 0
+    fi
+    
     # Determine test command
     local test_cmd=""
     
     if command -v pnpm &> /dev/null; then
-        test_cmd="pnpm test:unit"
+        test_cmd="pnpm $test_script"
     elif command -v npm &> /dev/null; then
-        test_cmd="npm run test:unit"
+        if [[ "$test_script" == "test" ]]; then
+            test_cmd="npm test"
+        else
+            test_cmd="npm run $test_script"
+        fi
     else
         log::warning "No package manager found, skipping unit tests"
         return 0

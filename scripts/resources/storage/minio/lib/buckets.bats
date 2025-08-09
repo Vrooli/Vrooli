@@ -1,7 +1,21 @@
 #!/usr/bin/env bats
 
+# Load Vrooli test infrastructure
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
+
 # Path to the script under test
 SCRIPT_PATH="$BATS_TEST_DIRNAME/buckets.sh"
+
+# Setup for each test
+setup() {
+    # Setup standard mocks
+    vrooli_auto_setup
+}
+
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
+}
 
 # ============================================================================
 # Script Loading Tests

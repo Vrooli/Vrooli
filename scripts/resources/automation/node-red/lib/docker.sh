@@ -68,8 +68,8 @@ node_red::build_docker_command() {
             docker_cmd+=" -v /bin:/host/bin:ro"
         fi
         
-        # Workspace access (read-write)
-        docker_cmd+=" -v $HOME/Vrooli:/workspace:rw"
+        # Workspace access (read-write) - mount project root as workspace
+        docker_cmd+=" -v ${var_ROOT_DIR:-$HOME/Vrooli}:/workspace:rw"
     fi
     
     # Add Docker socket access if enabled

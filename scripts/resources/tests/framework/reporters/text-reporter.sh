@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # ====================================================================
 # Text Reporter - Layer 1 Validation Human-Readable Output
 # ====================================================================
@@ -9,10 +9,10 @@
 #
 # Usage:
 #   source text-reporter.sh
-#   text_reporter_init
-#   text_report_resource_result "resource_name" "status" "details" "duration_ms"
-#   text_report_summary "total" "passed" "failed" "duration_s"
-#   text_report_cache_stats "cache_stats_json"
+#   text_reporter::init
+#   text_reporter::report_resource_result "resource_name" "status" "details" "duration_ms"
+#   text_reporter::report_summary "total" "passed" "failed" "duration_s"
+#   text_reporter::report_cache_stats "cache_stats_json"
 #
 # Features:
 #   - Color-coded pass/fail indicators
@@ -24,6 +24,11 @@
 # ====================================================================
 
 set -euo pipefail
+
+_HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# shellcheck disable=SC1091
+source "${_HERE}/../../../../lib/utils/var.sh"
 
 # Color definitions (auto-disable if not a TTY)
 if [[ -t 1 ]]; then
@@ -96,7 +101,7 @@ TEXT_REPORTER_FAILED_RESOURCES=()
 # Arguments: None
 # Returns: 0 on success
 #######################################
-text_reporter_init() {
+text_reporter::init() {
     TEXT_REPORTER_INITIALIZED=true
     TEXT_REPORTER_RESOURCE_COUNT=0
     TEXT_REPORTER_FAILED_RESOURCES=()
@@ -109,7 +114,7 @@ text_reporter_init() {
 # Arguments: $1 - header text, $2 - style (optional: major|minor)
 # Returns: 0
 #######################################
-text_report_header() {
+text_reporter::report_header() {
     local header_text="$1"
     local style="${2:-major}"
     
@@ -135,7 +140,7 @@ text_report_header() {
 # Arguments: $1 - resource name, $2 - status, $3 - details, $4 - duration_ms, $5 - cached (optional)
 # Returns: 0
 #######################################
-text_report_resource_result() {
+text_reporter::report_resource_result() {
     local resource_name="$1"
     local status="$2"
     local details="$3"
@@ -171,7 +176,7 @@ text_report_resource_result() {
             echo -e "${TEXT_REPORTER_ERROR}${TEXT_REPORTER_CROSS_MARK} ${TEXT_REPORTER_BOLD}$resource_name${TEXT_REPORTER_NC}${cache_indicator} ${TEXT_REPORTER_DIM}($duration_text)${TEXT_REPORTER_NC}"
             if [[ -n "$details" ]]; then
                 # Parse and format error details
-                text_report_error_details "$resource_name" "$details"
+                text_reporter::report_error_details "$resource_name" "$details"
             fi
             ;;
         "warning")
@@ -190,7 +195,7 @@ text_report_resource_result() {
 # Arguments: $1 - resource name, $2 - error details
 # Returns: 0
 #######################################
-text_report_error_details() {
+text_reporter::report_error_details() {
     local resource_name="$1"
     local error_details="$2"
     
@@ -261,13 +266,13 @@ text_report_error_details() {
 # Arguments: $1 - total, $2 - passed, $3 - failed, $4 - duration_s
 # Returns: 0
 #######################################
-text_report_summary() {
+text_reporter::report_summary() {
     local total="$1"
     local passed="$2"
     local failed="$3"
     local duration_s="$4"
     
-    text_report_header "Validation Summary" "major"
+    text_reporter::report_header "Validation Summary" "major"
     
     # Overall statistics
     echo -e "${TEXT_REPORTER_BOLD}Resources Validated:${TEXT_REPORTER_NC} $total"
@@ -298,13 +303,13 @@ text_report_summary() {
     
     # Failed resources summary
     if [[ $failed -gt 0 ]]; then
-        text_report_header "Failed Resources" "minor"
+        text_reporter::report_header "Failed Resources" "minor"
         for resource in "${TEXT_REPORTER_FAILED_RESOURCES[@]}"; do
             echo -e "  ${TEXT_REPORTER_ERROR}${TEXT_REPORTER_CROSS_MARK}${TEXT_REPORTER_NC} $resource"
         done
         echo
         
-        text_report_recommendations
+        text_reporter::report_recommendations
     fi
     
     return 0
@@ -315,8 +320,8 @@ text_report_summary() {
 # Arguments: None
 # Returns: 0
 #######################################
-text_report_recommendations() {
-    text_report_header "Fix Recommendations" "minor"
+text_reporter::report_recommendations() {
+    text_reporter::report_header "Fix Recommendations" "minor"
     
     echo -e "${TEXT_REPORTER_INFO_MARK} ${TEXT_REPORTER_BOLD}Quick Fixes:${TEXT_REPORTER_NC}"
     echo -e "  • Check contract compliance: ${TEXT_REPORTER_CYAN}cat contracts/v1.0/core.yaml${TEXT_REPORTER_NC}"
@@ -343,14 +348,14 @@ text_report_recommendations() {
 # Arguments: $1 - cache stats JSON
 # Returns: 0
 #######################################
-text_report_cache_stats() {
+text_reporter::report_cache_stats() {
     local cache_stats_json="$1"
     
     if [[ -z "$cache_stats_json" ]]; then
         return 0
     fi
     
-    text_report_header "Cache Performance" "minor"
+    text_reporter::report_header "Cache Performance" "minor"
     
     # Parse JSON stats (basic parsing for compatibility)
     local cache_hits cache_misses hit_rate total_entries cache_size_kb
@@ -383,15 +388,15 @@ text_report_cache_stats() {
 # Arguments: $1 - total failed count
 # Returns: 0
 #######################################
-text_report_completion() {
+text_reporter::report_completion() {
     local failed_count="$1"
     
     if [[ $failed_count -eq 0 ]]; then
-        text_report_header "${TEXT_REPORTER_TROPHY_MARK} All Resources Pass Validation!" "major"
+        text_reporter::report_header "${TEXT_REPORTER_TROPHY_MARK} All Resources Pass Validation!" "major"
         echo -e "${TEXT_REPORTER_SUCCESS}${TEXT_REPORTER_ROCKET_MARK} ${TEXT_REPORTER_BOLD}Congratulations!${TEXT_REPORTER_NC} All resources comply with interface standards."
         echo -e "   Your resource ecosystem is ready for production use."
     else
-        text_report_header "${TEXT_REPORTER_WARNING_MARK} Validation Issues Found" "major"
+        text_reporter::report_header "${TEXT_REPORTER_WARNING_MARK} Validation Issues Found" "major"
         echo -e "${TEXT_REPORTER_WARNING}${TEXT_REPORTER_CROSS_MARK} ${TEXT_REPORTER_BOLD}$failed_count resource(s)${TEXT_REPORTER_NC} need attention."
         echo -e "   Please review the recommendations above and update the failing resources."
     fi
@@ -404,7 +409,7 @@ text_report_completion() {
 # Arguments: $1 - current number, $2 - total number
 # Returns: 0, outputs progress indicator
 #######################################
-text_report_progress() {
+text_reporter::report_progress() {
     local current="$1"
     local total="$2"
     
@@ -416,17 +421,17 @@ text_report_progress() {
     local progress_bar_width=20
     local filled_width=$((percentage * progress_bar_width / 100))
     
-    printf "${TEXT_REPORTER_DIM}["
+    printf "%s[" "${TEXT_REPORTER_DIM}"
     for ((i=0; i<filled_width; i++)); do
         printf "="
     done
     for ((i=filled_width; i<progress_bar_width; i++)); do
         printf " "
     done
-    printf "] %d%% (%d/%d)${TEXT_REPORTER_NC}\n" "$percentage" "$current" "$total"
+    printf "] %d%% (%d/%d)%s\n" "$percentage" "$current" "$total" "${TEXT_REPORTER_NC}"
 }
 
 # Export functions for use in other scripts
-export -f text_reporter_init text_report_header text_report_resource_result
-export -f text_report_error_details text_report_summary text_report_recommendations
-export -f text_report_cache_stats text_report_completion text_report_progress
+export -f text_reporter::init text_reporter::report_header text_reporter::report_resource_result
+export -f text_reporter::report_error_details text_reporter::report_summary text_reporter::report_recommendations
+export -f text_reporter::report_cache_stats text_reporter::report_completion text_reporter::report_progress

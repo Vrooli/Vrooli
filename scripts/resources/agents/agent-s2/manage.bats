@@ -1,22 +1,108 @@
 #!/usr/bin/env bats
 # Tests for Agent S2 manage.sh script
 
-# Load Vrooli test infrastructure
-source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
+# Get the script directory and source var.sh first
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# Source var.sh first to get proper directory variables
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+
+# Load Vrooli test infrastructure using var_ variables
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
 
 # Expensive setup operations run once per file
 setup_file() {
     # Use Vrooli service test setup
     vrooli_setup_service_test "agent-s2"
     
-    # Load Agent S2 specific configuration once per file
+    # Set up directories and mock path
     SCRIPT_DIR="${BATS_TEST_DIRNAME}"
-    AGENTS2_DIR="$(dirname "$SCRIPT_DIR")"
+    export MOCK_DIR="${SCRIPT_DIR}/../../../__test/fixtures/mocks"
     
-    # Load configuration and manage script once
-    source "${AGENTS2_DIR}/config/defaults.sh"
-    source "${AGENTS2_DIR}/config/messages.sh"
+    # Load all dependencies once (expensive operations)
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
+    # shellcheck disable=SC1091
+    source "${var_LIB_UTILS_DIR}/args-cli.sh"
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/config/defaults.sh"
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/config/messages.sh"
+    
+    # Load the agent-s2 mock once
+    if [[ -f "$MOCK_DIR/agent-s2.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "$MOCK_DIR/agent-s2.sh"
+    fi
+    
+    # Load manage.sh once with all its dependencies
+    # First source the lib files directly to ensure they're loaded
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/lib/common.sh"
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/lib/docker.sh"
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/lib/status.sh"
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/lib/install.sh"
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/lib/api.sh"
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/lib/usage.sh"
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/lib/modes.sh"
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/lib/stealth.sh"
+    
+    # Now source manage.sh
+    # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/manage.sh"
+    
+    # Export key functions for BATS subshells
+    export -f agents2::main
+    export -f agents2::parse_arguments
+    export -f agents2::usage
+    export -f agents2::export_config
+    export -f agents2::export_messages
+    export -f agents2::install_service
+    export -f agents2::uninstall_service
+    export -f agents2::show_status
+    export -f agents2::show_info
+    export -f agents2::docker_start
+    export -f agents2::docker_stop
+    export -f agents2::docker_restart
+    export -f agents2::docker_logs
+    export -f agents2::run_usage_example
+    
+    # Export args functions needed by agents2
+    export -f args::reset
+    export -f args::register
+    export -f args::register_help
+    export -f args::register_yes
+    export -f args::parse
+    export -f args::get
+    export -f args::is_asking_for_help
+    export -f args::usage
+    
+    # Export resources functions needed by agents2
+    export -f resources::get_default_port
+    
+    # Export log functions once
+    log::header() { echo "=== $* ==="; }
+    log::info() { echo "[INFO] $*"; }
+    log::error() { echo "[ERROR] $*" >&2; }
+    log::success() { echo "[SUCCESS] $*"; }
+    log::warning() { echo "[WARNING] $*" >&2; }
+    export -f log::header log::info log::error log::success log::warning
+    
+    # Load and export agent-s2 mock functions
+    if [[ -f "$MOCK_DIR/agent-s2.sh" ]]; then
+        # Export mock state functions
+        export -f mock::agents2::load_state 2>/dev/null || true
+        export -f mock::agents2::save_state 2>/dev/null || true
+    fi
 }
 
 # Lightweight per-test setup
@@ -24,7 +110,18 @@ setup() {
     # Setup standard Vrooli mocks
     vrooli_auto_setup
     
-    # Set test environment variables (lightweight per-test)
+    # Ensure mock log directory exists to prevent warnings
+    MOCK_LOG_DIR="${MOCK_RESPONSES_DIR:-${BATS_TEST_DIRNAME}/../../../../data/test-outputs/mock-logs}"
+    if [[ ! -d "$MOCK_LOG_DIR" ]]; then
+        mkdir -p "$MOCK_LOG_DIR" 2>/dev/null || true
+    fi
+    
+    # Reset mock state to clean slate for each test
+    if declare -f mock::agents2::reset >/dev/null 2>&1; then
+        mock::agents2::reset
+    fi
+    
+    # Set test-specific environment variables
     export AGENTS2_CUSTOM_PORT="9999"
     export AGENTS2_CONTAINER_NAME="agent-s2-test"
     export AGENTS2_BASE_URL="http://localhost:9999"
@@ -42,17 +139,9 @@ setup() {
     export TARGET_MODE=""
     export USAGE_TYPE="help"
     
-    # Export config functions
+    # Export config and message functions (these use the test environment variables)
     agents2::export_config
     agents2::export_messages
-    
-    # Mock log functions
-    log::header() { echo "=== $* ==="; }
-    log::info() { echo "[INFO] $*"; }
-    log::error() { echo "[ERROR] $*" >&2; }
-    log::success() { echo "[SUCCESS] $*"; }
-    log::warning() { echo "[WARNING] $*" >&2; }
-    export -f log::header log::info log::error log::success log::warning
 }
 
 # BATS teardown function - runs after each test

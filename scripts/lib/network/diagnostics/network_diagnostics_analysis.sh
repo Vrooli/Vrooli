@@ -3,11 +3,10 @@
 # Handles TLS analysis, IPv4/IPv6 comparisons, and detailed debugging
 set -eo pipefail
 
-# Script directory
+# Source var.sh with relative path first
 LIB_NETWORK_DIAGNOSTICS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
 # shellcheck disable=SC1091
-source "${LIB_NETWORK_DIAGNOSTICS_DIR}/../../../lib/utils/var.sh"
+source "${LIB_NETWORK_DIAGNOSTICS_DIR}/../../utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 
@@ -51,7 +50,8 @@ network_diagnostics_analysis::analyze_tls_handshake() {
     cipher_output=$(timeout 5 openssl s_client -connect "$domain:443" -cipher 'ECDHE+AESGCM:ECDHE+AES256:!aNULL:!MD5:!DSS' </dev/null 2>&1 || echo "")
     
     if echo "$cipher_output" | grep -q "Cipher    :"; then
-        local cipher=$(echo "$cipher_output" | grep "Cipher    :" | awk '{print $3}')
+        local cipher
+        cipher=$(echo "$cipher_output" | grep "Cipher    :" | awk '{print $3}')
         log::info "  → Negotiated cipher: $cipher"
     fi
     
@@ -61,7 +61,8 @@ network_diagnostics_analysis::analyze_tls_handshake() {
     cert_output=$(timeout 5 openssl s_client -connect "$domain:443" -showcerts </dev/null 2>&1 || echo "")
     
     if echo "$cert_output" | grep -q "Certificate chain"; then
-        local cert_count=$(echo "$cert_output" | grep -c "BEGIN CERTIFICATE" || echo "0")
+        local cert_count
+        cert_count=$(echo "$cert_output" | grep -c "BEGIN CERTIFICATE" || echo "0")
         log::info "  → Certificate chain length: $cert_count"
     fi
     
@@ -157,12 +158,10 @@ network_diagnostics_analysis::check_ip_preference() {
     fi
     
     # Check if IPv6 is disabled
-    local ipv6_disabled=false
     if [[ -f /proc/sys/net/ipv6/conf/all/disable_ipv6 ]]; then
         local disable_value
         disable_value=$(cat /proc/sys/net/ipv6/conf/all/disable_ipv6 2>/dev/null || echo "0")
         if [[ "$disable_value" == "1" ]]; then
-            ipv6_disabled=true
             log::warning "  ⚠️  IPv6 is disabled system-wide"
         else
             log::info "  → IPv6 is enabled"
@@ -216,10 +215,6 @@ network_diagnostics_analysis::check_time_sync() {
 network_diagnostics_analysis::verbose_https_debug() {
     local test_command="${1:-curl -s https://github.com}"
     log::info "  → Running verbose HTTPS diagnostics..."
-    
-    # Extract URL from command
-    local url
-    url=$(echo "$test_command" | grep -oE 'https://[^ ]+' | head -1 || echo "https://github.com")
     
     # Run with verbose output to temp file
     local temp_file

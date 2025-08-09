@@ -2,6 +2,9 @@
 
 # Tests for Ollama configuration defaults
 
+# Get script directory first
+DEFAULTS_BATS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
 # Load test helper
 setup() {
     # Set test environment to avoid port conflicts
@@ -13,7 +16,7 @@ setup() {
     }
     
     # Source the defaults
-    source "${BATS_TEST_DIRNAME}/defaults.sh"
+    source "${DEFAULTS_BATS_DIR}/defaults.sh"
 }
 
 @test "configuration constants are set correctly" {

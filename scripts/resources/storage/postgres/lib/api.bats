@@ -2,6 +2,7 @@
 # Tests for PostgreSQL API functions
 
 # Load Vrooli test infrastructure
+# shellcheck disable=SC1091
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # Expensive setup operations (run once per file)
@@ -76,69 +77,30 @@ setup() {
     export -f postgres::common::health_check postgres::common::wait_for_ready
     export -f postgres::common::find_available_port postgres::common::generate_password
     
-    # Mock Docker functions for PostgreSQL operations
-    docker() {
-        case "$*" in
-            *"exec"*"psql"*) 
-                # Mock successful SQL execution
-                echo "Command completed successfully"
-                return 0
-                ;;
-            *"exec"*"pg_dump"*)
-                # Mock successful backup
-                echo "-- PostgreSQL database dump"
-                echo "-- Dumped by pg_dump version 14.5"
-                return 0
-                ;;
-            *"exec"*"createdb"*)
-                echo "CREATE DATABASE"
-                return 0
-                ;;
-            *"exec"*"dropdb"*)
-                echo "DROP DATABASE"
-                return 0
-                ;;
-            *"run"*"postgres"*)
-                echo "container_id_123456"
-                return 0
-                ;;
-            *"ps"*"--filter"*)
-                echo "postgres-test-instance"
-                return 0
-                ;;
-            *"stop"*|*"start"*|*"restart"*)
-                echo "postgres-test-instance"
-                return 0
-                ;;
-            *)
-                return 0
-                ;;
-        esac
-    }
-    export -f docker
+    # Load official mocks
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_DIR}/__test/fixtures/mocks/docker.sh"
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_DIR}/__test/fixtures/mocks/postgres.sh"
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_DIR}/__test/fixtures/mocks/filesystem.sh"
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_DIR}/__test/fixtures/mocks/system.sh"
     
-    # Mock file system operations
-    mkdir() { return 0; }
-    cp() { return 0; }
-    mv() { return 0; }
-    rm() { return 0; }
-    chmod() { return 0; }
-    chown() { return 0; }
-    export -f mkdir cp mv rm chmod chown
+    # Configure Docker mock for PostgreSQL operations
+    mock::docker::add_container "postgres-test-instance" "running" "postgres:16-alpine"
     
-    # Mock log functions
-    log::info() { echo "[INFO] $*"; }
-    log::error() { echo "[ERROR] $*" >&2; }
-    log::warning() { echo "[WARNING] $*" >&2; }
-    log::success() { echo "[SUCCESS] $*"; }
-    log::debug() { [[ "${DEBUG:-}" == "true" ]] && echo "[DEBUG] $*" >&2 || true; }
-    export -f log::info log::error log::warning log::success log::debug
+    # Configure PostgreSQL mock for database operations
+    mock::postgres::set_query_result "psql" "Command completed successfully"
+    mock::postgres::set_query_result "pg_dump" "-- PostgreSQL database dump
+-- Dumped by pg_dump version 14.5"
+    mock::postgres::set_query_result "createdb" "CREATE DATABASE"
+    mock::postgres::set_query_result "dropdb" "DROP DATABASE"
     
-    # Mock system commands
-    date() { echo "2024-01-15 10:30:00"; }
-    id() { echo "uid=1000(user) gid=1000(user) groups=1000(user)"; }
-    whoami() { echo "testuser"; }
-    export -f date id whoami
+    # Configure system mock responses
+    mock::system::set_command_output "date" "2024-01-15 10:30:00"
+    mock::system::set_command_output "id" "uid=1000(user) gid=1000(user) groups=1000(user)"
+    mock::system::set_command_output "whoami" "testuser"
 }
 
 # BATS teardown function - runs after each test

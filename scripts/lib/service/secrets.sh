@@ -8,10 +8,9 @@ set -euo pipefail
 # 2. Project .vrooli/secrets.json (development)  
 # 3. Environment variables (fallback)
 
-LIB_SERVICE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
+# Source var.sh with relative path first
 # shellcheck disable=SC1091
-source "${LIB_SERVICE_DIR}/../utils/var.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../utils/var.sh"
 
 # Detect project root dynamically
 secrets::get_project_root() {

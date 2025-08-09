@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
 # Enhanced Integration Test Library
 # Extends the basic integration test library with fixture support and better patterns
+set -euo pipefail
 
-# Source the base integration test library
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "$SCRIPT_DIR/integration-test-lib.sh"
+_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck disable=SC1091
+source "${_HERE}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${_HERE}/integration-test-lib.sh"
 
 # Load fixture loader for optional fixture testing
-FIXTURE_LOADER_PATH="$SCRIPT_DIR/../../../__test/fixtures/fixture-loader.bash"
+FIXTURE_LOADER_PATH="$var_SCRIPTS_TEST_DIR/fixtures/fixture-loader.bash"
 if [[ -f "$FIXTURE_LOADER_PATH" ]]; then
+    # shellcheck disable=SC1091
     source "$FIXTURE_LOADER_PATH"
     FIXTURES_AVAILABLE=true
 else
@@ -32,8 +37,8 @@ declare -a FIXTURE_RESULTS=()
 #######################################
 
 # Test with optional fixture data
-# Usage: test_with_fixture "test_name" "fixture_category" "fixture_name" test_function [expected_response]
-test_with_fixture() {
+# Usage: enhanced_test_lib::test_with_fixture "test_name" "fixture_category" "fixture_name" test_function [expected_response]
+enhanced_test_lib::test_with_fixture() {
     local test_name="$1"
     local fixture_category="$2"
     local fixture_name="$3"
@@ -69,7 +74,7 @@ test_with_fixture() {
 }
 
 # Enhanced service health check with deep validation
-enhanced_service_health_check() {
+enhanced_test_lib::enhanced_service_health_check() {
     local test_name="service health check (enhanced)"
     
     # Basic connectivity
@@ -106,7 +111,7 @@ enhanced_service_health_check() {
 }
 
 # Test API with different content types
-test_api_content_types() {
+enhanced_test_lib::test_api_content_types() {
     local test_name="API content type support"
     local api_endpoint="$1"
     
@@ -144,7 +149,7 @@ test_api_content_types() {
 }
 
 # Test service under load (basic)
-test_service_load() {
+enhanced_test_lib::test_service_load() {
     local test_name="basic load handling"
     local endpoint="${1:-$HEALTH_ENDPOINT}"
     local concurrent_requests="${2:-5}"
@@ -157,7 +162,7 @@ test_service_load() {
     mkdir -p "$temp_dir"
     
     # Function to make single request
-    make_load_request() {
+    enhanced_test_lib::make_load_request() {
         local request_id="$1"
         local result_file="$temp_dir/result_$request_id"
         
@@ -171,7 +176,7 @@ test_service_load() {
     # Launch concurrent requests
     local pids=()
     for ((i=1; i<=request_count; i++)); do
-        make_load_request "$i" &
+        enhanced_test_lib::make_load_request "$i" &
         pids+=($!)
         
         # Limit concurrency
@@ -217,7 +222,7 @@ test_service_load() {
 }
 
 # Validate service configuration
-test_service_configuration() {
+enhanced_test_lib::test_service_configuration() {
     local test_name="service configuration validation"
     
     # Check if service exposes configuration endpoint
@@ -254,7 +259,7 @@ test_service_configuration() {
 #######################################
 
 # Enhanced AI service tests
-register_enhanced_ai_tests() {
+enhanced_test_lib::register_enhanced_ai_tests() {
     local enhanced_ai_tests=(
         "enhanced_service_health_check"
         "test_service_configuration"
@@ -265,7 +270,7 @@ register_enhanced_ai_tests() {
     REGISTERED_TESTS+=("${enhanced_ai_tests[@]}")
 }
 
-test_ai_model_availability() {
+enhanced_test_lib::test_ai_model_availability() {
     local test_name="AI model availability check"
     
     # Common model list endpoints
@@ -297,7 +302,7 @@ test_ai_model_availability() {
     fi
 }
 
-test_ai_generation_basic() {
+enhanced_test_lib::test_ai_generation_basic() {
     local test_name="AI generation basic functionality"
     
     # Common generation endpoints
@@ -323,7 +328,7 @@ test_ai_generation_basic() {
 }
 
 # Enhanced automation service tests
-register_enhanced_automation_tests() {
+enhanced_test_lib::register_enhanced_automation_tests() {
     local enhanced_automation_tests=(
         "enhanced_service_health_check"
         "test_service_configuration"
@@ -334,7 +339,7 @@ register_enhanced_automation_tests() {
     REGISTERED_TESTS+=("${enhanced_automation_tests[@]}")
 }
 
-test_automation_workflow_list() {
+enhanced_test_lib::test_automation_workflow_list() {
     local test_name="automation workflow listing"
     
     local workflow_endpoints=("/api/workflows" "/workflows" "/v1/workflows")
@@ -356,7 +361,7 @@ test_automation_workflow_list() {
     fi
 }
 
-test_automation_execution_capability() {
+enhanced_test_lib::test_automation_execution_capability() {
     local test_name="automation execution capability"
     
     # Test fixture workflow if available
@@ -384,7 +389,7 @@ test_automation_execution_capability() {
 # Enhanced reporting
 #######################################
 
-generate_enhanced_report() {
+enhanced_test_lib::generate_enhanced_report() {
     echo
     echo "═══════════════════════════════════════════════════════════════"
     echo "  Enhanced Integration Test Report"
@@ -400,7 +405,7 @@ generate_enhanced_report() {
     
     # Generate detailed fixture report if fixtures were used
     if [[ ${#PROCESSED_FIXTURES[@]} -gt 0 ]]; then
-        generate_fixture_report
+        enhanced_test_lib::generate_fixture_report
     fi
     
     # Service-specific insights
@@ -422,7 +427,7 @@ generate_enhanced_report() {
 }
 
 # Override the main execution to use enhanced reporting
-enhanced_integration_test_main() {
+enhanced_test_lib::enhanced_integration_test_main() {
     init_config
     
     # Check prerequisites
@@ -452,7 +457,7 @@ enhanced_integration_test_main() {
     done
     
     # Generate enhanced report
-    generate_enhanced_report
+    enhanced_test_lib::generate_enhanced_report
     
     # Exit with appropriate code
     if [[ $TESTS_FAILED -eq 0 ]]; then
@@ -466,7 +471,7 @@ enhanced_integration_test_main() {
 # Fixture Usage Report Generation
 #######################################
 
-generate_fixture_report() {
+enhanced_test_lib::generate_fixture_report() {
     echo
     echo "=== FIXTURE USAGE REPORT ==="
     echo "Total fixtures processed: ${#PROCESSED_FIXTURES[@]}"
@@ -505,7 +510,7 @@ generate_fixture_report() {
 # Fixture Auto-Discovery
 #######################################
 
-discover_resource_fixtures() {
+enhanced_test_lib::discover_resource_fixtures() {
     local resource_name="$1"
     local resource_category="${2:-}"
     
@@ -574,7 +579,7 @@ discover_resource_fixtures() {
 # Fixture Rotation for Testing Variety
 #######################################
 
-rotate_fixtures() {
+enhanced_test_lib::rotate_fixtures() {
     local category="$1"
     local max_fixtures="${2:-5}"
     
@@ -592,19 +597,19 @@ rotate_fixtures() {
 }
 
 # Export enhanced functions
-export -f test_with_fixture
-export -f enhanced_service_health_check  
-export -f test_api_content_types
-export -f test_service_load
-export -f test_service_configuration
-export -f register_enhanced_ai_tests
-export -f register_enhanced_automation_tests
-export -f test_ai_model_availability
-export -f test_ai_generation_basic
-export -f test_automation_workflow_list
-export -f test_automation_execution_capability
-export -f generate_enhanced_report
-export -f enhanced_integration_test_main
-export -f generate_fixture_report
-export -f discover_resource_fixtures
-export -f rotate_fixtures
+export -f enhanced_test_lib::test_with_fixture
+export -f enhanced_test_lib::enhanced_service_health_check  
+export -f enhanced_test_lib::test_api_content_types
+export -f enhanced_test_lib::test_service_load
+export -f enhanced_test_lib::test_service_configuration
+export -f enhanced_test_lib::register_enhanced_ai_tests
+export -f enhanced_test_lib::register_enhanced_automation_tests
+export -f enhanced_test_lib::test_ai_model_availability
+export -f enhanced_test_lib::test_ai_generation_basic
+export -f enhanced_test_lib::test_automation_workflow_list
+export -f enhanced_test_lib::test_automation_execution_capability
+export -f enhanced_test_lib::generate_enhanced_report
+export -f enhanced_test_lib::enhanced_integration_test_main
+export -f enhanced_test_lib::generate_fixture_report
+export -f enhanced_test_lib::discover_resource_fixtures
+export -f enhanced_test_lib::rotate_fixtures

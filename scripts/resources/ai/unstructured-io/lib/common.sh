@@ -3,6 +3,14 @@
 # Unstructured.io Common Utilities
 # This file contains argument parsing, usage display, and other common utility functions
 
+# Get script directory for relative path resolution
+LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# shellcheck disable=SC1091
+source "${LIB_DIR}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_NETWORK_DIR}/ports.sh"
+
 #######################################
 # Parse command line arguments
 #######################################
@@ -302,7 +310,7 @@ unstructured_io::validate_file() {
     
     # Check file extension
     local extension="${file##*.}"
-    extension="${extension,,}"  # Convert to lowercase
+    extension=$(echo "$extension" | tr '[:upper:]' '[:lower:]')  # Convert to lowercase
     
     local supported=false
     for fmt in "${UNSTRUCTURED_IO_SUPPORTED_FORMATS[@]}"; do

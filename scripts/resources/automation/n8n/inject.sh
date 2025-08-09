@@ -8,11 +8,11 @@ set -euo pipefail
 DESCRIPTION="Inject workflows and credentials into n8n workflow automation platform"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
 
-# Source common utilities
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
 
 # Source n8n configuration if available
 if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
@@ -208,7 +208,7 @@ n8n_inject::validate_workflows() {
         fi
         
         # Check if file exists (resolve relative to Vrooli root)
-        local workflow_file="$VROOLI_PROJECT_ROOT/$file"
+        local workflow_file="$var_ROOT_DIR/$file"
         if [[ ! -f "$workflow_file" ]]; then
             log::error "Workflow file not found: $workflow_file"
             return 1
@@ -357,7 +357,7 @@ n8n_inject::import_workflow() {
     log::info "Importing workflow: $name"
     
     # Resolve file path
-    local workflow_file="$VROOLI_PROJECT_ROOT/$file"
+    local workflow_file="$var_ROOT_DIR/$file"
     
     # Check if workflow already exists
     local existing_workflow

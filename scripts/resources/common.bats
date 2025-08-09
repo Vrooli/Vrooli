@@ -3,15 +3,20 @@
 # Test specific functions from common.sh that don't depend on readonly variables
 # This avoids conflicts with the readonly VROOLI_CONFIG_DIR
 
-# Source dependencies
-RESOURCES_DIR="$BATS_TEST_DIRNAME"
-HELPERS_DIR="$RESOURCES_DIR/../lib"
+# Load test setup first
+load "../__test/fixtures/setup.bash"
 
-. "$HELPERS_DIR/utils/log.sh"
-. "$HELPERS_DIR/utils/flow.sh"
-. "$HELPERS_DIR/network/ports.sh"
-. "$HELPERS_DIR/utils/system_commands.sh"
-. "$RESOURCES_DIR/port_registry.sh"
+# Source dependencies using proper test setup
+setup() {
+    vrooli_setup_unit_test
+    
+    # Set test-specific directory variables
+    export RESOURCES_DIR="$BATS_TEST_DIRNAME"
+}
+
+teardown() {
+    vrooli_cleanup_test
+}
 
 # Source only the functions we need to test
 # We'll source common.sh in a subshell to avoid readonly conflicts
@@ -48,8 +53,8 @@ HELPERS_DIR="$RESOURCES_DIR/../lib"
 @test "rollback context functions work correctly" {
     # Run test in a subshell to avoid variable conflicts
     output=$(bash -c '
-        source "scripts/resources/port_registry.sh"
-        source "scripts/resources/common.sh"
+        source "$BATS_TEST_DIRNAME/port_registry.sh"
+        source "$BATS_TEST_DIRNAME/common.sh"
         
         # Start rollback context
         resources::start_rollback_context "test_op"
@@ -83,27 +88,23 @@ HELPERS_DIR="$RESOURCES_DIR/../lib"
 # ============================================================================
 
 @test "resources::handle_error provides correct guidance" {
-    # Source dependencies in test context
-    . "$RESOURCES_DIR/port_registry.sh"
-    . "$RESOURCES_DIR/common.sh"
-    
     # Test network error
-    output=$(resources::handle_error "Connection failed" "network" 2>&1)
+    output=$(bash -c 'source "$BATS_TEST_DIRNAME/port_registry.sh" && source "$BATS_TEST_DIRNAME/common.sh" && resources::handle_error "Connection failed" "network"' 2>&1)
     [[ "$output" =~ "Network Issue" ]]
     [[ "$output" =~ "Check your internet connection" ]]
     
     # Test permission error
-    output=$(resources::handle_error "Access denied" "permission" 2>&1)
+    output=$(bash -c 'source "$BATS_TEST_DIRNAME/port_registry.sh" && source "$BATS_TEST_DIRNAME/common.sh" && resources::handle_error "Access denied" "permission"' 2>&1)
     [[ "$output" =~ "Permission Issue" ]]
     [[ "$output" =~ "sudo privileges" ]]
     
     # Test config error
-    output=$(resources::handle_error "Invalid syntax" "config" 2>&1)
+    output=$(bash -c 'source "$BATS_TEST_DIRNAME/port_registry.sh" && source "$BATS_TEST_DIRNAME/common.sh" && resources::handle_error "Invalid syntax" "config"' 2>&1)
     [[ "$output" =~ "Configuration Issue" ]]
     [[ "$output" =~ "Validate configuration syntax" ]]
     
     # Test system error with custom remediation
-    output=$(resources::handle_error "Port busy" "system" "Try port 8081" 2>&1)
+    output=$(bash -c 'source "$BATS_TEST_DIRNAME/port_registry.sh" && source "$BATS_TEST_DIRNAME/common.sh" && resources::handle_error "Port busy" "system" "Try port 8081"' 2>&1)
     [[ "$output" =~ "System Issue" ]]
     [[ "$output" =~ "Try port 8081" ]]
 }

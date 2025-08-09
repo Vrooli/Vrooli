@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Monitoring script for Audio Intelligence Platform
 # This script provides continuous health monitoring and alerting
 
@@ -8,8 +8,20 @@ set -euo pipefail
 SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCENARIO_ID="audio-intelligence-platform"
 SCENARIO_NAME="Audio Intelligence Platform"
-MONITOR_LOG="/tmp/vrooli-${SCENARIO_ID}-monitor.log"
-PID_FILE="/tmp/vrooli-${SCENARIO_ID}-monitor.pid"
+# Source dependencies
+# shellcheck disable=SC1091
+source "${SCENARIO_DIR}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+
+MONITOR_LOG="${var_ROOT_DIR}/logs/vrooli-${SCENARIO_ID}-monitor.log"
+PID_FILE="${var_ROOT_DIR}/tmp/vrooli-${SCENARIO_ID}-monitor.pid"
+
+# Ensure log and temp directories exist
+mkdir -p "$(dirname "$MONITOR_LOG")"
+mkdir -p "$(dirname "$PID_FILE")"
 
 # Monitoring intervals (seconds)
 HEALTH_CHECK_INTERVAL=30
@@ -21,33 +33,28 @@ RESPONSE_TIME_THRESHOLD_MS=5000
 ERROR_RATE_THRESHOLD_PERCENT=5
 RESOURCE_USAGE_THRESHOLD_PERCENT=80
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Colors are provided by log.sh utility functions
 
 # Monitoring state
 MONITORING_ACTIVE=true
 CONSECUTIVE_FAILURES=0
 MAX_CONSECUTIVE_FAILURES=3
 
-# Logging functions
-log_monitor() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [MONITOR] $1" | tee -a "$MONITOR_LOG"
+# Monitoring functions
+monitor::log_monitor() {
+    log::info "[MONITOR] $1" | tee -a "$MONITOR_LOG"
 }
 
-log_health() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [HEALTH] $1" | tee -a "$MONITOR_LOG"
+monitor::log_health() {
+    log::info "[HEALTH] $1" | tee -a "$MONITOR_LOG"
 }
 
-log_alert() {
-    echo -e "[$(date '+%Y-%m-%d %H:%M:%S')] ${RED}[ALERT]${NC} $1" | tee -a "$MONITOR_LOG"
+monitor::log_alert() {
+    log::error "[ALERT] $1" | tee -a "$MONITOR_LOG"
 }
 
-log_performance() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] [PERF] $1" | tee -a "$MONITOR_LOG"
+monitor::log_performance() {
+    log::info "[PERF] $1" | tee -a "$MONITOR_LOG"
 }
 
 log_recovery() {

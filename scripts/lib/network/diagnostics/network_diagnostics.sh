@@ -3,11 +3,9 @@
 # Tests various network layers and protocols to identify connectivity issues
 set -eo pipefail
 
-# Script directory
-LIB_NETWORK_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
+# Source var.sh first with relative path
 # shellcheck disable=SC1091
-source "${LIB_NETWORK_DIR}/../utils/var.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
@@ -131,7 +129,6 @@ network_diagnostics::run() {
     fi
     
     # Count failures
-    local total_tests=${#TEST_RESULTS[@]}
     local failed_tests=0
     for result in "${TEST_RESULTS[@]}"; do
         if [[ "$result" == "FAIL" ]]; then
@@ -168,9 +165,11 @@ network_diagnostics::run() {
         # Attempt some basic fixes if sudo is available
         # Use a subshell to prevent flow::can_run_sudo from exiting the script
         if (flow::can_run_sudo "apply network fixes" 2>/dev/null); then
-            local primary_iface=$(ip route | grep default | awk '{print $5}' | head -1 2>/dev/null || echo "")
+            local primary_iface
+            primary_iface=$(ip route | grep default | awk '{print $5}' | head -1 2>/dev/null || echo "")
             if [[ -n "$primary_iface" ]] && command -v ethtool >/dev/null 2>&1; then
-                local tso_status=$(ethtool -k "$primary_iface" 2>/dev/null | grep "tcp-segmentation-offload" | awk '{print $2}' || echo "off")
+                local tso_status
+                tso_status=$(ethtool -k "$primary_iface" 2>/dev/null | grep "tcp-segmentation-offload" | awk '{print $2}' || echo "off")
                 if [[ "$tso_status" == "on" ]]; then
                     log::info "Attempting to disable TSO on $primary_iface..."
                     if sudo ethtool -K "$primary_iface" tso off gso off 2>/dev/null; then

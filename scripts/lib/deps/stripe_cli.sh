@@ -28,7 +28,7 @@ stripe_cli::setup() {
     # Using a subshell for set -e and trap to isolate their effects
     (
         set -e # Exit immediately if a command exits with a non-zero status.
-        trap 'log::error "An error occurred during Stripe CLI setup. Please check the output above."; exit "${ERROR_OPERATION_FAILED:?ERROR_OPERATION_FAILED is not set}";' ERR
+        trap 'log::error "An error occurred during Stripe CLI setup. Please check the output above."; exit "${EXIT_GENERAL_ERROR}";' ERR
 
         # Check for sudo privileges early, as most commands require it.
         if [ "$(id -u)" -ne 0 ]; then
@@ -37,7 +37,7 @@ stripe_cli::setup() {
             if ! sudo -n true 2>/dev/null; then
                 log::error "Sudo privileges are required and passwordless sudo is not available, or sudo is not installed."
                 log::error "Please run the main setup script with sudo, or ensure sudo access without a password for this script."
-                exit "${ERROR_SUDO_REQUIRED:?ERROR_SUDO_REQUIRED is not set}"
+                exit "${EXIT_PERMISSION_DENIED}"
             fi
         fi
 
@@ -61,7 +61,7 @@ stripe_cli::setup() {
             log::success "Stripe CLI setup complete!"
         else
             log::error "Stripe CLI installation appears to have failed."
-            exit "${ERROR_INSTALLATION_FAILED:?ERROR_INSTALLATION_FAILED is not set}"
+            exit "${EXIT_DEPENDENCY_ERROR}"
         fi
     )
 

@@ -3,6 +3,14 @@
 # Unstructured.io Installation Functions
 # This file contains functions for installing and uninstalling the Unstructured.io service
 
+# Get script directory for relative path resolution
+LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# shellcheck disable=SC1091
+source "${LIB_DIR}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_NETWORK_DIR}/ports.sh"
+
 #######################################
 # Install Unstructured.io service
 #######################################

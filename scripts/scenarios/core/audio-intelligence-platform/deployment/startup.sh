@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Startup script for Audio Intelligence Platform
 # This script converts the scenario into a running application
 
@@ -7,69 +7,50 @@ set -euo pipefail
 # Configuration
 SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Source port registry for dynamic port resolution
 # shellcheck disable=SC1091
-source "${SCENARIO_DIR}/../../../resources/common.sh"
+source "${SCENARIO_DIR}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${var_ROOT_DIR}/scripts/lib/utils/json.sh"
+
 SCENARIO_ID="audio-intelligence-platform"
 SCENARIO_NAME="Audio Intelligence Platform"
-LOG_FILE="/tmp/vrooli-${SCENARIO_ID}-startup.log"
+LOG_FILE="${var_ROOT_DIR}/logs/vrooli-${SCENARIO_ID}-startup.log"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# Logging functions
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
-}
-
-log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_FILE"
-}
+# Ensure log directory exists
+mkdir -p "$(dirname "$LOG_FILE")"
 
 # Error handling
-trap 'log_error "Startup failed at line $LINENO"; exit 1' ERR
+trap 'log::error "Startup failed at line $LINENO"; exit 1' ERR
 
 # Load configuration from service.json
-load_configuration() {
-    log_info "Loading scenario configuration..."
+startup::load_configuration() {
+    log::info "Loading scenario configuration..."
     
     # Check if required file exists
     if [[ ! -f "$SCENARIO_DIR/.vrooli/service.json" ]]; then
-        log_error "service.json not found in $SCENARIO_DIR/.vrooli/"
+        log::error "service.json not found in $SCENARIO_DIR/.vrooli/"
         exit 1
     fi
     
-    # Extract required resources
-    REQUIRED_RESOURCES=$(jq -r '.resources | to_entries[] | .value | to_entries[] | select(.value.required == true) | .key' "$SCENARIO_DIR/.vrooli/service.json" 2>/dev/null | tr '\n' ' ')
-    log_info "Required resources: $REQUIRED_RESOURCES"
+    # Extract required resources using JSON utilities
+    REQUIRED_RESOURCES=$(json::get_required_resources "" "$SCENARIO_DIR/.vrooli/service.json")
+    log::info "Required resources: $REQUIRED_RESOURCES"
     
-    # Extract configuration
-    REQUIRES_UI=$(jq -r '.deployment.testing.ui.required // false' "$SCENARIO_DIR/.vrooli/service.json" 2>/dev/null || echo "true")
-    REQUIRES_DISPLAY=$(jq -r '.deployment.testing.ui.type // "none"' "$SCENARIO_DIR/.vrooli/service.json" 2>/dev/null || echo "windmill")
-    TIMEOUT_SECONDS=$(jq -r '.deployment.testing.timeout // "45m"' "$SCENARIO_DIR/.vrooli/service.json" 2>/dev/null | sed 's/[ms]//g' || echo "2700")
+    # Extract configuration using JSON utilities
+    REQUIRES_UI=$(json::get_deployment_config 'testing.ui.required' 'false' "$SCENARIO_DIR/.vrooli/service.json")
+    REQUIRES_DISPLAY=$(json::get_deployment_config 'testing.ui.type' 'windmill' "$SCENARIO_DIR/.vrooli/service.json")
+    TIMEOUT_SECONDS=$(json::get_deployment_config 'testing.timeout' '45m' "$SCENARIO_DIR/.vrooli/service.json" | sed 's/[ms]//g')
     
-    log_info "UI required: $REQUIRES_UI, Display required: $REQUIRES_DISPLAY, Timeout: ${TIMEOUT_SECONDS}s"
+    log::info "UI required: $REQUIRES_UI, Display required: $REQUIRES_DISPLAY, Timeout: ${TIMEOUT_SECONDS}s"
 }
 
 # Step 1: Validate required resources are healthy
-validate_resources() {
-    log_info "Validating required resources..."
+startup::validate_resources() {
+    log::info "Validating required resources..."
     
     local failed_resources=()
     
@@ -79,144 +60,144 @@ validate_resources() {
                 if ! curl -sf "http://localhost:$(resources::get_default_port "ollama")/api/tags" >/dev/null 2>&1; then
                     failed_resources+=("ollama")
                 else
-                    log_success "✓ Ollama is healthy"
+                    log::success "✓ Ollama is healthy"
                 fi
                 ;;
             "n8n")
                 if ! curl -sf "http://localhost:$(resources::get_default_port "n8n")/healthz" >/dev/null 2>&1; then
                     failed_resources+=("n8n")
                 else
-                    log_success "✓ n8n is healthy"
+                    log::success "✓ n8n is healthy"
                 fi
                 ;;
             "postgres")
                 if ! pg_isready -h localhost -p "$(resources::get_default_port "postgres")" >/dev/null 2>&1; then
                     failed_resources+=("postgres")
                 else
-                    log_success "✓ PostgreSQL is healthy"
+                    log::success "✓ PostgreSQL is healthy"
                 fi
                 ;;
             "redis")
                 if ! redis-cli -h localhost -p "$(resources::get_default_port "redis")" ping >/dev/null 2>&1; then
                     failed_resources+=("redis")
                 else
-                    log_success "✓ Redis is healthy"
+                    log::success "✓ Redis is healthy"
                 fi
                 ;;
             "windmill")
                 if ! curl -sf "http://localhost:$(resources::get_default_port "windmill")/api/version" >/dev/null 2>&1; then
                     failed_resources+=("windmill")
                 else
-                    log_success "✓ Windmill is healthy"
+                    log::success "✓ Windmill is healthy"
                 fi
                 ;;
             "whisper")
                 if ! curl -sf "http://localhost:$(resources::get_default_port "whisper")/" >/dev/null 2>&1; then
                     failed_resources+=("whisper")
                 else
-                    log_success "✓ Whisper is healthy"
+                    log::success "✓ Whisper is healthy"
                 fi
                 ;;
             "comfyui")
                 if ! curl -sf "http://localhost:$(resources::get_default_port "comfyui")/" >/dev/null 2>&1; then
                     failed_resources+=("comfyui")
                 else
-                    log_success "✓ ComfyUI is healthy"
+                    log::success "✓ ComfyUI is healthy"
                 fi
                 ;;
             "minio")
                 if ! curl -sf "http://localhost:$(resources::get_default_port "minio")/minio/health/live" >/dev/null 2>&1; then
                     failed_resources+=("minio")
                 else
-                    log_success "✓ MinIO is healthy"
+                    log::success "✓ MinIO is healthy"
                 fi
                 ;;
             "qdrant")
                 if ! curl -sf "http://localhost:$(resources::get_default_port "qdrant")/" >/dev/null 2>&1; then
                     failed_resources+=("qdrant")
                 else
-                    log_success "✓ Qdrant is healthy"
+                    log::success "✓ Qdrant is healthy"
                 fi
                 ;;
             "questdb")
                 if ! curl -sf "http://localhost:$(resources::get_default_port "questdb")/" >/dev/null 2>&1; then
                     failed_resources+=("questdb")
                 else
-                    log_success "✓ QuestDB is healthy"
+                    log::success "✓ QuestDB is healthy"
                 fi
                 ;;
             *)
-                log_warning "Unknown resource: $resource"
+                log::warning "Unknown resource: $resource"
                 ;;
         esac
     done
     
     if [[ ${#failed_resources[@]} -gt 0 ]]; then
-        log_error "Failed resources: ${failed_resources[*]}"
-        log_error "Please start the required resources before deploying the scenario"
+        log::error "Failed resources: ${failed_resources[*]}"
+        log::error "Please start the required resources before deploying the scenario"
         exit 1
     fi
     
-    log_success "All required resources are healthy"
+    log::success "All required resources are healthy"
 }
 
 # Step 2: Initialize database schema and seed data
-initialize_database() {
+startup::initialize_database() {
     if [[ "$REQUIRED_RESOURCES" =~ "postgres" ]]; then
-        log_info "Initializing database..."
+        log::info "Initializing database..."
         
         local db_name="audio_intelligence_platform"
-        local schema_file="$SCENARIO_DIR/initialization/storage/schema.sql"
-        local seed_file="$SCENARIO_DIR/initialization/storage/seed.sql"
+        local schema_file="$SCENARIO_DIR/initialization/storage/postgres/schema.sql"
+        local seed_file="$SCENARIO_DIR/initialization/storage/postgres/seed.sql"
         
         # Create database if it doesn't exist
         if ! psql -h localhost -p "$(resources::get_default_port "postgres")" -U postgres -lqt | cut -d \| -f 1 | grep -qw "$db_name"; then
-            log_info "Creating database: $db_name"
+            log::info "Creating database: $db_name"
             createdb -h localhost -p "$(resources::get_default_port "postgres")" -U postgres "$db_name" || {
-                log_warning "Database $db_name might already exist, continuing..."
+                log::warning "Database $db_name might already exist, continuing..."
             }
         fi
         
         # Apply schema
         if [[ -f "$schema_file" ]]; then
-            log_info "Applying database schema..."
+            log::info "Applying database schema..."
             PGPASSWORD=postgres psql -h localhost -p "$(resources::get_default_port "postgres")" -U postgres -d "$db_name" -f "$schema_file" -v ON_ERROR_STOP=1
-            log_success "Database schema applied"
+            log::success "Database schema applied"
         else
-            log_warning "No schema file found at $schema_file"
+            log::warning "No schema file found at $schema_file"
         fi
         
         # Apply seed data
         if [[ -f "$seed_file" ]]; then
-            log_info "Applying seed data..."
+            log::info "Applying seed data..."
             PGPASSWORD=postgres psql -h localhost -p "$(resources::get_default_port "postgres")" -U postgres -d "$db_name" -f "$seed_file" -v ON_ERROR_STOP=1
-            log_success "Seed data applied"
+            log::success "Seed data applied"
         else
-            log_warning "No seed file found at $seed_file"
+            log::warning "No seed file found at $seed_file"
         fi
     else
-        log_info "Skipping database initialization (PostgreSQL not required)"
+        log::info "Skipping database initialization (PostgreSQL not required)"
     fi
 }
 
 # Step 3: Deploy workflows to automation platforms
-deploy_workflows() {
-    log_info "Deploying workflows..."
+startup::deploy_workflows() {
+    log::info "Deploying workflows..."
     
     # Deploy n8n workflows
     if [[ "$REQUIRED_RESOURCES" =~ "n8n" ]]; then
         local n8n_dir="$SCENARIO_DIR/initialization/automation/n8n"
         if [[ -d "$n8n_dir" ]]; then
-            log_info "Deploying n8n workflows..."
+            log::info "Deploying n8n workflows..."
             for workflow_file in "$n8n_dir"/*.json; do
                 if [[ -f "$workflow_file" ]]; then
-                    log_info "Importing workflow: $(basename "$workflow_file")"
+                    log::info "Importing workflow: $(basename "$workflow_file")"
                     # Note: In a real implementation, you'd use n8n's API to import workflows
                     # For now, we'll just validate the JSON
                     if jq empty "$workflow_file" 2>/dev/null; then
-                        log_success "✓ Workflow $(basename "$workflow_file") is valid"
+                        log::success "✓ Workflow $(basename "$workflow_file") is valid"
                     else
-                        log_error "✗ Workflow $(basename "$workflow_file") has invalid JSON"
+                        log::error "✗ Workflow $(basename "$workflow_file") has invalid JSON"
                     fi
                 fi
             done
@@ -227,25 +208,25 @@ deploy_workflows() {
     if [[ "$REQUIRED_RESOURCES" =~ "windmill" && "$REQUIRES_UI" == "true" ]]; then
         local windmill_app="$SCENARIO_DIR/initialization/automation/windmill/transcription-manager-app.json"
         if [[ -f "$windmill_app" ]]; then
-            log_info "Deploying Windmill application..."
+            log::info "Deploying Windmill application..."
             # Note: In a real implementation, you'd use Windmill's API to deploy apps
             if jq empty "$windmill_app" 2>/dev/null; then
-                log_success "✓ Windmill app configuration is valid"
+                log::success "✓ Windmill app configuration is valid"
             else
-                log_error "✗ Windmill app configuration has invalid JSON"
+                log::error "✗ Windmill app configuration has invalid JSON"
             fi
         fi
     fi
 }
 
 # Step 4: Initialize MinIO buckets
-initialize_minio() {
+startup::initialize_minio() {
     if [[ "$REQUIRED_RESOURCES" =~ "minio" ]]; then
-        log_info "Initializing MinIO buckets..."
+        log::info "Initializing MinIO buckets..."
         
         # Check MinIO client availability
         if ! command -v mc &> /dev/null; then
-            log_warning "MinIO client (mc) not found, skipping bucket initialization"
+            log::warning "MinIO client (mc) not found, skipping bucket initialization"
             return 0
         fi
         
@@ -256,22 +237,22 @@ initialize_minio() {
         local buckets=("audio-files" "transcriptions" "exports")
         for bucket in "${buckets[@]}"; do
             if ! mc ls "local/$bucket" &>/dev/null; then
-                log_info "Creating bucket: $bucket"
+                log::info "Creating bucket: $bucket"
                 mc mb "local/$bucket"
-                log_success "✓ Bucket $bucket created"
+                log::success "✓ Bucket $bucket created"
             else
-                log_success "✓ Bucket $bucket already exists"
+                log::success "✓ Bucket $bucket already exists"
             fi
         done
     else
-        log_info "Skipping MinIO initialization (not required)"
+        log::info "Skipping MinIO initialization (not required)"
     fi
 }
 
 # Step 5: Initialize Qdrant collections
-initialize_qdrant() {
+startup::initialize_qdrant() {
     if [[ "$REQUIRED_RESOURCES" =~ "qdrant" ]]; then
-        log_info "Initializing Qdrant collections..."
+        log::info "Initializing Qdrant collections..."
         
         # Create transcription embeddings collection
         local collection_config='{
@@ -282,138 +263,138 @@ initialize_qdrant() {
         }'
         
         if curl -sf -X GET "http://localhost:$(resources::get_default_port "qdrant")/collections/transcription-embeddings" >/dev/null 2>&1; then
-            log_success "✓ Collection 'transcription-embeddings' already exists"
+            log::success "✓ Collection 'transcription-embeddings' already exists"
         else
-            log_info "Creating collection 'transcription-embeddings'..."
+            log::info "Creating collection 'transcription-embeddings'..."
             if curl -sf -X PUT "http://localhost:$(resources::get_default_port "qdrant")/collections/transcription-embeddings" \
                 -H "Content-Type: application/json" \
                 -d "$collection_config" >/dev/null 2>&1; then
-                log_success "✓ Collection 'transcription-embeddings' created"
+                log::success "✓ Collection 'transcription-embeddings' created"
             else
-                log_error "Failed to create Qdrant collection"
+                log::error "Failed to create Qdrant collection"
             fi
         fi
     else
-        log_info "Skipping Qdrant initialization (not required)"
+        log::info "Skipping Qdrant initialization (not required)"
     fi
 }
 
 # Step 6: Apply configuration
-apply_configuration() {
-    log_info "Applying configuration..."
+startup::apply_configuration() {
+    log::info "Applying configuration..."
     
     local config_dir="$SCENARIO_DIR/initialization/configuration"
     
     # Validate configuration files
     for config_file in "$config_dir"/*.json; do
         if [[ -f "$config_file" ]]; then
-            log_info "Validating $(basename "$config_file")..."
+            log::info "Validating $(basename "$config_file")..."
             if jq empty "$config_file" 2>/dev/null; then
-                log_success "✓ $(basename "$config_file") is valid"
+                log::success "✓ $(basename "$config_file") is valid"
             else
-                log_error "✗ $(basename "$config_file") has invalid JSON"
+                log::error "✗ $(basename "$config_file") has invalid JSON"
             fi
         fi
     done
     
     # In a real implementation, you'd apply these configurations to the running services
-    log_success "Configuration validated and ready for application"
+    log::success "Configuration validated and ready for application"
 }
 
 # Step 5: Perform health checks
-health_checks() {
-    log_info "Performing post-deployment health checks..."
+startup::health_checks() {
+    log::info "Performing post-deployment health checks..."
     
     # Test webhook endpoints if n8n is deployed
     if [[ "$REQUIRED_RESOURCES" =~ "n8n" ]]; then
-        log_info "Testing n8n webhook endpoints..."
+        log::info "Testing n8n webhook endpoints..."
         
         # Test transcription pipeline webhook
         local webhook_url="http://localhost:$(resources::get_default_port "n8n")/webhook/transcription-upload"
-        log_info "Testing transcription webhook: $webhook_url"
+        log::info "Testing transcription webhook: $webhook_url"
         local test_payload='{"test": true, "filename": "test.mp3", "scenario": "'$SCENARIO_ID'", "timestamp": "'$(date -Iseconds)'"}'
         
         if curl -sf -X POST -H "Content-Type: application/json" -d "$test_payload" "$webhook_url" >/dev/null 2>&1; then
-            log_success "✓ Webhook endpoint is responding"
+            log::success "✓ Webhook endpoint is responding"
         else
-            log_warning "⚠ Webhook endpoint test failed (this is expected if workflow isn't activated yet)"
+            log::warning "⚠ Webhook endpoint test failed (this is expected if workflow isn't activated yet)"
         fi
     fi
     
     # Test UI accessibility if required
     if [[ "$REQUIRES_UI" == "true" && "$REQUIRED_RESOURCES" =~ "windmill" ]]; then
         local ui_url="http://localhost:$(resources::get_default_port "windmill")/app/$SCENARIO_ID"
-        log_info "Testing UI accessibility: $ui_url"
+        log::info "Testing UI accessibility: $ui_url"
         
         if curl -sf "$ui_url" >/dev/null 2>&1; then
-            log_success "✓ UI is accessible"
+            log::success "✓ UI is accessible"
         else
-            log_warning "⚠ UI accessibility test failed (this is expected if app isn't deployed yet)"
+            log::warning "⚠ UI accessibility test failed (this is expected if app isn't deployed yet)"
         fi
     fi
     
-    log_success "Health checks completed"
+    log::success "Health checks completed"
 }
 
 # Main deployment function
-main() {
-    log_info "Starting deployment of $SCENARIO_NAME ($SCENARIO_ID)..."
-    log_info "Log file: $LOG_FILE"
+startup::main() {
+    log::info "Starting deployment of $SCENARIO_NAME ($SCENARIO_ID)..."
+    log::info "Log file: $LOG_FILE"
     
     # Clear previous log
     > "$LOG_FILE"
     
     # Execute deployment steps
-    load_configuration
-    validate_resources
-    initialize_database
-    initialize_minio
-    initialize_qdrant
-    deploy_workflows
-    apply_configuration
-    health_checks
+    startup::load_configuration
+    startup::validate_resources
+    startup::initialize_database
+    startup::initialize_minio
+    startup::initialize_qdrant
+    startup::deploy_workflows
+    startup::apply_configuration
+    startup::health_checks
     
     # Success summary
-    log_success "🎉 $SCENARIO_NAME deployed successfully!"
-    log_info "Application endpoints:"
+    log::success "🎉 $SCENARIO_NAME deployed successfully!"
+    log::info "Application endpoints:"
     
     if [[ "$REQUIRED_RESOURCES" =~ "n8n" ]]; then
-        log_info "  📡 Transcription Pipeline: http://localhost:$(resources::get_default_port "n8n")/webhook/transcription-upload"
-        log_info "  📡 AI Analysis: http://localhost:$(resources::get_default_port "n8n")/webhook/ai-analysis"
-        log_info "  📡 Semantic Search: http://localhost:$(resources::get_default_port "n8n")/webhook/semantic-search"
+        log::info "  📡 Transcription Pipeline: http://localhost:$(resources::get_default_port "n8n")/webhook/transcription-upload"
+        log::info "  📡 AI Analysis: http://localhost:$(resources::get_default_port "n8n")/webhook/ai-analysis"
+        log::info "  📡 Semantic Search: http://localhost:$(resources::get_default_port "n8n")/webhook/semantic-search"
     fi
     
     if [[ "$REQUIRES_UI" == "true" && "$REQUIRED_RESOURCES" =~ "windmill" ]]; then
-        log_info "  🖥️  Transcription Manager UI: http://localhost:$(resources::get_default_port "windmill")/"
+        log::info "  🖥️  Transcription Manager UI: http://localhost:$(resources::get_default_port "windmill")/"
     fi
     
     if [[ "$REQUIRED_RESOURCES" =~ "postgres" ]]; then
-        log_info "  🗄️  Database: postgresql://postgres:postgres@localhost:$(resources::get_default_port "postgres")/${SCENARIO_ID//-/_}"
+        log::info "  🗄️  Database: postgresql://postgres:postgres@localhost:$(resources::get_default_port "postgres")/${SCENARIO_ID//-/_}"
     fi
     
-    log_info "  📊 Scenario Test: $SCENARIO_DIR/test.sh"
-    log_info "  📋 Full Log: $LOG_FILE"
+    log::info "  📊 Scenario Test: $SCENARIO_DIR/test.sh"
+    log::info "  📋 Full Log: $LOG_FILE"
     
-    echo ""
-    echo -e "${GREEN}✅ Deployment completed successfully!${NC}"
-    echo -e "${BLUE}ℹ️  Run the scenario test to validate functionality:${NC}"
-    echo "   cd \"$SCENARIO_DIR\" && ./test.sh"
+    log::success ""
+    log::success "✅ Deployment completed successfully!"
+    log::info "ℹ️  Run the scenario test to validate functionality:"
+    log::info "   cd \"$SCENARIO_DIR\" && ./test.sh"
 }
 
 # Handle command line arguments
 case "${1:-deploy}" in
     "deploy"|"start"|"startup")
-        main
+        startup::main
         ;;
     "validate"|"check")
-        load_configuration
-        validate_resources
+        startup::load_configuration
+        startup::validate_resources
         ;;
     "logs")
         if [[ -f "$LOG_FILE" ]]; then
             tail -f "$LOG_FILE"
         else
-            log_error "No log file found at $LOG_FILE"
+            log::error "No log file found at $LOG_FILE"
         fi
         ;;
     "help"|"-h"|"--help")
@@ -430,7 +411,7 @@ case "${1:-deploy}" in
         echo ""
         ;;
     *)
-        log_error "Unknown command: $1"
+        log::error "Unknown command: $1"
         echo "Use '$0 help' for usage information"
         exit 1
         ;;

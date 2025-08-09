@@ -20,7 +20,8 @@ setup() {
     
     # Load the script without executing main
     SCRIPT_DIR="${BATS_TEST_DIRNAME}"
-    source "${SCRIPT_DIR}/manage.sh" || true
+    SCRIPT_PATH="${SCRIPT_DIR}/manage.sh"
+    source "${SCRIPT_PATH}" || true
 }
 
 # BATS teardown function - runs after each test

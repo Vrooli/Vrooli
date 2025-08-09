@@ -2,21 +2,25 @@
 # Tests for Vault manage.sh script
 
 # Load Vrooli test infrastructure
-source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
+# shellcheck disable=SC1091
+source "${BATS_TEST_DIRNAME}/../../../../__test/setup.bash"
 
 # Expensive setup operations run once per file
 setup_file() {
+    # Load var.sh to get directory variables
+    # shellcheck disable=SC1091
+    source "${BATS_TEST_DIRNAME}/../../../../lib/utils/var.sh"
+    
     # Use Vrooli service test setup
     vrooli_setup_service_test "vault"
     
     # Load Vault specific configuration once per file
-    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
-    VAULT_DIR="$(dirname "$SCRIPT_DIR")"
-    
-    # Load configuration and manage script once
-    source "${VAULT_DIR}/config/defaults.sh"
-    source "${VAULT_DIR}/config/messages.sh"
-    source "${SCRIPT_DIR}/manage.sh"
+    # shellcheck disable=SC1091
+    source "$var_SCRIPTS_RESOURCES_DIR/storage/vault/config/defaults.sh"
+    # shellcheck disable=SC1091
+    source "$var_SCRIPTS_RESOURCES_DIR/storage/vault/config/messages.sh"
+    # shellcheck disable=SC1091
+    source "$var_SCRIPTS_RESOURCES_DIR/storage/vault/manage.sh"
 }
 
 # Lightweight per-test setup
@@ -41,14 +45,6 @@ setup() {
     # Export config functions
     vault::export_config
     vault::export_messages
-    
-    # Mock log functions
-    log::header() { echo "=== $* ==="; }
-    log::info() { echo "[INFO] $*"; }
-    log::error() { echo "[ERROR] $*" >&2; }
-    log::success() { echo "[SUCCESS] $*"; }
-    log::warning() { echo "[WARNING] $*" >&2; }
-    export -f log::header log::info log::error log::success log::warning
 }
 
 # BATS teardown function - runs after each test
@@ -212,6 +208,132 @@ teardown() {
     run vault::main
     [ "$status" -eq 1 ]
     [[ "$output" =~ "Unknown action: unknown-action" ]]
+}
+
+# ============================================================================
+# Additional Action Tests
+# ============================================================================
+
+@test "vault::parse_arguments accepts uninstall action" {
+    vault::parse_arguments --action uninstall
+    [ "$ACTION" = "uninstall" ]
+}
+
+@test "vault::parse_arguments accepts start action" {
+    vault::parse_arguments --action start
+    [ "$ACTION" = "start" ]
+}
+
+@test "vault::parse_arguments accepts stop action" {
+    vault::parse_arguments --action stop
+    [ "$ACTION" = "stop" ]
+}
+
+@test "vault::parse_arguments accepts restart action" {
+    vault::parse_arguments --action restart
+    [ "$ACTION" = "restart" ]
+}
+
+@test "vault::parse_arguments accepts logs action" {
+    vault::parse_arguments --action logs
+    [ "$ACTION" = "logs" ]
+}
+
+@test "vault::parse_arguments accepts unseal action" {
+    vault::parse_arguments --action unseal
+    [ "$ACTION" = "unseal" ]
+}
+
+@test "vault::parse_arguments accepts list-secrets action" {
+    vault::parse_arguments --action list-secrets
+    [ "$ACTION" = "list-secrets" ]
+}
+
+@test "vault::parse_arguments accepts delete-secret action" {
+    vault::parse_arguments --action delete-secret
+    [ "$ACTION" = "delete-secret" ]
+}
+
+@test "vault::parse_arguments accepts backup action" {
+    vault::parse_arguments --action backup
+    [ "$ACTION" = "backup" ]
+}
+
+@test "vault::parse_arguments accepts restore action" {
+    vault::parse_arguments --action restore --backup-file /tmp/backup.tar
+    [ "$ACTION" = "restore" ]
+    [ "$BACKUP_FILE" = "/tmp/backup.tar" ]
+}
+
+@test "vault::parse_arguments accepts diagnose action" {
+    vault::parse_arguments --action diagnose
+    [ "$ACTION" = "diagnose" ]
+}
+
+@test "vault::parse_arguments accepts monitor action" {
+    vault::parse_arguments --action monitor
+    [ "$ACTION" = "monitor" ]
+}
+
+@test "vault::parse_arguments accepts remove-data flag" {
+    vault::parse_arguments --remove-data yes
+    [ "$VAULT_REMOVE_DATA" = "yes" ]
+}
+
+@test "vault::parse_arguments accepts storage-strategy argument" {
+    vault::parse_arguments --storage-strategy bind
+    [ "$VAULT_STORAGE_STRATEGY" = "bind" ]
+}
+
+@test "vault::main validates list-secrets arguments" {
+    export ACTION='list-secrets'
+    export SECRET_PATH=''
+    
+    run vault::main
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "--path is required" ]]
+}
+
+@test "vault::main validates delete-secret arguments" {
+    export ACTION='delete-secret'
+    export SECRET_PATH=''
+    
+    run vault::main
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "--path is required" ]]
+}
+
+@test "vault::main validates restore arguments" {
+    export ACTION='restore'
+    export BACKUP_FILE=''
+    
+    run vault::main
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "--backup-file is required" ]]
+}
+
+@test "vault::main calls correct function for uninstall action" {
+    # Mock vault::uninstall function
+    vault::uninstall() { echo 'vault::uninstall called'; return 0; }
+    export -f vault::uninstall
+    
+    export ACTION='uninstall'
+    run vault::main
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "vault::uninstall called" ]]
+}
+
+@test "vault::main calls correct function for logs action with follow" {
+    # Mock vault::docker::show_logs function
+    vault::docker::show_logs() { echo "vault::docker::show_logs called with $*"; return 0; }
+    export -f vault::docker::show_logs
+    
+    export ACTION='logs'
+    export FOLLOW_LOGS='yes'
+    export LOG_LINES='100'
+    run vault::main
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "vault::docker::show_logs called with 100 follow" ]]
 }
 
 # ============================================================================

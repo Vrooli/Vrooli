@@ -6,36 +6,37 @@ set -euo pipefail
 
 DESCRIPTION="Install and manage HashiCorp Vault secret management service using Docker"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
+# Source var.sh first to get directory variables
+# shellcheck disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/../../../lib/utils/var.sh"
 
-# Source common resources
+# Source common resources using var_ variables
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "$var_RESOURCES_COMMON_FILE"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../app/utils/args.sh"
+source "$var_LIB_UTILS_DIR/args-cli.sh"
 
-# Source configuration
+# Source configuration using var_ variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/defaults.sh"
+source "$var_SCRIPTS_RESOURCES_DIR/storage/vault/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/messages.sh"
+source "$var_SCRIPTS_RESOURCES_DIR/storage/vault/config/messages.sh"
 
 # Export configuration
 vault::export_config
 vault::messages::init
 
-# Source all library modules
+# Source all library modules using var_ variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/common.sh"
+source "$var_SCRIPTS_RESOURCES_DIR/storage/vault/lib/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/docker.sh"
+source "$var_SCRIPTS_RESOURCES_DIR/storage/vault/lib/docker.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/api.sh"
+source "$var_SCRIPTS_RESOURCES_DIR/storage/vault/lib/api.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/status.sh"
+source "$var_SCRIPTS_RESOURCES_DIR/storage/vault/lib/status.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/install.sh"
+source "$var_SCRIPTS_RESOURCES_DIR/storage/vault/lib/install.sh"
 
 #######################################
 # Parse command line arguments

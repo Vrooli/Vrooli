@@ -7,24 +7,29 @@ set -euo pipefail
 
 DESCRIPTION="Orchestrates data injection into resources for scenario deployment"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-PROJECT_ROOT=$(cd "${SCRIPT_DIR}/../../.." && pwd)
-RESOURCES_DIR="${PROJECT_ROOT}/scripts/resources"
+# Source var.sh first to get standardized paths
+SCRIPTS_SCENARIOS_INJECTION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPTS_SCENARIOS_INJECTION_DIR}/../../lib/utils/var.sh"
 
 # Source common utilities if available
-if [[ -f "${RESOURCES_DIR}/common.sh" ]]; then
+if [[ -f "${var_SCRIPTS_RESOURCES_DIR}/common.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${RESOURCES_DIR}/common.sh"
+    source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 fi
 
+# Source logging utilities
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+
 # Source argument helpers if available
-if [[ -f "${PROJECT_ROOT}/scripts/lib/utils/args.sh" ]]; then
+if [[ -f "${var_LIB_UTILS_DIR}/args.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${PROJECT_ROOT}/scripts/lib/utils/args.sh"
+    source "${var_LIB_UTILS_DIR}/args.sh"
 fi
 
 # Default scenarios directory path
-readonly DEFAULT_SCENARIOS_DIR="${PROJECT_ROOT}/scripts/scenarios/core"
+readonly DEFAULT_SCENARIOS_DIR="${var_SCRIPTS_SCENARIOS_DIR}/core"
 
 # Operation tracking for rollback support
 declare -a INJECTION_ROLLBACK_ACTIONS=()
@@ -42,7 +47,7 @@ declare -g INJECTION_OPERATION_ID=""
 resolve_secret() {
     local key="$1"
     local vault_path="${2:-vrooli}"
-    local vault_manager="$PROJECT_ROOT/scripts/resources/storage/vault/manage.sh"
+    local vault_manager="$var_SCRIPTS_RESOURCES_DIR/storage/vault/manage.sh"
     
     # Layer 1: Vault (if available and healthy)
     if [[ -x "$vault_manager" ]]; then
@@ -1189,7 +1194,7 @@ injection::find_resource_script() {
     
     # Search through resource directories
     local script_path
-    script_path=$(find "$RESOURCES_DIR" -name "manage.sh" -path "*/$resource/*" | head -1)
+    script_path=$(find "$var_SCRIPTS_RESOURCES_DIR" -name "manage.sh" -path "*/$resource/*" | head -1)
     
     if [[ -z "$script_path" ]]; then
         log::debug "Resource management script not found for: $resource"

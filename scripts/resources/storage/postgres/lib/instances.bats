@@ -2,6 +2,7 @@
 # Tests for PostgreSQL Instance Management
 
 # Load Vrooli test infrastructure
+# shellcheck disable=SC1091
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # Expensive setup operations (run once per file)
@@ -57,14 +58,34 @@ setup() {
     export MSG_PORT_IN_USE="Port already in use"
     export MSG_INVALID_NAME="Invalid instance name"
     
-    # Mock PostgreSQL utility functions
+    # Load official mocks
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_DIR}/__test/fixtures/mocks/docker.sh"
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_DIR}/__test/fixtures/mocks/postgres.sh"
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_DIR}/__test/fixtures/mocks/filesystem.sh"
+    
+    # Configure Docker mock for PostgreSQL containers
+    mock::docker::add_container "postgres-test-instance" "running" "postgres:16-alpine"
+    mock::docker::add_container "postgres-main" "running" "postgres:16-alpine"
+    mock::docker::add_container "postgres-dev" "stopped" "postgres:16-alpine"
+    mock::docker::add_container "postgres-existing-instance" "running" "postgres:16-alpine"
+    
+    # Configure PostgreSQL mock states
+    mock::postgres::set_server_status "running"
+    mock::postgres::set_connection_status "true"
+    
+    # Mock PostgreSQL utility functions with test-specific behavior
     postgres::common::container_exists() { 
         case "$1" in
             "existing-instance") return 0 ;;  # Instance exists
-            *) return 1 ;;  # Instance doesn't exist
+            *) mock::docker::container_exists "postgres-$1" ;;
         esac
     }
-    postgres::common::is_running() { return 0; }
+    postgres::common::is_running() { 
+        mock::docker::is_container_running "postgres-$1" 2>/dev/null || return 0; 
+    }
     postgres::common::count_running_instances() { echo "3"; }
     postgres::common::is_port_available() {
         case "$1" in
@@ -75,7 +96,7 @@ setup() {
     postgres::instance::find_available_port() { echo "5434"; }
     postgres::instance::validate_name() { 
         case "$1" in
-            "invalid-name*") return 1 ;;  # Invalid characters
+            "invalid-name"*) return 1 ;;  # Invalid characters
             "") return 1 ;;               # Empty name
             *) return 0 ;;                # Valid name
         esac
@@ -91,52 +112,11 @@ setup() {
     export -f postgres::instance::find_available_port postgres::instance::validate_name
     export -f postgres::instance::validate_port
     
-    # Mock Docker functions for instance operations
-    docker() {
-        case "$*" in
-            *"run"*"postgres"*)
-                echo "container_id_123456789"
-                return 0
-                ;;
-            *"ps"*"--filter"*)
-                echo "postgres-test-instance"
-                echo "postgres-main"
-                echo "postgres-dev"
-                return 0
-                ;;
-            *"start"*|*"stop"*|*"restart"*)
-                echo "postgres-$INSTANCE_NAME"
-                return 0
-                ;;
-            *"rm"*)
-                echo "postgres-$INSTANCE_NAME"
-                return 0
-                ;;
-            *"inspect"*)
-                echo '[{"Config":{"ExposedPorts":{"5432/tcp":{}}},"NetworkSettings":{"Ports":{"5432/tcp":[{"HostPort":"5433"}]}}}]'
-                return 0
-                ;;
-            *"exec"*"psql"*)
-                echo "PostgreSQL 14.5 (Ubuntu 14.5-2.pgdg20.04+2) on x86_64"
-                return 0
-                ;;
-            *)
-                return 0
-                ;;
-        esac
-    }
-    export -f docker
+    # Load system mocks
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_DIR}/__test/fixtures/mocks/system.sh"
     
-    # Mock file system operations
-    mkdir() { return 0; }
-    cp() { return 0; }
-    mv() { return 0; }
-    rm() { return 0; }
-    chmod() { return 0; }
-    chown() { return 0; }
-    export -f mkdir cp mv rm chmod chown
-    
-    # Mock configuration functions
+    # Mock configuration functions (using official filesystem mock)
     postgres::instance::save_config() { return 0; }
     postgres::instance::get_connection_string() {
         echo "postgresql://$POSTGRES_DEFAULT_USER:password@localhost:$INSTANCE_PORT/$POSTGRES_DEFAULT_DB"
@@ -147,29 +127,6 @@ setup() {
     postgres::network::create() { return 0; }
     postgres::network::connect_container() { return 0; }
     export -f postgres::network::create postgres::network::connect_container
-    
-    # Mock log functions
-    log::info() { echo "[INFO] $*"; }
-    log::error() { echo "[ERROR] $*" >&2; }
-    log::warning() { echo "[WARNING] $*" >&2; }
-    log::success() { echo "[SUCCESS] $*"; }
-    log::debug() { [[ "${DEBUG:-}" == "true" ]] && echo "[DEBUG] $*" >&2 || true; }
-    export -f log::info log::error log::warning log::success log::debug
-    
-    # Mock system commands
-    netstat() { 
-        case "$*" in
-            *"5432"*) echo "tcp 0 0 0.0.0.0:5432 0.0.0.0:* LISTEN" ;;
-            *) return 1 ;;
-        esac
-    }
-    ss() {
-        case "$*" in
-            *"5432"*) echo "LISTEN 0 244 0.0.0.0:5432 0.0.0.0:*" ;;
-            *) return 1 ;;
-        esac
-    }
-    export -f netstat ss
 }
 
 # BATS teardown function - runs after each test

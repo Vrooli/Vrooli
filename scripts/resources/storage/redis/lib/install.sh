@@ -2,28 +2,14 @@
 # Redis Installation Functions
 # Functions for installing and uninstalling Redis resource
 
-# Source shared secrets management library
-# Use the same project root detection method as the secrets library
-_redis_install_detect_project_root() {
-    local current_dir
-    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    
-    # Walk up directory tree looking for .vrooli directory
-    while [[ "$current_dir" != "/" ]]; do
-        if [[ -d "$current_dir/.vrooli" ]]; then
-            echo "$current_dir"
-            return 0
-        fi
-        current_dir="$(dirname "$current_dir")"
-    done
-    
-    # Fallback: assume we're in scripts and go up to project root
-    echo "/home/matthalloran8/Vrooli"
-}
-
-PROJECT_ROOT="$(_redis_install_detect_project_root)"
+# Source var.sh to get proper directory variables
+_REDIS_INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$PROJECT_ROOT/scripts/lib/service/secrets.sh"
+source "${_REDIS_INSTALL_DIR}/../../../../lib/utils/var.sh"
+
+# Source shared secrets management library
+# shellcheck disable=SC1091
+source "${var_LIB_SERVICE_DIR}/secrets.sh"
 
 #######################################
 # Install Redis resource
@@ -163,26 +149,28 @@ redis::install::create_cli_helper() {
 # Redis CLI Helper for Vrooli Resource
 # This script connects to the Redis resource instance
 
-# Use the same project root detection method as the secrets library
-_detect_project_root() {
-    local current_dir
-    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Source var.sh to get proper directory variables  
+_CLI_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${_CLI_SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || {
+    # Fallback for older installations
+    _detect_project_root() {
+        local current_dir
+        current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        while [[ "$current_dir" != "/" ]]; do
+            if [[ -d "$current_dir/.vrooli" ]]; then
+                echo "$current_dir"
+                return 0
+            fi
+            current_dir="$(dirname "$current_dir")"
+        done
+        echo "$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+    }
     
-    # Walk up directory tree looking for .vrooli directory
-    while [[ "$current_dir" != "/" ]]; do
-        if [[ -d "$current_dir/.vrooli" ]]; then
-            echo "$current_dir"
-            return 0
-        fi
-        current_dir="$(dirname "$current_dir")"
-    done
-    
-    # Fallback
-    echo "/home/matthalloran8/Vrooli"
+    PROJECT_ROOT="$(_detect_project_root)"
+    var_LIB_SERVICE_DIR="$PROJECT_ROOT/scripts/lib/service"
 }
 
-PROJECT_ROOT="$(_detect_project_root)"
-source "$PROJECT_ROOT/scripts/lib/service/secrets.sh" 2>/dev/null || true
+source "${var_LIB_SERVICE_DIR}/secrets.sh" 2>/dev/null || true
 
 REDIS_PORT="${REDIS_PORT:-6380}"
 REDIS_PASSWORD="$(secrets::resolve "REDIS_PASSWORD" 2>/dev/null || echo "")"

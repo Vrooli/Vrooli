@@ -1,12 +1,58 @@
 #!/usr/bin/env bats
 # Tests for Browserless docker.sh functions
+bats_require_minimum_version 1.5.0
 
-# Setup for each test
-setup() {
-    # Load shared test infrastructure
-    source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
+# Load Vrooli test infrastructure
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
+
+# Expensive setup operations run once per file
+setup_file() {
+    # Use Vrooli service test setup
+    vrooli_setup_service_test "browserless"
     
-    # Setup standard mocks
+    # Set up directories and paths once
+    export SCRIPT_DIR="${BATS_TEST_DIRNAME}"
+    export BROWSERLESS_DIR="${SCRIPT_DIR}/.."
+    export MOCK_DIR="${SCRIPT_DIR}/../../../../__test/fixtures/mocks"
+    
+    # Load var.sh for directory variables
+    # shellcheck disable=SC1091
+    source "$(dirname "$(dirname "$(dirname "$(dirname "${SCRIPT_DIR}")")")")/lib/utils/var.sh"
+    
+    # Load common resources
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
+    
+    # Load mocks
+    if [[ -f "$MOCK_DIR/docker.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "$MOCK_DIR/docker.sh"
+    fi
+    
+    # Load configuration and messages
+    # shellcheck disable=SC1091
+    source "${BROWSERLESS_DIR}/config/defaults.sh"
+    # shellcheck disable=SC1091
+    source "${BROWSERLESS_DIR}/config/messages.sh"
+    
+    # Load docker functions
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/docker.sh"
+    
+    # Export functions for subshells
+    export -f browserless::create_network
+    export -f browserless::build_docker_command
+    export -f browserless::docker_start
+    export -f browserless::docker_stop
+    export -f browserless::docker_restart
+    export -f browserless::docker_remove
+    export -f browserless::docker_logs
+    export -f browserless::docker_cleanup
+}
+
+# Lightweight per-test setup
+setup() {
+    # Setup standard Vrooli mocks
     vrooli_auto_setup
     
     # Set test environment
@@ -18,14 +64,10 @@ setup() {
     export BROWSERLESS_HEADLESS="yes"
     export BROWSERLESS_DATA_DIR="/tmp/browserless-test"
     export BROWSERLESS_IMAGE="ghcr.io/browserless/chrome:test"
+    export BROWSERLESS_PORT="9999"
+    export BROWSERLESS_BASE_URL="http://localhost:9999"
     
-    # Load dependencies
-    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
-    BROWSERLESS_DIR="$(dirname "$SCRIPT_DIR")"
-    
-    # Load configuration and messages
-    source "${BROWSERLESS_DIR}/config/defaults.sh"
-    source "${BROWSERLESS_DIR}/config/messages.sh"
+    # Export configuration
     browserless::export_config
     browserless::export_messages
     
@@ -34,9 +76,12 @@ setup() {
         # Mock implementation
         return 0
     }
-    
-    # Load Docker functions
-    source "${SCRIPT_DIR}/docker.sh"
+    export -f resources::add_rollback_action
+}
+
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
 }
 
 # Test Docker command building

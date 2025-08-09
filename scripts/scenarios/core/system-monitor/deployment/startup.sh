@@ -5,6 +5,11 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCENARIO_DIR="$(dirname "$SCRIPT_DIR")"
 
+# shellcheck disable=SC1091
+source "$(cd "$SCRIPT_DIR" && cd ../../../lib/utils && pwd)/var.sh"
+# shellcheck disable=SC1091
+source "$var_LOG_FILE"
+
 echo "Starting System Monitor..."
 
 # Initialize database

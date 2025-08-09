@@ -1,29 +1,41 @@
 #!/usr/bin/env bash
-set -euo pipefail
-
-LIB_LIFECYCLE_PHASES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
-# shellcheck disable=SC1091
-source "${LIB_LIFECYCLE_PHASES_DIR}/../../utils/var.sh"
-# shellcheck disable=SC1091
-source "${var_LOG_FILE}"
-# shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/flow.sh"
-# shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/exit_codes.sh"
-
-#######################################
-# Universal backup phase handler
+################################################################################
+# Universal Backup Phase Handler
 # 
-# This handles universal backup logic that applies to all applications:
+# Handles generic backup tasks:
 # - Backup directory creation and validation
 # - Common backup utilities setup
 # - Backup rotation and cleanup
 # - Generic database backup orchestration
-# 
-# App-specific backup logic should be in scripts/app/lifecycle/backup.sh
-#######################################
+#
+# App-specific logic should be in app/lifecycle/backup.sh
+################################################################################
 
+set -euo pipefail
+
+# Get script directory
+LIB_LIFECYCLE_PHASES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck disable=SC1091
+source "${LIB_LIFECYCLE_PHASES_DIR}/../../utils/var.sh"
+# shellcheck disable=SC1091
+source "${LIB_LIFECYCLE_PHASES_DIR}/common.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/exit_codes.sh"
+
+################################################################################
+# Backup Functions
+################################################################################
+
+#######################################
+# Create backup session directory
+# Globals:
+#   BACKUP_DIR
+#   BACKUP_SESSION_DIR
+#   BACKUP_TIMESTAMP
+# Returns:
+#   0 on success
+#######################################
 backup::create_backup_directory() {
     local backup_base_dir="${BACKUP_DIR:-${var_ROOT_DIR}/backups}"
     local timestamp=$(date +"%Y%m%d_%H%M%S")
@@ -44,6 +56,14 @@ backup::create_backup_directory() {
     log::success "✅ Backup directory created: ${BACKUP_SESSION_DIR}"
 }
 
+#######################################
+# Check and setup backup tools
+# Globals:
+#   RCLONE_AVAILABLE
+#   PG_DUMP_AVAILABLE
+# Returns:
+#   0 on success, exits on missing required tools
+#######################################
 backup::setup_backup_tools() {
     log::info "Checking backup tool availability..."
     
@@ -84,6 +104,14 @@ backup::setup_backup_tools() {
     log::success "✅ Backup tools check complete"
 }
 
+#######################################
+# Rotate old backup directories based on retention
+# Globals:
+#   BACKUP_DIR
+#   BACKUP_RETENTION_DAYS
+# Returns:
+#   0 on success
+#######################################
 backup::rotate_old_backups() {
     local backup_base_dir="${BACKUP_DIR:-${var_ROOT_DIR}/backups}"
     local retention_days="${BACKUP_RETENTION_DAYS:-30}"
@@ -111,6 +139,14 @@ backup::rotate_old_backups() {
     fi
 }
 
+#######################################
+# Verify backup environment prerequisites
+# Globals:
+#   BACKUP_DIR
+#   BACKUP_MIN_SPACE_GB
+# Returns:
+#   0 on success, exits on insufficient resources
+#######################################
 backup::verify_backup_environment() {
     log::info "Verifying backup environment..."
     
@@ -146,7 +182,22 @@ backup::verify_backup_environment() {
     log::success "✅ Backup environment verification complete"
 }
 
-backup::universal_main() {
+################################################################################
+# Main Backup Logic
+################################################################################
+
+#######################################
+# Run universal backup tasks
+# Handles generic backup preparation
+# Globals:
+#   BACKUP_SESSION_DIR
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+backup::universal::main() {
+    # Initialize phase
+    phase::init "Backup"
+    
     log::header "🔄 Universal Backup Phase"
     
     # Verify environment
@@ -161,12 +212,26 @@ backup::universal_main() {
     # Rotate old backups
     backup::rotate_old_backups
     
+    # Complete phase
+    phase::complete
+    
     log::success "✅ Universal backup preparation complete"
     log::info "Backup session directory: ${BACKUP_SESSION_DIR}"
     log::info "Next: App-specific backup logic will execute"
+    
+    return 0
 }
 
-# Execute if called directly (for testing)
+#######################################
+# Entry point for direct execution
+#######################################
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    backup::universal_main "$@"
+    # Check if being called by lifecycle engine
+    if [[ "${LIFECYCLE_PHASE:-}" == "backup" ]]; then
+        backup::universal::main "$@"
+    else
+        log::error "This script should be called through the lifecycle engine"
+        log::info "Use: ./scripts/manage.sh backup [options]"
+        exit 1
+    fi
 fi

@@ -2,14 +2,16 @@
 set -euo pipefail
 DESCRIPTION="Sets up the firewall to safely allow traffic to the server"
 
-LIB_NETWORK_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Source var.sh first with relative path
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../utils/var.sh"
 
-# shellcheck disable=SC1091
-source "${LIB_NETWORK_DIR}/../utils/var.sh"
+# Now source everything else using var_ variables
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/flow.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_EXIT_CODES_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 
@@ -23,9 +25,9 @@ firewall::is_development() {
 # Check if host has internet access. Exits with error if no access.
 firewall::setup() {
     # Use argument or environment variable
-    local environment="${1:-$ENVIRONMENT}"
+    local environment="${1:-${ENVIRONMENT:-}}"
     if [[ -z "$environment" ]]; then
-        flow::exit_with_error "Environment is required to setup firewall" "$ERROR_USAGE"
+        flow::exit_with_error "Environment is required to setup firewall" "$EXIT_INVALID_ARGUMENT"
     fi
 
     if ! flow::can_run_sudo "firewall configuration"; then

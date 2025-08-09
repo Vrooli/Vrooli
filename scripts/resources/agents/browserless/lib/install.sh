@@ -204,3 +204,10 @@ browserless::uninstall_service() {
     log::success "${MSG_UNINSTALL_SUCCESS}"
     return 0
 }
+
+# Export functions for subshell availability
+export -f browserless::create_directories
+export -f browserless::update_config
+export -f browserless::show_installation_success
+export -f browserless::install_service
+export -f browserless::uninstall_service

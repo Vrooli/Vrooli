@@ -7,12 +7,22 @@ set -euo pipefail
 DESCRIPTION="Install and manage Whisper speech-to-text service using Docker"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
 
+# Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+
+# Source dependencies using var.sh variables
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../app/utils/args.sh"
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/args-cli.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/common.sh"
 
 # Whisper configuration
 readonly WHISPER_PORT="${WHISPER_CUSTOM_PORT:-$(resources::get_default_port "whisper")}"
@@ -909,8 +919,7 @@ whisper::install() {
             log::info "Whisper model '$MODEL_SIZE' requires ~${MODEL_SIZES[$MODEL_SIZE]}GB"
             
             if ! flow::is_yes "$YES"; then
-                read -p "Continue anyway? (y/N): " -r
-                if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                if ! flow::confirm "Continue anyway?"; then
                     log::info "Installation cancelled"
                     return 0
                 fi
@@ -992,8 +1001,7 @@ whisper::uninstall() {
     
     if ! flow::is_yes "$YES"; then
         log::warn "This will remove the Whisper container and optionally its data"
-        read -p "Are you sure you want to continue? (y/N): " -r
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        if ! flow::confirm "Are you sure you want to continue?"; then
             log::info "Uninstall cancelled"
             return 0
         fi
@@ -1013,8 +1021,7 @@ whisper::uninstall() {
     # Ask about data removal
     if [[ -d "$WHISPER_DATA_DIR" ]]; then
         if ! flow::is_yes "$YES"; then
-            read -p "Remove Whisper data directory? (y/N): " -r
-            if [[ $REPLY =~ ^[Yy]$ ]]; then
+            if flow::confirm "Remove Whisper data directory?"; then
                 rm -rf "$WHISPER_DATA_DIR"
                 log::info "Data directory removed"
             fi

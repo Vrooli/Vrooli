@@ -2,48 +2,58 @@
 # App Monitor Validation Script
 set -euo pipefail
 
-echo "Validating App Monitor deployment..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$(dirname "$SCRIPT_DIR")"
+
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+
+log::info "Validating App Monitor deployment..."
 
 # Check PostgreSQL
-if psql -U postgres -d app_monitor -c "SELECT 1" > /dev/null 2>&1; then
-    echo "✓ PostgreSQL database connected"
+if PGPASSWORD="${POSTGRES_PASSWORD:-postgres}" psql -h localhost -p "$(resources::get_default_port "postgres")" -U "${POSTGRES_USER:-postgres}" -d app_monitor -c "SELECT 1" > /dev/null 2>&1; then
+    log::success "✓ PostgreSQL database connected"
 else
-    echo "✗ PostgreSQL database not accessible"
+    log::error "✗ PostgreSQL database not accessible"
     exit 1
 fi
 
 # Check Redis
-if redis-cli ping > /dev/null 2>&1; then
-    echo "✓ Redis connected"
+if redis-cli -h localhost -p "$(resources::get_default_port "redis")" ping > /dev/null 2>&1; then
+    log::success "✓ Redis connected"
 else
-    echo "✗ Redis not accessible"
+    log::error "✗ Redis not accessible"
     exit 1
 fi
 
 # Check Docker socket
 if docker ps > /dev/null 2>&1; then
-    echo "✓ Docker API accessible"
+    log::success "✓ Docker API accessible"
 else
-    echo "✗ Docker API not accessible"
+    log::error "✗ Docker API not accessible"
     exit 1
 fi
 
 # Check UI
-if curl -s -o /dev/null -w "%{http_code}" http://localhost:3001 | grep -q "200\|304"; then
-    echo "✓ UI dashboard accessible"
+if curl -s -o /dev/null -w "%{http_code}" "http://localhost:$(resources::get_default_port "ui")" | grep -q "200\|304"; then
+    log::success "✓ UI dashboard accessible"
 else
-    echo "✗ UI dashboard not accessible"
+    log::error "✗ UI dashboard not accessible"
     exit 1
 fi
 
 # Check API
-if curl -s http://localhost:8081/health | grep -q "healthy"; then
-    echo "✓ API healthy"
+if curl -s "http://localhost:$(resources::get_default_port "api")/health" | grep -q "healthy"; then
+    log::success "✓ API healthy"
 else
-    echo "✗ API not healthy"
+    log::error "✗ API not healthy"
     exit 1
 fi
 
-echo ""
-echo "App Monitor validation successful!"
-echo "All components are operational."
+log::success ""
+log::success "App Monitor validation successful!"
+log::info "All components are operational."

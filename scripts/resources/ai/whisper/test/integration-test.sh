@@ -8,19 +8,22 @@ set -euo pipefail
 
 # Source shared integration test library
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source var.sh for directory variables
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../../tests/lib/integration-test-lib.sh"
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+
+# Source integration test libraries using var.sh
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../../tests/lib/fixture-helpers.sh"
+source "${var_SCRIPTS_TEST_DIR}/integration/health-check.sh"
 
 #######################################
 # SERVICE-SPECIFIC CONFIGURATION
 #######################################
 
 # Load Whisper configuration
-RESOURCES_DIR="$SCRIPT_DIR/../../.."
 # shellcheck disable=SC1091
-source "$RESOURCES_DIR/common.sh"
+source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/../config/defaults.sh"
 whisper::export_config

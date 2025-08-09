@@ -7,16 +7,18 @@ set -euo pipefail
 ################################################################################
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+
 SCENARIO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
 POSTGRES_PORT="${POSTGRES_PORT:-5433}"
 POSTGRES_USER="${POSTGRES_USER:-postgres}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-postgres}"
 POSTGRES_DB="${POSTGRES_DB:-digital_twin}"
-
-log::info() { echo "[INFO] $*"; }
-log::error() { echo "[ERROR] $*" >&2; }
-log::success() { echo "[SUCCESS] $*"; }
 
 # Wait for PostgreSQL to be ready
 log::info "Waiting for PostgreSQL to be ready..."

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Node-RED management script for Vrooli
 # This script provides installation, configuration, and management of Node-RED
@@ -10,12 +10,14 @@ trap 'node_red::show_interrupt_message; exit 130' INT TERM
 
 # Get the directory of this script
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RESOURCES_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Source common functions
-source "$RESOURCES_DIR/common.sh"
+# Source var.sh first to get standard directory variables
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../app/utils/args.sh"
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/args-cli.sh"
 
 # Source configuration
 # shellcheck disable=SC1091

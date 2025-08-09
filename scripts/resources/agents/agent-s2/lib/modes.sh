@@ -348,3 +348,15 @@ agents2::export_mode_config() {
     echo "export AGENT_S2_HOST_SECURITY_PROFILE=${AGENT_S2_HOST_SECURITY_PROFILE:-agent-s2-host}"
     echo "export AGENT_S2_HOST_AUDIT_LOGGING=${AGENT_S2_HOST_AUDIT_LOGGING:-true}"
 }
+
+# Export functions for subshell availability
+export -f agents2::get_current_mode
+export -f agents2::validate_host_mode
+export -f agents2::setup_x11_permissions
+export -f agents2::start_in_mode
+export -f agents2::switch_mode
+export -f agents2::show_mode_info
+export -f agents2::wait_for_health
+export -f agents2::list_modes
+export -f agents2::test_mode
+export -f agents2::export_mode_config

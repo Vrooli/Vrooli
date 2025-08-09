@@ -8,11 +8,12 @@ set -euo pipefail
 DESCRIPTION="Inject flows and configurations into Node-RED flow programming platform"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
 
-# Source common utilities
+# Source var.sh first to get standard directory variables
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 
 # Source Node-RED configuration if available
 if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
@@ -20,8 +21,8 @@ if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
     source "${SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
     
     # Export configuration if function exists
-    if declare -f nodered::export_config >/dev/null 2>&1; then
-        nodered::export_config 2>/dev/null || true
+    if declare -f node_red::export_config >/dev/null 2>&1; then
+        node_red::export_config 2>/dev/null || true
     fi
 fi
 
@@ -36,7 +37,7 @@ declare -a NODERED_ROLLBACK_ACTIONS=()
 #######################################
 # Display usage information
 #######################################
-nodered_inject::usage() {
+node_red_inject::usage() {
     cat << EOF
 Node-RED Data Injection Adapter
 
@@ -86,7 +87,7 @@ EOF
 # Returns:
 #   0 if accessible, 1 otherwise
 #######################################
-nodered_inject::check_accessibility() {
+node_red_inject::check_accessibility() {
     if ! system::is_command "curl"; then
         log::error "curl command not available"
         return 1
@@ -109,7 +110,7 @@ nodered_inject::check_accessibility() {
 #   $1 - description
 #   $2 - rollback command
 #######################################
-nodered_inject::add_rollback_action() {
+node_red_inject::add_rollback_action() {
     local description="$1"
     local command="$2"
     
@@ -120,7 +121,7 @@ nodered_inject::add_rollback_action() {
 #######################################
 # Execute rollback actions
 #######################################
-nodered_inject::execute_rollback() {
+node_red_inject::execute_rollback() {
     if [[ ${#NODERED_ROLLBACK_ACTIONS[@]} -eq 0 ]]; then
         log::info "No Node-RED rollback actions to execute"
         return 0
@@ -157,7 +158,7 @@ nodered_inject::execute_rollback() {
 # Returns:
 #   0 if valid, 1 if invalid
 #######################################
-nodered_inject::validate_flows() {
+node_red_inject::validate_flows() {
     local flows_config="$1"
     
     log::debug "Validating flow configurations..."
@@ -195,7 +196,7 @@ nodered_inject::validate_flows() {
         fi
         
         # Check if file exists
-        local flow_file="$VROOLI_PROJECT_ROOT/$file"
+        local flow_file="$var_ROOT_DIR/$file"
         if [[ ! -f "$flow_file" ]]; then
             log::error "Flow file not found: $flow_file"
             return 1
@@ -229,7 +230,7 @@ nodered_inject::validate_flows() {
 # Returns:
 #   0 if valid, 1 if invalid
 #######################################
-nodered_inject::validate_config() {
+node_red_inject::validate_config() {
     local config="$1"
     
     log::info "Validating Node-RED injection configuration..."
@@ -255,7 +256,7 @@ nodered_inject::validate_config() {
         local flows
         flows=$(echo "$config" | jq -c '.flows')
         
-        if ! nodered_inject::validate_flows "$flows"; then
+        if ! node_red_inject::validate_flows "$flows"; then
             return 1
         fi
     fi
@@ -274,7 +275,7 @@ nodered_inject::validate_config() {
 # Returns:
 #   JSON array of current flows
 #######################################
-nodered_inject::get_current_flows() {
+node_red_inject::get_current_flows() {
     local response
     response=$(curl -s "$NODE_RED_BASE_URL/flows" 2>/dev/null)
     
@@ -292,7 +293,7 @@ nodered_inject::get_current_flows() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-nodered_inject::deploy_flows() {
+node_red_inject::deploy_flows() {
     local flows="$1"
     
     log::info "Deploying flows to Node-RED..."
@@ -320,7 +321,7 @@ nodered_inject::deploy_flows() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-nodered_inject::import_flow() {
+node_red_inject::import_flow() {
     local flow_config="$1"
     
     local name file deploy
@@ -331,7 +332,7 @@ nodered_inject::import_flow() {
     log::info "Importing flow: $name"
     
     # Resolve file path
-    local flow_file="$VROOLI_PROJECT_ROOT/$file"
+    local flow_file="$var_ROOT_DIR/$file"
     
     # Read flow content
     local new_flow
@@ -339,7 +340,7 @@ nodered_inject::import_flow() {
     
     # Get current flows
     local current_flows
-    current_flows=$(nodered_inject::get_current_flows)
+    current_flows=$(node_red_inject::get_current_flows)
     
     # Generate unique IDs for new flow nodes
     # This is important to avoid ID conflicts
@@ -370,13 +371,13 @@ nodered_inject::import_flow() {
     echo "$current_flows" > "$original_flows_file"
     
     # Add rollback action
-    nodered_inject::add_rollback_action \
+    node_red_inject::add_rollback_action \
         "Restore original flows for: $name" \
         "curl -s -X POST -H 'Content-Type: application/json' -d @'$original_flows_file' '$NODE_RED_BASE_URL/flows' >/dev/null 2>&1 && rm -f '$original_flows_file'"
     
     # Deploy merged flows if requested
     if [[ "$deploy" == "true" ]]; then
-        if nodered_inject::deploy_flows "$merged_flows"; then
+        if node_red_inject::deploy_flows "$merged_flows"; then
             log::success "Imported and deployed flow: $name"
             return 0
         else
@@ -407,7 +408,7 @@ nodered_inject::import_flow() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-nodered_inject::inject_flows() {
+node_red_inject::inject_flows() {
     local flows_config="$1"
     
     log::info "Injecting flows into Node-RED..."
@@ -429,7 +430,7 @@ nodered_inject::inject_flows() {
         local flow_name
         flow_name=$(echo "$flow" | jq -r '.name')
         
-        if ! nodered_inject::import_flow "$flow"; then
+        if ! node_red_inject::import_flow "$flow"; then
             failed_flows+=("$flow_name")
         fi
     done
@@ -450,13 +451,13 @@ nodered_inject::inject_flows() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-nodered_inject::inject_data() {
+node_red_inject::inject_data() {
     local config="$1"
     
     log::header "🔄 Injecting data into Node-RED"
     
     # Check Node-RED accessibility
-    if ! nodered_inject::check_accessibility; then
+    if ! node_red_inject::check_accessibility; then
         return 1
     fi
     
@@ -471,9 +472,9 @@ nodered_inject::inject_data() {
         local flows
         flows=$(echo "$config" | jq -c '.flows')
         
-        if ! nodered_inject::inject_flows "$flows"; then
+        if ! node_red_inject::inject_flows "$flows"; then
             log::error "Failed to inject flows"
-            nodered_inject::execute_rollback
+            node_red_inject::execute_rollback
             return 1
         fi
     fi
@@ -498,19 +499,19 @@ nodered_inject::inject_data() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-nodered_inject::check_status() {
+node_red_inject::check_status() {
     local config="$1"
     
     log::header "📊 Checking Node-RED injection status"
     
     # Check Node-RED accessibility
-    if ! nodered_inject::check_accessibility; then
+    if ! node_red_inject::check_accessibility; then
         return 1
     fi
     
     # Get current flows
     local current_flows
-    current_flows=$(nodered_inject::get_current_flows)
+    current_flows=$(node_red_inject::get_current_flows)
     
     # Check flow status
     local has_flows
@@ -547,35 +548,35 @@ nodered_inject::check_status() {
 #######################################
 # Main execution function
 #######################################
-nodered_inject::main() {
+node_red_inject::main() {
     local action="$1"
     local config="${2:-}"
     
     if [[ -z "$config" ]]; then
         log::error "Configuration JSON required"
-        nodered_inject::usage
+        node_red_inject::usage
         exit 1
     fi
     
     case "$action" in
         "--validate")
-            nodered_inject::validate_config "$config"
+            node_red_inject::validate_config "$config"
             ;;
         "--inject")
-            nodered_inject::inject_data "$config"
+            node_red_inject::inject_data "$config"
             ;;
         "--status")
-            nodered_inject::check_status "$config"
+            node_red_inject::check_status "$config"
             ;;
         "--rollback")
-            nodered_inject::execute_rollback
+            node_red_inject::execute_rollback
             ;;
         "--help")
-            nodered_inject::usage
+            node_red_inject::usage
             ;;
         *)
             log::error "Unknown action: $action"
-            nodered_inject::usage
+            node_red_inject::usage
             exit 1
             ;;
     esac
@@ -584,9 +585,9 @@ nodered_inject::main() {
 # Execute main function if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     if [[ $# -eq 0 ]]; then
-        nodered_inject::usage
+        node_red_inject::usage
         exit 1
     fi
     
-    nodered_inject::main "$@"
+    node_red_inject::main "$@"
 fi

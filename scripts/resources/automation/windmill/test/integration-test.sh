@@ -5,21 +5,71 @@
 
 set -euo pipefail
 
-# Source shared integration test library
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Source var.sh first with relative path
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../../tests/lib/integration-test-lib.sh"
+source "../../../../lib/utils/var.sh"
+
+# Source shared integration test library (if it exists)
+if [[ -f "${var_SCRIPTS_TEST_DIR}/lib/integration-test-lib.sh" ]]; then
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_TEST_DIR}/lib/integration-test-lib.sh"
+else
+    # Simple fallback implementation for basic functions if library doesn't exist
+    log_test_result() {
+        local test_name="$1"
+        local result="$2"
+        local message="$3"
+        echo "[$result] $test_name: $message"
+    }
+    
+    register_tests() {
+        # Simple no-op for fallback
+        :
+    }
+    
+    register_standard_interface_tests() {
+        # Simple no-op for fallback
+        :
+    }
+    
+    integration_test_main() {
+        echo "Integration test library not available"
+        exit 1
+    }
+    
+    make_api_request() {
+        local endpoint="$1"
+        local method="${2:-GET}"
+        local timeout="${3:-10}"
+        curl -s --max-time "$timeout" -X "$method" "$BASE_URL$endpoint"
+    }
+    
+    check_service_available() {
+        local base_url="$1"
+        local timeout="${2:-10}"
+        local endpoint="${3:-/}"
+        curl -s --max-time "$timeout" "$base_url$endpoint" >/dev/null 2>&1
+    }
+    
+    check_http_status() {
+        local endpoint="$1"
+        local expected_status="$2"
+        local method="${3:-GET}"
+        local status
+        status=$(curl -s -o /dev/null -w "%{http_code}" -X "$method" "$BASE_URL$endpoint")
+        [[ "$status" == "$expected_status" ]]
+    }
+fi
 
 #######################################
 # SERVICE-SPECIFIC CONFIGURATION
 #######################################
 
-# Load Windmill configuration
-RESOURCES_DIR="$SCRIPT_DIR/../../.."
+# Source common resources using var_ variables
 # shellcheck disable=SC1091
-source "$RESOURCES_DIR/common.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../config/defaults.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/config/defaults.sh"
 windmill::export_config
 
 # Override library defaults with Windmill-specific settings

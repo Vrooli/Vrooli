@@ -6,9 +6,15 @@
 # Test Environment Setup
 # =============================================================================
 
-# Set up VROOLI_TEST_ROOT for all tests
+# Source var.sh for standardized paths
+_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck disable=SC1091
+source "${_HERE}/../../../lib/utils/var.sh"
+
+# Set up VROOLI_TEST_ROOT for all tests  
 if [[ -z "${VROOLI_TEST_ROOT:-}" ]]; then
-    VROOLI_TEST_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+    VROOLI_TEST_ROOT="${var_SCRIPTS_DIR}/resources/tests"
     export VROOLI_TEST_ROOT
 fi
 
@@ -211,34 +217,37 @@ create_temp_script() {
 }
 
 # =============================================================================
-# Mock Helpers
+# Official Mock System Integration
 # =============================================================================
 
-# Create a mock command
-create_mock_command() {
-    local command_name="$1"
-    local mock_behavior="$2"
-    local mock_script="$BATS_TEST_TMPDIR/mock_$command_name"
+# Load official mocks - use the centralized mock system instead of ad-hoc mocks
+load_official_mocks() {
+    # Load system mocks for common commands
+    if [[ -f "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/system.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/system.sh"
+    fi
     
-    cat > "$mock_script" << EOF
-#!/bin/bash
-$mock_behavior
-EOF
+    # Load Docker mocks if needed
+    if [[ -f "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/docker.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/docker.sh"
+    fi
     
-    chmod +x "$mock_script"
-    
-    # Add to PATH
-    export PATH="$BATS_TEST_TMPDIR:$PATH"
-    
-    echo "$mock_script"
+    # Load HTTP mocks if needed
+    if [[ -f "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/http.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/http.sh"
+    fi
 }
 
-# Remove mock command
-remove_mock_command() {
-    local command_name="$1"
-    local mock_script="$BATS_TEST_TMPDIR/mock_$command_name"
-    
-    rm -f "$mock_script"
+# Initialize official mock logging
+init_official_mock_logging() {
+    if [[ -f "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/logs.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/logs.sh"
+        mock::init_logging
+    fi
 }
 
 # =============================================================================
@@ -430,7 +439,7 @@ export -f assert_file_contains
 export -f assert_variable_set refute_variable_set
 export -f assert_status
 export -f create_temp_file create_temp_dir create_temp_script
-export -f create_mock_command remove_mock_command
+export -f load_official_mocks init_official_mock_logging
 export -f time_command assert_command_fast
 export -f save_environment restore_environment
 export -f save_cwd restore_cwd

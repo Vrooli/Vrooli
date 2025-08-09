@@ -7,15 +7,17 @@ set -euo pipefail
 ################################################################################
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+
 SCENARIO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 WINDMILL_HOST="${WINDMILL_HOST:-localhost}"
 WINDMILL_PORT="${WINDMILL_PORT:-5681}"
 WINDMILL_API_URL="http://${WINDMILL_HOST}:${WINDMILL_PORT}/api"
 WORKSPACE="${WINDMILL_WORKSPACE:-demo}"
-
-log::info() { echo "[INFO] $*"; }
-log::error() { echo "[ERROR] $*" >&2; }
-log::success() { echo "[SUCCESS] $*"; }
 
 # Wait for Windmill to be ready
 log::info "Waiting for Windmill to be ready..."

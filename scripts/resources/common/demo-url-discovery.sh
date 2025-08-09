@@ -4,23 +4,23 @@ set -euo pipefail
 # URL Discovery Demo Script
 # Demonstrates the enhanced URL discovery and display functionality
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RESOURCES_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Source the URL discovery infrastructure
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/url-discovery.sh"
+source "${_HERE}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${_HERE}/url-discovery.sh"
 
 echo "🎯 Vrooli URL Discovery Demo"
 echo "============================"
 echo ""
 
 # Simulate the scenario-to-app.sh environment
-SERVICE_JSON=$(cat "${RESOURCES_DIR}/../scenarios/core/campaign-content-studio/.vrooli/service.json")
-SCENARIO_PATH="${RESOURCES_DIR}/../scenarios/core/campaign-content-studio"
+SERVICE_JSON=$(cat "${var_SCRIPTS_SCENARIOS_DIR}/core/campaign-content-studio/.vrooli/service.json")
+SCENARIO_PATH="${var_SCRIPTS_SCENARIOS_DIR}/core/campaign-content-studio"
 
 # Define helper functions (from scenario-to-app.sh)
-get_required_resources() {
+demo_url_discovery::get_required_resources() {
     echo "$SERVICE_JSON" | jq -r '
         .resources | 
         to_entries[] | 
@@ -31,11 +31,11 @@ get_required_resources() {
     ' 2>/dev/null | sort -u
 }
 
-log_info() { echo "[$(date +'%H:%M:%S')] INFO: $*"; }
+demo_url_discovery::log_info() { echo "[$(date +'%H:%M:%S')] INFO: $*"; }
 
 # Demonstrate enhanced URL display
-get_access_urls_demo() {
-    log_info "🎯 Application Access Points:"
+demo_url_discovery::get_access_urls_demo() {
+    demo_url_discovery::log_info "🎯 Application Access Points:"
     echo ""
     
     # Extract application URL from service.json if available
@@ -75,10 +75,10 @@ get_access_urls_demo() {
     
     # Get required resources
     local required_resources
-    mapfile -t required_resources < <(get_required_resources)
+    mapfile -t required_resources < <(demo_url_discovery::get_required_resources)
     
     if [[ ${#required_resources[@]} -eq 0 ]]; then
-        log_info "No resources configured."
+        demo_url_discovery::log_info "No resources configured."
         return 0
     fi
     
@@ -162,10 +162,10 @@ get_access_urls_demo() {
     done
     
     # Show connection tips
-    log_info "💡 Connection Tips:"
-    log_info "  • Most services use localhost and standard ports"
-    log_info "  • Check individual service logs if connection fails"
-    log_info "  • Some services may take a few moments to start"
+    demo_url_discovery::log_info "💡 Connection Tips:"
+    demo_url_discovery::log_info "  • Most services use localhost and standard ports"
+    demo_url_discovery::log_info "  • Check individual service logs if connection fails"
+    demo_url_discovery::log_info "  • Some services may take a few moments to start"
     echo ""
 }
 
@@ -193,7 +193,7 @@ echo "2. Testing complete scenario URL display:"
 echo "   (Using campaign-content-studio scenario)"
 echo ""
 
-get_access_urls_demo
+demo_url_discovery::get_access_urls_demo
 
 echo ""
 echo "3. Testing health check for all configured resources:"

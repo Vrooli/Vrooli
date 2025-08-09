@@ -2,68 +2,139 @@
 # Huginn Configuration Defaults
 # All configuration constants and default values
 
-# Source common functions for port registry access
+# Get the directory of this script
 HUGINN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 # shellcheck disable=SC1091
-source "${HUGINN_DIR}/../../common.sh"
+source "${HUGINN_DIR}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
 
 # Huginn port configuration
-readonly HUGINN_PORT="${HUGINN_CUSTOM_PORT:-$(resources::get_default_port "huginn")}"
-readonly HUGINN_BASE_URL="http://localhost:${HUGINN_PORT}"
+if [[ -z "${HUGINN_PORT:-}" ]]; then
+    readonly HUGINN_PORT="${HUGINN_CUSTOM_PORT:-$(resources::get_default_port "huginn")}"
+fi
+if [[ -z "${HUGINN_BASE_URL:-}" ]]; then
+    readonly HUGINN_BASE_URL="http://localhost:${HUGINN_PORT}"
+fi
 
 # Resource metadata
-readonly RESOURCE_NAME="huginn"
-readonly RESOURCE_CATEGORY="automation"
-readonly RESOURCE_DESC="Agent-based workflow automation and monitoring platform"
-readonly RESOURCE_PORT="${HUGINN_PORT}"
+if [[ -z "${RESOURCE_NAME:-}" ]]; then
+    readonly RESOURCE_NAME="huginn"
+fi
+if [[ -z "${RESOURCE_CATEGORY:-}" ]]; then
+    readonly RESOURCE_CATEGORY="automation"
+fi
+if [[ -z "${RESOURCE_DESC:-}" ]]; then
+    readonly RESOURCE_DESC="Agent-based workflow automation and monitoring platform"
+fi
+if [[ -z "${RESOURCE_PORT:-}" ]]; then
+    readonly RESOURCE_PORT="${HUGINN_PORT}"
+fi
 
 # Container configuration
-readonly CONTAINER_NAME="huginn"
-readonly DB_CONTAINER_NAME="huginn-postgres"
-readonly VOLUME_NAME="huginn-data"
-readonly DB_VOLUME_NAME="huginn-postgres-data"
-readonly NETWORK_NAME="vrooli-network"
+if [[ -z "${CONTAINER_NAME:-}" ]]; then
+    readonly CONTAINER_NAME="huginn"
+fi
+if [[ -z "${DB_CONTAINER_NAME:-}" ]]; then
+    readonly DB_CONTAINER_NAME="huginn-postgres"
+fi
+if [[ -z "${VOLUME_NAME:-}" ]]; then
+    readonly VOLUME_NAME="huginn-data"
+fi
+if [[ -z "${DB_VOLUME_NAME:-}" ]]; then
+    readonly DB_VOLUME_NAME="huginn-postgres-data"
+fi
+if [[ -z "${NETWORK_NAME:-}" ]]; then
+    readonly NETWORK_NAME="vrooli-network"
+fi
 
 # Image configuration
-readonly HUGINN_IMAGE="huginn/huginn:latest"
-readonly POSTGRES_IMAGE="postgres:15-alpine"
+if [[ -z "${HUGINN_IMAGE:-}" ]]; then
+    readonly HUGINN_IMAGE="huginn/huginn:latest"
+fi
+if [[ -z "${POSTGRES_IMAGE:-}" ]]; then
+    readonly POSTGRES_IMAGE="postgres:15-alpine"
+fi
 
 # Data directories
-readonly HUGINN_DATA_DIR="${HOME}/.huginn"
-readonly HUGINN_DB_DIR="${HUGINN_DATA_DIR}/postgres"
-readonly HUGINN_UPLOADS_DIR="${HUGINN_DATA_DIR}/uploads"
+if [[ -z "${HUGINN_DATA_DIR:-}" ]]; then
+    readonly HUGINN_DATA_DIR="${HOME}/.huginn"
+fi
+if [[ -z "${HUGINN_DB_DIR:-}" ]]; then
+    readonly HUGINN_DB_DIR="${HUGINN_DATA_DIR}/postgres"
+fi
+if [[ -z "${HUGINN_UPLOADS_DIR:-}" ]]; then
+    readonly HUGINN_UPLOADS_DIR="${HUGINN_DATA_DIR}/uploads"
+fi
 
 # Default credentials
-readonly DEFAULT_DB_PASSWORD="huginn_secure_password_$(date +%s)"
-readonly DEFAULT_ADMIN_EMAIL="admin@huginn.local"
-readonly DEFAULT_ADMIN_USERNAME="admin"
-readonly DEFAULT_ADMIN_PASSWORD="vrooli_huginn_secure_2025"
+if [[ -z "${DEFAULT_DB_PASSWORD:-}" ]]; then
+    readonly DEFAULT_DB_PASSWORD="huginn_secure_password_$(date +%s)"
+fi
+if [[ -z "${DEFAULT_ADMIN_EMAIL:-}" ]]; then
+    readonly DEFAULT_ADMIN_EMAIL="admin@huginn.local"
+fi
+if [[ -z "${DEFAULT_ADMIN_USERNAME:-}" ]]; then
+    readonly DEFAULT_ADMIN_USERNAME="admin"
+fi
+if [[ -z "${DEFAULT_ADMIN_PASSWORD:-}" ]]; then
+    readonly DEFAULT_ADMIN_PASSWORD="vrooli_huginn_secure_2025"
+fi
 
 # Health check configuration
-readonly HUGINN_HEALTH_CHECK_INTERVAL=5
-readonly HUGINN_HEALTH_CHECK_MAX_ATTEMPTS=30
-readonly HUGINN_HEALTH_CHECK_TIMEOUT=10
+if [[ -z "${HUGINN_HEALTH_CHECK_INTERVAL:-}" ]]; then
+    readonly HUGINN_HEALTH_CHECK_INTERVAL=5
+fi
+if [[ -z "${HUGINN_HEALTH_CHECK_MAX_ATTEMPTS:-}" ]]; then
+    readonly HUGINN_HEALTH_CHECK_MAX_ATTEMPTS=30
+fi
+if [[ -z "${HUGINN_HEALTH_CHECK_TIMEOUT:-}" ]]; then
+    readonly HUGINN_HEALTH_CHECK_TIMEOUT=10
+fi
 
 # Docker health check settings
-readonly DOCKER_HEALTH_INTERVAL="30s"
-readonly DOCKER_HEALTH_TIMEOUT="10s"
-readonly DOCKER_HEALTH_RETRIES=3
+if [[ -z "${DOCKER_HEALTH_INTERVAL:-}" ]]; then
+    readonly DOCKER_HEALTH_INTERVAL="30s"
+fi
+if [[ -z "${DOCKER_HEALTH_TIMEOUT:-}" ]]; then
+    readonly DOCKER_HEALTH_TIMEOUT="10s"
+fi
+if [[ -z "${DOCKER_HEALTH_RETRIES:-}" ]]; then
+    readonly DOCKER_HEALTH_RETRIES=3
+fi
 
 # API configuration
-readonly HUGINN_API_TIMEOUT=30
-readonly RAILS_RUNNER_TIMEOUT=60
+if [[ -z "${HUGINN_API_TIMEOUT:-}" ]]; then
+    readonly HUGINN_API_TIMEOUT=30
+fi
+if [[ -z "${RAILS_RUNNER_TIMEOUT:-}" ]]; then
+    readonly RAILS_RUNNER_TIMEOUT=60
+fi
 
 # Authentication configuration
-readonly AUTH_CHECK_INTERVAL_MS=30000
-readonly AUTH_SESSION_TIMEOUT_MS=1800000  # 30 minutes
+if [[ -z "${AUTH_CHECK_INTERVAL_MS:-}" ]]; then
+    readonly AUTH_CHECK_INTERVAL_MS=30000
+fi
+if [[ -z "${AUTH_SESSION_TIMEOUT_MS:-}" ]]; then
+    readonly AUTH_SESSION_TIMEOUT_MS=1800000  # 30 minutes
+fi
 
 # Backup configuration
-readonly BACKUP_RETENTION_DAYS=30
-readonly BACKUP_COMPRESSION="gzip"
+if [[ -z "${BACKUP_RETENTION_DAYS:-}" ]]; then
+    readonly BACKUP_RETENTION_DAYS=30
+fi
+if [[ -z "${BACKUP_COMPRESSION:-}" ]]; then
+    readonly BACKUP_COMPRESSION="gzip"
+fi
 
 # Integration configuration
-readonly INTEGRATION_TIMEOUT=30
-readonly WEBHOOK_TIMEOUT=60
+if [[ -z "${INTEGRATION_TIMEOUT:-}" ]]; then
+    readonly INTEGRATION_TIMEOUT=30
+fi
+if [[ -z "${WEBHOOK_TIMEOUT:-}" ]]; then
+    readonly WEBHOOK_TIMEOUT=60
+fi
 
 # Export configuration function
 huginn::export_config() {

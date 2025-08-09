@@ -5,35 +5,24 @@
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# Source var.sh first to get proper directory variables
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+
+# Source common utilities using var_ variables
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
+
 SECURITY_DIR="${SCRIPT_DIR}"
 APPARMOR_PROFILE_DIR="/etc/apparmor.d"
 LOG_DIR="/var/log/agent-s2-audit"
 
-# Color codes for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-#######################################
-# Print colored output
-#######################################
-print_status() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-}
-
-print_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+# Use log functions from common.sh instead of custom print functions
+print_status() { log::info "$@"; }
+print_success() { log::success "$@"; }
+print_warning() { log::warning "$@"; }
+print_error() { log::error "$@"; }
 
 #######################################
 # Check if running as root

@@ -71,9 +71,9 @@ teardown() {
 @test "manage.sh defines required functions" {
     # Functions should be available from setup_file
     declare -f qdrant::parse_arguments >/dev/null
-    declare -f qdrant::main >/dev/null
+    declare -f main >/dev/null
     declare -f qdrant::install >/dev/null
-    declare -f qdrant::status >/dev/null
+    declare -f qdrant::status::check >/dev/null
 }
 
 # ============================================================================

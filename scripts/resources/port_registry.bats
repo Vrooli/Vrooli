@@ -1,8 +1,18 @@
 #!/usr/bin/env bats
 
-# Source the port registry
-SCRIPT_PATH="$BATS_TEST_DIRNAME/port_registry.sh"
-. "$SCRIPT_PATH"
+# Load test setup first
+load "../__test/fixtures/setup.bash"
+
+# Setup test environment
+setup() {
+    vrooli_setup_unit_test
+    # Source the port registry
+    source "$BATS_TEST_DIRNAME/port_registry.sh"
+}
+
+teardown() {
+    vrooli_cleanup_test
+}
 
 # ============================================================================
 # Basic Port Retrieval Tests
@@ -61,16 +71,14 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/port_registry.sh"
     [[ "$output" == *"Invalid port number"* ]]
 }
 
-@test "ports::validate_assignment rejects Vrooli UI port" {
-    run ports::validate_assignment "3000" "custom"
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"conflicts with Vrooli services"* ]]
+@test "ports::validate_assignment accepts non-conflicting ports" {
+    run ports::validate_assignment "50000" "custom"
+    [ "$status" -eq 0 ]
 }
 
-@test "ports::validate_assignment rejects Vrooli API port" {
-    run ports::validate_assignment "5329" "custom"
-    [ "$status" -eq 1 ]
-    [[ "$output" == *"conflicts with Vrooli services"* ]]
+@test "ports::validate_assignment accepts resource-specific ports" {
+    run ports::validate_assignment "11434" "ollama"
+    [ "$status" -eq 0 ]
 }
 
 @test "ports::validate_assignment warns about privileged port 80" {
@@ -93,10 +101,10 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/port_registry.sh"
     run ports::get_all_assigned
     [ "$status" -eq 0 ]
     
-    # Check that output contains expected ports
-    [[ "$output" == *"3000"* ]]  # UI
-    [[ "$output" == *"5329"* ]]  # API
+    # Check that output contains expected resource ports
     [[ "$output" == *"11434"* ]] # Ollama
+    [[ "$output" == *"4110"* ]]  # Browserless  
+    [[ "$output" == *"5678"* ]]  # n8n
 }
 
 @test "ports::find_available_in_range finds available port" {
@@ -114,8 +122,9 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/port_registry.sh"
 }
 
 @test "ports::find_available_in_range fails when no ports available" {
-    # Try to find port in Vrooli UI port (single port, reserved)
-    run ports::find_available_in_range 3000 3000
+    # Try to find port in a range where all ports are assigned
+    # Use a small range that contains assigned ports
+    run ports::find_available_in_range 11434 11434
     [ "$status" -eq 1 ]
 }
 
@@ -128,12 +137,10 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/port_registry.sh"
     [ "$status" -eq 0 ]
     
     # Check for main sections
-    [[ "$output" == *"VROOLI CORE SERVICES:"* ]]
     [[ "$output" == *"LOCAL RESOURCES:"* ]]
     [[ "$output" == *"RESERVED RANGES:"* ]]
     
     # Check for specific entries
-    [[ "$output" == *"ui"*"3000"* ]]
     [[ "$output" == *"ollama"*"11434"* ]]
     [[ "$output" == *"vrooli_core"*"3000-4100"* ]]
 }

@@ -1,23 +1,27 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Vrooli Issue Tracker CLI
 # Command-line interface for reporting and managing issues
 
-set -e
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_EXIT_CODES_FILE}"
 
 # Configuration
 TRACKER_API_URL="${ISSUE_TRACKER_URL:-http://localhost:8091/api}"
 TRACKER_API_TOKEN="${ISSUE_TRACKER_TOKEN:-}"
-CONFIG_FILE="${HOME}/.vrooli-tracker/config.json"
+CONFIG_FILE="${var_VROOLI_CONFIG_DIR}/.vrooli-tracker-config.json"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# Colors are provided by log.sh utility functions
 
 # Helper functions
-show_help() {
+vrooli_tracker::show_help() {
     cat << EOF
 Vrooli Issue Tracker CLI
 
@@ -59,19 +63,19 @@ EOF
 }
 
 # Load configuration
-load_config() {
+vrooli_tracker::load_config() {
     if [ -f "$CONFIG_FILE" ]; then
         TRACKER_API_TOKEN=$(jq -r '.api_token // empty' "$CONFIG_FILE" 2>/dev/null || echo "")
         TRACKER_API_URL=$(jq -r '.api_url // empty' "$CONFIG_FILE" 2>/dev/null || echo "$TRACKER_API_URL")
     fi
     
     if [ -z "$TRACKER_API_TOKEN" ]; then
-        echo -e "${YELLOW}Warning: No API token configured. Run 'vrooli-tracker config --token YOUR_TOKEN'${NC}"
+        log::warning "No API token configured. Run 'vrooli-tracker config --token YOUR_TOKEN'"
     fi
 }
 
 # Save configuration
-save_config() {
+vrooli_tracker::save_config() {
     mkdir -p "$(dirname "$CONFIG_FILE")"
     cat > "$CONFIG_FILE" << EOF
 {
@@ -80,11 +84,11 @@ save_config() {
   "app_name": "$3"
 }
 EOF
-    echo -e "${GREEN}Configuration saved to $CONFIG_FILE${NC}"
+    log::success "Configuration saved to $CONFIG_FILE"
 }
 
 # API request helper
-api_request() {
+vrooli_tracker::api_request() {
     local method=$1
     local endpoint=$2
     local data=$3
@@ -112,7 +116,7 @@ api_request() {
 }
 
 # Create issue command
-create_issue() {
+vrooli_tracker::create_issue() {
     local title=""
     local description=""
     local type="bug"
@@ -135,7 +139,7 @@ create_issue() {
     done
     
     if [ -z "$title" ]; then
-        echo -e "${RED}Error: Title is required${NC}"
+        log::error "Title is required"
         echo "Usage: vrooli-tracker create --title \"Issue title\" [options]"
         exit 1
     fi
@@ -164,28 +168,28 @@ create_issue() {
         }')
     
     echo "Creating issue..."
-    response=$(api_request "POST" "issues" "$json_data")
+    response=$(vrooli_tracker::api_request "POST" "issues" "$json_data")
     
     if [ "$(echo "$response" | jq -r '.success')" = "true" ]; then
         issue_id=$(echo "$response" | jq -r '.issueId')
-        echo -e "${GREEN}✓ Issue created successfully${NC}"
+        log::success "✓ Issue created successfully"
         echo "Issue ID: $issue_id"
         
         # Check for similar issues
         similar=$(echo "$response" | jq -r '.similarIssues // empty')
         if [ -n "$similar" ] && [ "$similar" != "null" ]; then
-            echo -e "${YELLOW}Similar issues found:${NC}"
+            log::warning "Similar issues found:"
             echo "$similar" | jq -r '.[] | "  - \(.title) (similarity: \(.similarity))"'
         fi
     else
-        echo -e "${RED}✗ Failed to create issue${NC}"
+        log::error "✗ Failed to create issue"
         echo "$response" | jq -r '.message'
         exit 1
     fi
 }
 
 # List issues command
-list_issues() {
+vrooli_tracker::list_issues() {
     local status=""
     local priority=""
     local type=""
@@ -215,34 +219,34 @@ list_issues() {
     query_params="${query_params#&}"
     
     echo "Fetching issues..."
-    response=$(api_request "GET" "issues?$query_params")
+    response=$(vrooli_tracker::api_request "GET" "issues?$query_params")
     
     if [ "$(echo "$response" | jq -r '.success')" = "true" ]; then
         total=$(echo "$response" | jq -r '.totalCount')
-        echo -e "${BLUE}Found $total issues${NC}"
+        log::info "Found $total issues"
         echo ""
         
         echo "$response" | jq -r '.issues[] | 
             "[\(.priority | ascii_upcase)] \(.title)\n  App: \(.app_name) | Status: \(.status) | Created: \(.created_at)\n  ID: \(.id)\n"'
     else
-        echo -e "${RED}✗ Failed to fetch issues${NC}"
+        log::error "✗ Failed to fetch issues"
         echo "$response" | jq -r '.message'
         exit 1
     fi
 }
 
 # Get issue details
-get_issue() {
+vrooli_tracker::get_issue() {
     local issue_id=$1
     
     if [ -z "$issue_id" ]; then
-        echo -e "${RED}Error: Issue ID is required${NC}"
+        log::error "Issue ID is required"
         echo "Usage: vrooli-tracker get ISSUE-ID"
         exit 1
     fi
     
     echo "Fetching issue details..."
-    response=$(api_request "GET" "issues/$issue_id")
+    response=$(vrooli_tracker::api_request "GET" "issues/$issue_id")
     
     if [ "$(echo "$response" | jq -r '.success')" = "true" ]; then
         echo "$response" | jq -r '.issue | 
@@ -258,14 +262,14 @@ get_issue() {
             if .root_cause then "Root Cause: \(.root_cause)\n" else "" end +
             if .suggested_fix then "Suggested Fix:\n\(.suggested_fix)\n" else "" end'
     else
-        echo -e "${RED}✗ Failed to fetch issue${NC}"
+        log::error "✗ Failed to fetch issue"
         echo "$response" | jq -r '.message'
         exit 1
     fi
 }
 
 # Trigger investigation
-investigate_issue() {
+vrooli_tracker::investigate_issue() {
     local issue_id=$1
     shift
     
@@ -281,7 +285,7 @@ investigate_issue() {
     done
     
     if [ -z "$issue_id" ]; then
-        echo -e "${RED}Error: Issue ID is required${NC}"
+        log::error "Issue ID is required"
         echo "Usage: vrooli-tracker investigate ISSUE-ID [--agent AGENT-ID]"
         exit 1
     fi
@@ -297,24 +301,24 @@ investigate_issue() {
         }')
     
     echo "Triggering investigation..."
-    response=$(api_request "POST" "investigate" "$json_data")
+    response=$(vrooli_tracker::api_request "POST" "investigate" "$json_data")
     
     if [ "$(echo "$response" | jq -r '.success')" = "true" ]; then
-        echo -e "${GREEN}✓ Investigation started${NC}"
+        log::success "✓ Investigation started"
         echo "$response" | jq -r '"Run ID: \(.runId)\nInvestigation ID: \(.investigationId)"'
     else
-        echo -e "${RED}✗ Failed to trigger investigation${NC}"
+        log::error "✗ Failed to trigger investigation"
         echo "$response" | jq -r '.message'
         exit 1
     fi
 }
 
 # Search issues
-search_issues() {
+vrooli_tracker::search_issues() {
     local query="$*"
     
     if [ -z "$query" ]; then
-        echo -e "${RED}Error: Search query is required${NC}"
+        log::error "Search query is required"
         echo "Usage: vrooli-tracker search \"your search query\""
         exit 1
     fi
@@ -322,29 +326,29 @@ search_issues() {
     echo "Searching for: $query"
     
     local encoded_query=$(echo "$query" | jq -sRr @uri)
-    response=$(api_request "GET" "issues/search?q=$encoded_query")
+    response=$(vrooli_tracker::api_request "GET" "issues/search?q=$encoded_query")
     
     if [ "$(echo "$response" | jq -r '.success')" = "true" ]; then
         count=$(echo "$response" | jq -r '.results | length')
-        echo -e "${BLUE}Found $count matching issues${NC}"
+        log::info "Found $count matching issues"
         echo ""
         
         echo "$response" | jq -r '.results[] | 
             "[\(.similarity | . * 100 | floor)% match] \(.title)\n  App: \(.app_name) | Status: \(.status)\n  ID: \(.id)\n"'
     else
-        echo -e "${RED}✗ Search failed${NC}"
+        log::error "✗ Search failed"
         echo "$response" | jq -r '.message'
         exit 1
     fi
 }
 
 # Show statistics
-show_stats() {
+vrooli_tracker::show_stats() {
     echo "Fetching statistics..."
-    response=$(api_request "GET" "stats")
+    response=$(vrooli_tracker::api_request "GET" "stats")
     
     if [ "$(echo "$response" | jq -r '.success')" = "true" ]; then
-        echo -e "${BLUE}Issue Tracker Statistics${NC}"
+        log::info "Issue Tracker Statistics"
         echo ""
         echo "$response" | jq -r '.stats | 
             "Total Issues: \(.total_issues)\n" +
@@ -355,13 +359,13 @@ show_stats() {
             "\nTop Applications by Issues:\n" +
             (.top_apps[] | "  - \(.app_name): \(.issue_count) issues")'
     else
-        echo -e "${RED}✗ Failed to fetch statistics${NC}"
+        log::error "✗ Failed to fetch statistics"
         exit 1
     fi
 }
 
 # Configure command
-configure() {
+vrooli_tracker::configure() {
     local token=""
     local url=""
     local app_name=""
@@ -376,7 +380,7 @@ configure() {
     done
     
     if [ -z "$token" ]; then
-        echo -e "${RED}Error: API token is required${NC}"
+        log::error "API token is required"
         echo "Usage: vrooli-tracker config --token YOUR_API_TOKEN [--url API_URL]"
         exit 1
     fi
@@ -384,46 +388,46 @@ configure() {
     [ -z "$url" ] && url="$TRACKER_API_URL"
     [ -z "$app_name" ] && app_name="unknown"
     
-    save_config "$token" "$url" "$app_name"
+    vrooli_tracker::save_config "$token" "$url" "$app_name"
 }
 
 # Main command router
-main() {
-    load_config
+vrooli_tracker::main() {
+    vrooli_tracker::load_config
     
     case "$1" in
         create)
             shift
-            create_issue "$@"
+            vrooli_tracker::create_issue "$@"
             ;;
         list)
             shift
-            list_issues "$@"
+            vrooli_tracker::list_issues "$@"
             ;;
         get)
             shift
-            get_issue "$@"
+            vrooli_tracker::get_issue "$@"
             ;;
         investigate)
             shift
-            investigate_issue "$@"
+            vrooli_tracker::investigate_issue "$@"
             ;;
         search)
             shift
-            search_issues "$@"
+            vrooli_tracker::search_issues "$@"
             ;;
         stats)
-            show_stats
+            vrooli_tracker::show_stats
             ;;
         config)
             shift
-            configure "$@"
+            vrooli_tracker::configure "$@"
             ;;
         -h|--help|help)
-            show_help
+            vrooli_tracker::show_help
             ;;
         *)
-            echo -e "${RED}Unknown command: $1${NC}"
+            log::error "Unknown command: $1"
             echo "Run 'vrooli-tracker --help' for usage information"
             exit 1
             ;;
@@ -432,16 +436,16 @@ main() {
 
 # Check dependencies
 if ! command -v jq &> /dev/null; then
-    echo -e "${RED}Error: jq is required but not installed${NC}"
+    log::error "jq is required but not installed"
     echo "Install with: apt-get install jq (or your package manager)"
     exit 1
 fi
 
 if ! command -v curl &> /dev/null; then
-    echo -e "${RED}Error: curl is required but not installed${NC}"
+    log::error "curl is required but not installed"
     echo "Install with: apt-get install curl"
     exit 1
 fi
 
 # Run main function
-main "$@"
+vrooli_tracker::main "$@"

@@ -9,13 +9,13 @@ source "${APP_LIFECYCLE_DEPLOY_TOOLS_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 
-PROJECT_ROOT="${var_ROOT_DIR}"
+# No need to define PROJECT_ROOT, just use var_ROOT_DIR directly
 
 # Configuration
 NAMESPACE="vrooli"
 HELM_RELEASE="vrooli"
 
-deploy::check_prerequisites() {
+deploy_to_existing_cluster::check_prerequisites() {
     log::header "Checking prerequisites..."
     
     # Check if kubectl is connected to a cluster
@@ -43,7 +43,7 @@ deploy::check_prerequisites() {
     log::success "Prerequisites check completed"
 }
 
-deploy::confirm_cluster() {
+deploy_to_existing_cluster::confirm_cluster() {
     log::header "Cluster Confirmation"
     
     # Show nodes
@@ -64,14 +64,14 @@ deploy::confirm_cluster() {
     fi
 }
 
-deploy::create_namespace() {
+deploy_to_existing_cluster::create_namespace() {
     log::header "Creating namespace..."
     
     kubectl create namespace "${NAMESPACE}" --dry-run=client -o yaml | kubectl apply -f -
     log::success "Namespace '${NAMESPACE}' ready"
 }
 
-deploy::create_ssl_issuer() {
+deploy_to_existing_cluster::create_ssl_issuer() {
     log::header "Creating SSL certificate issuer..."
     
     # Check if cert-manager is installed
@@ -84,6 +84,9 @@ deploy::create_ssl_issuer() {
     fi
     
     # Create ClusterIssuer for Let's Encrypt
+    local issuer_email="${LETSENCRYPT_EMAIL:-admin@example.com}"
+    log::info "Using email for Let's Encrypt: $issuer_email (set LETSENCRYPT_EMAIL to customize)"
+    
     cat <<EOF | kubectl apply -f -
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
@@ -92,7 +95,7 @@ metadata:
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: matthalloran8@gmail.com
+    email: $issuer_email
     privateKeySecretRef:
       name: letsencrypt-prod
     solvers:
@@ -104,7 +107,7 @@ EOF
     log::success "SSL certificate issuer created"
 }
 
-deploy::create_secrets() {
+deploy_to_existing_cluster::create_secrets() {
     log::header "Creating Kubernetes secrets..."
     
     # Set environment if not already set
@@ -120,9 +123,10 @@ deploy::create_secrets() {
     fi
     
     # Load environment variables using the project's env script
-    if [[ -f "${PROJECT_ROOT}/scripts/app/utils/env.sh" ]]; then
-        source "${PROJECT_ROOT}/scripts/app/utils/env.sh"
-        env::load_secrets "${PROJECT_ROOT}/.env-prod"
+    if [[ -f "${var_APP_UTILS_DIR}/env.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "${var_APP_UTILS_DIR}/env.sh"
+        env::load_secrets "${var_ROOT_DIR}/.env-prod"
         log::info "Loaded environment variables and JWT keys"
     else
         log::error "env.sh script not found"
@@ -152,7 +156,7 @@ deploy::create_secrets() {
     log::success "Application secrets created"
 }
 
-deploy::setup_database_secrets() {
+deploy_to_existing_cluster::setup_database_secrets() {
     log::header "Setting up database connection..."
     
     # Check if user wants to use external databases
@@ -164,10 +168,10 @@ deploy::setup_database_secrets() {
     
     case $db_option in
         1)
-            deploy::setup_external_databases
+            deploy_to_existing_cluster::setup_external_databases
             ;;
         2)
-            deploy::setup_internal_databases
+            deploy_to_existing_cluster::setup_internal_databases
             ;;
         *)
             log::error "Invalid option selected"
@@ -176,7 +180,7 @@ deploy::setup_database_secrets() {
     esac
 }
 
-deploy::setup_external_databases() {
+deploy_to_existing_cluster::setup_external_databases() {
     log::info "Setting up external database connections..."
     
     echo "Please provide your DigitalOcean database connection details:"
@@ -222,7 +226,7 @@ deploy::setup_external_databases() {
     log::success "External database secrets created"
 }
 
-deploy::setup_internal_databases() {
+deploy_to_existing_cluster::setup_internal_databases() {
     log::info "Will deploy simple in-cluster databases"
     
     # Create simple database credentials
@@ -244,11 +248,11 @@ deploy::setup_internal_databases() {
     log::success "Internal database secrets created"
 }
 
-deploy::create_deployment_values() {
+deploy_to_existing_cluster::create_deployment_values() {
     log::header "Creating deployment configuration..."
     
     # Create custom values file for this deployment
-    cat > "${PROJECT_ROOT}/k8s/chart/values-current-deployment.yaml" <<EOF
+    cat > "${var_ROOT_DIR}/k8s/chart/values-current-deployment.yaml" <<EOF
 # Auto-generated values for current deployment
 nameOverride: ""
 fullnameOverride: "vrooli"
@@ -378,20 +382,20 @@ EOF
     log::success "Deployment configuration created"
 }
 
-deploy::deploy_application() {
+deploy_to_existing_cluster::deploy_application() {
     log::header "Deploying Vrooli application..."
     
     # Deploy with Helm
-    helm upgrade --install "${HELM_RELEASE}" "${PROJECT_ROOT}/k8s/chart" \
+    helm upgrade --install "${HELM_RELEASE}" "${var_ROOT_DIR}/k8s/chart" \
         --namespace "${NAMESPACE}" \
-        --values "${PROJECT_ROOT}/k8s/chart/values-current-deployment.yaml" \
+        --values "${var_ROOT_DIR}/k8s/chart/values-current-deployment.yaml" \
         --wait \
         --timeout 10m
     
     log::success "Application deployed successfully"
 }
 
-deploy::verify_deployment() {
+deploy_to_existing_cluster::verify_deployment() {
     log::header "Verifying deployment..."
     
     # Show pod status
@@ -427,7 +431,7 @@ deploy::verify_deployment() {
     log::success "Deployment verification completed"
 }
 
-deploy::show_next_steps() {
+deploy_to_existing_cluster::show_next_steps() {
     log::header "Next Steps"
     
     echo "📋 Post-Deployment Tasks:"
@@ -456,19 +460,19 @@ deploy::show_next_steps() {
     echo "   kubectl delete namespace ${NAMESPACE}"
 }
 
-deploy::main() {
+deploy_to_existing_cluster::main() {
     log::info "Starting deployment to existing Kubernetes cluster..."
     
-    deploy::check_prerequisites
-    deploy::confirm_cluster
-    deploy::create_namespace
-    deploy::create_ssl_issuer
-    deploy::create_secrets
-    deploy::setup_database_secrets
-    deploy::create_deployment_values
-    deploy::deploy_application
-    deploy::verify_deployment
-    deploy::show_next_steps
+    deploy_to_existing_cluster::check_prerequisites
+    deploy_to_existing_cluster::confirm_cluster
+    deploy_to_existing_cluster::create_namespace
+    deploy_to_existing_cluster::create_ssl_issuer
+    deploy_to_existing_cluster::create_secrets
+    deploy_to_existing_cluster::setup_database_secrets
+    deploy_to_existing_cluster::create_deployment_values
+    deploy_to_existing_cluster::deploy_application
+    deploy_to_existing_cluster::verify_deployment
+    deploy_to_existing_cluster::show_next_steps
     
     log::success "🎉 Deployment completed!"
     log::info "Application should be accessible at https://vrooli.com once DNS is configured"
@@ -476,5 +480,5 @@ deploy::main() {
 
 # Check if script is being run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    deploy::main "$@"
+    deploy_to_existing_cluster::main "$@"
 fi

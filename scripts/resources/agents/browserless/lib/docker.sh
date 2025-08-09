@@ -225,3 +225,14 @@ browserless::docker_pull() {
         return 1
     fi
 }
+
+# Export functions for subshell availability
+export -f browserless::create_network
+export -f browserless::build_docker_command
+export -f browserless::docker_run
+export -f browserless::docker_stop
+export -f browserless::docker_start
+export -f browserless::docker_restart
+export -f browserless::docker_remove
+export -f browserless::docker_logs
+export -f browserless::docker_pull

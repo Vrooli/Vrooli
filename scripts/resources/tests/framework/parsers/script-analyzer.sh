@@ -4,6 +4,13 @@
 
 set -euo pipefail
 
+_HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# shellcheck disable=SC1091
+source "${_HERE}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}" 2>/dev/null || true
+
 #######################################
 # Extract all actions from a manage.sh script
 # Arguments:
@@ -13,7 +20,7 @@ set -euo pipefail
 # Outputs:
 #   List of actions, one per line
 #######################################
-extract_script_actions() {
+script_analyzer::extract_script_actions() {
     local script_path="$1"
     
     if [[ ! -f "$script_path" ]]; then
@@ -45,7 +52,7 @@ extract_script_actions() {
 # Outputs:
 #   List of found/missing patterns
 #######################################
-check_error_handling_patterns() {
+script_analyzer::check_error_handling_patterns() {
     local script_path="$1"
     
     if [[ ! -f "$script_path" ]]; then
@@ -111,7 +118,7 @@ check_error_handling_patterns() {
 # Outputs:
 #   List of found/missing help patterns
 #######################################
-validate_help_patterns() {
+script_analyzer::validate_help_patterns() {
     local script_path="$1"
     
     if [[ ! -f "$script_path" ]]; then
@@ -157,7 +164,7 @@ validate_help_patterns() {
 # Outputs:
 #   List of found/missing files
 #######################################
-check_required_files() {
+script_analyzer::check_required_files() {
     local script_path="$1"
     local script_dir
     script_dir=$(dirname "$script_path")
@@ -215,7 +222,7 @@ check_required_files() {
 # Outputs:
 #   Analysis of argument patterns
 #######################################
-analyze_argument_patterns() {
+script_analyzer::analyze_argument_patterns() {
     local script_path="$1"
     
     if [[ ! -f "$script_path" ]]; then
@@ -241,7 +248,7 @@ analyze_argument_patterns() {
     fi
     
     # Check for case statement handling arguments
-    if grep -qE "case.*\\$[a-zA-Z_].*in" "$script_path"; then
+    if grep -qE "case.*\\\$[a-zA-Z_].*in" "$script_path"; then
         good_patterns+=("case_statement")
     else
         issues+=("missing_case_statement")
@@ -280,7 +287,7 @@ analyze_argument_patterns() {
 # Outputs:
 #   Configuration loading analysis
 #######################################
-check_configuration_loading() {
+script_analyzer::check_configuration_loading() {
     local script_path="$1"
     local script_dir
     script_dir=$(dirname "$script_path")
@@ -345,7 +352,7 @@ check_configuration_loading() {
 # Outputs:
 #   List of function names, one per line
 #######################################
-extract_function_definitions() {
+script_analyzer::extract_function_definitions() {
     local script_path="$1"
     
     if [[ ! -f "$script_path" ]]; then
@@ -370,7 +377,7 @@ extract_function_definitions() {
 # Outputs:
 #   Analysis of shebang and permissions
 #######################################
-check_script_basics() {
+script_analyzer::check_script_basics() {
     local script_path="$1"
     
     if [[ ! -f "$script_path" ]]; then
@@ -430,7 +437,7 @@ check_script_basics() {
 # Outputs:
 #   Complete analysis report
 #######################################
-analyze_script_comprehensive() {
+script_analyzer::analyze_script_comprehensive() {
     local script_path="$1"
     
     echo "=== Comprehensive Script Analysis ==="
@@ -442,22 +449,22 @@ analyze_script_comprehensive() {
     
     # Array of analysis functions
     local analyses=(
-        "check_script_basics"
-        "extract_script_actions"
-        "check_error_handling_patterns"
-        "validate_help_patterns"
-        "check_required_files"
-        "analyze_argument_patterns"
-        "check_configuration_loading"
+        "script_analyzer::check_script_basics"
+        "script_analyzer::extract_script_actions"
+        "script_analyzer::check_error_handling_patterns"
+        "script_analyzer::validate_help_patterns"
+        "script_analyzer::check_required_files"
+        "script_analyzer::analyze_argument_patterns"
+        "script_analyzer::check_configuration_loading"
     )
     
     for analysis in "${analyses[@]}"; do
         echo "--- $analysis ---"
         if $analysis "$script_path"; then
-            echo "✅ PASSED"
+            echo "PASSED"
             ((checks_passed++))
         else
-            echo "❌ FAILED"
+            echo "FAILED"
             ((checks_failed++))
         fi
         echo
@@ -469,10 +476,10 @@ analyze_script_comprehensive() {
     echo
     
     if [[ $checks_failed -eq 0 ]]; then
-        echo "🎉 Script analysis PASSED"
+        echo "Script analysis PASSED"
         return 0
     else
-        echo "⚠️  Script analysis FAILED"
+        echo "Script analysis FAILED"
         return 1
     fi
 }
@@ -486,7 +493,7 @@ analyze_script_comprehensive() {
 # Outputs:
 #   Script complexity metrics
 #######################################
-get_script_metrics() {
+script_analyzer::get_script_metrics() {
     local script_path="$1"
     
     if [[ ! -f "$script_path" ]]; then
@@ -497,8 +504,8 @@ get_script_metrics() {
     echo "=== Script Metrics ==="
     echo "File: $script_path"
     echo "Lines of code: $(wc -l < "$script_path")"
-    echo "Functions defined: $(extract_function_definitions "$script_path" | wc -l)"
-    echo "Actions implemented: $(extract_script_actions "$script_path" | wc -l)"
+    echo "Functions defined: $(script_analyzer::extract_function_definitions "$script_path" | wc -l)"
+    echo "Actions implemented: $(script_analyzer::extract_script_actions "$script_path" | wc -l)"
     echo "File size: $(stat -f%z "$script_path" 2>/dev/null || stat -c%s "$script_path" 2>/dev/null || echo "unknown") bytes"
     echo
     
@@ -506,13 +513,13 @@ get_script_metrics() {
 }
 
 # Export functions for use in other scripts
-export -f extract_script_actions
-export -f check_error_handling_patterns
-export -f validate_help_patterns
-export -f check_required_files
-export -f analyze_argument_patterns
-export -f check_configuration_loading
-export -f extract_function_definitions
-export -f check_script_basics
-export -f analyze_script_comprehensive
-export -f get_script_metrics
+export -f script_analyzer::extract_script_actions
+export -f script_analyzer::check_error_handling_patterns
+export -f script_analyzer::validate_help_patterns
+export -f script_analyzer::check_required_files
+export -f script_analyzer::analyze_argument_patterns
+export -f script_analyzer::check_configuration_loading
+export -f script_analyzer::extract_function_definitions
+export -f script_analyzer::check_script_basics
+export -f script_analyzer::analyze_script_comprehensive
+export -f script_analyzer::get_script_metrics

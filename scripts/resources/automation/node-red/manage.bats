@@ -3,6 +3,7 @@
 # Integration tests for end-to-end scenarios and interactions between modules
 
 # Load Vrooli test infrastructure
+# shellcheck disable=SC1091
 source "${BATS_TEST_DIRNAME}/../../../__test/fixtures/setup.bash"
 
 # Expensive setup operations run once per file
@@ -14,9 +15,12 @@ setup_file() {
     SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     NODE_RED_DIR="$(dirname "$SCRIPT_DIR")"
     
-    # Load configuration and manage script once
+    # Load configuration and manage script once  
+    # shellcheck disable=SC1091
     source "${NODE_RED_DIR}/config/defaults.sh"
+    # shellcheck disable=SC1091
     source "${NODE_RED_DIR}/config/messages.sh"
+    # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/manage.sh"
 }
 
@@ -44,6 +48,7 @@ setup() {
     log::success() { echo "[SUCCESS] $*"; }
     log::warning() { echo "[WARNING] $*" >&2; }
     export -f log::header log::info log::error log::success log::warning
+}
 
 # BATS teardown function - runs after each test
 teardown() {
@@ -312,13 +317,13 @@ teardown() {
     # Test import (simulated)
     run node_red::import_flow_file "$flow_file"
     [ "$status" -eq 0 ]
-    [[ "$output" =~  "imported successfully"
+    [[ "$output" =~ "imported successfully" ]]
     
     # Test export
     local export_file="$NODE_RED_TEST_DIR/exported-flows.json"
     run node_red::export_flows_to_file "$export_file"
     [ "$status" -eq 0 ]
-    [[ "$output" =~  "exported successfully"
+    [[ "$output" =~ "exported successfully" ]]
     assert_file_exists "$export_file"
 }
 
@@ -335,12 +340,12 @@ teardown() {
     local backup_dir="$NODE_RED_TEST_DIR/test-backup"
     run node_red::backup "$backup_dir"
     [ "$status" -eq 0 ]
-    [[ "$output" =~  "Backup created"
+    [[ "$output" =~ "Backup created" ]]
     
     # Restore backup
     run node_red::restore "$backup_dir"
     [ "$status" -eq 0 ]
-    [[ "$output" =~  "restored from backup"
+    [[ "$output" =~ "restored from backup" ]]
 }
 
 @test "monitoring and metrics collection" {
@@ -366,9 +371,9 @@ teardown() {
     
     run node_red::show_metrics
     [ "$status" -eq 0 ]
-    [[ "$output" =~  "Resource Metrics"
-    [[ "$output" =~  "Flow Metrics"
-    [[ "$output" =~  "Node.js Process"
+    [[ "$output" =~ "Resource Metrics" ]]
+    [[ "$output" =~ "Flow Metrics" ]]
+    [[ "$output" =~ "Node.js Process" ]]
 }
 
 @test "health checking and validation" {
@@ -384,12 +389,12 @@ teardown() {
     # Test health check
     run node_red::health_check
     [ "$status" -eq 0 ]
-    [[ "$output" =~  "Health Check"
+    [[ "$output" =~ "Health Check" ]]
     
     # Test validation
     run node_red::validate_installation
     [ "$status" -eq 0 ]
-    [[ "$output" =~  "validation passed"
+    [[ "$output" =~ "validation passed" ]]
 }
 
 @test "configuration management integration" {
@@ -442,9 +447,9 @@ teardown() {
     
     run node_red::benchmark
     [ "$status" -eq 0 ]
-    [[ "$output" =~  "Performance Benchmark"
-    [[ "$output" =~  "HTTP Response Time"
-    [[ "$output" =~  "Average:"
+    [[ "$output" =~ "Performance Benchmark" ]]
+    [[ "$output" =~ "HTTP Response Time" ]]
+    [[ "$output" =~ "Average:" ]]
 }
 
 @test "comprehensive testing suite integration" {
@@ -489,14 +494,14 @@ teardown() {
     [ "$status" -eq 0 ]
     
     # Should run all test categories
-    [[ "$output" =~  "container status"
-    [[ "$output" =~  "HTTP endpoint"
-    [[ "$output" =~  "admin API"
-    [[ "$output" =~  "Docker access"
-    [[ "$output" =~  "workspace access"
-    [[ "$output" =~  "host command execution"
-    [[ "$output" =~  "flow persistence"
-    [[ "$output" =~  "All tests passed"
+    [[ "$output" =~ "container status" ]]
+    [[ "$output" =~ "HTTP endpoint" ]]
+    [[ "$output" =~ "admin API" ]]
+    [[ "$output" =~ "Docker access" ]]
+    [[ "$output" =~ "workspace access" ]]
+    [[ "$output" =~ "host command execution" ]]
+    [[ "$output" =~ "flow persistence" ]]
+    [[ "$output" =~ "All tests passed" ]]
 }
 
 # Error recovery and resilience testing
@@ -562,12 +567,12 @@ teardown() {
     # Mock docker for success
     run "$NODE_RED_TEST_DIR/manage.sh" status
     [ "$status" -eq 0 ]
-    [[ "$output" =~  "Running"
+    [[ "$output" =~ "Running" ]]
     
     # Should pass tests
     run "$NODE_RED_TEST_DIR/manage.sh" test
     [ "$status" -eq 0 ]
-    [[ "$output" =~  "All tests passed"
+    [[ "$output" =~ "All tests passed" ]]
 }
 
 @test "backup-uninstall-reinstall-restore workflow" {
@@ -613,7 +618,7 @@ teardown() {
     # Status should show correct port
     run node_red::show_status
     [ "$status" -eq 0 ]
-    [[ "$output" =~  "9999"
+    [[ "$output" =~ "9999" ]]
     
     # Health check should use correct port
     curl() {
@@ -634,15 +639,15 @@ teardown() {
     # Different modules should show consistent error messages
     run node_red::show_status
     [ "$status" -eq 0 ]
-    [[ "$output" =~  "Stopped"
+    [[ "$output" =~ "Stopped" ]]
     
     run node_red::health_check
     [ "$status" -ne 0 ]
-    [[ "$output" =~  "not running"
+    [[ "$output" =~ "not running" ]]
     
     run node_red::list_flows
     [ "$status" -ne 0 ]
-    [[ "$output" =~  "not running"
+    [[ "$output" =~ "not running" ]]
 }
 
 # Concurrent operation testing
@@ -665,9 +670,9 @@ teardown() {
     # Mock docker for success
     
     # Test interrupt handling (simulated) - need to source common.sh first for log:: functions
-    run bash -c 'source "$RESOURCES_DIR/common.sh"; source "$0/config/messages.sh"; node_red::show_interrupt_message' "$NODE_RED_TEST_DIR"
+    run bash -c 'source "${BATS_TEST_DIRNAME}/../../../lib/utils/var.sh"; source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"; source "$0/config/messages.sh"; node_red::show_interrupt_message' "$NODE_RED_TEST_DIR"
     [ "$status" -eq 0 ]
-    [[ "$output" =~  "interrupted"
+    [[ "$output" =~ "interrupted" ]]
 }
 
 # End-to-end validation
@@ -684,9 +689,9 @@ teardown() {
     # Everything should validate successfully
     run node_red::validate_installation
     [ "$status" -eq 0 ]
-    [[ "$output" =~  "validation passed"
+    [[ "$output" =~ "validation passed" ]]
     
     run node_red::run_tests
     [ "$status" -eq 0 ]
-    [[ "$output" =~  "All tests passed"
+    [[ "$output" =~ "All tests passed" ]]
 }

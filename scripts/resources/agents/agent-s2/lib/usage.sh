@@ -500,3 +500,13 @@ curl -X POST "${AGENT_S2_URL}/keyboard/type" \
 ```
 EOF
 }
+
+# Export functions for subshell availability
+export -f agents2::run_usage_example
+export -f agents2::usage_help
+export -f agents2::usage_screenshot
+export -f agents2::usage_automation
+export -f agents2::usage_planning
+export -f agents2::usage_capabilities
+export -f agents2::usage_all
+export -f agents2::show_code_examples

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # repository.sh - Repository management helper functions
 # Centralized repository operations using service.json configuration
+# 
+# Updated to use standardized JSON utilities for consistent service.json
+# parsing across the Vrooli codebase.
 set -euo pipefail
 
 LIB_SERVICE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -13,53 +16,41 @@ source "${var_EXIT_CODES_FILE}"
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_SYSTEM_COMMANDS_FILE}"
+# shellcheck disable=SC1091
+source "${LIB_SERVICE_DIR}/../utils/json.sh"
 
 # Path to service.json file
 SERVICE_JSON_PATH="${SERVICE_JSON_PATH:-${var_SERVICE_JSON_FILE:-$(cd "${LIB_SERVICE_DIR}/../../.." && pwd)/.vrooli/service.json}}"
 
 #######################################
 # Read repository configuration from service.json
+# Uses standardized JSON utilities for robust configuration loading
 # Returns: Repository config as JSON string
 #######################################
 repository::read_config() {
     local config_path="${1:-$SERVICE_JSON_PATH}"
     
-    if [[ ! -f "$config_path" ]]; then
-        log::error "Service configuration not found: $config_path"
+    # Use standardized JSON utility to get repository config
+    local repo_config
+    repo_config=$(json::get_value '.service.repository' '{}' "$config_path")
+    
+    if [[ -z "$repo_config" || "$repo_config" == "{}" ]]; then
+        log::error "No repository configuration found in service.json"
         return 1
     fi
     
-    # Extract repository section from service.json
-    if system::is_command "jq"; then
-        jq -r '.service.repository // empty' "$config_path"
-    elif system::is_command "yq"; then
-        yq eval '.service.repository' "$config_path" -o json
-    else
-        log::error "Neither jq nor yq found. Please install one to read service.json"
-        return 1
-    fi
+    echo "$repo_config"
 }
 
 #######################################
-# Get repository URL (primary or fallback)
+# Get repository URL (primary or fallback)  
+# Uses standardized JSON utilities for reliable URL extraction
 # Returns: Repository URL string
 #######################################
 repository::get_url() {
-    local config
-    config=$(repository::read_config) || return 1
-    
-    if [[ -z "$config" ]]; then
-        log::error "No repository configuration found"
-        return 1
-    fi
-    
-    # Try primary URL first
+    # Use standardized JSON utility to get repository URL directly
     local url
-    if system::is_command "jq"; then
-        url=$(echo "$config" | jq -r '.url // empty')
-    else
-        url=$(echo "$config" | yq eval '.url' -)
-    fi
+    url=$(json::get_value '.service.repository.url' '')
     
     if [[ -n "$url" ]]; then
         echo "$url"
@@ -72,18 +63,13 @@ repository::get_url() {
 
 #######################################
 # Get SSH URL for HTTPS fallback
+# Uses standardized JSON utilities with intelligent URL derivation
 # Returns: SSH URL string if available
 #######################################
 repository::get_ssh_url() {
-    local config
-    config=$(repository::read_config) || return 1
-    
+    # Use standardized JSON utility to get SSH URL directly
     local ssh_url
-    if system::is_command "jq"; then
-        ssh_url=$(echo "$config" | jq -r '.sshUrl // empty')
-    else
-        ssh_url=$(echo "$config" | yq eval '.sshUrl // ""' -)
-    fi
+    ssh_url=$(json::get_value '.service.repository.sshUrl' '')
     
     if [[ -n "$ssh_url" ]]; then
         echo "$ssh_url"
@@ -104,35 +90,31 @@ repository::get_ssh_url() {
 
 #######################################
 # Get default branch from configuration
+# Uses standardized JSON utilities with sensible defaults
 # Returns: Branch name (defaults to 'main')
 #######################################
 repository::get_branch() {
-    local config
-    config=$(repository::read_config) || return 1
-    
+    # Use standardized JSON utility to get branch with default
     local branch
-    if system::is_command "jq"; then
-        branch=$(echo "$config" | jq -r '.branch // "main"')
-    else
-        branch=$(echo "$config" | yq eval '.branch // "main"' -)
-    fi
+    branch=$(json::get_value '.service.repository.branch' 'main')
     
     echo "${branch:-main}"
 }
 
 #######################################
 # Get mirror URLs from configuration
+# Uses standardized JSON utilities for array processing
 # Returns: Space-separated list of mirror URLs
 #######################################
 repository::get_mirrors() {
-    local config
-    config=$(repository::read_config) || return 1
+    # For array processing, we still need to use jq directly, but with error handling
+    local mirrors=""
     
-    local mirrors
-    if system::is_command "jq"; then
-        mirrors=$(echo "$config" | jq -r '.mirrors[]? // empty' | tr '\n' ' ')
-    else
-        mirrors=$(echo "$config" | yq eval '.mirrors[]' - 2>/dev/null | tr '\n' ' ')
+    # Load service config to ensure it's available
+    if json::load_service_config >/dev/null 2>&1; then
+        local config_path
+        config_path=$(json::get_cached_path)
+        mirrors=$(jq -r '.service.repository.mirrors[]? // empty' "$config_path" 2>/dev/null | tr '\n' ' ')
     fi
     
     echo "$mirrors"
@@ -140,18 +122,13 @@ repository::get_mirrors() {
 
 #######################################
 # Check if repository is private
+# Uses standardized JSON utilities for boolean checking
 # Returns: 0 if private, 1 if public
 #######################################
 repository::is_private() {
-    local config
-    config=$(repository::read_config) || return 1
-    
+    # Use standardized JSON utility to get private flag
     local private
-    if system::is_command "jq"; then
-        private=$(echo "$config" | jq -r '.private // false')
-    else
-        private=$(echo "$config" | yq eval '.private // false' -)
-    fi
+    private=$(json::get_value '.service.repository.private' 'false')
     
     [[ "$private" == "true" ]] && return 0 || return 1
 }

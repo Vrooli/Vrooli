@@ -35,7 +35,7 @@ declare -A PORT_REPLACEMENTS=(
 )
 
 # Show help
-show_help() {
+migrate_ports_simple::show_help() {
     echo "Simple Port Migration Tool"
     echo ""
     echo "Usage: migrate-ports-simple.sh <scenario-path> [--dry-run]"
@@ -49,7 +49,7 @@ show_help() {
 }
 
 # Migrate a single file
-migrate_file() {
+migrate_ports_simple::migrate_file() {
     local file="$1"
     local dry_run="${2:-false}"
     local changed=false
@@ -88,7 +88,7 @@ migrate_file() {
 }
 
 # Main migration function
-migrate_scenario() {
+migrate_ports_simple::migrate_scenario() {
     local scenario_path="$1"
     local dry_run="${2:-false}"
     
@@ -114,7 +114,7 @@ migrate_scenario() {
                 log::info "Processing: $(realpath --relative-to="$scenario_path" "$file")"
                 
                 local file_changed
-                file_changed=$(migrate_file "$file" "$dry_run")
+                file_changed=$(migrate_ports_simple::migrate_file "$file" "$dry_run")
                 
                 if [[ "$file_changed" == "true" ]]; then
                     ((changed_files++))
@@ -154,7 +154,7 @@ main() {
                 shift
                 ;;
             --help|-h)
-                show_help
+                migrate_ports_simple::show_help
                 exit 0
                 ;;
             -*)
@@ -171,7 +171,7 @@ main() {
     # Validate arguments
     if [[ -z "$scenario_path" ]]; then
         log::error "Scenario path is required"
-        show_help
+        migrate_ports_simple::show_help
         exit 1
     fi
     
@@ -181,7 +181,7 @@ main() {
     fi
     
     # Run migration
-    migrate_scenario "$scenario_path" "$dry_run"
+    migrate_ports_simple::migrate_scenario "$scenario_path" "$dry_run"
 }
 
 # Execute if run directly

@@ -2,6 +2,10 @@
 # Qdrant Configuration Defaults
 # All configuration constants and default values
 
+# Default port constants for test reference
+readonly QDRANT_DEFAULT_PORT="6333"
+readonly QDRANT_DEFAULT_GRPC_PORT="6334"
+
 #######################################
 # Export configuration constants
 # Idempotent - safe to call multiple times
@@ -34,6 +38,9 @@ qdrant::export_config() {
     fi
     if [[ -z "${QDRANT_IMAGE:-}" ]]; then
         readonly QDRANT_IMAGE="qdrant/qdrant:latest"
+    fi
+    if [[ -z "${QDRANT_VERSION:-}" ]]; then
+        readonly QDRANT_VERSION="latest"
     fi
 
     # API Key configuration (only set if not already defined)
@@ -115,8 +122,9 @@ qdrant::export_config() {
     fi
 
     # Export for global access
+    export QDRANT_DEFAULT_PORT QDRANT_DEFAULT_GRPC_PORT
     export QDRANT_PORT QDRANT_GRPC_PORT QDRANT_BASE_URL QDRANT_GRPC_URL
-    export QDRANT_CONTAINER_NAME QDRANT_DATA_DIR QDRANT_CONFIG_DIR QDRANT_SNAPSHOTS_DIR QDRANT_IMAGE
+    export QDRANT_CONTAINER_NAME QDRANT_DATA_DIR QDRANT_CONFIG_DIR QDRANT_SNAPSHOTS_DIR QDRANT_IMAGE QDRANT_VERSION
     export QDRANT_API_KEY QDRANT_DEFAULT_COLLECTIONS QDRANT_COLLECTION_CONFIGS
     export QDRANT_NETWORK_NAME
     export QDRANT_HEALTH_CHECK_INTERVAL QDRANT_HEALTH_CHECK_MAX_ATTEMPTS

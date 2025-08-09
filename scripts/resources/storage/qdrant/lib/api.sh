@@ -178,8 +178,7 @@ qdrant::api::diagnose_connectivity() {
     if [[ -n "${QDRANT_API_KEY:-}" ]]; then
         echo "   ℹ️  API key is configured"
         local auth_test
-        auth_test=$(qdrant::api::request "GET" "/cluster" 2>/dev/null)
-        if [[ $? -eq 0 ]]; then
+        if qdrant::api::request "GET" "/cluster" >/dev/null 2>&1; then
             echo "   ✅ Authentication successful"
         else
             echo "   ❌ Authentication failed"

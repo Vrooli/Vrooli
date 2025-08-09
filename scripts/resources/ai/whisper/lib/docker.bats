@@ -72,13 +72,15 @@ setup() {
     whisper::container_exists() { return 0; }
     whisper::is_running() { return 0; }
     
-    # Load configuration and messages
-    source "${WHISPER_DIR}/config/defaults.sh"
-    source "${WHISPER_DIR}/config/messages.sh"
-    
-    # Export config functions
-    whisper::export_config
-    whisper::export_messages
+    # Load config and messages from config files
+    if [[ -f "${WHISPER_DIR}/config/defaults.sh" ]]; then
+        source "${WHISPER_DIR}/config/defaults.sh"
+        whisper::export_config 2>/dev/null || true
+    fi
+    if [[ -f "${WHISPER_DIR}/config/messages.sh" ]]; then
+        source "${WHISPER_DIR}/config/messages.sh"
+        whisper::export_messages 2>/dev/null || true
+    fi
     
     # Load the functions to test
     source "${WHISPER_DIR}/lib/docker.sh"

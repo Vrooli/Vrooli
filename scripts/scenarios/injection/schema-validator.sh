@@ -6,19 +6,28 @@ set -euo pipefail
 
 DESCRIPTION="Validates scenarios configuration files against the JSON schema"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/.."
+# Source var.sh first to get standardized paths
+SCRIPTS_SCENARIOS_INJECTION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPTS_SCENARIOS_INJECTION_DIR}/../../lib/utils/var.sh"
 
-# Source common utilities
+# Source common utilities if available
+if [[ -f "${var_SCRIPTS_RESOURCES_DIR}/common.sh" ]]; then
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
+fi
+
+# Source logging utilities
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "${var_LOG_FILE}"
+
+# Source argument helpers
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../lib/utils/args.sh"
+source "${var_LIB_UTILS_DIR}/args.sh"
 
 # Schema file paths - use official schemas
-readonly PROJECT_ROOT=$(cd "${SCRIPT_DIR}/../../.." && pwd)
-readonly SCHEMA_FILE="${PROJECT_ROOT}/.vrooli/schemas/scenarios.schema.json"
-readonly SERVICE_SCHEMA_FILE="${PROJECT_ROOT}/.vrooli/schemas/service.schema.json"
+readonly SCHEMA_FILE="${var_VROOLI_CONFIG_DIR}/schemas/scenarios.schema.json"
+readonly SERVICE_SCHEMA_FILE="${var_SCHEMAS_DIR}/service.schema.json"
 
 #######################################
 # Parse command line arguments

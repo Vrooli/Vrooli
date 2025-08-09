@@ -20,7 +20,7 @@ METRICS_FILE=""
 #######################################
 # Show usage information
 #######################################
-show_usage() {
+resource_monitor::show_usage() {
     cat << EOF
 PostgreSQL Resource Usage Monitor
 
@@ -72,11 +72,11 @@ EOF
 #######################################
 # Parse command line arguments
 #######################################
-parse_args() {
+resource_monitor::parse_args() {
     while [[ $# -gt 0 ]]; do
         case $1 in
             -h|--help)
-                show_usage
+                resource_monitor::show_usage
                 exit 0
                 ;;
             -i|--interval)
@@ -106,7 +106,7 @@ parse_args() {
                 ;;
             *)
                 echo "Unknown option: $1" >&2
-                show_usage >&2
+                resource_monitor::show_usage >&2
                 exit 1
                 ;;
         esac
@@ -116,7 +116,7 @@ parse_args() {
 #######################################
 # Get container resource usage
 #######################################
-get_container_stats() {
+resource_monitor::get_container_stats() {
     local container_name="$1"
     
     if ! docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.MemPerc}}\t{{.NetIO}}\t{{.BlockIO}}" "$container_name" 2>/dev/null; then
@@ -127,7 +127,7 @@ get_container_stats() {
 #######################################
 # Get PostgreSQL specific metrics
 #######################################
-get_postgres_metrics() {
+resource_monitor::get_postgres_metrics() {
     local instance_name="$1"
     local container_name="${POSTGRES_CONTAINER_PREFIX}-${instance_name}"
     
@@ -150,7 +150,7 @@ get_postgres_metrics() {
 #######################################
 # Get disk usage for instance
 #######################################
-get_disk_usage() {
+resource_monitor::get_disk_usage() {
     local instance_name="$1"
     local instance_dir="${POSTGRES_INSTANCES_DIR}/${instance_name}"
     local backup_dir="${POSTGRES_BACKUP_DIR}/${instance_name}"
@@ -172,7 +172,7 @@ get_disk_usage() {
 #######################################
 # Format output as table
 #######################################
-format_table_output() {
+resource_monitor::format_table_output() {
     local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
     
     echo "PostgreSQL Resource Usage Monitor - $timestamp"
@@ -202,7 +202,7 @@ format_table_output() {
         if [[ "$status" == "running" ]]; then
             # Get container stats
             local stats_line
-            stats_line=$(get_container_stats "$container_name" | tail -1)
+            stats_line=$(resource_monitor::get_container_stats "$container_name" | tail -1)
             local cpu_perc=$(echo "$stats_line" | cut -f2)
             local mem_usage=$(echo "$stats_line" | cut -f3)
             local mem_perc=$(echo "$stats_line" | cut -f4)
@@ -211,7 +211,7 @@ format_table_output() {
             
             # Get PostgreSQL metrics
             local pg_metrics
-            pg_metrics=$(get_postgres_metrics "$instance")
+            pg_metrics=$(resource_monitor::get_postgres_metrics "$instance")
             local active_conn=$(echo "$pg_metrics" | cut -f1)
             local total_conn=$(echo "$pg_metrics" | cut -f2)
             local db_size=$(echo "$pg_metrics" | cut -f3)
@@ -219,7 +219,7 @@ format_table_output() {
             
             # Get disk usage
             local disk_usage
-            disk_usage=$(get_disk_usage "$instance")
+            disk_usage=$(resource_monitor::get_disk_usage "$instance")
             local data_size=$(echo "$disk_usage" | cut -f1)
             local backup_size=$(echo "$disk_usage" | cut -f2)
             
@@ -229,7 +229,7 @@ format_table_output() {
         else
             # Instance is stopped
             local disk_usage
-            disk_usage=$(get_disk_usage "$instance")
+            disk_usage=$(resource_monitor::get_disk_usage "$instance")
             local data_size=$(echo "$disk_usage" | cut -f1)
             local backup_size=$(echo "$disk_usage" | cut -f2)
             
@@ -244,7 +244,7 @@ format_table_output() {
 #######################################
 # Format output as JSON
 #######################################
-format_json_output() {
+resource_monitor::format_json_output() {
     local timestamp=$(date -Iseconds)
     
     echo "{"
@@ -281,7 +281,7 @@ format_json_output() {
         if [[ "$status" == "running" ]]; then
             # Get container stats
             local stats_line
-            stats_line=$(get_container_stats "$container_name" | tail -1)
+            stats_line=$(resource_monitor::get_container_stats "$container_name" | tail -1)
             local cpu_perc=$(echo "$stats_line" | cut -f2 | tr -d '%')
             local mem_usage=$(echo "$stats_line" | cut -f3)
             local mem_perc=$(echo "$stats_line" | cut -f4 | tr -d '%')
@@ -290,7 +290,7 @@ format_json_output() {
             
             # Get PostgreSQL metrics
             local pg_metrics
-            pg_metrics=$(get_postgres_metrics "$instance")
+            pg_metrics=$(resource_monitor::get_postgres_metrics "$instance")
             local active_conn=$(echo "$pg_metrics" | cut -f1)
             local total_conn=$(echo "$pg_metrics" | cut -f2)
             local db_size=$(echo "$pg_metrics" | cut -f3)
@@ -319,7 +319,7 @@ format_json_output() {
         
         # Get disk usage
         local disk_usage
-        disk_usage=$(get_disk_usage "$instance")
+        disk_usage=$(resource_monitor::get_disk_usage "$instance")
         local data_size=$(echo "$disk_usage" | cut -f1)
         local backup_size=$(echo "$disk_usage" | cut -f2)
         
@@ -336,7 +336,7 @@ format_json_output() {
 #######################################
 # Format output as CSV
 #######################################
-format_csv_output() {
+resource_monitor::format_csv_output() {
     local timestamp=$(date -Iseconds)
     
     # CSV header
@@ -362,7 +362,7 @@ format_csv_output() {
         if [[ "$status" == "running" ]]; then
             # Get container stats
             local stats_line
-            stats_line=$(get_container_stats "$container_name" | tail -1)
+            stats_line=$(resource_monitor::get_container_stats "$container_name" | tail -1)
             local cpu_perc=$(echo "$stats_line" | cut -f2 | tr -d '%')
             local mem_usage=$(echo "$stats_line" | cut -f3 | tr -d ' ')
             local mem_perc=$(echo "$stats_line" | cut -f4 | tr -d '%')
@@ -371,7 +371,7 @@ format_csv_output() {
             
             # Get PostgreSQL metrics
             local pg_metrics
-            pg_metrics=$(get_postgres_metrics "$instance")
+            pg_metrics=$(resource_monitor::get_postgres_metrics "$instance")
             local active_conn=$(echo "$pg_metrics" | cut -f1)
             local total_conn=$(echo "$pg_metrics" | cut -f2)
             local db_size=$(echo "$pg_metrics" | cut -f3)
@@ -379,7 +379,7 @@ format_csv_output() {
             
             # Get disk usage
             local disk_usage
-            disk_usage=$(get_disk_usage "$instance")
+            disk_usage=$(resource_monitor::get_disk_usage "$instance")
             local data_size=$(echo "$disk_usage" | cut -f1)
             local backup_size=$(echo "$disk_usage" | cut -f2)
             
@@ -387,7 +387,7 @@ format_csv_output() {
         else
             # Instance is stopped
             local disk_usage
-            disk_usage=$(get_disk_usage "$instance")
+            disk_usage=$(resource_monitor::get_disk_usage "$instance")
             local data_size=$(echo "$disk_usage" | cut -f1)
             local backup_size=$(echo "$disk_usage" | cut -f2)
             
@@ -399,15 +399,15 @@ format_csv_output() {
 #######################################
 # Export metrics to file
 #######################################
-export_metrics() {
+resource_monitor::export_metrics() {
     local output
     
     case "$OUTPUT_FORMAT" in
         "json")
-            output=$(format_json_output)
+            output=$(resource_monitor::format_json_output)
             ;;
         "csv")
-            output=$(format_csv_output)
+            output=$(resource_monitor::format_csv_output)
             ;;
         *)
             echo "❌ Error: Export only supports json and csv formats" >&2
@@ -426,7 +426,7 @@ export_metrics() {
 #######################################
 # Run continuous monitoring
 #######################################
-run_continuous_monitoring() {
+resource_monitor::run_continuous_monitoring() {
     echo "🔄 Starting continuous monitoring (Press Ctrl+C to stop)"
     echo "Interval: ${MONITOR_INTERVAL}s | Format: $OUTPUT_FORMAT"
     echo ""
@@ -438,14 +438,14 @@ run_continuous_monitoring() {
         case "$OUTPUT_FORMAT" in
             "table")
                 clear
-                format_table_output
+                resource_monitor::format_table_output
                 ;;
             "json")
-                format_json_output
+                resource_monitor::format_json_output
                 echo ""
                 ;;
             "csv")
-                format_csv_output
+                resource_monitor::format_csv_output
                 echo ""
                 ;;
         esac
@@ -457,7 +457,7 @@ run_continuous_monitoring() {
 #######################################
 # Show resource usage summary
 #######################################
-show_summary() {
+resource_monitor::show_summary() {
     echo "📊 PostgreSQL Resource Usage Summary"
     echo "==================================="
     
@@ -485,8 +485,8 @@ show_summary() {
 #######################################
 # Main execution
 #######################################
-main() {
-    parse_args "$@"
+resource_monitor::main() {
+    resource_monitor::parse_args "$@"
     
     # Validate output format
     case "$OUTPUT_FORMAT" in
@@ -506,28 +506,28 @@ main() {
     
     # Handle different modes
     if [[ "$EXPORT_METRICS" == "yes" ]]; then
-        export_metrics
+        resource_monitor::export_metrics
     elif [[ "$CONTINUOUS_MODE" == "yes" ]]; then
-        run_continuous_monitoring
+        resource_monitor::run_continuous_monitoring
     else
         # One-time monitoring
         if [[ "$OUTPUT_FORMAT" == "table" ]]; then
-            show_summary
+            resource_monitor::show_summary
         fi
         
         case "$OUTPUT_FORMAT" in
             "table")
-                format_table_output
+                resource_monitor::format_table_output
                 ;;
             "json")
-                format_json_output
+                resource_monitor::format_json_output
                 ;;
             "csv")
-                format_csv_output
+                resource_monitor::format_csv_output
                 ;;
         esac
     fi
 }
 
 # Run main function with all arguments
-main "$@"
+resource_monitor::main "$@"

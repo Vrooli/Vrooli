@@ -2,26 +2,10 @@
 # Redis Resource Configuration Defaults
 # This file contains all configuration variables for the Redis resource
 
-# Detect project root for proper configuration paths
-_redis_defaults_detect_project_root() {
-    local current_dir
-    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    
-    # Walk up directory tree looking for .vrooli directory
-    while [[ "$current_dir" != "/" ]]; do
-        if [[ -d "$current_dir/.vrooli" ]]; then
-            echo "$current_dir"
-            return 0
-        fi
-        current_dir="$(dirname "$current_dir")"
-    done
-    
-    # Fallback: assume we're in scripts and go up to project root
-    echo "/home/matthalloran8/Vrooli"
-}
-
-# Set project root for proper config paths
-REDIS_PROJECT_ROOT="$(_redis_defaults_detect_project_root)"
+# Source var.sh to get proper project paths
+_REDIS_CONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${_REDIS_CONFIG_DIR}/../../../../lib/utils/var.sh"
 
 # Redis Docker Configuration
 REDIS_IMAGE="${REDIS_IMAGE:-redis:7-alpine}"

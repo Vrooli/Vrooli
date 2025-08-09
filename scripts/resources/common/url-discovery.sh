@@ -11,10 +11,11 @@ readonly VROOLI_URL_DISCOVERY_SOURCED=1
 
 # Source dependencies if not already loaded
 if [[ -z "${VROOLI_COMMON_SOURCED:-}" ]]; then
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    RESOURCES_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+    _HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     # shellcheck disable=SC1091
-    source "${RESOURCES_DIR}/common.sh"
+    source "${_HERE}/../../../lib/utils/var.sh"
+    # shellcheck disable=SC1091
+    source "${var_RESOURCES_COMMON_FILE}"
 fi
 
 # Cache settings
@@ -148,7 +149,7 @@ url_discovery::query_manage_script() {
     local manage_script
     
     # Find the manage.sh script for this resource
-    manage_script=$(find "${RESOURCES_DIR}" -path "*/*/manage.sh" -exec grep -l "DESCRIPTION.*$resource" {} \; 2>/dev/null | head -1)
+    manage_script=$(find "${var_SCRIPTS_RESOURCES_DIR}" -path "*/*/manage.sh" -exec grep -l "DESCRIPTION.*$resource" {} \; 2>/dev/null | head -1)
     
     if [[ -z "$manage_script" ]] || [[ ! -x "$manage_script" ]]; then
         return 1

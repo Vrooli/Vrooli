@@ -38,6 +38,7 @@ declare -A MOCK_SYSTEM_INFO=()             # [key] -> "value" for system propert
 declare -A MOCK_SYSTEM_USERS=()            # [username] -> "uid|gid|groups"
 declare -A MOCK_SYSTEM_COMMANDS=()         # [command] -> "path" for which/command/type
 declare -A MOCK_SYSTEM_ERRORS=()           # [command] -> error_type
+declare -A MOCK_SYSTEM_PORT_LISTENERS=()   # [port] -> "pid1,pid2,pid3" for lsof
 
 # File-based state persistence for subshell access (BATS compatibility)
 export SYSTEM_MOCK_STATE_FILE="${MOCK_LOG_DIR:-/tmp}/system_mock_state.$$"
@@ -59,6 +60,7 @@ _system_mock_init_state_file() {
       echo "declare -A MOCK_SYSTEM_USERS=()"
       echo "declare -A MOCK_SYSTEM_COMMANDS=()"
       echo "declare -A MOCK_SYSTEM_ERRORS=()"
+      echo "declare -A MOCK_SYSTEM_PORT_LISTENERS=()"
     } > "$SYSTEM_MOCK_STATE_FILE"
   fi
 }
@@ -82,6 +84,7 @@ _system_mock_save_state() {
       declare -p MOCK_SYSTEM_USERS 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA MOCK_SYSTEM_USERS=()"
       declare -p MOCK_SYSTEM_COMMANDS 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA MOCK_SYSTEM_COMMANDS=()"
       declare -p MOCK_SYSTEM_ERRORS 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA MOCK_SYSTEM_ERRORS=()"
+      declare -p MOCK_SYSTEM_PORT_LISTENERS 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA MOCK_SYSTEM_PORT_LISTENERS=()"
     } > "$SYSTEM_MOCK_STATE_FILE"
   fi
 }
@@ -174,6 +177,7 @@ mock::system::reset() {
   declare -gA MOCK_SYSTEM_USERS=()
   declare -gA MOCK_SYSTEM_COMMANDS=()
   declare -gA MOCK_SYSTEM_ERRORS=()
+  declare -gA MOCK_SYSTEM_PORT_LISTENERS=()
   
   # Initialize default system state
   mock::system::init_defaults
@@ -241,10 +245,10 @@ mock::system::_update_pattern_cache() {
   
   # Build pattern cache from current processes
   for pid in "${!MOCK_SYSTEM_PROCESSES[@]}"; do
-    IFS='|' read -r name status ppid command user cpu mem start_time <<< "${MOCK_SYSTEM_PROCESSES[$pid]}"
+    IFS='|' read -r name status ppid command user cpu mem start_time <<< "${MOCK_SYSTEM_PROCESSES[$pid]:-}"
     
     # Add to patterns based on name
-    if [[ -n "${MOCK_SYSTEM_PROCESS_PATTERNS[$name]}" ]]; then
+    if [[ -n "${MOCK_SYSTEM_PROCESS_PATTERNS[$name]:-}" ]]; then
       MOCK_SYSTEM_PROCESS_PATTERNS["$name"]+=",$pid"
     else
       MOCK_SYSTEM_PROCESS_PATTERNS["$name"]="$pid"
@@ -253,7 +257,7 @@ mock::system::_update_pattern_cache() {
     # Add to patterns based on command basename
     local cmd_basename="$(basename "$command" 2>/dev/null || echo "$command")"
     if [[ "$cmd_basename" != "$name" ]]; then
-      if [[ -n "${MOCK_SYSTEM_PROCESS_PATTERNS[$cmd_basename]}" ]]; then
+      if [[ -n "${MOCK_SYSTEM_PROCESS_PATTERNS[$cmd_basename]:-}" ]]; then
         MOCK_SYSTEM_PROCESS_PATTERNS["$cmd_basename"]+=",$pid"
       else
         MOCK_SYSTEM_PROCESS_PATTERNS["$cmd_basename"]="$pid"
@@ -269,7 +273,7 @@ _mock_system_pid() {
   while true; do
     pid=$((10000 + RANDOM % 50000))
     # Ensure PID doesn't already exist
-    if [[ -z "${MOCK_SYSTEM_PROCESSES[$pid]}" ]]; then
+    if [[ -z "${MOCK_SYSTEM_PROCESSES[$pid]:-}" ]]; then
       echo "$pid"
       return 0
     fi
@@ -366,7 +370,7 @@ mock::system::set_process_state() {
 mock::system::remove_process() {
   local pid="$1"
   
-  if [[ -n "${MOCK_SYSTEM_PROCESSES[$pid]}" ]]; then
+  if [[ -n "${MOCK_SYSTEM_PROCESSES[$pid]:-}" ]]; then
     unset MOCK_SYSTEM_PROCESSES["$pid"]
     
     # Update pattern cache
@@ -477,8 +481,8 @@ systemctl() {
 
   # Check for injected errors
   local cmd_check="${1:-}"
-  if [[ -n "${MOCK_SYSTEMCTL_ERRORS[$cmd_check]}" ]]; then
-    local error_type="${MOCK_SYSTEMCTL_ERRORS[$cmd_check]}"
+  if [[ -n "${MOCK_SYSTEMCTL_ERRORS[$cmd_check]:-}" ]]; then
+    local error_type="${MOCK_SYSTEMCTL_ERRORS[$cmd_check]:-}"
     case "$error_type" in
       service_not_found)
         echo "Unit ${2:-unknown}.service could not be found." >&2
@@ -628,8 +632,8 @@ ps() {
   fi
   
   # Check for injected errors
-  if [[ -n "${MOCK_SYSTEM_ERRORS[ps]}" ]]; then
-    local error_type="${MOCK_SYSTEM_ERRORS[ps]}"
+  if [[ -n "${MOCK_SYSTEM_ERRORS[ps]:-}" ]]; then
+    local error_type="${MOCK_SYSTEM_ERRORS[ps]:-}"
     case "$error_type" in
       permission_denied) echo "ps: permission denied" >&2; return 1 ;;
       no_processes) echo "ps: no processes found" >&2; return 1 ;;
@@ -654,7 +658,7 @@ ps() {
   # If specific PID requested, show only that process
   if [[ -n "$specific_pid" ]]; then
     if [[ -n "${MOCK_SYSTEM_PROCESSES[$specific_pid]}" ]]; then
-      IFS='|' read -r name status ppid command user cpu mem start_time <<< "${MOCK_SYSTEM_PROCESSES[$specific_pid]}"
+      IFS='|' read -r name status ppid command user cpu mem start_time <<< "${MOCK_SYSTEM_PROCESSES[$specific_pid]:-}"
       if [[ "$format" == "full" ]]; then
         echo "USER       PID %CPU %MEM    VSZ   RSS TTY      STAT START   TIME COMMAND"
         printf "%-10s %5s %4s %4s %6s %5s %-8s %-4s %8s %8s %s\n" \
@@ -678,7 +682,7 @@ ps() {
   
   # Show processes
   for pid in "${!MOCK_SYSTEM_PROCESSES[@]}"; do
-    IFS='|' read -r name status ppid command user cpu mem start_time <<< "${MOCK_SYSTEM_PROCESSES[$pid]}"
+    IFS='|' read -r name status ppid command user cpu mem start_time <<< "${MOCK_SYSTEM_PROCESSES[$pid]:-}"
     
     # Skip if not showing all and this is a background process
     if [[ "$show_all" != "true" && "$status" != "running" ]]; then
@@ -714,8 +718,8 @@ pgrep() {
   fi
   
   # Check for injected errors
-  if [[ -n "${MOCK_SYSTEM_ERRORS[pgrep]}" ]]; then
-    local error_type="${MOCK_SYSTEM_ERRORS[pgrep]}"
+  if [[ -n "${MOCK_SYSTEM_ERRORS[pgrep]:-}" ]]; then
+    local error_type="${MOCK_SYSTEM_ERRORS[pgrep]:-}"
     case "$error_type" in
       no_matches) return 1 ;;
       *) echo "pgrep: $error_type" >&2; return 1 ;;
@@ -731,8 +735,8 @@ pgrep() {
   fi
   
   # Check pattern cache first (optimization)
-  if [[ -n "${MOCK_SYSTEM_PROCESS_PATTERNS[$pattern]}" ]]; then
-    IFS=',' read -ra found_pids <<< "${MOCK_SYSTEM_PROCESS_PATTERNS[$pattern]}"
+  if [[ -n "${MOCK_SYSTEM_PROCESS_PATTERNS[$pattern]:-}" ]]; then
+    IFS=',' read -ra found_pids <<< "${MOCK_SYSTEM_PROCESS_PATTERNS[$pattern]:-}"
     for pid in "${found_pids[@]}"; do
       echo "$pid"
     done
@@ -741,7 +745,7 @@ pgrep() {
   
   # Fallback: search through all processes
   for pid in "${!MOCK_SYSTEM_PROCESSES[@]}"; do
-    IFS='|' read -r name status ppid command user cpu mem start_time <<< "${MOCK_SYSTEM_PROCESSES[$pid]}"
+    IFS='|' read -r name status ppid command user cpu mem start_time <<< "${MOCK_SYSTEM_PROCESSES[$pid]:-}"
     
     # Match against process name or command
     if [[ "$name" =~ $pattern ]] || [[ "$command" =~ $pattern ]]; then
@@ -773,8 +777,8 @@ pkill() {
   fi
   
   # Check for injected errors
-  if [[ -n "${MOCK_SYSTEM_ERRORS[pkill]}" ]]; then
-    local error_type="${MOCK_SYSTEM_ERRORS[pkill]}"
+  if [[ -n "${MOCK_SYSTEM_ERRORS[pkill]:-}" ]]; then
+    local error_type="${MOCK_SYSTEM_ERRORS[pkill]:-}"
     case "$error_type" in
       permission_denied) echo "pkill: permission denied" >&2; return 1 ;;
       no_matches) return 1 ;;
@@ -805,7 +809,7 @@ pkill() {
   
   # Find matching processes
   for pid in "${!MOCK_SYSTEM_PROCESSES[@]}"; do
-    IFS='|' read -r name status ppid command user cpu mem start_time <<< "${MOCK_SYSTEM_PROCESSES[$pid]}"
+    IFS='|' read -r name status ppid command user cpu mem start_time <<< "${MOCK_SYSTEM_PROCESSES[$pid]:-}"
     
     if [[ "$name" =~ $pattern ]] || [[ "$command" =~ $pattern ]]; then
       pids_to_kill+=("$pid")
@@ -839,8 +843,8 @@ kill() {
   fi
   
   # Check for injected errors
-  if [[ -n "${MOCK_SYSTEM_ERRORS[kill]}" ]]; then
-    local error_type="${MOCK_SYSTEM_ERRORS[kill]}"
+  if [[ -n "${MOCK_SYSTEM_ERRORS[kill]:-}" ]]; then
+    local error_type="${MOCK_SYSTEM_ERRORS[kill]:-}"
     case "$error_type" in
       permission_denied) echo "kill: permission denied" >&2; return 1 ;;
       no_such_process) echo "kill: no such process" >&2; return 1 ;;
@@ -871,7 +875,7 @@ kill() {
   for pid in "${pids[@]}"; do
     # Special handling for kill -0 (test if process exists)
     if [[ "$signal" == "0" ]]; then
-      if [[ -n "${MOCK_SYSTEM_PROCESSES[$pid]}" ]]; then
+      if [[ -n "${MOCK_SYSTEM_PROCESSES[$pid]:-}" ]]; then
         continue  # Process exists
       else
         ((failed_count++))
@@ -921,8 +925,8 @@ which() {
   fi
   
   # Check for injected errors
-  if [[ -n "${MOCK_SYSTEM_ERRORS[which]}" ]]; then
-    local error_type="${MOCK_SYSTEM_ERRORS[which]}"
+  if [[ -n "${MOCK_SYSTEM_ERRORS[which]:-}" ]]; then
+    local error_type="${MOCK_SYSTEM_ERRORS[which]:-}"
     case "$error_type" in
       not_found) return 1 ;;
       *) echo "which: $error_type" >&2; return 1 ;;
@@ -930,8 +934,8 @@ which() {
   fi
   
   # Return configured path or default
-  if [[ -n "${MOCK_SYSTEM_COMMANDS[$command]}" ]]; then
-    echo "${MOCK_SYSTEM_COMMANDS[$command]}"
+  if [[ -n "${MOCK_SYSTEM_COMMANDS[$command]:-}" ]]; then
+    echo "${MOCK_SYSTEM_COMMANDS[$command]:-}"
     return 0
   fi
   
@@ -958,8 +962,8 @@ id() {
   fi
   
   # Check for injected errors
-  if [[ -n "${MOCK_SYSTEM_ERRORS[id]}" ]]; then
-    local error_type="${MOCK_SYSTEM_ERRORS[id]}"
+  if [[ -n "${MOCK_SYSTEM_ERRORS[id]:-}" ]]; then
+    local error_type="${MOCK_SYSTEM_ERRORS[id]:-}"
     case "$error_type" in
       no_such_user) echo "id: no such user" >&2; return 1 ;;
       *) echo "id: $error_type" >&2; return 1 ;;
@@ -986,7 +990,7 @@ id() {
   fi
   
   # Get user info
-  local user_info="${MOCK_SYSTEM_USERS[$target_user]}"
+  local user_info="${MOCK_SYSTEM_USERS[$target_user]:-}"
   if [[ -z "$user_info" ]]; then
     # Default for unknown users
     user_info="1000|1000|testuser"
@@ -1018,8 +1022,8 @@ whoami() {
   fi
   
   # Check for injected errors
-  if [[ -n "${MOCK_SYSTEM_ERRORS[whoami]}" ]]; then
-    local error_type="${MOCK_SYSTEM_ERRORS[whoami]}"
+  if [[ -n "${MOCK_SYSTEM_ERRORS[whoami]:-}" ]]; then
+    local error_type="${MOCK_SYSTEM_ERRORS[whoami]:-}"
     echo "whoami: $error_type" >&2
     return 1
   fi
@@ -1041,8 +1045,8 @@ uname() {
   fi
   
   # Check for injected errors
-  if [[ -n "${MOCK_SYSTEM_ERRORS[uname]}" ]]; then
-    local error_type="${MOCK_SYSTEM_ERRORS[uname]}"
+  if [[ -n "${MOCK_SYSTEM_ERRORS[uname]:-}" ]]; then
+    local error_type="${MOCK_SYSTEM_ERRORS[uname]:-}"
     echo "uname: $error_type" >&2
     return 1
   fi
@@ -1084,8 +1088,8 @@ date() {
   fi
   
   # Check for injected errors
-  if [[ -n "${MOCK_SYSTEM_ERRORS[date]}" ]]; then
-    local error_type="${MOCK_SYSTEM_ERRORS[date]}"
+  if [[ -n "${MOCK_SYSTEM_ERRORS[date]:-}" ]]; then
+    local error_type="${MOCK_SYSTEM_ERRORS[date]:-}"
     echo "date: $error_type" >&2
     return 1
   fi
@@ -1100,6 +1104,123 @@ date() {
   esac
   
   return 0
+}
+
+# lsof command - list open files (port listeners)
+lsof() {
+  # Load state from file for subshell access
+  if [[ -n "${SYSTEM_MOCK_STATE_FILE}" && -f "$SYSTEM_MOCK_STATE_FILE" ]]; then
+    eval "$(cat "$SYSTEM_MOCK_STATE_FILE")" 2>/dev/null || true
+  fi
+  
+  # Use centralized logging
+  if command -v mock::log_call &>/dev/null; then
+    mock::log_call "lsof" "$*"
+  fi
+  
+  # Check for injected errors
+  if [[ -n "${MOCK_SYSTEM_ERRORS[lsof]:-}" ]]; then
+    local error_type="${MOCK_SYSTEM_ERRORS[lsof]:-}"
+    echo "lsof: $error_type" >&2
+    return 1
+  fi
+  
+  # Parse lsof arguments - focus on TCP port listening
+  local tcp_port="" listen_only=false pids_only=false
+  
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -tiTCP:*) 
+        tcp_port="${1#*:}"
+        pids_only=true
+        shift
+        ;;
+      -sTCP:LISTEN)
+        listen_only=true
+        shift
+        ;;
+      *) shift ;;
+    esac
+  done
+  
+  # Handle the specific case: lsof -tiTCP:port -sTCP:LISTEN
+  if [[ -n "$tcp_port" && "$pids_only" == "true" && "$listen_only" == "true" ]]; then
+    # Return PIDs listening on the specified port
+    local pids="${MOCK_SYSTEM_PORT_LISTENERS[$tcp_port]:-}"
+    if [[ -n "$pids" ]]; then
+      # Convert comma-separated list to newline-separated for lsof output
+      echo "$pids" | tr ',' '\n'
+    fi
+    return 0
+  fi
+  
+  # For other lsof usage patterns, return empty (not implemented)
+  return 0
+}
+
+# ----------------------------
+# Port Listener Management Functions
+# ----------------------------
+
+# Add a process as listening on a specific port
+mock::system::add_port_listener() {
+  local port="$1"
+  local pid="$2"
+  
+  if [[ -z "$port" || -z "$pid" ]]; then
+    echo "[MOCK] Error: port and pid required for add_port_listener" >&2
+    return 1
+  fi
+  
+  local existing_pids="${MOCK_SYSTEM_PORT_LISTENERS[$port]:-}"
+  if [[ -z "$existing_pids" ]]; then
+    MOCK_SYSTEM_PORT_LISTENERS["$port"]="$pid"
+  else
+    # Add to existing list if not already present
+    if [[ ",$existing_pids," != *",$pid,"* ]]; then
+      MOCK_SYSTEM_PORT_LISTENERS["$port"]="$existing_pids,$pid"
+    fi
+  fi
+  
+  # Save state to file for subshell access
+  _system_mock_save_state
+  
+  return 0
+}
+
+# Remove a process from port listeners
+mock::system::remove_port_listener() {
+  local port="$1"
+  local pid="$2"
+  
+  if [[ -z "$port" || -z "$pid" ]]; then
+    echo "[MOCK] Error: port and pid required for remove_port_listener" >&2
+    return 1
+  fi
+  
+  local existing_pids="${MOCK_SYSTEM_PORT_LISTENERS[$port]:-}"
+  if [[ -n "$existing_pids" ]]; then
+    # Remove PID from comma-separated list
+    local new_pids
+    new_pids=$(echo ",$existing_pids," | sed "s/,$pid,/,/g" | sed 's/^,//;s/,$//')
+    
+    if [[ -z "$new_pids" ]]; then
+      unset MOCK_SYSTEM_PORT_LISTENERS["$port"]
+    else
+      MOCK_SYSTEM_PORT_LISTENERS["$port"]="$new_pids"
+    fi
+  fi
+  
+  # Save state to file for subshell access
+  _system_mock_save_state
+  
+  return 0
+}
+
+# Clear all port listeners
+mock::system::clear_port_listeners() {
+  MOCK_SYSTEM_PORT_LISTENERS=()
+  _system_mock_save_state
 }
 
 # ----------------------------
@@ -1118,12 +1239,12 @@ mock::systemctl::lifecycle() {
     fi
     
     # Check if service exists (if not in our state, assume it exists)
-    if [[ -z "${MOCK_SYSTEMCTL_SERVICES[$service_name]}" ]]; then
+    if [[ -z "${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}" ]]; then
       # Default to stopped service if not defined
       mock::systemctl::set_service_state "$service_name" "inactive" "enabled" "dead"
     fi
     
-    IFS='|' read -r current_state enabled substate main_pid <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]}"
+    IFS='|' read -r current_state enabled substate main_pid <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}"
     
     case "$action" in
       start)
@@ -1177,11 +1298,11 @@ mock::systemctl::configuration() {
     fi
     
     # Get current state or create default
-    if [[ -z "${MOCK_SYSTEMCTL_SERVICES[$service_name]}" ]]; then
+    if [[ -z "${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}" ]]; then
       mock::systemctl::set_service_state "$service_name" "inactive" "disabled" "dead"
     fi
     
-    IFS='|' read -r current_state current_enabled substate main_pid <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]}"
+    IFS='|' read -r current_state current_enabled substate main_pid <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}"
     
     case "$action" in
       enable)
@@ -1225,7 +1346,7 @@ mock::systemctl::status() {
     mock::systemctl::set_service_state "$service_name" "active" "enabled" "running"
   fi
   
-  IFS='|' read -r state enabled substate main_pid <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]}"
+  IFS='|' read -r state enabled substate main_pid <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}"
   
   local status_symbol since_time exit_code=0
   case "$state" in
@@ -1284,7 +1405,7 @@ mock::systemctl::is_active() {
     return 0
   fi
   
-  IFS='|' read -r state _ _ _ <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]}"
+  IFS='|' read -r state _ _ _ <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}"
   
   case "$state" in
     active)
@@ -1320,7 +1441,7 @@ mock::systemctl::is_enabled() {
     return 0
   fi
   
-  IFS='|' read -r _ enabled _ _ <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]}"
+  IFS='|' read -r _ enabled _ _ <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}"
   
   case "$enabled" in
     enabled)
@@ -1360,7 +1481,7 @@ mock::systemctl::is_failed() {
     return 1
   fi
   
-  IFS='|' read -r state _ _ _ <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]}"
+  IFS='|' read -r state _ _ _ <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}"
   
   if [[ "$state" == "failed" ]]; then
     echo "failed"
@@ -1402,7 +1523,7 @@ mock::systemctl::list_units() {
   
   # List mock services
   for service_name in "${!MOCK_SYSTEMCTL_SERVICES[@]}"; do
-    IFS='|' read -r state enabled substate main_pid <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]}"
+    IFS='|' read -r state enabled substate main_pid <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}"
     local unit_name="$(_mock_unit_name "$service_name")"
     
     # Apply type filter
@@ -1467,7 +1588,7 @@ mock::systemctl::list_unit_files() {
   
   # List mock services
   for service_name in "${!MOCK_SYSTEMCTL_SERVICES[@]}"; do
-    IFS='|' read -r _ enabled _ _ <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]}"
+    IFS='|' read -r _ enabled _ _ <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}"
     local unit_name="$(_mock_unit_name "$service_name")"
     
     # Apply type filter
@@ -1537,7 +1658,7 @@ mock::systemctl::show() {
     mock::systemctl::set_service_state "$service_name" "active" "enabled" "running"
   fi
   
-  IFS='|' read -r state enabled substate main_pid <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]}"
+  IFS='|' read -r state enabled substate main_pid <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}"
   
   # If property specified, show only that property
   if [[ -n "$property" ]]; then
@@ -1707,7 +1828,8 @@ mock::systemctl::scenario::create_mixed_services() {
 mock::systemctl::assert::service_active() {
   local service="$1"
   local service_name="$(_mock_service_name "$service")"
-  local state="${MOCK_SYSTEMCTL_SERVICES[$service_name]%%|*}"
+  local state="${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}"
+  state="${state%%|*}"
   
   if [[ "$state" != "active" ]]; then
     echo "ASSERTION FAILED: Service '$service' is not active (state: ${state:-not found})" >&2
@@ -1719,7 +1841,8 @@ mock::systemctl::assert::service_active() {
 mock::systemctl::assert::service_inactive() {
   local service="$1"
   local service_name="$(_mock_service_name "$service")"
-  local state="${MOCK_SYSTEMCTL_SERVICES[$service_name]%%|*}"
+  local state="${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}"
+  state="${state%%|*}"
   
   if [[ "$state" != "inactive" ]]; then
     echo "ASSERTION FAILED: Service '$service' is not inactive (state: ${state:-not found})" >&2
@@ -1737,7 +1860,7 @@ mock::systemctl::assert::service_enabled() {
     return 1
   fi
   
-  IFS='|' read -r _ enabled _ _ <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]}"
+  IFS='|' read -r _ enabled _ _ <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}"
   
   if [[ "$enabled" != "enabled" ]]; then
     echo "ASSERTION FAILED: Service '$service' is not enabled (state: $enabled)" >&2
@@ -1755,7 +1878,7 @@ mock::systemctl::assert::service_disabled() {
     return 1
   fi
   
-  IFS='|' read -r _ enabled _ _ <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]}"
+  IFS='|' read -r _ enabled _ _ <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}"
   
   if [[ "$enabled" != "disabled" ]]; then
     echo "ASSERTION FAILED: Service '$service' is not disabled (state: $enabled)" >&2
@@ -1767,7 +1890,8 @@ mock::systemctl::assert::service_disabled() {
 mock::systemctl::assert::service_failed() {
   local service="$1"
   local service_name="$(_mock_service_name "$service")"
-  local state="${MOCK_SYSTEMCTL_SERVICES[$service_name]%%|*}"
+  local state="${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}"
+  state="${state%%|*}"
   
   if [[ "$state" != "failed" ]]; then
     echo "ASSERTION FAILED: Service '$service' is not failed (state: ${state:-not found})" >&2
@@ -1802,27 +1926,28 @@ mock::systemctl::assert::service_not_exists() {
 mock::systemctl::get::service_state() {
   local service="$1"
   local service_name="$(_mock_service_name "$service")"
-  echo "${MOCK_SYSTEMCTL_SERVICES[$service_name]%%|*}"
+  local state="${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}"
+  echo "${state%%|*}"
 }
 
 mock::systemctl::get::service_enabled() {
   local service="$1"
   local service_name="$(_mock_service_name "$service")"
-  IFS='|' read -r _ enabled _ _ <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]}"
+  IFS='|' read -r _ enabled _ _ <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}"
   echo "$enabled"
 }
 
 mock::systemctl::get::service_substate() {
   local service="$1"
   local service_name="$(_mock_service_name "$service")"
-  IFS='|' read -r _ _ substate _ <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]}"
+  IFS='|' read -r _ _ substate _ <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}"
   echo "$substate"
 }
 
 mock::systemctl::get::service_pid() {
   local service="$1"
   local service_name="$(_mock_service_name "$service")"
-  IFS='|' read -r _ _ _ main_pid <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]}"
+  IFS='|' read -r _ _ _ main_pid <<<"${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}"
   echo "$main_pid"
 }
 
@@ -1831,19 +1956,19 @@ mock::systemctl::debug::dump_state() {
   echo "=== SystemCtl Mock State Dump ==="
   echo "Services:"
   for service_name in "${!MOCK_SYSTEMCTL_SERVICES[@]}"; do
-    echo "  $service_name: ${MOCK_SYSTEMCTL_SERVICES[$service_name]}"
+    echo "  $service_name: ${MOCK_SYSTEMCTL_SERVICES[$service_name]:-}"
   done
   echo "Units:"
   for unit_name in "${!MOCK_SYSTEMCTL_UNITS[@]}"; do
-    echo "  $unit_name: ${MOCK_SYSTEMCTL_UNITS[$unit_name]}"
+    echo "  $unit_name: ${MOCK_SYSTEMCTL_UNITS[$unit_name]:-}"
   done
   echo "Targets:"
   for target_name in "${!MOCK_SYSTEMCTL_TARGETS[@]}"; do
-    echo "  $target_name: ${MOCK_SYSTEMCTL_TARGETS[$target_name]}"
+    echo "  $target_name: ${MOCK_SYSTEMCTL_TARGETS[$target_name]:-}"
   done
   echo "Errors:"
   for cmd in "${!MOCK_SYSTEMCTL_ERRORS[@]}"; do
-    echo "  $cmd: ${MOCK_SYSTEMCTL_ERRORS[$cmd]}"
+    echo "  $cmd: ${MOCK_SYSTEMCTL_ERRORS[$cmd]:-}"
   done
   echo "=========================="
 }
@@ -1887,7 +2012,7 @@ mock::system::scenario::create_mixed_processes() {
 mock::system::assert::process_exists() {
   local pid="$1"
   
-  if [[ -z "${MOCK_SYSTEM_PROCESSES[$pid]}" ]]; then
+  if [[ -z "${MOCK_SYSTEM_PROCESSES[$pid]:-}" ]]; then
     echo "ASSERTION FAILED: Process '$pid' does not exist" >&2
     return 1
   fi
@@ -1897,7 +2022,7 @@ mock::system::assert::process_exists() {
 mock::system::assert::process_not_exists() {
   local pid="$1"
   
-  if [[ -n "${MOCK_SYSTEM_PROCESSES[$pid]}" ]]; then
+  if [[ -n "${MOCK_SYSTEM_PROCESSES[$pid]:-}" ]]; then
     echo "ASSERTION FAILED: Process '$pid' exists but should not" >&2
     return 1
   fi
@@ -1907,7 +2032,7 @@ mock::system::assert::process_not_exists() {
 mock::system::assert::process_running() {
   local pid="$1"
   
-  if [[ -z "${MOCK_SYSTEM_PROCESSES[$pid]}" ]]; then
+  if [[ -z "${MOCK_SYSTEM_PROCESSES[$pid]:-}" ]]; then
     echo "ASSERTION FAILED: Process '$pid' does not exist" >&2
     return 1
   fi
@@ -1925,7 +2050,7 @@ mock::system::assert::process_running() {
 mock::system::assert::command_exists() {
   local command="$1"
   
-  if [[ -z "${MOCK_SYSTEM_COMMANDS[$command]}" ]]; then
+  if [[ -z "${MOCK_SYSTEM_COMMANDS[$command]:-}" ]]; then
     # Check default paths
     case "$command" in
       bash|sh|ps|kill|uname|date) return 0 ;;  # These have defaults
@@ -1942,15 +2067,16 @@ mock::system::assert::command_exists() {
 # Get helpers for system commands
 mock::system::get::process_name() {
   local pid="$1"
-  if [[ -n "${MOCK_SYSTEM_PROCESSES[$pid]}" ]]; then
-    echo "${MOCK_SYSTEM_PROCESSES[$pid]%%|*}"
+  if [[ -n "${MOCK_SYSTEM_PROCESSES[$pid]:-}" ]]; then
+    local process="${MOCK_SYSTEM_PROCESSES[$pid]:-}"
+    echo "${process%%|*}"
   fi
 }
 
 mock::system::get::process_status() {
   local pid="$1"
-  if [[ -n "${MOCK_SYSTEM_PROCESSES[$pid]}" ]]; then
-    local status="${MOCK_SYSTEM_PROCESSES[$pid]}"
+  if [[ -n "${MOCK_SYSTEM_PROCESSES[$pid]:-}" ]]; then
+    local status="${MOCK_SYSTEM_PROCESSES[$pid]:-}"
     status="${status#*|}"; echo "${status%%|*}"
   fi
 }
@@ -1961,7 +2087,7 @@ mock::system::get::process_count() {
 
 mock::system::get::user_info() {
   local username="$1"
-  echo "${MOCK_SYSTEM_USERS[$username]}"
+  echo "${MOCK_SYSTEM_USERS[$username]:-}"
 }
 
 # Debug helper for system state
@@ -1969,27 +2095,27 @@ mock::system::debug::dump_state() {
   echo "=== System Mock State Dump ==="
   echo "Processes:"
   for pid in "${!MOCK_SYSTEM_PROCESSES[@]}"; do
-    echo "  $pid: ${MOCK_SYSTEM_PROCESSES[$pid]}"
+    echo "  $pid: ${MOCK_SYSTEM_PROCESSES[$pid]:-}"
   done
   echo "Process Patterns:"
   for pattern in "${!MOCK_SYSTEM_PROCESS_PATTERNS[@]}"; do
-    echo "  $pattern: ${MOCK_SYSTEM_PROCESS_PATTERNS[$pattern]}"
+    echo "  $pattern: ${MOCK_SYSTEM_PROCESS_PATTERNS[$pattern]:-}"
   done
   echo "System Info:"
   for key in "${!MOCK_SYSTEM_INFO[@]}"; do
-    echo "  $key: ${MOCK_SYSTEM_INFO[$key]}"
+    echo "  $key: ${MOCK_SYSTEM_INFO[$key]:-}"
   done
   echo "Users:"
   for user in "${!MOCK_SYSTEM_USERS[@]}"; do
-    echo "  $user: ${MOCK_SYSTEM_USERS[$user]}"
+    echo "  $user: ${MOCK_SYSTEM_USERS[$user]:-}"
   done
   echo "Commands:"
   for cmd in "${!MOCK_SYSTEM_COMMANDS[@]}"; do
-    echo "  $cmd: ${MOCK_SYSTEM_COMMANDS[$cmd]}"
+    echo "  $cmd: ${MOCK_SYSTEM_COMMANDS[$cmd]:-}"
   done
   echo "System Errors:"
   for cmd in "${!MOCK_SYSTEM_ERRORS[@]}"; do
-    echo "  $cmd: ${MOCK_SYSTEM_ERRORS[$cmd]}"
+    echo "  $cmd: ${MOCK_SYSTEM_ERRORS[$cmd]:-}"
   done
   echo "========================"
 }
@@ -2000,7 +2126,7 @@ mock::system::debug::dump_state() {
 # Exporting lets child bash processes (spawned by scripts under test) inherit mocks.
 
 # Core system commands
-export -f systemctl ps pgrep pkill kill which id whoami uname date
+export -f systemctl ps pgrep pkill kill which id whoami uname date lsof
 
 # Utility functions
 export -f _mock_service_name _mock_unit_name _mock_systemd_time _mock_pid _mock_since_time
@@ -2012,6 +2138,7 @@ export -f mock::system::reset mock::system::init_defaults mock::system::inject_e
 export -f mock::system::set_process_state mock::system::remove_process
 export -f mock::system::set_info mock::system::set_user mock::system::set_command
 export -f mock::system::_update_pattern_cache
+export -f mock::system::add_port_listener mock::system::remove_port_listener mock::system::clear_port_listeners
 
 # SystemCtl functions
 export -f mock::systemctl::reset mock::systemctl::enable_auto_cleanup mock::systemctl::inject_error

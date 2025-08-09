@@ -4,6 +4,13 @@
 
 set -euo pipefail
 
+_HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# shellcheck disable=SC1091
+source "${_HERE}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}" 2>/dev/null || true
+
 # Global variables for contract parsing
 declare -g VROOLI_CONTRACTS_DIR=""
 declare -g VROOLI_CONTRACT_CACHE=""
@@ -20,26 +27,17 @@ fi
 # Returns:
 #   0 on success, 1 on error
 #######################################
-contract_parser_init() {
+contract_parser::init() {
     local contracts_dir="${1:-}"
     
     # Auto-detect contracts directory if not provided
     if [[ -z "$contracts_dir" ]]; then
-        # Look for project root by searching for scripts/resources/contracts
-        local current_dir="$(pwd)"
-        while [[ "$current_dir" != "/" ]] && [[ "$current_dir" != "$HOME" ]]; do
-            if [[ -d "$current_dir/scripts/resources/contracts" ]]; then
-                contracts_dir="$current_dir/scripts/resources/contracts"
-                break
-            fi
-            current_dir="$(dirname "$current_dir")"
-        done
-        
-        # Fallback to relative path from script location
-        if [[ -z "$contracts_dir" ]]; then
-            local script_dir
-            script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)
-            contracts_dir="$script_dir/scripts/resources/contracts"
+        # Use var.sh variables instead of searching
+        if [[ -d "${var_SCRIPTS_RESOURCES_DIR}/contracts" ]]; then
+            contracts_dir="${var_SCRIPTS_RESOURCES_DIR}/contracts"
+        else
+            # Fallback to relative path from resource tests
+            contracts_dir="${var_SCRIPTS_RESOURCES_DIR}/tests/contracts"
         fi
     fi
     
@@ -49,7 +47,7 @@ contract_parser_init() {
     fi
     
     VROOLI_CONTRACTS_DIR="$contracts_dir"
-    VROOLI_CONTRACT_CACHE="/tmp/vrooli_contract_cache_$$"
+    VROOLI_CONTRACT_CACHE="${TMPDIR:-/tmp}/vrooli_contract_cache_$$"
     mkdir -p "$VROOLI_CONTRACT_CACHE"
     
     # Ensure associative array is properly initialized
@@ -71,7 +69,7 @@ contract_parser_init() {
 # Outputs:
 #   The parsed value
 #######################################
-parse_yaml_value() {
+contract_parser::parse_yaml_value() {
     local yaml_file="$1"
     local key_path="$2"
     
@@ -153,7 +151,7 @@ parse_yaml_value() {
 # Outputs:
 #   List of keys, one per line
 #######################################
-get_yaml_section_keys() {
+contract_parser::get_yaml_section_keys() {
     local yaml_file="$1"
     local section_path="$2"
     
@@ -225,7 +223,7 @@ get_yaml_section_keys() {
 # Outputs:
 #   Path to merged contract file
 #######################################
-load_contract() {
+contract_parser::load_contract() {
     local contract_name="$1"
     local loading_stack="${2:-}"  # Internal parameter for circular detection
     
@@ -254,22 +252,20 @@ load_contract() {
     
     # Check if this contract extends another
     local extends_contract=""
-    extends_contract=$(parse_yaml_value "$contract_path" "extends" 2>/dev/null || echo "")
+    extends_contract=$(contract_parser::parse_yaml_value "$contract_path" "extends" 2>/dev/null || echo "")
     
     local merged_contract_path="$VROOLI_CONTRACT_CACHE/${cache_key}_merged.yaml"
     
     if [[ -n "$extends_contract" ]]; then
         # Load parent contract first with inheritance stack
         local parent_contract_path
-        parent_contract_path=$(load_contract "$extends_contract" "$current_stack")
-        
-        if [[ $? -ne 0 ]]; then
+        if ! parent_contract_path=$(contract_parser::load_contract "$extends_contract" "$current_stack"); then
             echo "Failed to load parent contract: $extends_contract" >&2
             return 1
         fi
         
         # Merge parent and child contracts
-        merge_contracts "$parent_contract_path" "$contract_path" "$merged_contract_path"
+        contract_parser::merge_contracts "$parent_contract_path" "$contract_path" "$merged_contract_path"
     else
         # No inheritance, just copy the contract
         cp "$contract_path" "$merged_contract_path"
@@ -291,7 +287,7 @@ load_contract() {
 # Returns:
 #   0 on success, 1 on error
 #######################################
-merge_contracts() {
+contract_parser::merge_contracts() {
     local parent_contract="$1"
     local child_contract="$2"
     local output_contract="$3"
@@ -372,18 +368,15 @@ merge_contracts() {
 # Outputs:
 #   List of required actions, one per line
 #######################################
-get_required_actions() {
+contract_parser::get_required_actions() {
     local category="$1"
     local contract_file="${category}.yaml"
     
     # Load the merged contract
     local merged_contract
-    merged_contract=$(load_contract "$contract_file")
-    
-    if [[ $? -ne 0 ]]; then
+    if ! merged_contract=$(contract_parser::load_contract "$contract_file"); then
         # Fallback to core contract if category contract not found
-        merged_contract=$(load_contract "core.yaml")
-        if [[ $? -ne 0 ]]; then
+        if ! merged_contract=$(contract_parser::load_contract "core.yaml"); then
             # Both contracts failed to load
             echo "Failed to load contracts" >&2
             return 1
@@ -391,7 +384,7 @@ get_required_actions() {
     fi
     
     # Get required actions from core contract only (additional actions are optional)
-    get_yaml_section_keys "$merged_contract" "required_actions"
+    contract_parser::get_yaml_section_keys "$merged_contract" "required_actions"
     
     return $?
 }
@@ -405,17 +398,15 @@ get_required_actions() {
 # Outputs:
 #   List of help patterns, one per line
 #######################################
-get_help_patterns() {
+contract_parser::get_help_patterns() {
     local category="$1"
     local contract_file="${category}.yaml"
     
     # Load the merged contract
     local merged_contract
-    merged_contract=$(load_contract "$contract_file")
-    
-    if [[ $? -ne 0 ]]; then
+    if ! merged_contract=$(contract_parser::load_contract "$contract_file"); then
         # Fallback to core contract
-        merged_contract=$(load_contract "core.yaml")
+        merged_contract=$(contract_parser::load_contract "core.yaml")
     fi
     
     # Extract help patterns from YAML array
@@ -433,17 +424,15 @@ get_help_patterns() {
 # Outputs:
 #   List of error handling requirements, one per line
 #######################################
-get_error_handling_patterns() {
+contract_parser::get_error_handling_patterns() {
     local category="$1"
     local contract_file="${category}.yaml"
     
     # Load the merged contract
     local merged_contract
-    merged_contract=$(load_contract "$contract_file")
-    
-    if [[ $? -ne 0 ]]; then
+    if ! merged_contract=$(contract_parser::load_contract "$contract_file"); then
         # Fallback to core contract
-        merged_contract=$(load_contract "core.yaml")
+        merged_contract=$(contract_parser::load_contract "core.yaml")
     fi
     
     # Extract error handling patterns from YAML array
@@ -461,17 +450,15 @@ get_error_handling_patterns() {
 # Outputs:
 #   List of required files, one per line
 #######################################
-get_required_files() {
+contract_parser::get_required_files() {
     local category="$1"
     local contract_file="${category}.yaml"
     
     # Load the merged contract
     local merged_contract
-    merged_contract=$(load_contract "$contract_file")
-    
-    if [[ $? -ne 0 ]]; then
+    if ! merged_contract=$(contract_parser::load_contract "$contract_file"); then
         # Fallback to core contract
-        merged_contract=$(load_contract "core.yaml")
+        merged_contract=$(contract_parser::load_contract "core.yaml")
     fi
     
     # Extract required files from YAML array
@@ -485,7 +472,7 @@ get_required_files() {
 # Arguments: None
 # Returns: 0
 #######################################
-contract_parser_cleanup() {
+contract_parser::cleanup() {
     if [[ -d "$VROOLI_CONTRACT_CACHE" ]]; then
         rm -rf "$VROOLI_CONTRACT_CACHE"
     fi
@@ -507,7 +494,7 @@ contract_parser_cleanup() {
 # Returns:
 #   0 if valid, 1 if invalid
 #######################################
-validate_contract_syntax() {
+contract_parser::validate_contract_syntax() {
     local contract_path="$1"
     
     if [[ ! -f "$contract_path" ]]; then
@@ -536,14 +523,14 @@ validate_contract_syntax() {
 }
 
 # Export functions for use in other scripts
-export -f contract_parser_init
-export -f parse_yaml_value
-export -f get_yaml_section_keys
-export -f load_contract
-export -f merge_contracts
-export -f get_required_actions
-export -f get_help_patterns
-export -f get_error_handling_patterns
-export -f get_required_files
-export -f contract_parser_cleanup
-export -f validate_contract_syntax
+export -f contract_parser::init
+export -f contract_parser::parse_yaml_value
+export -f contract_parser::get_yaml_section_keys
+export -f contract_parser::load_contract
+export -f contract_parser::merge_contracts
+export -f contract_parser::get_required_actions
+export -f contract_parser::get_help_patterns
+export -f contract_parser::get_error_handling_patterns
+export -f contract_parser::get_required_files
+export -f contract_parser::cleanup
+export -f contract_parser::validate_contract_syntax

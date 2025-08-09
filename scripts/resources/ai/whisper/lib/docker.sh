@@ -203,12 +203,7 @@ Mounts: {{range .Mounts}}{{.Source}} -> {{.Destination}} {{end}}
 Environment: {{range .Config.Env}}{{.}} {{end}}'
 }
 
-#######################################
-# Check if GPU is available
-#######################################
-whisper::is_gpu_available() {
-    command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1
-}
+# GPU availability check is provided by common.sh
 
 #######################################
 # Remove container
@@ -260,18 +255,7 @@ whisper::check_gpu_support() {
     fi
 }
 
-#######################################
-# Get appropriate Docker image
-#######################################
-whisper::get_docker_image() {
-    local use_gpu="${WHISPER_USE_GPU:-auto}"
-    
-    if [[ "$use_gpu" == "yes" ]] || [[ "$use_gpu" == "auto" && $(whisper::is_gpu_available) ]]; then
-        echo "${WHISPER_IMAGE_GPU:-openai/whisper:gpu}"
-    else
-        echo "${WHISPER_IMAGE_CPU:-openai/whisper:cpu}"
-    fi
-}
+# Docker image selection is provided by common.sh
 
 #######################################
 # Check container health
@@ -348,12 +332,10 @@ export -f whisper::show_logs
 export -f whisper::show_stats
 export -f whisper::exec
 export -f whisper::container_info
-export -f whisper::is_gpu_available
 export -f whisper::remove_container
 export -f whisper::get_logs
 export -f whisper::inspect_container
 export -f whisper::check_gpu_support
-export -f whisper::get_docker_image
 export -f whisper::check_container_health
 export -f whisper::setup_volumes
 export -f whisper::setup_network

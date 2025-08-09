@@ -2,79 +2,23 @@
 # Contract Parser Tests - Comprehensive test suite for YAML contract parsing
 # Tests the foundation of the Layer 1 validation system
 
-# Basic BATS assertion functions
-
-# Basic BATS assertion functions if not available
-if ! command -v assert_success &>/dev/null; then
-    assert_success() {
-        if [[ $status -ne 0 ]]; then
-            echo "Expected success, got exit code $status" >&2
-            if [[ -n "${output:-}" ]]; then
-                echo "Output: $output" >&2
-            fi
-            return 1
-        fi
-    }
-    
-    assert_failure() {
-        if [[ $status -eq 0 ]]; then
-            echo "Expected failure, got success" >&2
-            if [[ -n "${output:-}" ]]; then
-                echo "Output: $output" >&2
-            fi
-            return 1
-        fi
-    }
-    
-    assert_output() {
-        local expected=""
-        local partial=false
-        
-        # Parse arguments
-        if [[ "$1" == "--partial" ]]; then
-            partial=true
-            expected="$2"
-        else
-            expected="$1"
-        fi
-        
-        if [[ "$partial" == "true" ]]; then
-            if [[ "$output" != *"$expected"* ]]; then
-                echo "Expected output to contain: $expected" >&2
-                echo "Actual output: $output" >&2
-                return 1
-            fi
-        else
-            if [[ "$output" != "$expected" ]]; then
-                echo "Expected output: $expected" >&2
-                echo "Actual output: $output" >&2
-                return 1
-            fi
-        fi
-    }
-    
-    assert_line() {
-        local expected="$1"
-        echo "$output" | grep -q "^$expected$"
-        local result=$?
-        if [[ $result -ne 0 ]]; then
-            echo "Expected line: $expected" >&2
-            echo "Actual output: $output" >&2
-            return 1
-        fi
-    }
-fi
+# Get to the var.sh file from our location
+# shellcheck disable=SC1091
+source "${BATS_TEST_DIRNAME}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091  
+source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
 
 # =============================================================================
 # Test Setup and Teardown
 # =============================================================================
 
 setup() {
-    # Load the contract parser
-    source "${BATS_TEST_DIRNAME}/contract-parser.sh"
+    # Setup test environment
+    vrooli_setup_unit_test
     
-    # Set VROOLI_TEST_ROOT if not already set
-    export VROOLI_TEST_ROOT="${BATS_TEST_DIRNAME}"
+    # Load the contract parser
+    # shellcheck disable=SC1091
+    source "${BATS_TEST_DIRNAME}/contract-parser.sh"
     
     # Create temporary test environment
     export TEST_CONTRACTS_DIR="${BATS_TEST_TMPDIR}/test_contracts"
@@ -89,14 +33,15 @@ setup() {
 
 teardown() {
     # Cleanup contract parser
-    if command -v contract_parser_cleanup &>/dev/null; then
-        contract_parser_cleanup 2>/dev/null || true
+    if command -v contract_parser::cleanup &>/dev/null; then
+        contract_parser::cleanup 2>/dev/null || true
     fi
     
     # Clean up test environment
+    vrooli_cleanup_test
     rm -rf "$TEST_CONTRACTS_DIR" 2>/dev/null || true
     rm -rf "$TEST_CACHE_DIR" 2>/dev/null || true
-    rm -rf "/tmp/vrooli_contract_cache_"* 2>/dev/null || true
+    rm -rf "${TMPDIR:-/tmp}/vrooli_contract_cache_"* 2>/dev/null || true
 }
 
 # =============================================================================
@@ -254,46 +199,46 @@ EOF
 # Basic Initialization Tests
 # =============================================================================
 
-@test "contract_parser_init: initializes with valid directory" {
-    run contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::init: initializes with valid directory" {
+    run contract_parser::init "$TEST_CONTRACTS_DIR"
     
     assert_success
     assert_output --partial "Contract parser initialized: $TEST_CONTRACTS_DIR"
     
     # Initialize without run to check global variables
-    contract_parser_init "$TEST_CONTRACTS_DIR" >/dev/null
+    contract_parser::init "$TEST_CONTRACTS_DIR" >/dev/null
     [[ -n "$VROOLI_CONTRACTS_DIR" ]]
     [[ -n "$VROOLI_CONTRACT_CACHE" ]]
     [[ -d "$VROOLI_CONTRACT_CACHE" ]]
 }
 
-@test "contract_parser_init: fails with invalid directory" {
-    run contract_parser_init "/nonexistent/directory"
+@test "contract_parser::init: fails with invalid directory" {
+    run contract_parser::init "/nonexistent/directory"
     
     assert_failure
     assert_output --partial "Contract directory not found: /nonexistent/directory"
 }
 
-@test "contract_parser_init: auto-detects contracts directory" {
+@test "contract_parser::init: auto-detects contracts directory" {
     # Change to project root directory
     cd "${BATS_TEST_DIRNAME}/../../../../.."
     
-    run contract_parser_init
+    run contract_parser::init
     
     assert_success
     assert_output --partial "Contract parser initialized:"
 }
 
-@test "contract_parser_cleanup: cleans up resources" {
+@test "contract_parser::cleanup: cleans up resources" {
     # Initialize first
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     local cache_dir="$VROOLI_CONTRACT_CACHE"
     
     # Verify cache directory exists
     [[ -d "$cache_dir" ]]
     
     # Run cleanup
-    run contract_parser_cleanup
+    run contract_parser::cleanup
     
     assert_success
     
@@ -305,44 +250,44 @@ EOF
 # YAML Parsing Tests
 # =============================================================================
 
-@test "parse_yaml_value: parses simple string values" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::parse_yaml_value: parses simple string values" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
-    run parse_yaml_value "$TEST_CONTRACTS_DIR/v1.0/core.yaml" "version"
+    run contract_parser::parse_yaml_value "$TEST_CONTRACTS_DIR/v1.0/core.yaml" "version"
     
     assert_success
     assert_output "1.0"
 }
 
-@test "parse_yaml_value: parses nested values" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::parse_yaml_value: parses nested values" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
-    run parse_yaml_value "$TEST_CONTRACTS_DIR/v1.0/core.yaml" "required_actions.install.description"
+    run contract_parser::parse_yaml_value "$TEST_CONTRACTS_DIR/v1.0/core.yaml" "required_actions.install.description"
     
     assert_success
     assert_output "Install the resource"
 }
 
-@test "parse_yaml_value: handles missing keys gracefully" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::parse_yaml_value: handles missing keys gracefully" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
-    run parse_yaml_value "$TEST_CONTRACTS_DIR/v1.0/core.yaml" "nonexistent_key"
-    
-    assert_failure
-}
-
-@test "parse_yaml_value: handles missing files gracefully" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
-    
-    run parse_yaml_value "$TEST_CONTRACTS_DIR/v1.0/nonexistent.yaml" "version"
+    run contract_parser::parse_yaml_value "$TEST_CONTRACTS_DIR/v1.0/core.yaml" "nonexistent_key"
     
     assert_failure
 }
 
-@test "parse_yaml_value: handles malformed YAML gracefully" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::parse_yaml_value: handles missing files gracefully" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
-    run parse_yaml_value "$TEST_CONTRACTS_DIR/v1.0/invalid.yaml" "version"
+    run contract_parser::parse_yaml_value "$TEST_CONTRACTS_DIR/v1.0/nonexistent.yaml" "version"
+    
+    assert_failure
+}
+
+@test "contract_parser::parse_yaml_value: handles malformed YAML gracefully" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
+    
+    run contract_parser::parse_yaml_value "$TEST_CONTRACTS_DIR/v1.0/invalid.yaml" "version"
     
     # Should handle gracefully (may succeed or fail depending on implementation)
     # The key is it shouldn't crash
@@ -353,10 +298,10 @@ EOF
 # YAML Section Keys Tests
 # =============================================================================
 
-@test "get_yaml_section_keys: extracts section keys correctly" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::get_yaml_section_keys: extracts section keys correctly" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
-    run get_yaml_section_keys "$TEST_CONTRACTS_DIR/v1.0/core.yaml" "required_actions"
+    run contract_parser::get_yaml_section_keys "$TEST_CONTRACTS_DIR/v1.0/core.yaml" "required_actions"
     
     assert_success
     assert_line "install"
@@ -366,18 +311,18 @@ EOF
     assert_line "logs"
 }
 
-@test "get_yaml_section_keys: handles empty sections" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::get_yaml_section_keys: handles empty sections" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
-    run get_yaml_section_keys "$TEST_CONTRACTS_DIR/v1.0/core.yaml" "nonexistent_section"
+    run contract_parser::get_yaml_section_keys "$TEST_CONTRACTS_DIR/v1.0/core.yaml" "nonexistent_section"
     
     assert_failure
 }
 
-@test "get_yaml_section_keys: handles missing files" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::get_yaml_section_keys: handles missing files" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
-    run get_yaml_section_keys "$TEST_CONTRACTS_DIR/v1.0/missing.yaml" "required_actions"
+    run contract_parser::get_yaml_section_keys "$TEST_CONTRACTS_DIR/v1.0/missing.yaml" "required_actions"
     
     assert_failure
 }
@@ -386,29 +331,29 @@ EOF
 # Contract Loading Tests
 # =============================================================================
 
-@test "load_contract: loads basic contract successfully" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::load_contract: loads basic contract successfully" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
-    run load_contract "core.yaml"
+    run contract_parser::load_contract "core.yaml"
     
     assert_success
     # Output should be path to loaded/cached contract
     [[ -f "$output" ]]
 }
 
-@test "load_contract: handles missing contracts" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::load_contract: handles missing contracts" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
-    run load_contract "nonexistent.yaml"
+    run contract_parser::load_contract "nonexistent.yaml"
     
     assert_failure
     assert_output --partial "Contract not found"
 }
 
-@test "load_contract: loads contract with inheritance" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::load_contract: loads contract with inheritance" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
-    run load_contract "ai.yaml"
+    run contract_parser::load_contract "ai.yaml"
     
     assert_success
     # Should return path to merged contract
@@ -420,15 +365,15 @@ EOF
     grep -q "optional_actions:" "$merged_contract"
 }
 
-@test "load_contract: caches loaded contracts" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::load_contract: caches loaded contracts" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
     # Load same contract twice
-    run load_contract "core.yaml"
+    run contract_parser::load_contract "core.yaml"
     assert_success
     first_output="$output"
     
-    run load_contract "core.yaml"
+    run contract_parser::load_contract "core.yaml"
     assert_success
     second_output="$output"
     
@@ -436,10 +381,10 @@ EOF
     [[ "$first_output" == "$second_output" ]]
 }
 
-@test "load_contract: detects circular inheritance" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::load_contract: detects circular inheritance" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
-    run load_contract "circular_a.yaml"
+    run contract_parser::load_contract "circular_a.yaml"
     
     # Should handle circular inheritance gracefully (fail or detect it)
     assert_failure
@@ -449,12 +394,12 @@ EOF
 # Contract Merging Tests
 # =============================================================================
 
-@test "merge_contracts: merges parent and child contracts" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::merge_contracts: merges parent and child contracts" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
     local output_file="$TEST_CACHE_DIR/merged.yaml"
     
-    run merge_contracts "$TEST_CONTRACTS_DIR/v1.0/core.yaml" "$TEST_CONTRACTS_DIR/v1.0/ai.yaml" "$output_file"
+    run contract_parser::merge_contracts "$TEST_CONTRACTS_DIR/v1.0/core.yaml" "$TEST_CONTRACTS_DIR/v1.0/ai.yaml" "$output_file"
     
     assert_success
     [[ -f "$output_file" ]]
@@ -465,22 +410,22 @@ EOF
     grep -q "ai_configuration:" "$output_file"
 }
 
-@test "merge_contracts: handles missing parent contract" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::merge_contracts: handles missing parent contract" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
     local output_file="$TEST_CACHE_DIR/merged.yaml"
     
-    run merge_contracts "$TEST_CONTRACTS_DIR/v1.0/missing.yaml" "$TEST_CONTRACTS_DIR/v1.0/ai.yaml" "$output_file"
+    run contract_parser::merge_contracts "$TEST_CONTRACTS_DIR/v1.0/missing.yaml" "$TEST_CONTRACTS_DIR/v1.0/ai.yaml" "$output_file"
     
     assert_failure
 }
 
-@test "merge_contracts: handles missing child contract" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::merge_contracts: handles missing child contract" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
     local output_file="$TEST_CACHE_DIR/merged.yaml"
     
-    run merge_contracts "$TEST_CONTRACTS_DIR/v1.0/core.yaml" "$TEST_CONTRACTS_DIR/v1.0/missing.yaml" "$output_file"
+    run contract_parser::merge_contracts "$TEST_CONTRACTS_DIR/v1.0/core.yaml" "$TEST_CONTRACTS_DIR/v1.0/missing.yaml" "$output_file"
     
     assert_failure
 }
@@ -489,10 +434,10 @@ EOF
 # Contract Getter Function Tests
 # =============================================================================
 
-@test "get_required_actions: returns core actions for unknown category" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::get_required_actions: returns core actions for unknown category" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
-    run get_required_actions "unknown_category"
+    run contract_parser::get_required_actions "unknown_category"
     
     assert_success
     assert_line "install"
@@ -502,10 +447,10 @@ EOF
     assert_line "logs"
 }
 
-@test "get_required_actions: returns core actions for ai category" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::get_required_actions: returns core actions for ai category" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
-    run get_required_actions "ai"
+    run contract_parser::get_required_actions "ai"
     
     assert_success
     assert_line "install"
@@ -518,32 +463,21 @@ EOF
     ! assert_line "generate"
 }
 
-@test "get_required_actions: handles missing contracts gracefully" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::get_required_actions: handles missing contracts gracefully" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
     # Remove contracts directory to test fallback
     rm -rf "$TEST_CONTRACTS_DIR/v1.0"
     
-    run get_required_actions "ai"
+    run contract_parser::get_required_actions "ai"
     
     assert_failure
 }
 
-@test "get_help_patterns: extracts help patterns from contract" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::get_help_patterns: extracts help patterns from contract" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
-    run get_help_patterns "core"
-    
-    assert_success
-    assert_line "--help"
-    assert_line "-h"
-    assert_line "--version"
-}
-
-@test "get_help_patterns: falls back to core for unknown category" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
-    
-    run get_help_patterns "unknown_category"
+    run contract_parser::get_help_patterns "core"
     
     assert_success
     assert_line "--help"
@@ -551,10 +485,21 @@ EOF
     assert_line "--version"
 }
 
-@test "get_error_handling_patterns: extracts error handling patterns" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::get_help_patterns: falls back to core for unknown category" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
-    run get_error_handling_patterns "core"
+    run contract_parser::get_help_patterns "unknown_category"
+    
+    assert_success
+    assert_line "--help"
+    assert_line "-h"
+    assert_line "--version"
+}
+
+@test "contract_parser::get_error_handling_patterns: extracts error handling patterns" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
+    
+    run contract_parser::get_error_handling_patterns "core"
     
     assert_success
     assert_line "set -euo pipefail"
@@ -562,10 +507,10 @@ EOF
     assert_line "Meaningful error messages"
 }
 
-@test "get_required_files: extracts required files list" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::get_required_files: extracts required files list" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
-    run get_required_files "core"
+    run contract_parser::get_required_files "core"
     
     assert_success
     assert_line "config/defaults.sh"
@@ -577,35 +522,35 @@ EOF
 # Contract Validation Tests
 # =============================================================================
 
-@test "validate_contract_syntax: validates correct contract" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::validate_contract_syntax: validates correct contract" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
-    run validate_contract_syntax "$TEST_CONTRACTS_DIR/v1.0/core.yaml"
+    run contract_parser::validate_contract_syntax "$TEST_CONTRACTS_DIR/v1.0/core.yaml"
     
     assert_success
 }
 
-@test "validate_contract_syntax: detects invalid contract" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::validate_contract_syntax: detects invalid contract" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
-    run validate_contract_syntax "$TEST_CONTRACTS_DIR/v1.0/invalid.yaml"
+    run contract_parser::validate_contract_syntax "$TEST_CONTRACTS_DIR/v1.0/invalid.yaml"
     
     # Should detect issues with malformed YAML
     assert_failure
 }
 
-@test "validate_contract_syntax: handles missing contract" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::validate_contract_syntax: handles missing contract" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
-    run validate_contract_syntax "$TEST_CONTRACTS_DIR/v1.0/missing.yaml"
+    run contract_parser::validate_contract_syntax "$TEST_CONTRACTS_DIR/v1.0/missing.yaml"
     
     assert_failure
 }
 
-@test "validate_contract_syntax: validates empty contract" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+@test "contract_parser::validate_contract_syntax: validates empty contract" {
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
-    run validate_contract_syntax "$TEST_CONTRACTS_DIR/v1.0/empty.yaml"
+    run contract_parser::validate_contract_syntax "$TEST_CONTRACTS_DIR/v1.0/empty.yaml"
     
     # Empty contracts should be handled gracefully
     [[ $status -eq 0 || $status -eq 1 ]]
@@ -617,12 +562,12 @@ EOF
 
 @test "integration: loads real core contract" {
     # Test with actual contract files
-    local real_contracts_dir="${BATS_TEST_DIRNAME}/../../../../../contracts"
+    local real_contracts_dir="${var_ROOT_DIR}/contracts"
     
     if [[ -d "$real_contracts_dir/v1.0" ]]; then
-        contract_parser_init "$real_contracts_dir"
+        contract_parser::init "$real_contracts_dir"
         
-        run load_contract "core.yaml"
+        run contract_parser::load_contract "core.yaml"
         
         assert_success
         [[ -f "$output" ]]
@@ -633,12 +578,12 @@ EOF
 }
 
 @test "integration: loads real ai contract with inheritance" {
-    local real_contracts_dir="${BATS_TEST_DIRNAME}/../../../../../contracts"
+    local real_contracts_dir="${var_ROOT_DIR}/contracts"
     
     if [[ -d "$real_contracts_dir/v1.0" ]]; then
-        contract_parser_init "$real_contracts_dir"
+        contract_parser::init "$real_contracts_dir"
         
-        run load_contract "ai.yaml"
+        run contract_parser::load_contract "ai.yaml"
         
         assert_success
         [[ -f "$output" ]]
@@ -652,15 +597,15 @@ EOF
 }
 
 @test "integration: gets required actions from all real categories" {
-    local real_contracts_dir="${BATS_TEST_DIRNAME}/../../../../../contracts"
+    local real_contracts_dir="${var_ROOT_DIR}/contracts"
     
     if [[ -d "$real_contracts_dir/v1.0" ]]; then
-        contract_parser_init "$real_contracts_dir"
+        contract_parser::init "$real_contracts_dir"
         
         local categories=("ai" "automation" "agents" "storage" "search" "execution")
         
         for category in "${categories[@]}"; do
-            run get_required_actions "$category"
+            run contract_parser::get_required_actions "$category"
             
             assert_success
             assert_line "install"
@@ -679,7 +624,7 @@ EOF
 # =============================================================================
 
 @test "edge_case: handles contracts with special characters" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
     # Create contract with special characters
     cat > "$TEST_CONTRACTS_DIR/v1.0/special.yaml" << 'EOF'
@@ -688,14 +633,14 @@ description: "Contract with special chars: !@#$%^&*()[]{}|;:,.<>?"
 test_field: "Value with 'quotes' and \"double quotes\" and $variables"
 EOF
 
-    run load_contract "special.yaml"
+    run contract_parser::load_contract "special.yaml"
     
     assert_success
     [[ -f "$output" ]]
 }
 
 @test "edge_case: handles very large contracts" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
     # Create a large contract
     local large_contract="$TEST_CONTRACTS_DIR/v1.0/large.yaml"
@@ -707,20 +652,20 @@ EOF
         echo "  entry_$i: \"value_$i\"" >> "$large_contract"
     done
     
-    run load_contract "large.yaml"
+    run contract_parser::load_contract "large.yaml"
     
     assert_success
     [[ -f "$output" ]]
 }
 
 @test "edge_case: handles concurrent access" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
     # Launch multiple contract loading processes in background
     local pids=()
     
     for i in {1..5}; do
-        (load_contract "core.yaml" > /dev/null) &
+        (contract_parser::load_contract "core.yaml" > /dev/null) &
         pids+=($!)
     done
     
@@ -740,13 +685,13 @@ EOF
 # =============================================================================
 
 @test "performance: contract loading is fast" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
     # Time the operation
     local start_time
     start_time=$(date +%s%N)
     
-    run load_contract "core.yaml"
+    run contract_parser::load_contract "core.yaml"
     
     local end_time
     end_time=$(date +%s%N)
@@ -759,16 +704,16 @@ EOF
 }
 
 @test "performance: cached loading is very fast" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
     # Load once to populate cache
-    load_contract "core.yaml" >/dev/null
+    contract_parser::load_contract "core.yaml" >/dev/null
     
     # Time the cached operation
     local start_time
     start_time=$(date +%s%N)
     
-    run load_contract "core.yaml"
+    run contract_parser::load_contract "core.yaml"
     
     local end_time
     end_time=$(date +%s%N)
@@ -781,7 +726,7 @@ EOF
 }
 
 @test "performance: contract merging is efficient" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
     local output_file="$TEST_CACHE_DIR/perf_merged.yaml"
     
@@ -789,7 +734,7 @@ EOF
     local start_time
     start_time=$(date +%s%N)
     
-    run merge_contracts "$TEST_CONTRACTS_DIR/v1.0/core.yaml" "$TEST_CONTRACTS_DIR/v1.0/ai.yaml" "$output_file"
+    run contract_parser::merge_contracts "$TEST_CONTRACTS_DIR/v1.0/core.yaml" "$TEST_CONTRACTS_DIR/v1.0/ai.yaml" "$output_file"
     
     local end_time
     end_time=$(date +%s%N)
@@ -806,12 +751,12 @@ EOF
 # =============================================================================
 
 @test "resource: cleans up temporary files" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
     # Load several contracts to create cache files
-    load_contract "core.yaml" >/dev/null
-    load_contract "ai.yaml" >/dev/null
-    load_contract "automation.yaml" >/dev/null
+    contract_parser::load_contract "core.yaml" >/dev/null
+    contract_parser::load_contract "ai.yaml" >/dev/null
+    contract_parser::load_contract "automation.yaml" >/dev/null
     
     local cache_dir="$VROOLI_CONTRACT_CACHE"
     local file_count_before
@@ -821,7 +766,7 @@ EOF
     [[ $file_count_before -gt 0 ]]
     
     # Clean up
-    contract_parser_cleanup
+    contract_parser::cleanup
     
     # Cache directory should be removed
     [[ ! -d "$cache_dir" ]]
@@ -836,7 +781,7 @@ EOF
     # Try to initialize with unwritable parent directory for cache
     export TMPDIR="$readonly_dir"
     
-    run contract_parser_init "$TEST_CONTRACTS_DIR"
+    run contract_parser::init "$TEST_CONTRACTS_DIR"
     
     # Should handle permission issues gracefully
     [[ $status -eq 0 || $status -eq 1 ]]
@@ -851,7 +796,7 @@ EOF
 # =============================================================================
 
 @test "error_handling: graceful failure on system errors" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
     # Test with system limits (too many open files)
     # This is hard to test reliably across systems, so we'll test permission errors instead
@@ -861,7 +806,7 @@ EOF
     echo "version: \"1.0\"" > "$unreadable_contract"
     chmod 000 "$unreadable_contract"
     
-    run parse_yaml_value "$unreadable_contract" "version"
+    run contract_parser::parse_yaml_value "$unreadable_contract" "version"
     
     assert_failure
     
@@ -870,7 +815,7 @@ EOF
 }
 
 @test "error_handling: handles malformed inheritance" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
     # Create contract with malformed extends
     cat > "$TEST_CONTRACTS_DIR/v1.0/bad_extends.yaml" << 'EOF'
@@ -879,7 +824,7 @@ extends: ["not", "a", "string"]
 description: "Contract with malformed extends"
 EOF
 
-    run load_contract "bad_extends.yaml"
+    run contract_parser::load_contract "bad_extends.yaml"
     
     # Should handle malformed extends gracefully
     [[ $status -eq 0 || $status -eq 1 ]]
@@ -890,7 +835,7 @@ EOF
 # =============================================================================
 
 @test "stress: handles many concurrent operations" {
-    contract_parser_init "$TEST_CONTRACTS_DIR"
+    contract_parser::init "$TEST_CONTRACTS_DIR"
     
     # Launch many concurrent parsing operations
     local pids=()
@@ -898,7 +843,7 @@ EOF
     
     for i in {1..20}; do
         local contract="${operations[$((i % 3))]}"
-        (load_contract "$contract" > /dev/null 2>&1) &
+        (contract_parser::load_contract "$contract" > /dev/null 2>&1) &
         pids+=($!)
     done
     
@@ -917,8 +862,8 @@ EOF
 @test "stress: handles rapid init/cleanup cycles" {
     # Rapidly initialize and cleanup
     for i in {1..10}; do
-        contract_parser_init "$TEST_CONTRACTS_DIR" >/dev/null
-        contract_parser_cleanup >/dev/null 2>&1
+        contract_parser::init "$TEST_CONTRACTS_DIR" >/dev/null
+        contract_parser::cleanup >/dev/null 2>&1
     done
     
     # Should complete without crashing

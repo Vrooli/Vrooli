@@ -420,3 +420,13 @@ browserless::test_all_apis() {
         return 1
     fi
 }
+
+# Export functions for subshell availability
+export -f browserless::ensure_test_output_dir
+export -f browserless::test_screenshot
+export -f browserless::safe_screenshot
+export -f browserless::test_pdf
+export -f browserless::test_scrape
+export -f browserless::test_pressure
+export -f browserless::test_function
+export -f browserless::test_all_apis

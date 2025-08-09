@@ -5,21 +5,25 @@
 
 set -euo pipefail
 
-# Source shared integration test library
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../../tests/lib/integration-test-lib.sh"
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+
+# Source shared integration test library
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_DIR}/tests/lib/integration-test-lib.sh"
 
 #######################################
 # SERVICE-SPECIFIC CONFIGURATION
 #######################################
 
-# Load Judge0 configuration
-RESOURCES_DIR="$SCRIPT_DIR/../../.."
+# Load Judge0 configuration using var_ variables
 # shellcheck disable=SC1091
-source "$RESOURCES_DIR/common.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../config/defaults.sh"
+source "${SCRIPT_DIR}/../config/defaults.sh"
 judge0::export_config
 
 # Override library defaults with Judge0-specific settings

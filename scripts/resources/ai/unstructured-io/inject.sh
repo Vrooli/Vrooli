@@ -8,11 +8,11 @@ set -euo pipefail
 DESCRIPTION="Inject parsers and configurations into Unstructured.io document processing service"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
 
-# Source common utilities
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "${SCRIPT_DIR}/../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 
 # Source Unstructured.io configuration if available
 if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
@@ -291,7 +291,7 @@ unstructured_inject::validate_config() {
             fi
             
             # Check if file exists
-            local doc_path="$VROOLI_PROJECT_ROOT/$file"
+            local doc_path="$var_ROOT_DIR/$file"
             if [[ ! -f "$doc_path" ]]; then
                 log::error "Document file not found: $doc_path"
                 return 1
@@ -407,7 +407,7 @@ unstructured_inject::upload_document() {
     name=$(echo "$doc_config" | jq -r '.name // empty')
     
     # Resolve file path
-    local doc_path="$VROOLI_PROJECT_ROOT/$file"
+    local doc_path="$var_ROOT_DIR/$file"
     
     if [[ -z "$name" ]]; then
         name=$(basename "$file")

@@ -5,6 +5,13 @@
 
 set -euo pipefail
 
+_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck disable=SC1091
+source "${_HERE}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+
 #######################################
 # CORE CONFIGURATION FRAMEWORK
 #######################################
@@ -88,13 +95,20 @@ check_service_available() {
     fi
 }
 
-make_api_request() {
+integration_test_lib::make_api_request() {
     local endpoint="$1"
     local method="${2:-GET}"
     local timeout="${3:-$TIMEOUT}"
     local additional_args="${4:-}"
     
-    eval curl -sf --max-time "$timeout" -X "$method" "$additional_args" "$BASE_URL$endpoint" 2>/dev/null
+    # Build curl command without eval for safety
+    if [[ -n "$additional_args" ]]; then
+        # Use array expansion for safer handling
+        # shellcheck disable=SC2086
+        curl -sf --max-time "$timeout" -X "$method" $additional_args "$BASE_URL$endpoint" 2>/dev/null
+    else
+        curl -sf --max-time "$timeout" -X "$method" "$BASE_URL$endpoint" 2>/dev/null
+    fi
 }
 
 check_required_tools() {
@@ -158,7 +172,7 @@ poll_async_job() {
     
     for i in $(seq 1 "$max_attempts"); do
         local response
-        if response=$(make_api_request "$endpoint/$job_id" "GET" 10); then
+        if response=$(integration_test_lib::make_api_request "$endpoint/$job_id" "GET" 10); then
             # Try to extract status field (adjust based on actual response format)
             local status
             status=$(echo "$response" | jq -r '.status // .state // empty' 2>/dev/null)
@@ -327,22 +341,24 @@ test_multi_file_upload() {
         fi
     done
     
-    # Build curl file arguments
+    # Build curl file arguments as an array for safety
+    local curl_cmd_args=()
     for file in "${files[@]}"; do
         if [[ ! -f "$file" ]]; then
             return 1
         fi
-        curl_args="$curl_args -F 'files=@$file'"
+        curl_cmd_args+=(-F "files=@$file")
     done
     
-    # Make the request
+    # Make the request without eval
     local http_code
-    eval "http_code=\$(curl -sf -w '%{http_code}' -o /dev/null \
-        --max-time '$TIMEOUT' \
+    # shellcheck disable=SC2086
+    http_code=$(curl -sf -w '%{http_code}' -o /dev/null \
+        --max-time "$TIMEOUT" \
         -X POST \
-        $curl_args \
+        "${curl_cmd_args[@]}" \
         $additional_args \
-        '$BASE_URL$endpoint' 2>/dev/null)"
+        "$BASE_URL$endpoint" 2>/dev/null)
     
     if [[ "$http_code" == "200" ]] || [[ "$http_code" == "201" ]]; then
         return 0
@@ -640,7 +656,7 @@ test_port_registration() {
     local resource_name=$(basename "$resource_dir")
     
     # Check if resource has a port in port_registry.sh
-    local port_registry="$resource_dir/../../port_registry.sh"
+    local port_registry="$var_PORT_REGISTRY_FILE"
     if [[ -f "$port_registry" ]]; then
         if grep -q "$resource_name" "$port_registry" 2>/dev/null; then
             log_test_result "$test_name" "PASS"

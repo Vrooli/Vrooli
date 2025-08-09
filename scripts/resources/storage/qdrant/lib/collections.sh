@@ -433,7 +433,8 @@ qdrant::collections::recreate() {
     
     if ! qdrant::collections::exists "$collection_name"; then
         log::info "Collection does not exist, creating new one"
-        return qdrant::collections::create "$collection_name" "$vector_size" "$distance_metric"
+        qdrant::collections::create "$collection_name" "$vector_size" "$distance_metric"
+        return $?
     fi
     
     if [[ "$force" != "yes" ]]; then

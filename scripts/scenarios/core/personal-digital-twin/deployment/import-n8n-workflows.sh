@@ -7,14 +7,16 @@ set -euo pipefail
 ################################################################################
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+
 SCENARIO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 N8N_HOST="${N8N_HOST:-localhost}"
 N8N_PORT="${N8N_PORT:-5678}"
 N8N_API_URL="http://${N8N_HOST}:${N8N_PORT}/api/v1"
-
-log::info() { echo "[INFO] $*"; }
-log::error() { echo "[ERROR] $*" >&2; }
-log::success() { echo "[SUCCESS] $*"; }
 
 # Wait for n8n to be ready
 log::info "Waiting for n8n to be ready..."

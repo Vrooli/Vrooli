@@ -1,17 +1,21 @@
 #!/usr/bin/env bats
 
+# Load Vrooli test infrastructure
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
+
 # Path to the script under test
 SCRIPT_PATH="$BATS_TEST_DIRNAME/common.sh"
-MINIO_DIR="$BATS_TEST_DIRNAME/.."
 
-# Source dependencies
-RESOURCES_DIR="$MINIO_DIR/../.."
-HELPERS_DIR="$RESOURCES_DIR/../lib"
+# Setup for each test
+setup() {
+    # Setup standard mocks
+    vrooli_auto_setup
+}
 
-# Source required utilities (suppress errors during test setup)
-. "$HELPERS_DIR/utils/log.sh" 2>/dev/null || true
-. "$HELPERS_DIR/utils/system_commands.sh" 2>/dev/null || true
-. "$HELPERS_DIR/network/ports.sh" 2>/dev/null || true
+# BATS teardown function - runs after each test
+teardown() {
+    vrooli_cleanup_test
+}
 
 # ============================================================================
 # Script Loading Tests

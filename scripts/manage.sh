@@ -22,6 +22,8 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "$SCRIPT_DIR/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/utils/json.sh"
 
 #######################################
 # Display help information
@@ -82,13 +84,10 @@ EOF
 # Display version information
 #######################################
 manage::show_version() {
-    if [[ -f "$var_SERVICE_JSON_FILE" ]]; then
-        local app_version
-        app_version=$(jq -r '.version // "unknown"' "$var_SERVICE_JSON_FILE" 2>/dev/null || echo "unknown")
-        echo "Application version: $app_version"
-    else
-        echo "Version: unknown (no service.json found)"
-    fi
+    # Use JSON utilities for robust version extraction
+    local app_version
+    app_version=$(json::get_value '.version' 'unknown')
+    echo "Application version: $app_version"
     
     echo "Manage script: 1.0.0"
     echo "Project root: $var_ROOT_DIR"
@@ -98,25 +97,31 @@ manage::show_version() {
 # List available phases from service.json
 #######################################
 manage::list_phases() {
-    if [[ ! -f "$var_SERVICE_JSON_FILE" ]]; then
-        log::error "No service.json found at $var_SERVICE_JSON_FILE"
-        echo "Cannot list phases without service.json configuration"
+    # Use JSON utilities for robust phase listing
+    if ! json::validate_config; then
+        log::error "Cannot list phases - invalid or missing service.json configuration"
         return 1
     fi
     
     echo "Available lifecycle phases:"
     echo
     
-    # Check if jq is available
-    if command -v jq &> /dev/null; then
-        jq -r '.lifecycle | to_entries[] | "  \(.key)\t\(.value.description // "No description")"' "$var_SERVICE_JSON_FILE" 2>/dev/null || {
-            log::warning "Failed to parse service.json"
-            echo "  (Unable to list phases - invalid JSON or missing lifecycle key)"
-        }
-    else
-        log::warning "jq is not installed - showing raw phase names only"
-        grep -o '"[^"]*"[[:space:]]*:' "$var_SERVICE_JSON_FILE" | grep -v "lifecycle" | sed 's/"//g' | sed 's/://' | sed 's/^/  /'
+    # Get all phase names and display with descriptions
+    local phases
+    phases=$(json::list_lifecycle_phases)
+    
+    if [[ -z "$phases" ]]; then
+        echo "  (No lifecycle phases configured)"
+        return 0
     fi
+    
+    # Display each phase with its description
+    while IFS= read -r phase; do
+        [[ -z "$phase" ]] && continue
+        local description
+        description=$(json::get_value ".lifecycle.${phase}.description" "No description")
+        printf "  %-12s\t%s\n" "$phase" "$description"
+    done <<< "$phases"
     
     echo
     echo "Run '$0 <phase> --help' for phase-specific options"
@@ -244,9 +249,8 @@ manage::main() {
             ;;
     esac
     
-    # Check for service.json
-    if [[ ! -f "$var_SERVICE_JSON_FILE" ]]; then
-        log::error "No service.json found at $var_SERVICE_JSON_FILE"
+    # Validate service.json configuration using JSON utilities
+    if ! json::validate_config; then
         log::error "This directory does not appear to be a properly configured application"
         echo
         echo "To initialize a new application, create .vrooli/service.json with lifecycle configuration"
@@ -268,18 +272,8 @@ manage::main() {
         exit 1
     fi
     
-    # Check for required dependencies first
-    if ! command -v jq &> /dev/null; then
-        log::error "Required dependency 'jq' is not installed"
-        echo "Run '$0 --check-deps' to see all dependency requirements"
-        exit 1
-    fi
-    
-    # Validate phase exists in service.json
-    local phase_exists
-    phase_exists=$(jq --arg phase "$phase" '.lifecycle | has($phase)' "$var_SERVICE_JSON_FILE" 2>/dev/null || echo "false")
-    
-    if [[ "$phase_exists" == "false" ]]; then
+    # Validate phase exists in service.json using JSON utilities
+    if ! json::path_exists ".lifecycle.${phase}"; then
         log::error "Phase '$phase' not found in service.json"
         echo
         echo "Available phases:"

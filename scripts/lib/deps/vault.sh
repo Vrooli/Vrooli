@@ -16,7 +16,7 @@ source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 
 # Verifies that required command-line tools (curl, jq) are installed.
 # Exits with an error code if dependencies are missing.
-check_vault_dependencies() {
+vault::check_dependencies() {
     system::assert_command "curl"
     system::assert_command "jq"
 }
@@ -24,11 +24,12 @@ check_vault_dependencies() {
 # Parses and validates Vault API responses.
 # Arguments:
 #   $1: HTTP status code from curl
-#   $2: Response body from curl
+#   $2: Response body from curl (optional, for future use)
 # Exits with an error code if the response indicates failure.
-validate_vault_response() {
+vault::validate_response() {
     local status="$1"
-    local body="$2"
+    # Note: body parameter reserved for future error message parsing
+    # local body="$2"
     if [ "$status" -lt 200 ] || [ "$status" -ge 300 ]; then
         log::error "Vault API request failed with status $status"
         return "${ERROR_VAULT_SECRET_FETCH_FAILED:-87}"
@@ -42,7 +43,7 @@ validate_vault_response() {
 #   $2: Vault secret path (used to determine KV version)
 # Outputs:
 #   JSON object containing the secret data.
-handle_kv_version() {
+vault::handle_kv_version() {
     local raw_json="$1"
     local secret_path="$2"
     # KV v2 paths contain '/data/'
@@ -57,8 +58,8 @@ handle_kv_version() {
 
 # Extracts key-value pairs from a Vault JSON response and exports them as environment variables.
 # Arguments:
-#   $1: JSON object containing the secret data (output from handle_kv_version)
-extract_secrets() {
+#   $1: JSON object containing the secret data (output from vault::handle_kv_version)
+vault::extract_secrets() {
     local secrets_json="$1"
     for key in $(echo "$secrets_json" | jq -r 'keys[]'); do
         local value
@@ -71,7 +72,7 @@ extract_secrets() {
 # Checks if the Vault server is initialized, unsealed, and active.
 # Uses the /v1/sys/health endpoint.
 # Returns 0 if healthy, non-zero otherwise.
-check_vault_health() {
+vault::check_health() {
     local health_url="${VAULT_ADDR}/v1/sys/health"
     local response
     local http_code
@@ -113,7 +114,7 @@ check_vault_health() {
 #   $1: Maximum number of retries
 #   $2: Delay between retries (in seconds)
 #   $@: Command to execute and retry
-retry_vault_operation() {
+vault::retry_operation() {
     local max_retries="$1"
     local delay="$2"
     shift 2

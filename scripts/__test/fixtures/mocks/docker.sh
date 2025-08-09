@@ -214,7 +214,7 @@ docker() {
 
   # Check for injected errors
   local cmd_check="${1:-}"
-  if [[ -n "${MOCK_DOCKER_ERRORS[$cmd_check]}" ]]; then
+  if [[ -n "${MOCK_DOCKER_ERRORS[$cmd_check]:-}" ]]; then
     local error_type="${MOCK_DOCKER_ERRORS[$cmd_check]}"
     case "$error_type" in
       network_timeout)
@@ -358,6 +358,11 @@ mock::docker::ps() {
           "{{.ID}}")             echo "$id" ;;
           "table {{.ID}}\t{{.Names}}\t{{.Status}}") printf "%s\t%s\t%s\n" "$id" "$name" "$status" ;;
           "{{json .}}")          echo "{\"ID\":\"$id\",\"Names\":\"$name\",\"Status\":\"$status\",\"Image\":\"$image\"}" ;;
+          "json")                
+            # Full JSON format for docker ps --format json (what instance_manager expects)
+            local created_at="$(_mock_systemd_time)"
+            echo "{\"Names\":\"$name\",\"State\":\"$state\",\"ID\":\"$id\",\"CreatedAt\":\"$created_at\",\"Ports\":\"$ports\",\"Image\":\"$image\",\"Status\":\"$status\"}"
+            ;;
           *)                     echo "$name" ;;
         esac
       fi
@@ -1006,6 +1011,27 @@ mock::docker::debug::dump_state() {
   echo "=========================="
 }
 
+#######################################
+# Compatibility aliases for lifecycle tests
+#######################################
+
+#######################################
+# Alias for set_image_available to match test expectations
+# Arguments: $1 - image name, $2 - availability (true/false)
+#######################################
+mock::docker::set_image_exists() {
+    local image="$1"
+    local exists="${2:-true}"
+    
+    if [[ "$exists" == "true" ]]; then
+        mock::docker::set_image_available "$image"
+    else
+        # Remove image from available list
+        unset MOCK_DOCKER_IMAGES["$image"]
+        _docker_mock_save_state
+    fi
+}
+
 # ----------------------------
 # Export functions into subshells
 # ----------------------------
@@ -1046,5 +1072,6 @@ export -f mock::docker::get::container_env
 export -f mock::docker::get::container_ports
 export -f mock::docker::get::container_volumes
 export -f mock::docker::debug::dump_state
+export -f mock::docker::set_image_exists
 
 echo "[MOCK] Docker mocks loaded successfully"

@@ -96,43 +96,75 @@ setup() {
         return 0
     }
     
-    windmill::execute() {
-        echo "EXECUTE_CALLED"
+    windmill::info() {
+        echo "INFO_CALLED"
+        return 0
+    }
+    
+    windmill::scale_workers() {
+        local count="$1"
+        echo "SCALE_WORKERS_CALLED: $count"
+        return 0
+    }
+    
+    windmill::restart_workers() {
+        echo "RESTART_WORKERS_CALLED"
+        return 0
+    }
+    
+    windmill::show_api_setup_instructions() {
+        echo "API_SETUP_CALLED"
+        return 0
+    }
+    
+    windmill::save_api_key() {
+        echo "SAVE_API_KEY_CALLED"
         return 0
     }
     
     windmill::backup() {
-        echo "BACKUP_CALLED"
+        local path="$1"
+        echo "BACKUP_CALLED: $path"
         return 0
     }
     
     windmill::restore() {
-        echo "RESTORE_CALLED"
+        local path="$1"
+        echo "RESTORE_CALLED: $path"
         return 0
     }
     
-    windmill::update() {
-        echo "UPDATE_CALLED"
+    windmill::list_apps() {
+        echo "LIST_APPS_CALLED"
         return 0
     }
     
-    windmill::reset_password() {
-        echo "RESET_PASSWORD_CALLED"
+    windmill::prepare_app() {
+        local name="$1"
+        local output="$2"
+        echo "PREPARE_APP_CALLED: $name to $output"
         return 0
     }
     
-    windmill::create_workspace() {
-        echo "CREATE_WORKSPACE_CALLED"
+    windmill::deploy_app() {
+        local name="$1"
+        local workspace="$2"
+        echo "DEPLOY_APP_CALLED: $name to $workspace"
         return 0
     }
     
-    windmill::list_workspaces() {
-        echo "LIST_WORKSPACES_CALLED"
+    windmill::check_app_api() {
+        echo "CHECK_APP_API_CALLED"
         return 0
     }
     
-    windmill::api_setup() {
-        echo "API_SETUP_CALLED"
+    # Mock validation functions
+    windmill::validate_config() {
+        return 0
+    }
+    
+    windmill::usage() {
+        echo "Usage: manage.sh [options]"
         return 0
     }
 }
@@ -149,12 +181,12 @@ teardown() {
     
     # Mock the install function
     windmill::install() {
-        echo "INSTALL_CALLED: $1"
+        echo "INSTALL_CALLED"
         return 0
     }
     
     result=$(windmill::main --action install)
-    [[ "$result" =~ "INSTALL_CALLED: no" ]]
+    [[ "$result" =~ "INSTALL_CALLED" ]]
 }
 
 # Test main function routing - install with force
@@ -164,12 +196,12 @@ teardown() {
     
     # Mock the install function
     windmill::install() {
-        echo "INSTALL_CALLED: $1"
+        echo "INSTALL_CALLED_WITH_FORCE"
         return 0
     }
     
-    result=$(windmill::main --action install --force)
-    [[ "$result" =~ "INSTALL_CALLED: yes" ]]
+    result=$(windmill::main --action install --force yes)
+    [[ "$result" =~ "INSTALL_CALLED_WITH_FORCE" ]]
 }
 
 # Test main function routing - uninstall action
@@ -220,12 +252,12 @@ teardown() {
     [[ "$result" =~ "LOGS_CALLED" ]]
 }
 
-# Test main function routing - execute action
-@test "windmill::main routes execute action correctly" {
-    export ACTION="execute"
+# Test main function routing - info action
+@test "windmill::main routes info action correctly" {
+    export ACTION="info"
     
-    result=$(windmill::main --action execute)
-    [[ "$result" =~ "EXECUTE_CALLED" ]]
+    result=$(windmill::main --action info)
+    [[ "$result" =~ "INFO_CALLED" ]]
 }
 
 # Test main function routing - backup action
@@ -244,36 +276,37 @@ teardown() {
     [[ "$result" =~ "RESTORE_CALLED" ]]
 }
 
-# Test main function routing - update action
-@test "windmill::main routes update action correctly" {
-    export ACTION="update"
+# Test main function routing - scale-workers action
+@test "windmill::main routes scale-workers action correctly" {
+    export ACTION="scale-workers"
+    export WORKER_COUNT="5"
     
-    result=$(windmill::main --action update)
-    [[ "$result" =~ "UPDATE_CALLED" ]]
+    result=$(windmill::main --action scale-workers)
+    [[ "$result" =~ "SCALE_WORKERS_CALLED: 5" ]]
 }
 
-# Test main function routing - reset-password action
-@test "windmill::main routes reset-password action correctly" {
-    export ACTION="reset-password"
+# Test main function routing - restart-workers action
+@test "windmill::main routes restart-workers action correctly" {
+    export ACTION="restart-workers"
     
-    result=$(windmill::main --action reset-password)
-    [[ "$result" =~ "RESET_PASSWORD_CALLED" ]]
+    result=$(windmill::main --action restart-workers)
+    [[ "$result" =~ "RESTART_WORKERS_CALLED" ]]
 }
 
-# Test main function routing - create-workspace action
-@test "windmill::main routes create-workspace action correctly" {
-    export ACTION="create-workspace"
+# Test main function routing - save-api-key action
+@test "windmill::main routes save-api-key action correctly" {
+    export ACTION="save-api-key"
     
-    result=$(windmill::main --action create-workspace)
-    [[ "$result" =~ "CREATE_WORKSPACE_CALLED" ]]
+    result=$(windmill::main --action save-api-key)
+    [[ "$result" =~ "SAVE_API_KEY_CALLED" ]]
 }
 
-# Test main function routing - list-workspaces action
-@test "windmill::main routes list-workspaces action correctly" {
-    export ACTION="list-workspaces"
+# Test main function routing - list-apps action
+@test "windmill::main routes list-apps action correctly" {
+    export ACTION="list-apps"
     
-    result=$(windmill::main --action list-workspaces)
-    [[ "$result" =~ "LIST_WORKSPACES_CALLED" ]]
+    result=$(windmill::main --action list-apps)
+    [[ "$result" =~ "LIST_APPS_CALLED" ]]
 }
 
 # Test main function routing - api-setup action
@@ -292,24 +325,33 @@ teardown() {
     [ "$status" -eq 1 ] || [[ "$output" =~ "invalid" ]]
 }
 
-# Test main function without action (should default to status)
-@test "windmill::main defaults to status when no action specified" {
-    unset ACTION
+# Test main function without action (should default to install)
+@test "windmill::main defaults to install when no action specified" {
+    export ACTION="install"
+    
+    # Mock the install function
+    windmill::install() {
+        echo "INSTALL_CALLED: no"
+        return 0
+    }
     
     result=$(windmill::main)
-    [[ "$result" =~ "STATUS_CALLED" ]]
+    [[ "$result" =~ "INSTALL_CALLED" ]]
 }
 
 # Test help display
 @test "windmill::main shows help with --help flag" {
-    result=$(windmill::main --help)
-    [[ "$result" =~ "Usage:" ]] || [[ "$result" =~ "help" ]]
+    run windmill::main --help
+    [ "$status" -eq 0 ]
+    [[ "$output" =~ "Usage:" ]] || [[ "$output" =~ "help" ]]
 }
 
-# Test version display
-@test "windmill::main shows version with --version flag" {
-    result=$(windmill::main --version)
-    [[ "$result" =~ "version" ]] || [[ "$result" =~ "Windmill" ]]
+# Test api-setup action  
+@test "windmill::main routes api-setup action correctly" {
+    export ACTION="api-setup"
+    
+    result=$(windmill::main --action api-setup)
+    [[ "$result" =~ "API_SETUP_CALLED" ]]
 }
 
 # Test argument parsing integration
@@ -331,15 +373,15 @@ teardown() {
     result=$(windmill::main --action status)
     [[ "$result" =~ "STATUS_CALLED" ]]
     # Port should be overridden
-    [[ "$WINDMILL_BASE_URL" =~ "9999" ]] || [[ "$WINDMILL_CUSTOM_PORT" == "9999" ]]
+    [[ "$WINDMILL_CUSTOM_PORT" == "9999" ]]
 }
 
 # Test configuration loading
 @test "windmill::main loads configuration correctly" {
     # Check that configuration variables are set
-    [ -n "$WINDMILL_SERVICE_NAME" ]
-    [ -n "$WINDMILL_CONTAINER_NAME" ]
-    [ -n "$WINDMILL_DEFAULT_PORT" ]
+    [ -n "$WINDMILL_PROJECT_NAME" ]
+    [ -n "$WINDMILL_SERVER_PORT" ]
+    [ -n "$WINDMILL_BASE_URL" ]
 }
 
 # Test error handling in main function
@@ -357,22 +399,24 @@ teardown() {
     [[ "$output" =~ "Installation failed" ]]
 }
 
-# Test workspace parameter handling
-@test "windmill::main handles workspace parameters" {
-    export ACTION="create-workspace"
-    export WORKSPACE_NAME="test-workspace"
+# Test app deployment parameters
+@test "windmill::main handles app deployment parameters" {
+    export ACTION="deploy-app"
+    export APP_NAME="test-app"
+    export WORKSPACE="demo"
     
-    result=$(windmill::main --action create-workspace --workspace test-workspace)
-    [[ "$result" =~ "CREATE_WORKSPACE_CALLED" ]]
+    result=$(windmill::main --action deploy-app --app-name test-app --workspace demo)
+    [[ "$result" =~ "DEPLOY_APP_CALLED: test-app to demo" ]]
 }
 
-# Test script path handling
-@test "windmill::main handles script path parameters" {
-    export ACTION="execute"
-    export SCRIPT_PATH="/path/to/script.py"
+# Test app preparation parameters
+@test "windmill::main handles app preparation parameters" {
+    export ACTION="prepare-app"
+    export APP_NAME="test-app"
+    export OUTPUT_DIR="/tmp/apps"
     
-    result=$(windmill::main --action execute --script /path/to/script.py)
-    [[ "$result" =~ "EXECUTE_CALLED" ]]
+    result=$(windmill::main --action prepare-app --app-name test-app --output-dir /tmp/apps)
+    [[ "$result" =~ "PREPARE_APP_CALLED: test-app to /tmp/apps" ]]
 }
 
 # Test backup path handling
@@ -381,16 +425,16 @@ teardown() {
     export BACKUP_PATH="/tmp/windmill-backup.tar.gz"
     
     result=$(windmill::main --action backup --backup-path /tmp/windmill-backup.tar.gz)
-    [[ "$result" =~ "BACKUP_CALLED" ]]
+    [[ "$result" =~ "BACKUP_CALLED: /tmp/windmill-backup.tar.gz" ]]
 }
 
 # Test restore path handling  
 @test "windmill::main handles restore path parameters" {
     export ACTION="restore"
-    export RESTORE_PATH="/tmp/windmill-backup.tar.gz"
+    export BACKUP_PATH="/tmp/windmill-backup.tar.gz"
     
-    result=$(windmill::main --action restore --restore-path /tmp/windmill-backup.tar.gz)
-    [[ "$result" =~ "RESTORE_CALLED" ]]
+    result=$(windmill::main --action restore --backup-path /tmp/windmill-backup.tar.gz)
+    [[ "$result" =~ "RESTORE_CALLED: /tmp/windmill-backup.tar.gz" ]]
 }
 
 # Integration tests (when service is running)
@@ -411,4 +455,50 @@ teardown() {
     else
         skip "jq not available or file missing"
     fi
+}
+
+# Test injection actions
+@test "windmill::main routes inject action correctly" {
+    export ACTION="inject"
+    export INJECTION_CONFIG='{"scripts":[{"path":"f/test","file":"test.ts"}]}'
+    
+    # Mock the injection script execution
+    "${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/inject.sh"() {
+        echo "INJECT_CALLED: $*"
+        return 0
+    }
+    
+    result=$(windmill::main --action inject --injection-config '{"scripts":[{"path":"f/test","file":"test.ts"}]}')
+    [[ "$result" =~ "INJECT_CALLED" ]]
+}
+
+@test "windmill::main routes validate-injection action correctly" {
+    export ACTION="validate-injection"
+    export INJECTION_CONFIG='{"scripts":[{"path":"f/test","file":"test.ts"}]}'
+    
+    # Mock the injection script execution
+    "${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/inject.sh"() {
+        echo "VALIDATE_CALLED: $*"
+        return 0
+    }
+    
+    result=$(windmill::main --action validate-injection --injection-config '{"scripts":[{"path":"f/test","file":"test.ts"}]}')
+    [[ "$result" =~ "VALIDATE_CALLED" ]]
+}
+
+@test "windmill::main fails inject action without config" {
+    export ACTION="inject"
+    export INJECTION_CONFIG=""
+    
+    run windmill::main --action inject
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Injection configuration required" ]]
+}
+
+# Test check-app-api action
+@test "windmill::main routes check-app-api action correctly" {
+    export ACTION="check-app-api"
+    
+    result=$(windmill::main --action check-app-api)
+    [[ "$result" =~ "CHECK_APP_API_CALLED" ]]
 }

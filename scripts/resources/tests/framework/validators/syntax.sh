@@ -4,14 +4,18 @@
 
 set -euo pipefail
 
-# Get script directory for sourcing dependencies
-SYNTAX_VALIDATOR_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-FRAMEWORK_DIR="$(cd "$SYNTAX_VALIDATOR_DIR/.." && pwd)"
+_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Source required components
-source "$FRAMEWORK_DIR/parsers/contract-parser.sh"
-source "$FRAMEWORK_DIR/parsers/script-analyzer.sh"
-source "$FRAMEWORK_DIR/cache/cache-manager.sh"
+# shellcheck disable=SC1091
+source "${_HERE}/../../../../lib/utils/var.sh"
+
+# Source required components using var_ variables
+# shellcheck disable=SC1091,SC2154
+source "$var_SCRIPTS_RESOURCES_DIR/tests/framework/parsers/contract-parser.sh"
+# shellcheck disable=SC1091,SC2154
+source "$var_SCRIPTS_RESOURCES_DIR/tests/framework/parsers/script-analyzer.sh"
+# shellcheck disable=SC1091,SC2154
+source "$var_SCRIPTS_RESOURCES_DIR/tests/framework/cache/cache-manager.sh"
 
 # Global validation results
 declare -g SYNTAX_VALIDATION_RESULTS=()
@@ -25,17 +29,17 @@ declare -g SYNTAX_VALIDATION_WARNINGS=()
 # Returns:
 #   0 on success, 1 on error
 #######################################
-syntax_validator_init() {
+syntax_validator::init() {
     local contracts_dir="${1:-}"
     
     # Initialize contract parser
-    if ! contract_parser_init "$contracts_dir"; then
+    if ! contract_parser::init "$contracts_dir"; then
         echo "Failed to initialize contract parser" >&2
         return 1
     fi
     
     # Initialize cache manager
-    if ! cache_manager_init; then
+    if ! cache_manager::init; then
         echo "Warning: Failed to initialize cache manager - proceeding without caching" >&2
     fi
     
@@ -57,7 +61,7 @@ syntax_validator_init() {
 # Returns:
 #   0 if all required actions present, 1 if missing actions
 #######################################
-validate_required_actions() {
+syntax_validator::validate_required_actions() {
     local resource_name="$1"
     local category="$2"
     local script_path="$3"
@@ -66,14 +70,14 @@ validate_required_actions() {
     
     # Get required actions from contract
     local required_actions
-    if ! required_actions=$(get_required_actions "$category" 2>/dev/null); then
+    if ! required_actions=$(contract_parser::get_required_actions "$category" 2>/dev/null); then
         SYNTAX_VALIDATION_ERRORS+=("Failed to get required actions for $category")
         return 1
     fi
     
     # Get implemented actions from script
     local implemented_actions
-    if ! implemented_actions=$(extract_script_actions "$script_path"); then
+    if ! implemented_actions=$(script_analyzer::extract_script_actions "$script_path"); then
         SYNTAX_VALIDATION_ERRORS+=("Failed to extract actions from $script_path")
         return 1
     fi
@@ -111,23 +115,24 @@ validate_required_actions() {
 # Returns:
 #   0 if help patterns present, 1 if missing
 #######################################
-validate_syntax_help_patterns() {
+syntax_validator::validate_help_patterns() {
     local resource_name="$1"
     local category="$2"
     local script_path="$3"
     
     echo "Validating help patterns for $resource_name..."
     
-    # Get required help patterns from contract
+    # Get required help patterns from contract (not currently used but kept for future)
     local required_patterns
-    if ! required_patterns=$(get_help_patterns "$category"); then
+    # shellcheck disable=SC2034
+    if ! required_patterns=$(contract_parser::get_help_patterns "$category"); then
         SYNTAX_VALIDATION_ERRORS+=("Failed to get help patterns for $category")
         return 1
     fi
     
     # Validate help patterns in script using script analyzer
     local validation_output
-    if validation_output=$(validate_help_patterns "$script_path" 2>&1); then
+    if validation_output=$(script_analyzer::validate_help_patterns "$script_path" 2>&1); then
         # Parse the output to check if --help is found
         if echo "$validation_output" | grep -q "FOUND:.*--help"; then
             SYNTAX_VALIDATION_RESULTS+=("✅ $resource_name: Help patterns implemented")
@@ -151,7 +156,7 @@ validate_syntax_help_patterns() {
 # Returns:
 #   0 if adequate error handling, 1 if insufficient
 #######################################
-validate_error_handling() {
+syntax_validator::validate_error_handling() {
     local resource_name="$1"
     local category="$2"
     local script_path="$3"
@@ -160,7 +165,7 @@ validate_error_handling() {
     
     # Check error handling patterns in script
     local validation_output
-    if validation_output=$(check_error_handling_patterns "$script_path" 2>&1); then
+    if validation_output=$(script_analyzer::check_error_handling_patterns "$script_path" 2>&1); then
         # Count found patterns
         local found_count
         found_count=$(echo "$validation_output" | grep -c "FOUND:" || echo "0")
@@ -187,7 +192,7 @@ validate_error_handling() {
 # Returns:
 #   0 if structure compliant, 1 if missing files
 #######################################
-validate_file_structure() {
+syntax_validator::validate_file_structure() {
     local resource_name="$1"
     local category="$2"
     local script_path="$3"
@@ -196,7 +201,7 @@ validate_file_structure() {
     
     # Check required files structure
     local validation_output
-    if validation_output=$(check_required_files "$script_path" 2>&1); then
+    if validation_output=$(script_analyzer::check_required_files "$script_path" 2>&1); then
         # Check if config and lib directories exist
         if echo "$validation_output" | grep -q "FOUND:.*config/" && echo "$validation_output" | grep -q "FOUND:.*lib/"; then
             SYNTAX_VALIDATION_RESULTS+=("✅ $resource_name: File structure compliant")
@@ -221,7 +226,7 @@ validate_file_structure() {
 # Returns:
 #   0 if patterns consistent, 1 if issues
 #######################################
-validate_argument_patterns() {
+syntax_validator::validate_argument_patterns() {
     local resource_name="$1"
     local category="$2"
     local script_path="$3"
@@ -230,7 +235,7 @@ validate_argument_patterns() {
     
     # Check argument parsing patterns
     local validation_output
-    if validation_output=$(analyze_argument_patterns "$script_path" 2>&1); then
+    if validation_output=$(script_analyzer::analyze_argument_patterns "$script_path" 2>&1); then
         # Check for basic required patterns
         if echo "$validation_output" | grep -q "GOOD:.*action_flag" && echo "$validation_output" | grep -q "GOOD:.*case_statement"; then
             SYNTAX_VALIDATION_RESULTS+=("✅ $resource_name: Argument patterns consistent")
@@ -254,7 +259,7 @@ validate_argument_patterns() {
 # Returns:
 #   0 if configuration loading proper, 1 if issues
 #######################################
-validate_configuration_loading() {
+syntax_validator::validate_configuration_loading() {
     local resource_name="$1"
     local category="$2"
     local script_path="$3"
@@ -263,7 +268,7 @@ validate_configuration_loading() {
     
     # Check configuration loading patterns
     local validation_output
-    if validation_output=$(check_configuration_loading "$script_path" 2>&1); then
+    if validation_output=$(script_analyzer::check_configuration_loading "$script_path" 2>&1); then
         # Check if common.sh is sourced (minimum requirement)
         if echo "$validation_output" | grep -q "FOUND:.*common_sourced"; then
             SYNTAX_VALIDATION_RESULTS+=("✅ $resource_name: Configuration loading implemented")
@@ -287,7 +292,7 @@ validate_configuration_loading() {
 # Returns:
 #   0 if validation passes, 1 if critical failures
 #######################################
-validate_resource_syntax() {
+syntax_validator::validate_resource_syntax() {
     local resource_name="$1"
     local category="$2"
     local script_path="$3"
@@ -299,13 +304,13 @@ validate_resource_syntax() {
     # Check cache first (if enabled)
     if [[ "$use_cache" == "true" ]]; then
         local cached_result
-        if cached_result=$(cache_get "$resource_name" "$script_path" 2>/dev/null); then
+        if cached_result=$(cache::get "$resource_name" "$script_path" 2>/dev/null); then
             echo "=== Syntax Validation: $resource_name ($category) [CACHED] ==="
             echo "Script: $script_path"
             echo
             
             # Parse and return cached result
-            if cache_parse_result "$cached_result"; then
+            if cache::parse_result "$cached_result"; then
                 echo "✅ $resource_name: Syntax validation PASSED (from cache)"
                 return 0
             else
@@ -320,22 +325,26 @@ validate_resource_syntax() {
     echo
     
     # Clear per-resource results
+    # Arrays for potential future use - currently just placeholders
+    # shellcheck disable=SC2034
     local resource_results=()
+    # shellcheck disable=SC2034
     local resource_errors=()
+    # shellcheck disable=SC2034
     local resource_warnings=()
     
     # Critical validations (must pass) - Initially lenient to avoid false positives
     local critical_validations=(
-        "validate_required_actions"
+        "syntax::validate_required_actions"
     )
     
     # Important validations (warnings if fail)
     local important_validations=(
-        "validate_syntax_help_patterns"
-        "validate_error_handling"
-        "validate_file_structure"
-        "validate_argument_patterns"
-        "validate_configuration_loading"
+        "syntax::validate_help_patterns"
+        "syntax::validate_error_handling"
+        "syntax::validate_file_structure"
+        "syntax::validate_argument_patterns"
+        "syntax::validate_configuration_loading"
     )
     
     local critical_passed=0
@@ -399,8 +408,8 @@ validate_resource_syntax() {
         local cache_details
         cache_details="Critical: $critical_passed/$((critical_passed + critical_failed)) passed, Important: $important_passed/$((important_passed + important_failed)) passed"
         local result_json
-        result_json=$(cache_create_result_json "$status" "$cache_details" "$duration_ms")
-        cache_set "$resource_name" "$script_path" "$result_json" 2>/dev/null || echo "Warning: Failed to cache validation result" >&2
+        result_json=$(cache::create_result_json "$status" "$cache_details" "$duration_ms")
+        cache::set "$resource_name" "$script_path" "$result_json" 2>/dev/null || echo "Warning: Failed to cache validation result" >&2
     fi
     
     return $result_code
@@ -415,7 +424,7 @@ validate_resource_syntax() {
 # Outputs:
 #   Resource category
 #######################################
-detect_resource_category() {
+syntax_validator::detect_resource_category() {
     local resource_path="$1"
     
     # Extract category from path (e.g., /path/to/ai/ollama -> ai)
@@ -435,7 +444,7 @@ detect_resource_category() {
 # Returns:
 #   0 if all pass, 1 if any fail
 #######################################
-validate_resources_batch() {
+syntax_validator::validate_resources_batch() {
     local resource_paths=("$@")
     
     echo "=== Batch Syntax Validation ==="
@@ -452,7 +461,7 @@ validate_resources_batch() {
         resource_name=$(basename "$resource_path")
         
         local category
-        category=$(detect_resource_category "$resource_path")
+        category=$(syntax::detect_resource_category "$resource_path")
         
         local script_path="$resource_path/manage.sh"
         
@@ -463,7 +472,7 @@ validate_resources_batch() {
         
         echo "Validating $resource_name..."
         
-        if validate_resource_syntax "$resource_name" "$category" "$script_path"; then
+        if syntax::validate_resource_syntax "$resource_name" "$category" "$script_path"; then
             ((total_passed++))
         else
             ((total_failed++))
@@ -486,7 +495,7 @@ validate_resources_batch() {
     
     # Display cache statistics
     local cache_stats
-    if cache_stats=$(cache_get_stats 2>/dev/null); then
+    if cache_stats=$(cache::get_stats 2>/dev/null); then
         echo
         echo "=== Cache Performance ==="
         local hit_rate
@@ -538,12 +547,12 @@ validate_resources_batch() {
 # Arguments: None
 # Returns: 0
 #######################################
-syntax_validator_cleanup() {
-    contract_parser_cleanup
+syntax_validator::cleanup() {
+    contract_parser::cleanup
     
     # Clear expired cache entries
     local cleared_message
-    if cleared_message=$(cache_clear_expired 2>/dev/null); then
+    if cleared_message=$(cache::clear_expired 2>/dev/null); then
         echo "Cache maintenance: $cleared_message"
     fi
     
@@ -557,14 +566,14 @@ syntax_validator_cleanup() {
 }
 
 # Export functions for use in other scripts
-export -f syntax_validator_init
-export -f validate_required_actions
-export -f validate_syntax_help_patterns
-export -f validate_error_handling
-export -f validate_file_structure
-export -f validate_argument_patterns
-export -f validate_configuration_loading
-export -f validate_resource_syntax
-export -f detect_resource_category
-export -f validate_resources_batch
-export -f syntax_validator_cleanup
+export -f syntax::validator_init
+export -f syntax::validate_required_actions
+export -f syntax::validate_help_patterns
+export -f syntax::validate_error_handling
+export -f syntax::validate_file_structure
+export -f syntax::validate_argument_patterns
+export -f syntax::validate_configuration_loading
+export -f syntax::validate_resource_syntax
+export -f syntax::detect_resource_category
+export -f syntax::validate_resources_batch
+export -f syntax::validator_cleanup

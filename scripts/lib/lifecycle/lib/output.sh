@@ -4,11 +4,13 @@
 
 set -euo pipefail
 
-# Get script directory
-LIB_LIFECYCLE_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Determine script directory
+_HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck disable=SC1091
-source "$LIB_LIFECYCLE_LIB_DIR/../../utils/var.sh"
+source "${_HERE}/../../utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
 
 # Guard against re-sourcing
 [[ -n "${_OUTPUT_MODULE_LOADED:-}" ]] && return 0

@@ -2,13 +2,15 @@
 # Vrooli Test Helper
 # Common utilities and setup for BATS tests
 
-# Load common libraries
-HELPERS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+# Setup directory and source var.sh first
+_HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck disable=SC1091
-source "${HELPERS_DIR}/utils/log.sh"
+source "${_HERE}/../../lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${HELPERS_DIR}/utils/system_commands.sh"
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_SYSTEM_COMMANDS_FILE}"
 
 # Test assertion helpers
 assert_success() {

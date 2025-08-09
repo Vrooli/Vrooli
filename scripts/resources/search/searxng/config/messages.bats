@@ -3,8 +3,11 @@
 
 # Setup for each test
 setup() {
-    # Load shared test infrastructure
-    source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
+    # Source var.sh to get test paths
+    source "${BATS_TEST_DIRNAME}/../../../../lib/utils/var.sh"
+    
+    # Load Vrooli test infrastructure
+    source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
     
     # Setup standard mocks
     vrooli_auto_setup

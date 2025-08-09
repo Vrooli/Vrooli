@@ -3,11 +3,9 @@
 # Simplified and testable version of network diagnostics
 set -eo pipefail
 
-# Script directory
-LIB_NETWORK_DIAGNOSTICS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
+# Source var.sh with relative path first
 # shellcheck disable=SC1091
-source "${LIB_NETWORK_DIAGNOSTICS_DIR}/../../../lib/utils/var.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
@@ -85,9 +83,11 @@ network_diagnostics_core::run() {
         # TLS handshake timing test
         if command -v date >/dev/null 2>&1; then
             log::info "Testing TLS handshake timing..."
-            local start_time=$(date +%s)
+            local start_time
+            start_time=$(date +%s)
             if timeout 8 curl -s --http1.1 --connect-timeout 5 https://www.google.com >/dev/null 2>&1; then
-                local end_time=$(date +%s)
+                local end_time
+                end_time=$(date +%s)
                 local duration=$((end_time - start_time))
                 log::info "TLS handshake completed in ${duration}s"
             else
@@ -152,6 +152,8 @@ network_diagnostics_core::run() {
 }
 
 # Export the main function for external use
+export -f network_diagnostics_core::run
+
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     # Script was executed directly
     network_diagnostics_core::run "$@"

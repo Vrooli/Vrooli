@@ -17,8 +17,12 @@ _postgres_defaults_detect_project_root() {
         current_dir="$(dirname "$current_dir")"
     done
     
-    # Fallback: assume we're in scripts and go up to project root
-    echo "/home/matthalloran8/Vrooli"
+    # Fallback: use standard scripts directory structure
+    local script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    local postgres_dir="$(dirname "$script_dir")"
+    local scripts_dir="$(dirname "$(dirname "$(dirname "$postgres_dir")")")"
+    local project_root="$(dirname "$scripts_dir")"
+    echo "$project_root"
 }
 
 # Set project root for proper config paths

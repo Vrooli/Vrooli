@@ -15,11 +15,11 @@ source "${var_LIB_UTILS_DIR}/exit_codes.sh"
 # shellcheck disable=SC1091
 source "${var_APP_UTILS_DIR}/docker.sh"
 
-nativeLinux::start_development_native_linux() {
+native_linux::start_development_native_linux() {
     log::header "🚀 Starting native Linux development environment..."
     cd "$var_ROOT_DIR"
 
-    nativeLinux::cleanup() {
+    native_linux::cleanup() {
         log::info "🔧 Cleaning up development environment at $var_ROOT_DIR..."
         
         # Temporarily disable unbound variable checking during cleanup
@@ -42,7 +42,7 @@ nativeLinux::start_development_native_linux() {
         exit "$EXIT_USER_INTERRUPT"
     }
     if ! flow::is_yes "$DETACHED"; then
-        trap nativeLinux::cleanup SIGINT SIGTERM
+        trap native_linux::cleanup SIGINT SIGTERM
     fi
 
     # Ensure environment variables are loaded for docker-compose
@@ -218,5 +218,5 @@ nativeLinux::start_development_native_linux() {
 
 # If this script is run directly, invoke its main function.
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    nativeLinux::start_development_native_linux "$@"
+    native_linux::start_development_native_linux "$@"
 fi

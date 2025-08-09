@@ -4,9 +4,13 @@
 
 set -euo pipefail
 
+# Source var.sh first with proper relative path
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../lib/utils/var.sh"
+
 # Resolve paths
 SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-FRAMEWORK_DIR="$(cd "$SCENARIO_DIR/../../framework" && pwd)"
+FRAMEWORK_DIR="$var_SCRIPTS_SCENARIOS_DIR/framework"
 
 echo "🚀 Testing Resume Screening Assistant Business Scenario"
 echo "📁 Scenario: $(basename "$SCENARIO_DIR")"

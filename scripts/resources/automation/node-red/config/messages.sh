@@ -90,7 +90,8 @@ node_red::show_resource_usage() {
 
 node_red::show_health_status() {
     echo
-    local health=$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER_NAME" 2>/dev/null || echo "unknown")
+    local health
+    health=$(docker inspect --format='{{.State.Health.Status}}' "$CONTAINER_NAME" 2>/dev/null || echo "unknown")
     echo "Health: $health"
 }
 

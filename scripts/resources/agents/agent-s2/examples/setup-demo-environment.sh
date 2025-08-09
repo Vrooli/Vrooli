@@ -1,8 +1,24 @@
 #!/usr/bin/env bash
 # Setup Demo Environment for Agent S2
 # Launches common GUI applications for testing and demonstration
+set -euo pipefail
 
-API_URL="http://localhost:4113"
+# Get script directory and source var.sh first
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# Source var.sh first to get proper directory variables
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+
+# Source common utilities using var_ variables
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
+
+# Source Agent-S2 configuration
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../config/defaults.sh" 2>/dev/null || true
+
+API_URL="${AGENTS2_BASE_URL:-http://localhost:4113}"
 
 echo "==================================="
 echo "Agent S2 Demo Environment Setup"
@@ -56,9 +72,10 @@ if [ $? -eq 0 ]; then
         IMAGE_DATA=$(echo "$RESPONSE" | jq -r '.data // empty' | sed 's/^data:image\/[^;]*;base64,//')
         if [ -n "$IMAGE_DATA" ]; then
             # Ensure output directory exists
-            mkdir -p ../data/test-outputs/screenshots
-            echo "$IMAGE_DATA" | base64 -d > ../data/test-outputs/screenshots/demo-environment.png
-            echo "   Saved to: ../data/test-outputs/screenshots/demo-environment.png"
+            OUTPUT_DIR="${var_ROOT_DIR}/data/test-outputs/screenshots"
+            mkdir -p "$OUTPUT_DIR"
+            echo "$IMAGE_DATA" | base64 -d > "$OUTPUT_DIR/demo-environment.png"
+            echo "   Saved to: $OUTPUT_DIR/demo-environment.png"
         fi
     fi
 else

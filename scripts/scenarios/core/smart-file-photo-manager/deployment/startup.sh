@@ -4,23 +4,15 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCENARIO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-VROOLI_ROOT="$(cd "$SCENARIO_ROOT/../../.." && pwd)"
+
+# shellcheck disable=SC1091
+source "$(cd "$SCRIPT_DIR" && cd ../../../lib/utils && pwd)/var.sh"
+# shellcheck disable=SC1091
+source "$var_LOG_FILE"
 
 # Source resource helper functions
-source "$VROOLI_ROOT/scripts/resources/lib/resource-helper.sh"
+source "$var_SCRIPTS_RESOURCES_DIR/lib/resource-helper.sh"
 
-# Logging functions
-log_info() {
-    echo "[INFO] $(date '+%Y-%m-%d %H:%M:%S') - $1"
-}
-
-log_error() {
-    echo "[ERROR] $(date '+%Y-%m-%d %H:%M:%S') - $1" >&2
-}
-
-log_success() {
-    echo "[SUCCESS] $(date '+%Y-%m-%d %H:%M:%S') - $1"
-}
 
 # Check if required resources are running
 check_prerequisites() {

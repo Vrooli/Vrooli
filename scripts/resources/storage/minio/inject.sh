@@ -8,11 +8,14 @@ set -euo pipefail
 DESCRIPTION="Inject buckets and files into MinIO S3-compatible object storage"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
+
+# Source var.sh first to get directory variables
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
 
 # Source common utilities
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 
 # Source MinIO configuration if available
 if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then

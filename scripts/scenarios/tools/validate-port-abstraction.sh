@@ -46,7 +46,7 @@ PORTS_TO_ABSTRACT=(
 )
 
 # Show help
-show_help() {
+validate_port_abstraction::show_help() {
     cat << 'EOF'
 Port Abstraction Validation Tool
 
@@ -88,7 +88,7 @@ EOF
 #######################################
 
 # Check if file should be validated
-should_validate_file() {
+validate_port_abstraction::should_validate_file() {
     local file="$1"
     local filename
     filename="$(basename "$file")"
@@ -113,7 +113,7 @@ should_validate_file() {
 }
 
 # Find hardcoded ports in a file
-find_hardcoded_ports() {
+validate_port_abstraction::find_hardcoded_ports() {
     local file="$1"
     local verbose="${2:-false}"
     local violations=0
@@ -139,7 +139,7 @@ find_hardcoded_ports() {
 }
 
 # Get service name suggestion for a port
-get_service_suggestion() {
+validate_port_abstraction::get_service_suggestion() {
     local port="$1"
     
     case "$port" in
@@ -164,13 +164,13 @@ get_service_suggestion() {
 }
 
 # Validate a single file
-validate_file() {
+validate_port_abstraction::validate_file() {
     local file="$1"
     local verbose="${2:-false}"
     local show_suggestions="${3:-false}"
     
     local violation_count
-    violation_count=$(find_hardcoded_ports "$file" "$verbose")
+    violation_count=$(validate_port_abstraction::find_hardcoded_ports "$file" "$verbose")
     
     if [[ "$violation_count" -gt 0 ]]; then
         local relative_path
@@ -182,7 +182,7 @@ validate_file() {
             for port in "${PORTS_TO_ABSTRACT[@]}"; do
                 if grep -q "localhost:$port" "$file" 2>/dev/null; then
                     local service
-                    service=$(get_service_suggestion "$port")
+                    service=$(validate_port_abstraction::get_service_suggestion "$port")
                     echo "     localhost:$port → \${service.$service.url}"
                 fi
             done
@@ -195,7 +195,7 @@ validate_file() {
 }
 
 # Validate a directory or file
-validate_path() {
+validate_port_abstraction::validate_path() {
     local path="$1"
     local verbose="${2:-false}"
     local show_suggestions="${3:-false}"
@@ -207,12 +207,12 @@ validate_path() {
     
     if [[ -f "$path" ]]; then
         # Single file
-        if should_validate_file "$path"; then
+        if validate_port_abstraction::should_validate_file "$path"; then
             ((total_files++))
-            if ! validate_file "$path" "$verbose" "$show_suggestions"; then
+            if ! validate_port_abstraction::validate_file "$path" "$verbose" "$show_suggestions"; then
                 ((files_with_violations++))
                 local file_violations
-                file_violations=$(find_hardcoded_ports "$path")
+                file_violations=$(validate_port_abstraction::find_hardcoded_ports "$path")
                 ((total_violations += file_violations))
             fi
         fi
@@ -221,18 +221,18 @@ validate_path() {
         [[ "$summary_only" != "true" ]] && log::info "Validating: $path"
         
         while IFS= read -r file; do
-            if should_validate_file "$file"; then
+            if validate_port_abstraction::should_validate_file "$file"; then
                 ((total_files++))
                 
                 local file_violations
-                file_violations=$(find_hardcoded_ports "$file")
+                file_violations=$(validate_port_abstraction::find_hardcoded_ports "$file")
                 
                 if [[ "$file_violations" -gt 0 ]]; then
                     ((files_with_violations++))
                     ((total_violations += file_violations))
                     
                     if [[ "$summary_only" != "true" ]]; then
-                        validate_file "$file" "$verbose" "$show_suggestions"
+                        validate_port_abstraction::validate_file "$file" "$verbose" "$show_suggestions"
                     fi
                 fi
             fi
@@ -285,7 +285,7 @@ main() {
                 shift
                 ;;
             --help|-h)
-                show_help
+                validate_port_abstraction::show_help
                 exit 0
                 ;;
             -*)
@@ -306,7 +306,7 @@ main() {
     fi
     
     # Run validation
-    validate_path "$path" "$verbose" "$show_suggestions" "$summary_only"
+    validate_port_abstraction::validate_path "$path" "$verbose" "$show_suggestions" "$summary_only"
 }
 
 # Execute if run directly

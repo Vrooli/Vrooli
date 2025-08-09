@@ -7,13 +7,13 @@ set -euo pipefail
 DESCRIPTION="Install and manage n8n workflow automation platform using Docker"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
 
-# Source common resources
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "$(dirname "$(dirname "$(dirname "${SCRIPT_DIR}")")")/lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../app/utils/args.sh"
+source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/args-cli.sh"
 
 # Source configuration
 # shellcheck disable=SC1091

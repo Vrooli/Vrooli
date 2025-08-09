@@ -11,21 +11,22 @@
 
 set -euo pipefail
 
-# Source shared integration test library
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../../tests/lib/integration-test-lib.sh"
+source "${_HERE}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_DIR}/resources/tests/lib/integration-test-lib.sh"
 
 #######################################
 # SERVICE-SPECIFIC CONFIGURATION
 #######################################
 
 # Load resource configuration (optional - only if resource has config/defaults.sh)
-# RESOURCES_DIR="$SCRIPT_DIR/../../.."
 # # shellcheck disable=SC1091
-# source "$RESOURCES_DIR/common.sh"
+# source "${var_RESOURCES_COMMON_FILE}"
 # # shellcheck disable=SC1091
-# source "$SCRIPT_DIR/../config/defaults.sh"
+# source "${integration_test_template::SCRIPT_DIR}/../config/defaults.sh"
 # resource_name::export_config
 
 # Override library defaults with service-specific settings

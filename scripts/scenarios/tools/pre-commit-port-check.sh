@@ -46,24 +46,24 @@ NC='\033[0m' # No Color
 #######################################
 
 # Print colored output
-print_error() {
+pre_commit_port_check::print_error() {
     echo -e "${RED}ERROR: $1${NC}" >&2
 }
 
-print_warning() {
+pre_commit_port_check::print_warning() {
     echo -e "${YELLOW}WARNING: $1${NC}" >&2
 }
 
-print_info() {
+pre_commit_port_check::print_info() {
     echo -e "${BLUE}INFO: $1${NC}"
 }
 
-print_success() {
+pre_commit_port_check::print_success() {
     echo -e "${GREEN}SUCCESS: $1${NC}"
 }
 
 # Get service suggestion for port
-get_service_for_port() {
+pre_commit_port_check::get_service_for_port() {
     local port="$1"
     case "$port" in
         "11434") echo "ollama" ;;
@@ -77,16 +77,16 @@ get_service_for_port() {
 }
 
 # Check staged files for hardcoded ports
-check_staged_files() {
+pre_commit_port_check::check_staged_files() {
     local violations_found=false
     local total_violations=0
     
-    print_info "🔍 Checking staged files for hardcoded port references..."
+    pre_commit_port_check::print_info "🔍 Checking staged files for hardcoded port references..."
     
     # Get list of staged files
     local staged_files
     if ! staged_files=$(git diff --cached --name-only --diff-filter=ACM); then
-        print_error "Failed to get staged files"
+        pre_commit_port_check::print_error "Failed to get staged files"
         return 1
     fi
     
@@ -114,13 +114,13 @@ check_staged_files() {
             
             if [[ "${#matches[@]}" -gt 0 ]] && [[ -n "${matches[0]}" ]]; then
                 if [[ "$file_violations" -eq 0 ]]; then
-                    print_error "❌ $file contains hardcoded ports:"
+                    pre_commit_port_check::print_error "❌ $file contains hardcoded ports:"
                     violations_found=true
                 fi
                 
                 local service
-                service=$(get_service_for_port "$port")
-                print_error "   localhost:$port should be \${service.$service.url}"
+                service=$(pre_commit_port_check::get_service_for_port "$port")
+                pre_commit_port_check::print_error "   localhost:$port should be \${service.$service.url}"
                 
                 ((file_violations++))
                 ((total_violations++))
@@ -131,33 +131,33 @@ check_staged_files() {
     
     if [[ "$violations_found" == "true" ]]; then
         echo ""
-        print_error "🚫 COMMIT BLOCKED: Found $total_violations hardcoded port references"
+        pre_commit_port_check::print_error "🚫 COMMIT BLOCKED: Found $total_violations hardcoded port references"
         echo ""
-        print_info "ℹ️  To fix these issues:"
-        print_info "   1. Replace hardcoded localhost:PORT with \${service.NAME.url}"
-        print_info "   2. Use the migration tool: scripts/scenarios/tools/migrate-ports-simple.sh"
-        print_info "   3. Stage your changes and try committing again"
+        pre_commit_port_check::print_info "ℹ️  To fix these issues:"
+        pre_commit_port_check::print_info "   1. Replace hardcoded localhost:PORT with \${service.NAME.url}"
+        pre_commit_port_check::print_info "   2. Use the migration tool: scripts/scenarios/tools/migrate-ports-simple.sh"
+        pre_commit_port_check::print_info "   3. Stage your changes and try committing again"
         echo ""
-        print_warning "⚠️  If you need to commit anyway (not recommended):"
-        print_warning "   Use: git commit --no-verify -m \"your message\""
+        pre_commit_port_check::print_warning "⚠️  If you need to commit anyway (not recommended):"
+        pre_commit_port_check::print_warning "   Use: git commit --no-verify -m \"your message\""
         return 1
     else
-        print_success "✅ No hardcoded ports found in staged files"
+        pre_commit_port_check::print_success "✅ No hardcoded ports found in staged files"
         return 0
     fi
 }
 
 # Check if we're in a git repository
-check_git_repo() {
+pre_commit_port_check::check_git_repo() {
     if ! git rev-parse --git-dir >/dev/null 2>&1; then
-        print_error "Not in a git repository"
+        pre_commit_port_check::print_error "Not in a git repository"
         return 1
     fi
     return 0
 }
 
 # Show help information
-show_help() {
+pre_commit_port_check::show_help() {
     cat << 'EOF'
 Pre-commit Port Abstraction Check
 
@@ -197,17 +197,17 @@ EOF
 }
 
 # Install as git pre-commit hook
-install_hook() {
+pre_commit_port_check::install_hook() {
     local hook_path=".git/hooks/pre-commit"
     
     if [[ ! -d ".git" ]]; then
-        print_error "Not in a git repository root"
+        pre_commit_port_check::print_error "Not in a git repository root"
         return 1
     fi
     
     if [[ -f "$hook_path" ]]; then
-        print_warning "Pre-commit hook already exists at $hook_path"
-        print_info "Backup will be created as ${hook_path}.backup"
+        pre_commit_port_check::print_warning "Pre-commit hook already exists at $hook_path"
+        pre_commit_port_check::print_info "Backup will be created as ${hook_path}.backup"
         cp "$hook_path" "${hook_path}.backup"
     fi
     
@@ -229,8 +229,8 @@ fi
 EOF
     
     chmod +x "$hook_path"
-    print_success "✅ Pre-commit hook installed at $hook_path"
-    print_info "ℹ️  The hook will run automatically on each commit"
+    pre_commit_port_check::print_success "✅ Pre-commit hook installed at $hook_path"
+    pre_commit_port_check::print_info "ℹ️  The hook will run automatically on each commit"
 }
 
 #######################################
@@ -244,7 +244,7 @@ main() {
     while [[ $# -gt 0 ]]; do
         case $1 in
             --help|-h)
-                show_help
+                pre_commit_port_check::show_help
                 exit 0
                 ;;
             --install)
@@ -256,28 +256,28 @@ main() {
                 shift
                 ;;
             *)
-                print_error "Unknown option: $1"
-                show_help
+                pre_commit_port_check::print_error "Unknown option: $1"
+                pre_commit_port_check::show_help
                 exit 1
                 ;;
         esac
     done
     
     # Check if we're in a git repo
-    if ! check_git_repo; then
+    if ! pre_commit_port_check::check_git_repo; then
         exit 1
     fi
     
     # Execute requested action
     case "$action" in
         "install")
-            install_hook
+            pre_commit_port_check::install_hook
             ;;
         "check")
-            check_staged_files
+            pre_commit_port_check::check_staged_files
             ;;
         *)
-            print_error "Unknown action: $action"
+            pre_commit_port_check::print_error "Unknown action: $action"
             exit 1
             ;;
     esac

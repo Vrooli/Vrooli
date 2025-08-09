@@ -23,10 +23,13 @@ setup_file() {
     export DEFAULT_OUTPUT_FORMAT="text"
     export DEFAULT_MCP_SCOPE="auto"
     
-    # Load all dependencies needed by manage.sh
-    export RESOURCES_DIR="${SCRIPT_DIR}/../.."
-    source "${RESOURCES_DIR}/common.sh" || true
-    source "${RESOURCES_DIR}/../app/utils/args.sh" || true
+    # Load all dependencies needed by manage.sh using proper var_ variables
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/../../../lib/utils/var.sh" || true
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_RESOURCES_DIR}/common.sh" || true
+    # shellcheck disable=SC1091
+    source "${var_LIB_UTILS_DIR}/args-cli.sh" || true
     
     # Load lib files that manage.sh needs
     for lib_file in "${SCRIPT_DIR}"/lib/*.sh; do

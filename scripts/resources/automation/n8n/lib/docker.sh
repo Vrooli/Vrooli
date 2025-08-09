@@ -54,7 +54,7 @@ n8n::build_docker_command() {
     
     # User home and workspace
     docker_cmd+=" -v $HOME:/host/home:rw"
-    docker_cmd+=" -v $HOME/Vrooli:/workspace:rw"
+    docker_cmd+=" -v ${var_ROOT_DIR}:/workspace:rw"
     
     # Docker socket for container control
     if [[ -S /var/run/docker.sock ]]; then

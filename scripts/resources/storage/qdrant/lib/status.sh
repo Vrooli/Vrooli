@@ -380,7 +380,7 @@ qdrant::test() {
         log::success "✅ Collection creation successful"
         
         # Test basic vector operations
-        if qdrant::collections::get_info "$test_collection" >/dev/null 2>&1; then
+        if qdrant::collections::info "$test_collection" >/dev/null 2>&1; then
             log::success "✅ Collection info retrieval successful"
         fi
         

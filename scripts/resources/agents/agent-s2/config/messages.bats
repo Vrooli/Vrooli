@@ -4,8 +4,11 @@
 
 # Expensive setup operations run once per file
 setup_file() {
-    # Load shared test infrastructure
-    source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
+    # Load shared test infrastructure using var_ variables
+    # shellcheck disable=SC1091
+    source "${BATS_TEST_DIRNAME}/../../../lib/utils/var.sh"
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
     
     # Get resource directory path
     AGENTS2_DIR="$(dirname "${BATS_TEST_DIRNAME}")"

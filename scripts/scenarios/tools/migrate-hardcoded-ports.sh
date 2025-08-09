@@ -55,7 +55,7 @@ VERBOSE=false
 FORCE=false
 VALIDATE_ONLY=false
 
-show_help() {
+migrate_hardcoded_ports::show_help() {
     cat << 'EOF'
 Port Abstraction Migration Tool
 
@@ -107,7 +107,7 @@ EOF
 #######################################
 
 # Check if a file should be processed
-should_process_file() {
+migrate_hardcoded_ports::should_process_file() {
     local file="$1"
     local filename
     filename="$(basename "$file")"
@@ -135,7 +135,7 @@ should_process_file() {
 }
 
 # Count hardcoded port references in a file
-count_hardcoded_ports() {
+migrate_hardcoded_ports::count_hardcoded_ports() {
     local file="$1"
     local count=0
     
@@ -151,13 +151,13 @@ count_hardcoded_ports() {
 }
 
 # Get service name from port number
-get_service_from_port() {
+migrate_hardcoded_ports::get_service_from_port() {
     local port="$1"
     echo "${PORT_PATTERNS[$port]:-unknown}"
 }
 
 # Migrate hardcoded ports in a single file
-migrate_file() {
+migrate_hardcoded_ports::migrate_file() {
     local file="$1"
     local changed=false
     local backup_file="${file}.migration-backup"
@@ -235,7 +235,7 @@ migrate_file() {
 }
 
 # Validate a scenario directory
-validate_scenario() {
+migrate_hardcoded_ports::validate_scenario() {
     local scenario_path="$1"
     local total_files=0
     local files_with_ports=0
@@ -245,11 +245,11 @@ validate_scenario() {
     
     # Find all files to process (using simpler approach)
     while IFS= read -r file; do
-        if should_process_file "$file"; then
+        if migrate_hardcoded_ports::should_process_file "$file"; then
             ((total_files++))
             
             local port_count
-            port_count=$(count_hardcoded_ports "$file")
+            port_count=$(migrate_hardcoded_ports::count_hardcoded_ports "$file")
             
             if [[ "$port_count" -gt 0 ]]; then
                 ((files_with_ports++))
@@ -281,7 +281,7 @@ validate_scenario() {
 }
 
 # Migrate entire scenario directory
-migrate_scenario() {
+migrate_hardcoded_ports::migrate_scenario() {
     local scenario_path="$1"
     local total_files=0
     local migrated_files=0
@@ -291,11 +291,11 @@ migrate_scenario() {
     
     # Find and process all files (using simpler approach)
     while IFS= read -r file; do
-        if should_process_file "$file"; then
+        if migrate_hardcoded_ports::should_process_file "$file"; then
             ((total_files++))
             
             local file_changed
-            file_changed=$(migrate_file "$file")
+            file_changed=$(migrate_hardcoded_ports::migrate_file "$file")
             
             if [[ "$file_changed" == "true" ]]; then
                 ((migrated_files++))
@@ -347,12 +347,12 @@ main() {
                 shift
                 ;;
             --help|-h)
-                show_help
+                migrate_hardcoded_ports::show_help
                 exit 0
                 ;;
             -*)
                 log::error "Unknown option: $1"
-                show_help
+                migrate_hardcoded_ports::show_help
                 exit 1
                 ;;
             *)
@@ -370,7 +370,7 @@ main() {
     # Validate required arguments
     if [[ -z "$SCENARIO_PATH" ]]; then
         log::error "Scenario path is required"
-        show_help
+        migrate_hardcoded_ports::show_help
         exit 1
     fi
     
@@ -394,9 +394,9 @@ main() {
     
     # Execute requested action
     if [[ "$VALIDATE_ONLY" == "true" ]]; then
-        validate_scenario "$SCENARIO_PATH"
+        migrate_hardcoded_ports::validate_scenario "$SCENARIO_PATH"
     else
-        migrate_scenario "$SCENARIO_PATH"
+        migrate_hardcoded_ports::migrate_scenario "$SCENARIO_PATH"
     fi
 }
 

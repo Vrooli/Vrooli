@@ -2,31 +2,6 @@
 # PostgreSQL Status Functions
 # Functions for checking PostgreSQL health and status
 
-# Source shared secrets management library
-# Use the same project root detection method as the secrets library
-_postgres_status_detect_project_root() {
-    local current_dir
-    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    
-    # Walk up directory tree looking for .vrooli directory
-    while [[ "$current_dir" != "/" ]]; do
-        if [[ -d "$current_dir/.vrooli" ]]; then
-            echo "$current_dir"
-            return 0
-        fi
-        current_dir="$(dirname "$current_dir")"
-    done
-    
-    # Fallback: assume we're in scripts and go up to project root
-    echo "/home/matthalloran8/Vrooli"
-}
-
-PROJECT_ROOT="$(_postgres_status_detect_project_root)"
-# shellcheck disable=SC1091
-source "$PROJECT_ROOT/scripts/lib/service/secrets.sh"
-# PostgreSQL Status Monitoring
-# Functions for checking PostgreSQL instances health and status
-
 #######################################
 # Get comprehensive PostgreSQL resource status
 # Arguments:
@@ -151,7 +126,7 @@ postgres::status::check() {
 #######################################
 postgres::status::check_vrooli_config() {
     local config_file
-    config_file="$(secrets::get_project_config_file)"
+    config_file="$var_SERVICE_JSON_FILE"
     
     if [[ ! -f "$config_file" ]]; then
         return 1

@@ -7,13 +7,16 @@ set -euo pipefail
 DESCRIPTION="Install and manage Redis in-memory data structure store using Docker"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
+
+# Source var.sh to get proper directory variables
+# shellcheck disable=SC1091
+source "$(dirname "$(dirname "$(dirname "${SCRIPT_DIR}")")")/lib/utils/var.sh"
 
 # Source common resources
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../app/utils/args.sh"
+source "${var_LIB_UTILS_DIR}/args-cli.sh"
 
 # Source configuration
 # shellcheck disable=SC1091

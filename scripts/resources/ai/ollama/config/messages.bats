@@ -2,9 +2,12 @@
 
 # Tests for Ollama configuration messages
 
+# Get script directory first
+MESSAGES_BATS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
 setup() {
     # Source the messages
-    source "${BATS_TEST_DIRNAME}/messages.sh"
+    source "${MESSAGES_BATS_DIR}/messages.sh"
 }
 
 @test "installation messages are defined" {

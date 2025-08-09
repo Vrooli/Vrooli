@@ -6,40 +6,19 @@ set -euo pipefail
 
 # Configuration
 SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# shellcheck disable=SC1091
+source "$(cd "$SCENARIO_DIR" && cd ../../lib/utils && pwd)/var.sh"
+# shellcheck disable=SC1091
+source "$var_LOG_FILE"
+
 SCENARIO_ID="secure-document-processing"
 SCENARIO_NAME="Secure Document Processing Pipeline"
 LOG_FILE="/tmp/vrooli-${SCENARIO_ID}-startup.log"
 
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
-
-# Logging functions
-log() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
-}
-
-log_info() {
-    echo -e "${BLUE}[INFO]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1" | tee -a "$LOG_FILE"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_FILE"
-}
 
 # Error handling
-trap 'log_error "Startup failed at line $LINENO"; exit 1' ERR
+trap 'log::error "Startup failed at line $LINENO"; exit 1' ERR
 
 # Load configuration from service.json
 load_configuration() {

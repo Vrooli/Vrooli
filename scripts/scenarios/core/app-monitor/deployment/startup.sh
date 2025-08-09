@@ -5,25 +5,32 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCENARIO_DIR="$(dirname "$SCRIPT_DIR")"
 
-echo "Starting App Monitor..."
+# shellcheck disable=SC1091
+source "${SCENARIO_DIR}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+
+log::info "Starting App Monitor..."
 
 # Initialize database
-echo "Initializing PostgreSQL database..."
-psql -U postgres -d app_monitor < "$SCENARIO_DIR/initialization/storage/postgres/schema.sql" || true
+log::info "Initializing PostgreSQL database..."
+PGPASSWORD="${POSTGRES_PASSWORD:-postgres}" psql -h localhost -p "$(resources::get_default_port "postgres")" -U "${POSTGRES_USER:-postgres}" -d app_monitor < "$SCENARIO_DIR/initialization/storage/postgres/schema.sql" || true
 
 # Deploy Node-RED flows
-echo "Deploying Node-RED flows..."
-curl -X POST http://localhost:1880/flows \
+log::info "Deploying Node-RED flows..."
+curl -X POST "http://localhost:$(resources::get_default_port "node-red")/flows" \
     -H "Content-Type: application/json" \
     -d @"$SCENARIO_DIR/initialization/automation/node-red/docker-monitor.json" || true
 
 # Start monitoring services
-echo "Starting monitoring services..."
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep "generated-app" || echo "No generated apps running yet"
+log::info "Starting monitoring services..."
+docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep "generated-app" || log::info "No generated apps running yet"
 
 # Health check
-echo "Performing health check..."
-curl -s http://localhost:8081/health || echo "API not yet available"
+log::info "Performing health check..."
+curl -s "http://localhost:$(resources::get_default_port "api")/health" || log::info "API not yet available"
 
-echo "App Monitor started successfully!"
-echo "Dashboard available at: http://localhost:3001"
+log::success "App Monitor started successfully!"
+log::info "Dashboard available at: http://localhost:$(resources::get_default_port "ui")"

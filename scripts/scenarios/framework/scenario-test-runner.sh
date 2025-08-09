@@ -4,6 +4,10 @@
 
 set -euo pipefail
 
+# Source var.sh first with proper relative path
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../lib/utils/var.sh"
+
 # Colors for output
 readonly RED='\033[0;31m'
 readonly GREEN='\033[0;32m'
@@ -21,9 +25,8 @@ TESTS_FAILED=0
 TESTS_SKIPPED=0
 TESTS_DEGRADED=0
 
-# Resolve script location
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-FRAMEWORK_DIR="$SCRIPT_DIR"
+# Resolve script location using var_ variables
+FRAMEWORK_DIR="$var_SCRIPTS_SCENARIOS_DIR/framework"
 
 # Print colored output
 print_info() {

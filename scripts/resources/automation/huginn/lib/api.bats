@@ -14,7 +14,7 @@ setup() {
     
     # Source scripts directly without expensive environment setup
     HUGINN_ROOT_DIR="$(cd "${BATS_TEST_DIRNAME}/.." && pwd)"
-    source "$HUGINN_ROOT_DIR/../../../app/utils/args.sh" 2>/dev/null || true
+    source "$HUGINN_ROOT_DIR/../../../lib/utils/args-cli.sh" 2>/dev/null || true
     source "$HUGINN_ROOT_DIR/../../../common.sh" 2>/dev/null || true
     source "$HUGINN_ROOT_DIR/config/defaults.sh" 2>/dev/null || true
     source "$HUGINN_ROOT_DIR/config/messages.sh" 2>/dev/null || true

@@ -7,16 +7,19 @@ set -euo pipefail
 DESCRIPTION="Install and manage Judge0 secure code execution service"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
+
+# Source var.sh first to get directory variables
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
 
 # Handle Ctrl+C gracefully
 trap 'echo ""; log::info "Judge0 operation interrupted by user. Exiting..."; exit 130' INT TERM
 
-# Source common resources
+# Source common resources using var_ variables
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../app/utils/args.sh"
+source "${var_LIB_UTILS_DIR}/args-cli.sh"
 
 # Source configuration modules
 # shellcheck disable=SC1091

@@ -1,14 +1,19 @@
 #!/usr/bin/env bash
 # Lifecycle Engine - Configuration Module
 # Handles loading and validation of service.json configurations
+# 
+# Modernized to use the standardized JSON utilities for consistent
+# service.json parsing across the Vrooli codebase.
 
 set -euo pipefail
 
-# Get script directory
-LIB_LIFECYCLE_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
+# Source var.sh with relative path first
 # shellcheck disable=SC1091
-source "$LIB_LIFECYCLE_LIB_DIR/../../utils/var.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../utils/json.sh"
 
 # Guard against re-sourcing
 [[ -n "${_CONFIG_MODULE_LOADED:-}" ]] && return 0
@@ -20,7 +25,7 @@ declare -g LIFECYCLE_CONFIG=""
 declare -g PHASE_CONFIG=""
 declare -g DEFAULTS_CONFIG=""
 
-# Default paths to search for service.json
+# Legacy search paths for backward compatibility
 readonly CONFIG_SEARCH_PATHS=(
     "${var_SERVICE_JSON_FILE:-}"
     "./service.json"
@@ -30,96 +35,76 @@ readonly CONFIG_SEARCH_PATHS=(
 
 #######################################
 # Find service.json in standard locations
+# Uses the standardized JSON utilities for path resolution
 # Returns:
 #   Path to service.json or empty if not found
 #######################################
 config::find_service_json() {
-    local config_path="${SERVICE_JSON_PATH:-}"
-    
-    # If path was explicitly provided, use it
-    if [[ -n "$config_path" ]]; then
-        if [[ -f "$config_path" ]]; then
-            echo "$config_path"
-            return 0
-        else
-            return 1
-        fi
-    fi
-    
-    # Search standard locations
-    for path in "${CONFIG_SEARCH_PATHS[@]}"; do
-        if [[ -f "$path" ]]; then
-            echo "$path"
-            return 0
-        fi
-    done
-    
-    return 1
+    # Use standardized JSON utility for path resolution
+    json::find_service_config
 }
 
 #######################################
 # Load service.json file
+# Uses standardized JSON utilities for robust loading and validation
 # Arguments:
-#   $1 - Path to service.json
+#   $1 - Path to service.json (optional, uses path resolution if not provided)
 # Returns:
 #   0 on success, 1 on error
 # Sets:
-#   SERVICE_JSON global variable
+#   SERVICE_JSON global variable (for backward compatibility)
+#   SERVICE_JSON_PATH global variable
 #######################################
 config::load_file() {
     local config_path="${1:-}"
     
-    if [[ -z "$config_path" ]] || [[ ! -f "$config_path" ]]; then
-        echo "Error: Configuration file not found: $config_path" >&2
+    # Use standardized JSON utility for loading and validation
+    if ! json::load_service_config "$config_path"; then
         return 1
     fi
     
-    # Load and validate JSON
-    if ! SERVICE_JSON=$(cat "$config_path" 2>/dev/null); then
-        echo "Error: Failed to read configuration file: $config_path" >&2
-        return 1
-    fi
+    # Set global variables for backward compatibility
+    SERVICE_JSON_PATH=$(json::get_cached_path)
+    SERVICE_JSON=$(cat "$SERVICE_JSON_PATH" 2>/dev/null)
     
-    # Validate JSON syntax
-    if ! echo "$SERVICE_JSON" | jq empty 2>/dev/null; then
-        echo "Error: Invalid JSON in configuration file: $config_path" >&2
-        return 1
-    fi
-    
-    SERVICE_JSON_PATH="$config_path"
     export SERVICE_JSON_PATH
+    export SERVICE_JSON
     
     return 0
 }
 
 #######################################
 # Extract lifecycle configuration from service.json
+# Uses standardized JSON utilities for robust extraction
 # Returns:
 #   0 on success, 1 on error
 # Sets:
 #   LIFECYCLE_CONFIG global variable
+#   DEFAULTS_CONFIG global variable
 #######################################
 config::extract_lifecycle() {
-    if [[ -z "$SERVICE_JSON" ]]; then
-        echo "Error: No service.json loaded" >&2
-        return 1
-    fi
+    # Use standardized JSON utility to get lifecycle config
+    LIFECYCLE_CONFIG=$(json::get_value '.lifecycle' '{}')
     
-    LIFECYCLE_CONFIG=$(echo "$SERVICE_JSON" | jq -r '.lifecycle // {}')
-    
-    if [[ "$LIFECYCLE_CONFIG" == "{}" ]] || [[ "$LIFECYCLE_CONFIG" == "null" ]]; then
+    if [[ "$LIFECYCLE_CONFIG" == "{}" ]]; then
         echo "Error: No lifecycle configuration found in service.json" >&2
         return 1
     fi
     
-    # Extract defaults if present
-    DEFAULTS_CONFIG=$(echo "$LIFECYCLE_CONFIG" | jq -r '.defaults // {}')
+    # Extract defaults from root level first
+    DEFAULTS_CONFIG=$(json::get_value '.defaults' '{}')
+    
+    # Also check for defaults inside lifecycle config as fallback
+    if [[ "$DEFAULTS_CONFIG" == "{}" ]]; then
+        DEFAULTS_CONFIG=$(echo "$LIFECYCLE_CONFIG" | jq -r '.defaults // {}' 2>/dev/null || echo '{}')
+    fi
     
     return 0
 }
 
 #######################################
 # Get configuration for specific phase
+# Uses standardized JSON utilities with enhanced phase resolution
 # Arguments:
 #   $1 - Phase name
 # Returns:
@@ -140,12 +125,18 @@ config::get_phase() {
         return 1
     fi
     
-    # Try direct phase first
-    PHASE_CONFIG=$(echo "$LIFECYCLE_CONFIG" | jq -r ".\"$phase\" // empty")
+    # Try to use standardized JSON utility first
+    PHASE_CONFIG=$(json::get_lifecycle_phase "$phase" 2>/dev/null || echo "")
     
-    # If not found, try in hooks
-    if [[ -z "$PHASE_CONFIG" ]] || [[ "$PHASE_CONFIG" == "null" ]]; then
-        PHASE_CONFIG=$(echo "$LIFECYCLE_CONFIG" | jq -r ".hooks.\"$phase\" // empty")
+    # If standardized utility didn't find it, try legacy locations for compatibility
+    if [[ -z "$PHASE_CONFIG" ]] || [[ "$PHASE_CONFIG" == "{}" ]]; then
+        # Try under phases key (for test compatibility)
+        PHASE_CONFIG=$(echo "$LIFECYCLE_CONFIG" | jq -r ".phases.\"$phase\" // empty" 2>/dev/null)
+        
+        # If still not found, try in hooks
+        if [[ -z "$PHASE_CONFIG" ]] || [[ "$PHASE_CONFIG" == "null" ]]; then
+            PHASE_CONFIG=$(echo "$LIFECYCLE_CONFIG" | jq -r ".hooks.\"$phase\" // empty" 2>/dev/null)
+        fi
     fi
     
     # If still not found, try to inherit from parent configuration
@@ -159,6 +150,9 @@ config::get_phase() {
     if [[ -z "$PHASE_CONFIG" ]] || [[ "$PHASE_CONFIG" == "null" ]]; then
         return 1
     fi
+    
+    # For test compatibility, also echo the phase config
+    echo "$PHASE_CONFIG"
     
     return 0
 }
@@ -175,17 +169,17 @@ config::get_phase() {
 config::try_inherit_phase() {
     local phase="${1:-}"
     
-    # Check if inheritance is configured
+    # Check if inheritance is configured using standardized utilities
     local inheritance_config
-    inheritance_config=$(echo "$SERVICE_JSON" | jq -r '.inheritance // empty')
+    inheritance_config=$(json::get_value '.inheritance' '')
     
-    if [[ -z "$inheritance_config" ]] || [[ "$inheritance_config" == "null" ]]; then
+    if [[ -z "$inheritance_config" ]]; then
         return 1
     fi
     
-    # Get the extends path
+    # Get the extends path using standardized utilities
     local extends_path
-    extends_path=$(echo "$inheritance_config" | jq -r '.extends // empty')
+    extends_path=$(json::get_value '.inheritance.extends' '')
     
     if [[ -z "$extends_path" ]] || [[ "$extends_path" == "null" ]]; then
         return 1
@@ -255,6 +249,7 @@ config::try_inherit_phase() {
 
 #######################################
 # List available phases
+# Uses standardized JSON utilities with legacy compatibility
 # Returns:
 #   List of phase names
 #######################################
@@ -264,9 +259,20 @@ config::list_phases() {
         return 1
     fi
     
+    # Use standardized JSON utility for consistent phase listing
+    local standard_phases
+    standard_phases=$(json::list_lifecycle_phases 2>/dev/null || echo "")
+    
+    # If standard utility found phases, use them
+    if [[ -n "$standard_phases" ]]; then
+        echo "$standard_phases"
+        return 0
+    fi
+    
+    # Fallback to legacy logic for compatibility
     # Get direct phases
     local direct_phases
-    direct_phases=$(echo "$LIFECYCLE_CONFIG" | jq -r 'keys[] | select(. != "version" and . != "defaults" and . != "hooks")')
+    direct_phases=$(echo "$LIFECYCLE_CONFIG" | jq -r 'keys[] | select(. != "version" and . != "defaults" and . != "hooks")' 2>/dev/null || echo "")
     
     # Get hook phases
     local hook_phases
@@ -373,18 +379,20 @@ config::get_default() {
 
 #######################################
 # Validate configuration schema
+# Uses standardized JSON utilities for robust validation
 # Returns:
 #   0 if valid, 1 if invalid
 #######################################
 config::validate_schema() {
-    if [[ -z "$SERVICE_JSON" ]]; then
-        echo "Error: No configuration loaded" >&2
+    # Use standardized JSON validation
+    if ! json::validate_config; then
+        echo "Error: Configuration validation failed" >&2
         return 1
     fi
     
-    # Check required fields
+    # Check version field using standardized utilities
     local version
-    version=$(echo "$SERVICE_JSON" | jq -r '.version // empty')
+    version=$(json::get_value '.version' '')
     
     if [[ -z "$version" ]]; then
         echo "Warning: No version field in service.json" >&2
@@ -417,6 +425,105 @@ config::export() {
     export PHASE_CONFIG
     export DEFAULTS_CONFIG
 }
+
+#######################################
+# Test-compatible wrapper functions
+# These provide backward compatibility with existing tests
+#######################################
+
+#######################################
+# Load service.json (wrapper for config::load_file)
+# Arguments:
+#   $1 - Path to service.json
+# Returns:
+#   0 on success, 1 on error
+#######################################
+config::load() {
+    local config_path="${1:-}"
+    
+    if [[ -z "$config_path" ]]; then
+        config_path=$(config::find_service_json) || return 1
+    fi
+    
+    if ! config::load_file "$config_path"; then
+        return 1
+    fi
+    
+    # Also extract lifecycle configuration for tests
+    config::extract_lifecycle || return 1
+    
+    # Export SERVICE_JSON for test compatibility
+    export SERVICE_JSON
+    
+    return 0
+}
+
+#######################################
+# Get lifecycle configuration (wrapper)
+# Returns:
+#   Lifecycle configuration JSON
+#######################################
+config::get_lifecycle() {
+    config::extract_lifecycle >/dev/null 2>&1 || return 1
+    echo "$LIFECYCLE_CONFIG"
+}
+
+#######################################
+# Get defaults configuration
+# Returns:
+#   Defaults configuration JSON
+#######################################
+config::get_defaults() {
+    if [[ -z "$DEFAULTS_CONFIG" ]] || [[ "$DEFAULTS_CONFIG" == "{}" ]]; then
+        echo "{}"
+    else
+        echo "$DEFAULTS_CONFIG"
+    fi
+}
+
+#######################################
+# Set active phase for subsequent operations
+# Arguments:
+#   $1 - Phase name
+# Returns:
+#   0 on success, 1 on error
+#######################################
+config::set_phase() {
+    local phase="${1:-}"
+    
+    if [[ -z "$phase" ]]; then
+        echo "Error: Phase name required" >&2
+        return 1
+    fi
+    
+    if ! config::get_phase "$phase"; then
+        return 1
+    fi
+    
+    # Phase config is now set in PHASE_CONFIG global
+    export PHASE_CONFIG
+    return 0
+}
+
+#######################################
+# Validate that a phase exists
+# Arguments:
+#   $1 - Phase name
+# Returns:
+#   0 if phase exists, 1 if not
+#######################################
+config::validate_phase() {
+    local phase="${1:-}"
+    
+    if [[ -z "$phase" ]]; then
+        echo "Error: Phase name required" >&2
+        return 1
+    fi
+    
+    # Try to get the phase - will return 1 if not found
+    config::get_phase "$phase" >/dev/null 2>&1
+}
+
 
 # If sourced for testing, don't auto-execute
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

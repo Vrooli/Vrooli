@@ -20,14 +20,15 @@ set -euo pipefail
 #
 ################################################################################
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-PROJECT_ROOT=$(cd "${SCRIPT_DIR}/../../.." && pwd)
-RESOURCES_DIR="${PROJECT_ROOT}/scripts/resources"
+# Source var.sh first to get standardized paths
+SCRIPTS_SCENARIOS_INJECTION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPTS_SCENARIOS_INJECTION_DIR}/../../lib/utils/var.sh"
 
 # Source common utilities if available
-if [[ -f "${RESOURCES_DIR}/common.sh" ]]; then
+if [[ -f "${var_SCRIPTS_RESOURCES_DIR}/common.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${RESOURCES_DIR}/common.sh"
+    source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 fi
 
 # Simple logging if common.sh not available
@@ -50,7 +51,7 @@ runtime_injection::resource_supports_injection() {
     
     # Search for inject.sh script for this resource
     local inject_script
-    inject_script=$(find "$RESOURCES_DIR" -name "inject.sh" -path "*/${resource}/*" 2>/dev/null | head -1)
+    inject_script=$(find "$var_SCRIPTS_RESOURCES_DIR" -name "inject.sh" -path "*/${resource}/*" 2>/dev/null | head -1)
     
     [[ -n "$inject_script" && -x "$inject_script" ]]
 }
@@ -78,7 +79,7 @@ runtime_injection::inject_resource() {
     # Handle empty inject script path
     if [[ -z "$inject_script_path" ]]; then
         # Try to find inject script dynamically
-        inject_script_path=$(find "$RESOURCES_DIR" -name "inject.sh" -path "*/${resource_name}/*" 2>/dev/null | head -1)
+        inject_script_path=$(find "$var_SCRIPTS_RESOURCES_DIR" -name "inject.sh" -path "*/${resource_name}/*" 2>/dev/null | head -1)
         
         if [[ -z "$inject_script_path" ]]; then
             log::warning "No injection handler for resource: $resource_name"
@@ -87,7 +88,7 @@ runtime_injection::inject_resource() {
     else
         # Resolve relative path
         if [[ ! "$inject_script_path" =~ ^/ ]]; then
-            inject_script_path="${PROJECT_ROOT}/${inject_script_path}"
+            inject_script_path="${var_ROOT_DIR}/${inject_script_path}"
         fi
     fi
     

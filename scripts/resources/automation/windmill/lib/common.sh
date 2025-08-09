@@ -85,17 +85,48 @@ windmill::check_system_requirements() {
 #######################################
 windmill::generate_env_file() {
     local env_file="${1:-$WINDMILL_ENV_FILE}"
-    local template_file="${SCRIPT_DIR}/docker/.env.template"
-    
-    if [[ ! -f "$template_file" ]]; then
-        log::error "Environment template not found: $template_file"
-        return 1
-    fi
+    local template_file="${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/docker/.env.template"
     
     log::info "Generating environment file: $env_file"
     
-    # Copy template and substitute variables
-    cp "$template_file" "$env_file"
+    # Create environment file from scratch if template doesn't exist
+    if [[ -f "$template_file" ]]; then
+        log::debug "Using template file: $template_file"
+        cp "$template_file" "$env_file"
+    else
+        log::debug "Template file not found, creating environment file from defaults"
+        # Create basic environment file with default structure
+        cat > "$env_file" << 'EOF'
+# Windmill Environment Configuration
+# Generated automatically - do not edit manually
+
+# Server configuration
+WINDMILL_SERVER_PORT=5681
+WINDMILL_BASE_URL=http://localhost:5681
+
+# Project configuration
+WINDMILL_PROJECT_NAME=windmill-vrooli
+
+# Worker configuration
+WINDMILL_WORKER_REPLICAS=3
+WINDMILL_WORKER_MEMORY_LIMIT=2048M
+
+# Security configuration
+WINDMILL_SUPERADMIN_EMAIL=admin@windmill.dev
+WINDMILL_SUPERADMIN_PASSWORD=changeme
+WINDMILL_JWT_SECRET=
+
+# Logging
+WINDMILL_LOG_LEVEL=info
+
+# Database configuration
+WINDMILL_DB_EXTERNAL=no
+WINDMILL_DB_PASSWORD=
+
+# Docker Compose profiles
+COMPOSE_PROFILES=internal-db,workers
+EOF
+    fi
     
     # Update values with current configuration
     sed -i "s|^WINDMILL_SERVER_PORT=.*|WINDMILL_SERVER_PORT=$WINDMILL_SERVER_PORT|" "$env_file"

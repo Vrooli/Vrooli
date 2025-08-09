@@ -2,28 +2,12 @@
 # Node-RED Common Utility Functions
 # Shared utilities used across all modules
 
-# Source shared secrets management library
-# Use the same project root detection method as the secrets library
-_node_red_detect_project_root() {
-    local current_dir
-    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    
-    # Walk up directory tree looking for .vrooli directory
-    while [[ "$current_dir" != "/" ]]; do
-        if [[ -d "$current_dir/.vrooli" ]]; then
-            echo "$current_dir"
-            return 0
-        fi
-        current_dir="$(dirname "$current_dir")"
-    done
-    
-    # Fallback: assume we're in scripts and go up to project root
-    echo "/home/matthalloran8/Vrooli"
-}
-
-PROJECT_ROOT="$(_node_red_detect_project_root)"
+# Source var.sh first to get standard directory variables  
+LIB_COMMON_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$PROJECT_ROOT/scripts/lib/service/secrets.sh"
+source "${LIB_COMMON_DIR}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SERVICE_DIR}/secrets.sh"
 
 #######################################
 # Check if Docker is installed
@@ -166,9 +150,9 @@ node_red::update_resource_config() {
     log::info "Updating Node-RED resource configuration..."
     
     # Source the common resources functions for safe config management
-    local resources_common_script="$(cd "$SCRIPT_DIR/../.." && pwd)/common.sh"
-    if [[ -f "$resources_common_script" ]]; then
-        source "$resources_common_script"
+    if [[ -f "${var_SCRIPTS_RESOURCES_DIR}/common.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
     else
         log::error "Cannot find resources common.sh script for safe configuration management"
         return 1

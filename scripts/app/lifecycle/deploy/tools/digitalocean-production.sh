@@ -11,8 +11,6 @@ source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_APP_UTILS_DIR}/env.sh"
 
-PROJECT_ROOT="${var_ROOT_DIR}"
-
 # Configuration
 CLUSTER_NAME="vrooli-prod"
 REGION="nyc1"
@@ -21,17 +19,16 @@ NODE_COUNT=3
 NAMESPACE="vrooli"
 
 # Load production environment
-env::load_secrets "${PROJECT_ROOT}/.env-prod"
+env::load_secrets "${var_ROOT_DIR}/.env-prod"
 
-deploy::check_prerequisites() {
+digitalocean_production::check_prerequisites() {
     log::header "Checking prerequisites..."
     
     # Check if doctl is installed
     if ! command -v doctl &> /dev/null; then
-        log::error "doctl CLI not found. Installing..."
-        curl -sL https://github.com/digitalocean/doctl/releases/download/v1.104.0/doctl-1.104.0-linux-amd64.tar.gz | tar -xzv
-        sudo mv doctl /usr/local/bin
-        log::success "doctl installed successfully"
+        log::error "doctl CLI not found. Please install doctl first."
+        log::info "Visit: https://docs.digitalocean.com/reference/doctl/how-to/install/"
+        return 1
     fi
     
     # Check if helm is installed
@@ -49,7 +46,7 @@ deploy::check_prerequisites() {
     log::success "Prerequisites check completed"
 }
 
-deploy::authenticate() {
+digitalocean_production::authenticate() {
     log::header "Authenticating with DigitalOcean..."
     
     if [[ -z "${DIGITALOCEAN_TOKEN:-}" ]]; then
@@ -63,7 +60,7 @@ deploy::authenticate() {
     log::success "Authenticated with DigitalOcean"
 }
 
-deploy::create_cluster() {
+digitalocean_production::create_cluster() {
     log::header "Creating DigitalOcean Kubernetes cluster..."
     
     # Check if cluster already exists
@@ -90,7 +87,7 @@ deploy::create_cluster() {
     log::success "Cluster created successfully"
 }
 
-deploy::install_operators() {
+digitalocean_production::install_operators() {
     log::header "Installing required operators..."
     
     # Install cert-manager for SSL certificates
@@ -128,7 +125,7 @@ deploy::install_operators() {
     fi
 }
 
-deploy::create_ssl_issuer() {
+digitalocean_production::create_ssl_issuer() {
     log::header "Creating SSL certificate issuer..."
     
     cat <<EOF | kubectl apply -f -
@@ -151,7 +148,7 @@ EOF
     log::success "SSL certificate issuer created"
 }
 
-deploy::create_secrets() {
+digitalocean_production::create_secrets() {
     log::header "Creating Kubernetes secrets..."
     
     # Create namespace
@@ -193,7 +190,7 @@ deploy::create_secrets() {
     log::success "Secrets created successfully"
 }
 
-deploy::create_databases() {
+digitalocean_production::create_databases() {
     log::header "Setting up managed databases..."
     
     log::info "Creating managed PostgreSQL database..."
@@ -229,11 +226,11 @@ deploy::create_databases() {
     log::info "Redis: ${redis_info}"
 }
 
-deploy::deploy_application() {
+digitalocean_production::deploy_application() {
     log::header "Deploying Vrooli application..."
     
     # Create production values file
-    cat > "${PROJECT_ROOT}/k8s/chart/values-production.yaml" <<EOF
+    cat > "${var_ROOT_DIR}/k8s/chart/values-production.yaml" <<EOF
 # Production values for Vrooli
 replicaCount:
   ui: 2
@@ -320,16 +317,16 @@ autoscaling:
 EOF
 
     # Deploy with Helm
-    helm upgrade --install vrooli "${PROJECT_ROOT}/k8s/chart" \
+    helm upgrade --install vrooli "${var_ROOT_DIR}/k8s/chart" \
         --namespace "${NAMESPACE}" \
-        --values "${PROJECT_ROOT}/k8s/chart/values-production.yaml" \
+        --values "${var_ROOT_DIR}/k8s/chart/values-production.yaml" \
         --wait \
         --timeout 10m
     
     log::success "Application deployed successfully"
 }
 
-deploy::verify_deployment() {
+digitalocean_production::verify_deployment() {
     log::header "Verifying deployment..."
     
     # Check pod status
@@ -349,18 +346,18 @@ deploy::verify_deployment() {
     log::info "Application should be accessible at: https://vrooli.com"
 }
 
-deploy::main() {
+digitalocean_production::main() {
     log::info "Starting DigitalOcean production deployment..."
     
-    deploy::check_prerequisites
-    deploy::authenticate
-    deploy::create_cluster
-    deploy::install_operators
-    deploy::create_ssl_issuer
-    deploy::create_secrets
-    deploy::create_databases
-    deploy::deploy_application
-    deploy::verify_deployment
+    digitalocean_production::check_prerequisites
+    digitalocean_production::authenticate
+    digitalocean_production::create_cluster
+    digitalocean_production::install_operators
+    digitalocean_production::create_ssl_issuer
+    digitalocean_production::create_secrets
+    digitalocean_production::create_databases
+    digitalocean_production::deploy_application
+    digitalocean_production::verify_deployment
     
     log::success "🎉 Production deployment completed successfully!"
     log::info "Next steps:"
@@ -371,5 +368,5 @@ deploy::main() {
 
 # Check if script is being run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    deploy::main "$@"
+    digitalocean_production::main "$@"
 fi

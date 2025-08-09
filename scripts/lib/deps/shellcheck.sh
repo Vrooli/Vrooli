@@ -94,6 +94,7 @@ shellcheck::install() {
     done
 
     log::error "All fallback ShellCheck installations failed"
+    return 1
 }
 
 # If this script is run directly, invoke its main function.

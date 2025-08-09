@@ -2,6 +2,7 @@
 # Tests for Node-RED API functions (lib/api.sh)
 
 # Load Vrooli test infrastructure
+# shellcheck disable=SC1091
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # Expensive setup operations run once per file
@@ -14,8 +15,11 @@ setup_file() {
     NODE_RED_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Load configuration and API functions once
+    # shellcheck disable=SC1091
     source "${NODE_RED_DIR}/config/defaults.sh"
+    # shellcheck disable=SC1091
     source "${NODE_RED_DIR}/config/messages.sh"
+    # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/api.sh"
 }
 

@@ -51,7 +51,7 @@ FORCE=false
 START=false
 
 # Usage information
-show_usage() {
+scenario_to_app::show_usage() {
     cat << EOF
 Usage: $0 <scenario-name> [options]
 
@@ -83,16 +83,16 @@ EOF
 }
 
 # Parse command line arguments
-parse_args() {
+scenario_to_app::parse_args() {
     if [[ $# -eq 0 ]]; then
         log::error "No scenario name provided"
-        show_usage
+        scenario_to_app::show_usage
         exit 1
     fi
 
     # Check for --help first
     if [[ "$1" == "--help" ]]; then
-        show_usage
+        scenario_to_app::show_usage
         exit 0
     fi
 
@@ -114,12 +114,12 @@ parse_args() {
                 START=true
                 ;;
             --help)
-                show_usage
+                scenario_to_app::show_usage
                 exit 0
                 ;;
             *)
                 log::error "Unknown option: $1"
-                show_usage
+                scenario_to_app::show_usage
                 exit 1
                 ;;
         esac
@@ -128,7 +128,7 @@ parse_args() {
 }
 
 # Validate scenario structure with comprehensive schema validation
-validate_scenario() {
+scenario_to_app::validate_scenario() {
     SCENARIO_PATH="${var_SCRIPTS_SCENARIOS_DIR}/core/${SCENARIO_NAME}"
     
     if [[ ! -d "$SCENARIO_PATH" ]]; then
@@ -276,7 +276,7 @@ except Exception as e:
     
     # Validate initialization file paths
     log::info "Validating initialization file paths..."
-    if ! validate_initialization_paths; then
+    if ! scenario_to_app::validate_initialization_paths; then
         exit 1
     fi
     
@@ -294,7 +294,7 @@ except Exception as e:
 }
 
 # Get all enabled resources from service.json (supports all categories)
-get_enabled_resources() {
+scenario_to_app::get_enabled_resources() {
     # Extract ALL enabled resources from ANY category
     echo "$SERVICE_JSON" | jq -r '
         .resources | to_entries[] as $category | 
@@ -305,13 +305,13 @@ get_enabled_resources() {
 }
 
 # Get resource categories from service.json
-get_resource_categories() {
+scenario_to_app::get_resource_categories() {
     # Extract all resource category names
     echo "$SERVICE_JSON" | jq -r '.resources | keys[]' 2>/dev/null || true
 }
 
 # Validate that initialization file paths in service.json actually exist
-validate_initialization_paths() {
+scenario_to_app::validate_initialization_paths() {
     if [[ "$VERBOSE" == "true" ]]; then
         log::info "Validating initialization file paths..."
     fi
@@ -425,7 +425,7 @@ validate_initialization_paths() {
 # Arguments:
 #   $1 - Destination service.json path
 #######################################
-create_default_service_json() {
+scenario_to_app::create_default_service_json() {
     local dest="$1"
     local app_name="$(basename "$(dirname "$(dirname "$dest")")")"
     
@@ -556,7 +556,7 @@ EOF
 # Arguments:
 #   $1 - Service.json path
 #######################################
-adjust_inheritance_path() {
+scenario_to_app::adjust_inheritance_path() {
     local service_json_path="$1"
     
     # Check if inheritance.extends exists
@@ -581,14 +581,77 @@ adjust_inheritance_path() {
             app_lifecycle=$(echo "$app_json" | jq -r '.lifecycle // {}')
             
             # Merge lifecycles - app lifecycle phases override base phases
+            # BUT filter out Vrooli-specific steps that reference files that won't exist in standalone apps
             local merged_lifecycle
+            
+            
+            # First, always filter Vrooli-specific steps from base
+            local filtered_base
+            # Write base_lifecycle to temp file to avoid shell escaping issues
+            local temp_base="/tmp/base_lifecycle_$$.json"
+            echo "$base_lifecycle" > "$temp_base"
+            
+            [[ "$VERBOSE" == "true" ]] && log::info "DEBUG: Base lifecycle file content: $(cat "$temp_base" | jq -c '.')"
+            
+            # Simplified approach: create a clean base with essential phases
+            filtered_base=$(jq -c '
+                # Extract essential metadata and create clean phases  
+                {
+                    version: (.version // "1.0.0"),
+                    setup: (
+                        if .setup then 
+                            .setup + {steps: []}
+                        else 
+                            {description: "Initialize application environment", steps: [], universal: "./scripts/lib/lifecycle/phases/setup.sh"}
+                        end
+                    ),
+                    develop: {
+                        description: "Start the development environment", 
+                        steps: [], 
+                        universal: "./scripts/lib/lifecycle/phases/develop.sh"
+                    },
+                    build: {
+                        description: "Build application artifacts", 
+                        steps: [], 
+                        universal: "./scripts/lib/lifecycle/phases/build.sh"
+                    },
+                    deploy: {
+                        description: "Deploy the application", 
+                        steps: [], 
+                        universal: "./scripts/lib/lifecycle/phases/deploy.sh"
+                    },
+                    test: {
+                        description: "Run tests", 
+                        steps: [], 
+                        universal: "./scripts/lib/lifecycle/phases/test.sh"
+                    },
+                    backup: {
+                        description: "Create backups of data and configuration", 
+                        steps: [], 
+                        universal: "./scripts/lib/lifecycle/phases/backup.sh"
+                    }
+                } + (if .hooks then {hooks: .hooks} else {} end)
+                  + (if .dependencies then {dependencies: .dependencies} else {} end)
+                  + (if .readiness then {readiness: .readiness} else {} end)
+                  + (if .liveness then {liveness: .liveness} else {} end)
+            ' "$temp_base" || echo '{}')
+            
+            [[ "$VERBOSE" == "true" ]] && log::info "DEBUG: Filtered lifecycle: $(echo "$filtered_base" | jq -c '.')"
+            [[ "$VERBOSE" == "true" ]] && log::info "DEBUG: Phases after filtering: $(echo "$filtered_base" | jq -r 'keys | join(", ")' 2>/dev/null)"
+            
+            # Clean up temp file
+            rm -f "$temp_base"
+            
+            
+            # Now merge with app lifecycle (app phases take precedence, but base phases are preserved)
             if [[ "$app_lifecycle" == "{}" ]]; then
-                # App has no lifecycle, use base entirely
-                merged_lifecycle="$base_lifecycle"
+                # App has no lifecycle, use filtered base
+                merged_lifecycle="$filtered_base"
             else
-                # Merge base and app lifecycles (app takes precedence)
-                merged_lifecycle=$(jq -n --argjson base "$base_lifecycle" --argjson app "$app_lifecycle" '
-                    $base * $app
+                # Merge filtered base with app - preserve ALL base phases, but let app override specific phases
+                merged_lifecycle=$(jq -n --argjson base "$filtered_base" --argjson app "$app_lifecycle" '
+                    # Start with all base phases, then override with app-defined phases
+                    $base + $app
                 ')
             fi
             
@@ -599,7 +662,7 @@ adjust_inheritance_path() {
             ' "$service_json_path" > "$temp_file"
             mv "$temp_file" "$service_json_path"
             
-            [[ "$VERBOSE" == "true" ]] && log::info "Merged inherited lifecycle configuration into app service.json"
+            [[ "$VERBOSE" == "true" ]] && log::info "Merged inherited lifecycle configuration into app service.json (filtered Vrooli-specific steps)"
         else
             log::warning "Base service.json not found at: $base_service_json"
             log::warning "Removing inheritance configuration as base is unavailable"
@@ -619,7 +682,7 @@ adjust_inheritance_path() {
 # Arguments:
 #   $1 - Service.json path
 #######################################
-enhance_service_json_lifecycle() {
+scenario_to_app::enhance_service_json_lifecycle() {
     local service_json_path="$1"
     
     # Check if lifecycle configuration exists
@@ -694,7 +757,7 @@ enhance_service_json_lifecycle() {
 }
 
 # Process template variables in files (conditionally based on inheritance)
-process_template_variables() {
+scenario_to_app::process_template_variables() {
     local file="$1"
     local service_json="$2"
     
@@ -738,96 +801,210 @@ process_template_variables() {
     fi
 }
 
-# Copy scenario files to generated app
-copy_scenario_files() {
-    local scenario_path="$1" 
-    local app_path="$2"
-    
-    if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would copy scenario files from: $scenario_path"
-        return 0
-    fi
-    
-    log::info "Copying scenario files..."
-    
-    # Copy scenario structure as-is
-    if [[ -d "$scenario_path/.vrooli" ]]; then
-        cp -r "$scenario_path/.vrooli" "$app_path/" 2>/dev/null || true
-        [[ "$VERBOSE" == "true" ]] && log::info "Copied .vrooli directory"
-        
-        # Process template variables in service.json if needed
-        if [[ -f "$app_path/.vrooli/service.json" ]]; then
-            process_template_variables "$app_path/.vrooli/service.json" "$SERVICE_JSON"
-            # Adjust inheritance path for standalone app
-            adjust_inheritance_path "$app_path/.vrooli/service.json"
-            # Ensure service.json has basic lifecycle configuration
-            enhance_service_json_lifecycle "$app_path/.vrooli/service.json"
-        fi
-    else
-        # Create .vrooli directory and service.json if missing
-        mkdir -p "$app_path/.vrooli"
-        create_default_service_json "$app_path/.vrooli/service.json"
-        log::info "Created default .vrooli/service.json"
-    fi
-    
-    if [[ -d "$scenario_path/initialization" ]]; then
-        cp -r "$scenario_path/initialization" "$app_path/" 2>/dev/null || true
-        [[ "$VERBOSE" == "true" ]] && log::info "Copied initialization directory"
-    fi
-    
-    if [[ -d "$scenario_path/deployment" ]]; then
-        cp -r "$scenario_path/deployment" "$app_path/" 2>/dev/null || true
-        [[ "$VERBOSE" == "true" ]] && log::info "Copied deployment directory"
-    fi
-    
-    if [[ -f "$scenario_path/test.sh" ]]; then
-        cp "$scenario_path/test.sh" "$app_path/" 2>/dev/null || true
-        [[ "$VERBOSE" == "true" ]] && log::info "Copied test.sh"
-    fi
-    
-    if [[ -f "$scenario_path/README.md" ]]; then
-        cp "$scenario_path/README.md" "$app_path/" 2>/dev/null || true
-        [[ "$VERBOSE" == "true" ]] && log::info "Copied README.md"
-    fi
-    
-    log::success "Scenario files copied successfully"
-}
-
-# Copy scripts infrastructure for standalone apps
-copy_universal_scripts() {
+#######################################
+# Copy files according to manifest
+# Arguments:
+#   $1 - app_path (destination)
+#   $2 - scenario_path  
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+scenario_to_app::copy_from_manifest() {
     local app_path="$1"
+    local scenario_path="$2"
+    local manifest="${SCENARIO_TOOLS_DIR}/app-structure.json"
+    
+    if [[ ! -f "$manifest" ]]; then
+        log::error "Copy manifest not found: $manifest"
+        return 1
+    fi
     
     if [[ "$DRY_RUN" == "true" ]]; then
-        log::info "[DRY RUN] Would copy scripts infrastructure to: $app_path/scripts"
+        log::info "[DRY RUN] Would copy files according to manifest to: $app_path"
         return 0
     fi
     
-    log::info "Copying scripts infrastructure..."
+    log::info "Copying files according to manifest..."
     
-    # Create scripts directory
-    mkdir -p "$app_path/scripts"
+    # Process each copy rule
+    local rule_count
+    rule_count=$(jq '.copy_rules | length' "$manifest")
     
-    # Copy entire scripts/ directory from var_ROOT_DIR, excluding app and scenarios
-    if [[ -d "$var_ROOT_DIR/scripts" ]]; then
-        # Use rsync for selective copying with excludes
-        if command -v rsync >/dev/null 2>&1; then
-            rsync -a --exclude='app/' --exclude='scenarios/' "$var_ROOT_DIR/scripts/" "$app_path/scripts/"
-            [[ "$VERBOSE" == "true" ]] && log::info "Copied scripts/ using rsync (excluded app/ and scenarios/)"
+    for ((i=0; i<rule_count; i++)); do
+        local rule
+        rule=$(jq -c ".copy_rules[$i]" "$manifest")
+        
+        local name=$(echo "$rule" | jq -r '.name')
+        local source=$(echo "$rule" | jq -r '.source')
+        local destination=$(echo "$rule" | jq -r '.destination') 
+        local type=$(echo "$rule" | jq -r '.type')
+        local from=$(echo "$rule" | jq -r '.from // "vrooli"')
+        local required=$(echo "$rule" | jq -r '.required // false')
+        local optional=$(echo "$rule" | jq -r '.optional // false')
+        local executable=$(echo "$rule" | jq -r '.executable // false')
+        local merge=$(echo "$rule" | jq -r '.merge // "replace"')
+        
+        # Determine source path
+        local src_path
+        if [[ "$from" == "scenario" ]]; then
+            src_path="$scenario_path/$source"
         else
-            # Fallback: copy everything first, then remove excluded directories
-            cp -r "$var_ROOT_DIR/scripts/"* "$app_path/scripts/" 2>/dev/null || true
-            rm -rf "$app_path/scripts/app" "$app_path/scripts/scenarios" 2>/dev/null || true
-            [[ "$VERBOSE" == "true" ]] && log::info "Copied scripts/ using cp (removed app/ and scenarios/)"
+            src_path="$var_ROOT_DIR/$source"
         fi
-    fi
-    
-    # Copy scenario-specific scripts/ directory if it exists (overlay on top)
-    if [[ -d "$SCENARIO_PATH/scripts" ]]; then
-        cp -r "$SCENARIO_PATH/scripts/"* "$app_path/scripts/" 2>/dev/null || true
-        [[ "$VERBOSE" == "true" ]] && log::info "Overlaid scenario-specific scripts from: $SCENARIO_PATH/scripts/"
-    fi
+        
+        local dest_path="$app_path/$destination"
+        
+        # Check if source exists
+        if [[ ! -e "$src_path" ]]; then
+            if [[ "$required" == "true" ]]; then
+                log::error "Required source not found: $src_path (rule: $name)"
+                return 1
+            elif [[ "$optional" == "false" ]]; then
+                log::warning "Source not found: $src_path (rule: $name)"
+            fi
+            
+            # Special handling for scenario-config: create default if missing
+            if [[ "$name" == "scenario-config" ]]; then
+                mkdir -p "$dest_path"
+                scenario_to_app::create_default_service_json "$dest_path/service.json"
+                log::info "Created default .vrooli/service.json"
+            fi
+            
+            continue
+        fi
+        
+        # Perform the copy
+        if ! scenario_to_app::copy_item "$src_path" "$dest_path" "$type" "$merge" "$executable" "$name"; then
+            log::error "Failed to copy $name"
+            return 1
+        fi
+        
+        # Apply post-processing if specified
+        local process_list
+        process_list=$(echo "$rule" | jq -r '.process[]? // empty')
+        if [[ -n "$process_list" ]]; then
+            while IFS= read -r processor; do
+                if [[ -n "$processor" ]]; then
+                    scenario_to_app::process_file "$dest_path" "$processor"
+                fi
+            done <<< "$process_list"
+        fi
+    done
     
     # Create instance manager wrapper for standalone app 
+    scenario_to_app::create_instance_manager_wrapper "$app_path"
+    
+    log::success "File copying completed successfully"
+    return 0
+}
+
+#######################################
+# Copy a single item (file or directory)
+# Arguments:
+#   $1 - source path
+#   $2 - destination path
+#   $3 - type (file|directory)
+#   $4 - merge mode (replace|overlay)
+#   $5 - executable flag (true|false)
+#   $6 - rule name (for logging)
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+scenario_to_app::copy_item() {
+    local src="$1" dest="$2" type="$3" merge="$4" executable="$5" name="$6"
+    
+    [[ "$VERBOSE" == "true" ]] && log::info "Copying $name: $src -> $dest"
+    
+    # Create parent directory
+    mkdir -p "$(dirname "$dest")"
+    
+    case "$type" in
+        file)
+            if ! cp "$src" "$dest"; then
+                log::error "Failed to copy file: $src -> $dest"
+                return 1
+            fi
+            [[ "$executable" == "true" ]] && chmod +x "$dest"
+            ;;
+        directory)
+            if [[ "$merge" == "overlay" && -d "$dest" ]]; then
+                # Merge directory contents
+                if ! cp -r "$src/"* "$dest/" 2>/dev/null; then
+                    # If no files to copy, that's ok for overlay
+                    [[ "$VERBOSE" == "true" ]] && log::info "No files to overlay in $name"
+                fi
+            else
+                # Replace directory - create destination first, then copy contents
+                [[ -d "$dest" ]] && rm -rf "$dest"
+                mkdir -p "$dest"
+                
+                if command -v rsync >/dev/null 2>&1; then
+                    # Use rsync to skip permission-denied files and continue on errors
+                    rsync -a --ignore-errors --exclude='*.log' --exclude='data/' "$src/" "$dest/" 2>/dev/null || {
+                        [[ "$VERBOSE" == "true" ]] && log::info "Some files in $name could not be copied (permission denied), continuing..."
+                    }
+                else
+                    # Use cp with find to skip problematic files
+                    (cd "$src" && find . -type f -exec cp --parents {} "$dest/" \; 2>/dev/null) || {
+                        [[ "$VERBOSE" == "true" ]] && log::info "Some files in $name could not be copied (permission denied), continuing..."
+                    }
+                    (cd "$src" && find . -type d -exec mkdir -p "$dest/{}" \; 2>/dev/null) || true
+                fi
+            fi
+            ;;
+        *)
+            log::error "Unknown copy type: $type"
+            return 1
+            ;;
+    esac
+    
+    return 0
+}
+
+#######################################
+# Apply post-processing to copied files
+# Arguments:
+#   $1 - file path
+#   $2 - processor name
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+scenario_to_app::process_file() {
+    local file_path="$1" processor="$2"
+    
+    case "$processor" in
+        resolve_inheritance)
+            if [[ -f "$file_path/service.json" ]]; then
+                scenario_to_app::adjust_inheritance_path "$file_path/service.json"
+                # Only enhance if lifecycle is missing or invalid after adjustment
+                if ! jq -e '.lifecycle' "$file_path/service.json" >/dev/null 2>&1; then
+                    scenario_to_app::enhance_service_json_lifecycle "$file_path/service.json"
+                else
+                    [[ "$VERBOSE" == "true" ]] && log::info "Lifecycle already configured, skipping enhancement"
+                fi
+            fi
+            ;;
+        substitute_variables)
+            if [[ -f "$file_path/service.json" ]]; then
+                scenario_to_app::process_template_variables "$file_path/service.json" "$SERVICE_JSON"
+            fi
+            ;;
+        *)
+            log::warning "Unknown processor: $processor"
+            return 1
+            ;;
+    esac
+    
+    return 0
+}
+
+#######################################
+# Create instance manager wrapper for standalone app
+# Arguments:
+#   $1 - app_path
+#######################################
+scenario_to_app::create_instance_manager_wrapper() {
+    local app_path="$1"
     local app_instance_manager="$app_path/scripts/app/lifecycle/develop/instance_manager.sh"
     
     # Create app lifecycle develop directory if it doesn't exist
@@ -855,13 +1032,13 @@ source "${var_LIB_SERVICE_DIR}/instance_manager.sh"
 # Configuration is loaded automatically from .vrooli/service.json or defaults to sensible patterns
 EOF
     
+    chmod +x "$app_instance_manager"
     [[ "$VERBOSE" == "true" ]] && log::info "Created instance manager wrapper for standalone app"
-    
-    log::success "Scripts infrastructure copied successfully"
 }
 
+
 # Generate standalone app with atomic operations
-generate_app() {
+scenario_to_app::generate_app() {
     local scenario_name="$1"
     
     log::info "Generating standalone app for: $scenario_name"
@@ -872,8 +1049,7 @@ generate_app() {
     # Use atomic operations with temp directory
     if [[ "$DRY_RUN" == "true" ]]; then
         log::info "[DRY RUN] Would create directory: $app_path"
-        copy_scenario_files "$SCENARIO_PATH" "/dev/null"
-        copy_universal_scripts "/dev/null"
+        scenario_to_app::copy_from_manifest "/dev/null" "$SCENARIO_PATH"
     else
         # Check for existing app
         if [[ -d "$app_path" ]]; then
@@ -895,15 +1071,9 @@ generate_app() {
         
         log::info "Building app in temporary directory..."
         
-        # Copy all files to temp directory
-        if ! copy_scenario_files "$SCENARIO_PATH" "$temp_path"; then
-            log::error "Failed to copy scenario files"
-            rm -rf "$temp_path"
-            return 1
-        fi
-        
-        if ! copy_universal_scripts "$temp_path"; then
-            log::error "Failed to copy universal scripts"
+        # Copy all files to temp directory using manifest
+        if ! scenario_to_app::copy_from_manifest "$temp_path" "$SCENARIO_PATH"; then
+            log::error "Failed to copy files according to manifest"
             rm -rf "$temp_path"
             return 1
         fi
@@ -912,7 +1082,7 @@ generate_app() {
         if [[ -d "$temp_path/initialization" ]]; then
             log::info "Processing template variables in initialization files..."
             find "$temp_path/initialization" -type f \( -name "*.json" -o -name "*.yaml" -o -name "*.yml" -o -name "*.sql" -o -name "*.ts" -o -name "*.js" \) | while read -r file; do
-                process_template_variables "$file" "$SERVICE_JSON"
+                scenario_to_app::process_template_variables "$file" "$SERVICE_JSON"
             done
         fi
         
@@ -941,7 +1111,7 @@ generate_app() {
 }
 
 # Start generated app using develop.sh
-start_generated_app() {
+scenario_to_app::start_generated_app() {
     local scenario_name="$1"
     local app_path="$HOME/generated-apps/$scenario_name"
     
@@ -986,7 +1156,7 @@ start_generated_app() {
 
 main() {
     # Parse command line arguments
-    parse_args "$@"
+    scenario_to_app::parse_args "$@"
     
     # Show header
     log::info "🚀 Vrooli Scenario-to-App Generator"
@@ -1004,7 +1174,7 @@ main() {
     
     # Phase 1: Validation
     log::info "Phase 1: Scenario Validation"
-    validate_scenario
+    scenario_to_app::validate_scenario
     echo ""
     
     # Phase 2: Resource Analysis
@@ -1012,7 +1182,7 @@ main() {
     
     # Get resource categories
     local resource_categories
-    mapfile -t resource_categories < <(get_resource_categories)
+    mapfile -t resource_categories < <(scenario_to_app::get_resource_categories)
     
     if [[ ${#resource_categories[@]} -gt 0 ]]; then
         log::info "Resource categories: ${resource_categories[*]}"
@@ -1020,7 +1190,7 @@ main() {
     
     # Get enabled resources
     local enabled_resources
-    mapfile -t enabled_resources < <(get_enabled_resources)
+    mapfile -t enabled_resources < <(scenario_to_app::get_enabled_resources)
     
     if [[ ${#enabled_resources[@]} -eq 0 ]]; then
         log::warning "No enabled resources found in service.json"
@@ -1036,13 +1206,13 @@ main() {
     
     # Phase 3: App Generation
     log::info "Phase 3: App Generation"
-    generate_app "$SCENARIO_NAME" || exit 1
+    scenario_to_app::generate_app "$SCENARIO_NAME" || exit 1
     echo ""
     
     # Phase 4: App Startup (optional)
     if [[ "$START" == "true" ]]; then
         log::info "Phase 4: App Startup"
-        start_generated_app "$SCENARIO_NAME" || exit 1
+        scenario_to_app::start_generated_app "$SCENARIO_NAME" || exit 1
         echo ""
         
         # Phase 5: Generation Complete

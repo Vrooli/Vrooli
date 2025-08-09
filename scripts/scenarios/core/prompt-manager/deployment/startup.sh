@@ -3,47 +3,79 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+
 SCENARIO_DIR="$(dirname "$SCRIPT_DIR")"
 
-echo "Starting Prompt Manager..."
+log::info "Starting Prompt Manager..."
 
 # Initialize database
-echo "Initializing PostgreSQL database..."
-psql -U postgres -d prompt_manager < "$SCENARIO_DIR/initialization/storage/postgres/schema.sql" || true
+log::info "Initializing PostgreSQL database..."
+if [[ -f "${SCENARIO_DIR}/initialization/storage/postgres/schema.sql" ]]; then
+    if psql -U postgres -d prompt_manager < "${SCENARIO_DIR}/initialization/storage/postgres/schema.sql" 2>/dev/null; then
+        log::success "Database schema initialized"
+    else
+        log::warning "Database initialization failed or already exists"
+    fi
+else
+    log::error "Schema file not found: ${SCENARIO_DIR}/initialization/storage/postgres/schema.sql"
+fi
 
-# Start Qdrant vector database
-echo "Starting Qdrant vector database..."
-docker run -d --name qdrant-prompt-manager \
-    -p 6333:6333 -p 6334:6334 \
-    -v "$(pwd)/qdrant_storage:/qdrant/storage" \
-    qdrant/qdrant:latest || true
+# NOTE: Docker operations should be handled by the resource management system
+# This is a simplified approach for the scenario
+log::info "Checking if Qdrant vector database is available..."
+if ! curl -sf "http://localhost:6333/health" >/dev/null 2>&1; then
+    log::warning "Qdrant not available - vector operations will be limited"
+else
+    log::success "Qdrant vector database is available"
+    
+    # Create Qdrant collection
+    log::info "Creating Qdrant collection..."
+    if curl -X PUT "http://localhost:6333/collections/prompts" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "vectors": {
+                "size": 1536,
+                "distance": "Cosine"
+            }
+        }' >/dev/null 2>&1; then
+        log::success "Qdrant collection created"
+    else
+        log::warning "Failed to create Qdrant collection (may already exist)"
+    fi
+fi
 
-# Create Qdrant collection
-echo "Creating Qdrant collection..."
-curl -X PUT http://localhost:6333/collections/prompts \
-    -H "Content-Type: application/json" \
-    -d '{
-        "vectors": {
-            "size": 1536,
-            "distance": "Cosine"
-        }
-    }' || true
-
-# Ensure Ollama is running
-echo "Checking Ollama..."
-curl -s http://localhost:11434/api/tags || echo "Ollama not available - prompt testing will be limited"
+# Check Ollama availability
+log::info "Checking Ollama availability..."
+if curl -sf "http://localhost:11434/api/tags" >/dev/null 2>&1; then
+    log::success "Ollama is available for prompt testing"
+else
+    log::warning "Ollama not available - prompt testing will be limited"
+fi
 
 # Initialize Redis session store
-echo "Initializing Redis session store..."
-redis-cli -n 2 SET "prompt_manager:initialized" "true" || true
+log::info "Initializing Redis session store..."
+if redis-cli -n 2 SET "prompt_manager:initialized" "true" >/dev/null 2>&1; then
+    log::success "Redis session store initialized"
+else
+    log::warning "Redis initialization failed - sessions may not work properly"
+fi
 
 # Health check
-echo "Performing health check..."
-curl -s http://localhost:8085/health || echo "API not yet available"
+log::info "Performing health check..."
+if curl -sf "http://localhost:8085/health" >/dev/null 2>&1; then
+    log::success "API health check passed"
+else
+    log::warning "API not yet available"
+fi
 
-echo "Prompt Manager started successfully!"
-echo "Dashboard available at: http://localhost:3005"
-echo ""
-echo "Default credentials:"
-echo "  Email: admin@promptmanager.local"
-echo "  Password: ChangeMeNow123!"
+log::success "Prompt Manager startup process completed!"
+log::info "Dashboard should be available at: http://localhost:3005"
+log::info ""
+log::info "Default credentials:"
+log::info "  Email: admin@promptmanager.local"
+log::info "  Password: ChangeMeNow123!"

@@ -4,26 +4,36 @@ source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # BATS setup function - runs before each test
 setup() {
-    # Set up paths
-    export CLAUDE_CODE_DIR="$BATS_TEST_DIRNAME/.."
-    export RESOURCES_DIR="$CLAUDE_CODE_DIR/../.."
-    export HELPERS_DIR="$RESOURCES_DIR/../lib"
-    export SCRIPT_PATH="$BATS_TEST_DIRNAME/mcp.sh"
+    # Set up paths using proper var.sh approach
+    CLAUDE_CODE_DIR="$BATS_TEST_DIRNAME/.."
+    SCRIPT_PATH="$BATS_TEST_DIRNAME/mcp.sh"
     
-    # Source dependencies in order
-    source "$HELPERS_DIR/utils/log.sh" 2>/dev/null || true
-    source "$HELPERS_DIR/utils/system_commands.sh" 2>/dev/null || true
-    source "$HELPERS_DIR/utils/flow.sh" 2>/dev/null || true
-    source "$RESOURCES_DIR/common.sh" 2>/dev/null || true
+    # Source var.sh first to get proper directory variables
+    # shellcheck disable=SC1091
+    source "${CLAUDE_CODE_DIR}/../../../../lib/utils/var.sh"
+    
+    # Source dependencies using var_ variables
+    # shellcheck disable=SC1091
+    source "${var_LOG_FILE}" 2>/dev/null || true
+    # shellcheck disable=SC1091
+    source "${var_SYSTEM_COMMANDS_FILE}" 2>/dev/null || true
+    # shellcheck disable=SC1091
+    source "${var_FLOW_FILE}" 2>/dev/null || true
+    # shellcheck disable=SC1091
+    source "${var_SCRIPTS_RESOURCES_DIR}/common.sh" 2>/dev/null || true
     
     # Source config and messages
+    # shellcheck disable=SC1091
     source "$CLAUDE_CODE_DIR/config/defaults.sh"
+    # shellcheck disable=SC1091
     source "$CLAUDE_CODE_DIR/config/messages.sh" 2>/dev/null || true
     
     # Source common functions
+    # shellcheck disable=SC1091
     source "$CLAUDE_CODE_DIR/lib/common.sh"
     
     # Source the script under test
+    # shellcheck disable=SC1091
     source "$SCRIPT_PATH"
     
     # Default mocks

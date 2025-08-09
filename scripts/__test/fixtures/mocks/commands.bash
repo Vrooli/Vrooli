@@ -360,9 +360,117 @@ ps() {
     echo " 5678 pts/0    00:00:00 mock_process"
 }
 
+#######################################
+# Mock Command API - Compatible with lifecycle tests
+#######################################
+
+#######################################
+# Reset command mocks (for test compatibility)
+#######################################
+mock::commands::reset() {
+    # Clear command outputs and exit codes
+    MOCK_COMMAND_OUTPUTS=()
+    MOCK_COMMAND_EXIT_CODES=()
+    MOCK_SERVICE_STATES=()
+    
+    # Clear command calls log if exists
+    if [[ -n "${MOCK_RESPONSES_DIR:-}" ]] && [[ -f "${MOCK_RESPONSES_DIR}/command_calls.log" ]]; then
+        : > "${MOCK_RESPONSES_DIR}/command_calls.log"
+    fi
+}
+
+#######################################
+# Setup a command mock (alias for existing function)
+# Arguments: $1 - command name, $2 - output, $3 - exit code
+#######################################
+mock::commands::setup_command() {
+    mock::command::set_output "$@"
+}
+
+#######################################
+# Assert that a command was called with specific arguments
+# Arguments: $1 - command/function name, $2 - expected arguments
+# Returns: 0 if found, 1 if not found
+#######################################
+mock::commands::assert::called() {
+    local expected_command="$1"
+    local expected_args="${2:-}"
+    
+    # Check if mock responses directory exists
+    if [[ ! -f "${MOCK_RESPONSES_DIR:-}/command_calls.log" ]]; then
+        echo "Error: No command calls log found at ${MOCK_RESPONSES_DIR}/command_calls.log" >&2
+        return 1
+    fi
+    
+    # Build the pattern to search for
+    local pattern="$expected_command"
+    if [[ -n "$expected_args" ]]; then
+        pattern="$expected_command.*$expected_args"
+    fi
+    
+    # Search for the pattern in the log
+    if grep -q "$pattern" "${MOCK_RESPONSES_DIR}/command_calls.log"; then
+        return 0
+    else
+        echo "Error: Expected command call not found: $expected_command $expected_args" >&2
+        echo "Available calls:" >&2
+        cat "${MOCK_RESPONSES_DIR}/command_calls.log" >&2
+        return 1
+    fi
+}
+
+#######################################
+# Enhanced logging functions that write to command calls log
+#######################################
+
+# Override log functions to write to command calls log for assertion
+log::info() {
+    echo "log::info $*" >&2
+    if [[ -n "${MOCK_RESPONSES_DIR:-}" ]]; then
+        echo "log::info $*" >> "${MOCK_RESPONSES_DIR}/command_calls.log"
+    fi
+}
+
+log::success() {
+    echo "log::success $*" >&2
+    if [[ -n "${MOCK_RESPONSES_DIR:-}" ]]; then
+        echo "log::success $*" >> "${MOCK_RESPONSES_DIR}/command_calls.log"
+    fi
+}
+
+log::warning() {
+    echo "log::warning $*" >&2
+    if [[ -n "${MOCK_RESPONSES_DIR:-}" ]]; then
+        echo "log::warning $*" >> "${MOCK_RESPONSES_DIR}/command_calls.log"
+    fi
+}
+
+log::error() {
+    echo "log::error $*" >&2
+    if [[ -n "${MOCK_RESPONSES_DIR:-}" ]]; then
+        echo "log::error $*" >> "${MOCK_RESPONSES_DIR}/command_calls.log"
+    fi
+}
+
+log::debug() {
+    echo "log::debug $*" >&2
+    if [[ -n "${MOCK_RESPONSES_DIR:-}" ]]; then
+        echo "log::debug $*" >> "${MOCK_RESPONSES_DIR}/command_calls.log"
+    fi
+}
+
+log::header() {
+    echo "log::header $*" >&2
+    if [[ -n "${MOCK_RESPONSES_DIR:-}" ]]; then
+        echo "log::header $*" >> "${MOCK_RESPONSES_DIR}/command_calls.log"
+    fi
+}
+
 # Export all functions
-export -f jq systemctl command which type sudo id usermod newgrp
+export -f command which type sudo id usermod newgrp
 export -f sleep timeout git openssl ssh lsof netstat ps
 export -f mock::command::set_output mock::service::set_state
+export -f mock::commands::reset mock::commands::setup_command mock::commands::assert::called
+export -f log::info log::success log::warning log::error log::debug log::header
 
 echo "[COMMANDS_MOCKS] System commands mocks loaded"

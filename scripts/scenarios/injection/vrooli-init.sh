@@ -28,14 +28,15 @@ set -euo pipefail
 
 SCRIPTS_SCENARIOS_INJECTION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Source var.sh first to get standardized paths
 # shellcheck disable=SC1091
-source "${SCENARIO_TOOLS_DIR}/../../lib/utils/var.sh"
+source "${SCRIPTS_SCENARIOS_INJECTION_DIR}/../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 
-SCENARIOS_DIR="${var_ROOT_DIR}/scripts/scenarios/core"
-RESOURCES_DIR="${var_ROOT_DIR}/scripts/resources"
-INIT_STATE_FILE="${var_ROOT_DIR}/.vrooli/.initialization-state.json"
+SCENARIOS_DIR="${var_SCRIPTS_SCENARIOS_DIR}/core"
+RESOURCES_DIR="${var_SCRIPTS_RESOURCES_DIR}"
+INIT_STATE_FILE="${var_VROOLI_CONFIG_DIR}/.initialization-state.json"
 
 
 # Global variables

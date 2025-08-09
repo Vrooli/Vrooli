@@ -4,11 +4,22 @@
 
 set -euo pipefail
 
+# Source var.sh first with proper relative path
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../../lib/utils/var.sh"
+
+# Source resources common for port management
+# shellcheck disable=SC1091
+source "$var_RESOURCES_COMMON_FILE"
+
 # Configuration
 SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCENARIO_ID="resume-screening-assistant"
 SCENARIO_NAME="Resume Screening Assistant"
-LOG_FILE="/tmp/vrooli-${SCENARIO_ID}-startup.log"
+LOG_FILE="$var_ROOT_DIR/tmp/vrooli-${SCENARIO_ID}-startup.log"
+
+# Ensure log directory exists
+mkdir -p "$(dirname "$LOG_FILE")"
 
 # Colors for output
 RED='\033[0;31m'
@@ -19,32 +30,32 @@ PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
 # Logging functions
-log() {
+startup::log() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
 }
 
-log_info() {
+startup::log_info() {
     echo -e "${BLUE}[INFO]${NC} $1" | tee -a "$LOG_FILE"
 }
 
-log_success() {
+startup::log_success() {
     echo -e "${GREEN}[SUCCESS]${NC} $1" | tee -a "$LOG_FILE"
 }
 
-log_warning() {
+startup::log_warning() {
     echo -e "${YELLOW}[WARNING]${NC} $1" | tee -a "$LOG_FILE"
 }
 
-log_error() {
+startup::log_error() {
     echo -e "${RED}[ERROR]${NC} $1" | tee -a "$LOG_FILE"
 }
 
-log_step() {
+startup::log_step() {
     echo -e "${PURPLE}[STEP]${NC} $1" | tee -a "$LOG_FILE"
 }
 
 # Error handling
-trap 'log_error "Startup failed at line $LINENO"; exit 1' ERR
+trap 'startup::log_error "Startup failed at line $LINENO"; exit 1' ERR
 
 # Load configuration from service.json
 load_configuration() {
@@ -77,52 +88,54 @@ load_configuration() {
 }
 
 # Check resource health with timeout
-check_resource_health() {
+startup::check_resource_health() {
     local resource=$1
     local timeout=${2:-10}
     local health_url=""
     
     case "$resource" in
         unstructured-io)
-            health_url="http://localhost:11450/healthcheck"
+            health_url="http://localhost:$(resources::get_default_port "unstructured-io")/healthcheck"
             ;;
         ollama)
-            health_url="http://localhost:11434/api/tags"
+            health_url="http://localhost:$(resources::get_default_port "ollama")/api/tags"
             ;;
         qdrant)
-            health_url="http://localhost:6333/health"
+            health_url="http://localhost:$(resources::get_default_port "qdrant")/health"
             ;;
         postgres)
             # PostgreSQL uses TCP check
-            if timeout "$timeout" bash -c "</dev/tcp/localhost/5432"; then
-                log_success "$resource is healthy (TCP)"
+            local postgres_port
+            postgres_port=$(resources::get_default_port "postgres")
+            if timeout "$timeout" bash -c "</dev/tcp/localhost/$postgres_port"; then
+                startup::log_success "$resource is healthy (TCP:$postgres_port)"
                 return 0
             else
-                log_error "$resource is not responding on port 5432"
+                startup::log_error "$resource is not responding on port $postgres_port"
                 return 1
             fi
             ;;
         n8n)
-            health_url="http://localhost:5678/healthz"
+            health_url="http://localhost:$(resources::get_default_port "n8n")/healthz"
             ;;
         windmill)
-            health_url="http://localhost:8000/api/version"
+            health_url="http://localhost:$(resources::get_default_port "windmill")/api/version"
             ;;
         minio)
-            health_url="http://localhost:9000/minio/health/live"
+            health_url="http://localhost:$(resources::get_default_port "minio")/minio/health/live"
             ;;
         *)
-            log_warning "Unknown resource: $resource"
+            startup::log_warning "Unknown resource: $resource"
             return 1
             ;;
     esac
     
     if [[ -n "$health_url" ]]; then
         if timeout "$timeout" curl -s -f "$health_url" > /dev/null 2>&1; then
-            log_success "$resource is healthy ($health_url)"
+            startup::log_success "$resource is healthy ($health_url)"
             return 0
         else
-            log_error "$resource is not responding at $health_url"
+            startup::log_error "$resource is not responding at $health_url"
             return 1
         fi
     fi

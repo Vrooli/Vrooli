@@ -1,8 +1,14 @@
 #!/usr/bin/env bats
 # Tests for Redis manage.sh script
 
+# Source var.sh to get proper directory variables
+_REDIS_BATS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${_REDIS_BATS_DIR}/../../../lib/utils/var.sh"
+
 # Load Vrooli test infrastructure
-source "${BATS_TEST_DIRNAME}/../../../__test/fixtures/setup.bash"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
 
 # Setup for each test
 setup() {
@@ -15,8 +21,8 @@ setup() {
     export REDIS_PASSWORD="test-password"
     export DATABASE="0"
     export REMOVE_DATA="no"
-    export LINES="50"
-    export INTERVAL="5"
+    export LOG_LINES="50"
+    export MONITOR_INTERVAL="5"
     export BACKUP_NAME=""
     export CLIENT_ID=""
     export FORCE="no"
@@ -148,13 +154,13 @@ teardown() {
 @test "redis::parse_arguments handles lines parameter" {
     redis::parse_arguments --action logs --lines 100
     [ "$ACTION" = "logs" ]
-    [ "$LINES" = "100" ]
+    [ "$LOG_LINES" = "100" ]
 }
 
 @test "redis::parse_arguments handles interval parameter" {
     redis::parse_arguments --action monitor --interval 10
     [ "$ACTION" = "monitor" ]
-    [ "$INTERVAL" = "10" ]
+    [ "$MONITOR_INTERVAL" = "10" ]
 }
 
 # ============================================================================
@@ -173,12 +179,12 @@ teardown() {
 
 @test "redis::parse_arguments sets default lines to 50" {
     redis::parse_arguments
-    [ "$LINES" = "50" ]
+    [ "$LOG_LINES" = "50" ]
 }
 
 @test "redis::parse_arguments sets default interval to 5" {
     redis::parse_arguments
-    [ "$INTERVAL" = "5" ]
+    [ "$MONITOR_INTERVAL" = "5" ]
 }
 
 # ============================================================================

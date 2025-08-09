@@ -2,28 +2,9 @@
 # Windmill API Functions
 # Functions for interacting with Windmill REST API
 
-# Source shared secrets management library
-# Use the same project root detection method as the secrets library
-_windmill_api_detect_project_root() {
-    local current_dir
-    current_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    
-    # Walk up directory tree looking for .vrooli directory
-    while [[ "$current_dir" != "/" ]]; do
-        if [[ -d "$current_dir/.vrooli" ]]; then
-            echo "$current_dir"
-            return 0
-        fi
-        current_dir="$(dirname "$current_dir")"
-    done
-    
-    # Fallback: assume we're in scripts and go up to project root
-    echo "/home/matthalloran8/Vrooli"
-}
-
-PROJECT_ROOT="$(_windmill_api_detect_project_root)"
+# This script expects var.sh to be already sourced by the parent script
 # shellcheck disable=SC1091
-source "$PROJECT_ROOT/scripts/lib/service/secrets.sh"
+source "${var_LIB_SERVICE_DIR}/secrets.sh"
 
 #######################################
 # Test API connectivity and health

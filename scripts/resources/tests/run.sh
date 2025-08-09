@@ -5,21 +5,14 @@
 
 set -euo pipefail
 
-# Colors for output
-readonly RED='\033[0;31m'
-readonly GREEN='\033[0;32m'
-readonly YELLOW='\033[1;33m'
-readonly BLUE='\033[0;34m'
-readonly NC='\033[0m' # No Color
+_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Script directory and paths
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-RESOURCES_DIR="$(dirname "$SCRIPT_DIR")"
-VROOLI_ROOT="$(cd "$RESOURCES_DIR/../.." && pwd)"
-
-# Source the main resources script to get utility functions
 # shellcheck disable=SC1091
-source "$RESOURCES_DIR/index.sh"
+source "${_HERE}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
 
 # Configuration
 VERBOSE="${VERBOSE:-false}"
@@ -34,34 +27,9 @@ TESTS_SKIPPED=0
 declare -a FAILED_TESTS=()
 
 #######################################
-# Logging functions
-#######################################
-log_info() {
-    echo -e "${BLUE}[INFO]${NC} $*"
-}
-
-log_success() {
-    echo -e "${GREEN}[SUCCESS]${NC} $*"
-}
-
-log_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $*"
-}
-
-log_error() {
-    echo -e "${RED}[ERROR]${NC} $*"
-}
-
-log_header() {
-    echo
-    echo -e "${BLUE}=== $* ===${NC}"
-    echo
-}
-
-#######################################
 # Parse command line arguments
 #######################################
-parse_args() {
+run::parse_args() {
     while [[ $# -gt 0 ]]; do
         case $1 in
             --verbose|-v)
@@ -69,7 +37,7 @@ parse_args() {
                 shift
                 ;;
             --help|-h)
-                show_help
+                run::show_help
                 exit 0
                 ;;
             *)
@@ -82,7 +50,7 @@ parse_args() {
 #######################################
 # Show help information
 #######################################
-show_help() {
+run::show_help() {
     cat << EOF
 Resource Integration Test Runner
 
@@ -110,25 +78,25 @@ EOF
 # Returns:
 #   0 if tests pass, 1 if tests fail, 2 if no tests found
 #######################################
-test_resource() {
+run::test_resource() {
     local resource="$1"
     
-    log_header "Testing: $resource"
+    log::header "Testing: $resource"
     
     # Get resource category
     local category
     category=$(resources::get_category "$resource")
     if [[ -z "$category" ]]; then
-        log_error "$resource: Unable to determine resource category"
+        log::error "$resource: Unable to determine resource category"
         return 1
     fi
     
-    # Check for standardized integration test
-    local integration_test="$RESOURCES_DIR/$category/$resource/test/integration-test.sh"
-    [[ "$VERBOSE" == "true" ]] && log_info "$resource: Looking for test at: $integration_test"
+    # Check for standardized integration test  
+    local integration_test="${var_SCRIPTS_RESOURCES_DIR}/$category/$resource/test/integration-test.sh"
+    [[ "$VERBOSE" == "true" ]] && log::info "$resource: Looking for test at: $integration_test"
     
     if [[ -f "$integration_test" ]]; then
-        log_info "$resource: Running integration tests..."
+        log::info "$resource: Running integration tests..."
         # Temporarily disable exit-on-error for integration test execution
         # since we want to handle the return codes (0, 1, 2) explicitly
         set +e
@@ -138,29 +106,29 @@ test_resource() {
         
         case $test_result in
             0)
-                log_success "✅ $resource: Integration tests passed"
+                log::success "✅ $resource: Integration tests passed"
                 return 0
                 ;;
             1)
-                log_error "❌ $resource: Integration tests failed"
+                log::error "❌ $resource: Integration tests failed"
                 return 1
                 ;;
             2)
-                log_warning "⏭️  $resource: Integration tests skipped"
+                log::warning "⏭️  $resource: Integration tests skipped"
                 return 2
                 ;;
             124)
-                log_error "❌ $resource: Integration tests timed out (120s)"
+                log::error "❌ $resource: Integration tests timed out (120s)"
                 return 1
                 ;;
             *)
-                log_error "❌ $resource: Integration tests returned unexpected exit code: $test_result"
+                log::error "❌ $resource: Integration tests returned unexpected exit code: $test_result"
                 return 1
                 ;;
         esac
     else
-        log_info "$resource: No integration tests found at: $integration_test"
-        log_warning "⏭️  $resource: Skipped (no tests available)"
+        log::info "$resource: No integration tests found at: $integration_test"
+        log::warning "⏭️  $resource: Skipped (no tests available)"
         return 2
     fi
 }
@@ -168,15 +136,15 @@ test_resource() {
 #######################################
 # Main execution
 #######################################
-main() {
-    parse_args "$@"
+run::main() {
+    run::parse_args "$@"
     
-    log_header "Resource Integration Test Runner"
+    log::header "Resource Integration Test Runner"
     
     # Check if we have resources to test
     if [[ -z "${HEALTHY_RESOURCES_STR:-}" ]]; then
-        log_error "No resources provided via HEALTHY_RESOURCES_STR environment variable"
-        log_info "This script is meant to be called by scripts/resources/index.sh"
+        log::error "No resources provided via HEALTHY_RESOURCES_STR environment variable"
+        log::info "This script is meant to be called by scripts/resources/index.sh"
         exit 1
     fi
     
@@ -185,28 +153,28 @@ main() {
     read -ra resources_array <<< "$HEALTHY_RESOURCES_STR"
     
     if [[ ${#resources_array[@]} -eq 0 ]]; then
-        log_warning "No healthy resources to test"
+        log::warning "No healthy resources to test"
         exit 0
     fi
     
-    log_info "Testing ${#resources_array[@]} healthy resources: ${resources_array[*]}"
-    [[ "$VERBOSE" == "true" ]] && log_info "Debug: About to start resource loop"
+    log::info "Testing ${#resources_array[@]} healthy resources: ${resources_array[*]}"
+    [[ "$VERBOSE" == "true" ]] && log::info "Debug: About to start resource loop"
     echo
     
     # Run tests for each resource
     for resource in "${resources_array[@]}"; do
-        [[ "$VERBOSE" == "true" ]] && log_info "Debug: Processing resource: $resource"
+        [[ "$VERBOSE" == "true" ]] && log::info "Debug: Processing resource: $resource"
         TESTS_RUN=$((TESTS_RUN + 1))
-        [[ "$VERBOSE" == "true" ]] && log_info "Debug: Tests run counter: $TESTS_RUN"
-        [[ "$VERBOSE" == "true" ]] && log_info "Debug: About to call test_resource"
+        [[ "$VERBOSE" == "true" ]] && log::info "Debug: Tests run counter: $TESTS_RUN"
+        [[ "$VERBOSE" == "true" ]] && log::info "Debug: About to call test_resource"
         
         # Temporarily disable exit-on-error for test_resource calls
         # since we want to handle the return codes (0, 1, 2) explicitly
         set +e
-        test_resource "$resource"
+        run::test_resource "$resource"
         local result=$?
         set -e
-        [[ "$VERBOSE" == "true" ]] && log_info "Debug: test_resource returned: $result"
+        [[ "$VERBOSE" == "true" ]] && log::info "Debug: test_resource returned: $result"
         
         case $result in
             0)
@@ -224,7 +192,7 @@ main() {
     
     # Generate final report
     echo
-    log_header "Test Results Summary"
+    log::header "Test Results Summary"
     
     echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     echo "  Total Resources Tested: $TESTS_RUN"
@@ -235,22 +203,22 @@ main() {
     
     if [[ ${#FAILED_TESTS[@]} -gt 0 ]]; then
         echo
-        log_error "Failed Resources:"
+        log::error "Failed Resources:"
         for failed_resource in "${FAILED_TESTS[@]}"; do
             echo "  ❌ $failed_resource"
         done
     fi
     
     if [[ $TESTS_FAILED -eq 0 ]]; then
-        log_success "🎉 All resource tests passed or were skipped!"
+        log::success "🎉 All resource tests passed or were skipped!"
         exit 0
     else
-        log_error "💥 $TESTS_FAILED resource test(s) failed"
+        log::error "💥 $TESTS_FAILED resource test(s) failed"
         exit 1
     fi
 }
 
 # Execute main function if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    main "$@"
+    run::main "$@"
 fi

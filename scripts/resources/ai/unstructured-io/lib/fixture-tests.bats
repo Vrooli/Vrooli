@@ -3,7 +3,9 @@
 # Demonstrates document processing validation with real fixture files
 
 # Load test infrastructure
+# shellcheck disable=SC1091
 load "${BATS_TEST_DIRNAME}/../../../__test/fixtures/setup.bash"
+# shellcheck disable=SC1091
 load "${BATS_TEST_DIRNAME}/../../../__test/fixtures/fixture-loader.bash"
 
 setup() {

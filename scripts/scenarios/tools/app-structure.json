@@ -1,0 +1,91 @@
+{
+  "version": "1.0.0",
+  "description": "Defines what gets copied when generating standalone apps from scenarios",
+  "copy_rules": [
+    {
+      "name": "core-lifecycle",
+      "source": "scripts/lib",
+      "destination": "scripts/lib",
+      "type": "directory",
+      "from": "vrooli",
+      "required": true
+    },
+    {
+      "name": "resource-providers",
+      "source": "scripts/resources",
+      "destination": "scripts/resources",
+      "type": "directory",
+      "from": "vrooli",
+      "required": true
+    },
+    {
+      "name": "main-entrypoint",
+      "source": "scripts/manage.sh",
+      "destination": "scripts/manage.sh",
+      "type": "file",
+      "from": "vrooli",
+      "required": true,
+      "executable": true
+    },
+    {
+      "name": "runtime-engine",
+      "source": "scripts/scenarios/injection/runtime-engine.sh",
+      "destination": "scripts/lib/resources/runtime-engine.sh",
+      "type": "file",
+      "from": "vrooli",
+      "required": true,
+      "executable": true
+    },
+    {
+      "name": "scenario-config",
+      "source": ".vrooli",
+      "destination": ".vrooli",
+      "type": "directory",
+      "from": "scenario",
+      "optional": true,
+      "process": ["resolve_inheritance", "substitute_variables"]
+    },
+    {
+      "name": "scenario-data",
+      "source": "initialization",
+      "destination": "initialization",
+      "type": "directory",
+      "from": "scenario",
+      "optional": true
+    },
+    {
+      "name": "scenario-scripts",
+      "source": "scripts",
+      "destination": "scripts",
+      "type": "directory",
+      "from": "scenario",
+      "optional": true,
+      "merge": "overlay"
+    },
+    {
+      "name": "scenario-deployment",
+      "source": "deployment",
+      "destination": "deployment",
+      "type": "directory",
+      "from": "scenario",
+      "optional": true
+    },
+    {
+      "name": "scenario-test",
+      "source": "test.sh",
+      "destination": "test.sh",
+      "type": "file",
+      "from": "scenario",
+      "optional": true,
+      "executable": true
+    },
+    {
+      "name": "scenario-readme",
+      "source": "README.md",
+      "destination": "README.md",
+      "type": "file",
+      "from": "scenario",
+      "optional": true
+    }
+  ]
+}

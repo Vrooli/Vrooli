@@ -4,20 +4,22 @@
 
 set -euo pipefail
 
-# Get script directory
-LIB_LIFECYCLE_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Determine script directory
+_HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck disable=SC1091
-source "$LIB_LIFECYCLE_LIB_DIR/../../utils/var.sh"
+source "${_HERE}/../../utils/var.sh"
 
 # Guard against re-sourcing
 [[ -n "${_EXECUTOR_MODULE_LOADED:-}" ]] && return 0
 declare -gr _EXECUTOR_MODULE_LOADED=1
 
 # Source dependencies
-# shellcheck source=./condition.sh
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
 source "$var_LIB_LIFECYCLE_DIR/lib/condition.sh"
-# shellcheck source=./output.sh
+# shellcheck disable=SC1091
 source "$var_LIB_LIFECYCLE_DIR/lib/output.sh"
 
 # Step execution statistics
@@ -41,7 +43,7 @@ executor::run_step() {
     
     # Check if step should be skipped
     if condition::should_skip_step "$step_name"; then
-        executor::log_info "Skipping step: $step_name"
+        log::info "Skipping step: $step_name"
         return 0
     fi
     
@@ -50,7 +52,7 @@ executor::run_step() {
     step_condition=$(echo "$step_json" | jq -r '.condition // empty')
     if [[ -n "$step_condition" ]]; then
         if ! condition::evaluate "$step_condition"; then
-            executor::log_info "Skipping step (condition false): $step_name"
+            log::info "Skipping step (condition false): $step_name"
             return 0
         fi
     fi
@@ -60,12 +62,12 @@ executor::run_step() {
     step_parallel=$(echo "$step_json" | jq -r '.parallel // empty')
     if [[ -n "$step_parallel" ]] && [[ "$step_parallel" != "null" ]]; then
         # This would be handled by parallel module
-        executor::log_warning "Parallel execution not handled in executor module"
+        log::warning "Parallel execution not handled in executor module"
         return 1
     fi
     
     # Execute the step
-    executor::log_info "Executing step: $step_name"
+    log::info "Executing step: $step_name"
     
     if [[ "${DRY_RUN:-false}" == "true" ]]; then
         executor::dry_run_step "$step_json"
@@ -90,7 +92,7 @@ executor::run_step() {
             executor::run_function_step "$step_json" || exit_code=$?
             ;;
         *)
-            executor::log_error "Unknown step type: $step_type"
+            log::error "Unknown step type: $step_type"
             exit_code=1
             ;;
     esac
@@ -109,7 +111,7 @@ executor::run_step() {
         return $?
     fi
     
-    executor::log_success "Step completed: $step_name (${duration}s)"
+    log::success "Step completed: $step_name (${duration}s)"
     return 0
 }
 
@@ -192,7 +194,7 @@ executor::run_script_step() {
     script_path=$(echo "$step_json" | jq -r '.script // empty')
     
     if [[ -z "$script_path" ]] || [[ ! -f "$script_path" ]]; then
-        executor::log_error "Script not found: $script_path"
+        log::error "Script not found: $script_path"
         return 1
     fi
     
@@ -220,23 +222,23 @@ executor::run_function_step() {
     function_name=$(echo "$step_json" | jq -r '.function // empty')
     
     if [[ -z "$function_name" ]]; then
-        executor::log_error "No function specified"
+        log::error "No function specified"
         return 1
     fi
     
     # Check if function exists
     if ! declare -f "$function_name" >/dev/null 2>&1; then
-        executor::log_error "Function not found: $function_name"
+        log::error "Function not found: $function_name"
         return 1
     fi
     
     # Get function arguments
-    local args
-    args=$(echo "$step_json" | jq -r '.args[]? // empty' 2>/dev/null)
+    local -a args
+    readarray -t args < <(echo "$step_json" | jq -r '.args[]? // empty' 2>/dev/null)
     
     # Execute function
-    if [[ -n "$args" ]]; then
-        "$function_name" $args
+    if [[ ${#args[@]} -gt 0 ]] && [[ -n "${args[0]}" ]]; then
+        "$function_name" "${args[@]}"
     else
         "$function_name"
     fi
@@ -256,13 +258,13 @@ executor::handle_failure() {
     
     local step_name error_strategy
     step_name=$(echo "$step_json" | jq -r '.name // "unnamed"')
-    error_strategy=$(echo "$step_json" | jq -r '.error // "stop"')
+    error_strategy=$(echo "$step_json" | jq -r '.on_error // .error // "stop"')
     
-    executor::log_error "Step failed: $step_name (exit code: $exit_code)"
+    log::error "Step failed: $step_name (exit code: $exit_code)"
     
     case "$error_strategy" in
         continue|warn)
-            executor::log_warning "Continuing despite error (strategy: $error_strategy)"
+            log::warning "Continuing despite error (strategy: $error_strategy)"
             return 0
             ;;
         retry)
@@ -270,11 +272,11 @@ executor::handle_failure() {
             return $?
             ;;
         ignore)
-            executor::log_info "Ignoring error (strategy: ignore)"
+            log::info "Ignoring error (strategy: ignore)"
             return 0
             ;;
         stop|fail|*)
-            return $exit_code
+            return "$exit_code"
             ;;
     esac
 }
@@ -303,10 +305,10 @@ executor::retry_step() {
     current_delay=$(executor::parse_duration "$delay")
     
     while [[ $attempt -le $max_attempts ]]; do
-        executor::log_info "Retry attempt $attempt/$max_attempts for: $step_name"
+        log::info "Retry attempt $attempt/$max_attempts for: $step_name"
         
         if [[ $attempt -gt 1 ]]; then
-            executor::log_info "Waiting ${current_delay}s before retry..."
+            log::info "Waiting ${current_delay}s before retry..."
             sleep "$current_delay"
         fi
         
@@ -315,7 +317,7 @@ executor::retry_step() {
         
         # Retry execution
         if executor::run_step "$step_json"; then
-            executor::log_success "Retry successful for: $step_name"
+            log::success "Retry successful for: $step_name"
             return 0
         fi
         
@@ -335,7 +337,7 @@ executor::retry_step() {
         ((attempt++))
     done
     
-    executor::log_error "All retry attempts failed for: $step_name"
+    log::error "All retry attempts failed for: $step_name"
     return 1
 }
 
@@ -407,30 +409,108 @@ executor::get_stats() {
         # Return all stats for step
         for stat_key in "${!STEP_STATS[@]}"; do
             if [[ "$stat_key" == "${step_name}."* ]]; then
-                echo "${stat_key#${step_name}.}: ${STEP_STATS[$stat_key]}"
+                echo "${stat_key#"${step_name}".}: ${STEP_STATS[$stat_key]}"
             fi
         done
     fi
 }
 
 #######################################
-# Logging functions
+# Set step statistic
+# Arguments:
+#   $1 - Step name
+#   $2 - Stat name
+#   $3 - Stat value
 #######################################
-executor::log_info() {
-    echo "[INFO] $*" >&2
+executor::set_step_stat() {
+    local step_name="$1"
+    local stat_name="$2"
+    local stat_value="$3"
+    
+    STEP_STATS["${step_name}.${stat_name}"]="$stat_value"
 }
 
-executor::log_success() {
-    echo "[SUCCESS] $*" >&2
+#######################################
+# Get step statistic
+# Arguments:
+#   $1 - Step name
+#   $2 - Stat name (optional - if omitted, returns all stats for step)
+# Returns:
+#   Stat value or formatted stats
+#######################################
+executor::get_step_stat() {
+    local step_name="$1"
+    local stat_name="${2:-}"
+    
+    if [[ -z "$stat_name" ]]; then
+        # Return all stats for the step
+        for key in "${!STEP_STATS[@]}"; do
+            if [[ "$key" =~ ^"$step_name"\. ]]; then
+                local name="${key##*.}"
+                echo "$name: ${STEP_STATS[$key]}"
+            fi
+        done
+    else
+        # Return specific stat
+        echo "${STEP_STATS["${step_name}.${stat_name}"]:-}"
+    fi
 }
 
-executor::log_warning() {
-    echo "[WARNING] $*" >&2
+#######################################
+# Check if step should be retried
+# Arguments:
+#   $1 - Step JSON object
+# Returns:
+#   0 if should retry, 1 if not
+#######################################
+executor::should_retry_step() {
+    local step_json="$1"
+    
+    # Check if retry configuration exists
+    local retry_config
+    retry_config=$(echo "$step_json" | jq -r '.retry // empty')
+    if [[ -z "$retry_config" ]] || [[ "$retry_config" == "null" ]]; then
+        return 1
+    fi
+    
+    # Get retry parameters
+    local max_attempts
+    max_attempts=$(echo "$retry_config" | jq -r '.max_attempts // 3')
+    
+    # Get step name and current attempts
+    local step_name
+    step_name=$(echo "$step_json" | jq -r '.name // "unnamed"')
+    local current_attempts
+    current_attempts="${STEP_STATS["${step_name}.attempts"]:-0}"
+    
+    # Check if we haven't exceeded max attempts
+    [[ $current_attempts -lt $max_attempts ]]
 }
 
-executor::log_error() {
-    echo "[ERROR] $*" >&2
+#######################################
+# Execute function step (alias for existing function)
+# Arguments:
+#   $1 - Step JSON object
+# Returns:
+#   Exit code of function
+#######################################
+executor::execute_function() {
+    executor::run_function_step "$@"
 }
+
+#######################################
+# Handle step failure (alias for existing function)
+# Arguments:
+#   $1 - Step JSON object
+#   $2 - Exit code
+# Returns:
+#   Appropriate exit code based on error strategy
+#######################################
+executor::handle_step_failure() {
+    executor::handle_failure "$@"
+}
+
+# Note: Logging functions are now provided by the centralized log.sh module
 
 # If sourced for testing, don't auto-execute
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

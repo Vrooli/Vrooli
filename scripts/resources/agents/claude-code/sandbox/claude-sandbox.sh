@@ -21,41 +21,41 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Helper functions
-print_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
-print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
-print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
-print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
+claude_sandbox::print_info() { echo -e "${BLUE}[INFO]${NC} $1"; }
+claude_sandbox::print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
+claude_sandbox::print_warning() { echo -e "${YELLOW}[WARNING]${NC} $1"; }
+claude_sandbox::print_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 # Check if Docker is available
-check_docker() {
+claude_sandbox::check_docker() {
     if ! command -v docker &> /dev/null; then
-        print_error "Docker is not installed or not in PATH"
+        claude_sandbox::print_error "Docker is not installed or not in PATH"
         exit 1
     fi
     
     if ! docker info &> /dev/null; then
-        print_error "Docker daemon is not running or you don't have permissions"
+        claude_sandbox::print_error "Docker daemon is not running or you don't have permissions"
         exit 1
     fi
 }
 
 # Build the sandbox image
-build_sandbox() {
-    print_info "Building Claude Code sandbox image..."
+claude_sandbox::build_sandbox() {
+    claude_sandbox::print_info "Building Claude Code sandbox image..."
     cd "${DOCKER_DIR}"
     
     if docker compose build claude-sandbox; then
-        print_success "Sandbox image built successfully"
+        claude_sandbox::print_success "Sandbox image built successfully"
     else
-        print_error "Failed to build sandbox image"
+        claude_sandbox::print_error "Failed to build sandbox image"
         exit 1
     fi
 }
 
 # Setup sandbox authentication
-setup_auth() {
+claude_sandbox::setup_auth() {
     if [[ -d "${CLAUDE_SANDBOX_CONFIG}" ]]; then
-        print_warning "Sandbox config already exists at ${CLAUDE_SANDBOX_CONFIG}"
+        claude_sandbox::print_warning "Sandbox config already exists at ${CLAUDE_SANDBOX_CONFIG}"
         read -p "Do you want to reconfigure authentication? (y/N): " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -63,7 +63,7 @@ setup_auth() {
         fi
     fi
     
-    print_info "Setting up sandbox authentication..."
+    claude_sandbox::print_info "Setting up sandbox authentication..."
     mkdir -p "${CLAUDE_SANDBOX_CONFIG}"
     
     # Create temporary auth setup script
@@ -84,40 +84,40 @@ EOF
     rm -f /tmp/claude-auth-setup.sh
     
     if [[ -f "${CLAUDE_SANDBOX_CONFIG}/.credentials.json" ]]; then
-        print_success "Authentication setup complete"
+        claude_sandbox::print_success "Authentication setup complete"
         chmod 600 "${CLAUDE_SANDBOX_CONFIG}/.credentials.json"
     else
-        print_error "Authentication setup failed"
+        claude_sandbox::print_error "Authentication setup failed"
         exit 1
     fi
 }
 
 # Check authentication
-check_auth() {
+claude_sandbox::check_auth() {
     if [[ ! -d "${CLAUDE_SANDBOX_CONFIG}" ]] || [[ ! -f "${CLAUDE_SANDBOX_CONFIG}/.credentials.json" ]]; then
-        print_warning "Sandbox authentication not configured"
-        setup_auth
+        claude_sandbox::print_warning "Sandbox authentication not configured"
+        claude_sandbox::setup_auth
     fi
 }
 
 # Run claude in sandbox
-run_sandbox() {
+claude_sandbox::run_sandbox() {
     local command="${1:-}"
     shift || true
     
-    check_docker
-    check_auth
+    claude_sandbox::check_docker
+    claude_sandbox::check_auth
     
     # Ensure test files directory exists
     mkdir -p "${TEST_FILES_DIR}"
     
     # Build image if it doesn't exist
     if ! docker images | grep -q "${CLAUDE_SANDBOX_IMAGE}"; then
-        build_sandbox
+        claude_sandbox::build_sandbox
     fi
     
-    print_info "Starting Claude Code sandbox..."
-    print_warning "⚠️  SANDBOX MODE: Limited to test-files directory only"
+    claude_sandbox::print_info "Starting Claude Code sandbox..."
+    claude_sandbox::print_warning "⚠️  SANDBOX MODE: Limited to test-files directory only"
     echo ""
     
     case "${command}" in
@@ -151,27 +151,27 @@ run_sandbox() {
 }
 
 # Stop sandbox
-stop_sandbox() {
-    print_info "Stopping Claude Code sandbox..."
+claude_sandbox::stop_sandbox() {
+    claude_sandbox::print_info "Stopping Claude Code sandbox..."
     cd "${DOCKER_DIR}"
     docker compose down
-    print_success "Sandbox stopped"
+    claude_sandbox::print_success "Sandbox stopped"
 }
 
 # Clean up sandbox
-cleanup_sandbox() {
-    print_warning "This will remove sandbox containers and images"
+claude_sandbox::cleanup_sandbox() {
+    claude_sandbox::print_warning "This will remove sandbox containers and images"
     read -p "Are you sure? (y/N): " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        stop_sandbox
+        claude_sandbox::stop_sandbox
         docker rmi "${CLAUDE_SANDBOX_IMAGE}" 2>/dev/null || true
-        print_success "Sandbox cleaned up"
+        claude_sandbox::print_success "Sandbox cleaned up"
     fi
 }
 
 # Show usage
-usage() {
+claude_sandbox::usage() {
     cat << EOF
 Claude Code Sandbox - Safe testing environment
 
@@ -216,26 +216,26 @@ EOF
 # Main command handling
 case "${1:-interactive}" in
     setup)
-        setup_auth
+        claude_sandbox::setup_auth
         ;;
     build)
-        check_docker
-        build_sandbox
+        claude_sandbox::check_docker
+        claude_sandbox::build_sandbox
         ;;
     stop)
-        stop_sandbox
+        claude_sandbox::stop_sandbox
         ;;
     cleanup)
-        cleanup_sandbox
+        claude_sandbox::cleanup_sandbox
         ;;
     help|--help|-h)
-        usage
+        claude_sandbox::usage
         ;;
     run|interactive|exec)
-        run_sandbox "$@"
+        claude_sandbox::run_sandbox "$@"
         ;;
     *)
         # Assume it's a claude command
-        run_sandbox "$@"
+        claude_sandbox::run_sandbox "$@"
         ;;
 esac

@@ -4,18 +4,20 @@
 
 set -euo pipefail
 
-# Get script directory
-LIB_LIFECYCLE_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Determine script directory
+_HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck disable=SC1091
-source "$LIB_LIFECYCLE_LIB_DIR/../../utils/var.sh"
+source "${_HERE}/../../utils/var.sh"
 
 # Guard against re-sourcing
 [[ -n "${_PARALLEL_MODULE_LOADED:-}" ]] && return 0
 declare -gr _PARALLEL_MODULE_LOADED=1
 
 # Source dependencies
-# shellcheck source=./executor.sh
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
 source "$var_LIB_LIFECYCLE_DIR/lib/executor.sh"
 
 # Parallel execution state
@@ -40,7 +42,7 @@ parallel::execute() {
         return 0
     fi
     
-    parallel::log_info "Starting $step_count parallel steps (max concurrent: $MAX_PARALLEL)"
+    log::info "Starting $step_count parallel steps (max concurrent: $MAX_PARALLEL)"
     
     # Clear previous state
     PARALLEL_PIDS=()
@@ -49,7 +51,7 @@ parallel::execute() {
     # Create temporary directory for results
     local result_dir
     result_dir=$(mktemp -d -t lifecycle-parallel.XXXXXX)
-    trap "rm -rf $result_dir" EXIT
+    trap 'rm -rf "$result_dir"' EXIT
     
     # Start steps with concurrency control
     local i=0
@@ -65,7 +67,7 @@ parallel::execute() {
         # Start step in background
         parallel::start_step "$step" "$result_dir/step_$i" &
         local pid=$!
-        PARALLEL_PIDS+=($pid)
+        PARALLEL_PIDS+=("$pid")
         
         ((i++))
     done
@@ -86,10 +88,10 @@ parallel::execute() {
     done
     
     if [[ $failed -eq 0 ]]; then
-        parallel::log_success "All parallel steps completed successfully"
+        log::success "All parallel steps completed successfully"
         return 0
     else
-        parallel::log_error "Some parallel steps failed"
+        log::error "Some parallel steps failed"
         return 1
     fi
 }
@@ -116,7 +118,7 @@ parallel::execute_group() {
         MAX_PARALLEL=$max_concurrent
     fi
     
-    parallel::log_info "Executing parallel group: $group_name (strategy: $strategy)"
+    log::info "Executing parallel group: $group_name (strategy: $strategy)"
     
     local exit_code=0
     case "$strategy" in
@@ -133,7 +135,7 @@ parallel::execute_group() {
             parallel::execute_fail_fast "$steps" || exit_code=$?
             ;;
         *)
-            parallel::log_error "Unknown parallel strategy: $strategy"
+            log::error "Unknown parallel strategy: $strategy"
             exit_code=1
             ;;
     esac
@@ -182,7 +184,7 @@ parallel::wait_for_slot() {
     for pid in "${PARALLEL_PIDS[@]}"; do
         if kill -0 "$pid" 2>/dev/null; then
             # Still running
-            new_pids+=($pid)
+            new_pids+=("$pid")
         fi
     done
     
@@ -202,11 +204,11 @@ parallel::wait_for_slot() {
 parallel::wait_all() {
     local result_dir="$1"
     
-    parallel::log_info "Waiting for ${#PARALLEL_PIDS[@]} parallel steps to complete..."
+    log::info "Waiting for ${#PARALLEL_PIDS[@]} parallel steps to complete..."
     
     for pid in "${PARALLEL_PIDS[@]}"; do
         if ! wait "$pid"; then
-            parallel::log_warning "Step with PID $pid failed"
+            log::warning "Step with PID $pid failed"
         fi
     done
     
@@ -226,12 +228,12 @@ parallel::execute_race() {
     local step_count
     step_count=$(echo "$steps" | jq 'length')
     
-    parallel::log_info "Starting race between $step_count steps"
+    log::info "Starting race between $step_count steps"
     
     # Create result directory
     local result_dir
     result_dir=$(mktemp -d -t lifecycle-race.XXXXXX)
-    trap "rm -rf $result_dir" EXIT
+    trap 'rm -rf "$result_dir"' EXIT
     
     # Start all steps
     local i=0
@@ -268,7 +270,7 @@ parallel::execute_race() {
         fi
     done
     
-    parallel::log_info "Race winner: PID $winner_pid (exit code: $winner_exit_code)"
+    log::info "Race winner: PID $winner_pid (exit code: $winner_exit_code)"
     
     return $winner_exit_code
 }
@@ -286,12 +288,12 @@ parallel::execute_fail_fast() {
     local step_count
     step_count=$(echo "$steps" | jq 'length')
     
-    parallel::log_info "Starting $step_count steps with fail-fast strategy"
+    log::info "Starting $step_count steps with fail-fast strategy"
     
     # Create result directory
     local result_dir
     result_dir=$(mktemp -d -t lifecycle-failfast.XXXXXX)
-    trap "rm -rf $result_dir" EXIT
+    trap 'rm -rf "$result_dir"' EXIT
     
     # Start all steps
     local i=0
@@ -313,14 +315,14 @@ parallel::execute_fail_fast() {
         for pid in "${PARALLEL_PIDS[@]}"; do
             if kill -0 "$pid" 2>/dev/null; then
                 # Still running
-                new_pids+=($pid)
+                new_pids+=("$pid")
             else
                 # Finished - check result
                 local exit_code=0
                 wait "$pid" || exit_code=$?
                 
                 if [[ $exit_code -ne 0 ]]; then
-                    parallel::log_error "Step failed (PID: $pid), stopping all others"
+                    log::error "Step failed (PID: $pid), stopping all others"
                     failed=1
                     break
                 fi
@@ -342,7 +344,7 @@ parallel::execute_fail_fast() {
         fi
     done
     
-    parallel::log_success "All steps completed successfully"
+    log::success "All steps completed successfully"
     return 0
 }
 
@@ -379,7 +381,7 @@ parallel::execute_sequential() {
 #######################################
 parallel::kill_all() {
     if [[ ${#PARALLEL_PIDS[@]} -gt 0 ]]; then
-        parallel::log_info "Killing ${#PARALLEL_PIDS[@]} background processes..."
+        log::info "Killing ${#PARALLEL_PIDS[@]} background processes..."
         
         for pid in "${PARALLEL_PIDS[@]}"; do
             if kill -0 "$pid" 2>/dev/null; then
@@ -410,19 +412,19 @@ parallel::get_stats() {
 #######################################
 # Logging functions
 #######################################
-parallel::log_info() {
+log::info() {
     echo "[PARALLEL] $*" >&2
 }
 
-parallel::log_success() {
+log::success() {
     echo "[PARALLEL-SUCCESS] $*" >&2
 }
 
-parallel::log_warning() {
+log::warning() {
     echo "[PARALLEL-WARNING] $*" >&2
 }
 
-parallel::log_error() {
+log::error() {
     echo "[PARALLEL-ERROR] $*" >&2
 }
 

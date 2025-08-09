@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 # Enhanced entrypoint for Node-RED with host system access
 
@@ -73,4 +73,4 @@ export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/host/
 
 # Start Node-RED with the original npm start command
 cd /usr/src/node-red
-exec npm start -- --userDir /data $NODE_RED_OPTIONS "$@"
+exec npm start -- --userDir /data "$NODE_RED_OPTIONS" "$@"

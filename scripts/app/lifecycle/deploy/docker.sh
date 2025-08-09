@@ -12,8 +12,8 @@ source "${var_APP_UTILS_DIR}/env.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 
-# Placeholder for Docker deployment logic
-deploy::deploy_docker() {
+# Docker deployment logic
+docker::deploy_docker() {
   local artifact_dir="$1"
 
   # Load Docker images
@@ -43,5 +43,5 @@ deploy::deploy_docker() {
 
 # If this script is run directly, invoke its main function.
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    deploy::deploy_docker "$@"
+    docker::deploy_docker "$@"
 fi

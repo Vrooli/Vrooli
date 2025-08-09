@@ -2,8 +2,11 @@
 
 # Setup for each test
 setup() {
+    # Source var.sh to get test paths
+    source "${BATS_TEST_DIRNAME}/../../../../lib/utils/var.sh"
+    
     # Load Vrooli test infrastructure
-    source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
+    source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
     
     # Setup SearXNG test environment
     vrooli_setup_service_test "searxng"
@@ -16,17 +19,13 @@ setup() {
     SCRIPT_PATH="$BATS_TEST_DIRNAME/status.sh"
     SEARXNG_DIR="$BATS_TEST_DIRNAME/.."
     
-    # Source dependencies
-    local resources_dir="$SEARXNG_DIR/../.."
-    local helpers_dir="$resources_dir/../lib"
-    
-    # Source utilities first
-    source "$helpers_dir/utils/log.sh"
-    source "$helpers_dir/utils/system_commands.sh"
-    source "$helpers_dir/network/ports.sh"
-    source "$helpers_dir/utils/flow.sh"
-    source "$resources_dir/port_registry.sh"
-    source "$resources_dir/common.sh"
+    # Source dependencies using var_ variables
+    source "${var_LOG_FILE}"
+    source "${var_SYSTEM_COMMANDS_FILE}"
+    source "${var_LIB_NETWORK_DIR}/ports.sh"
+    source "${var_FLOW_FILE}"
+    source "${var_PORT_REGISTRY_FILE}"
+    source "${var_RESOURCES_COMMON_FILE}"
     
     # Source config and messages
     source "$SEARXNG_DIR/config/defaults.sh"

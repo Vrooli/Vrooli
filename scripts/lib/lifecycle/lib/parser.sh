@@ -4,11 +4,11 @@
 
 set -euo pipefail
 
-# Get script directory
-LIB_LIFECYCLE_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
+# Source var.sh with relative path first
 # shellcheck disable=SC1091
-source "$LIB_LIFECYCLE_LIB_DIR/../../utils/var.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
 
 # Guard against re-sourcing
 [[ -n "${_PARSER_MODULE_LOADED:-}" ]] && return 0
@@ -344,7 +344,7 @@ parser::parse_args() {
                     return 1
                 fi
                 EXTRA_ENV+=("$2")
-                export "$2"
+                eval "export $2"
                 shift 2
                 ;;
             --skip)
@@ -390,7 +390,7 @@ parser::parse_args() {
                 # Also try phase-specific parsing for non-hyphenated args (backwards compat)
                 if [[ "$1" =~ ^[A-Z_]+= ]]; then
                     # Environment variable format
-                    export "$1"
+                    eval "export $1"
                     shift
                 else
                     echo "Error: Unexpected argument: $1" >&2
@@ -473,6 +473,79 @@ parser::export() {
     for key in "${!PHASE_ARGS[@]}"; do
         export "$key=${PHASE_ARGS[$key]}"
     done
+}
+
+#######################################
+# Test-compatible wrapper functions
+# These provide backward compatibility with existing tests
+#######################################
+
+#######################################
+# Parse lifecycle arguments (test wrapper)
+# Arguments:
+#   $@ - Command line arguments
+# Returns:
+#   0 on success, 1 on error
+# Note:
+#   This wrapper handles the different argument format expected by tests
+#   Tests use: --phase setup --target docker
+#   Implementation expects: setup --target docker
+#######################################
+parser::parse_lifecycle_args() {
+    local args=()
+    local phase=""
+    
+    # Check for help first
+    for arg in "$@"; do
+        if [[ "$arg" == "--help" ]] || [[ "$arg" == "-h" ]]; then
+            parser::usage
+            exit 0
+        fi
+    done
+    
+    # Parse arguments looking for --phase
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --phase)
+                [[ $# -lt 2 ]] && { echo "Error: --phase requires a value" >&2; return 1; }
+                phase="$2"
+                shift 2
+                ;;
+            --service-json)
+                [[ $# -lt 2 ]] && { echo "Error: --service-json requires a value" >&2; return 1; }
+                args+=(--config "$2")
+                shift 2
+                ;;
+            *)
+                args+=("$1")
+                shift
+                ;;
+        esac
+    done
+    
+    # Phase is required for tests
+    if [[ -z "$phase" ]]; then
+        echo "Error: Phase is required" >&2
+        return 1
+    fi
+    
+    # Call the real parser with phase first, then other args
+    if parser::parse_args "$phase" "${args[@]}"; then
+        # Export variables so they're available to tests
+        parser::export
+        return 0
+    else
+        return 1
+    fi
+}
+
+#######################################
+# Validate arguments (test wrapper)
+# Returns:
+#   0 if valid, 1 if invalid
+#######################################
+parser::validate_args() {
+    parser::validate
 }
 
 # If sourced for testing, don't auto-execute

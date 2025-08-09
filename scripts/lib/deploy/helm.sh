@@ -4,11 +4,10 @@ set -euo pipefail
 # Helm deployment library - comprehensive Helm operations for Kubernetes deployments
 # Provides installation, chart management, release operations, and health checks
 
-# Set current directory
-LIB_DEPLOY_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
+# Get script directory and source var.sh first  
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "${LIB_DEPLOY_DIR}/../utils/var.sh"
+source "${SCRIPT_DIR}/../utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
