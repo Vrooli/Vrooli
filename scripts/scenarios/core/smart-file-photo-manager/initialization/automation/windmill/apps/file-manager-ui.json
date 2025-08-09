@@ -1,0 +1,447 @@
+{
+  "value": {
+    "type": "app",
+    "subtype": "main",
+    "configuration": {
+      "theme": "light",
+      "gridColumns": 24,
+      "gridRows": 12,
+      "title": "Smart File Photo Manager",
+      "description": "AI-powered semantic file organization and management system",
+      "icon": "folder-open",
+      "favicon": "/favicon.ico"
+    },
+    "grid": [
+      {
+        "id": "header",
+        "type": "containercomponent",
+        "position": { "x": 0, "y": 0, "w": 24, "h": 1 },
+        "configuration": {
+          "style": {
+            "backgroundColor": "#1e293b",
+            "color": "white",
+            "padding": "16px"
+          }
+        },
+        "data": [
+          {
+            "id": "title",
+            "type": "textcomponent",
+            "position": { "x": 0, "y": 0, "w": 12, "h": 1 },
+            "configuration": {
+              "text": "Smart File Photo Manager",
+              "style": {
+                "fontSize": "1.5rem",
+                "fontWeight": "bold"
+              }
+            }
+          },
+          {
+            "id": "search_box",
+            "type": "textinputcomponent",
+            "position": { "x": 12, "y": 0, "w": 12, "h": 1 },
+            "configuration": {
+              "placeholder": "Search files semantically...",
+              "defaultValue": "",
+              "style": {
+                "backgroundColor": "white",
+                "borderRadius": "8px"
+              },
+              "onInput": {
+                "type": "runnable",
+                "name": "search_files",
+                "description": "Search files using semantic search",
+                "inlineScript": {
+                  "content": "import { semantic_search } from '/f/file_manager/semantic-search';\n\nconst query = inputs.search_query?.trim();\nif (!query || query.length < 2) {\n  return { results: [], message: 'Please enter at least 2 characters' };\n}\n\ntry {\n  const searchResult = await semantic_search({\n    query,\n    searchType: 'hybrid',\n    limit: 20,\n    minScore: 0.6,\n    rerank: true\n  });\n  \n  return {\n    results: searchResult.results || [],\n    total: searchResult.totalResults || 0,\n    searchTime: searchResult.searchTime || 0,\n    suggestions: searchResult.suggestions || []\n  };\n} catch (error) {\n  return { \n    results: [], \n    error: `Search failed: ${error.message}`,\n    message: 'Search encountered an error. Please try again.' \n  };\n}",
+                  "language": "typescript"
+                },
+                "inputs": {
+                  "search_query": { "type": "connected", "connection": "search_box.value" }
+                },
+                "autoRefresh": false,
+                "runTrigger": "input_change",
+                "debounceMs": 500
+              }
+            }
+          }
+        ]
+      },
+      {
+        "id": "sidebar",
+        "type": "containercomponent",
+        "position": { "x": 0, "y": 1, "w": 5, "h": 11 },
+        "configuration": {
+          "style": {
+            "backgroundColor": "#f8fafc",
+            "borderRight": "1px solid #e2e8f0",
+            "padding": "16px"
+          }
+        },
+        "data": [
+          {
+            "id": "folder_tree",
+            "type": "treecomponent",
+            "position": { "x": 0, "y": 0, "w": 5, "h": 6 },
+            "configuration": {
+              "title": "Folders",
+              "data": {
+                "type": "runnable",
+                "name": "get_folders",
+                "inlineScript": {
+                  "content": "// Get folder structure from database\nconst folders = await postgres.query(`\n  SELECT path, name, file_count, is_smart \n  FROM folders \n  ORDER BY path\n`);\n\n// Build tree structure\nconst tree = [];\nconst folderMap = new Map();\n\nfor (const folder of folders) {\n  const pathParts = folder.path.split('/').filter(p => p.length > 0);\n  \n  const treeNode = {\n    id: folder.path,\n    label: folder.name,\n    icon: folder.is_smart ? 'magic-wand' : 'folder',\n    badge: folder.file_count > 0 ? folder.file_count.toString() : undefined,\n    children: [],\n    data: { path: folder.path, isSmartFolder: folder.is_smart }\n  };\n  \n  if (pathParts.length === 1) {\n    tree.push(treeNode);\n    folderMap.set(folder.path, treeNode);\n  } else {\n    const parentPath = '/' + pathParts.slice(0, -1).join('/');\n    const parent = folderMap.get(parentPath);\n    if (parent) {\n      parent.children.push(treeNode);\n      folderMap.set(folder.path, treeNode);\n    }\n  }\n}\n\nreturn tree;",
+                  "language": "typescript"
+                },
+                "autoRefresh": true,
+                "refreshIntervalSec": 30
+              },
+              "onSelect": {
+                "type": "runnable",
+                "name": "load_folder_files",
+                "inlineScript": {
+                  "content": "const folderPath = inputs.selected_folder?.path || '/';\n\nconst files = await postgres.query(`\n  SELECT \n    id, original_name as filename, folder_path, file_type,\n    size_bytes as size, uploaded_at, description, tags,\n    status, processing_stage\n  FROM files \n  WHERE folder_path = $1\n  ORDER BY uploaded_at DESC\n  LIMIT 100\n`, [folderPath]);\n\nreturn {\n  files: files.map(file => ({\n    ...file,\n    size_human: formatBytes(file.size),\n    uploaded_ago: getRelativeTime(file.uploaded_at),\n    status_color: getStatusColor(file.status)\n  })),\n  folder_path: folderPath,\n  total_files: files.length\n};\n\nfunction formatBytes(bytes) {\n  if (bytes === 0) return '0 Bytes';\n  const k = 1024;\n  const sizes = ['Bytes', 'KB', 'MB', 'GB'];\n  const i = Math.floor(Math.log(bytes) / Math.log(k));\n  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];\n}\n\nfunction getRelativeTime(dateString) {\n  const now = new Date();\n  const then = new Date(dateString);\n  const diffHours = Math.floor((now - then) / (1000 * 60 * 60));\n  \n  if (diffHours < 1) return 'Just now';\n  if (diffHours < 24) return `${diffHours}h ago`;\n  const diffDays = Math.floor(diffHours / 24);\n  if (diffDays < 30) return `${diffDays}d ago`;\n  return `${Math.floor(diffDays / 30)}mo ago`;\n}\n\nfunction getStatusColor(status) {\n  const colors = {\n    'processed': 'green',\n    'processing': 'blue', \n    'pending': 'yellow',\n    'failed': 'red'\n  };\n  return colors[status] || 'gray';\n}",
+                  "language": "typescript"
+                },
+                "inputs": {
+                  "selected_folder": { "type": "connected", "connection": "folder_tree.selectedItem" }
+                }
+              }
+            }
+          },
+          {
+            "id": "quick_actions",
+            "type": "containercomponent",
+            "position": { "x": 0, "y": 6, "w": 5, "h": 3 },
+            "configuration": {
+              "title": "Quick Actions",
+              "style": { "marginTop": "16px" }
+            },
+            "data": [
+              {
+                "id": "upload_button",
+                "type": "buttoncomponent",
+                "position": { "x": 0, "y": 0, "w": 5, "h": 1 },
+                "configuration": {
+                  "label": "Upload Files",
+                  "color": "primary",
+                  "size": "medium",
+                  "icon": "upload",
+                  "onClick": {
+                    "type": "gotoUrl",
+                    "url": "#upload"
+                  }
+                }
+              },
+              {
+                "id": "batch_organize_button", 
+                "type": "buttoncomponent",
+                "position": { "x": 0, "y": 1, "w": 5, "h": 1 },
+                "configuration": {
+                  "label": "Organize Files",
+                  "color": "secondary",
+                  "size": "medium", 
+                  "icon": "folder-tree",
+                  "onClick": {
+                    "type": "runnable",
+                    "name": "batch_organize",
+                    "inlineScript": {
+                      "content": "import { batch_organize } from '/f/file_manager/batch-organize';\n\ntry {\n  const result = await batch_organize({\n    operation: 'organize_by_suggestions',\n    scanUnorganized: true,\n    autoApprove: false,\n    maxFiles: 50\n  });\n  \n  return {\n    success: true,\n    message: `Organized ${result.successfulMoves} files`,\n    details: result\n  };\n} catch (error) {\n  return {\n    success: false,\n    message: `Organization failed: ${error.message}`\n  };\n}",
+                      "language": "typescript"
+                    },
+                    "confirmation": {\n      "title": "Organize Files",\n      "description": "This will analyze unorganized files and suggest better locations. Continue?"\n    }
+                  }
+                }
+              },
+              {
+                "id": "find_duplicates_button",
+                "type": "buttoncomponent", 
+                "position": { "x": 0, "y": 2, "w": 5, "h": 1 },
+                "configuration": {
+                  "label": "Find Duplicates",
+                  "color": "warning",
+                  "size": "medium",
+                  "icon": "copy",
+                  "onClick": {
+                    "type": "runnable",
+                    "name": "find_all_duplicates",
+                    "inlineScript": {
+                      "content": "import { find_duplicates } from '/f/file_manager/find-duplicates';\n\ntry {\n  const result = await find_duplicates({\n    scanAll: true,\n    similarityThreshold: 0.85,\n    exactOnly: false\n  });\n  \n  return {\n    success: true,\n    duplicateGroups: result.duplicateGroups,\n    exactDuplicates: result.exactDuplicates?.length || 0,\n    similarFiles: result.similarFiles?.length || 0,\n    message: `Found ${result.duplicateGroups} groups of potential duplicates`\n  };\n} catch (error) {\n  return {\n    success: false,\n    message: `Duplicate detection failed: ${error.message}`\n  };\n}",
+                      "language": "typescript"
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "stats_panel",
+            "type": "containercomponent",
+            "position": { "x": 0, "y": 9, "w": 5, "h": 2 },
+            "configuration": {
+              "title": "Statistics",
+              "style": { "marginTop": "16px" }
+            },
+            "data": [
+              {
+                "id": "file_stats",
+                "type": "statlistcomponent",
+                "position": { "x": 0, "y": 0, "w": 5, "h": 2 },
+                "configuration": {
+                  "data": {
+                    "type": "runnable",
+                    "name": "get_file_stats",
+                    "inlineScript": {
+                      "content": "const stats = await postgres.query(`\n  SELECT \n    COUNT(*) as total_files,\n    COUNT(CASE WHEN status = 'processed' THEN 1 END) as processed_files,\n    COUNT(CASE WHEN status = 'pending' THEN 1 END) as pending_files,\n    COUNT(CASE WHEN folder_path = '/' THEN 1 END) as unorganized_files,\n    SUM(size_bytes) as total_size,\n    COUNT(CASE WHEN file_type = 'image' THEN 1 END) as images,\n    COUNT(CASE WHEN file_type = 'document' THEN 1 END) as documents\n  FROM files\n`);\n\nconst formatBytes = (bytes) => {\n  if (bytes === 0) return '0 B';\n  const k = 1024;\n  const sizes = ['B', 'KB', 'MB', 'GB'];\n  const i = Math.floor(Math.log(bytes) / Math.log(k));\n  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];\n};\n\nconst s = stats[0];\n\nreturn [\n  { label: 'Total Files', value: s.total_files.toString(), color: 'blue' },\n  { label: 'Processed', value: s.processed_files.toString(), color: 'green' },\n  { label: 'Pending', value: s.pending_files.toString(), color: 'yellow' },\n  { label: 'Unorganized', value: s.unorganized_files.toString(), color: 'red' },\n  { label: 'Total Size', value: formatBytes(s.total_size), color: 'purple' },\n  { label: 'Images', value: s.images.toString(), color: 'pink' },\n  { label: 'Documents', value: s.documents.toString(), color: 'indigo' }\n];",
+                      "language": "typescript"
+                    },
+                    "autoRefresh": true,
+                    "refreshIntervalSec": 30
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "main_content",
+        "type": "containercomponent",
+        "position": { "x": 5, "y": 1, "w": 19, "h": 11 },
+        "configuration": {
+          "style": { "padding": "16px" }
+        },
+        "data": [
+          {
+            "id": "file_list_table",
+            "type": "tablecomponent",
+            "position": { "x": 0, "y": 0, "w": 19, "h": 8 },
+            "configuration": {
+              "title": "Files",
+              "data": {
+                "type": "connected",
+                "connection": "load_folder_files.files"
+              },
+              "columns": [
+                {
+                  "field": "filename",
+                  "headerName": "Name",
+                  "width": 200,
+                  "resizable": true,
+                  "sortable": true,
+                  "cellRenderer": {
+                    "type": "custom",
+                    "template": "<div class='flex items-center'><i class='mr-2 fa fa-{{fileTypeIcon}}'></i>{{filename}}</div>"
+                  }
+                },
+                {
+                  "field": "file_type",
+                  "headerName": "Type",
+                  "width": 100,
+                  "sortable": true
+                },
+                {
+                  "field": "size_human",
+                  "headerName": "Size", 
+                  "width": 100,
+                  "sortable": true
+                },
+                {
+                  "field": "uploaded_ago",
+                  "headerName": "Uploaded",
+                  "width": 120,
+                  "sortable": true
+                },
+                {
+                  "field": "status",
+                  "headerName": "Status",
+                  "width": 100,
+                  "cellRenderer": {
+                    "type": "badge",
+                    "colorField": "status_color"
+                  }
+                },
+                {
+                  "field": "tags",
+                  "headerName": "Tags",
+                  "width": 150,
+                  "cellRenderer": {
+                    "type": "tags"
+                  }
+                },
+                {
+                  "field": "actions",
+                  "headerName": "Actions",
+                  "width": 150,
+                  "cellRenderer": {
+                    "type": "buttons",
+                    "buttons": [
+                      {
+                        "label": "View",
+                        "color": "primary",
+                        "size": "small",
+                        "onClick": {
+                          "type": "openModal",
+                          "modalId": "file_detail_modal"
+                        }
+                      },
+                      {
+                        "label": "Download",
+                        "color": "secondary", 
+                        "size": "small",
+                        "onClick": {
+                          "type": "gotoUrl",
+                          "url": "/api/files/{{id}}/download"
+                        }
+                      }
+                    ]
+                  }
+                }
+              ],
+              "pagination": {
+                "enabled": true,
+                "pageSize": 25
+              },
+              "selection": {
+                "enabled": true,
+                "multiple": true
+              },
+              "sorting": {
+                "enabled": true,
+                "defaultSort": [{ "field": "uploaded_at", "direction": "desc" }]
+              },
+              "filtering": {
+                "enabled": true,
+                "quickFilter": true
+              }
+            }
+          },
+          {
+            "id": "suggestions_panel",
+            "type": "containercomponent",
+            "position": { "x": 0, "y": 8, "w": 19, "h": 3 },
+            "configuration": {
+              "title": "AI Suggestions",
+              "collapsible": true,
+              "style": { "marginTop": "16px" }
+            },
+            "data": [
+              {
+                "id": "suggestions_list",
+                "type": "listcomponent",
+                "position": { "x": 0, "y": 0, "w": 19, "h": 3 },
+                "configuration": {
+                  "data": {
+                    "type": "runnable",
+                    "name": "get_pending_suggestions",
+                    "inlineScript": {
+                      "content": "const suggestions = await postgres.query(`\n  SELECT \n    s.id, s.file_id, s.type, s.suggested_value, s.reason, s.confidence,\n    f.original_name as filename\n  FROM suggestions s\n  JOIN files f ON s.file_id = f.id\n  WHERE s.status = 'pending'\n  ORDER BY s.confidence DESC, s.created_at DESC\n  LIMIT 20\n`);\n\nreturn suggestions.map(s => ({\n  id: s.id,\n  title: `${s.type.charAt(0).toUpperCase() + s.type.slice(1)}: ${s.filename}`,\n  subtitle: s.suggested_value,\n  description: s.reason,\n  confidence: Math.round(s.confidence * 100),\n  actions: [\n    { label: 'Accept', color: 'green', action: 'accept_suggestion' },\n    { label: 'Reject', color: 'red', action: 'reject_suggestion' }\n  ]\n}));",
+                      "language": "typescript"
+                    },
+                    "autoRefresh": true,
+                    "refreshIntervalSec": 30
+                  },
+                  "itemTemplate": {
+                    "type": "card",
+                    "layout": "horizontal",
+                    "showActions": true
+                  },
+                  "onItemAction": {
+                    "type": "runnable",
+                    "name": "handle_suggestion_action",
+                    "inlineScript": {
+                      "content": "const { action, item } = inputs;\nconst newStatus = action === 'accept_suggestion' ? 'accepted' : 'rejected';\n\nawait postgres.query(`\n  UPDATE suggestions \n  SET status = $1, reviewed_at = CURRENT_TIMESTAMP\n  WHERE id = $2\n`, [newStatus, item.id]);\n\n// If accepted, we might want to apply the suggestion\nif (newStatus === 'accepted') {\n  // This would trigger the actual file organization\n  // For now, just mark as applied\n  await postgres.query(`\n    UPDATE suggestions \n    SET applied_at = CURRENT_TIMESTAMP\n    WHERE id = $1\n  `, [item.id]);\n}\n\nreturn { \n  success: true, \n  message: `Suggestion ${newStatus}`,\n  refresh_suggestions: true \n};",
+                      "language": "typescript"
+                    },
+                    "inputs": {
+                      "action": { "type": "connected", "connection": "suggestions_list.actionName" },
+                      "item": { "type": "connected", "connection": "suggestions_list.selectedItem" }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "modals": [
+      {
+        "id": "file_detail_modal",
+        "title": "File Details",
+        "size": "large",
+        "data": [
+          {
+            "id": "file_detail_content",
+            "type": "containercomponent",
+            "position": { "x": 0, "y": 0, "w": 12, "h": 8 },
+            "data": [
+              {
+                "id": "file_info",
+                "type": "formcomponent",
+                "position": { "x": 0, "y": 0, "w": 6, "h": 8 },
+                "configuration": {
+                  "title": "File Information",
+                  "fields": [
+                    { "name": "filename", "type": "text", "label": "Filename", "readonly": true },
+                    { "name": "file_type", "type": "text", "label": "Type", "readonly": true },
+                    { "name": "size_human", "type": "text", "label": "Size", "readonly": true },
+                    { "name": "uploaded_at", "type": "text", "label": "Uploaded", "readonly": true },
+                    { "name": "folder_path", "type": "text", "label": "Location", "readonly": true },
+                    { "name": "description", "type": "textarea", "label": "Description", "readonly": true },
+                    { "name": "tags", "type": "tags", "label": "Tags", "readonly": true }
+                  ]
+                }
+              },
+              {
+                "id": "file_preview",
+                "type": "containercomponent",
+                "position": { "x": 6, "y": 0, "w": 6, "h": 8 },
+                "configuration": {
+                  "title": "Preview"
+                },
+                "data": [
+                  {
+                    "id": "image_preview",
+                    "type": "imagecomponent",
+                    "position": { "x": 0, "y": 0, "w": 6, "h": 6 },
+                    "configuration": {
+                      "source": {
+                        "type": "connected",
+                        "connection": "file_list_table.selectedRow.id",
+                        "transform": "'/api/files/' + value + '/preview'"
+                      },
+                      "altText": "File preview",
+                      "fit": "contain"
+                    },
+                    "visibility": {
+                      "condition": "file_list_table.selectedRow.file_type === 'image'"
+                    }
+                  },
+                  {
+                    "id": "document_preview",
+                    "type": "textcomponent",
+                    "position": { "x": 0, "y": 0, "w": 6, "h": 6 },
+                    "configuration": {
+                      "text": {
+                        "type": "connected",
+                        "connection": "file_list_table.selectedRow.description"
+                      },
+                      "style": {
+                        "whiteSpace": "pre-wrap",
+                        "maxHeight": "400px",
+                        "overflow": "auto"
+                      }
+                    },
+                    "visibility": {
+                      "condition": "file_list_table.selectedRow.file_type === 'document'"
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "summary": "Smart File Photo Manager - AI-powered file organization system with semantic search, automatic tagging, and intelligent suggestions"
+}

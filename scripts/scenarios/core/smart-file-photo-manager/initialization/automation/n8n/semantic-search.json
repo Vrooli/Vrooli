@@ -1,0 +1,341 @@
+{
+  "name": "Semantic Search Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "search",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "i1a7b6c8-1234-4567-8901-123456789001",
+      "name": "Search Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "search"
+    },
+    {
+      "parameters": {
+        "resource": "script",
+        "operation": "execute",
+        "workspaceId": "file_manager",
+        "scriptPath": "f/file_manager/semantic-search",
+        "parameters": {
+          "query": "={{ $json.query }}",
+          "searchType": "={{ $json.search_type || 'hybrid' }}",
+          "limit": "={{ $json.limit || 20 }}",
+          "minScore": "={{ $json.min_score || 0.6 }}",
+          "filters": "={{ $json.filters }}",
+          "userId": "={{ $json.user_id }}",
+          "rerank": "={{ $json.rerank || false }}"
+        }
+      },
+      "id": "i2a7b6c8-1234-4567-8901-123456789002",
+      "name": "Execute Semantic Search",
+      "type": "n8n-nodes-base.windmill",
+      "typeVersion": 1,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.totalResults }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "i3a7b6c8-1234-4567-8901-123456789003",
+      "name": "Has Results",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Enhance search results with additional metadata\nconst items = $input.all();\nconst enhancedResults = [];\n\nfor (const item of items) {\n  const results = item.json.results || [];\n  \n  const enhanced = results.map(result => ({\n    ...result,\n    // Add computed fields\n    size_human: formatBytes(result.size),\n    uploaded_ago: getRelativeTime(result.uploadedAt),\n    relevance_tier: getRelevanceTier(result.score),\n    \n    // Add action suggestions\n    suggested_actions: getSuggestedActions(result),\n    \n    // Add access URLs\n    preview_url: `/api/files/${result.id}/preview`,\n    download_url: `/api/files/${result.id}/download`,\n    thumbnail_url: result.fileType === 'image' ? `/api/files/${result.id}/thumbnail` : null\n  }));\n  \n  enhancedResults.push({\n    ...item.json,\n    results: enhanced,\n    result_summary: {\n      total: enhanced.length,\n      by_type: getResultsByType(enhanced),\n      by_relevance: getResultsByRelevance(enhanced),\n      avg_score: enhanced.length > 0 ? enhanced.reduce((sum, r) => sum + r.score, 0) / enhanced.length : 0\n    }\n  });\n}\n\nfunction formatBytes(bytes) {\n  if (bytes === 0) return '0 Bytes';\n  const k = 1024;\n  const sizes = ['Bytes', 'KB', 'MB', 'GB'];\n  const i = Math.floor(Math.log(bytes) / Math.log(k));\n  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];\n}\n\nfunction getRelativeTime(dateString) {\n  const now = new Date();\n  const then = new Date(dateString);\n  const diffMs = now - then;\n  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));\n  \n  if (diffHours < 1) return 'Less than an hour ago';\n  if (diffHours < 24) return `${diffHours} hours ago`;\n  const diffDays = Math.floor(diffHours / 24);\n  if (diffDays < 30) return `${diffDays} days ago`;\n  const diffMonths = Math.floor(diffDays / 30);\n  if (diffMonths < 12) return `${diffMonths} months ago`;\n  return `${Math.floor(diffMonths / 12)} years ago`;\n}\n\nfunction getRelevanceTier(score) {\n  if (score >= 0.9) return 'excellent';\n  if (score >= 0.8) return 'very_good';\n  if (score >= 0.7) return 'good';\n  if (score >= 0.6) return 'fair';\n  return 'low';\n}\n\nfunction getSuggestedActions(result) {\n  const actions = ['view', 'download'];\n  \n  if (result.fileType === 'image') {\n    actions.push('view_full_size');\n  }\n  \n  if (result.fileType === 'document' && result.snippet) {\n    actions.push('view_in_context');\n  }\n  \n  if (result.tags?.length === 0) {\n    actions.push('add_tags');\n  }\n  \n  if (result.folderPath === '/') {\n    actions.push('organize');\n  }\n  \n  return actions;\n}\n\nfunction getResultsByType(results) {\n  return results.reduce((acc, result) => {\n    acc[result.fileType] = (acc[result.fileType] || 0) + 1;\n    return acc;\n  }, {});\n}\n\nfunction getResultsByRelevance(results) {\n  return results.reduce((acc, result) => {\n    const tier = getRelevanceTier(result.score);\n    acc[tier] = (acc[tier] || 0) + 1;\n    return acc;\n  }, {});\n}\n\nreturn enhancedResults;"
+      },
+      "id": "i4a7b6c8-1234-4567-8901-123456789004",
+      "name": "Enhance Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE search_history SET result_count = {{ $json.totalResults }}, clicked_file_ids = ARRAY[]::UUID[] WHERE query = '{{ $json.query }}' AND user_id = '{{ $json.user_id || 'anonymous' }}' AND created_at > NOW() - INTERVAL '5 minutes'",
+        "options": {}
+      },
+      "id": "i5a7b6c8-1234-4567-8901-123456789005",
+      "name": "Update Search History",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1120,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "file_manager_postgres",
+          "name": "File Manager PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate search suggestions for empty results\nconst items = $input.all();\nconst suggestions = [];\n\nfor (const item of items) {\n  const query = item.json.query;\n  const queryWords = query.toLowerCase().split(/\\s+/);\n  \n  // Suggest broader terms\n  if (queryWords.length > 1) {\n    suggestions.push(...queryWords.slice(0, 3));\n  }\n  \n  // Suggest common categories\n  const commonSuggestions = [\n    'recent files',\n    'documents', \n    'photos',\n    'work files',\n    'personal files'\n  ];\n  \n  suggestions.push(...commonSuggestions.slice(0, 3));\n  \n  // Suggest file type specific searches\n  if (query.toLowerCase().includes('image') || query.toLowerCase().includes('photo')) {\n    suggestions.push('vacation photos', 'family photos', 'work images');\n  }\n  \n  if (query.toLowerCase().includes('document') || query.toLowerCase().includes('report')) {\n    suggestions.push('quarterly reports', 'meeting notes', 'contracts');\n  }\n}\n\nreturn [{ \n  empty_search_suggestions: [...new Set(suggestions)].slice(0, 8),\n  alternative_searches: [\n    { query: 'files uploaded today', description: 'Recently uploaded files' },\n    { query: 'unorganized files', description: 'Files that need organization' },\n    { query: 'large files', description: 'Files larger than 10MB' },\n    { query: 'duplicate files', description: 'Potential duplicate files' }\n  ]\n}];"
+      },
+      "id": "i6a7b6c8-1234-4567-8901-123456789006",
+      "name": "Generate Empty Suggestions",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"success\": true,\n  \"query\": $json.query,\n  \"search_type\": $json.searchType,\n  \"results\": $json.results,\n  \"summary\": {\n    \"total_results\": $json.totalResults,\n    \"search_time_ms\": $json.searchTime,\n    \"result_summary\": $('Enhance Results').first()?.result_summary\n  },\n  \"suggestions\": $json.suggestions || [],\n  \"filters_applied\": $json.filters || {},\n  \"timestamp\": new Date().toISOString()\n} }}",
+        "options": {}
+      },
+      "id": "i7a7b6c8-1234-4567-8901-123456789007",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"success\": true,\n  \"query\": $json.query,\n  \"search_type\": $json.search_type,\n  \"results\": [],\n  \"summary\": {\n    \"total_results\": 0,\n    \"search_time_ms\": $json.searchTime || 0\n  },\n  \"suggestions\": $('Generate Empty Suggestions').first()?.empty_search_suggestions || [],\n  \"alternative_searches\": $('Generate Empty Suggestions').first()?.alternative_searches || [],\n  \"message\": \"No results found. Try different search terms or browse suggestions.\"\n} }}",
+        "options": {}
+      },
+      "id": "i8a7b6c8-1234-4567-8901-123456789008",
+      "name": "Empty Results Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"success\": false,\n  \"error\": \"Search failed\",\n  \"message\": $json.error?.message || $json.validation_errors?.join(', ') || \"Invalid search query\",\n  \"query\": $json.query || null\n} }}",
+        "options": {}
+      },
+      "id": "i9a7b6c8-1234-4567-8901-123456789009",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        680,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Validate and prepare search request\nconst items = $input.all();\nconst validatedItems = [];\n\nfor (const item of items) {\n  const data = item.json;\n  const errors = [];\n  \n  // Validate query\n  if (!data.query || typeof data.query !== 'string' || data.query.trim().length === 0) {\n    errors.push('Search query is required and must be a non-empty string');\n  }\n  \n  if (data.query && data.query.length > 500) {\n    errors.push('Search query is too long (max 500 characters)');\n  }\n  \n  // Validate search type\n  const validSearchTypes = ['files', 'content', 'images', 'hybrid'];\n  if (data.search_type && !validSearchTypes.includes(data.search_type)) {\n    errors.push(`Invalid search_type. Must be one of: ${validSearchTypes.join(', ')}`);\n  }\n  \n  // Validate limit\n  if (data.limit && (typeof data.limit !== 'number' || data.limit <= 0 || data.limit > 100)) {\n    errors.push('Limit must be a number between 1 and 100');\n  }\n  \n  // Validate min_score\n  if (data.min_score && (typeof data.min_score !== 'number' || data.min_score < 0 || data.min_score > 1)) {\n    errors.push('min_score must be a number between 0 and 1');\n  }\n  \n  // Validate filters\n  if (data.filters) {\n    if (typeof data.filters !== 'object') {\n      errors.push('Filters must be an object');\n    } else {\n      if (data.filters.file_types && !Array.isArray(data.filters.file_types)) {\n        errors.push('filters.file_types must be an array');\n      }\n      \n      if (data.filters.date_range) {\n        if (!data.filters.date_range.start || !data.filters.date_range.end) {\n          errors.push('filters.date_range must have both start and end dates');\n        }\n      }\n    }\n  }\n  \n  if (errors.length > 0) {\n    validatedItems.push({\n      ...data,\n      validation_errors: errors,\n      valid: false\n    });\n  } else {\n    validatedItems.push({\n      ...data,\n      query: data.query.trim(),\n      search_type: data.search_type || 'hybrid',\n      limit: data.limit || 20,\n      min_score: data.min_score || 0.6,\n      valid: true,\n      search_started_at: new Date().toISOString(),\n      workflow_id: '{{ $workflow.id }}',\n      execution_id: '{{ $execution.id }}'\n    });\n  }\n}\n\nreturn validatedItems;"
+      },
+      "id": "i10a7b6c8-1234-4567-8901-123456789010",
+      "name": "Validate Search Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.valid }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "i11a7b6c8-1234-4567-8901-123456789011",
+      "name": "Valid Search Request",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        680,
+        400
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Search Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Search Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Search Request": {
+      "main": [
+        [
+          {
+            "node": "Valid Search Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Valid Search Request": {
+      "main": [
+        [
+          {
+            "node": "Execute Semantic Search",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Semantic Search": {
+      "main": [
+        [
+          {
+            "node": "Has Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Results": {
+      "main": [
+        [
+          {
+            "node": "Enhance Results",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Update Search History",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Empty Suggestions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enhance Results": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Search History": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Empty Suggestions": {
+      "main": [
+        [
+          {
+            "node": "Empty Results Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "id": "4",
+  "meta": {
+    "instanceId": "file_manager"
+  },
+  "tags": [
+    {
+      "createdAt": "2024-01-15T10:00:00.000Z",
+      "updatedAt": "2024-01-15T10:00:00.000Z",
+      "id": "4",
+      "name": "semantic-search"
+    }
+  ]
+}

@@ -1,0 +1,559 @@
+{
+  "name": "Task Planner - Implementation Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "implement-task",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook - Implement Task",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.*, a.name as app_name, a.display_name as app_display_name, a.repository_url FROM tasks t JOIN apps a ON t.app_id = a.id WHERE t.id = '{{ $json.task_id }}' AND t.status = 'staged'",
+        "additionalFields": {}
+      },
+      "id": "get_staged_task",
+      "name": "Get Staged Task",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [400, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check_task_staged",
+      "name": "Check Task Is Staged",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [600, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO agent_runs (task_id, action, agent_name, model_used, prompt_template) VALUES ('{{ $('get_staged_task').item.json.id }}', 'implement', 'claude-code', 'claude-3-opus-20240229', 'task_implementation_template') RETURNING id",
+        "additionalFields": {}
+      },
+      "id": "create_implementation_run",
+      "name": "Create Implementation Run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [800, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tasks SET status = 'in_progress', started_at = CURRENT_TIMESTAMP WHERE id = '{{ $('get_staged_task').item.json.id }}'",
+        "additionalFields": {}
+      },
+      "id": "mark_implementing",
+      "name": "Mark Task Implementing",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [800, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM research_artifacts WHERE task_id = '{{ $('get_staged_task').item.json.id }}' ORDER BY relevance_score DESC LIMIT 5",
+        "additionalFields": {}
+      },
+      "id": "get_research_artifacts",
+      "name": "Get Research Artifacts",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1000, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare comprehensive implementation context for Claude Code\nconst task = $('get_staged_task').item.json;\nconst artifacts = $input.all().map(item => item.json);\n\n// Build implementation context\nconst implementationContext = {\n  task: {\n    title: task.title,\n    description: task.description,\n    priority: task.priority,\n    investigation_report: task.investigation_report,\n    implementation_plan: task.implementation_plan,\n    technical_requirements: task.technical_requirements,\n    estimated_hours: task.estimated_hours\n  },\n  project: {\n    name: task.app_name,\n    display_name: task.app_display_name,\n    repository_url: task.repository_url\n  },\n  research_context: artifacts.map(a => ({\n    type: a.type,\n    title: a.title,\n    url: a.source_url,\n    content: a.content,\n    relevance: a.relevance_score\n  })),\n  implementation_prompt: `You are tasked with implementing the following feature/task:\n\n## Task Details\n**Title**: ${task.title}\n**Description**: ${task.description}\n**Priority**: ${task.priority}\n\n## Investigation Report\n${task.investigation_report}\n\n## Implementation Plan\n${task.implementation_plan}\n\n## Technical Requirements\n${task.technical_requirements}\n\n## Research Context\n${artifacts.map(a => `- **${a.title}**: ${a.content}`).join('\\n')}\n\n## Instructions\n1. Implement the task according to the plan above\n2. Follow best practices and the project's existing patterns\n3. Include appropriate error handling and validation\n4. Write or update tests if applicable\n5. Provide clear documentation for your changes\n6. If the repository URL is provided, work within that codebase context\n\n## Expected Output\nProvide a JSON response with:\n- implementation_code: The actual code implementation\n- files_modified: Array of files that were changed\n- test_code: Any tests written or updated\n- documentation: Documentation for the implementation\n- deployment_notes: Any deployment considerations\n- success: boolean indicating if implementation completed successfully\n- error_details: Any issues encountered during implementation`\n};\n\nreturn [{ implementation_context: implementationContext, task_id: task.id, run_id: $('create_implementation_run').item.json.id }];"
+      },
+      "id": "prepare_implementation",
+      "name": "Prepare Implementation Context",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:8080/api/claude-code/implement",
+        "authentication": "headerAuth",
+        "requestMethod": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer {{ $env.CLAUDE_API_KEY }}"
+            },
+            {
+              "name": "Content-Type", 
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "{{ $json.implementation_context.implementation_prompt }}"
+            },
+            {
+              "name": "context",
+              "value": "{{ JSON.stringify($json.implementation_context) }}"
+            },
+            {
+              "name": "model",
+              "value": "claude-3-opus-20240229"
+            },
+            {
+              "name": "max_tokens",
+              "value": "8192"
+            },
+            {
+              "name": "temperature",
+              "value": "0.3"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 300000
+        }
+      },
+      "id": "claude_code_implement",
+      "name": "Claude Code Implementation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1400, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process Claude Code implementation response\ntry {\n  const response = $json;\n  const taskId = $('prepare_implementation').item.json.task_id;\n  const runId = $('prepare_implementation').item.json.run_id;\n  \n  let implementationData;\n  \n  // Handle different response formats\n  if (response.implementation) {\n    implementationData = response.implementation;\n  } else if (response.content) {\n    try {\n      // Try to parse content as JSON\n      implementationData = JSON.parse(response.content);\n    } catch {\n      // Fallback for plain text responses\n      implementationData = {\n        implementation_code: response.content,\n        success: true,\n        files_modified: [],\n        test_code: '',\n        documentation: 'Implementation completed via Claude Code',\n        deployment_notes: ''\n      };\n    }\n  } else {\n    throw new Error('No implementation content found in response');\n  }\n  \n  // Validate implementation result\n  const success = implementationData.success !== false && !implementationData.error_details;\n  \n  const result = {\n    task_id: taskId,\n    run_id: runId,\n    success: success,\n    implementation_code: implementationData.implementation_code || '',\n    files_modified: JSON.stringify(implementationData.files_modified || []),\n    test_code: implementationData.test_code || '',\n    documentation: implementationData.documentation || '',\n    deployment_notes: implementationData.deployment_notes || '',\n    error_details: implementationData.error_details || null,\n    tokens_used: response.usage?.total_tokens || 0,\n    cost_usd: response.usage?.total_tokens ? (response.usage.total_tokens * 0.015 / 1000) : 0, // Rough cost estimate\n    raw_response: JSON.stringify(response)\n  };\n  \n  return [result];\n  \n} catch (error) {\n  return [{\n    task_id: $('prepare_implementation').item.json.task_id,\n    run_id: $('prepare_implementation').item.json.run_id,\n    success: false,\n    implementation_code: '',\n    files_modified: '[]',\n    test_code: '',\n    documentation: '',\n    deployment_notes: '',\n    error_details: `Implementation processing failed: ${error.message}`,\n    tokens_used: 0,\n    cost_usd: 0,\n    raw_response: JSON.stringify($json)\n  }];\n}"
+      },
+      "id": "process_implementation",
+      "name": "Process Implementation Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1600, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.success }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "id": "check_implementation_success",
+      "name": "Check Implementation Success",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1800, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tasks SET implementation_code = '{{ $json.implementation_code }}', implementation_result = '{{ $json.documentation }}', test_results = '{{ $json.test_code }}', status = 'completed', completed_at = CURRENT_TIMESTAMP WHERE id = '{{ $json.task_id }}'",
+        "additionalFields": {}
+      },
+      "id": "complete_successful_task",
+      "name": "Complete Successful Task",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [2000, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE agent_runs SET successful = true, output_data = '{{ $json.raw_response }}', tokens_used = {{ $json.tokens_used }}, cost_usd = {{ $json.cost_usd }}, completed_at = CURRENT_TIMESTAMP WHERE id = '{{ $json.run_id }}'",
+        "additionalFields": {}
+      },
+      "id": "complete_successful_run",
+      "name": "Complete Successful Run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [2000, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO task_transitions (task_id, from_status, to_status, triggered_by, trigger_type, reason, notes) VALUES ('{{ $json.task_id }}', 'staged', 'completed', 'implementation-workflow', 'automated', 'Task implemented successfully by Claude Code', '{{ $json.documentation }}')",
+        "additionalFields": {}
+      },
+      "id": "record_success_transition",
+      "name": "Record Success Transition",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [2200, 100]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE apps SET completed_tasks = completed_tasks + 1 WHERE id = '{{ $('get_staged_task').item.json.app_id }}'",
+        "additionalFields": {}
+      },
+      "id": "update_app_stats_success",
+      "name": "Update App Stats - Success",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [2200, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE tasks SET implementation_result = '{{ $json.error_details }}', status = 'failed', completed_at = CURRENT_TIMESTAMP WHERE id = '{{ $json.task_id }}'",
+        "additionalFields": {}
+      },
+      "id": "mark_failed_task",
+      "name": "Mark Failed Task",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE agent_runs SET successful = false, error_message = '{{ $json.error_details }}', output_data = '{{ $json.raw_response }}', tokens_used = {{ $json.tokens_used }}, cost_usd = {{ $json.cost_usd }}, completed_at = CURRENT_TIMESTAMP WHERE id = '{{ $json.run_id }}'",
+        "additionalFields": {}
+      },
+      "id": "complete_failed_run",
+      "name": "Complete Failed Run",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [2000, 400]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO task_transitions (task_id, from_status, to_status, triggered_by, trigger_type, reason, notes) VALUES ('{{ $json.task_id }}', 'staged', 'failed', 'implementation-workflow', 'automated', 'Task implementation failed', '{{ $json.error_details }}')",
+        "additionalFields": {}
+      },
+      "id": "record_failure_transition",
+      "name": "Record Failure Transition",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [2200, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT t.*, COUNT(ra.id) as research_artifacts FROM tasks t LEFT JOIN research_artifacts ra ON t.id = ra.task_id WHERE t.id = '{{ $('process_implementation').item.json.task_id }}' GROUP BY t.id",
+        "additionalFields": {}
+      },
+      "id": "get_final_task",
+      "name": "Get Final Task State",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [2400, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": true,\n  \"task_id\": \"{{ $json.id }}\",\n  \"status\": \"{{ $json.status }}\",\n  \"title\": \"{{ $json.title }}\",\n  \"implementation_completed\": {{ $json.status === 'completed' ? 'true' : 'false' }},\n  \"files_modified\": {{ $('process_implementation').item.json.files_modified }},\n  \"tokens_used\": {{ $('process_implementation').item.json.tokens_used }},\n  \"estimated_cost\": {{ $('process_implementation').item.json.cost_usd }},\n  \"completed_at\": \"{{ $json.completed_at }}\",\n  \"research_artifacts\": {{ $json.research_artifacts }}\n}"
+      },
+      "id": "final_success_response",
+      "name": "Final Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [2600, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"Task not found or not in staged status\",\n  \"task_id\": \"{{ $('webhook_trigger').item.json.task_id }}\",\n  \"message\": \"Task must be in 'staged' status to be implemented\"\n}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "task_not_staged_response",
+      "name": "Task Not Staged Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [600, 450]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "get_staged_task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_staged_task": {
+      "main": [
+        [
+          {
+            "node": "check_task_staged",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_task_staged": {
+      "main": [
+        [
+          {
+            "node": "create_implementation_run",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "mark_implementing",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "task_not_staged_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_implementation_run": {
+      "main": [
+        [
+          {
+            "node": "get_research_artifacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "mark_implementing": {
+      "main": [
+        [
+          {
+            "node": "get_research_artifacts",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_research_artifacts": {
+      "main": [
+        [
+          {
+            "node": "prepare_implementation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "prepare_implementation": {
+      "main": [
+        [
+          {
+            "node": "claude_code_implement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "claude_code_implement": {
+      "main": [
+        [
+          {
+            "node": "process_implementation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_implementation": {
+      "main": [
+        [
+          {
+            "node": "check_implementation_success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_implementation_success": {
+      "main": [
+        [
+          {
+            "node": "complete_successful_task",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "complete_successful_run",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "mark_failed_task",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "complete_failed_run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "complete_successful_task": {
+      "main": [
+        [
+          {
+            "node": "record_success_transition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "complete_successful_run": {
+      "main": [
+        [
+          {
+            "node": "update_app_stats_success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "record_success_transition": {
+      "main": [
+        [
+          {
+            "node": "get_final_task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update_app_stats_success": {
+      "main": [
+        [
+          {
+            "node": "get_final_task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "mark_failed_task": {
+      "main": [
+        [
+          {
+            "node": "record_failure_transition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "complete_failed_run": {
+      "main": [
+        [
+          {
+            "node": "record_failure_transition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "record_failure_transition": {
+      "main": [
+        [
+          {
+            "node": "get_final_task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_final_task": {
+      "main": [
+        [
+          {
+            "node": "final_success_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "task-planner",
+      "name": "task-planner"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "1"
+}

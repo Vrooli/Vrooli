@@ -1,0 +1,227 @@
+{
+  "name": "Smart File Photo Manager",
+  "version": "1.0.0",
+  "description": "AI-powered semantic file and photo organization system",
+  
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8093,
+    "cors": {
+      "enabled": true,
+      "origins": ["http://localhost:3002", "http://localhost:8002"]
+    },
+    "rateLimit": {
+      "enabled": true,
+      "windowMs": 900000,
+      "max": 1000
+    },
+    "compression": {
+      "enabled": true,
+      "level": 6
+    }
+  },
+  
+  "upload": {
+    "maxFileSize": "500MB",
+    "maxFiles": 20,
+    "allowedMimeTypes": [
+      "image/jpeg", "image/png", "image/gif", "image/bmp", "image/webp",
+      "application/pdf", "text/plain", "text/markdown",
+      "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "text/csv", "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "video/mp4", "video/mpeg", "video/quicktime",
+      "audio/mpeg", "audio/wav", "audio/ogg",
+      "application/zip", "application/x-rar-compressed", "application/x-7z-compressed"
+    ],
+    "quarantine": {
+      "enabled": true,
+      "scanTimeout": 30000
+    },
+    "preprocessing": {
+      "generateThumbnails": true,
+      "thumbnailSizes": [150, 300, 800],
+      "extractMetadata": true,
+      "virusScan": false
+    }
+  },
+  
+  "ai": {
+    "imageAnalysis": {
+      "enabled": true,
+      "model": "llava:13b",
+      "maxConcurrent": 3,
+      "timeout": 60000,
+      "confidence": {
+        "description": 0.7,
+        "objectDetection": 0.6,
+        "faceDetection": 0.8
+      }
+    },
+    "documentProcessing": {
+      "enabled": true,
+      "maxConcurrent": 5,
+      "timeout": 120000,
+      "chunkSize": 1000,
+      "chunkOverlap": 100,
+      "languages": ["eng", "spa", "fra", "deu"]
+    },
+    "embeddings": {
+      "enabled": true,
+      "model": "nomic-embed-text",
+      "dimensions": 1536,
+      "batchSize": 10,
+      "timeout": 30000
+    },
+    "organization": {
+      "enabled": true,
+      "model": "llama3.2",
+      "confidence": {
+        "tags": 0.6,
+        "folders": 0.7,
+        "duplicates": 0.85
+      },
+      "maxSuggestions": 10,
+      "autoApply": {
+        "enabled": false,
+        "threshold": 0.9
+      }
+    }
+  },
+  
+  "search": {
+    "semantic": {
+      "enabled": true,
+      "minSimilarity": 0.7,
+      "maxResults": 50
+    },
+    "fulltext": {
+      "enabled": true,
+      "fuzzySearch": true,
+      "stemming": true
+    },
+    "filters": {
+      "fileType": true,
+      "dateRange": true,
+      "sizeRange": true,
+      "folder": true,
+      "tags": true
+    }
+  },
+  
+  "organization": {
+    "smartFolders": {
+      "enabled": true,
+      "autoRefresh": true,
+      "refreshInterval": 3600000
+    },
+    "autoTagging": {
+      "enabled": true,
+      "minConfidence": 0.7,
+      "maxTags": 15
+    },
+    "duplicateDetection": {
+      "enabled": true,
+      "similarity": {
+        "exact": 1.0,
+        "high": 0.95,
+        "medium": 0.85,
+        "low": 0.7
+      },
+      "autoMerge": false
+    },
+    "folderSuggestions": {
+      "enabled": true,
+      "basedOn": ["content", "metadata", "filename", "date"],
+      "maxDepth": 4
+    }
+  },
+  
+  "processing": {
+    "queue": {
+      "concurrency": 5,
+      "retries": 3,
+      "retryDelay": 5000,
+      "timeout": 300000
+    },
+    "priorities": {
+      "image": 3,
+      "document": 2,
+      "video": 1,
+      "audio": 1,
+      "archive": 1,
+      "other": 1
+    },
+    "batch": {
+      "maxSize": 100,
+      "timeout": 1800000
+    }
+  },
+  
+  "storage": {
+    "cleanup": {
+      "enabled": true,
+      "schedule": "0 2 * * *",
+      "retention": {
+        "processed": "90d",
+        "thumbnails": "30d",
+        "exports": "7d",
+        "temp": "1d"
+      }
+    },
+    "compression": {
+      "enabled": true,
+      "quality": 85,
+      "format": "webp"
+    }
+  },
+  
+  "security": {
+    "authentication": {
+      "enabled": false,
+      "providers": ["local"]
+    },
+    "authorization": {
+      "enabled": false,
+      "defaultRole": "user"
+    },
+    "encryption": {
+      "enabled": false,
+      "algorithm": "aes-256-gcm"
+    },
+    "audit": {
+      "enabled": true,
+      "events": ["upload", "delete", "move", "share"]
+    }
+  },
+  
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "destinations": ["console", "file"],
+    "rotation": {
+      "enabled": true,
+      "maxSize": "100MB",
+      "maxFiles": 10
+    }
+  },
+  
+  "monitoring": {
+    "metrics": {
+      "enabled": true,
+      "interval": 60000
+    },
+    "health": {
+      "enabled": true,
+      "checks": ["database", "storage", "ai", "queue"]
+    }
+  },
+  
+  "features": {
+    "experimental": {
+      "facialRecognition": false,
+      "locationExtraction": false,
+      "contentModeration": false,
+      "advancedDeduplication": true
+    }
+  }
+}

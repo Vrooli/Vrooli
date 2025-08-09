@@ -1,0 +1,94 @@
+name: task-planner
+description: Validates task planner scenario functionality
+
+resources:
+  - postgres
+  - redis
+  - qdrant
+  - n8n
+  - windmill
+  - ollama
+  - claude-code
+  - agent-s2
+
+tests:
+  - name: unstructured-text-parsing
+    description: Verify agent can parse unstructured text into tasks
+    steps:
+      - action: submit-unstructured
+        data:
+          text: |
+            - Add dark mode toggle to settings
+            - Fix login bug where users get stuck on loading screen
+            - Research better caching strategies
+            TODO: Improve test coverage to 80%
+            Random idea: what if we added voice commands?
+      - verify: tasks-created
+        expected:
+          count: 5
+          statuses: ["backlog"]
+      
+  - name: task-research-flow
+    description: Verify tasks move from backlog to staged with research
+    steps:
+      - action: accept-task
+        data:
+          task_id: "${tasks[0].id}"
+      - wait: 30
+      - verify: task-staged
+        expected:
+          status: "staged"
+          has_investigation_report: true
+          has_implementation_plan: true
+          
+  - name: task-implementation
+    description: Verify staged tasks can be implemented
+    steps:
+      - action: implement-task
+        data:
+          task_id: "${staged_task.id}"
+      - wait: 60
+      - verify: implementation-complete
+        expected:
+          status: "completed"
+          has_implementation_code: true
+          has_test_results: true
+          
+  - name: dependency-tracking
+    description: Verify task dependencies are respected
+    steps:
+      - action: create-dependent-tasks
+        data:
+          parent: "Setup database"
+          children: ["Create tables", "Add indexes"]
+      - verify: dependencies-set
+        expected:
+          blocked_count: 2
+          
+  - name: semantic-search
+    description: Verify semantic search finds similar tasks
+    steps:
+      - action: search-tasks
+        data:
+          query: "authentication issues"
+      - verify: results-relevant
+        expected:
+          min_relevance_score: 0.7
+
+validation:
+  required_files:
+    - .vrooli/service.json
+    - initialization/storage/postgres/schema.sql
+    - deployment/startup.sh
+  
+  resource_checks:
+    postgres:
+      database: task_planner
+      tables: ["apps", "tasks", "unstructured_sessions", "agent_runs"]
+    qdrant:
+      collections: ["task_embeddings", "research_embeddings"]
+    n8n:
+      workflows: ["task-parser", "task-researcher", "task-implementer"]
+    windmill:
+      workspace: task_planner
+      scripts: ["parse-unstructured", "research-task", "implement-task"]

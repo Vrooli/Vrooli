@@ -1,0 +1,329 @@
+{
+  "organizationRules": {
+    "autoTagging": {
+      "enabled": true,
+      "minConfidence": 0.7,
+      "maxTags": 15,
+      "rules": [
+        {
+          "name": "document_type_detection",
+          "priority": 1,
+          "conditions": {
+            "fileType": ["document"]
+          },
+          "actions": {
+            "extractDocumentType": true,
+            "suggestTags": ["document", "pdf", "report", "invoice", "contract", "presentation"]
+          }
+        },
+        {
+          "name": "image_content_tagging",
+          "priority": 2,
+          "conditions": {
+            "fileType": ["image"]
+          },
+          "actions": {
+            "analyzeVisualContent": true,
+            "detectObjects": true,
+            "suggestTags": ["photo", "image", "picture", "graphic", "screenshot"]
+          }
+        },
+        {
+          "name": "work_document_detection",
+          "priority": 3,
+          "conditions": {
+            "keywords": ["meeting", "presentation", "report", "invoice", "contract", "proposal"],
+            "filename": ["work", "business", "office", "corporate"]
+          },
+          "actions": {
+            "suggestTags": ["work", "business", "professional"],
+            "suggestFolder": "/Work Documents"
+          }
+        },
+        {
+          "name": "personal_photo_detection",
+          "priority": 4,
+          "conditions": {
+            "fileType": ["image"],
+            "detectedObjects": ["person", "face", "family", "vacation", "travel"]
+          },
+          "actions": {
+            "suggestTags": ["personal", "photos", "family", "memories"],
+            "suggestFolder": "/Personal Photos"
+          }
+        }
+      ]
+    },
+    
+    "folderSuggestions": {
+      "enabled": true,
+      "strategies": [
+        {
+          "name": "content_based",
+          "weight": 0.4,
+          "description": "Organize by semantic content analysis"
+        },
+        {
+          "name": "date_based", 
+          "weight": 0.3,
+          "description": "Organize by creation/modification dates"
+        },
+        {
+          "name": "type_based",
+          "weight": 0.2,
+          "description": "Organize by file type and format"
+        },
+        {
+          "name": "metadata_based",
+          "weight": 0.1,
+          "description": "Organize by extracted metadata"
+        }
+      ],
+      
+      "templates": [
+        {
+          "name": "by_year_month",
+          "pattern": "/{year}/{month:name}",
+          "conditions": {
+            "hasDate": true
+          },
+          "examples": ["/2024/January", "/2024/February"]
+        },
+        {
+          "name": "by_project",
+          "pattern": "/Projects/{project_name}",
+          "conditions": {
+            "keywords": ["project", "work"],
+            "hasProjectName": true
+          },
+          "examples": ["/Projects/Website Redesign", "/Projects/Marketing Campaign"]
+        },
+        {
+          "name": "by_document_type",
+          "pattern": "/Documents/{document_type}",
+          "conditions": {
+            "fileType": ["document"],
+            "hasDocumentType": true
+          },
+          "examples": ["/Documents/Invoices", "/Documents/Contracts", "/Documents/Reports"]
+        },
+        {
+          "name": "by_photo_event",
+          "pattern": "/Photos/{event_name}",
+          "conditions": {
+            "fileType": ["image"],
+            "hasEvent": true
+          },
+          "examples": ["/Photos/Vacation 2024", "/Photos/Birthday Party", "/Photos/Work Conference"]
+        }
+      ]
+    },
+    
+    "smartFolders": {
+      "enabled": true,
+      "predefined": [
+        {
+          "name": "Recent Documents",
+          "path": "/Smart Folders/Recent Documents",
+          "query": {
+            "fileType": ["document"],
+            "dateRange": "7d",
+            "sortBy": "modified_date",
+            "sortOrder": "desc"
+          },
+          "autoRefresh": true,
+          "refreshInterval": 3600
+        },
+        {
+          "name": "Unorganized Images",
+          "path": "/Smart Folders/Unorganized Images",
+          "query": {
+            "fileType": ["image"],
+            "folderPath": "/",
+            "hasDescription": false
+          },
+          "autoRefresh": true,
+          "refreshInterval": 1800
+        },
+        {
+          "name": "Large Files",
+          "path": "/Smart Folders/Large Files",
+          "query": {
+            "sizeMin": "100MB",
+            "sortBy": "size",
+            "sortOrder": "desc"
+          },
+          "autoRefresh": false
+        },
+        {
+          "name": "Duplicates",
+          "path": "/Smart Folders/Potential Duplicates",
+          "query": {
+            "hasDuplicates": true,
+            "duplicateConfidence": 0.85
+          },
+          "autoRefresh": true,
+          "refreshInterval": 7200
+        },
+        {
+          "name": "Work Files",
+          "path": "/Smart Folders/Work Files",
+          "query": {
+            "or": [
+              {"tags": ["work", "business", "office"]},
+              {"keywords": ["meeting", "report", "presentation", "invoice"]},
+              {"folderPath": "/Work*"}
+            ]
+          },
+          "autoRefresh": true,
+          "refreshInterval": 3600
+        }
+      ]
+    },
+    
+    "duplicateHandling": {
+      "enabled": true,
+      "strategies": {
+        "exact": {
+          "action": "suggest_merge",
+          "keepNewest": true,
+          "moveToTrash": false
+        },
+        "nearDuplicate": {
+          "action": "suggest_review",
+          "groupTogether": true,
+          "highlightDifferences": true
+        },
+        "similar": {
+          "action": "suggest_tag",
+          "tagAs": "similar",
+          "createRelationship": true
+        }
+      },
+      "exclusions": {
+        "filetypes": ["log", "temp", "cache"],
+        "folders": ["/System", "/Temp", "/Cache"],
+        "patterns": [".*\\.tmp$", ".*\\.log$"]
+      }
+    },
+    
+    "batchOperations": {
+      "enabled": true,
+      "maxBatchSize": 100,
+      "operations": [
+        {
+          "name": "auto_organize_photos",
+          "description": "Organize photos by date and detected content",
+          "conditions": {
+            "fileType": ["image"],
+            "folderPath": "/",
+            "minCount": 10
+          },
+          "actions": [
+            "analyze_content",
+            "extract_dates", 
+            "create_folders",
+            "move_files",
+            "generate_tags"
+          ]
+        },
+        {
+          "name": "consolidate_documents",
+          "description": "Group similar documents together",
+          "conditions": {
+            "fileType": ["document"],
+            "similarity": 0.8,
+            "minCount": 3
+          },
+          "actions": [
+            "analyze_content",
+            "create_folder",
+            "move_similar_files",
+            "add_tags"
+          ]
+        }
+      ]
+    },
+    
+    "suggestions": {
+      "enabled": true,
+      "types": {
+        "folder_creation": {
+          "enabled": true,
+          "minConfidence": 0.75,
+          "maxSuggestions": 5
+        },
+        "file_tagging": {
+          "enabled": true,
+          "minConfidence": 0.7,
+          "maxSuggestions": 10
+        },
+        "file_renaming": {
+          "enabled": true,
+          "minConfidence": 0.8,
+          "maxSuggestions": 3
+        },
+        "duplicate_handling": {
+          "enabled": true,
+          "minConfidence": 0.85,
+          "maxSuggestions": 20
+        },
+        "cleanup": {
+          "enabled": true,
+          "minConfidence": 0.9,
+          "maxSuggestions": 10
+        }
+      },
+      
+      "learning": {
+        "enabled": true,
+        "trackAcceptance": true,
+        "adaptRules": true,
+        "userFeedback": true
+      }
+    }
+  },
+  
+  "contentAnalysis": {
+    "images": {
+      "objectDetection": {
+        "enabled": true,
+        "confidence": 0.6,
+        "categories": ["person", "vehicle", "animal", "food", "document", "landscape", "indoor", "outdoor"]
+      },
+      "sceneAnalysis": {
+        "enabled": true,
+        "confidence": 0.7,
+        "categories": ["office", "home", "nature", "city", "beach", "mountain", "party", "meeting"]
+      },
+      "textExtraction": {
+        "enabled": true,
+        "ocrLanguages": ["eng", "spa", "fra", "deu"]
+      }
+    },
+    
+    "documents": {
+      "typeDetection": {
+        "enabled": true,
+        "types": ["invoice", "contract", "report", "presentation", "resume", "letter", "manual", "form"]
+      },
+      "entityExtraction": {
+        "enabled": true,
+        "entities": ["person", "organization", "date", "amount", "location", "email", "phone"]
+      },
+      "topicModeling": {
+        "enabled": true,
+        "topics": ["business", "legal", "technical", "financial", "marketing", "HR", "medical", "educational"]
+      }
+    }
+  },
+  
+  "userPreferences": {
+    "organizationStyle": "semantic", 
+    "folderDepth": 3,
+    "autoApplyThreshold": 0.9,
+    "confirmBeforeMove": true,
+    "preserveOriginalPaths": false,
+    "createBackups": true
+  }
+}

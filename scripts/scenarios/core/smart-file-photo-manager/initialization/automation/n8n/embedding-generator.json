@@ -1,0 +1,58 @@
+{
+  "name": "Embedding Generation Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generate-embeddings",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "k1a7b6c8-1234-4567-8901-123456789001",
+      "name": "Generate Embeddings Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "generate-embeddings"
+    },
+    {
+      "parameters": {
+        "resource": "script",
+        "operation": "execute",
+        "workspaceId": "file_manager",
+        "scriptPath": "f/file_manager/generate-embeddings",
+        "parameters": {
+          "fileId": "={{ $json.file_id }}",
+          "processContentChunks": "={{ $json.process_chunks || true }}",
+          "batchSize": "={{ $json.batch_size || 10 }}"
+        }
+      },
+      "id": "k2a7b6c8-1234-4567-8901-123456789002",
+      "name": "Generate File Embeddings",
+      "type": "n8n-nodes-base.windmill",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"file_id\": $json.file_id, \"embeddings_generated\": $json.totalEmbeddings, \"processing_time\": $json.processingTime } }}"
+      },
+      "id": "k3a7b6c8-1234-4567-8901-123456789003",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Generate Embeddings Webhook": { "main": [[ { "node": "Generate File Embeddings", "type": "main", "index": 0 } ]] },
+    "Generate File Embeddings": { "main": [[ { "node": "Success Response", "type": "main", "index": 0 } ]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "1",
+  "id": "6",
+  "meta": { "instanceId": "file_manager" },
+  "tags": [{ "id": "6", "name": "embedding-generation" }]
+}

@@ -1,0 +1,308 @@
+{
+  "supportedFormats": {
+    "images": {
+      "mimeTypes": [
+        "image/jpeg",
+        "image/jpg", 
+        "image/png",
+        "image/gif",
+        "image/bmp",
+        "image/webp",
+        "image/tiff",
+        "image/svg+xml",
+        "image/x-icon"
+      ],
+      "extensions": [
+        ".jpg", ".jpeg", ".png", ".gif", ".bmp", 
+        ".webp", ".tiff", ".tif", ".svg", ".ico"
+      ],
+      "maxSize": "50MB",
+      "processing": {
+        "generateThumbnails": true,
+        "thumbnailSizes": [150, 300, 800],
+        "extractExif": true,
+        "visionAnalysis": true,
+        "objectDetection": true,
+        "faceDetection": true,
+        "ocrText": true
+      },
+      "validation": {
+        "checkHeaders": true,
+        "validateStructure": true,
+        "scanForMalware": false
+      }
+    },
+    
+    "documents": {
+      "mimeTypes": [
+        "application/pdf",
+        "text/plain",
+        "text/markdown",
+        "text/rtf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "application/vnd.ms-powerpoint",
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "text/csv",
+        "application/vnd.ms-excel",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/json",
+        "application/xml",
+        "text/html"
+      ],
+      "extensions": [
+        ".pdf", ".txt", ".md", ".rtf", ".doc", ".docx", 
+        ".ppt", ".pptx", ".csv", ".xls", ".xlsx", 
+        ".json", ".xml", ".html", ".htm"
+      ],
+      "maxSize": "100MB",
+      "processing": {
+        "extractText": true,
+        "chunkContent": true,
+        "generateEmbeddings": true,
+        "extractMetadata": true,
+        "detectLanguage": true,
+        "extractEntities": true,
+        "classifyDocument": true
+      },
+      "validation": {
+        "checkEncryption": true,
+        "validateStructure": true,
+        "scanContent": true
+      }
+    },
+    
+    "videos": {
+      "mimeTypes": [
+        "video/mp4",
+        "video/mpeg",
+        "video/quicktime", 
+        "video/x-msvideo",
+        "video/webm",
+        "video/x-flv",
+        "video/3gpp"
+      ],
+      "extensions": [
+        ".mp4", ".mpeg", ".mpg", ".mov", ".avi", 
+        ".webm", ".flv", ".3gp"
+      ],
+      "maxSize": "500MB",
+      "processing": {
+        "generateThumbnails": true,
+        "extractFrames": false,
+        "extractAudio": false,
+        "transcribeAudio": false,
+        "extractMetadata": true,
+        "detectScenes": false
+      },
+      "validation": {
+        "checkCodecs": true,
+        "validateDuration": true
+      }
+    },
+    
+    "audio": {
+      "mimeTypes": [
+        "audio/mpeg",
+        "audio/wav",
+        "audio/ogg",
+        "audio/mp4",
+        "audio/x-m4a",
+        "audio/flac",
+        "audio/aac"
+      ],
+      "extensions": [
+        ".mp3", ".wav", ".ogg", ".m4a", ".flac", ".aac"
+      ],
+      "maxSize": "100MB",
+      "processing": {
+        "transcribeAudio": true,
+        "extractMetadata": true,
+        "generateWaveform": false,
+        "detectLanguage": true,
+        "speechToText": true
+      },
+      "validation": {
+        "checkCodecs": true,
+        "validateDuration": true
+      }
+    },
+    
+    "archives": {
+      "mimeTypes": [
+        "application/zip",
+        "application/x-rar-compressed",
+        "application/x-7z-compressed",
+        "application/x-tar",
+        "application/gzip"
+      ],
+      "extensions": [
+        ".zip", ".rar", ".7z", ".tar", ".gz", ".tar.gz"
+      ],
+      "maxSize": "200MB",
+      "processing": {
+        "listContents": true,
+        "extractMetadata": true,
+        "scanContents": false,
+        "autoExtract": false
+      },
+      "validation": {
+        "checkIntegrity": true,
+        "scanForMalware": true,
+        "limitDepth": 5
+      }
+    }
+  },
+  
+  "processingPipelines": {
+    "image": [
+      "virus_scan",
+      "validate_format",
+      "extract_metadata", 
+      "generate_thumbnails",
+      "vision_analysis",
+      "object_detection",
+      "extract_text",
+      "generate_embeddings",
+      "suggest_tags",
+      "detect_duplicates"
+    ],
+    
+    "document": [
+      "virus_scan",
+      "validate_format",
+      "extract_text",
+      "chunk_content",
+      "detect_language",
+      "extract_entities",
+      "classify_document",
+      "generate_embeddings",
+      "suggest_organization",
+      "detect_duplicates"
+    ],
+    
+    "video": [
+      "virus_scan", 
+      "validate_format",
+      "extract_metadata",
+      "generate_thumbnails",
+      "transcribe_audio",
+      "generate_embeddings",
+      "suggest_tags"
+    ],
+    
+    "audio": [
+      "virus_scan",
+      "validate_format", 
+      "extract_metadata",
+      "transcribe_audio",
+      "detect_language",
+      "generate_embeddings",
+      "suggest_tags"
+    ],
+    
+    "archive": [
+      "virus_scan",
+      "validate_format",
+      "list_contents",
+      "extract_metadata",
+      "scan_contents"
+    ]
+  },
+  
+  "restrictions": {
+    "blocked": {
+      "mimeTypes": [
+        "application/x-executable",
+        "application/x-msdownload",
+        "application/x-dosexec"
+      ],
+      "extensions": [
+        ".exe", ".bat", ".cmd", ".scr", ".pif",
+        ".com", ".dll", ".sys", ".vbs", ".js"
+      ]
+    },
+    
+    "quarantine": {
+      "mimeTypes": [
+        "application/octet-stream"
+      ],
+      "extensions": [
+        ".bin", ".dat"
+      ],
+      "requireManualReview": true
+    }
+  },
+  
+  "quality": {
+    "image": {
+      "minResolution": "100x100",
+      "maxResolution": "10000x10000", 
+      "minFileSize": "1KB",
+      "supportedColorSpaces": ["RGB", "CMYK", "Grayscale"]
+    },
+    
+    "document": {
+      "minFileSize": "1B",
+      "maxPages": 1000,
+      "supportedEncodings": ["UTF-8", "UTF-16", "ASCII", "ISO-8859-1"]
+    },
+    
+    "video": {
+      "minDuration": "1s",
+      "maxDuration": "4h",
+      "supportedCodecs": ["H.264", "H.265", "VP9", "AV1"]
+    },
+    
+    "audio": {
+      "minDuration": "1s", 
+      "maxDuration": "2h",
+      "supportedCodecs": ["MP3", "AAC", "FLAC", "OGG"]
+    }
+  },
+  
+  "metadata": {
+    "preserve": {
+      "image": ["exif", "iptc", "xmp"],
+      "document": ["author", "created", "modified", "title", "subject"],
+      "video": ["duration", "resolution", "codec", "framerate"],
+      "audio": ["duration", "bitrate", "codec", "artist", "album", "title"]
+    },
+    
+    "extract": {
+      "standard": ["filename", "size", "created", "modified", "mime_type"],
+      "extended": ["checksum", "path", "permissions", "owner"]
+    }
+  },
+  
+  "performance": {
+    "processing": {
+      "maxConcurrent": {
+        "image": 5,
+        "document": 3,
+        "video": 2,
+        "audio": 3,
+        "archive": 2
+      },
+      "timeout": {
+        "image": "60s",
+        "document": "120s", 
+        "video": "300s",
+        "audio": "180s",
+        "archive": "60s"
+      }
+    },
+    
+    "storage": {
+      "compression": {
+        "enabled": true,
+        "level": 6,
+        "formats": ["webp", "avif"]
+      },
+      "deduplication": {
+        "enabled": true,
+        "algorithm": "sha256"
+      }
+    }
+  }
+}

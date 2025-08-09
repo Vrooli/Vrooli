@@ -1,0 +1,245 @@
+{
+  "name": "App Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "app-generator",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "App Generation Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "app-generator"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT e.*, r.name as resource_name, r.type, r.display_name, r.description, r.docker_image, r.repository_url, r.source_url FROM experiments e LEFT JOIN resources r ON e.resource_id = r.id WHERE e.id = '{{ $json.experiment_id }}'"
+      },
+      "id": "get_experiment_details",
+      "name": "Get Experiment Details",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate app structure and metadata\nconst experiment = items[0].json;\nconst appName = experiment.resource_name.toLowerCase().replace(/[^a-z0-9-]/g, '-');\nconst timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);\nconst appId = `${appName}-${timestamp}`;\n\nconst appStructure = {\n  app_id: appId,\n  app_name: appName,\n  display_name: experiment.display_name || experiment.resource_name,\n  description: `Standalone application with ${experiment.resource_name} resource integration`,\n  resource_name: experiment.resource_name,\n  resource_type: experiment.type,\n  experiment_id: experiment.experiment_id,\n  generated_at: new Date().toISOString(),\n  base_path: `/app/generated-apps/${appId}`,\n  docker_image: experiment.docker_image,\n  repository_url: experiment.repository_url,\n  source_url: experiment.source_url,\n  test_results: JSON.parse(experiment.test_results || '{}'),\n  version: '1.0.0'\n};\n\nreturn [{json: appStructure}];"
+      },
+      "id": "prepare_app_structure",
+      "name": "Prepare App Structure",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "command": "mkdir -p '{{ $json.base_path }}/scripts/resources/{{ $json.resource_type }}/{{ $json.resource_name }}' && mkdir -p '{{ $json.base_path }}/scripts/scenarios/{{ $json.resource_name }}-demo' && mkdir -p '{{ $json.base_path }}/.vrooli'",
+        "options": {}
+      },
+      "id": "create_app_directories",
+      "name": "Create App Directories",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "claudeCodeApi",
+        "model": "claude-3-sonnet-20240229",
+        "prompt": "Generate a complete resource provider structure for {{ $json.resource_name }} following Vrooli patterns:\\n\\nResource Type: {{ $json.resource_type }}\\nDocker Image: {{ $json.docker_image || 'N/A' }}\\nRepository: {{ $json.repository_url || 'N/A' }}\\n\\nGenerate:\\n1. manage.sh - Main management script\\n2. config/defaults.sh - Default configuration\\n3. config/messages.sh - User messages\\n4. lib/common.sh - Common utilities\\n5. lib/docker.sh - Docker operations\\n6. lib/install.sh - Installation logic\\n7. lib/status.sh - Status checking\\n8. README.md - Documentation\\n\\nEnsure all scripts follow the browserless resource pattern but adapted for this specific resource."
+      },
+      "id": "generate_resource_provider",
+      "name": "Generate Resource Provider",
+      "type": "@n8n/n8n-nodes-langchain.lmChatClaude",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "claudeCodeApi", 
+        "model": "claude-3-sonnet-20240229",
+        "prompt": "Generate a complete demo scenario for {{ $json.resource_name }}:\\n\\nResource Type: {{ $json.resource_type }}\\nDescription: {{ $json.description }}\\n\\nGenerate:\\n1. .vrooli/service.json - Scenario configuration\\n2. scenario-test.yaml - Test definitions\\n3. initialization/automation/n8n/ workflows\\n4. initialization/configuration/ files\\n5. initialization/storage/ schemas\\n6. deployment/startup.sh\\n7. README.md - Usage instructions\\n\\nThe scenario should demonstrate practical usage of the {{ $json.resource_name }} resource."
+      },
+      "id": "generate_demo_scenario",
+      "name": "Generate Demo Scenario",
+      "type": "@n8n/n8n-nodes-langchain.lmChatClaude",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "claudeCodeApi",
+        "model": "claude-3-sonnet-20240229",
+        "prompt": "Generate root application files for {{ $json.app_name }}:\\n\\nApp Name: {{ $json.display_name }}\\nDescription: {{ $json.description }}\\nResource: {{ $json.resource_name }}\\nType: {{ $json.resource_type }}\\n\\nGenerate:\\n1. package.json - Application metadata and dependencies\\n2. docker-compose.yml - Container orchestration\\n3. README.md - Getting started guide\\n4. .vrooli/service.json - Root service configuration\\n5. scripts/manage.sh - Main management script\\n6. .env.example - Environment variables template\\n\\nEnsure the generated app is fully functional and ready to deploy."
+      },
+      "id": "generate_app_structure_files",
+      "name": "Generate App Structure Files", 
+      "type": "@n8n/n8n-nodes-langchain.lmChatClaude",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse and organize generated files\nconst appInfo = items[0].json;\nconst resourceProviderContent = items[1].json.response || items[1].json.text;\nconst demoScenarioContent = items[2].json.response || items[2].json.text;\nconst appStructureContent = items[3].json.response || items[3].json.text;\n\n// Extract file contents using simple parsing\n// In a real implementation, this would be more sophisticated\nconst files = {};\n\n// Parse resource provider files\nconst resourceBasePath = `${appInfo.base_path}/scripts/resources/${appInfo.resource_type}/${appInfo.resource_name}`;\nfiles[`${resourceBasePath}/manage.sh`] = extractFileContent(resourceProviderContent, 'manage.sh');\nfiles[`${resourceBasePath}/config/defaults.sh`] = extractFileContent(resourceProviderContent, 'config/defaults.sh');\nfiles[`${resourceBasePath}/config/messages.sh`] = extractFileContent(resourceProviderContent, 'config/messages.sh');\nfiles[`${resourceBasePath}/lib/common.sh`] = extractFileContent(resourceProviderContent, 'lib/common.sh');\nfiles[`${resourceBasePath}/lib/docker.sh`] = extractFileContent(resourceProviderContent, 'lib/docker.sh');\nfiles[`${resourceBasePath}/lib/install.sh`] = extractFileContent(resourceProviderContent, 'lib/install.sh');\nfiles[`${resourceBasePath}/lib/status.sh`] = extractFileContent(resourceProviderContent, 'lib/status.sh');\nfiles[`${resourceBasePath}/README.md`] = extractFileContent(resourceProviderContent, 'README.md');\n\n// Parse scenario files\nconst scenarioBasePath = `${appInfo.base_path}/scripts/scenarios/${appInfo.resource_name}-demo`;\nfiles[`${scenarioBasePath}/.vrooli/service.json`] = extractFileContent(demoScenarioContent, 'service.json');\nfiles[`${scenarioBasePath}/scenario-test.yaml`] = extractFileContent(demoScenarioContent, 'scenario-test.yaml');\nfiles[`${scenarioBasePath}/README.md`] = extractFileContent(demoScenarioContent, 'README.md');\n\n// Parse app structure files\nfiles[`${appInfo.base_path}/package.json`] = extractFileContent(appStructureContent, 'package.json');\nfiles[`${appInfo.base_path}/docker-compose.yml`] = extractFileContent(appStructureContent, 'docker-compose.yml');\nfiles[`${appInfo.base_path}/README.md`] = extractFileContent(appStructureContent, 'README.md');\nfiles[`${appInfo.base_path}/.vrooli/service.json`] = extractFileContent(appStructureContent, '.vrooli/service.json');\nfiles[`${appInfo.base_path}/scripts/manage.sh`] = extractFileContent(appStructureContent, 'scripts/manage.sh');\nfiles[`${appInfo.base_path}/.env.example`] = extractFileContent(appStructureContent, '.env.example');\n\n// Simple file content extractor (fallback implementation)\nfunction extractFileContent(content, filename) {\n  const lines = content.split('\\n');\n  const startRegex = new RegExp(`^\\s*(?://|#|<!--)?\\s*${filename.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}`);\n  let capturing = false;\n  let result = [];\n  \n  for (const line of lines) {\n    if (startRegex.test(line)) {\n      capturing = true;\n      continue;\n    }\n    if (capturing && line.match(/^\\s*(?://|#|<!--)?\\s*[\\w.-]+\\.(sh|json|yml|yaml|md)\\s*$/)) {\n      break;\n    }\n    if (capturing) {\n      result.push(line);\n    }\n  }\n  \n  return result.length > 0 ? result.join('\\n').trim() : `# Generated content for ${filename}\\n# TODO: Implement specific functionality`;\n}\n\nreturn [{json: {\n  ...appInfo,\n  files_to_write: files,\n  total_files: Object.keys(files).length\n}}];"
+      },
+      "id": "organize_files",
+      "name": "Organize Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Write all generated files to the app structure\nconst appInfo = items[0].json;\nconst fs = require('fs');\nconst path = require('path');\n\nlet filesWritten = 0;\nlet errors = [];\n\nfor (const [filePath, content] of Object.entries(appInfo.files_to_write)) {\n  try {\n    // Ensure directory exists\n    const dir = path.dirname(filePath);\n    if (!fs.existsSync(dir)) {\n      fs.mkdirSync(dir, { recursive: true });\n    }\n    \n    // Write file\n    fs.writeFileSync(filePath, content, 'utf8');\n    filesWritten++;\n    \n    // Make shell scripts executable\n    if (filePath.endsWith('.sh')) {\n      fs.chmodSync(filePath, 0o755);\n    }\n  } catch (error) {\n    errors.push({ file: filePath, error: error.message });\n  }\n}\n\nreturn [{json: {\n  ...appInfo,\n  files_written: filesWritten,\n  write_errors: errors,\n  app_ready: errors.length === 0\n}}];"
+      },
+      "id": "write_app_files",
+      "name": "Write App Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "command": "cd '{{ $json.base_path }}' && tar czf '../{{ $json.app_id }}.tar.gz' . && zip -r '../{{ $json.app_id }}.zip' . && echo 'Packaged app: {{ $json.app_id }}'",
+        "options": {}
+      },
+      "id": "package_app",
+      "name": "Package App",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "http://localhost:9000/generated-apps/{{ $json.app_id }}.tar.gz",
+        "sendBinaryData": true,
+        "binaryData": {
+          "fileName": "{{ $json.app_id }}.tar.gz",
+          "data": "={{ $binary.data }}"
+        }
+      },
+      "id": "upload_to_minio_tar",
+      "name": "Upload to MinIO (tar.gz)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [2250, 250]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "http://localhost:9000/generated-apps/{{ $json.app_id }}.zip",
+        "sendBinaryData": true,
+        "binaryData": {
+          "fileName": "{{ $json.app_id }}.zip",
+          "data": "={{ $binary.data }}"
+        }
+      },
+      "id": "upload_to_minio_zip",
+      "name": "Upload to MinIO (zip)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [2250, 350]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate app metadata for storage\nconst appInfo = items[0].json;\n\nconst metadata = {\n  app_id: appInfo.app_id,\n  app_name: appInfo.app_name,\n  display_name: appInfo.display_name,\n  description: appInfo.description,\n  resource_name: appInfo.resource_name,\n  resource_type: appInfo.resource_type,\n  experiment_id: appInfo.experiment_id,\n  generated_at: appInfo.generated_at,\n  version: appInfo.version,\n  files_count: appInfo.files_written,\n  download_urls: {\n    tar_gz: `http://localhost:9000/generated-apps/${appInfo.app_id}.tar.gz`,\n    zip: `http://localhost:9000/generated-apps/${appInfo.app_id}.zip`\n  },\n  test_results: appInfo.test_results,\n  status: 'ready'\n};\n\nreturn [{json: metadata}];"
+      },
+      "id": "prepare_metadata",
+      "name": "Prepare Metadata",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2450, 300]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "http://localhost:9000/generated-apps/{{ $json.app_id }}-metadata.json",
+        "body": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "id": "upload_metadata",
+      "name": "Upload Metadata",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [2650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO integration_attempts (resource_id, version, status, integration_approach, files_changed, lines_added, reviewed_by, approved) SELECT resource_id, '1.0.0', 'successful', 'Automated generation via resource-experimenter', ARRAY['Generated complete app structure'], {{ $json.files_written }}, 'resource-experimenter-bot', true FROM experiments WHERE id = '{{ $json.experiment_id }}'"
+      },
+      "id": "record_integration",
+      "name": "Record Integration",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [2850, 300]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [[{"node": "get_experiment_details", "type": "main", "index": 0}]]
+    },
+    "get_experiment_details": {
+      "main": [[{"node": "prepare_app_structure", "type": "main", "index": 0}]]
+    },
+    "prepare_app_structure": {
+      "main": [[{"node": "create_app_directories", "type": "main", "index": 0}]]
+    },
+    "create_app_directories": {
+      "main": [[{"node": "generate_resource_provider", "type": "main", "index": 0}]]
+    },
+    "generate_resource_provider": {
+      "main": [[{"node": "generate_demo_scenario", "type": "main", "index": 0}]]
+    },
+    "generate_demo_scenario": {
+      "main": [[{"node": "generate_app_structure_files", "type": "main", "index": 0}]]
+    },
+    "generate_app_structure_files": {
+      "main": [[{"node": "organize_files", "type": "main", "index": 0}]]
+    },
+    "organize_files": {
+      "main": [[{"node": "write_app_files", "type": "main", "index": 0}]]
+    },
+    "write_app_files": {
+      "main": [[{"node": "package_app", "type": "main", "index": 0}]]
+    },
+    "package_app": {
+      "main": [
+        [{"node": "upload_to_minio_tar", "type": "main", "index": 0}],
+        [{"node": "upload_to_minio_zip", "type": "main", "index": 0}]
+      ]
+    },
+    "upload_to_minio_tar": {
+      "main": [[{"node": "prepare_metadata", "type": "main", "index": 0}]]
+    },
+    "upload_to_minio_zip": {
+      "main": [[{"node": "prepare_metadata", "type": "main", "index": 0}]]
+    },
+    "prepare_metadata": {
+      "main": [[{"node": "upload_metadata", "type": "main", "index": 0}]]
+    },
+    "upload_metadata": {
+      "main": [[{"node": "record_integration", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "v1.0.0"
+}

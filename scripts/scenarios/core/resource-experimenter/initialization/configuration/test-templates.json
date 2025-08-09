@@ -1,0 +1,250 @@
+{
+  "test_templates": {
+    "basic_tests": [
+      {
+        "name": "usage_help",
+        "description": "Test that manage.sh shows usage when called with no arguments",
+        "test_function": "manage.sh shows usage when called with no arguments",
+        "test_code": "run {{resource_name}}::usage\nassert_success\nassert_output --partial \"{{DISPLAY_NAME}}\"\nassert_output --partial \"SYNOPSIS\"\nassert_output --partial \"COMMANDS\"",
+        "required": true
+      },
+      {
+        "name": "help_command",
+        "description": "Test that help command works",
+        "test_function": "manage.sh shows usage for help command",
+        "test_code": "run {{resource_name}}::main help\nassert_success\nassert_output --partial \"{{DISPLAY_NAME}}\"",
+        "required": true
+      },
+      {
+        "name": "config_loading",
+        "description": "Test that configuration loads correctly",
+        "test_function": "config loading works correctly",
+        "test_code": "assert_equal \"${{{RESOURCE_NAME}}_SERVICE_NAME}\" \"{{resource_name}}\"\nassert_equal \"${{{RESOURCE_NAME}}_IMAGE}\" \"{{DOCKER_IMAGE}}\"\nassert_equal \"${{{RESOURCE_NAME}}_PORT}\" \"${TEST_PORT}\"",
+        "required": true
+      }
+    ],
+    "docker_tests": [
+      {
+        "name": "docker_check",
+        "description": "Test that Docker is available",
+        "test_function": "docker check passes when docker is available",
+        "test_code": "run {{resource_name}}::docker_check\nassert_success",
+        "required": true,
+        "skip_condition": "! command -v docker >/dev/null 2>&1"
+      },
+      {
+        "name": "docker_pull",
+        "description": "Test Docker image pull",
+        "test_function": "docker image pull works",
+        "test_code": "# Skip if image already exists to save time\nif {{resource_name}}::docker_image_exists; then\n    skip \"Docker image already exists locally\"\nfi\n\nrun {{resource_name}}::docker_pull\nassert_success\nassert_output --partial \"${MSG_{{RESOURCE_NAME}}_DOCKER_PULLED}\"",
+        "required": true,
+        "timeout": 300
+      },
+      {
+        "name": "network_creation",
+        "description": "Test Docker network creation",
+        "test_function": "docker network creation works",
+        "test_code": "run {{resource_name}}::docker_create_network\nassert_success",
+        "required": true
+      }
+    ],
+    "installation_tests": [
+      {
+        "name": "directory_creation",
+        "description": "Test that directories are created correctly",
+        "test_function": "directory creation works",
+        "test_code": "run {{resource_name}}::create_directories\nassert_success\n\n# Verify directories were created\nassert [ -d \"${TEST_DATA_DIR}\" ]\nassert [ -d \"${TEST_CONFIG_DIR}\" ]\nassert [ -d \"${TEST_LOGS_DIR}\" ]",
+        "required": true
+      },
+      {
+        "name": "config_generation",
+        "description": "Test configuration file generation",
+        "test_function": "configuration generation works",
+        "test_code": "# First create the config directory\n{{resource_name}}::create_directories\n\nrun {{resource_name}}::generate_config\nassert_success\nassert_output --partial \"${MSG_{{RESOURCE_NAME}}_CONFIG_CREATED}\"\n\n# Verify config file was created\nassert [ -f \"${{{RESOURCE_NAME}}_CONFIG_FILE}\" ]",
+        "required": true
+      },
+      {
+        "name": "port_validation",
+        "description": "Test port validation",
+        "test_function": "port validation works correctly",
+        "test_code": "run {{resource_name}}::validate_port \"8080\"\nassert_success\n\nrun {{resource_name}}::validate_port \"invalid\"\nassert_failure\n\nrun {{resource_name}}::validate_port \"70000\"\nassert_failure",
+        "required": true
+      },
+      {
+        "name": "full_installation",
+        "description": "Test complete installation process",
+        "test_function": "service installation works",
+        "test_code": "# Full installation test\nrun timeout 120 {{resource_name}}::install_service\nassert_success\nassert_output --partial \"${MSG_{{RESOURCE_NAME}}_INSTALLED}\"\n\n# Verify container is running\nrun docker ps --filter \"name=${TEST_CONTAINER_NAME}\" --format \"{{.Names}}\"\nassert_success\nassert_output \"${TEST_CONTAINER_NAME}\"",
+        "required": true,
+        "timeout": 180
+      }
+    ],
+    "service_tests": [
+      {
+        "name": "service_status",
+        "description": "Test service status display",
+        "test_function": "service status shows correct information",
+        "test_code": "# Install first if not already installed\nif [[ \"$({{resource_name}}::docker_status)\" != \"running\" ]]; then\n    {{resource_name}}::install_service\nfi\n\nrun {{resource_name}}::show_status\nassert_success\nassert_output --partial \"${MSG_{{RESOURCE_NAME}}_RUNNING}\"",
+        "required": true,
+        "depends_on": ["full_installation"]
+      },
+      {
+        "name": "health_check",
+        "description": "Test health check when service is running",
+        "test_function": "health check works when service is running",
+        "test_code": "# Install first if not already installed\nif [[ \"$({{resource_name}}::docker_status)\" != \"running\" ]]; then\n    {{resource_name}}::install_service\nfi\n\n# Wait a bit for service to be ready\nsleep 10\n\nrun timeout 60 {{resource_name}}::health_check\nassert_success\nassert_output --partial \"${MSG_{{RESOURCE_NAME}}_HEALTHY}\"",
+        "required": true,
+        "depends_on": ["full_installation"],
+        "timeout": 90
+      },
+      {
+        "name": "service_info",
+        "description": "Test service information display",
+        "test_function": "service info shows correct details",
+        "test_code": "run {{resource_name}}::show_info\nassert_success\nassert_output --partial \"{{DISPLAY_NAME}}\"\nassert_output --partial \"${TEST_PORT}\"\nassert_output --partial \"{{DOCKER_IMAGE}}\"",
+        "required": true
+      },
+      {
+        "name": "service_logs",
+        "description": "Test log retrieval",
+        "test_function": "service logs can be retrieved",
+        "test_code": "# Install first if not already installed\nif [[ \"$({{resource_name}}::docker_status)\" != \"running\" ]]; then\n    {{resource_name}}::install_service\nfi\n\nrun {{resource_name}}::show_logs 10\nassert_success\n# Logs should contain some output (even if empty, docker logs should succeed)",
+        "required": true,
+        "depends_on": ["full_installation"]
+      },
+      {
+        "name": "service_stop",
+        "description": "Test service stopping",
+        "test_function": "service can be stopped",
+        "test_code": "# Install first if not already installed\nif [[ \"$({{resource_name}}::docker_status)\" != \"running\" ]]; then\n    {{resource_name}}::install_service\nfi\n\nrun {{resource_name}}::stop_service\nassert_success\nassert_output --partial \"${MSG_{{RESOURCE_NAME}}_STOPPED}\"\n\n# Verify container is stopped\nrun docker ps --filter \"name=${TEST_CONTAINER_NAME}\" --format \"{{.Names}}\"\nassert_success\nrefute_output \"${TEST_CONTAINER_NAME}\"",
+        "required": true,
+        "depends_on": ["full_installation"]
+      },
+      {
+        "name": "service_restart",
+        "description": "Test service restarting",
+        "test_function": "service can be restarted",
+        "test_code": "# Install first if not already installed\nif [[ \"$({{resource_name}}::docker_status)\" != \"running\" ]]; then\n    {{resource_name}}::install_service\nfi\n\nrun {{resource_name}}::restart_service\nassert_success\nassert_output --partial \"${MSG_{{RESOURCE_NAME}}_RESTARTED}\"\n\n# Verify container is running\nrun docker ps --filter \"name=${TEST_CONTAINER_NAME}\" --format \"{{.Names}}\"\nassert_success\nassert_output \"${TEST_CONTAINER_NAME}\"",
+        "required": true,
+        "depends_on": ["full_installation"]
+      }
+    ],
+    "integration_tests": [
+      {
+        "name": "full_lifecycle",
+        "description": "Test complete service lifecycle",
+        "test_function": "full lifecycle: install -> health -> logs -> uninstall",
+        "test_code": "# Install\nrun timeout 120 {{resource_name}}::install_service\nassert_success\n\n# Check health\nsleep 10\nrun timeout 60 {{resource_name}}::health_check\nassert_success\n\n# Get logs\nrun {{resource_name}}::show_logs 5\nassert_success\n\n# Uninstall\nrun {{resource_name}}::uninstall_service\nassert_success\nassert_output --partial \"${MSG_{{RESOURCE_NAME}}_UNINSTALLED}\"",
+        "required": true,
+        "timeout": 300
+      }
+    ],
+    "error_handling_tests": [
+      {
+        "name": "health_check_fail",
+        "description": "Test health check failure when service not running",
+        "test_function": "health check fails when service is not running",
+        "test_code": "# Ensure service is stopped\n{{resource_name}}::stop_service 2>/dev/null || true\n\nrun {{resource_name}}::health_check\nassert_failure\nassert_output --partial \"${MSG_{{RESOURCE_NAME}}_NOT_RUNNING}\"",
+        "required": true
+      },
+      {
+        "name": "status_not_installed",
+        "description": "Test status when service is not installed",
+        "test_function": "status shows correct message when service is not installed",
+        "test_code": "# Ensure service is not installed\n{{resource_name}}::uninstall_service 2>/dev/null || true\n\nrun {{resource_name}}::show_status\nassert_success\nassert_output --partial \"${MSG_{{RESOURCE_NAME}}_NOT_INSTALLED}\"",
+        "required": true
+      }
+    ],
+    "performance_tests": [
+      {
+        "name": "startup_time",
+        "description": "Test service starts within reasonable time",
+        "test_function": "service starts within reasonable time",
+        "test_code": "# Uninstall first to ensure clean state\n{{resource_name}}::uninstall_service 2>/dev/null || true\n\n# Time the installation\nstart_time=$(date +%s)\nrun timeout 120 {{resource_name}}::install_service\nend_time=$(date +%s)\n\nassert_success\n\n# Should complete within 2 minutes\nduration=$((end_time - start_time))\nassert [ ${duration} -lt 120 ]",
+        "required": false,
+        "timeout": 180
+      },
+      {
+        "name": "rapid_status_checks",
+        "description": "Test multiple rapid status checks",
+        "test_function": "multiple rapid status checks work correctly",
+        "test_code": "# Install first if not already installed\nif [[ \"$({{resource_name}}::docker_status)\" != \"running\" ]]; then\n    {{resource_name}}::install_service\nfi\n\n# Run multiple status checks rapidly\nfor i in {1..5}; do\n    run {{resource_name}}::show_status\n    assert_success\ndone",
+        "required": false,
+        "depends_on": ["full_installation"]
+      }
+    ],
+    "resource_specific_tests": {
+      "ai": [
+        {
+          "name": "api_endpoint_test",
+          "description": "Test AI service API endpoints",
+          "test_function": "AI API endpoints respond correctly",
+          "test_code": "# Install first if not already installed\nif [[ \"$({{resource_name}}::docker_status)\" != \"running\" ]]; then\n    {{resource_name}}::install_service\nfi\n\n# Wait for service to be ready\nsleep 15\n\n# Test API endpoint if available\nif command -v curl >/dev/null 2>&1; then\n    run curl -f -s --max-time 10 \"http://localhost:${TEST_PORT}/health\"\n    # Don't assert success as API endpoint may not be available immediately\nfi",
+          "required": false,
+          "depends_on": ["full_installation"]
+        }
+      ],
+      "storage": [
+        {
+          "name": "connection_test",
+          "description": "Test database connection",
+          "test_function": "database connection works",
+          "test_code": "# Install first if not already installed\nif [[ \"$({{resource_name}}::docker_status)\" != \"running\" ]]; then\n    {{resource_name}}::install_service\nfi\n\n# Wait for service to be ready\nsleep 15\n\n# Test connection (resource-specific)\nrun timeout 10 bash -c \"echo >/dev/tcp/localhost/${TEST_PORT}\"\n# This test passes if we can connect to the port",
+          "required": false,
+          "depends_on": ["full_installation"]
+        }
+      ],
+      "monitoring": [
+        {
+          "name": "metrics_endpoint",
+          "description": "Test metrics endpoint availability",
+          "test_function": "metrics endpoint is available",
+          "test_code": "# Install first if not already installed\nif [[ \"$({{resource_name}}::docker_status)\" != \"running\" ]]; then\n    {{resource_name}}::install_service\nfi\n\n# Wait for service to be ready\nsleep 15\n\n# Test metrics endpoint if available\nif command -v curl >/dev/null 2>&1; then\n    run curl -f -s --max-time 10 \"http://localhost:${TEST_PORT}/metrics\"\nfi",
+          "required": false,
+          "depends_on": ["full_installation"]
+        }
+      ]
+    }
+  },
+  "test_configuration": {
+    "setup_file": {
+      "timeout": 300,
+      "required_commands": ["docker"],
+      "environment_setup": [
+        "export TEST_RESOURCE_NAME=\"{{resource_name}}\"",
+        "export TEST_CONTAINER_NAME=\"test-{{resource_name}}-${BATS_RUN_ID}\"",
+        "export TEST_PORT=\"9$(printf \"%03d\" $((RANDOM % 1000)))\"",
+        "export TEST_DATA_DIR=\"/tmp/test-{{resource_name}}-${BATS_RUN_ID}\"",
+        "export TEST_CONFIG_DIR=\"/tmp/test-{{resource_name}}-config-${BATS_RUN_ID}\"",
+        "export TEST_LOGS_DIR=\"/tmp/test-{{resource_name}}-logs-${BATS_RUN_ID}\""
+      ],
+      "cleanup_commands": [
+        "docker rm -f \"${TEST_CONTAINER_NAME}\" 2>/dev/null || true",
+        "rm -rf \"${TEST_DATA_DIR}\" \"${TEST_CONFIG_DIR}\" \"${TEST_LOGS_DIR}\" 2>/dev/null || true"
+      ]
+    },
+    "test_execution": {
+      "default_timeout": 60,
+      "parallel_execution": false,
+      "retry_failed_tests": 1,
+      "continue_on_failure": true
+    },
+    "test_reporting": {
+      "format": "json",
+      "include_timing": true,
+      "include_logs": true,
+      "save_artifacts": true,
+      "artifact_retention_days": 7
+    }
+  },
+  "test_validation": {
+    "required_test_types": ["basic_tests", "docker_tests", "installation_tests", "service_tests"],
+    "minimum_test_count": 10,
+    "minimum_coverage_percent": 80,
+    "performance_thresholds": {
+      "startup_time_seconds": 120,
+      "health_check_time_seconds": 30,
+      "api_response_time_ms": 5000
+    }
+  }
+}

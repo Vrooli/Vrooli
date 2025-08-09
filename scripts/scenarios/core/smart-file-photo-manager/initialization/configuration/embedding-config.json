@@ -1,0 +1,218 @@
+{
+  "embedding": {
+    "model": "nomic-embed-text",
+    "dimensions": 1536,
+    "similarity": {
+      "metric": "cosine",
+      "thresholds": {
+        "duplicate": 0.95,
+        "similar": 0.85,
+        "related": 0.7,
+        "match": 0.6
+      }
+    },
+    "processing": {
+      "batchSize": 10,
+      "maxConcurrent": 3,
+      "timeout": 30000,
+      "retries": 3
+    }
+  },
+  
+  "collections": {
+    "file_embeddings": {
+      "description": "General file content embeddings for semantic search",
+      "vectorConfig": {
+        "size": 1536,
+        "distance": "Cosine"
+      },
+      "indexing": {
+        "fields": ["file_id", "file_type", "folder_path", "tags"],
+        "optimize": true
+      },
+      "search": {
+        "defaultLimit": 20,
+        "maxLimit": 100,
+        "minScore": 0.6
+      }
+    },
+    
+    "image_embeddings": {
+      "description": "Visual embeddings for image similarity and search",
+      "vectorConfig": {
+        "size": 1536,
+        "distance": "Cosine"
+      },
+      "indexing": {
+        "fields": ["file_id", "detected_objects", "width", "height"],
+        "optimize": true
+      },
+      "search": {
+        "defaultLimit": 20,
+        "maxLimit": 100,
+        "minScore": 0.7
+      }
+    },
+    
+    "content_chunks": {
+      "description": "Document chunk embeddings for detailed search",
+      "vectorConfig": {
+        "size": 1536,
+        "distance": "Cosine"
+      },
+      "indexing": {
+        "fields": ["file_id", "chunk_type", "page_number"],
+        "optimize": true
+      },
+      "search": {
+        "defaultLimit": 50,
+        "maxLimit": 200,
+        "minScore": 0.6
+      }
+    }
+  },
+  
+  "textProcessing": {
+    "chunking": {
+      "strategy": "semantic",
+      "maxTokens": 1000,
+      "overlap": 100,
+      "separators": ["\n\n", "\n", ". ", "! ", "? ", "; "]
+    },
+    "cleaning": {
+      "removeHtml": true,
+      "normalizeWhitespace": true,
+      "removePunctuation": false,
+      "lowercase": false
+    },
+    "enhancement": {
+      "addContext": true,
+      "includeFilename": true,
+      "includeMetadata": true
+    }
+  },
+  
+  "imageProcessing": {
+    "vision": {
+      "model": "llava:13b",
+      "prompts": {
+        "description": "Describe what you see in this image in detail, including objects, people, actions, and setting.",
+        "objects": "List all the objects and items you can identify in this image.",
+        "scene": "What type of scene or setting is this? (e.g., indoor, outdoor, office, nature, etc.)",
+        "text": "Is there any text visible in this image? If so, what does it say?"
+      },
+      "context": {
+        "includeFilename": true,
+        "includeTimestamp": true,
+        "includeLocation": false
+      }
+    },
+    "features": {
+      "detectObjects": true,
+      "detectFaces": true,
+      "detectText": true,
+      "analyzeColors": true,
+      "extractMetadata": true
+    }
+  },
+  
+  "documentProcessing": {
+    "unstructured": {
+      "strategy": "hi_res",
+      "chunkingStrategy": "by_title",
+      "languages": ["eng", "spa", "fra", "deu"],
+      "includePageBreaks": true,
+      "inferTableStructure": true,
+      "extractImages": true
+    },
+    "postProcessing": {
+      "cleanText": true,
+      "mergeShortChunks": true,
+      "minChunkLength": 50,
+      "maxChunkLength": 2000
+    }
+  },
+  
+  "search": {
+    "semantic": {
+      "enabled": true,
+      "hybridSearch": {
+        "enabled": true,
+        "weights": {
+          "semantic": 0.7,
+          "keyword": 0.3
+        }
+      },
+      "reranking": {
+        "enabled": true,
+        "method": "cross_encoder",
+        "topK": 100
+      }
+    },
+    "filters": {
+      "fileType": {
+        "enabled": true,
+        "multiSelect": true
+      },
+      "dateRange": {
+        "enabled": true,
+        "granularity": "day"
+      },
+      "folderPath": {
+        "enabled": true,
+        "hierarchical": true
+      },
+      "tags": {
+        "enabled": true,
+        "multiSelect": true,
+        "fuzzyMatch": true
+      },
+      "size": {
+        "enabled": true,
+        "ranges": ["0-1MB", "1MB-10MB", "10MB-100MB", "100MB+"]
+      }
+    }
+  },
+  
+  "duplicateDetection": {
+    "enabled": true,
+    "strategies": {
+      "exact": {
+        "enabled": true,
+        "threshold": 1.0,
+        "method": "hash"
+      },
+      "nearDuplicate": {
+        "enabled": true,
+        "threshold": 0.95,
+        "method": "embedding"
+      },
+      "similar": {
+        "enabled": true,
+        "threshold": 0.85,
+        "method": "embedding"
+      }
+    },
+    "grouping": {
+      "maxGroupSize": 10,
+      "includeVariants": true
+    }
+  },
+  
+  "optimization": {
+    "indexing": {
+      "batchSize": 1000,
+      "flushInterval": 60000,
+      "segmentSize": 100000
+    },
+    "memory": {
+      "cacheSize": "1GB",
+      "preloadCollections": true
+    },
+    "performance": {
+      "parallelQueries": 5,
+      "vectorCaching": true,
+      "lazyLoading": true
+    }
+  }
+}

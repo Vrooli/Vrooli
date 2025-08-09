@@ -181,6 +181,24 @@
       "validated": false,
       "enabled": true,
       "ui": true
+    },
+    {
+      "name": "task-planner",
+      "description": "General task planner and scheduler with AI-powered task refinement and implementation",
+      "location": "core/task-planner",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "smart-file-photo-manager",
+      "description": "Semantic file and photo management with AI-powered organization suggestions",
+      "location": "core/smart-file-photo-manager",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
     }
   ]
 }

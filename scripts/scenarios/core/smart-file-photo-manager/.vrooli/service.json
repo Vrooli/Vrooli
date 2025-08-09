@@ -1,0 +1,185 @@
+{
+  "version": "1.0.0",
+  "name": "smart-file-photo-manager",
+  "description": "Semantic file and photo management with AI-powered organization suggestions",
+  "type": "scenario",
+  "category": "saas-applications",
+  "resources": {
+    "storage": {
+      "postgres": {
+        "enabled": true,
+        "config": {
+          "database": "file_manager",
+          "port": 5435,
+          "username": "filemanager_user",
+          "password": "${POSTGRES_PASSWORD}",
+          "initialization": {
+            "schema": "initialization/storage/postgres/schema.sql",
+            "seed": "initialization/storage/postgres/seed.sql"
+          }
+        }
+      },
+      "redis": {
+        "enabled": true,
+        "config": {
+          "database": 1,
+          "keyPrefix": "file_manager:"
+        }
+      },
+      "qdrant": {
+        "enabled": true,
+        "config": {
+          "collections": ["file_embeddings", "image_embeddings", "content_chunks"],
+          "port": 6335,
+          "vectorSize": 1536
+        }
+      },
+      "minio": {
+        "enabled": true,
+        "config": {
+          "buckets": ["original-files", "processed-files", "thumbnails", "exports"],
+          "port": 9001,
+          "public": false,
+          "retention": "90d"
+        }
+      }
+    },
+    "automation": {
+      "n8n": {
+        "enabled": true,
+        "config": {
+          "workflows": [
+            "initialization/automation/n8n/file-processor.json",
+            "initialization/automation/n8n/image-analyzer.json",
+            "initialization/automation/n8n/document-processor.json",
+            "initialization/automation/n8n/embedding-generator.json",
+            "initialization/automation/n8n/duplicate-detector.json",
+            "initialization/automation/n8n/organization-suggester.json",
+            "initialization/automation/n8n/batch-processor.json",
+            "initialization/automation/n8n/semantic-search.json"
+          ],
+          "webhooks": {
+            "file_upload": "http://localhost:5680/webhook/file-upload",
+            "batch_process": "http://localhost:5680/webhook/batch-process",
+            "search_query": "http://localhost:5680/webhook/search"
+          }
+        }
+      },
+      "windmill": {
+        "enabled": true,
+        "config": {
+          "workspace": "file_manager",
+          "scripts": [
+            "initialization/automation/windmill/scripts/process-image.ts",
+            "initialization/automation/windmill/scripts/extract-text.ts",
+            "initialization/automation/windmill/scripts/generate-embeddings.ts",
+            "initialization/automation/windmill/scripts/find-duplicates.ts",
+            "initialization/automation/windmill/scripts/suggest-organization.ts",
+            "initialization/automation/windmill/scripts/batch-organize.ts",
+            "initialization/automation/windmill/scripts/semantic-search.ts"
+          ],
+          "apps": [
+            "initialization/automation/windmill/apps/file-manager-ui.json"
+          ]
+        }
+      }
+    },
+    "ai": {
+      "ollama": {
+        "enabled": true,
+        "config": {
+          "models": ["llava:13b", "llama3.2", "nomic-embed-text"],
+          "vision": {
+            "model": "llava:13b",
+            "purpose": "image_analysis_and_description"
+          },
+          "embeddings": {
+            "model": "nomic-embed-text",
+            "dimensions": 1536
+          },
+          "primary_use": "file_content_analysis"
+        }
+      },
+      "unstructured-io": {
+        "enabled": true,
+        "config": {
+          "api_url": "http://localhost:8000",
+          "strategy": "hi_res",
+          "pdf_infer_table_structure": true,
+          "extract_images_in_pdf": true,
+          "ocr_languages": ["eng", "spa", "fra", "deu"]
+        }
+      }
+    }
+  },
+  "deployment": {
+    "ports": {
+      "windmill": 8002,
+      "api": 8093,
+      "n8n": 5680,
+      "ui": 3002,
+      "unstructured": 8000
+    },
+    "environment": {
+      "NODE_ENV": "production",
+      "LOG_LEVEL": "info",
+      "FILE_MANAGER_API_PORT": "8093",
+      "FILE_MANAGER_SECRET": "${FILE_MANAGER_SECRET}",
+      "MAX_FILE_SIZE_MB": "500",
+      "SUPPORTED_FORMATS": "jpg,jpeg,png,gif,bmp,webp,pdf,doc,docx,txt,md,csv,xlsx",
+      "OLLAMA_BASE_URL": "http://localhost:11434",
+      "UNSTRUCTURED_API_URL": "http://localhost:8000",
+      "QDRANT_URL": "http://localhost:6335",
+      "MINIO_ENDPOINT": "localhost:9001",
+      "POSTGRES_HOST": "localhost",
+      "POSTGRES_PORT": "5435",
+      "REDIS_URL": "redis://localhost:6380",
+      "N8N_WEBHOOK_URL": "http://localhost:5680"
+    }
+  },
+  "lifecycle": {
+    "setup": {
+      "description": "Initialize file manager database and services",
+      "steps": [
+        {
+          "name": "database-setup",
+          "run": "deployment/setup-postgres.sh"
+        },
+        {
+          "name": "vector-db-setup",
+          "run": "deployment/setup-qdrant.sh"
+        },
+        {
+          "name": "storage-setup",
+          "run": "deployment/setup-minio.sh"
+        },
+        {
+          "name": "automation-import",
+          "run": "deployment/import-automations.sh"
+        },
+        {
+          "name": "model-pull",
+          "run": "deployment/pull-models.sh"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start file manager services",
+      "steps": [
+        {
+          "name": "start-services",
+          "run": "deployment/startup.sh"
+        }
+      ]
+    },
+    "build": {
+      "description": "Build file manager artifacts",
+      "steps": [
+        {
+          "name": "build-artifacts",
+          "run": "deployment/build.sh"
+        }
+      ]
+    }
+  }
+}

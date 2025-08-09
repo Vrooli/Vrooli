@@ -1,0 +1,664 @@
+{
+  "summary": "Application Detail Viewer",
+  "description": "Detailed view and management of generated applications",
+  "value": {
+    "grid": [
+      {
+        "id": "app_selector",
+        "data": {
+          "type": "containercomponent",
+          "configuration": {
+            "style": {
+              "marginBottom": "20px"
+            }
+          },
+          "components": [
+            {
+              "id": "app_select",
+              "data": {
+                "type": "selectcomponent",
+                "configuration": {
+                  "placeholder": "Select an application to view details",
+                  "options": {
+                    "type": "evalv2",
+                    "expr": "window.http_request('GET', 'http://localhost:9000/generated-apps/catalog.json').then(data => (data.apps || []).map(app => ({ label: app.display_name + ' (v' + app.version + ')', value: app.app_id })))",
+                    "connections": []
+                  },
+                  "onChange": {
+                    "type": "evalv2",
+                    "expr": "window.loadAppDetails(this.value)"
+                  },
+                  "style": {
+                    "width": "400px"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "app_details",
+        "data": {
+          "type": "containercomponent",
+          "configuration": {
+            "style": {
+              "display": "none",
+              "marginBottom": "20px"
+            },
+            "id": "app_details_container"
+          },
+          "components": [
+            {
+              "id": "app_header",
+              "data": {
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "backgroundColor": "#f8f9fa",
+                    "border": "1px solid #e9ecef",
+                    "borderRadius": "8px",
+                    "padding": "20px",
+                    "marginBottom": "20px"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "app_title",
+                    "data": {
+                      "type": "textcomponent",
+                      "configuration": {
+                        "text": "",
+                        "style": {
+                          "fontSize": "24px",
+                          "fontWeight": "bold",
+                          "color": "#333",
+                          "marginBottom": "10px"
+                        },
+                        "id": "app_title_text"
+                      }
+                    }
+                  },
+                  {
+                    "id": "app_description",
+                    "data": {
+                      "type": "textcomponent",
+                      "configuration": {
+                        "text": "",
+                        "style": {
+                          "fontSize": "16px",
+                          "color": "#666",
+                          "marginBottom": "15px"
+                        },
+                        "id": "app_description_text"
+                      }
+                    }
+                  },
+                  {
+                    "id": "app_metadata",
+                    "data": {
+                      "type": "containercomponent",
+                      "configuration": {
+                        "style": {
+                          "display": "flex",
+                          "gap": "20px",
+                          "flexWrap": "wrap"
+                        },
+                        "id": "app_metadata_container"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": "download_section",
+              "data": {
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "backgroundColor": "#fff",
+                    "border": "1px solid #e9ecef",
+                    "borderRadius": "8px",
+                    "padding": "20px",
+                    "marginBottom": "20px"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "download_title",
+                    "data": {
+                      "type": "textcomponent",
+                      "configuration": {
+                        "text": "Downloads",
+                        "style": {
+                          "fontSize": "18px",
+                          "fontWeight": "bold",
+                          "marginBottom": "15px"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": "download_buttons",
+                    "data": {
+                      "type": "containercomponent",
+                      "configuration": {
+                        "style": {
+                          "display": "flex",
+                          "gap": "15px",
+                          "marginBottom": "15px"
+                        },
+                        "id": "download_buttons_container"
+                      }
+                    }
+                  },
+                  {
+                    "id": "download_info",
+                    "data": {
+                      "type": "textcomponent",
+                      "configuration": {
+                        "text": "",
+                        "style": {
+                          "fontSize": "14px",
+                          "color": "#666",
+                          "lineHeight": "1.5"
+                        },
+                        "id": "download_info_text"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": "metrics_section",
+              "data": {
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "backgroundColor": "#fff",
+                    "border": "1px solid #e9ecef",
+                    "borderRadius": "8px",
+                    "padding": "20px",
+                    "marginBottom": "20px"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "metrics_title",
+                    "data": {
+                      "type": "textcomponent",
+                      "configuration": {
+                        "text": "Test Results & Metrics",
+                        "style": {
+                          "fontSize": "18px",
+                          "fontWeight": "bold",
+                          "marginBottom": "15px"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": "metrics_stats",
+                    "data": {
+                      "type": "containercomponent",
+                      "configuration": {
+                        "style": {
+                          "display": "grid",
+                          "gridTemplateColumns": "repeat(auto-fit, minmax(200px, 1fr))",
+                          "gap": "15px",
+                          "marginBottom": "15px"
+                        },
+                        "id": "metrics_stats_container"
+                      }
+                    }
+                  },
+                  {
+                    "id": "test_details",
+                    "data": {
+                      "type": "containercomponent",
+                      "configuration": {
+                        "style": {
+                          "marginTop": "20px"
+                        },
+                        "id": "test_details_container"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": "technical_details",
+              "data": {
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "backgroundColor": "#fff",
+                    "border": "1px solid #e9ecef",
+                    "borderRadius": "8px",
+                    "padding": "20px",
+                    "marginBottom": "20px"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "tech_title",
+                    "data": {
+                      "type": "textcomponent",
+                      "configuration": {
+                        "text": "Technical Details",
+                        "style": {
+                          "fontSize": "18px",
+                          "fontWeight": "bold",
+                          "marginBottom": "15px"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": "tech_content",
+                    "data": {
+                      "type": "textcomponent",
+                      "configuration": {
+                        "text": "",
+                        "style": {
+                          "fontSize": "14px",
+                          "color": "#333",
+                          "lineHeight": "1.6",
+                          "whiteSpace": "pre-wrap",
+                          "fontFamily": "monospace",
+                          "backgroundColor": "#f8f9fa",
+                          "padding": "15px",
+                          "borderRadius": "4px",
+                          "border": "1px solid #e9ecef"
+                        },
+                        "id": "tech_content_text"
+                      }
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "id": "file_structure",
+              "data": {
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "backgroundColor": "#fff",
+                    "border": "1px solid #e9ecef",
+                    "borderRadius": "8px",
+                    "padding": "20px",
+                    "marginBottom": "20px"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "structure_title",
+                    "data": {
+                      "type": "textcomponent",
+                      "configuration": {
+                        "text": "Generated File Structure",
+                        "style": {
+                          "fontSize": "18px",
+                          "fontWeight": "bold",
+                          "marginBottom": "15px"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": "structure_tree",
+                    "data": {
+                      "type": "textcomponent",
+                      "configuration": {
+                        "text": "",
+                        "style": {
+                          "fontSize": "12px",
+                          "fontFamily": "monospace",
+                          "backgroundColor": "#f8f9fa",
+                          "padding": "15px",
+                          "borderRadius": "4px",
+                          "border": "1px solid #e9ecef",
+                          "whiteSpace": "pre-wrap",
+                          "lineHeight": "1.4"
+                        },
+                        "id": "structure_tree_text"
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "css": `
+      .metadata-badge {
+        padding: 4px 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: bold;
+        text-transform: uppercase;
+        display: inline-block;
+        margin-right: 10px;
+        margin-bottom: 5px;
+      }
+      
+      .metadata-type { background-color: #e3f2fd; color: #1565c0; }
+      .metadata-version { background-color: #f3e5f5; color: #7b1fa2; }
+      .metadata-date { background-color: #e2e3e5; color: #383d41; }
+      
+      .download-btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        text-decoration: none;
+        display: inline-block;
+        transition: background-color 0.2s;
+      }
+      .download-btn:hover {
+        opacity: 0.9;
+      }
+      .download-zip { background-color: #17a2b8; color: white; }
+      .download-tar { background-color: #6c757d; color: white; }
+      .download-metadata { background-color: #28a745; color: white; }
+      
+      .metric-card {
+        background-color: #f8f9fa;
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        padding: 15px;
+        text-align: center;
+      }
+      
+      .metric-card h4 {
+        margin: 0 0 5px 0;
+        font-size: 14px;
+        color: #666;
+        text-transform: uppercase;
+      }
+      
+      .metric-card .value {
+        font-size: 24px;
+        font-weight: bold;
+        color: #333;
+        margin: 0;
+      }
+      
+      .test-result {
+        padding: 10px;
+        border-radius: 6px;
+        margin-bottom: 10px;
+        border-left: 4px solid;
+      }
+      
+      .test-pass {
+        background-color: #d4edda;
+        border-color: #28a745;
+        color: #155724;
+      }
+      
+      .test-fail {
+        background-color: #f8d7da;
+        border-color: #dc3545;
+        color: #721c24;
+      }
+      
+      .test-partial {
+        background-color: #fff3cd;
+        border-color: #ffc107;
+        color: #856404;
+      }
+      
+      .file-tree {
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        line-height: 1.4;
+      }
+    `,
+    "scripts": [
+      {
+        "type": "frontend",
+        "content": `
+          let currentApp = null;
+          
+          window.loadAppDetails = async function(appId) {
+            if (!appId) return;
+            
+            try {
+              // Load catalog data
+              const catalog = await window.http_request('GET', 'http://localhost:9000/generated-apps/catalog.json');
+              const app = catalog.apps.find(a => a.app_id === appId);
+              
+              if (!app) {
+                alert('Application not found');
+                return;
+              }
+              
+              // Load app metadata
+              let metadata = {};
+              try {
+                metadata = await window.http_request('GET', 'http://localhost:9000/generated-apps/' + appId + '-metadata.json');
+              } catch (e) {
+                console.warn('Could not load metadata for app:', appId);
+              }
+              
+              currentApp = { ...app, metadata };
+              
+              // Update UI
+              updateAppDisplay();
+              
+              // Show the details container
+              const container = document.getElementById('app_details_container');
+              if (container) {
+                container.style.display = 'block';
+              }
+              
+            } catch (error) {
+              console.error('Error loading app details:', error);
+              alert('Error loading application details');
+            }
+          };
+          
+          function updateAppDisplay() {
+            if (!currentApp) return;
+            
+            // Update title and description
+            const titleEl = document.getElementById('app_title_text');
+            if (titleEl) titleEl.textContent = currentApp.display_name;
+            
+            const descEl = document.getElementById('app_description_text');
+            if (descEl) descEl.textContent = currentApp.description;
+            
+            // Update metadata badges
+            updateMetadata();
+            
+            // Update download section
+            updateDownloads();
+            
+            // Update metrics
+            updateMetrics();
+            
+            // Update technical details
+            updateTechnicalDetails();
+            
+            // Update file structure
+            updateFileStructure();
+          }
+          
+          function updateMetadata() {
+            const container = document.getElementById('app_metadata_container');
+            if (!container) return;
+            
+            const app = currentApp;
+            container.innerHTML = [
+              '<span class="metadata-badge metadata-type">' + app.type + '</span>',
+              '<span class="metadata-badge metadata-version">v' + app.version + '</span>',
+              '<span class="metadata-badge metadata-date">' + new Date(app.published_at).toLocaleDateString() + '</span>'
+            ].join('');
+          }
+          
+          function updateDownloads() {
+            const buttonsContainer = document.getElementById('download_buttons_container');
+            const infoEl = document.getElementById('download_info_text');
+            
+            if (buttonsContainer && currentApp.downloads) {
+              buttonsContainer.innerHTML = [
+                '<a href="' + currentApp.downloads.zip + '" class="download-btn download-zip" download>📦 Download ZIP</a>',
+                '<a href="' + currentApp.downloads.tar_gz + '" class="download-btn download-tar" download>📦 Download TAR.GZ</a>',
+                '<a href="' + currentApp.downloads.metadata + '" class="download-btn download-metadata" target="_blank">📋 View Metadata</a>'
+              ].join('');
+            }
+            
+            if (infoEl) {
+              const sizeInfo = currentApp.metadata && currentApp.metadata.files_count ? 
+                'Contains ' + currentApp.metadata.files_count + ' files. ' : '';
+              infoEl.textContent = sizeInfo + 'Ready-to-deploy application with complete resource integration, documentation, and test suite.';
+            }
+          }
+          
+          function updateMetrics() {
+            const container = document.getElementById('metrics_stats_container');
+            const detailsContainer = document.getElementById('test_details_container');
+            
+            if (!container || !currentApp.metrics) return;
+            
+            // Create metric cards
+            const metrics = currentApp.metrics;
+            container.innerHTML = [
+              '<div class="metric-card">',
+                '<h4>Files Generated</h4>',
+                '<div class="value">' + (metrics.files_changed || 0) + '</div>',
+              '</div>',
+              '<div class="metric-card">',
+                '<h4>Lines of Code</h4>',
+                '<div class="value">' + (metrics.lines_added || 0) + '</div>',
+              '</div>',
+              '<div class="metric-card">',
+                '<h4>Unit Tests</h4>',
+                '<div class="value">' + (metrics.unit_tests_passed || 0) + '/' + ((metrics.unit_tests_passed || 0) + (metrics.unit_tests_failed || 0)) + '</div>',
+              '</div>',
+              '<div class="metric-card">',
+                '<h4>Integration Tests</h4>',
+                '<div class="value">' + (metrics.integration_tests_passed || 0) + '/' + ((metrics.integration_tests_passed || 0) + (metrics.integration_tests_failed || 0)) + '</div>',
+              '</div>'
+            ].join('');
+            
+            // Show test details
+            if (detailsContainer) {
+              const testStatus = getTestStatus();
+              detailsContainer.innerHTML = '<div class="test-result test-' + testStatus.type + '">' +
+                '<strong>Test Status:</strong> ' + testStatus.message + '</div>';
+            }
+          }
+          
+          function getTestStatus() {
+            const metrics = currentApp.metrics || {};
+            const unitPassed = metrics.unit_tests_passed || 0;
+            const unitTotal = unitPassed + (metrics.unit_tests_failed || 0);
+            const intPassed = metrics.integration_tests_passed || 0;
+            const intTotal = intPassed + (metrics.integration_tests_failed || 0);
+            
+            if ((unitPassed === unitTotal || unitTotal === 0) && (intPassed === intTotal || intTotal === 0)) {
+              return { type: 'pass', message: 'All tests passing ✅' };
+            } else if (unitPassed === 0 && intPassed === 0) {
+              return { type: 'fail', message: 'Tests failing ❌' };
+            } else {
+              return { type: 'partial', message: 'Some tests passing ⚠️' };
+            }
+          }
+          
+          function updateTechnicalDetails() {
+            const container = document.getElementById('tech_content_text');
+            if (!container) return;
+            
+            const app = currentApp;
+            const metadata = app.metadata || {};
+            
+            const details = [
+              'App ID: ' + app.app_id,
+              'Resource Name: ' + app.name,
+              'Resource Type: ' + app.type,
+              'Version: ' + app.version,
+              'Published: ' + new Date(app.published_at).toISOString(),
+              '',
+              'Generated Files: ' + (app.metrics.files_changed || 0),
+              'Lines of Code: ' + (app.metrics.lines_added || 0),
+              '',
+              'Test Results:',
+              '  Unit Tests: ' + (app.metrics.unit_tests_passed || 0) + ' passed',
+              '  Integration Tests: ' + (app.metrics.integration_tests_passed || 0) + ' passed',
+              '',
+              'Download URLs:',
+              '  ZIP: ' + (app.downloads.zip || 'N/A'),
+              '  TAR.GZ: ' + (app.downloads.tar_gz || 'N/A'),
+              '  Metadata: ' + (app.downloads.metadata || 'N/A')
+            ].join('\\n');
+            
+            container.textContent = details;
+          }
+          
+          function updateFileStructure() {
+            const container = document.getElementById('structure_tree_text');
+            if (!container) return;
+            
+            // Generate typical structure based on app type
+            const appName = currentApp.name;
+            const resourceType = currentApp.type;
+            
+            const structure = [
+              appName + '/',
+              '├── README.md',
+              '├── package.json',
+              '├── docker-compose.yml',
+              '├── .env.example',
+              '├── .vrooli/',
+              '│   └── service.json',
+              '├── scripts/',
+              '│   ├── manage.sh',
+              '│   ├── resources/',
+              '│   │   └── ' + resourceType + '/',
+              '│   │       └── ' + appName + '/',
+              '│   │           ├── manage.sh',
+              '│   │           ├── manage.bats',
+              '│   │           ├── config/',
+              '│   │           │   ├── defaults.sh',
+              '│   │           │   └── messages.sh',
+              '│   │           ├── lib/',
+              '│   │           │   ├── common.sh',
+              '│   │           │   ├── docker.sh',
+              '│   │           │   ├── install.sh',
+              '│   │           │   └── status.sh',
+              '│   │           └── README.md',
+              '│   └── scenarios/',
+              '│       └── ' + appName + '-demo/',
+              '│           ├── .vrooli/',
+              '│           │   └── service.json',
+              '│           ├── scenario-test.yaml',
+              '│           ├── initialization/',
+              '│           │   ├── automation/',
+              '│           │   ├── configuration/',
+              '│           │   └── storage/',
+              '│           └── README.md',
+              '└── docs/',
+              '    ├── INSTALLATION.md',
+              '    ├── USAGE.md',
+              '    └── API.md'
+            ].join('\\n');
+            
+            container.textContent = structure;
+          }
+        `
+      }
+    ]
+  },
+  "schema": {
+    "connections": []
+  }
+}

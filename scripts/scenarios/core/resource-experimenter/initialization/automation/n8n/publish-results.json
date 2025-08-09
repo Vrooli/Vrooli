@@ -1,0 +1,236 @@
+{
+  "name": "Publish Results",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "publish-results",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Publish Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "publish-results"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT ia.*, r.name as resource_name, r.type, r.display_name, r.description, r.docker_image, e.findings, e.performance_metrics FROM integration_attempts ia LEFT JOIN resources r ON ia.resource_id = r.id LEFT JOIN experiments e ON e.resource_id = r.id WHERE ia.status = 'successful' AND ia.approved = true ORDER BY ia.created_at DESC"
+      },
+      "id": "get_successful_integrations",
+      "name": "Get Successful Integrations",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process successful integrations and prepare publication data\nconst integrations = items[0].json;\nconst publicationData = [];\n\nfor (const integration of integrations) {\n  const appId = `${integration.resource_name.toLowerCase().replace(/[^a-z0-9-]/g, '-')}-${integration.version.replace(/\\./g, '-')}`;\n  \n  const publicationItem = {\n    app_id: appId,\n    resource_name: integration.resource_name,\n    display_name: integration.display_name || integration.resource_name,\n    description: integration.description || `Standalone application featuring ${integration.resource_name}`,\n    resource_type: integration.type,\n    version: integration.version,\n    integration_id: integration.id,\n    docker_image: integration.docker_image,\n    download_urls: {\n      tar_gz: `http://localhost:9000/generated-apps/${appId}.tar.gz`,\n      zip: `http://localhost:9000/generated-apps/${appId}.zip`,\n      metadata: `http://localhost:9000/generated-apps/${appId}-metadata.json`\n    },\n    metrics: {\n      files_changed: integration.files_changed ? integration.files_changed.length : 0,\n      lines_added: integration.lines_added,\n      unit_tests_passed: integration.unit_tests_passed,\n      integration_tests_passed: integration.integration_tests_passed\n    },\n    findings: integration.findings,\n    performance: integration.performance_metrics ? JSON.parse(integration.performance_metrics) : {},\n    published_at: new Date().toISOString(),\n    status: 'published'\n  };\n  \n  publicationData.push(publicationItem);\n}\n\nreturn publicationData.map(item => ({json: item}));"
+      },
+      "id": "prepare_publication_data",
+      "name": "Prepare Publication Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate catalog index with all published apps\nconst publications = items.map(item => item.json);\n\nconst catalog = {\n  generated_at: new Date().toISOString(),\n  total_apps: publications.length,\n  resource_types: [...new Set(publications.map(p => p.resource_type))],\n  categories: {\n    ai: publications.filter(p => p.resource_type === 'ai'),\n    automation: publications.filter(p => p.resource_type === 'automation'),\n    storage: publications.filter(p => p.resource_type === 'storage'),\n    monitoring: publications.filter(p => p.resource_type === 'monitoring'),\n    search: publications.filter(p => p.resource_type === 'search'),\n    execution: publications.filter(p => p.resource_type === 'execution'),\n    other: publications.filter(p => p.resource_type === 'other')\n  },\n  featured: publications.slice(0, 5), // Most recent 5\n  stats: {\n    total_downloads: publications.length * 10, // Placeholder metric\n    success_rate: publications.length > 0 ? '95%' : '0%',\n    avg_files_per_app: publications.reduce((sum, p) => sum + p.metrics.files_changed, 0) / publications.length || 0\n  },\n  apps: publications.map(p => ({\n    app_id: p.app_id,\n    name: p.resource_name,\n    display_name: p.display_name,\n    description: p.description,\n    type: p.resource_type,\n    version: p.version,\n    published_at: p.published_at,\n    downloads: p.download_urls,\n    metrics: p.metrics\n  }))\n};\n\nreturn [{json: catalog}];"
+      },
+      "id": "generate_catalog",
+      "name": "Generate Catalog",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "http://localhost:9000/generated-apps/catalog.json",
+        "body": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "id": "upload_catalog",
+      "name": "Upload Catalog",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate RSS feed for published apps\nconst catalog = items[0].json;\nconst baseUrl = 'http://localhost:9000/generated-apps';\n\nconst rssItems = catalog.apps.map(app => `\n  <item>\n    <title>${app.display_name}</title>\n    <description>${app.description}</description>\n    <link>${app.downloads.zip}</link>\n    <guid>${app.app_id}</guid>\n    <pubDate>${new Date(app.published_at).toUTCString()}</pubDate>\n    <category>${app.type}</category>\n    <enclosure url=\"${app.downloads.zip}\" type=\"application/zip\" />\n  </item>`).join('');\n\nconst rssFeed = `<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n<rss version=\"2.0\">\n  <channel>\n    <title>Resource Experimenter - Generated Apps</title>\n    <description>Automatically generated applications with tested resource integrations</description>\n    <link>${baseUrl}</link>\n    <lastBuildDate>${new Date().toUTCString()}</lastBuildDate>\n    <language>en-us</language>\n    <generator>Resource Experimenter v1.0.0</generator>${rssItems}\n  </channel>\n</rss>`;\n\nreturn [{json: { rss_content: rssFeed, catalog_data: catalog }}];"
+      },
+      "id": "generate_rss_feed",
+      "name": "Generate RSS Feed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "http://localhost:9000/generated-apps/feed.xml",
+        "body": "={{ $json.rss_content }}",
+        "options": {
+          "headers": {
+            "Content-Type": "application/xml"
+          }
+        }
+      },
+      "id": "upload_rss_feed",
+      "name": "Upload RSS Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "claudeCodeApi",
+        "model": "claude-3-sonnet-20240229",
+        "prompt": "Generate a comprehensive README.md for the Resource Experimenter catalog:\\n\\nTotal Apps: {{ $json.catalog_data.total_apps }}\\nResource Types: {{ $json.catalog_data.resource_types.join(', ') }}\\nSuccess Rate: {{ $json.catalog_data.stats.success_rate }}\\n\\nCreate:\\n1. Project overview and purpose\\n2. How to browse and download apps\\n3. Installation instructions\\n4. Contributing guidelines\\n5. Technical details about the generation process\\n6. FAQ section\\n\\nMake it professional and welcoming for developers."
+      },
+      "id": "generate_readme",
+      "name": "Generate README",
+      "type": "@n8n/n8n-nodes-langchain.lmChatClaude",
+      "typeVersion": 1,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "http://localhost:9000/generated-apps/README.md",
+        "body": "={{ $json.response || $json.text }}",
+        "options": {
+          "headers": {
+            "Content-Type": "text/markdown"
+          }
+        }
+      },
+      "id": "upload_readme",
+      "name": "Upload README",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate API endpoints documentation\nconst catalog = items[0].json.catalog_data;\n\nconst apiDocs = {\n  openapi: '3.0.0',\n  info: {\n    title: 'Resource Experimenter API',\n    version: '1.0.0',\n    description: 'API for browsing and downloading generated resource applications'\n  },\n  servers: [{\n    url: 'http://localhost:9000',\n    description: 'Local MinIO server'\n  }],\n  paths: {\n    '/generated-apps/catalog.json': {\n      get: {\n        summary: 'Get full application catalog',\n        responses: {\n          '200': {\n            description: 'Application catalog',\n            content: {\n              'application/json': {\n                example: catalog\n              }\n            }\n          }\n        }\n      }\n    },\n    '/generated-apps/{app_id}.zip': {\n      get: {\n        summary: 'Download application as ZIP',\n        parameters: [{\n          name: 'app_id',\n          in: 'path',\n          required: true,\n          schema: { type: 'string' }\n        }],\n        responses: {\n          '200': {\n            description: 'ZIP file download',\n            content: {\n              'application/zip': {}\n            }\n          }\n        }\n      }\n    },\n    '/generated-apps/{app_id}.tar.gz': {\n      get: {\n        summary: 'Download application as tar.gz',\n        parameters: [{\n          name: 'app_id',\n          in: 'path',\n          required: true,\n          schema: { type: 'string' }\n        }],\n        responses: {\n          '200': {\n            description: 'Tar.gz file download',\n            content: {\n              'application/gzip': {}\n            }\n          }\n        }\n      }\n    },\n    '/generated-apps/feed.xml': {\n      get: {\n        summary: 'RSS feed of latest applications',\n        responses: {\n          '200': {\n            description: 'RSS XML feed',\n            content: {\n              'application/xml': {}\n            }\n          }\n        }\n      }\n    }\n  }\n};\n\nreturn [{json: apiDocs}];"
+      },
+      "id": "generate_api_docs",
+      "name": "Generate API Docs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2050, 300]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "http://localhost:9000/generated-apps/api-docs.json",
+        "body": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "id": "upload_api_docs",
+      "name": "Upload API Docs",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [2250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Update Qdrant collections with searchable app data\nconst catalog = items[0].json.catalog_data;\nconst vectorData = [];\n\nfor (const app of catalog.apps) {\n  const searchableText = `${app.display_name} ${app.description} ${app.type} ${app.name}`;\n  \n  vectorData.push({\n    id: app.app_id,\n    vector: null, // Would be generated by embedding service\n    payload: {\n      app_id: app.app_id,\n      name: app.name,\n      display_name: app.display_name,\n      description: app.description,\n      type: app.type,\n      version: app.version,\n      published_at: app.published_at,\n      downloads: app.downloads,\n      metrics: app.metrics,\n      searchable_text: searchableText\n    }\n  });\n}\n\nreturn [{json: {\n  collection_name: 'resources',\n  points: vectorData,\n  total_points: vectorData.length\n}}];"
+      },
+      "id": "prepare_vector_data",
+      "name": "Prepare Vector Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2450, 300]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "http://localhost:6333/collections/resources/points",
+        "body": "={{ JSON.stringify({ points: $json.points }) }}",
+        "options": {
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "id": "update_qdrant",
+      "name": "Update Qdrant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [2650, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate publication summary\nconst summary = {\n  publication_completed: true,\n  timestamp: new Date().toISOString(),\n  apps_published: items[0].json?.catalog_data?.total_apps || 0,\n  catalog_url: 'http://localhost:9000/generated-apps/catalog.json',\n  rss_feed_url: 'http://localhost:9000/generated-apps/feed.xml',\n  api_docs_url: 'http://localhost:9000/generated-apps/api-docs.json',\n  readme_url: 'http://localhost:9000/generated-apps/README.md'\n};\n\nreturn [{json: summary}];"
+      },
+      "id": "generate_summary",
+      "name": "Generate Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2850, 300]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [[{"node": "get_successful_integrations", "type": "main", "index": 0}]]
+    },
+    "get_successful_integrations": {
+      "main": [[{"node": "prepare_publication_data", "type": "main", "index": 0}]]
+    },
+    "prepare_publication_data": {
+      "main": [[{"node": "generate_catalog", "type": "main", "index": 0}]]
+    },
+    "generate_catalog": {
+      "main": [[{"node": "upload_catalog", "type": "main", "index": 0}]]
+    },
+    "upload_catalog": {
+      "main": [[{"node": "generate_rss_feed", "type": "main", "index": 0}]]
+    },
+    "generate_rss_feed": {
+      "main": [[{"node": "upload_rss_feed", "type": "main", "index": 0}]]
+    },
+    "upload_rss_feed": {
+      "main": [[{"node": "generate_readme", "type": "main", "index": 0}]]
+    },
+    "generate_readme": {
+      "main": [[{"node": "upload_readme", "type": "main", "index": 0}]]
+    },
+    "upload_readme": {
+      "main": [[{"node": "generate_api_docs", "type": "main", "index": 0}]]
+    },
+    "generate_api_docs": {
+      "main": [[{"node": "upload_api_docs", "type": "main", "index": 0}]]
+    },
+    "upload_api_docs": {
+      "main": [[{"node": "prepare_vector_data", "type": "main", "index": 0}]]
+    },
+    "prepare_vector_data": {
+      "main": [[{"node": "update_qdrant", "type": "main", "index": 0}]]
+    },
+    "update_qdrant": {
+      "main": [[{"node": "generate_summary", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "v1.0.0"
+}

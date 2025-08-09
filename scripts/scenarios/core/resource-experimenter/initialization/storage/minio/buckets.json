@@ -1,0 +1,106 @@
+{
+  "buckets": [
+    {
+      "name": "generated-apps",
+      "description": "Storage for completed generated applications",
+      "public": true,
+      "versioning": false,
+      "lifecycle": {
+        "enabled": false
+      },
+      "policies": [
+        {
+          "name": "public-read",
+          "effect": "Allow",
+          "actions": ["s3:GetObject"],
+          "resources": ["arn:aws:s3:::generated-apps/*"]
+        }
+      ]
+    },
+    {
+      "name": "resource-artifacts",
+      "description": "Storage for resource discovery artifacts and metadata",
+      "public": false,
+      "versioning": true,
+      "lifecycle": {
+        "enabled": true,
+        "rules": [
+          {
+            "id": "cleanup-old-artifacts",
+            "status": "Enabled",
+            "expiration_days": 90,
+            "filter": {
+              "prefix": "artifacts/"
+            }
+          }
+        ]
+      },
+      "policies": [
+        {
+          "name": "internal-access",
+          "effect": "Allow",
+          "actions": ["s3:GetObject", "s3:PutObject", "s3:DeleteObject"],
+          "resources": ["arn:aws:s3:::resource-artifacts/*"]
+        }
+      ]
+    },
+    {
+      "name": "test-reports",
+      "description": "Storage for test execution reports and logs",
+      "public": false,
+      "versioning": false,
+      "lifecycle": {
+        "enabled": true,
+        "rules": [
+          {
+            "id": "cleanup-old-reports",
+            "status": "Enabled",
+            "expiration_days": 30,
+            "filter": {
+              "prefix": "reports/"
+            }
+          },
+          {
+            "id": "cleanup-temp-files",
+            "status": "Enabled",
+            "expiration_days": 7,
+            "filter": {
+              "prefix": "temp/"
+            }
+          }
+        ]
+      },
+      "policies": [
+        {
+          "name": "test-access",
+          "effect": "Allow",
+          "actions": ["s3:GetObject", "s3:PutObject"],
+          "resources": ["arn:aws:s3:::test-reports/*"]
+        }
+      ]
+    }
+  ],
+  "configuration": {
+    "region": "us-east-1",
+    "endpoint": "http://localhost:9000",
+    "access_key": "${MINIO_ROOT_USER:-vrooli}",
+    "secret_key": "${MINIO_ROOT_PASSWORD:-generated}",
+    "use_ssl": false,
+    "path_style": true
+  },
+  "initialization": {
+    "create_buckets_on_startup": true,
+    "apply_policies_on_startup": true,
+    "create_sample_data": false,
+    "setup_notifications": {
+      "enabled": false,
+      "webhook_url": "http://localhost:5679/webhook/minio-events"
+    }
+  },
+  "monitoring": {
+    "enable_audit_logs": true,
+    "enable_access_logs": true,
+    "log_retention_days": 30,
+    "metrics_collection": true
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "name": "Duplicate Detection Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "detect-duplicates",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "l1a7b6c8-1234-4567-8901-123456789001",
+      "name": "Duplicate Detection Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "detect-duplicates"
+    },
+    {
+      "parameters": {
+        "resource": "script",
+        "operation": "execute",
+        "workspaceId": "file_manager",
+        "scriptPath": "f/file_manager/find-duplicates",
+        "parameters": {
+          "fileId": "={{ $json.file_id }}",
+          "scanAll": "={{ $json.scan_all || false }}",
+          "similarityThreshold": "={{ $json.similarity_threshold || 0.85 }}",
+          "exactOnly": "={{ $json.exact_only || false }}"
+        }
+      },
+      "id": "l2a7b6c8-1234-4567-8901-123456789002",
+      "name": "Find Duplicate Files",
+      "type": "n8n-nodes-base.windmill",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"success\": true, \"duplicate_groups\": $json.duplicateGroups, \"exact_duplicates\": $json.exactDuplicates?.length || 0, \"similar_files\": $json.similarFiles?.length || 0, \"processing_time\": $json.processingTime } }}"
+      },
+      "id": "l3a7b6c8-1234-4567-8901-123456789003",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [680, 300]
+    }
+  ],
+  "connections": {
+    "Duplicate Detection Webhook": { "main": [[ { "node": "Find Duplicate Files", "type": "main", "index": 0 } ]] },
+    "Find Duplicate Files": { "main": [[ { "node": "Success Response", "type": "main", "index": 0 } ]] }
+  },
+  "active": true,
+  "settings": { "executionOrder": "v1" },
+  "versionId": "1",
+  "id": "7",
+  "meta": { "instanceId": "file_manager" },
+  "tags": [{ "id": "7", "name": "duplicate-detection" }]
+}

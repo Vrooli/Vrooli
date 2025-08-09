@@ -1,0 +1,161 @@
+{
+  "version": "1.0.0",
+  "name": "task-planner",
+  "description": "General task planner and scheduler with AI-powered task refinement and implementation",
+  "type": "scenario",
+  "category": "saas-applications",
+  "resources": {
+    "storage": {
+      "postgres": {
+        "enabled": true,
+        "config": {
+          "database": "task_planner",
+          "port": 5434,
+          "username": "taskplanner_user",
+          "password": "${POSTGRES_PASSWORD}",
+          "initialization": {
+            "schema": "initialization/storage/postgres/schema.sql",
+            "seed": "initialization/storage/postgres/seed.sql"
+          }
+        }
+      },
+      "redis": {
+        "enabled": true,
+        "config": {
+          "database": 0,
+          "keyPrefix": "task_planner:"
+        }
+      },
+      "qdrant": {
+        "enabled": true,
+        "config": {
+          "collections": ["task_embeddings", "research_embeddings"],
+          "port": 6334,
+          "vectorSize": 1536
+        }
+      }
+    },
+    "automation": {
+      "n8n": {
+        "enabled": true,
+        "config": {
+          "workflows": [
+            "initialization/automation/n8n/task-parser.json",
+            "initialization/automation/n8n/task-researcher.json",
+            "initialization/automation/n8n/task-implementer.json",
+            "initialization/automation/n8n/status-monitor.json"
+          ]
+        }
+      },
+      "windmill": {
+        "enabled": true,
+        "config": {
+          "workspace": "task_planner",
+          "scripts": [
+            "initialization/automation/windmill/scripts/parse-unstructured.ts",
+            "initialization/automation/windmill/scripts/research-task.ts",
+            "initialization/automation/windmill/scripts/generate-plan.ts",
+            "initialization/automation/windmill/scripts/implement-task.ts",
+            "initialization/automation/windmill/scripts/update-status.ts"
+          ],
+          "apps": [
+            "initialization/automation/windmill/task-dashboard.json"
+          ]
+        }
+      }
+    },
+    "ai": {
+      "claude-code": {
+        "enabled": true,
+        "config": {
+          "model": "claude-3-opus-20240229",
+          "maxTokens": 8192,
+          "temperature": 0.3,
+          "purpose": "task_implementation"
+        }
+      },
+      "ollama": {
+        "enabled": true,
+        "config": {
+          "models": ["llama3.2", "nomic-embed-text"],
+          "embeddings": {
+            "model": "nomic-embed-text",
+            "dimensions": 1536
+          },
+          "primary_use": "task_analysis_and_embeddings"
+        }
+      }
+    },
+    "search": {
+      "searxng": {
+        "enabled": true,
+        "config": {
+          "purpose": "research_for_task_context",
+          "engines": ["duckduckgo", "github", "stackoverflow", "wikipedia"],
+          "port": 9201
+        }
+      }
+    },
+    "agents": {
+      "agent-s2": {
+        "enabled": true,
+        "config": {
+          "purpose": "web_research_for_tasks",
+          "maxInstances": 3
+        }
+      }
+    }
+  },
+  "deployment": {
+    "ports": {
+      "windmill": 8001,
+      "api": 8092,
+      "n8n": 5679,
+      "ui": 3001
+    },
+    "environment": {
+      "NODE_ENV": "production",
+      "LOG_LEVEL": "info",
+      "CLAUDE_API_KEY": "${CLAUDE_API_KEY}",
+      "TASK_PLANNER_API_PORT": "8092",
+      "TASK_PLANNER_SECRET": "${TASK_PLANNER_SECRET}"
+    }
+  },
+  "lifecycle": {
+    "setup": {
+      "description": "Initialize task planner database and services",
+      "steps": [
+        {
+          "name": "database-setup",
+          "run": "deployment/setup-postgres.sh"
+        },
+        {
+          "name": "vector-db-setup",
+          "run": "deployment/setup-qdrant.sh"
+        },
+        {
+          "name": "automation-import",
+          "run": "deployment/import-automations.sh"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start task planner services",
+      "steps": [
+        {
+          "name": "start-services",
+          "run": "../deployment/startup.sh"
+        }
+      ]
+    },
+    "build": {
+      "description": "Build task planner artifacts",
+      "steps": [
+        {
+          "name": "build-artifacts",
+          "run": "deployment/build.sh"
+        }
+      ]
+    }
+  }
+}

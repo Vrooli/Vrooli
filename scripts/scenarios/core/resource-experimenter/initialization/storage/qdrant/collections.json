@@ -1,0 +1,239 @@
+{
+  "collections": [
+    {
+      "name": "resources",
+      "description": "Vector embeddings for discovered resources for semantic search",
+      "config": {
+        "vectors": {
+          "size": 384,
+          "distance": "Cosine"
+        },
+        "shard_number": 1,
+        "replication_factor": 1,
+        "write_consistency_factor": 1,
+        "on_disk_payload": true,
+        "hnsw_config": {
+          "m": 16,
+          "ef_construct": 100,
+          "full_scan_threshold": 10000
+        },
+        "optimizers_config": {
+          "deleted_threshold": 0.2,
+          "vacuum_min_vector_number": 1000,
+          "default_segment_number": 2,
+          "max_segment_size": null,
+          "memmap_threshold": null,
+          "indexing_threshold": 20000,
+          "flush_interval_sec": 1,
+          "max_optimization_threads": 2
+        }
+      },
+      "payload_schema": {
+        "app_id": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "resource_name": {
+          "type": "keyword", 
+          "indexed": true
+        },
+        "display_name": {
+          "type": "text",
+          "indexed": true
+        },
+        "description": {
+          "type": "text",
+          "indexed": true
+        },
+        "resource_type": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "category": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "docker_image": {
+          "type": "keyword",
+          "indexed": false
+        },
+        "version": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "published_at": {
+          "type": "datetime",
+          "indexed": true
+        },
+        "tags": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "success_rate": {
+          "type": "float",
+          "indexed": true
+        },
+        "complexity_score": {
+          "type": "float",
+          "indexed": true
+        },
+        "download_count": {
+          "type": "integer",
+          "indexed": true
+        },
+        "searchable_text": {
+          "type": "text",
+          "indexed": true
+        }
+      },
+      "indices": [
+        {
+          "field_name": "resource_type",
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "published_at",
+          "field_schema": "datetime"
+        },
+        {
+          "field_name": "success_rate",
+          "field_schema": "range"
+        }
+      ]
+    },
+    {
+      "name": "test-results",
+      "description": "Vector embeddings for test results and error patterns for similarity analysis",
+      "config": {
+        "vectors": {
+          "size": 384,
+          "distance": "Cosine"
+        },
+        "shard_number": 1,
+        "replication_factor": 1,
+        "write_consistency_factor": 1,
+        "on_disk_payload": true,
+        "hnsw_config": {
+          "m": 16,
+          "ef_construct": 100,
+          "full_scan_threshold": 5000
+        }
+      },
+      "payload_schema": {
+        "test_id": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "experiment_id": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "resource_name": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "test_type": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "result": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "error_message": {
+          "type": "text",
+          "indexed": true
+        },
+        "execution_time": {
+          "type": "integer",
+          "indexed": true
+        },
+        "executed_at": {
+          "type": "datetime",
+          "indexed": true
+        },
+        "test_details": {
+          "type": "text",
+          "indexed": false
+        }
+      }
+    },
+    {
+      "name": "compatibility",
+      "description": "Resource compatibility and integration patterns",
+      "config": {
+        "vectors": {
+          "size": 384,
+          "distance": "Cosine"
+        },
+        "shard_number": 1,
+        "replication_factor": 1,
+        "write_consistency_factor": 1,
+        "on_disk_payload": true
+      },
+      "payload_schema": {
+        "resource_a": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "resource_b": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "compatibility_score": {
+          "type": "float",
+          "indexed": true
+        },
+        "integration_pattern": {
+          "type": "keyword",
+          "indexed": true
+        },
+        "tested": {
+          "type": "bool",
+          "indexed": true
+        },
+        "notes": {
+          "type": "text",
+          "indexed": false
+        },
+        "updated_at": {
+          "type": "datetime",
+          "indexed": true
+        }
+      }
+    }
+  ],
+  "configuration": {
+    "host": "localhost",
+    "port": 6333,
+    "grpc_port": 6334,
+    "prefer_grpc": false,
+    "timeout": 30,
+    "api_key": null
+  },
+  "initialization": {
+    "create_collections_on_startup": true,
+    "create_indices_on_startup": true,
+    "load_sample_data": false,
+    "embedding_model": "all-MiniLM-L6-v2",
+    "embedding_service_url": "http://localhost:8001/embeddings"
+  },
+  "optimization": {
+    "auto_create_payload_index": true,
+    "optimize_on_startup": false,
+    "optimization_interval_hours": 24,
+    "cleanup_interval_hours": 6
+  },
+  "backup": {
+    "enabled": true,
+    "interval_hours": 12,
+    "retention_days": 7,
+    "backup_location": "/data/backups/qdrant"
+  },
+  "monitoring": {
+    "enable_telemetry": true,
+    "log_level": "INFO",
+    "enable_cors": true,
+    "enable_metrics": true
+  }
+}

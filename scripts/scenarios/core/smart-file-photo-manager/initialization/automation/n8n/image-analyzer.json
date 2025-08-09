@@ -1,0 +1,580 @@
+{
+  "name": "Image Analysis Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "analyze-image",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "g1a7b6c8-1234-4567-8901-123456789001",
+      "name": "Image Analysis Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "analyze-image"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "propertyName": "file_data",
+        "query": "SELECT id, original_name, storage_path, mime_type, width, height, file_type FROM files WHERE id = '{{ $json.file_id }}' AND file_type = 'image'",
+        "options": {}
+      },
+      "id": "g2a7b6c8-1234-4567-8901-123456789002",
+      "name": "Get Image File",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        460,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "file_manager_postgres",
+          "name": "File Manager PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.file_data }}",
+              "rightValue": "",
+              "operator": {
+                "type": "object",
+                "operation": "notEmpty",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "g3a7b6c8-1234-4567-8901-123456789003",
+      "name": "File Exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "script",
+        "operation": "execute",
+        "workspaceId": "file_manager",
+        "scriptPath": "f/file_manager/process-image",
+        "parameters": {
+          "fileId": "={{ $json.file_data[0].id }}",
+          "imagePath": "={{ $json.file_data[0].storage_path }}",
+          "filename": "={{ $json.file_data[0].original_name }}",
+          "mimeType": "={{ $json.file_data[0].mime_type }}",
+          "width": "={{ $json.file_data[0].width }}",
+          "height": "={{ $json.file_data[0].height }}"
+        }
+      },
+      "id": "g4a7b6c8-1234-4567-8901-123456789004",
+      "name": "Analyze Image Content",
+      "type": "n8n-nodes-base.windmill",
+      "typeVersion": 1,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.confidence }}",
+              "rightValue": 0.7,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "g5a7b6c8-1234-4567-8901-123456789005",
+      "name": "High Confidence",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO suggestions (file_id, type, status, suggested_value, reason, confidence) VALUES {{ $json.suggestedTags.map(tag => `('${$json.file_data[0].id}', 'tag', 'pending', '${tag}', 'AI-generated tag from image analysis', ${$json.confidence})`).join(', ') }}",
+        "options": {}
+      },
+      "id": "g6a7b6c8-1234-4567-8901-123456789006",
+      "name": "Store Auto Tags",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1340,
+        100
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "file_manager_postgres",
+          "name": "File Manager PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.detectedObjects }}",
+              "rightValue": "",
+              "operator": {
+                "type": "array",
+                "operation": "notEmpty"
+              }
+            },
+            {
+              "leftValue": "={{ $json.detectedObjects.includes('person') || $json.detectedObjects.includes('face') }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "g7a7b6c8-1234-4567-8901-123456789007",
+      "name": "Contains People",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO suggestions (file_id, type, status, suggested_value, reason, confidence) VALUES ('{{ $json.file_data[0].id }}', 'folder', 'pending', '/Personal/Photos', 'Image contains people, likely personal photo', {{ $json.confidence }})",
+        "options": {}
+      },
+      "id": "g8a7b6c8-1234-4567-8901-123456789008",
+      "name": "Suggest Personal Folder",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1560,
+        250
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "file_manager_postgres",
+          "name": "File Manager PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.sceneType }}",
+              "rightValue": "outdoor",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{ $json.detectedObjects.includes('vehicle') || $json.detectedObjects.includes('building') || $json.detectedObjects.includes('landscape') }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "g9a7b6c8-1234-4567-8901-123456789009",
+      "name": "Is Travel/Outdoor",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        450
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO suggestions (file_id, type, status, suggested_value, reason, confidence) VALUES ('{{ $json.file_data[0].id }}', 'tag', 'pending', 'travel', 'Image appears to be from travel/outdoor activity', {{ $json.confidence }}), ('{{ $json.file_data[0].id }}', 'folder', 'pending', '/Photos/Travel', 'Outdoor scene suggests travel photo', {{ $json.confidence }})",
+        "options": {}
+      },
+      "id": "g10a7b6c8-1234-4567-8901-123456789010",
+      "name": "Suggest Travel Tags",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1560,
+        400
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "file_manager_postgres",
+          "name": "File Manager PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.hasText }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "g11a7b6c8-1234-4567-8901-123456789011",
+      "name": "Has Text",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        600
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE files SET ocr_text = '{{ $json.extractedText }}' WHERE id = '{{ $json.file_data[0].id }}'",
+        "options": {}
+      },
+      "id": "g12a7b6c8-1234-4567-8901-123456789012",
+      "name": "Store OCR Text",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1560,
+        550
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "file_manager_postgres",
+          "name": "File Manager PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Analyze image processing results and generate insights\nconst items = $input.all();\nlet insights = [];\n\nfor (const item of items) {\n  const analysis = item.json;\n  \n  // Generate quality score\n  let qualityScore = 0.5;\n  if (analysis.confidence > 0.8) qualityScore += 0.2;\n  if (analysis.detectedObjects?.length > 3) qualityScore += 0.1;\n  if (analysis.hasText) qualityScore += 0.1;\n  if (analysis.sceneType !== 'unknown') qualityScore += 0.1;\n  \n  // Generate content insights\n  const contentTypes = [];\n  if (analysis.detectedObjects?.includes('person')) contentTypes.push('portrait');\n  if (analysis.detectedObjects?.includes('document')) contentTypes.push('document_scan');\n  if (analysis.sceneType === 'outdoor') contentTypes.push('landscape');\n  if (analysis.hasText) contentTypes.push('text_image');\n  \n  insights.push({\n    file_id: analysis.file_data?.[0]?.id,\n    quality_score: qualityScore,\n    content_types: contentTypes,\n    processing_confidence: analysis.confidence,\n    suggested_actions: generateSuggestedActions(analysis),\n    analysis_timestamp: new Date().toISOString()\n  });\n}\n\nfunction generateSuggestedActions(analysis) {\n  const actions = [];\n  \n  if (analysis.confidence < 0.6) {\n    actions.push('manual_review_needed');\n  }\n  \n  if (analysis.detectedObjects?.length === 0) {\n    actions.push('reprocess_with_different_model');\n  }\n  \n  if (analysis.hasText && analysis.extractedText?.length > 50) {\n    actions.push('index_for_text_search');\n  }\n  \n  if (analysis.detectedObjects?.includes('person')) {\n    actions.push('consider_privacy_settings');\n  }\n  \n  return actions;\n}\n\nreturn insights;"
+      },
+      "id": "g13a7b6c8-1234-4567-8901-123456789013",
+      "name": "Generate Insights",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1780,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"success\": true,\n  \"file_id\": $json.file_id,\n  \"analysis\": {\n    \"description\": $json.description,\n    \"detected_objects\": $json.detectedObjects,\n    \"scene_type\": $json.sceneType,\n    \"has_text\": $json.hasText,\n    \"confidence\": $json.confidence\n  },\n  \"insights\": $('Generate Insights').first(),\n  \"suggestions_generated\": $('High Confidence').all().length > 0,\n  \"processing_time\": Date.now() - new Date($json.processing_started_at).getTime()\n} }}",
+        "options": {}
+      },
+      "id": "g14a7b6c8-1234-4567-8901-123456789014",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"success\": false,\n  \"error\": \"Image analysis failed\",\n  \"file_id\": $json.file_id || null,\n  \"message\": $json.error?.message || \"File not found or not an image\"\n} }}",
+        "options": {}
+      },
+      "id": "g15a7b6c8-1234-4567-8901-123456789015",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        900,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Initialize image analysis with metadata\nconst items = $input.all();\n\nreturn items.map(item => ({\n  ...item.json,\n  processing_started_at: new Date().toISOString(),\n  workflow_id: '{{ $workflow.id }}',\n  execution_id: '{{ $execution.id }}',\n  analysis_type: 'detailed_image_analysis'\n}));"
+      },
+      "id": "g16a7b6c8-1234-4567-8901-123456789016",
+      "name": "Initialize Analysis",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        400
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Image Analysis Webhook": {
+      "main": [
+        [
+          {
+            "node": "Initialize Analysis",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Analysis": {
+      "main": [
+        [
+          {
+            "node": "Get Image File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Image File": {
+      "main": [
+        [
+          {
+            "node": "File Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "File Exists": {
+      "main": [
+        [
+          {
+            "node": "Analyze Image Content",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Image Content": {
+      "main": [
+        [
+          {
+            "node": "High Confidence",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Contains People",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Travel/Outdoor",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Has Text",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Confidence": {
+      "main": [
+        [
+          {
+            "node": "Store Auto Tags",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Contains People": {
+      "main": [
+        [
+          {
+            "node": "Suggest Personal Folder",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Is Travel/Outdoor": {
+      "main": [
+        [
+          {
+            "node": "Suggest Travel Tags",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Has Text": {
+      "main": [
+        [
+          {
+            "node": "Store OCR Text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Store Auto Tags": {
+      "main": [
+        [
+          {
+            "node": "Generate Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Suggest Personal Folder": {
+      "main": [
+        [
+          {
+            "node": "Generate Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Suggest Travel Tags": {
+      "main": [
+        [
+          {
+            "node": "Generate Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store OCR Text": {
+      "main": [
+        [
+          {
+            "node": "Generate Insights",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Insights": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "id": "2",
+  "meta": {
+    "instanceId": "file_manager"
+  },
+  "tags": [
+    {
+      "createdAt": "2024-01-15T10:00:00.000Z",
+      "updatedAt": "2024-01-15T10:00:00.000Z",
+      "id": "2",
+      "name": "image-analysis"
+    }
+  ]
+}

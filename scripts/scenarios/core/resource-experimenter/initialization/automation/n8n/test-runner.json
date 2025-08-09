@@ -1,0 +1,185 @@
+{
+  "name": "Test Runner",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "test-runner",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Test Execution Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "test-runner"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse test request and prepare execution environment\nconst request = items[0].json;\n\nconst testConfig = {\n  resource_name: request.resource_name || 'unknown',\n  test_type: request.test_type || 'integration',\n  test_path: request.test_path || request.sandbox_path,\n  timeout: request.timeout || 300,\n  environment: request.environment || {},\n  bats_options: request.bats_options || '--formatter json',\n  parallel: request.parallel || false,\n  test_id: `test-${Date.now()}-${Math.random().toString(36).substring(2, 8)}`\n};\n\nreturn [{json: testConfig}];"
+      },
+      "id": "prepare_test_config",
+      "name": "Prepare Test Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO experiment_tests (experiment_id, test_name, test_type, test_script, input_data, executed_at) VALUES ('{{ $json.experiment_id || uuid_generate_v4() }}', '{{ $json.resource_name }}-{{ $json.test_type }}', '{{ $json.test_type }}', 'bats {{ $json.bats_options }}', '{{ JSON.stringify($json) }}', CURRENT_TIMESTAMP) RETURNING id"
+      },
+      "id": "create_test_record",
+      "name": "Create Test Record",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "command": "cd '{{ $json.test_path }}' && export TEST_ID='{{ $json.test_id }}' && timeout {{ $json.timeout }} bats {{ $json.bats_options }} *.bats > test-output-{{ $json.test_id }}.json 2>&1",
+        "options": {}
+      },
+      "id": "execute_bats_tests",
+      "name": "Execute Bats Tests",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse bats test output and analyze results\nconst testConfig = items[0].json;\nconst testRecord = items[1].json;\nconst fs = require('fs');\n\nlet testResults = {};\nlet analysisResult = {\n  test_id: testConfig.test_id,\n  experiment_test_id: testRecord.id,\n  resource_name: testConfig.resource_name,\n  test_type: testConfig.test_type,\n  executed_at: new Date().toISOString(),\n  success: false,\n  total_tests: 0,\n  passed_tests: 0,\n  failed_tests: 0,\n  skipped_tests: 0,\n  execution_time: 0,\n  details: []\n};\n\ntry {\n  // Read test output file\n  const outputFile = `${testConfig.test_path}/test-output-${testConfig.test_id}.json`;\n  if (fs.existsSync(outputFile)) {\n    const rawOutput = fs.readFileSync(outputFile, 'utf8');\n    \n    // Try to parse as JSON first\n    try {\n      testResults = JSON.parse(rawOutput);\n    } catch (parseError) {\n      // Fallback: parse text output\n      testResults = parseTextOutput(rawOutput);\n    }\n    \n    // Extract meaningful results\n    if (testResults.tests) {\n      analysisResult.total_tests = testResults.tests.length;\n      analysisResult.passed_tests = testResults.tests.filter(t => t.status === 'passed').length;\n      analysisResult.failed_tests = testResults.tests.filter(t => t.status === 'failed').length;\n      analysisResult.skipped_tests = testResults.tests.filter(t => t.status === 'skipped').length;\n      analysisResult.success = analysisResult.failed_tests === 0 && analysisResult.total_tests > 0;\n      analysisResult.details = testResults.tests.map(test => ({\n        name: test.name,\n        status: test.status,\n        duration: test.duration,\n        error: test.error || null\n      }));\n    } else if (testResults.stats) {\n      // Alternative bats output format\n      analysisResult.total_tests = testResults.stats.tests || 0;\n      analysisResult.passed_tests = testResults.stats.passed || 0;\n      analysisResult.failed_tests = testResults.stats.failed || 0;\n      analysisResult.skipped_tests = testResults.stats.skipped || 0;\n      analysisResult.success = analysisResult.failed_tests === 0 && analysisResult.total_tests > 0;\n    }\n    \n    analysisResult.execution_time = testResults.duration || testResults.time || 0;\n  } else {\n    analysisResult.details.push({ error: 'Test output file not found', file: outputFile });\n  }\n} catch (error) {\n  analysisResult.details.push({ error: error.message, context: 'test_analysis' });\n}\n\n// Helper function to parse text-based bats output\nfunction parseTextOutput(output) {\n  const lines = output.split('\\n');\n  const result = { tests: [], stats: { tests: 0, passed: 0, failed: 0, skipped: 0 } };\n  \n  for (const line of lines) {\n    // Parse test results\n    const testMatch = line.match(/^(ok|not ok|skip)\\s+(\\d+)\\s+(.+?)(?:\\s+#\\s*(.*?))?$/);\n    if (testMatch) {\n      const [, status, number, name, comment] = testMatch;\n      result.tests.push({\n        name: name.trim(),\n        status: status === 'ok' ? 'passed' : status === 'skip' ? 'skipped' : 'failed',\n        number: parseInt(number),\n        comment: comment || null\n      });\n      result.stats.tests++;\n      if (status === 'ok') result.stats.passed++;\n      else if (status === 'skip') result.stats.skipped++;\n      else result.stats.failed++;\n    }\n  }\n  \n  return result;\n}\n\nreturn [{json: analysisResult}];"
+      },
+      "id": "analyze_test_results",
+      "name": "Analyze Test Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE experiment_tests SET result = '{{ $json.success ? \"pass\" : \"fail\" }}', actual_output = '{{ JSON.stringify($json) }}', execution_time_ms = {{ $json.execution_time * 1000 }}, error_message = CASE WHEN NOT $json.success THEN '{{ $json.details.filter(d => d.error).map(d => d.error).join(\"; \") }}' ELSE NULL END WHERE id = '{{ $json.experiment_test_id }}'"
+      },
+      "id": "update_test_record",
+      "name": "Update Test Record",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "test_passed",
+      "name": "Test Passed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "method": "PUT",
+        "url": "http://localhost:9000/test-reports/{{ $json.test_id }}-results.json",
+        "body": "={{ JSON.stringify($json, null, 2) }}",
+        "options": {
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "id": "store_test_results",
+      "name": "Store Test Results",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Generate test report summary\nconst results = items[0].json;\n\nconst report = {\n  test_id: results.test_id,\n  resource_name: results.resource_name,\n  test_type: results.test_type,\n  timestamp: results.executed_at,\n  summary: {\n    status: results.success ? 'PASSED' : 'FAILED',\n    total_tests: results.total_tests,\n    passed: results.passed_tests,\n    failed: results.failed_tests,\n    skipped: results.skipped_tests,\n    success_rate: results.total_tests > 0 ? ((results.passed_tests / results.total_tests) * 100).toFixed(1) + '%' : '0%',\n    execution_time: results.execution_time\n  },\n  failures: results.details.filter(d => d.status === 'failed'),\n  download_url: `http://localhost:9000/test-reports/${results.test_id}-results.json`\n};\n\nreturn [{json: report}];"
+      },
+      "id": "generate_test_report",
+      "name": "Generate Test Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1850, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5679/webhook/test-completion",
+        "body": {
+          "test_report": "={{ $json }}",
+          "status": "={{ $json.summary.status }}",
+          "resource_name": "={{ $json.resource_name }}"
+        }
+      },
+      "id": "notify_completion",
+      "name": "Notify Completion",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [2050, 250]
+    },
+    {
+      "parameters": {
+        "command": "rm -f '{{ $json.test_path }}/test-output-{{ $json.test_id }}.json'",
+        "options": {}
+      },
+      "id": "cleanup_temp_files",
+      "name": "Cleanup Temp Files",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [2050, 350]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [[{"node": "prepare_test_config", "type": "main", "index": 0}]]
+    },
+    "prepare_test_config": {
+      "main": [[{"node": "create_test_record", "type": "main", "index": 0}]]
+    },
+    "create_test_record": {
+      "main": [[{"node": "execute_bats_tests", "type": "main", "index": 0}]]
+    },
+    "execute_bats_tests": {
+      "main": [[{"node": "analyze_test_results", "type": "main", "index": 0}]]
+    },
+    "analyze_test_results": {
+      "main": [[{"node": "update_test_record", "type": "main", "index": 0}]]
+    },
+    "update_test_record": {
+      "main": [[{"node": "test_passed", "type": "main", "index": 0}]]
+    },
+    "test_passed": {
+      "main": [
+        [{"node": "store_test_results", "type": "main", "index": 0}],
+        [{"node": "store_test_results", "type": "main", "index": 0}]
+      ]
+    },
+    "store_test_results": {
+      "main": [[{"node": "generate_test_report", "type": "main", "index": 0}]]
+    },
+    "generate_test_report": {
+      "main": [
+        [{"node": "notify_completion", "type": "main", "index": 0}],
+        [{"node": "cleanup_temp_files", "type": "main", "index": 0}]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "v1.0.0"
+}

@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
   "name": "resource-experimenter",
-  "description": "Experimental resource testing platform for evaluating new services before native Vrooli integration",
+  "description": "Fully automated resource discovery and testing platform that generates complete standalone applications with their own resource providers and scenarios",
   "type": "scenario",
   "category": "vrooli-helpers",
   "resources": {
@@ -12,7 +12,7 @@
           "database": "resource_experiments",
           "schema": "public",
           "initialization": {
-            "scripts": ["initialization/storage/postgres/schema.sql"]
+            "scripts": ["initialization/storage/postgres/schema.sql", "initialization/storage/postgres/seed.sql"]
           }
         }
       },
@@ -23,6 +23,25 @@
           "keyPrefix": "experiment:",
           "persistence": true
         }
+      },
+      "minio": {
+        "enabled": true,
+        "config": {
+          "buckets": ["generated-apps", "resource-artifacts", "test-reports"],
+          "public_buckets": ["generated-apps"],
+          "initialization": {
+            "scripts": ["initialization/storage/minio/buckets.json"]
+          }
+        }
+      },
+      "qdrant": {
+        "enabled": true,
+        "config": {
+          "collections": ["resources", "test-results", "compatibility"],
+          "initialization": {
+            "scripts": ["initialization/storage/qdrant/collections.json"]
+          }
+        }
       }
     },
     "automation": {
@@ -32,11 +51,8 @@
           "workspace": "experiments",
           "apps": [
             "initialization/automation/windmill/experiment-dashboard.json",
-            "initialization/automation/windmill/resource-monitor.json"
-          ],
-          "scripts": [
-            "initialization/automation/windmill/docker-manager.ts",
-            "initialization/automation/windmill/health-checker.ts"
+            "initialization/automation/windmill/resource-catalog.json",
+            "initialization/automation/windmill/app-viewer.json"
           ]
         }
       },
@@ -45,10 +61,20 @@
         "config": {
           "workflows": [
             "initialization/automation/n8n/resource-discovery.json",
-            "initialization/automation/n8n/setup-orchestrator.json",
-            "initialization/automation/n8n/health-monitoring.json",
-            "initialization/automation/n8n/integration-testing.json"
+            "initialization/automation/n8n/experiment-orchestrator.json",
+            "initialization/automation/n8n/app-generator.json",
+            "initialization/automation/n8n/test-runner.json",
+            "initialization/automation/n8n/publish-results.json"
           ]
+        }
+      }
+    },
+    "agents": {
+      "browserless": {
+        "enabled": true,
+        "config": {
+          "timeout": 30000,
+          "maxConcurrent": 5
         }
       }
     },
@@ -115,12 +141,15 @@
       "api": 8091,
       "windmill": 8001,
       "n8n": 5679,
+      "minio": 9000,
+      "qdrant": 6333,
       "experiment_range_start": 9000,
       "experiment_range_end": 9999
     },
     "volumes": [
       "./sandbox:/app/sandbox",
-      "./experiments:/app/experiments",
+      "./generated-apps:/app/generated-apps",
+      "./templates:/app/templates",
       "/var/run/docker.sock:/var/run/docker.sock"
     ],
     "environment": {
@@ -129,8 +158,12 @@
       "EXPERIMENT_MODE": "true",
       "DOCKER_HOST": "unix:///var/run/docker.sock",
       "SANDBOX_PATH": "/app/sandbox",
+      "GENERATED_APPS_PATH": "/app/generated-apps",
+      "TEMPLATES_PATH": "/app/templates",
       "AUTO_CLEANUP": "true",
-      "CLEANUP_INTERVAL": "3600"
+      "CLEANUP_INTERVAL": "3600",
+      "MAX_CONCURRENT_EXPERIMENTS": "10",
+      "BATS_TEST_TIMEOUT": "300"
     }
   },
   "lifecycle": {
@@ -138,15 +171,19 @@
       "description": "Initialize experiment platform",
       "steps": [
         {
-          "name": "database-setup",
-          "run": "initialization/storage/postgres/setup.sh"
+          "name": "validate-environment",
+          "run": "deployment/validate.sh"
         },
         {
-          "name": "sandbox-setup",
-          "run": "deployment/setup-sandbox.sh"
+          "name": "setup-storage",
+          "run": "deployment/setup-storage.sh"
         },
         {
-          "name": "docker-permissions",
+          "name": "setup-templates",
+          "run": "deployment/setup-templates.sh"
+        },
+        {
+          "name": "configure-docker",
           "run": "deployment/configure-docker.sh"
         }
       ]
@@ -161,27 +198,28 @@
         {
           "name": "start-services",
           "run": "deployment/startup.sh"
+        },
+        {
+          "name": "initialize-workflows",
+          "run": "deployment/init-workflows.sh"
         }
       ]
     },
     "experiment": {
-      "description": "Run a new resource experiment",
+      "description": "Run full resource experiment pipeline",
       "steps": [
         {
-          "name": "validate-resource",
-          "run": "sandbox/validate-resource.sh"
-        },
+          "name": "run-experiment",
+          "run": "sandbox/experiment-runner.sh"
+        }
+      ]
+    },
+    "generate-app": {
+      "description": "Generate standalone app for a tested resource",
+      "steps": [
         {
-          "name": "setup-resource",
-          "run": "sandbox/setup-resource.sh"
-        },
-        {
-          "name": "test-resource",
-          "run": "sandbox/test-resource.sh"
-        },
-        {
-          "name": "generate-report",
-          "run": "sandbox/generate-report.sh"
+          "name": "package-app",
+          "run": "sandbox/app-packager.sh"
         }
       ]
     }

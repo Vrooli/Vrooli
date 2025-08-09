@@ -1,0 +1,527 @@
+{
+  "name": "File Processing Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "file-upload",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "f1a7b6c8-1234-4567-8901-123456789001",
+      "name": "File Upload Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "file-upload"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.file_type }}",
+              "rightValue": "image",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f2a7b6c8-1234-4567-8901-123456789002",
+      "name": "Is Image",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.file_type }}",
+              "rightValue": "document",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f3a7b6c8-1234-4567-8901-123456789003",
+      "name": "Is Document",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        460,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "script",
+        "operation": "execute",
+        "workspaceId": "file_manager",
+        "scriptPath": "f/file_manager/process-image",
+        "parameters": {
+          "fileId": "={{ $json.file_id }}",
+          "imagePath": "={{ $json.storage_path }}",
+          "filename": "={{ $json.filename }}",
+          "mimeType": "={{ $json.mime_type }}",
+          "width": "={{ $json.width }}",
+          "height": "={{ $json.height }}"
+        }
+      },
+      "id": "f4a7b6c8-1234-4567-8901-123456789004",
+      "name": "Process Image",
+      "type": "n8n-nodes-base.windmill",
+      "typeVersion": 1,
+      "position": [
+        680,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "script",
+        "operation": "execute",
+        "workspaceId": "file_manager",
+        "scriptPath": "f/file_manager/extract-text",
+        "parameters": {
+          "fileId": "={{ $json.file_id }}",
+          "filePath": "={{ $json.storage_path }}",
+          "filename": "={{ $json.filename }}",
+          "mimeType": "={{ $json.mime_type }}",
+          "fileSize": "={{ $json.size_bytes }}"
+        }
+      },
+      "id": "f5a7b6c8-1234-4567-8901-123456789005",
+      "name": "Extract Text",
+      "type": "n8n-nodes-base.windmill",
+      "typeVersion": 1,
+      "position": [
+        680,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "script",
+        "operation": "execute",
+        "workspaceId": "file_manager",
+        "scriptPath": "f/file_manager/generate-embeddings",
+        "parameters": {
+          "fileId": "={{ $json.file_id }}",
+          "processContentChunks": true,
+          "batchSize": 10
+        }
+      },
+      "id": "f6a7b6c8-1234-4567-8901-123456789006",
+      "name": "Generate Embeddings",
+      "type": "n8n-nodes-base.windmill",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "script",
+        "operation": "execute",
+        "workspaceId": "file_manager",
+        "scriptPath": "f/file_manager/suggest-organization",
+        "parameters": {
+          "fileId": "={{ $json.file_id }}"
+        }
+      },
+      "id": "f7a7b6c8-1234-4567-8901-123456789007",
+      "name": "Generate Organization Suggestions",
+      "type": "n8n-nodes-base.windmill",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "script",
+        "operation": "execute",
+        "workspaceId": "file_manager",
+        "scriptPath": "f/file_manager/find-duplicates",
+        "parameters": {
+          "fileId": "={{ $json.file_id }}",
+          "similarityThreshold": 0.85,
+          "exactOnly": false
+        }
+      },
+      "id": "f8a7b6c8-1234-4567-8901-123456789008",
+      "name": "Detect Duplicates",
+      "type": "n8n-nodes-base.windmill",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE files SET status = 'processed', processing_stage = 'organized', processed_at = CURRENT_TIMESTAMP WHERE id = '{{ $json.file_id }}'",
+        "options": {}
+      },
+      "id": "f9a7b6c8-1234-4567-8901-123456789009",
+      "name": "Mark File Processed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1560,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "file_manager_postgres",
+          "name": "File Manager PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"success\": true,\n  \"file_id\": $json.file_id,\n  \"filename\": $json.filename,\n  \"status\": \"processed\",\n  \"processing_steps\": [\n    \"content_analysis\",\n    \"embedding_generation\",\n    \"organization_suggestions\",\n    \"duplicate_detection\"\n  ],\n  \"suggestions_count\": $('Generate Organization Suggestions').all().length,\n  \"duplicates_found\": $('Detect Duplicates').first().exactDuplicates?.length || 0\n} }}",
+        "options": {}
+      },
+      "id": "f10a7b6c8-1234-4567-8901-123456789010",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1780,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ {\n  \"success\": false,\n  \"error\": \"File processing failed\",\n  \"file_id\": $json.file_id || null,\n  \"message\": $json.error?.message || \"Unknown error occurred\"\n} }}",
+        "options": {}
+      },
+      "id": "f11a7b6c8-1234-4567-8901-123456789011",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [
+        1780,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE files SET status = 'failed', processing_errors = '{{ $json.error?.message || \"Processing failed\" }}' WHERE id = '{{ $json.file_id }}'",
+        "options": {}
+      },
+      "id": "f12a7b6c8-1234-4567-8901-123456789012",
+      "name": "Mark File Failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1560,
+        500
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "file_manager_postgres",
+          "name": "File Manager PostgreSQL"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "mergeByFields": {
+          "values": [
+            {
+              "field1": "file_id",
+              "field2": "file_id"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f13a7b6c8-1234-4567-8901-123456789013",
+      "name": "Merge Results",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [
+        900,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log file processing start\nconsole.log(`Starting file processing for: ${$input.first().json.filename}`);\n\n// Add processing timestamp\nconst items = $input.all();\nreturn items.map(item => ({\n  ...item.json,\n  processing_started_at: new Date().toISOString(),\n  workflow_id: '{{ $workflow.id }}',\n  execution_id: '{{ $execution.id }}'\n}));"
+      },
+      "id": "f14a7b6c8-1234-4567-8901-123456789014",
+      "name": "Initialize Processing",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.file_type }}",
+              "rightValue": "video",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            },
+            {
+              "leftValue": "={{ $json.file_type }}",
+              "rightValue": "audio",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "f15a7b6c8-1234-4567-8901-123456789015",
+      "name": "Is Media File",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        460,
+        700
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Basic media processing - extract metadata only\nconst items = $input.all();\n\nfor (const item of items) {\n  console.log(`Processing media file: ${item.json.filename}`);\n  \n  // For now, just mark as processed\n  // In a real implementation, you might extract audio for transcription\n  item.json.media_processed = true;\n  item.json.processing_stage = 'metadata_extracted';\n}\n\nreturn items;"
+      },
+      "id": "f16a7b6c8-1234-4567-8901-123456789016",
+      "name": "Process Media File",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        600
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "File Upload Webhook": {
+      "main": [
+        [
+          {
+            "node": "Initialize Processing",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Processing": {
+      "main": [
+        [
+          {
+            "node": "Is Image",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Document",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Media File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Image": {
+      "main": [
+        [
+          {
+            "node": "Process Image",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Is Document": {
+      "main": [
+        [
+          {
+            "node": "Extract Text",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Is Media File": {
+      "main": [
+        [
+          {
+            "node": "Process Media File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Process Image": {
+      "main": [
+        [
+          {
+            "node": "Merge Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Text": {
+      "main": [
+        [
+          {
+            "node": "Generate Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Media File": {
+      "main": [
+        [
+          {
+            "node": "Generate Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Results": {
+      "main": [
+        [
+          {
+            "node": "Generate Embeddings",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Embeddings": {
+      "main": [
+        [
+          {
+            "node": "Generate Organization Suggestions",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Organization Suggestions": {
+      "main": [
+        [
+          {
+            "node": "Detect Duplicates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Detect Duplicates": {
+      "main": [
+        [
+          {
+            "node": "Mark File Processed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Mark File Processed": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "id": "1",
+  "meta": {
+    "instanceId": "file_manager"
+  },
+  "tags": [
+    {
+      "createdAt": "2024-01-15T10:00:00.000Z",
+      "updatedAt": "2024-01-15T10:00:00.000Z",
+      "id": "1",
+      "name": "file-processing"
+    }
+  ]
+}

@@ -1,0 +1,600 @@
+{
+  "summary": "Resource Application Catalog",
+  "description": "Browse and download generated resource applications",
+  "value": {
+    "grid": [
+      {
+        "id": "header",
+        "data": {
+          "type": "containercomponent",
+          "configuration": {
+            "style": {
+              "backgroundColor": "#f8f9fa",
+              "border": "1px solid #e9ecef",
+              "borderRadius": "8px",
+              "padding": "20px",
+              "marginBottom": "20px"
+            }
+          },
+          "components": [
+            {
+              "id": "title",
+              "data": {
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "Resource Application Catalog",
+                  "style": {
+                    "fontSize": "24px",
+                    "fontWeight": "bold",
+                    "color": "#333",
+                    "marginBottom": "10px"
+                  }
+                }
+              }
+            },
+            {
+              "id": "subtitle",
+              "data": {
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "Ready-to-deploy applications with tested resource integrations",
+                  "style": {
+                    "fontSize": "14px",
+                    "color": "#666"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "search_and_filters",
+        "data": {
+          "type": "containercomponent",
+          "configuration": {
+            "style": {
+              "display": "flex",
+              "gap": "20px",
+              "marginBottom": "20px",
+              "alignItems": "center"
+            }
+          },
+          "components": [
+            {
+              "id": "search_input",
+              "data": {
+                "type": "textinputcomponent",
+                "configuration": {
+                  "placeholder": "Search applications...",
+                  "icon": "search",
+                  "onInput": {
+                    "type": "evalv2",
+                    "expr": "window.filterApplications(this.value)"
+                  },
+                  "style": {
+                    "minWidth": "300px"
+                  }
+                }
+              }
+            },
+            {
+              "id": "type_filter",
+              "data": {
+                "type": "selectcomponent",
+                "configuration": {
+                  "placeholder": "Filter by type",
+                  "options": [
+                    {"label": "All Types", "value": ""},
+                    {"label": "AI", "value": "ai"},
+                    {"label": "Automation", "value": "automation"},
+                    {"label": "Storage", "value": "storage"},
+                    {"label": "Monitoring", "value": "monitoring"},
+                    {"label": "Search", "value": "search"},
+                    {"label": "Execution", "value": "execution"},
+                    {"label": "Other", "value": "other"}
+                  ],
+                  "onChange": {
+                    "type": "evalv2",
+                    "expr": "window.filterByType(this.value)"
+                  },
+                  "style": {
+                    "minWidth": "150px"
+                  }
+                }
+              }
+            },
+            {
+              "id": "refresh_catalog_btn",
+              "data": {
+                "type": "buttoncomponent",
+                "configuration": {
+                  "label": "Refresh Catalog",
+                  "color": "blue",
+                  "size": "default",
+                  "onClick": {
+                    "type": "evalv2",
+                    "expr": "window.http_request('POST', 'http://localhost:5679/webhook/publish-results', {})"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "catalog_stats",
+        "data": {
+          "type": "containercomponent",
+          "configuration": {
+            "style": {
+              "display": "flex",
+              "gap": "20px",
+              "marginBottom": "30px"
+            }
+          },
+          "components": [
+            {
+              "id": "total_apps",
+              "data": {
+                "type": "statscomponent",
+                "configuration": {
+                  "title": "Available Apps",
+                  "value": {
+                    "type": "evalv2",
+                    "expr": "window.http_request('GET', 'http://localhost:9000/generated-apps/catalog.json').then(data => data.total_apps || 0)",
+                    "connections": []
+                  },
+                  "progress": false,
+                  "style": {
+                    "backgroundColor": "#e3f2fd",
+                    "color": "#1565c0"
+                  }
+                }
+              }
+            },
+            {
+              "id": "resource_types",
+              "data": {
+                "type": "statscomponent",
+                "configuration": {
+                  "title": "Resource Types",
+                  "value": {
+                    "type": "evalv2",
+                    "expr": "window.http_request('GET', 'http://localhost:9000/generated-apps/catalog.json').then(data => data.resource_types ? data.resource_types.length : 0)",
+                    "connections": []
+                  },
+                  "progress": false,
+                  "style": {
+                    "backgroundColor": "#fff3e0",
+                    "color": "#ef6c00"
+                  }
+                }
+              }
+            },
+            {
+              "id": "success_rate",
+              "data": {
+                "type": "statscomponent",
+                "configuration": {
+                  "title": "Success Rate",
+                  "value": {
+                    "type": "evalv2",
+                    "expr": "window.http_request('GET', 'http://localhost:9000/generated-apps/catalog.json').then(data => data.stats ? data.stats.success_rate : '0%')",
+                    "connections": []
+                  },
+                  "progress": false,
+                  "style": {
+                    "backgroundColor": "#e8f5e8",
+                    "color": "#2e7d32"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "featured_apps",
+        "data": {
+          "type": "containercomponent",
+          "configuration": {
+            "style": {
+              "marginBottom": "30px"
+            }
+          },
+          "components": [
+            {
+              "id": "featured_title",
+              "data": {
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "Featured Applications",
+                  "style": {
+                    "fontSize": "18px",
+                    "fontWeight": "bold",
+                    "marginBottom": "15px"
+                  }
+                }
+              }
+            },
+            {
+              "id": "featured_cards",
+              "data": {
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "display": "grid",
+                    "gridTemplateColumns": "repeat(auto-fill, minmax(300px, 1fr))",
+                    "gap": "20px"
+                  },
+                  "dynamicContent": {
+                    "type": "evalv2",
+                    "expr": "window.http_request('GET', 'http://localhost:9000/generated-apps/catalog.json').then(data => (data.featured || []).map(app => createAppCard(app)))",
+                    "connections": []
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "all_apps_section",
+        "data": {
+          "type": "containercomponent",
+          "configuration": {
+            "style": {
+              "marginBottom": "30px"
+            }
+          },
+          "components": [
+            {
+              "id": "all_apps_title",
+              "data": {
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "All Applications",
+                  "style": {
+                    "fontSize": "18px",
+                    "fontWeight": "bold",
+                    "marginBottom": "15px"
+                  }
+                }
+              }
+            },
+            {
+              "id": "apps_table",
+              "data": {
+                "type": "aggridcomponent",
+                "configuration": {
+                  "columnDefs": [
+                    {"headerName": "Application", "field": "display_name", "flex": 2, "cellRenderer": "appNameRenderer"},
+                    {"headerName": "Resource", "field": "name", "flex": 1},
+                    {"headerName": "Type", "field": "type", "flex": 1, "cellRenderer": "typeRenderer"},
+                    {"headerName": "Version", "field": "version", "flex": 1},
+                    {"headerName": "Published", "field": "published_at", "flex": 2, "valueFormatter": "formatDate"},
+                    {"headerName": "Files", "field": "metrics.files_changed", "flex": 1},
+                    {"headerName": "Tests", "field": "test_status", "flex": 1, "cellRenderer": "testStatusRenderer"},
+                    {"headerName": "Actions", "field": "actions", "flex": 2, "cellRenderer": "actionRenderer"}
+                  ],
+                  "rowData": {
+                    "type": "evalv2",
+                    "expr": "window.http_request('GET', 'http://localhost:9000/generated-apps/catalog.json').then(data => data.apps || [])",
+                    "connections": []
+                  },
+                  "pagination": true,
+                  "paginationPageSize": 20,
+                  "defaultColDef": {
+                    "resizable": true,
+                    "sortable": true,
+                    "filter": true
+                  },
+                  "cellRenderers": {
+                    "appNameRenderer": "renderAppName(params.data)",
+                    "typeRenderer": "renderTypeBadge(params.value)",
+                    "testStatusRenderer": "renderTestStatus(params.data)",
+                    "actionRenderer": "renderActionButtons(params.data)"
+                  },
+                  "valueFormatters": {
+                    "formatDate": "formatTimestamp(params.value)"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      {
+        "id": "download_links",
+        "data": {
+          "type": "containercomponent",
+          "configuration": {
+            "style": {
+              "marginTop": "30px",
+              "padding": "20px",
+              "backgroundColor": "#f8f9fa",
+              "borderRadius": "8px"
+            }
+          },
+          "components": [
+            {
+              "id": "bulk_download_title",
+              "data": {
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "Bulk Downloads & Documentation",
+                  "style": {
+                    "fontSize": "16px",
+                    "fontWeight": "bold",
+                    "marginBottom": "15px"
+                  }
+                }
+              }
+            },
+            {
+              "id": "download_buttons",
+              "data": {
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "display": "flex",
+                    "gap": "15px",
+                    "flexWrap": "wrap"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "catalog_json_btn",
+                    "data": {
+                      "type": "buttoncomponent",
+                      "configuration": {
+                        "label": "📋 Catalog JSON",
+                        "color": "blue",
+                        "size": "default",
+                        "onClick": {
+                          "type": "evalv2",
+                          "expr": "window.open('http://localhost:9000/generated-apps/catalog.json', '_blank')"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": "rss_feed_btn",
+                    "data": {
+                      "type": "buttoncomponent",
+                      "configuration": {
+                        "label": "📡 RSS Feed",
+                        "color": "orange",
+                        "size": "default",
+                        "onClick": {
+                          "type": "evalv2",
+                          "expr": "window.open('http://localhost:9000/generated-apps/feed.xml', '_blank')"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": "api_docs_btn",
+                    "data": {
+                      "type": "buttoncomponent",
+                      "configuration": {
+                        "label": "📖 API Docs",
+                        "color": "green",
+                        "size": "default",
+                        "onClick": {
+                          "type": "evalv2",
+                          "expr": "window.open('http://localhost:9000/generated-apps/api-docs.json', '_blank')"
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "id": "readme_btn",
+                    "data": {
+                      "type": "buttoncomponent",
+                      "configuration": {
+                        "label": "📝 README",
+                        "color": "gray",
+                        "size": "default",
+                        "onClick": {
+                          "type": "evalv2",
+                          "expr": "window.open('http://localhost:9000/generated-apps/README.md', '_blank')"
+                        }
+                      }
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ],
+    "css": `
+      .app-card {
+        border: 1px solid #e9ecef;
+        border-radius: 8px;
+        padding: 15px;
+        background-color: white;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        transition: box-shadow 0.2s;
+      }
+      .app-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+      }
+      
+      .app-card h3 {
+        margin: 0 0 10px 0;
+        color: #333;
+        font-size: 16px;
+      }
+      
+      .app-card .description {
+        color: #666;
+        font-size: 14px;
+        margin-bottom: 15px;
+        line-height: 1.4;
+      }
+      
+      .app-card .meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+      
+      .type-badge {
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 12px;
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+      .type-ai { background-color: #e3f2fd; color: #1565c0; }
+      .type-automation { background-color: #fff3e0; color: #ef6c00; }
+      .type-storage { background-color: #f3e5f5; color: #7b1fa2; }
+      .type-monitoring { background-color: #e8f5e8; color: #2e7d32; }
+      .type-search { background-color: #fff3cd; color: #856404; }
+      .type-execution { background-color: #f8d7da; color: #721c24; }
+      .type-other { background-color: #e2e3e5; color: #383d41; }
+      
+      .download-buttons {
+        display: flex;
+        gap: 8px;
+      }
+      
+      .download-btn {
+        padding: 5px 12px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: bold;
+        text-decoration: none;
+        display: inline-block;
+      }
+      .download-btn:hover {
+        opacity: 0.8;
+      }
+      .download-zip { background-color: #17a2b8; color: white; }
+      .download-tar { background-color: #6c757d; color: white; }
+      .download-info { background-color: #28a745; color: white; }
+      
+      .test-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+      }
+      
+      .test-status.passed { color: #28a745; }
+      .test-status.failed { color: #dc3545; }
+      .test-status.partial { color: #ffc107; }
+    `,
+    "scripts": [
+      {
+        "type": "frontend",
+        "content": `
+          function renderAppName(data) {
+            return '<div><strong>' + data.display_name + '</strong><br><small style="color: #666;">' + data.description + '</small></div>';
+          }
+          
+          function renderTypeBadge(type) {
+            const badgeClass = 'type-badge type-' + (type || 'other').toLowerCase();
+            return '<span class="' + badgeClass + '">' + (type || 'Other') + '</span>';
+          }
+          
+          function renderTestStatus(data) {
+            const passed = data.metrics ? data.metrics.integration_tests_passed || 0 : 0;
+            const total = passed + (data.metrics ? (data.metrics.integration_tests_total - data.metrics.integration_tests_passed) || 0 : 0);
+            
+            let status = 'partial';
+            let icon = '⚠️';
+            if (passed === total && total > 0) {
+              status = 'passed';
+              icon = '✅';
+            } else if (passed === 0) {
+              status = 'failed';
+              icon = '❌';
+            }
+            
+            return '<span class="test-status ' + status + '">' + icon + ' ' + passed + '/' + total + '</span>';
+          }
+          
+          function renderActionButtons(data) {
+            return [
+              '<div class="download-buttons">',
+              '<a href="' + data.downloads.zip + '" class="download-btn download-zip" download>ZIP</a>',
+              '<a href="' + data.downloads.tar_gz + '" class="download-btn download-tar" download>TAR.GZ</a>',
+              '<a href="' + data.downloads.metadata + '" class="download-btn download-info" target="_blank">INFO</a>',
+              '</div>'
+            ].join('');
+          }
+          
+          function formatTimestamp(timestamp) {
+            if (!timestamp) return 'N/A';
+            return new Date(timestamp).toLocaleDateString() + ' ' + new Date(timestamp).toLocaleTimeString();
+          }
+          
+          function createAppCard(app) {
+            return {
+              type: 'containercomponent',
+              configuration: {
+                className: 'app-card',
+                innerHTML: [
+                  '<h3>' + app.display_name + '</h3>',
+                  '<div class="description">' + app.description + '</div>',
+                  '<div class="meta">',
+                    '<span class="type-badge type-' + app.type + '">' + app.type + '</span>',
+                    '<span style="font-size: 12px; color: #666;">v' + app.version + '</span>',
+                  '</div>',
+                  '<div class="download-buttons">',
+                    '<a href="' + app.downloads.zip + '" class="download-btn download-zip" download>Download ZIP</a>',
+                    '<a href="' + app.downloads.tar_gz + '" class="download-btn download-tar" download>Download TAR.GZ</a>',
+                  '</div>'
+                ].join('')
+              }
+            };
+          }
+          
+          let allApps = [];
+          let filteredApps = [];
+          
+          function filterApplications(searchTerm) {
+            const term = searchTerm.toLowerCase();
+            filteredApps = allApps.filter(app => 
+              app.display_name.toLowerCase().includes(term) ||
+              app.description.toLowerCase().includes(term) ||
+              app.name.toLowerCase().includes(term)
+            );
+            updateApplicationsTable();
+          }
+          
+          function filterByType(type) {
+            if (!type) {
+              filteredApps = allApps;
+            } else {
+              filteredApps = allApps.filter(app => app.type === type);
+            }
+            updateApplicationsTable();
+          }
+          
+          function updateApplicationsTable() {
+            // This would update the ag-grid with filteredApps
+            // Implementation depends on Windmill's specific grid component API
+          }
+          
+          // Initialize apps data
+          window.http_request('GET', 'http://localhost:9000/generated-apps/catalog.json')
+            .then(data => {
+              allApps = data.apps || [];
+              filteredApps = allApps;
+            });
+        `
+      }
+    ]
+  },
+  "schema": {
+    "connections": []
+  }
+}

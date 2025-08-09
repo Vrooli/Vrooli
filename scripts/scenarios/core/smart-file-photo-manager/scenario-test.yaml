@@ -1,0 +1,131 @@
+name: smart-file-photo-manager
+description: Validates smart file and photo manager functionality
+
+resources:
+  - postgres
+  - redis
+  - qdrant
+  - minio
+  - n8n
+  - windmill
+  - ollama
+  - unstructured-io
+
+tests:
+  - name: image-processing
+    description: Verify image analysis with vision model
+    steps:
+      - action: upload-file
+        data:
+          file: test-image.jpg
+          type: image
+      - wait: 30
+      - verify: image-processed
+        expected:
+          status: "processed"
+          has_description: true
+          has_visual_embedding: true
+          detected_objects: true
+          
+  - name: document-extraction
+    description: Verify document text extraction
+    steps:
+      - action: upload-file
+        data:
+          file: test-document.pdf
+          type: document
+      - wait: 45
+      - verify: document-processed
+        expected:
+          status: "processed"
+          has_ocr_text: true
+          has_content_chunks: true
+          has_content_embedding: true
+          
+  - name: organization-suggestions
+    description: Verify AI suggests organization improvements
+    steps:
+      - action: request-suggestions
+        data:
+          file_id: "${processed_file.id}"
+      - wait: 20
+      - verify: suggestions-generated
+        expected:
+          min_suggestions: 3
+          types: ["tag", "folder", "rename"]
+          min_confidence: 0.6
+          
+  - name: duplicate-detection
+    description: Verify duplicate file detection
+    steps:
+      - action: upload-files
+        data:
+          files: ["image1.jpg", "image1_copy.jpg", "image1_resized.jpg"]
+      - wait: 60
+      - verify: duplicates-detected
+        expected:
+          relationships_found: true
+          relationship_type: "duplicate"
+          min_similarity: 0.85
+          
+  - name: semantic-search
+    description: Verify semantic file search
+    steps:
+      - action: search-files
+        data:
+          query: "vacation photos with beaches"
+          type: "semantic"
+      - verify: search-results
+        expected:
+          min_relevance: 0.7
+          results_contain_images: true
+          
+  - name: batch-organization
+    description: Verify batch file organization
+    steps:
+      - action: batch-organize
+        data:
+          file_ids: ["${file1.id}", "${file2.id}", "${file3.id}"]
+          operation: "auto-folder"
+      - wait: 30
+      - verify: files-organized
+        expected:
+          all_files_moved: true
+          folders_created: true
+          
+  - name: smart-folder-creation
+    description: Verify smart folder with auto-organization
+    steps:
+      - action: create-smart-folder
+        data:
+          name: "Work Documents"
+          query:
+            file_type: "document"
+            tags: ["work", "project"]
+          auto_organize: true
+      - verify: smart-folder-active
+        expected:
+          folder_created: true
+          files_matched: true
+
+validation:
+  required_files:
+    - .vrooli/service.json
+    - initialization/storage/postgres/schema.sql
+    - deployment/startup.sh
+    
+  resource_checks:
+    postgres:
+      database: file_manager
+      tables: ["files", "content_chunks", "suggestions", "folders"]
+    qdrant:
+      collections: ["file_embeddings", "image_embeddings", "content_chunks"]
+    minio:
+      buckets: ["original-files", "processed-files", "thumbnails"]
+    n8n:
+      workflows: ["file-processor", "organization-suggester", "semantic-search"]
+    windmill:
+      workspace: file_manager
+      scripts: ["process-image", "extract-text", "generate-tags"]
+    ollama:
+      models: ["llava:13b", "llama3.2", "nomic-embed-text"]

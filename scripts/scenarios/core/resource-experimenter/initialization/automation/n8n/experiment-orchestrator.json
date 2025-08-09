@@ -1,0 +1,286 @@
+{
+  "name": "Experiment Orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "queue_check_trigger",
+      "name": "Queue Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT dq.*, r.name as resource_name, r.type, r.docker_image, r.repository_url, r.source_url FROM discovery_queue dq LEFT JOIN resources r ON dq.resource_id = r.id WHERE dq.processed = false ORDER BY dq.priority DESC, dq.discovered_at ASC LIMIT 1"
+      },
+      "id": "get_next_experiment",
+      "name": "Get Next Experiment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.length || 0 }}",
+              "operation": "largerEqual",
+              "value2": 1
+            }
+          ]
+        }
+      },
+      "id": "has_work",
+      "name": "Has Work?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO experiments (resource_id, name, description, hypothesis, status, environment_vars, allocated_port) VALUES ('{{ $json.resource_id || uuid_generate_v4() }}', 'Auto-experiment for {{ $json.name }}', 'Automated experiment to test resource integration potential', 'Resource can be integrated into Vrooli platform with generated provider scripts', 'running', '{\"RESOURCE_NAME\": \"{{ $json.name }}\", \"SOURCE_URL\": \"{{ $json.source_url }}\"}', {{ 9000 + Math.floor(Math.random() * 1000) }}) RETURNING id, allocated_port"
+      },
+      "id": "create_experiment",
+      "name": "Create Experiment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [850, 250]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Determine resource type and setup approach\nconst queueItem = items[0].json;\nconst resourceType = queueItem.type || 'other';\nconst hasDocker = queueItem.docker_image ? true : false;\nconst hasRepo = queueItem.repository_url ? true : false;\n\n// Create setup configuration\nconst setupConfig = {\n  experiment_id: items[0].json.id,\n  resource_name: queueItem.name,\n  resource_type: resourceType,\n  allocated_port: items[0].json.allocated_port,\n  setup_approach: hasDocker ? 'docker' : hasRepo ? 'source' : 'manual',\n  docker_image: queueItem.docker_image,\n  repository_url: queueItem.repository_url,\n  source_url: queueItem.source_url,\n  sandbox_path: `/app/sandbox/experiment-${items[0].json.id}`,\n  test_timeout: 300\n};\n\nreturn [{json: setupConfig}];"
+      },
+      "id": "prepare_setup_config",
+      "name": "Prepare Setup Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [1050, 250]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO sandboxes (experiment_id, sandbox_path, port_range_start, port_range_end, active) VALUES ('{{ $json.experiment_id }}', '{{ $json.sandbox_path }}', {{ $json.allocated_port }}, {{ $json.allocated_port + 10 }}, true) RETURNING id"
+      },
+      "id": "create_sandbox",
+      "name": "Create Sandbox",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [1250, 250]
+    },
+    {
+      "parameters": {
+        "command": "mkdir -p '{{ $json.sandbox_path }}' && cd '{{ $json.sandbox_path }}' && echo '{}' > experiment-config.json",
+        "options": {}
+      },
+      "id": "setup_sandbox_directory",
+      "name": "Setup Sandbox Directory",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1450, 250]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "claudeCodeApi",
+        "model": "claude-3-sonnet-20240229",
+        "prompt": "Generate a comprehensive provider script setup for this resource:\\n\\nResource: {{ $json.resource_name }}\\nType: {{ $json.resource_type }}\\nDocker Image: {{ $json.docker_image || 'N/A' }}\\nRepository: {{ $json.repository_url || 'N/A' }}\\nSource: {{ $json.source_url || 'N/A' }}\\n\\nCreate:\\n1. A manage.sh script following Vrooli patterns\\n2. Configuration defaults\\n3. Docker setup if applicable\\n4. Basic health checks\\n5. Installation steps\\n\\nProvide realistic, functional code that follows the browserless pattern but adapted for this resource type."
+      },
+      "id": "generate_provider_scripts",
+      "name": "Generate Provider Scripts",
+      "type": "@n8n/n8n-nodes-langchain.lmChatClaude",
+      "typeVersion": 1,
+      "position": [1650, 250]
+    },
+    {
+      "parameters": {
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "claudeCodeApi",
+        "model": "claude-3-sonnet-20240229",
+        "prompt": "Generate comprehensive bats test suite for this resource:\\n\\nResource: {{ $json.resource_name }}\\nType: {{ $json.resource_type }}\\nAllocated Port: {{ $json.allocated_port }}\\n\\nCreate bats tests that:\\n1. Test basic functionality\\n2. Test API endpoints if applicable\\n3. Test health checks\\n4. Test configuration\\n5. Test integration capabilities\\n\\nFollow the pattern used in Vrooli's resource testing. Include setup_file() and teardown_file() functions."
+      },
+      "id": "generate_bats_tests",
+      "name": "Generate Bats Tests",
+      "type": "@n8n/n8n-nodes-langchain.lmChatClaude",
+      "typeVersion": 1,
+      "position": [1850, 250]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Write provider scripts and tests to sandbox\nconst setupConfig = items[0].json;\nconst providerScripts = items[1].json.response || items[1].json.text;\nconst batsTests = items[2].json.response || items[2].json.text;\n\n// Create file structure\nconst files = {\n  [`${setupConfig.sandbox_path}/manage.sh`]: providerScripts,\n  [`${setupConfig.sandbox_path}/manage.bats`]: batsTests,\n  [`${setupConfig.sandbox_path}/config.json`]: JSON.stringify({\n    resource_name: setupConfig.resource_name,\n    resource_type: setupConfig.resource_type,\n    port: setupConfig.allocated_port,\n    docker_image: setupConfig.docker_image,\n    repository_url: setupConfig.repository_url\n  }, null, 2),\n  [`${setupConfig.sandbox_path}/test-results.json`]: '[]'\n};\n\nreturn [{json: {\n  ...setupConfig,\n  files_to_write: files,\n  ready_for_testing: true\n}}];"
+      },
+      "id": "prepare_files",
+      "name": "Prepare Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2050, 250]
+    },
+    {
+      "parameters": {
+        "command": "cd '{{ $json.sandbox_path }}' && timeout {{ $json.test_timeout }} bats manage.bats --formatter json > test-results.json 2>&1 || echo '{\"error\": \"Test execution failed or timed out\"}' > test-results.json",
+        "options": {}
+      },
+      "id": "run_bats_tests",
+      "name": "Run Bats Tests",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [2250, 250]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Parse test results and determine success\nconst config = items[0].json;\nconst testResultsPath = `${config.sandbox_path}/test-results.json`;\n\n// Read test results file\nconst fs = require('fs');\nlet testResults = {};\ntry {\n  const resultData = fs.readFileSync(testResultsPath, 'utf8');\n  testResults = JSON.parse(resultData);\n} catch (error) {\n  testResults = { error: 'Failed to read test results', details: error.message };\n}\n\n// Determine overall success\nconst success = !testResults.error && testResults.tests_run > 0 && testResults.failures === 0;\nconst totalTests = testResults.tests_run || 0;\nconst passedTests = totalTests - (testResults.failures || 0);\n\nreturn [{json: {\n  experiment_id: config.experiment_id,\n  success: success,\n  total_tests: totalTests,\n  passed_tests: passedTests,\n  failed_tests: testResults.failures || 0,\n  test_results: testResults,\n  sandbox_path: config.sandbox_path,\n  resource_name: config.resource_name,\n  resource_type: config.resource_type\n}}];"
+      },
+      "id": "analyze_test_results",
+      "name": "Analyze Test Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [2450, 250]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE experiments SET status = '{{ $json.success ? \"completed\" : \"failed\" }}', success = {{ $json.success }}, completed_at = CURRENT_TIMESTAMP, findings = 'Automated test execution: {{ $json.passed_tests }}/{{ $json.total_tests }} tests passed', performance_metrics = '{{ JSON.stringify($json.test_results) }}' WHERE id = '{{ $json.experiment_id }}'"
+      },
+      "id": "update_experiment",
+      "name": "Update Experiment",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [2650, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.success }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "test_successful",
+      "name": "Test Successful?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2850, 250]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:5679/webhook/app-generator",
+        "body": {
+          "experiment_id": "={{ $json.experiment_id }}",
+          "resource_name": "={{ $json.resource_name }}",
+          "resource_type": "={{ $json.resource_type }}",
+          "sandbox_path": "={{ $json.sandbox_path }}",
+          "test_results": "={{ $json.test_results }}"
+        },
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "trigger_app_generation",
+      "name": "Trigger App Generation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [3050, 200]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE discovery_queue SET processed = true, processed_at = CURRENT_TIMESTAMP WHERE id = '{{ $json.id }}'"
+      },
+      "id": "mark_processed",
+      "name": "Mark Processed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [3050, 300]
+    },
+    {
+      "parameters": {
+        "command": "rm -rf '{{ $json.sandbox_path }}' && docker system prune -f",
+        "options": {}
+      },
+      "id": "cleanup_sandbox",
+      "name": "Cleanup Sandbox",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [3250, 250]
+    }
+  ],
+  "connections": {
+    "queue_check_trigger": {
+      "main": [[{"node": "get_next_experiment", "type": "main", "index": 0}]]
+    },
+    "get_next_experiment": {
+      "main": [[{"node": "has_work", "type": "main", "index": 0}]]
+    },
+    "has_work": {
+      "main": [
+        [{"node": "create_experiment", "type": "main", "index": 0}],
+        []
+      ]
+    },
+    "create_experiment": {
+      "main": [[{"node": "prepare_setup_config", "type": "main", "index": 0}]]
+    },
+    "prepare_setup_config": {
+      "main": [[{"node": "create_sandbox", "type": "main", "index": 0}]]
+    },
+    "create_sandbox": {
+      "main": [[{"node": "setup_sandbox_directory", "type": "main", "index": 0}]]
+    },
+    "setup_sandbox_directory": {
+      "main": [[{"node": "generate_provider_scripts", "type": "main", "index": 0}]]
+    },
+    "generate_provider_scripts": {
+      "main": [[{"node": "generate_bats_tests", "type": "main", "index": 0}]]
+    },
+    "generate_bats_tests": {
+      "main": [[{"node": "prepare_files", "type": "main", "index": 0}]]
+    },
+    "prepare_files": {
+      "main": [[{"node": "run_bats_tests", "type": "main", "index": 0}]]
+    },
+    "run_bats_tests": {
+      "main": [[{"node": "analyze_test_results", "type": "main", "index": 0}]]
+    },
+    "analyze_test_results": {
+      "main": [[{"node": "update_experiment", "type": "main", "index": 0}]]
+    },
+    "update_experiment": {
+      "main": [[{"node": "test_successful", "type": "main", "index": 0}]]
+    },
+    "test_successful": {
+      "main": [
+        [{"node": "trigger_app_generation", "type": "main", "index": 0}],
+        [{"node": "mark_processed", "type": "main", "index": 0}]
+      ]
+    },
+    "trigger_app_generation": {
+      "main": [[{"node": "mark_processed", "type": "main", "index": 0}]]
+    },
+    "mark_processed": {
+      "main": [[{"node": "cleanup_sandbox", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "staticData": null,
+  "pinData": {},
+  "versionId": "v1.0.0"
+}
