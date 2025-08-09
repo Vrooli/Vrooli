@@ -266,3 +266,127 @@ UPDATE workflows SET execution_count = FLOOR(RANDOM() * 10 + 1), average_duratio
 CREATE INDEX IF NOT EXISTS idx_execution_history_recent ON execution_history(executed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_templates_usage ON templates(usage_count DESC);
 CREATE INDEX IF NOT EXISTS idx_prompts_rating ON prompts(average_rating DESC) WHERE average_rating IS NOT NULL;
+
+-- API-specific seed data
+
+-- Insert default API tokens for CLI access
+INSERT INTO api_tokens (name, token_hash, permissions, scopes, is_active) VALUES
+
+-- Default CLI token (token: metareasoning_cli_default_2024)
+('CLI Default Token', 
+ digest('metareasoning_cli_default_2024', 'sha256'),
+ '{"read": true, "write": true, "admin": false}',
+ ARRAY['prompts', 'workflows', 'analyze', 'templates'],
+ true),
+
+-- Read-only token for monitoring (token: metareasoning_readonly_2024)
+('Monitoring Read-Only',
+ digest('metareasoning_readonly_2024', 'sha256'), 
+ '{"read": true, "write": false, "admin": false}',
+ ARRAY['health', 'stats'],
+ true),
+
+-- Admin token for full access (token: metareasoning_admin_2024)
+('Admin Full Access',
+ digest('metareasoning_admin_2024', 'sha256'),
+ '{"read": true, "write": true, "admin": true}',
+ ARRAY['prompts', 'workflows', 'analyze', 'templates', 'admin', 'tokens'],
+ true);
+
+-- Insert API configuration
+INSERT INTO api_config (key, value, description, is_sensitive) VALUES
+
+('rate_limiting', 
+ '{"window_ms": 60000, "max_requests": 100, "skip_successful_requests": false}',
+ 'API rate limiting configuration', false),
+
+('analysis_defaults',
+ '{"default_model": "llama3.2", "max_input_length": 10000, "timeout_ms": 30000}',
+ 'Default settings for analysis operations', false),
+
+('workflow_integration',
+ '{"n8n_base_url": "http://localhost:5678", "windmill_base_url": "http://localhost:8000", "webhook_timeout_ms": 30000}',
+ 'External workflow platform integration settings', false),
+
+('authentication',
+ '{"token_expiry_days": 90, "require_token_for_read": false, "require_token_for_write": true}',
+ 'API authentication configuration', false),
+
+('logging_config',
+ '{"log_requests": true, "log_responses": false, "log_errors": true, "retention_days": 30}',
+ 'API logging and monitoring configuration', false),
+
+('feature_flags',
+ '{"enable_async_analysis": true, "enable_workflow_queue": true, "enable_caching": false}',
+ 'Feature toggles for API capabilities', false);
+
+-- Insert sample analysis executions for testing
+INSERT INTO analysis_executions (type, input_data, output_data, status, execution_time_ms, api_token_id) VALUES
+
+('pros_cons', 
+ '{"input": "Should we migrate to microservices architecture?", "context": "Legacy monolith with 100K users"}',
+ '{"analysis": {"pros": [{"item": "Better scalability", "weight": 9}, {"item": "Technology flexibility", "weight": 7}], "cons": [{"item": "Increased complexity", "weight": 8}, {"item": "Operational overhead", "weight": 6}]}, "recommendation": "Gradual migration starting with user-facing services"}',
+ 'completed', 8500,
+ (SELECT id FROM api_tokens WHERE name = 'CLI Default Token' LIMIT 1)),
+
+('swot',
+ '{"input": "Enter European market", "context": "US-based SaaS company with $10M ARR"}',
+ '{"swot_analysis": {"strengths": ["Proven product-market fit", "Strong team"], "weaknesses": ["No local presence", "Regulatory unfamiliarity"], "opportunities": ["GDPR compliance as differentiator"], "threats": ["Local competitors", "Currency fluctuation"]}}',
+ 'completed', 12300,
+ (SELECT id FROM api_tokens WHERE name = 'CLI Default Token' LIMIT 1)),
+
+('decision',
+ '{"input": "Remote vs hybrid work policy", "factors": ["productivity", "culture", "costs", "talent"]}',
+ '{"decision_analysis": {"factors_analysis": {"productivity": {"score": 7, "confidence": 80}}, "recommendation": "Hybrid with 3 days remote", "reasoning": "Balances flexibility with collaboration needs"}}',
+ 'completed', 6700,
+ (SELECT id FROM api_tokens WHERE name = 'CLI Default Token' LIMIT 1)),
+
+('risk_assessment',
+ '{"action": "Launch AI feature with beta users", "constraints": "Limited compute budget, 6-week timeline"}',
+ '{"risk_assessment": {"risks": [{"risk": "Model hallucinations in production", "probability": "Medium", "impact": "High", "mitigation": "Strict output validation"}], "overall_risk": "Medium-High"}}',
+ 'completed', 15200,
+ (SELECT id FROM api_tokens WHERE name = 'CLI Default Token' LIMIT 1));
+
+-- Insert sample API usage statistics
+INSERT INTO api_usage_stats (endpoint, method, response_code, execution_time_ms, api_token_id) VALUES
+
+('/api/health', 'GET', 200, 45, NULL),
+('/api/prompts', 'GET', 200, 120, (SELECT id FROM api_tokens WHERE name = 'CLI Default Token' LIMIT 1)),
+('/api/workflows', 'GET', 200, 95, (SELECT id FROM api_tokens WHERE name = 'CLI Default Token' LIMIT 1)),
+('/api/analyze/pros-cons', 'POST', 200, 8500, (SELECT id FROM api_tokens WHERE name = 'CLI Default Token' LIMIT 1)),
+('/api/analyze/swot', 'POST', 200, 12300, (SELECT id FROM api_tokens WHERE name = 'CLI Default Token' LIMIT 1)),
+('/api/templates', 'GET', 200, 85, (SELECT id FROM api_tokens WHERE name = 'CLI Default Token' LIMIT 1)),
+('/api/analyze/decision', 'POST', 200, 6700, (SELECT id FROM api_tokens WHERE name = 'CLI Default Token' LIMIT 1)),
+('/api/health', 'GET', 200, 38, NULL),
+('/api/analyze/risks', 'POST', 200, 15200, (SELECT id FROM api_tokens WHERE name = 'CLI Default Token' LIMIT 1));
+
+-- Insert sample workflow queue entries (for testing queue processing)
+INSERT INTO workflow_queue (analysis_execution_id, workflow_name, platform, input_payload, status, external_id, result_data) VALUES
+
+((SELECT id FROM analysis_executions WHERE type = 'pros_cons' LIMIT 1),
+ 'pros-cons-analyzer', 'n8n',
+ '{"input": "Should we migrate to microservices architecture?", "context": "Legacy monolith with 100K users"}',
+ 'completed', 'n8n_exec_123456',
+ '{"webhook_id": "pros-cons-analyzer", "execution_time": 8500, "node_count": 6}'),
+
+((SELECT id FROM analysis_executions WHERE type = 'swot' LIMIT 1),
+ 'swot-analysis', 'n8n', 
+ '{"input": "Enter European market", "context": "US-based SaaS company"}',
+ 'completed', 'n8n_exec_123457',
+ '{"webhook_id": "swot-analysis", "execution_time": 12300, "node_count": 6}');
+
+-- Update analysis execution references with workflow and prompt IDs
+UPDATE analysis_executions 
+SET workflow_id = (SELECT id FROM workflows WHERE name = 'Pros and Cons Analyzer' LIMIT 1),
+    prompt_id = (SELECT id FROM prompts WHERE name = 'Standard Pros/Cons Analyzer' LIMIT 1)
+WHERE type = 'pros_cons';
+
+UPDATE analysis_executions
+SET workflow_id = (SELECT id FROM workflows WHERE name = 'SWOT Analysis Workflow' LIMIT 1),
+    prompt_id = (SELECT id FROM prompts WHERE name = 'Strategic SWOT Analysis' LIMIT 1) 
+WHERE type = 'swot';
+
+UPDATE analysis_executions
+SET workflow_id = (SELECT id FROM workflows WHERE name = 'Risk Assessment Workflow' LIMIT 1),
+    prompt_id = (SELECT id FROM prompts WHERE name = 'Risk Assessment Framework' LIMIT 1)
+WHERE type = 'risk_assessment';

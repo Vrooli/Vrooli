@@ -198,3 +198,144 @@ CREATE TRIGGER update_templates_updated_at BEFORE UPDATE ON templates
 
 CREATE TRIGGER update_collections_updated_at BEFORE UPDATE ON collections
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- API-specific tables for CLI/API functionality
+
+-- API tokens table (for CLI authentication)
+CREATE TABLE api_tokens (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    token_hash VARCHAR(255) UNIQUE NOT NULL,
+    permissions JSONB DEFAULT '{}', -- {read: true, write: false, admin: false}
+    scopes TEXT[] DEFAULT '{}', -- ['prompts', 'workflows', 'analyze']
+    expires_at TIMESTAMP WITH TIME ZONE,
+    last_used_at TIMESTAMP WITH TIME ZONE,
+    is_active BOOLEAN DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    created_by UUID
+);
+
+-- Execution status enum for API operations
+CREATE TYPE execution_status AS ENUM (
+    'pending',
+    'running', 
+    'completed',
+    'failed',
+    'timeout',
+    'cancelled'
+);
+
+-- Analysis type enum for API endpoints
+CREATE TYPE analysis_type AS ENUM (
+    'decision',
+    'pros_cons',
+    'swot',
+    'risk_assessment',
+    'reasoning_chain',
+    'template_application'
+);
+
+-- Analysis executions table (track API analysis requests)
+CREATE TABLE analysis_executions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    type analysis_type NOT NULL,
+    input_data JSONB NOT NULL,
+    output_data JSONB,
+    status execution_status DEFAULT 'pending',
+    execution_time_ms INTEGER,
+    workflow_id UUID, -- Reference to workflow used
+    prompt_id UUID,   -- Reference to prompt used
+    template_id UUID, -- Reference to template used
+    error_message TEXT,
+    n8n_execution_id VARCHAR(255), -- External n8n execution ID
+    windmill_job_id VARCHAR(255),  -- External Windmill job ID
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    executed_by UUID,
+    api_token_id UUID REFERENCES api_tokens(id)
+);
+
+-- API usage statistics table
+CREATE TABLE api_usage_stats (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    endpoint VARCHAR(255) NOT NULL,
+    method VARCHAR(10) NOT NULL,
+    response_code INTEGER NOT NULL,
+    execution_time_ms INTEGER NOT NULL,
+    request_size_bytes INTEGER,
+    response_size_bytes INTEGER,
+    user_agent VARCHAR(500),
+    ip_address INET,
+    api_token_id UUID REFERENCES api_tokens(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Workflow execution queue table
+CREATE TABLE workflow_queue (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    analysis_execution_id UUID REFERENCES analysis_executions(id) ON DELETE CASCADE,
+    workflow_name VARCHAR(255) NOT NULL,
+    platform VARCHAR(50) NOT NULL, -- 'n8n' or 'windmill'
+    input_payload JSONB NOT NULL,
+    priority INTEGER DEFAULT 5, -- 1-10 priority scale
+    status execution_status DEFAULT 'pending',
+    scheduled_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    started_at TIMESTAMP WITH TIME ZONE,
+    completed_at TIMESTAMP WITH TIME ZONE,
+    external_id VARCHAR(255), -- n8n/windmill execution ID
+    result_data JSONB,
+    error_message TEXT,
+    retry_count INTEGER DEFAULT 0,
+    max_retries INTEGER DEFAULT 3
+);
+
+-- User sessions table (optional - for future web UI)
+CREATE TABLE user_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    session_token VARCHAR(255) UNIQUE NOT NULL,
+    user_identifier VARCHAR(255) NOT NULL, -- Could be email, username, etc.
+    metadata JSONB DEFAULT '{}',
+    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    last_accessed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- API configuration table
+CREATE TABLE api_config (
+    key VARCHAR(255) PRIMARY KEY,
+    value JSONB NOT NULL,
+    description TEXT,
+    is_sensitive BOOLEAN DEFAULT false,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_by UUID
+);
+
+-- Additional indexes for API performance
+CREATE INDEX idx_api_tokens_hash ON api_tokens(token_hash);
+CREATE INDEX idx_api_tokens_active ON api_tokens(is_active);
+CREATE INDEX idx_analysis_executions_status ON analysis_executions(status);
+CREATE INDEX idx_analysis_executions_type ON analysis_executions(type);
+CREATE INDEX idx_analysis_executions_created ON analysis_executions(created_at);
+CREATE INDEX idx_api_usage_endpoint ON api_usage_stats(endpoint);
+CREATE INDEX idx_api_usage_created ON api_usage_stats(created_at);
+CREATE INDEX idx_workflow_queue_status ON workflow_queue(status);
+CREATE INDEX idx_workflow_queue_priority ON workflow_queue(priority, scheduled_at);
+CREATE INDEX idx_user_sessions_token ON user_sessions(session_token);
+CREATE INDEX idx_user_sessions_expires ON user_sessions(expires_at);
+
+-- Triggers for API tables
+CREATE TRIGGER update_api_config_updated_at BEFORE UPDATE ON api_config
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Foreign key constraints (optional references)
+ALTER TABLE analysis_executions 
+    ADD CONSTRAINT fk_analysis_workflow 
+    FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE SET NULL;
+
+ALTER TABLE analysis_executions 
+    ADD CONSTRAINT fk_analysis_prompt 
+    FOREIGN KEY (prompt_id) REFERENCES prompts(id) ON DELETE SET NULL;
+
+ALTER TABLE analysis_executions 
+    ADD CONSTRAINT fk_analysis_template 
+    FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE SET NULL;

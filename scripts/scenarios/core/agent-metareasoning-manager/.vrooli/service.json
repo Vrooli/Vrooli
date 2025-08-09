@@ -123,9 +123,100 @@
           "description": "Inject SQL schemas, workflows, and configurations"
         },
         {
+          "name": "install-cli",
+          "run": "ln -sf \"$(pwd)/cli/metareasoning-cli.sh\" /usr/local/bin/metareasoning && chmod +x /usr/local/bin/metareasoning",
+          "description": "Install CLI command globally",
+          "condition": {
+            "file_exists": "cli/metareasoning-cli.sh"
+          }
+        },
+        {
+          "name": "prepare-api",
+          "run": "cd api && npm install --production",
+          "description": "Install API server dependencies",
+          "condition": {
+            "file_exists": "api/package.json"
+          }
+        },
+        {
           "name": "show-access-urls",
-          "run": "echo '🚀 Agent Metareasoning Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}'",
-          "description": "Display service access URLs"
+          "run": "echo '🚀 Agent Metareasoning Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: metareasoning --help'",
+          "description": "Display service access URLs and CLI info"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start metareasoning manager with API server",
+      "steps": [
+        {
+          "name": "start-api-server",
+          "run": "cd api && METAREASONING_API_PORT=8093 POSTGRES_PORT=${RESOURCE_PORTS[postgres]} REDIS_PORT=${RESOURCE_PORTS[redis]} N8N_PORT=${RESOURCE_PORTS[n8n]} WINDMILL_PORT=${RESOURCE_PORTS[windmill]} node server.js &",
+          "description": "Start API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/server.js"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 3 && curl -sf http://localhost:8093/api/health > /dev/null",
+          "description": "Wait for API server to be ready",
+          "retry": {
+            "max_attempts": 10,
+            "delay": 2
+          },
+          "condition": {
+            "file_exists": "api/server.js"
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:8093/api\\n  CLI: metareasoning --help'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test metareasoning manager API and CLI",
+      "steps": [
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:8093/api/health",
+          "description": "Test API health endpoint",
+          "condition": {
+            "file_exists": "api/server.js"
+          }
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats metareasoning-cli.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/metareasoning-cli.bats"
+          }
+        },
+        {
+          "name": "test-api-endpoints",
+          "run": "cd api && npm test",
+          "description": "Run API test suite",
+          "condition": {
+            "file_exists": "api/package.json"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop metareasoning manager services",
+      "steps": [
+        {
+          "name": "stop-api-server",
+          "run": "pkill -f 'node.*server.js' || true",
+          "description": "Stop API server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Metareasoning Manager services stopped'",
+          "description": "Confirm services stopped"
         }
       ]
     }

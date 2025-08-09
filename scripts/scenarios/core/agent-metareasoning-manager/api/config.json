@@ -1,0 +1,71 @@
+{
+  "api": {
+    "name": "Agent Metareasoning Manager API",
+    "version": "1.0.0",
+    "description": "REST API for managing metareasoning tools and decision support workflows",
+    "port": 8093,
+    "endpoints": {
+      "base": "/api",
+      "health": "/api/health",
+      "info": "/api/info",
+      "prompts": {
+        "base": "/api/prompts",
+        "list": "GET /api/prompts",
+        "create": "POST /api/prompts",
+        "get": "GET /api/prompts/:id",
+        "update": "PUT /api/prompts/:id",
+        "delete": "DELETE /api/prompts/:id"
+      },
+      "workflows": {
+        "base": "/api/workflows",
+        "list": "GET /api/workflows",
+        "execute": "POST /api/workflows/:id/execute",
+        "status": "GET /api/workflows/:id/status"
+      },
+      "analyze": {
+        "decision": "POST /api/analyze/decision",
+        "pros_cons": "POST /api/analyze/pros-cons",
+        "swot": "POST /api/analyze/swot",
+        "risks": "POST /api/analyze/risks"
+      },
+      "templates": {
+        "list": "GET /api/templates",
+        "create": "POST /api/templates",
+        "get": "GET /api/templates/:id",
+        "apply": "POST /api/templates/:id/apply"
+      }
+    }
+  },
+  "integrations": {
+    "n8n": {
+      "base_url": "http://localhost:5678",
+      "webhook_base": "http://localhost:5678/webhook",
+      "workflows": {
+        "pros_cons_analyzer": "pros-cons-analyzer",
+        "swot_analysis": "swot-analysis",
+        "risk_assessment": "risk-assessment",
+        "self_review": "self-review",
+        "reasoning_chain": "reasoning-chain"
+      }
+    },
+    "windmill": {
+      "base_url": "http://localhost:8000",
+      "workspace": "demo",
+      "apps": {
+        "metareasoning_orchestrator": "metareasoning-orchestrator",
+        "prompt_tester": "prompt-tester"
+      }
+    }
+  },
+  "database": {
+    "schema": "metareasoning",
+    "tables": {
+      "prompts": "metareasoning.prompts",
+      "workflows": "metareasoning.workflows",
+      "executions": "metareasoning.executions",
+      "templates": "metareasoning.templates",
+      "api_tokens": "metareasoning.api_tokens",
+      "usage_stats": "metareasoning.usage_stats"
+    }
+  }
+}
