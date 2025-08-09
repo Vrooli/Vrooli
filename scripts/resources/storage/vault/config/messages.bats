@@ -27,7 +27,7 @@ setup() {
     unset VAULT_MESSAGES
     
     # Get resource directory path
-    VAULT_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
+    VAULT_DIR="$(dirname "${BATS_TEST_DIRNAME}")"
     
     # Mock logging functions
     log::info() { echo "INFO: $*"; }

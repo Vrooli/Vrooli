@@ -7,7 +7,7 @@ setup() {
     export UNSTRUCTURED_IO_CUSTOM_PORT="9999"
     
     # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     UNSTRUCTURED_IO_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Mock resources function

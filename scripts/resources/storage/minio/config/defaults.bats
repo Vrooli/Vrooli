@@ -31,7 +31,7 @@ setup() {
     unset MINIO_INITIALIZATION_WAIT MINIO_MIN_DISK_SPACE_GB
     
     # Get resource directory path
-    MINIO_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
+    MINIO_DIR="$(dirname "${BATS_TEST_DIRNAME}")"
     
     # Mock resources::get_default_port function
     resources::get_default_port() { echo "9000"; }

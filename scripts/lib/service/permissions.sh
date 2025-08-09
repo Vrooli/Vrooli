@@ -5,9 +5,9 @@ set -euo pipefail
 LIB_SERVICE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck disable=SC1091
-source "${LIB_SERVICE_DIR}/../utils/log.sh"
-# shellcheck disable=SC1091
 source "${LIB_SERVICE_DIR}/../utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
 
 # Makes all scripts in a directory (recursively) executable
 permissions::make_files_in_dir_executable() {

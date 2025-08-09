@@ -4,7 +4,7 @@
 
 setup() {
     # Set test directory
-    export TEST_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
+    export TEST_DIR="$(cd "$BATS_TEST_DIRNAME" && pwd)"
     export MANAGE_SCRIPT="$TEST_DIR/manage.sh"
     
     # Create a temporary test directory

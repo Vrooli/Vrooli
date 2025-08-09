@@ -14,7 +14,7 @@ setup() {
     }
     
     # Load the defaults
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     source "${SCRIPT_DIR}/defaults.sh"
 }
 

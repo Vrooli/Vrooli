@@ -7,7 +7,7 @@ setup_file() {
     source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
     
     # Load dependencies once per file
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     BROWSERLESS_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Load configuration and messages once
@@ -26,7 +26,7 @@ setup() {
     vrooli_auto_setup
     
     # Load the functions we're testing (required for bats isolation)
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     source "${SCRIPT_DIR}/install.sh"
     
     # Set test environment (lightweight per-test)

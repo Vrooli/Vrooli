@@ -4,7 +4,7 @@
 # Setup for each test
 setup() {
     # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     JUDGE0_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Set up test variables that messages might reference

@@ -23,7 +23,7 @@ setup() {
     mkdir -p "$HOME"
     
     # Get resource directory path
-    CLAUDE_CODE_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
+    CLAUDE_CODE_DIR="$(dirname "${BATS_TEST_DIRNAME}")"
     
     # Mock logging functions
     log::info() { echo "INFO: $*"; }

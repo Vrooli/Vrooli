@@ -5,12 +5,12 @@ set -euo pipefail
 # Prevents committing hardcoded port references that should use service references
 # Add to .git/hooks/pre-commit or use in CI/CD pipeline
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+SCENARIO_TOOLS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Source utilities
 # shellcheck disable=SC1091
-source "$PROJECT_ROOT/scripts/lib/utils/log.sh"
+source "${SCENARIO_TOOLS_DIR}/../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
 
 #######################################
 # Configuration

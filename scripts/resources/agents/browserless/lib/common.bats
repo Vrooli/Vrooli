@@ -8,7 +8,7 @@ setup() {
     export BROWSERLESS_CONTAINER_NAME="browserless-test"
     
     # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     BROWSERLESS_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Mock system functions for testing

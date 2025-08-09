@@ -30,7 +30,7 @@ setup() {
     unset CLAUDE_PROJECT_SETTINGS CLAUDE_LOG_LOCATIONS
     
     # Get resource directory path
-    CLAUDE_CODE_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
+    CLAUDE_CODE_DIR="$(dirname "${BATS_TEST_DIRNAME}")"
     
     # Load configuration
     source "${CLAUDE_CODE_DIR}/config/defaults.sh"

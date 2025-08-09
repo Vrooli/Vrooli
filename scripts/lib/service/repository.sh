@@ -8,11 +8,11 @@ LIB_SERVICE_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
 source "${LIB_SERVICE_DIR}/../utils/var.sh"
 # shellcheck disable=SC1091
-source "${LIB_SERVICE_DIR}/../utils/exit_codes.sh"
+source "${var_EXIT_CODES_FILE}"
 # shellcheck disable=SC1091
-source "${LIB_SERVICE_DIR}/../utils/log.sh"
+source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
-source "${LIB_SERVICE_DIR}/../system/system_commands.sh"
+source "${var_SYSTEM_COMMANDS_FILE}"
 
 # Path to service.json file
 SERVICE_JSON_PATH="${SERVICE_JSON_PATH:-${var_SERVICE_JSON_FILE:-$(cd "${LIB_SERVICE_DIR}/../../.." && pwd)/.vrooli/service.json}}"

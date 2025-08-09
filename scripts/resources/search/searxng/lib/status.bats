@@ -9,7 +9,7 @@ setup() {
     vrooli_setup_service_test "searxng"
     
     # Load the functions we are testing (required for bats isolation)
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     source "${SCRIPT_DIR}/status.sh"
     
     # Path to the script under test

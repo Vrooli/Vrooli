@@ -11,14 +11,13 @@ source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_PORT_REGISTRY_FILE}"
 
-# Main deployment flow
 main() {
-    log::header "Starting '${SCENARIO}'..."
+    log::header "Initializing '${SCENARIO}'..."
 
     # Inject workflows, sql, etc.
-    "${var_RUNTIME_ENGINE}" "${SCRIPT_DIR}/../.vrooli/service.json"
+    "${var_RUNTIME_ENGINE}" "${var_SERVICE_JSON_FILE}"
 
-    log::success "🚀 '${SCENARIO}' is running"
+    log::success "🚀 '${SCENARIO}' is initialized"
     log::info "Dashboard available at http://localhost:${RESOURCE_PORTS[windmill]}
     log::info "n8n workflows at http://localhost:${RESOURCE_PORTS[n8n]}"
 }

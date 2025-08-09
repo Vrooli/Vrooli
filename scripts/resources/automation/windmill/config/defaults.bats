@@ -4,7 +4,7 @@
 # Setup for each test
 setup() {
     # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     WINDMILL_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Set up test environment variables that might be referenced

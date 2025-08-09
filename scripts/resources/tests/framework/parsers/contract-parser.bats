@@ -617,7 +617,7 @@ EOF
 
 @test "integration: loads real core contract" {
     # Test with actual contract files
-    local real_contracts_dir="$VROOLI_TEST_ROOT/../../contracts"
+    local real_contracts_dir="${BATS_TEST_DIRNAME}/../../../../../contracts"
     
     if [[ -d "$real_contracts_dir/v1.0" ]]; then
         contract_parser_init "$real_contracts_dir"
@@ -633,7 +633,7 @@ EOF
 }
 
 @test "integration: loads real ai contract with inheritance" {
-    local real_contracts_dir="$VROOLI_TEST_ROOT/../../contracts"
+    local real_contracts_dir="${BATS_TEST_DIRNAME}/../../../../../contracts"
     
     if [[ -d "$real_contracts_dir/v1.0" ]]; then
         contract_parser_init "$real_contracts_dir"
@@ -652,7 +652,7 @@ EOF
 }
 
 @test "integration: gets required actions from all real categories" {
-    local real_contracts_dir="$VROOLI_TEST_ROOT/../../contracts"
+    local real_contracts_dir="${BATS_TEST_DIRNAME}/../../../../../contracts"
     
     if [[ -d "$real_contracts_dir/v1.0" ]]; then
         contract_parser_init "$real_contracts_dir"

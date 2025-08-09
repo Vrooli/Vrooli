@@ -3,7 +3,7 @@
 
 setup() {
     export TEST_MODE=1
-    SCRIPT_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
+    SCRIPT_DIR="$(cd "$BATS_TEST_DIRNAME" && pwd)"
     REMOTE_SESSION_SCRIPT="${SCRIPT_DIR}/remote_session_protect.sh"
     
     # Source the script for function access

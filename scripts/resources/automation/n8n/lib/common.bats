@@ -9,8 +9,8 @@ setup_file() {
     vrooli_setup_service_test "n8n"
     
     # Export paths for use in setup()
-    export SETUP_FILE_SCRIPT_PATH="$(dirname "${BATS_TEST_FILENAME}")/common.sh"
-    export SETUP_FILE_N8N_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
+    export SETUP_FILE_SCRIPT_PATH="${BATS_TEST_DIRNAME}/common.sh"
+    export SETUP_FILE_N8N_DIR="$(dirname "${BATS_TEST_DIRNAME}")"
 }
 
 # Lightweight per-test setup

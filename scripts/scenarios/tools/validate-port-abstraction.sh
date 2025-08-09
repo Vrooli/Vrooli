@@ -4,11 +4,12 @@ set -euo pipefail
 # Port Abstraction Validation Tool
 # Checks scenarios for hardcoded port references that should be service references
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+SCENARIO_TOOLS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck disable=SC1091
-source "$PROJECT_ROOT/scripts/lib/utils/log.sh"
+source "${SCENARIO_TOOLS_DIR}/../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
 
 #######################################
 # Configuration

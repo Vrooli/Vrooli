@@ -23,7 +23,7 @@ setup() {
     export YES="no"
     
     # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     N8N_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Create test directory

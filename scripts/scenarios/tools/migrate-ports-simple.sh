@@ -4,12 +4,12 @@ set -euo pipefail
 # Simple Port Migration Tool
 # Quickly migrates the most common hardcoded port patterns
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+SCENARIO_TOOLS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Source utilities
 # shellcheck disable=SC1091
-source "$PROJECT_ROOT/scripts/lib/utils/log.sh"
+source "${SCENARIO_TOOLS_DIR}/../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
 
 # Port mappings (most common ones)
 declare -A PORT_REPLACEMENTS=(

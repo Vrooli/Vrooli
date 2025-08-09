@@ -8,7 +8,7 @@ setup() {
     export DATABASE_TYPE="postgres"
     
     # Load dependencies
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     N8N_DIR="$(dirname "$SCRIPT_DIR")"
     
     # Mock resources function

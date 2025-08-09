@@ -8,7 +8,7 @@ setup_file() {
     source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
     
     # Get resource directory path
-    AGENTS2_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
+    AGENTS2_DIR="$(dirname "${BATS_TEST_DIRNAME}")"
     
     # Load configuration and messages once per file
     source "${AGENTS2_DIR}/config/defaults.sh"
@@ -21,11 +21,7 @@ setup() {
     vrooli_auto_setup
     
     # Load messages.sh for each test (required for bats isolation)
-    AGENTS2_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
-    source "${AGENTS2_DIR}/config/messages.sh"
-    
-    # Load messages.sh for each test (required for bats isolation)
-    AGENTS2_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
+    AGENTS2_DIR="$(dirname "${BATS_TEST_DIRNAME}")"
     source "${AGENTS2_DIR}/config/messages.sh"
     
     # Clear any existing messages to test defaults (lightweight per-test)

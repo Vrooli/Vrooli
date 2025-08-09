@@ -9,21 +9,23 @@ readonly VROOLI_COMMON_SOURCED=1
 # This file provides shared functionality for all resource setup scripts
 
 RESOURCES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-MAIN_DIR="${RESOURCES_DIR}/../main"
 
-# Source required utilities
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../lib/utils/log.sh"
+source "${RESOURCES_DIR}/../lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../lib/utils/flow.sh"
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_FLOW_FILE}"
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/../lib/network/ports.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../lib/system/system_commands.sh"
-# shellcheck disable=SC1091
 source "${RESOURCES_DIR}/../app/utils/docker.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../lib/service/repository.sh"
+source "${var_PORT_REGISTRY_FILE}"
+# shellcheck disable=SC1091
+source "${var_REPOSITIRY_FILE}"
+# shellcheck disable=SC1091
+source "${var_SYSTEM_COMMANDS_FILE}"
 
 # Resource configuration paths
 # Use the project's .vrooli directory, not the home directory
@@ -33,10 +35,6 @@ readonly VROOLI_RESOURCES_CONFIG="${VROOLI_CONFIG_DIR}/service.json"
 
 # Configuration manager script path
 readonly CONFIG_MANAGER_SCRIPT="${RESOURCES_DIR}/config-manager.js"
-
-# Source the port registry for centralized port management
-# shellcheck disable=SC1091
-source "${RESOURCES_DIR}/port_registry.sh"
 
 # Common default ports for local resources (from port registry)
 declare -A DEFAULT_PORTS

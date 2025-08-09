@@ -3,7 +3,7 @@
 
 setup() {
     # Set up test environment
-    export BATS_TEST_DIRNAME="$( cd "$( dirname "${BATS_TEST_FILENAME}" )" && pwd )"
+    # BATS_TEST_DIRNAME is already provided by BATS
     export PROJECT_ROOT="${BATS_TEST_DIRNAME}/../../.."
     
     # Source the repository helper

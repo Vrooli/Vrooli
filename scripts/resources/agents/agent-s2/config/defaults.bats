@@ -10,7 +10,7 @@ setup_file() {
     vrooli_auto_setup
     
     # Get resource directory path and export for use in setup()
-    AGENTS2_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
+    AGENTS2_DIR="$(dirname "${BATS_TEST_DIRNAME}")"
     export SETUP_FILE_AGENTS2_DIR="$AGENTS2_DIR"
     
     # Load configuration once per file

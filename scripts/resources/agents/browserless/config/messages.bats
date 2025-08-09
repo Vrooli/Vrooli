@@ -4,7 +4,7 @@
 # Expensive setup operations run once per file
 setup_file() {
     # Load the messages once per file
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     source "${SCRIPT_DIR}/messages.sh"
     
     # Export the setup_file directory for use in setup()

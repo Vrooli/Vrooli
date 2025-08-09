@@ -5,14 +5,14 @@ set -euo pipefail
 # Converts hardcoded localhost:PORT references to service references
 # Usage: ./migrate-hardcoded-ports.sh [scenario-path] [options]
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../.." && pwd)"
+SCENARIO_TOOLS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Source required utilities
 # shellcheck disable=SC1091
-source "$PROJECT_ROOT/scripts/lib/utils/log.sh"
+source "${SCENARIO_TOOLS_DIR}/../../lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "$PROJECT_ROOT/scripts/resources/port_registry.sh"
+source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_PORT_REGISTRY_FILE}"
 
 #######################################
 # Configuration and constants
@@ -162,7 +162,7 @@ migrate_file() {
     local changed=false
     local backup_file="${file}.migration-backup"
     
-    log::info "Processing: $(realpath --relative-to="$PROJECT_ROOT" "$file")"
+    log::info "Processing: $(realpath --relative-to="$SCENARIO_TOOLS_DIR" "$file")"
     
     # Create backup
     cp "$file" "$backup_file"

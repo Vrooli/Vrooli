@@ -2,7 +2,7 @@
 # System Command Mock Tests - Comprehensive test suite for system_commands.sh mock
 # Tests systemctl, ps, kill, pgrep, pkill, which, id, whoami, uname, date with consistent state management
 
-load "$HOME/Vrooli/scripts/__test/fixtures/mocks/system_commands.sh"
+load "${BATS_TEST_DIRNAME}/system_commands.sh"
 
 # Test setup and teardown
 setup() {

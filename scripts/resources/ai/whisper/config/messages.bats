@@ -7,7 +7,7 @@ setup() {
     export WHISPER_PORT="8090"
     
     # Load the messages
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     source "${SCRIPT_DIR}/messages.sh"
 }
 

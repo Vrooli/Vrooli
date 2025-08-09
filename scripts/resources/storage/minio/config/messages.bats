@@ -35,7 +35,7 @@ setup() {
     unset MSG_HELP_PORT_CONFLICT
     
     # Get resource directory path
-    MINIO_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
+    MINIO_DIR="$(dirname "${BATS_TEST_DIRNAME}")"
     
     # Load configuration and messages
     source "${MINIO_DIR}/config/defaults.sh"

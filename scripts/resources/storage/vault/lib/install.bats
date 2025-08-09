@@ -40,7 +40,7 @@ setup() {
     vrooli_auto_setup
     
     # Load the functions we are testing (required for bats isolation)
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     source "${SCRIPT_DIR}/install.sh"
     
     # Set all required test environment variables (lightweight per-test)

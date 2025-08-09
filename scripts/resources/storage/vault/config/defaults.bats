@@ -33,7 +33,7 @@ setup() {
     unset VAULT_UNSEAL_KEYS_FILE VAULT_AUDIT_LOG_FILE VAULT_DEFAULT_PATHS
     
     # Get resource directory path
-    VAULT_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
+    VAULT_DIR="$(dirname "${BATS_TEST_DIRNAME}")"
     
     # Mock resources::get_default_port function
     resources::get_default_port() { echo "8200"; }

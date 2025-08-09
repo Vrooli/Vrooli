@@ -10,7 +10,7 @@ setup() {
     vrooli_auto_setup
     
     # Load messages.sh for each test (required for bats isolation)
-    SEARXNG_DIR="$(dirname "$(dirname "${BATS_TEST_FILENAME}")")"
+    SEARXNG_DIR="$(dirname "${BATS_TEST_DIRNAME}")"
     source "${SEARXNG_DIR}/config/messages.sh"
     
     # Set mock environment for message templates
@@ -29,7 +29,7 @@ setup() {
     # Mock log functions to avoid dependency issues
     
     # Load the messages
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     source "${SCRIPT_DIR}/messages.sh"
 }
 

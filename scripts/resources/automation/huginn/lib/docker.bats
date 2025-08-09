@@ -6,7 +6,7 @@ source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 setup() {
     vrooli_setup_service_test "huginn"
     # Load huginn scripts
-    SCRIPT_DIR="$(dirname "${BATS_TEST_FILENAME}")"
+    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     source "${SCRIPT_DIR}/docker.sh"
     
     # Mock functions that are tested but don't exist in actual implementation

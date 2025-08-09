@@ -5,7 +5,7 @@
 bats_require_minimum_version 1.5.0
 
 # Load new unified test infrastructure
-load "../../setup"
+load "${BATS_TEST_DIRNAME}/../../setup"
 
 setup() {
     # Use new service-specific setup

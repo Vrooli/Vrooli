@@ -32,6 +32,13 @@ set -euo pipefail
 #
 ################################################################################
 
+SCENARIO_TOOLS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# shellcheck disable=SC1091
+source "${SCENARIO_TOOLS_DIR}/../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+
 # Script configuration
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"

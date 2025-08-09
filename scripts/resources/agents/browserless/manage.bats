@@ -92,7 +92,7 @@ setup() {
     vrooli_auto_setup
     
     # Ensure mock log directory exists to prevent warnings
-    MOCK_LOG_DIR="${MOCK_RESPONSES_DIR:-/home/matthalloran8/Vrooli/data/test-outputs/mock-logs}"
+    MOCK_LOG_DIR="${MOCK_RESPONSES_DIR:-${BATS_TEST_DIRNAME}/../../../../data/test-outputs/mock-logs}"
     if [[ ! -d "$MOCK_LOG_DIR" ]]; then
         mkdir -p "$MOCK_LOG_DIR" 2>/dev/null || true
     fi

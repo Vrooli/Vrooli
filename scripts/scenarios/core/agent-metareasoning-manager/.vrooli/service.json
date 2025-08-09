@@ -23,13 +23,6 @@
       "windmill-ui",
       "prompt-management",
       "workflow-orchestration"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "team@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
     ]
   },
   "repository": {
@@ -46,11 +39,11 @@
           "data": [
             {
               "type": "schema",
-              "file": "initialization/storage/postgres/schema.sql"
+              "file": "../initialization/storage/postgres/schema.sql"
             },
             {
               "type": "seed",
-              "file": "initialization/storage/postgres/seed.sql"
+              "file": "../initialization/storage/postgres/seed.sql"
             }
           ]
         }
@@ -74,19 +67,19 @@
         "initialization": {
           "workflows": [
             {
-              "file": "initialization/automation/n8n/pros-cons-analyzer.json"
+              "file": "../initialization/automation/n8n/pros-cons-analyzer.json"
             },
             {
-              "file": "initialization/automation/n8n/swot-analysis.json"
+              "file": "../initialization/automation/n8n/swot-analysis.json"
             },
             {
-              "file": "initialization/automation/n8n/risk-assessment.json"
+              "file": "../initialization/automation/n8n/risk-assessment.json"
             },
             {
-              "file": "initialization/automation/n8n/self-review.json"
+              "file": "../initialization/automation/n8n/self-review.json"
             },
             {
-              "file": "initialization/automation/n8n/reasoning-chain.json"
+              "file": "../initialization/automation/n8n/reasoning-chain.json"
             }
           ]
         }
@@ -98,10 +91,10 @@
         "initialization": {
           "apps": [
             {
-              "file": "initialization/automation/windmill/metareasoning-orchestrator.json"
+              "file": "../initialization/automation/windmill/metareasoning-orchestrator.json"
             },
             {
-              "file": "initialization/automation/windmill/prompt-tester.json"
+              "file": "../initialization/automation/windmill/prompt-tester.json"
             }
           ]
         }
@@ -122,57 +115,11 @@
   },
   "lifecycle": {
     "version": "1.0.0",
-    "defaults": {
-      "timeout": "5m",
-      "error": "stop",
-      "shell": "bash"
-    },
     "setup": {
-      "description": "Initialize agent metareasoning manager environment",
       "steps": [
         {
-          "name": "universal-setup",
-          "run": "./scripts/lib/lifecycle/phases/setup.sh"
-        }
-      ]
-    },
-    "develop": {
-      "description": "Start agent metareasoning manager services",
-      "steps": [
-        {
-          "name": "universal-develop",
-          "run": "./scripts/lib/lifecycle/phases/develop.sh"
-        },
-        {
-          "name": "custom-develop",
-          "run": "./scripts/app/lifecycle/phases/develop.sh"
-        }
-      ]
-    },
-    "build": {
-      "description": "Build agent metareasoning manager artifacts",
-      "steps": [
-        {
-          "name": "universal-build",
-          "run": "./scripts/lib/lifecycle/phases/build.sh"
-        }
-      ]
-    },
-    "test": {
-      "description": "Run agent metareasoning manager tests",
-      "steps": [
-        {
-          "name": "universal-test",
-          "run": "./scripts/lib/lifecycle/phases/test.sh"
-        }
-      ]
-    },
-    "clean": {
-      "description": "Clean build artifacts and temporary files",
-      "steps": [
-        {
-          "name": "universal-clean",
-          "run": "./scripts/lib/lifecycle/phases/clean.sh"
+          "name": "initialize-scenario",
+          "run": "../initialization/init.sh"
         }
       ]
     }
