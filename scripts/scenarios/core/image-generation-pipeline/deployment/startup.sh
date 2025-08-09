@@ -4,11 +4,22 @@
 
 set -euo pipefail
 
+# Source var.sh first with proper relative path
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../../lib/utils/var.sh"
+
 # Configuration
 SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+# Source port registry for dynamic port resolution
+# shellcheck disable=SC1091
+source "$var_RESOURCES_COMMON_FILE"
 SCENARIO_ID="image-generation-pipeline"
 SCENARIO_NAME="Enterprise Image Generation Pipeline"
-LOG_FILE="/tmp/vrooli-${SCENARIO_ID}-startup.log"
+LOG_FILE="$var_ROOT_DIR/tmp/vrooli-${SCENARIO_ID}-startup.log"
+
+# Ensure log directory exists
+mkdir -p "$(dirname "$LOG_FILE")"
 
 # Colors for output
 RED='\033[0;31m'
@@ -46,19 +57,19 @@ load_configuration() {
     log_info "Loading scenario configuration..."
     
     # Check if required file exists
-    if [[ ! -f "$SCENARIO_DIR/service.json" ]]; then
-        log_error "service.json not found in $SCENARIO_DIR"
+    if [[ ! -f "$SCENARIO_DIR/.vrooli/service.json" ]]; then
+        log_error "service.json not found in $SCENARIO_DIR/.vrooli/"
         exit 1
     fi
     
-    # Extract required resources
-    REQUIRED_RESOURCES=$(jq -r '.resources | to_entries[] | .value | to_entries[] | select(.value.required == true) | .key' "$SCENARIO_DIR/service.json" 2>/dev/null | tr '\n' ' ')
+    # Extract required resources using standardized JSON utilities
+    REQUIRED_RESOURCES=$(json::get_required_resources "" "$SCENARIO_DIR/.vrooli/service.json")
     log_info "Required resources: $REQUIRED_RESOURCES"
     
-    # Extract configuration
-    REQUIRES_UI=$(jq -r '.deployment.testing.ui.required // false' "$SCENARIO_DIR/service.json" 2>/dev/null || echo "false")
-    REQUIRES_DISPLAY=$(jq -r '.deployment.testing.ui.type // "none"' "$SCENARIO_DIR/service.json" 2>/dev/null || echo "none")
-    TIMEOUT_SECONDS=$(jq -r '.deployment.testing.timeout // "30m"' "$SCENARIO_DIR/service.json" 2>/dev/null | sed 's/[ms]//g' || echo "300")
+    # Extract configuration using standardized JSON utilities
+    REQUIRES_UI=$(json::get_deployment_config 'testing.ui.required' 'false' "$SCENARIO_DIR/.vrooli/service.json")
+    REQUIRES_DISPLAY=$(json::get_deployment_config 'testing.ui.type' 'none' "$SCENARIO_DIR/.vrooli/service.json")
+    TIMEOUT_SECONDS=$(json::get_deployment_config 'testing.timeout' '30m' "$SCENARIO_DIR/.vrooli/service.json" | sed 's/[ms]//g' || echo "300")
     
     log_info "UI required: $REQUIRES_UI, Display required: $REQUIRES_DISPLAY, Timeout: ${TIMEOUT_SECONDS}s"
 }
@@ -72,70 +83,70 @@ validate_resources() {
     for resource in $REQUIRED_RESOURCES; do
         case "$resource" in
             "ollama")
-                if ! curl -sf http://localhost:11434/api/tags >/dev/null 2>&1; then
+                if ! curl -sf "http://localhost:$(resources::get_default_port "ollama")/api/tags" >/dev/null 2>&1; then
                     failed_resources+=("ollama")
                 else
                     log_success "✓ Ollama is healthy"
                 fi
                 ;;
             "n8n")
-                if ! curl -sf http://localhost:5678/healthz >/dev/null 2>&1; then
+                if ! curl -sf "http://localhost:$(resources::get_default_port "n8n")/healthz" >/dev/null 2>&1; then
                     failed_resources+=("n8n")
                 else
                     log_success "✓ n8n is healthy"
                 fi
                 ;;
             "postgres")
-                if ! pg_isready -h localhost -p 5433 >/dev/null 2>&1; then
+                if ! pg_isready -h localhost -p "$(resources::get_default_port "postgres")" >/dev/null 2>&1; then
                     failed_resources+=("postgres")
                 else
                     log_success "✓ PostgreSQL is healthy"
                 fi
                 ;;
             "redis")
-                if ! redis-cli -h localhost -p 6380 ping >/dev/null 2>&1; then
+                if ! redis-cli -h localhost -p "$(resources::get_default_port "redis")" ping >/dev/null 2>&1; then
                     failed_resources+=("redis")
                 else
                     log_success "✓ Redis is healthy"
                 fi
                 ;;
             "windmill")
-                if ! curl -sf http://localhost:5681/api/version >/dev/null 2>&1; then
+                if ! curl -sf "http://localhost:$(resources::get_default_port "windmill")/api/version" >/dev/null 2>&1; then
                     failed_resources+=("windmill")
                 else
                     log_success "✓ Windmill is healthy"
                 fi
                 ;;
             "whisper")
-                if ! curl -sf http://localhost:8090/ >/dev/null 2>&1; then
+                if ! curl -sf "http://localhost:$(resources::get_default_port "whisper")/" >/dev/null 2>&1; then
                     failed_resources+=("whisper")
                 else
                     log_success "✓ Whisper is healthy"
                 fi
                 ;;
             "comfyui")
-                if ! curl -sf http://localhost:8188/ >/dev/null 2>&1; then
+                if ! curl -sf "http://localhost:$(resources::get_default_port "comfyui")/" >/dev/null 2>&1; then
                     failed_resources+=("comfyui")
                 else
                     log_success "✓ ComfyUI is healthy"
                 fi
                 ;;
             "minio")
-                if ! curl -sf http://localhost:9000/minio/health/live >/dev/null 2>&1; then
+                if ! curl -sf "http://localhost:$(resources::get_default_port "minio")/minio/health/live" >/dev/null 2>&1; then
                     failed_resources+=("minio")
                 else
                     log_success "✓ MinIO is healthy"
                 fi
                 ;;
             "qdrant")
-                if ! curl -sf http://localhost:6333/ >/dev/null 2>&1; then
+                if ! curl -sf "http://localhost:$(resources::get_default_port "qdrant")/" >/dev/null 2>&1; then
                     failed_resources+=("qdrant")
                 else
                     log_success "✓ Qdrant is healthy"
                 fi
                 ;;
             "questdb")
-                if ! curl -sf http://localhost:9010/ >/dev/null 2>&1; then
+                if ! curl -sf "http://localhost:$(resources::get_default_port "questdb")/" >/dev/null 2>&1; then
                     failed_resources+=("questdb")
                 else
                     log_success "✓ QuestDB is healthy"
@@ -166,9 +177,9 @@ initialize_database() {
         local seed_file="$SCENARIO_DIR/initialization/database/seed.sql"
         
         # Create database if it doesn't exist
-        if ! psql -h localhost -p 5433 -U postgres -lqt | cut -d \| -f 1 | grep -qw "$db_name"; then
+        if ! psql -h localhost -p "$(resources::get_default_port "postgres")" -U postgres -lqt | cut -d \| -f 1 | grep -qw "$db_name"; then
             log_info "Creating database: $db_name"
-            createdb -h localhost -p 5433 -U postgres "$db_name" || {
+            createdb -h localhost -p "$(resources::get_default_port "postgres")" -U postgres "$db_name" || {
                 log_warning "Database $db_name might already exist, continuing..."
             }
         fi
@@ -178,7 +189,7 @@ initialize_database() {
             log_info "Applying database schema..."
             # Simple template variable substitution
             sed "s/image-generation-pipeline/$db_name/g" "$schema_file" | \
-            psql -h localhost -p 5433 -U postgres -d "$db_name" -v ON_ERROR_STOP=1
+            psql -h localhost -p "$(resources::get_default_port "postgres")" -U postgres -d "$db_name" -v ON_ERROR_STOP=1
             log_success "Database schema applied"
         else
             log_warning "No schema file found at $schema_file"
@@ -189,7 +200,7 @@ initialize_database() {
             log_info "Applying seed data..."
             # Simple template variable substitution
             sed "s/image-generation-pipeline/$db_name/g" "$seed_file" | \
-            psql -h localhost -p 5433 -U postgres -d "$db_name" -v ON_ERROR_STOP=1
+            psql -h localhost -p "$(resources::get_default_port "postgres")" -U postgres -d "$db_name" -v ON_ERROR_STOP=1
             log_success "Seed data applied"
         else
             log_warning "No seed file found at $seed_file"
@@ -266,7 +277,7 @@ health_checks() {
     
     # Test webhook endpoint if n8n is deployed
     if [[ "$REQUIRED_RESOURCES" =~ "n8n" ]]; then
-        local webhook_url="http://localhost:5678/webhook/${SCENARIO_ID}-webhook"
+        local webhook_url="http://localhost:$(resources::get_default_port "n8n")/webhook/${SCENARIO_ID}-webhook"
         log_info "Testing webhook endpoint: $webhook_url"
         
         # Test with sample data
@@ -281,7 +292,7 @@ health_checks() {
     
     # Test UI accessibility if required
     if [[ "$REQUIRES_UI" == "true" && "$REQUIRED_RESOURCES" =~ "windmill" ]]; then
-        local ui_url="http://localhost:5681/app/$SCENARIO_ID"
+        local ui_url="http://localhost:$(resources::get_default_port "windmill")/app/$SCENARIO_ID"
         log_info "Testing UI accessibility: $ui_url"
         
         if curl -sf "$ui_url" >/dev/null 2>&1; then
@@ -315,15 +326,15 @@ main() {
     log_info "Application endpoints:"
     
     if [[ "$REQUIRED_RESOURCES" =~ "n8n" ]]; then
-        log_info "  📡 Webhook: http://localhost:5678/webhook/${SCENARIO_ID}-webhook"
+        log_info "  📡 Webhook: http://localhost:$(resources::get_default_port "n8n")/webhook/${SCENARIO_ID}-webhook"
     fi
     
     if [[ "$REQUIRES_UI" == "true" && "$REQUIRED_RESOURCES" =~ "windmill" ]]; then
-        log_info "  🖥️  UI: http://localhost:5681/app/$SCENARIO_ID"
+        log_info "  🖥️  UI: http://localhost:$(resources::get_default_port "windmill")/app/$SCENARIO_ID"
     fi
     
     if [[ "$REQUIRED_RESOURCES" =~ "postgres" ]]; then
-        log_info "  🗄️  Database: postgresql://postgres:postgres@localhost:5433/${SCENARIO_ID//-/_}"
+        log_info "  🗄️  Database: postgresql://postgres:postgres@localhost:$(resources::get_default_port "postgres")/${SCENARIO_ID//-/_}"
     fi
     
     log_info "  📊 Scenario Test: $SCENARIO_DIR/test.sh"
