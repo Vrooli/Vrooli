@@ -1,0 +1,305 @@
+{
+  "cell_renderers": {
+    "progressRenderer": {
+      "type": "progress",
+      "template": "<div class='progress-container'><div class='progress-bar' style='width: {{value * 100}}%; background-color: {{value >= 0.8 ? '#10b981' : value >= 0.6 ? '#f59e0b' : '#ef4444'}}'></div><span class='progress-text'>{{Math.round(value * 100)}}%</span></div>",
+      "css": ".progress-container { position: relative; width: 100%; height: 20px; background-color: #f3f4f6; border-radius: 10px; overflow: hidden; } .progress-bar { height: 100%; border-radius: 10px; transition: width 0.3s ease; } .progress-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 11px; font-weight: 500; color: #374151; }"
+    },
+    "statusRenderer": {
+      "type": "badge",
+      "template": "<span class='status-badge status-{{value}}'>{{value.charAt(0).toUpperCase() + value.slice(1)}}</span>",
+      "css": ".status-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; text-transform: capitalize; } .status-active, .status-enabled { background-color: #dcfce7; color: #166534; } .status-inactive, .status-disabled { background-color: #fee2e2; color: #991b1b; } .status-pending { background-color: #fef3c7; color: #92400e; } .status-approved { background-color: #dcfce7; color: #166534; } .status-denied { background-color: #fee2e2; color: #991b1b; } .status-applied { background-color: #e0e7ff; color: #3730a3; } .status-revision_requested { background-color: #fed7aa; color: #9a3412; }"
+    },
+    "severityRenderer": {
+      "type": "badge",
+      "template": "<span class='severity-badge severity-{{value}}'>{{value.charAt(0).toUpperCase() + value.slice(1)}}</span>",
+      "css": ".severity-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; text-transform: capitalize; } .severity-critical { background-color: #fee2e2; color: #991b1b; font-weight: 600; } .severity-high { background-color: #fef3c7; color: #92400e; } .severity-medium { background-color: #dbeafe; color: #1e40af; } .severity-low { background-color: #f3f4f6; color: #374151; }"
+    },
+    "typeRenderer": {
+      "type": "badge",
+      "template": "<span class='type-badge type-{{value}}'>{{value.replace('_', ' ').replace(/\\b\\w/g, l => l.toUpperCase())}}</span>",
+      "css": ".type-badge { display: inline-block; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: 500; } .type-drift_detector { background-color: #ddd6fe; color: #6b21a8; } .type-link_validator { background-color: #fecaca; color: #991b1b; } .type-organization_analyzer { background-color: #fed7aa; color: #9a3412; } .type-coverage_checker { background-color: #bfdbfe; color: #1e40af; } .type-meta_optimizer { background-color: #d1fae5; color: #065f46; } .type-style_consistency { background-color: #e9d5ff; color: #7c3aed; } .type-accessibility_checker { background-color: #cffafe; color: #0e7490; } .type-translation_checker { background-color: #ecfccb; color: #365314; } .type-custom { background-color: #f3f4f6; color: #374151; }"
+    },
+    "scoreRenderer": {
+      "type": "score",
+      "template": "<div class='score-container'><span class='score-value score-{{value >= 0.8 ? 'high' : value >= 0.6 ? 'medium' : 'low'}}'>{{value ? (value * 100).toFixed(0) : 'N/A'}}</span></div>",
+      "css": ".score-container { text-align: center; } .score-value { display: inline-block; padding: 2px 6px; border-radius: 8px; font-size: 12px; font-weight: 500; } .score-high { background-color: #dcfce7; color: #166534; } .score-medium { background-color: #fef3c7; color: #92400e; } .score-low { background-color: #fee2e2; color: #991b1b; }"
+    },
+    "thresholdRenderer": {
+      "type": "threshold",
+      "template": "<span class='threshold-value'>{{value > 0 ? (value * 100).toFixed(0) + '%' : 'Manual'}}</span>",
+      "css": ".threshold-value { font-size: 11px; color: #6b7280; font-weight: 500; }"
+    },
+    "linkRenderer": {
+      "type": "link",
+      "template": "<a href='{{value}}' target='_blank' rel='noopener noreferrer' class='repo-link'>{{value.replace('https://', '').substring(0, 30)}}{{value.length > 35 ? '...' : ''}}</a>",
+      "css": ".repo-link { color: #3b82f6; text-decoration: none; font-size: 12px; } .repo-link:hover { text-decoration: underline; }"
+    },
+    "actionsRenderer": {
+      "type": "actions",
+      "template": "<div class='action-buttons'><button class='btn-sm btn-edit' onclick='editApplication(\"{{data.id}}\")'>Edit</button><button class='btn-sm btn-agents' onclick='manageAgents(\"{{data.id}}\")'>Agents</button><button class='btn-sm btn-scan' onclick='triggerScan(\"{{data.id}}\")'>Scan</button></div>",
+      "css": ".action-buttons { display: flex; gap: 4px; } .btn-sm { padding: 2px 8px; border: none; border-radius: 4px; font-size: 10px; cursor: pointer; } .btn-edit { background-color: #3b82f6; color: white; } .btn-agents { background-color: #10b981; color: white; } .btn-scan { background-color: #f59e0b; color: white; } .btn-sm:hover { opacity: 0.8; }"
+    },
+    "agentActionsRenderer": {
+      "type": "actions", 
+      "template": "<div class='action-buttons'><button class='btn-sm btn-edit' onclick='editAgent(\"{{data.id}}\")'>Edit</button><button class='btn-sm btn-run' onclick='runAgent(\"{{data.id}}\")'>Run</button><button class='btn-sm btn-metrics' onclick='viewMetrics(\"{{data.id}}\")'>Metrics</button></div>",
+      "css": ".action-buttons { display: flex; gap: 4px; } .btn-sm { padding: 2px 8px; border: none; border-radius: 4px; font-size: 10px; cursor: pointer; } .btn-edit { background-color: #3b82f6; color: white; } .btn-run { background-color: #10b981; color: white; } .btn-metrics { background-color: #8b5cf6; color: white; } .btn-sm:hover { opacity: 0.8; }"
+    },
+    "queueActionsRenderer": {
+      "type": "actions",
+      "template": "<div class='queue-actions'><button class='btn-xs btn-approve' onclick='approveImprovement(\"{{data.id}}\")'>✓</button><button class='btn-xs btn-deny' onclick='denyImprovement(\"{{data.id}}\")'>✗</button><button class='btn-xs btn-detail' onclick='viewDetail(\"{{data.id}}\")'>👁</button></div>",
+      "css": ".queue-actions { display: flex; gap: 2px; } .btn-xs { padding: 1px 4px; border: none; border-radius: 2px; font-size: 10px; cursor: pointer; } .btn-approve { background-color: #10b981; color: white; } .btn-deny { background-color: #ef4444; color: white; } .btn-detail { background-color: #6b7280; color: white; } .btn-xs:hover { opacity: 0.8; }"
+    }
+  },
+  "modal_templates": {
+    "add_application_modal": {
+      "title": "Add New Application",
+      "fields": [
+        {
+          "name": "name",
+          "type": "text",
+          "label": "Application Name",
+          "required": true,
+          "placeholder": "My Documentation Project"
+        },
+        {
+          "name": "repository_url", 
+          "type": "text",
+          "label": "Repository URL",
+          "required": true,
+          "placeholder": "https://github.com/user/repo"
+        },
+        {
+          "name": "documentation_path",
+          "type": "text", 
+          "label": "Documentation Path",
+          "required": false,
+          "placeholder": "/docs",
+          "default": "/docs"
+        },
+        {
+          "name": "notification_email",
+          "type": "checkbox",
+          "label": "Enable Email Notifications",
+          "default": false
+        },
+        {
+          "name": "notification_slack",
+          "type": "checkbox", 
+          "label": "Enable Slack Notifications",
+          "default": true
+        }
+      ],
+      "actions": [
+        {
+          "label": "Create Application",
+          "action": "create_application",
+          "type": "primary"
+        },
+        {
+          "label": "Cancel",
+          "action": "close_modal",
+          "type": "secondary"
+        }
+      ]
+    },
+    "create_agent_modal": {
+      "title": "Create New Agent",
+      "fields": [
+        {
+          "name": "application_id",
+          "type": "select",
+          "label": "Application",
+          "required": true,
+          "datasource": "applications"
+        },
+        {
+          "name": "agent_type",
+          "type": "select",
+          "label": "Agent Type", 
+          "required": true,
+          "datasource": "agent_types"
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "label": "Agent Name",
+          "required": true,
+          "placeholder": "My Documentation Agent"
+        },
+        {
+          "name": "schedule_cron",
+          "type": "text",
+          "label": "Schedule (Cron)",
+          "placeholder": "0 2 * * *",
+          "help": "Leave empty for manual triggering only"
+        },
+        {
+          "name": "enabled",
+          "type": "checkbox",
+          "label": "Enable Agent",
+          "default": true
+        }
+      ],
+      "actions": [
+        {
+          "label": "Create Agent",
+          "action": "create_agent", 
+          "type": "primary"
+        },
+        {
+          "label": "Create from Template",
+          "action": "show_template_selector",
+          "type": "secondary"
+        },
+        {
+          "label": "Cancel",
+          "action": "close_modal",
+          "type": "secondary"
+        }
+      ]
+    },
+    "improvement_detail_modal": {
+      "title": "Improvement Details",
+      "sections": [
+        {
+          "title": "Information",
+          "fields": ["title", "description", "severity", "type", "created_at"]
+        },
+        {
+          "title": "Suggested Fix",
+          "type": "code",
+          "field": "suggested_fix"
+        },
+        {
+          "title": "Actions",
+          "type": "buttons",
+          "buttons": [
+            {
+              "label": "Approve",
+              "action": "approve_improvement",
+              "type": "success"
+            },
+            {
+              "label": "Deny",
+              "action": "deny_improvement", 
+              "type": "danger"
+            },
+            {
+              "label": "Request Revision",
+              "action": "request_revision",
+              "type": "warning"
+            }
+          ]
+        }
+      ]
+    },
+    "batch_actions_modal": {
+      "title": "Batch Actions",
+      "description": "Select an action to apply to all selected improvements",
+      "fields": [
+        {
+          "name": "action",
+          "type": "select",
+          "label": "Action",
+          "required": true,
+          "options": [
+            {"value": "approve", "label": "Approve All"},
+            {"value": "deny", "label": "Deny All"},
+            {"value": "request_revision", "label": "Request Revision"}
+          ]
+        },
+        {
+          "name": "review_notes",
+          "type": "textarea",
+          "label": "Review Notes",
+          "placeholder": "Optional notes for this batch action..."
+        }
+      ],
+      "actions": [
+        {
+          "label": "Apply to Selected",
+          "action": "batch_process",
+          "type": "primary"
+        },
+        {
+          "label": "Cancel",
+          "action": "close_modal",
+          "type": "secondary"
+        }
+      ]
+    }
+  },
+  "dashboard_widgets": {
+    "health_score_chart": {
+      "type": "barchart",
+      "title": "Application Health Scores",
+      "query": "SELECT name, health_score FROM applications WHERE active = true ORDER BY health_score DESC LIMIT 10",
+      "config": {
+        "xAxis": "name",
+        "yAxis": "health_score",
+        "colorScale": "health"
+      }
+    },
+    "queue_status_pie": {
+      "type": "piechart", 
+      "title": "Queue Status Distribution",
+      "query": "SELECT status, COUNT(*) as count FROM improvement_queue GROUP BY status",
+      "config": {
+        "labelField": "status",
+        "valueField": "count",
+        "colorScale": "status"
+      }
+    },
+    "recent_activity_timeline": {
+      "type": "timeline",
+      "title": "Recent Activity",
+      "query": "SELECT title, created_at, severity FROM improvement_queue ORDER BY created_at DESC LIMIT 10",
+      "config": {
+        "timeField": "created_at",
+        "titleField": "title",
+        "colorField": "severity"
+      }
+    },
+    "agent_performance_grid": {
+      "type": "aggrid",
+      "title": "Top Performing Agents",
+      "query": "SELECT ag.name, ag.type, AVG(am.runs_count) as avg_runs, AVG(am.approved_count) as avg_approved FROM agents ag JOIN agent_metrics am ON ag.id = am.agent_id WHERE am.metric_date >= CURRENT_DATE - INTERVAL '30 days' GROUP BY ag.id, ag.name, ag.type ORDER BY avg_approved DESC LIMIT 10",
+      "config": {
+        "columnDefs": [
+          {"headerName": "Agent", "field": "name"},
+          {"headerName": "Type", "field": "type", "cellRenderer": "typeRenderer"},
+          {"headerName": "Avg Runs", "field": "avg_runs", "type": "numericColumn"},
+          {"headerName": "Avg Approved", "field": "avg_approved", "type": "numericColumn"}
+        ]
+      }
+    }
+  },
+  "color_schemes": {
+    "health": {
+      "0.0-0.4": "#ef4444",
+      "0.4-0.7": "#f59e0b", 
+      "0.7-1.0": "#10b981"
+    },
+    "severity": {
+      "critical": "#991b1b",
+      "high": "#dc2626",
+      "medium": "#f59e0b",
+      "low": "#6b7280"
+    },
+    "status": {
+      "pending": "#f59e0b",
+      "approved": "#10b981",
+      "denied": "#ef4444",
+      "applied": "#3b82f6",
+      "revision_requested": "#f97316"
+    },
+    "agent_type": {
+      "drift_detector": "#8b5cf6",
+      "link_validator": "#ef4444", 
+      "organization_analyzer": "#f97316",
+      "coverage_checker": "#3b82f6",
+      "meta_optimizer": "#10b981"
+    }
+  }
+}

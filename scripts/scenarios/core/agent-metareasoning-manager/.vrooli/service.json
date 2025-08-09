@@ -1,0 +1,173 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "inheritance": {
+    "extends": "../../../../../.vrooli/service.json",
+    "merge": {
+      "strategy": "merge",
+      "arrays": "concat"
+    }
+  },
+  "service": {
+    "name": "agent-metareasoning-manager",
+    "displayName": "Agent Metareasoning Manager",
+    "description": "Dashboard for managing metareasoning tools (prompts, workflows) that enhance agent decision-making",
+    "version": "1.0.0",
+    "type": "vrooli-enhancement",
+    "category": "vrooli-helpers",
+    "tags": [
+      "metareasoning",
+      "decision-support",
+      "ai-enhancement",
+      "reasoning-patterns",
+      "windmill-ui",
+      "prompt-management",
+      "workflow-orchestration"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "team@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ]
+  },
+  "repository": {
+    "mirrors": []
+  },
+  "resources": {
+    "storage": {
+      "postgres": {
+        "type": "postgresql",
+        "enabled": true,
+        "version": "16",
+        "required": true,
+        "initialization": {
+          "data": [
+            {
+              "type": "schema",
+              "file": "initialization/storage/postgres/schema.sql"
+            },
+            {
+              "type": "seed", 
+              "file": "initialization/storage/postgres/seed.sql"
+            }
+          ]
+        }
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true
+      },
+      "vault": {
+        "type": "vault",
+        "enabled": false,
+        "required": false
+      }
+    },
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "workflows": [
+            {
+              "file": "initialization/automation/n8n/pros-cons-analyzer.json"
+            },
+            {
+              "file": "initialization/automation/n8n/swot-analysis.json"
+            },
+            {
+              "file": "initialization/automation/n8n/risk-assessment.json"
+            },
+            {
+              "file": "initialization/automation/n8n/self-review.json"
+            },
+            {
+              "file": "initialization/automation/n8n/reasoning-chain.json"
+            }
+          ]
+        }
+      },
+      "windmill": {
+        "type": "windmill",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "apps": [
+            {
+              "file": "initialization/automation/windmill/metareasoning-orchestrator.json"
+            },
+            {
+              "file": "initialization/automation/windmill/prompt-tester.json"
+            }
+          ]
+        }
+      }
+    },
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": ["llama3.2", "mistral", "codellama"]
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "defaults": {
+      "timeout": "5m",
+      "error": "stop",
+      "shell": "bash"
+    },
+    "setup": {
+      "description": "Initialize agent metareasoning manager environment",
+      "steps": [
+        {
+          "name": "setup-infrastructure",
+          "run": "./scripts/manage.sh setup --target docker",
+          "condition": "${SKIP_SETUP} != \\\"true\\\""
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start agent metareasoning manager services",
+      "steps": [
+        {
+          "name": "start-services",
+          "run": "../deployment/startup.sh"
+        }
+      ]
+    },
+    "build": {
+      "description": "Build agent metareasoning manager artifacts",
+      "steps": [
+        {
+          "name": "build-artifacts",
+          "run": "./scripts/manage.sh build"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run agent metareasoning manager tests",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "./test.sh"
+        }
+      ]
+    },
+    "clean": {
+      "description": "Clean build artifacts and temporary files",
+      "steps": [
+        {
+          "name": "clean-artifacts",
+          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,287 @@
+{
+  "name": "App Health Checker",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "5e6b5f4a-8f3b-4b36-9c8e-d7c2a1f4e6b7",
+      "name": "Schedule Health Checks",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        260,
+        300
+      ],
+      "credentials": {},
+      "cronExpression": "*/2 * * * *",
+      "timezone": "UTC"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "table": "apps",
+        "where": {
+          "conditions": [
+            {
+              "column": "status",
+              "value": "running"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7a8b9c0d-1e2f-3g4h-5i6j-7k8l9m0n1o2p",
+      "name": "Get Running Apps",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        480,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "app-monitor-postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "8b9c0d1e-2f3g-4h5i-6j7k-8l9m0n1o2p3q",
+      "name": "Process Each App",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=http://localhost:{{ $json.port_mappings.api || 8080 }}/health",
+        "options": {
+          "timeout": 5000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "9c0d1e2f-3g4h-5i6j-7k8l-9m0n1o2p3q4r",
+      "name": "Health Check Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        920,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.statusCode }}",
+              "rightValue": 200,
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "0d1e2f3g-4h5i-6j7k-8l9m-0n1o2p3q4r5s",
+      "name": "Check Response",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1140,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": "app_status",
+        "updateKey": "app_id",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "healthy",
+            "timestamp": "={{ $now }}"
+          },
+          "matchingColumns": [
+            {
+              "column": "app_id",
+              "value": "={{ $('Get Running Apps').item.json.id }}"
+            }
+          ],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "1e2f3g4h-5i6j-7k8l-9m0n-1o2p3q4r5s6t",
+      "name": "Update Health Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1360,
+        220
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "app-monitor-postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "app_status",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "app_id": "={{ $('Get Running Apps').item.json.id }}",
+            "status": "unhealthy",
+            "timestamp": "={{ $now }}"
+          },
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "2f3g4h5i-6j7k-8l9m-0n1o-2p3q4r5s6t7u",
+      "name": "Log Unhealthy Status",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1360,
+        380
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "app-monitor-postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "app-alerts",
+        "message": "=🚨 App {{ $('Get Running Apps').item.json.name }} health check failed. Status: {{ $json.statusCode || 'timeout' }}"
+      },
+      "id": "3g4h5i6j-7k8l-9m0n-1o2p-3q4r5s6t7u8v",
+      "name": "Send Alert",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1580,
+        380
+      ],
+      "credentials": {
+        "redis": {
+          "id": "1",
+          "name": "app-monitor-redis"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Health Checks": {
+      "main": [
+        [
+          {
+            "node": "Get Running Apps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Running Apps": {
+      "main": [
+        [
+          {
+            "node": "Process Each App",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Each App": {
+      "main": [
+        [
+          {
+            "node": "Health Check Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Health Check Request": {
+      "main": [
+        [
+          {
+            "node": "Check Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Response": {
+      "main": [
+        [
+          {
+            "node": "Update Health Status",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Unhealthy Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Unhealthy Status": {
+      "main": [
+        [
+          {
+            "node": "Send Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "1"
+}

@@ -77,8 +77,7 @@ phase::is_ci() {
 #   0 if monorepo, 1 otherwise
 #######################################
 phase::is_monorepo() {
-    [[ "${VROOLI_CONTEXT:-}" == "monorepo" ]] || \
-    [[ -d "${var_PACKAGES_DIR:-}" ]]
+    [[ "${VROOLI_CONTEXT:-}" == "monorepo" ]]
 }
 
 #######################################
@@ -87,8 +86,7 @@ phase::is_monorepo() {
 #   0 if standalone, 1 otherwise
 #######################################
 phase::is_standalone() {
-    [[ "${VROOLI_CONTEXT:-}" == "standalone" ]] || \
-    ( [[ ! -d "${var_PACKAGES_DIR:-}" ]] && [[ -f "${var_SERVICE_JSON_FILE:-}" ]] )
+    [[ "${VROOLI_CONTEXT:-}" == "standalone" ]]
 }
 
 #######################################
@@ -229,36 +227,6 @@ phase::run_hook() {
     return 0
 }
 
-#######################################
-# Export common environment variables
-# Sets up standard variables for phase execution
-#######################################
-phase::export_env() {
-    # Ensure PROJECT_ROOT is set for backward compatibility
-    if [[ -z "${PROJECT_ROOT:-}" ]]; then
-        export PROJECT_ROOT="${var_ROOT_DIR}"
-    fi
-    
-    # Export standard paths for backward compatibility
-    export SCRIPTS_DIR="${var_SCRIPTS_DIR}"
-    export LIB_DIR="${var_LIB_DIR}"
-    export APP_DIR="${var_APP_DIR}"
-    
-    # Export context if not set
-    if [[ -z "${VROOLI_CONTEXT:-}" ]]; then
-        if [[ -d "${var_PACKAGES_DIR:-}" ]]; then
-            export VROOLI_CONTEXT="monorepo"
-        else
-            export VROOLI_CONTEXT="standalone"
-        fi
-    fi
-    
-    log::debug "Environment exported:"
-    log::debug "  PROJECT_ROOT=${var_ROOT_DIR}"
-    log::debug "  VROOLI_CONTEXT=$VROOLI_CONTEXT"
-    log::debug "  SCRIPTS_DIR=${var_SCRIPTS_DIR}"
-}
-
 # Export functions for use by phase handlers
 export -f phase::init
 export -f phase::complete
@@ -270,4 +238,3 @@ export -f phase::execute
 export -f phase::execute_if
 export -f phase::source_if_exists
 export -f phase::run_hook
-export -f phase::export_env

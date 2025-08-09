@@ -1,0 +1,305 @@
+{
+  "name": "Campaign Sync Workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "campaign-sync",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Campaign Operation Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 400]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Validate campaign operation request\nconst data = $json;\n\n// Check operation type\nconst validOperations = ['create', 'update', 'delete', 'archive', 'duplicate'];\nif (!data.operation || !validOperations.includes(data.operation)) {\n  throw new Error(`Invalid operation: ${data.operation}. Must be one of: ${validOperations.join(', ')}`);\n}\n\n// Validate based on operation type\nif (data.operation === 'create') {\n  if (!data.name || typeof data.name !== 'string') {\n    throw new Error('Campaign name is required for create operation');\n  }\n  if (!data.user_id) {\n    throw new Error('User ID is required for create operation');\n  }\n} else if (data.operation === 'update' || data.operation === 'delete' || data.operation === 'archive' || data.operation === 'duplicate') {\n  if (!data.campaign_id) {\n    throw new Error(`Campaign ID is required for ${data.operation} operation`);\n  }\n}\n\n// Set defaults for create operation\nif (data.operation === 'create') {\n  data.color = data.color || '#3B82F6';\n  data.context = data.context || {};\n  data.settings = data.settings || {};\n  data.is_active = true;\n}\n\nreturn [{ json: data }];"
+      },
+      "id": "validate_request",
+      "name": "Validate Campaign Request",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.operation }}",
+              "value2": "create"
+            }
+          ]
+        }
+      },
+      "id": "operation_router",
+      "name": "Route by Operation",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [650, 400]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "campaigns",
+        "columns": "name,description,color,context,settings,owner_id,is_active",
+        "returnFields": "*"
+      },
+      "id": "create_campaign",
+      "name": "Create Campaign",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [850, 200]
+    },
+    {
+      "parameters": {
+        "resource": "embedding",
+        "model": "nomic-embed-text",
+        "input": "{{ $json.name }} {{ $json.description || '' }} {{ JSON.stringify($json.context || {}) }}"
+      },
+      "id": "generate_campaign_embedding",
+      "name": "Generate Campaign Embedding",
+      "type": "n8n-nodes-base.ollama",
+      "typeVersion": 1,
+      "position": [1050, 200]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": "campaigns",
+        "updateKey": "id",
+        "columns": "embedding",
+        "additionalFields": {
+          "values": {
+            "embedding": "{{ $node['Generate Campaign Embedding'].json.embedding }}"
+          }
+        }
+      },
+      "id": "update_campaign_embedding",
+      "name": "Update Campaign Embedding",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:6333/collections/campaigns/points",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"points\": [\n    {\n      \"id\": \"{{ $node['Create Campaign'].json.id }}\",\n      \"vector\": {{ JSON.stringify($node['Generate Campaign Embedding'].json.embedding) }},\n      \"payload\": {\n        \"campaign_id\": \"{{ $node['Create Campaign'].json.id }}\",\n        \"name\": \"{{ $node['Create Campaign'].json.name }}\",\n        \"description\": \"{{ $node['Create Campaign'].json.description || '' }}\",\n        \"context\": \"{{ JSON.stringify($node['Create Campaign'].json.context) }}\",\n        \"color\": \"{{ $node['Create Campaign'].json.color }}\",\n        \"created_at\": \"{{ $node['Create Campaign'].json.created_at }}\",\n        \"owner_id\": \"{{ $node['Create Campaign'].json.owner_id }}\"\n      }\n    }\n  ]\n}"
+      },
+      "id": "save_to_qdrant",
+      "name": "Save Campaign to Qdrant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1450, 200]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": "campaigns",
+        "updateKey": "id",
+        "columns": "name,description,color,context,settings,updated_at",
+        "additionalFields": {
+          "values": {
+            "id": "{{ $json.campaign_id }}",
+            "name": "{{ $json.name }}",
+            "description": "{{ $json.description }}",
+            "color": "{{ $json.color }}",
+            "context": "{{ JSON.stringify($json.context) }}",
+            "settings": "{{ JSON.stringify($json.settings) }}",
+            "updated_at": "{{ new Date().toISOString() }}"
+          }
+        },
+        "returnFields": "*"
+      },
+      "id": "update_campaign",
+      "name": "Update Campaign",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [850, 350]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": "campaigns",
+        "updateKey": "id",
+        "columns": "is_active",
+        "additionalFields": {
+          "values": {
+            "id": "{{ $json.campaign_id }}",
+            "is_active": false
+          }
+        },
+        "returnFields": "*"
+      },
+      "id": "archive_campaign",
+      "name": "Archive Campaign",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [850, 500]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "DELETE FROM campaigns WHERE id = '{{ $json.campaign_id }}' RETURNING *",
+        "additionalFields": {}
+      },
+      "id": "delete_campaign",
+      "name": "Delete Campaign",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [850, 650]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT * FROM campaigns WHERE id = '{{ $json.campaign_id }}'",
+        "additionalFields": {}
+      },
+      "id": "get_campaign_to_duplicate",
+      "name": "Get Campaign to Duplicate",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [850, 800]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Prepare duplicated campaign data\nconst original = $node['Get Campaign to Duplicate'].json;\nconst request = $node['Validate Campaign Request'].json;\n\nif (!original || !original.id) {\n  throw new Error('Campaign not found for duplication');\n}\n\nreturn [{\n  json: {\n    name: request.new_name || `${original.name} (Copy)`,\n    description: original.description,\n    color: original.color,\n    context: original.context,\n    settings: original.settings,\n    owner_id: request.user_id || original.owner_id,\n    is_active: true,\n    original_id: original.id\n  }\n}];"
+      },
+      "id": "prepare_duplicate",
+      "name": "Prepare Duplicate Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1050, 800]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "campaigns",
+        "columns": "name,description,color,context,settings,owner_id,is_active",
+        "returnFields": "*"
+      },
+      "id": "create_duplicate",
+      "name": "Create Duplicate Campaign",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1250, 800]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO ideas (campaign_id, title, content, category, tags, metadata, status, created_by) SELECT '{{ $node['Create Duplicate'].json.id }}', title, content, category, tags, metadata, status, created_by FROM ideas WHERE campaign_id = '{{ $json.original_id }}' AND status IN ('refined', 'finalized')",
+        "additionalFields": {}
+      },
+      "id": "copy_ideas",
+      "name": "Copy Ideas to Duplicate",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1450, 800]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "operation",
+              "value": "{{ $node['Validate Campaign Request'].json.operation }}"
+            },
+            {
+              "name": "campaign_id",
+              "value": "{{ $node['Create Campaign']?.json?.id || $node['Update Campaign']?.json?.id || $node['Archive Campaign']?.json?.id || $node['Delete Campaign']?.json?.id || $node['Create Duplicate']?.json?.id || 'unknown' }}"
+            },
+            {
+              "name": "campaign_name",
+              "value": "{{ $node['Create Campaign']?.json?.name || $node['Update Campaign']?.json?.name || $node['Archive Campaign']?.json?.name || $node['Delete Campaign']?.json?.name || $node['Create Duplicate']?.json?.name || 'unknown' }}"
+            },
+            {
+              "name": "timestamp",
+              "value": "{{ new Date().toISOString() }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1650, 500]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [[{"node": "validate_request", "type": "main", "index": 0}]]
+    },
+    "validate_request": {
+      "main": [[{"node": "operation_router", "type": "main", "index": 0}]]
+    },
+    "operation_router": {
+      "main": [
+        [{"node": "create_campaign", "type": "main", "index": 0}],
+        [{"node": "update_campaign", "type": "main", "index": 0}],
+        [{"node": "archive_campaign", "type": "main", "index": 0}],
+        [{"node": "delete_campaign", "type": "main", "index": 0}],
+        [{"node": "get_campaign_to_duplicate", "type": "main", "index": 0}]
+      ]
+    },
+    "create_campaign": {
+      "main": [[{"node": "generate_campaign_embedding", "type": "main", "index": 0}]]
+    },
+    "generate_campaign_embedding": {
+      "main": [[{"node": "update_campaign_embedding", "type": "main", "index": 0}]]
+    },
+    "update_campaign_embedding": {
+      "main": [[{"node": "save_to_qdrant", "type": "main", "index": 0}]]
+    },
+    "save_to_qdrant": {
+      "main": [[{"node": "success_response", "type": "main", "index": 0}]]
+    },
+    "update_campaign": {
+      "main": [[{"node": "success_response", "type": "main", "index": 0}]]
+    },
+    "archive_campaign": {
+      "main": [[{"node": "success_response", "type": "main", "index": 0}]]
+    },
+    "delete_campaign": {
+      "main": [[{"node": "success_response", "type": "main", "index": 0}]]
+    },
+    "get_campaign_to_duplicate": {
+      "main": [[{"node": "prepare_duplicate", "type": "main", "index": 0}]]
+    },
+    "prepare_duplicate": {
+      "main": [[{"node": "create_duplicate", "type": "main", "index": 0}]]
+    },
+    "create_duplicate": {
+      "main": [[{"node": "copy_ideas", "type": "main", "index": 0}]]
+    },
+    "copy_ideas": {
+      "main": [[{"node": "success_response", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "campaign-sync-workflow"
+}

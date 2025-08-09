@@ -1,0 +1,109 @@
+[
+  {
+    "id": "anomaly-detection-flow",
+    "type": "tab",
+    "label": "Anomaly Detection & Claude",
+    "disabled": false
+  },
+  {
+    "id": "system-metrics-timer",
+    "type": "inject",
+    "z": "anomaly-detection-flow",
+    "name": "Collect Every 10s",
+    "repeat": "10",
+    "crontab": "",
+    "once": true,
+    "topic": "system-metrics"
+  },
+  {
+    "id": "collect-metrics",
+    "type": "function",
+    "z": "anomaly-detection-flow",
+    "name": "Collect System Metrics",
+    "func": "// Collect system metrics using Node.js os module\nconst os = global.get('os');\nconst process = global.get('process');\n\nconst cpuInfo = os.cpus();\nconst totalMem = os.totalmem();\nconst freeMem = os.freemem();\nconst loadAvg = os.loadavg();\n\n// Calculate CPU usage\nlet totalIdle = 0;\nlet totalTick = 0;\ncpuInfo.forEach(cpu => {\n    for (type in cpu.times) {\n        totalTick += cpu.times[type];\n    }\n    totalIdle += cpu.times.idle;\n});\nconst cpuUsage = 100 - ~~(100 * totalIdle / totalTick);\n\n// Memory usage percentage\nconst memUsage = ((totalMem - freeMem) / totalMem) * 100;\n\nmsg.payload = {\n    cpu_usage: cpuUsage,\n    memory_usage: memUsage,\n    memory_total: totalMem,\n    memory_free: freeMem,\n    load_average: loadAvg,\n    process_count: 0, // Would need exec to get accurate count\n    timestamp: new Date().toISOString()\n};\n\nreturn msg;",
+    "outputs": 1,
+    "libs": [
+      {"var": "os", "module": "os"},
+      {"var": "process", "module": "process"}
+    ]
+  },
+  {
+    "id": "check-tcp-connections",
+    "type": "exec",
+    "z": "anomaly-detection-flow",
+    "command": "netstat -an | grep ESTABLISHED | wc -l",
+    "addpay": false,
+    "append": "",
+    "useSpawn": "false",
+    "timer": "",
+    "winHide": false,
+    "oldrc": false,
+    "name": "Count TCP Connections"
+  },
+  {
+    "id": "anomaly-detector",
+    "type": "function",
+    "z": "anomaly-detection-flow",
+    "name": "Detect Anomalies",
+    "func": "// Check for various anomalies\nconst metrics = msg.payload;\nconst anomalies = [];\n\n// Memory leak detection\nif (context.get('prev_memory')) {\n    const memGrowth = metrics.memory_usage - context.get('prev_memory');\n    if (memGrowth > 5) { // 5% growth\n        anomalies.push({\n            type: 'memory-leak',\n            severity: 'warning',\n            description: `Memory usage increased by ${memGrowth.toFixed(2)}%`,\n            metrics: metrics\n        });\n    }\n}\ncontext.set('prev_memory', metrics.memory_usage);\n\n// High CPU\nif (metrics.cpu_usage > 90) {\n    anomalies.push({\n        type: 'cpu-spike',\n        severity: 'critical',\n        description: `CPU usage at ${metrics.cpu_usage}%`,\n        metrics: metrics\n    });\n}\n\n// High memory\nif (metrics.memory_usage > 85) {\n    anomalies.push({\n        type: 'high-memory',\n        severity: metrics.memory_usage > 95 ? 'critical' : 'warning',\n        description: `Memory usage at ${metrics.memory_usage.toFixed(2)}%`,\n        metrics: metrics\n    });\n}\n\n// TCP connections (from previous node)\nif (msg.tcp_count && msg.tcp_count > 1000) {\n    anomalies.push({\n        type: 'high-tcp',\n        severity: 'warning',\n        description: `High number of TCP connections: ${msg.tcp_count}`,\n        metrics: {...metrics, tcp_connections: msg.tcp_count}\n    });\n}\n\nif (anomalies.length > 0) {\n    msg.anomalies = anomalies;\n    return msg;\n}\nreturn null;",
+    "outputs": 1
+  },
+  {
+    "id": "trigger-claude",
+    "type": "function",
+    "z": "anomaly-detection-flow",
+    "name": "Prepare Claude Investigation",
+    "func": "// Prepare investigation request for Claude Code\nconst anomaly = msg.anomalies[0]; // Process first anomaly\n\nconst investigation = {\n    anomaly_type: anomaly.type,\n    severity: anomaly.severity,\n    metrics: anomaly.metrics,\n    prompt: `Investigate system anomaly: ${anomaly.description}\\n\\n` +\n            `Current metrics:\\n` +\n            `- CPU: ${anomaly.metrics.cpu_usage}%\\n` +\n            `- Memory: ${anomaly.metrics.memory_usage}%\\n` +\n            `- Load: ${anomaly.metrics.load_average}\\n\\n` +\n            `Please analyze:\\n` +\n            `1. What processes are consuming the most resources?\\n` +\n            `2. Are there any suspicious patterns?\\n` +\n            `3. What are the recommended actions?\\n` +\n            `4. Is this a potential security issue?`\n};\n\nmsg.payload = investigation;\nmsg.headers = {\n    'Content-Type': 'application/json'\n};\n\nreturn msg;",
+    "outputs": 1
+  },
+  {
+    "id": "call-claude-code",
+    "type": "http request",
+    "z": "anomaly-detection-flow",
+    "name": "Call Claude Code API",
+    "method": "POST",
+    "ret": "obj",
+    "url": "http://localhost:${PORT_CLAUDE_CODE}/api/investigate",
+    "tls": "",
+    "persist": false,
+    "proxy": "",
+    "followRedirects": true,
+    "timeout": "60"
+  },
+  {
+    "id": "store-investigation",
+    "type": "function",
+    "z": "anomaly-detection-flow",
+    "name": "Store Investigation Results",
+    "func": "// Store Claude's investigation results\nconst investigation = msg.payload;\n\nmsg.topic = `\n    INSERT INTO investigations \n    (anomaly_id, triggered_by, claude_request, claude_response, findings, recommendations)\n    VALUES \n    ($1, $2, $3, $4, $5, $6)\n`;\n\nmsg.payload = [\n    msg.anomaly_id,\n    'node-red-anomaly-detector',\n    JSON.stringify(msg.request),\n    investigation.response,\n    investigation.findings,\n    investigation.recommendations\n];\n\nreturn msg;",
+    "outputs": 1
+  },
+  {
+    "id": "postgres-store",
+    "type": "postgresql",
+    "z": "anomaly-detection-flow",
+    "name": "Store in PostgreSQL",
+    "query": "",
+    "postgreSQLConfig": "",
+    "split": false
+  },
+  {
+    "id": "alert-webhook",
+    "type": "http request",
+    "z": "anomaly-detection-flow",
+    "name": "Send Alert",
+    "method": "POST",
+    "ret": "obj",
+    "url": "{{{alertUrl}}}",
+    "tls": "",
+    "persist": false
+  },
+  {
+    "id": "metric-history",
+    "type": "function",
+    "z": "anomaly-detection-flow",
+    "name": "Store Metric History",
+    "func": "// Store metrics for historical analysis\nmsg.topic = `\n    INSERT INTO system_health \n    (cpu_usage, memory_usage, memory_total, load_average, timestamp)\n    VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP)\n`;\n\nmsg.payload = [\n    msg.payload.cpu_usage,\n    msg.payload.memory_usage,\n    msg.payload.memory_total,\n    msg.payload.load_average\n];\n\nreturn msg;",
+    "outputs": 1
+  }
+]

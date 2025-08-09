@@ -1,0 +1,1102 @@
+{
+  "value": {
+    "type": "tabscomponent",
+    "tabs": [
+      {
+        "id": "manage",
+        "value": "Agent Management"
+      },
+      {
+        "id": "create",
+        "value": "Create Agent"
+      },
+      {
+        "id": "schedules",
+        "value": "Schedules"
+      },
+      {
+        "id": "targets",
+        "value": "Target Management"
+      }
+    ],
+    "configuration": {
+      "manage": {
+        "type": "containercomponent",
+        "components": [
+          {
+            "id": "manage_header",
+            "type": "textcomponent",
+            "configuration": {
+              "text": "# 🤖 Agent Configuration & Monitoring\n## Configure and monitor scraping agents across all platforms",
+              "style": {
+                "fontSize": "16px",
+                "fontWeight": "600",
+                "color": "#1f2937",
+                "marginBottom": "20px"
+              }
+            }
+          },
+          {
+            "id": "agent_filters",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "backgroundColor": "#f9fafb",
+                "border": "1px solid #e5e7eb",
+                "borderRadius": "8px",
+                "padding": "15px",
+                "marginBottom": "20px",
+                "display": "flex",
+                "gap": "15px",
+                "alignItems": "center",
+                "flexWrap": "wrap"
+              }
+            },
+            "components": [
+              {
+                "id": "filter_label",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "**Filter Agents:**",
+                  "style": {"margin": "0"}
+                }
+              },
+              {
+                "id": "platform_select",
+                "type": "selectcomponent",
+                "configuration": {
+                  "label": "Platform",
+                  "options": [
+                    {"value": "all", "label": "All Platforms"},
+                    {"value": "huginn", "label": "Huginn"},
+                    {"value": "browserless", "label": "Browserless"},
+                    {"value": "agent-s2", "label": "Agent-S2"}
+                  ],
+                  "value": "all",
+                  "onChange": {
+                    "type": "set_variable",
+                    "variable": "selected_platform",
+                    "value": "{{ value }}"
+                  }
+                }
+              },
+              {
+                "id": "status_select",
+                "type": "selectcomponent",
+                "configuration": {
+                  "label": "Status",
+                  "options": [
+                    {"value": "all", "label": "All Status"},
+                    {"value": "enabled", "label": "Enabled"},
+                    {"value": "disabled", "label": "Disabled"}
+                  ],
+                  "value": "all",
+                  "onChange": {
+                    "type": "set_variable",
+                    "variable": "selected_status",
+                    "value": "{{ value }}"
+                  }
+                }
+              },
+              {
+                "id": "search_input",
+                "type": "textinputcomponent",
+                "configuration": {
+                  "label": "Search",
+                  "placeholder": "Search by name or type...",
+                  "onChange": {
+                    "type": "set_variable",
+                    "variable": "search_term",
+                    "value": "{{ value }}"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "agents_table_container",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "backgroundColor": "white",
+                "border": "1px solid #e5e7eb",
+                "borderRadius": "8px",
+                "padding": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "table_header",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "display": "flex",
+                    "justifyContent": "space-between",
+                    "alignItems": "center",
+                    "marginBottom": "15px"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "table_title",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "**Agent Configuration Table**",
+                      "style": {"margin": "0"}
+                    }
+                  },
+                  {
+                    "id": "bulk_actions",
+                    "type": "containercomponent",
+                    "configuration": {
+                      "style": {
+                        "display": "flex",
+                        "gap": "10px"
+                      }
+                    },
+                    "components": [
+                      {
+                        "id": "enable_selected",
+                        "type": "buttoncomponent",
+                        "configuration": {
+                          "text": "✅ Enable Selected",
+                          "color": "success",
+                          "size": "small",
+                          "onClick": {
+                            "type": "run_query",
+                            "query": "bulk_enable_agents"
+                          }
+                        }
+                      },
+                      {
+                        "id": "disable_selected",
+                        "type": "buttoncomponent",
+                        "configuration": {
+                          "text": "❌ Disable Selected",
+                          "color": "warning",
+                          "size": "small",
+                          "onClick": {
+                            "type": "run_query",
+                            "query": "bulk_disable_agents"
+                          }
+                        }
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "agents_management_table",
+                "type": "tablecomponent",
+                "configuration": {
+                  "data": "={{ agent_list || [] }}",
+                  "columns": [
+                    {
+                      "field": "select",
+                      "header": "",
+                      "type": "checkbox",
+                      "width": "40px"
+                    },
+                    {
+                      "field": "name",
+                      "header": "Agent Name",
+                      "width": "200px"
+                    },
+                    {
+                      "field": "platform",
+                      "header": "Platform",
+                      "type": "badge",
+                      "width": "100px",
+                      "colorMap": {
+                        "huginn": "warning",
+                        "browserless": "info",
+                        "agent-s2": "purple"
+                      }
+                    },
+                    {
+                      "field": "agent_type",
+                      "header": "Type",
+                      "width": "120px"
+                    },
+                    {
+                      "field": "enabled",
+                      "header": "Status",
+                      "type": "badge",
+                      "width": "80px",
+                      "render": "{{ row.enabled ? 'Enabled' : 'Disabled' }}",
+                      "colorMap": {
+                        "Enabled": "success",
+                        "Disabled": "danger"
+                      }
+                    },
+                    {
+                      "field": "schedule_cron",
+                      "header": "Schedule",
+                      "width": "120px",
+                      "render": "{{ row.schedule_cron || 'Manual' }}"
+                    },
+                    {
+                      "field": "last_run",
+                      "header": "Last Run",
+                      "type": "datetime",
+                      "width": "140px"
+                    },
+                    {
+                      "field": "success_rate",
+                      "header": "Success %",
+                      "width": "100px",
+                      "render": "{{ (row.success_rate || 0).toFixed(1) }}%"
+                    },
+                    {
+                      "field": "actions",
+                      "header": "Actions",
+                      "width": "200px",
+                      "render": {
+                        "type": "containercomponent",
+                        "components": [
+                          {
+                            "type": "containercomponent",
+                            "configuration": {
+                              "style": {
+                                "display": "flex",
+                                "gap": "5px"
+                              }
+                            },
+                            "components": [
+                              {
+                                "id": "edit_agent",
+                                "type": "buttoncomponent",
+                                "configuration": {
+                                  "text": "✏️",
+                                  "color": "info",
+                                  "size": "xs",
+                                  "title": "Edit",
+                                  "onClick": {
+                                    "type": "modal",
+                                    "title": "Edit Agent: {{ row.name }}",
+                                    "content": {
+                                      "type": "formcomponent",
+                                      "fields": [
+                                        {
+                                          "id": "agent_name",
+                                          "type": "text",
+                                          "label": "Agent Name",
+                                          "value": "{{ row.name }}"
+                                        },
+                                        {
+                                          "id": "agent_enabled",
+                                          "type": "boolean",
+                                          "label": "Enabled",
+                                          "value": "{{ row.enabled }}"
+                                        },
+                                        {
+                                          "id": "agent_schedule",
+                                          "type": "text",
+                                          "label": "Cron Schedule",
+                                          "value": "{{ row.schedule_cron }}"
+                                        }
+                                      ],
+                                      "onSubmit": {
+                                        "type": "run_query",
+                                        "query": "update_agent",
+                                        "params": {
+                                          "agent_id": "{{ row.id }}",
+                                          "name": "{{ agent_name }}",
+                                          "enabled": "{{ agent_enabled }}",
+                                          "schedule_cron": "{{ agent_schedule }}"
+                                        }
+                                      }
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "id": "run_agent",
+                                "type": "buttoncomponent",
+                                "configuration": {
+                                  "text": "▶️",
+                                  "color": "success",
+                                  "size": "xs",
+                                  "title": "Run Now",
+                                  "onClick": {
+                                    "type": "run_query",
+                                    "query": "execute_agent",
+                                    "params": {
+                                      "agent_id": "{{ row.id }}"
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "id": "toggle_agent",
+                                "type": "buttoncomponent",
+                                "configuration": {
+                                  "text": "{{ row.enabled ? '⏸️' : '▶️' }}",
+                                  "color": "{{ row.enabled ? 'warning' : 'success' }}",
+                                  "size": "xs",
+                                  "title": "{{ row.enabled ? 'Disable' : 'Enable' }}",
+                                  "onClick": {
+                                    "type": "run_query",
+                                    "query": "toggle_agent_status",
+                                    "params": {
+                                      "agent_id": "{{ row.id }}",
+                                      "enabled": "{{ !row.enabled }}"
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "id": "view_results",
+                                "type": "buttoncomponent",
+                                "configuration": {
+                                  "text": "📊",
+                                  "color": "info",
+                                  "size": "xs",
+                                  "title": "View Results",
+                                  "onClick": {
+                                    "type": "navigate",
+                                    "url": "/scraper/dashboard#results?agent={{ row.id }}"
+                                  }
+                                }
+                              },
+                              {
+                                "id": "delete_agent",
+                                "type": "buttoncomponent",
+                                "configuration": {
+                                  "text": "🗑️",
+                                  "color": "danger",
+                                  "size": "xs",
+                                  "title": "Delete",
+                                  "onClick": {
+                                    "type": "confirm_action",
+                                    "message": "Delete agent {{ row.name }}? This action cannot be undone.",
+                                    "action": {
+                                      "type": "run_query",
+                                      "query": "delete_agent",
+                                      "params": {
+                                        "agent_id": "{{ row.id }}"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "pagination": true,
+                  "pageSize": 20,
+                  "sortable": true,
+                  "selectable": true,
+                  "defaultSort": {
+                    "field": "created_at",
+                    "direction": "desc"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "create": {
+        "type": "containercomponent",
+        "components": [
+          {
+            "id": "create_header",
+            "type": "textcomponent",
+            "configuration": {
+              "text": "### 🆕 Create New Scraping Agent",
+              "style": {"marginBottom": "20px"}
+            }
+          },
+          {
+            "id": "create_form_container",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "backgroundColor": "white",
+                "border": "1px solid #e5e7eb",
+                "borderRadius": "8px",
+                "padding": "30px",
+                "maxWidth": "800px"
+              }
+            },
+            "components": [
+              {
+                "id": "create_agent_form",
+                "type": "formcomponent",
+                "configuration": {
+                  "fields": [
+                    {
+                      "id": "agent_name",
+                      "type": "text",
+                      "label": "Agent Name",
+                      "placeholder": "Enter a descriptive name for your agent",
+                      "required": true
+                    },
+                    {
+                      "id": "platform",
+                      "type": "select",
+                      "label": "Platform",
+                      "options": [
+                        {"value": "huginn", "label": "Huginn - Event-driven automation"},
+                        {"value": "browserless", "label": "Browserless - JavaScript rendering"},
+                        {"value": "agent-s2", "label": "Agent-S2 - AI-powered scraping"}
+                      ],
+                      "required": true,
+                      "onChange": {
+                        "type": "set_variable",
+                        "variable": "selected_platform",
+                        "value": "{{ value }}"
+                      }
+                    },
+                    {
+                      "id": "agent_type",
+                      "type": "select",
+                      "label": "Agent Type",
+                      "options": "{{ platform_agent_types[selected_platform] || [] }}",
+                      "required": true,
+                      "conditional": "{{ selected_platform }}"
+                    },
+                    {
+                      "id": "description",
+                      "type": "textarea",
+                      "label": "Description",
+                      "placeholder": "Describe what this agent will scrape and why",
+                      "rows": 3
+                    },
+                    {
+                      "id": "target_urls",
+                      "type": "textarea",
+                      "label": "Target URLs",
+                      "placeholder": "Enter URLs to scrape (one per line)",
+                      "rows": 4,
+                      "required": true
+                    },
+                    {
+                      "id": "schedule_enabled",
+                      "type": "boolean",
+                      "label": "Enable Scheduled Execution"
+                    },
+                    {
+                      "id": "schedule_cron",
+                      "type": "text",
+                      "label": "Cron Schedule",
+                      "placeholder": "e.g., 0 */6 * * * (every 6 hours)",
+                      "conditional": "{{ schedule_enabled }}",
+                      "required": "{{ schedule_enabled }}"
+                    },
+                    {
+                      "id": "configuration_json",
+                      "type": "textarea",
+                      "label": "Platform Configuration (JSON)",
+                      "placeholder": "Platform-specific configuration in JSON format",
+                      "rows": 8,
+                      "required": true
+                    },
+                    {
+                      "id": "tags",
+                      "type": "text",
+                      "label": "Tags",
+                      "placeholder": "Enter tags separated by commas"
+                    },
+                    {
+                      "id": "rate_limit",
+                      "type": "number",
+                      "label": "Rate Limit (requests per second)",
+                      "value": 1,
+                      "min": 0.1,
+                      "max": 10,
+                      "step": 0.1
+                    },
+                    {
+                      "id": "max_retries",
+                      "type": "number",
+                      "label": "Max Retries",
+                      "value": 3,
+                      "min": 0,
+                      "max": 10
+                    }
+                  ],
+                  "onSubmit": {
+                    "type": "run_query",
+                    "query": "create_new_agent"
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "platform_help",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "backgroundColor": "#f8fafc",
+                "border": "1px solid #e2e8f0",
+                "borderRadius": "8px",
+                "padding": "20px",
+                "marginTop": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "help_title",
+                "type": "textcomponent",
+                "configuration": {
+                  "text": "**💡 Platform Configuration Help**",
+                  "style": {"marginBottom": "15px"}
+                }
+              },
+              {
+                "id": "huginn_help",
+                "type": "containercomponent",
+                "configuration": {
+                  "conditional": "{{ selected_platform === 'huginn' }}",
+                  "style": {"marginBottom": "15px"}
+                },
+                "components": [
+                  {
+                    "id": "huginn_help_text",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "**Huginn Configuration Example:**\n```json\n{\n  \"type\": \"WebsiteAgent\",\n  \"mode\": \"on_change\",\n  \"extract\": {\n    \"title\": {\"css\": \"h1\", \"value\": \".\"},\n    \"content\": {\"css\": \".content\", \"value\": \".\"}\n  }\n}\n```",
+                      "style": {"fontFamily": "monospace", "fontSize": "12px"}
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "browserless_help",
+                "type": "containercomponent",
+                "configuration": {
+                  "conditional": "{{ selected_platform === 'browserless' }}",
+                  "style": {"marginBottom": "15px"}
+                },
+                "components": [
+                  {
+                    "id": "browserless_help_text",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "**Browserless Configuration Example:**\n```json\n{\n  \"action\": \"scrape\",\n  \"elements\": [\n    {\"selector\": \".product-name\"},\n    {\"selector\": \".price\"}\n  ],\n  \"waitUntil\": \"networkidle2\"\n}\n```",
+                      "style": {"fontFamily": "monospace", "fontSize": "12px"}
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "agents2_help",
+                "type": "containercomponent",
+                "configuration": {
+                  "conditional": "{{ selected_platform === 'agent-s2' }}",
+                  "style": {"marginBottom": "15px"}
+                },
+                "components": [
+                  {
+                    "id": "agents2_help_text",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "**Agent-S2 Configuration Example:**\n```json\n{\n  \"task\": \"Extract product information\",\n  \"strategy\": \"smart\",\n  \"fallback\": \"css\",\n  \"screenshot_on_error\": true\n}\n```",
+                      "style": {"fontFamily": "monospace", "fontSize": "12px"}
+                    }
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "schedules": {
+        "type": "containercomponent",
+        "components": [
+          {
+            "id": "schedules_header",
+            "type": "textcomponent",
+            "configuration": {
+              "text": "### ⏰ Scheduled Agent Execution",
+              "style": {"marginBottom": "20px"}
+            }
+          },
+          {
+            "id": "schedule_overview",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "backgroundColor": "white",
+                "border": "1px solid #e5e7eb",
+                "borderRadius": "8px",
+                "padding": "20px",
+                "marginBottom": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "schedule_stats",
+                "type": "containercomponent",
+                "configuration": {
+                  "style": {
+                    "display": "grid",
+                    "gridTemplateColumns": "repeat(auto-fit, minmax(150px, 1fr))",
+                    "gap": "15px",
+                    "marginBottom": "20px"
+                  }
+                },
+                "components": [
+                  {
+                    "id": "scheduled_agents",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "**{{scheduled_count || 0}}**\nScheduled Agents",
+                      "style": {"textAlign": "center", "padding": "15px", "backgroundColor": "#dbeafe", "borderRadius": "6px"}
+                    }
+                  },
+                  {
+                    "id": "next_runs",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "**{{pending_runs || 0}}**\nPending Runs",
+                      "style": {"textAlign": "center", "padding": "15px", "backgroundColor": "#fef3c7", "borderRadius": "6px"}
+                    }
+                  },
+                  {
+                    "id": "failed_schedules",
+                    "type": "textcomponent",
+                    "configuration": {
+                      "text": "**{{failed_schedules || 0}}**\nFailed Today",
+                      "style": {"textAlign": "center", "padding": "15px", "backgroundColor": "#fee2e2", "borderRadius": "6px"}
+                    }
+                  }
+                ]
+              },
+              {
+                "id": "upcoming_table",
+                "type": "tablecomponent",
+                "configuration": {
+                  "title": "Upcoming Executions (Next 24 Hours)",
+                  "data": "={{ upcoming_executions || [] }}",
+                  "columns": [
+                    {
+                      "field": "next_run",
+                      "header": "Next Run",
+                      "type": "datetime",
+                      "width": "140px"
+                    },
+                    {
+                      "field": "agent_name",
+                      "header": "Agent"
+                    },
+                    {
+                      "field": "platform",
+                      "header": "Platform",
+                      "type": "badge",
+                      "width": "100px"
+                    },
+                    {
+                      "field": "schedule_cron",
+                      "header": "Schedule",
+                      "width": "120px"
+                    },
+                    {
+                      "field": "last_success",
+                      "header": "Last Success",
+                      "type": "datetime",
+                      "width": "140px"
+                    },
+                    {
+                      "field": "actions",
+                      "header": "Actions",
+                      "width": "120px",
+                      "render": {
+                        "type": "containercomponent",
+                        "components": [
+                          {
+                            "type": "containercomponent",
+                            "configuration": {
+                              "style": {
+                                "display": "flex",
+                                "gap": "5px"
+                              }
+                            },
+                            "components": [
+                              {
+                                "id": "run_now_sched",
+                                "type": "buttoncomponent",
+                                "configuration": {
+                                  "text": "▶️",
+                                  "color": "success",
+                                  "size": "xs",
+                                  "title": "Run Now",
+                                  "onClick": {
+                                    "type": "run_query",
+                                    "query": "execute_agent",
+                                    "params": {
+                                      "agent_id": "{{ row.id }}"
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "id": "skip_next",
+                                "type": "buttoncomponent",
+                                "configuration": {
+                                  "text": "⏭️",
+                                  "color": "warning",
+                                  "size": "xs",
+                                  "title": "Skip Next Run",
+                                  "onClick": {
+                                    "type": "run_query",
+                                    "query": "skip_next_run",
+                                    "params": {
+                                      "agent_id": "{{ row.id }}"
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "pagination": true,
+                  "pageSize": 10,
+                  "sortable": true,
+                  "defaultSort": {
+                    "field": "next_run",
+                    "direction": "asc"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": {
+        "type": "containercomponent",
+        "components": [
+          {
+            "id": "targets_header",
+            "type": "textcomponent",
+            "configuration": {
+              "text": "### 🎯 Target URL Management",
+              "style": {"marginBottom": "20px"}
+            }
+          },
+          {
+            "id": "targets_controls",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "display": "flex",
+                "justifyContent": "space-between",
+                "alignItems": "center",
+                "marginBottom": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "targets_search",
+                "type": "textinputcomponent",
+                "configuration": {
+                  "placeholder": "Search targets by URL or domain...",
+                  "onChange": {
+                    "type": "set_variable",
+                    "variable": "target_search",
+                    "value": "{{ value }}"
+                  }
+                }
+              },
+              {
+                "id": "add_target",
+                "type": "buttoncomponent",
+                "configuration": {
+                  "text": "➕ Add Target",
+                  "color": "primary",
+                  "onClick": {
+                    "type": "modal",
+                    "title": "Add New Target",
+                    "content": {
+                      "type": "formcomponent",
+                      "fields": [
+                        {
+                          "id": "target_url",
+                          "type": "url",
+                          "label": "Target URL",
+                          "required": true
+                        },
+                        {
+                          "id": "agent_id",
+                          "type": "select",
+                          "label": "Associated Agent",
+                          "options": "{{ available_agents || [] }}",
+                          "required": true
+                        },
+                        {
+                          "id": "selector_config",
+                          "type": "textarea",
+                          "label": "Selector Configuration (JSON)",
+                          "placeholder": "{\"title\": \".title\", \"content\": \".content\"}",
+                          "rows": 4
+                        },
+                        {
+                          "id": "rate_limit_ms",
+                          "type": "number",
+                          "label": "Rate Limit (ms)",
+                          "value": 1000
+                        }
+                      ],
+                      "onSubmit": {
+                        "type": "run_query",
+                        "query": "create_target"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "id": "targets_table_container",
+            "type": "containercomponent",
+            "configuration": {
+              "style": {
+                "backgroundColor": "white",
+                "border": "1px solid #e5e7eb",
+                "borderRadius": "8px",
+                "padding": "20px"
+              }
+            },
+            "components": [
+              {
+                "id": "targets_table",
+                "type": "tablecomponent",
+                "configuration": {
+                  "data": "={{ scraping_targets || [] }}",
+                  "columns": [
+                    {
+                      "field": "url",
+                      "header": "Target URL",
+                      "width": "300px",
+                      "render": "{{ row.url.length > 50 ? row.url.substring(0, 50) + '...' : row.url }}"
+                    },
+                    {
+                      "field": "agent_name",
+                      "header": "Agent"
+                    },
+                    {
+                      "field": "platform",
+                      "header": "Platform",
+                      "type": "badge",
+                      "width": "100px"
+                    },
+                    {
+                      "field": "rate_limit_ms",
+                      "header": "Rate Limit",
+                      "width": "100px",
+                      "render": "{{ row.rate_limit_ms }}ms"
+                    },
+                    {
+                      "field": "max_retries",
+                      "header": "Max Retries",
+                      "width": "100px"
+                    },
+                    {
+                      "field": "last_scraped",
+                      "header": "Last Scraped",
+                      "type": "datetime",
+                      "width": "140px"
+                    },
+                    {
+                      "field": "success_rate",
+                      "header": "Success %",
+                      "width": "100px",
+                      "render": "{{ (row.success_rate || 0).toFixed(1) }}%"
+                    },
+                    {
+                      "field": "actions",
+                      "header": "Actions",
+                      "width": "150px",
+                      "render": {
+                        "type": "containercomponent",
+                        "components": [
+                          {
+                            "type": "containercomponent",
+                            "configuration": {
+                              "style": {
+                                "display": "flex",
+                                "gap": "5px"
+                              }
+                            },
+                            "components": [
+                              {
+                                "id": "test_target",
+                                "type": "buttoncomponent",
+                                "configuration": {
+                                  "text": "🧪",
+                                  "color": "info",
+                                  "size": "xs",
+                                  "title": "Test Scrape",
+                                  "onClick": {
+                                    "type": "run_query",
+                                    "query": "test_target_scrape",
+                                    "params": {
+                                      "target_id": "{{ row.id }}"
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "id": "edit_target",
+                                "type": "buttoncomponent",
+                                "configuration": {
+                                  "text": "✏️",
+                                  "color": "warning",
+                                  "size": "xs",
+                                  "title": "Edit",
+                                  "onClick": {
+                                    "type": "modal",
+                                    "title": "Edit Target",
+                                    "content": {
+                                      "type": "formcomponent",
+                                      "fields": [
+                                        {
+                                          "id": "edit_url",
+                                          "type": "url",
+                                          "label": "URL",
+                                          "value": "{{ row.url }}"
+                                        },
+                                        {
+                                          "id": "edit_rate_limit",
+                                          "type": "number",
+                                          "label": "Rate Limit (ms)",
+                                          "value": "{{ row.rate_limit_ms }}"
+                                        }
+                                      ]
+                                    }
+                                  }
+                                }
+                              },
+                              {
+                                "id": "delete_target",
+                                "type": "buttoncomponent",
+                                "configuration": {
+                                  "text": "🗑️",
+                                  "color": "danger",
+                                  "size": "xs",
+                                  "title": "Delete",
+                                  "onClick": {
+                                    "type": "confirm_action",
+                                    "message": "Delete this target?",
+                                    "action": {
+                                      "type": "run_query",
+                                      "query": "delete_target",
+                                      "params": {
+                                        "target_id": "{{ row.id }}"
+                                      }
+                                    }
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    }
+                  ],
+                  "pagination": true,
+                  "pageSize": 15,
+                  "sortable": true,
+                  "defaultSort": {
+                    "field": "created_at",
+                    "direction": "desc"
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "queries": {
+    "get_agent_list": {
+      "type": "postgresql",
+      "query": "SELECT sa.*, COUNT(sr.id) as total_runs, COALESCE(AVG(CASE WHEN sr.status = 'success' THEN 1 ELSE 0 END) * 100, 0) as success_rate FROM scraping_agents sa LEFT JOIN scraping_results sr ON sa.id = sr.agent_id GROUP BY sa.id ORDER BY sa.created_at DESC",
+      "runOnLoad": true,
+      "refetchInterval": 30000
+    },
+    "create_new_agent": {
+      "type": "postgresql",
+      "query": "INSERT INTO scraping_agents (name, platform, agent_type, configuration, schedule_cron, enabled, tags) VALUES ('{{ agent_name }}', '{{ platform }}', '{{ agent_type }}', '{{ configuration_json }}'::jsonb, CASE WHEN '{{ schedule_enabled }}' THEN '{{ schedule_cron }}' ELSE NULL END, true, string_to_array('{{ tags }}', ',')) RETURNING id",
+      "runOnLoad": false
+    },
+    "update_agent": {
+      "type": "postgresql",
+      "query": "UPDATE scraping_agents SET name = '{{ name }}', enabled = {{ enabled }}, schedule_cron = {{ schedule_cron ? \"'\" + schedule_cron + \"'\" : 'NULL' }}, updated_at = NOW() WHERE id = '{{ agent_id }}'",
+      "runOnLoad": false
+    },
+    "delete_agent": {
+      "type": "postgresql",
+      "query": "DELETE FROM scraping_agents WHERE id = '{{ agent_id }}'",
+      "runOnLoad": false
+    },
+    "execute_agent": {
+      "type": "http",
+      "url": "http://localhost:5678/webhook/run-agent",
+      "method": "POST",
+      "body": {"agent_id": "{{ agent_id }}"},
+      "runOnLoad": false
+    },
+    "get_upcoming_executions": {
+      "type": "postgresql",
+      "query": "SELECT sa.id, sa.name as agent_name, sa.platform, sa.schedule_cron, sa.next_run, sa.last_run as last_success FROM scraping_agents sa WHERE sa.enabled = true AND sa.schedule_cron IS NOT NULL AND sa.next_run > NOW() AND sa.next_run < NOW() + INTERVAL '24 hours' ORDER BY sa.next_run ASC",
+      "runOnLoad": true,
+      "refetchInterval": 300000
+    },
+    "get_scraping_targets": {
+      "type": "postgresql",
+      "query": "SELECT st.*, sa.name as agent_name, sa.platform FROM scraping_targets st JOIN scraping_agents sa ON st.agent_id = sa.id ORDER BY st.created_at DESC",
+      "runOnLoad": true,
+      "refetchInterval": 60000
+    },
+    "create_target": {
+      "type": "postgresql",
+      "query": "INSERT INTO scraping_targets (agent_id, url, selector_config, rate_limit_ms) VALUES ('{{ agent_id }}', '{{ target_url }}', '{{ selector_config }}'::jsonb, {{ rate_limit_ms }})",
+      "runOnLoad": false
+    },
+    "test_target_scrape": {
+      "type": "http",
+      "url": "http://localhost:5678/webhook/test-target",
+      "method": "POST",
+      "body": {"target_id": "{{ target_id }}"},
+      "runOnLoad": false
+    }
+  },
+  "variables": {
+    "selected_platform": "",
+    "selected_status": "all",
+    "search_term": "",
+    "target_search": "",
+    "scheduled_count": 0,
+    "pending_runs": 0,
+    "failed_schedules": 0,
+    "platform_agent_types": {
+      "huginn": [
+        {"value": "WebsiteAgent", "label": "Website Agent"},
+        {"value": "RssAgent", "label": "RSS Agent"},
+        {"value": "TwitterStreamAgent", "label": "Twitter Stream Agent"}
+      ],
+      "browserless": [
+        {"value": "screenshot", "label": "Screenshot Capture"},
+        {"value": "scrape", "label": "Content Scraper"},
+        {"value": "pdf", "label": "PDF Generator"}
+      ],
+      "agent-s2": [
+        {"value": "extract", "label": "Data Extraction"},
+        {"value": "interact", "label": "Page Interaction"},
+        {"value": "monitor", "label": "Change Monitor"}
+      ]
+    }
+  }
+}

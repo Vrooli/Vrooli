@@ -99,7 +99,10 @@
       "ollama": {
         "enabled": false,
         "required": false,
-        "models": ["llama3.1:8b", "nomic-embed-text"]
+        "models": [
+          "llama3.1:8b",
+          "nomic-embed-text"
+        ]
       }
     },
     "automation": {
@@ -126,25 +129,37 @@
               "name": "scenario-generation-pipeline",
               "file": "initialization/automation/n8n/main-workflow.json",
               "enabled": true,
-              "tags": ["generation", "automation"]
+              "tags": [
+                "generation",
+                "automation"
+              ]
             },
             {
               "name": "planning-workflow",
               "file": "initialization/automation/n8n/planning-workflow.json",
               "enabled": true,
-              "tags": ["planning", "generation"]
+              "tags": [
+                "planning",
+                "generation"
+              ]
             },
             {
               "name": "building-workflow",
               "file": "initialization/automation/n8n/building-workflow.json",
               "enabled": true,
-              "tags": ["implementation", "generation"]
+              "tags": [
+                "implementation",
+                "generation"
+              ]
             },
             {
               "name": "validation-workflow",
               "file": "initialization/automation/n8n/validation-workflow.json",
               "enabled": true,
-              "tags": ["validation", "testing"]
+              "tags": [
+                "validation",
+                "testing"
+              ]
             }
           ]
         }
@@ -245,13 +260,7 @@
         },
         {
           "name": "application-configuration",
-          "tasks": [
-            {
-              "name": "load-app-config",
-              "type": "config",
-              "file": "initialization/configuration/app-config.json"
-            }
-          ]
+          "tasks": []
         },
         {
           "name": "startup",
@@ -503,7 +512,11 @@
         },
         "notifications": {
           "enabled": true,
-          "channels": ["email", "webhook", "slack"]
+          "channels": [
+            "email",
+            "webhook",
+            "slack"
+          ]
         },
         "analytics": {
           "enabled": true,
@@ -547,5 +560,59 @@
     "category": "ai-development",
     "complexity": "advanced",
     "marketDemand": "ultra-high"
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "defaults": {
+      "timeout": "5m",
+      "error": "stop",
+      "shell": "bash"
+    },
+    "setup": {
+      "description": "Initialize scenario generator environment",
+      "steps": [
+        {
+          "name": "setup-infrastructure",
+          "run": "./scripts/manage.sh setup --target docker",
+          "condition": "${SKIP_SETUP} != \\\"true\\\""
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start scenario generator services",
+      "steps": [
+        {
+          "name": "start-services",
+          "run": "../deployment/startup.sh"
+        }
+      ]
+    },
+    "build": {
+      "description": "Build scenario generator artifacts",
+      "steps": [
+        {
+          "name": "build-artifacts",
+          "run": "./scripts/manage.sh build"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run scenario generator tests",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "./test.sh"
+        }
+      ]
+    },
+    "clean": {
+      "description": "Clean build artifacts and temporary files",
+      "steps": [
+        {
+          "name": "clean-artifacts",
+          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+        }
+      ]
+    }
   }
 }

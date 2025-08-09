@@ -1,0 +1,161 @@
+{
+  "name": "Reasoning Chain Orchestrator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "reasoning-chain",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Define the reasoning chain configuration\nconst input = $json.input;\nconst chainType = $json.chain_type || 'comprehensive';\nconst customChain = $json.custom_chain || [];\n\n// Predefined reasoning chains\nconst chains = {\n  'comprehensive': [\n    { step: 'pros_cons', webhook: 'analyze-pros-cons', description: 'Initial pros and cons analysis' },\n    { step: 'devil_advocate', webhook: 'devil-advocate', description: 'Challenge the initial analysis' },\n    { step: 'risk_assessment', webhook: 'risk-assessment', description: 'Assess potential risks' },\n    { step: 'self_review', webhook: 'self-review', description: 'Review our reasoning process' }\n  ],\n  'strategic': [\n    { step: 'swot_analysis', webhook: 'swot-analysis', description: 'Strategic SWOT analysis' },\n    { step: 'risk_assessment', webhook: 'risk-assessment', description: 'Strategic risk assessment' },\n    { step: 'pros_cons', webhook: 'analyze-pros-cons', description: 'Final pros and cons evaluation' }\n  ],\n  'critical': [\n    { step: 'assumption_check', webhook: 'assumption-checker', description: 'Validate underlying assumptions' },\n    { step: 'bias_detection', webhook: 'bias-detector', description: 'Check for cognitive biases' },\n    { step: 'devil_advocate', webhook: 'devil-advocate', description: 'Challenge from opposing view' },\n    { step: 'self_review', webhook: 'self-review', description: 'Final self-review' }\n  ],\n  'creative': [\n    { step: 'multi_perspective', webhook: 'multi-perspective', description: 'Six thinking hats analysis' },\n    { step: 'pros_cons', webhook: 'analyze-pros-cons', description: 'Evaluate creative options' },\n    { step: 'risk_assessment', webhook: 'risk-assessment', description: 'Assess implementation risks' }\n  ]\n};\n\nconst selectedChain = customChain.length > 0 ? customChain : chains[chainType] || chains['comprehensive'];\n\n// Initialize chain execution state\nconst chainState = {\n  input: input,\n  chain_type: chainType,\n  steps: selectedChain,\n  current_step: 0,\n  results: [],\n  started_at: new Date().toISOString(),\n  status: 'initiated'\n};\n\nreturn {\n  json: chainState\n};"
+      },
+      "id": "initialize_chain",
+      "name": "Initialize Reasoning Chain",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const chainState = $json;\nconst currentStep = chainState.steps[chainState.current_step];\n\nif (!currentStep) {\n  return [{\n    json: {\n      ...chainState,\n      status: 'completed',\n      completed_at: new Date().toISOString()\n    }\n  }];\n}\n\n// Prepare input for the current reasoning step\nlet stepInput = {\n  input: chainState.input,\n  model: 'llama3.2' // Default model\n};\n\n// Add context from previous steps if available\nif (chainState.results.length > 0) {\n  const previousResults = chainState.results.map(r => `${r.step}: ${JSON.stringify(r.summary)}`).join('\\n\\n');\n  stepInput.context = `Previous reasoning steps:\\n${previousResults}`;\n}\n\n// Customize input based on step type\nswitch(currentStep.step) {\n  case 'swot_analysis':\n    stepInput.context = stepInput.context || 'Business strategic analysis';\n    break;\n  case 'risk_assessment':\n    stepInput.action = stepInput.input;\n    stepInput.constraints = stepInput.context || 'Standard operating environment';\n    break;\n  case 'self_review':\n    stepInput.decision = stepInput.input;\n    break;\n}\n\nreturn [{\n  json: {\n    ...chainState,\n    current_step_config: currentStep,\n    step_input: stepInput,\n    status: 'executing_step'\n  }\n}];"
+      },
+      "id": "prepare_step",
+      "name": "Prepare Current Step",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "requestMethod": "POST",
+        "url": "http://localhost:5678/webhook/{{ $json.current_step_config.webhook }}",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{{ JSON.stringify($json.step_input) }}",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "id": "execute_step",
+      "name": "Execute Reasoning Step",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const chainState = $json;\nconst stepResult = $node['Execute Reasoning Step'].json;\nconst currentStepConfig = chainState.current_step_config;\n\n// Extract key insights from the step result\nlet stepSummary = {};\ntry {\n  // Try to extract meaningful summary based on step type\n  switch(currentStepConfig.step) {\n    case 'pros_cons':\n      if (stepResult.analysis) {\n        stepSummary = {\n          pros_count: stepResult.analysis.pros?.length || 0,\n          cons_count: stepResult.analysis.cons?.length || 0,\n          net_score: stepResult.scores?.net_score || 0,\n          recommendation: stepResult.analysis.recommendation\n        };\n      }\n      break;\n    case 'swot_analysis':\n      if (stepResult.swot_analysis) {\n        stepSummary = {\n          strategic_position: stepResult.strategic_position,\n          strengths: stepResult.metrics?.total_strengths || 0,\n          weaknesses: stepResult.metrics?.total_weaknesses || 0,\n          opportunities: stepResult.metrics?.total_opportunities || 0,\n          threats: stepResult.metrics?.total_threats || 0\n        };\n      }\n      break;\n    case 'risk_assessment':\n      if (stepResult.risk_metrics) {\n        stepSummary = {\n          overall_risk_posture: stepResult.risk_metrics.overall_risk_posture,\n          critical_risks: stepResult.risk_metrics.critical_risks,\n          high_risks: stepResult.risk_metrics.high_risks,\n          total_risks: stepResult.risk_metrics.total_risks\n        };\n      }\n      break;\n    case 'self_review':\n      if (stepResult.learning_outcomes) {\n        stepSummary = {\n          confidence_change: stepResult.learning_outcomes.confidence_evolution,\n          iteration_count: stepResult.learning_outcomes.iteration_count,\n          key_insights: stepResult.learning_outcomes.key_insights?.slice(0, 3) || []\n        };\n      }\n      break;\n    default:\n      stepSummary = { result: 'completed', data: stepResult };\n  }\n} catch (error) {\n  stepSummary = { error: 'Failed to parse step result', raw_result: stepResult };\n}\n\n// Add this step's result to the chain\nconst updatedResults = [...chainState.results, {\n  step: currentStepConfig.step,\n  webhook: currentStepConfig.webhook,\n  description: currentStepConfig.description,\n  summary: stepSummary,\n  full_result: stepResult,\n  executed_at: new Date().toISOString()\n}];\n\n// Prepare for next step\nconst nextStepIndex = chainState.current_step + 1;\nconst hasMoreSteps = nextStepIndex < chainState.steps.length;\n\nreturn {\n  json: {\n    ...chainState,\n    current_step: nextStepIndex,\n    results: updatedResults,\n    status: hasMoreSteps ? 'step_completed' : 'chain_completed',\n    has_more_steps: hasMoreSteps\n  }\n};"
+      },
+      "id": "process_result",
+      "name": "Process Step Result",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.has_more_steps }}",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check_more_steps",
+      "name": "More Steps?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "resource": "completion",
+        "model": "{{ $json.model || 'llama3.2' }}",
+        "prompt": "You have completed a comprehensive reasoning chain analysis for: {{ $json.input }}\n\nChain type: {{ $json.chain_type }}\nSteps completed: {{ $json.results.length }}\n\nStep-by-step results:\n{{ $json.results.map((r, i) => `${i+1}. ${r.description}:\\n   ${JSON.stringify(r.summary, null, 2)}`).join('\\n\\n') }}\n\nProvide a SYNTHESIS of all reasoning steps:\n1. Overall conclusion and recommendation\n2. Key insights that emerged from the multi-step analysis\n3. Areas of convergence vs. divergence between different reasoning approaches\n4. Confidence level in the final conclusion (0-100)\n5. Most critical factors that influenced the final recommendation\n6. Suggested next steps or follow-up analysis\n\nFormat as structured final reasoning synthesis.",
+        "temperature": 0.4,
+        "maxTokens": 2000
+      },
+      "id": "synthesize_chain",
+      "name": "Synthesize Reasoning Chain",
+      "type": "n8n-nodes-base.ollama",
+      "typeVersion": 1,
+      "position": [1250, 500]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "execution_history",
+        "columns": "resource_type,resource_id,input_data,output_data,execution_time_ms,status,model_used",
+        "returnFields": "id"
+      },
+      "id": "save_history",
+      "name": "Save to History",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1450, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "response",
+      "name": "Send Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1650, 500]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [[{"node": "initialize_chain", "type": "main", "index": 0}]]
+    },
+    "initialize_chain": {
+      "main": [[{"node": "prepare_step", "type": "main", "index": 0}]]
+    },
+    "prepare_step": {
+      "main": [[{"node": "execute_step", "type": "main", "index": 0}]]
+    },
+    "execute_step": {
+      "main": [[{"node": "process_result", "type": "main", "index": 0}]]
+    },
+    "process_result": {
+      "main": [[{"node": "check_more_steps", "type": "main", "index": 0}]]
+    },
+    "check_more_steps": {
+      "main": [
+        [{"node": "prepare_step", "type": "main", "index": 0}],
+        [{"node": "synthesize_chain", "type": "main", "index": 0}]
+      ]
+    },
+    "synthesize_chain": {
+      "main": [[{"node": "save_history", "type": "main", "index": 0}]]
+    },
+    "save_history": {
+      "main": [[{"node": "response", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "reasoning-chain"
+}

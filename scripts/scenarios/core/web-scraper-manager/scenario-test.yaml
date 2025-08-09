@@ -1,0 +1,120 @@
+name: web-scraper-manager
+description: Test suite for unified web scraper management dashboard
+version: 1.0.0
+
+setup:
+  - name: Initialize database
+    type: postgres
+    action: execute_schema
+    file: initialization/storage/postgres/schema.sql
+  
+  - name: Load platform configs
+    type: configuration
+    action: load_json
+    file: initialization/configuration/platform-configs.json
+  
+  - name: Deploy orchestrator workflow
+    type: n8n
+    action: import_workflow
+    file: initialization/automation/n8n/scraper-orchestrator.json
+  
+  - name: Setup storage buckets
+    type: minio
+    action: create_bucket
+    bucket: scraper-assets
+
+tests:
+  - name: Huginn agent creation
+    description: Test creating and configuring Huginn agents
+    steps:
+      - action: create_agent
+        platform: huginn
+        type: WebsiteAgent
+        target: https://example.com
+      - assert: agent_created
+        platform: huginn
+      - assert: agent_configured
+        has_schedule: true
+  
+  - name: Browserless scraping
+    description: Test Browserless screenshot and scraping
+    steps:
+      - action: create_agent
+        platform: browserless
+        type: screenshot
+      - action: execute_scrape
+        url: https://example.com
+      - assert: screenshot_captured
+      - assert: file_stored
+        bucket: scraper-assets
+  
+  - name: Agent-S2 interaction
+    description: Test AI-powered web interaction
+    steps:
+      - action: create_agent
+        platform: agent-s2
+        task: "Extract product prices"
+      - action: execute_agent
+        target: https://example.com
+      - assert: data_extracted
+        has_results: true
+  
+  - name: Cross-platform workflow
+    description: Test orchestrated multi-platform scraping
+    steps:
+      - action: create_workflow
+        name: hybrid_scraper
+        steps:
+          - platform: browserless
+            action: screenshot
+          - platform: agent-s2
+            action: extract
+          - platform: huginn
+            action: monitor
+      - assert: workflow_created
+      - assert: workflow_executable
+  
+  - name: Proxy rotation
+    description: Test proxy management and rotation
+    steps:
+      - action: add_proxy
+        type: http
+        url: http://proxy.example.com:8080
+      - action: test_proxy_health
+      - assert: proxy_healthy
+      - action: execute_with_proxy
+        agent_id: test_agent
+      - assert: proxy_used
+  
+  - name: Export functionality
+    description: Test data export in multiple formats
+    steps:
+      - action: configure_export
+        format: json
+        agents: [test_agent]
+      - action: trigger_export
+      - assert: export_created
+        format: json
+      - assert: file_valid
+        parseable: true
+
+validation:
+  resources:
+    - huginn: agents_api_accessible
+    - browserless: screenshot_endpoint_ready
+    - agent-s2: execution_api_online
+    - n8n: workflow_deployed
+    - postgres: schema_loaded
+    - redis: queue_operational
+    - minio: bucket_accessible
+    - qdrant: vector_index_ready
+  
+  ui:
+    - endpoint: /
+      status: 200
+    - endpoint: /api/agents
+      status: 200
+    - endpoint: /api/scrape
+      status: 200
+    - endpoint: /api/export
+      status: 200

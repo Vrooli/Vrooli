@@ -1,0 +1,231 @@
+{
+  "summary": "Brand Creation and Management Dashboard",
+  "description": "Main interface for creating brands, managing templates, and initiating app integrations",
+  "app": {
+    "grid": [
+      {
+        "id": "brand-form",
+        "type": "form",
+        "position": {"x": 0, "y": 0, "w": 8, "h": 20},
+        "configuration": {
+          "title": "Create New Brand",
+          "fields": [
+            {
+              "name": "brandName",
+              "type": "text",
+              "label": "Brand Name",
+              "required": true,
+              "placeholder": "Enter your brand name"
+            },
+            {
+              "name": "shortName", 
+              "type": "text",
+              "label": "Short Name",
+              "maxLength": 12,
+              "placeholder": "Short app name"
+            },
+            {
+              "name": "industry",
+              "type": "select",
+              "label": "Industry",
+              "options": ["Technology", "Healthcare", "Finance", "Creative", "Retail", "Education", "Other"]
+            },
+            {
+              "name": "template",
+              "type": "select",
+              "label": "Brand Template",
+              "options": ["modern-tech", "creative-agency", "professional-services", "startup-bold", "healthcare-trust"],
+              "resource": "postgres",
+              "query": "SELECT id, name FROM templates WHERE is_active = true ORDER BY name"
+            },
+            {
+              "name": "customDescription",
+              "type": "textarea",
+              "label": "Brand Description",
+              "placeholder": "Optional: Custom brand description"
+            },
+            {
+              "name": "colorScheme",
+              "type": "select",
+              "label": "Color Scheme",
+              "options": ["primary", "alternative"],
+              "defaultValue": "primary"
+            },
+            {
+              "name": "logoStyle",
+              "type": "select", 
+              "label": "Logo Style",
+              "options": ["minimalist", "bold", "classic", "modern", "artistic"]
+            }
+          ],
+          "submitButton": {
+            "label": "Generate Brand",
+            "color": "primary",
+            "endpoint": "http://n8n:5678/webhook/generate-brand"
+          }
+        }
+      },
+      {
+        "id": "brand-list",
+        "type": "table",
+        "position": {"x": 8, "y": 0, "w": 8, "h": 20},
+        "configuration": {
+          "title": "Existing Brands",
+          "resource": "postgres",
+          "query": "SELECT id, name, slogan, created_at, (SELECT COUNT(*) FROM exports WHERE brand_id = brands.id) as integration_count FROM brands ORDER BY created_at DESC",
+          "columns": [
+            {"field": "name", "header": "Brand Name", "sortable": true},
+            {"field": "slogan", "header": "Slogan", "width": 200},
+            {"field": "integration_count", "header": "Apps", "width": 60, "align": "center"},
+            {"field": "created_at", "header": "Created", "type": "date", "width": 120}
+          ],
+          "actions": [
+            {
+              "label": "View",
+              "icon": "eye",
+              "action": "open_modal",
+              "modal": "brand-details"
+            },
+            {
+              "label": "Integrate",
+              "icon": "external-link",
+              "action": "open_modal",
+              "modal": "app-integration",
+              "condition": "integration_count === 0"
+            },
+            {
+              "label": "Export",
+              "icon": "download",
+              "action": "download",
+              "endpoint": "http://localhost:8100/api/brand/export/{id}"
+            }
+          ]
+        }
+      },
+      {
+        "id": "generation-status",
+        "type": "card",
+        "position": {"x": 0, "y": 20, "w": 16, "h": 8},
+        "configuration": {
+          "title": "Generation Status",
+          "refresh": 5000,
+          "content": [
+            {
+              "type": "progress",
+              "label": "AI Generation Progress",
+              "resource": "postgres",
+              "query": "SELECT status, progress FROM brand_generation_status ORDER BY created_at DESC LIMIT 1",
+              "valueField": "progress"
+            },
+            {
+              "type": "log",
+              "label": "Recent Activity",
+              "resource": "postgres",
+              "query": "SELECT message, created_at FROM activity_log ORDER BY created_at DESC LIMIT 5",
+              "height": 150
+            }
+          ]
+        }
+      }
+    ],
+    "modals": [
+      {
+        "id": "brand-details",
+        "title": "Brand Details",
+        "size": "large",
+        "content": [
+          {
+            "type": "grid",
+            "columns": 2,
+            "items": [
+              {
+                "type": "image",
+                "label": "Logo",
+                "resource": "minio",
+                "bucket": "brand-logos",
+                "path": "{brand_id}/logo.svg"
+              },
+              {
+                "type": "details",
+                "resource": "postgres", 
+                "query": "SELECT * FROM brands WHERE id = $1",
+                "fields": ["name", "slogan", "description", "brand_colors"]
+              }
+            ]
+          },
+          {
+            "type": "tabs",
+            "tabs": [
+              {
+                "label": "Assets",
+                "content": {
+                  "type": "gallery",
+                  "resource": "minio",
+                  "bucket": "brand-logos",
+                  "path": "{brand_id}/"
+                }
+              },
+              {
+                "label": "Exports",
+                "content": {
+                  "type": "table",
+                  "resource": "postgres",
+                  "query": "SELECT * FROM exports WHERE brand_id = $1",
+                  "columns": ["export_type", "target_app", "status", "created_at"]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "id": "app-integration",
+        "title": "Integrate Brand into App",
+        "size": "medium",
+        "content": [
+          {
+            "type": "form",
+            "fields": [
+              {
+                "name": "targetAppPath",
+                "type": "text",
+                "label": "App Directory Path",
+                "required": true,
+                "placeholder": "/path/to/your/app"
+              },
+              {
+                "name": "integrationType",
+                "type": "select",
+                "label": "Integration Type",
+                "options": [
+                  {"value": "full", "label": "Full Integration (Assets + Code)"},
+                  {"value": "assets-only", "label": "Assets Only"},
+                  {"value": "theme-only", "label": "Theme Colors Only"}
+                ],
+                "defaultValue": "full"
+              },
+              {
+                "name": "createBackup",
+                "type": "checkbox",
+                "label": "Create backup before integration",
+                "defaultValue": true
+              }
+            ],
+            "submitButton": {
+              "label": "Start Integration",
+              "endpoint": "http://n8n:5678/webhook/spawn-claude-integration"
+            }
+          }
+        ]
+      }
+    ],
+    "theme": {
+      "primaryColor": "#6366f1",
+      "font": "Inter"
+    },
+    "permissions": {
+      "public": false,
+      "roles": ["admin", "brand-manager"]
+    }
+  }
+}

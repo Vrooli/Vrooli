@@ -1,0 +1,89 @@
+{
+  "workflow_name": "Logo Generator",
+  "description": "Generate professional logos based on brand specifications",
+  "version": "1.0.0",
+  "nodes": {
+    "text_input": {
+      "class_type": "CLIPTextEncode",
+      "inputs": {
+        "text": "{logo_prompt}, professional logo design, {brand_style}, {color_scheme}, vector art, clean composition, scalable design",
+        "clip": ["clip_loader", 0]
+      }
+    },
+    "negative_prompt": {
+      "class_type": "CLIPTextEncode", 
+      "inputs": {
+        "text": "low quality, blurry, pixelated, amateur, cluttered, overly complex, poor composition, bad typography, watermark, signature",
+        "clip": ["clip_loader", 0]
+      }
+    },
+    "clip_loader": {
+      "class_type": "CheckpointLoaderSimple",
+      "inputs": {
+        "ckpt_name": "sd_xl_base_1.0.safetensors"
+      }
+    },
+    "empty_latent": {
+      "class_type": "EmptyLatentImage",
+      "inputs": {
+        "width": 512,
+        "height": 512,
+        "batch_size": 1
+      }
+    },
+    "sampler": {
+      "class_type": "KSampler",
+      "inputs": {
+        "model": ["clip_loader", 0],
+        "positive": ["text_input", 0],
+        "negative": ["negative_prompt", 0],
+        "latent_image": ["empty_latent", 0],
+        "seed": 42,
+        "steps": 30,
+        "cfg": 7.5,
+        "sampler_name": "euler",
+        "scheduler": "normal",
+        "denoise": 1.0
+      }
+    },
+    "vae_decode": {
+      "class_type": "VAEDecode",
+      "inputs": {
+        "samples": ["sampler", 0],
+        "vae": ["clip_loader", 2]
+      }
+    },
+    "save_image": {
+      "class_type": "SaveImage",
+      "inputs": {
+        "images": ["vae_decode", 0],
+        "filename_prefix": "brand_logo_"
+      }
+    }
+  },
+  "parameters": {
+    "logo_prompt": {
+      "type": "string",
+      "required": true,
+      "description": "Main logo generation prompt"
+    },
+    "brand_style": {
+      "type": "string", 
+      "default": "minimalist modern",
+      "description": "Brand style keywords"
+    },
+    "color_scheme": {
+      "type": "string",
+      "default": "blue and white",
+      "description": "Primary color scheme"
+    }
+  },
+  "output_format": {
+    "type": "image",
+    "dimensions": {
+      "width": 512,
+      "height": 512
+    },
+    "format": "png"
+  }
+}

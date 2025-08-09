@@ -1,0 +1,624 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "inheritance": {
+    "extends": "../../../../../.vrooli/service.json",
+    "merge": {
+      "strategy": "merge",
+      "arrays": "concat"
+    }
+  },
+  "service": {
+    "name": "brand-manager",
+    "displayName": "AI Brand Manager",
+    "description": "Complete AI-powered branding solution with logo generation, copywriting, and automated app integration via Claude Code agents",
+    "version": "1.0.0",
+    "type": "business-application",
+    "tags": [
+      "brand-generation",
+      "visual-design",
+      "copywriting",
+      "app-integration",
+      "windmill-ui",
+      "claude-code-agents",
+      "asset-management"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "team@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scripts/scenarios/core/brand-manager"
+    },
+    "license": "GPL-3.0",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "./README.md",
+    "support": {
+      "email": "support@vrooli.com",
+      "issues": "https://github.com/Vrooli/Vrooli/issues",
+      "chat": "https://discord.gg/vrooli"
+    }
+  },
+  "resources": {
+    "storage": {
+      "postgres": {
+        "type": "postgresql",
+        "enabled": true,
+        "version": "16",
+        "required": true,
+        "initialization": {
+          "data": [
+            {
+              "type": "schema",
+              "file": "initialization/storage/postgres/schema.sql"
+            },
+            {
+              "type": "seed",
+              "file": "initialization/storage/postgres/seed.sql"
+            }
+          ]
+        }
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "buckets": [
+            {
+              "name": "brand-logos",
+              "policy": "private"
+            },
+            {
+              "name": "brand-icons",
+              "policy": "private"
+            },
+            {
+              "name": "brand-exports",
+              "policy": "private"
+            },
+            {
+              "name": "brand-templates",
+              "policy": "private"
+            },
+            {
+              "name": "app-backups",
+              "policy": "private"
+            }
+          ]
+        }
+      },
+      "vault": {
+        "type": "vault",
+        "enabled": true,
+        "required": false,
+        "initialization": {
+          "secrets": [
+            {
+              "path": "brand-manager/api-keys",
+              "data": "initialization/storage/vault/api-keys.json"
+            },
+            {
+              "path": "brand-manager/integration-tokens",
+              "data": "initialization/storage/vault/integration-tokens.json"
+            }
+          ]
+        }
+      }
+    },
+    "ai": {
+      "ollama": {
+        "enabled": true,
+        "required": true,
+        "models": ["llama3.2", "gemma2", "codellama"],
+        "configuration": {
+          "default_model": "llama3.2",
+          "temperature": 0.8,
+          "max_tokens": 1024,
+          "timeout_seconds": 60,
+          "retry_attempts": 2
+        }
+      },
+      "comfyui": {
+        "type": "comfyui",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "workflows": [
+            {
+              "name": "logo-generator",
+              "file": "initialization/configuration/comfyui-workflows/logo-generator.json"
+            },
+            {
+              "name": "icon-creator",
+              "file": "initialization/configuration/comfyui-workflows/icon-creator.json"
+            },
+            {
+              "name": "favicon-generator",
+              "file": "initialization/configuration/comfyui-workflows/favicon-generator.json"
+            }
+          ]
+        }
+      }
+    },
+    "automation": {
+      "n8n": {
+        "enabled": true,
+        "required": true,
+        "type": "n8n",
+        "initialization": {
+          "workflows": [
+            {
+              "file": "initialization/automation/n8n/brand-pipeline.json"
+            },
+            {
+              "file": "initialization/automation/n8n/claude-spawner.json"
+            },
+            {
+              "file": "initialization/automation/n8n/integration-monitor.json"
+            }
+          ]
+        }
+      },
+      "windmill": {
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "apps": [
+            {
+              "path": "f/brand-manager/dashboard",
+              "file": "initialization/automation/windmill/brand-manager-ui.json",
+              "summary": "Brand Creation and Management Dashboard"
+            },
+            {
+              "path": "f/brand-manager/integration-dashboard",
+              "file": "initialization/automation/windmill/integration-dashboard.json",
+              "summary": "App Integration Monitoring Dashboard"
+            }
+          ],
+          "scripts": []
+        }
+      }
+    },
+    "agents": {
+      "claude-code": {
+        "enabled": true,
+        "required": true,
+        "type": "claude-code"
+      }
+    }
+  },
+  "deployment": {
+    "target": "docker",
+    "strategy": "rolling-update",
+    "urls": {
+      "application": "${service.vrooli.url}",
+      "api": "${service.vrooli.url}/api/brand-manager",
+      "health": "${service.vrooli.url}/api/brand-manager/health",
+      "windmill": "${service.windmill.url}",
+      "minio": "${service.minio.url}"
+    },
+    "initialization": {
+      "phases": [
+        {
+          "name": "database-setup",
+          "tasks": [
+            {
+              "name": "apply-schema",
+              "type": "sql",
+              "target": "storage.postgres",
+              "file": "initialization/storage/postgres/schema.sql"
+            },
+            {
+              "name": "seed-data",
+              "type": "sql",
+              "target": "storage.postgres",
+              "file": "initialization/storage/postgres/seed.sql"
+            }
+          ]
+        },
+        {
+          "name": "ai-setup",
+          "parallel": true,
+          "tasks": [
+            {
+              "name": "load-ai-models",
+              "type": "resource-inject",
+              "target": "ai.ollama",
+              "timeout": "8m"
+            },
+            {
+              "name": "setup-comfyui-workflows",
+              "type": "resource-inject",
+              "target": "ai.comfyui",
+              "timeout": "3m"
+            }
+          ]
+        },
+        {
+          "name": "storage-setup",
+          "parallel": true,
+          "tasks": [
+            {
+              "name": "setup-storage-buckets",
+              "type": "resource-inject",
+              "target": "storage.minio",
+              "timeout": "2m"
+            },
+            {
+              "name": "configure-vault-secrets",
+              "type": "resource-inject",
+              "target": "storage.vault",
+              "timeout": "1m",
+              "optional": true
+            }
+          ]
+        },
+        {
+          "name": "automation-setup",
+          "tasks": [
+            {
+              "name": "deploy-n8n-workflows",
+              "type": "resource-inject",
+              "target": "automation.n8n",
+              "timeout": "2m"
+            },
+            {
+              "name": "deploy-windmill-apps",
+              "type": "resource-inject",
+              "target": "automation.windmill",
+              "config": "initialization/automation/windmill/",
+              "timeout": "3m"
+            }
+          ]
+        },
+        {
+          "name": "application-configuration",
+          "tasks": [
+            {
+              "name": "set-brand-templates",
+              "type": "config",
+              "file": "initialization/configuration/brand-templates.json"
+            },
+            {
+              "name": "configure-integration-patterns",
+              "type": "config",
+              "file": "initialization/configuration/integration-patterns.json"
+            }
+          ]
+        },
+        {
+          "name": "startup",
+          "tasks": [
+            {
+              "name": "start-application",
+              "type": "script",
+              "script": "./deployment/startup.sh",
+              "timeout": "2m"
+            }
+          ]
+        },
+        {
+          "name": "post-validation",
+          "tasks": [
+            {
+              "name": "health-check",
+              "type": "healthcheck",
+              "target": "${service.vrooli.url}/api/brand-manager/health",
+              "timeout": "30s",
+              "retries": 3
+            },
+            {
+              "name": "monitor-startup",
+              "type": "script",
+              "script": "./deployment/monitor.sh",
+              "background": true
+            }
+          ]
+        }
+      ]
+    },
+    "monitoring": {
+      "enabled": true,
+      "healthChecks": {
+        "application": {
+          "endpoint": "${service.vrooli.url}/api/brand-manager/health",
+          "interval": "30s",
+          "timeout": "5s",
+          "threshold": 3
+        },
+        "ollama": {
+          "endpoint": "${service.ollama.url}/api/tags",
+          "interval": "60s",
+          "timeout": "15s"
+        },
+        "comfyui": {
+          "endpoint": "${service.comfyui.url}/system_stats",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "windmill": {
+          "endpoint": "${service.windmill.url}/api/version",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "minio": {
+          "endpoint": "${service.minio.url}/minio/health/ready",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "n8n": {
+          "endpoint": "${service.n8n.url}/healthz",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "database": {
+          "type": "tcp",
+          "port": 5432,
+          "interval": "30s"
+        }
+      },
+      "metrics": {
+        "responseTime": {
+          "p50": "500ms",
+          "p95": "2000ms",
+          "p99": "5000ms"
+        },
+        "throughput": {
+          "rps": 3,
+          "concurrent": 5
+        },
+        "errorRate": {
+          "threshold": "5%"
+        }
+      }
+    },
+    "cleanup": {
+      "enabled": true,
+      "tasks": [
+        {
+          "name": "delete-windmill-apps",
+          "type": "resource-cleanup",
+          "target": "automation.windmill"
+        },
+        {
+          "name": "delete-n8n-workflows",
+          "type": "resource-cleanup",
+          "target": "automation.n8n"
+        },
+        {
+          "name": "drop-database",
+          "type": "sql",
+          "target": "storage.postgres",
+          "query": "DROP DATABASE IF EXISTS brand_manager"
+        },
+        {
+          "name": "clear-storage-buckets",
+          "type": "resource-cleanup",
+          "target": "storage.minio"
+        },
+        {
+          "name": "clear-vault-secrets",
+          "type": "resource-cleanup",
+          "target": "storage.vault",
+          "optional": true
+        }
+      ]
+    },
+    "testing": {
+      "enabled": true,
+      "timeout": "30m",
+      "script": "./test.sh",
+      "ui": {
+        "required": true,
+        "type": "windmill",
+        "url": "${service.windmill.url}"
+      },
+      "performance": {
+        "loadTest": {
+          "users": 3,
+          "duration": "5m",
+          "rampUp": "1m"
+        }
+      }
+    },
+    "resources": {
+      "requests": {
+        "cpu": "800m",
+        "memory": "2Gi"
+      },
+      "limits": {
+        "cpu": "3000m",
+        "memory": "6Gi"
+      }
+    }
+  },
+  "metadata": {
+    "businessModel": {
+      "purpose": "commercial",
+      "valueProposition": "AI-powered brand manager that generates complete branding packages and automatically integrates them into applications via Claude Code agents",
+      "targetMarket": "SaaS developers, marketing agencies, small businesses, freelancers, and app development teams",
+      "painPoints": [
+        "Manual branding process consuming days of design work",
+        "Difficulty maintaining brand consistency across multiple applications",
+        "High costs of hiring designers and brand consultants for simple projects"
+      ],
+      "solution": "Automated AI branding pipeline with one-click app integration through intelligent Claude Code agents",
+      "competitiveAdvantage": "Complete end-to-end solution combining AI generation with automated app integration",
+      "revenuePotential": {
+        "initial": "$8,000",
+        "recurring": "$20,000",
+        "expansion": "$45,000",
+        "totalEstimate": "$73,000"
+      },
+      "marketDemand": {
+        "level": "high",
+        "growth": "35% annually",
+        "evidence": "Growing demand for automated branding tools and AI-powered design solutions"
+      },
+      "roi": {
+        "developmentCost": "$8,000",
+        "timeToMarket": "4 weeks",
+        "breakEven": "3 months"
+      }
+    },
+    "performance": {
+      "targets": {
+        "initializationTime": "8m",
+        "brandGenerationTime": "30s",
+        "appIntegrationTime": "2m",
+        "responseTime": {
+          "p50": "500ms",
+          "p95": "2000ms",
+          "p99": "5000ms"
+        },
+        "throughput": {
+          "minimum": 2,
+          "target": 3,
+          "peak": 8
+        },
+        "availability": "99.0%",
+        "errorRate": "<5%"
+      },
+      "resources": {
+        "cpu": {
+          "minimum": "2.0",
+          "target": "3.0",
+          "maximum": "6.0"
+        },
+        "memory": {
+          "minimum": "4Gi",
+          "target": "6Gi",
+          "maximum": "12Gi"
+        },
+        "storage": {
+          "database": "50Gi",
+          "assets": "500Gi",
+          "backups": "200Gi"
+        }
+      }
+    },
+    "customization": {
+      "variables": {
+        "APP_NAME": {
+          "type": "string",
+          "default": "AI Brand Manager",
+          "description": "Application display name"
+        },
+        "COMPANY_NAME": {
+          "type": "string",
+          "default": "Your Company",
+          "description": "Customer company name"
+        },
+        "PRIMARY_COLOR": {
+          "type": "string",
+          "default": "#6366f1",
+          "description": "Brand primary color"
+        },
+        "DATABASE_NAME": {
+          "type": "string",
+          "default": "brand_manager",
+          "description": "Database name"
+        },
+        "WINDMILL_PORT": {
+          "type": "number",
+          "default": 8000,
+          "description": "Windmill UI port"
+        },
+        "MINIO_PORT": {
+          "type": "number",
+          "default": 9000,
+          "description": "MinIO storage port"
+        }
+      },
+      "features": {
+        "aiGeneration": {
+          "enabled": true,
+          "provider": "ollama"
+        },
+        "visualAssets": {
+          "enabled": true,
+          "provider": "comfyui"
+        },
+        "appIntegration": {
+          "enabled": true,
+          "provider": "claude-code"
+        },
+        "assetManagement": {
+          "enabled": true,
+          "provider": "minio"
+        },
+        "brandTemplates": {
+          "enabled": true,
+          "provider": "internal"
+        },
+        "integrationMonitoring": {
+          "enabled": true,
+          "provider": "windmill"
+        }
+      }
+    },
+    "category": "ai-branding",
+    "complexity": "intermediate",
+    "marketDemand": "high"
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "defaults": {
+      "timeout": "5m",
+      "error": "stop",
+      "shell": "bash"
+    },
+    "setup": {
+      "description": "Initialize brand manager environment",
+      "steps": [
+        {
+          "name": "setup-infrastructure",
+          "run": "./scripts/manage.sh setup --target docker",
+          "condition": "${SKIP_SETUP} != 'true'"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start brand manager services",
+      "steps": [
+        {
+          "name": "start-services",
+          "run": "../deployment/startup.sh"
+        }
+      ]
+    },
+    "build": {
+      "description": "Build brand manager artifacts",
+      "steps": [
+        {
+          "name": "build-artifacts",
+          "run": "./scripts/manage.sh build"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run brand manager tests",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "./test.sh"
+        }
+      ]
+    },
+    "clean": {
+      "description": "Clean build artifacts and temporary files",
+      "steps": [
+        {
+          "name": "clean-artifacts",
+          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ exports/ || true"
+        }
+      ]
+    }
+  }
+}

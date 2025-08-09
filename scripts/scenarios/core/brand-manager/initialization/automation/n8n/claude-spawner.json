@@ -1,0 +1,74 @@
+{
+  "name": "Claude Code Agent Spawner",
+  "description": "Spawns Claude Code agents for app brand integration",
+  "nodes": [
+    {
+      "name": "Integration Request",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [200, 300],
+      "webhookId": "spawn-claude-integration",
+      "parameters": {
+        "path": "spawn-claude-integration",
+        "method": "POST"
+      }
+    },
+    {
+      "name": "Validate Request",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [400, 300],
+      "parameters": {
+        "functionCode": "// Validate integration request\nconst { brandId, targetAppPath, integrationType, createBackup } = $json;\n\nif (!brandId || !targetAppPath) {\n  throw new Error('brandId and targetAppPath are required');\n}\n\nif (!['full', 'assets-only', 'theme-only'].includes(integrationType)) {\n  throw new Error('Invalid integrationType');\n}\n\n// Check if app path exists and is accessible\n// This would be implemented with proper file system checks\n\nreturn [{\n  json: {\n    ...items[0].json,\n    validated: true,\n    timestamp: new Date().toISOString(),\n    requestId: `int_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`\n  }\n}];"
+      }
+    },
+    {
+      "name": "Get Brand Data",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [600, 250],
+      "parameters": {
+        "operation": "select",
+        "query": "SELECT b.*, array_agg(DISTINCT jsonb_build_object('type', 'logo', 'url', logo_url, 'format', 'svg')) as assets FROM brands b WHERE b.id = $1 GROUP BY b.id",
+        "values": "={{ $json.brandId }}"
+      }
+    },
+    {
+      "name": "Create Backup",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [600, 350],
+      "parameters": {
+        "functionCode": "// Create backup of target app if requested\nconst { createBackup, targetAppPath, requestId } = $json;\n\nif (!createBackup) {\n  return $json;\n}\n\n// This would implement actual backup logic\n// For now, simulate backup creation\nconst backupPath = `/backups/${requestId}`;\nconst backupTimestamp = new Date().toISOString();\n\nreturn [{\n  json: {\n    ...$json,\n    backup: {\n      created: true,\n      path: backupPath,\n      timestamp: backupTimestamp\n    }\n  }\n}];"
+      }
+    },
+    {
+      "name": "Create Integration Record",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2,
+      "position": [800, 300],
+      "parameters": {
+        "operation": "insert",
+        "table": "integration_requests",
+        "columns": "brand_id,target_app_path,integration_type,status,request_payload,created_at",
+        "values": "={{ $json.brandId }},={{ $json.targetAppPath }},={{ $json.integrationType }},pending,={{ JSON.stringify($json) }},NOW()"
+      }
+    },
+    {
+      "name": "Prepare Claude Instructions",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1000, 300],
+      "parameters": {
+        "functionCode": "// Prepare detailed instructions for Claude Code agent\nconst brandData = $('Get Brand Data').first().json;\nconst integrationData = $json;\nconst integrationPatterns = {\n  // This would load from integration-patterns.json\n  \"react-app\": \"Standard React app integration\",\n  \"vue-app\": \"Vue.js app integration\", \n  \"nextjs-app\": \"Next.js app integration\",\n  \"html-static\": \"Static HTML integration\"\n};\n\nconst claudeInstructions = {\n  task: \"Integrate brand package into application\",\n  brand: {\n    name: brandData.name,\n    colors: brandData.brand_colors,\n    slogan: brandData.slogan,\n    assets: brandData.assets\n  },\n  target: {\n    path: integrationData.targetAppPath,\n    type: integrationData.integrationType\n  },\n  instructions: [\n    \"1. Analyze the target application structure\",\n    \"2. Detect the application type (React, Vue, Next.js, etc.)\",\n    \"3. Create a backup if backup option is enabled\",\n    \"4. Apply brand integration following the detected pattern\",\n    \"5. Update all relevant files (manifest, favicon, CSS, etc.)\",\n    \"6. Test that the application still builds and runs\",\n    \"7. Report integration status and any issues encountered\"\n  ],\n  safety_rules: [\n    \"Always create backups before making changes\", \n    \"Test each change incrementally\",\n    \"Preserve existing functionality\",\n    \"Use CSS variables for brand colors when possible\"\n  ],\n  validation_steps: [\n    \"Verify all asset files are accessible\",\n    \"Confirm application builds successfully\",\n    \"Check brand colors are applied\",\n    \"Test favicon and meta tags\"\n  ]\n};\n\nreturn [{\n  json: {\n    ...integrationData,\n    claudeInstructions,\n    sessionId: `claude_${integrationData.requestId}`\n  }\n}];"
+      }
+    },
+    {
+      "name": "Spawn Claude Agent",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 3,
+      "position": [1200, 300],
+      "parameters": {
+        "url": "http://claude-code:8080/api/spawn-agent",
+        "method": "POST",
+        "headers": {\n          \"Content-Type\": \"application/json\",\n          \"Authorization\": \"Bearer {{ $env.CLAUDE_CODE_API_KEY }}\"\n        },\n        \"body\": {\n          \"sessionId\": \"{{ $json.sessionId }}\",\n          \"instructions\": \"{{ $json.claudeInstructions }}\",\n          \"workingDirectory\": \"{{ $json.targetAppPath }}\",\n          \"timeout\": 300000,\n          \"callbacks\": {\n            \"progress\": \"http://n8n:5678/webhook/claude-progress\",\n            \"completion\": \"http://n8n:5678/webhook/claude-completion\",\n            \"error\": \"http://n8n:5678/webhook/claude-error\"\n          }\n        }\n      }\n    },\n    {\n      \"name\": \"Update Integration Status\",\n      \"type\": \"n8n-nodes-base.postgres\",\n      \"typeVersion\": 2,\n      \"position\": [1400, 300],\n      \"parameters\": {\n        \"operation\": \"update\",\n        \"table\": \"integration_requests\",\n        \"where\": \"brand_id = $1 AND target_app_path = $2\",\n        \"values\": \"{{ $json.brandId }},{{ $json.targetAppPath }}\",\n        \"columns\": \"status,claude_session_id,updated_at\",\n        \"updateValues\": \"processing,{{ $json.sessionId }},NOW()\"\n      }\n    },\n    {\n      \"name\": \"Send Response\",\n      \"type\": \"n8n-nodes-base.respondToWebhook\",\n      \"typeVersion\": 1,\n      \"position\": [1600, 300],\n      \"parameters\": {\n        \"responseBody\": {\n          \"success\": true,\n          \"requestId\": \"{{ $json.requestId }}\",\n          \"sessionId\": \"{{ $json.sessionId }}\",\n          \"status\": \"processing\",\n          \"message\": \"Claude Code agent spawned successfully\",\n          \"estimatedDuration\": \"2-5 minutes\"\n        }\n      }\n    },\n    {\n      \"name\": \"Error Handler\",\n      \"type\": \"n8n-nodes-base.function\",\n      \"typeVersion\": 1,\n      \"position\": [1000, 450],\n      \"parameters\": {\n        \"functionCode\": \"// Handle errors and update integration status\nconst error = $json.error || 'Unknown error';\nconst requestId = $json.requestId;\n\n// This would update the database with error status\n// and send appropriate error response\n\nreturn [{\n  json: {\n    error: true,\n    message: error,\n    requestId\n  }\n}];\"\n      }\n    }\n  ],\n  \"connections\": {\n    \"Integration Request\": {\n      \"main\": [[ {\"node\": \"Validate Request\"} ]]\n    },\n    \"Validate Request\": {\n      \"main\": [[\n        {\"node\": \"Get Brand Data\"},\n        {\"node\": \"Create Backup\"}\n      ]]\n    },\n    \"Get Brand Data\": {\n      \"main\": [[ {\"node\": \"Create Integration Record\"} ]]\n    },\n    \"Create Backup\": {\n      \"main\": [[ {\"node\": \"Create Integration Record\"} ]]\n    },\n    \"Create Integration Record\": {\n      \"main\": [[ {\"node\": \"Prepare Claude Instructions\"} ]]\n    },\n    \"Prepare Claude Instructions\": {\n      \"main\": [[ {\"node\": \"Spawn Claude Agent\"} ]],\n      \"error\": [[ {\"node\": \"Error Handler\"} ]]\n    },\n    \"Spawn Claude Agent\": {\n      \"main\": [[ {\"node\": \"Update Integration Status\"} ]],\n      \"error\": [[ {\"node\": \"Error Handler\"} ]]\n    },\n    \"Update Integration Status\": {\n      \"main\": [[ {\"node\": \"Send Response\"} ]]\n    }\n  }\n}"

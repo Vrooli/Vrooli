@@ -1,0 +1,305 @@
+{
+  "name": "Document Processing Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "process-document",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Document Upload Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Validate document upload request\nconst data = $json;\n\n// Check required fields\nif (!data.campaign_id || !data.filename || !data.storage_path) {\n  throw new Error('Missing required fields: campaign_id, filename, storage_path');\n}\n\n// Validate file type\nconst allowedTypes = ['.pdf', '.docx', '.doc', '.txt', '.rtf', '.odt', '.pptx', '.ppt', '.odp', '.xlsx', '.xls', '.ods', '.csv', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.html', '.htm', '.xml', '.md', '.markdown'];\nconst fileExt = data.filename.toLowerCase().substring(data.filename.lastIndexOf('.'));\n\nif (!allowedTypes.includes(fileExt)) {\n  throw new Error(`Unsupported file type: ${fileExt}`);\n}\n\n// Validate file size (10MB limit for most, 20MB for presentations, 5MB for images/spreadsheets)\nconst maxSize = fileExt.includes('pptx') || fileExt.includes('ppt') ? 20971520 : \n               fileExt.includes('jpg') || fileExt.includes('png') || fileExt.includes('xlsx') ? 5242880 : \n               10485760;\n\nif (data.file_size > maxSize) {\n  throw new Error(`File size exceeds limit: ${data.file_size} > ${maxSize}`);\n}\n\nreturn [{\n  json: {\n    ...data,\n    file_type: fileExt,\n    processing_status: 'pending',\n    created_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "validate_request",
+      "name": "Validate Upload Request",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "documents",
+        "columns": "campaign_id,filename,original_name,file_type,file_size,storage_path,processing_status",
+        "returnFields": "*"
+      },
+      "id": "create_document_record",
+      "name": "Create Document Record",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": "documents",
+        "updateKey": "id",
+        "columns": "processing_status",
+        "additionalFields": {
+          "values": {
+            "processing_status": "processing"
+          }
+        }
+      },
+      "id": "update_status_processing",
+      "name": "Update Status: Processing",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:11450/general/v0/general",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"files\": [\n    {\n      \"filename\": \"{{ $json.filename }}\",\n      \"file_path\": \"{{ $json.storage_path }}\"\n    }\n  ],\n  \"strategy\": \"auto\",\n  \"extract_images\": true,\n  \"extract_image_block_types\": [\"Image\", \"Table\"],\n  \"chunking_strategy\": \"by_title\",\n  \"max_characters\": 2000,\n  \"combine_under_n_chars\": 200,\n  \"new_after_n_chars\": 1500\n}"
+      },
+      "id": "extract_content",
+      "name": "Extract Content with Unstructured-IO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process extracted content from Unstructured-IO\nconst response = $node['Extract Content with Unstructured-IO'].json;\nconst documentRecord = $node['Create Document Record'].json;\n\nif (!response || !response.elements) {\n  throw new Error('Failed to extract content from document');\n}\n\n// Combine all text elements\nconst textElements = response.elements\n  .filter(element => element.type === 'Text' || element.type === 'NarrativeText' || element.type === 'Title')\n  .map(element => element.text)\n  .join('\\n\\n');\n\nif (!textElements || textElements.length < 10) {\n  throw new Error('Insufficient text content extracted from document');\n}\n\n// Extract metadata\nconst metadata = {\n  element_count: response.elements.length,\n  extraction_method: 'unstructured-io',\n  has_tables: response.elements.some(e => e.type === 'Table'),\n  has_images: response.elements.some(e => e.type === 'Image'),\n  processing_timestamp: new Date().toISOString()\n};\n\nreturn [{\n  json: {\n    document_id: documentRecord.id,\n    extracted_text: textElements,\n    metadata: metadata,\n    filename: documentRecord.filename,\n    campaign_id: documentRecord.campaign_id\n  }\n}];"
+      },
+      "id": "process_extraction",
+      "name": "Process Extracted Content",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {
+        "resource": "embedding",
+        "model": "nomic-embed-text",
+        "input": "{{ $json.extracted_text }}"
+      },
+      "id": "generate_embeddings",
+      "name": "Generate Document Embeddings",
+      "type": "n8n-nodes-base.ollama",
+      "typeVersion": 1,
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {
+        "resource": "completion",
+        "model": "llama3.2",
+        "prompt": "Analyze the following document content and provide a comprehensive summary:\n\nDocument: {{ $node['Process Extracted Content'].json.filename }}\n\nContent:\n{{ $node['Process Extracted Content'].json.extracted_text }}\n\nProvide:\n1. A concise summary (2-3 sentences)\n2. Key topics/themes (3-5 keywords)\n3. Main insights or takeaways\n4. Relevance for idea generation\n\nFormat as JSON: {\"summary\": \"...\", \"keywords\": [...], \"insights\": \"...\", \"idea_relevance\": \"...\"}",
+        "temperature": 0.4,
+        "maxTokens": 1000
+      },
+      "id": "generate_summary",
+      "name": "Generate Document Summary",
+      "type": "n8n-nodes-base.ollama",
+      "typeVersion": 1,
+      "position": [1450, 450]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Combine embeddings, summary, and extracted content\nconst extractedData = $node['Process Extracted Content'].json;\nconst embeddings = $node['Generate Document Embeddings'].json;\nconst summaryResponse = $node['Generate Document Summary'].json;\n\nlet summaryData = {};\ntry {\n  summaryData = JSON.parse(summaryResponse.response);\n} catch (e) {\n  // Fallback if JSON parsing fails\n  summaryData = {\n    summary: summaryResponse.response,\n    keywords: [],\n    insights: 'Summary generation failed',\n    idea_relevance: 'Unknown'\n  };\n}\n\n// Combine metadata\nconst enhancedMetadata = {\n  ...extractedData.metadata,\n  summary: summaryData.summary,\n  keywords: summaryData.keywords,\n  insights: summaryData.insights,\n  idea_relevance: summaryData.idea_relevance,\n  embedding_model: 'nomic-embed-text',\n  summary_model: 'llama3.2'\n};\n\nreturn [{\n  json: {\n    document_id: extractedData.document_id,\n    extracted_text: extractedData.extracted_text,\n    embedding: embeddings.embedding,\n    metadata: enhancedMetadata,\n    processing_status: 'completed',\n    processed_at: new Date().toISOString()\n  }\n}];"
+      },
+      "id": "merge_processing_results",
+      "name": "Merge Processing Results",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1650, 375]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": "documents",
+        "updateKey": "id",
+        "columns": "extracted_text,embedding,metadata,processing_status,processed_at",
+        "additionalFields": {}
+      },
+      "id": "update_document_record",
+      "name": "Update Document Record",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1850, 375]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:6333/collections/documents/points",
+        "authentication": "none",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyContentType": "json",
+        "jsonBody": "{\n  \"points\": [\n    {\n      \"id\": \"{{ $json.document_id }}\",\n      \"vector\": {{ JSON.stringify($json.embedding) }},\n      \"payload\": {\n        \"document_id\": \"{{ $json.document_id }}\",\n        \"campaign_id\": \"{{ $node['Process Extracted Content'].json.campaign_id }}\",\n        \"filename\": \"{{ $node['Process Extracted Content'].json.filename }}\",\n        \"file_type\": \"{{ $node['Create Document Record'].json.file_type }}\",\n        \"extracted_text\": \"{{ $json.extracted_text }}\",\n        \"processing_status\": \"completed\",\n        \"created_at\": \"{{ $node['Create Document Record'].json.created_at }}\",\n        \"processed_at\": \"{{ $json.processed_at }}\"\n      }\n    }\n  ]\n}"
+      },
+      "id": "save_to_qdrant",
+      "name": "Save to Vector Database",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 1,
+      "position": [2050, 375]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            },
+            {
+              "name": "document_id",
+              "value": "{{ $json.document_id }}"
+            },
+            {
+              "name": "processing_status",
+              "value": "completed"
+            },
+            {
+              "name": "extracted_text_length",
+              "value": "{{ $json.extracted_text.length }}"
+            },
+            {
+              "name": "summary",
+              "value": "{{ JSON.stringify($json.metadata.summary) }}"
+            },
+            {
+              "name": "keywords",
+              "value": "{{ JSON.stringify($json.metadata.keywords) }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [2250, 375]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "table": "documents",
+        "updateKey": "id",
+        "columns": "processing_status,metadata",
+        "additionalFields": {
+          "values": {
+            "processing_status": "failed",
+            "metadata": "{{ JSON.stringify({error: $json.error, timestamp: new Date().toISOString()}) }}"
+          }
+        }
+      },
+      "id": "update_status_failed",
+      "name": "Update Status: Failed",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [1050, 600]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "error"
+            },
+            {
+              "name": "message",
+              "value": "Document processing failed: {{ $json.error }}"
+            },
+            {
+              "name": "document_id",
+              "value": "{{ $node['Create Document Record'].json.id || 'unknown' }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1250, 600]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [[{"node": "validate_request", "type": "main", "index": 0}]]
+    },
+    "validate_request": {
+      "main": [[{"node": "create_document_record", "type": "main", "index": 0}]]
+    },
+    "create_document_record": {
+      "main": [[{"node": "update_status_processing", "type": "main", "index": 0}]]
+    },
+    "update_status_processing": {
+      "main": [[{"node": "extract_content", "type": "main", "index": 0}]]
+    },
+    "extract_content": {
+      "main": [
+        [{"node": "process_extraction", "type": "main", "index": 0}],
+        [{"node": "update_status_failed", "type": "main", "index": 0}]
+      ]
+    },
+    "process_extraction": {
+      "main": [
+        [
+          {"node": "generate_embeddings", "type": "main", "index": 0},
+          {"node": "generate_summary", "type": "main", "index": 0}
+        ]
+      ]
+    },
+    "generate_embeddings": {
+      "main": [[{"node": "merge_processing_results", "type": "main", "index": 0}]]
+    },
+    "generate_summary": {
+      "main": [[{"node": "merge_processing_results", "type": "main", "index": 1}]]
+    },
+    "merge_processing_results": {
+      "main": [[{"node": "update_document_record", "type": "main", "index": 0}]]
+    },
+    "update_document_record": {
+      "main": [[{"node": "save_to_qdrant", "type": "main", "index": 0}]]
+    },
+    "save_to_qdrant": {
+      "main": [[{"node": "success_response", "type": "main", "index": 0}]]
+    },
+    "update_status_failed": {
+      "main": [[{"node": "error_response", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "errorWorkflow": {
+      "continueOnFail": false,
+      "exitOnError": true
+    }
+  },
+  "id": "document-processing-pipeline"
+}

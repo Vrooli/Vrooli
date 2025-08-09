@@ -1,0 +1,118 @@
+{
+  "version": "1.0.0",
+  "service": {
+    "name": "retro-game-launcher",
+    "displayName": "Retro Game Launcher",
+    "description": "Platform for launching and managing retro games with AI-generated game creation capabilities",
+    "version": "1.0.0",
+    "type": "business-application",
+    "tags": ["gaming", "retro", "entertainment", "ai-generation"],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "team@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ]
+  },
+  "resources": {
+    "storage": {
+      "postgres": {
+        "enabled": true,
+        "purpose": "Store game metadata, user progress, and settings"
+      }
+    },
+    "automation": {
+      "n8n": {
+        "enabled": true,
+        "workflows": ["game-generation-workflow"],
+        "purpose": "Orchestrate game generation and management workflows"
+      },
+      "windmill": {
+        "enabled": true,
+        "purpose": "Game launcher UI and management interface"
+      }
+    },
+    "ai": {
+      "ollama": {
+        "enabled": true,
+        "models": ["llama3.2", "codellama"],
+        "purpose": "Generate game ideas and code"
+      }
+    }
+  },
+  "deployment": {
+    "ports": {
+      "ui": 3400,
+      "api": 8400
+    }
+  },
+  "features": {
+    "game_templates": {
+      "enabled": true,
+      "description": "Pre-built templates for various game types"
+    },
+    "ai_generation": {
+      "enabled": true,
+      "description": "Generate new games based on prompts"
+    },
+    "save_states": {
+      "enabled": true,
+      "description": "Save and load game states"
+    }
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "defaults": {
+      "timeout": "5m",
+      "error": "stop",
+      "shell": "bash"
+    },
+    "setup": {
+      "description": "Initialize retro game launcher environment",
+      "steps": [
+        {
+          "name": "setup-infrastructure",
+          "run": "./scripts/manage.sh setup --target docker",
+          "condition": "${SKIP_SETUP} != \\\"true\\\""
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start retro game launcher services",
+      "steps": [
+        {
+          "name": "start-services",
+          "run": "../deployment/startup.sh"
+        }
+      ]
+    },
+    "build": {
+      "description": "Build retro game launcher artifacts",
+      "steps": [
+        {
+          "name": "build-artifacts",
+          "run": "./scripts/manage.sh build"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run retro game launcher tests",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "./test.sh"
+        }
+      ]
+    },
+    "clean": {
+      "description": "Clean build artifacts and temporary files",
+      "steps": [
+        {
+          "name": "clean-artifacts",
+          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+        }
+      ]
+    }
+  }
+}

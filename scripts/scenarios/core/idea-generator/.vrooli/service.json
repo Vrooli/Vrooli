@@ -1,0 +1,132 @@
+{
+  "version": "1.0.0",
+  "service": {
+    "name": "idea-generator",
+    "displayName": "Idea Generator",
+    "description": "AI-powered idea generation platform with document processing, semantic search, and agent refinement",
+    "version": "1.0.0",
+    "type": "business-application",
+    "tags": ["ideation", "brainstorming", "ai", "creativity", "innovation"],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "team@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ]
+  },
+  "resources": {
+    "storage": {
+      "postgres": {
+        "enabled": true,
+        "purpose": "Store ideas, templates, and user data"
+      },
+      "minio": {
+        "enabled": true,
+        "buckets": ["documents", "exports", "templates"],
+        "purpose": "Store documents and generated content"
+      },
+      "qdrant": {
+        "enabled": true,
+        "purpose": "Vector storage for semantic search"
+      }
+    },
+    "automation": {
+      "n8n": {
+        "enabled": true,
+        "workflows": [
+          "idea-generation-workflow",
+          "document-processing-pipeline",
+          "agent-refinement-workflow",
+          "semantic-search-workflow"
+        ],
+        "purpose": "Orchestrate idea generation and refinement workflows"
+      }
+    },
+    "ai": {
+      "ollama": {
+        "enabled": true,
+        "models": ["llama3.2", "mistral"],
+        "purpose": "Generate and refine ideas"
+      }
+    }
+  },
+  "deployment": {
+    "ports": {
+      "ui": 3500,
+      "api": 8500
+    }
+  },
+  "features": {
+    "idea_templates": {
+      "enabled": true,
+      "description": "Pre-built templates for various idea types"
+    },
+    "document_processing": {
+      "enabled": true,
+      "description": "Process documents to extract ideas and context"
+    },
+    "semantic_search": {
+      "enabled": true,
+      "description": "Search ideas using semantic similarity"
+    },
+    "agent_refinement": {
+      "enabled": true,
+      "description": "Use AI agents to refine and expand ideas"
+    }
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "defaults": {
+      "timeout": "5m",
+      "error": "stop",
+      "shell": "bash"
+    },
+    "setup": {
+      "description": "Initialize idea generator environment",
+      "steps": [
+        {
+          "name": "setup-infrastructure",
+          "run": "./scripts/manage.sh setup --target docker",
+          "condition": "${SKIP_SETUP} != \\\"true\\\""
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start idea generator services",
+      "steps": [
+        {
+          "name": "start-services",
+          "run": "../deployment/startup.sh"
+        }
+      ]
+    },
+    "build": {
+      "description": "Build idea generator artifacts",
+      "steps": [
+        {
+          "name": "build-artifacts",
+          "run": "./scripts/manage.sh build"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run idea generator tests",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "./test.sh"
+        }
+      ]
+    },
+    "clean": {
+      "description": "Clean build artifacts and temporary files",
+      "steps": [
+        {
+          "name": "clean-artifacts",
+          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+        }
+      ]
+    }
+  }
+}

@@ -326,6 +326,11 @@ manage::main() {
     # Export PROJECT_ROOT for child scripts
     export PROJECT_ROOT
     
+    # Set default ENVIRONMENT, LOCATION, and TARGET if not already set (commonly needed by many phases)
+    export ENVIRONMENT="${ENVIRONMENT:-development}"
+    export LOCATION="${LOCATION:-Local}"
+    export TARGET="${TARGET:-docker}"
+    
     # Shift phase from arguments and pass remaining to lifecycle engine
     shift
     

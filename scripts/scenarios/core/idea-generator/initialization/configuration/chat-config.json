@@ -1,0 +1,128 @@
+{
+  "websocket": {
+    "enabled": true,
+    "port": 5683,
+    "path": "/ws/chat",
+    "heartbeat_interval": 30000,
+    "reconnect_attempts": 5,
+    "reconnect_delay": 1000
+  },
+  "session": {
+    "max_duration": 3600000,
+    "idle_timeout": 300000,
+    "auto_save_interval": 10000,
+    "max_messages_per_session": 1000
+  },
+  "agents": {
+    "revise": {
+      "name": "Revision Agent",
+      "avatar": "🔧",
+      "color": "#3B82F6",
+      "personality": "analytical and detail-oriented",
+      "response_style": "structured and actionable",
+      "max_response_time": 15000
+    },
+    "investigate": {
+      "name": "Research Agent", 
+      "avatar": "🔍",
+      "color": "#10B981",
+      "personality": "thorough and inquisitive",
+      "response_style": "comprehensive with data backing",
+      "max_response_time": 20000
+    },
+    "critique": {
+      "name": "Critique Agent",
+      "avatar": "⚖️", 
+      "color": "#F59E0B",
+      "personality": "constructive but direct",
+      "response_style": "balanced pros and cons",
+      "max_response_time": 12000
+    },
+    "expand": {
+      "name": "Creative Agent",
+      "avatar": "💡",
+      "color": "#8B5CF6", 
+      "personality": "imaginative and exploratory",
+      "response_style": "creative with multiple possibilities",
+      "max_response_time": 18000
+    },
+    "synthesize": {
+      "name": "Synthesis Agent",
+      "avatar": "🔮",
+      "color": "#EC4899",
+      "personality": "integrative and holistic",
+      "response_style": "unified perspective with connections",
+      "max_response_time": 25000
+    },
+    "validate": {
+      "name": "Validator Agent",
+      "avatar": "✅",
+      "color": "#059669",
+      "personality": "methodical and standards-focused", 
+      "response_style": "checklist-based with clear pass/fail",
+      "max_response_time": 15000
+    }
+  },
+  "ai_models": {
+    "primary": {
+      "model": "llama3.2",
+      "temperature": 0.7,
+      "max_tokens": 1500,
+      "top_p": 0.9,
+      "frequency_penalty": 0.1
+    },
+    "creative": {
+      "model": "llama3.2",
+      "temperature": 0.9,
+      "max_tokens": 2000,
+      "top_p": 0.95,
+      "frequency_penalty": 0.2
+    },
+    "analytical": {
+      "model": "mistral",
+      "temperature": 0.4,
+      "max_tokens": 1500,
+      "top_p": 0.8,
+      "frequency_penalty": 0.05
+    }
+  },
+  "context": {
+    "max_context_length": 8000,
+    "include_campaign_context": true,
+    "include_document_context": true,
+    "include_chat_history": true,
+    "chat_history_limit": 10,
+    "document_context_limit": 3
+  },
+  "streaming": {
+    "enabled": true,
+    "chunk_size": 50,
+    "typing_delay": 30,
+    "show_thinking": false
+  },
+  "moderation": {
+    "enabled": true,
+    "content_filter": true,
+    "spam_protection": true,
+    "rate_limiting": {
+      "messages_per_minute": 30,
+      "tokens_per_hour": 50000
+    }
+  },
+  "features": {
+    "message_reactions": true,
+    "message_editing": false,
+    "message_deletion": true,
+    "conversation_branching": false,
+    "export_conversations": true,
+    "share_conversations": false
+  },
+  "ui": {
+    "show_agent_thinking": false,
+    "show_token_count": false,
+    "show_response_time": true,
+    "compact_mode": false,
+    "bubble_style": "modern",
+    "syntax_highlighting": true
+  }
+}

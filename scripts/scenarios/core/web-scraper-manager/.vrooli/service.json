@@ -1,0 +1,513 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "inheritance": {
+    "extends": "../../../../../.vrooli/service.json",
+    "merge": {
+      "strategy": "merge",
+      "arrays": "concat"
+    }
+  },
+  "service": {
+    "name": "web-scraper-manager",
+    "displayName": "Web Scraper Management Platform",
+    "description": "Unified dashboard for managing and orchestrating web scraping agents across Huginn, Browserless, and Agent-S2",
+    "version": "1.0.0",
+    "type": "business-application",
+    "tags": [
+      "web-scraping",
+      "data-extraction",
+      "automation-platform",
+      "unified-dashboard",
+      "windmill-ui",
+      "agent-orchestration",
+      "data-analytics"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "team@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scripts/scenarios/core/web-scraper-manager"
+    },
+    "license": "GPL-3.0",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "./README.md",
+    "support": {
+      "email": "support@vrooli.com",
+      "issues": "https://github.com/Vrooli/Vrooli/issues",
+      "chat": "https://discord.gg/vrooli"
+    }
+  },
+  "resources": {
+    "storage": {
+      "postgres": {
+        "type": "postgresql",
+        "enabled": true,
+        "version": "16",
+        "required": true,
+        "initialization": {
+          "data": [
+            {
+              "type": "schema",
+              "file": "initialization/storage/postgres/schema.sql"
+            }
+          ]
+        }
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "description": "Job queue for scraping tasks and rate limiting"
+        }
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "buckets": [
+            {
+              "name": "scraper-assets",
+              "policy": "private"
+            },
+            {
+              "name": "screenshots",
+              "policy": "private"
+            },
+            {
+              "name": "exports",
+              "policy": "private"
+            }
+          ]
+        }
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "collections": [
+            {
+              "name": "scraped-content",
+              "config": {
+                "vectors": {
+                  "size": 768,
+                  "distance": "Cosine"
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "automation": {
+      "n8n": {
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "workflows": [
+            {
+              "name": "scraper-orchestrator",
+              "file": "initialization/automation/n8n/scraper-orchestrator.json",
+              "enabled": true,
+              "tags": ["orchestration", "scheduling", "routing"]
+            }
+          ]
+        }
+      },
+      "windmill": {
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "apps": [
+            {
+              "path": "f/scraper/dashboard",
+              "file": "initialization/automation/windmill/dashboard-app.json",
+              "summary": "Web Scraper Management Dashboard"
+            },
+            {
+              "path": "f/scraper/agents",
+              "file": "initialization/automation/windmill/agents-manager.json",
+              "summary": "Agent Configuration and Monitoring"
+            },
+            {
+              "path": "f/scraper/analytics",
+              "file": "initialization/automation/windmill/analytics-panel.json",
+              "summary": "Scraping Analytics and Reporting"
+            }
+          ],
+          "scripts": []
+        }
+      },
+      "huginn": {
+        "enabled": true,
+        "required": true,
+        "type": "huginn"
+      }
+    },
+    "agents": {
+      "browserless": {
+        "enabled": true,
+        "required": true,
+        "type": "browserless"
+      },
+      "agent-s2": {
+        "enabled": true,
+        "required": true,
+        "type": "agent-s2"
+      }
+    }
+  },
+  "deployment": {
+    "target": "docker",
+    "strategy": "rolling-update",
+    "urls": {
+      "application": "${service.windmill.url}",
+      "api": "${service.vrooli.url}/api/web-scraper-manager",
+      "health": "${service.vrooli.url}/api/web-scraper-manager/health",
+      "huginn": "${service.huginn.url}",
+      "browserless": "${service.browserless.url}",
+      "agent-s2": "${service.agent-s2.url}",
+      "n8n": "${service.n8n.url}",
+      "windmill": "${service.windmill.url}"
+    },
+    "initialization": {
+      "phases": [
+        {
+          "name": "database-setup",
+          "tasks": [
+            {
+              "name": "apply-schema",
+              "type": "sql",
+              "target": "storage.postgres",
+              "file": "initialization/storage/postgres/schema.sql"
+            }
+          ]
+        },
+        {
+          "name": "storage-setup",
+          "parallel": true,
+          "tasks": [
+            {
+              "name": "setup-storage-buckets",
+              "type": "resource-inject",
+              "target": "storage.minio",
+              "timeout": "2m"
+            },
+            {
+              "name": "setup-vector-collections",
+              "type": "resource-inject",
+              "target": "storage.qdrant",
+              "timeout": "2m"
+            }
+          ]
+        },
+        {
+          "name": "automation-setup",
+          "parallel": true,
+          "tasks": [
+            {
+              "name": "deploy-n8n-workflows",
+              "type": "resource-inject",
+              "target": "automation.n8n",
+              "timeout": "3m"
+            },
+            {
+              "name": "deploy-windmill-apps",
+              "type": "resource-inject",
+              "target": "automation.windmill",
+              "config": "initialization/automation/windmill/",
+              "timeout": "3m"
+            }
+          ]
+        },
+        {
+          "name": "application-configuration",
+          "tasks": [
+            {
+              "name": "load-platform-configs",
+              "type": "config",
+              "file": "initialization/configuration/platform-configs.json"
+            }
+          ]
+        },
+        {
+          "name": "startup",
+          "tasks": [
+            {
+              "name": "start-application",
+              "type": "script",
+              "script": "./deployment/startup.sh",
+              "timeout": "2m"
+            }
+          ]
+        },
+        {
+          "name": "post-validation",
+          "tasks": [
+            {
+              "name": "health-check",
+              "type": "healthcheck",
+              "target": "${service.windmill.url}/api/version",
+              "timeout": "30s",
+              "retries": 3
+            }
+          ]
+        }
+      ]
+    },
+    "monitoring": {
+      "enabled": true,
+      "healthChecks": {
+        "application": {
+          "endpoint": "${service.windmill.url}/api/version",
+          "interval": "30s",
+          "timeout": "5s",
+          "threshold": 3
+        },
+        "huginn": {
+          "endpoint": "${service.huginn.url}/",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "browserless": {
+          "endpoint": "${service.browserless.url}/stats",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "agent-s2": {
+          "endpoint": "${service.agent-s2.url}/health",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "n8n": {
+          "endpoint": "${service.n8n.url}/healthz",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "qdrant": {
+          "endpoint": "${service.qdrant.url}/health",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "minio": {
+          "endpoint": "${service.minio.url}/minio/health/ready",
+          "interval": "60s",
+          "timeout": "10s"
+        },
+        "database": {
+          "type": "tcp",
+          "port": 5433,
+          "interval": "30s"
+        }
+      },
+      "metrics": {
+        "responseTime": {
+          "p50": "200ms",
+          "p95": "1000ms",
+          "p99": "3000ms"
+        },
+        "throughput": {
+          "rps": 10,
+          "concurrent": 20
+        },
+        "errorRate": {
+          "threshold": "2%"
+        }
+      }
+    },
+    "cleanup": {
+      "enabled": true,
+      "tasks": [
+        {
+          "name": "delete-windmill-apps",
+          "type": "resource-cleanup",
+          "target": "automation.windmill"
+        },
+        {
+          "name": "delete-n8n-workflows",
+          "type": "resource-cleanup",
+          "target": "automation.n8n"
+        },
+        {
+          "name": "drop-database",
+          "type": "sql",
+          "target": "storage.postgres",
+          "query": "DROP DATABASE IF EXISTS scraper_manager"
+        },
+        {
+          "name": "clear-vector-collections",
+          "type": "resource-cleanup",
+          "target": "storage.qdrant"
+        },
+        {
+          "name": "clear-storage-buckets",
+          "type": "resource-cleanup",
+          "target": "storage.minio"
+        }
+      ]
+    },
+    "testing": {
+      "enabled": true,
+      "timeout": "20m",
+      "script": "./test.sh",
+      "ui": {
+        "required": true,
+        "type": "windmill",
+        "url": "${service.windmill.url}"
+      },
+      "performance": {
+        "loadTest": {
+          "users": 10,
+          "duration": "5m",
+          "rampUp": "1m"
+        }
+      }
+    },
+    "resources": {
+      "requests": {
+        "cpu": "500m",
+        "memory": "1Gi"
+      },
+      "limits": {
+        "cpu": "2000m",
+        "memory": "4Gi"
+      }
+    }
+  },
+  "metadata": {
+    "businessModel": {
+      "purpose": "commercial",
+      "valueProposition": "Unified control plane for all web scraping needs with AI-powered orchestration across multiple platforms",
+      "targetMarket": "Data analysts, market researchers, e-commerce businesses, competitive intelligence teams",
+      "painPoints": [
+        "Managing multiple scraping platforms separately",
+        "No unified view of scraping operations across tools",
+        "Difficulty coordinating complex scraping workflows",
+        "Lack of centralized monitoring and alerting"
+      ],
+      "solution": "Unified dashboard orchestrating Huginn, Browserless, and Agent-S2 with intelligent routing, monitoring, and analytics",
+      "competitiveAdvantage": "Only platform providing unified control across all major scraping technologies with AI-powered optimization",
+      "revenuePotential": {
+        "initial": "$15,000",
+        "recurring": "$25,000",
+        "expansion": "$50,000",
+        "totalEstimate": "$90,000"
+      },
+      "marketDemand": {
+        "level": "very-high",
+        "growth": "40% annually",
+        "evidence": "Growing demand for data-driven decision making and competitive intelligence"
+      },
+      "roi": {
+        "developmentCost": "$8,000",
+        "timeToMarket": "2 weeks",
+        "breakEven": "3 months"
+      }
+    },
+    "performance": {
+      "targets": {
+        "initializationTime": "4m",
+        "responseTime": {
+          "p50": "200ms",
+          "p95": "1000ms",
+          "p99": "3000ms"
+        },
+        "throughput": {
+          "minimum": 5,
+          "target": 10,
+          "peak": 50
+        },
+        "availability": "99.5%",
+        "errorRate": "<2%"
+      },
+      "resources": {
+        "cpu": {
+          "minimum": "1.0",
+          "target": "2.0",
+          "maximum": "4.0"
+        },
+        "memory": {
+          "minimum": "2Gi",
+          "target": "4Gi",
+          "maximum": "8Gi"
+        },
+        "storage": {
+          "database": "100Gi",
+          "vectors": "50Gi",
+          "files": "200Gi"
+        }
+      }
+    },
+    "customization": {
+      "variables": {
+        "APP_NAME": {
+          "type": "string",
+          "default": "Web Scraper Manager",
+          "description": "Application display name"
+        },
+        "COMPANY_NAME": {
+          "type": "string",
+          "default": "Your Company",
+          "description": "Customer company name"
+        },
+        "PRIMARY_COLOR": {
+          "type": "string",
+          "default": "#10b981",
+          "description": "Brand primary color"
+        },
+        "DATABASE_NAME": {
+          "type": "string",
+          "default": "scraper_manager",
+          "description": "Database name"
+        }
+      },
+      "features": {
+        "authentication": {
+          "enabled": true,
+          "provider": "jwt",
+          "sso": false
+        },
+        "notifications": {
+          "enabled": true,
+          "channels": ["email", "webhook", "slack"]
+        },
+        "analytics": {
+          "enabled": true,
+          "provider": "internal"
+        },
+        "proxyManagement": {
+          "enabled": true,
+          "provider": "internal"
+        },
+        "vectorSearch": {
+          "enabled": true,
+          "provider": "qdrant"
+        }
+      },
+      "integrations": [
+        {
+          "name": "Business Intelligence Tools",
+          "type": "api",
+          "required": false
+        },
+        {
+          "name": "Data Warehouses",
+          "type": "webhook",
+          "required": false
+        }
+      ]
+    },
+    "category": "data-extraction",
+    "complexity": "advanced",
+    "marketDemand": "very-high"
+  }
+}

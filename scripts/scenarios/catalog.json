@@ -8,16 +8,7 @@
       "location": "core/scenario-generator-v1",
       "category": "vrooli-helpers",
       "validated": false,
-      "enabled": false,
-      "ui": true
-    },
-    {
-      "name": "analytics-dashboard",
-      "description": "Monitors resource health and performance metrics",
-      "location": "core/analytics-dashboard",
-      "category": "vrooli-helpers",
-      "validated": false,
-      "enabled": false,
+      "enabled": true,
       "ui": true
     },
     {
@@ -44,7 +35,7 @@
       "location": "core/image-generation-pipeline",
       "category": "saas-applications",
       "validated": false,
-      "enabled": false,
+      "enabled": true,
       "ui": true
     },
     {
@@ -53,7 +44,7 @@
       "location": "core/audio-intelligence-platform",
       "category": "saas-applications",
       "validated": false,
-      "enabled": false,
+      "enabled": true,
       "ui": true
     },
     {
@@ -62,7 +53,7 @@
       "location": "core/resume-screening-assistant",
       "category": "saas-applications",
       "validated": false,
-      "enabled": false,
+      "enabled": true,
       "ui": false
     },
     {
@@ -71,8 +62,125 @@
       "location": "core/secure-document-processing",
       "category": "saas-applications",
       "validated": false,
-      "enabled": false,
+      "enabled": true,
       "ui": false
+    },
+    {
+      "name": "app-monitor",
+      "description": "Dashboard to manage all running generated apps",
+      "location": "core/app-monitor",
+      "category": "vrooli-helpers",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "system-monitor",
+      "description": "Server monitoring with AI-driven anomaly investigation",
+      "location": "core/system-monitor",
+      "category": "vrooli-helpers",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "prompt-manager",
+      "description": "Clean UX for storing prompts organized by campaigns",
+      "location": "core/prompt-manager",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "brand-manager",
+      "description": "Generates complete branding assets (logos, slogans, ad copy) with export and integration capabilities",
+      "location": "core/brand-manager",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "personal-digital-twin",
+      "description": "Creates AI personas from connected data sources with semantic search and model fine-tuning",
+      "location": "core/personal-digital-twin",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "app-personalizer",
+      "description": "Customizes generated apps using prompts or digital twins for personalized experiences",
+      "location": "core/app-personalizer",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "document-manager",
+      "description": "AI agents for monitoring and maintaining documentation health with queue-based improvements",
+      "location": "core/document-manager",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "retro-game-launcher",
+      "description": "Retro-style launcher for AI-generated games with remix capabilities",
+      "location": "core/retro-game-launcher",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "web-scraper-manager",
+      "description": "Unified dashboard for managing Huginn, Browserless, and Agent-S2 web scrapers",
+      "location": "core/web-scraper-manager",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "idea-generator",
+      "description": "AI-powered idea generation with campaign context and interactive agent refinement",
+      "location": "core/idea-generator",
+      "category": "saas-applications",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "agent-metareasoning-manager",
+      "description": "Dashboard for managing metareasoning tools (prompts, workflows) that enhance agent decision-making",
+      "location": "core/agent-metareasoning-manager",
+      "category": "vrooli-helpers",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "app-issue-tracker",
+      "description": "Issue tracking system for Vrooli and scenarios with AI-powered investigation and automated fixes",
+      "location": "core/app-issue-tracker",
+      "category": "vrooli-helpers",
+      "validated": false,
+      "enabled": true,
+      "ui": true
+    },
+    {
+      "name": "resource-experimenter",
+      "description": "Experimental resource testing platform for evaluating new services before native Vrooli integration",
+      "location": "core/resource-experimenter",
+      "category": "vrooli-helpers",
+      "validated": false,
+      "enabled": true,
+      "ui": true
     }
   ]
 }

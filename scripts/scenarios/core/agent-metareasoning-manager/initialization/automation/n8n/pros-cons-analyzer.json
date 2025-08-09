@@ -1,0 +1,92 @@
+{
+  "name": "Pros and Cons Analyzer",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "analyze-pros-cons",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "resource": "completion",
+        "model": "{{ $json.model || 'llama3.2' }}",
+        "prompt": "Analyze the following decision or proposal and create a comprehensive pros and cons list:\n\n{{ $json.input }}\n\nProvide:\n1. At least 5 pros (advantages, benefits, positive outcomes)\n2. At least 5 cons (disadvantages, risks, negative outcomes)\n3. Weight each item on importance (1-10)\n4. Overall recommendation\n\nFormat as JSON with structure: {pros: [{item, weight, explanation}], cons: [{item, weight, explanation}], recommendation: string, confidence: number}",
+        "temperature": 0.5,
+        "maxTokens": 2000
+      },
+      "id": "generate_analysis",
+      "name": "Generate Pros and Cons",
+      "type": "n8n-nodes-base.ollama",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const response = JSON.parse($node['Generate Pros and Cons'].json.response);\n\n// Calculate weighted scores\nconst prosScore = response.pros.reduce((sum, p) => sum + p.weight, 0);\nconst consScore = response.cons.reduce((sum, c) => sum + c.weight, 0);\nconst netScore = prosScore - consScore;\n\nreturn {\n  json: {\n    analysis: response,\n    scores: {\n      pros_total: prosScore,\n      cons_total: consScore,\n      net_score: netScore,\n      recommendation_strength: Math.abs(netScore) / (prosScore + consScore)\n    },\n    timestamp: new Date().toISOString(),\n    model_used: $json.model || 'llama3.2'\n  }\n};"
+      },
+      "id": "process_results",
+      "name": "Process and Score",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "execution_history",
+        "columns": "resource_type,resource_id,input_data,output_data,execution_time_ms,status,model_used",
+        "returnFields": "id"
+      },
+      "id": "save_history",
+      "name": "Save to History",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "success"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "response",
+      "name": "Send Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1050, 300]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [[{"node": "generate_analysis", "type": "main", "index": 0}]]
+    },
+    "generate_analysis": {
+      "main": [[{"node": "process_results", "type": "main", "index": 0}]]
+    },
+    "process_results": {
+      "main": [[{"node": "save_history", "type": "main", "index": 0}]]
+    },
+    "save_history": {
+      "main": [[{"node": "response", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "id": "pros-cons-analyzer"
+}

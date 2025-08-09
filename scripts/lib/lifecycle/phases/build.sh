@@ -296,7 +296,6 @@ build::k8s_artifacts() {
 build::universal::main() {
     # Initialize phase
     phase::init "Build"
-    phase::export_env
     
     # Get parameters from environment or defaults
     local test="${TEST:-no}"
@@ -337,18 +336,21 @@ build::universal::main() {
     # Step 4: Build application
     log::header "🔨 Building Application"
     
-    # Look for app-specific build script
-    local app_build="${var_APP_LIFECYCLE_DIR}/build.sh"
-    if [[ -f "$app_build" ]]; then
-        log::info "Running app-specific build..."
-        if bash "$app_build"; then
-            log::success "✅ Application built"
-        else
-            log::error "Application build failed"
-            return 1
+    # Check if service.json has build steps defined
+    local has_steps=false
+    local service_json="${var_SERVICE_JSON_FILE:-${var_ROOT_DIR}/.vrooli/service.json}"
+    
+    if [[ -f "$service_json" ]] && command -v jq &> /dev/null; then
+        local build_steps
+        build_steps=$(jq -r '.lifecycle.build.steps // [] | length' "$service_json" 2>/dev/null || echo "0")
+        if [[ "$build_steps" -gt 0 ]]; then
+            has_steps=true
+            log::info "Build steps will be executed from service.json"
         fi
-    else
-        # Try generic build commands
+    fi
+    
+    # If no steps defined, try generic build commands
+    if [[ "$has_steps" == "false" ]]; then
         if [[ -f "${var_ROOT_DIR}/package.json" ]]; then
             if command -v pnpm &> /dev/null; then
                 log::info "Running: pnpm build"
@@ -394,7 +396,7 @@ build::universal::main() {
     if [[ "$bundles" != "none" ]]; then
         log::header "📦 Creating Bundles"
         
-        local bundle_script="${var_APP_PACKAGE_DIR}/bundle.sh"
+        local bundle_script="${var_APP_PACKAGE_DIR:-}/bundle.sh"
         if [[ -f "$bundle_script" ]]; then
             log::info "Creating bundles: $bundles"
             BUNDLES="$bundles" bash "$bundle_script"

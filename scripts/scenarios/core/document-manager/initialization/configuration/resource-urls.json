@@ -1,0 +1,190 @@
+{
+  "resource_urls": {
+    "postgres": {
+      "host": "localhost",
+      "port": 5433,
+      "database": "document_manager",
+      "connection_url": "postgresql://postgres:password@localhost:5433/document_manager",
+      "ssl": false,
+      "max_connections": 20,
+      "connection_timeout": 30000,
+      "health_check_url": "postgresql://postgres:password@localhost:5433/document_manager"
+    },
+    "windmill": {
+      "host": "localhost",
+      "port": 5681,
+      "base_url": "http://localhost:5681",
+      "api_url": "http://localhost:5681/api",
+      "workspace": "document_manager",
+      "auth_token": "${WINDMILL_TOKEN}",
+      "health_check_url": "http://localhost:5681/api/version"
+    },
+    "n8n": {
+      "host": "localhost", 
+      "port": 5678,
+      "base_url": "http://localhost:5678",
+      "api_url": "http://localhost:5678/api/v1",
+      "webhook_url": "http://localhost:5678/webhook",
+      "auth_token": "${N8N_API_KEY}",
+      "health_check_url": "http://localhost:5678/healthz"
+    },
+    "ollama": {
+      "host": "localhost",
+      "port": 11434,
+      "base_url": "http://localhost:11434",
+      "api_url": "http://localhost:11434/api",
+      "models": {
+        "text_generation": "llama3.2",
+        "embeddings": "nomic-embed-text",
+        "code_analysis": "codellama:7b"
+      },
+      "default_options": {
+        "temperature": 0.3,
+        "top_p": 0.9,
+        "max_tokens": 2048,
+        "stream": false
+      },
+      "health_check_url": "http://localhost:11434/api/tags"
+    },
+    "qdrant": {
+      "host": "localhost",
+      "port": 6333,
+      "base_url": "http://localhost:6333",
+      "api_url": "http://localhost:6333",
+      "grpc_port": 6334,
+      "collections": {
+        "documentation_embeddings": {
+          "vector_size": 768,
+          "distance": "Cosine",
+          "shard_number": 1,
+          "replication_factor": 1
+        },
+        "agent_memory": {
+          "vector_size": 384,
+          "distance": "Cosine", 
+          "shard_number": 1,
+          "replication_factor": 1
+        }
+      },
+      "health_check_url": "http://localhost:6333/health"
+    },
+    "redis": {
+      "host": "localhost",
+      "port": 6380,
+      "password": "${REDIS_PASSWORD}",
+      "database": 0,
+      "connection_url": "redis://:${REDIS_PASSWORD}@localhost:6380/0",
+      "channels": {
+        "agent_notifications": "agent-notifications",
+        "improvement_queue": "improvement-queue",
+        "ui_updates": "ui-updates",
+        "system_events": "system-events"
+      },
+      "health_check_command": "PING"
+    },
+    "unstructured_io": {
+      "host": "localhost",
+      "port": 11450,
+      "base_url": "http://localhost:11450",
+      "api_url": "http://localhost:11450/api",
+      "supported_formats": ["pdf", "docx", "md", "rst", "html", "txt"],
+      "max_file_size": "50MB",
+      "timeout": 60000,
+      "health_check_url": "http://localhost:11450/health"
+    },
+    "vault": {
+      "host": "localhost",
+      "port": 8200,
+      "base_url": "http://localhost:8200",
+      "api_url": "http://localhost:8200/v1",
+      "mount_path": "secret/document-manager",
+      "auth_method": "token",
+      "token": "${VAULT_TOKEN}",
+      "health_check_url": "http://localhost:8200/v1/sys/health"
+    },
+    "browserless": {
+      "host": "localhost",
+      "port": 4110,
+      "base_url": "http://localhost:4110",
+      "api_url": "http://localhost:4110",
+      "concurrent_sessions": 10,
+      "session_timeout": 30000,
+      "health_check_url": "http://localhost:4110/health"
+    }
+  },
+  "service_discovery": {
+    "enabled": true,
+    "refresh_interval": 300000,
+    "fallback_enabled": true,
+    "health_check_interval": 60000,
+    "health_check_timeout": 5000,
+    "retry_attempts": 3,
+    "retry_delay": 2000
+  },
+  "load_balancing": {
+    "strategy": "round_robin",
+    "health_check_required": true,
+    "failover_enabled": true,
+    "max_retries": 2
+  },
+  "connection_pooling": {
+    "postgres": {
+      "min_connections": 2,
+      "max_connections": 20,
+      "idle_timeout": 30000,
+      "connection_timeout": 10000
+    },
+    "redis": {
+      "min_connections": 1,
+      "max_connections": 10,
+      "idle_timeout": 60000,
+      "connection_timeout": 5000
+    }
+  },
+  "circuit_breaker": {
+    "enabled": true,
+    "failure_threshold": 5,
+    "recovery_timeout": 60000,
+    "half_open_max_calls": 3
+  },
+  "monitoring": {
+    "metrics_enabled": true,
+    "response_time_tracking": true,
+    "error_rate_tracking": true,
+    "availability_tracking": true,
+    "alert_thresholds": {
+      "response_time_ms": 5000,
+      "error_rate_percent": 10,
+      "availability_percent": 95
+    }
+  },
+  "security": {
+    "ssl_verify": true,
+    "timeout_default": 30000,
+    "max_redirects": 5,
+    "user_agent": "DocumentManager/2.0",
+    "rate_limiting": {
+      "enabled": true,
+      "requests_per_minute": 100,
+      "burst_size": 20
+    }
+  },
+  "environment_overrides": {
+    "development": {
+      "postgres.ssl": false,
+      "security.ssl_verify": false,
+      "monitoring.alert_thresholds.response_time_ms": 10000
+    },
+    "production": {
+      "postgres.ssl": true,
+      "security.ssl_verify": true,
+      "connection_pooling.postgres.max_connections": 50,
+      "monitoring.alert_thresholds.response_time_ms": 2000
+    },
+    "testing": {
+      "postgres.database": "document_manager_test",
+      "redis.database": 1,
+      "security.ssl_verify": false
+    }
+  }
+}

@@ -1,0 +1,188 @@
+{
+  "templates": [
+    {
+      "id": "problem_solution",
+      "name": "Problem-Solution",
+      "description": "Generate ideas based on identifying and solving specific problems",
+      "weight": 1.5,
+      "prompts": [
+        "What's a recurring problem in {industry} that technology could solve?",
+        "How could we eliminate the biggest friction point in {process}?",
+        "What manual task in {domain} is begging for automation?",
+        "What problem do {target_audience} face that they don't even realize?",
+        "How could we turn {current_pain_point} into a competitive advantage?"
+      ]
+    },
+    {
+      "id": "trend_intersection",
+      "name": "Trend Intersection", 
+      "description": "Combine multiple trends or technologies for innovative solutions",
+      "weight": 1.3,
+      "prompts": [
+        "How could {trend1} be combined with {trend2} to create something new?",
+        "What happens when we apply {technology} to {traditional_industry}?",
+        "How could {consumer_behavior_change} create opportunities in {market}?",
+        "What if we merged {service_type1} with {service_type2}?",
+        "How could {emerging_tech} disrupt {established_process}?"
+      ]
+    },
+    {
+      "id": "user_experience",
+      "name": "User Experience Focus",
+      "description": "Ideas centered around improving user experience and interaction",
+      "weight": 1.4,
+      "prompts": [
+        "How could we make {complex_process} as simple as one click?",
+        "What would {service} look like if designed for {specific_user_group}?",
+        "How could we eliminate all the annoying parts of {user_journey}?",
+        "What if {traditional_interaction} was completely reimagined?",
+        "How could we make {expertise} accessible to complete beginners?"
+      ]
+    },
+    {
+      "id": "business_model",
+      "name": "Business Model Innovation",
+      "description": "Explore new ways to create, deliver, and capture value",
+      "weight": 1.2,
+      "prompts": [
+        "What if {industry} moved from ownership to subscription model?",
+        "How could we create a marketplace for {underutilized_resource}?",
+        "What would a platform business look like in {traditional_sector}?",
+        "How could we turn {cost_center} into a revenue generator?",
+        "What if customers could {participate_in_value_creation}?"
+      ]
+    },
+    {
+      "id": "constraint_removal",
+      "name": "Constraint Removal",
+      "description": "Ideas that challenge existing limitations and constraints",
+      "weight": 1.1,
+      "prompts": [
+        "What would be possible if {current_constraint} didn't exist?",
+        "How could we work around the limitation of {resource_scarcity}?",
+        "What if {expensive_thing} became incredibly cheap?",
+        "How could we bypass {traditional_gatekeeper}?",
+        "What would change if {physical_limitation} was removed?"
+      ]
+    },
+    {
+      "id": "community_social",
+      "name": "Community & Social",
+      "description": "Leverage social interactions and community dynamics",
+      "weight": 1.0,
+      "prompts": [
+        "How could we turn {individual_activity} into a social experience?",
+        "What kind of community could form around {shared_interest}?",
+        "How could peer-to-peer dynamics improve {service}?",
+        "What would happen if we gamified {mundane_task}?",
+        "How could we connect people who share {specific_challenge}?"
+      ]
+    },
+    {
+      "id": "data_insight",
+      "name": "Data & Insights",
+      "description": "Generate value from data analysis and insights",
+      "weight": 1.3,
+      "prompts": [
+        "What insights could we extract from {underutilized_data_source}?",
+        "How could we predict {important_outcome} before it happens?",
+        "What patterns in {behavior_type} could inform better {decisions}?",
+        "How could we visualize {complex_information} for better understanding?",
+        "What would personalized {recommendation_type} look like?"
+      ]
+    },
+    {
+      "id": "sustainability_impact",
+      "name": "Sustainability & Impact", 
+      "description": "Focus on environmental and social impact solutions",
+      "weight": 1.2,
+      "prompts": [
+        "How could we make {industry} more environmentally sustainable?",
+        "What circular economy opportunity exists in {waste_stream}?",
+        "How could technology help people reduce their {environmental_impact}?",
+        "What social problem could be solved with {approach}?",
+        "How could we measure and improve {impact_metric}?"
+      ]
+    },
+    {
+      "id": "micro_niche",
+      "name": "Micro-Niche Focus",
+      "description": "Highly specific solutions for very particular audiences",
+      "weight": 0.8,
+      "prompts": [
+        "What tool would be perfect for {very_specific_user_group}?",
+        "How could we solve the unique problem of {niche_scenario}?",
+        "What would {general_solution} look like optimized for {specific_constraint}?",
+        "How could we serve the overlooked needs of {underserved_segment}?",
+        "What micro-optimization could make a huge difference in {specific_workflow}?"
+      ]
+    },
+    {
+      "id": "future_speculation",
+      "name": "Future Speculation",
+      "description": "Explore possibilities for future scenarios and changes", 
+      "weight": 0.9,
+      "prompts": [
+        "What will people need when {future_scenario} becomes reality?",
+        "How should we prepare for the world where {trend} is dominant?",
+        "What infrastructure will be needed for {emerging_capability}?",
+        "How could we get ahead of {anticipated_change}?",
+        "What opportunity will emerge from {future_challenge}?"
+      ]
+    }
+  ],
+  "context_variables": {
+    "industry": [
+      "healthcare", "education", "finance", "retail", "manufacturing", 
+      "agriculture", "transportation", "real estate", "hospitality", "legal"
+    ],
+    "process": [
+      "hiring", "onboarding", "project management", "customer service", 
+      "inventory management", "quality control", "budgeting", "reporting"
+    ],
+    "domain": [
+      "small businesses", "freelancers", "remote teams", "students", 
+      "seniors", "creators", "nonprofits", "startups"
+    ],
+    "target_audience": [
+      "busy professionals", "new parents", "college students", "retirees",
+      "small business owners", "remote workers", "creative professionals"
+    ],
+    "technology": [
+      "artificial intelligence", "blockchain", "IoT sensors", "voice interfaces",
+      "augmented reality", "computer vision", "natural language processing"
+    ],
+    "traditional_industry": [
+      "construction", "farming", "insurance", "banking", "healthcare",
+      "education", "government", "hospitality"
+    ]
+  },
+  "generation_settings": {
+    "default_count": 1,
+    "max_count": 5,
+    "include_context": true,
+    "personalization": {
+      "use_campaign_context": true,
+      "use_user_history": true,
+      "use_trending_topics": false
+    },
+    "quality_filters": {
+      "min_length": 50,
+      "max_length": 500,
+      "require_actionable": true,
+      "avoid_generic": true
+    }
+  },
+  "dice_animation": {
+    "show_template_hint": true,
+    "reveal_context_variables": false,
+    "animate_text_generation": true,
+    "loading_messages": [
+      "Rolling for innovation...",
+      "Mixing ideas together...",
+      "Consulting the innovation oracle...",
+      "Generating creative sparks...",
+      "Brewing up something unique..."
+    ]
+  }
+}

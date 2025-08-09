@@ -343,6 +343,16 @@ targets::validate() {
         return 1
     fi
     
+    # Check if ANY targets are defined in the phase
+    local all_targets
+    all_targets=$(config::get_targets)
+    
+    # If no targets are defined at all (only universal steps), any target is valid
+    if [[ "$all_targets" == "{}" ]] || [[ -z "$all_targets" ]]; then
+        targets::log_debug "No targets defined in phase config - accepting any target for universal steps"
+        return 0
+    fi
+    
     # Check if target exists
     if ! config::target_exists "$target"; then
         # Check for default

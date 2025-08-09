@@ -77,7 +77,6 @@ source "${var_LIB_DEPS_DIR}/shellcheck.sh"
 setup::universal::main() {
     # Initialize phase
     phase::init "Setup"
-    phase::export_env
     
     # Get parameters from environment or defaults
     local target="${TARGET:-native-linux}"
@@ -184,22 +183,10 @@ setup::universal::main() {
         return "${ERROR_DOCKER_SETUP_FAILED:-1}"
     fi
     
-    # Step 7: Run Target-Specific Setup
-    local target_script="${var_APP_LIFECYCLE_SETUP_DIR}/target/${TARGET//-/_}.sh"
-    if [[ -f "$target_script" ]]; then
-        log::header "🎯 Target-Specific Setup: $TARGET"
-        if ! bash "$target_script"; then
-            log::error "Target setup failed for: $TARGET"
-            return 1
-        fi
-    else
-        log::warning "No target-specific setup found for: $TARGET"
-        # This is not necessarily an error for standalone apps
-        if phase::is_monorepo; then
-            log::error "Expected target script: $target_script"
-            return "${ERROR_FUNCTION_NOT_FOUND:-1}"
-        fi
-    fi
+    # Step 7: Target-Specific Setup (handled by service.json)
+    # The actual target-specific setup is defined in service.json
+    # This step is kept for logging purposes only
+    log::info "Target-specific setup will be handled by service.json configuration"
     
     # Step 8: Install Resources (if configured)
     if [[ "$resources" != "none" ]]; then

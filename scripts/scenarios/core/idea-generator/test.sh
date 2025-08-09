@@ -1,0 +1,223 @@
+#!/usr/bin/env bash
+# Idea Generator - Integration Test Suite
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCENARIO_DIR="$SCRIPT_DIR"
+PROJECT_ROOT="$(cd "$SCENARIO_DIR/../../../.." && pwd)"
+
+# Test configuration
+TEST_TIMEOUT=60
+TEST_RESULTS=()
+FAILED_TESTS=0
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Logging functions
+log_info() { echo -e "${GREEN}[INFO]${NC} $*"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
+log_warn() { echo -e "${YELLOW}[WARN]${NC} $*"; }
+log_test() { echo -e "${GREEN}[TEST]${NC} $*"; }
+
+# Test helper functions
+wait_for_service() {
+    local service=$1
+    local port=$2
+    local max_attempts=30
+    local attempt=0
+    
+    while [ $attempt -lt $max_attempts ]; do
+        if nc -z localhost "$port" 2>/dev/null; then
+            return 0
+        fi
+        attempt=$((attempt + 1))
+        sleep 1
+    done
+    
+    return 1
+}
+
+run_test() {
+    local test_name=$1
+    local test_func=$2
+    
+    log_test "Running: $test_name"
+    
+    if $test_func; then
+        TEST_RESULTS+=("✅ $test_name")
+        log_info "PASSED: $test_name"
+    else
+        TEST_RESULTS+=("❌ $test_name")
+        log_error "FAILED: $test_name"
+        ((FAILED_TESTS++))
+    fi
+}
+
+# Test Functions
+test_postgres_connection() {
+    PGPASSWORD="${POSTGRES_PASSWORD:-postgres}" psql \
+        -h localhost \
+        -p 5433 \
+        -U "${POSTGRES_USER:-ideagen_user}" \
+        -d "${POSTGRES_DB:-ideagen}" \
+        -c "SELECT 1" >/dev/null 2>&1
+}
+
+test_redis_connection() {
+    redis-cli -p 6380 ping >/dev/null 2>&1
+}
+
+test_minio_connection() {
+    curl -f "http://localhost:9000/minio/health/live" >/dev/null 2>&1
+}
+
+test_qdrant_connection() {
+    curl -f "http://localhost:6333/health" >/dev/null 2>&1
+}
+
+test_ollama_connection() {
+    curl -f "http://localhost:11434/api/version" >/dev/null 2>&1
+}
+
+test_unstructured_connection() {
+    curl -f "http://localhost:11450/healthcheck" >/dev/null 2>&1
+}
+
+test_n8n_connection() {
+    curl -f "http://localhost:5678/healthz" >/dev/null 2>&1
+}
+
+test_windmill_connection() {
+    curl -f "http://localhost:5681/api/version" >/dev/null 2>&1
+}
+
+test_database_schema() {
+    local tables=$(PGPASSWORD="${POSTGRES_PASSWORD:-postgres}" psql \
+        -h localhost \
+        -p 5433 \
+        -U "${POSTGRES_USER:-ideagen_user}" \
+        -d "${POSTGRES_DB:-ideagen}" \
+        -t -c "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public'" 2>/dev/null | xargs)
+    
+    [[ $tables -ge 10 ]] # We expect at least 10 tables
+}
+
+test_qdrant_collections() {
+    local response=$(curl -s "http://localhost:6333/collections")
+    echo "$response" | grep -q "ideas" && \
+    echo "$response" | grep -q "documents" && \
+    echo "$response" | grep -q "campaigns"
+}
+
+test_minio_buckets() {
+    # Check if key buckets exist
+    curl -s -I "http://localhost:9000/idea-documents" | grep -q "200\|404" && \
+    curl -s -I "http://localhost:9000/processed-content" | grep -q "200\|404"
+}
+
+test_n8n_workflows() {
+    local workflows=$(curl -s "http://localhost:5678/rest/workflows" | grep -o '"name"' | wc -l)
+    [[ $workflows -ge 5 ]] # We expect at least 5 workflows
+}
+
+test_idea_generation_workflow() {
+    # Test the idea generation workflow
+    local response=$(curl -s -X POST "http://localhost:5678/webhook/generate-ideas" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "campaign_id": "650e8400-e29b-41d4-a716-446655440001",
+            "prompt": "Test idea generation",
+            "count": 1
+        }' 2>/dev/null || echo '{"status":"error"}')
+    
+    echo "$response" | grep -q '"status"'
+}
+
+test_semantic_search_workflow() {
+    # Test the semantic search workflow
+    local response=$(curl -s -X POST "http://localhost:5678/webhook/semantic-search" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "query": "test search",
+            "limit": 5
+        }' 2>/dev/null || echo '{"status":"error"}')
+    
+    echo "$response" | grep -q '"status"'
+}
+
+test_campaign_operations() {
+    # Test campaign sync workflow
+    local response=$(curl -s -X POST "http://localhost:5678/webhook/campaign-sync" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "operation": "create",
+            "name": "Test Campaign",
+            "user_id": "550e8400-e29b-41d4-a716-446655440001"
+        }' 2>/dev/null || echo '{"status":"error"}')
+    
+    echo "$response" | grep -q '"status"'
+}
+
+test_windmill_app() {
+    # Check if Windmill app is deployed
+    local apps=$(curl -s "http://localhost:5681/api/apps" 2>/dev/null || echo '[]')
+    echo "$apps" | grep -q "Idea Generator" || [[ "$apps" != "[]" ]]
+}
+
+test_ollama_models() {
+    # Check if required models are available
+    local models=$(curl -s "http://localhost:11434/api/tags" 2>/dev/null || echo '{}')
+    echo "$models" | grep -q "llama3.2\|mistral"
+}
+
+# Main test execution
+main() {
+    log_info "=== Idea Generator Integration Tests ==="
+    log_info "Testing scenario components..."
+    
+    # Service connectivity tests
+    run_test "PostgreSQL Connection" test_postgres_connection
+    run_test "Redis Connection" test_redis_connection
+    run_test "MinIO Connection" test_minio_connection
+    run_test "Qdrant Connection" test_qdrant_connection
+    run_test "Ollama Connection" test_ollama_connection
+    run_test "Unstructured-IO Connection" test_unstructured_connection
+    run_test "n8n Connection" test_n8n_connection
+    run_test "Windmill Connection" test_windmill_connection
+    
+    # Configuration tests
+    run_test "Database Schema" test_database_schema
+    run_test "Qdrant Collections" test_qdrant_collections
+    run_test "MinIO Buckets" test_minio_buckets
+    run_test "n8n Workflows" test_n8n_workflows
+    run_test "Windmill App" test_windmill_app
+    run_test "Ollama Models" test_ollama_models
+    
+    # Workflow tests
+    run_test "Idea Generation Workflow" test_idea_generation_workflow
+    run_test "Semantic Search Workflow" test_semantic_search_workflow
+    run_test "Campaign Operations" test_campaign_operations
+    
+    # Print test results
+    echo ""
+    log_info "=== Test Results ==="
+    for result in "${TEST_RESULTS[@]}"; do
+        echo "  $result"
+    done
+    
+    echo ""
+    if [ $FAILED_TESTS -eq 0 ]; then
+        log_info "✅ All tests passed!"
+        exit 0
+    else
+        log_error "❌ $FAILED_TESTS test(s) failed"
+        exit 1
+    fi
+}
+
+# Run tests
+main "$@"

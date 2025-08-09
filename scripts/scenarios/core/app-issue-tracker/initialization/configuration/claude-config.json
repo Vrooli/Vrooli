@@ -1,0 +1,63 @@
+{
+  "description": "Configuration for Claude-Code integration",
+  "models": {
+    "primary": {
+      "name": "claude-3-opus-20240229",
+      "max_tokens": 8192,
+      "temperature": 0.2,
+      "use_cases": ["investigation", "fix_generation", "complex_analysis"]
+    },
+    "secondary": {
+      "name": "claude-3-sonnet-20240229",
+      "max_tokens": 4096,
+      "temperature": 0.3,
+      "use_cases": ["documentation", "code_review", "pattern_analysis"]
+    },
+    "fast": {
+      "name": "claude-3-haiku-20240307",
+      "max_tokens": 2048,
+      "temperature": 0.1,
+      "use_cases": ["triage", "quick_assessment", "categorization"]
+    }
+  },
+  "rate_limits": {
+    "requests_per_minute": 10,
+    "tokens_per_hour": 100000,
+    "concurrent_investigations": 3
+  },
+  "investigation_settings": {
+    "timeout_seconds": 300,
+    "max_retries": 2,
+    "context_window_files": 20,
+    "include_git_history": true,
+    "include_test_results": true,
+    "include_dependencies": true
+  },
+  "fix_generation_settings": {
+    "create_pull_request": false,
+    "run_tests_before_commit": true,
+    "require_human_approval": true,
+    "backup_before_fix": true,
+    "rollback_on_failure": true
+  },
+  "cost_tracking": {
+    "enabled": true,
+    "alert_threshold_daily": 100,
+    "alert_threshold_monthly": 2000,
+    "cost_per_1k_tokens": {
+      "opus_input": 0.015,
+      "opus_output": 0.075,
+      "sonnet_input": 0.003,
+      "sonnet_output": 0.015,
+      "haiku_input": 0.00025,
+      "haiku_output": 0.00125
+    }
+  },
+  "prompting_strategies": {
+    "chain_of_thought": true,
+    "few_shot_examples": true,
+    "structured_output": true,
+    "confidence_scores": true,
+    "source_citations": true
+  }
+}

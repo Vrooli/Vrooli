@@ -50,9 +50,9 @@ Generate a complete, production-ready Vrooli scenario based on customer requirem
 
 Study these patterns:
 - `research-assistant/`: Information gathering and synthesis
-- `analytics-dashboard/`: Business intelligence with real-time data
+- `app-monitor/`: Application monitoring and management
 - `image-generation-pipeline/`: Creative automation workflows
-- `document-processing-system/`: Intelligent document workflows
+- `document-manager/`: Intelligent document workflows
 - `secure-document-processing/`: Security-focused document workflows
 
 ### 4. Integration Patterns

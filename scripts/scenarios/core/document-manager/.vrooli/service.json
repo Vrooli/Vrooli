@@ -1,0 +1,130 @@
+{
+  "version": "1.0.0",
+  "service": {
+    "name": "document-manager",
+    "displayName": "Document Manager",
+    "description": "AI-powered documentation management SaaS platform with agent-based monitoring, improvement suggestions, and comprehensive workflow automation",
+    "version": "2.0.0",
+    "type": "business-application",
+    "tags": ["documentation", "ai", "automation", "saas", "monitoring"],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "team@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ]
+  },
+  "resources": {
+    "storage": {
+      "postgres": {
+        "enabled": true,
+        "purpose": "Primary data storage for applications, agents, queues, and metrics",
+        "databases": ["document_manager"],
+        "extensions": ["uuid-ossp", "pgcrypto"]
+      },
+      "qdrant": {
+        "enabled": true,
+        "purpose": "Vector storage for semantic search and AI embeddings"
+      }
+    },
+    "automation": {
+      "windmill": {
+        "enabled": true,
+        "purpose": "Main UI application and backend workflow engine",
+        "auto_deploy_apps": true,
+        "workspace": "document_manager"
+      },
+      "n8n": {
+        "enabled": true,
+        "purpose": "Background automation and agent orchestration",
+        "auto_import_workflows": true,
+        "webhook_url": "http://localhost:5678"
+      }
+    },
+    "ai": {
+      "ollama": {
+        "enabled": true,
+        "models": ["llama3.2", "mistral"],
+        "purpose": "Document analysis and improvement suggestions"
+      },
+      "claude-code": {
+        "enabled": true,
+        "purpose": "Advanced document generation and agent tasks"
+      }
+    }
+  },
+  "deployment": {
+    "ports": {
+      "ui": 8000,
+      "api": 8001,
+      "n8n": 5678
+    }
+  },
+  "business_model": {
+    "type": "saas",
+    "target_revenue": "$25000-50000",
+    "target_market": "Development teams, technical writers, documentation managers",
+    "key_features": [
+      "Multi-application documentation monitoring",
+      "AI-powered improvement suggestions",
+      "Automated agent workflows",
+      "User-controlled approval processes",
+      "Comprehensive analytics dashboard"
+    ]
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "defaults": {
+      "timeout": "5m",
+      "error": "stop",
+      "shell": "bash"
+    },
+    "setup": {
+      "description": "Initialize document manager environment",
+      "steps": [
+        {
+          "name": "setup-infrastructure",
+          "run": "./scripts/manage.sh setup --target docker",
+          "condition": "${SKIP_SETUP} != \\\"true\\\""
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start document manager services",
+      "steps": [
+        {
+          "name": "start-services",
+          "run": "../deployment/startup.sh"
+        }
+      ]
+    },
+    "build": {
+      "description": "Build document manager artifacts",
+      "steps": [
+        {
+          "name": "build-artifacts",
+          "run": "./scripts/manage.sh build"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run document manager tests",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "./test.sh"
+        }
+      ]
+    },
+    "clean": {
+      "description": "Clean build artifacts and temporary files",
+      "steps": [
+        {
+          "name": "clean-artifacts",
+          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+        }
+      ]
+    }
+  }
+}

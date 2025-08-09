@@ -1,0 +1,92 @@
+{
+  "application": {
+    "name": "App Monitor",
+    "version": "1.0.0",
+    "description": "Dashboard to manage all running generated apps",
+    "environment": "development"
+  },
+  "server": {
+    "host": "0.0.0.0",
+    "port": 8081,
+    "cors": {
+      "enabled": true,
+      "origins": ["http://localhost:3001", "http://127.0.0.1:3001"]
+    },
+    "rateLimit": {
+      "enabled": true,
+      "windowMs": 900000,
+      "max": 100
+    }
+  },
+  "websocket": {
+    "port": 3002,
+    "path": "/ws",
+    "cors": {
+      "enabled": true,
+      "origins": ["http://localhost:3001", "http://127.0.0.1:3001"]
+    }
+  },
+  "monitoring": {
+    "healthcheck": {
+      "interval": 30000,
+      "timeout": 5000,
+      "retries": 3,
+      "endpoints": ["/health", "/api/health"]
+    },
+    "metrics": {
+      "enabled": true,
+      "interval": 60000,
+      "retention": "7d"
+    },
+    "alerts": {
+      "enabled": true,
+      "thresholds": {
+        "cpu": 80,
+        "memory": 85,
+        "disk": 90,
+        "healthcheck_failures": 3
+      }
+    }
+  },
+  "docker": {
+    "socketPath": "/var/run/docker.sock",
+    "apiVersion": "v1.41",
+    "timeout": 10000,
+    "retryAttempts": 3
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "destinations": ["console", "database"],
+    "retention": {
+      "days": 30,
+      "maxSize": "100MB"
+    }
+  },
+  "security": {
+    "authentication": {
+      "enabled": false,
+      "type": "basic"
+    },
+    "rateLimiting": {
+      "enabled": true,
+      "requests": 100,
+      "window": "15m"
+    }
+  },
+  "features": {
+    "autoRestart": {
+      "enabled": true,
+      "cooldown": 300000,
+      "maxAttempts": 3
+    },
+    "resourceMonitoring": {
+      "enabled": true,
+      "interval": 60000
+    },
+    "logAggregation": {
+      "enabled": true,
+      "maxLines": 1000
+    }
+  }
+}

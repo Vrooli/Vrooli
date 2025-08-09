@@ -1,0 +1,151 @@
+name: agent-metareasoning-manager
+description: Test suite for metareasoning tools management dashboard
+version: 1.0.0
+
+prerequisites:
+  resources:
+    - postgres
+    - redis
+    - ollama
+    - n8n
+    - windmill
+  environment:
+    POSTGRES_PASSWORD: test_password
+    REDIS_PASSWORD: test_redis
+    N8N_WEBHOOK_URL: http://localhost:5678
+    WINDMILL_API_URL: http://localhost:8000
+
+tests:
+  - name: resource_availability
+    description: Verify all required resources are running
+    steps:
+      - check: postgres_connection
+        command: pg_isready -h localhost -p 5432
+        expected: accepting connections
+      - check: redis_connection
+        command: redis-cli ping
+        expected: PONG
+      - check: ollama_api
+        command: curl -f http://localhost:11434/api/version
+        expected_status: 200
+      - check: n8n_health
+        command: curl -f http://localhost:5678/healthz
+        expected_status: 200
+      - check: windmill_health
+        command: curl -f http://localhost:8000/api/version
+        expected_status: 200
+
+  - name: database_initialization
+    description: Verify database schema is properly initialized
+    steps:
+      - check: tables_exist
+        query: |
+          SELECT COUNT(*) FROM information_schema.tables 
+          WHERE table_schema = 'public' 
+          AND table_name IN ('prompts', 'workflows', 'templates', 'reasoning_chains', 'execution_history')
+        expected: 5
+      - check: enum_types
+        query: |
+          SELECT COUNT(*) FROM pg_type 
+          WHERE typname = 'reasoning_pattern'
+        expected: 1
+
+  - name: workflow_deployment
+    description: Verify metareasoning workflows are deployed
+    steps:
+      - check: pros_cons_workflow
+        command: curl -X GET http://localhost:5678/rest/workflows
+        contains: pros-cons-analyzer
+      - check: swot_workflow
+        command: curl -X GET http://localhost:5678/rest/workflows
+        contains: swot-analysis
+
+  - name: api_endpoints
+    description: Test core API endpoints
+    steps:
+      - check: create_prompt
+        method: POST
+        url: http://localhost:8080/api/prompts
+        body:
+          name: Test Prompt
+          content: Analyze {{input}} for potential issues
+          pattern: risk_assessment
+        expected_status: 201
+      - check: create_workflow
+        method: POST
+        url: http://localhost:8080/api/workflows
+        body:
+          name: Test Workflow
+          platform: n8n
+          workflow_data: {}
+        expected_status: 201
+      - check: execute_reasoning
+        method: POST
+        url: http://localhost:8080/api/execute
+        body:
+          type: pros_cons_analysis
+          input: Should we implement feature X?
+        expected_status: 200
+
+  - name: reasoning_patterns
+    description: Test metareasoning pattern execution
+    steps:
+      - check: pros_cons_analysis
+        method: POST
+        url: http://localhost:5678/webhook/analyze-pros-cons
+        body:
+          input: Implementing a new feature
+          model: llama3.2
+        expected_status: 200
+      - check: swot_analysis
+        method: POST
+        url: http://localhost:5678/webhook/swot-analysis
+        body:
+          input: New product launch
+          context: Competitive market
+        expected_status: 200
+
+  - name: windmill_integration
+    description: Verify Windmill workflow orchestration
+    steps:
+      - check: windmill_api
+        command: curl -f http://localhost:8000/api/version
+        expected_status: 200
+      - check: create_windmill_flow
+        method: POST
+        url: http://localhost:8000/api/w/main/flows/create
+        body:
+          path: test_flow
+          summary: Test metareasoning flow
+        expected_status: 201
+
+  - name: ui_availability
+    description: Verify UI components are accessible
+    steps:
+      - check: ui_homepage
+        command: curl -f http://localhost:3000
+        expected_status: 200
+      - check: prompt_editor
+        command: curl -f http://localhost:3000/prompts
+        expected_status: 200
+      - check: workflow_designer
+        command: curl -f http://localhost:3000/workflows
+        expected_status: 200
+
+  - name: model_availability
+    description: Verify required AI models are available
+    steps:
+      - check: llama_model
+        command: ollama list | grep llama3.2
+        expected: llama3.2
+      - check: mistral_model
+        command: ollama list | grep mistral
+        expected: mistral
+      - check: codellama_model
+        command: ollama list | grep codellama
+        expected: codellama
+
+validation:
+  timeout: 300
+  retry_count: 3
+  success_threshold: 0.95

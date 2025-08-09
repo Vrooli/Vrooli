@@ -22,7 +22,7 @@ set -euo pipefail
 # Architecture:
 # - Validates scenario files and structure using project schema
 # - Copies scenario data as-is to generated app
-# - Copies Vrooli's scripts/ infrastructure (minus scenarios/)
+# - Copies Vrooli's scripts/ infrastructure (minus app/ and scenarios/)
 # - Generated apps use standard Vrooli scripts with scenario's service.json
 # 
 # Resource Initialization:
@@ -432,9 +432,9 @@ create_default_service_json() {
       "description": "Initialize application environment",
       "steps": [
         {
-          "name": "install-deps",
-          "run": "npm ci || npm install || echo 'No package.json found'",
-          "condition": "\${SKIP_INSTALL} != 'true'"
+          "name": "setup-app",
+          "run": "./scripts/manage.sh setup --target docker || echo 'No setup script available'",
+          "condition": "\${SKIP_SETUP} != 'true'"
         }
       ]
     },
@@ -443,7 +443,7 @@ create_default_service_json() {
       "steps": [
         {
           "name": "start-dev",
-          "run": "npm start || npm run dev || echo 'No start script found in package.json'"
+          "run": "./deployment/startup.sh || ./scripts/manage.sh develop --target docker --detached no || echo 'No startup script found'"
         }
       ]
     },
@@ -452,7 +452,7 @@ create_default_service_json() {
       "steps": [
         {
           "name": "build-app",
-          "run": "npm run build || echo 'No build script found in package.json'"
+          "run": "./scripts/manage.sh build || echo 'No build script available'"
         }
       ]
     },
@@ -461,7 +461,7 @@ create_default_service_json() {
       "steps": [
         {
           "name": "run-tests",
-          "run": "npm test || npm run test || echo 'No test script found in package.json'"
+          "run": "./test.sh || ./scripts/manage.sh test || echo 'No test script available'"
         }
       ]
     },
@@ -472,6 +472,57 @@ create_default_service_json() {
           "name": "clean-artifacts",
           "run": "rm -rf dist/ build/ .next/ node_modules/.cache/ || true"
         }
+      ]
+    }
+  },
+  "instanceManagement": {
+    "enabled": true,
+    "strategy": "single",
+    "detection": {
+      "services": [
+        "server",
+        "ui",
+        "database"
+      ],
+      "ports": {
+        "database": 5432,
+        "server": 8080,
+        "ui": 3000
+      },
+      "containers": [
+        "app[-_]*",
+        "*[-_]app",
+        "*[-_]server",
+        "*[-_]ui",
+        "*[-_]db",
+        "*[-_]database"
+      ],
+      "processes": [
+        "node.*server",
+        "npm.*dev",
+        "pnpm.*dev",
+        "npm.*start",
+        "pnpm.*start",
+        "vite.*",
+        "next.*dev",
+        "concurrently.*"
+      ]
+    },
+    "conflicts": {
+      "action": "prompt",
+      "timeout": 30
+    },
+    "dockerCompose": {
+      "files": [
+        "docker-compose.yml",
+        "docker-compose.yaml",
+        "compose.yml", 
+        "compose.yaml"
+      ],
+      "services": [
+        "ui",
+        "server",
+        "database"
       ]
     }
   }
@@ -507,9 +558,9 @@ enhance_service_json_lifecycle() {
               "description": "Initialize application environment",
               "steps": [
                 {
-                  "name": "install-deps",
-                  "run": "npm ci || npm install || echo \"No package.json found\"",
-                  "condition": "${SKIP_INSTALL} != \"true\""
+                  "name": "setup-app",
+                  "run": "./scripts/manage.sh setup --target docker || echo \"No setup script available\"",
+                  "condition": "${SKIP_SETUP} != \"true\""
                 }
               ]
             },
@@ -518,7 +569,7 @@ enhance_service_json_lifecycle() {
               "steps": [
                 {
                   "name": "start-dev",
-                  "run": "npm start || npm run dev || echo \"No start script found in package.json\""
+                  "run": "./deployment/startup.sh || ./scripts/manage.sh develop --target docker --detached no || echo \"No startup script found\""
                 }
               ]
             },
@@ -527,7 +578,7 @@ enhance_service_json_lifecycle() {
               "steps": [
                 {
                   "name": "build-app",
-                  "run": "npm run build || echo \"No build script found in package.json\""
+                  "run": "./scripts/manage.sh build || echo \"No build script available\""
                 }
               ]
             },
@@ -536,7 +587,7 @@ enhance_service_json_lifecycle() {
               "steps": [
                 {
                   "name": "run-tests",
-                  "run": "npm test || npm run test || echo \"No test script found in package.json\""
+                  "run": "./test.sh || ./scripts/manage.sh test || echo \"No test script available\""
                 }
               ]
             },
@@ -672,17 +723,17 @@ copy_universal_scripts() {
     # Create scripts directory
     mkdir -p "$app_path/scripts"
     
-    # Copy entire scripts/ directory from PROJECT_ROOT, excluding main and scenarios
+    # Copy entire scripts/ directory from PROJECT_ROOT, excluding app and scenarios
     if [[ -d "$PROJECT_ROOT/scripts" ]]; then
         # Use rsync for selective copying with excludes
         if command -v rsync >/dev/null 2>&1; then
-            rsync -a --exclude='main/' --exclude='scenarios/' "$PROJECT_ROOT/scripts/" "$app_path/scripts/"
-            [[ "$VERBOSE" == "true" ]] && log::info "Copied scripts/ using rsync (excluded main/ and scenarios/)"
+            rsync -a --exclude='app/' --exclude='scenarios/' "$PROJECT_ROOT/scripts/" "$app_path/scripts/"
+            [[ "$VERBOSE" == "true" ]] && log::info "Copied scripts/ using rsync (excluded app/ and scenarios/)"
         else
             # Fallback: copy everything first, then remove excluded directories
             cp -r "$PROJECT_ROOT/scripts/"* "$app_path/scripts/" 2>/dev/null || true
-            rm -rf "$app_path/scripts/main" "$app_path/scripts/scenarios" 2>/dev/null || true
-            [[ "$VERBOSE" == "true" ]] && log::info "Copied scripts/ using cp (removed main/ and scenarios/)"
+            rm -rf "$app_path/scripts/app" "$app_path/scripts/scenarios" 2>/dev/null || true
+            [[ "$VERBOSE" == "true" ]] && log::info "Copied scripts/ using cp (removed app/ and scenarios/)"
         fi
     fi
     
@@ -691,6 +742,37 @@ copy_universal_scripts() {
         cp -r "$SCENARIO_PATH/scripts/"* "$app_path/scripts/" 2>/dev/null || true
         [[ "$VERBOSE" == "true" ]] && log::info "Overlaid scenario-specific scripts from: $SCENARIO_PATH/scripts/"
     fi
+    
+    # Create instance manager wrapper for standalone app 
+    local app_instance_manager="$app_path/scripts/app/lifecycle/develop/instance_manager.sh"
+    
+    # Create app lifecycle develop directory if it doesn't exist
+    mkdir -p "$(dirname "$app_instance_manager")"
+    
+    # Create a wrapper that properly integrates with the standalone app structure
+    cat > "$app_instance_manager" << 'EOF'
+#!/usr/bin/env bash
+# Standalone App Instance Manager - Generic Integration Wrapper
+# 
+# This wrapper sources the generic instance manager for standalone apps.
+# The generic instance manager reads configuration from service.json automatically.
+set -euo pipefail
+
+APP_LIFECYCLE_DEVELOP_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# Source var.sh first to get all directory variables (same path as monorepo)
+# shellcheck disable=SC1091
+source "${APP_LIFECYCLE_DEVELOP_DIR}/../../../lib/utils/var.sh"
+
+# Source the generic instance manager
+# shellcheck disable=SC1091
+source "${var_LIB_SERVICE_DIR}/instance_manager.sh"
+
+# All functionality is now provided by the generic instance manager
+# Configuration is loaded automatically from .vrooli/service.json or defaults to sensible patterns
+EOF
+    
+    [[ "$VERBOSE" == "true" ]] && log::info "Created instance manager wrapper for standalone app"
     
     log::success "Scripts infrastructure copied successfully"
 }

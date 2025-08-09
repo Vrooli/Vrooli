@@ -1,0 +1,95 @@
+{
+  "encryption": {
+    "algorithm": "AES-256-GCM",
+    "keyRotationInterval": "30d",
+    "encryptionAtRest": true,
+    "encryptionInTransit": true,
+    "keyManagement": {
+      "provider": "vault",
+      "keyPath": "secret/data/document-processing/encryption-keys"
+    }
+  },
+  "access_control": {
+    "authentication": {
+      "method": "jwt",
+      "tokenExpiry": "8h",
+      "refreshTokenExpiry": "7d",
+      "mfaRequired": true
+    },
+    "authorization": {
+      "model": "rbac",
+      "roles": [
+        {
+          "name": "admin",
+          "permissions": ["read", "write", "delete", "audit", "configure"]
+        },
+        {
+          "name": "processor", 
+          "permissions": ["read", "write", "process"]
+        },
+        {
+          "name": "auditor",
+          "permissions": ["read", "audit"]
+        },
+        {
+          "name": "viewer",
+          "permissions": ["read"]
+        }
+      ]
+    }
+  },
+  "document_handling": {
+    "maxFileSize": "100MB",
+    "allowedFormats": ["pdf", "docx", "txt", "json", "xml"],
+    "contentScanning": {
+      "enabled": true,
+      "scanForMalware": true,
+      "scanForPII": true,
+      "quarantineOnFailure": true
+    },
+    "retention": {
+      "defaultRetentionPeriod": "7y",
+      "complianceRetention": {
+        "gdpr": "6y",
+        "hipaa": "6y",
+        "sox": "7y"
+      }
+    }
+  },
+  "compliance": {
+    "frameworks": ["GDPR", "HIPAA", "SOX", "ISO27001"],
+    "dataClassification": {
+      "levels": ["public", "internal", "confidential", "restricted"],
+      "defaultLevel": "internal"
+    },
+    "privacySettings": {
+      "enableDataSubjectRequests": true,
+      "dataMinimization": true,
+      "consentRequired": true,
+      "rightToErasure": true
+    }
+  },
+  "network_security": {
+    "allowedOrigins": ["https://localhost:3000"],
+    "rateLimiting": {
+      "enabled": true,
+      "requestsPerMinute": 100,
+      "burstLimit": 50
+    },
+    "ipWhitelist": {
+      "enabled": false,
+      "addresses": []
+    }
+  },
+  "monitoring": {
+    "securityEvents": {
+      "logLevel": "INFO",
+      "alertOnSuspiciousActivity": true,
+      "retainLogsFor": "2y"
+    },
+    "performanceMetrics": {
+      "enabled": true,
+      "collectionInterval": "60s"
+    }
+  }
+}

@@ -1,0 +1,324 @@
+{
+  "name": "Data Ingestion Pipeline",
+  "active": true,
+  "nodes": [
+    {
+      "name": "Data Source Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [250, 300],
+      "webhookId": "ingest-data",
+      "parameters": {
+        "path": "ingest",
+        "method": "POST",
+        "options": {}
+      }
+    },
+    {
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [400, 300],
+      "parameters": {
+        "language": "javascript",
+        "jsCode": "// Validate required fields\nconst { persona_id, source_type, source_id } = $input.first().json;\n\nif (!persona_id) {\n  throw new Error('persona_id is required');\n}\nif (!source_type) {\n  throw new Error('source_type is required');\n}\n\n// Generate unique document ID\nconst doc_id = `${persona_id}_${source_id || Date.now()}_${Math.random().toString(36).substr(2, 9)}`;\n\nreturn {\n  persona_id,\n  source_type,\n  source_id: source_id || 'unknown',\n  doc_id,\n  timestamp: new Date().toISOString(),\n  ...($input.first().json)\n};"
+      }
+    },
+    {
+      "name": "Fetch Data Source",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 1,
+      "position": [550, 300],
+      "parameters": {
+        "dataType": "string",
+        "value1": "={{$json.source_type}}",
+        "rules": {
+          "rules": [
+            {"value2": "local_files", "output": 0},
+            {"value2": "google_drive", "output": 1},
+            {"value2": "github", "output": 2},
+            {"value2": "email", "output": 3}
+          ]
+        }
+      }
+    },
+    {
+      "name": "Process Local Files",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 200],
+      "parameters": {
+        "language": "javascript",
+        "jsCode": "// Mock file processing for local files\n// In real implementation, this would read files from specified path\nconst input = $input.first().json;\n\nreturn {\n  ...input,\n  raw_content: `Sample document content for ${input.source_id}`,\n  file_type: 'text',\n  file_path: input.path || '/sample/path',\n  content_length: 1000\n};"
+      }
+    },
+    {
+      "name": "Process with UnstructuredIO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [900, 200],
+      "parameters": {
+        "url": "http://unstructured-io:11450/general/v0/general",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "text",
+              "value": "={{$json.raw_content}}"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 30000
+        }
+      }
+    },
+    {
+      "name": "Process External Sources",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [750, 400],
+      "parameters": {
+        "language": "javascript", 
+        "jsCode": "// Placeholder for external data sources\n// In real implementation, this would connect to APIs\nconst input = $input.first().json;\n\nreturn {\n  ...input,\n  raw_content: `External content from ${input.source_type} for ${input.source_id}`,\n  file_type: 'external',\n  content_length: 800\n};"
+      }
+    },
+    {
+      "name": "Generate Embeddings",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1050, 300],
+      "parameters": {
+        "url": "http://ollama:11434/api/embeddings",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"nomic-embed-text\",\n  \"prompt\": {{$json.processed_text || $json.raw_content}}\n}",
+        "options": {
+          "timeout": 15000
+        }
+      }
+    },
+    {
+      "name": "Store in Qdrant",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1200, 300],
+      "parameters": {
+        "url": "http://qdrant:6333/collections/documents/points",
+        "method": "PUT",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"points\": [{\n    \"id\": \"{{$json.doc_id}}\",\n    \"vector\": {{$json.embedding}},\n    \"payload\": {\n      \"persona_id\": \"{{$json.persona_id}}\",\n      \"document_id\": \"{{$json.doc_id}}\",\n      \"content\": {{$json.processed_text || $json.raw_content}},\n      \"source_type\": \"{{$json.source_type}}\",\n      \"file_type\": \"{{$json.file_type}}\",\n      \"timestamp\": \"{{$json.timestamp}}\"\n    }\n  }]\n}"
+      }
+    },
+    {
+      "name": "Update Database",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1050, 450],
+      "parameters": {
+        "url": "=http://postgres:5433",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/sql"
+            }
+          ]
+        },
+        "sendBody": true,
+        "body": "=INSERT INTO documents (id, persona_id, original_path, document_type, content_hash, token_count, processing_status, processed_at) VALUES ('{{$json.doc_id}}', '{{$json.persona_id}}', '{{$json.file_path}}', '{{$json.file_type}}', MD5('{{$json.raw_content}}'), {{$json.content_length}}, 'completed', NOW());"
+      }
+    },
+    {
+      "name": "Store Raw in MinIO", 
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1050, 550],
+      "parameters": {
+        "url": "=http://minio:9000/data-sources/{{$json.persona_id}}/{{$json.doc_id}}.json",
+        "method": "PUT",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "body": "={{JSON.stringify($json)}}"
+      }
+    },
+    {
+      "name": "Update Persona Stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1350, 400],
+      "parameters": {
+        "url": "=http://postgres:5433",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type", 
+              "value": "application/sql"
+            }
+          ]
+        },
+        "sendBody": true,
+        "body": "=UPDATE personas SET document_count = document_count + 1, total_tokens = total_tokens + {{$json.content_length}}, last_updated = NOW() WHERE id = '{{$json.persona_id}}';"
+      }
+    },
+    {
+      "name": "Check Training Threshold",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1500, 400],
+      "parameters": {
+        "url": "=http://postgres:5433",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/sql"
+            }
+          ]
+        },
+        "sendBody": true,
+        "body": "=SELECT document_count FROM personas WHERE id = '{{$json.persona_id}}';"
+      }
+    },
+    {
+      "name": "Should Train?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1650, 400],
+      "parameters": {
+        "conditions": {
+          "number": [{
+            "value1": "={{$json.document_count}}",
+            "operation": "largerEqual",
+            "value2": 50
+          }]
+        }
+      }
+    },
+    {
+      "name": "Trigger Training",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4,
+      "position": [1800, 350],
+      "parameters": {
+        "url": "http://localhost:8200/api/train/start",
+        "method": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"persona_id\": \"{{$json.persona_id}}\",\n  \"model\": \"llama3.2\",\n  \"technique\": \"lora\"\n}"
+      }
+    }
+  ],
+  "connections": {
+    "Data Source Trigger": {
+      "main": [[ {"node": "Validate Input", "type": "main", "index": 0} ]]
+    },
+    "Validate Input": {
+      "main": [[ {"node": "Fetch Data Source", "type": "main", "index": 0} ]]
+    },
+    "Fetch Data Source": {
+      "main": [
+        [ {"node": "Process Local Files", "type": "main", "index": 0} ],
+        [ {"node": "Process External Sources", "type": "main", "index": 0} ],
+        [ {"node": "Process External Sources", "type": "main", "index": 0} ],
+        [ {"node": "Process External Sources", "type": "main", "index": 0} ]
+      ]
+    },
+    "Process Local Files": {
+      "main": [[ {"node": "Process with UnstructuredIO", "type": "main", "index": 0} ]]
+    },
+    "Process External Sources": {
+      "main": [[ {"node": "Process with UnstructuredIO", "type": "main", "index": 0} ]]
+    },
+    "Process with UnstructuredIO": {
+      "main": [[ {"node": "Generate Embeddings", "type": "main", "index": 0} ]]
+    },
+    "Generate Embeddings": {
+      "main": [[ 
+        {"node": "Store in Qdrant", "type": "main", "index": 0},
+        {"node": "Update Database", "type": "main", "index": 0},
+        {"node": "Store Raw in MinIO", "type": "main", "index": 0}
+      ]]
+    },
+    "Store in Qdrant": {
+      "main": [[ {"node": "Update Persona Stats", "type": "main", "index": 0} ]]
+    },
+    "Update Database": {
+      "main": [[ {"node": "Update Persona Stats", "type": "main", "index": 0} ]]
+    },
+    "Update Persona Stats": {
+      "main": [[ {"node": "Check Training Threshold", "type": "main", "index": 0} ]]
+    },
+    "Check Training Threshold": {
+      "main": [[ {"node": "Should Train?", "type": "main", "index": 0} ]]
+    },
+    "Should Train?": {
+      "main": [
+        [ {"node": "Trigger Training", "type": "main", "index": 0} ],
+        []
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "saveManualExecutions": true
+  },
+  "staticData": null,
+  "tags": [],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "1"
+}

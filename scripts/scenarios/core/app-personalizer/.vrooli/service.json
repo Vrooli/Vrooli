@@ -1,0 +1,179 @@
+{
+  "version": "1.0.0",
+  "service": {
+    "name": "app-personalizer",
+    "displayName": "App Personalizer",
+    "description": "Customize generated apps using prompts or digital twins for personalized experiences",
+    "version": "1.0.0",
+    "type": "business-application",
+    "tags": ["personalization", "customization", "app-modification"],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "team@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ]
+  },
+  "resources": {
+    "agents": {
+      "claude-code": {
+        "enabled": true,
+        "purpose": "Modify app code based on personalization requirements"
+      }
+    },
+    "ai": {
+      "ollama": {
+        "enabled": true,
+        "models": ["llama3.2", "codellama"],
+        "purpose": "Analyze app structure and generate modification plans"
+      }
+    },
+    "storage": {
+      "postgres": {
+        "enabled": true,
+        "databases": ["personalizations", "app_registry", "modifications"],
+        "purpose": "Track customizations and app versions"
+      },
+      "minio": {
+        "enabled": true,
+        "buckets": ["app-backups", "personalized-apps", "modification-logs"],
+        "purpose": "Store app versions and modification history"
+      }
+    },
+    "automation": {
+      "n8n": {
+        "enabled": true,
+        "workflows": ["personalization-pipeline", "app-analysis", "deployment-sync"],
+        "purpose": "Orchestrate personalization workflow"
+      }
+    }
+  },
+  "deployment": {
+    "ports": {
+      "ui": 3300,
+      "api": 8300
+    },
+    "environment": {
+      "NODE_ENV": "production",
+      "GENERATED_APPS_PATH": "/generated-apps",
+      "BACKUP_RETENTION_DAYS": "30"
+    }
+  },
+  "integrations": {
+    "required": {
+      "personal-digital-twin": {
+        "api_endpoint": "http://localhost:8200",
+        "features": ["chat", "search", "persona-export"],
+        "auth": "api_token"
+      },
+      "brand-manager": {
+        "api_endpoint": "http://localhost:8100",
+        "features": ["brand-export", "asset-retrieval"],
+        "auth": "api_key"
+      }
+    },
+    "supported_apps": {
+      "generated_apps": {
+        "path": "/generated-apps/*",
+        "detection": "service.json"
+      },
+      "external_apps": {
+        "protocols": ["git", "filesystem"],
+        "frameworks": ["react", "vue", "next.js"]
+      }
+    }
+  },
+  "features": {
+    "personalization_types": {
+      "ui_theme": {
+        "enabled": true,
+        "description": "Modify colors, fonts, layouts based on preferences"
+      },
+      "content": {
+        "enabled": true,
+        "description": "Inject personalized content from digital twin"
+      },
+      "functionality": {
+        "enabled": true,
+        "description": "Add/remove features based on user persona"
+      },
+      "branding": {
+        "enabled": true,
+        "description": "Apply complete branding from brand-manager"
+      },
+      "behavior": {
+        "enabled": true,
+        "description": "Modify app behavior based on digital twin interactions"
+      }
+    },
+    "deployment_modes": {
+      "copy": {
+        "description": "Create personalized copy of the app",
+        "default": true
+      },
+      "patch": {
+        "description": "Apply modifications to existing app",
+        "requires_backup": true
+      },
+      "multi_tenant": {
+        "description": "Single app with user-specific personalizations",
+        "advanced": true
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "defaults": {
+      "timeout": "5m",
+      "error": "stop",
+      "shell": "bash"
+    },
+    "setup": {
+      "description": "Initialize app personalizer environment",
+      "steps": [
+        {
+          "name": "setup-infrastructure",
+          "run": "./scripts/manage.sh setup --target docker",
+          "condition": "${SKIP_SETUP} != \\\"true\\\""
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start app personalizer services",
+      "steps": [
+        {
+          "name": "start-services",
+          "run": "../deployment/startup.sh"
+        }
+      ]
+    },
+    "build": {
+      "description": "Build app personalizer artifacts",
+      "steps": [
+        {
+          "name": "build-artifacts",
+          "run": "./scripts/manage.sh build"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run app personalizer tests",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "./test.sh"
+        }
+      ]
+    },
+    "clean": {
+      "description": "Clean build artifacts and temporary files",
+      "steps": [
+        {
+          "name": "clean-artifacts",
+          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+        }
+      ]
+    }
+  }
+}

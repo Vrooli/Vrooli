@@ -1,0 +1,78 @@
+name: app-monitor
+description: Dashboard to manage all running generated apps
+version: 1.0.0
+
+tests:
+  - name: Docker API Connection
+    type: connectivity
+    target: docker
+    endpoint: /containers/json
+    expected: 200
+
+  - name: PostgreSQL Database
+    type: database
+    service: postgres
+    database: app_monitor
+    query: "SELECT COUNT(*) FROM apps"
+    expected: success
+
+  - name: Redis Connection
+    type: connectivity
+    service: redis
+    command: PING
+    expected: PONG
+
+  - name: Node-RED Flow Deployment
+    type: automation
+    service: node-red
+    flow: docker-monitor
+    expected: deployed
+
+  - name: UI Dashboard
+    type: http
+    endpoint: http://localhost:3001
+    expected: 200
+
+  - name: API Health
+    type: http
+    endpoint: http://localhost:8081/health
+    expected:
+      status: 200
+      body:
+        status: healthy
+
+  - name: WebSocket Connection
+    type: websocket
+    endpoint: ws://localhost:3002
+    expected: connected
+
+  - name: App Discovery
+    type: functional
+    description: Verify app discovery mechanism
+    steps:
+      - action: list_apps
+        endpoint: /api/apps
+        expected: array
+
+  - name: App Control
+    type: functional
+    description: Test start/stop functionality
+    steps:
+      - action: stop_app
+        endpoint: /api/apps/{id}/stop
+        expected: 200
+      - action: start_app
+        endpoint: /api/apps/{id}/start
+        expected: 200
+
+validation:
+  required_services:
+    - postgres
+    - redis
+    - node-red
+    - n8n
+  required_ports:
+    - 3001
+    - 8081
+    - 3002
+  docker_access: required

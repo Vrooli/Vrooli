@@ -18,6 +18,12 @@ export var_SCRIPTS_RESOURCES_DIR="$var_SCRIPTS_DIR/resources"
 export var_SCRIPTS_SCENARIOS_DIR="$var_SCRIPTS_DIR/scenarios"
 export var_ROOT_DIR=$(cd "$var_SCRIPTS_DIR"/.. && pwd)
 
+# Vrooli configuration directory and files
+export var_VROOLI_CONFIG_DIR="$var_ROOT_DIR/.vrooli"
+export var_SERVICE_JSON_FILE="$var_VROOLI_CONFIG_DIR/service.json"
+export var_EXAMPLES_DIR="$var_VROOLI_CONFIG_DIR/examples"
+export var_SCHEMAS_DIR="$var_VROOLI_CONFIG_DIR/schemas"
+
 # Detect if we're in Vrooli monorepo or standalone app based on package.json
 if [[ -f "$var_ROOT_DIR/package.json" ]] && \
    jq -e '.name == "vrooli" and .workspaces' "$var_ROOT_DIR/package.json" >/dev/null 2>&1; then
@@ -27,12 +33,6 @@ if [[ -f "$var_ROOT_DIR/package.json" ]] && \
     export var_BACKUPS_DIR="$var_ROOT_DIR/backups"
     export var_DATA_DIR="$var_ROOT_DIR/data"
     export var_DEST_DIR="$var_ROOT_DIR/dist"
-
-    # Vrooli configuration directory and files
-    export var_VROOLI_CONFIG_DIR="$var_ROOT_DIR/.vrooli"
-    export var_SERVICE_JSON_FILE="$var_VROOLI_CONFIG_DIR/service.json"
-    export var_EXAMPLES_DIR="$var_VROOLI_CONFIG_DIR/examples"
-    export var_SCHEMAS_DIR="$var_VROOLI_CONFIG_DIR/schemas"
 
     # Environment files
     export var_ENV_DEV_FILE="$var_ROOT_DIR/.env-dev"

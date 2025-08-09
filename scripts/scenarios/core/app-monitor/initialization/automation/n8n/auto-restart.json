@@ -1,0 +1,283 @@
+{
+  "name": "Auto Restart Unhealthy Apps",
+  "nodes": [
+    {
+      "parameters": {
+        "channel": "app-alerts",
+        "options": {}
+      },
+      "id": "4h5i6j7k-8l9m-0n1o-2p3q-4r5s6t7u8v9w",
+      "name": "Listen for Alerts",
+      "type": "n8n-nodes-base.redisTrigger",
+      "typeVersion": 1,
+      "position": [
+        260,
+        300
+      ],
+      "credentials": {
+        "redis": {
+          "id": "1",
+          "name": "app-monitor-redis"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract app name from alert message\nconst message = $input.item.json.message || '';\nconst appNameMatch = message.match(/App (\\S+) health check failed/);\n\nif (appNameMatch) {\n  return {\n    json: {\n      appName: appNameMatch[1],\n      alertMessage: message,\n      timestamp: new Date().toISOString()\n    }\n  };\n}\n\n// Skip if no app name found\nreturn null;"
+      },
+      "id": "5i6j7k8l-9m0n-1o2p-3q4r-5s6t7u8v9w0x",
+      "name": "Extract App Info",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "table": "apps",
+        "where": {
+          "conditions": [
+            {
+              "column": "name",
+              "value": "={{ $json.appName }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "6j7k8l9m-0n1o-2p3q-4r5s-6t7u8v9w0x1y",
+      "name": "Get App Details",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        700,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "app-monitor-postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.config.auto_restart }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7k8l9m0n-1o2p-3q4r-5s6t-7u8v9w0x1y2z",
+      "name": "Check Auto Restart Enabled",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        920,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=unix:///var/run/docker.sock:/containers/{{ $json.config.container_name || $json.name }}/restart",
+        "method": "POST",
+        "options": {}
+      },
+      "id": "8l9m0n1o-2p3q-4r5s-6t7u-8v9w0x1y2z3a",
+      "name": "Restart Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        1140,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "app_logs",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "app_id": "={{ $('Get App Details').item.json.id }}",
+            "level": "info",
+            "message": "=Automatic restart triggered due to health check failure",
+            "source": "auto-restart-workflow",
+            "timestamp": "={{ $now }}"
+          },
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "9m0n1o2p-3q4r-5s6t-7u8v-9w0x1y2z3a4b",
+      "name": "Log Restart Action",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1360,
+        220
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "app-monitor-postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "app-notifications",
+        "message": "=🔄 Auto-restarting app {{ $('Get App Details').item.json.name }} due to health check failure"
+      },
+      "id": "0n1o2p3q-4r5s-6t7u-8v9w-0x1y2z3a4b5c",
+      "name": "Send Restart Notification",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1580,
+        220
+      ],
+      "credentials": {
+        "redis": {
+          "id": "1",
+          "name": "app-monitor-redis"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "app_logs",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "app_id": "={{ $('Get App Details').item.json.id }}",
+            "level": "warning",
+            "message": "=Auto-restart disabled for this app",
+            "source": "auto-restart-workflow",
+            "timestamp": "={{ $now }}"
+          },
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "1o2p3q4r-5s6t-7u8v-9w0x-1y2z3a4b5c6d",
+      "name": "Log Restart Skipped",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1140,
+        380
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "app-monitor-postgres"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Listen for Alerts": {
+      "main": [
+        [
+          {
+            "node": "Extract App Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract App Info": {
+      "main": [
+        [
+          {
+            "node": "Get App Details",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get App Details": {
+      "main": [
+        [
+          {
+            "node": "Check Auto Restart Enabled",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Auto Restart Enabled": {
+      "main": [
+        [
+          {
+            "node": "Restart Container",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Restart Skipped",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Restart Container": {
+      "main": [
+        [
+          {
+            "node": "Log Restart Action",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Restart Action": {
+      "main": [
+        [
+          {
+            "node": "Send Restart Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "1"
+}

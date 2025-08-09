@@ -1,0 +1,120 @@
+{
+  "resource_endpoints": {
+    "ollama": {
+      "base_url": "http://ollama:11434",
+      "endpoints": {
+        "generate": "/api/generate",
+        "chat": "/api/chat",
+        "tags": "/api/tags"
+      },
+      "models": {
+        "primary": "llama3.2",
+        "creative": "gemma2",
+        "code": "codellama"
+      }
+    },
+    "comfyui": {
+      "base_url": "http://comfyui:8188",
+      "endpoints": {
+        "prompt": "/prompt",
+        "queue": "/queue",
+        "history": "/history",
+        "system_stats": "/system_stats"
+      },
+      "workflows": {
+        "logo_generator": "logo-generator",
+        "icon_creator": "icon-creator",
+        "favicon_generator": "favicon-generator"
+      }
+    },
+    "postgres": {
+      "host": "postgres",
+      "port": 5432,
+      "database": "brand_manager",
+      "connection_string": "postgresql://user:password@postgres:5432/brand_manager"
+    },
+    "minio": {
+      "base_url": "http://minio:9000",
+      "console_url": "http://minio:9001",
+      "endpoints": {
+        "health": "/minio/health/ready",
+        "metrics": "/minio/metrics"
+      },
+      "buckets": {
+        "logos": "brand-logos",
+        "icons": "brand-icons", 
+        "exports": "brand-exports",
+        "templates": "brand-templates",
+        "backups": "app-backups"
+      }
+    },
+    "n8n": {
+      "base_url": "http://n8n:5678",
+      "endpoints": {
+        "webhook": "/webhook",
+        "api": "/api/v1",
+        "healthz": "/healthz"
+      },
+      "webhooks": {
+        "generate_brand": "/webhook/generate-brand",
+        "spawn_claude": "/webhook/spawn-claude-integration",
+        "monitor_integration": "/webhook/monitor-integration"
+      }
+    },
+    "windmill": {
+      "base_url": "http://windmill:8000",
+      "endpoints": {
+        "api": "/api",
+        "version": "/api/version"
+      },
+      "apps": {
+        "brand_manager": "/apps/f/brand-manager/dashboard",
+        "integration_monitor": "/apps/f/brand-manager/integration-dashboard"
+      }
+    },
+    "vault": {
+      "base_url": "http://vault:8200",
+      "endpoints": {
+        "health": "/v1/sys/health",
+        "auth": "/v1/auth",
+        "secrets": "/v1/secret/data"
+      },
+      "secret_paths": {
+        "api_keys": "brand-manager/api-keys",
+        "integration_tokens": "brand-manager/integration-tokens"
+      }
+    },
+    "claude_code": {
+      "spawn_endpoint": "http://claude-code:8080/api/spawn-agent",
+      "status_endpoint": "http://claude-code:8080/api/agent-status",
+      "results_endpoint": "http://claude-code:8080/api/agent-results"
+    }
+  },
+  "port_mappings": {
+    "ollama": 11434,
+    "comfyui": 8188,
+    "postgres": 5432,
+    "minio": 9000,
+    "minio_console": 9001,
+    "n8n": 5678,
+    "windmill": 8000,
+    "vault": 8200,
+    "claude_code": 8080
+  },
+  "health_check_urls": {
+    "ollama": "http://ollama:11434/api/tags",
+    "comfyui": "http://comfyui:8188/system_stats",
+    "postgres": "tcp://postgres:5432",
+    "minio": "http://minio:9000/minio/health/ready",
+    "n8n": "http://n8n:5678/healthz",
+    "windmill": "http://windmill:8000/api/version",
+    "vault": "http://vault:8200/v1/sys/health"
+  },
+  "timeout_settings": {
+    "ollama_generation": 60,
+    "comfyui_workflow": 120,
+    "database_query": 30,
+    "file_upload": 45,
+    "claude_integration": 300
+  }
+}

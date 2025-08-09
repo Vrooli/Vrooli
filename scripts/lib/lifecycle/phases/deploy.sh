@@ -265,7 +265,6 @@ deploy::health_check() {
 deploy::universal::main() {
     # Initialize phase
     phase::init "Deploy"
-    phase::export_env
     
     # Get parameters from environment or defaults
     local source_type="${SOURCE_TYPE:-docker}"
@@ -310,7 +309,7 @@ deploy::universal::main() {
             
         *)
             # Look for app-specific deployment
-            local app_deploy="${var_APP_LIFECYCLE_DEPLOY_DIR}/${source_type}.sh"
+            local app_deploy="${var_APP_LIFECYCLE_DEPLOY_DIR:-}/${source_type}.sh"
             if [[ -f "$app_deploy" ]]; then
                 log::info "Running app-specific deployment: $source_type"
                 if ! bash "$app_deploy" "$version" "$environment"; then

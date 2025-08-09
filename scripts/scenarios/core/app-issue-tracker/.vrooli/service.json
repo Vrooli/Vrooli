@@ -1,0 +1,151 @@
+{
+  "version": "1.0.0",
+  "name": "app-issue-tracker",
+  "description": "Centralized issue tracking hub for all Vrooli-generated applications with AI-powered investigation",
+  "type": "scenario",
+  "category": "vrooli-helpers",
+  "resources": {
+    "storage": {
+      "postgres": {
+        "enabled": true,
+        "config": {
+          "database": "issue_tracker",
+          "schema": "public",
+          "initialization": {
+            "scripts": ["initialization/storage/postgres/schema.sql", "initialization/storage/postgres/seed.sql"]
+          }
+        }
+      },
+      "qdrant": {
+        "enabled": true,
+        "config": {
+          "collection": "issues",
+          "vector_size": 1536,
+          "distance": "Cosine"
+        }
+      },
+      "redis": {
+        "enabled": true,
+        "config": {
+          "database": 0,
+          "keyPrefix": "issue_tracker:"
+        }
+      },
+      "minio": {
+        "enabled": true,
+        "config": {
+          "bucket": "issue-artifacts",
+          "public": false,
+          "retention": "30d"
+        }
+      }
+    },
+    "automation": {
+      "windmill": {
+        "enabled": true,
+        "config": {
+          "workspace": "issue_tracker",
+          "apps": [
+            "initialization/automation/windmill/apps/dashboard.json",
+            "initialization/automation/windmill/apps/metrics.json",
+            "initialization/automation/windmill/apps/agents.json"
+          ],
+          "scripts": [
+            "initialization/automation/windmill/scripts/api/create-issue.ts",
+            "initialization/automation/windmill/scripts/api/get-issues.ts",
+            "initialization/automation/windmill/scripts/api/search-similar.ts",
+            "initialization/automation/windmill/scripts/api/trigger-investigation.ts",
+            "initialization/automation/windmill/scripts/actions/spawn-claude-agent.ts",
+            "initialization/automation/windmill/scripts/actions/update-issue-status.ts",
+            "initialization/automation/windmill/scripts/actions/link-related-issues.ts",
+            "initialization/automation/windmill/scripts/analytics/calculate-metrics.ts",
+            "initialization/automation/windmill/scripts/analytics/detect-patterns.ts",
+            "initialization/automation/windmill/scripts/analytics/generate-reports.ts"
+          ],
+          "flows": [
+            "initialization/automation/windmill/flows/issue-lifecycle.json"
+          ]
+        }
+      },
+      "n8n": {
+        "enabled": true,
+        "config": {
+          "workflows": [
+            "initialization/automation/n8n/claude-investigation.json",
+            "initialization/automation/n8n/issue-ingestion.json",
+            "initialization/automation/n8n/pattern-detection.json",
+            "initialization/automation/n8n/fix-orchestration.json"
+          ]
+        }
+      }
+    },
+    "ai": {
+      "claude-code": {
+        "enabled": true,
+        "config": {
+          "model": "claude-3-opus-20240229",
+          "maxTokens": 8192,
+          "temperature": 0.2,
+          "purpose": "issue_investigation_and_fixes"
+        }
+      },
+      "ollama": {
+        "enabled": true,
+        "config": {
+          "models": ["nomic-embed-text", "llama3.2"],
+          "embeddings": {
+            "model": "nomic-embed-text",
+            "dimensions": 1536
+          },
+          "primary_use": "embeddings_and_classification"
+        }
+      }
+    }
+  },
+  "deployment": {
+    "ports": {
+      "windmill": 8000,
+      "api": 8091,
+      "n8n": 5678
+    },
+    "environment": {
+      "NODE_ENV": "production",
+      "LOG_LEVEL": "info",
+      "CLAUDE_API_KEY": "${CLAUDE_API_KEY}",
+      "ISSUE_TRACKER_API_PORT": "8091",
+      "ISSUE_TRACKER_SECRET": "${ISSUE_TRACKER_SECRET}"
+    }
+  },
+  "lifecycle": {
+    "setup": {
+      "description": "Initialize issue tracker database and services",
+      "steps": [
+        {
+          "name": "database-setup",
+          "run": "deployment/setup-postgres.sh"
+        },
+        {
+          "name": "vector-db-setup",
+          "run": "deployment/setup-qdrant.sh"
+        },
+        {
+          "name": "minio-setup",
+          "run": "deployment/setup-minio.sh"
+        },
+        {
+          "name": "automation-import",
+          "run": "deployment/import-automations.sh"
+        }
+      ]
+    },
+    "start": {
+      "description": "Start issue tracker services",
+      "steps": [
+        {
+          "name": "start-services",
+          "run": "deployment/startup.sh"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,243 @@
+{
+  "patterns": {
+    "react-app": {
+      "name": "React Application",
+      "description": "Standard React app with public/ folder structure",
+      "detection": {
+        "files": ["package.json", "public/index.html", "src/App.js"],
+        "package_indicators": ["react", "react-dom"]
+      },
+      "integration_steps": [
+        {
+          "name": "backup_public_folder",
+          "description": "Create backup of public/ folder",
+          "action": "copy_directory",
+          "source": "public/",
+          "target": "backup/public_{{timestamp}}/"
+        },
+        {
+          "name": "update_manifest",
+          "description": "Update public/manifest.json with brand data",
+          "action": "edit_json",
+          "target": "public/manifest.json",
+          "changes": {
+            "name": "{{brand.name}}",
+            "short_name": "{{brand.short_name}}",
+            "theme_color": "{{brand.colors.primary}}",
+            "background_color": "{{brand.colors.background}}"
+          }
+        },
+        {
+          "name": "replace_favicon",
+          "description": "Replace favicon files",
+          "action": "copy_files",
+          "files": [
+            {"source": "{{brand.assets.favicon_ico}}", "target": "public/favicon.ico"},
+            {"source": "{{brand.assets.favicon_16}}", "target": "public/favicon-16x16.png"},
+            {"source": "{{brand.assets.favicon_32}}", "target": "public/favicon-32x32.png"}
+          ]
+        },
+        {
+          "name": "replace_logo",
+          "description": "Replace app logo and icons",
+          "action": "copy_files",
+          "files": [
+            {"source": "{{brand.assets.logo_192}}", "target": "public/logo192.png"},
+            {"source": "{{brand.assets.logo_512}}", "target": "public/logo512.png"},
+            {"source": "{{brand.assets.logo_svg}}", "target": "public/logo.svg"}
+          ]
+        },
+        {
+          "name": "update_index_html",
+          "description": "Update HTML meta tags and title",
+          "action": "edit_html",
+          "target": "public/index.html",
+          "changes": {
+            "title": "{{brand.name}}",
+            "meta[name='description']": "{{brand.description}}",
+            "meta[name='theme-color']": "{{brand.colors.primary}}"
+          }
+        },
+        {
+          "name": "create_brand_css",
+          "description": "Create CSS file with brand variables",
+          "action": "create_file",
+          "target": "src/brand.css",
+          "content": ":root {\n  --brand-primary: {{brand.colors.primary}};\n  --brand-secondary: {{brand.colors.secondary}};\n  --brand-accent: {{brand.colors.accent}};\n  --brand-background: {{brand.colors.background}};\n  --brand-text: {{brand.colors.text}};\n  --brand-font-heading: '{{brand.fonts.heading}}';\n  --brand-font-body: '{{brand.fonts.body}}';\n}"
+        },
+        {
+          "name": "update_app_css",
+          "description": "Import brand CSS and update main styles",
+          "action": "edit_css",
+          "target": "src/App.css",
+          "import": "@import './brand.css';",
+          "replace_colors": {
+            "#282c34": "var(--brand-background)",
+            "#61dafb": "var(--brand-primary)"
+          }
+        }
+      ]
+    },
+    "vue-app": {
+      "name": "Vue.js Application", 
+      "description": "Vue.js app with public/ folder structure",
+      "detection": {
+        "files": ["package.json", "public/index.html", "src/App.vue"],
+        "package_indicators": ["vue", "@vue/cli-service"]
+      },
+      "integration_steps": [
+        {
+          "name": "backup_public_folder",
+          "description": "Create backup of public/ folder",
+          "action": "copy_directory",
+          "source": "public/",
+          "target": "backup/public_{{timestamp}}/"
+        },
+        {
+          "name": "replace_favicon",
+          "description": "Replace favicon files",
+          "action": "copy_files",
+          "files": [
+            {"source": "{{brand.assets.favicon_ico}}", "target": "public/favicon.ico"}
+          ]
+        },
+        {
+          "name": "update_index_html",
+          "description": "Update HTML meta tags",
+          "action": "edit_html",
+          "target": "public/index.html",
+          "changes": {
+            "title": "{{brand.name}}",
+            "meta[name='description']": "{{brand.description}}"
+          }
+        },
+        {
+          "name": "create_brand_scss",
+          "description": "Create SCSS file with brand variables",
+          "action": "create_file",
+          "target": "src/assets/brand.scss",
+          "content": "$brand-primary: {{brand.colors.primary}};\n$brand-secondary: {{brand.colors.secondary}};\n$brand-accent: {{brand.colors.accent}};\n$brand-background: {{brand.colors.background}};\n$brand-text: {{brand.colors.text}};"
+        }
+      ]
+    },
+    "html-static": {
+      "name": "Static HTML Site",
+      "description": "Static HTML website with assets",
+      "detection": {
+        "files": ["index.html"],
+        "no_package_json": true
+      },
+      "integration_steps": [
+        {
+          "name": "backup_assets",
+          "description": "Create backup of existing assets",
+          "action": "copy_directory",
+          "source": "assets/",
+          "target": "backup/assets_{{timestamp}}/",
+          "optional": true
+        },
+        {
+          "name": "replace_favicon",
+          "description": "Replace favicon",
+          "action": "copy_files",
+          "files": [
+            {"source": "{{brand.assets.favicon_ico}}", "target": "favicon.ico"}
+          ]
+        },
+        {
+          "name": "copy_brand_assets",
+          "description": "Copy brand assets to assets folder",
+          "action": "copy_files",
+          "files": [
+            {"source": "{{brand.assets.logo_svg}}", "target": "assets/logo.svg"},
+            {"source": "{{brand.assets.logo_png}}", "target": "assets/logo.png"}
+          ]
+        },
+        {
+          "name": "update_html_head",
+          "description": "Update HTML head section",
+          "action": "edit_html",
+          "target": "index.html",
+          "changes": {
+            "title": "{{brand.name}}",
+            "meta[name='description']": "{{brand.description}}",
+            "link[rel='icon']": "/favicon.ico"
+          }
+        },
+        {
+          "name": "create_brand_css",
+          "description": "Create brand CSS file",
+          "action": "create_file",
+          "target": "assets/brand.css",
+          "content": ":root {\n  --brand-primary: {{brand.colors.primary}};\n  --brand-secondary: {{brand.colors.secondary}};\n  --brand-accent: {{brand.colors.accent}};\n  --brand-background: {{brand.colors.background}};\n  --brand-text: {{brand.colors.text}};\n}\n\nbody {\n  background-color: var(--brand-background);\n  color: var(--brand-text);\n  font-family: '{{brand.fonts.body}}';\n}"
+        }
+      ]
+    },
+    "nextjs-app": {
+      "name": "Next.js Application",
+      "description": "Next.js app with public/ and pages/ structure",
+      "detection": {
+        "files": ["package.json", "next.config.js"],
+        "package_indicators": ["next", "react"]
+      },
+      "integration_steps": [
+        {
+          "name": "backup_public_folder",
+          "description": "Create backup of public/ folder",
+          "action": "copy_directory",
+          "source": "public/",
+          "target": "backup/public_{{timestamp}}/"
+        },
+        {
+          "name": "replace_favicon",
+          "description": "Replace favicon files",
+          "action": "copy_files",
+          "files": [
+            {"source": "{{brand.assets.favicon_ico}}", "target": "public/favicon.ico"},
+            {"source": "{{brand.assets.favicon_16}}", "target": "public/favicon-16x16.png"},
+            {"source": "{{brand.assets.favicon_32}}", "target": "public/favicon-32x32.png"}
+          ]
+        },
+        {
+          "name": "update_head_component",
+          "description": "Update _document.js or _app.js head section",
+          "action": "edit_javascript",
+          "target": "pages/_document.js",
+          "changes": {
+            "title": "{{brand.name}}",
+            "meta_description": "{{brand.description}}",
+            "theme_color": "{{brand.colors.primary}}"
+          }
+        },
+        {
+          "name": "create_brand_module",
+          "description": "Create brand configuration module",
+          "action": "create_file",
+          "target": "lib/brand.js",
+          "content": "export const brandConfig = {\n  name: '{{brand.name}}',\n  colors: {\n    primary: '{{brand.colors.primary}}',\n    secondary: '{{brand.colors.secondary}}',\n    accent: '{{brand.colors.accent}}',\n    background: '{{brand.colors.background}}',\n    text: '{{brand.colors.text}}'\n  },\n  fonts: {\n    heading: '{{brand.fonts.heading}}',\n    body: '{{brand.fonts.body}}'\n  }\n};"
+        }
+      ]
+    }
+  },
+  "claude_code_instructions": {
+    "general_approach": "You are integrating a complete brand package into an application. Follow the integration pattern for the detected app type. Be thorough but conservative - always create backups before making changes.",
+    "safety_rules": [
+      "Always create backups of existing files before modification",
+      "Test each change incrementally to avoid breaking the application",
+      "Preserve existing functionality while applying brand changes",
+      "Use CSS variables when possible for easy future brand updates"
+    ],
+    "brand_consistency": [
+      "Ensure all color usage follows the brand palette",
+      "Replace all logo/icon references with brand assets",
+      "Update text content to match brand voice and messaging",
+      "Maintain brand typography hierarchy throughout the app"
+    ],
+    "validation_steps": [
+      "Verify all asset files are properly copied and accessible",
+      "Check that the application still builds and runs correctly",
+      "Confirm brand colors are applied consistently",
+      "Test favicon and meta tags in browser"
+    ]
+  }
+}

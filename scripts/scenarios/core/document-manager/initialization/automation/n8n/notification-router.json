@@ -1,0 +1,220 @@
+{
+  "name": "Notification Router",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "nodes": [
+    {
+      "parameters": {
+        "channel": "improvement-queue",
+        "queueMode": "subscribe"
+      },
+      "name": "Redis Queue Listener",
+      "type": "n8n-nodes-base.redis",
+      "position": [250, 300],
+      "id": "redis-listener"
+    },
+    {
+      "parameters": {
+        "channel": "agent-notifications", 
+        "queueMode": "subscribe"
+      },
+      "name": "Agent Notification Listener",
+      "type": "n8n-nodes-base.redis",
+      "position": [250, 500],
+      "id": "agent-listener"
+    },
+    {
+      "parameters": {
+        "channel": "improvement-updates",
+        "queueMode": "subscribe"
+      },
+      "name": "Improvement Update Listener", 
+      "type": "n8n-nodes-base.redis",
+      "position": [250, 700],
+      "id": "update-listener"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse incoming notification and determine type\nconst message = items[0].json.message || items[0].json;\nlet notificationData = {};\n\ntry {\n  // Try to parse as JSON if it's a string\n  if (typeof message === 'string') {\n    notificationData = JSON.parse(message);\n  } else {\n    notificationData = message;\n  }\n} catch (error) {\n  // If parsing fails, treat as plain text message\n  notificationData = {\n    type: 'text',\n    message: message.toString(),\n    severity: 'low',\n    source: 'unknown'\n  };\n}\n\n// Enhance notification data\nnotificationData.timestamp = new Date().toISOString();\nnotificationData.notification_id = 'notify_' + Math.random().toString(36).substr(2, 9);\n\n// Determine notification context from the source node\nif (items[0].node && items[0].node.name) {\n  if (items[0].node.name.includes('Queue')) {\n    notificationData.context = 'queue';\n    notificationData.category = 'improvement';\n  } else if (items[0].node.name.includes('Agent')) {\n    notificationData.context = 'agent';\n    notificationData.category = 'execution';\n  } else if (items[0].node.name.includes('Update')) {\n    notificationData.context = 'update';\n    notificationData.category = 'status';\n  }\n}\n\nreturn [{ json: { notification: notificationData } }];"
+      },
+      "name": "Parse Notification",
+      "type": "n8n-nodes-base.code",
+      "position": [450, 500],
+      "id": "parse-notification"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT DISTINCT np.user_id, np.channel, np.severity_threshold, np.enabled, np.schedule_window_start, np.schedule_window_end, np.timezone FROM notification_preferences np WHERE np.enabled = true AND (np.application_id IS NULL OR np.application_id = $1) AND CASE WHEN $2 = 'critical' THEN true WHEN $2 = 'high' THEN np.severity_threshold IN ('low', 'medium', 'high') WHEN $2 = 'medium' THEN np.severity_threshold IN ('low', 'medium') WHEN $2 = 'low' THEN np.severity_threshold = 'low' ELSE false END",
+        "options": {}
+      },
+      "name": "Get Notification Recipients",
+      "type": "n8n-nodes-base.postgres", 
+      "position": [650, 500],
+      "id": "get-recipients"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter recipients based on schedule windows and notification rules\nconst notification = items[0].json.notification;\nconst recipients = items.slice(1).map(item => item.json);\nconst now = new Date();\n\nconst filteredRecipients = recipients.filter(recipient => {\n  // Check if recipient is enabled\n  if (!recipient.enabled) return false;\n  \n  // Check schedule window if defined\n  if (recipient.schedule_window_start && recipient.schedule_window_end) {\n    const timezone = recipient.timezone || 'UTC';\n    const currentTime = now.toLocaleTimeString('en-US', {\n      timeZone: timezone,\n      hour12: false,\n      hour: '2-digit',\n      minute: '2-digit'\n    });\n    \n    if (currentTime < recipient.schedule_window_start || currentTime > recipient.schedule_window_end) {\n      return false;\n    }\n  }\n  \n  // Apply severity filtering (already done in SQL, but double-check)\n  const severityLevels = { 'low': 1, 'medium': 2, 'high': 3, 'critical': 4 };\n  const notificationLevel = severityLevels[notification.severity || 'low'];\n  const thresholdLevel = severityLevels[recipient.severity_threshold || 'low'];\n  \n  return notificationLevel >= thresholdLevel;\n});\n\n// Group recipients by channel for efficient delivery\nconst recipientsByChannel = {};\nfilteredRecipients.forEach(recipient => {\n  if (!recipientsByChannel[recipient.channel]) {\n    recipientsByChannel[recipient.channel] = [];\n  }\n  recipientsByChannel[recipient.channel].push(recipient);\n});\n\nreturn [{ json: { notification, recipientsByChannel } }];"
+      },
+      "name": "Filter Recipients",
+      "type": "n8n-nodes-base.code",
+      "position": [850, 500],
+      "id": "filter-recipients"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-slack-recipients",
+              "leftValue": "={{ Object.keys($json.recipientsByChannel).includes('slack') }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "name": "Check Slack Recipients",
+      "type": "n8n-nodes-base.if",
+      "position": [1050, 300],
+      "id": "check-slack"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-email-recipients",
+              "leftValue": "={{ Object.keys($json.recipientsByChannel).includes('email') }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "name": "Check Email Recipients",
+      "type": "n8n-nodes-base.if",
+      "position": [1050, 500],
+      "id": "check-email"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-webhook-recipients",
+              "leftValue": "={{ Object.keys($json.recipientsByChannel).includes('webhook') }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equal"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      },
+      "name": "Check Webhook Recipients",
+      "type": "n8n-nodes-base.if",
+      "position": [1050, 700],
+      "id": "check-webhook"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format notification for Slack\nconst notification = items[0].json.notification;\nconst recipients = items[0].json.recipientsByChannel.slack || [];\n\n// Create rich Slack message format\nconst severityColors = {\n  'critical': '#dc2626',\n  'high': '#ea580c', \n  'medium': '#d97706',\n  'low': '#6b7280'\n};\n\nconst severityEmojis = {\n  'critical': '🚨',\n  'high': '⚠️',\n  'medium': '📝',\n  'low': 'ℹ️'\n};\n\nconst message = {\n  text: `${severityEmojis[notification.severity || 'low']} Documentation Manager Alert`,\n  attachments: [\n    {\n      color: severityColors[notification.severity || 'low'],\n      title: notification.title || 'System Notification',\n      text: notification.message || notification.description || 'No additional details provided.',\n      fields: [\n        {\n          title: 'Severity',\n          value: (notification.severity || 'low').toUpperCase(),\n          short: true\n        },\n        {\n          title: 'Category',\n          value: notification.category || 'General',\n          short: true\n        },\n        {\n          title: 'Timestamp',\n          value: new Date(notification.timestamp).toLocaleString(),\n          short: false\n        }\n      ],\n      footer: 'Documentation Manager',\n      footer_icon: 'https://docs.example.com/icon.png',\n      ts: Math.floor(new Date(notification.timestamp).getTime() / 1000)\n    }\n  ],\n  channel: '#documentation-alerts',\n  username: 'Doc Manager Bot',\n  icon_emoji: ':robot_face:'\n};\n\n// Add action buttons for certain notification types\nif (notification.context === 'queue' && notification.improvement_id) {\n  message.attachments[0].actions = [\n    {\n      type: 'button',\n      text: 'Review',\n      url: `https://dashboard.example.com/improvements/${notification.improvement_id}`,\n      style: 'primary'\n    },\n    {\n      type: 'button', \n      text: 'Approve',\n      name: 'approve',\n      value: notification.improvement_id,\n      style: 'primary'\n    },\n    {\n      type: 'button',\n      text: 'Deny',\n      name: 'deny', \n      value: notification.improvement_id,\n      style: 'danger'\n    }\n  ];\n}\n\nreturn [{ json: { slackMessage: message, recipients } }];"
+      },
+      "name": "Format Slack Message",
+      "type": "n8n-nodes-base.code",
+      "position": [1250, 300],
+      "id": "format-slack"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format notification for Email\nconst notification = items[0].json.notification;\nconst recipients = items[0].json.recipientsByChannel.email || [];\n\n// Create HTML email format\nconst severityColors = {\n  'critical': '#dc2626',\n  'high': '#ea580c',\n  'medium': '#d97706', \n  'low': '#6b7280'\n};\n\nconst htmlBody = `\n<!DOCTYPE html>\n<html>\n<head>\n  <meta charset=\"utf-8\">\n  <title>Documentation Manager Alert</title>\n  <style>\n    .container { font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; }\n    .header { background-color: ${severityColors[notification.severity || 'low']}; color: white; padding: 20px; text-align: center; }\n    .content { padding: 20px; }\n    .severity-badge { display: inline-block; padding: 4px 12px; border-radius: 4px; color: white; background-color: ${severityColors[notification.severity || 'low']}; font-weight: bold; }\n    .footer { background-color: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #6b7280; }\n    .btn { display: inline-block; padding: 10px 20px; background-color: #3b82f6; color: white; text-decoration: none; border-radius: 4px; margin: 5px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h2>Documentation Manager Alert</h2>\n    </div>\n    <div class=\"content\">\n      <h3>${notification.title || 'System Notification'}</h3>\n      <p><span class=\"severity-badge\">${(notification.severity || 'low').toUpperCase()}</span></p>\n      <p>${notification.message || notification.description || 'No additional details provided.'}</p>\n      \n      <table>\n        <tr><td><strong>Category:</strong></td><td>${notification.category || 'General'}</td></tr>\n        <tr><td><strong>Timestamp:</strong></td><td>${new Date(notification.timestamp).toLocaleString()}</td></tr>\n        ${notification.application_name ? `<tr><td><strong>Application:</strong></td><td>${notification.application_name}</td></tr>` : ''}\n      </table>\n      \n      ${notification.context === 'queue' && notification.improvement_id ? \n        `<div style=\"margin-top: 20px;\">\n          <a href=\"https://dashboard.example.com/improvements/${notification.improvement_id}\" class=\"btn\">Review in Dashboard</a>\n        </div>` : ''\n      }\n    </div>\n    <div class=\"footer\">\n      <p>This email was sent by the Documentation Manager system. To modify your notification preferences, visit the dashboard.</p>\n    </div>\n  </div>\n</body>\n</html>\n`;\n\nconst email = {\n  to: recipients.map(r => r.user_id).join(','),\n  subject: `[${(notification.severity || 'low').toUpperCase()}] ${notification.title || 'Documentation Manager Alert'}`,\n  html: htmlBody,\n  text: `Documentation Manager Alert\\n\\nSeverity: ${(notification.severity || 'low').toUpperCase()}\\nTitle: ${notification.title || 'System Notification'}\\nMessage: ${notification.message || notification.description || 'No additional details provided.'}\\nTimestamp: ${new Date(notification.timestamp).toLocaleString()}`\n};\n\nreturn [{ json: { emailMessage: email, recipients } }];"
+      },
+      "name": "Format Email Message",
+      "type": "n8n-nodes-base.code",
+      "position": [1250, 500],
+      "id": "format-email"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format notification for Webhook\nconst notification = items[0].json.notification;\nconst recipients = items[0].json.recipientsByChannel.webhook || [];\n\n// Create webhook payload\nconst webhookPayload = {\n  event_type: 'documentation_notification',\n  timestamp: notification.timestamp,\n  notification: {\n    id: notification.notification_id,\n    title: notification.title || 'System Notification',\n    message: notification.message || notification.description,\n    severity: notification.severity || 'low',\n    category: notification.category || 'general',\n    context: notification.context,\n    source: notification.source || 'document-manager'\n  },\n  metadata: {\n    application_id: notification.application_id,\n    improvement_id: notification.improvement_id,\n    agent_id: notification.agent_id\n  },\n  actions: notification.context === 'queue' ? [\n    {\n      action: 'approve',\n      url: `https://api.example.com/improvements/${notification.improvement_id}/approve`,\n      method: 'POST'\n    },\n    {\n      action: 'deny',\n      url: `https://api.example.com/improvements/${notification.improvement_id}/deny`,\n      method: 'POST'\n    }\n  ] : []\n};\n\nreturn [{ json: { webhookPayload, recipients } }];"
+      },
+      "name": "Format Webhook Message",
+      "type": "n8n-nodes-base.code",
+      "position": [1250, 700],
+      "id": "format-webhook"
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "resource": "message",
+        "operation": "post",
+        "channel": "={{ $json.slackMessage.channel }}",
+        "text": "={{ $json.slackMessage.text }}",
+        "attachments": "={{ JSON.stringify($json.slackMessage.attachments) }}",
+        "otherOptions": {
+          "username": "={{ $json.slackMessage.username }}",
+          "icon_emoji": "={{ $json.slackMessage.icon_emoji }}"
+        }
+      },
+      "name": "Send Slack Notification",
+      "type": "n8n-nodes-base.slack",
+      "position": [1450, 300],
+      "id": "send-slack"
+    },
+    {
+      "parameters": {
+        "fromEmail": "alerts@documentmanager.com",
+        "toEmail": "={{ $json.emailMessage.to }}",
+        "subject": "={{ $json.emailMessage.subject }}",
+        "emailFormat": "html",
+        "html": "={{ $json.emailMessage.html }}",
+        "options": {}
+      },
+      "name": "Send Email Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "position": [1450, 500],
+      "id": "send-email"
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "name": "Process Webhook Recipients",
+      "type": "n8n-nodes-base.splitInBatches",
+      "position": [1450, 700],
+      "id": "split-webhooks"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.webhook_url || 'https://hooks.example.com/documentation' }}",
+        "method": "POST",
+        "headers": {\n          "Content-Type": "application/json",\n          "X-Webhook-Source": "documentation-manager"\n        },\n        "body": "={{ $json.webhookPayload }}"\n      },\n      "name": "Send Webhook",\n      "type": "n8n-nodes-base.httpRequest",\n      "position": [1650, 700],\n      "id": "send-webhook"\n    },\n    {\n      "parameters": {\n        "operation": "insert",\n        "table": "notification_log",\n        "columns": "notification_id,user_id,channel,status,sent_at,message_preview",\n        "additionalFields": {\n          "notification_id": "={{ $json.notification.notification_id }}",\n          "user_id": "system",\n          "channel": "={{ $node.name.includes('Slack') ? 'slack' : $node.name.includes('Email') ? 'email' : 'webhook' }}",\n          "status": "sent",\n          "sent_at": "={{ new Date().toISOString() }}",\n          "message_preview": "={{ ($json.slackMessage?.text || $json.emailMessage?.subject || 'Webhook sent').substring(0, 255) }}"\n        },\n        "options": {}\n      },\n      "name": "Log Notification",\n      "type": "n8n-nodes-base.postgres",\n      "position": [1650, 500],\n      "id": "log-notification"\n    }\n  ],\n  "connections": {\n    "Redis Queue Listener": {"main": [[{"node": "Parse Notification", "type": "main", "index": 0}]]},\n    "Agent Notification Listener": {"main": [[{"node": "Parse Notification", "type": "main", "index": 0}]]},\n    "Improvement Update Listener": {"main": [[{"node": "Parse Notification", "type": "main", "index": 0}]]},\n    "Parse Notification": {"main": [[{"node": "Get Notification Recipients", "type": "main", "index": 0}]]},\n    "Get Notification Recipients": {"main": [[{"node": "Filter Recipients", "type": "main", "index": 0}]]},\n    "Filter Recipients": {\n      "main": [\n        [\n          {"node": "Check Slack Recipients", "type": "main", "index": 0},\n          {"node": "Check Email Recipients", "type": "main", "index": 0},\n          {"node": "Check Webhook Recipients", "type": "main", "index": 0}\n        ]\n      ]\n    },\n    "Check Slack Recipients": {\n      "main": [\n        [{"node": "Format Slack Message", "type": "main", "index": 0}],\n        []\n      ]\n    },\n    "Check Email Recipients": {\n      "main": [\n        [{"node": "Format Email Message", "type": "main", "index": 0}],\n        []\n      ]\n    },\n    "Check Webhook Recipients": {\n      "main": [\n        [{"node": "Format Webhook Message", "type": "main", "index": 0}],\n        []\n      ]\n    },\n    "Format Slack Message": {"main": [[{"node": "Send Slack Notification", "type": "main", "index": 0}]]},\n    "Format Email Message": {"main": [[{"node": "Send Email Notification", "type": "main", "index": 0}]]},\n    "Format Webhook Message": {"main": [[{"node": "Process Webhook Recipients", "type": "main", "index": 0}]]},\n    "Send Slack Notification": {"main": [[{"node": "Log Notification", "type": "main", "index": 0}]]},\n    "Send Email Notification": {"main": [[{"node": "Log Notification", "type": "main", "index": 0}]]},\n    "Process Webhook Recipients": {"main": [[{"node": "Send Webhook", "type": "main", "index": 0}]]},\n    "Send Webhook": {"main": [[{"node": "Log Notification", "type": "main", "index": 0}]]},\n    "Log Notification": {"main": [[]]}\n  },\n  "settings": {\n    "executionOrder": "v1"\n  },\n  "staticData": null,\n  "tags": ["documentation", "notifications", "alerts"],\n  "triggerCount": 0,\n  "updatedAt": "2024-01-15T10:00:00.000Z",\n  "versionId": "v2.0"\n}

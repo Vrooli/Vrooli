@@ -1,0 +1,91 @@
+{
+  "description": "Resource connection URLs for app-monitor scenario",
+  "resources": {
+    "storage": {
+      "postgres": {
+        "url": "postgresql://postgres:password@localhost:5433/app_monitor",
+        "host": "localhost",
+        "port": 5433,
+        "database": "app_monitor",
+        "username": "postgres",
+        "ssl": false,
+        "maxConnections": 10
+      },
+      "redis": {
+        "url": "redis://localhost:6380/0",
+        "host": "localhost",
+        "port": 6380,
+        "db": 0,
+        "password": null,
+        "keyPrefix": "app-monitor:",
+        "maxRetries": 3
+      }
+    },
+    "automation": {
+      "n8n": {
+        "url": "http://localhost:5678",
+        "apiEndpoint": "http://localhost:5678/api/v1",
+        "webhookEndpoint": "http://localhost:5678/webhook",
+        "auth": {
+          "type": "none"
+        }
+      },
+      "node-red": {
+        "url": "http://localhost:1880",
+        "apiEndpoint": "http://localhost:1880/red",
+        "adminAuth": {
+          "enabled": false
+        }
+      }
+    },
+    "execution": {
+      "browserless": {
+        "url": "http://localhost:4110",
+        "apiEndpoint": "http://localhost:4110",
+        "timeout": 30000,
+        "maxConcurrent": 5
+      }
+    },
+    "docker": {
+      "api": {
+        "socketPath": "/var/run/docker.sock",
+        "httpEndpoint": "http://localhost:2376",
+        "version": "v1.41",
+        "timeout": 10000
+      }
+    }
+  },
+  "endpoints": {
+    "health": {
+      "self": "http://localhost:8081/health",
+      "api": "http://localhost:8081/api/health"
+    },
+    "websocket": {
+      "url": "ws://localhost:3002/ws",
+      "namespace": "/app-monitor"
+    },
+    "ui": {
+      "url": "http://localhost:3001",
+      "title": "App Monitor Dashboard"
+    }
+  },
+  "integration": {
+    "discovery": {
+      "patterns": [
+        "generated-app-*",
+        "*-app-*",
+        "vrooli-*"
+      ],
+      "excludePatterns": [
+        "system-*",
+        "temp-*",
+        "*-backup"
+      ]
+    },
+    "monitoring": {
+      "pollInterval": 30000,
+      "healthCheckTimeout": 5000,
+      "metricsRetention": 604800
+    }
+  }
+}

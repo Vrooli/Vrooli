@@ -151,6 +151,11 @@ executor::run_bash_step() {
     local exit_code=0
     local output=""
     
+    # Default to service.json directory if no workdir specified
+    if [[ -z "$step_workdir" ]] && [[ -n "${SERVICE_JSON_PATH:-}" ]]; then
+        step_workdir=$(dirname "${SERVICE_JSON_PATH}")
+    fi
+    
     if [[ "$step_outputs" != "{}" ]] && [[ "$step_outputs" != "null" ]]; then
         # Capture output for processing
         if [[ -n "$step_workdir" ]]; then

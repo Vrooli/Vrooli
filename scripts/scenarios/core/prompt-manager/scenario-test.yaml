@@ -1,0 +1,150 @@
+name: prompt-manager
+description: Clean UX for storing prompts organized by campaigns
+version: 1.0.0
+
+tests:
+  - name: PostgreSQL Database
+    type: database
+    service: postgres
+    database: prompt_manager
+    query: "SELECT COUNT(*) FROM tags"
+    expected: 
+      min_rows: 5
+
+  - name: Qdrant Vector Store
+    type: connectivity
+    service: qdrant
+    endpoint: http://localhost:6333/collections
+    expected: 200
+
+  - name: Redis Session Store
+    type: connectivity
+    service: redis
+    db: 2
+    command: PING
+    expected: PONG
+
+  - name: Ollama LLM
+    type: connectivity
+    service: ollama
+    endpoint: http://localhost:11434/api/tags
+    expected: 200
+
+  - name: UI Dashboard
+    type: http
+    endpoint: http://localhost:3005
+    expected: 200
+
+  - name: API Health
+    type: http
+    endpoint: http://localhost:8085/health
+    expected:
+      status: 200
+      body:
+        status: healthy
+
+  - name: Authentication
+    type: functional
+    description: Test authentication flow
+    steps:
+      - action: login
+        endpoint: /api/auth/login
+        method: POST
+        body:
+          email: test@example.com
+          password: test123
+        expected: 
+          token: string
+
+  - name: Campaign Management
+    type: functional
+    description: Test campaign CRUD operations
+    steps:
+      - action: create_campaign
+        endpoint: /api/campaigns
+        method: POST
+        body:
+          name: Test Campaign
+          client: Test Client
+        expected: 201
+      - action: list_campaigns
+        endpoint: /api/campaigns
+        expected: 
+          min_items: 1
+
+  - name: Prompt Management
+    type: functional
+    description: Test prompt operations
+    steps:
+      - action: create_prompt
+        endpoint: /api/prompts
+        method: POST
+        body:
+          title: Test Prompt
+          content: "Generate a {{type}} for {{audience}}"
+          campaign_id: "{campaign_id}"
+        expected: 201
+      - action: search_prompts
+        endpoint: /api/prompts/search
+        query:
+          q: test
+        expected: array
+
+  - name: Semantic Search
+    type: functional
+    description: Test vector search
+    steps:
+      - action: semantic_search
+        endpoint: /api/prompts/semantic
+        method: POST
+        body:
+          query: "marketing email template"
+          limit: 10
+        expected:
+          results: array
+
+  - name: Version Control
+    type: functional
+    description: Test prompt versioning
+    steps:
+      - action: create_version
+        endpoint: /api/prompts/{id}/versions
+        method: POST
+        body:
+          content: "Updated content"
+          change_summary: "Improved clarity"
+        expected: 201
+      - action: get_versions
+        endpoint: /api/prompts/{id}/versions
+        expected: array
+
+  - name: Prompt Testing
+    type: functional
+    description: Test prompt execution
+    steps:
+      - action: test_prompt
+        endpoint: /api/prompts/{id}/test
+        method: POST
+        body:
+          provider: ollama
+          model: llama3.2
+          variables:
+            type: newsletter
+            audience: developers
+        expected:
+          response: string
+          tokens: number
+
+validation:
+  required_services:
+    - postgres
+    - qdrant
+    - redis
+    - ollama
+    - n8n
+  required_ports:
+    - 3005
+    - 8085
+    - 6333
+  authentication: required
+  data_persistence: required

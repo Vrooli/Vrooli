@@ -1,0 +1,80 @@
+{
+  "game_templates": {
+    "platformer": {
+      "base_prompt": "Create a retro platformer game with jumping mechanics",
+      "required_features": ["gravity", "platforms", "jumping", "collision"],
+      "example_prompts": [
+        "Mario-style platformer with coins",
+        "Cave explorer with torch mechanics",
+        "Robot jumping between space platforms"
+      ]
+    },
+    "shooter": {
+      "base_prompt": "Create a retro shooter game with enemies",
+      "required_features": ["shooting", "enemies", "health", "waves"],
+      "example_prompts": [
+        "Space invaders clone",
+        "Top-down zombie shooter",
+        "Side-scrolling spaceship game"
+      ]
+    },
+    "puzzle": {
+      "base_prompt": "Create a retro puzzle game with logic challenges",
+      "required_features": ["grid", "matching", "moves", "levels"],
+      "example_prompts": [
+        "Tetris-style block game",
+        "Match-3 jewel game",
+        "Sokoban box pusher"
+      ]
+    },
+    "arcade": {
+      "base_prompt": "Create a retro arcade game with high score focus",
+      "required_features": ["score", "lives", "increasing_difficulty"],
+      "example_prompts": [
+        "Snake game",
+        "Pac-Man maze runner",
+        "Breakout brick breaker"
+      ]
+    },
+    "racing": {
+      "base_prompt": "Create a retro racing game",
+      "required_features": ["vehicle", "track", "speed", "obstacles"],
+      "example_prompts": [
+        "Top-down racing game",
+        "Endless runner motorcycle",
+        "Space racer avoiding asteroids"
+      ]
+    }
+  },
+  "remix_strategies": {
+    "speed_change": "Modify game speed by 25-50%",
+    "reverse_mechanics": "Invert a core game mechanic",
+    "add_powerup": "Add a new random power-up",
+    "change_theme": "Swap visual theme (space/underwater/jungle)",
+    "difficulty_spike": "Double enemy count or halve player health",
+    "control_swap": "Change control scheme"
+  },
+  "asset_styles": {
+    "pixel_art": {
+      "resolution": "32x32",
+      "color_palette": "16 colors",
+      "style": "8-bit"
+    },
+    "sprites": {
+      "player_size": "16x16",
+      "enemy_size": "16x16",
+      "item_size": "8x8"
+    },
+    "audio": {
+      "format": "chiptune",
+      "channels": 4,
+      "samples": ["jump", "shoot", "collect", "die", "win"]
+    }
+  },
+  "generation_limits": {
+    "max_code_size_kb": 100,
+    "max_generation_time_seconds": 30,
+    "max_retries": 3,
+    "rate_limit_per_user_per_hour": 10
+  }
+}

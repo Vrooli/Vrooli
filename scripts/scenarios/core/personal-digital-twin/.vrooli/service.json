@@ -1,0 +1,128 @@
+{
+  "$schema": "./schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "personal-digital-twin",
+    "displayName": "Personal Digital Twin",
+    "description": "Create AI personas from personal data with semantic search and model fine-tuning for personal productivity",
+    "version": "1.0.0",
+    "type": "application",
+    "tags": ["ai", "personas", "productivity", "fine-tuning", "semantic-search"],
+    "license": "MIT"
+  },
+  "resources": {
+    "ai": {
+      "ollama": {
+        "enabled": true,
+        "models": ["llama3.2", "nomic-embed-text", "gemma2", "mistral"],
+        "features": ["fine-tuning", "embeddings", "chat"],
+        "purpose": "Core AI for personas and embeddings"
+      },
+      "unstructured-io": {
+        "enabled": true,
+        "purpose": "Process documents, emails, and data sources"
+      }
+    },
+    "storage": {
+      "postgres": {
+        "enabled": true,
+        "databases": ["digital_twin"],
+        "purpose": "Store persona configurations and metadata"
+      },
+      "qdrant": {
+        "enabled": true,
+        "collections": ["memories", "documents", "conversations"],
+        "purpose": "Vector storage for semantic search"
+      },
+      "minio": {
+        "enabled": true,
+        "buckets": ["data-sources", "processed-docs", "model-checkpoints"],
+        "purpose": "Store raw data and fine-tuned models"
+      }
+    },
+    "automation": {
+      "n8n": {
+        "enabled": true,
+        "workflows": ["data-ingestion", "model-training", "memory-indexing"],
+        "purpose": "Orchestrate data processing and training"
+      },
+      "windmill": {
+        "enabled": true,
+        "apps": ["persona-manager", "data-source-config"],
+        "purpose": "Web UI for persona management and configuration"
+      }
+    }
+  },
+  "serve": {
+    "ports": {
+      "ui": 3200,
+      "api": 8200,
+      "chat": 8201
+    },
+    "environment": {
+      "NODE_ENV": "production",
+      "EMBEDDING_MODEL": "nomic-embed-text",
+      "VECTOR_DIM": "768",
+      "MAX_TOKENS": "8192",
+      "POSTGRES_DB": "digital_twin"
+    },
+    "health": {
+      "endpoint": "/health",
+      "port": 8200
+    }
+  },
+  "execution": {
+    "startup": {
+      "dependencies": ["postgres", "qdrant", "ollama", "minio", "n8n", "windmill"],
+      "initScripts": [
+        "initialize-database.sh",
+        "setup-qdrant-collections.sh", 
+        "import-n8n-workflows.sh",
+        "deploy-windmill-apps.sh"
+      ]
+    },
+    "integrations": {
+      "data_sources": {
+        "google_drive": {
+          "enabled": true,
+          "oauth": true
+        },
+        "github": {
+          "enabled": true,
+          "types": ["commits", "issues", "code"]
+        },
+        "email": {
+          "enabled": true,
+          "protocols": ["imap", "gmail-api"]
+        },
+        "local_files": {
+          "enabled": true,
+          "formats": ["pdf", "txt", "md", "docx", "json"]
+        }
+      },
+      "external": {
+        "app-personalizer": {
+          "description": "Provide digital twins for app customization",
+          "protocol": "api",
+          "endpoints": ["/api/twin/export", "/api/twin/chat"]
+        }
+      }
+    }
+  },
+  "features": {
+    "semantic_search": {
+      "enabled": true,
+      "rerank": true,
+      "hybrid_search": true
+    },
+    "fine_tuning": {
+      "enabled": true,
+      "techniques": ["lora", "qlora"],
+      "auto_train": true
+    },
+    "multi_persona": {
+      "enabled": true,
+      "max_personas": 10
+    }
+  }
+}

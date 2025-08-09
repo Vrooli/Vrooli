@@ -1,0 +1,233 @@
+{
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "system-monitor",
+    "displayName": "AI System Monitor",
+    "description": "Server monitoring with AI-driven anomaly investigation and automated reporting",
+    "version": "1.0.0",
+    "type": "application",
+    "tags": [
+      "system-monitoring",
+      "anomaly-detection",
+      "ai-investigation",
+      "infrastructure-monitoring",
+      "alerting",
+      "performance-analytics"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "team@vrooli.com"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/scripts/scenarios/core/system-monitor"
+    },
+    "license": "GPL-3.0"
+  },
+  "resources": {
+    "storage": {
+      "postgres": {
+        "type": "postgresql",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "data": [
+            {
+              "type": "schema",
+              "file": "initialization/storage/postgres/schema.sql"
+            }
+          ]
+        }
+      },
+      "questdb": {
+        "type": "questdb",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "data": [
+            {
+              "type": "config",
+              "file": "initialization/storage/questdb/server.conf"
+            }
+          ]
+        }
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "data": [
+            {
+              "type": "config",
+              "file": "initialization/storage/redis/redis.conf"
+            }
+          ]
+        }
+      }
+    },
+    "automation": {
+      "node-red": {
+        "type": "node-red",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "workflows": [
+            {
+              "name": "anomaly-detector",
+              "file": "initialization/automation/node-red/anomaly-detector.json"
+            },
+            {
+              "name": "metric-collector",
+              "file": "initialization/automation/node-red/metric-collector.json"
+            }
+          ]
+        }
+      },
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "workflows": [
+            {
+              "name": "scheduled-reports",
+              "file": "initialization/automation/n8n/scheduled-reports.json"
+            },
+            {
+              "name": "threshold-monitor",
+              "file": "initialization/automation/n8n/threshold-monitor.json"
+            }
+          ]
+        }
+      }
+    },
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "models": ["llama3.2:3b"],
+        "configuration": {
+          "default_model": "llama3.2:3b",
+          "temperature": 0.1,
+          "max_tokens": 1024
+        }
+      }
+    },
+    "agents": {
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": false
+      }
+    }
+  },
+  "deployment": {
+    "target": "docker",
+    "urls": {
+      "ui": "${service.system-monitor.url}:3003",
+      "api": "${service.system-monitor.url}:8083",
+      "grafana": "${service.system-monitor.url}:3004"
+    },
+    "initialization": {
+      "phases": [
+        {
+          "name": "database-setup",
+          "tasks": [
+            {
+              "name": "apply-schema",
+              "type": "sql",
+              "target": "storage.postgres",
+              "file": "initialization/storage/postgres/schema.sql"
+            }
+          ]
+        },
+        {
+          "name": "storage-setup",
+          "parallel": true,
+          "tasks": [
+            {
+              "name": "configure-questdb",
+              "type": "resource-inject",
+              "target": "storage.questdb"
+            },
+            {
+              "name": "configure-redis",
+              "type": "resource-inject",
+              "target": "storage.redis"
+            }
+          ]
+        },
+        {
+          "name": "automation-setup",
+          "tasks": [
+            {
+              "name": "deploy-node-red-flows",
+              "type": "resource-inject",
+              "target": "automation.node-red"
+            },
+            {
+              "name": "deploy-n8n-workflows",
+              "type": "resource-inject",
+              "target": "automation.n8n"
+            }
+          ]
+        },
+        {
+          "name": "ai-setup",
+          "tasks": [
+            {
+              "name": "load-ai-models",
+              "type": "resource-inject",
+              "target": "ai.ollama",
+              "timeout": "5m"
+            }
+          ]
+        },
+        {
+          "name": "application-configuration",
+          "tasks": [
+            {
+              "name": "set-monitoring-config",
+              "type": "config",
+              "file": "initialization/configuration/monitoring-config.json"
+            }
+          ]
+        },
+        {
+          "name": "startup",
+          "tasks": [
+            {
+              "name": "start-application",
+              "type": "script",
+              "script": "./deployment/startup.sh",
+              "timeout": "2m"
+            }
+          ]
+        }
+      ]
+    },
+    "monitoring": {
+      "enabled": true,
+      "healthChecks": {
+        "application": {
+          "endpoint": "${service.system-monitor.url}:8083/health",
+          "interval": "30s",
+          "timeout": "5s"
+        }
+      }
+    }
+  },
+  "metadata": {
+    "businessModel": {
+      "purpose": "internal-tool",
+      "valueProposition": "AI-powered system monitoring with automated anomaly detection and investigation",
+      "targetMarket": "DevOps teams, system administrators, infrastructure monitoring"
+    }
+  }
+}

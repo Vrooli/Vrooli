@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>App Monitor Dashboard</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="header-content">
+                <h1><i class="fas fa-desktop"></i> App Monitor Dashboard</h1>
+                <div class="header-stats">
+                    <div class="stat-card">
+                        <span class="stat-value" id="total-apps">-</span>
+                        <span class="stat-label">Total Apps</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="running-apps">-</span>
+                        <span class="stat-label">Running</span>
+                    </div>
+                    <div class="stat-card">
+                        <span class="stat-value" id="stopped-apps">-</span>
+                        <span class="stat-label">Stopped</span>
+                    </div>
+                    <div class="connection-status" id="connection-status">
+                        <i class="fas fa-circle"></i> Connecting...
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <nav class="nav-tabs">
+            <button class="tab-button active" onclick="showTab('apps')">
+                <i class="fas fa-th-list"></i> Apps
+            </button>
+            <button class="tab-button" onclick="showTab('metrics')">
+                <i class="fas fa-chart-line"></i> Metrics
+            </button>
+            <button class="tab-button" onclick="showTab('logs')">
+                <i class="fas fa-file-text"></i> Logs
+            </button>
+            <button class="tab-button" onclick="showTab('alerts')">
+                <i class="fas fa-exclamation-triangle"></i> Alerts
+            </button>
+        </nav>
+
+        <main class="main-content">
+            <!-- Apps Tab -->
+            <div id="apps-tab" class="tab-content active">
+                <div class="section-header">
+                    <h2>Application List</h2>
+                    <button class="refresh-btn" onclick="refreshApps()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </div>
+                <div class="apps-grid" id="apps-grid">
+                    <!-- Apps will be populated here -->
+                </div>
+            </div>
+
+            <!-- Metrics Tab -->
+            <div id="metrics-tab" class="tab-content">
+                <div class="section-header">
+                    <h2>System Metrics</h2>
+                </div>
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h3>CPU Usage</h3>
+                        <div class="metric-chart" id="cpu-chart">Loading...</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>Memory Usage</h3>
+                        <div class="metric-chart" id="memory-chart">Loading...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Logs Tab -->
+            <div id="logs-tab" class="tab-content">
+                <div class="section-header">
+                    <h2>Application Logs</h2>
+                    <select id="log-app-filter" onchange="filterLogs()">
+                        <option value="">All Apps</option>
+                    </select>
+                </div>
+                <div class="logs-container" id="logs-container">
+                    <!-- Logs will be populated here -->
+                </div>
+            </div>
+
+            <!-- Alerts Tab -->
+            <div id="alerts-tab" class="tab-content">
+                <div class="section-header">
+                    <h2>Active Alerts</h2>
+                </div>
+                <div class="alerts-container" id="alerts-container">
+                    <!-- Alerts will be populated here -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- App Details Modal -->
+    <div id="app-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-app-name">App Details</h3>
+                <button class="close-btn" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <!-- App details will be populated here -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-success" id="start-btn" onclick="controlApp('start')">
+                    <i class="fas fa-play"></i> Start
+                </button>
+                <button class="btn btn-danger" id="stop-btn" onclick="controlApp('stop')">
+                    <i class="fas fa-stop"></i> Stop
+                </button>
+                <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

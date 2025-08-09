@@ -1,0 +1,382 @@
+{
+  "name": "Issue Tracker Dashboard",
+  "path": "issue_tracker_dashboard",
+  "summary": "Centralized issue management dashboard for all Vrooli applications",
+  "description": "Real-time visualization and management of issues across all tracked applications with AI investigation capabilities",
+  "value": {
+    "type": "app",
+    "grid": [
+      {
+        "id": "header",
+        "type": "text",
+        "configuration": {
+          "text": "# 🐛 Issue Tracker Central",
+          "style": {
+            "fontSize": "24px",
+            "fontWeight": "bold",
+            "marginBottom": "20px"
+          }
+        },
+        "position": { "x": 0, "y": 0, "w": 12, "h": 1 }
+      },
+      {
+        "id": "stats_cards",
+        "type": "container",
+        "configuration": {
+          "layout": "horizontal",
+          "components": [
+            {
+              "type": "statCard",
+              "data": "{{getOpenIssuesCount}}",
+              "title": "Open Issues",
+              "color": "red",
+              "icon": "alert-circle"
+            },
+            {
+              "type": "statCard",
+              "data": "{{getInProgressCount}}",
+              "title": "In Progress",
+              "color": "yellow",
+              "icon": "clock"
+            },
+            {
+              "type": "statCard",
+              "data": "{{getFixedTodayCount}}",
+              "title": "Fixed Today",
+              "color": "green",
+              "icon": "check-circle"
+            },
+            {
+              "type": "statCard",
+              "data": "{{getActiveAgentsCount}}",
+              "title": "Active Agents",
+              "color": "blue",
+              "icon": "cpu"
+            }
+          ]
+        },
+        "position": { "x": 0, "y": 1, "w": 12, "h": 2 }
+      },
+      {
+        "id": "filters",
+        "type": "container",
+        "configuration": {
+          "layout": "horizontal",
+          "components": [
+            {
+              "id": "app_filter",
+              "type": "select",
+              "label": "Application",
+              "placeholder": "All Applications",
+              "options": "{{getAppsList}}",
+              "multiple": true,
+              "clearable": true
+            },
+            {
+              "id": "status_filter",
+              "type": "select",
+              "label": "Status",
+              "placeholder": "All Statuses",
+              "options": ["open", "investigating", "in_progress", "fixed", "closed", "wont_fix"],
+              "multiple": true,
+              "clearable": true
+            },
+            {
+              "id": "priority_filter",
+              "type": "select",
+              "label": "Priority",
+              "placeholder": "All Priorities",
+              "options": ["critical", "high", "medium", "low"],
+              "multiple": true,
+              "clearable": true
+            },
+            {
+              "id": "type_filter",
+              "type": "select",
+              "label": "Type",
+              "placeholder": "All Types",
+              "options": ["bug", "feature", "improvement", "documentation", "performance", "security"],
+              "multiple": true,
+              "clearable": true
+            },
+            {
+              "id": "search_input",
+              "type": "textInput",
+              "label": "Search",
+              "placeholder": "Search issues...",
+              "icon": "search"
+            }
+          ]
+        },
+        "position": { "x": 0, "y": 3, "w": 12, "h": 2 }
+      },
+      {
+        "id": "issues_table",
+        "type": "aggridcomponent",
+        "configuration": {
+          "resource": "postgres://issue_tracker",
+          "query": "SELECT i.id, i.title, i.status, i.priority, i.type, a.display_name as app_name, i.created_at, i.reporter_name, ag.display_name as assigned_agent FROM issues i JOIN apps a ON i.app_id = a.id LEFT JOIN agents ag ON i.assigned_agent_id = ag.id WHERE ($1::text[] IS NULL OR a.name = ANY($1)) AND ($2::text[] IS NULL OR i.status = ANY($2)) AND ($3::text[] IS NULL OR i.priority = ANY($3)) AND ($4::text[] IS NULL OR i.type = ANY($4)) AND ($5::text IS NULL OR i.title ILIKE '%' || $5 || '%' OR i.description ILIKE '%' || $5 || '%') ORDER BY CASE i.priority WHEN 'critical' THEN 1 WHEN 'high' THEN 2 WHEN 'medium' THEN 3 WHEN 'low' THEN 4 END, i.created_at DESC",
+          "args": ["{{app_filter}}", "{{status_filter}}", "{{priority_filter}}", "{{type_filter}}", "{{search_input}}"],
+          "columnDefs": [
+            {
+              "field": "id",
+              "headerName": "ID",
+              "width": 100,
+              "hide": true
+            },
+            {
+              "field": "app_name",
+              "headerName": "Application",
+              "width": 150,
+              "filter": true
+            },
+            {
+              "field": "title",
+              "headerName": "Title",
+              "flex": 2,
+              "filter": true,
+              "cellRenderer": "linkRenderer"
+            },
+            {
+              "field": "status",
+              "headerName": "Status",
+              "width": 120,
+              "cellRenderer": "statusBadge"
+            },
+            {
+              "field": "priority",
+              "headerName": "Priority",
+              "width": 100,
+              "cellRenderer": "priorityBadge"
+            },
+            {
+              "field": "type",
+              "headerName": "Type",
+              "width": 100,
+              "cellRenderer": "typeBadge"
+            },
+            {
+              "field": "assigned_agent",
+              "headerName": "Agent",
+              "width": 150
+            },
+            {
+              "field": "reporter_name",
+              "headerName": "Reporter",
+              "width": 120
+            },
+            {
+              "field": "created_at",
+              "headerName": "Created",
+              "width": 150,
+              "valueFormatter": "dateFormatter"
+            }
+          ],
+          "rowSelection": "single",
+          "pagination": true,
+          "paginationPageSize": 20,
+          "onRowClicked": "{{openIssueDetails}}"
+        },
+        "position": { "x": 0, "y": 5, "w": 12, "h": 8 }
+      },
+      {
+        "id": "quick_actions",
+        "type": "container",
+        "configuration": {
+          "layout": "horizontal",
+          "components": [
+            {
+              "id": "investigate_btn",
+              "type": "button",
+              "text": "🔍 Investigate",
+              "color": "primary",
+              "disabled": "{{!selectedIssue}}",
+              "onClick": "{{triggerInvestigation}}"
+            },
+            {
+              "id": "assign_agent_btn",
+              "type": "button",
+              "text": "🤖 Assign Agent",
+              "color": "secondary",
+              "disabled": "{{!selectedIssue}}",
+              "onClick": "{{openAgentAssignment}}"
+            },
+            {
+              "id": "mark_duplicate_btn",
+              "type": "button",
+              "text": "📋 Mark Duplicate",
+              "color": "warning",
+              "disabled": "{{!selectedIssue}}",
+              "onClick": "{{markAsDuplicate}}"
+            },
+            {
+              "id": "close_issue_btn",
+              "type": "button",
+              "text": "✅ Close Issue",
+              "color": "success",
+              "disabled": "{{!selectedIssue}}",
+              "onClick": "{{closeIssue}}"
+            },
+            {
+              "id": "refresh_btn",
+              "type": "button",
+              "text": "🔄 Refresh",
+              "color": "default",
+              "onClick": "{{refreshData}}"
+            }
+          ]
+        },
+        "position": { "x": 0, "y": 13, "w": 12, "h": 1 }
+      },
+      {
+        "id": "issue_details_modal",
+        "type": "modal",
+        "configuration": {
+          "title": "Issue Details",
+          "size": "large",
+          "open": "{{showIssueDetails}}",
+          "components": [
+            {
+              "type": "tabs",
+              "tabs": [
+                {
+                  "label": "Overview",
+                  "content": {
+                    "type": "container",
+                    "components": [
+                      {
+                        "type": "text",
+                        "text": "## {{selectedIssue.title}}"
+                      },
+                      {
+                        "type": "keyValue",
+                        "data": {
+                          "Application": "{{selectedIssue.app_name}}",
+                          "Status": "{{selectedIssue.status}}",
+                          "Priority": "{{selectedIssue.priority}}",
+                          "Type": "{{selectedIssue.type}}",
+                          "Reporter": "{{selectedIssue.reporter_name}}",
+                          "Created": "{{selectedIssue.created_at}}",
+                          "Last Updated": "{{selectedIssue.updated_at}}"
+                        }
+                      },
+                      {
+                        "type": "text",
+                        "text": "### Description\n{{selectedIssue.description}}"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "label": "Investigation",
+                  "content": {
+                    "type": "container",
+                    "components": [
+                      {
+                        "type": "text",
+                        "text": "### Investigation Report\n{{selectedIssue.investigation_report || 'Not yet investigated'}}"
+                      },
+                      {
+                        "type": "text",
+                        "text": "### Root Cause\n{{selectedIssue.root_cause || 'Not identified'}}"
+                      },
+                      {
+                        "type": "text",
+                        "text": "### Suggested Fix\n{{selectedIssue.suggested_fix || 'No suggestions yet'}}"
+                      }
+                    ]
+                  }
+                },
+                {
+                  "label": "Error Details",
+                  "content": {
+                    "type": "container",
+                    "components": [
+                      {
+                        "type": "codeEditor",
+                        "label": "Error Message",
+                        "value": "{{selectedIssue.error_message}}",
+                        "language": "text",
+                        "readOnly": true
+                      },
+                      {
+                        "type": "codeEditor",
+                        "label": "Stack Trace",
+                        "value": "{{selectedIssue.stack_trace}}",
+                        "language": "text",
+                        "readOnly": true
+                      }
+                    ]
+                  }
+                },
+                {
+                  "label": "Related Issues",
+                  "content": {
+                    "type": "table",
+                    "data": "{{getRelatedIssues}}",
+                    "columns": ["title", "app_name", "similarity_score", "relationship_type"]
+                  }
+                },
+                {
+                  "label": "Comments",
+                  "content": {
+                    "type": "container",
+                    "components": [
+                      {
+                        "type": "list",
+                        "data": "{{getIssueComments}}",
+                        "template": "**{{author_name}}** ({{author_type}}) - {{created_at}}\n{{content}}"
+                      },
+                      {
+                        "type": "textarea",
+                        "id": "new_comment",
+                        "label": "Add Comment",
+                        "placeholder": "Enter your comment..."
+                      },
+                      {
+                        "type": "button",
+                        "text": "Add Comment",
+                        "onClick": "{{addComment}}"
+                      }
+                    ]
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "id": "real_time_feed",
+        "type": "container",
+        "configuration": {
+          "title": "Real-Time Activity",
+          "components": [
+            {
+              "type": "list",
+              "data": "{{getRecentActivity}}",
+              "template": "{{timestamp}} - {{activity_type}}: {{description}}",
+              "maxItems": 10,
+              "autoRefresh": 5000
+            }
+          ]
+        },
+        "position": { "x": 0, "y": 14, "w": 12, "h": 3 }
+      }
+    ],
+    "scripts": {
+      "getOpenIssuesCount": "SELECT COUNT(*) as count FROM issues WHERE status = 'open'",
+      "getInProgressCount": "SELECT COUNT(*) as count FROM issues WHERE status IN ('investigating', 'in_progress')",
+      "getFixedTodayCount": "SELECT COUNT(*) as count FROM issues WHERE status = 'fixed' AND DATE(resolved_at) = CURRENT_DATE",
+      "getActiveAgentsCount": "SELECT COUNT(*) as count FROM agent_runs WHERE status = 'working'",
+      "getAppsList": "SELECT name as value, display_name as label FROM apps WHERE status = 'active' ORDER BY display_name",
+      "openIssueDetails": "scripts/actions/open-issue-details",
+      "triggerInvestigation": "scripts/api/trigger-investigation",
+      "refreshData": "location.reload()",
+      "getRelatedIssues": "scripts/api/get-related-issues",
+      "getIssueComments": "scripts/api/get-issue-comments",
+      "addComment": "scripts/actions/add-comment",
+      "getRecentActivity": "scripts/api/get-recent-activity"
+    }
+  }
+}

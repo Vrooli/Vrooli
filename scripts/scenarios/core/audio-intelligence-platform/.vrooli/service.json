@@ -256,11 +256,6 @@
           "name": "application-configuration",
           "tasks": [
             {
-              "name": "load-app-config",
-              "type": "config",
-              "file": "initialization/configuration/app-config.json"
-            },
-            {
               "name": "set-transcription-settings",
               "type": "config",
               "file": "initialization/configuration/transcription-config.json"
@@ -570,5 +565,59 @@
     "category": "ai-content-creation",
     "complexity": "intermediate",
     "marketDemand": "very-high"
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "defaults": {
+      "timeout": "5m",
+      "error": "stop",
+      "shell": "bash"
+    },
+    "setup": {
+      "description": "Initialize audio intelligence platform environment",
+      "steps": [
+        {
+          "name": "setup-infrastructure",
+          "run": "./scripts/manage.sh setup --target docker",
+          "condition": "${SKIP_SETUP} != \\\"true\\\""
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start audio intelligence platform services",
+      "steps": [
+        {
+          "name": "start-services",
+          "run": "../deployment/startup.sh"
+        }
+      ]
+    },
+    "build": {
+      "description": "Build audio intelligence platform artifacts",
+      "steps": [
+        {
+          "name": "build-artifacts",
+          "run": "./scripts/manage.sh build"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run audio intelligence platform tests",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "./test.sh"
+        }
+      ]
+    },
+    "clean": {
+      "description": "Clean build artifacts and temporary files",
+      "steps": [
+        {
+          "name": "clean-artifacts",
+          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+        }
+      ]
+    }
   }
 }

@@ -1,0 +1,189 @@
+{
+  "version": "1.0.0",
+  "name": "resource-experimenter",
+  "description": "Experimental resource testing platform for evaluating new services before native Vrooli integration",
+  "type": "scenario",
+  "category": "vrooli-helpers",
+  "resources": {
+    "storage": {
+      "postgres": {
+        "enabled": true,
+        "config": {
+          "database": "resource_experiments",
+          "schema": "public",
+          "initialization": {
+            "scripts": ["initialization/storage/postgres/schema.sql"]
+          }
+        }
+      },
+      "redis": {
+        "enabled": true,
+        "config": {
+          "database": 1,
+          "keyPrefix": "experiment:",
+          "persistence": true
+        }
+      }
+    },
+    "automation": {
+      "windmill": {
+        "enabled": true,
+        "config": {
+          "workspace": "experiments",
+          "apps": [
+            "initialization/automation/windmill/experiment-dashboard.json",
+            "initialization/automation/windmill/resource-monitor.json"
+          ],
+          "scripts": [
+            "initialization/automation/windmill/docker-manager.ts",
+            "initialization/automation/windmill/health-checker.ts"
+          ]
+        }
+      },
+      "n8n": {
+        "enabled": true,
+        "config": {
+          "workflows": [
+            "initialization/automation/n8n/resource-discovery.json",
+            "initialization/automation/n8n/setup-orchestrator.json",
+            "initialization/automation/n8n/health-monitoring.json",
+            "initialization/automation/n8n/integration-testing.json"
+          ]
+        }
+      }
+    },
+    "ai": {
+      "ollama": {
+        "enabled": true,
+        "config": {
+          "models": ["llama3.2", "codellama"],
+          "analysis": {
+            "model": "llama3.2",
+            "temperature": 0.3
+          }
+        }
+      },
+      "claude-code": {
+        "enabled": true,
+        "config": {
+          "model": "claude-3-sonnet-20240229",
+          "maxTokens": 8192,
+          "temperature": 0.4,
+          "purpose": "resource_integration_analysis"
+        }
+      }
+    },
+    "execution": {
+      "judge0": {
+        "enabled": true,
+        "config": {
+          "languages": ["bash", "python", "javascript", "typescript"],
+          "timeout": 60000
+        }
+      }
+    },
+    "monitoring": {
+      "prometheus": {
+        "enabled": false,
+        "note": "Can be enabled for resource metrics collection"
+      },
+      "grafana": {
+        "enabled": false,
+        "note": "Can be enabled for visualization"
+      }
+    }
+  },
+  "experimental": {
+    "sandbox_mode": true,
+    "docker_access": true,
+    "network_isolation": false,
+    "resource_limits": {
+      "max_containers": 10,
+      "max_memory_gb": 16,
+      "max_cpu_cores": 8,
+      "max_storage_gb": 100
+    },
+    "discovery_sources": [
+      "https://github.com/awesome-selfhosted/awesome-selfhosted",
+      "https://hub.docker.com",
+      "https://artifacthub.io",
+      "https://bitnami.com/stacks"
+    ]
+  },
+  "deployment": {
+    "ports": {
+      "api": 8091,
+      "windmill": 8001,
+      "n8n": 5679,
+      "experiment_range_start": 9000,
+      "experiment_range_end": 9999
+    },
+    "volumes": [
+      "./sandbox:/app/sandbox",
+      "./experiments:/app/experiments",
+      "/var/run/docker.sock:/var/run/docker.sock"
+    ],
+    "environment": {
+      "NODE_ENV": "development",
+      "LOG_LEVEL": "debug",
+      "EXPERIMENT_MODE": "true",
+      "DOCKER_HOST": "unix:///var/run/docker.sock",
+      "SANDBOX_PATH": "/app/sandbox",
+      "AUTO_CLEANUP": "true",
+      "CLEANUP_INTERVAL": "3600"
+    }
+  },
+  "lifecycle": {
+    "setup": {
+      "description": "Initialize experiment platform",
+      "steps": [
+        {
+          "name": "database-setup",
+          "run": "initialization/storage/postgres/setup.sh"
+        },
+        {
+          "name": "sandbox-setup",
+          "run": "deployment/setup-sandbox.sh"
+        },
+        {
+          "name": "docker-permissions",
+          "run": "deployment/configure-docker.sh"
+        }
+      ]
+    },
+    "start": {
+      "description": "Start experiment platform",
+      "steps": [
+        {
+          "name": "cleanup-old-experiments",
+          "run": "deployment/cleanup.sh"
+        },
+        {
+          "name": "start-services",
+          "run": "deployment/startup.sh"
+        }
+      ]
+    },
+    "experiment": {
+      "description": "Run a new resource experiment",
+      "steps": [
+        {
+          "name": "validate-resource",
+          "run": "sandbox/validate-resource.sh"
+        },
+        {
+          "name": "setup-resource",
+          "run": "sandbox/setup-resource.sh"
+        },
+        {
+          "name": "test-resource",
+          "run": "sandbox/test-resource.sh"
+        },
+        {
+          "name": "generate-report",
+          "run": "sandbox/generate-report.sh"
+        }
+      ]
+    }
+  }
+}

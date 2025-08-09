@@ -46,36 +46,36 @@ docker::get_compose_file() {
 }
 
 # Override docker::compose to handle docker directory
-# This wrapper ensures we're in the right directory for docker-compose
+# This wrapper ensures we use the correct compose file from the project root
 docker::compose() {
-    local current_dir=$(pwd)
     local compose_file=$(docker::get_compose_file)
-    local docker_dir="${var_DOCKER_DIR:-$var_ROOT_DIR/docker}"
     
-    # Change to docker directory for compose operations
-    cd "$docker_dir" || { 
-        log::error "Failed to change to docker directory: $docker_dir"
+    # Verify compose file exists
+    if [[ ! -f "$compose_file" ]]; then
+        log::error "Docker Compose file not found: $compose_file"
         return 1
-    }
+    fi
     
     # Get the compose command from universal docker.sh
     local compose_cmd
     if ! compose_cmd=$(docker::_get_compose_command); then
-        cd "$current_dir"
         log::error "No Docker Compose version found"
         return 1
     fi
     
-    # Execute compose command
+    # Change to project root for correct relative paths in docker-compose.yml
+    cd "$var_ROOT_DIR" || {
+        log::error "Failed to change to project root: $var_ROOT_DIR"
+        return 1
+    }
+    
+    # Execute compose command with explicit compose file path
     local exit_code=0
     if [[ "$compose_cmd" == "docker compose" ]]; then
-        docker::_execute_with_permissions "docker" "compose" "$@" || exit_code=$?
+        docker::_execute_with_permissions "docker" "compose" "-f" "$compose_file" "$@" || exit_code=$?
     else
-        docker::_execute_with_permissions "docker-compose" "$@" || exit_code=$?
+        docker::_execute_with_permissions "docker-compose" "-f" "$compose_file" "$@" || exit_code=$?
     fi
-    
-    # Return to original directory
-    cd "$current_dir"
     
     return $exit_code
 }

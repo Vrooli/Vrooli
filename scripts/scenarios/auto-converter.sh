@@ -216,6 +216,15 @@ get_enabled_scenarios() {
     jq -r '.scenarios[] | select(.enabled == true) | "\(.name):\(.location)"' "$CATALOG_FILE"
 }
 
+# Check if generated app exists
+app_exists() {
+    local scenario_name="$1"
+    local app_path="$HOME/generated-apps/$scenario_name"
+    
+    # Check if the app directory exists and has the required files
+    [[ -d "$app_path" ]] && [[ -f "$app_path/.vrooli/service.json" ]]
+}
+
 # Convert scenario to app
 convert_scenario() {
     local scenario_name="$1"
@@ -330,6 +339,10 @@ main() {
                 needs_conversion=true
                 conversion_reason="scenario changed"
                 [[ "$VERBOSE" == "true" ]] && log::info "  Stored hash:  ${stored_hash:0:12}..."
+            elif ! app_exists "$scenario_name"; then
+                needs_conversion=true
+                conversion_reason="app missing"
+                [[ "$VERBOSE" == "true" ]] && log::info "  Generated app not found at: $HOME/generated-apps/$scenario_name"
             else
                 needs_conversion=false
                 conversion_reason="unchanged"

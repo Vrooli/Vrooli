@@ -1,0 +1,151 @@
+{
+  "audit_logging": {
+    "enabled": true,
+    "logLevel": "INFO",
+    "destinations": [
+      {
+        "type": "database",
+        "table": "audit_logs",
+        "retention": "7y"
+      },
+      {
+        "type": "file",
+        "path": "/var/log/document-processor/audit.log",
+        "rotation": "daily",
+        "retention": "90d"
+      },
+      {
+        "type": "minio",
+        "bucket": "audit-logs",
+        "retention": "7y"
+      }
+    ]
+  },
+  "events_to_audit": {
+    "authentication": {
+      "login_success": true,
+      "login_failure": true,
+      "logout": true,
+      "password_change": true,
+      "mfa_events": true
+    },
+    "document_operations": {
+      "upload": true,
+      "download": true,
+      "view": true,
+      "process": true,
+      "delete": true,
+      "move": true,
+      "share": true
+    },
+    "administrative": {
+      "user_creation": true,
+      "user_modification": true,
+      "user_deletion": true,
+      "role_assignment": true,
+      "permission_change": true,
+      "policy_modification": true
+    },
+    "system_events": {
+      "service_start": true,
+      "service_stop": true,
+      "configuration_change": true,
+      "backup_operations": true,
+      "restore_operations": true
+    }
+  },
+  "audit_record_format": {
+    "include_fields": [
+      "timestamp",
+      "user_id",
+      "session_id",
+      "source_ip",
+      "user_agent",
+      "event_type",
+      "resource_type",
+      "resource_id",
+      "action",
+      "result",
+      "reason",
+      "additional_data"
+    ],
+    "timestamp_format": "ISO8601",
+    "timezone": "UTC"
+  },
+  "compliance_settings": {
+    "gdpr": {
+      "log_data_subject_requests": true,
+      "log_consent_changes": true,
+      "anonymize_on_deletion": true
+    },
+    "hipaa": {
+      "log_phi_access": true,
+      "minimum_necessary_logging": true,
+      "business_associate_tracking": true
+    },
+    "sox": {
+      "financial_data_access": true,
+      "change_management_tracking": true,
+      "segregation_of_duties_monitoring": true
+    }
+  },
+  "alerting": {
+    "real_time_alerts": {
+      "enabled": true,
+      "channels": ["email", "webhook", "slack"],
+      "conditions": [
+        {
+          "name": "failed_logins",
+          "threshold": 5,
+          "timeframe": "5m",
+          "severity": "high"
+        },
+        {
+          "name": "bulk_download",
+          "threshold": 100,
+          "timeframe": "1h", 
+          "severity": "medium"
+        },
+        {
+          "name": "admin_actions",
+          "threshold": 1,
+          "timeframe": "immediate",
+          "severity": "info"
+        }
+      ]
+    }
+  },
+  "reporting": {
+    "compliance_reports": {
+      "enabled": true,
+      "schedule": "monthly",
+      "formats": ["pdf", "csv", "json"],
+      "recipients": ["compliance@company.com", "security@company.com"]
+    },
+    "activity_summaries": {
+      "enabled": true,
+      "schedule": "weekly",
+      "include_metrics": true,
+      "include_trends": true
+    }
+  },
+  "data_integrity": {
+    "tamper_detection": {
+      "enabled": true,
+      "hash_algorithm": "SHA-256",
+      "verify_on_read": true
+    },
+    "backup": {
+      "enabled": true,
+      "frequency": "daily",
+      "retention": "1y",
+      "encryption": true
+    }
+  },
+  "performance": {
+    "async_logging": true,
+    "batch_size": 100,
+    "flush_interval": "30s",
+    "max_queue_size": 10000
+  }
+}

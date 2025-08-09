@@ -1,0 +1,74 @@
+{
+  "description": "Registry of applications that can report issues to the tracker",
+  "apps": [
+    {
+      "name": "vrooli-core",
+      "display_name": "Vrooli Core Platform",
+      "type": "vrooli-core",
+      "auto_register": true,
+      "webhook_events": ["issue_resolved", "issue_escalated"],
+      "rate_limit": {
+        "requests_per_minute": 100,
+        "burst_size": 200
+      }
+    },
+    {
+      "name": "research-assistant",
+      "display_name": "Research Assistant",
+      "type": "scenario",
+      "scenario_name": "research-assistant",
+      "auto_register": true,
+      "rate_limit": {
+        "requests_per_minute": 50,
+        "burst_size": 100
+      }
+    },
+    {
+      "name": "analytics-dashboard",
+      "display_name": "Analytics Dashboard",
+      "type": "scenario",
+      "scenario_name": "analytics-dashboard",
+      "auto_register": true,
+      "rate_limit": {
+        "requests_per_minute": 50,
+        "burst_size": 100
+      }
+    },
+    {
+      "name": "document-processor",
+      "display_name": "Document Processing System",
+      "type": "scenario",
+      "scenario_name": "secure-document-processing",
+      "auto_register": true,
+      "rate_limit": {
+        "requests_per_minute": 30,
+        "burst_size": 50
+      }
+    }
+  ],
+  "default_settings": {
+    "auto_investigation": {
+      "enabled": true,
+      "triggers": {
+        "critical_priority": true,
+        "security_type": true,
+        "pattern_threshold": 3,
+        "error_rate_spike": true
+      }
+    },
+    "notifications": {
+      "channels": ["redis_pubsub", "webhook"],
+      "events": {
+        "issue_created": true,
+        "investigation_complete": true,
+        "fix_applied": true,
+        "pattern_detected": true
+      }
+    },
+    "retention": {
+      "closed_issues_days": 90,
+      "api_logs_days": 30,
+      "agent_runs_days": 60
+    }
+  }
+}

@@ -246,7 +246,6 @@ test::run_coverage() {
 test::universal::main() {
     # Initialize phase
     phase::init "Test"
-    phase::export_env
     
     # Get parameters from environment or defaults
     local test_type="${TEST_TYPE:-all}"
@@ -331,7 +330,7 @@ test::universal::main() {
     fi
     
     # Step 4: Run app-specific tests
-    local app_test="${var_APP_LIFECYCLE_DIR}/test.sh"
+    local app_test="${var_APP_LIFECYCLE_DIR:-}/test.sh"
     if [[ -f "$app_test" ]]; then
         log::header "🧪 App-Specific Tests"
         if ! bash "$app_test"; then

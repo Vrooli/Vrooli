@@ -1,0 +1,125 @@
+{
+  "$schema": "../schemas/service.schema.json",
+  "version": "1.0.0",
+  "service": {
+    "name": "app-monitor",
+    "displayName": "App Monitor",
+    "description": "Dashboard to manage all running generated apps",
+    "version": "1.0.0",
+    "type": "application",
+    "category": "vrooli-helpers"
+  },
+  "resources": {
+    "storage": {
+      "postgres": {
+        "enabled": true,
+        "config": {
+          "database": "app_monitor",
+          "schema": "public"
+        },
+        "initialization": {
+          "data": [
+            {
+              "file": "initialization/storage/postgres/schema.sql",
+              "description": "Database schema for app monitoring"
+            }
+          ]
+        }
+      },
+      "redis": {
+        "enabled": true,
+        "config": {
+          "db": 0,
+          "purpose": "real-time status updates and pub/sub for app events"
+        }
+      }
+    },
+    "automation": {
+      "n8n": {
+        "enabled": true,
+        "initialization": {
+          "workflows": [
+            {
+              "file": "initialization/automation/n8n/app-health-checker.json",
+              "description": "Health checking workflow for generated apps"
+            },
+            {
+              "file": "initialization/automation/n8n/auto-restart.json",
+              "description": "Automatic restart workflow for failed apps"
+            },
+            {
+              "file": "initialization/automation/n8n/resource-monitor.json",
+              "description": "Resource usage monitoring workflow"
+            }
+          ]
+        }
+      },
+      "node-red": {
+        "enabled": true,
+        "initialization": {
+          "data": [
+            {
+              "file": "initialization/automation/node-red/docker-monitor.json",
+              "description": "Docker container monitoring flow"
+            }
+          ]
+        }
+      }
+    },
+    "execution": {
+      "browserless": {
+        "enabled": true,
+        "config": {
+          "purpose": "Web scraping for app health checks and UI testing"
+        }
+      }
+    }
+  },
+  "deployment": {
+    "initialization": {
+      "phases": [
+        {
+          "name": "setup-config",
+          "tasks": [
+            {
+              "type": "config",
+              "file": "initialization/configuration/app-config.json",
+              "description": "Application configuration"
+            },
+            {
+              "type": "config",
+              "file": "initialization/configuration/resource-urls.json",
+              "description": "Resource connection URLs"
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "ports": {
+    "ui": 3001,
+    "api": 8081,
+    "websocket": 3002
+  },
+  "monitoring": {
+    "healthcheck": {
+      "enabled": true,
+      "interval": "30s",
+      "endpoints": ["/health", "/api/health"]
+    },
+    "metrics": {
+      "enabled": true,
+      "collectors": ["docker-stats", "process-monitor", "port-scanner"]
+    }
+  },
+  "integrations": {
+    "docker": {
+      "socket": "/var/run/docker.sock",
+      "api": "v1.41"
+    },
+    "kubernetes": {
+      "enabled": false,
+      "namespace": "generated-apps"
+    }
+  }
+}

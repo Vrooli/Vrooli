@@ -1,0 +1,341 @@
+{
+  "name": "Resource Monitor",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "2p3q4r5s-6t7u-8v9w-0x1y-2z3a4b5c6d7e",
+      "name": "Monitor Resources",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        260,
+        300
+      ],
+      "credentials": {},
+      "cronExpression": "*/1 * * * *",
+      "timezone": "UTC"
+    },
+    {
+      "parameters": {
+        "operation": "select",
+        "table": "apps",
+        "where": {
+          "conditions": [
+            {
+              "column": "status",
+              "value": "running"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "3q4r5s6t-7u8v-9w0x-1y2z-3a4b5c6d7e8f",
+      "name": "Get Running Apps",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        480,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "app-monitor-postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      },
+      "id": "4r5s6t7u-8v9w-0x1y-2z3a-4b5c6d7e8f9g",
+      "name": "Process Each App",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "=unix:///var/run/docker.sock:/containers/{{ $json.config.container_name || $json.name }}/stats?stream=false",
+        "options": {
+          "timeout": 10000,
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "5s6t7u8v-9w0x-1y2z-3a4b-5c6d7e8f9g0h",
+      "name": "Get Container Stats",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        920,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Docker stats and calculate metrics\nconst stats = $input.item.json.body;\nconst app = $('Get Running Apps').item.json;\n\nif (!stats || stats.statusCode !== 200) {\n  return {\n    json: {\n      app_id: app.id,\n      cpu_usage: 0,\n      memory_usage: 0,\n      error: 'Failed to get container stats'\n    }\n  };\n}\n\nconst data = typeof stats === 'string' ? JSON.parse(stats) : stats;\n\n// Calculate CPU percentage\nconst cpuDelta = data.cpu_stats.cpu_usage.total_usage - data.precpu_stats.cpu_usage.total_usage;\nconst systemDelta = data.cpu_stats.system_cpu_usage - data.precpu_stats.system_cpu_usage;\nconst cpuPercent = systemDelta > 0 ? (cpuDelta / systemDelta) * data.cpu_stats.online_cpus * 100 : 0;\n\n// Calculate Memory usage\nconst memoryUsage = data.memory_stats.usage;\nconst memoryLimit = data.memory_stats.limit;\nconst memoryPercent = memoryLimit > 0 ? (memoryUsage / memoryLimit) * 100 : 0;\n\n// Network stats\nconst networks = data.networks || {};\nlet networkIn = 0;\nlet networkOut = 0;\n\nObject.values(networks).forEach(net => {\n  networkIn += net.rx_bytes || 0;\n  networkOut += net.tx_bytes || 0;\n});\n\nreturn {\n  json: {\n    app_id: app.id,\n    cpu_usage: Math.round(cpuPercent * 100) / 100,\n    memory_usage: Math.round(memoryPercent * 100) / 100,\n    memory_bytes: memoryUsage,\n    network_in: networkIn,\n    network_out: networkOut,\n    container_id: data.id,\n    pid: data.pids_stats?.current || 0,\n    timestamp: new Date().toISOString()\n  }\n};"
+      },
+      "id": "6t7u8v9w-0x1y-2z3a-4b5c-6d7e8f9g0h1i",
+      "name": "Calculate Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1140,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "table": "app_status",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "app_id": "={{ $json.app_id }}",
+            "status": "running",
+            "cpu_usage": "={{ $json.cpu_usage }}",
+            "memory_usage": "={{ $json.memory_usage }}",
+            "network_in": "={{ $json.network_in }}",
+            "network_out": "={{ $json.network_out }}",
+            "container_id": "={{ $json.container_id }}",
+            "pid": "={{ $json.pid }}",
+            "timestamp": "={{ $json.timestamp }}"
+          },
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "7u8v9w0x-1y2z-3a4b-5c6d-7e8f9g0h1i2j",
+      "name": "Store Metrics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.4,
+      "position": [
+        1360,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "1",
+          "name": "app-monitor-postgres"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.cpu_usage }}",
+              "rightValue": 80,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "8v9w0x1y-2z3a-4b5c-6d7e-8f9g0h1i2j3k",
+      "name": "Check High CPU",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1580,
+        220
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.memory_usage }}",
+              "rightValue": 85,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "or"
+        },
+        "options": {}
+      },
+      "id": "9w0x1y2z-3a4b-5c6d-7e8f-9g0h1i2j3k4l",
+      "name": "Check High Memory",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1580,
+        380
+      ]
+    },
+    {
+      "parameters": {
+        "channel": "resource-alerts",
+        "message": "=⚠️ High CPU usage for app {{ $('Get Running Apps').item.json.name }}: {{ $json.cpu_usage }}%"
+      },
+      "id": "0x1y2z3a-4b5c-6d7e-8f9g-0h1i2j3k4l5m",
+      "name": "CPU Alert",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1800,
+        220
+      ],
+      "credentials": {
+        "redis": {
+          "id": "1",
+          "name": "app-monitor-redis"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "channel": "resource-alerts",
+        "message": "=⚠️ High memory usage for app {{ $('Get Running Apps').item.json.name }}: {{ $json.memory_usage }}%"
+      },
+      "id": "1y2z3a4b-5c6d-7e8f-9g0h-1i2j3k4l5m6n",
+      "name": "Memory Alert",
+      "type": "n8n-nodes-base.redis",
+      "typeVersion": 1,
+      "position": [
+        1800,
+        380
+      ],
+      "credentials": {
+        "redis": {
+          "id": "1",
+          "name": "app-monitor-redis"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Monitor Resources": {
+      "main": [
+        [
+          {
+            "node": "Get Running Apps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Running Apps": {
+      "main": [
+        [
+          {
+            "node": "Process Each App",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Each App": {
+      "main": [
+        [
+          {
+            "node": "Get Container Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Container Stats": {
+      "main": [
+        [
+          {
+            "node": "Calculate Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Metrics": {
+      "main": [
+        [
+          {
+            "node": "Store Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Metrics": {
+      "main": [
+        [
+          {
+            "node": "Check High CPU",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check High Memory",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check High CPU": {
+      "main": [
+        [
+          {
+            "node": "CPU Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check High Memory": {
+      "main": [
+        [
+          {
+            "node": "Memory Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "createdAt": "2024-01-01T00:00:00.000Z",
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "1"
+}

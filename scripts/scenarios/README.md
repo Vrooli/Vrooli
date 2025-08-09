@@ -141,8 +141,7 @@ cp -r templates/full/ core/ai-generated-scenario/
 
 ```
 scenarios/
-├── core/                     # All working scenarios (9 scenarios)
-│   ├── analytics-dashboard/            # Resource monitoring
+├── core/                     # All working scenarios
 │   ├── secure-document-processing/     # Document processing with compliance
 │   ├── campaign-content-studio/   # Content creation
 │   ├── research-assistant/             # Knowledge management

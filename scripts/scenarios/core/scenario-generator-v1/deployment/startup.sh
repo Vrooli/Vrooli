@@ -10,8 +10,8 @@ SCENARIO_DIR="$(dirname "$SCRIPT_DIR")"
 # Configuration
 POSTGRES_HOST="${POSTGRES_HOST:-localhost}"
 POSTGRES_PORT="${POSTGRES_PORT:-5433}"
-POSTGRES_DB="${POSTGRES_DB:-vrooli}"
-POSTGRES_USER="${POSTGRES_USER:-postgres}"
+POSTGRES_DB="${POSTGRES_DB:-vrooli_client}"
+POSTGRES_USER="${POSTGRES_USER:-vrooli}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-}"
 
 N8N_HOST="${N8N_HOST:-localhost}"
@@ -72,17 +72,30 @@ execute_sql() {
     local sql_file="$1"
     local description="$2"
     
-    if [ \! -f "$sql_file" ]; then
+    if [ ! -f "$sql_file" ]; then
         log_error "SQL file not found: $sql_file"
         return 1
     fi
     
     log_info "Executing $description..."
     
-    if [ -n "$POSTGRES_PASSWORD" ]; then
-        PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f "$sql_file"
+    # Use containerized psql if local psql is not available
+    if command -v psql >/dev/null 2>&1; then
+        # Use local psql if available
+        if [ -n "$POSTGRES_PASSWORD" ]; then
+            PGPASSWORD="$POSTGRES_PASSWORD" psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f "$sql_file"
+        else
+            psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f "$sql_file"
+        fi
     else
-        psql -h "$POSTGRES_HOST" -p "$POSTGRES_PORT" -U "$POSTGRES_USER" -d "$POSTGRES_DB" -f "$sql_file"
+        # Use psql from PostgreSQL container
+        local container_name="vrooli-postgres-scenario-generator-v1"
+        if docker ps --format '{{.Names}}' | grep -q "^${container_name}$"; then
+            docker exec -i "$container_name" psql -U "$POSTGRES_USER" -d "$POSTGRES_DB" < "$sql_file"
+        else
+            log_error "psql not found locally and PostgreSQL container '$container_name' not running"
+            return 1
+        fi
     fi
     
     if [ $? -eq 0 ]; then
@@ -95,7 +108,7 @@ execute_sql() {
 
 # Check Claude Code availability
 check_claude_code() {
-    if [ "$CLAUDE_CODE_AVAILABLE" \!= "true" ]; then
+    if [ "$CLAUDE_CODE_AVAILABLE" != "true" ]; then
         log_warn "Claude Code is disabled in configuration"
         return 1
     fi
@@ -128,13 +141,13 @@ main() {
     # Check prerequisites
     log_info "Checking service availability..."
     
-    if \! check_service "$POSTGRES_HOST" "$POSTGRES_PORT" "PostgreSQL"; then
+    if ! check_service "$POSTGRES_HOST" "$POSTGRES_PORT" "PostgreSQL"; then
         log_error "PostgreSQL is required but not available"
         exit 1
     fi
     
     # Check Claude Code
-    if \! check_claude_code; then
+    if ! check_claude_code; then
         log_warn "Claude Code is not available - scenario generation will fail"
         log_info "To fix this, run: bash ${VROOLI_ROOT:-/home/matthalloran8/Vrooli}/scripts/resources/agents/claude-code/manage.sh --action install"
     fi
@@ -156,7 +169,7 @@ main() {
         log_warn "Failed to load seed data (this may be okay if data already exists)"
     fi
     
-    log_success "✅ Scenario Generator V1 deployment completed\!"
+    log_success "✅ Scenario Generator V1 deployment completed!"
     echo ""
     log_info "🎯 Access Points:"
     log_info "   Dashboard: http://$WINDMILL_HOST:$WINDMILL_PORT/apps/scenario-generator"

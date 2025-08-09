@@ -54,12 +54,12 @@ cat ~/.vrooli/service.json | jq '.services'
 Our scenario system demonstrates real-world resource combinations and generates deployable applications:
 
 ### Popular Resource Combinations
-- **Analytics Platform**: PostgreSQL + QuestDB + Redis + n8n + Node-RED
-  → [Analytics Dashboard](../scenarios/core/analytics-dashboard/) ($15k-30k projects)
 - **Document Processing**: Unstructured-IO + Ollama + Qdrant + Vault
   → [Secure Document Processing](../scenarios/core/secure-document-processing/) ($20k-40k projects)
 - **Content Creation**: ComfyUI + Ollama + Windmill 
   → [Campaign Content Studio](../scenarios/core/campaign-content-studio/) ($8k-20k projects)
+- **App Monitoring**: PostgreSQL + Redis + n8n + Node-RED
+  → [App Monitor](../scenarios/core/app-monitor/) ($10k-20k projects)
 
 ### Test Resource Integration
 ```bash
@@ -67,7 +67,7 @@ Our scenario system demonstrates real-world resource combinations and generates 
 ./scripts/scenarios/tools/test-by-resource.sh --resource ollama
 
 # Test multi-resource combinations
-cd ../scenarios/core/analytics-dashboard && ./test.sh
+cd ../scenarios/core/app-monitor && ./test.sh
 
 # Browse all available scenarios
 cat ../scenarios/catalog.json
@@ -99,7 +99,7 @@ Our testing system is distributed across multiple layers for comprehensive valid
 #### **Multi-Resource Integration Tests**  
 - **Location**: `scripts/scenarios/core/scenario-name/test.sh`
 - **Purpose**: Test complex business scenarios using multiple resources
-- **Examples**: `scripts/scenarios/core/analytics-dashboard/test.sh`
+- **Examples**: `scripts/scenarios/core/app-monitor/test.sh`
 - **Documentation**: [Scenario Testing](../scenarios/README.md)
 
 #### **Resource Unit Tests**

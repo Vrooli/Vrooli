@@ -1,0 +1,116 @@
+{
+  "name": "System Monitor - Threshold Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "seconds",
+              "secondsInterval": 60
+            }
+          ]
+        }
+      },
+      "id": "threshold-timer",
+      "name": "Check Every Minute",
+      "type": "n8n-nodes-base.cron",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  metric_name,\n  warning_threshold,\n  critical_threshold,\n  check_interval,\n  action,\n  enabled\nFROM thresholds \nWHERE enabled = true",
+        "additionalFields": {}
+      },
+      "id": "fetch-thresholds",
+      "name": "Fetch Active Thresholds",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        460,
+        300
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-system-monitor",
+          "name": "System Monitor DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT \n  cpu_usage,\n  memory_usage,\n  disk_usage,\n  tcp_connections,\n  process_count,\n  load_average[1] as load_avg,\n  timestamp\nFROM system_health \nWHERE timestamp >= NOW() - INTERVAL '5 MINUTES'\nORDER BY timestamp DESC \nLIMIT 1",
+        "additionalFields": {}
+      },
+      "id": "fetch-current-metrics",
+      "name": "Fetch Current Metrics",
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 1,
+      "position": [
+        460,
+        480
+      ],
+      "credentials": {
+        "postgres": {
+          "id": "postgres-system-monitor",
+          "name": "System Monitor DB"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const thresholds = $input.first('fetch-thresholds').json || [];\nconst metrics = $input.first('fetch-current-metrics').json || [];\n\nif (metrics.length === 0) {\n  return { json: { violations: [], status: 'no_data' } };\n}\n\nconst currentMetrics = metrics[0];\nconst violations = [];\n\n// Check each threshold\nthresholds.forEach(threshold => {\n  const metricName = threshold.metric_name;\n  let currentValue = null;\n  \n  // Map metric names to current values\n  switch(metricName) {\n    case 'cpu_usage':\n      currentValue = currentMetrics.cpu_usage;\n      break;\n    case 'memory_usage':\n      currentValue = currentMetrics.memory_usage;\n      break;\n    case 'disk_usage':\n      currentValue = currentMetrics.disk_usage;\n      break;\n    case 'tcp_connections':\n      currentValue = currentMetrics.tcp_connections;\n      break;\n    case 'process_count':\n      currentValue = currentMetrics.process_count;\n      break;\n    case 'load_average':\n      currentValue = currentMetrics.load_avg;\n      break;\n  }\n  \n  if (currentValue !== null) {\n    let severity = null;\n    let exceeded_threshold = null;\n    \n    // Check critical threshold first\n    if (threshold.critical_threshold && currentValue >= threshold.critical_threshold) {\n      severity = 'critical';\n      exceeded_threshold = threshold.critical_threshold;\n    }\n    // Then check warning threshold\n    else if (threshold.warning_threshold && currentValue >= threshold.warning_threshold) {\n      severity = 'warning';\n      exceeded_threshold = threshold.warning_threshold;\n    }\n    \n    if (severity) {\n      violations.push({\n        metric_name: metricName,\n        current_value: currentValue,\n        threshold_value: exceeded_threshold,\n        severity: severity,\n        action: threshold.action,\n        timestamp: currentMetrics.timestamp,\n        description: `${metricName} is ${currentValue} (${severity} threshold: ${exceeded_threshold})`\n      });\n    }\n  }\n});\n\n// Group violations by severity\nconst criticalViolations = violations.filter(v => v.severity === 'critical');\nconst warningViolations = violations.filter(v => v.severity === 'warning');\n\nconst result = {\n  violations: violations,\n  critical_count: criticalViolations.length,\n  warning_count: warningViolations.length,\n  status: criticalViolations.length > 0 ? 'critical' : (warningViolations.length > 0 ? 'warning' : 'healthy'),\n  metrics_timestamp: currentMetrics.timestamp,\n  checked_at: new Date().toISOString()\n};\n\n// Only proceed if there are violations\nif (violations.length > 0) {\n  return { json: result };\n}\n\nreturn { json: { status: 'healthy', violations: [], checked_at: new Date().toISOString() } };"
+      },
+      "id": "check-thresholds",
+      "name": "Check Threshold Violations",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.status }}",
+              "operation": "notEqual",
+              "value2": "healthy"
+            }
+          ]
+        }
+      },
+      "id": "has-violations",
+      "name": "Has Violations?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [
+        900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\nconst violations = data.violations || [];\n\n// Create anomaly records for each violation\nconst anomalies = violations.map(violation => {\n  return {\n    type: `threshold-${violation.metric_name}`,\n    severity: violation.severity,\n    description: violation.description,\n    metrics: {\n      metric_name: violation.metric_name,\n      current_value: violation.current_value,\n      threshold_value: violation.threshold_value,\n      timestamp: violation.timestamp\n    }\n  };\n});\n\nreturn anomalies.map(anomaly => ({ json: anomaly }));"
+      },
+      "id": "create-anomaly-records",
+      "name": "Create Anomaly Records",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "insert",
+        "schema": "public",\n        "table": "anomalies",\n        "columns": "type, severity, description, metrics",\n        "additionalFields": {}\n      },\n      "id": "save-anomalies",\n      "name": "Save Anomalies to DB",\n      "type": "n8n-nodes-base.postgres",\n      "typeVersion": 1,\n      "position": [\n        1340,\n        200\n      ],\n      "credentials": {\n        "postgres": {\n          "id": "postgres-system-monitor",\n          "name": "System Monitor DB"\n        }\n      }\n    },\n    {\n      "parameters": {\n        "operation": "lpush",\n        "key": "threshold_alerts",\n        "value": "={{ JSON.stringify($json) }}",\n        "additionalFields": {\n          "ttl": 3600\n        }\n      },\n      "id": "queue-alert",\n      "name": "Queue Alert Notification",\n      "type": "n8n-nodes-base.redis",\n      "typeVersion": 1,\n      "position": [\n        1120,\n        400\n      ],\n      "credentials": {\n        "redis": {\n          "id": "redis-system-monitor",\n          "name": "System Monitor Redis"\n        }\n      }\n    },\n    {\n      "parameters": {\n        "conditions": {\n          "string": [\n            {\n              "value1": "={{ $json.status }}",\n              "operation": "equal",\n              "value2": "critical"\n            }\n          ]\n        }\n      },\n      "id": "is-critical",\n      "name": "Is Critical?",\n      "type": "n8n-nodes-base.if",\n      "typeVersion": 1,\n      "position": [\n        1340,\n        400\n      ]\n    },\n    {\n      "parameters": {\n        "requestMethod": "POST",\n        "url": "http://localhost:${PORT_CLAUDE_CODE}/api/investigate",\n        "options": {\n          "headers": {\n            "Content-Type": "application/json"\n          }\n        },\n        "bodyParametersUi": {\n          "parameter": [\n            {\n              "name": "anomalies",\n              "value": "={{ $json.violations }}"\n            },\n            {\n              "name": "severity",\n              "value": "={{ $json.status }}"\n            },\n            {\n              "name": "timestamp",\n              "value": "={{ $json.checked_at }}"\n            },\n            {\n              "name": "context",\n              "value": "threshold_monitoring"\n            }\n          ]\n        }\n      },\n      "id": "trigger-investigation",\n      "name": "Trigger AI Investigation",\n      "type": "n8n-nodes-base.httpRequest",\n      "typeVersion": 1,\n      "position": [\n        1560,\n        300\n      ]\n    }\n  ],\n  "connections": {\n    "Check Every Minute": {\n      "main": [\n        [\n          {\n            "node": "Fetch Active Thresholds",\n            "type": "main",\n            "index": 0\n          },\n          {\n            "node": "Fetch Current Metrics",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "Fetch Active Thresholds": {\n      "main": [\n        [\n          {\n            "node": "Check Threshold Violations",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "Fetch Current Metrics": {\n      "main": [\n        [\n          {\n            "node": "Check Threshold Violations",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "Check Threshold Violations": {\n      "main": [\n        [\n          {\n            "node": "Has Violations?",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "Has Violations?": {\n      "main": [\n        [\n          {\n            "node": "Create Anomaly Records",\n            "type": "main",\n            "index": 0\n          },\n          {\n            "node": "Queue Alert Notification",\n            "type": "main",\n            "index": 0\n          },\n          {\n            "node": "Is Critical?",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "Create Anomaly Records": {\n      "main": [\n        [\n          {\n            "node": "Save Anomalies to DB",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    },\n    "Is Critical?": {\n      "main": [\n        [\n          {\n            "node": "Trigger AI Investigation",\n            "type": "main",\n            "index": 0\n          }\n        ]\n      ]\n    }\n  },\n  "active": true,\n  "settings": {},\n  "createdAt": "2025-01-08T00:00:00.000Z",\n  "updatedAt": "2025-01-08T00:00:00.000Z",\n  "id": "threshold-monitor",\n  "tags": []\n}
