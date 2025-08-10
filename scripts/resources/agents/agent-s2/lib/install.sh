@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 # Agent S2 Installation Logic
+
+# Source trash system for safe removal
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../lib/system/trash.sh" 2>/dev/null || true
 # Complete installation workflow and configuration
 
 #######################################
@@ -270,7 +274,7 @@ agents2::install_service() {
     # Add rollback for directories
     resources::add_rollback_action \
         "Remove Agent S2 directories" \
-        "rm -rf \"$AGENTS2_DATA_DIR\"" \
+        "if command -v trash::safe_remove >/dev/null 2>&1; then trash::safe_remove '$AGENTS2_DATA_DIR' --no-confirm; else rm -rf '$AGENTS2_DATA_DIR'; fi" \
         10
     
     # Build Docker image
@@ -391,7 +395,11 @@ agents2::uninstall_service() {
         if ! flow::is_yes "$YES"; then
             read -p "Remove Agent S2 data directory? (y/N): " -r
             if [[ $REPLY =~ ^[Yy]$ ]]; then
-                rm -rf "$AGENTS2_DATA_DIR"
+                if command -v trash::safe_remove >/dev/null 2>&1; then
+                    trash::safe_remove "$AGENTS2_DATA_DIR" --no-confirm
+                else
+                    rm -rf "$AGENTS2_DATA_DIR"
+                fi
                 log::info "Data directory removed"
             fi
         fi

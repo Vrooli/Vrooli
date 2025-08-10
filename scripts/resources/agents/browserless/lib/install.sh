@@ -2,6 +2,10 @@
 # Browserless Installation Logic
 # Complete installation workflow and configuration
 
+# Source trash system for safe removal
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../lib/system/trash.sh" 2>/dev/null || true
+
 #######################################
 # Create Browserless data directories
 # Returns: 0 if successful, 1 if failed
@@ -15,7 +19,7 @@ browserless::create_directories() {
         # Add rollback action
         resources::add_rollback_action \
             "Remove Browserless data directory" \
-            "rm -rf $BROWSERLESS_DATA_DIR 2>/dev/null || true" \
+            "if command -v trash::safe_remove >/dev/null 2>&1; then trash::safe_remove '$BROWSERLESS_DATA_DIR' --no-confirm; else rm -rf '$BROWSERLESS_DATA_DIR'; fi 2>/dev/null || true" \
             10
         
         return 0

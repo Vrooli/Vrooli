@@ -1,26 +1,42 @@
 #!/usr/bin/env bash
 ################################################################################
-# Universal Setup Phase Handler
+# Generic Setup Phase Handler
 # 
-# Handles generic setup tasks applicable to any application:
-# - System preparation
-# - Dependency installation
-# - Docker/container setup
-# - Network diagnostics
-# - Generic resource installation
+# Handles ONLY generic setup tasks applicable to ANY application:
+# - System preparation (permissions, clock sync)
+# - Core dependency installation (git, jq, bash essentials)
+# - Docker/container setup and verification
+# - Network diagnostics and firewall
+# - Development tools (bats, shellcheck)
 #
-# App-specific logic should be in app/lifecycle/setup.sh
+# App-specific setup (resources, packages, etc.) should be defined
+# in each app's .vrooli/service.json lifecycle.setup.steps
 ################################################################################
 
 set -euo pipefail
 
 # Get script directory
-LIB_LIFECYCLE_PHASES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck disable=SC1091
-source "${LIB_LIFECYCLE_PHASES_DIR}/../../utils/var.sh"
-# shellcheck disable=SC1091
-source "${LIB_LIFECYCLE_PHASES_DIR}/common.sh"
+source "${LIB_DIR}/utils/var.sh"
+# Minimal phase functions (previously in common.sh)
+phase::init() {
+    local phase_name="${1:-unknown}"
+    export PHASE_NAME="$phase_name"
+    export PHASE_START_TIME=$(date +%s)
+    
+    log::header "🚀 Starting $PHASE_NAME phase"
+    log::debug "Phase handler: ${BASH_SOURCE[1]:-unknown}"
+    log::debug "Project root: ${var_ROOT_DIR:-not set}"
+}
+
+phase::complete() {
+    local end_time=$(date +%s)
+    local duration=$((end_time - ${PHASE_START_TIME:-0}))
+    
+    log::success "✅ $PHASE_NAME phase completed in ${duration}s"
+}
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/flow.sh"
 # shellcheck disable=SC1091
@@ -28,9 +44,7 @@ source "${var_LIB_UTILS_DIR}/exit_codes.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/target_matcher.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/permissions.sh"
-# shellcheck disable=SC1091
-source "${var_LIB_SERVICE_DIR}/permissions.sh"
+source "${var_LIB_UTILS_DIR}/permissions.sh"  # Consolidated permissions
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/clock.sh"
 # shellcheck disable=SC1091
@@ -40,9 +54,7 @@ source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/common_deps.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/config.sh"
-# shellcheck disable=SC1091
-source "${var_LIB_SERVICE_DIR}/config.sh"
+source "${var_LIB_UTILS_DIR}/config.sh"  # Consolidated config
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/docker.sh"
 # shellcheck disable=SC1091
@@ -57,8 +69,8 @@ source "${var_LIB_DEPS_DIR}/shellcheck.sh"
 ################################################################################
 
 #######################################
-# Run universal setup tasks
-# Handles all generic setup operations
+# Run generic setup tasks
+# Handles ONLY generic setup operations
 # Globals:
 #   TARGET
 #   CLEAN
@@ -69,7 +81,7 @@ source "${var_LIB_DEPS_DIR}/shellcheck.sh"
 # Returns:
 #   0 on success, 1 on failure
 #######################################
-setup::universal_main() {
+setup::generic_main() {
     # Initialize phase
     phase::init "Setup"
     
@@ -81,7 +93,7 @@ setup::universal_main() {
     local environment="${ENVIRONMENT:-development}"
     local resources="${RESOURCES:-enabled}"
     
-    log::info "Universal setup starting..."
+    log::info "Generic setup starting..."
     log::debug "Parameters:"
     log::debug "  Target: $target"
     log::debug "  Clean: $clean"
@@ -97,9 +109,9 @@ setup::universal_main() {
     fi
     export TARGET="$canonical"
     
-    # In standalone mode, default to skip sudo unless explicitly set
-    if phase::is_standalone && [[ -z "${SUDO_MODE_EXPLICIT:-}" ]]; then
-        log::info "Standalone app detected, defaulting to SUDO_MODE=skip"
+    # Default to skip sudo unless explicitly set
+    if [[ -z "${SUDO_MODE_EXPLICIT:-}" ]]; then
+        log::debug "Defaulting to SUDO_MODE=skip (use --sudo-mode to override)"
         export SUDO_MODE="skip"
     fi
     
@@ -129,11 +141,8 @@ setup::universal_main() {
             log::warning "Firewall setup requires sudo privileges - skipping"
         fi
         
-        # Update system packages
-        if phase::is_monorepo; then
-            log::info "Updating system packages..."
-            system::update_and_upgrade
-        fi
+        # Skip system package updates - let apps decide if needed
+        log::debug "System package updates skipped (handle in app-specific setup if needed)"
     fi
     
     # Step 2: Install Common Dependencies
@@ -178,34 +187,11 @@ setup::universal_main() {
         return "${ERROR_DOCKER_SETUP_FAILED:-1}"
     fi
     
-    # Step 7: Target-Specific Setup (handled by service.json)
-    # The actual target-specific setup is defined in service.json
-    # This step is kept for logging purposes only
-    log::info "Target-specific setup will be handled by service.json configuration"
+    # Step 7: Complete generic setup
+    log::info "Generic setup tasks completed"
+    log::info "App-specific setup will be handled by service.json configuration"
     
-    # Step 8: Install Resources (if configured)
-    if [[ "$resources" != "none" ]]; then
-        local resource_script="${var_SCRIPTS_RESOURCES_DIR}/index.sh"
-        if [[ -f "$resource_script" ]]; then
-            log::header "📦 Installing Resources"
-            log::info "Resource mode: $resources"
-            
-            # The resource script handles its own logic based on the mode
-            export RESOURCES="$resources"
-            if bash "$resource_script" install; then
-                log::success "✅ Resources installed"
-            else
-                log::warning "⚠️  Some resources failed to install"
-            fi
-        else
-            log::debug "Resource management not available"
-        fi
-    fi
-    
-    # Step 9: Run post-setup hook
-    phase::run_hook "postSetup"
-    
-    # Complete phase
+    # Step 8: Complete phase
     phase::complete
     
     # Export key variables for next phases
@@ -222,7 +208,7 @@ setup::universal_main() {
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     # Check if being called by lifecycle engine
     if [[ "${LIFECYCLE_PHASE:-}" == "setup" ]]; then
-        setup::universal_main "$@"
+        setup::generic_main "$@"
     else
         log::error "This script should be called through the lifecycle engine"
         log::info "Use: ./scripts/manage.sh setup [options]"

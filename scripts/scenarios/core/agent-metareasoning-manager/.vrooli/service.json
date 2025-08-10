@@ -98,28 +98,27 @@
       "description": "Initialize Agent Metareasoning Manager",
       "steps": [
         {
-          "name": "inject-resource-data",
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (network, system, git)"
+        },
+        {
+          "name": "add-data",
           "run": "scripts/lib/resources/runtime-engine.sh .",
           "description": "Inject n8n workflows and Windmill apps"
         },
         {
           "name": "install-cli",
           "run": "ln -sf \"$(pwd)/cli/metareasoning-cli.sh\" /usr/local/bin/metareasoning && chmod +x /usr/local/bin/metareasoning",
-          "description": "Install CLI command globally",
-          "condition": {
-            "file_exists": "cli/metareasoning-cli.sh"
-          }
+          "description": "Install CLI command globally"
         },
         {
-          "name": "build-go-api",
+          "name": "build-api",
           "run": "cd api && go mod download && go build -o metareasoning-api main.go",
-          "description": "Build Go coordination API binary",
-          "condition": {
-            "file_exists": "api/main.go"
-          }
+          "description": "Build Go coordination API binary"
         },
         {
-          "name": "show-access-urls",
+          "name": "show-urls",
           "run": "echo '🚀 Agent Metareasoning Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:8093\\n  CLI: metareasoning --help'",
           "description": "Display service access URLs"
         }

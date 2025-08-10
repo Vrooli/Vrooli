@@ -2,22 +2,15 @@
 set -euo pipefail
 
 #######################################
-# Universal Application Management Script
+# Application Management Script
 # 
-# This is the single entry point for all lifecycle operations.
-# Works with both Vrooli monorepo and standalone applications.
-# 
-# Usage:
-#   ./scripts/manage.sh <phase> [options]
-#   ./scripts/manage.sh setup --target native-linux
-#   ./scripts/manage.sh develop --detached yes
-#   ./scripts/manage.sh build --environment production
-#   
+# Single entry point for all lifecycle operations.
 # All behavior is controlled by .vrooli/service.json
 #######################################
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
+# Source utilities
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/utils/var.sh"
 # shellcheck disable=SC1091
@@ -26,28 +19,111 @@ source "${var_LOG_FILE}"
 source "$SCRIPT_DIR/lib/utils/json.sh"
 
 #######################################
-# Display help information
+# Execute lifecycle phase
+# Simple function that runs steps from service.json
+#######################################
+manage::execute_phase() {
+    local phase="$1"
+    shift  # Remove phase from arguments
+    
+    # Get phase description
+    local description
+    description=$(json::get_value ".lifecycle.${phase}.description" "")
+    
+    log::header "Starting phase: $phase"
+    [[ -n "$description" ]] && log::info "$description"
+    
+    # Parse common arguments into environment variables
+    for arg in "$@"; do
+        case "$arg" in
+            --target=*) export TARGET="${arg#*=}" ;;
+            --environment=*) export ENVIRONMENT="${arg#*=}" ;;
+            --dry-run) export DRY_RUN="true" ;;
+            *) ;; # Other args available via $@
+        esac
+    done
+    
+    # Export phase info for scripts
+    export LIFECYCLE_PHASE="$phase"
+    export LIFECYCLE_ARGS="$*"
+    
+    # Get and execute steps
+    local steps
+    steps=$(json::get_value ".lifecycle.${phase}.steps" "[]")
+    
+    if [[ "$steps" == "[]" ]]; then
+        log::warning "No steps defined for phase: $phase"
+        return 0
+    fi
+    
+    # Execute each step
+    local step_count=0
+    local total_steps
+    total_steps=$(echo "$steps" | jq 'length')
+    
+    echo "$steps" | jq -c '.[]' | while IFS= read -r step; do
+        step_count=$((step_count + 1))
+        
+        local name=$(echo "$step" | jq -r '.name // "unnamed"')
+        local run=$(echo "$step" | jq -r '.run // ""')
+        local desc=$(echo "$step" | jq -r '.description // ""')
+        
+        [[ -z "$run" ]] && continue
+        
+        log::info "[$step_count/$total_steps] Executing: $name"
+        [[ -n "$desc" ]] && echo "  → $desc" >&2
+        
+        if [[ "${DRY_RUN:-}" == "true" ]]; then
+            echo "[DRY RUN] Would execute: $run" >&2
+        else
+            # Execute in project root for consistency
+            (cd "$var_ROOT_DIR" && eval "$run") || {
+                local exit_code=$?
+                log::error "Step '$name' failed with exit code $exit_code"
+                return $exit_code
+            }
+        fi
+    done
+    
+    log::success "Phase '$phase' completed successfully"
+    return 0
+}
+
+#######################################
+# Display help with dynamic app info
 #######################################
 manage::show_help() {
+    # Get app info from service.json
+    local app_name app_version app_desc
+    
+    if json::validate_config 2>/dev/null; then
+        app_name=$(json::get_value '.service.displayName // .service.name' 'Application')
+        app_version=$(json::get_value '.version // .service.version' 'unknown')
+        app_desc=$(json::get_value '.service.description' '')
+    else
+        app_name="Application"
+        app_version="unknown"
+        app_desc=""
+    fi
+    
     cat << EOF
-Universal Application Management Interface
+$app_name v$app_version
+$([ -n "$app_desc" ] && echo "$app_desc" && echo)
 
 USAGE:
     $0 <phase> [options]
     $0 --help | -h
-    $0 --version | -v
     $0 --list-phases
-    $0 --check-deps
 
 PHASES:
-    Phases are defined in .vrooli/service.json under the 'lifecycle' key.
+    Phases are defined in .vrooli/service.json under 'lifecycle'.
     Common phases include:
     
     setup       Prepare the environment for development/production
-    develop     Start the development environment
+    develop     Start the development environment  
     build       Build the application artifacts
-    deploy      Deploy the application
     test        Run tests
+    deploy      Deploy the application
     
     Custom phases can be defined in service.json.
 
@@ -56,9 +132,8 @@ OPTIONS:
     
     --target <target>        Deployment target (native-linux, docker, k8s, etc.)
     --environment <env>      Environment (development, production, staging)
-    --dry-run                Preview what would be executed without making changes
-    --yes                    Skip confirmation prompts
-    --help                   Show phase-specific help
+    --dry-run               Preview what would be executed without making changes
+    --yes                   Skip confirmation prompts
     
     Run '$0 <phase> --help' for phase-specific options.
 
@@ -67,46 +142,27 @@ EXAMPLES:
     $0 develop --detached yes
     $0 build --environment production --dry-run
     $0 test --coverage yes
-    $0 deploy --source k8s --version 2.0.0 --dry-run
-    $0 my-custom-phase --my-option value
+    $0 deploy --source k8s --version 2.0.0
 
 CONFIGURATION:
-    All lifecycle phases and their steps are defined in:
-    $var_ROOT_DIR/.vrooli/service.json
-    
-    The lifecycle engine at $var_LIFECYCLE_ENGINE_FILE
-    executes the configured steps for each phase.
+    Lifecycle phases and steps: $var_ROOT_DIR/.vrooli/service.json
+    Project root: $var_ROOT_DIR
 
 EOF
 }
 
 #######################################
-# Display version information
-#######################################
-manage::show_version() {
-    # Use JSON utilities for robust version extraction
-    local app_version
-    app_version=$(json::get_value '.version' 'unknown')
-    echo "Application version: $app_version"
-    
-    echo "Manage script: 1.0.0"
-    echo "Project root: $var_ROOT_DIR"
-}
-
-#######################################
-# List available phases from service.json
+# List available phases
 #######################################
 manage::list_phases() {
-    # Use JSON utilities for robust phase listing
     if ! json::validate_config; then
-        log::error "Cannot list phases - invalid or missing service.json configuration"
+        log::error "Cannot list phases - invalid or missing service.json"
         return 1
     fi
     
     echo "Available lifecycle phases:"
     echo
     
-    # Get all phase names and display with descriptions
     local phases
     phases=$(json::list_lifecycle_phases)
     
@@ -115,102 +171,12 @@ manage::list_phases() {
         return 0
     fi
     
-    # Display each phase with its description
     while IFS= read -r phase; do
         [[ -z "$phase" ]] && continue
         local description
-        description=$(json::get_value ".lifecycle.${phase}.description" "No description")
-        printf "  %-12s\t%s\n" "$phase" "$description"
+        description=$(json::get_value ".lifecycle.${phase}.description" "")
+        printf "  %-12s  %s\n" "$phase" "$description"
     done <<< "$phases"
-    
-    echo
-    echo "Run '$0 <phase> --help' for phase-specific options"
-}
-
-#######################################
-# Check system dependencies
-#######################################
-manage::check_dependencies() {
-    echo "Checking system dependencies..."
-    echo
-    
-    local missing_deps=()
-    local optional_deps=()
-    
-    # Check required dependencies
-    echo "Required dependencies:"
-    for cmd in bash jq; do
-        if command -v "$cmd" &> /dev/null; then
-            echo "  ✓ $cmd - found at $(command -v "$cmd")"
-        else
-            echo "  ✗ $cmd - NOT FOUND"
-            missing_deps+=("$cmd")
-        fi
-    done
-    
-    echo
-    echo "Optional dependencies (enhance functionality):"
-    
-    # Check optional dependencies with descriptions
-    local -A optional_cmds=(
-        [git]="Version control and repository management"
-        [docker]="Container runtime for Docker deployments"
-        [kubectl]="Kubernetes cluster management"
-        [node]="Node.js runtime for JavaScript execution"
-        [pnpm]="Fast, disk space efficient package manager"
-    )
-    
-    for cmd in "${!optional_cmds[@]}"; do
-        if command -v "$cmd" &> /dev/null; then
-            echo "  ✓ $cmd - found"
-        else
-            echo "  ○ $cmd - not found (${optional_cmds[$cmd]})"
-            optional_deps+=("$cmd")
-        fi
-    done
-    
-    echo
-    
-    # Report results
-    if [[ ${#missing_deps[@]} -gt 0 ]]; then
-        echo "ERROR: Missing required dependencies: ${missing_deps[*]}"
-        echo
-        echo "Installation instructions:"
-        
-        # Provide platform-specific installation instructions
-        if [[ -f /etc/os-release ]]; then
-            # shellcheck disable=SC1091
-            source /etc/os-release
-            case "$ID" in
-                ubuntu|debian)
-                    echo "  sudo apt-get update && sudo apt-get install -y ${missing_deps[*]}"
-                    ;;
-                fedora|rhel|centos)
-                    echo "  sudo yum install -y ${missing_deps[*]}"
-                    ;;
-                arch)
-                    echo "  sudo pacman -S ${missing_deps[*]}"
-                    ;;
-                *)
-                    echo "  Please install: ${missing_deps[*]}"
-                    ;;
-            esac
-        else
-            echo "  Please install: ${missing_deps[*]}"
-        fi
-        
-        return 1
-    else
-        echo "✓ All required dependencies are installed"
-        
-        if [[ ${#optional_deps[@]} -gt 0 ]]; then
-            echo
-            echo "TIP: Install optional dependencies for full functionality:"
-            echo "  Missing: ${optional_deps[*]}"
-        fi
-        
-        return 0
-    fi
 }
 
 #######################################
@@ -219,14 +185,14 @@ manage::check_dependencies() {
 manage::main() {
     local phase="${1:-}"
     
-    # Check for --dry-run early to set it globally
+    # Check for --dry-run early
     local dry_run_flag="false"
     for arg in "$@"; do
-        if [[ "$arg" == "--dry-run" ]]; then
+        [[ "$arg" == "--dry-run" ]] && {
             dry_run_flag="true"
             export DRY_RUN="true"
             break
-        fi
+        }
     done
     
     # Handle special flags
@@ -235,94 +201,53 @@ manage::main() {
             manage::show_help
             exit 0
             ;;
-        --version|-v)
-            manage::show_version
-            exit 0
-            ;;
         --list-phases|--list)
             manage::list_phases
             exit 0
             ;;
-        --check-deps|--check-dependencies)
-            manage::check_dependencies
-            exit $?
-            ;;
     esac
     
-    # Validate service.json configuration using JSON utilities
+    # Validate service.json exists
     if ! json::validate_config; then
-        log::error "This directory does not appear to be a properly configured application"
-        echo
-        echo "To initialize a new application, create .vrooli/service.json with lifecycle configuration"
+        log::error "No valid service.json found in this directory"
+        echo "Create .vrooli/service.json with lifecycle configuration"
         exit 1
     fi
     
-    # Check for lifecycle engine
-    if [[ ! -f "$var_LIFECYCLE_ENGINE_FILE" ]]; then
-        log::error "Lifecycle engine not found at $var_LIFECYCLE_ENGINE_FILE"
-        log::error "The scripts/lib directory may be missing or incomplete"
-        
-        # Provide helpful message based on context
-        if [[ -d "$var_ROOT_DIR/packages" ]]; then
-            echo "This appears to be the Vrooli monorepo. Try running:"
-            echo "  git restore scripts/lib"
-        else
-            echo "This appears to be a standalone app. Ensure scripts/lib was properly copied."
-        fi
-        exit 1
-    fi
-    
-    # Validate phase exists in service.json using JSON utilities
+    # Validate phase exists
     if ! json::path_exists ".lifecycle.${phase}"; then
         log::error "Phase '$phase' not found in service.json"
         echo
-        echo "Available phases:"
         manage::list_phases
         echo
-        echo "To see all available options, run: $0 --help"
+        echo "Run '$0 --help' for usage information"
         exit 1
     fi
     
-    # Show dry-run banner if enabled
+    # Show dry-run banner
     if [[ "$dry_run_flag" == "true" ]]; then
-        echo "═══════════════════════════════════════════════════════════════" >&2
+        echo "═══════════════════════════════════════════════════════" >&2
         echo "DRY RUN MODE: No actual changes will be made" >&2
-        echo "═══════════════════════════════════════════════════════════════" >&2
+        echo "═══════════════════════════════════════════════════════" >&2
         echo >&2
     fi
     
-    # Set VROOLI_CONTEXT if not already set
-    # Detect context based on presence of packages directory and other markers
-    if [[ -z "${VROOLI_CONTEXT:-}" ]]; then
-        if [[ -d "$var_ROOT_DIR/packages" ]] && [[ -f "$var_ROOT_DIR/packages/server/package.json" ]]; then
-            export VROOLI_CONTEXT="monorepo"
-            log::info "Detected Vrooli monorepo context"
-        else
-            export VROOLI_CONTEXT="standalone"
-            log::info "Detected standalone application context"
-        fi
-    fi
-    
-    # Export var_ROOT_DIR for child scripts
+    # Export common environment variables
     export var_ROOT_DIR
-    
-    # Set default ENVIRONMENT, LOCATION, and TARGET if not already set (commonly needed by many phases)
     export ENVIRONMENT="${ENVIRONMENT:-development}"
     export LOCATION="${LOCATION:-Local}"
     export TARGET="${TARGET:-docker}"
     
-    # Shift phase from arguments and pass remaining to lifecycle engine
+    # Remove phase from arguments
     shift
     
-    # Delegate to lifecycle engine
-    if [[ "$dry_run_flag" == "true" ]]; then
-        log::info "[DRY RUN] Would execute phase '$phase' via lifecycle engine..."
-    else
-        log::info "Executing phase '$phase' via lifecycle engine..."
-    fi
+    # Execute phase directly (no more external executor!)
+    [[ "$dry_run_flag" == "true" ]] && \
+        log::info "[DRY RUN] Executing phase '$phase'..." || \
+        log::info "Executing phase '$phase'..."
     
-    exec "${var_LIFECYCLE_ENGINE_FILE}" "$phase" "$@"
+    manage::execute_phase "$phase" "$@"
 }
 
-# Execute main with all arguments
+# Execute
 manage::main "$@"

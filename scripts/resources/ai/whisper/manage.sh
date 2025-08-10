@@ -18,6 +18,8 @@ source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 # shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
+# shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/args-cli.sh"
@@ -941,7 +943,7 @@ manage::install() {
     # Add rollback for directories
     resources::add_rollback_action \
         "Remove Whisper directories" \
-        "rm -rf \"$WHISPER_DATA_DIR\"" \
+        "trash::safe_remove '$WHISPER_DATA_DIR' --no-confirm" \
         10
     
     # Determine image to use
@@ -1022,7 +1024,7 @@ manage::uninstall() {
     if [[ -d "$WHISPER_DATA_DIR" ]]; then
         if ! flow::is_yes "$YES"; then
             if flow::confirm "Remove Whisper data directory?"; then
-                rm -rf "$WHISPER_DATA_DIR"
+                trash::safe_remove "$WHISPER_DATA_DIR" --no-confirm
                 log::info "Data directory removed"
             fi
         fi

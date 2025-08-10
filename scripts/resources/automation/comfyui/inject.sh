@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Source required utilities
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # ComfyUI Workflow Injection Adapter
 # This script handles injection of workflows and models into ComfyUI
 # Part of the Vrooli resource data injection system
@@ -526,7 +533,7 @@ inject::install_custom_node() {
         # Add rollback action
         inject::add_rollback_action \
             "Remove custom node: $name" \
-            "rm -rf '${target_dir}'"
+            "trash::safe_remove '${target_dir}' --no-confirm"
         
         return 0
     else

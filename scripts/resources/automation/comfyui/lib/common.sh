@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 # ComfyUI Common Utilities
+
+# Source required utilities
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 # Shared functions used across ComfyUI modules
 
 # Get the ComfyUI script directory
@@ -257,7 +264,7 @@ common::cleanup_help() {
     echo "   docker rmi ${COMFYUI_CUSTOM_IMAGE:-$COMFYUI_DEFAULT_IMAGE} 2>/dev/null || true"
     echo
     echo "3. Remove ComfyUI data directory (WARNING: This deletes all models and outputs!):"
-    echo "   rm -rf ${COMFYUI_DATA_DIR}"
+    echo "   trash::safe_remove ${COMFYUI_DATA_DIR} --no-confirm"
     echo
     echo "4. Remove from Vrooli configuration:"
     echo "   Edit ~/.vrooli/service.json and remove the 'comfyui' entry"

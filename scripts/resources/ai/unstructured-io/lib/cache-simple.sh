@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+# Source required utilities
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Simplified caching implementation without Redis dependency
 # Uses filesystem-based caching for simplicity
 
@@ -118,7 +125,9 @@ unstructured_io::clear_all_cache() {
     
     if [[ -d "$UNSTRUCTURED_IO_CACHE_DIR" ]]; then
         count=$(find "$UNSTRUCTURED_IO_CACHE_DIR" -type f | wc -l)
-        rm -rf "$UNSTRUCTURED_IO_CACHE_DIR"/*
+        for item in "$UNSTRUCTURED_IO_CACHE_DIR"/*; do
+            [ -e "$item" ] && trash::safe_remove "$item" --no-confirm
+        done
     fi
     
     echo "Cleared $count cache entries"

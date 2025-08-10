@@ -1,6 +1,9 @@
 #!/bin/bash
 # Firefox monitoring and recovery script for Agent S2
 
+# Note: This script runs inside the Docker container where trash system is not available
+# Using native rm -rf for cache cleanup is safe as it only targets cache directories
+
 # Configuration
 FIREFOX_CMD="firefox-esr --profile /home/agents2/.mozilla/firefox/agent-s2 --new-window about:blank"
 LOG_FILE="/var/log/supervisor/firefox.log"
@@ -117,6 +120,7 @@ start_firefox() {
     log_message "Cleaned up Firefox profile lock files"
     
     # Clear Firefox cache to prevent memory bloat
+    # Note: Using rm -rf inside container as trash system not available
     rm -rf /home/agents2/.cache/mozilla/firefox/*/cache2/* 2>/dev/null
     
     # Set memory-conscious environment variables

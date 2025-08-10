@@ -14,6 +14,10 @@ source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 
+# Source trash system for safe removal
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 SECURITY_DIR="${SCRIPT_DIR}"
 APPARMOR_PROFILE_DIR="/etc/apparmor.d"
 LOG_DIR="/var/log/agent-s2-audit"
@@ -375,7 +379,11 @@ case "${1:-install}" in
     "uninstall")
         print_status "Uninstalling Agent S2 security components..."
         rm -f "${APPARMOR_PROFILE_DIR}/docker-agent-s2-host"
-        rm -rf "$LOG_DIR"
+        if command -v trash::safe_remove >/dev/null 2>&1; then
+            trash::safe_remove "$LOG_DIR" --no-confirm
+        else
+            rm -rf "$LOG_DIR"
+        fi
         rm -f "/etc/logrotate.d/agent-s2-audit"
         rm -f "/etc/systemd/system/agent-s2-security-monitor.service"
         rm -f "/etc/agent-s2-security.conf"

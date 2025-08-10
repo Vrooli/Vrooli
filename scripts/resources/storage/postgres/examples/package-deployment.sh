@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Source trash system for safe removal
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../../lib/system/trash.sh" 2>/dev/null || true
+
 # PostgreSQL Client Deployment Packaging Example
 # Demonstrates packaging PostgreSQL instances for client deployment
 
@@ -1505,7 +1509,11 @@ main() {
     # Remove existing package if it exists
     if [[ -d "$package_path" ]]; then
         log_info "Removing existing package: $package_path"
-        rm -rf "$package_path"
+        if command -v trash::safe_remove >/dev/null 2>&1; then
+            trash::safe_remove "$package_path" --no-confirm
+        else
+            rm -rf "$package_path"
+        fi
     fi
     
     # Execute packaging steps

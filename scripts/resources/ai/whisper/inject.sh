@@ -19,6 +19,8 @@ source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 # shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
+# shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}"
 
 # Source Whisper configuration if available
@@ -348,7 +350,7 @@ inject::download_model() {
     # Add rollback action (models are cached, so we just note it)
     inject::add_rollback_action \
         "Remove model cache: $name" \
-        "rm -rf '${WHISPER_MODELS_DIR}/${name}*' 2>/dev/null || true"
+        "trash::safe_remove '${WHISPER_MODELS_DIR}/${name}'* --no-confirm 2>/dev/null || true"
     
     return 0
 }

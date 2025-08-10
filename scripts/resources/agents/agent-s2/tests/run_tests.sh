@@ -14,6 +14,10 @@ source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 
+# Source trash system for safe removal
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 AGENT_S2_DIR="${SCRIPT_DIR}/.."
 PYTHON_VENV=""
 TEST_RESULTS_DIR="${var_ROOT_DIR}/data/test-outputs/agent-s2-tests"
@@ -201,7 +205,13 @@ setup_test_environment() {
     # Clean previous results if requested
     if [[ "$CLEAN" == "true" ]]; then
         print_status "Cleaning previous test results..."
-        rm -rf "${TEST_RESULTS_DIR:?}"/*
+        if command -v trash::safe_remove >/dev/null 2>&1; then
+            for item in "${TEST_RESULTS_DIR:?}"/*; do
+                [ -e "$item" ] && trash::safe_remove "$item" --no-confirm
+            done
+        else
+            rm -rf "${TEST_RESULTS_DIR:?}"/*
+        fi
     fi
     
     # Set environment variables for testing

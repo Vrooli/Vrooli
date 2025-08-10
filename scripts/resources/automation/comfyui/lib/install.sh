@@ -2,6 +2,13 @@
 # ComfyUI Installation and Uninstallation
 # Handles the main installation flow and cleanup procedures
 
+# Source required utilities
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # Main installation function
 #######################################
@@ -91,7 +98,7 @@ install::install() {
     # Add rollback action for directories
     resources::add_rollback_action \
         "Remove ComfyUI directories" \
-        "rm -rf '${COMFYUI_DATA_DIR}'" \
+        "trash::safe_remove '${COMFYUI_DATA_DIR}' --no-confirm" \
         5
     
     # Step 4: Pull Docker image
@@ -228,15 +235,15 @@ install::uninstall() {
         
         if [[ "$remove_data" == "yes" ]]; then
             log::info "Removing ComfyUI data directory..."
-            if rm -rf "$COMFYUI_DATA_DIR"; then
+            if trash::safe_remove "$COMFYUI_DATA_DIR" --no-confirm; then
                 log::success "Data directory removed"
             else
                 log::error "Failed to remove data directory"
-                log::info "You may need to remove it manually: rm -rf $COMFYUI_DATA_DIR"
+                log::info "You may need to remove it manually: sudo trash::safe_remove $COMFYUI_DATA_DIR --no-confirm"
             fi
         else
             log::info "Keeping ComfyUI data directory: $COMFYUI_DATA_DIR"
-            log::info "To remove it later: rm -rf $COMFYUI_DATA_DIR"
+            log::info "To remove it later: trash::safe_remove $COMFYUI_DATA_DIR --no-confirm"
         fi
     fi
     

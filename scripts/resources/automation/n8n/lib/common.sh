@@ -2,6 +2,13 @@
 # n8n Common Utility Functions
 # Shared utilities used across all modules
 
+# Source required utilities
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # Check if Docker is installed
 # Returns: 0 if installed, 1 otherwise
@@ -199,7 +206,7 @@ n8n::auto_recover() {
     
     # Recreate data directory
     log::info "Recreating data directory..."
-    rm -rf "$N8N_DATA_DIR" 2>/dev/null || true
+    trash::safe_remove "$N8N_DATA_DIR" --no-confirm 2>/dev/null || true
     if ! n8n::create_directories; then
         log::error "Failed to recreate data directory"
         return 1
@@ -242,7 +249,7 @@ n8n::create_directories() {
     # Remove any corrupted directory
     if [[ -d "$N8N_DATA_DIR" ]]; then
         log::warn "Removing potentially corrupted directory"
-        rm -rf "$N8N_DATA_DIR" 2>/dev/null || true
+        trash::safe_remove "$N8N_DATA_DIR" --no-confirm 2>/dev/null || true
     fi
     
     # Create fresh directory
@@ -266,7 +273,7 @@ n8n::create_directories() {
     # Add rollback action
     resources::add_rollback_action \
         "Remove n8n data directory" \
-        "rm -rf $N8N_DATA_DIR 2>/dev/null || true" \
+        "trash::safe_remove '$N8N_DATA_DIR' --no-confirm 2>/dev/null || true" \
         10
     
     log::success "n8n directories created with proper permissions"

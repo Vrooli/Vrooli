@@ -174,6 +174,7 @@ postgres::instance::destroy() {
                 log::debug "Normal removal failed, using Docker to clean up root-owned files"
                 
                 # Use a temporary container to remove files with proper permissions
+                # Note: Using rm -rf inside container as trash system not available in Alpine container
                 if docker run --rm -v "${instance_dir}:/cleanup" alpine:latest sh -c "rm -rf /cleanup/*" 2>/dev/null; then
                     # Now remove the empty directory
                     rmdir "$instance_dir" 2>/dev/null || trash::safe_remove "$instance_dir" --no-confirm

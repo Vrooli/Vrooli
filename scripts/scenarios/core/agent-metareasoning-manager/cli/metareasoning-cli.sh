@@ -9,7 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Configuration
 CLI_VERSION="1.0.0"
 CLI_NAME="metareasoning"
-DEFAULT_API_BASE="${METAREASONING_API_BASE:-http://localhost:8093/api}"
+DEFAULT_API_BASE="${METAREASONING_API_BASE:-http://localhost:8093}"
 CONFIG_DIR="${HOME}/.metareasoning"
 CONFIG_FILE="${CONFIG_DIR}/config.json"
 
@@ -60,6 +60,28 @@ create_default_config() {
   "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 }
 EOF
+}
+
+# Show API information
+show_api_info() {
+    load_config
+    
+    bold "🔗 Go Metareasoning API Connection Info"
+    echo "  Base URL: $API_BASE"
+    echo "  Token: ${API_TOKEN:-"(not set)"}"
+    echo ""
+    echo "📡 Available Endpoints:"
+    echo "  Health:    $API_BASE/health"
+    echo "  Workflows: $API_BASE/workflows"
+    echo "  Analysis:  $API_BASE/analyze/{type}"
+    echo "  Execute:   $API_BASE/execute/{platform}/{workflow}"
+    echo ""
+    echo "🔍 Analysis Types:"
+    echo "  pros-cons    - Weighted pros and cons analysis"
+    echo "  swot         - Strategic SWOT analysis"
+    echo "  risk         - Risk assessment with mitigation"
+    echo "  self-review  - Iterative reasoning validation"
+    echo ""
 }
 
 # Make API request
@@ -161,6 +183,7 @@ show_usage() {
     echo "  analyze <type> <input>    Perform analysis (decision, pros-cons, swot, risk)"
     echo "  template <subcommand>     Manage reasoning templates"
     echo "  health                    Check API server health"
+    echo "  api                       Show API connection and implementation info"
     echo "  config                    Manage CLI configuration"
     echo "  help                      Show this help message"
     echo ""
@@ -180,16 +203,24 @@ show_usage() {
     echo "  pros-cons                 Generate pros and cons analysis"
     echo "  swot                      Perform SWOT analysis"
     echo "  risk                      Assess risks"
+    echo "  self-review               Iterative reasoning validation"
     echo ""
     echo "Global Options:"
     echo "  --format FORMAT           Output format (json, table, yaml)"
     echo "  --api-base URL           Override API base URL"
     echo ""
     echo "Examples:"
-    echo "  $CLI_NAME prompt list"
-    echo "  $CLI_NAME workflow run pros-cons-analyzer"
-    echo "  $CLI_NAME analyze decision 'Should we migrate to microservices?'"
-    echo "  $CLI_NAME health"
+    echo "  $CLI_NAME api                                           # Show API implementation info"
+    echo "  $CLI_NAME prompt list                                   # List available prompts"
+    echo "  $CLI_NAME workflow run pros-cons-analyzer               # Execute workflow"
+    echo "  $CLI_NAME analyze decision 'Should we migrate?'         # Perform decision analysis"
+    echo "  $CLI_NAME analyze pros-cons 'Remote work policy'        # Generate pros/cons"
+    echo "  $CLI_NAME health                                        # Check API health"
+    echo ""
+    echo "Powered by Go:"
+    echo "  • Fast, lightweight 8MB binary"
+    echo "  • Direct workflow integration with n8n/Windmill"  
+    echo "  • Simple JSON configuration (no database required)"
     echo ""
 }
 
@@ -449,80 +480,73 @@ cmd_analyze() {
     local payload
     local endpoint
     
+    # Create payload for Go API
     case "$analysis_type" in
         "decision")
             log "Performing decision analysis..."
-            
-            # Parse additional options for decision analysis
-            local options="${ARGS[1]:-}"
-            local criteria="${ARGS[2]:-}"
-            
+            local context="${ARGS[1]:-}"
             payload=$(jq -n \
-                --arg scenario "$input" \
-                --arg options "$options" \
-                --arg criteria "$criteria" \
+                --arg input "$input" \
+                --arg context "$context" \
                 '{
-                    scenario: $scenario,
-                    options: (if $options != "" then ($options | split(",")) else [] end),
-                    criteria: (if $criteria != "" then ($criteria | split(",")) else [] end),
-                    include_recommendation: true
+                    input: $input,
+                    context: (if $context != "" then $context else null end)
                 }'
             )
-            endpoint="/analysis/decision"
+            endpoint="/analyze/decision"
             ;;
         "pros-cons")
             log "Generating pros-cons analysis..."
-            
-            # Parse depth option
-            local depth="${ARGS[1]:-detailed}"
-            
+            local context="${ARGS[1]:-}"
             payload=$(jq -n \
-                --arg topic "$input" \
-                --arg depth "$depth" \
+                --arg input "$input" \
+                --arg context "$context" \
                 '{
-                    topic: $topic,
-                    depth: $depth
+                    input: $input,
+                    context: (if $context != "" then $context else null end)
                 }'
             )
-            endpoint="/analysis/pros-cons"
+            endpoint="/analyze/pros-cons"
             ;;
         "swot")
             log "Performing SWOT analysis..."
-            
-            # Parse context option
             local context="${ARGS[1]:-}"
-            
             payload=$(jq -n \
-                --arg target "$input" \
+                --arg input "$input" \
                 --arg context "$context" \
                 '{
-                    target: $target,
-                    context: (if $context != "" then $context else null end),
-                    include_recommendations: true
+                    input: $input,
+                    context: (if $context != "" then $context else null end)
                 }'
             )
-            endpoint="/analysis/swot"
+            endpoint="/analyze/swot"
             ;;
         "risk"|"risks")
             log "Assessing risks..."
-            
-            # Parse risk categories
-            local categories="${ARGS[1]:-}"
-            
+            local constraints="${ARGS[1]:-}"
             payload=$(jq -n \
-                --arg proposal "$input" \
-                --arg categories "$categories" \
+                --arg action "$input" \
+                --arg constraints "$constraints" \
                 '{
-                    proposal: $proposal,
-                    risk_categories: (if $categories != "" then ($categories | split(",")) else null end),
-                    include_mitigation: true
+                    action: $action,
+                    constraints: (if $constraints != "" then $constraints else null end)
                 }'
             )
-            endpoint="/analysis/risks"
+            endpoint="/analyze/risk-assessment"
+            ;;
+        "self-review")
+            log "Starting self-review process..."
+            payload=$(jq -n \
+                --arg decision "$input" \
+                '{
+                    decision: $decision
+                }'
+            )
+            endpoint="/analyze/self-review"
             ;;
         *)
             error "Unknown analysis type: $analysis_type"
-            echo "Available: decision, pros-cons, swot, risk"
+            echo "Available: decision, pros-cons, swot, risk, self-review"
             exit 1
             ;;
     esac
@@ -642,6 +666,9 @@ main() {
             ;;
         "config")
             cmd_config
+            ;;
+        "api")
+            show_api_info
             ;;
         "help"|"")
             show_usage
