@@ -13,6 +13,13 @@ if [[ "${WHISPER_MOCK_LOADED:-}" == "true" ]]; then
 fi
 export WHISPER_MOCK_LOADED="true"
 
+# Source trash module for safe cleanup
+MOCK_DIR_FOR_TRASH="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${MOCK_DIR_FOR_TRASH}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Load dependencies
 MOCK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [[ -f "$MOCK_DIR/logs.sh" ]] && source "$MOCK_DIR/logs.sh"
@@ -129,7 +136,7 @@ _whisper_mock_save_state() {
     done
     
     # Ensure lock cleanup on exit
-    trap 'rm -f "$lock_file" 2>/dev/null' EXIT
+    trap 'trash::safe_remove "$lock_file" --test-cleanup 2>/dev/null' EXIT
     
     # For concurrent access safety, we need to merge call counts
     if [[ -f "$WHISPER_MOCK_STATE_FILE" ]]; then
@@ -167,13 +174,13 @@ _whisper_mock_save_state() {
       declare -p WHISPER_MOCK_MODELS 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA WHISPER_MOCK_MODELS=()"
       declare -p WHISPER_MOCK_CONTAINERS 2>/dev/null | sed 's/declare -A/declare -gA/' || echo "declare -gA WHISPER_MOCK_CONTAINERS=()"
     } > "$WHISPER_MOCK_STATE_FILE" 2>/dev/null || {
-      rm -f "$lock_file" 2>/dev/null
+      trash::safe_remove "$lock_file" --test-cleanup 2>/dev/null
       echo "[MOCK] WARNING: Could not save state to file: $WHISPER_MOCK_STATE_FILE" >&2
       return 1
     }
     
     # Release lock
-    rm -f "$lock_file" 2>/dev/null
+    trash::safe_remove "$lock_file" --test-cleanup 2>/dev/null
     trap - EXIT
   fi
 }

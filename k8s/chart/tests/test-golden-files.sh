@@ -22,6 +22,13 @@
 
 set -e # Exit immediately if a command exits with a non-zero status.
 
+# Source trash module for safe cleanup
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../scripts/lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 CHART_PATH="."
 GOLDEN_FILES_DIR="./tests/goldenfiles"
 VALUES_FILE_DEFAULT="./values.yaml"
@@ -66,14 +73,14 @@ test_scenario() {
             echo "ERROR: Golden file ${golden_file} does not exist!"
             echo "To create it, run: UPDATE_GOLDEN_FILES=true ./tests/test-golden-files.sh"
             # Clean up temp file before exiting
-            rm "${temp_output_file}"
+            trash::safe_remove "${temp_output_file}" --test-cleanup
             return 1 # Indicate failure
         fi
 
         echo "Comparing output with ${golden_file}..."
         if diff --unified "${golden_file}" "${temp_output_file}"; then
             echo "SUCCESS: Output for ${scenario_name} matches golden file."
-            rm "${temp_output_file}" # Clean up temp file
+            trash::safe_remove "${temp_output_file}" --test-cleanup # Clean up temp file
             return 0 # Indicate success
         else
             echo "ERROR: Output for ${scenario_name} does NOT match golden file ${golden_file}!"

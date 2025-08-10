@@ -123,7 +123,7 @@ vrooli_aggressive_cleanup() {
         if [[ -n "$files" ]]; then
             echo "$files" | while IFS= read -r file; do
                 if [[ -f "$file" ]]; then
-                    if rm "$file" 2>/dev/null; then
+                    if trash::safe_remove "$file" --test-cleanup 2>/dev/null; then
                         echo "[CLEANUP-MANAGER] Removed: $file"
                         ((cleaned_count++))
                     fi
@@ -214,7 +214,7 @@ vrooli_cleanup_old_resources() {
                             echo "[CLEANUP-MANAGER] Removed old resource: $item"
                             ((cleaned_count++))
                         fi
-                    elif rm -rf "$item" 2>/dev/null; then
+                    elif trash::safe_remove "$item" --test-cleanup 2>/dev/null; then
                         echo "[CLEANUP-MANAGER] Removed old resource: $item"
                         ((cleaned_count++))
                     fi

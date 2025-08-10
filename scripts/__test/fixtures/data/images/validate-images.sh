@@ -247,11 +247,7 @@ test_image_processing() {
     fi
     
     # Cleanup
-    if command -v trash::safe_remove >/dev/null 2>&1; then
-        trash::safe_remove "$temp_dir" --no-confirm
-    else
-        rm -rf "$temp_dir"
-    fi
+    trash::safe_remove "$temp_dir" --test-cleanup
 }
 
 # Validate all images from metadata
