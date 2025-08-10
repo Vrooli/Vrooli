@@ -29,34 +29,13 @@
     "mirrors": []
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "type": "postgresql",
+    "system": {
+      "go": {
+        "type": "go",
         "enabled": true,
-        "version": "16",
+        "version": "1.21",
         "required": true,
-        "initialization": {
-          "data": [
-            {
-              "type": "schema",
-              "file": "initialization/storage/postgres/schema.sql"
-            },
-            {
-              "type": "seed",
-              "file": "initialization/storage/postgres/seed.sql"
-            }
-          ]
-        }
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true
-      },
-      "vault": {
-        "type": "vault",
-        "enabled": false,
-        "required": false
+        "description": "Go runtime for minimal coordination API"
       }
     },
     "automation": {
@@ -116,11 +95,12 @@
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
+      "description": "Initialize Agent Metareasoning Manager",
       "steps": [
         {
           "name": "inject-resource-data",
           "run": "scripts/lib/resources/runtime-engine.sh .",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "description": "Inject n8n workflows and Windmill apps"
         },
         {
           "name": "install-cli",
@@ -131,69 +111,73 @@
           }
         },
         {
-          "name": "prepare-api",
-          "run": "cd api && npm install --production && npm run build",
-          "description": "Install API server dependencies and compile TypeScript",
+          "name": "build-go-api",
+          "run": "cd api && go mod download && go build -o metareasoning-api main.go",
+          "description": "Build Go coordination API binary",
           "condition": {
-            "file_exists": "api/package.json"
+            "file_exists": "api/main.go"
           }
         },
         {
           "name": "show-access-urls",
-          "run": "echo '🚀 Agent Metareasoning Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: metareasoning --help'",
-          "description": "Display service access URLs and CLI info"
+          "run": "echo '🚀 Agent Metareasoning Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:8093\\n  CLI: metareasoning --help'",
+          "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start metareasoning manager with API server",
+      "description": "Start metareasoning manager with Go API server",
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && METAREASONING_API_PORT=8093 POSTGRES_PORT=${RESOURCE_PORTS[postgres]} REDIS_PORT=${RESOURCE_PORTS[redis]} N8N_PORT=${RESOURCE_PORTS[n8n]} WINDMILL_PORT=${RESOURCE_PORTS[windmill]} npm run dev &",
-          "description": "Build TypeScript and start API server in background",
+          "run": "cd api && PORT=8093 N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} ./metareasoning-api &",
+          "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {
-            "file_exists": "api/server.ts"
+            "file_exists": "api/metareasoning-api"
           }
         },
         {
           "name": "wait-for-api",
-          "run": "sleep 3 && curl -sf http://localhost:8093/api/health > /dev/null",
+          "run": "sleep 2 && curl -sf http://localhost:8093/health > /dev/null",
           "description": "Wait for API server to be ready",
           "retry": {
-            "max_attempts": 10,
-            "delay": 2
-          },
-          "condition": {
-            "file_exists": "api/server.ts"
+            "max_attempts": 15,
+            "delay": 1
           }
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:8093/api\\n  CLI: metareasoning --help'",
+          "run": "echo '🚀 Services running:\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:8093\\n  CLI: metareasoning --help'",
           "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test metareasoning manager API and CLI",
+      "description": "Test metareasoning manager Go API and CLI",
       "steps": [
         {
-          "name": "type-check-api",
-          "run": "cd api && npm run type-check",
-          "description": "TypeScript type checking",
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
           "condition": {
-            "file_exists": "api/tsconfig.json"
+            "file_exists": "api/main.go"
           }
         },
         {
           "name": "test-api-health",
-          "run": "curl -sf http://localhost:8093/api/health",
-          "description": "Test API health endpoint",
-          "condition": {
-            "file_exists": "api/server.ts"
-          }
+          "run": "curl -sf http://localhost:8093/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-workflows-endpoint",
+          "run": "curl -sf http://localhost:8093/workflows",
+          "description": "Test API workflows endpoint"
+        },
+        {
+          "name": "test-analyze-endpoint",
+          "run": "curl -sf -X POST -H 'Content-Type: application/json' -d '{\"input\":\"test decision\",\"context\":\"test context\"}' http://localhost:8093/analyze/pros-cons",
+          "description": "Test API analysis endpoint"
         },
         {
           "name": "test-cli-commands",
@@ -201,14 +185,6 @@
           "description": "Run CLI test suite",
           "condition": {
             "file_exists": "cli/metareasoning-cli.bats"
-          }
-        },
-        {
-          "name": "test-api-endpoints",
-          "run": "cd api && npm test",
-          "description": "Run API test suite",
-          "condition": {
-            "file_exists": "api/package.json"
           }
         }
       ]
@@ -218,8 +194,8 @@
       "steps": [
         {
           "name": "stop-api-server",
-          "run": "pkill -f 'node.*server.js' || true",
-          "description": "Stop API server processes"
+          "run": "pkill -f 'metareasoning-api' || true",
+          "description": "Stop Go API server processes"
         },
         {
           "name": "confirm-stop",

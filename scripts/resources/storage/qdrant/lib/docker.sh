@@ -2,6 +2,15 @@
 # Qdrant Docker Management
 # Functions for managing Qdrant Docker container
 
+# Source required utilities if not already loaded
+if ! command -v trash::safe_remove >/dev/null 2>&1; then
+    SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+    # shellcheck disable=SC1091
+    source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+fi
+
 #######################################
 # Create Docker network if it doesn't exist
 # Returns: 0 on success, 1 on failure
@@ -237,7 +246,13 @@ qdrant::docker::remove_container() {
     # Remove data if requested
     if [[ "$preserve_data" == "false" ]]; then
         log::info "Removing Qdrant data..."
-        rm -rf "${QDRANT_DATA_DIR}" "${QDRANT_CONFIG_DIR}" "${QDRANT_SNAPSHOTS_DIR}" 2>/dev/null || true
+        if command -v trash::safe_remove >/dev/null 2>&1; then
+            trash::safe_remove "${QDRANT_DATA_DIR}" --no-confirm 2>/dev/null || true
+            trash::safe_remove "${QDRANT_CONFIG_DIR}" --no-confirm 2>/dev/null || true
+            trash::safe_remove "${QDRANT_SNAPSHOTS_DIR}" --no-confirm 2>/dev/null || true
+        else
+            rm -rf "${QDRANT_DATA_DIR}" "${QDRANT_CONFIG_DIR}" "${QDRANT_SNAPSHOTS_DIR}" 2>/dev/null || true
+        fi
         log::debug "Data directories removed"
     fi
     

@@ -2,6 +2,15 @@
 # Vault Installation Functions
 # Installation, initialization, and setup operations
 
+# Source required utilities if not already loaded
+if ! command -v trash::safe_remove >/dev/null 2>&1; then
+    SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+    # shellcheck disable=SC1091
+    source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+fi
+
 #######################################
 # Install Vault
 #######################################
@@ -56,7 +65,13 @@ vault::uninstall() {
     # Ask about data removal
     if [[ "${VAULT_REMOVE_DATA:-}" == "yes" ]] || resources::confirm "Remove Vault data directories?"; then
         log::info "Removing Vault data directories..."
-        rm -rf "$VAULT_DATA_DIR" "$VAULT_CONFIG_DIR" "$VAULT_LOGS_DIR"
+        if command -v trash::safe_remove >/dev/null 2>&1; then
+            trash::safe_remove "$VAULT_DATA_DIR" --no-confirm 2>/dev/null || true
+            trash::safe_remove "$VAULT_CONFIG_DIR" --no-confirm 2>/dev/null || true
+            trash::safe_remove "$VAULT_LOGS_DIR" --no-confirm 2>/dev/null || true
+        else
+            rm -rf "$VAULT_DATA_DIR" "$VAULT_CONFIG_DIR" "$VAULT_LOGS_DIR"  # fallback
+        fi
     fi
     
     vault::message "success" "MSG_VAULT_UNINSTALL_SUCCESS"

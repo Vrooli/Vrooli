@@ -1,659 +1,216 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://vrooli.com/schemas/scenarios.schema.json",
-  "title": "Service Scenarios Schema",
-  "description": "Schema for defining service initialization scenarios and resource combinations",
+  "title": "Scenario Auto-Conversion Configuration",
+  "description": "Configuration for automatic scenario to standalone app conversion",
   "type": "object",
   "properties": {
-    "$schema": {
-      "type": "string"
-    },
     "version": {
-      "$ref": "common.schema.json#/definitions/semver"
+      "type": "string",
+      "description": "Configuration version"
+    },
+    "auto_convert": {
+      "$ref": "#/definitions/autoConvertConfig",
+      "description": "Auto-conversion settings"
     },
     "scenarios": {
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/definitions/scenario"
-      }
-    },
-    "profiles": {
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/definitions/profile"
-      }
-    },
-    "templates": {
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/definitions/template"
-      }
-    },
-    "workflows": {
-      "type": "object",
-      "additionalProperties": {
-        "$ref": "#/definitions/workflow"
-      }
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/scenarioEntry"
+      },
+      "description": "List of available scenarios"
     }
   },
   "definitions": {
-    "scenario": {
+    "autoConvertConfig": {
       "type": "object",
       "properties": {
-        "name": {
-          "type": "string"
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable automatic scenario conversion"
         },
-        "description": {
-          "type": "string"
-        },
-        "category": {
+        "output_directory": {
           "type": "string",
-          "enum": ["development", "testing", "staging", "production", "demo", "migration", "backup", "recovery"]
+          "default": "../generated-apps",
+          "description": "Directory for generated standalone apps"
         },
-        "profiles": {
+        "watch": {
+          "type": "boolean",
+          "default": false,
+          "description": "Watch for scenario changes and auto-convert"
+        },
+        "filters": {
+          "$ref": "#/definitions/conversionFilters",
+          "description": "Filters for scenario conversion"
+        },
+        "options": {
+          "$ref": "#/definitions/conversionOptions",
+          "description": "Conversion options"
+        }
+      }
+    },
+    "conversionFilters": {
+      "type": "object",
+      "properties": {
+        "whitelist": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "Profiles to apply for this scenario"
+          "description": "Only convert these scenarios (empty = no whitelist)"
         },
-        "resources": {
-          "$ref": "#/definitions/resourceSelection"
-        },
-        "execution": {
-          "$ref": "#/definitions/executionSelection"
-        },
-        "deployment": {
-          "$ref": "#/definitions/deploymentSelection"
-        },
-        "initialization": {
-          "$ref": "#/definitions/initializationSequence"
-        },
-        "validation": {
-          "$ref": "#/definitions/validationRules"
-        },
-        "transitions": {
+        "blacklist": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/scenarioTransition"
-          }
+            "type": "string"
+          },
+          "description": "Never convert these scenarios"
+        },
+        "categories": {
+          "$ref": "#/definitions/categoryFilter",
+          "description": "Category-based filtering"
+        },
+        "tags": {
+          "$ref": "#/definitions/tagFilter",
+          "description": "Tag-based filtering"
+        },
+        "validated_only": {
+          "type": "boolean",
+          "default": false,
+          "description": "Only convert validated scenarios"
         }
-      },
-      "required": ["name", "category"]
+      }
     },
-    "profile": {
+    "categoryFilter": {
       "type": "object",
       "properties": {
-        "name": {
-          "type": "string"
+        "include": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["vrooli-helpers", "saas-applications", "development-tools", "ai-applications", "utilities"]
+          },
+          "description": "Include these categories"
         },
-        "description": {
-          "type": "string"
-        },
-        "extends": {
-          "type": "string",
-          "description": "Profile to extend from"
-        },
-        "resources": {
-          "type": "object",
-          "properties": {
-            "presets": {
-              "type": "object",
-              "additionalProperties": {
-                "type": "object"
-              }
-            },
-            "overrides": {
-              "type": "object",
-              "additionalProperties": {
-                "type": "object"
-              }
-            }
-          }
-        },
-        "execution": {
-          "type": "object",
-          "properties": {
-            "environment": {
-              "type": "string"
-            },
-            "overrides": {
-              "type": "object"
-            }
-          }
-        },
-        "deployment": {
-          "type": "object",
-          "properties": {
-            "target": {
-              "type": "string"
-            },
-            "overrides": {
-              "type": "object"
-            }
-          }
-        },
-        "variables": {
-          "$ref": "common.schema.json#/definitions/environment"
+        "exclude": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["vrooli-helpers", "saas-applications", "development-tools", "ai-applications", "utilities"]
+          },
+          "description": "Exclude these categories"
         }
-      },
-      "required": ["name"]
+      }
     },
-    "template": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "type": {
-          "type": "string",
-          "enum": ["application", "service", "infrastructure", "workflow"]
-        },
-        "parameters": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/templateParameter"
-          }
-        },
-        "resources": {
-          "type": "object",
-          "description": "Resource configuration template"
-        },
-        "execution": {
-          "type": "object",
-          "description": "Execution configuration template"
-        },
-        "deployment": {
-          "type": "object",
-          "description": "Deployment configuration template"
-        },
-        "outputs": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/templateOutput"
-          }
-        }
-      },
-      "required": ["name", "type"]
-    },
-    "workflow": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        },
-        "trigger": {
-          "$ref": "#/definitions/workflowTrigger"
-        },
-        "steps": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/workflowStep"
-          }
-        },
-        "rollback": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/workflowStep"
-          }
-        },
-        "notifications": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/notification"
-          }
-        }
-      },
-      "required": ["name", "steps"]
-    },
-    "resourceSelection": {
+    "tagFilter": {
       "type": "object",
       "properties": {
         "include": {
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "Include scenarios with any of these tags"
         },
         "exclude": {
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "Exclude scenarios with any of these tags"
         },
-        "required": {
+        "require_all": {
           "type": "array",
           "items": {
             "type": "string"
-          }
-        },
-        "optional": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "configurations": {
-          "type": "object",
-          "additionalProperties": {
-            "type": "object"
-          }
+          },
+          "description": "Only include scenarios with all of these tags"
         }
       }
     },
-    "executionSelection": {
+    "conversionOptions": {
       "type": "object",
       "properties": {
-        "environment": {
-          "type": "string"
+        "preserve_git": {
+          "type": "boolean",
+          "default": false,
+          "description": "Initialize git repository in generated apps"
         },
-        "sandboxing": {
-          "type": "string"
+        "copy_docs": {
+          "type": "boolean",
+          "default": true,
+          "description": "Copy documentation to generated apps"
         },
-        "languages": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
+        "generate_readme": {
+          "type": "boolean",
+          "default": true,
+          "description": "Generate README.md for standalone apps"
         },
-        "limits": {
-          "type": "object"
+        "include_tests": {
+          "type": "boolean",
+          "default": true,
+          "description": "Include test files in generated apps"
+        },
+        "minimize": {
+          "type": "boolean",
+          "default": false,
+          "description": "Minimize generated app size (exclude non-essential files)"
         }
       }
     },
-    "deploymentSelection": {
+    "scenarioEntry": {
       "type": "object",
-      "properties": {
-        "target": {
-          "type": "string",
-          "enum": ["local", "docker", "kubernetes", "serverless", "edge"]
-        },
-        "strategy": {
-          "type": "string",
-          "enum": ["recreate", "rolling", "blue-green", "canary", "a-b"]
-        },
-        "scaling": {
-          "type": "object",
-          "properties": {
-            "min": {
-              "type": "integer"
-            },
-            "max": {
-              "type": "integer"
-            },
-            "targetCPU": {
-              "type": "integer"
-            },
-            "targetMemory": {
-              "type": "integer"
-            }
-          }
-        }
-      }
-    },
-    "initializationSequence": {
-      "type": "object",
-      "properties": {
-        "phases": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/initPhase"
-          }
-        },
-        "timeout": {
-          "$ref": "common.schema.json#/definitions/duration"
-        },
-        "retryPolicy": {
-          "$ref": "#/definitions/retryPolicy"
-        }
-      }
-    },
-    "initPhase": {
-      "type": "object",
+      "required": ["name", "location"],
       "properties": {
         "name": {
-          "type": "string"
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+          "description": "Scenario identifier"
         },
         "description": {
-          "type": "string"
-        },
-        "parallel": {
-          "type": "boolean",
-          "default": false
-        },
-        "tasks": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/initTask"
-          }
-        },
-        "waitFor": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "continueOnError": {
-          "type": "boolean",
-          "default": false
-        }
-      },
-      "required": ["name", "tasks"]
-    },
-    "initTask": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "type": {
           "type": "string",
-          "enum": ["command", "script", "http", "resource", "wait", "check"]
+          "description": "Scenario description"
         },
-        "resource": {
-          "type": "string"
+        "location": {
+          "type": "string",
+          "description": "Path to scenario directory"
         },
-        "command": {
+        "category": {
+          "type": "string",
+          "enum": ["vrooli-helpers", "saas-applications", "development-tools", "ai-applications", "utilities"],
+          "description": "Scenario category"
+        },
+        "tags": {
           "type": "array",
           "items": {
             "type": "string"
-          }
+          },
+          "description": "Scenario tags"
         },
-        "script": {
-          "type": "string"
+        "validated": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether scenario has been validated"
         },
-        "url": {
-          "$ref": "common.schema.json#/definitions/url"
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether scenario is enabled for conversion"
         },
-        "condition": {
-          "$ref": "#/definitions/condition"
+        "ui": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether scenario has a UI component"
         },
-        "timeout": {
-          "$ref": "common.schema.json#/definitions/duration"
-        },
-        "retryPolicy": {
-          "$ref": "#/definitions/retryPolicy"
-        }
-      },
-      "required": ["name", "type"]
-    },
-    "validationRules": {
-      "type": "object",
-      "properties": {
-        "preDeployment": {
+        "dependencies": {
           "type": "array",
           "items": {
-            "$ref": "#/definitions/validationRule"
-          }
-        },
-        "postDeployment": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/validationRule"
-          }
-        },
-        "runtime": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/validationRule"
-          }
+            "type": "string"
+          },
+          "description": "Other scenarios this depends on"
         }
       }
-    },
-    "validationRule": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "type": {
-          "type": "string",
-          "enum": ["health", "connectivity", "performance", "security", "compliance", "custom"]
-        },
-        "target": {
-          "type": "string"
-        },
-        "check": {
-          "type": "object"
-        },
-        "severity": {
-          "type": "string",
-          "enum": ["critical", "error", "warning", "info"],
-          "default": "error"
-        },
-        "failureAction": {
-          "type": "string",
-          "enum": ["abort", "retry", "continue", "rollback"],
-          "default": "abort"
-        }
-      },
-      "required": ["name", "type"]
-    },
-    "scenarioTransition": {
-      "type": "object",
-      "properties": {
-        "from": {
-          "type": "string"
-        },
-        "to": {
-          "type": "string"
-        },
-        "condition": {
-          "$ref": "#/definitions/condition"
-        },
-        "workflow": {
-          "type": "string"
-        },
-        "automatic": {
-          "type": "boolean",
-          "default": false
-        }
-      },
-      "required": ["to"]
-    },
-    "templateParameter": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "type": {
-          "type": "string",
-          "enum": ["string", "number", "boolean", "object", "array"]
-        },
-        "description": {
-          "type": "string"
-        },
-        "default": {},
-        "required": {
-          "type": "boolean",
-          "default": false
-        },
-        "validation": {
-          "type": "object"
-        }
-      },
-      "required": ["name", "type"]
-    },
-    "templateOutput": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "value": {
-          "type": "string"
-        },
-        "description": {
-          "type": "string"
-        }
-      },
-      "required": ["name", "value"]
-    },
-    "workflowTrigger": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": ["manual", "schedule", "event", "webhook", "condition"]
-        },
-        "schedule": {
-          "type": "string",
-          "description": "Cron expression"
-        },
-        "event": {
-          "type": "string"
-        },
-        "webhook": {
-          "$ref": "common.schema.json#/definitions/url"
-        },
-        "condition": {
-          "$ref": "#/definitions/condition"
-        }
-      },
-      "required": ["type"]
-    },
-    "workflowStep": {
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string"
-        },
-        "type": {
-          "type": "string",
-          "enum": ["scenario", "profile", "template", "command", "script", "parallel", "conditional"]
-        },
-        "scenario": {
-          "type": "string"
-        },
-        "profile": {
-          "type": "string"
-        },
-        "template": {
-          "type": "string"
-        },
-        "command": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          }
-        },
-        "script": {
-          "type": "string"
-        },
-        "parallel": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/workflowStep"
-          }
-        },
-        "condition": {
-          "$ref": "#/definitions/condition"
-        },
-        "onSuccess": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/workflowStep"
-          }
-        },
-        "onFailure": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/workflowStep"
-          }
-        },
-        "timeout": {
-          "$ref": "common.schema.json#/definitions/duration"
-        },
-        "retryPolicy": {
-          "$ref": "#/definitions/retryPolicy"
-        }
-      },
-      "required": ["name", "type"]
-    },
-    "condition": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": ["expression", "script", "http", "resource"]
-        },
-        "expression": {
-          "type": "string"
-        },
-        "script": {
-          "type": "string"
-        },
-        "url": {
-          "$ref": "common.schema.json#/definitions/url"
-        },
-        "resource": {
-          "type": "string"
-        },
-        "expected": {},
-        "operator": {
-          "type": "string",
-          "enum": ["eq", "ne", "gt", "gte", "lt", "lte", "in", "not-in", "contains", "matches"]
-        }
-      },
-      "required": ["type"]
-    },
-    "retryPolicy": {
-      "type": "object",
-      "properties": {
-        "maxAttempts": {
-          "type": "integer",
-          "minimum": 0,
-          "default": 3
-        },
-        "delay": {
-          "$ref": "common.schema.json#/definitions/duration",
-          "default": "1s"
-        },
-        "maxDelay": {
-          "$ref": "common.schema.json#/definitions/duration",
-          "default": "30s"
-        },
-        "backoff": {
-          "type": "string",
-          "enum": ["constant", "linear", "exponential"],
-          "default": "exponential"
-        },
-        "jitter": {
-          "type": "boolean",
-          "default": true
-        }
-      }
-    },
-    "notification": {
-      "type": "object",
-      "properties": {
-        "type": {
-          "type": "string",
-          "enum": ["email", "slack", "webhook", "sns", "pagerduty"]
-        },
-        "destination": {
-          "type": "string"
-        },
-        "events": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "enum": ["start", "success", "failure", "warning", "progress"]
-          }
-        },
-        "template": {
-          "type": "string"
-        }
-      },
-      "required": ["type", "destination"]
     }
-  },
-  "required": ["version", "scenarios"]
+  }
 }

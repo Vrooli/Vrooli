@@ -20,9 +20,10 @@ APP_LIFECYCLE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck disable=SC1091
 source "${APP_LIFECYCLE_DIR}/../../lib/utils/var.sh"
-
 # shellcheck disable=SC1091
 source "${var_APP_UTILS_DIR}/index.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 #######################################
 # Main Vrooli deploy lifecycle
@@ -354,7 +355,9 @@ vrooli_deploy::native() {
         log::success "Native deployment completed successfully"
         
         # Clean up old backups (keep last 5)
-        find "$deploy_target" -maxdepth 1 -name "backup-*" -type d | sort | head -n -5 | xargs -r sudo rm -rf
+        while IFS= read -r backup_dir; do
+            sudo bash -c "source ${var_LIB_SYSTEM_DIR}/trash.sh && trash::safe_remove '$backup_dir' --no-confirm"
+        done < <(find "$deploy_target" -maxdepth 1 -name "backup-*" -type d | sort | head -n -5)
     else
         log::error "Native deployment health check failed"
         vrooli_deploy::rollback_native

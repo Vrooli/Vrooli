@@ -1,0 +1,177 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/service.schema.json",
+  "title": "Vrooli Service Configuration",
+  "description": "Main configuration schema for Vrooli services and scenarios",
+  "type": "object",
+  "required": ["version", "service"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Reference to this schema"
+    },
+    "version": {
+      "$ref": "common.schema.json#/definitions/semver",
+      "description": "Configuration version"
+    },
+    "inheritance": {
+      "$ref": "#/definitions/inheritance",
+      "description": "Configuration inheritance settings"
+    },
+    "service": {
+      "$ref": "#/definitions/serviceMetadata",
+      "description": "Service metadata and identification"
+    },
+    "repository": {
+      "$ref": "#/definitions/repository",
+      "description": "Repository information"
+    },
+    "resources": {
+      "$ref": "resources.schema.json#/definitions/resourcesConfig",
+      "description": "Resource dependencies and configuration"
+    },
+    "deployment": {
+      "$ref": "deployment.schema.json#/definitions/deployment",
+      "description": "Deployment configuration"
+    },
+    "lifecycle": {
+      "$ref": "lifecycle.schema.json#/definitions/lifecycle",
+      "description": "Lifecycle phase definitions"
+    }
+  },
+  "definitions": {
+    "inheritance": {
+      "type": "object",
+      "properties": {
+        "extends": {
+          "type": "string",
+          "description": "Path to parent configuration file"
+        },
+        "merge": {
+          "type": "object",
+          "properties": {
+            "strategy": {
+              "type": "string",
+              "enum": ["merge", "replace", "append"],
+              "default": "merge"
+            },
+            "arrays": {
+              "type": "string",
+              "enum": ["concat", "replace", "merge"],
+              "default": "concat"
+            }
+          }
+        }
+      }
+    },
+    "serviceMetadata": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+          "description": "Service identifier"
+        },
+        "displayName": {
+          "type": "string",
+          "description": "Human-readable name"
+        },
+        "description": {
+          "type": "string",
+          "description": "Service description"
+        },
+        "version": {
+          "$ref": "common.schema.json#/definitions/semver"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["platform", "application", "service", "library", "development-environment", "vrooli-enhancement"],
+          "description": "Service type"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["infrastructure", "ai-infrastructure", "saas-applications", "vrooli-helpers", "development-tools"],
+          "description": "Service category"
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Searchable tags"
+        },
+        "maintainers": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/maintainer"
+          }
+        },
+        "license": {
+          "type": "string",
+          "description": "SPDX license identifier"
+        },
+        "homepage": {
+          "type": "string",
+          "format": "uri"
+        },
+        "documentation": {
+          "type": "string",
+          "description": "Path to documentation"
+        },
+        "support": {
+          "type": "object",
+          "properties": {
+            "email": {
+              "type": "string",
+              "format": "email"
+            },
+            "issues": {
+              "type": "string",
+              "format": "uri"
+            }
+          }
+        }
+      }
+    },
+    "maintainer": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "format": "email"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        }
+      }
+    },
+    "repository": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["git", "svn", "mercurial"]
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "directory": {
+          "type": "string"
+        },
+        "mirrors": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      }
+    }
+  }
+}

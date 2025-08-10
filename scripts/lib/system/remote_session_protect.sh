@@ -12,6 +12,8 @@ source "${var_LOG_FILE}"
 source "$var_LIB_UTILS_DIR/flow.sh"
 # shellcheck disable=SC1091
 source "$var_LIB_SYSTEM_DIR/system_commands.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 # Configuration constants
 readonly DESKTOP_MIN_PERCENT=15    # Minimum % of RAM for desktop
@@ -581,7 +583,7 @@ remote_session::main() {
             # Remove desktop slice protection
             local slice_dir="/etc/systemd/system/user-${DESKTOP_UID}.slice.d"
             if [[ -d "$slice_dir" ]]; then
-                sudo rm -rf "$slice_dir"
+                sudo bash -c "source ${var_LIB_SYSTEM_DIR}/trash.sh && trash::safe_remove '$slice_dir' --no-confirm"
                 log::info "Removed desktop memory protection"
             fi
             

@@ -2,6 +2,15 @@
 # Qdrant Snapshot Management
 # Functions for creating and restoring snapshots/backups
 
+# Source required utilities if not already loaded
+if ! command -v trash::safe_remove >/dev/null 2>&1; then
+    SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+    # shellcheck disable=SC1091
+    source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+fi
+
 #######################################
 # Create a snapshot of collections
 # Arguments:
@@ -124,7 +133,7 @@ EOF
     
     if tar -czf "$archive_path" -C "${QDRANT_SNAPSHOTS_DIR}" "$snapshot_name" 2>/dev/null; then
         # Remove temporary directory
-        rm -rf "$snapshot_dir"
+        trash::safe_remove "$snapshot_dir" --no-confirm
         
         local archive_size
         archive_size=$(du -h "$archive_path" | cut -f1)
@@ -140,7 +149,7 @@ EOF
         fi
     else
         log::error "${MSG_SNAPSHOT_FAILED}: Failed to create archive"
-        rm -rf "$snapshot_dir"
+        trash::safe_remove "$snapshot_dir" --no-confirm
         return 1
     fi
 }
@@ -259,7 +268,7 @@ qdrant::snapshots::list() {
                 echo "  Collections: $collections_count"
             fi
         fi
-        rm -rf "$temp_dir"
+        trash::safe_remove "$temp_dir" --no-confirm
         
         echo
     done <<< "$snapshots"
@@ -293,7 +302,7 @@ qdrant::snapshots::restore() {
     
     if ! tar -xzf "$snapshot_path" -C "$temp_dir" 2>/dev/null; then
         log::error "Failed to extract snapshot"
-        rm -rf "$temp_dir"
+        trash::safe_remove "$temp_dir" --no-confirm
         return 1
     fi
     
@@ -333,7 +342,7 @@ qdrant::snapshots::restore() {
     
     if [[ ${#collections_to_restore[@]} -eq 0 ]]; then
         log::error "No collections found in snapshot"
-        rm -rf "$temp_dir"
+        trash::safe_remove "$temp_dir" --no-confirm
         return 1
     fi
     
@@ -354,7 +363,7 @@ qdrant::snapshots::restore() {
     done
     
     # Cleanup
-    rm -rf "$temp_dir"
+    trash::safe_remove "$temp_dir" --no-confirm
     
     if [[ $success_count -eq $total_count ]]; then
         log::success "${MSG_BACKUP_RESTORED}: $snapshot_name"

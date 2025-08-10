@@ -2,6 +2,13 @@
 # Huginn Installation and Setup Functions
 # Installation, uninstallation, and configuration management
 
+# Source required utilities
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # Install Huginn
 # Returns: 0 if successful, 1 otherwise
@@ -89,7 +96,7 @@ huginn::uninstall_internal() {
     # Remove data directories if requested
     if [[ "${REMOVE_DATA:-no}" == "yes" ]]; then
         log::info "Removing data directories..."
-        rm -rf "$HUGINN_DATA_DIR" 2>/dev/null || true
+        trash::safe_remove "$HUGINN_DATA_DIR" --no-confirm 2>/dev/null || true
     fi
     
     return 0

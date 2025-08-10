@@ -18,6 +18,10 @@ if [[ -z "${VROOLI_COMMON_SOURCED:-}" ]]; then
     source "${var_RESOURCES_COMMON_FILE}"
 fi
 
+# Source trash system for safe removal
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Cache settings
 readonly URL_DISCOVERY_CACHE_DIR="/tmp/vrooli-url-discovery"
 readonly URL_DISCOVERY_CACHE_TTL=30  # seconds
@@ -100,7 +104,11 @@ url_discovery::clear_cache() {
     if [[ -n "$resource" ]]; then
         rm -f "${URL_DISCOVERY_CACHE_DIR}/${resource}.json"
     else
-        rm -rf "$URL_DISCOVERY_CACHE_DIR"
+        if command -v trash::safe_remove >/dev/null 2>&1; then
+            trash::safe_remove "$URL_DISCOVERY_CACHE_DIR" --no-confirm
+        else
+            rm -rf "$URL_DISCOVERY_CACHE_DIR"
+        fi
         url_discovery::init_cache
     fi
 }

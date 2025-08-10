@@ -131,7 +131,11 @@
       "ollama": {
         "enabled": true,
         "required": true,
-        "models": ["llama3.1:8b", "nomic-embed-text", "llava:13b"]
+        "models": [
+          "llama3.1:8b",
+          "nomic-embed-text",
+          "llava:13b"
+        ]
       },
       "whisper": {
         "enabled": true,
@@ -148,13 +152,19 @@
               "name": "brand-consistent-generation",
               "file": "initialization/workflows/comfyui/brand-workflow.json",
               "enabled": true,
-              "tags": ["brand", "consistency"]
+              "tags": [
+                "brand",
+                "consistency"
+              ]
             },
             {
               "name": "quality-control-pipeline",
               "file": "initialization/workflows/comfyui/qc-workflow.json",
               "enabled": true,
-              "tags": ["quality", "validation"]
+              "tags": [
+                "quality",
+                "validation"
+              ]
             }
           ]
         }
@@ -517,7 +527,11 @@
         },
         "notifications": {
           "enabled": true,
-          "channels": ["email", "webhook", "slack"]
+          "channels": [
+            "email",
+            "webhook",
+            "slack"
+          ]
         },
         "analytics": {
           "enabled": true,
@@ -560,11 +574,6 @@
   },
   "lifecycle": {
     "version": "1.0.0",
-    "defaults": {
-      "timeout": "5m",
-      "error": "stop",
-      "shell": "bash"
-    },
     "setup": {
       "description": "Initialize image generation pipeline environment",
       "steps": [

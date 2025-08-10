@@ -11,6 +11,8 @@ source "${var_LIB_UTILS_DIR}/flow.sh"
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 # Function to install ShellCheck for shell script linting
 shellcheck::install() {
@@ -84,12 +86,12 @@ shellcheck::install() {
             # Move and make executable using determined command and path
             ${MV_CMD} "$tmpdir/shellcheck-v${version}/shellcheck" "${INSTALL_DIR}/shellcheck"
             ${CHMOD_CMD} +x "${INSTALL_DIR}/shellcheck"
-            rm -rf "$tmpdir"
+            trash::safe_remove "$tmpdir" --no-confirm
             log::success "ShellCheck v${version} installed to ${INSTALL_DIR}"
             return
         else
             log::warning "Download of ShellCheck v${version} failed, trying next version"
-            rm -rf "$tmpdir"
+            trash::safe_remove "$tmpdir" --no-confirm
         fi
     done
 

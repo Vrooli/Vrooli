@@ -2,6 +2,15 @@
 # PostgreSQL Installation Functions
 # Handles installation and uninstallation of PostgreSQL resource
 
+# Source required utilities if not already loaded
+if ! command -v trash::safe_remove >/dev/null 2>&1; then
+    SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+    # shellcheck disable=SC1091
+    source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+fi
+
 #######################################
 # Install PostgreSQL resource
 # Returns: 0 on success, 1 on failure
@@ -103,13 +112,21 @@ postgres::uninstall() {
     
     # Remove instance directories
     if [[ -d "$POSTGRES_INSTANCES_DIR" ]]; then
-        rm -rf "$POSTGRES_INSTANCES_DIR"
+        if command -v trash::safe_remove >/dev/null 2>&1; then
+            trash::safe_remove "$POSTGRES_INSTANCES_DIR" --no-confirm
+        else
+            rm -rf "$POSTGRES_INSTANCES_DIR"
+        fi
         log::debug "Removed instances directory"
     fi
     
     # Remove configuration directories
     if [[ -d "$POSTGRES_CONFIG_DIR" ]]; then
-        rm -rf "$POSTGRES_CONFIG_DIR"
+        if command -v trash::safe_remove >/dev/null 2>&1; then
+            trash::safe_remove "$POSTGRES_CONFIG_DIR" --no-confirm
+        else
+            rm -rf "$POSTGRES_CONFIG_DIR"
+        fi
         log::debug "Removed configuration directory"
     fi
     

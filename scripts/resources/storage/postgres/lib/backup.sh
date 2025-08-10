@@ -2,6 +2,15 @@
 # PostgreSQL Backup and Restore Operations
 # Functions for backing up and restoring PostgreSQL instance data
 
+# Source required utilities if not already loaded
+if ! command -v trash::safe_remove >/dev/null 2>&1; then
+    SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+    # shellcheck disable=SC1091
+    source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+fi
+
 #######################################
 # Create backup of PostgreSQL instance
 # Arguments:
@@ -443,12 +452,22 @@ postgres::backup::delete() {
     
     log::info "Deleting backup '$backup_name'..."
     
-    if rm -rf "$backup_path"; then
-        log::success "Backup deleted successfully"
-        return 0
+    if command -v trash::safe_remove >/dev/null 2>&1; then
+        if trash::safe_remove "$backup_path" --no-confirm; then
+            log::success "Backup deleted successfully"
+            return 0
+        else
+            log::error "Failed to delete backup"
+            return 1
+        fi
     else
-        log::error "Failed to delete backup"
-        return 1
+        if trash::safe_remove "$backup_path" --no-confirm; then
+            log::success "Backup deleted successfully"
+            return 0
+        else
+            log::error "Failed to delete backup"
+            return 1
+        fi
     fi
 }
 
@@ -493,10 +512,18 @@ postgres::backup::cleanup() {
         # Check if backup is older than retention period
         if [[ $(find "$backup_path" -maxdepth 0 -mtime +$retention_days) ]]; then
             log::info "Removing old backup: $backup_name"
-            if rm -rf "$backup_path"; then
-                ((deleted_count++))
+            if command -v trash::safe_remove >/dev/null 2>&1; then
+                if trash::safe_remove "$backup_path" --no-confirm; then
+                    ((deleted_count++))
+                else
+                    log::warn "Failed to remove backup: $backup_name"
+                fi
             else
-                log::warn "Failed to remove backup: $backup_name"
+                if trash::safe_remove "$backup_path" --no-confirm; then
+                    ((deleted_count++))
+                else
+                    log::warn "Failed to remove backup: $backup_name"
+                fi
             fi
         fi
     done < <(find "$base_dir" -maxdepth 2 -type d -print0)

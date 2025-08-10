@@ -15,6 +15,10 @@ source "$TEST_ROOT/shared/config-simple.bash"
 source "$TEST_ROOT/shared/test-isolation.bash"
 source "$TEST_ROOT/shared/port-manager.bash"
 
+# Source trash system for safe removal
+# shellcheck disable=SC1091
+source "${TEST_ROOT}/../lib/system/trash.sh" 2>/dev/null || true
+
 # Configuration
 PARALLEL_ENABLED="${VROOLI_TEST_PARALLEL:-false}"
 MAX_PARALLEL_JOBS="${VROOLI_TEST_MAX_PARALLEL:-4}"
@@ -279,7 +283,11 @@ run_parallel_tests() {
                 # Stop if fail-fast
                 if [[ "$FAIL_FAST" == "true" ]]; then
                     vrooli_log_error "UNIT" "Stopping due to test failure (fail-fast mode)"
-                    rm -rf "$results_dir"
+                    if command -v trash::safe_remove >/dev/null 2>&1; then
+                        trash::safe_remove "$results_dir" --no-confirm
+                    else
+                        rm -rf "$results_dir"
+                    fi
                     return 1
                 fi
             fi
@@ -290,7 +298,11 @@ run_parallel_tests() {
     done
     
     # Clean up results directory
-    rm -rf "$results_dir"
+    if command -v trash::safe_remove >/dev/null 2>&1; then
+        trash::safe_remove "$results_dir" --no-confirm
+    else
+        rm -rf "$results_dir"
+    fi
     
     return 0
 }

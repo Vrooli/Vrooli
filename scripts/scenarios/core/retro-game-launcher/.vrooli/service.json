@@ -6,7 +6,12 @@
     "description": "Platform for launching and managing retro games with AI-generated game creation capabilities",
     "version": "1.0.0",
     "type": "business-application",
-    "tags": ["gaming", "retro", "entertainment", "ai-generation"],
+    "tags": [
+      "gaming",
+      "retro",
+      "entertainment",
+      "ai-generation"
+    ],
     "maintainers": [
       {
         "name": "Vrooli Team",
@@ -56,7 +61,10 @@
     "ai": {
       "ollama": {
         "enabled": true,
-        "models": ["llama3.2", "codellama"],
+        "models": [
+          "llama3.2",
+          "codellama"
+        ],
         "purpose": "Generate game ideas and code"
       }
     }
@@ -95,11 +103,6 @@
   },
   "lifecycle": {
     "version": "1.0.0",
-    "defaults": {
-      "timeout": "5m",
-      "error": "stop",
-      "shell": "bash"
-    },
     "setup": {
       "description": "Initialize retro game launcher environment",
       "steps": [

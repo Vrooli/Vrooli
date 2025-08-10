@@ -108,7 +108,10 @@
       "ollama": {
         "enabled": true,
         "required": true,
-        "models": ["llama3.1:8b", "nomic-embed-text:latest"]
+        "models": [
+          "llama3.1:8b",
+          "nomic-embed-text:latest"
+        ]
       },
       "whisper": {
         "enabled": true,
@@ -131,7 +134,13 @@
       "unstructured-io": {
         "enabled": true,
         "required": true,
-        "supported_formats": ["pdf", "docx", "txt", "html", "md"]
+        "supported_formats": [
+          "pdf",
+          "docx",
+          "txt",
+          "html",
+          "md"
+        ]
       }
     },
     "automation": {
@@ -144,25 +153,42 @@
               "name": "campaign-management",
               "file": "initialization/automation/n8n/campaign-management.json",
               "enabled": true,
-              "tags": ["core", "campaigns", "crud"]
+              "tags": [
+                "core",
+                "campaigns",
+                "crud"
+              ]
             },
             {
               "name": "document-processing",
               "file": "initialization/automation/n8n/document-processing.json",
               "enabled": true,
-              "tags": ["core", "documents", "processing", "embedding"]
+              "tags": [
+                "core",
+                "documents",
+                "processing",
+                "embedding"
+              ]
             },
             {
               "name": "content-generation",
               "file": "initialization/automation/n8n/content-generation.json",
               "enabled": true,
-              "tags": ["core", "ai-generation", "content"]
+              "tags": [
+                "core",
+                "ai-generation",
+                "content"
+              ]
             },
             {
               "name": "search-retrieval",
               "file": "initialization/automation/n8n/search-retrieval.json",
               "enabled": true,
-              "tags": ["core", "search", "retrieval"]
+              "tags": [
+                "core",
+                "search",
+                "retrieval"
+              ]
             }
           ],
           "credentials": [
@@ -472,7 +498,10 @@
         },
         "notifications": {
           "enabled": true,
-          "channels": ["email", "webhook"]
+          "channels": [
+            "email",
+            "webhook"
+          ]
         },
         "analytics": {
           "enabled": true,
@@ -497,11 +526,6 @@
   },
   "lifecycle": {
     "version": "1.0.0",
-    "defaults": {
-      "timeout": "5m",
-      "error": "stop",
-      "shell": "bash"
-    },
     "setup": {
       "description": "Initialize Campaign Content Studio environment",
       "steps": [

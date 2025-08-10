@@ -15,7 +15,12 @@
     "version": "1.0.0",
     "type": "business-application",
     "category": "saas-applications",
-    "tags": ["prompts", "campaigns", "ai", "management"],
+    "tags": [
+      "prompts",
+      "campaigns",
+      "ai",
+      "management"
+    ],
     "maintainers": [
       {
         "name": "Vrooli Team",
@@ -31,7 +36,14 @@
         "config": {
           "database": "prompt_manager",
           "schema": "public",
-          "tables": ["campaigns", "prompts", "versions", "metrics", "tags", "templates"]
+          "tables": [
+            "campaigns",
+            "prompts",
+            "versions",
+            "metrics",
+            "tags",
+            "templates"
+          ]
         }
       },
       "qdrant": {
@@ -53,7 +65,10 @@
     "ai": {
       "ollama": {
         "enabled": true,
-        "models": ["llama3.2", "mistral"],
+        "models": [
+          "llama3.2",
+          "mistral"
+        ],
         "purpose": "prompt enhancement and testing"
       },
       "unstructured-io": {
@@ -64,7 +79,11 @@
     "automation": {
       "n8n": {
         "enabled": true,
-        "workflows": ["prompt-backup", "campaign-sync", "performance-tracker"]
+        "workflows": [
+          "prompt-backup",
+          "campaign-sync",
+          "performance-tracker"
+        ]
       }
     },
     "ui": {
@@ -89,8 +108,17 @@
   "features": {
     "campaigns": {
       "hierarchical": true,
-      "metadata": ["client", "project", "date", "status"],
-      "sharing": ["private", "team", "public"]
+      "metadata": [
+        "client",
+        "project",
+        "date",
+        "status"
+      ],
+      "sharing": [
+        "private",
+        "team",
+        "public"
+      ]
     },
     "prompts": {
       "versioning": true,
@@ -99,30 +127,63 @@
       "templates": true,
       "testing": {
         "enabled": true,
-        "providers": ["ollama", "openai", "anthropic"]
+        "providers": [
+          "ollama",
+          "openai",
+          "anthropic"
+        ]
       }
     },
     "search": {
       "full-text": true,
       "semantic": true,
-      "filters": ["campaign", "tag", "date", "performance"]
+      "filters": [
+        "campaign",
+        "tag",
+        "date",
+        "performance"
+      ]
     },
     "metrics": {
-      "tracking": ["usage", "performance", "cost"],
+      "tracking": [
+        "usage",
+        "performance",
+        "cost"
+      ],
       "ab-testing": true,
-      "reports": ["campaign-summary", "prompt-effectiveness"]
+      "reports": [
+        "campaign-summary",
+        "prompt-effectiveness"
+      ]
     },
     "export": {
-      "formats": ["json", "csv", "markdown"],
+      "formats": [
+        "json",
+        "csv",
+        "markdown"
+      ],
       "api": true
     }
   },
   "authentication": {
     "local": true,
-    "oauth": ["google", "github"],
+    "oauth": [
+      "google",
+      "github"
+    ],
     "rbac": {
-      "roles": ["admin", "editor", "viewer"],
-      "permissions": ["create", "read", "update", "delete", "share"]
+      "roles": [
+        "admin",
+        "editor",
+        "viewer"
+      ],
+      "permissions": [
+        "create",
+        "read",
+        "update",
+        "delete",
+        "share"
+      ]
     }
   },
   "business-model": {
@@ -147,11 +208,6 @@
   },
   "lifecycle": {
     "version": "1.0.0",
-    "defaults": {
-      "timeout": "5m",
-      "error": "stop",
-      "shell": "bash"
-    },
     "setup": {
       "description": "Initialize Prompt Manager environment",
       "steps": [

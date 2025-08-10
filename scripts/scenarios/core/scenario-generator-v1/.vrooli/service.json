@@ -563,11 +563,6 @@
   },
   "lifecycle": {
     "version": "1.0.0",
-    "defaults": {
-      "timeout": "5m",
-      "error": "stop",
-      "shell": "bash"
-    },
     "setup": {
       "description": "Initialize scenario generator environment",
       "steps": [

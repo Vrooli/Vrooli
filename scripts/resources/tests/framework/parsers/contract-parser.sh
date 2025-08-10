@@ -9,6 +9,8 @@ _HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
 source "${_HERE}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
+# shellcheck disable=SC1091
 source "${var_LOG_FILE}" 2>/dev/null || true
 
 # Global variables for contract parsing
@@ -474,7 +476,7 @@ contract_parser::get_required_files() {
 #######################################
 contract_parser::cleanup() {
     if [[ -d "$VROOLI_CONTRACT_CACHE" ]]; then
-        rm -rf "$VROOLI_CONTRACT_CACHE"
+        trash::safe_remove "$VROOLI_CONTRACT_CACHE" --no-confirm
     fi
     
     # Clear associative array safely

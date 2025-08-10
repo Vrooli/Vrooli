@@ -2,6 +2,10 @@
 # Browserless Docker Operations
 # Container lifecycle management and Docker operations
 
+# Source trash system for safe removal
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../lib/system/trash.sh" 2>/dev/null || true
+
 #######################################
 # Create Docker network for Browserless
 #######################################
@@ -191,7 +195,11 @@ browserless::docker_remove() {
     
     # Remove data directory if requested
     if [[ "$remove_data" == "yes" && -d "$BROWSERLESS_DATA_DIR" ]]; then
-        rm -rf "$BROWSERLESS_DATA_DIR" 2>/dev/null || true
+        if command -v trash::safe_remove >/dev/null 2>&1; then
+            trash::safe_remove "$BROWSERLESS_DATA_DIR" --no-confirm 2>/dev/null || true
+        else
+            rm -rf "$BROWSERLESS_DATA_DIR" 2>/dev/null || true
+        fi
         log::info "Data directory removed"
     fi
 }

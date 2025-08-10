@@ -7,6 +7,8 @@ APP_UTILS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${APP_UTILS_DIR}/../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 # Zips a folder into a tarball
 zip::folder() {
@@ -60,7 +62,7 @@ zip::undo_build_artifacts() {
     local artifacts_dir="$1"
     for pkg in "${var_PACKAGES_DIR}/"*; do
         # Remove existing dist folder
-        rm -rf "$pkg/dist"
+        trash::safe_remove "$pkg/dist" --no-confirm
         # Copy dist folder from artifacts directory
         if [ -d "$artifacts_dir/$(basename "$pkg")-dist" ]; then
             log::info "Copying $(basename "$pkg") distribution..."

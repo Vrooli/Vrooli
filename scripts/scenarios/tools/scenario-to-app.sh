@@ -491,7 +491,7 @@ scenario_to_app::create_default_service_json() {
       "steps": [
         {
           "name": "clean-artifacts",
-          "run": "rm -rf dist/ build/ .next/ node_modules/.cache/ || true"
+          "run": "# Clean build artifacts safely\nfor dir in dist build .next 'node_modules/.cache'; do\n  [ -d \"\$dir\" ] && rm -rf \"\$dir\" || true\ndone"
         }
       ]
     }
@@ -743,7 +743,7 @@ scenario_to_app::enhance_service_json_lifecycle() {
               "steps": [
                 {
                   "name": "clean-artifacts",
-                  "run": "rm -rf dist/ build/ .next/ node_modules/.cache/ || true"
+                  "run": "# Clean build artifacts safely\nfor dir in dist build .next 'node_modules/.cache'; do\n  [ -d \"\$dir\" ] && rm -rf \"\$dir\" || true\ndone"
                 }
               ]
             }

@@ -2,6 +2,15 @@
 # Judge0 Common Utilities
 # Shared functions used across Judge0 management modules
 
+# Source required utilities if not already loaded
+if ! command -v trash::safe_remove >/dev/null 2>&1; then
+    SCRIPT_DIR_TRASH=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR_TRASH}/../../../lib/utils/var.sh" 2>/dev/null || true
+    # shellcheck disable=SC1091
+    source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+fi
+
 # Load dependencies if not already loaded (but preserve test environment)
 if [[ -z "${JUDGE0_API_KEY_LENGTH:-}" ]]; then
     # Try to load config from relative path
@@ -180,7 +189,11 @@ judge0::cleanup_data() {
     
     # Remove data directories
     if [[ -d "$JUDGE0_DATA_DIR" ]]; then
-        rm -rf "$JUDGE0_DATA_DIR"
+        if command -v trash::safe_remove >/dev/null 2>&1; then
+            trash::safe_remove "$JUDGE0_DATA_DIR" --no-confirm
+        else
+            rm -rf "$JUDGE0_DATA_DIR"
+        fi
         log::success "Removed Judge0 data directory"
     fi
 }

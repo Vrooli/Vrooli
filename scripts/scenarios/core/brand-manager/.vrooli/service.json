@@ -115,7 +115,11 @@
       "ollama": {
         "enabled": true,
         "required": true,
-        "models": ["llama3.2", "gemma2", "codellama"],
+        "models": [
+          "llama3.2",
+          "gemma2",
+          "codellama"
+        ],
         "configuration": {
           "default_model": "llama3.2",
           "temperature": 0.8,
@@ -569,11 +573,6 @@
   },
   "lifecycle": {
     "version": "1.0.0",
-    "defaults": {
-      "timeout": "5m",
-      "error": "stop",
-      "shell": "bash"
-    },
     "setup": {
       "description": "Initialize Brand Manager environment",
       "steps": [

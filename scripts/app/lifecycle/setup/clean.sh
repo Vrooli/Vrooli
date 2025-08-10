@@ -14,12 +14,17 @@ source "${var_LOG_FILE}"
 source "${var_SYSTEM_COMMANDS_FILE}"
 # shellcheck disable=SC1091
 source "${var_APP_UTILS_DIR}/docker.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 # Clear node_modules at the root and in all project subdirectories without descending into them
 clean::clear_node_modules() {
     log::header "Deleting all node_modules directories"
     # Prune node_modules directories to avoid find recursing into them after deletion
-    find "${var_ROOT_DIR}" -maxdepth 4 -type d -name "node_modules" -prune -exec rm -rf {} +
+    # Use safe removal for node_modules
+    while IFS= read -r -d '' node_modules_dir; do
+        trash::safe_remove "$node_modules_dir" --no-confirm
+    done < <(find "${var_ROOT_DIR}" -maxdepth 4 -type d -name "node_modules" -prune -print0)
 }
 
 # Clear apt cache and 

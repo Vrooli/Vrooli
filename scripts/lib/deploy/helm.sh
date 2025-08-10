@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Source trash system for safe removal
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../system/trash.sh" 2>/dev/null || true
+
 # Helm deployment library - comprehensive Helm operations for Kubernetes deployments
 # Provides installation, chart management, release operations, and health checks
 
@@ -12,6 +16,8 @@ source "${SCRIPT_DIR}/../utils/var.sh"
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 # Global configuration
 HELM_TIMEOUT="${HELM_TIMEOUT:-600}"
@@ -102,18 +108,30 @@ helm::install_via_script() {
         # Run the installation script
         if [ "$use_sudo" = "true" ]; then
             if sudo "$tmpdir/get_helm.sh"; then
-                rm -rf "$tmpdir"
+                if command -v trash::safe_remove >/dev/null 2>&1; then
+    trash::safe_remove "$tmpdir" --no-confirm
+else
+    rm -rf "$tmpdir"
+fi
                 return 0
             fi
         else
             if USE_SUDO=false "$tmpdir/get_helm.sh"; then
-                rm -rf "$tmpdir"
+                if command -v trash::safe_remove >/dev/null 2>&1; then
+    trash::safe_remove "$tmpdir" --no-confirm
+else
+    rm -rf "$tmpdir"
+fi
                 return 0
             fi
         fi
     fi
     
+    if command -v trash::safe_remove >/dev/null 2>&1; then
+    trash::safe_remove "$tmpdir" --no-confirm
+else
     rm -rf "$tmpdir"
+fi
     return 1
 }
 
@@ -178,12 +196,12 @@ helm::install_version() {
             chmod +x "$install_dir/helm"
         fi
         
-        rm -rf "$tmpdir"
+        trash::safe_remove "$tmpdir" --no-confirm
         log::success "Helm $version installed to $install_dir"
         return 0
     fi
     
-    rm -rf "$tmpdir"
+    trash::safe_remove "$tmpdir" --no-confirm
     log::error "Failed to install Helm $version"
     return 1
 }

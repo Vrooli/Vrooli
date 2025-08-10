@@ -10,6 +10,8 @@ source "${_REDIS_DOCKER_DIR}/../../../../lib/utils/var.sh"
 # Source shared secrets management library
 # shellcheck disable=SC1091
 source "${var_LIB_SERVICE_DIR}/secrets.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 #######################################
 # Create Docker network if it doesn't exist
@@ -221,7 +223,9 @@ redis::docker::remove_container() {
         fi
         
         log::info "Removing Redis data..."
-        rm -rf "${REDIS_DATA_DIR}" "${REDIS_CONFIG_DIR}" "${REDIS_LOG_DIR}"
+        trash::safe_remove "${REDIS_DATA_DIR}" --no-confirm 2>/dev/null || true
+        trash::safe_remove "${REDIS_CONFIG_DIR}" --no-confirm 2>/dev/null || true
+        trash::safe_remove "${REDIS_LOG_DIR}" --no-confirm 2>/dev/null || true
         log::success "Redis data removed"
     fi
     
@@ -432,7 +436,7 @@ redis::docker::destroy_client_instance() {
     # Remove client directories and config
     local project_config_dir
     project_config_dir="$(secrets::get_project_config_dir)"
-    rm -rf "${project_config_dir}/clients/${client_id}/redis"
+    trash::safe_remove "${project_config_dir}/clients/${client_id}/redis" --no-confirm 2>/dev/null || true
     rm -f "${project_config_dir}/clients/${client_id}/redis.json"
     
     log::success "${MSG_CLIENT_DESTROY_SUCCESS}"

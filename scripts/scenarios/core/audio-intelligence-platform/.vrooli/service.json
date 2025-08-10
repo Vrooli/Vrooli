@@ -112,10 +112,22 @@
       "ollama": {
         "enabled": true,
         "required": true,
-        "models": ["llama3.1:8b", "nomic-embed-text"],
+        "models": [
+          "llama3.1:8b",
+          "nomic-embed-text"
+        ],
         "fallback_models": {
-          "text_generation": ["qwen2.5-coder:7b", "llama3.2:3b", "llama3.2:1b", "gemma2:2b"],
-          "embedding": ["all-minilm", "mxbai-embed-large", "snowflake-arctic-embed:s"]
+          "text_generation": [
+            "qwen2.5-coder:7b",
+            "llama3.2:3b",
+            "llama3.2:1b",
+            "gemma2:2b"
+          ],
+          "embedding": [
+            "all-minilm",
+            "mxbai-embed-large",
+            "snowflake-arctic-embed:s"
+          ]
         },
         "model_check_enabled": true
       }
@@ -521,7 +533,10 @@
         },
         "notifications": {
           "enabled": true,
-          "channels": ["email", "webhook"]
+          "channels": [
+            "email",
+            "webhook"
+          ]
         },
         "analytics": {
           "enabled": true,
@@ -568,11 +583,6 @@
   },
   "lifecycle": {
     "version": "1.0.0",
-    "defaults": {
-      "timeout": "5m",
-      "error": "stop",
-      "shell": "bash"
-    },
     "setup": {
       "description": "Initialize Audio Intelligence Platform environment",
       "steps": [

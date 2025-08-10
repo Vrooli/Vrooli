@@ -2,6 +2,13 @@
 # n8n Installation Functions
 # Install, uninstall, and configuration update functions
 
+# Source required utilities
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # Update Vrooli configuration
 #######################################
@@ -261,7 +268,7 @@ n8n::uninstall() {
     # Remove data directory
     read -p "Remove n8n data directory? (y/N): " -r
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        rm -rf "$N8N_DATA_DIR" 2>/dev/null || true
+        trash::safe_remove "$N8N_DATA_DIR" --no-confirm 2>/dev/null || true
         log::info "Data directory removed"
     fi
     

@@ -11,6 +11,8 @@ source "${var_LOG_FILE}"
 source "$var_LIB_SYSTEM_DIR/system_commands.sh"
 # shellcheck disable=SC1091
 source "$var_LIB_UTILS_DIR/flow.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 # Default Node.js version if not specified
 DEFAULT_NODE_VERSION="20"
@@ -352,7 +354,7 @@ nodejs::install_system_wide() {
                 
                 # Copy to /usr/local
                 cp -r "${node_dir}"/* /usr/local/
-                rm -rf "${node_dir}"
+                trash::safe_remove "${node_dir}" --no-confirm
                 
                 # Create symlinks in /usr/bin for compatibility
                 ln -sf /usr/local/bin/node /usr/bin/node

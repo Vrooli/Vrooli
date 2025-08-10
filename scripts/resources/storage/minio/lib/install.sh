@@ -5,6 +5,8 @@
 # Source shared secrets management library using var_ variables
 # shellcheck disable=SC1091
 source "${var_LIB_SERVICE_DIR}/secrets.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 #######################################
 # Install MinIO
@@ -187,11 +189,11 @@ minio::uninstall() {
     if [[ "$keep_data" == "false" ]]; then
         log::warn "Removing all MinIO data..."
         if [[ -d "${MINIO_DATA_DIR}" ]]; then
-            rm -rf "${MINIO_DATA_DIR}"
+            trash::safe_remove "${MINIO_DATA_DIR}" --no-confirm
             log::info "Removed data directory: ${MINIO_DATA_DIR}"
         fi
         if [[ -d "${MINIO_CONFIG_DIR}" ]]; then
-            rm -rf "${MINIO_CONFIG_DIR}"
+            trash::safe_remove "${MINIO_CONFIG_DIR}" --no-confirm
             log::info "Removed config directory: ${MINIO_CONFIG_DIR}"
         fi
     else

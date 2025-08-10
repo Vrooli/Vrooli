@@ -149,7 +149,10 @@
       "ollama": {
         "enabled": true,
         "required": true,
-        "models": ["llama3.1:8b", "nomic-embed-text"]
+        "models": [
+          "llama3.1:8b",
+          "nomic-embed-text"
+        ]
       }
     },
     "automation": {
@@ -539,7 +542,12 @@
         },
         "notifications": {
           "enabled": true,
-          "channels": ["email", "webhook", "sms", "compliance-alerts"]
+          "channels": [
+            "email",
+            "webhook",
+            "sms",
+            "compliance-alerts"
+          ]
         },
         "analytics": {
           "enabled": true,
@@ -555,7 +563,12 @@
         },
         "complianceReporting": {
           "enabled": true,
-          "standards": ["HIPAA", "GDPR", "SOX", "PCI-DSS"]
+          "standards": [
+            "HIPAA",
+            "GDPR",
+            "SOX",
+            "PCI-DSS"
+          ]
         },
         "documentProcessing": {
           "enabled": true,
@@ -591,11 +604,6 @@
   },
   "lifecycle": {
     "version": "1.0.0",
-    "defaults": {
-      "timeout": "5m",
-      "error": "stop",
-      "shell": "bash"
-    },
     "setup": {
       "description": "Initialize secure document processing environment",
       "steps": [

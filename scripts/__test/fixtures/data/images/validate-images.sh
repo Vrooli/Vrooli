@@ -5,6 +5,10 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source trash system for safe removal
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/system/trash.sh" 2>/dev/null || true
 FIXTURES_DIR="$SCRIPT_DIR"
 METADATA_FILE="$FIXTURES_DIR/metadata.yaml"
 
@@ -243,7 +247,11 @@ test_image_processing() {
     fi
     
     # Cleanup
-    rm -rf "$temp_dir"
+    if command -v trash::safe_remove >/dev/null 2>&1; then
+        trash::safe_remove "$temp_dir" --no-confirm
+    else
+        rm -rf "$temp_dir"
+    fi
 }
 
 # Validate all images from metadata

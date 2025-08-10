@@ -2,6 +2,15 @@
 # Vault Docker Management Functions
 # Container lifecycle and Docker-specific operations
 
+# Source required utilities if not already loaded
+if ! command -v trash::safe_remove >/dev/null 2>&1; then
+    SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+    # shellcheck disable=SC1091
+    source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+fi
+
 #######################################
 # Determine best storage strategy
 # Returns: volumes, bind, or inmem
@@ -104,7 +113,11 @@ vault::docker::copy_config_to_volume() {
     local result=$?
     
     # Clean up temp directory
-    rm -rf "${temp_config}"
+    if command -v trash::safe_remove >/dev/null 2>&1; then
+        trash::safe_remove "${temp_config}" --no-confirm
+    else
+        rm -rf "${temp_config}"  # fallback if trash system not available
+    fi
     
     return ${result}
 }

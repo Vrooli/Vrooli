@@ -131,7 +131,10 @@
       "ollama": {
         "enabled": true,
         "required": true,
-        "models": ["llama3.1:8b", "nomic-embed-text"]
+        "models": [
+          "llama3.1:8b",
+          "nomic-embed-text"
+        ]
       }
     },
     "automation": {
@@ -147,7 +150,7 @@
               "file": "initialization/automation/n8n/resume-processing-pipeline.json"
             },
             {
-              "name": "job-management-workflow", 
+              "name": "job-management-workflow",
               "file": "initialization/automation/n8n/job-management-workflow.json"
             },
             {
@@ -199,7 +202,7 @@
     "strategy": "rolling-update",
     "urls": {
       "application": "${service.windmill.url}/apps/d/recruitment-dashboard",
-      "admin": "${service.windmill.url}/admin/recruitment-dashboard", 
+      "admin": "${service.windmill.url}/admin/recruitment-dashboard",
       "api": "${service.n8n.url}/webhook",
       "health": "${service.n8n.url}/webhook/health",
       "upload": "${service.n8n.url}/webhook/resume-upload",
@@ -279,7 +282,7 @@
             },
             {
               "name": "deploy-windmill-apps",
-              "type": "resource-inject", 
+              "type": "resource-inject",
               "target": "automation.windmill",
               "timeout": "5m"
             }
@@ -337,7 +340,7 @@
         },
         "n8n": {
           "endpoint": "${service.n8n.url}/healthz",
-          "interval": "30s", 
+          "interval": "30s",
           "timeout": "5s",
           "threshold": 3
         },
@@ -555,7 +558,11 @@
         },
         "notifications": {
           "enabled": true,
-          "channels": ["email", "webhook", "slack"]
+          "channels": [
+            "email",
+            "webhook",
+            "slack"
+          ]
         },
         "analytics": {
           "enabled": true,
@@ -607,11 +614,6 @@
   },
   "lifecycle": {
     "version": "1.0.0",
-    "defaults": {
-      "timeout": "5m",
-      "error": "stop",
-      "shell": "bash"
-    },
     "setup": {
       "description": "Initialize Resume Screening Assistant environment",
       "steps": [

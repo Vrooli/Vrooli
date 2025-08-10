@@ -23,6 +23,9 @@ source "${APP_LIFECYCLE_DIR}/../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_APP_UTILS_DIR}/index.sh"
 
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
+
 #######################################
 # Main Vrooli build lifecycle
 # Arguments:
@@ -158,8 +161,12 @@ vrooli_build::native() {
     # Clean previous builds if requested
     if [[ "${CLEAN:-no}" == "yes" ]]; then
         log::info "Cleaning previous builds..."
-        rm -rf "${var_ROOT_DIR}/packages/*/dist"
-        rm -rf "${var_ROOT_DIR}/dist"
+        # Clean package dist directories
+        for pkg_dist in "${var_ROOT_DIR}"/packages/*/dist; do
+            [[ -d "$pkg_dist" ]] && trash::safe_remove "$pkg_dist" --no-confirm
+        done
+        # Clean root dist directory
+        trash::safe_remove "${var_ROOT_DIR}/dist" --no-confirm
         pnpm run clean || true
     fi
     

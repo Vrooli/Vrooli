@@ -6,7 +6,13 @@
     "description": "AI-powered idea generation platform with document processing, semantic search, and agent refinement",
     "version": "1.0.0",
     "type": "business-application",
-    "tags": ["ideation", "brainstorming", "ai", "creativity", "innovation"],
+    "tags": [
+      "ideation",
+      "brainstorming",
+      "ai",
+      "creativity",
+      "innovation"
+    ],
     "maintainers": [
       {
         "name": "Vrooli Team",
@@ -23,7 +29,11 @@
       },
       "minio": {
         "enabled": true,
-        "buckets": ["documents", "exports", "templates"],
+        "buckets": [
+          "documents",
+          "exports",
+          "templates"
+        ],
         "purpose": "Store documents and generated content"
       },
       "qdrant": {
@@ -46,7 +56,10 @@
     "ai": {
       "ollama": {
         "enabled": true,
-        "models": ["llama3.2", "mistral"],
+        "models": [
+          "llama3.2",
+          "mistral"
+        ],
         "purpose": "Generate and refine ideas"
       }
     }
@@ -77,11 +90,6 @@
   },
   "lifecycle": {
     "version": "1.0.0",
-    "defaults": {
-      "timeout": "5m",
-      "error": "stop",
-      "shell": "bash"
-    },
     "setup": {
       "description": "Initialize idea generator environment",
       "steps": [

@@ -6,7 +6,13 @@
     "description": "AI-powered documentation management SaaS platform with agent-based monitoring, improvement suggestions, and comprehensive workflow automation",
     "version": "2.0.0",
     "type": "business-application",
-    "tags": ["documentation", "ai", "automation", "saas", "monitoring"],
+    "tags": [
+      "documentation",
+      "ai",
+      "automation",
+      "saas",
+      "monitoring"
+    ],
     "maintainers": [
       {
         "name": "Vrooli Team",
@@ -20,8 +26,13 @@
       "postgres": {
         "enabled": true,
         "purpose": "Primary data storage for applications, agents, queues, and metrics",
-        "databases": ["document_manager"],
-        "extensions": ["uuid-ossp", "pgcrypto"]
+        "databases": [
+          "document_manager"
+        ],
+        "extensions": [
+          "uuid-ossp",
+          "pgcrypto"
+        ]
       },
       "qdrant": {
         "enabled": true,
@@ -45,7 +56,10 @@
     "ai": {
       "ollama": {
         "enabled": true,
-        "models": ["llama3.2", "mistral"],
+        "models": [
+          "llama3.2",
+          "mistral"
+        ],
         "purpose": "Document analysis and improvement suggestions"
       },
       "claude-code": {
@@ -75,11 +89,6 @@
   },
   "lifecycle": {
     "version": "1.0.0",
-    "defaults": {
-      "timeout": "5m",
-      "error": "stop",
-      "shell": "bash"
-    },
     "setup": {
       "description": "Initialize Document Manager environment",
       "steps": [

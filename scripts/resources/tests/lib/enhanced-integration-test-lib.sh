@@ -8,6 +8,8 @@ _HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${_HERE}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
+# shellcheck disable=SC1091
 source "${_HERE}/integration-test-lib.sh"
 
 # Load fixture loader for optional fixture testing
@@ -207,7 +209,7 @@ enhanced_test_lib::test_service_load() {
     done
     
     # Cleanup
-    rm -rf "$temp_dir"
+    trash::safe_remove "$temp_dir" --no-confirm
     
     # Evaluate results (80% success rate considered acceptable)
     local success_rate=$((passed_requests * 100 / request_count))

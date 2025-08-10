@@ -8,6 +8,8 @@ LIB_INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${LIB_INSTALL_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SERVICE_DIR}/secrets.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 #######################################
 # Pre-installation checks
@@ -273,7 +275,7 @@ node_red::restore() {
     # Restore flows
     if [[ -d "$backup_path/flows" ]]; then
         log::info "Restoring flows..."
-        rm -rf "$SCRIPT_DIR/flows"
+        trash::safe_remove "$SCRIPT_DIR/flows" --no-confirm
         cp -r "$backup_path/flows" "$SCRIPT_DIR/"
     fi
     
@@ -286,7 +288,7 @@ node_red::restore() {
     # Restore custom nodes
     if [[ -d "$backup_path/nodes" ]]; then
         log::info "Restoring custom nodes..."
-        rm -rf "$SCRIPT_DIR/nodes"
+        trash::safe_remove "$SCRIPT_DIR/nodes" --no-confirm
         cp -r "$backup_path/nodes" "$SCRIPT_DIR/"
     fi
     

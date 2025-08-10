@@ -19,6 +19,8 @@ declare -gr _PARALLEL_MODULE_LOADED=1
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "$var_LIB_LIFECYCLE_DIR/lib/executor.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 # Parallel execution state
 declare -ga PARALLEL_PIDS=()
@@ -51,7 +53,7 @@ parallel::execute() {
     # Create temporary directory for results
     local result_dir
     result_dir=$(mktemp -d -t lifecycle-parallel.XXXXXX)
-    trap 'rm -rf "$result_dir"' EXIT
+    trap 'trash::safe_remove "$result_dir" --no-confirm' EXIT
     
     # Start steps with concurrency control
     local i=0
@@ -233,7 +235,7 @@ parallel::execute_race() {
     # Create result directory
     local result_dir
     result_dir=$(mktemp -d -t lifecycle-race.XXXXXX)
-    trap 'rm -rf "$result_dir"' EXIT
+    trap 'trash::safe_remove "$result_dir" --no-confirm' EXIT
     
     # Start all steps
     local i=0
@@ -293,7 +295,7 @@ parallel::execute_fail_fast() {
     # Create result directory
     local result_dir
     result_dir=$(mktemp -d -t lifecycle-failfast.XXXXXX)
-    trap 'rm -rf "$result_dir"' EXIT
+    trap 'trash::safe_remove "$result_dir" --no-confirm' EXIT
     
     # Start all steps
     local i=0

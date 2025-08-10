@@ -12,6 +12,8 @@ source "${var_LOG_FILE}"
 source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/nodejs.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 # Helper function to run commands as the actual user when running under sudo
 # This ensures that files created by pnpm operations are owned by the actual user, not root
@@ -248,7 +250,10 @@ pnpm_tools::fix_config_paths() {
     # Clear TypeScript caches after path updates
     log::info "Clearing TypeScript caches..."
     find "$project_root" -name ".tsbuildinfo" -type f -delete 2>/dev/null || true
-    find "$project_root" -path "*/node_modules/.cache" -type d -exec rm -rf {} + 2>/dev/null || true
+    # Use safe removal for cache directories
+    while IFS= read -r -d '' cache_dir; do
+        trash::safe_remove "$cache_dir" --no-confirm 2>/dev/null || true
+    done < <(find "$project_root" -path "*/node_modules/.cache" -type d -print0 2>/dev/null)
     
     log::success "Configuration paths fixed"
 }

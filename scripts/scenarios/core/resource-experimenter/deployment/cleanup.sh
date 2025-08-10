@@ -193,6 +193,7 @@ optimize_storage() {
     # Optimize MinIO (if running)
     if docker ps --format "{{.Names}}" | grep -q "vrooli-minio"; then
         # Clean up incomplete uploads
+        # Note: Using rm -rf inside container as trash system not available in MinIO container
         docker exec vrooli-minio sh -c "find /data -name '.minio.sys/multipart' -type d -print0 | while IFS= read -r -d '' dir; do rm -rf \"\$dir\"; done 2>/dev/null || true" || true
     fi
     

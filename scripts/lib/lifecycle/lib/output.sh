@@ -11,6 +11,8 @@ _HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${_HERE}/../../utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 # Guard against re-sourcing
 [[ -n "${_OUTPUT_MODULE_LOADED:-}" ]] && return 0
@@ -41,7 +43,7 @@ output::init() {
 #######################################
 output::cleanup() {
     if [[ -n "$OUTPUT_TEMP_DIR" ]] && [[ -d "$OUTPUT_TEMP_DIR" ]]; then
-        rm -rf "$OUTPUT_TEMP_DIR"
+        trash::safe_remove "$OUTPUT_TEMP_DIR" --no-confirm
     fi
 }
 

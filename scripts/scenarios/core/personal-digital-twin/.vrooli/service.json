@@ -7,15 +7,30 @@
     "description": "Create AI personas from personal data with semantic search and model fine-tuning for personal productivity",
     "version": "1.0.0",
     "type": "application",
-    "tags": ["ai", "personas", "productivity", "fine-tuning", "semantic-search"],
+    "tags": [
+      "ai",
+      "personas",
+      "productivity",
+      "fine-tuning",
+      "semantic-search"
+    ],
     "license": "MIT"
   },
   "resources": {
     "ai": {
       "ollama": {
         "enabled": true,
-        "models": ["llama3.2", "nomic-embed-text", "gemma2", "mistral"],
-        "features": ["fine-tuning", "embeddings", "chat"],
+        "models": [
+          "llama3.2",
+          "nomic-embed-text",
+          "gemma2",
+          "mistral"
+        ],
+        "features": [
+          "fine-tuning",
+          "embeddings",
+          "chat"
+        ],
         "purpose": "Core AI for personas and embeddings"
       },
       "unstructured-io": {
@@ -26,29 +41,46 @@
     "storage": {
       "postgres": {
         "enabled": true,
-        "databases": ["digital_twin"],
+        "databases": [
+          "digital_twin"
+        ],
         "purpose": "Store persona configurations and metadata"
       },
       "qdrant": {
         "enabled": true,
-        "collections": ["memories", "documents", "conversations"],
+        "collections": [
+          "memories",
+          "documents",
+          "conversations"
+        ],
         "purpose": "Vector storage for semantic search"
       },
       "minio": {
         "enabled": true,
-        "buckets": ["data-sources", "processed-docs", "model-checkpoints"],
+        "buckets": [
+          "data-sources",
+          "processed-docs",
+          "model-checkpoints"
+        ],
         "purpose": "Store raw data and fine-tuned models"
       }
     },
     "automation": {
       "n8n": {
         "enabled": true,
-        "workflows": ["data-ingestion", "model-training", "memory-indexing"],
+        "workflows": [
+          "data-ingestion",
+          "model-training",
+          "memory-indexing"
+        ],
         "purpose": "Orchestrate data processing and training"
       },
       "windmill": {
         "enabled": true,
-        "apps": ["persona-manager", "data-source-config"],
+        "apps": [
+          "persona-manager",
+          "data-source-config"
+        ],
         "purpose": "Web UI for persona management and configuration"
       }
     }
@@ -73,10 +105,17 @@
   },
   "execution": {
     "startup": {
-      "dependencies": ["postgres", "qdrant", "ollama", "minio", "n8n", "windmill"],
+      "dependencies": [
+        "postgres",
+        "qdrant",
+        "ollama",
+        "minio",
+        "n8n",
+        "windmill"
+      ],
       "initScripts": [
         "initialize-database.sh",
-        "setup-qdrant-collections.sh", 
+        "setup-qdrant-collections.sh",
         "import-n8n-workflows.sh",
         "deploy-windmill-apps.sh"
       ]
@@ -89,22 +128,38 @@
         },
         "github": {
           "enabled": true,
-          "types": ["commits", "issues", "code"]
+          "types": [
+            "commits",
+            "issues",
+            "code"
+          ]
         },
         "email": {
           "enabled": true,
-          "protocols": ["imap", "gmail-api"]
+          "protocols": [
+            "imap",
+            "gmail-api"
+          ]
         },
         "local_files": {
           "enabled": true,
-          "formats": ["pdf", "txt", "md", "docx", "json"]
+          "formats": [
+            "pdf",
+            "txt",
+            "md",
+            "docx",
+            "json"
+          ]
         }
       },
       "external": {
         "app-personalizer": {
           "description": "Provide digital twins for app customization",
           "protocol": "api",
-          "endpoints": ["/api/twin/export", "/api/twin/chat"]
+          "endpoints": [
+            "/api/twin/export",
+            "/api/twin/chat"
+          ]
         }
       }
     }
@@ -117,7 +172,10 @@
     },
     "fine_tuning": {
       "enabled": true,
-      "techniques": ["lora", "qlora"],
+      "techniques": [
+        "lora",
+        "qlora"
+      ],
       "auto_train": true
     },
     "multi_persona": {
@@ -127,11 +185,6 @@
   },
   "lifecycle": {
     "version": "1.0.0",
-    "defaults": {
-      "timeout": "5m",
-      "error": "stop",
-      "shell": "bash"
-    },
     "setup": {
       "description": "Initialize Personal Digital Twin environment",
       "steps": [

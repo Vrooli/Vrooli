@@ -104,7 +104,12 @@ trash::safe_remove() {
     
     # For critical files, create backup first
     if trash::is_critical_file "$canonical_target"; then
-        local backup_path="/tmp/trash_backup_$(date +%Y%m%d_%H%M%S)_$(basename "$canonical_target")"
+        local backup_dir="/tmp"
+        # In test environments, use the test temp dir if available
+        if [[ -n "${BATS_TEST_TMPDIR:-}" ]]; then
+            backup_dir="$BATS_TEST_TMPDIR"
+        fi
+        local backup_path="$backup_dir/trash_backup_$(date +%Y%m%d_%H%M%S)_$(basename "$canonical_target")"
         log::warn "Creating backup of critical file before deletion: $backup_path"
         if ! cp -r "$canonical_target" "$backup_path" 2>/dev/null; then
             log::error "Failed to create backup - aborting deletion for safety"

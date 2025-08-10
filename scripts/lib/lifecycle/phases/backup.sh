@@ -22,6 +22,8 @@ source "${LIB_LIFECYCLE_PHASES_DIR}/../../utils/var.sh"
 source "${LIB_LIFECYCLE_PHASES_DIR}/common.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/exit_codes.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 ################################################################################
 # Backup Functions
@@ -131,7 +133,7 @@ backup::rotate_old_backups() {
         log::info "Removing old backups:"
         echo "$old_backups" | while IFS= read -r backup_dir; do
             log::info "  Removing: $(basename "$backup_dir")"
-            rm -rf "$backup_dir"
+            trash::safe_remove "$backup_dir" --no-confirm
         done
         log::success "✅ Old backup cleanup complete"
     else

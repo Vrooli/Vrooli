@@ -118,7 +118,11 @@
               "name": "scraper-orchestrator",
               "file": "initialization/automation/n8n/scraper-orchestrator.json",
               "enabled": true,
-              "tags": ["orchestration", "scheduling", "routing"]
+              "tags": [
+                "orchestration",
+                "scheduling",
+                "routing"
+              ]
             }
           ]
         }
@@ -385,11 +389,6 @@
   },
   "lifecycle": {
     "version": "1.0.0",
-    "defaults": {
-      "timeout": "5m",
-      "error": "stop",
-      "shell": "bash"
-    },
     "setup": {
       "description": "Initialize Web Scraper Manager environment",
       "steps": [
@@ -537,7 +536,11 @@
         },
         "notifications": {
           "enabled": true,
-          "channels": ["email", "webhook", "slack"]
+          "channels": [
+            "email",
+            "webhook",
+            "slack"
+          ]
         },
         "analytics": {
           "enabled": true,

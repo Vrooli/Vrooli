@@ -255,6 +255,7 @@ redis::backup::restore_tar() {
     local backup_path="$1"
     
     # Clear existing data in container
+    # Note: Using rm -rf inside container as trash system not available in Redis container
     docker exec "${REDIS_CONTAINER_NAME}" sh -c 'rm -rf /data/*'
     
     # Extract tar archive to container

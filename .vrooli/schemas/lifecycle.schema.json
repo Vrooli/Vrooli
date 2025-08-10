@@ -1,0 +1,205 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://vrooli.com/schemas/lifecycle.schema.json",
+  "title": "Vrooli Lifecycle Configuration",
+  "description": "Lifecycle phase definitions for service.json",
+  "definitions": {
+    "lifecycle": {
+      "type": "object",
+      "properties": {
+        "version": {
+          "type": "string",
+          "description": "Lifecycle configuration version"
+        },
+        "defaults": {
+          "$ref": "#/definitions/phaseDefaults",
+          "description": "Default settings for all phases"
+        },
+        "setup": {
+          "$ref": "#/definitions/phase",
+          "description": "Setup phase configuration"
+        },
+        "develop": {
+          "$ref": "#/definitions/phase",
+          "description": "Development phase configuration"
+        },
+        "build": {
+          "$ref": "#/definitions/phase",
+          "description": "Build phase configuration"
+        },
+        "test": {
+          "$ref": "#/definitions/phase",
+          "description": "Test phase configuration"
+        },
+        "deploy": {
+          "$ref": "#/definitions/phase",
+          "description": "Deployment phase configuration"
+        },
+        "clean": {
+          "$ref": "#/definitions/phase",
+          "description": "Cleanup phase configuration"
+        },
+        "stop": {
+          "$ref": "#/definitions/phase",
+          "description": "Stop services phase configuration"
+        }
+      },
+      "additionalProperties": {
+        "$ref": "#/definitions/phase",
+        "description": "Custom phase definitions"
+      }
+    },
+    "phaseDefaults": {
+      "type": "object",
+      "properties": {
+        "timeout": {
+          "$ref": "#/definitions/duration",
+          "default": "10m",
+          "description": "Default timeout for steps"
+        },
+        "error": {
+          "type": "string",
+          "enum": ["stop", "continue", "retry"],
+          "default": "stop",
+          "description": "Default error handling"
+        },
+        "shell": {
+          "type": "string",
+          "default": "bash",
+          "description": "Default shell for commands"
+        }
+      }
+    },
+    "phase": {
+      "type": "object",
+      "properties": {
+        "description": {
+          "type": "string",
+          "description": "Phase description"
+        },
+        "enabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Whether this phase is enabled"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/step"
+          },
+          "description": "Steps to execute in this phase"
+        }
+      }
+    },
+    "step": {
+      "type": "object",
+      "required": ["name", "run"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*[a-z0-9]$",
+          "description": "Step identifier"
+        },
+        "run": {
+          "type": "string",
+          "description": "Command to execute"
+        },
+        "description": {
+          "type": "string",
+          "description": "Step description"
+        },
+        "timeout": {
+          "$ref": "#/definitions/duration",
+          "description": "Step timeout"
+        },
+        "background": {
+          "type": "boolean",
+          "default": false,
+          "description": "Run in background"
+        },
+        "condition": {
+          "$ref": "#/definitions/condition",
+          "description": "Conditional execution"
+        },
+        "retry": {
+          "$ref": "#/definitions/retry",
+          "description": "Retry configuration"
+        },
+        "environment": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          },
+          "description": "Environment variables for this step"
+        },
+        "workingDirectory": {
+          "type": "string",
+          "description": "Working directory for command execution"
+        }
+      }
+    },
+    "condition": {
+      "type": "object",
+      "properties": {
+        "file_exists": {
+          "type": "string",
+          "description": "Execute if file exists"
+        },
+        "file_not_exists": {
+          "type": "string",
+          "description": "Execute if file doesn't exist"
+        },
+        "command_exists": {
+          "type": "string",
+          "description": "Execute if command exists"
+        },
+        "command_not_exists": {
+          "type": "string",
+          "description": "Execute if command doesn't exist"
+        },
+        "env_set": {
+          "type": "string",
+          "description": "Execute if environment variable is set"
+        },
+        "env_not_set": {
+          "type": "string",
+          "description": "Execute if environment variable is not set"
+        },
+        "expr": {
+          "type": "string",
+          "description": "Shell expression to evaluate"
+        }
+      },
+      "maxProperties": 1
+    },
+    "retry": {
+      "type": "object",
+      "properties": {
+        "max_attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 3,
+          "description": "Maximum retry attempts"
+        },
+        "delay": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 1,
+          "description": "Delay between retries in seconds"
+        },
+        "backoff": {
+          "type": "string",
+          "enum": ["none", "linear", "exponential"],
+          "default": "none",
+          "description": "Backoff strategy"
+        }
+      }
+    },
+    "duration": {
+      "type": "string",
+      "pattern": "^[0-9]+(s|m|h)$",
+      "description": "Duration format (e.g., 30s, 5m, 1h)"
+    }
+  }
+}

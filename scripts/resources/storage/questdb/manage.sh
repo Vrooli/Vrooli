@@ -16,6 +16,8 @@ source "${RESOURCES_DIR}/common.sh"
 source "${RESOURCES_DIR}/../lib/utils/args-cli.sh"
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/../app/utils/docker.sh"
+# shellcheck disable=SC1091
+source "${RESOURCES_DIR}/../lib/system/trash.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
@@ -192,8 +194,10 @@ questdb::uninstall() {
     # Remove data directories
     if args::prompt_yes_no "Remove all QuestDB data directories?" "n"; then
         echo_info "Removing data directories..."
-        rm -rf "${QUESTDB_DATA_DIR}" "${QUESTDB_CONFIG_DIR}" "${QUESTDB_LOG_DIR}"
-        rm -rf "${HOME}/.questdb"
+        trash::safe_remove "${QUESTDB_DATA_DIR}" --no-confirm 2>/dev/null || true
+        trash::safe_remove "${QUESTDB_CONFIG_DIR}" --no-confirm 2>/dev/null || true
+        trash::safe_remove "${QUESTDB_LOG_DIR}" --no-confirm 2>/dev/null || true
+        trash::safe_remove "${HOME}/.questdb" --no-confirm 2>/dev/null || true
     fi
     
     echo_success "QuestDB uninstalled successfully"
