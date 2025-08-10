@@ -25,6 +25,8 @@ source "${JSON_LIB_DIR}/var.sh"
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_SYSTEM_COMMANDS_FILE}"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Global variables for caching and configuration
 declare -g JSON_CONFIG_CACHE=""
@@ -526,7 +528,7 @@ json::self_test() {
     # Test 1: Load config
     if ! json::load_service_config "$temp_file"; then
         log::error "Self-test failed: Could not load test config"
-        rm -f "$temp_file"
+        trash::safe_remove "$temp_file" --temp
         return 1
     fi
     
@@ -535,7 +537,7 @@ json::self_test() {
     service_name=$(json::get_value '.service.name' 'default' "$temp_file")
     if [[ "$service_name" != "test" ]]; then
         log::error "Self-test failed: Expected 'test', got '$service_name'"
-        rm -f "$temp_file"
+        trash::safe_remove "$temp_file" --temp
         return 1
     fi
     
@@ -544,14 +546,14 @@ json::self_test() {
     enabled_resources=$(json::get_enabled_resources 'storage' "$temp_file")
     if [[ "$enabled_resources" != "postgres" ]]; then
         log::error "Self-test failed: Expected 'postgres', got '$enabled_resources'"
-        rm -f "$temp_file"
+        trash::safe_remove "$temp_file" --temp
         return 1
     fi
     
     # Test 4: Path exists
     if ! json::path_exists '.service.name' "$temp_file"; then
         log::error "Self-test failed: Path should exist"
-        rm -f "$temp_file"
+        trash::safe_remove "$temp_file" --temp
         return 1
     fi
     

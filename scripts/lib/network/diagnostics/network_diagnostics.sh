@@ -13,8 +13,6 @@ source "${var_LIB_UTILS_DIR}/exit_codes.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/flow.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_NETWORK_DIR}/diagnostics/network_diagnostics_core.sh"
-# shellcheck disable=SC1091
 source "${var_LIB_NETWORK_DIR}/diagnostics/network_diagnostics_tcp.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_NETWORK_DIR}/diagnostics/network_diagnostics_analysis.sh"

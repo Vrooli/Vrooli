@@ -11,6 +11,8 @@ source "$var_LIB_UTILS_DIR/exit_codes.sh"
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "$var_LIB_UTILS_DIR/flow.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Default timeout for system installs (in seconds)
 SYSTEM_INSTALL_TIMEOUT=${SYSTEM_INSTALL_TIMEOUT:-420}
@@ -188,7 +190,7 @@ system::install_yq_binary() {
 
     if ! curl -sSL "${YQ_DOWNLOAD_URL}" -o "${TEMP_YQ_DOWNLOAD_PATH}"; then
         log::error "Failed to download yq binary from ${YQ_DOWNLOAD_URL}."
-        rm -f "${TEMP_YQ_DOWNLOAD_PATH}" # Clean up
+        trash::safe_remove "${TEMP_YQ_DOWNLOAD_PATH}" --temp # Clean up
         return 1
     fi
 
@@ -203,17 +205,17 @@ system::install_yq_binary() {
                 return 0
             else
                 log::error "yq downloaded to ${YQ_INSTALL_PATH} but is not working correctly. Cleaning up."
-                flow::maybe_run_sudo rm -f "${YQ_INSTALL_PATH}"
+                flow::maybe_run_sudo trash::safe_remove "${YQ_INSTALL_PATH}" --temp
                 return 1
             fi
         else
             log::error "Failed to make yq binary executable at ${YQ_INSTALL_PATH}. Please check permissions. Cleaning up."
-            flow::maybe_run_sudo rm -f "${YQ_INSTALL_PATH}" # Cleanup if chmod failed
+            flow::maybe_run_sudo trash::safe_remove "${YQ_INSTALL_PATH}" --temp # Cleanup if chmod failed
             return 1
         fi
     else
         log::error "Failed to move yq binary to ${YQ_INSTALL_PATH}. Please check permissions. Cleaning up."
-        rm -f "${TEMP_YQ_DOWNLOAD_PATH}" # mv failed, so temp file still exists
+        trash::safe_remove "${TEMP_YQ_DOWNLOAD_PATH}" --temp # mv failed, so temp file still exists
         return 1
     fi
 }

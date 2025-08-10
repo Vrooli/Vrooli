@@ -11,6 +11,8 @@ source "${var_LOG_FILE}"
 source "${var_EXIT_CODES_FILE}"
 # shellcheck disable=SC1091
 source "${var_FLOW_FILE}"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 CONN_TIMEOUT_S=10
 SETUP_MODE=false
@@ -50,7 +52,8 @@ keyless_ssh::check_key() {
         # Copy the public key to the remote host
         cat "${key_name}.pub" | ssh -o StrictHostKeyChecking=accept-new "${remote_server}" 'chmod 700 ~/.ssh; chmod 600 ~/.ssh/authorized_keys; cat >> ~/.ssh/authorized_keys'
         if [ $? -ne 0 ]; then
-            rm -f "${key_name}" "${key_name}.pub"
+            trash::safe_remove "${key_name}" --temp
+            trash::safe_remove "${key_name}.pub" --temp
             flow::exit_with_error "Failed to copy public key to remote host" "${EXIT_SSH_ERROR:-1}"
         fi
     fi
@@ -61,7 +64,8 @@ keyless_ssh::remove_key_file() {
     key_name="$(keyless_ssh::get_key_path)" || return 1
     
     if [ -f "${key_name}" ] && [ "$(find "${key_name}" -mmin -5 | wc -l)" -gt 0 ]; then
-        rm -f "${key_name}" "${key_name}.pub"
+        trash::safe_remove "${key_name}" --temp
+        trash::safe_remove "${key_name}.pub" --temp
     fi
 }
 
