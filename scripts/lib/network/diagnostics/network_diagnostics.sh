@@ -27,6 +27,11 @@ if [[ -z "${SUDO_MODE:-}" ]]; then
     fi
 fi
 
+# Configuration for enhanced network analysis
+: "${VROOLI_AUTO_FIX:=false}"              # Auto-remove problematic NAT rules
+: "${VROOLI_NAT_CHECK:=true}"              # Enable NAT hijacking analysis
+: "${VROOLI_PROTOCOL_SPLIT_CHECK:=true}"   # Enable IPv4/IPv6 split detection
+
 # =============================================================================
 # CORE DIAGNOSTICS - Essential network tests
 # =============================================================================
@@ -97,6 +102,12 @@ network_diagnostics_core::run() {
     
     if [[ "$has_failures" == "true" ]]; then
         log::warning "Network issues detected - some tests failed"
+        
+        # Enhanced: Check for protocol split issues (if enabled)
+        if [[ "${VROOLI_PROTOCOL_SPLIT_CHECK}" == "true" ]]; then
+            network_diagnostics_analysis::check_protocol_split
+        fi
+        
         return 1
     fi
     
@@ -117,6 +128,21 @@ network_diagnostics::run() {
         
         # For non-critical failures, try to diagnose
         network_diagnostics_analysis::diagnose_connection_failure "Network tests" "google.com"
+        
+        # Enhanced: Try NAT hijacking fix if enabled and detected
+        if [[ "${VROOLI_NAT_CHECK}" == "true" ]]; then
+            if ! network_diagnostics_analysis::check_nat_redirects 2>/dev/null; then
+                log::info "🛠️  Attempting to fix detected NAT hijacking..."
+                if network_diagnostics_fixes::fix_nat_hijacking; then
+                    # Re-test after NAT fix
+                    log::info "🔄 Re-testing connectivity after NAT hijacking fix..."
+                    if network_diagnostics_core::run; then
+                        log::success "🎉 NAT hijacking fix successful! Network connectivity restored."
+                        return 0
+                    fi
+                fi
+            fi
+        fi
         
         log::info "Network issues detected but proceeding (many apps work offline)"
         return 0
@@ -396,7 +422,107 @@ network_diagnostics_analysis::diagnose_connection_failure() {
         fi
     fi
     
+    # 5. Check for NAT table hijacking (if enabled)
+    if [[ "${VROOLI_NAT_CHECK}" == "true" ]] && [[ "$failed_test" == *"HTTPS"* ]] || [[ "$failed_test" == *"HTTP"* ]]; then
+        if ! network_diagnostics_analysis::check_nat_redirects; then
+            log::warning "  ⚠️  NAT hijacking detected - this could be the root cause"
+        fi
+    fi
+    
     return 0
+}
+
+network_diagnostics_analysis::check_nat_redirects() {
+    log::info "🔍 Checking for NAT table traffic hijacking..."
+    
+    if ! command -v iptables >/dev/null 2>&1 || ! flow::can_run_sudo; then
+        log::info "Skipping NAT analysis (requires sudo + iptables)"
+        return 0
+    fi
+    
+    # Get OUTPUT redirects from NAT table
+    local nat_rules
+    nat_rules=$(sudo iptables -t nat -S OUTPUT 2>/dev/null | grep "REDIRECT" || true)
+    
+    if [[ -z "$nat_rules" ]]; then
+        log::success "  ✓ No NAT redirections found"
+        return 0
+    fi
+    
+    log::warning "  ⚠️  Found NAT redirection rules:"
+    local found_dead_redirects=false
+    
+    while read -r rule; do
+        # Parse rule: -A OUTPUT -p tcp --dport 443 -j REDIRECT --to-ports 8085
+        if [[ "$rule" =~ --dport[[:space:]]+([0-9]+).*--to-ports[[:space:]]+([0-9]+) ]]; then
+            local source_port="${BASH_REMATCH[1]}"
+            local target_port="${BASH_REMATCH[2]}"
+            
+            log::info "    Port $source_port → $target_port"
+            
+            # Critical check: Is anything listening on target port?
+            if ss -tlnp 2>/dev/null | grep -q ":$target_port "; then
+                log::success "      ✓ Service listening on port $target_port"
+            else
+                log::error "      ✗ DEAD REDIRECT: Nothing listening on port $target_port"
+                log::warning "      💀 This causes 'connection refused' for port $source_port traffic"
+                found_dead_redirects=true
+                
+                # Track critical web ports
+                if [[ "$source_port" =~ ^(80|443)$ ]]; then
+                    log::error "      🚨 CRITICAL: Web traffic (port $source_port) hijacked to dead port!"
+                fi
+            fi
+        fi
+    done <<< "$nat_rules"
+    
+    if [[ "$found_dead_redirects" == "true" ]]; then
+        log::error "🚨 NAT hijacking detected - this explains connection refused errors"
+        return 1
+    fi
+    
+    return 0
+}
+
+network_diagnostics_analysis::check_protocol_split() {
+    log::info "🔍 Testing IPv4 vs IPv6 connectivity split..."
+    
+    local test_urls=("https://www.google.com" "https://github.com" "https://httpbin.org/get")
+    local ipv4_failures=0
+    local ipv6_failures=0
+    local total_tests=0
+    
+    for url in "${test_urls[@]}"; do
+        total_tests=$((total_tests + 1))
+        
+        # Test IPv4 HTTPS
+        if ! timeout 8 curl -4 -s --connect-timeout 3 "$url" >/dev/null 2>&1; then
+            ipv4_failures=$((ipv4_failures + 1))
+        fi
+        
+        # Test IPv6 HTTPS  
+        if ! timeout 8 curl -6 -s --connect-timeout 3 "$url" >/dev/null 2>&1; then
+            ipv6_failures=$((ipv6_failures + 1))
+        fi
+    done
+    
+    log::info "  Results: IPv4 failures: $ipv4_failures/$total_tests, IPv6 failures: $ipv6_failures/$total_tests"
+    
+    # Analyze the pattern
+    if [[ $ipv4_failures -eq $total_tests ]] && [[ $ipv6_failures -eq 0 ]]; then
+        log::error "🚨 PROTOCOL SPLIT: IPv4 completely broken, IPv6 works perfectly"
+        log::warning "  💡 This suggests IPv4-specific traffic hijacking or blocking"
+        log::info "  🔧 Check: NAT redirections, iptables rules, or IPv4 firewall policies"
+        return 1
+    elif [[ $ipv4_failures -gt 0 ]] && [[ $ipv6_failures -eq 0 ]]; then
+        log::warning "  ⚠️  Partial IPv4 issues detected (IPv6 compensating)"
+        return 1
+    elif [[ $ipv4_failures -eq 0 ]] && [[ $ipv6_failures -gt 0 ]]; then
+        log::info "  ✓ IPv4 works, IPv6 issues (normal for many networks)"
+        return 0
+    else
+        return $ipv4_failures
+    fi
 }
 
 # =============================================================================
@@ -573,6 +699,105 @@ network_diagnostics_fixes::fix_ufw_blocking() {
     return 0
 }
 
+network_diagnostics_fixes::fix_nat_hijacking() {
+    log::info "🛠️  Analyzing NAT hijacking and preparing fixes..."
+    
+    if ! flow::can_run_sudo; then
+        log::warning "Skipping NAT hijacking fix (requires sudo)"
+        return 1
+    fi
+    
+    # Get detailed NAT rules with line numbers
+    local nat_output
+    nat_output=$(sudo iptables -t nat -L OUTPUT -n -v --line-numbers 2>/dev/null)
+    
+    local problematic_rules=()
+    local line_num=0
+    
+    # Parse each line looking for dead redirects
+    while read -r line; do
+        line_num=$((line_num + 1))
+        
+        # Skip header lines
+        [[ "$line" =~ ^(Chain|num) ]] && continue
+        [[ -z "$line" ]] && continue
+        
+        # Look for REDIRECT rules affecting web ports
+        if [[ "$line" =~ REDIRECT.*tcp.*dpt:(80|443|8080|8443) ]]; then
+            local source_port="${BASH_REMATCH[1]}"
+            local rule_line_num=$(echo "$line" | awk '{print $1}')
+            
+            # Extract target port from rule details
+            local full_rule
+            full_rule=$(sudo iptables -t nat -S OUTPUT | grep -E "dpt:$source_port.*REDIRECT")
+            
+            if [[ "$full_rule" =~ --to-ports[[:space:]]+([0-9]+) ]]; then
+                local target_port="${BASH_REMATCH[1]}"
+                
+                # Check if target port is dead
+                if ! ss -tlnp 2>/dev/null | grep -q ":$target_port "; then
+                    log::warning "  Found dead redirect: port $source_port → $target_port (line $rule_line_num)"
+                    problematic_rules+=("$rule_line_num:$source_port:$target_port")
+                fi
+            fi
+        fi
+    done <<< "$nat_output"
+    
+    if [[ ${#problematic_rules[@]} -eq 0 ]]; then
+        log::success "✓ No problematic NAT redirections found"
+        return 0
+    fi
+    
+    log::error "🚨 Found ${#problematic_rules[@]} dead NAT redirection rules"
+    log::warning "These rules hijack web traffic and send it to non-existent services"
+    
+    for rule_info in "${problematic_rules[@]}"; do
+        IFS=':' read -r rule_line_num source_port target_port <<< "$rule_info"
+        log::error "  • Line $rule_line_num: Port $source_port traffic → dead port $target_port"
+    done
+    
+    # Confirmation (unless auto-fix enabled)
+    if [[ "${VROOLI_AUTO_FIX:-false}" != "true" ]] && [[ -t 0 ]]; then
+        echo
+        echo -n "🛠️  Remove these problematic NAT redirection rules? [y/N]: "
+        read -r response
+        if [[ ! "$response" =~ ^[Yy] ]]; then
+            log::info "Skipped NAT rule removal (user declined)"
+            return 0
+        fi
+    fi
+    
+    # Remove rules (in reverse order to preserve line numbers)
+    local rules_to_remove=()
+    for rule_info in "${problematic_rules[@]}"; do
+        IFS=':' read -r rule_line_num source_port target_port <<< "$rule_info"
+        rules_to_remove+=("$rule_line_num")
+    done
+    
+    # Sort in reverse numeric order
+    IFS=$'\n' rules_to_remove=($(sort -nr <<< "${rules_to_remove[*]}"))
+    
+    local removed_count=0
+    for rule_line_num in "${rules_to_remove[@]}"; do
+        log::info "  Removing NAT rule at line $rule_line_num..."
+        if sudo iptables -t nat -D OUTPUT "$rule_line_num" 2>/dev/null; then
+            log::success "  ✓ Removed dead NAT redirection rule"
+            removed_count=$((removed_count + 1))
+        else
+            log::error "  ✗ Failed to remove NAT rule at line $rule_line_num"
+        fi
+    done
+    
+    if [[ $removed_count -gt 0 ]]; then
+        log::success "🎉 Removed $removed_count problematic NAT rules"
+        log::info "💡 Test your connectivity now - it should work!"
+        return 0
+    else
+        log::error "Failed to remove NAT rules"
+        return 1
+    fi
+}
+
 # =============================================================================
 # EXPORTS - Make functions available to external scripts
 # =============================================================================
@@ -588,11 +813,14 @@ export -f network_diagnostics_tcp::fix_pmtu_probing
 export -f network_diagnostics_tcp::test_mtu_discovery
 export -f network_diagnostics_tcp::check_pmtu_status
 export -f network_diagnostics_analysis::diagnose_connection_failure
+export -f network_diagnostics_analysis::check_nat_redirects
+export -f network_diagnostics_analysis::check_protocol_split
 export -f network_diagnostics_fixes::fix_ipv6_issues
 export -f network_diagnostics_fixes::fix_ipv4_only_issues
 export -f network_diagnostics_fixes::add_ipv4_host_override
 export -f network_diagnostics_fixes::fix_dns_issues
 export -f network_diagnostics_fixes::fix_ufw_blocking
+export -f network_diagnostics_fixes::fix_nat_hijacking
 
 # Run if executed directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
