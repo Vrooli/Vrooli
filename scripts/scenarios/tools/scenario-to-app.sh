@@ -604,7 +604,7 @@ scenario_to_app::adjust_inheritance_path() {
                         if .setup then 
                             .setup + {steps: []}
                         else 
-                            {description: "Initialize application environment", steps: [], universal: "./scripts/lib/lifecycle/phases/setup.sh"}
+                            {description: "Initialize application environment", steps: [], universal: "./scripts/lib/setup.sh"}
                         end
                     ),
                     develop: {

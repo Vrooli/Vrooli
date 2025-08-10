@@ -24,6 +24,7 @@ trash::safe_remove() {
     local target="$1"
     local force_permanent=false
     local no_confirm=false
+    local test_cleanup=false
     
     # Parse options
     shift
@@ -35,6 +36,11 @@ trash::safe_remove() {
                 ;;
             --no-confirm)
                 no_confirm=true
+                shift
+                ;;
+            --test-cleanup)
+                test_cleanup=true
+                no_confirm=true  # Test cleanup always skips confirmation
                 shift
                 ;;
             *)
@@ -59,9 +65,27 @@ trash::safe_remove() {
     local canonical_target
     canonical_target=$(trash::canonicalize "$target")
     
-    # Safety check: prevent deletion of critical system paths
-    if ! trash::validate_path "$canonical_target"; then
-        return 1
+    # Handle test cleanup mode with special validation
+    if [[ "$test_cleanup" == true ]]; then
+        if ! trash::validate_test_cleanup_path "$canonical_target"; then
+            return 1
+        fi
+        # For /tmp paths in test mode, skip to direct deletion
+        if [[ "$canonical_target" =~ ^/tmp/ ]] || [[ "$canonical_target" =~ ^/var/tmp/ ]]; then
+            log::debug "Test cleanup: Direct deletion of temp path: $canonical_target"
+            trash::log_operation "TEST_CLEANUP_TEMP" "$canonical_target" "Direct deletion"
+            if rm -rf "$canonical_target" 2>/dev/null; then
+                return 0
+            else
+                log::error "Failed to delete test temp path: $canonical_target"
+                return 1
+            fi
+        fi
+    else
+        # Regular safety check: prevent deletion of critical system paths
+        if ! trash::validate_path "$canonical_target"; then
+            return 1
+        fi
     fi
     
     # Extra protection in CI/test environments
@@ -624,8 +648,89 @@ trash::canonicalize() {
 }
 
 #######################################
-# Safe cleanup function specifically for test environments
-# Only allows deletion of whitelisted test/temp paths
+# Validate path for test cleanup mode
+# Two-tier validation: lenient for /tmp, strict for project paths
+# Arguments:
+#   $1 - canonical path to validate
+# Returns: 0 if safe for test cleanup, 1 if dangerous
+#######################################
+trash::validate_test_cleanup_path() {
+    local canonical_target="$1"
+    
+    # Tier 1: /tmp and /var/tmp paths - lenient validation
+    if [[ "$canonical_target" =~ ^/tmp/ ]] || [[ "$canonical_target" =~ ^/var/tmp/ ]]; then
+        # Still do basic safety checks even in /tmp
+        case "$canonical_target" in
+            /tmp|/var/tmp)
+                log::error "CRITICAL: Cannot delete entire temp directory"
+                trash::log_operation "BLOCKED_TEST_CLEANUP" "$canonical_target" "ENTIRE_TMP_DIR"
+                return 1
+                ;;
+        esac
+        # Check for BATS test directory - extra safe
+        if [[ -n "${BATS_TEST_TMPDIR:-}" ]] && [[ "$canonical_target" =~ ^"$BATS_TEST_TMPDIR" ]]; then
+            log::debug "Test cleanup: BATS temp directory allowed"
+            return 0
+        fi
+        log::debug "Test cleanup: /tmp path allowed"
+        return 0
+    fi
+    
+    # Tier 2: Non-/tmp paths - VERY strict validation
+    # Path MUST contain test indicators
+    local has_test_indicator=false
+    case "$canonical_target" in
+        *test*|*spec*|*.bats*|*fixture*|*mock*|*stub*)
+            has_test_indicator=true
+            ;;
+        */coverage/*|*/.nyc_output/*|*/.vitest/*|*/.jest/*)
+            has_test_indicator=true
+            ;;
+        */test-output/*|*/test-results/*|*/test-artifacts/*)
+            has_test_indicator=true
+            ;;
+    esac
+    
+    if [[ "$has_test_indicator" == false ]]; then
+        log::error "CRITICAL: Test cleanup refusing non-test path outside /tmp: $canonical_target"
+        log::error "Path must contain 'test', 'spec', 'fixture', etc., or be in /tmp"
+        trash::log_operation "BLOCKED_TEST_CLEANUP" "$canonical_target" "NO_TEST_INDICATOR"
+        return 1
+    fi
+    
+    # Additional safety: reject if path is too close to project root
+    local project_root
+    project_root=$(trash::find_project_root "$canonical_target")
+    
+    # Never allow deletion of project root or critical subdirs
+    case "$canonical_target" in
+        "$project_root"|"$project_root/.git"|"$project_root/packages"|"$project_root/scripts"|"$project_root/src")
+            log::error "CRITICAL: Test cleanup cannot delete critical project directory: $canonical_target"
+            trash::log_operation "BLOCKED_TEST_CLEANUP" "$canonical_target" "CRITICAL_PROJECT_DIR"
+            return 1
+            ;;
+    esac
+    
+    # Reject paths that look like home directories or system paths
+    case "$canonical_target" in
+        /home/*|/root|/usr/*|/etc/*|/var/*|/opt/*)
+            # Exception: allow if it's clearly a test directory
+            if [[ ! "$canonical_target" =~ /test[s]?/ ]] && [[ ! "$canonical_target" =~ /fixture[s]?/ ]]; then
+                log::error "CRITICAL: Test cleanup cannot delete system path: $canonical_target"
+                trash::log_operation "BLOCKED_TEST_CLEANUP" "$canonical_target" "SYSTEM_PATH"
+                return 1
+            fi
+            ;;
+    esac
+    
+    log::debug "Test cleanup: Validated non-/tmp test path: $canonical_target"
+    trash::log_operation "TEST_CLEANUP_VALIDATED" "$canonical_target" "ALLOWED"
+    return 0
+}
+
+#######################################
+# Safe cleanup function specifically for test environments (DEPRECATED)
+# Use trash::safe_remove with --test-cleanup flag instead
 # Arguments:
 #   $1 - path to clean up
 #   $@ - additional options passed to safe_remove
@@ -635,50 +740,10 @@ trash::safe_test_cleanup() {
     local target="$1"
     shift  # Remove target from arguments, keep the rest
     
-    if [[ -z "$target" ]]; then
-        log::error "trash::safe_test_cleanup: No target specified"
-        return 1
-    fi
+    log::warn "trash::safe_test_cleanup is deprecated. Use trash::safe_remove --test-cleanup instead"
     
-    local canonical_target
-    canonical_target=$(trash::canonicalize "$target")
-    
-    # Only allow deletion of specific test patterns
-    local allowed=false
-    case "$canonical_target" in
-        */tmp/*|*/temp/*|*/test-output/*|*/coverage/*|*/.nyc_output/*|*/build/*|*/dist/*)
-            allowed=true
-            ;;
-        */node_modules/.cache/*|*/.cache/*|*/.vitest/*|*/.jest/*)
-            allowed=true
-            ;;
-        # Allow test-specific directories but be very specific
-        */test_*/|*/tests_*/|*/*-test-*/|*/*-tests-*/)
-            allowed=true
-            ;;
-        # Allow tmp directories in project
-        */*tmp|*/*temp|*/.tmp/*)
-            allowed=true
-            ;;
-    esac
-    
-    # Additional check: must be within a project or temp area
-    if [[ "$canonical_target" =~ ^/tmp/ ]] || [[ "$canonical_target" =~ ^/var/tmp/ ]]; then
-        allowed=true
-    fi
-    
-    if [[ "$allowed" == false ]]; then
-        log::error "CRITICAL: Test cleanup refusing to delete non-whitelisted path: $canonical_target"
-        log::error "Only test/temp directories are allowed for test cleanup"
-        trash::log_operation "BLOCKED_TEST_CLEANUP" "$canonical_target" "NOT_WHITELISTED"
-        return 1
-    fi
-    
-    log::info "Test cleanup allowing deletion of: $canonical_target"
-    trash::log_operation "TEST_CLEANUP_ALLOWED" "$canonical_target" "WHITELISTED"
-    
-    # Call the regular safe_remove with additional no-confirm for test cleanup
-    trash::safe_remove "$canonical_target" --no-confirm "$@"
+    # Call the regular safe_remove with test-cleanup flag
+    trash::safe_remove "$target" --test-cleanup "$@"
 }
 
 # Export functions if sourced
@@ -689,6 +754,7 @@ if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
     export -f trash::empty
     export -f trash::get_trash_dirs
     export -f trash::validate_path
+    export -f trash::validate_test_cleanup_path
     export -f trash::calculate_size_mb
     export -f trash::canonicalize
     export -f trash::find_project_root

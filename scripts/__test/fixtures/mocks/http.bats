@@ -2,6 +2,13 @@
 # Comprehensive tests for HTTP mock system
 # Tests the http.sh mock implementation for correctness and integration
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Test setup - load dependencies
 setup() {
     # Set up test environment
@@ -40,7 +47,7 @@ run_http_command() {
 teardown() {
     # Clean up test logs
     if [[ -n "${TEST_LOG_DIR:-}" && -d "$TEST_LOG_DIR" ]]; then
-        rm -rf "$TEST_LOG_DIR"
+        trash::safe_remove "$TEST_LOG_DIR" --test-cleanup
     fi
     
     # Clean up environment
@@ -153,7 +160,7 @@ teardown() {
     [[ -f "$temp_file" ]]
     [[ "$(cat "$temp_file")" =~ "Mock response" ]]
     
-    rm -f "$temp_file"
+    trash::safe_remove "$temp_file" --test-cleanup
 }
 
 # =============================================================================
@@ -267,7 +274,7 @@ teardown() {
     [[ -f "index.html" ]]
     [[ "$(cat index.html)" =~ "Mock response" ]]
     
-    rm -f index.html
+    trash::safe_remove index.html --test-cleanup
 }
 
 @test "wget with -O output file should save to specified file" {
@@ -278,7 +285,7 @@ teardown() {
     [[ -f "$temp_file" ]]
     [[ "$(cat "$temp_file")" =~ "Mock response" ]]
     
-    rm -f "$temp_file"
+    trash::safe_remove "$temp_file" --test-cleanup
 }
 
 @test "wget with -O - should output to stdout" {
@@ -887,7 +894,7 @@ teardown() {
 @test "mock should handle missing state file gracefully" {
     # Remove state file
     if [[ -n "${HTTP_MOCK_STATE_FILE}" && -f "$HTTP_MOCK_STATE_FILE" ]]; then
-        rm -f "$HTTP_MOCK_STATE_FILE"
+        trash::safe_remove "$HTTP_MOCK_STATE_FILE" --test-cleanup
     fi
     
     # Mock should still work

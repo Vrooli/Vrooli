@@ -2,6 +2,13 @@
 # Comprehensive tests for Docker mock system
 # Tests the docker.sh mock implementation for correctness and integration
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Test setup - load dependencies
 setup() {
     # Set up test environment
@@ -41,7 +48,7 @@ run_docker_command() {
 teardown() {
     # Clean up test logs
     if [[ -n "${TEST_LOG_DIR:-}" && -d "$TEST_LOG_DIR" ]]; then
-        rm -rf "$TEST_LOG_DIR"
+        trash::safe_remove "$TEST_LOG_DIR" --test-cleanup
     fi
     
     # Note: Removed mock::docker::reset because it was interfering with test execution

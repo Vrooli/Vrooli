@@ -2,6 +2,13 @@
 # Comprehensive tests for logs.sh mock utilities
 # Tests both normal operation and edge cases
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 load "${BATS_TEST_DIRNAME}/../setup.bash"
 
 # Test configuration - set BEFORE loading logs.sh
@@ -20,7 +27,7 @@ setup_test_directory() {
 # Test helper to cleanup test directory
 cleanup_test_directory() {
     if [[ -n "${TEST_LOG_DIR:-}" && -d "$TEST_LOG_DIR" ]]; then
-        rm -rf "$TEST_LOG_DIR"
+        trash::safe_remove "$TEST_LOG_DIR" --test-cleanup
     fi
     unset TEST_LOG_DIR
 }
@@ -349,7 +356,7 @@ teardown() {
     mock::init_logging "$TEST_LOG_DIR"
     
     # Remove all log files
-    rm -f "$TEST_LOG_DIR"/*.log
+    trash::safe_remove "$TEST_LOG_DIR"/*.log --test-cleanup
     
     run mock::print_log_summary
     [ "$status" -eq 1 ]

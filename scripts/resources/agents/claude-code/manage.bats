@@ -27,6 +27,8 @@ setup_file() {
     # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/../../../lib/utils/var.sh" || true
     # shellcheck disable=SC1091
+    source "${var_LIB_SYSTEM_DIR}/trash.sh" || true
+    # shellcheck disable=SC1091
     source "${var_SCRIPTS_RESOURCES_DIR}/common.sh" || true
     # shellcheck disable=SC1091
     source "${var_LIB_UTILS_DIR}/args-cli.sh" || true
@@ -132,7 +134,7 @@ setup() {
 teardown() {
     # Clean up mock log directory
     if [[ -n "${MOCK_LOG_DIR:-}" && -d "$MOCK_LOG_DIR" ]]; then
-        rm -rf "$MOCK_LOG_DIR"
+        trash::safe_remove "$MOCK_LOG_DIR" --test-cleanup
     fi
     
     vrooli_cleanup_test

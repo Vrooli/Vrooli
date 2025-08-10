@@ -5,6 +5,13 @@
 # Tests Docker container management, API endpoints, flow operations,
 # error injection, and BATS compatibility features
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Load BATS testing libraries if available
 # Note: These helpers are not currently available in this test environment
 # load '../helpers/bats-support/load'
@@ -86,7 +93,7 @@ setup() {
 
 teardown() {
     # Clean up test directory
-    rm -rf "$TEST_DIR"
+    trash::safe_remove "$TEST_DIR" --test-cleanup
 }
 
 # Helper functions for Node-RED specific assertions

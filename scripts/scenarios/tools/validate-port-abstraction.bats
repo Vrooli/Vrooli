@@ -10,6 +10,9 @@ SCRIPTS_DIR="$(dirname "$(dirname "$SCENARIO_TOOLS_DIR")")"
 # Source dependencies
 . "$SCRIPTS_DIR/lib/utils/var.sh"
 . "$SCRIPTS_DIR/lib/utils/log.sh"
+# Source trash module for safe test cleanup
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # ============================================================================
 # File Validation Tests
@@ -87,7 +90,10 @@ EOF
         echo \"File2 violations: \$count2\"
         echo \"File3 violations: \$count3\"
         
-        rm -f \"\$TEMP_FILE1\" \"\$TEMP_FILE2\" \"\$TEMP_FILE3\"
+        # Clean up temp files
+        for f in \"\$TEMP_FILE1\" \"\$TEMP_FILE2\" \"\$TEMP_FILE3\"; do
+            [[ -f \"\$f\" ]] && rm -f \"\$f\"
+        done
     "
     [[ "$output" == *"File1 violations: 2"* ]]
     [[ "$output" == *"File2 violations: 3"* ]]
@@ -262,7 +268,8 @@ EOF
             echo \"directory: failed\"
         fi
         
-        rm -rf \"\$TEMP_DIR\"
+        # Clean up temp directory
+        [[ -d \"\$TEMP_DIR\" ]] && rm -rf \"\$TEMP_DIR\"
     "
     [[ "$output" == *"directory: failed"* ]] || [[ "$status" -eq 1 ]]
 }
@@ -303,7 +310,8 @@ EOF
         
         validate_port_abstraction::validate_path \"\$TEMP_DIR\" false false true 2>&1 || true
         
-        rm -rf \"\$TEMP_DIR\"
+        # Clean up temp directory
+        [[ -d \"\$TEMP_DIR\" ]] && rm -rf \"\$TEMP_DIR\"
     "
     [[ "$output" == *"Files checked:"* ]]
     [[ "$output" == *"Files with violations:"* ]]
@@ -446,7 +454,8 @@ EOF
         # Test validation
         validate_port_abstraction::validate_path \"\$TEMP_DIR\" false true false 2>&1 || echo \"validation completed\"
         
-        rm -rf \"\$TEMP_DIR\"
+        # Clean up temp directory
+        [[ -d \"\$TEMP_DIR\" ]] && rm -rf \"\$TEMP_DIR\"
     "
     [[ "$output" == *"hardcoded port"* ]]
     [[ "$output" == *"localhost:11434"* ]]

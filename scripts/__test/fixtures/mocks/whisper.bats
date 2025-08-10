@@ -2,6 +2,13 @@
 # Comprehensive tests for Whisper mock system
 # Tests the whisper.sh mock implementation for correctness and integration
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Test setup - load dependencies
 setup() {
     # Set up test environment
@@ -47,11 +54,11 @@ run_whisper_command() {
 teardown() {
     # Clean up test files
     if [[ -n "${TEST_AUDIO_DIR:-}" && -d "$TEST_AUDIO_DIR" ]]; then
-        rm -rf "$TEST_AUDIO_DIR"
+        trash::safe_remove "$TEST_AUDIO_DIR" --test-cleanup
     fi
     
     if [[ -n "${TEST_LOG_DIR:-}" && -d "$TEST_LOG_DIR" ]]; then
-        rm -rf "$TEST_LOG_DIR"
+        trash::safe_remove "$TEST_LOG_DIR" --test-cleanup
     fi
     
     # Clean up environment
@@ -817,7 +824,7 @@ teardown() {
 @test "missing state file should not cause errors" {
     # Remove state file
     if [[ -n "${WHISPER_MOCK_STATE_FILE}" && -f "$WHISPER_MOCK_STATE_FILE" ]]; then
-        rm -f "$WHISPER_MOCK_STATE_FILE"
+        trash::safe_remove "$WHISPER_MOCK_STATE_FILE" --test-cleanup
     fi
     
     # Mock should still work

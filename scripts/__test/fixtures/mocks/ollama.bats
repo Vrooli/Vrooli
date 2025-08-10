@@ -4,6 +4,13 @@
 
 bats_require_minimum_version 1.5.0
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Setup test environment
 setup() {
     # Create a temporary directory for this test session
@@ -94,12 +101,12 @@ setup() {
 teardown() {
     # Clean up temporary files
     if [[ -n "${OLLAMA_MOCK_STATE_FILE:-}" && -f "$OLLAMA_MOCK_STATE_FILE" ]]; then
-        rm -f "$OLLAMA_MOCK_STATE_FILE"
+        trash::safe_remove "$OLLAMA_MOCK_STATE_FILE" --test-cleanup
     fi
     
     # Clean up mock log directory
     if [[ -d "$MOCK_LOG_DIR" ]]; then
-        rm -rf "$MOCK_LOG_DIR"
+        trash::safe_remove "$MOCK_LOG_DIR" --test-cleanup
     fi
 }
 

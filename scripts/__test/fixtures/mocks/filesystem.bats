@@ -1,6 +1,13 @@
 #!/usr/bin/env bats
 # Comprehensive tests for filesystem mock functionality
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 setup() {
     # Set up test environment first
     export MOCK_LOG_DIR="${TMPDIR:-/tmp}/filesystem-test-$$"
@@ -111,10 +118,10 @@ teardown() {
     export FILESYSTEM_MOCK_MODE="normal"
     
     # Clean up state files - use command to bypass our mock
-    command rm -f "${FILESYSTEM_MOCK_STATE_FILE:-}" 2>/dev/null || true
+    trash::safe_remove "${FILESYSTEM_MOCK_STATE_FILE:-}" --test-cleanup 2>/dev/null || true
     
     # Clean up test directory - use command to bypass our mock  
-    command rm -rf "${MOCK_LOG_DIR:-}" 2>/dev/null || true
+    trash::safe_remove "${MOCK_LOG_DIR:-}" --test-cleanup 2>/dev/null || true
 }
 
 # ----------------------------
@@ -392,7 +399,7 @@ Line 3"
 }
 
 @test "rm -f: force remove non-existent file" {
-    run rm -f "/nonexistent.txt"
+    run trash::safe_remove "/nonexistent.txt" --test-cleanup
     assert_success
 }
 

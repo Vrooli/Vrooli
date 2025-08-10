@@ -2,6 +2,13 @@
 # Comprehensive tests for Browserless mock system
 # Tests the browserless.sh mock implementation for correctness and integration
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Test setup - load dependencies
 setup() {
     # Set up test environment
@@ -31,7 +38,7 @@ setup() {
 teardown() {
     # Clean up test logs
     if [[ -n "${TEST_LOG_DIR:-}" && -d "$TEST_LOG_DIR" ]]; then
-        rm -rf "$TEST_LOG_DIR"
+        trash::safe_remove "$TEST_LOG_DIR" --test-cleanup
     fi
     
     # Clean up environment
@@ -229,7 +236,7 @@ teardown() {
     first_bytes=$(head -c 8 "$output_file" | xxd -p | head -c 16)
     [[ "$first_bytes" =~ ^89504e47 ]]  # PNG signature
     
-    rm -f "$output_file"
+    trash::safe_remove "$output_file" --test-cleanup
 }
 
 @test "screenshot endpoint handles custom responses" {
@@ -247,7 +254,7 @@ teardown() {
     [ -f "$output_file" ]
     [ "$(cat "$output_file")" = "Custom screenshot response" ]
     
-    rm -f "$output_file"
+    trash::safe_remove "$output_file" --test-cleanup
 }
 
 @test "screenshot endpoint logs API calls" {
@@ -285,7 +292,7 @@ teardown() {
     first_line=$(head -n 1 "$output_file")
     [[ "$first_line" =~ ^%PDF- ]]
     
-    rm -f "$output_file"
+    trash::safe_remove "$output_file" --test-cleanup
 }
 
 @test "pdf endpoint handles custom responses" {
@@ -303,7 +310,7 @@ teardown() {
     [ -f "$output_file" ]
     [ "$(cat "$output_file")" = "Custom PDF response" ]
     
-    rm -f "$output_file"
+    trash::safe_remove "$output_file" --test-cleanup
 }
 
 # =============================================================================
@@ -467,7 +474,7 @@ teardown() {
     [ -f "$output_file" ]
     [[ "$(cat "$output_file")" =~ '"running":' ]]
     
-    rm -f "$output_file"
+    trash::safe_remove "$output_file" --test-cleanup
 }
 
 @test "curl interceptor supports write-out option" {
@@ -606,7 +613,8 @@ teardown() {
     mock::browserless::assert::api_called "function"
     
     # Clean up
-    rm -f "$screenshot_file" "$pdf_file"
+    trash::safe_remove "$screenshot_file" --test-cleanup
+    trash::safe_remove "$pdf_file" --test-cleanup
 }
 
 @test "service overload handling simulation" {

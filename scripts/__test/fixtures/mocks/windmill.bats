@@ -1,6 +1,13 @@
 #!/usr/bin/env bats
 # Comprehensive tests for windmill mock functionality
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 setup() {
     # Set up test environment first
     export MOCK_LOG_DIR="${TMPDIR:-/tmp}/windmill-test-$$"
@@ -108,11 +115,11 @@ teardown() {
     # Reset windmill state
     mock::windmill::reset false
     
-    # Clean up state files - use command to bypass our mock
-    command rm -rf "${WINDMILL_MOCK_STATE_DIR:-}" 2>/dev/null || true
+    # Clean up state files
+    [[ -n "${WINDMILL_MOCK_STATE_DIR:-}" && -d "${WINDMILL_MOCK_STATE_DIR}" ]] && trash::safe_remove "${WINDMILL_MOCK_STATE_DIR}" --test-cleanup
     
-    # Clean up test directory - use command to bypass our mock  
-    command rm -rf "${MOCK_LOG_DIR:-}" 2>/dev/null || true
+    # Clean up test directory
+    [[ -n "${MOCK_LOG_DIR:-}" && -d "${MOCK_LOG_DIR}" ]] && trash::safe_remove "${MOCK_LOG_DIR}" --test-cleanup
 }
 
 # ----------------------------

@@ -3,6 +3,13 @@
 # Test file for native_win.sh
 # Tests native Windows development environment setup
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 setup() {
     # Load test helpers
     load "${BATS_TEST_DIRNAME}/../../../../__test/helpers/bats-support/load"
@@ -116,7 +123,7 @@ EOF
 
 teardown() {
     cd "${ORIGINAL_DIR}"
-    [[ -d "${TEST_DIR}" ]] && rm -rf "${TEST_DIR}"
+    [[ -d "${TEST_DIR}" ]] && trash::safe_remove "${TEST_DIR}" --test-cleanup
 }
 
 # Test: Script sources required dependencies

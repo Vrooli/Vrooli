@@ -40,6 +40,8 @@ setup() {
 teardown() {
     # Clean up test directory
     if [[ -d "$BATS_TEST_TMPDIR" ]]; then
+        # Use direct rm for teardown since trash module might be in inconsistent state after tests
+        # This is safe because BATS_TEST_TMPDIR is always in /tmp
         rm -rf "$BATS_TEST_TMPDIR"
     fi
 }
@@ -121,7 +123,7 @@ create_test_dir() {
 
 @test "trash::find_project_root finds .git directory" {
     # Remove package.json to test .git detection
-    rm -f "$MOCK_PROJECT_ROOT/package.json"
+    trash::safe_remove "$MOCK_PROJECT_ROOT/package.json" --test-cleanup
     
     result=$(trash::find_project_root "$MOCK_PROJECT_ROOT/subdir")
     [[ "$result" == "$MOCK_PROJECT_ROOT" ]]
@@ -408,7 +410,7 @@ create_test_dir() {
     [[ -f "$unsafe_file" ]]
     
     # Clean up
-    rm -rf "$non_tmp_root"
+    trash::safe_remove "$non_tmp_root" --test-cleanup
 }
 
 @test "trash::safe_test_cleanup allows test directories" {
