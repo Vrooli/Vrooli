@@ -2,8 +2,14 @@
 # Tests for Browserless docker.sh functions
 bats_require_minimum_version 1.5.0
 
-# Load Vrooli test infrastructure
-source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
+# Setup paths and source var.sh first
+SCRIPT_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")" && pwd)"
+# shellcheck disable=SC1091
+source "$(cd "${SCRIPT_DIR}/../../../../../" && pwd)/lib/utils/var.sh"
+
+# Load Vrooli test infrastructure using var_ variables
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
 
 # Expensive setup operations run once per file
 setup_file() {
@@ -11,13 +17,8 @@ setup_file() {
     vrooli_setup_service_test "browserless"
     
     # Set up directories and paths once
-    export SCRIPT_DIR="${BATS_TEST_DIRNAME}"
     export BROWSERLESS_DIR="${SCRIPT_DIR}/.."
-    export MOCK_DIR="${SCRIPT_DIR}/../../../../__test/fixtures/mocks"
-    
-    # Load var.sh for directory variables
-    # shellcheck disable=SC1091
-    source "$(dirname "$(dirname "$(dirname "$(dirname "${SCRIPT_DIR}")")")")/lib/utils/var.sh"
+    export MOCK_DIR="${var_SCRIPTS_TEST_DIR}/fixtures/mocks"
     
     # Load common resources
     # shellcheck disable=SC1091

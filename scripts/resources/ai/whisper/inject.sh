@@ -43,7 +43,7 @@ declare -a WHISPER_ROLLBACK_ACTIONS=()
 #######################################
 # Display usage information
 #######################################
-whisper_inject::usage() {
+inject::usage() {
     cat << EOF
 Whisper Data Injection Adapter
 
@@ -107,7 +107,7 @@ EOF
 # Returns:
 #   0 if accessible, 1 otherwise
 #######################################
-whisper_inject::check_accessibility() {
+inject::check_accessibility() {
     # Check if Whisper is running
     if curl -s --max-time 5 "${WHISPER_HOST}/docs" >/dev/null 2>&1; then
         log::debug "Whisper is accessible at $WHISPER_HOST"
@@ -125,7 +125,7 @@ whisper_inject::check_accessibility() {
 #   $1 - description
 #   $2 - rollback command
 #######################################
-whisper_inject::add_rollback_action() {
+inject::add_rollback_action() {
     local description="$1"
     local command="$2"
     
@@ -136,7 +136,7 @@ whisper_inject::add_rollback_action() {
 #######################################
 # Execute rollback actions
 #######################################
-whisper_inject::execute_rollback() {
+inject::execute_rollback() {
     if [[ ${#WHISPER_ROLLBACK_ACTIONS[@]} -eq 0 ]]; then
         log::info "No Whisper rollback actions to execute"
         return 0
@@ -173,7 +173,7 @@ whisper_inject::execute_rollback() {
 # Returns:
 #   0 if valid, 1 if invalid
 #######################################
-whisper_inject::validate_models() {
+inject::validate_models() {
     local models_config="$1"
     
     log::debug "Validating model configurations..."
@@ -235,7 +235,7 @@ whisper_inject::validate_models() {
 # Returns:
 #   0 if valid, 1 if invalid
 #######################################
-whisper_inject::validate_config() {
+inject::validate_config() {
     local config="$1"
     
     log::info "Validating Whisper injection configuration..."
@@ -262,7 +262,7 @@ whisper_inject::validate_config() {
         local models
         models=$(echo "$config" | jq -c '.models')
         
-        if ! whisper_inject::validate_models "$models"; then
+        if ! inject::validate_models "$models"; then
             return 1
         fi
     fi
@@ -307,7 +307,7 @@ whisper_inject::validate_config() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-whisper_inject::download_model() {
+inject::download_model() {
     local model_config="$1"
     
     local name preload
@@ -346,7 +346,7 @@ whisper_inject::download_model() {
     log::success "Model '$name' prepared"
     
     # Add rollback action (models are cached, so we just note it)
-    whisper_inject::add_rollback_action \
+    inject::add_rollback_action \
         "Remove model cache: $name" \
         "rm -rf '${WHISPER_MODELS_DIR}/${name}*' 2>/dev/null || true"
     
@@ -360,7 +360,7 @@ whisper_inject::download_model() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-whisper_inject::upload_audio() {
+inject::upload_audio() {
     local audio_config="$1"
     
     local file name
@@ -386,7 +386,7 @@ whisper_inject::upload_audio() {
     log::success "Uploaded audio sample: $name"
     
     # Add rollback action
-    whisper_inject::add_rollback_action \
+    inject::add_rollback_action \
         "Remove audio sample: $name" \
         "rm -f '${uploads_dir}/${name}' 2>/dev/null || true"
     
@@ -400,7 +400,7 @@ whisper_inject::upload_audio() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-whisper_inject::inject_models() {
+inject::inject_models() {
     local models_config="$1"
     
     log::info "Injecting Whisper models..."
@@ -424,7 +424,7 @@ whisper_inject::inject_models() {
         download=$(echo "$model" | jq -r '.download // false')
         
         if [[ "$download" == "true" ]]; then
-            if ! whisper_inject::download_model "$model"; then
+            if ! inject::download_model "$model"; then
                 failed_models+=("$name")
             fi
         fi
@@ -446,7 +446,7 @@ whisper_inject::inject_models() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-whisper_inject::inject_audio_samples() {
+inject::inject_audio_samples() {
     local audio_config="$1"
     
     log::info "Injecting audio samples..."
@@ -472,7 +472,7 @@ whisper_inject::inject_audio_samples() {
             name=$(echo "$audio" | jq -r '.file' | xargs basename)
         fi
         
-        if ! whisper_inject::upload_audio "$audio"; then
+        if ! inject::upload_audio "$audio"; then
             failed_samples+=("$name")
         fi
     done
@@ -493,7 +493,7 @@ whisper_inject::inject_audio_samples() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-whisper_inject::apply_configurations() {
+inject::apply_configurations() {
     local configurations="$1"
     
     log::info "Applying Whisper configurations..."
@@ -521,13 +521,13 @@ whisper_inject::apply_configurations() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-whisper_inject::inject_data() {
+inject::inject_data() {
     local config="$1"
     
     log::header "🔄 Injecting data into Whisper"
     
     # Check Whisper accessibility
-    if ! whisper_inject::check_accessibility; then
+    if ! inject::check_accessibility; then
         return 1
     fi
     
@@ -542,9 +542,9 @@ whisper_inject::inject_data() {
         local models
         models=$(echo "$config" | jq -c '.models')
         
-        if ! whisper_inject::inject_models "$models"; then
+        if ! inject::inject_models "$models"; then
             log::error "Failed to inject models"
-            whisper_inject::execute_rollback
+            inject::execute_rollback
             return 1
         fi
     fi
@@ -557,9 +557,9 @@ whisper_inject::inject_data() {
         local configurations
         configurations=$(echo "$config" | jq -c '.configurations')
         
-        if ! whisper_inject::apply_configurations "$configurations"; then
+        if ! inject::apply_configurations "$configurations"; then
             log::error "Failed to apply configurations"
-            whisper_inject::execute_rollback
+            inject::execute_rollback
             return 1
         fi
     fi
@@ -572,9 +572,9 @@ whisper_inject::inject_data() {
         local audio_samples
         audio_samples=$(echo "$config" | jq -c '.audio_samples')
         
-        if ! whisper_inject::inject_audio_samples "$audio_samples"; then
+        if ! inject::inject_audio_samples "$audio_samples"; then
             log::error "Failed to inject audio samples"
-            whisper_inject::execute_rollback
+            inject::execute_rollback
             return 1
         fi
     fi
@@ -590,13 +590,13 @@ whisper_inject::inject_data() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-whisper_inject::check_status() {
+inject::check_status() {
     local config="$1"
     
     log::header "📊 Checking Whisper injection status"
     
     # Check Whisper accessibility
-    if ! whisper_inject::check_accessibility; then
+    if ! inject::check_accessibility; then
         return 1
     fi
     
@@ -645,35 +645,35 @@ whisper_inject::check_status() {
 #######################################
 # Main execution function
 #######################################
-whisper_inject::main() {
+inject::main() {
     local action="$1"
     local config="${2:-}"
     
     if [[ -z "$config" ]]; then
         log::error "Configuration JSON required"
-        whisper_inject::usage
+        inject::usage
         exit 1
     fi
     
     case "$action" in
         "--validate")
-            whisper_inject::validate_config "$config"
+            inject::validate_config "$config"
             ;;
         "--inject")
-            whisper_inject::inject_data "$config"
+            inject::inject_data "$config"
             ;;
         "--status")
-            whisper_inject::check_status "$config"
+            inject::check_status "$config"
             ;;
         "--rollback")
-            whisper_inject::execute_rollback
+            inject::execute_rollback
             ;;
         "--help")
-            whisper_inject::usage
+            inject::usage
             ;;
         *)
             log::error "Unknown action: $action"
-            whisper_inject::usage
+            inject::usage
             exit 1
             ;;
     esac
@@ -682,9 +682,9 @@ whisper_inject::main() {
 # Execute main function if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     if [[ $# -eq 0 ]]; then
-        whisper_inject::usage
+        inject::usage
         exit 1
     fi
     
-    whisper_inject::main "$@"
+    inject::main "$@"
 fi

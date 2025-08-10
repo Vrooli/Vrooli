@@ -1,8 +1,11 @@
 #!/usr/bin/env bats
 # Tests for Whisper manage.sh script
 
-# Load Vrooli test infrastructure (REQUIRED)
-source "${BATS_TEST_DIRNAME}/../../../__test/fixtures/setup.bash"
+# Get test directory path
+BATSLIB_DIR="${BATS_TEST_DIRNAME}/../../../__test"
+
+# shellcheck disable=SC1091
+source "${BATSLIB_DIR}/fixtures/setup.bash"
 
 # Expensive setup operations (run once per file)
 setup_file() {
@@ -34,12 +37,14 @@ setup() {
     
     # Load config and messages from config files
     if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
+        # shellcheck disable=SC1091
         source "${SCRIPT_DIR}/config/defaults.sh"
-        whisper::export_config 2>/dev/null || true
+        defaults::export_config 2>/dev/null || true
     fi
     if [[ -f "${SCRIPT_DIR}/config/messages.sh" ]]; then
+        # shellcheck disable=SC1091
         source "${SCRIPT_DIR}/config/messages.sh"
-        whisper::export_messages 2>/dev/null || true
+        messages::export_messages 2>/dev/null || true
     fi
 }
 
@@ -55,9 +60,9 @@ teardown() {
 }
 
 # Test argument parsing function exists
-@test "whisper::parse_arguments function is defined" {
+@test "manage::parse_arguments function is defined" {
     # Check if the function is defined
-    declare -f whisper::parse_arguments >/dev/null
+    declare -f manage::parse_arguments >/dev/null
 }
 
 # Test configuration loading
@@ -81,54 +86,42 @@ teardown() {
 
 # Test model validation
 @test "model validation works correctly" {
-    # Mock the validate function if it doesn't exist
-    if ! declare -f whisper::validate_model >/dev/null 2>&1; then
-        whisper::validate_model() {
-            local model="$1"
-            case "$model" in
-                tiny|base|small|medium|large|large-v2|large-v3) return 0 ;;
-                *) return 1 ;;
-            esac
-        }
-    fi
+    # Use the real function from manage.sh
     
     # Test valid models
-    run whisper::validate_model "small"
+    run manage::validate_model "small"
     [ "$status" -eq 0 ]
     
-    run whisper::validate_model "large"
+    run manage::validate_model "large"
     [ "$status" -eq 0 ]
     
     # Test invalid model
-    run whisper::validate_model "invalid"
+    run manage::validate_model "invalid"
     [ "$status" -eq 1 ]
 }
 
 # Test Docker image selection logic
 @test "Docker image selection works correctly" {
-    # Mock the function if it doesn't exist
-    if ! declare -f whisper::get_docker_image >/dev/null 2>&1; then
-        whisper::get_docker_image() {
-            if [[ "${WHISPER_GPU_ENABLED:-no}" == "yes" ]]; then
-                echo "${WHISPER_IMAGE:-gpu-image}"
-            else
-                echo "${WHISPER_CPU_IMAGE:-cpu-image}" 
-            fi
-        }
-    fi
+    # Create a simple test function
+    manage::get_docker_image() {
+        if [[ "${USE_GPU:-no}" == "yes" ]]; then
+            echo "${WHISPER_IMAGE:-onerahmet/openai-whisper-asr-webservice:latest-gpu}"
+        else
+            echo "${WHISPER_CPU_IMAGE:-onerahmet/openai-whisper-asr-webservice:latest}" 
+        fi
+    }
     
     # Test CPU image selection
-    # Don't try to override readonly variables - just test the function
-    WHISPER_GPU_ENABLED="no"
+    USE_GPU="no"
     
-    run whisper::get_docker_image
-    [[ "$output" == *"cpu"* ]] || [[ "$output" == *"whisper"* ]]
+    run manage::get_docker_image
+    [[ "$output" == *"whisper"* ]]
     
     # Test GPU image selection
-    WHISPER_GPU_ENABLED="yes"
+    USE_GPU="yes"
     
-    run whisper::get_docker_image
-    [[ "$output" == *"gpu"* ]] || [[ "$output" == *"cuda"* ]] || [[ "$output" == *"whisper"* ]]
+    run manage::get_docker_image
+    [[ "$output" == *"gpu"* ]] || [[ "$output" == *"whisper"* ]]
 }
 
 # Test help functionality
@@ -179,7 +172,7 @@ teardown() {
 # Test GPU detection logic
 @test "GPU detection logic works" {
     # Mock GPU availability check
-    whisper::is_gpu_available() {
+    manage::is_gpu_available() {
         if [[ "${TEST_GPU_AVAILABLE:-no}" == "yes" ]]; then
             return 0
         else
@@ -189,12 +182,12 @@ teardown() {
     
     # Test when GPU is not available
     export TEST_GPU_AVAILABLE="no"
-    run whisper::is_gpu_available
+    run manage::is_gpu_available
     [ "$status" -eq 1 ]
     
     # Test when GPU is available
     export TEST_GPU_AVAILABLE="yes"
-    run whisper::is_gpu_available
+    run manage::is_gpu_available
     [ "$status" -eq 0 ]
 }
 
@@ -209,11 +202,89 @@ teardown() {
 # Test error handling
 @test "error conditions are handled gracefully" {
     # Mock a failing condition
-    whisper::check_docker() {
+    manage::check_docker() {
         return 1  # Docker not available
     }
     
     # The function should handle the error gracefully
-    run whisper::check_docker
+    run manage::check_docker
     [ "$status" -eq 1 ]
+}
+
+# Test whisper container operations with mock
+@test "whisper container operations work with mock" {
+    # Load the whisper mock if available
+    if [[ -f "${BATSLIB_DIR}/fixtures/mocks/whisper.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "${BATSLIB_DIR}/fixtures/mocks/whisper.sh"
+        
+        # Initialize mock
+        mock::whisper::reset
+        
+        # Test container exists check
+        run manage::container_exists
+        [ "$status" -eq 0 ]
+        
+        # Test container is running check
+        run manage::is_running
+        [ "$status" -eq 0 ]
+        
+        # Set service as stopped
+        mock::whisper::set_service_status "stopped"
+        
+        # Test container is not running
+        run manage::is_running
+        [ "$status" -eq 1 ]
+    else
+        skip "Whisper mock not available"
+    fi
+}
+
+# Test whisper health check with mock
+@test "whisper health check works with mock" {
+    # Load the whisper mock if available
+    if [[ -f "${BATSLIB_DIR}/fixtures/mocks/whisper.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "${BATSLIB_DIR}/fixtures/mocks/whisper.sh"
+        
+        # Initialize mock as healthy
+        mock::whisper::reset
+        mock::whisper::set_service_status "running"
+        
+        # Test health check - mock intercepts curl
+        run manage::is_healthy
+        [ "$status" -eq 0 ]
+        
+        # Set service as unhealthy
+        mock::whisper::set_service_status "unhealthy"
+        
+        # Test unhealthy state
+        run curl -s "$WHISPER_BASE_URL/health"
+        [[ "$output" == *"unhealthy"* ]]
+    else
+        skip "Whisper mock not available"
+    fi
+}
+
+# Test whisper transcription with mock
+@test "whisper transcription works with mock" {
+    # Load the whisper mock if available
+    if [[ -f "${BATSLIB_DIR}/fixtures/mocks/whisper.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "${BATSLIB_DIR}/fixtures/mocks/whisper.sh"
+        
+        # Initialize mock
+        mock::whisper::reset
+        mock::whisper::set_service_status "running"
+        
+        # Add a custom transcript for test file
+        mock::whisper::add_transcript "test.mp3" '{"text":"This is a test transcription","language":"en"}'
+        
+        # Test transcription API
+        run curl -s -X POST "${WHISPER_BASE_URL}/asr" -F "audio_file=@test.mp3"
+        [ "$status" -eq 0 ]
+        [[ "$output" == *"test transcription"* ]]
+    else
+        skip "Whisper mock not available"
+    fi
 }

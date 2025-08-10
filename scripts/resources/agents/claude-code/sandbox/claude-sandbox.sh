@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Claude Code Sandbox Wrapper Script
 # Provides safe, isolated environment for testing claude-code
 
@@ -6,6 +6,16 @@ set -euo pipefail
 
 # Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source var.sh first to get proper directory variables
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+
+# Source common utilities using var_ variables
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
+
+# Local directories
 DOCKER_DIR="${SCRIPT_DIR}/docker"
 TEST_FILES_DIR="${SCRIPT_DIR}/test-files"
 

@@ -1,27 +1,41 @@
 #!/usr/bin/env bats
 # Tests for Browserless api.sh functions
+bats_require_minimum_version 1.5.0
+
+# Setup paths and source var.sh first
+SCRIPT_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")" && pwd)"
+# shellcheck disable=SC1091
+source "$(cd "${SCRIPT_DIR}/../../../../../" && pwd)/lib/utils/var.sh"
+
+# Load Vrooli test infrastructure using var_ variables
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
 
 # Expensive setup operations run once per file
 setup_file() {
-    # Load dependencies once per file
-    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
-    BROWSERLESS_DIR="$(dirname "$SCRIPT_DIR")"
+    # Use Vrooli service test setup
+    vrooli_setup_service_test "browserless"
+    
+    # Set up directories and paths once
+    export BROWSERLESS_DIR="${SCRIPT_DIR}/.."
+    export MOCK_DIR="${var_SCRIPTS_TEST_DIR}/fixtures/mocks"
     
     # Load configuration and messages once
+    # shellcheck disable=SC1091
     source "${BROWSERLESS_DIR}/config/defaults.sh"
+    # shellcheck disable=SC1091
     source "${BROWSERLESS_DIR}/config/messages.sh"
     
     # Load API functions once
+    # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/api.sh"
-    
-    # Export paths for use in setup()
-    export SETUP_FILE_SCRIPT_DIR="$SCRIPT_DIR"
-    export SETUP_FILE_BROWSERLESS_DIR="$BROWSERLESS_DIR"
 }
 
 # Lightweight per-test setup
 setup() {
-    # Use paths from setup_file
+    # Setup standard Vrooli mocks
+    vrooli_auto_setup
+    
     # Mock resources functions to avoid hang
     declare -A DEFAULT_PORTS=(
         ["ollama"]="11434"
@@ -41,19 +55,12 @@ setup() {
     resources::get_default_port() { echo "${DEFAULT_PORTS[$1]:-8080}"; }
     export -f resources::get_default_port
     
-    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
-    BROWSERLESS_DIR="${SETUP_FILE_BROWSERLESS_DIR}"
-    
     # Set test environment (lightweight per-test)
     export BROWSERLESS_CUSTOM_PORT="9999"
     export BROWSERLESS_CONTAINER_NAME="browserless-test"
     export BROWSERLESS_BASE_URL="http://localhost:9999"
     export URL="https://example.com"
     export OUTPUT="/tmp/browserless-test-output.png"
-    
-    # Load shared test infrastructure
-    source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
-    vrooli_auto_setup
     
     # Basic mock functions (lightweight)
     mock::network::set_online() { return 0; }

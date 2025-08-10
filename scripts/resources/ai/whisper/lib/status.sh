@@ -6,14 +6,14 @@
 # Show comprehensive Whisper status
 # Returns: 0 if successful, 1 otherwise
 #######################################
-whisper::show_status() {
+status::show_status() {
     log::header "🎤 Whisper Status"
     
     local overall_status="healthy"
     
     # Check Docker availability
     echo "Docker Status:"
-    if whisper::check_docker; then
+    if status::check_docker; then
         log::success "  ✅ Docker is available and configured"
     else
         log::error "  ❌ Docker is not available"
@@ -24,8 +24,8 @@ whisper::show_status() {
     
     # Check container status
     echo "Container Status:"
-    if whisper::container_exists; then
-        if whisper::is_running; then
+    if status::container_exists; then
+        if status::is_running; then
             log::success "  ✅ Whisper container is running"
             
             # Get basic container info
@@ -47,15 +47,15 @@ whisper::show_status() {
     
     # Check API status
     echo "API Status:"
-    if whisper::is_running; then
+    if status::is_running; then
         log::info "  🔍 Testing API endpoint: $WHISPER_BASE_URL"
         
-        if whisper::is_healthy; then
+        if status::is_healthy; then
             log::success "  ✅ Whisper API is responding"
             
             # Get model information if available
             local model_info
-            model_info=$(whisper::get_current_model 2>/dev/null)
+            model_info=$(status::get_current_model 2>/dev/null)
             if [[ -n "$model_info" ]]; then
                 log::info "     Current model: $model_info"
             fi
@@ -73,7 +73,7 @@ whisper::show_status() {
     echo "Network Status:"
     log::info "  Port: $WHISPER_PORT"
     if system::is_port_in_use "$WHISPER_PORT"; then
-        if whisper::is_running; then
+        if status::is_running; then
             log::success "  ✅ Port $WHISPER_PORT is in use by Whisper"
         else
             log::warn "  ⚠️  Port $WHISPER_PORT is in use by another service"
@@ -108,7 +108,7 @@ whisper::show_status() {
     # Check GPU status if GPU is enabled
     if [[ "$WHISPER_GPU_ENABLED" == "yes" ]]; then
         echo "GPU Status:"
-        if whisper::is_gpu_available; then
+        if status::is_gpu_available; then
             log::success "  ✅ NVIDIA GPU is available"
             if system::is_command "nvidia-smi"; then
                 local gpu_info=$(nvidia-smi --query-gpu=name,memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null | head -1)
@@ -165,8 +165,8 @@ whisper::show_status() {
 # Get current model from running container
 # Outputs: model name
 #######################################
-whisper::get_current_model() {
-    if ! whisper::is_running; then
+status::get_current_model() {
+    if ! status::is_running; then
         return 1
     fi
     
@@ -180,13 +180,13 @@ whisper::get_current_model() {
 # Show quick status (for use in other scripts)
 # Outputs: status string
 #######################################
-whisper::quick_status() {
-    if ! whisper::is_running; then
+status::quick_status() {
+    if ! status::is_running; then
         echo "stopped"
         return 1
     fi
     
-    if whisper::is_healthy; then
+    if status::is_healthy; then
         echo "running"
         return 0
     else
@@ -199,12 +199,12 @@ whisper::quick_status() {
 # Check if Whisper is ready for transcription
 # Returns: 0 if ready, 1 otherwise
 #######################################
-whisper::is_ready() {
-    if ! whisper::is_running; then
+status::is_ready() {
+    if ! status::is_running; then
         return 1
     fi
     
-    if ! whisper::is_healthy; then
+    if ! status::is_healthy; then
         return 1
     fi
     
@@ -234,8 +234,8 @@ whisper::is_ready() {
 # Show resource usage
 # Returns: 0 if successful, 1 otherwise
 #######################################
-whisper::show_resource_usage() {
-    if ! whisper::is_running; then
+status::show_resource_usage() {
+    if ! status::is_running; then
         log::error "${MSG_NOT_RUNNING}"
         return 1
     fi
@@ -245,8 +245,8 @@ whisper::show_resource_usage() {
 }
 
 # Export functions for subshell availability
-export -f whisper::show_status
-export -f whisper::get_current_model
-export -f whisper::quick_status
-export -f whisper::is_ready
-export -f whisper::show_resource_usage
+export -f status::show_status
+export -f status::get_current_model
+export -f status::quick_status
+export -f status::is_ready
+export -f status::show_resource_usage

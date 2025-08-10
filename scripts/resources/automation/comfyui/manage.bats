@@ -11,11 +11,12 @@ setup_file() {
     
     # Load resource specific configuration once per file
     SCRIPT_DIR="${BATS_TEST_DIRNAME}"
-    COMFYUI_DIR="$(dirname "$SCRIPT_DIR")"
+    COMFYUI_DIR="${SCRIPT_DIR}"
     
-    # Load configuration and manage script once
-    source "${COMFYUI_DIR}/config/defaults.sh"
-    source "${COMFYUI_DIR}/config/messages.sh"
+    # Source var.sh first
+    source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+    
+    # Load manage script which will load all dependencies
     source "${SCRIPT_DIR}/manage.sh"
 }
 
@@ -35,9 +36,7 @@ setup() {
     export OUTPUT_DIR=""
     export PROMPT_ID=""
     
-    # Export config functions
-    comfyui::export_config
-    comfyui::export_messages
+    # No need to export config - already done by sourcing the files
     
     # Mock log functions
     log::header() { echo "=== $* ==="; }
@@ -56,13 +55,13 @@ teardown() {
 # Test script loading
 @test "manage.sh loads without errors" {
     # Check that essential functions are available
-    declare -f comfyui::parse_arguments > /dev/null
+    declare -f common::parse_arguments > /dev/null
     [ "$?" -eq 0 ]
 }
 
 # Test argument parsing
-@test "comfyui::parse_arguments sets defaults correctly" {
-    comfyui::parse_arguments --action status
+@test "common::parse_arguments sets defaults correctly" {
+    common::parse_arguments --action status
     
     [ "$ACTION" = "status" ]
     [ "$FORCE" = "no" ]
@@ -73,8 +72,8 @@ teardown() {
 }
 
 # Test argument parsing with custom values
-@test "comfyui::parse_arguments handles custom values" {
-    comfyui::parse_arguments \
+@test "common::parse_arguments handles custom values" {
+    common::parse_arguments \
         --action install \
         --force yes \
         --gpu nvidia \
@@ -91,22 +90,22 @@ teardown() {
 }
 
 # Test GPU type options
-@test "comfyui::parse_arguments validates GPU types" {
-    comfyui::parse_arguments --action install --gpu nvidia
+@test "common::parse_arguments validates GPU types" {
+    common::parse_arguments --action install --gpu nvidia
     [ "$GPU_TYPE" = "nvidia" ]
     
-    comfyui::parse_arguments --action install --gpu amd
+    common::parse_arguments --action install --gpu amd
     [ "$GPU_TYPE" = "amd" ]
     
-    comfyui::parse_arguments --action install --gpu cpu
+    common::parse_arguments --action install --gpu cpu
     [ "$GPU_TYPE" = "cpu" ]
     
-    comfyui::parse_arguments --action install --gpu auto
+    common::parse_arguments --action install --gpu auto
     [ "$GPU_TYPE" = "auto" ]
 }
 
 # Test action validation
-@test "comfyui::parse_arguments handles all valid actions" {
+@test "common::parse_arguments handles all valid actions" {
     local actions=(
         "install" "uninstall" "start" "stop" "restart" 
         "status" "logs" "info" "download-models" "list-models"
@@ -115,24 +114,24 @@ teardown() {
     )
     
     for action in "${actions[@]}"; do
-        comfyui::parse_arguments --action "$action"
+        common::parse_arguments --action "$action"
         [ "$ACTION" = "$action" ]
     done
 }
 
 # Test environment variable override
-@test "comfyui::parse_arguments respects COMFYUI_GPU_TYPE override" {
+@test "common::parse_arguments respects COMFYUI_GPU_TYPE override" {
     export COMFYUI_GPU_TYPE="nvidia"
     
-    comfyui::parse_arguments --action install --gpu cpu
+    common::parse_arguments --action install --gpu cpu
     
     # Environment variable should override command line
     [ "$GPU_TYPE" = "nvidia" ]
 }
 
 # Test workflow-related arguments
-@test "comfyui::parse_arguments handles workflow execution arguments" {
-    comfyui::parse_arguments \
+@test "common::parse_arguments handles workflow execution arguments" {
+    common::parse_arguments \
         --action execute-workflow \
         --workflow "/workflows/test.json" \
         --output "/output/images"
@@ -143,8 +142,8 @@ teardown() {
 }
 
 # Test import workflow arguments
-@test "comfyui::parse_arguments handles import workflow arguments" {
-    comfyui::parse_arguments \
+@test "common::parse_arguments handles import workflow arguments" {
+    common::parse_arguments \
         --action import-workflow \
         --workflow "/workflows/new.json"
     
@@ -153,8 +152,8 @@ teardown() {
 }
 
 # Test prompt ID argument
-@test "comfyui::parse_arguments handles prompt-id correctly" {
-    comfyui::parse_arguments \
+@test "common::parse_arguments handles prompt-id correctly" {
+    common::parse_arguments \
         --action execute-workflow \
         --prompt-id "unique-12345"
     
@@ -211,26 +210,26 @@ teardown() {
 }
 
 # Test container existence check (mocked)
-@test "comfyui::container_exists function exists" {
-    declare -f comfyui::container_exists > /dev/null
+@test "common::container_exists function exists" {
+    declare -f common::container_exists > /dev/null
     [ "$?" -eq 0 ]
 }
 
 # Test running check (mocked)
-@test "comfyui::is_running function exists" {
-    declare -f comfyui::is_running > /dev/null
+@test "common::is_running function exists" {
+    declare -f common::is_running > /dev/null
     [ "$?" -eq 0 ]
 }
 
 # Test health check (mocked)
-@test "comfyui::is_healthy function exists" {
-    declare -f comfyui::is_healthy > /dev/null
+@test "common::is_healthy function exists" {
+    declare -f common::is_healthy > /dev/null
     [ "$?" -eq 0 ]
 }
 
 # Test edge cases
-@test "comfyui::parse_arguments handles empty arguments" {
-    comfyui::parse_arguments
+@test "common::parse_arguments handles empty arguments" {
+    common::parse_arguments
     
     # Should use all defaults
     [ "$ACTION" = "install" ]
@@ -239,8 +238,8 @@ teardown() {
 }
 
 # Test combined options
-@test "comfyui::parse_arguments handles combined options" {
-    comfyui::parse_arguments \
+@test "common::parse_arguments handles combined options" {
+    common::parse_arguments \
         --action download-models \
         --force yes \
         --yes yes
@@ -251,7 +250,7 @@ teardown() {
 }
 
 # Test invalid action handling (verify it's in the options)
-@test "comfyui::parse_arguments action options are comprehensive" {
+@test "common::parse_arguments action options are comprehensive" {
     # All actions listed in the script should be valid
     local valid_actions=(
         "install" "uninstall" "start" "stop" "restart"
@@ -261,14 +260,14 @@ teardown() {
     )
     
     for action in "${valid_actions[@]}"; do
-        comfyui::parse_arguments --action "$action"
+        common::parse_arguments --action "$action"
         [ "$ACTION" = "$action" ]
     done
 }
 
 # Test workflow path with spaces
-@test "comfyui::parse_arguments handles paths with spaces" {
-    comfyui::parse_arguments \
+@test "common::parse_arguments handles paths with spaces" {
+    common::parse_arguments \
         --action execute-workflow \
         --workflow "/path with spaces/workflow.json" \
         --output "/output with spaces/"

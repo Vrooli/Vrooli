@@ -8,11 +8,14 @@ set -euo pipefail
 DESCRIPTION="Inject workflows and models into ComfyUI image generation platform"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
 
-# Source common utilities
+# Source var.sh first to get all path variables
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+
+# Source common utilities using var_ variables
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
 
 # Source ComfyUI configuration if available
 if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
@@ -36,7 +39,7 @@ declare -a COMFYUI_ROLLBACK_ACTIONS=()
 #######################################
 # Display usage information
 #######################################
-comfyui_inject::usage() {
+inject::usage() {
     cat << EOF
 ComfyUI Workflow Injection Adapter
 
@@ -100,7 +103,7 @@ EOF
 # Returns:
 #   0 if accessible, 1 otherwise
 #######################################
-comfyui_inject::check_accessibility() {
+inject::check_accessibility() {
     # Check if ComfyUI API is accessible
     if curl -s --max-time 5 "${COMFYUI_HOST}/system_stats" >/dev/null 2>&1; then
         log::debug "ComfyUI is accessible at $COMFYUI_HOST"
@@ -118,7 +121,7 @@ comfyui_inject::check_accessibility() {
 #   $1 - description
 #   $2 - rollback command
 #######################################
-comfyui_inject::add_rollback_action() {
+inject::add_rollback_action() {
     local description="$1"
     local command="$2"
     
@@ -129,7 +132,7 @@ comfyui_inject::add_rollback_action() {
 #######################################
 # Execute rollback actions
 #######################################
-comfyui_inject::execute_rollback() {
+inject::execute_rollback() {
     if [[ ${#COMFYUI_ROLLBACK_ACTIONS[@]} -eq 0 ]]; then
         log::info "No ComfyUI rollback actions to execute"
         return 0
@@ -166,7 +169,7 @@ comfyui_inject::execute_rollback() {
 # Returns:
 #   0 if valid, 1 if invalid
 #######################################
-comfyui_inject::validate_workflows() {
+inject::validate_workflows() {
     local workflows_config="$1"
     
     log::debug "Validating workflow configurations..."
@@ -230,7 +233,7 @@ comfyui_inject::validate_workflows() {
 # Returns:
 #   0 if valid, 1 if invalid
 #######################################
-comfyui_inject::validate_models() {
+inject::validate_models() {
     local models_config="$1"
     
     log::debug "Validating model configurations..."
@@ -311,7 +314,7 @@ comfyui_inject::validate_models() {
 # Returns:
 #   0 if valid, 1 if invalid
 #######################################
-comfyui_inject::validate_config() {
+inject::validate_config() {
     local config="$1"
     
     log::info "Validating ComfyUI injection configuration..."
@@ -339,7 +342,7 @@ comfyui_inject::validate_config() {
         local workflows
         workflows=$(echo "$config" | jq -c '.workflows')
         
-        if ! comfyui_inject::validate_workflows "$workflows"; then
+        if ! inject::validate_workflows "$workflows"; then
             return 1
         fi
     fi
@@ -349,7 +352,7 @@ comfyui_inject::validate_config() {
         local models
         models=$(echo "$config" | jq -c '.models')
         
-        if ! comfyui_inject::validate_models "$models"; then
+        if ! inject::validate_models "$models"; then
             return 1
         fi
     fi
@@ -365,7 +368,7 @@ comfyui_inject::validate_config() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-comfyui_inject::upload_workflow() {
+inject::upload_workflow() {
     local workflow_config="$1"
     
     local name file description
@@ -403,7 +406,7 @@ comfyui_inject::upload_workflow() {
         log::success "Uploaded workflow: $name"
         
         # Add rollback action
-        comfyui_inject::add_rollback_action \
+        inject::add_rollback_action \
             "Remove workflow: $name" \
             "curl -s -X DELETE '${COMFYUI_HOST}/api/workflows/${name}' >/dev/null 2>&1"
         
@@ -421,7 +424,7 @@ comfyui_inject::upload_workflow() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-comfyui_inject::install_model() {
+inject::install_model() {
     local model_config="$1"
     
     local type name url file directory
@@ -457,7 +460,7 @@ comfyui_inject::install_model() {
             log::success "Downloaded model: $name"
             
             # Add rollback action
-            comfyui_inject::add_rollback_action \
+            inject::add_rollback_action \
                 "Remove model: $name" \
                 "rm -f '${target_path}'"
             
@@ -476,7 +479,7 @@ comfyui_inject::install_model() {
             log::success "Copied model: $name"
             
             # Add rollback action
-            comfyui_inject::add_rollback_action \
+            inject::add_rollback_action \
                 "Remove model: $name" \
                 "rm -f '${target_path}'"
             
@@ -498,7 +501,7 @@ comfyui_inject::install_model() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-comfyui_inject::install_custom_node() {
+inject::install_custom_node() {
     local node_config="$1"
     
     local name git_url
@@ -521,7 +524,7 @@ comfyui_inject::install_custom_node() {
         fi
         
         # Add rollback action
-        comfyui_inject::add_rollback_action \
+        inject::add_rollback_action \
             "Remove custom node: $name" \
             "rm -rf '${target_dir}'"
         
@@ -545,7 +548,7 @@ comfyui_inject::install_custom_node() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-comfyui_inject::apply_settings() {
+inject::apply_settings() {
     local settings_config="$1"
     
     log::info "Applying ComfyUI settings..."
@@ -594,7 +597,7 @@ comfyui_inject::apply_settings() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-comfyui_inject::inject_workflows() {
+inject::inject_workflows() {
     local workflows_config="$1"
     
     log::info "Uploading ComfyUI workflows..."
@@ -616,7 +619,7 @@ comfyui_inject::inject_workflows() {
         local workflow_name
         workflow_name=$(echo "$workflow" | jq -r '.name')
         
-        if ! comfyui_inject::upload_workflow "$workflow"; then
+        if ! inject::upload_workflow "$workflow"; then
             failed_workflows+=("$workflow_name")
         fi
     done
@@ -637,7 +640,7 @@ comfyui_inject::inject_workflows() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-comfyui_inject::inject_models() {
+inject::inject_models() {
     local models_config="$1"
     
     log::info "Installing ComfyUI models..."
@@ -659,7 +662,7 @@ comfyui_inject::inject_models() {
         local model_name
         model_name=$(echo "$model" | jq -r '.name')
         
-        if ! comfyui_inject::install_model "$model"; then
+        if ! inject::install_model "$model"; then
             failed_models+=("$model_name")
         fi
     done
@@ -680,7 +683,7 @@ comfyui_inject::inject_models() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-comfyui_inject::inject_custom_nodes() {
+inject::inject_custom_nodes() {
     local nodes_config="$1"
     
     log::info "Installing ComfyUI custom nodes..."
@@ -702,7 +705,7 @@ comfyui_inject::inject_custom_nodes() {
         local node_name
         node_name=$(echo "$node" | jq -r '.name')
         
-        if ! comfyui_inject::install_custom_node "$node"; then
+        if ! inject::install_custom_node "$node"; then
             failed_nodes+=("$node_name")
         fi
     done
@@ -723,13 +726,13 @@ comfyui_inject::inject_custom_nodes() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-comfyui_inject::inject_data() {
+inject::inject_data() {
     local config="$1"
     
     log::header "🔄 Injecting data into ComfyUI"
     
     # Check ComfyUI accessibility
-    if ! comfyui_inject::check_accessibility; then
+    if ! inject::check_accessibility; then
         return 1
     fi
     
@@ -744,9 +747,9 @@ comfyui_inject::inject_data() {
         local custom_nodes
         custom_nodes=$(echo "$config" | jq -c '.custom_nodes')
         
-        if ! comfyui_inject::inject_custom_nodes "$custom_nodes"; then
+        if ! inject::inject_custom_nodes "$custom_nodes"; then
             log::error "Failed to install custom nodes"
-            comfyui_inject::execute_rollback
+            inject::execute_rollback
             return 1
         fi
     fi
@@ -759,9 +762,9 @@ comfyui_inject::inject_data() {
         local models
         models=$(echo "$config" | jq -c '.models')
         
-        if ! comfyui_inject::inject_models "$models"; then
+        if ! inject::inject_models "$models"; then
             log::error "Failed to install models"
-            comfyui_inject::execute_rollback
+            inject::execute_rollback
             return 1
         fi
     fi
@@ -774,9 +777,9 @@ comfyui_inject::inject_data() {
         local workflows
         workflows=$(echo "$config" | jq -c '.workflows')
         
-        if ! comfyui_inject::inject_workflows "$workflows"; then
+        if ! inject::inject_workflows "$workflows"; then
             log::error "Failed to upload workflows"
-            comfyui_inject::execute_rollback
+            inject::execute_rollback
             return 1
         fi
     fi
@@ -789,7 +792,7 @@ comfyui_inject::inject_data() {
         local settings
         settings=$(echo "$config" | jq -c '.settings')
         
-        if ! comfyui_inject::apply_settings "$settings"; then
+        if ! inject::apply_settings "$settings"; then
             log::warn "Some settings could not be applied"
             # Don't fail on settings as they're optional
         fi
@@ -806,13 +809,13 @@ comfyui_inject::inject_data() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-comfyui_inject::check_status() {
+inject::check_status() {
     local config="$1"
     
     log::header "📊 Checking ComfyUI injection status"
     
     # Check ComfyUI accessibility
-    if ! comfyui_inject::check_accessibility; then
+    if ! inject::check_accessibility; then
         return 1
     fi
     
@@ -885,35 +888,35 @@ comfyui_inject::check_status() {
 #######################################
 # Main execution function
 #######################################
-comfyui_inject::main() {
+inject::main() {
     local action="$1"
     local config="${2:-}"
     
     if [[ -z "$config" ]]; then
         log::error "Configuration JSON required"
-        comfyui_inject::usage
+        inject::usage
         exit 1
     fi
     
     case "$action" in
         "--validate")
-            comfyui_inject::validate_config "$config"
+            inject::validate_config "$config"
             ;;
         "--inject")
-            comfyui_inject::inject_data "$config"
+            inject::inject_data "$config"
             ;;
         "--status")
-            comfyui_inject::check_status "$config"
+            inject::check_status "$config"
             ;;
         "--rollback")
-            comfyui_inject::execute_rollback
+            inject::execute_rollback
             ;;
         "--help")
-            comfyui_inject::usage
+            inject::usage
             ;;
         *)
             log::error "Unknown action: $action"
-            comfyui_inject::usage
+            inject::usage
             exit 1
             ;;
     esac
@@ -922,9 +925,9 @@ comfyui_inject::main() {
 # Execute main function if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     if [[ $# -eq 0 ]]; then
-        comfyui_inject::usage
+        inject::usage
         exit 1
     fi
     
-    comfyui_inject::main "$@"
+    inject::main "$@"
 fi

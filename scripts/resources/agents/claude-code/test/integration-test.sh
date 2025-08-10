@@ -5,21 +5,26 @@
 
 set -euo pipefail
 
-# Source shared integration test library
+# Script directory
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../../tests/lib/integration-test-lib.sh"
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+
+# Source shared integration test library if it exists
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_DIR}/tests/lib/integration-test-lib.sh" 2>/dev/null || true
 
 #######################################
 # SERVICE-SPECIFIC CONFIGURATION
 #######################################
 
 # Load Claude Code configuration
-RESOURCES_DIR="$SCRIPT_DIR/../../.."
 # shellcheck disable=SC1091
-source "$RESOURCES_DIR/common.sh"
+source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../config/defaults.sh"
+source "${SCRIPT_DIR}/../config/defaults.sh"
 claude_code::export_config
 
 # Override library defaults with Claude Code-specific settings

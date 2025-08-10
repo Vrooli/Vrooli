@@ -1,10 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Simple Claude Code Prompts Example
 # Demonstrates basic usage of the management script API
 # Note: This script uses the corrected CLI interface (fixed January 2025)
 
-set -e
+set -euo pipefail
 
 echo "=== Claude Code Simple Prompts Example ==="
 echo

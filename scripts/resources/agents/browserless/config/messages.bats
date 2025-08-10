@@ -1,10 +1,23 @@
 #!/usr/bin/env bats
 # Tests for Browserless messages.sh configuration
+bats_require_minimum_version 1.5.0
+
+# Setup paths and source var.sh first
+SCRIPT_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")" && pwd)"
+# shellcheck disable=SC1091
+source "$(cd "${SCRIPT_DIR}/../../../../../" && pwd)/lib/utils/var.sh"
+
+# Load Vrooli test infrastructure using var_ variables
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
 
 # Expensive setup operations run once per file
 setup_file() {
+    # Use Vrooli service test setup
+    vrooli_setup_service_test "browserless"
+    
     # Load the messages once per file
-    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
+    # shellcheck disable=SC1091
     source "${SCRIPT_DIR}/messages.sh"
     
     # Export the setup_file directory for use in setup()

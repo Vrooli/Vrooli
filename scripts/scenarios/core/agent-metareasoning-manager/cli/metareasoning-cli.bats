@@ -1,208 +1,265 @@
 #!/usr/bin/env bats
 # Agent Metareasoning Manager CLI Tests
-# Tests for the metareasoning CLI functionality
-
-load "../../../__test/helpers/bats-support/load"
-load "../../../__test/helpers/bats-assert/load"
 
 setup() {
-    # Set up test environment
+    export CLI_PATH="./metareasoning-cli.sh"
     export METAREASONING_API_BASE="http://localhost:8093/api"
-    export CLI_SCRIPT="${BATS_TEST_DIRNAME}/metareasoning-cli.sh"
-    
-    # Create temporary config directory for tests
-    export TEST_CONFIG_DIR="${BATS_TMPDIR}/metareasoning-test-config"
-    export HOME="${BATS_TMPDIR}"
-    mkdir -p "$TEST_CONFIG_DIR"
+    export TEST_CONFIG_DIR="$(mktemp -d)"
+    export HOME="$TEST_CONFIG_DIR"
 }
 
 teardown() {
-    # Clean up test environment
-    rm -rf "$TEST_CONFIG_DIR"
+    if [[ -d "$TEST_CONFIG_DIR" ]]; then
+        rm -rf "$TEST_CONFIG_DIR"
+    fi
 }
 
-@test "CLI script exists and is executable" {
-    [ -f "$CLI_SCRIPT" ]
-    [ -x "$CLI_SCRIPT" ]
+# Helper function to run CLI command
+run_cli() {
+    bash "$CLI_PATH" "$@"
 }
 
-@test "CLI shows help when called without arguments" {
-    run "$CLI_SCRIPT"
-    assert_success
-    assert_output --partial "Agent Metareasoning Manager CLI"
-    assert_output --partial "Usage:"
+# Basic tests
+@test "CLI shows version" {
+    run run_cli --version
+    [[ "$status" -eq 0 ]]
+    [[ "$output" == "1.0.0" ]]
 }
 
-@test "CLI shows help with --help flag" {
-    run "$CLI_SCRIPT" --help
-    assert_success
-    assert_output --partial "Agent Metareasoning Manager CLI"
-    assert_output --partial "Commands:"
-    assert_output --partial "prompt"
-    assert_output --partial "workflow"
-    assert_output --partial "analyze"
+@test "CLI shows help" {
+    run run_cli --help
+    [[ "$status" -eq 0 ]]
+    [[ "$output" == *"Agent Metareasoning Manager CLI"* ]]
+    [[ "$output" == *"Usage:"* ]]
 }
 
-@test "CLI shows version with --version flag" {
-    run "$CLI_SCRIPT" --version
-    assert_success
-    assert_output "1.0.0"
+@test "CLI shows usage with no args" {
+    run run_cli
+    [[ "$status" -eq 0 ]]
+    [[ "$output" == *"Usage:"* ]]
 }
 
-@test "CLI rejects unknown commands" {
-    run "$CLI_SCRIPT" unknown-command
-    assert_failure
-    assert_output --partial "Unknown command: unknown-command"
-    assert_output --partial "Use 'metareasoning help' for usage information"
+# Configuration tests
+@test "CLI creates default config on first run" {
+    run run_cli config show
+    [[ "$status" -eq 0 ]]
+    [[ -f "$HOME/.metareasoning/config.json" ]]
 }
 
-@test "CLI rejects unknown options" {
-    run "$CLI_SCRIPT" --unknown-option
-    assert_failure
-    assert_output --partial "Unknown option: --unknown-option"
+@test "CLI sets configuration value" {
+    run run_cli config set api_base "http://localhost:9999/api"
+    [[ "$status" -eq 0 ]]
+    [[ "$output" == *"Configuration updated"* ]]
+    
+    # Verify the value was set
+    run run_cli config show
+    [[ "$output" == *"http://localhost:9999/api"* ]]
 }
 
-@test "CLI config command shows default configuration" {
-    run "$CLI_SCRIPT" config show
-    assert_success
-    # Should either show config or indicate no config found
-}
-
-@test "CLI config set command updates configuration" {
-    run "$CLI_SCRIPT" config set api_base "http://test:8093/api"
-    assert_success
-    assert_output --partial "Configuration updated: api_base = http://test:8093/api"
-}
-
-@test "CLI config reset command resets configuration" {
-    # First set something
-    "$CLI_SCRIPT" config set test_key test_value
+@test "CLI resets configuration" {
+    # First set a custom value
+    run run_cli config set api_base "http://custom:9999/api"
+    [[ "$status" -eq 0 ]]
     
     # Then reset
-    run "$CLI_SCRIPT" config reset
-    assert_success
-    assert_output --partial "Configuration reset to defaults"
+    run run_cli config reset
+    [[ "$status" -eq 0 ]]
+    [[ "$output" == *"Configuration reset to defaults"* ]]
+    
+    # Verify it's back to default
+    run run_cli config show
+    [[ "$output" == *"http://localhost:8093/api"* ]]
 }
 
-@test "CLI prompt list command has correct structure" {
-    # This test requires API server to be running
-    skip_if_no_api_server
-    
-    run "$CLI_SCRIPT" prompt list
-    # Should succeed or show reasonable error message
+# Command validation tests
+@test "CLI requires subcommand for prompt" {
+    run run_cli prompt
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *"Unknown prompt subcommand"* ]]
 }
 
-@test "CLI workflow list command has correct structure" {
-    # This test requires API server to be running
-    skip_if_no_api_server
-    
-    run "$CLI_SCRIPT" workflow list
-    # Should succeed or show reasonable error message
+@test "CLI requires subcommand for workflow" {
+    run run_cli workflow
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *"Unknown workflow subcommand"* ]]
 }
 
-@test "CLI analyze command requires input" {
-    # This test requires API server to be running
-    skip_if_no_api_server
-    
-    run "$CLI_SCRIPT" analyze decision
-    assert_failure
-    assert_output --partial "Analysis input required"
+@test "CLI requires input for analyze commands" {
+    run run_cli analyze decision
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *"Analysis input required"* ]]
 }
 
-@test "CLI analyze command accepts valid types" {
-    # This test requires API server to be running
-    skip_if_no_api_server
+# Format option tests
+@test "CLI accepts format option" {
+    # Mock curl to return JSON
+    function curl() {
+        echo '{"status":"healthy","timestamp":"2024-01-01T00:00:00Z"}'
+        return 0
+    }
+    export -f curl
     
-    run "$CLI_SCRIPT" analyze decision "Test decision"
-    # Should succeed or show reasonable error message for API connection
+    run run_cli --format json health
+    [[ "$status" -eq 0 ]]
 }
 
-@test "CLI health command checks API server" {
-    # This test requires API server to be running  
-    skip_if_no_api_server
-    
-    run "$CLI_SCRIPT" health
-    # Should succeed if API is running, or show connection error
+# API base override test
+@test "CLI accepts api-base override" {
+    run run_cli --api-base "http://custom:8093/api" config show
+    [[ "$status" -eq 0 ]]
 }
 
-@test "CLI template list command has correct structure" {
-    # This test requires API server to be running
-    skip_if_no_api_server
+# Analysis command structure tests
+@test "CLI structures decision analysis payload correctly" {
+    # Mock curl to capture the payload
+    function curl() {
+        for arg in "$@"; do
+            if [[ "$arg" == -d* ]]; then
+                echo "$arg" | grep -q '"scenario"' && echo '{"status":"success"}'
+                return 0
+            fi
+        done
+        return 1
+    }
+    export -f curl
     
-    run "$CLI_SCRIPT" template list
-    # Should succeed or show reasonable error message
+    run run_cli analyze decision "Should we migrate?"
+    [[ "$status" -eq 0 ]]
 }
 
-@test "CLI supports different output formats" {
-    skip_if_no_api_server
+@test "CLI structures pros-cons analysis payload correctly" {
+    function curl() {
+        for arg in "$@"; do
+            if [[ "$arg" == -d* ]]; then
+                echo "$arg" | grep -q '"topic"' && echo '{"status":"success"}'
+                return 0
+            fi
+        done
+        return 1
+    }
+    export -f curl
     
-    run "$CLI_SCRIPT" --format json template list
-    # Should succeed and format correctly
+    run run_cli analyze pros-cons "Remote work"
+    [[ "$status" -eq 0 ]]
 }
 
-@test "CLI handles missing dependencies gracefully" {
-    # Temporarily rename jq to test dependency checking
-    if command -v jq > /dev/null; then
-        # Create a test environment without jq
-        PATH="/nonexistent:$PATH" run "$CLI_SCRIPT" health
-        assert_failure
-        assert_output --partial "jq is required"
-    else
-        skip "jq not available for dependency test"
-    fi
+@test "CLI structures SWOT analysis payload correctly" {
+    function curl() {
+        for arg in "$@"; do
+            if [[ "$arg" == -d* ]]; then
+                echo "$arg" | grep -q '"target"' && echo '{"status":"success"}'
+                return 0
+            fi
+        done
+        return 1
+    }
+    export -f curl
+    
+    run run_cli analyze swot "New product launch"
+    [[ "$status" -eq 0 ]]
 }
 
-# Helper functions
-
-skip_if_no_api_server() {
-    # Check if API server is running
-    if ! curl -sf "${METAREASONING_API_BASE}/health" > /dev/null 2>&1; then
-        skip "API server not running at ${METAREASONING_API_BASE}"
-    fi
+@test "CLI structures risk analysis payload correctly" {
+    function curl() {
+        for arg in "$@"; do
+            if [[ "$arg" == -d* ]]; then
+                echo "$arg" | grep -q '"proposal"' && echo '{"status":"success"}'
+                return 0
+            fi
+        done
+        return 1
+    }
+    export -f curl
+    
+    run run_cli analyze risk "System migration"
+    [[ "$status" -eq 0 ]]
 }
 
-# Test the configuration file creation and management
-@test "CLI creates config file with proper structure" {
-    # Remove any existing config
-    rm -f "${HOME}/.metareasoning/config.json"
-    
-    # Run any command that triggers config creation
-    run "$CLI_SCRIPT" config show
-    
-    # Check that config file was created
-    [ -f "${HOME}/.metareasoning/config.json" ]
-    
-    # Check config file structure
-    run cat "${HOME}/.metareasoning/config.json"
-    assert_success
-    assert_output --partial '"api_base"'
-    assert_output --partial '"default_format"'
+# Prompt command tests
+@test "CLI creates prompt with required name" {
+    run run_cli prompt create
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *"Prompt name required"* ]]
 }
 
-@test "CLI preserves existing configuration" {
-    # Set initial config
-    "$CLI_SCRIPT" config set test_key initial_value
+@test "CLI tests prompt with required ID and input" {
+    run run_cli prompt test
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *"Prompt ID required"* ]]
     
-    # Set another key
-    "$CLI_SCRIPT" config set another_key another_value
-    
-    # Verify both keys exist
-    run cat "${HOME}/.metareasoning/config.json"
-    assert_success
-    assert_output --partial '"test_key": "initial_value"'
-    assert_output --partial '"another_key": "another_value"'
+    run run_cli prompt test "prompt-123"
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *"Test input required"* ]]
 }
 
-@test "CLI validates required arguments for analyze commands" {
-    run "$CLI_SCRIPT" analyze pros-cons
-    assert_failure
-    assert_output --partial "Analysis input required"
+# Workflow command tests
+@test "CLI runs workflow with required ID" {
+    run run_cli workflow run
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *"Workflow ID or name required"* ]]
+}
+
+@test "CLI checks workflow status with required IDs" {
+    run run_cli workflow status
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *"Workflow ID and execution ID required"* ]]
     
-    run "$CLI_SCRIPT" analyze swot
-    assert_failure
-    assert_output --partial "Analysis input required"
+    run run_cli workflow status "workflow-123"
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *"Workflow ID and execution ID required"* ]]
+}
+
+# Health check test (when API is not running)
+@test "CLI handles API connection failure gracefully" {
+    # Use a port where nothing is running
+    export METAREASONING_API_BASE="http://localhost:99999/api"
     
-    run "$CLI_SCRIPT" analyze risk
-    assert_failure
-    assert_output --partial "Analysis input required"
+    run run_cli health
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *"Failed to connect to API"* ]]
+    [[ "$output" == *"Is the metareasoning API server running?"* ]]
+}
+
+# Error handling tests
+@test "CLI handles unknown command" {
+    run run_cli unknown-command
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *"Unknown command: unknown-command"* ]]
+}
+
+@test "CLI handles unknown analysis type" {
+    run run_cli analyze unknown-type "input"
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *"Unknown analysis type: unknown-type"* ]]
+}
+
+# Dependency check tests
+@test "CLI requires jq" {
+    # Mock missing jq
+    function command() {
+        if [[ "$2" == "jq" ]]; then
+            return 1
+        fi
+        return 0
+    }
+    export -f command
+    
+    run run_cli health
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *"jq is required"* ]]
+}
+
+@test "CLI requires curl" {
+    # Mock missing curl
+    function command() {
+        if [[ "$2" == "curl" ]]; then
+            return 1
+        fi
+        return 0
+    }
+    export -f command
+    
+    run run_cli health
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *"curl is required"* ]]
 }

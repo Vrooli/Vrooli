@@ -7,7 +7,7 @@
 LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck disable=SC1091
-source "${LIB_DIR}/../../../lib/utils/var.sh"
+source "${LIB_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_NETWORK_DIR}/ports.sh"
 

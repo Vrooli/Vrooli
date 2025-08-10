@@ -285,8 +285,60 @@ cmd_prompt() {
             response=$(api_request "GET" "/prompts/$prompt_id") || exit 1
             format_output "$response" "$FORMAT"
             ;;
-        "create"|"test")
-            warn "Prompt $SUBCOMMAND command - implementation pending"
+        "create")
+            log "Creating new prompt..."
+            
+            # Collect input
+            local name="${ARGS[0]:-}"
+            local category="${ARGS[1]:-decision}"
+            local description="${ARGS[2]:-}"
+            
+            if [[ -z "$name" ]]; then
+                error "Prompt name required"
+                exit 1
+            fi
+            
+            local payload
+            payload=$(jq -n \
+                --arg name "$name" \
+                --arg category "$category" \
+                --arg description "$description" \
+                '{
+                    name: $name,
+                    category: $category,
+                    description: $description,
+                    content: "",
+                    parameters: []
+                }'
+            )
+            
+            local response
+            response=$(api_request "POST" "/prompts" "$payload") || exit 1
+            success "Prompt created"
+            format_output "$response" "$FORMAT"
+            ;;
+        "test")
+            local prompt_id="${ARGS[0]:-}"
+            local test_input="${ARGS[1]:-}"
+            
+            if [[ -z "$prompt_id" ]]; then
+                error "Prompt ID required"
+                exit 1
+            fi
+            
+            if [[ -z "$test_input" ]]; then
+                error "Test input required"
+                exit 1
+            fi
+            
+            log "Testing prompt..."
+            
+            local payload
+            payload=$(jq -n --arg input "$test_input" '{ input: $input }')
+            
+            local response
+            response=$(api_request "POST" "/prompts/$prompt_id/test" "$payload") || exit 1
+            format_output "$response" "$FORMAT"
             ;;
         *)
             error "Unknown prompt subcommand: $SUBCOMMAND"
@@ -305,8 +357,76 @@ cmd_workflow() {
             response=$(api_request "GET" "/workflows") || exit 1
             format_output "$response" "$FORMAT"
             ;;
-        "run"|"status")
-            warn "Workflow $SUBCOMMAND command - implementation pending"
+        "run")
+            local workflow_id="${ARGS[0]:-}"
+            local input_data="${ARGS[1]:-{}}"
+            
+            if [[ -z "$workflow_id" ]]; then
+                error "Workflow ID or name required"
+                exit 1
+            fi
+            
+            log "Executing workflow: $workflow_id"
+            
+            # Check if input is a file
+            if [[ -f "$input_data" ]]; then
+                input_data=$(cat "$input_data")
+            fi
+            
+            local payload
+            payload=$(jq -n --argjson input "$input_data" '{
+                input: $input,
+                async: false,
+                timeout: 30000
+            }')
+            
+            local response
+            response=$(api_request "POST" "/workflows/$workflow_id/execute" "$payload") || exit 1
+            
+            local status
+            status=$(echo "$response" | jq -r '.status')
+            
+            if [[ "$status" == "completed" ]]; then
+                success "Workflow executed successfully"
+            else
+                warn "Workflow execution status: $status"
+            fi
+            
+            format_output "$response" "$FORMAT"
+            ;;
+        "status")
+            local workflow_id="${ARGS[0]:-}"
+            local execution_id="${ARGS[1]:-}"
+            
+            if [[ -z "$workflow_id" || -z "$execution_id" ]]; then
+                error "Workflow ID and execution ID required"
+                exit 1
+            fi
+            
+            log "Checking execution status..."
+            
+            local response
+            response=$(api_request "GET" "/workflows/$workflow_id/executions/$execution_id") || exit 1
+            
+            local status
+            status=$(echo "$response" | jq -r '.status')
+            
+            case "$status" in
+                "completed")
+                    success "Execution completed"
+                    ;;
+                "running")
+                    log "Execution still running..."
+                    ;;
+                "failed")
+                    error "Execution failed"
+                    ;;
+                *)
+                    warn "Unknown status: $status"
+                    ;;
+            esac
+            
+            format_output "$response" "$FORMAT"
             ;;
         *)
             error "Unknown workflow subcommand: $SUBCOMMAND"
@@ -326,18 +446,79 @@ cmd_analyze() {
         exit 1
     fi
     
+    local payload
+    local endpoint
+    
     case "$analysis_type" in
         "decision")
             log "Performing decision analysis..."
+            
+            # Parse additional options for decision analysis
+            local options="${ARGS[1]:-}"
+            local criteria="${ARGS[2]:-}"
+            
+            payload=$(jq -n \
+                --arg scenario "$input" \
+                --arg options "$options" \
+                --arg criteria "$criteria" \
+                '{
+                    scenario: $scenario,
+                    options: (if $options != "" then ($options | split(",")) else [] end),
+                    criteria: (if $criteria != "" then ($criteria | split(",")) else [] end),
+                    include_recommendation: true
+                }'
+            )
+            endpoint="/analysis/decision"
             ;;
         "pros-cons")
             log "Generating pros-cons analysis..."
+            
+            # Parse depth option
+            local depth="${ARGS[1]:-detailed}"
+            
+            payload=$(jq -n \
+                --arg topic "$input" \
+                --arg depth "$depth" \
+                '{
+                    topic: $topic,
+                    depth: $depth
+                }'
+            )
+            endpoint="/analysis/pros-cons"
             ;;
         "swot")
             log "Performing SWOT analysis..."
+            
+            # Parse context option
+            local context="${ARGS[1]:-}"
+            
+            payload=$(jq -n \
+                --arg target "$input" \
+                --arg context "$context" \
+                '{
+                    target: $target,
+                    context: (if $context != "" then $context else null end),
+                    include_recommendations: true
+                }'
+            )
+            endpoint="/analysis/swot"
             ;;
-        "risk")
+        "risk"|"risks")
             log "Assessing risks..."
+            
+            # Parse risk categories
+            local categories="${ARGS[1]:-}"
+            
+            payload=$(jq -n \
+                --arg proposal "$input" \
+                --arg categories "$categories" \
+                '{
+                    proposal: $proposal,
+                    risk_categories: (if $categories != "" then ($categories | split(",")) else null end),
+                    include_mitigation: true
+                }'
+            )
+            endpoint="/analysis/risks"
             ;;
         *)
             error "Unknown analysis type: $analysis_type"
@@ -346,15 +527,19 @@ cmd_analyze() {
             ;;
     esac
     
-    local payload
-    payload=$(jq -n --arg input "$input" --arg type "$analysis_type" '{
-        input: $input,
-        type: $type,
-        options: {}
-    }')
-    
     local response
-    response=$(api_request "POST" "/analyze/$analysis_type" "$payload") || exit 1
+    response=$(api_request "POST" "$endpoint" "$payload") || exit 1
+    
+    # Check for success
+    local status
+    status=$(echo "$response" | jq -r '.status // "unknown"')
+    
+    if [[ "$status" == "success" ]]; then
+        success "Analysis completed"
+    elif [[ "$status" == "error" ]]; then
+        error "Analysis failed"
+    fi
+    
     format_output "$response" "$FORMAT"
 }
 

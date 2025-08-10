@@ -5,7 +5,7 @@
 #######################################
 # Start ComfyUI container with appropriate configuration
 #######################################
-comfyui::start_container() {
+docker::start_container() {
     log::info "Starting ComfyUI container..."
     log::debug "GPU_TYPE at start of start_container: ${GPU_TYPE:-not set}"
     
@@ -100,7 +100,7 @@ comfyui::start_container() {
         local waited=0
         
         while [[ $waited -lt $max_wait ]]; do
-            if comfyui::is_healthy; then
+            if docker::is_healthy; then
                 log::success "ComfyUI is ready!"
                 
                 # Show access information
@@ -118,7 +118,7 @@ comfyui::start_container() {
             waited=$((waited + 2))
             
             # Check if container is still running
-            if ! comfyui::is_running; then
+            if ! docker::is_running; then
                 log::error "Container stopped unexpectedly"
                 log::info "Checking container logs..."
                 docker::run logs --tail 50 "$COMFYUI_CONTAINER_NAME"
@@ -140,13 +140,13 @@ comfyui::start_container() {
 #######################################
 # Stop ComfyUI container
 #######################################
-comfyui::stop() {
-    if ! comfyui::container_exists; then
+docker::stop() {
+    if ! docker::container_exists; then
         log::info "ComfyUI container does not exist"
         return 0
     fi
     
-    if ! comfyui::is_running; then
+    if ! docker::is_running; then
         log::info "ComfyUI is not running"
         return 0
     fi
@@ -165,14 +165,14 @@ comfyui::stop() {
 #######################################
 # Start existing ComfyUI container
 #######################################
-comfyui::start() {
-    if ! comfyui::container_exists; then
+docker::start() {
+    if ! docker::container_exists; then
         log::error "ComfyUI container does not exist"
         log::info "Run '$0 --action install' first"
         return 1
     fi
     
-    if comfyui::is_running; then
+    if docker::is_running; then
         log::info "ComfyUI is already running"
         return 0
     fi
@@ -183,7 +183,7 @@ comfyui::start() {
         # Wait for it to be ready
         log::info "Waiting for ComfyUI to be ready..."
         
-        if comfyui::is_healthy; then
+        if docker::is_healthy; then
             log::success "ComfyUI started successfully"
             
             local port="${COMFYUI_CUSTOM_PORT:-$COMFYUI_DEFAULT_PORT}"
@@ -204,12 +204,12 @@ comfyui::start() {
 #######################################
 # Restart ComfyUI container
 #######################################
-comfyui::restart() {
+docker::restart() {
     log::info "Restarting ComfyUI..."
     
-    if comfyui::stop; then
+    if docker::stop; then
         sleep 2
-        if comfyui::start; then
+        if docker::start; then
             log::success "ComfyUI restarted successfully"
             return 0
         fi
@@ -222,8 +222,8 @@ comfyui::restart() {
 #######################################
 # Show ComfyUI container logs
 #######################################
-comfyui::logs() {
-    if ! comfyui::container_exists; then
+docker::logs() {
+    if ! docker::container_exists; then
         log::error "ComfyUI container does not exist"
         return 1
     fi
@@ -238,14 +238,14 @@ comfyui::logs() {
 #######################################
 # Remove ComfyUI container
 #######################################
-comfyui::remove_container() {
-    if ! comfyui::container_exists; then
+docker::remove_container() {
+    if ! docker::container_exists; then
         log::debug "Container does not exist, nothing to remove"
         return 0
     fi
     
     # Stop container if running
-    if comfyui::is_running; then
+    if docker::is_running; then
         log::info "Stopping ComfyUI container..."
         docker::run stop "$COMFYUI_CONTAINER_NAME" || {
             log::warn "Failed to stop container gracefully"
@@ -266,7 +266,7 @@ comfyui::remove_container() {
 #######################################
 # Pull ComfyUI Docker image
 #######################################
-comfyui::pull_image() {
+docker::pull_image() {
     local image="${COMFYUI_CUSTOM_IMAGE:-$COMFYUI_DEFAULT_IMAGE}"
     
     log::info "Pulling ComfyUI Docker image: $image"
@@ -290,12 +290,12 @@ comfyui::pull_image() {
 #######################################
 # Execute command in ComfyUI container
 #######################################
-comfyui::exec() {
+docker::exec() {
     local command="$1"
     shift
     local args=("$@")
     
-    if ! comfyui::is_running; then
+    if ! docker::is_running; then
         log::error "ComfyUI container is not running"
         return 1
     fi
@@ -306,11 +306,11 @@ comfyui::exec() {
 #######################################
 # Copy file to ComfyUI container
 #######################################
-comfyui::copy_to_container() {
+docker::copy_to_container() {
     local source="$1"
     local dest="$2"
     
-    if ! comfyui::container_exists; then
+    if ! docker::container_exists; then
         log::error "ComfyUI container does not exist"
         return 1
     fi
@@ -321,11 +321,11 @@ comfyui::copy_to_container() {
 #######################################
 # Copy file from ComfyUI container
 #######################################
-comfyui::copy_from_container() {
+docker::copy_from_container() {
     local source="$1"
     local dest="$2"
     
-    if ! comfyui::container_exists; then
+    if ! docker::container_exists; then
         log::error "ComfyUI container does not exist"
         return 1
     fi

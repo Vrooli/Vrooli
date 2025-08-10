@@ -15,7 +15,29 @@ source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
 
 # Source integration test libraries using var.sh
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_TEST_DIR}/integration/health-check.sh"
+if [[ -f "${var_SCRIPTS_TEST_DIR}/integration/health-check.sh" ]]; then
+    source "${var_SCRIPTS_TEST_DIR}/integration/health-check.sh"
+else
+    # Define basic functions if library not found
+    log_test_result() {
+        local test_name="$1"
+        local status="$2"
+        local message="$3"
+        echo "[$status] $test_name: $message"
+    }
+    
+    make_api_request() {
+        local endpoint="$1"
+        local method="${2:-GET}"
+        local timeout="${3:-10}"
+        curl -s -X "$method" "${BASE_URL}${endpoint}" --max-time "$timeout"
+    }
+    
+    validate_json_response() {
+        local response="$1"
+        echo "$response" | jq . >/dev/null 2>&1
+    }
+fi
 
 #######################################
 # SERVICE-SPECIFIC CONFIGURATION
@@ -23,10 +45,18 @@ source "${var_SCRIPTS_TEST_DIR}/integration/health-check.sh"
 
 # Load Whisper configuration
 # shellcheck disable=SC1091
-source "${var_RESOURCES_COMMON_FILE}"
+if [[ -f "${var_RESOURCES_COMMON_FILE}" ]]; then
+    source "${var_RESOURCES_COMMON_FILE}"
+fi
+
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../config/defaults.sh"
-whisper::export_config
+if [[ -f "$SCRIPT_DIR/../config/defaults.sh" ]]; then
+    source "$SCRIPT_DIR/../config/defaults.sh"
+    # Check if function exists before calling
+    if declare -f defaults::export_config >/dev/null 2>&1; then
+        defaults::export_config
+    fi
+fi
 
 # Override library defaults with Whisper-specific settings
 SERVICE_NAME="whisper"
@@ -40,7 +70,7 @@ SERVICE_METADATA=(
 )
 
 # Test configuration
-readonly TEST_AUDIO_DIR="$SCRIPT_DIR/../../../__test/fixtures/data/audio"
+readonly TEST_AUDIO_DIR="${var_SCRIPTS_TEST_DIR}/fixtures/data/audio"
 readonly API_BASE=""
 
 #######################################

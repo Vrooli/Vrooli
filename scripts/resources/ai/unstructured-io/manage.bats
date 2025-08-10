@@ -139,7 +139,9 @@ teardown() {
     [ "$status" -eq 0 ]
     
     # Create test file
-    local test_file=$(create_temp_file "test.txt" "Test content")
+    local test_dir=$(vrooli_make_temp_dir "unstructured_test")
+    local test_file="$test_dir/test.txt"
+    echo "Test content" > "$test_file"
     
     # Test process
     run unstructured-io-manage --action process --file "$test_file"
@@ -157,8 +159,11 @@ teardown() {
     [ "$status" -eq 0 ]
     
     # Create test files
-    local test_file1=$(create_temp_file "test1.txt" "Test content 1")
-    local test_file2=$(create_temp_file "test2.txt" "Test content 2")
+    local test_dir=$(vrooli_make_temp_dir "unstructured_batch_test")
+    local test_file1="$test_dir/test1.txt"
+    local test_file2="$test_dir/test2.txt"
+    echo "Test content 1" > "$test_file1"
+    echo "Test content 2" > "$test_file2"
     
     # Test batch process
     run unstructured-io-manage --action process --file "$test_file1,$test_file2" --batch yes
@@ -183,7 +188,9 @@ teardown() {
 # Test supported formats
 @test "unstructured_io::is_format_supported works correctly" {
     # Test supported format by trying to process
-    local test_file=$(create_temp_file "test.pdf" "Test PDF content")
+    local test_dir=$(vrooli_make_temp_dir "unstructured_format_test")
+    local test_file="$test_dir/test.pdf"
+    echo "Test PDF content" > "$test_file"
     
     run unstructured-io-manage --action install
     [ "$status" -eq 0 ]
@@ -195,7 +202,8 @@ teardown() {
     [ "$status" -eq 0 ]
     
     # Test unsupported format 
-    local unsupported_file=$(create_temp_file "test.xyz" "Test unsupported content")
+    local unsupported_file="$test_dir/test.xyz"
+    echo "Test unsupported content" > "$unsupported_file"
     run unstructured-io-manage --action process --file "$unsupported_file"
     [ "$status" -ne 0 ]
 }
@@ -210,7 +218,9 @@ teardown() {
     [ "$status" -eq 0 ]
     
     # Create test file
-    local test_file=$(create_temp_file "test.pdf" "Test PDF with tables")
+    local test_dir=$(vrooli_make_temp_dir "unstructured_tables_test")
+    local test_file="$test_dir/test.pdf"
+    echo "Test PDF with tables" > "$test_file"
     
     # Test table extraction
     run unstructured-io-manage --action extract-tables --file "$test_file"
@@ -228,7 +238,9 @@ teardown() {
     [ "$status" -eq 0 ]
     
     # Create test file
-    local test_file=$(create_temp_file "test.docx" "Test Word document")
+    local test_dir=$(vrooli_make_temp_dir "unstructured_metadata_test")
+    local test_file="$test_dir/test.docx"
+    echo "Test Word document" > "$test_file"
     
     # Test metadata extraction
     run unstructured-io-manage --action extract-metadata --file "$test_file"

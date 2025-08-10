@@ -25,7 +25,7 @@ source "${var_LIB_UTILS_DIR}/args-cli.sh"
 source "${SCRIPT_DIR}/lib/common.sh"
 
 # Whisper configuration
-readonly WHISPER_PORT="${WHISPER_CUSTOM_PORT:-$(resources::get_default_port "whisper")}"
+readonly WHISPER_PORT="${WHISPER_CUSTOM_PORT:-9000}"
 readonly WHISPER_BASE_URL="http://localhost:${WHISPER_PORT}"
 readonly WHISPER_CONTAINER_NAME="whisper"
 readonly WHISPER_DATA_DIR="${HOME}/.whisper"
@@ -54,7 +54,7 @@ declare -A MODEL_SIZES=(
 #######################################
 # Parse command line arguments
 #######################################
-whisper::parse_arguments() {
+manage::parse_arguments() {
     args::reset
     
     args::register_help
@@ -110,14 +110,14 @@ whisper::parse_arguments() {
         --default "transcribe"
     
     if args::is_asking_for_help "$@"; then
-        whisper::usage
+        manage::usage
         exit 0
     fi
     
     # Handle version request (check arguments manually)
     for arg in "$@"; do
         if [[ "$arg" == "--version" ]]; then
-            whisper::version
+            manage::version
             exit 0
         fi
     done
@@ -137,7 +137,7 @@ whisper::parse_arguments() {
 #######################################
 # Display usage information
 #######################################
-whisper::usage() {
+manage::usage() {
     args::usage "$DESCRIPTION"
     echo
     echo "Examples:"
@@ -159,15 +159,15 @@ whisper::usage() {
 #######################################
 # Display version information
 #######################################
-whisper::version() {
+manage::version() {
     echo "whisper resource manager v1.0"
     echo "Vrooli AI resource for speech-to-text transcription"
     
     # Show service version if container is running
-    if whisper::is_healthy; then
+    if manage::is_healthy; then
         echo "Service status: Running"
         local service_info
-        if service_info=$(whisper::get_service_info 2>/dev/null); then
+        if service_info=$(manage::get_service_info 2>/dev/null); then
             echo "$service_info"
         fi
     else
@@ -180,7 +180,7 @@ whisper::version() {
 # Check if Whisper container exists
 # Returns: 0 if exists, 1 otherwise
 #######################################
-whisper::container_exists() {
+manage::container_exists() {
     docker ps -a --format "{{.Names}}" | grep -q "^${WHISPER_CONTAINER_NAME}$"
 }
 
@@ -188,7 +188,7 @@ whisper::container_exists() {
 # Check if Whisper is running
 # Returns: 0 if running, 1 otherwise
 #######################################
-whisper::is_running() {
+manage::is_running() {
     docker ps --format "{{.Names}}" | grep -q "^${WHISPER_CONTAINER_NAME}$"
 }
 
@@ -196,7 +196,7 @@ whisper::is_running() {
 # Check if Whisper API is healthy and validate service identity
 # Returns: 0 if responsive and valid, 1 otherwise
 #######################################
-whisper::is_healthy() {
+manage::is_healthy() {
     # Check the OpenAPI endpoint which returns 200 when the service is ready
     local response_code
     response_code=$(curl -s -o /dev/null -w "%{http_code}" "$WHISPER_BASE_URL/openapi.json")
@@ -220,8 +220,8 @@ whisper::is_healthy() {
 # Get detailed service information for validation
 # Returns: service info or empty string if not available
 #######################################
-whisper::get_service_info() {
-    if ! whisper::is_healthy; then
+manage::get_service_info() {
+    if ! manage::is_healthy; then
         return 1
     fi
     
@@ -246,7 +246,7 @@ whisper::get_service_info() {
 #######################################
 # Validate model size
 #######################################
-whisper::validate_model() {
+manage::validate_model() {
     local model="$1"
     for valid_model in "${WHISPER_MODEL_SIZES[@]}"; do
         if [[ "$model" == "$valid_model" ]]; then
@@ -260,7 +260,7 @@ whisper::validate_model() {
 # Comprehensive GPU validation
 # Returns: 0 if GPU is available and compatible, 1 otherwise
 #######################################
-whisper::validate_gpu() {
+manage::validate_gpu() {
     log::info "Validating GPU support..."
     
     # Check if nvidia-smi is available
@@ -310,7 +310,7 @@ whisper::validate_gpu() {
 #######################################
 # Get GPU system information for diagnostics
 #######################################
-whisper::get_gpu_info() {
+manage::get_gpu_info() {
     if ! system::is_command "nvidia-smi"; then
         echo "NVIDIA drivers not installed"
         return 1
@@ -326,7 +326,7 @@ whisper::get_gpu_info() {
 #######################################
 # Create necessary directories
 #######################################
-whisper::create_directories() {
+manage::create_directories() {
     log::info "Creating Whisper directories..."
     
     mkdir -p "$WHISPER_DATA_DIR" || {
@@ -354,7 +354,7 @@ whisper::create_directories() {
 #######################################
 # Pull Docker image with progress indicators
 #######################################
-whisper::pull_image() {
+manage::pull_image() {
     local image="$1"
     
     log::info "Pulling Whisper Docker image: $image"
@@ -411,20 +411,20 @@ whisper::pull_image() {
 #######################################
 # Start Whisper container
 #######################################
-whisper::start_container() {
-    if whisper::is_running && [[ "$FORCE" != "yes" ]]; then
+manage::start_container() {
+    if manage::is_running && [[ "$FORCE" != "yes" ]]; then
         log::info "Whisper is already running"
         return 0
     fi
     
     # Stop existing container if force is specified
-    if whisper::is_running && [[ "$FORCE" == "yes" ]]; then
+    if manage::is_running && [[ "$FORCE" == "yes" ]]; then
         log::info "Stopping existing container (force specified)..."
-        whisper::stop_container
+        manage::stop_container
     fi
     
     # Remove existing container if it exists but is not running
-    if whisper::container_exists && ! whisper::is_running; then
+    if manage::container_exists && ! manage::is_running; then
         log::info "Removing existing stopped container..."
         docker rm "$WHISPER_CONTAINER_NAME" >/dev/null 2>&1 || true
     fi
@@ -432,7 +432,7 @@ whisper::start_container() {
     # Determine which image to use
     local image="$WHISPER_CPU_IMAGE"
     if [[ "$USE_GPU" == "yes" ]]; then
-        if whisper::validate_gpu; then
+        if manage::validate_gpu; then
             image="$WHISPER_IMAGE"
             log::success "✅ GPU validation passed - using GPU-accelerated image"
         else
@@ -470,7 +470,7 @@ whisper::start_container() {
         if resources::wait_for_service "Whisper" "$WHISPER_PORT" 180; then
             # Additional health check
             sleep 5
-            if whisper::is_healthy; then
+            if manage::is_healthy; then
                 log::success "✅ Whisper is running and healthy on port $WHISPER_PORT"
                 return 0
             else
@@ -492,8 +492,8 @@ whisper::start_container() {
 #######################################
 # Stop Whisper container
 #######################################
-whisper::stop_container() {
-    if ! whisper::is_running; then
+manage::stop_container() {
+    if ! manage::is_running; then
         log::info "Whisper is not running"
         return 0
     fi
@@ -511,8 +511,8 @@ whisper::stop_container() {
 #######################################
 # Show container logs
 #######################################
-whisper::show_logs() {
-    if ! whisper::container_exists; then
+manage::show_logs() {
+    if ! manage::container_exists; then
         log::error "Whisper container does not exist"
         return 1
     fi
@@ -523,7 +523,7 @@ whisper::show_logs() {
 #######################################
 # Validate audio file before processing
 #######################################
-whisper::validate_audio_file() {
+manage::validate_audio_file() {
     local file="$1"
     local max_size_mb=100
     
@@ -570,7 +570,7 @@ whisper::validate_audio_file() {
 #######################################
 # Parse API error response for better error messages
 #######################################
-whisper::parse_api_error() {
+manage::parse_api_error() {
     local response="$1"
     
     # Try to parse as JSON error
@@ -615,14 +615,14 @@ whisper::parse_api_error() {
 #######################################
 # Transcribe audio file
 #######################################
-whisper::transcribe() {
+manage::transcribe() {
     if [[ -z "${AUDIO_FILE:-}" ]]; then
         log::error "No audio file specified. Use --file <path>"
         return 1
     fi
     
     # Validate audio file
-    if ! whisper::validate_audio_file "$AUDIO_FILE"; then
+    if ! manage::validate_audio_file "$AUDIO_FILE"; then
         return 1
     fi
     
@@ -632,7 +632,7 @@ whisper::transcribe() {
     local file_ext="${AUDIO_FILE##*.}"
     file_ext="${file_ext,,}"
     
-    if ! whisper::is_healthy; then
+    if ! manage::is_healthy; then
         log::error "Whisper service is not available"
         log::info "Start it with: $0 --action start"
         return 1
@@ -668,7 +668,7 @@ whisper::transcribe() {
         if echo "$response" | jq . >/dev/null 2>&1; then
             # Check if this is an error response
             if echo "$response" | jq -e '.detail' >/dev/null 2>&1; then
-                whisper::parse_api_error "$response"
+                manage::parse_api_error "$response"
                 return 1
             fi
             
@@ -695,7 +695,7 @@ whisper::transcribe() {
                 return 1
             fi
         else
-            whisper::parse_api_error "$response"
+            manage::parse_api_error "$response"
             return 1
         fi
     else
@@ -708,7 +708,7 @@ whisper::transcribe() {
 #######################################
 # Update Vrooli configuration
 #######################################
-whisper::update_config() {
+manage::update_config() {
     local additional_config=$(cat <<EOF
 {
     "modelSize": "$MODEL_SIZE",
@@ -736,7 +736,7 @@ EOF
 #######################################
 # Setup automatic cleanup scheduling
 #######################################
-whisper::setup_automatic_cleanup() {
+manage::setup_automatic_cleanup() {
     local script_path="$(realpath "${BASH_SOURCE[0]}")"
     local cleanup_schedule="0 */6 * * *"  # Every 6 hours
     local cron_command="$script_path --action cleanup"
@@ -781,7 +781,7 @@ whisper::setup_automatic_cleanup() {
 #######################################
 # Remove automatic cleanup scheduling
 #######################################
-whisper::remove_automatic_cleanup() {
+manage::remove_automatic_cleanup() {
     log::info "Removing automatic cleanup schedule..."
     
     if ! system::is_command "crontab"; then
@@ -811,14 +811,14 @@ whisper::remove_automatic_cleanup() {
 #######################################
 # Complete Whisper installation
 #######################################
-whisper::install() {
+manage::install() {
     log::header "🎤 Installing Whisper Speech-to-Text"
     
     # Start rollback context
     resources::start_rollback_context "install_whisper"
     
     # Check if already installed
-    if whisper::container_exists && whisper::is_running && [[ "$FORCE" != "yes" ]]; then
+    if manage::container_exists && manage::is_running && [[ "$FORCE" != "yes" ]]; then
         log::info "Whisper is already installed and running"
         log::info "Use --force yes to reinstall"
         return 0
@@ -903,7 +903,7 @@ whisper::install() {
     fi
     
     # Validate model size
-    if ! whisper::validate_model "$MODEL_SIZE"; then
+    if ! manage::validate_model "$MODEL_SIZE"; then
         log::error "Invalid model size: $MODEL_SIZE"
         log::info "Valid sizes: ${WHISPER_MODEL_SIZES[*]}"
         return 1
@@ -934,7 +934,7 @@ whisper::install() {
     fi
     
     # Create directories
-    if ! whisper::create_directories; then
+    if ! manage::create_directories; then
         return 1
     fi
     
@@ -951,12 +951,12 @@ whisper::install() {
     fi
     
     # Pull Docker image
-    if ! whisper::pull_image "$image"; then
+    if ! manage::pull_image "$image"; then
         return 1
     fi
     
     # Start container
-    if ! whisper::start_container; then
+    if ! manage::start_container; then
         return 1
     fi
     
@@ -976,13 +976,13 @@ whisper::install() {
     OPERATION_ID=""
     
     # Update Vrooli configuration
-    if ! whisper::update_config; then
+    if ! manage::update_config; then
         log::warn "Failed to update Vrooli configuration"
         log::info "Whisper is installed but may need manual configuration"
     fi
     
     # Setup automatic cleanup scheduling
-    if ! whisper::setup_automatic_cleanup; then
+    if ! manage::setup_automatic_cleanup; then
         log::warn "Failed to setup automatic cleanup - you may want to run cleanup manually"
     fi
     
@@ -990,13 +990,13 @@ whisper::install() {
     
     # Show status
     echo
-    whisper::status
+    manage::status
 }
 
 #######################################
 # Uninstall Whisper
 #######################################
-whisper::uninstall() {
+manage::uninstall() {
     log::header "🗑️  Uninstalling Whisper"
     
     if ! flow::is_yes "$YES"; then
@@ -1008,12 +1008,12 @@ whisper::uninstall() {
     fi
     
     # Stop container
-    if whisper::is_running; then
-        whisper::stop_container
+    if manage::is_running; then
+        manage::stop_container
     fi
     
     # Remove container
-    if whisper::container_exists; then
+    if manage::container_exists; then
         log::info "Removing Whisper container..."
         docker rm "$WHISPER_CONTAINER_NAME" >/dev/null 2>&1 || true
     fi
@@ -1032,7 +1032,7 @@ whisper::uninstall() {
     resources::remove_config "ai" "whisper"
     
     # Remove automatic cleanup scheduling
-    whisper::remove_automatic_cleanup
+    manage::remove_automatic_cleanup
     
     log::success "✅ Whisper uninstalled successfully"
 }
@@ -1040,7 +1040,7 @@ whisper::uninstall() {
 #######################################
 # Show Whisper status
 #######################################
-whisper::status() {
+manage::status() {
     log::header "📊 Whisper Status"
     
     # Check Docker
@@ -1055,8 +1055,8 @@ whisper::status() {
     fi
     
     # Check container status
-    if whisper::container_exists; then
-        if whisper::is_running; then
+    if manage::container_exists; then
+        if manage::is_running; then
             log::success "✅ Whisper container is running"
             
             # Get container stats
@@ -1068,13 +1068,13 @@ whisper::status() {
             fi
             
             # Check health and validate service
-            if whisper::is_healthy; then
+            if manage::is_healthy; then
                 log::success "✅ API is healthy and responding"
                 
                 # Show detailed service information
                 echo
                 log::info "Service Details:"
-                if service_info=$(whisper::get_service_info 2>/dev/null); then
+                if service_info=$(manage::get_service_info 2>/dev/null); then
                     echo "$service_info" | while IFS= read -r line; do
                         log::info "  $line"
                     done
@@ -1116,7 +1116,7 @@ whisper::status() {
             if [[ "$USE_GPU" == "yes" ]] && system::is_command "nvidia-smi"; then
                 echo
                 log::info "GPU Information:"
-                if gpu_info=$(whisper::get_gpu_info 2>/dev/null); then
+                if gpu_info=$(manage::get_gpu_info 2>/dev/null); then
                     echo "$gpu_info" | while IFS= read -r line; do
                         if [[ "$line" =~ ^=== ]]; then
                             log::info "  $line"
@@ -1153,7 +1153,7 @@ whisper::status() {
 #######################################
 # List available models
 #######################################
-whisper::list_models() {
+manage::list_models() {
     log::header "📋 Available Whisper Models"
     
     echo "Model sizes (from smallest to largest):"
@@ -1186,7 +1186,7 @@ whisper::list_models() {
 #######################################
 # Show Whisper information
 #######################################
-whisper::info() {
+manage::info() {
     cat << EOF
 === Whisper Resource Information ===
 
@@ -1246,11 +1246,11 @@ EOF
 #######################################
 # Run test transcription
 #######################################
-whisper::test() {
+manage::test() {
     log::header "🧪 Testing Whisper Transcription"
     
     # Check if Whisper is running
-    if ! whisper::is_healthy; then
+    if ! manage::is_healthy; then
         log::error "Whisper is not running. Start it with: $0 --action start"
         return 1
     fi
@@ -1292,7 +1292,7 @@ whisper::test() {
         local original_audio_file="$AUDIO_FILE"
         export AUDIO_FILE="$test_file"
         
-        if result=$(whisper::transcribe 2>&1); then
+        if result=$(manage::transcribe 2>&1); then
             # Extract just the text field from JSON output
             local transcribed_text
             # Filter out ALL log lines (anything starting with [) and extract JSON
@@ -1386,7 +1386,7 @@ whisper::test() {
 # Arguments:
 #   $1: Age in days (default: 1)
 #######################################
-whisper::cleanup_uploads() {
+manage::cleanup_uploads() {
     local age_days="${1:-1}"
     
     log::info "Cleaning up upload files older than $age_days day(s)..."
@@ -1445,9 +1445,9 @@ whisper::cleanup_uploads() {
 #   1 - Error
 #   2 - Already in desired state (skip)
 #######################################
-whisper::start() {
+manage::start() {
     # Standard interface function - delegates to existing implementation
-    whisper::start_container
+    manage::start_container
 }
 
 #######################################
@@ -1459,9 +1459,9 @@ whisper::start() {
 #   1 - Error
 #   2 - Already in desired state (skip)
 #######################################
-whisper::stop() {
+manage::stop() {
     # Standard interface function - delegates to existing implementation
-    whisper::stop_container
+    manage::stop_container
 }
 
 #######################################
@@ -1472,62 +1472,62 @@ whisper::stop() {
 #   0 - Success
 #   1 - Error
 #######################################
-whisper::logs() {
+manage::logs() {
     # Standard interface function - delegates to existing implementation
-    whisper::show_logs
+    manage::show_logs
 }
-whisper::main() {
-    whisper::parse_arguments "$@"
+manage::main() {
+    manage::parse_arguments "$@"
     
     # If no action specified, show usage
     if [[ -z "$ACTION" ]]; then
         log::error "No action specified"
-        whisper::usage
+        manage::usage
         exit 1
     fi
     
     case "$ACTION" in
         install)
-            whisper::install
+            manage::install
             ;;
         uninstall)
-            whisper::uninstall
+            manage::uninstall
             ;;
         start)
-            whisper::start_container
+            manage::start_container
             ;;
         stop)
-            whisper::stop_container
+            manage::stop_container
             ;;
         restart)
-            whisper::stop_container
+            manage::stop_container
             sleep 2
-            whisper::start_container
+            manage::start_container
             ;;
         status)
-            whisper::status
+            manage::status
             ;;
         logs)
-            whisper::show_logs
+            manage::show_logs
             ;;
         transcribe)
-            whisper::transcribe
+            manage::transcribe
             ;;
         models)
-            whisper::list_models
+            manage::list_models
             ;;
         info)
-            whisper::info
+            manage::info
             ;;
         test)
-            whisper::test
+            manage::test
             ;;
         cleanup)
-            whisper::cleanup_uploads
+            manage::cleanup_uploads
             ;;
         *)
             log::error "Unknown action: $ACTION"
-            whisper::usage
+            manage::usage
             exit 1
             ;;
     esac
@@ -1535,5 +1535,5 @@ whisper::main() {
 
 # Execute main function if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    whisper::main "$@"
+    manage::main "$@"
 fi

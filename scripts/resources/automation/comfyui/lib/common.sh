@@ -5,16 +5,21 @@
 # Get the ComfyUI script directory
 COMFYUI_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 
+# Source var.sh first if not already sourced
+if [[ -z "${var_LIB_UTILS_DIR:-}" ]]; then
+    # shellcheck disable=SC1091
+    source "${COMFYUI_SCRIPT_DIR}/../../../lib/utils/var.sh"
+fi
+
 # Source configuration
 # shellcheck disable=SC1091
 source "${COMFYUI_SCRIPT_DIR}/config/defaults.sh"
 
-# Source Vrooli common utilities
-RESOURCES_DIR="${COMFYUI_SCRIPT_DIR}/../.."
+# Source Vrooli common utilities using var_ variables
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/common.sh"
+source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../lib/utils/args-cli.sh"
+source "${var_LIB_UTILS_DIR}/args-cli.sh"
 
 # Global variables for script state
 declare -g ACTION=""
@@ -28,7 +33,7 @@ declare -g PROMPT_ID=""
 #######################################
 # Parse command line arguments
 #######################################
-comfyui::parse_arguments() {
+common::parse_arguments() {
     args::reset
     
     args::register_help
@@ -116,21 +121,21 @@ comfyui::parse_arguments() {
 #######################################
 # Check if ComfyUI container exists
 #######################################
-comfyui::container_exists() {
+common::container_exists() {
     docker::run ps -a --filter "name=^${COMFYUI_CONTAINER_NAME}$" --format "{{.Names}}" | grep -q "^${COMFYUI_CONTAINER_NAME}$"
 }
 
 #######################################
 # Check if ComfyUI is running
 #######################################
-comfyui::is_running() {
+common::is_running() {
     docker::run ps --filter "name=^${COMFYUI_CONTAINER_NAME}$" --filter "status=running" --format "{{.Names}}" | grep -q "^${COMFYUI_CONTAINER_NAME}$"
 }
 
 #######################################
 # Check if ComfyUI API is healthy
 #######################################
-comfyui::is_healthy() {
+common::is_healthy() {
     local max_attempts=30
     local attempt=0
     
@@ -156,7 +161,7 @@ comfyui::is_healthy() {
 #######################################
 # Validate ComfyUI is ready for operations
 #######################################
-comfyui::check_ready() {
+common::check_ready() {
     log::info "Checking if ComfyUI is ready..."
     
     # Check container exists
@@ -187,7 +192,7 @@ comfyui::check_ready() {
 #######################################
 # Create required directories
 #######################################
-comfyui::create_directories() {
+common::create_directories() {
     log::info "Creating ComfyUI directories..."
     
     for dir in "${COMFYUI_DIRS[@]}"; do
@@ -213,7 +218,7 @@ comfyui::create_directories() {
 #######################################
 # Update Vrooli configuration
 #######################################
-comfyui::update_config() {
+common::update_config() {
     log::info "Updating Vrooli configuration for ComfyUI..."
     
     local port="${COMFYUI_CUSTOM_PORT:-$COMFYUI_DEFAULT_PORT}"
@@ -239,7 +244,7 @@ comfyui::update_config() {
 #######################################
 # Display cleanup help
 #######################################
-comfyui::cleanup_help() {
+common::cleanup_help() {
     log::header "🧹 ComfyUI Manual Cleanup Instructions"
     
     echo "If the uninstall script fails or you need to manually clean up ComfyUI:"

@@ -6,7 +6,7 @@
 # Export user-facing messages
 # Idempotent - safe to call multiple times
 #######################################
-whisper::export_messages() {
+messages::export_messages() {
     # Success messages (only set if not already defined)
     [[ -z "${MSG_INSTALL_SUCCESS:-}" ]] && readonly MSG_INSTALL_SUCCESS="✅ Whisper installed successfully"
     [[ -z "${MSG_START_SUCCESS:-}" ]] && readonly MSG_START_SUCCESS="✅ Whisper started successfully"
@@ -102,4 +102,4 @@ whisper::export_messages() {
 }
 
 # Export function for subshell availability
-export -f whisper::export_messages
+export -f messages::export_messages

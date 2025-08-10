@@ -1,17 +1,29 @@
 #!/usr/bin/env bats
 # Tests for Browserless status.sh functions
+bats_require_minimum_version 1.5.0
+
+# Setup paths and source var.sh first
+SCRIPT_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")" && pwd)"
+# shellcheck disable=SC1091
+source "$(cd "${SCRIPT_DIR}/../../../../../" && pwd)/lib/utils/var.sh"
+
+# Load Vrooli test infrastructure using var_ variables
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
 
 # Expensive setup operations run once per file
 setup_file() {
-    # Load Vrooli test infrastructure
-    source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
+    # Use Vrooli service test setup
+    vrooli_setup_service_test "browserless"
     
-    # Load dependencies once per file
-    SCRIPT_DIR="${BATS_TEST_DIRNAME}"
-    BROWSERLESS_DIR="$(dirname "$SCRIPT_DIR")"
+    # Set up directories and paths once
+    export BROWSERLESS_DIR="${SCRIPT_DIR}/.."
+    export MOCK_DIR="${var_SCRIPTS_TEST_DIR}/fixtures/mocks"
     
     # Load configuration and messages once
+    # shellcheck disable=SC1091
     source "${BROWSERLESS_DIR}/config/defaults.sh"
+    # shellcheck disable=SC1091
     source "${BROWSERLESS_DIR}/config/messages.sh"
     
     # Load status functions once

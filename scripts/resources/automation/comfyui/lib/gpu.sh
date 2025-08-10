@@ -5,7 +5,7 @@
 #######################################
 # Detect GPU type without logging (for use in conditionals)
 #######################################
-comfyui::detect_gpu_silent() {
+gpu::detect_gpu_silent() {
     # Check for NVIDIA GPU
     if system::is_command "nvidia-smi" && nvidia-smi >/dev/null 2>&1; then
         echo "nvidia"
@@ -37,11 +37,11 @@ comfyui::detect_gpu_silent() {
 #######################################
 # Detect GPU type with user interaction
 #######################################
-comfyui::detect_gpu() {
+gpu::detect_gpu() {
     log::info "Detecting GPU type..."
     
     local detected_gpu
-    detected_gpu=$(comfyui::detect_gpu_silent)
+    detected_gpu=$(gpu::detect_gpu_silent)
     
     case "$detected_gpu" in
         nvidia)
@@ -74,7 +74,7 @@ comfyui::detect_gpu() {
 #######################################
 # Detect OS distribution for package management
 #######################################
-comfyui::detect_os_distribution() {
+gpu::detect_os_distribution() {
     if [[ -f /etc/os-release ]]; then
         # shellcheck disable=SC1091
         source /etc/os-release
@@ -100,7 +100,7 @@ comfyui::detect_os_distribution() {
 #######################################
 # Check if NVIDIA Container Runtime is installed
 #######################################
-comfyui::is_nvidia_runtime_installed() {
+gpu::is_nvidia_runtime_installed() {
     # Check if nvidia-container-toolkit is installed
     if system::is_command "nvidia-container-toolkit"; then
         return 0
@@ -122,7 +122,7 @@ comfyui::is_nvidia_runtime_installed() {
 #######################################
 # Check if Docker is configured for NVIDIA
 #######################################
-comfyui::is_docker_nvidia_configured() {
+gpu::is_docker_nvidia_configured() {
     # Method 1: Check docker info for nvidia runtime
     if docker::run info 2>/dev/null | grep -q "nvidia"; then
         return 0
@@ -146,7 +146,7 @@ comfyui::is_docker_nvidia_configured() {
 #######################################
 # Test NVIDIA runtime functionality
 #######################################
-comfyui::test_nvidia_runtime() {
+gpu::test_nvidia_runtime() {
     log::info "Testing NVIDIA runtime..."
     
     # First check if runtime is available
@@ -179,7 +179,7 @@ comfyui::test_nvidia_runtime() {
 #######################################
 # Comprehensive NVIDIA requirements validation
 #######################################
-comfyui::validate_nvidia_requirements() {
+gpu::validate_nvidia_requirements() {
     log::header "🔍 Validating NVIDIA Requirements"
     
     local validation_passed=true
@@ -205,7 +205,7 @@ comfyui::validate_nvidia_requirements() {
     
     # 2. Check NVIDIA Container Runtime
     log::info "Checking NVIDIA Container Runtime..."
-    if comfyui::is_nvidia_runtime_installed; then
+    if gpu::is_nvidia_runtime_installed; then
         log::success "✅ NVIDIA Container Runtime is installed"
     else
         log::error "❌ NVIDIA Container Runtime not found"
@@ -214,7 +214,7 @@ comfyui::validate_nvidia_requirements() {
     
     # 3. Check Docker NVIDIA configuration
     log::info "Checking Docker NVIDIA configuration..."
-    if comfyui::is_docker_nvidia_configured; then
+    if gpu::is_docker_nvidia_configured; then
         log::success "✅ Docker is configured for NVIDIA GPUs"
     else
         log::error "❌ Docker is not configured for NVIDIA GPUs"
@@ -224,7 +224,7 @@ comfyui::validate_nvidia_requirements() {
     # 4. Test GPU access in container
     if [[ "$validation_passed" == "true" ]]; then
         log::info "Testing GPU access in Docker container..."
-        if comfyui::test_nvidia_runtime; then
+        if gpu::test_nvidia_runtime; then
             log::success "✅ GPU access in containers is working"
         else
             log::error "❌ Cannot access GPU in containers"
@@ -247,21 +247,21 @@ comfyui::validate_nvidia_requirements() {
 #######################################
 # Install NVIDIA Container Runtime
 #######################################
-comfyui::install_nvidia_runtime() {
+gpu::install_nvidia_runtime() {
     local distro
-    distro=$(comfyui::detect_os_distribution)
+    distro=$(gpu::detect_os_distribution)
     
     log::info "Detected distribution type: $distro"
     
     case "$distro" in
         apt)
-            comfyui::install_nvidia_runtime_apt
+            gpu::install_nvidia_runtime_apt
             ;;
         yum)
-            comfyui::install_nvidia_runtime_yum
+            gpu::install_nvidia_runtime_yum
             ;;
         pacman)
-            comfyui::install_nvidia_runtime_pacman
+            gpu::install_nvidia_runtime_pacman
             ;;
         *)
             log::error "Unsupported distribution for automatic installation"
@@ -273,7 +273,7 @@ comfyui::install_nvidia_runtime() {
 #######################################
 # Install NVIDIA runtime on Ubuntu/Debian
 #######################################
-comfyui::install_nvidia_runtime_apt() {
+gpu::install_nvidia_runtime_apt() {
     log::info "Installing NVIDIA Container Runtime for Ubuntu/Debian..."
     
     # Add rollback action
@@ -338,7 +338,7 @@ comfyui::install_nvidia_runtime_apt() {
 #######################################
 # Install NVIDIA runtime on CentOS/RHEL/Fedora
 #######################################
-comfyui::install_nvidia_runtime_yum() {
+gpu::install_nvidia_runtime_yum() {
     log::info "Installing NVIDIA Container Runtime for CentOS/RHEL/Fedora..."
     
     # Set up the repository
@@ -385,7 +385,7 @@ comfyui::install_nvidia_runtime_yum() {
 #######################################
 # Install NVIDIA runtime on Arch Linux
 #######################################
-comfyui::install_nvidia_runtime_pacman() {
+gpu::install_nvidia_runtime_pacman() {
     log::info "Installing NVIDIA Container Runtime for Arch Linux..."
     
     # Install from AUR
@@ -421,9 +421,9 @@ comfyui::install_nvidia_runtime_pacman() {
 #######################################
 # Show manual NVIDIA installation guide
 #######################################
-comfyui::show_manual_installation_guide() {
+gpu::show_manual_installation_guide() {
     local distro
-    distro=$(comfyui::detect_os_distribution)
+    distro=$(gpu::detect_os_distribution)
     
     log::header "📖 Manual NVIDIA Container Runtime Installation"
     
@@ -479,7 +479,7 @@ comfyui::show_manual_installation_guide() {
 #######################################
 # Handle NVIDIA requirements interactively
 #######################################
-comfyui::handle_nvidia_requirements() {
+gpu::handle_nvidia_requirements() {
     log::header "🎮 NVIDIA GPU Setup Required"
     
     log::info "ComfyUI requires NVIDIA Container Runtime to use your GPU."
@@ -491,8 +491,8 @@ comfyui::handle_nvidia_requirements() {
         # Check for COMFYUI_NVIDIA_CHOICE environment variable
         if [[ -n "$COMFYUI_NVIDIA_CHOICE" ]]; then
             case "$COMFYUI_NVIDIA_CHOICE" in
-                1) comfyui::install_nvidia_runtime && return 0 || return 1 ;;
-                2) comfyui::show_manual_installation_guide; return 1 ;;
+                1) gpu::install_nvidia_runtime && return 0 || return 1 ;;
+                2) gpu::show_manual_installation_guide; return 1 ;;
                 3) log::warn "Continuing with CPU mode"; GPU_TYPE="cpu"; return 0 ;;
                 4) log::info "Installation cancelled"; return 1 ;;
                 *) log::error "Invalid COMFYUI_NVIDIA_CHOICE: $COMFYUI_NVIDIA_CHOICE"; return 1 ;;
@@ -500,12 +500,12 @@ comfyui::handle_nvidia_requirements() {
         else
             # Auto-install NVIDIA runtime when GPU detected in non-interactive mode
             log::info "Non-interactive mode: Auto-installing NVIDIA Container Runtime"
-            comfyui::install_nvidia_runtime && return 0 || return 1
+            gpu::install_nvidia_runtime && return 0 || return 1
         fi
     fi
     
     # Interactive mode
-    if ! comfyui::prompt_runtime_installation; then
+    if ! gpu::prompt_runtime_installation; then
         return 1
     fi
     
@@ -515,7 +515,7 @@ comfyui::handle_nvidia_requirements() {
 #######################################
 # Prompt user for NVIDIA runtime installation
 #######################################
-comfyui::prompt_runtime_installation() {
+gpu::prompt_runtime_installation() {
     log::info "Options:"
     echo "  1) Auto-install NVIDIA Container Runtime (recommended)"
     echo "  2) Show manual installation instructions"
@@ -529,20 +529,20 @@ comfyui::prompt_runtime_installation() {
     case "$choice" in
         1)
             log::info "Attempting automatic installation..."
-            if comfyui::install_nvidia_runtime; then
+            if gpu::install_nvidia_runtime; then
                 # Verify installation
-                if comfyui::test_nvidia_runtime; then
+                if gpu::test_nvidia_runtime; then
                     log::success "NVIDIA runtime installed and working!"
                     return 0
                 else
                     log::error "Installation completed but GPU test failed"
-                    comfyui::show_troubleshooting_guide
+                    gpu::show_troubleshooting_guide
                     return 1
                 fi
             else
                 log::error "Automatic installation failed"
                 echo
-                if comfyui::prompt_manual_or_cpu; then
+                if gpu::prompt_manual_or_cpu; then
                     return 0
                 else
                     return 1
@@ -550,7 +550,7 @@ comfyui::prompt_runtime_installation() {
             fi
             ;;
         2)
-            comfyui::show_manual_installation_guide
+            gpu::show_manual_installation_guide
             return 1
             ;;
         3)
@@ -565,7 +565,7 @@ comfyui::prompt_runtime_installation() {
             ;;
         *)
             log::error "Invalid choice"
-            return comfyui::prompt_runtime_installation
+            return gpu::prompt_runtime_installation
             ;;
     esac
 }
@@ -573,7 +573,7 @@ comfyui::prompt_runtime_installation() {
 #######################################
 # Prompt for manual installation or CPU fallback
 #######################################
-comfyui::prompt_cpu_fallback() {
+gpu::prompt_cpu_fallback() {
     echo
     log::info "Would you like to:"
     echo "  1) See manual installation instructions"
@@ -586,7 +586,7 @@ comfyui::prompt_cpu_fallback() {
     
     case "$choice" in
         1)
-            comfyui::show_manual_installation_guide
+            gpu::show_manual_installation_guide
             return 1
             ;;
         2)
@@ -598,7 +598,7 @@ comfyui::prompt_cpu_fallback() {
             ;;
         *)
             log::error "Invalid choice"
-            return comfyui::prompt_cpu_fallback
+            return gpu::prompt_cpu_fallback
             ;;
     esac
 }
@@ -606,7 +606,7 @@ comfyui::prompt_cpu_fallback() {
 #######################################
 # Show NVIDIA driver installation guide
 #######################################
-comfyui::show_driver_installation_guide() {
+gpu::show_driver_installation_guide() {
     log::header "📖 NVIDIA Driver Installation Guide"
     
     echo "NVIDIA drivers are not installed or not functional on your system."
@@ -615,7 +615,7 @@ comfyui::show_driver_installation_guide() {
     echo
     
     local distro
-    distro=$(comfyui::detect_os_distribution)
+    distro=$(gpu::detect_os_distribution)
     
     case "$distro" in
         apt)
@@ -654,7 +654,7 @@ comfyui::show_driver_installation_guide() {
 #######################################
 # Show troubleshooting guide for GPU issues
 #######################################
-comfyui::show_troubleshooting_guide() {
+gpu::show_troubleshooting_guide() {
     log::header "🔧 GPU Troubleshooting Guide"
     
     echo "If GPU access is not working, try these steps:"
@@ -687,28 +687,28 @@ comfyui::show_troubleshooting_guide() {
 #######################################
 # Handle NVIDIA GPU setup failure
 #######################################
-comfyui::handle_nvidia_failure() {
+gpu::handle_nvidia_failure() {
     log::header "⚠️ NVIDIA GPU Setup Issue"
     
     local detected_gpu
-    detected_gpu=$(comfyui::detect_gpu_silent)
+    detected_gpu=$(gpu::detect_gpu_silent)
     
     if [[ "$detected_gpu" == "nvidia" ]]; then
         # NVIDIA GPU present but setup failed
         if ! nvidia-smi >/dev/null 2>&1; then
             log::error "NVIDIA GPU detected but drivers not functional"
-            comfyui::show_driver_installation_guide
-        elif ! comfyui::is_nvidia_runtime_installed; then
+            gpu::show_driver_installation_guide
+        elif ! gpu::is_nvidia_runtime_installed; then
             log::error "NVIDIA drivers working but Container Runtime not installed"
             
             if [[ "$YES" != "yes" ]] || [[ -n "$COMFYUI_NVIDIA_CHOICE" ]]; then
-                if comfyui::handle_nvidia_requirements; then
+                if gpu::handle_nvidia_requirements; then
                     return 0
                 fi
             fi
         else
             log::error "NVIDIA setup appears complete but GPU access failing"
-            comfyui::show_troubleshooting_guide
+            gpu::show_troubleshooting_guide
         fi
     fi
     
@@ -718,7 +718,7 @@ comfyui::handle_nvidia_failure() {
         GPU_TYPE="cpu"
         return 0
     else
-        if comfyui::prompt_cpu_fallback; then
+        if gpu::prompt_cpu_fallback; then
             return 0
         fi
     fi
@@ -729,11 +729,11 @@ comfyui::handle_nvidia_failure() {
 #######################################
 # Get GPU information for display
 #######################################
-comfyui::get_gpu_info() {
+gpu::get_gpu_info() {
     log::header "🎮 GPU Information"
     
     local gpu_type
-    gpu_type=$(comfyui::detect_gpu_silent)
+    gpu_type=$(gpu::detect_gpu_silent)
     
     echo "Detected GPU Type: $gpu_type"
     echo
@@ -753,7 +753,7 @@ comfyui::get_gpu_info() {
             
             echo
             echo "Docker NVIDIA Runtime Status:"
-            if comfyui::is_docker_nvidia_configured; then
+            if gpu::is_docker_nvidia_configured; then
                 echo "✅ Docker is configured for NVIDIA GPUs"
             else
                 echo "❌ Docker is not configured for NVIDIA GPUs"

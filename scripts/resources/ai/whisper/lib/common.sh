@@ -6,7 +6,7 @@
 # Check if Docker is installed and configured
 # Returns: 0 if installed, 1 otherwise
 #######################################
-whisper::check_docker() {
+common::check_docker() {
     if ! system::is_command "docker"; then
         log::error "${MSG_DOCKER_NOT_FOUND}"
         log::info "${MSG_DOCKER_INSTALL_HINT}"
@@ -35,7 +35,7 @@ whisper::check_docker() {
 # Check if Whisper container exists
 # Returns: 0 if exists, 1 otherwise
 #######################################
-whisper::container_exists() {
+common::container_exists() {
     docker ps -a --format '{{.Names}}' | grep -q "^${WHISPER_CONTAINER_NAME}$"
 }
 
@@ -43,7 +43,7 @@ whisper::container_exists() {
 # Check if Whisper is running
 # Returns: 0 if running, 1 otherwise
 #######################################
-whisper::is_running() {
+common::is_running() {
     docker ps --format '{{.Names}}' | grep -q "^${WHISPER_CONTAINER_NAME}$"
 }
 
@@ -53,7 +53,7 @@ whisper::is_running() {
 #   $1 - port number
 # Returns: 0 if available, 1 if in use
 #######################################
-whisper::is_port_available() {
+common::is_port_available() {
     local port="$1"
     
     if system::is_port_in_use "$port"; then
@@ -70,7 +70,7 @@ whisper::is_port_available() {
 #   $1 - model size
 # Returns: 0 if valid, 1 otherwise
 #######################################
-whisper::validate_model() {
+common::validate_model() {
     local model="$1"
     local valid_models=("tiny" "base" "small" "medium" "large" "large-v2" "large-v3")
     
@@ -91,7 +91,7 @@ whisper::validate_model() {
 #   $1 - model name
 # Outputs: model size
 #######################################
-whisper::get_model_size() {
+common::get_model_size() {
     local model="$1"
     
     case "$model" in

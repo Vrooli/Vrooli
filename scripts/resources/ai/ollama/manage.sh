@@ -6,11 +6,11 @@ set -euo pipefail
 
 DESCRIPTION="Install and manage Ollama AI resource"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+OLLAMA_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "$(dirname "$(dirname "$(dirname "${SCRIPT_DIR}")")")/lib/utils/var.sh"
+source "${OLLAMA_DIR}/../../../lib/utils/var.sh"
 
 # Handle Ctrl+C gracefully
 trap 'echo ""; log::info "Ollama operation interrupted by user. Exiting..."; exit 130' INT TERM
@@ -23,9 +23,9 @@ source "${var_LIB_UTILS_DIR}/args-cli.sh"
 
 # Source configuration modules
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/defaults.sh"
+source "${OLLAMA_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/messages.sh"
+source "${OLLAMA_DIR}/config/messages.sh"
 
 # Export configuration and messages
 ollama::export_config
@@ -33,15 +33,15 @@ ollama::export_messages
 
 # Source all library modules
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/common.sh"
+source "${OLLAMA_DIR}/lib/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/install.sh"
+source "${OLLAMA_DIR}/lib/install.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/models.sh"
+source "${OLLAMA_DIR}/lib/models.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/status.sh"
+source "${OLLAMA_DIR}/lib/status.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/api.sh"
+source "${OLLAMA_DIR}/lib/api.sh"
 
 #######################################
 # Main orchestration function

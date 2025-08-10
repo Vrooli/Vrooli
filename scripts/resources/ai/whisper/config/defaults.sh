@@ -6,10 +6,10 @@
 # Export configuration constants
 # Idempotent - safe to call multiple times
 #######################################
-whisper::export_config() {
+defaults::export_config() {
     # Service configuration (only set if not already defined)
     if [[ -z "${WHISPER_PORT:-}" ]]; then
-        readonly WHISPER_PORT="${WHISPER_CUSTOM_PORT:-$(resources::get_default_port "whisper")}"
+        readonly WHISPER_PORT="${WHISPER_CUSTOM_PORT:-9000}"
     fi
     if [[ -z "${WHISPER_BASE_URL:-}" ]]; then
         readonly WHISPER_BASE_URL="http://localhost:${WHISPER_PORT}"
@@ -99,4 +99,4 @@ whisper::export_config() {
 }
 
 # Export function for subshell availability
-export -f whisper::export_config
+export -f defaults::export_config

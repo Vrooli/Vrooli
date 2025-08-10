@@ -5,11 +5,11 @@
 #######################################
 # Execute a workflow via API
 #######################################
-comfyui::execute_workflow() {
+workflows::execute_workflow() {
     log::header "🎨 Executing Workflow"
     
     # Check prerequisites
-    if ! comfyui::check_ready; then
+    if ! common::check_ready; then
         return 1
     fi
     
@@ -40,7 +40,7 @@ comfyui::execute_workflow() {
     log::info "Workflow: $(basename "$WORKFLOW_PATH")"
     
     # Check for required models
-    comfyui::check_workflow_models "$workflow_content"
+    workflows::check_workflow_models "$workflow_content"
     
     # Set output directory
     local output_dir="${OUTPUT_DIR:-${COMFYUI_DATA_DIR}/outputs}"
@@ -86,7 +86,7 @@ comfyui::execute_workflow() {
         # Check for common errors
         if echo "$response" | grep -q "required_models"; then
             log::error "Missing required models for this workflow"
-            comfyui::show_missing_models "$response"
+            workflows::show_missing_models "$response"
         fi
         
         return 1
@@ -98,11 +98,11 @@ comfyui::execute_workflow() {
     # Monitor execution
     log::info "Monitoring workflow execution..."
     
-    if comfyui::monitor_workflow "$prompt_id" "$client_id"; then
+    if workflows::monitor_workflow "$prompt_id" "$client_id"; then
         # Retrieve outputs
         log::info "Retrieving generated images..."
         
-        if comfyui::retrieve_outputs "$prompt_id" "$output_dir"; then
+        if workflows::retrieve_outputs "$prompt_id" "$output_dir"; then
             log::success "✅ Workflow execution completed!"
             log::info "Outputs saved to: $output_dir"
             
@@ -125,7 +125,7 @@ comfyui::execute_workflow() {
 #######################################
 # Monitor workflow execution via WebSocket
 #######################################
-comfyui::monitor_workflow() {
+workflows::monitor_workflow() {
     local prompt_id="$1"
     local client_id="$2"
     
@@ -183,7 +183,7 @@ comfyui::monitor_workflow() {
 #######################################
 # Import workflow file
 #######################################
-comfyui::import_workflow() {
+workflows::import_workflow() {
     log::header "📥 Importing Workflow"
     
     if [[ -z "${WORKFLOW_PATH:-}" ]]; then
@@ -223,7 +223,7 @@ comfyui::import_workflow() {
         
         # Analyze workflow
         log::info "Analyzing workflow..."
-        comfyui::analyze_workflow "$target_path"
+        workflows::analyze_workflow "$target_path"
         
         return 0
     else
@@ -235,7 +235,7 @@ comfyui::import_workflow() {
 #######################################
 # Analyze workflow for requirements
 #######################################
-comfyui::analyze_workflow() {
+workflows::analyze_workflow() {
     local workflow_path="$1"
     
     local workflow_content
@@ -277,13 +277,13 @@ comfyui::analyze_workflow() {
     log::info "  Uses ControlNet: $([ "$has_controlnet" = true ] && echo "Yes" || echo "No")"
     
     # Check for specific models
-    comfyui::check_workflow_models "$workflow_content"
+    workflows::check_workflow_models "$workflow_content"
 }
 
 #######################################
 # Check workflow for required models
 #######################################
-comfyui::check_workflow_models() {
+workflows::check_workflow_models() {
     local workflow_content="$1"
     
     echo
@@ -339,7 +339,7 @@ comfyui::check_workflow_models() {
 #######################################
 # Retrieve outputs from ComfyUI
 #######################################
-comfyui::retrieve_outputs() {
+workflows::retrieve_outputs() {
     local prompt_id="$1"
     local output_dir="$2"
     
@@ -377,7 +377,7 @@ comfyui::retrieve_outputs() {
             local source_path="/workspace/ComfyUI/outputs/$filename"
             local target_path="$output_dir/$filename"
             
-            if comfyui::copy_from_container "$source_path" "$target_path"; then
+            if workflows::copy_from_container "$source_path" "$target_path"; then
                 retrieved=$((retrieved + 1))
                 log::success "Retrieved: $filename"
             else
@@ -398,7 +398,7 @@ comfyui::retrieve_outputs() {
 #######################################
 # List available workflows
 #######################################
-comfyui::list_workflows() {
+workflows::list_workflows() {
     log::header "📋 Available Workflows"
     
     local workflow_dir="${COMFYUI_DATA_DIR}/workflows"
@@ -432,7 +432,7 @@ comfyui::list_workflows() {
 #######################################
 # Show missing models from error response
 #######################################
-comfyui::show_missing_models() {
+workflows::show_missing_models() {
     local response="$1"
     
     echo

@@ -5,10 +5,10 @@
 #######################################
 # Download default models (SDXL)
 #######################################
-comfyui::download_default_models() {
+models::download_default_models() {
     log::header "📦 Downloading Default Models"
     
-    if ! comfyui::check_ready; then
+    if ! common::check_ready; then
         return 1
     fi
     
@@ -41,7 +41,7 @@ comfyui::download_default_models() {
             local expected_sha256="${COMFYUI_MODEL_SHA256[$i]}"
             
             log::info "Model exists, verifying: $model_name"
-            if comfyui::verify_model "$target_path" "$expected_size" "$expected_sha256"; then
+            if models::verify_model "$target_path" "$expected_size" "$expected_sha256"; then
                 log::success "Model verified: $model_name"
                 downloaded=$((downloaded + 1))
                 continue
@@ -56,7 +56,7 @@ comfyui::download_default_models() {
         local expected_sha256="${COMFYUI_MODEL_SHA256[$i]}"
         
         # Download with progress and verification
-        if comfyui::download_model "$model_url" "$target_path" "$expected_size" "$expected_sha256"; then
+        if models::download_model "$model_url" "$target_path" "$expected_size" "$expected_sha256"; then
             downloaded=$((downloaded + 1))
             log::success "Downloaded and verified: $model_name"
         else
@@ -90,7 +90,7 @@ comfyui::download_default_models() {
 #######################################
 # Verify model integrity
 #######################################
-comfyui::verify_model() {
+models::verify_model() {
     local model_path="$1"
     local expected_size="$2"
     local expected_sha256="$3"
@@ -140,7 +140,7 @@ comfyui::verify_model() {
 #######################################
 # Download a single model with retry
 #######################################
-comfyui::download_model() {
+models::download_model() {
     local url="$1"
     local target_path="$2"
     local expected_size="${3:-}"
@@ -162,7 +162,7 @@ comfyui::download_model() {
             if wget --progress=bar:force --continue -O "$target_path" "$url" 2>&1; then
                 # Verify if metadata provided
                 if [[ -n "$expected_size" ]]; then
-                    if comfyui::verify_model "$target_path" "$expected_size" "$expected_sha256"; then
+                    if models::verify_model "$target_path" "$expected_size" "$expected_sha256"; then
                         return 0
                     else
                         log::warn "Model verification failed, retrying download..."
@@ -179,7 +179,7 @@ comfyui::download_model() {
             if curl -L --progress-bar -C - -o "$target_path" "$url"; then
                 # Verify if metadata provided
                 if [[ -n "$expected_size" ]]; then
-                    if comfyui::verify_model "$target_path" "$expected_size" "$expected_sha256"; then
+                    if models::verify_model "$target_path" "$expected_size" "$expected_sha256"; then
                         return 0
                     else
                         log::warn "Model verification failed, retrying download..."
@@ -211,7 +211,7 @@ comfyui::download_model() {
 #######################################
 # List installed models
 #######################################
-comfyui::list_models() {
+models::list_models() {
     log::header "📚 Installed Models"
     
     if [[ ! -d "${COMFYUI_DATA_DIR}/models" ]]; then
@@ -302,16 +302,16 @@ comfyui::list_models() {
 #######################################
 # Download specific models by name
 #######################################
-comfyui::download_models() {
+models::download_models() {
     log::header "📦 Model Download Manager"
     
-    if ! comfyui::check_ready; then
+    if ! common::check_ready; then
         return 1
     fi
     
     # If no specific models requested, download defaults
     if [[ -z "${MODELS:-}" ]]; then
-        comfyui::download_default_models
+        models::download_default_models
         return $?
     fi
     
@@ -344,7 +344,7 @@ comfyui::download_models() {
             
             local target_path="$target_dir/$filename"
             
-            if comfyui::download_model "$model" "$target_path"; then
+            if models::download_model "$model" "$target_path"; then
                 downloaded=$((downloaded + 1))
                 log::success "Downloaded: $filename"
             else
@@ -373,7 +373,7 @@ comfyui::download_models() {
 #######################################
 # Clean up old/unused models
 #######################################
-comfyui::cleanup_models() {
+models::cleanup_models() {
     log::header "🧹 Model Cleanup"
     
     log::warn "This feature is not yet implemented"
@@ -388,7 +388,7 @@ comfyui::cleanup_models() {
 #######################################
 # Import models from a directory
 #######################################
-comfyui::import_models() {
+models::import_models() {
     local source_dir="$1"
     
     if [[ ! -d "$source_dir" ]]; then

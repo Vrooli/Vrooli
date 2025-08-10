@@ -9,7 +9,11 @@ DESCRIPTION="Manages ComfyUI - AI image generation workflow platform"
 # Get script directory
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Source all modules in correct order
+# Source var.sh first to get all path variables
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+
+# Source all modules in correct order using var_ variables
 # 1. Common utilities first (includes config)
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/lib/common.sh"
@@ -36,89 +40,89 @@ source "${SCRIPT_DIR}/config/messages.sh"
 # Main function - route actions to appropriate handlers
 #######################################
 
-comfyui::main() {
-    comfyui::parse_arguments "$@"
+manage::main() {
+    common::parse_arguments "$@"
     
     case "$ACTION" in
         install)
-            comfyui::install
+            install::install
             ;;
         uninstall)
-            comfyui::uninstall
+            install::uninstall
             ;;
         start)
-            comfyui::start
+            docker::start
             ;;
         stop)
-            comfyui::stop
+            docker::stop
             ;;
         restart)
-            comfyui::restart
+            docker::restart
             ;;
         status)
-            comfyui::status
+            status::status
             ;;
         logs)
-            comfyui::logs
+            docker::logs
             ;;
         info)
-            comfyui::info
+            status::info
             ;;
         download-models)
-            comfyui::download_models
+            models::download_models
             ;;
         execute-workflow)
-            comfyui::execute_workflow
+            workflows::execute_workflow
             ;;
         import-workflow)
-            comfyui::import_workflow
+            workflows::import_workflow
             ;;
         list-models)
-            comfyui::list_models
+            models::list_models
             ;;
         list-workflows)
-            comfyui::list_workflows
+            workflows::list_workflows
             ;;
         gpu-info)
-            comfyui::get_gpu_info
+            gpu::get_gpu_info
             ;;
         validate-nvidia)
-            comfyui::validate_nvidia_requirements
+            gpu::validate_nvidia_requirements
             ;;
         check-ready)
-            comfyui::check_ready
+            common::check_ready
             ;;
         cleanup-help)
-            comfyui::cleanup_help
+            common::cleanup_help
             ;;
         help)
             # Show help using the args system
-            comfyui::parse_arguments --help
+            common::parse_arguments --help
             ;;
         extended-help)
-            comfyui::show_extended_help
+            messages::show_extended_help
             ;;
         quickstart)
-            comfyui::show_quickstart
+            messages::show_quickstart
             ;;
         model-sources)
-            comfyui::show_model_sources
+            messages::show_model_sources
             ;;
         workflow-examples)
-            comfyui::show_workflow_examples
+            messages::show_workflow_examples
             ;;
         api-examples)
-            comfyui::show_api_examples
+            messages::show_api_examples
             ;;
         *)
             log::error "Unknown action: $ACTION"
             # Show help using the args system
-            comfyui::parse_arguments --help
+            common::parse_arguments --help
             ;;
     esac
 }
 
 # Execute main function if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    comfyui::main "$@"
+    manage::main "$@"
 fi

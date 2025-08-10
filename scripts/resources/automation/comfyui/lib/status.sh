@@ -5,11 +5,11 @@
 #######################################
 # Display ComfyUI status
 #######################################
-comfyui::status() {
+status::status() {
     log::header "📊 ComfyUI Status"
     
     # Show access URL prominently if running
-    if comfyui::is_running; then
+    if common::is_running; then
         echo
         log::success "🌐 Access ComfyUI at: http://localhost:$COMFYUI_DIRECT_PORT"
         echo
@@ -19,10 +19,10 @@ comfyui::status() {
     echo
     log::info "=== Container Status ==="
     
-    if comfyui::container_exists; then
+    if common::container_exists; then
         log::success "✅ Container exists"
         
-        if comfyui::is_running; then
+        if common::is_running; then
             log::success "✅ Container is running"
             
             # Show container details
@@ -34,7 +34,7 @@ comfyui::status() {
             fi
             
             # Check API health
-            if comfyui::is_healthy; then
+            if common::is_healthy; then
                 log::success "✅ API is healthy"
             else
                 log::error "❌ API is not responding"
@@ -53,14 +53,14 @@ comfyui::status() {
     log::info "=== GPU Configuration ==="
     
     local gpu_type
-    gpu_type=$(comfyui::detect_gpu_silent)
+    gpu_type=$(status::detect_gpu_silent)
     
     case "$gpu_type" in
         nvidia)
             log::info "GPU Type: NVIDIA"
             
             # Check if container has GPU access
-            if comfyui::is_running; then
+            if common::is_running; then
                 if docker::run exec "$COMFYUI_CONTAINER_NAME" nvidia-smi >/dev/null 2>&1; then
                     log::success "✅ GPU is accessible in container"
                     
@@ -87,7 +87,7 @@ comfyui::status() {
     esac
     
     # Resource usage
-    if comfyui::is_running; then
+    if common::is_running; then
         echo
         log::info "=== Resource Usage ==="
         
@@ -189,11 +189,11 @@ comfyui::status() {
     fi
     
     # Quick actions
-    if comfyui::container_exists; then
+    if common::container_exists; then
         echo
         log::header "🎯 Quick Actions"
         
-        if comfyui::is_running; then
+        if common::is_running; then
             echo "  • View logs: $0 --action logs"
             echo "  • Stop service: $0 --action stop"
             echo "  • Access ComfyUI: http://localhost:$COMFYUI_DIRECT_PORT"
@@ -207,7 +207,7 @@ comfyui::status() {
     fi
     
     # Exit with appropriate code
-    if comfyui::is_running && comfyui::is_healthy; then
+    if common::is_running && common::is_healthy; then
         return 0
     else
         return 1
@@ -217,7 +217,7 @@ comfyui::status() {
 #######################################
 # Display ComfyUI resource information
 #######################################
-comfyui::info() {
+status::info() {
     log::header "ℹ️ ComfyUI Resource Information"
     
     echo
@@ -296,10 +296,10 @@ comfyui::info() {
     echo
     
     # Current status
-    if comfyui::container_exists; then
+    if common::container_exists; then
         log::info "=== Current Status ==="
-        if comfyui::is_running; then
-            if comfyui::is_healthy; then
+        if common::is_running; then
+            if common::is_healthy; then
                 log::success "✅ Running and healthy"
             else
                 log::warn "⚠️  Running but API not responding"
@@ -315,7 +315,7 @@ comfyui::info() {
 #######################################
 # Check if ready for operations
 #######################################
-comfyui::verify_ready() {
+status::verify_ready() {
     # This function is called by check_ready in common.sh
     # Additional ComfyUI-specific checks can go here
     
@@ -336,7 +336,7 @@ comfyui::verify_ready() {
 #######################################
 # Show system requirements
 #######################################
-comfyui::show_requirements() {
+status::show_requirements() {
     log::header "📋 ComfyUI System Requirements"
     
     echo
@@ -385,6 +385,6 @@ comfyui::show_requirements() {
     
     # Check GPU
     local gpu_type
-    gpu_type=$(comfyui::detect_gpu_silent)
+    gpu_type=$(status::detect_gpu_silent)
     echo "  GPU type: $gpu_type"
 }

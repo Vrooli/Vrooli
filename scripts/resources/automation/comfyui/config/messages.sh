@@ -5,7 +5,7 @@
 #######################################
 # Show comprehensive help documentation
 #######################################
-comfyui::show_extended_help() {
+messages::show_extended_help() {
     cat << 'EOF'
 
 ComfyUI Resource Management - Extended Help
@@ -147,7 +147,7 @@ EOF
 #######################################
 # Show quick start guide
 #######################################
-comfyui::show_quickstart() {
+messages::show_quickstart() {
     cat << 'EOF'
 
 🚀 ComfyUI Quick Start Guide
@@ -175,7 +175,7 @@ EOF
 #######################################
 # Show model download sources
 #######################################
-comfyui::show_model_sources() {
+messages::show_model_sources() {
     cat << 'EOF'
 
 📚 Model Download Sources
@@ -224,7 +224,7 @@ EOF
 #######################################
 # Show workflow examples
 #######################################
-comfyui::show_workflow_examples() {
+messages::show_workflow_examples() {
     cat << 'EOF'
 
 🎨 ComfyUI Workflow Examples
@@ -291,7 +291,7 @@ EOF
 #######################################
 # Show API integration examples
 #######################################
-comfyui::show_api_examples() {
+messages::show_api_examples() {
     cat << 'EOF'
 
 🔌 ComfyUI API Integration Examples
@@ -431,7 +431,7 @@ export MSG_PROCESSING_FAILED="❌ Processing failed"
 export MSG_PROCESSING_QUEUE="📋 Added to processing queue"
 
 # Export function for consistency
-comfyui::export_messages() {
+messages::export_messages() {
     export MSG_COMFYUI_INSTALLING MSG_COMFYUI_ALREADY_INSTALLED MSG_COMFYUI_NOT_FOUND MSG_COMFYUI_NOT_RUNNING
     export MSG_STATUS_CHECKING MSG_STATUS_CONTAINER_OK MSG_STATUS_CONTAINER_RUNNING MSG_STATUS_CONTAINER_STOPPED MSG_STATUS_CONTAINER_MISSING
     export MSG_MODEL_DOWNLOADING MSG_MODEL_INSTALLED MSG_MODEL_FAILED
@@ -442,4 +442,4 @@ comfyui::export_messages() {
 }
 
 # Auto-export when sourced
-comfyui::export_messages
+messages::export_messages

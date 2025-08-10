@@ -1,25 +1,21 @@
 #!/usr/bin/env bats
 # Tests for claude-code config/defaults.sh configuration management
+bats_require_minimum_version 1.5.0
 
+# Load Vrooli test infrastructure
+source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # Setup for each test
 setup() {
-    # Setup mock framework
-    export BATS_TEST_TMPDIR="${BATS_TEST_TMPDIR:-$(mktemp -d)}"
-    export MOCK_RESPONSES_DIR="$BATS_TEST_TMPDIR/mock_responses"
-    mkdir -p "$MOCK_RESPONSES_DIR"
+    # Setup standard Vrooli mocks
+    vrooli_auto_setup
     
-    # Load mock framework
-    MOCK_DIR="${BATS_TEST_DIRNAME}/../../../tests/bats-fixtures/mocks"
-    source "$MOCK_DIR/system_mocks.bash"
-    source "$MOCK_DIR/mock_helpers.bash"
-    source "$MOCK_DIR/resource_mocks.bash"
-    
-    # Set test environment (this will trigger is_test_environment)
-    export BATS_TEST_DIRNAME="$BATS_TEST_TMPDIR"
-    export HOME="/tmp/test-home"
+    # Set test environment (this will trigger claude_code::is_test_environment)
+    export BATS_TEST_DIRNAME="${BATS_TEST_DIRNAME}"
+    export TEST_MODE="true"
+    export HOME="${BATS_TEST_TMPDIR}/home"
     mkdir -p "$HOME"
-    mkdir -p "$(pwd)/.claude"
+    mkdir -p "$HOME/.claude"
     
     # Clear any existing configuration to test defaults
     unset RESOURCE_NAME MIN_NODE_VERSION CLAUDE_PACKAGE
@@ -38,27 +34,29 @@ setup() {
 
 teardown() {
     # Clean up test environment
-    rm -rf "/tmp/test-home"
-    rm -rf "$(pwd)/.claude"
-    [[ -d "$MOCK_RESPONSES_DIR" ]] && rm -rf "$MOCK_RESPONSES_DIR"
+    if [[ -n "${HOME:-}" && -d "$HOME" && "$HOME" == *"/tmp"* ]]; then
+        rm -rf "$HOME"
+    fi
+    
+    vrooli_cleanup_test
 }
 
 # Test configuration loading and initialization
 
-@test "is_test_environment should detect test environment correctly" {
+@test "claude_code::is_test_environment should detect test environment correctly" {
     # Should detect BATS_TEST_DIRNAME
-    run is_test_environment
+    run claude_code::is_test_environment
     [ "$status" -eq 0 ]
     
     # Test with TEST_MODE
     unset BATS_TEST_DIRNAME
     export TEST_MODE="true"
-    run is_test_environment
+    run claude_code::is_test_environment
     [ "$status" -eq 0 ]
     
     # Test without test markers
     unset TEST_MODE
-    run is_test_environment
+    run claude_code::is_test_environment
     [ "$status" -ne 0 ]
 }
 

@@ -50,7 +50,7 @@ setup() {
     export OLLAMA_BASE_URL="http://localhost:11434"
     export FORCE="no"
     export YES="no"
-    export TEST_VROOLI_RESOURCES_CONFIG="/tmp/test_config.json"
+    export TEST_VROOLI_RESOURCES_CONFIG="${BATS_TEST_TMPDIR}/test_config.json"
     
     # Mock message variables
     export MSG_OLLAMA_ALREADY_INSTALLED="Already installed"
@@ -281,21 +281,23 @@ setup() {
             fi
         fi
         
-        # Stop service if running
+        # Mock: Stop service if running
         if resources::is_service_active "ollama"; then
             echo "Stopping Ollama service..."
-            sudo systemctl stop ollama || true
+            # Test mock: don't actually stop service
+            echo "[TEST MOCK] Would run: sudo systemctl stop ollama"
         fi
         
-        # Remove user if exists
-        if id "$OLLAMA_USER" >/dev/null 2>&1; then
-            echo "Removing ollama user..."
-            sudo userdel "$OLLAMA_USER" || true
-        fi
+        # Mock: Remove user if exists
+        # Test mock: pretend user exists
+        echo "Removing ollama user..."
+        # Test mock: don't actually remove user
+        echo "[TEST MOCK] Would run: sudo userdel $OLLAMA_USER"
         
-        # Remove binary
+        # Mock: Remove binary
         echo "Removing Ollama binary..."
-        sudo rm -f "/usr/local/bin/ollama" || true
+        # Test mock: don't actually remove binary
+        echo "[TEST MOCK] Would run: sudo rm -f /usr/local/bin/ollama"
         
         echo "Ollama uninstalled successfully"
         return 0

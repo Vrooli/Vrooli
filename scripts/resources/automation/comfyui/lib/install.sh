@@ -5,22 +5,22 @@
 #######################################
 # Main installation function
 #######################################
-comfyui::install() {
+install::install() {
     log::header "🚀 Installing ComfyUI"
     
     # Start rollback context
     resources::start_rollback_context "comfyui_install"
     
     # Check if already installed
-    if [[ "$FORCE" != "yes" ]] && comfyui::container_exists; then
+    if [[ "$FORCE" != "yes" ]] && common::container_exists; then
         log::warn "ComfyUI is already installed"
         log::info "Use --force yes to reinstall"
         
         # Check if it's running
-        if ! comfyui::is_running; then
+        if ! common::is_running; then
             log::info "ComfyUI is installed but not running"
             log::info "Starting ComfyUI..."
-            comfyui::start
+            docker::start
         else
             log::success "ComfyUI is already running"
             local port="${COMFYUI_CUSTOM_PORT:-$COMFYUI_DEFAULT_PORT}"
@@ -34,7 +34,7 @@ comfyui::install() {
     log::info "Checking prerequisites..."
     
     # Check Docker
-    if ! comfyui::check_docker; then
+    if ! install::check_docker; then
         resources::handle_error \
             "Docker is not available or not running" \
             "system" \
@@ -43,7 +43,7 @@ comfyui::install() {
     fi
     
     # Check disk space
-    if ! comfyui::check_disk_space; then
+    if ! install::check_disk_space; then
         return 1
     fi
     
@@ -52,10 +52,10 @@ comfyui::install() {
     
     # Use specified GPU type or auto-detect
     if [[ -z "$GPU_TYPE" ]] || [[ "$GPU_TYPE" == "auto" ]]; then
-        GPU_TYPE=$(comfyui::detect_gpu_silent)
+        GPU_TYPE=$(gpu::detect_gpu_silent)
         log::info "Auto-detected GPU type: $GPU_TYPE"
         # Show detailed GPU info
-        comfyui::detect_gpu >/dev/null
+        gpu::detect_gpu >/dev/null
     else
         log::info "Using specified GPU type: $GPU_TYPE"
     fi
@@ -65,11 +65,11 @@ comfyui::install() {
     
     # Handle NVIDIA-specific requirements
     if [[ "$GPU_TYPE" == "nvidia" ]]; then
-        if ! comfyui::validate_nvidia_requirements; then
+        if ! gpu::validate_nvidia_requirements; then
             log::warn "NVIDIA GPU requirements not met"
             
             # Handle NVIDIA setup
-            if ! comfyui::handle_nvidia_failure; then
+            if ! gpu::handle_nvidia_failure; then
                 resources::handle_error \
                     "Failed to set up NVIDIA GPU support" \
                     "system" \
@@ -80,7 +80,7 @@ comfyui::install() {
     fi
     
     # Step 3: Create directories
-    if ! comfyui::create_directories; then
+    if ! common::create_directories; then
         resources::handle_error \
             "Failed to create ComfyUI directories" \
             "permission" \
@@ -95,7 +95,7 @@ comfyui::install() {
         5
     
     # Step 4: Pull Docker image
-    if ! comfyui::pull_image; then
+    if ! docker::pull_image; then
         resources::handle_error \
             "Failed to pull ComfyUI Docker image" \
             "network" \
@@ -104,7 +104,7 @@ comfyui::install() {
     fi
     
     # Step 5: Start container
-    if ! comfyui::start_container; then
+    if ! docker::start_container; then
         resources::handle_error \
             "Failed to start ComfyUI container" \
             "system" \
@@ -121,7 +121,7 @@ comfyui::install() {
     # Step 6: Download models (non-critical)
     if [[ "${SKIP_MODELS:-no}" != "yes" ]]; then
         log::info "Downloading default models..."
-        if ! comfyui::download_default_models; then
+        if ! models::download_default_models; then
             log::warn "Model download failed, but ComfyUI is installed"
             log::info "You can download models later with: $0 --action download-models"
         fi
@@ -130,14 +130,14 @@ comfyui::install() {
     fi
     
     # Step 7: Update Vrooli configuration (non-critical)
-    if ! comfyui::update_config; then
+    if ! common::update_config; then
         log::warn "Failed to update Vrooli configuration, but ComfyUI is installed"
         log::info "You may need to configure Vrooli manually to use this ComfyUI instance"
     fi
     
     # Step 8: Show final status
     echo
-    comfyui::status
+    status::status
     
     log::success "✅ ComfyUI installation completed!"
     
@@ -156,11 +156,11 @@ comfyui::install() {
 #######################################
 # Uninstall ComfyUI
 #######################################
-comfyui::uninstall() {
+install::uninstall() {
     log::header "🗑️ Uninstalling ComfyUI"
     
     # Check if installed
-    if ! comfyui::container_exists && [[ ! -d "$COMFYUI_DATA_DIR" ]]; then
+    if ! common::container_exists && [[ ! -d "$COMFYUI_DATA_DIR" ]]; then
         log::info "ComfyUI is not installed"
         return 0
     fi
@@ -177,8 +177,8 @@ comfyui::uninstall() {
     fi
     
     # Step 1: Remove container
-    if comfyui::container_exists; then
-        if ! comfyui::remove_container; then
+    if common::container_exists; then
+        if ! docker::remove_container; then
             log::error "Failed to remove container"
             log::info "You may need to remove it manually:"
             log::info "  docker stop $COMFYUI_CONTAINER_NAME"
@@ -268,7 +268,7 @@ comfyui::uninstall() {
 #######################################
 # Check Docker availability
 #######################################
-comfyui::check_docker() {
+install::check_docker() {
     if ! resources::ensure_docker; then
         log::error "Docker is required but not available"
         return 1
@@ -292,7 +292,7 @@ comfyui::check_docker() {
 #######################################
 # Check available disk space
 #######################################
-comfyui::check_disk_space() {
+install::check_disk_space() {
     log::info "Checking disk space requirements..."
     
     local data_dir_parent

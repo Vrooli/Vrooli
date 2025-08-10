@@ -9,6 +9,9 @@ setup() {
     # Setup ComfyUI test environment
     vrooli_setup_service_test "comfyui"
     
+    # Source var.sh first
+    source "${BATS_TEST_DIRNAME}/../../../../lib/utils/var.sh"
+    
     # Set test environment
     export COMFYUI_CUSTOM_PORT="8188"
     export COMFYUI_CONTAINER_NAME="comfyui-test"
@@ -61,8 +64,6 @@ setup() {
     # Load configuration
     source "${COMFYUI_DIR}/config/defaults.sh"
     source "${COMFYUI_DIR}/config/messages.sh"
-    comfyui::export_config
-    comfyui::export_messages
     
     # Load the functions to test
     source "${COMFYUI_DIR}/lib/common.sh"
@@ -74,8 +75,8 @@ teardown() {
 }
 
 # Test configuration export
-@test "comfyui::export_config sets configuration variables" {
-    comfyui::export_config
+@test "configuration variables are set" {
+    # Variables should be set by sourcing defaults.sh
     
     [ -n "$COMFYUI_PORT" ]
     [ -n "$COMFYUI_BASE_URL" ]
@@ -83,9 +84,9 @@ teardown() {
     [ -n "$COMFYUI_IMAGE" ]
 }
 
-# Test message export
-@test "comfyui::export_messages sets message variables" {
-    comfyui::export_messages
+# Test message export  
+@test "message variables are set" {
+    # Variables should be set by sourcing messages.sh
     
     [ -n "$MSG_COMFYUI_INSTALLING" ]
     [ -n "$MSG_COMFYUI_ALREADY_INSTALLED" ]
@@ -93,8 +94,8 @@ teardown() {
 }
 
 # Test argument parsing with defaults
-@test "comfyui::parse_arguments sets correct defaults" {
-    comfyui::parse_arguments --action status
+@test "common::parse_arguments sets correct defaults" {
+    common::parse_arguments --action status
     
     [ "$ACTION" = "status" ]
     [ "$FORCE" = "no" ]
@@ -103,7 +104,7 @@ teardown() {
 }
 
 # Test argument parsing with custom values
-@test "comfyui::parse_arguments handles custom values" {
+@test "common::parse_arguments handles custom values" {
     # Mock args::get to return custom values
     args::get() {
         case "$1" in
@@ -117,7 +118,7 @@ teardown() {
         esac
     }
     
-    comfyui::parse_arguments \
+    common::parse_arguments \
         --action generate \
         --force yes \
         --gpu-type cuda \
@@ -136,27 +137,27 @@ teardown() {
 }
 
 # Test usage display
-@test "comfyui::usage displays help information" {
+@test "common::usage displays help information" {
     # Mock args::usage
     args::usage() {
         echo "USAGE_CALLED: $1"
         return 0
     }
     
-    result=$(comfyui::usage)
+    result=$(common::usage)
     
     [[ "$result" =~ "USAGE_CALLED:" ]]
     [[ "$result" =~ "ComfyUI" ]]
 }
 
 # Test Docker check function
-@test "comfyui::check_docker succeeds with Docker available" {
-    comfyui::check_docker
+@test "common::check_docker succeeds with Docker available" {
+    common::check_docker
     [ "$?" -eq 0 ]
 }
 
 # Test Docker check function with Docker unavailable
-@test "comfyui::check_docker fails with Docker unavailable" {
+@test "common::check_docker fails with Docker unavailable" {
     # Override system function to simulate missing Docker
     system::is_command() {
         case "$1" in
@@ -165,19 +166,19 @@ teardown() {
         esac
     }
     
-    run comfyui::check_docker
+    run common::check_docker
     [ "$status" -eq 1 ]
     [[ "$output" =~ "ERROR" ]]
 }
 
 # Test container existence check - exists
-@test "comfyui::container_exists returns true for existing container" {
-    comfyui::container_exists
+@test "common::container_exists returns true for existing container" {
+    common::container_exists
     [ "$?" -eq 0 ]
 }
 
 # Test container existence check - not exists
-@test "comfyui::container_exists returns false for non-existing container" {
+@test "common::container_exists returns false for non-existing container" {
     # Override docker to return empty result
     docker() {
         case "$1" in
@@ -186,18 +187,18 @@ teardown() {
         esac
     }
     
-    run comfyui::container_exists
+    run common::container_exists
     [ "$status" -eq 1 ]
 }
 
 # Test container running check - running
-@test "comfyui::is_running returns true for running container" {
-    comfyui::is_running
+@test "common::is_running returns true for running container" {
+    common::is_running
     [ "$?" -eq 0 ]
 }
 
 # Test container running check - not running
-@test "comfyui::is_running returns false for stopped container" {
+@test "common::is_running returns false for stopped container" {
     # Override docker inspect to show stopped state
     docker() {
         case "$1" in
@@ -208,51 +209,51 @@ teardown() {
         esac
     }
     
-    run comfyui::is_running
+    run common::is_running
     [ "$status" -eq 1 ]
 }
 
 # Test service info display
-@test "comfyui::info displays service information" {
-    result=$(comfyui::info)
+@test "common::info displays service information" {
+    result=$(common::info)
     
     [[ "$result" =~ "ComfyUI" ]]
     [[ "$result" =~ "$COMFYUI_BASE_URL" ]]
 }
 
 # Test port check function
-@test "comfyui::check_port_available succeeds for available port" {
+@test "common::check_port_available succeeds for available port" {
     # Mock system function
     system::is_port_in_use() {
         return 1  # Port not in use
     }
     
-    comfyui::check_port_available
+    common::check_port_available
     [ "$?" -eq 0 ]
 }
 
 # Test port check function with port in use
-@test "comfyui::check_port_available fails for port in use" {
+@test "common::check_port_available fails for port in use" {
     # Mock system function to simulate port in use
     system::is_port_in_use() {
         return 0  # Port is in use
     }
     
-    run comfyui::check_port_available
+    run common::check_port_available
     [ "$status" -eq 1 ]
     [[ "$output" =~ "ERROR" ]]
 }
 
 # Test GPU detection
-@test "comfyui::detect_gpu detects available GPU" {
-    result=$(comfyui::detect_gpu)
+@test "common::detect_gpu detects available GPU" {
+    result=$(common::detect_gpu)
     
     [[ "$result" =~ "GPU detected:" ]]
     [[ "$result" =~ "NVIDIA" ]]
 }
 
 # Test GPU detection with no GPU
-@test "comfyui::detect_gpu handles no GPU available" {
+@test "common::detect_gpu handles no GPU available" {
     # Override nvidia-smi to fail
     nvidia-smi() {
         return 1
@@ -266,22 +267,22 @@ teardown() {
         esac
     }
     
-    result=$(comfyui::detect_gpu)
+    result=$(common::detect_gpu)
     
     [[ "$result" =~ "No GPU detected" ]] || [[ "$result" =~ "CPU mode" ]]
 }
 
 # Test data directory setup
-@test "comfyui::setup_data_directory creates necessary directories" {
-    result=$(comfyui::setup_data_directory)
+@test "common::setup_data_directory creates necessary directories" {
+    result=$(common::setup_data_directory)
     
     [[ "$result" =~ "Setting up data directory" ]]
     [ -d "$COMFYUI_DATA_DIR" ]
 }
 
 # Test configuration validation
-@test "comfyui::validate_config validates service configuration" {
-    result=$(comfyui::validate_config)
+@test "common::validate_config validates service configuration" {
+    result=$(common::validate_config)
     
     [[ "$result" =~ "Configuration:" ]]
     [[ "$result" =~ "Port:" ]]
@@ -290,8 +291,8 @@ teardown() {
 }
 
 # Test environment validation
-@test "comfyui::validate_environment checks system requirements" {
-    result=$(comfyui::validate_environment)
+@test "common::validate_environment checks system requirements" {
+    result=$(common::validate_environment)
     
     [[ "$result" =~ "Validating environment" ]]
     [[ "$result" =~ "Docker" ]]
@@ -299,7 +300,7 @@ teardown() {
 }
 
 # Test environment validation with missing requirements
-@test "comfyui::validate_environment detects missing requirements" {
+@test "common::validate_environment detects missing requirements" {
     # Override system check to fail
     system::is_command() {
         case "$1" in
@@ -308,49 +309,49 @@ teardown() {
         esac
     }
     
-    run comfyui::validate_environment
+    run common::validate_environment
     [ "$status" -eq 1 ]
     [[ "$output" =~ "ERROR:" ]]
 }
 
 # Test log level configuration
-@test "comfyui::set_log_level configures logging level" {
-    result=$(comfyui::set_log_level "debug")
+@test "common::set_log_level configures logging level" {
+    result=$(common::set_log_level "debug")
     
     [[ "$result" =~ "Setting log level" ]]
     [[ "$result" =~ "debug" ]]
 }
 
 # Test memory configuration
-@test "comfyui::configure_memory configures memory settings" {
-    result=$(comfyui::configure_memory "4g")
+@test "common::configure_memory configures memory settings" {
+    result=$(common::configure_memory "4g")
     
     [[ "$result" =~ "Configuring memory" ]]
     [[ "$result" =~ "4g" ]]
 }
 
 # Test cleanup functionality
-@test "comfyui::cleanup performs cleanup operations" {
-    result=$(comfyui::cleanup)
+@test "common::cleanup performs cleanup operations" {
+    result=$(common::cleanup)
     
     [[ "$result" =~ "Cleaning up" ]] || [[ "$result" =~ "cleanup" ]]
 }
 
 # Test version detection
-@test "comfyui::get_version returns service version" {
+@test "common::get_version returns service version" {
     # Mock version detection
-    comfyui::get_version() {
+    common::get_version() {
         echo "ComfyUI version 1.0.0"
     }
     
-    result=$(comfyui::get_version)
+    result=$(common::get_version)
     
     [[ "$result" =~ "version" ]]
     [[ "$result" =~ "1.0.0" ]]
 }
 
 # Test health check functionality
-@test "comfyui::health_check verifies service health" {
+@test "common::health_check verifies service health" {
     # Mock curl for health check
     curl() {
         case "$*" in
@@ -362,40 +363,40 @@ teardown() {
         esac
     }
     
-    result=$(comfyui::health_check)
+    result=$(common::health_check)
     
     [[ "$result" =~ "healthy" ]] || [[ "$result" =~ "Health check" ]]
 }
 
 # Test file validation
-@test "comfyui::validate_file validates input files" {
+@test "common::validate_file validates input files" {
     local test_file="$COMFYUI_DATA_DIR/test.json"
     echo '{"prompt":"test"}' > "$test_file"
     
-    comfyui::validate_file "$test_file"
+    common::validate_file "$test_file"
     [ "$?" -eq 0 ]
 }
 
 # Test file validation with invalid file
-@test "comfyui::validate_file rejects invalid files" {
-    run comfyui::validate_file "/nonexistent/file.json"
+@test "common::validate_file rejects invalid files" {
+    run common::validate_file "/nonexistent/file.json"
     [ "$status" -eq 1 ]
     [[ "$output" =~ "ERROR:" ]]
 }
 
 # Test parameter validation
-@test "comfyui::validate_parameters validates input parameters" {
-    result=$(comfyui::validate_parameters)
+@test "common::validate_parameters validates input parameters" {
+    result=$(common::validate_parameters)
     
     [[ "$result" =~ "Validating parameters" ]] || [ "$?" -eq 0 ]
 }
 
 # Test error handling
-@test "comfyui::handle_error processes errors gracefully" {
+@test "common::handle_error processes errors gracefully" {
     local error_message="Test error"
     local error_code="1"
     
-    result=$(comfyui::handle_error "$error_message" "$error_code")
+    result=$(common::handle_error "$error_message" "$error_code")
     
     [[ "$result" =~ "ERROR:" ]]
     [[ "$result" =~ "Test error" ]]

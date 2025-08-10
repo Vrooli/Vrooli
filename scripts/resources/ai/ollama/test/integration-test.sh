@@ -5,12 +5,11 @@
 
 set -euo pipefail
 
-# Source enhanced integration test library with fixture support
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+OLLAMA_TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+source "${OLLAMA_TEST_DIR}/../../../../lib/utils/var.sh"
 
 # Source enhanced integration test library with fixture support
 # shellcheck disable=SC1091
