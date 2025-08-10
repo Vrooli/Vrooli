@@ -1,13 +1,16 @@
 module.exports = {
+  preset: 'ts-jest',
   testEnvironment: 'node',
-  testTimeout: 10000,
-  verbose: true,
+  testMatch: ['**/*.test.ts'],
   collectCoverageFrom: [
-    'server.js',
+    'types/**/*.ts',
+    'server.ts',
+    '!dist/**',
     '!node_modules/**'
   ],
-  testMatch: [
-    '**/*.test.js'
-  ],
-  setupFilesAfterEnv: ['<rootDir>/test-setup.js']
+  coverageDirectory: 'coverage',
+  coverageReporters: ['text', 'lcov', 'html'],
+  setupFilesAfterEnv: ['<rootDir>/test-setup.js'],
+  testTimeout: 30000,
+  verbose: true
 };

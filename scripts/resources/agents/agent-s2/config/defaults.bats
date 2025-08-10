@@ -6,7 +6,7 @@
 setup_file() {
     # Load shared test infrastructure once per file using var_ variables
     # shellcheck disable=SC1091
-    source "${BATS_TEST_DIRNAME}/../../../lib/utils/var.sh"
+    source "${BATS_TEST_DIRNAME}/../../../../lib/utils/var.sh"
     # shellcheck disable=SC1091
     source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
     # Setup standard mocks once

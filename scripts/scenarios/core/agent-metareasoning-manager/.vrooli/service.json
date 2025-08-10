@@ -132,8 +132,8 @@
         },
         {
           "name": "prepare-api",
-          "run": "cd api && npm install --production",
-          "description": "Install API server dependencies",
+          "run": "cd api && npm install --production && npm run build",
+          "description": "Install API server dependencies and compile TypeScript",
           "condition": {
             "file_exists": "api/package.json"
           }
@@ -150,11 +150,11 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && METAREASONING_API_PORT=8093 POSTGRES_PORT=${RESOURCE_PORTS[postgres]} REDIS_PORT=${RESOURCE_PORTS[redis]} N8N_PORT=${RESOURCE_PORTS[n8n]} WINDMILL_PORT=${RESOURCE_PORTS[windmill]} node server.js &",
-          "description": "Start API server in background",
+          "run": "cd api && METAREASONING_API_PORT=8093 POSTGRES_PORT=${RESOURCE_PORTS[postgres]} REDIS_PORT=${RESOURCE_PORTS[redis]} N8N_PORT=${RESOURCE_PORTS[n8n]} WINDMILL_PORT=${RESOURCE_PORTS[windmill]} npm run dev &",
+          "description": "Build TypeScript and start API server in background",
           "background": true,
           "condition": {
-            "file_exists": "api/server.js"
+            "file_exists": "api/server.ts"
           }
         },
         {
@@ -166,7 +166,7 @@
             "delay": 2
           },
           "condition": {
-            "file_exists": "api/server.js"
+            "file_exists": "api/server.ts"
           }
         },
         {
@@ -180,11 +180,19 @@
       "description": "Test metareasoning manager API and CLI",
       "steps": [
         {
+          "name": "type-check-api",
+          "run": "cd api && npm run type-check",
+          "description": "TypeScript type checking",
+          "condition": {
+            "file_exists": "api/tsconfig.json"
+          }
+        },
+        {
           "name": "test-api-health",
           "run": "curl -sf http://localhost:8093/api/health",
           "description": "Test API health endpoint",
           "condition": {
-            "file_exists": "api/server.js"
+            "file_exists": "api/server.ts"
           }
         },
         {

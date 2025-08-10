@@ -2,6 +2,7 @@
 # Tests for test.sh
 
 # Source test setup infrastructure
+# shellcheck disable=SC1091
 source "$(dirname "${BATS_TEST_FILENAME}")/../../../../__test/fixtures/setup.bash"
 
 setup() {

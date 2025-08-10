@@ -7,9 +7,9 @@
 # Returns: mode name (sandbox/host)
 #######################################
 agents2::get_current_mode() {
-    if docker ps --filter "name=agent-s2" --format "table {{.Names}}" | grep -q "agent-s2"; then
+    if docker ps --filter "name=${AGENTS2_CONTAINER_NAME}" --format "table {{.Names}}" | grep -q "${AGENTS2_CONTAINER_NAME}"; then
         # Check environment variable in running container
-        local mode=$(docker exec agent-s2 printenv AGENT_S2_MODE 2>/dev/null || echo "sandbox")
+        local mode=$(docker exec "${AGENTS2_CONTAINER_NAME}" printenv AGENT_S2_MODE 2>/dev/null || echo "sandbox")
         echo "$mode"
     else
         echo "sandbox"  # Default mode

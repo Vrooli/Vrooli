@@ -23,8 +23,8 @@ if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
     source "${SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
 fi
 
-# Default Agent-S2 settings
-readonly DEFAULT_AGENT_S2_HOST="http://localhost:8006"
+# Default Agent-S2 settings  
+readonly DEFAULT_AGENT_S2_HOST="http://localhost:4113"
 readonly DEFAULT_AGENT_S2_DATA_DIR="${HOME}/.agent-s2"
 readonly DEFAULT_AGENT_S2_PROFILES_DIR="${DEFAULT_AGENT_S2_DATA_DIR}/profiles"
 readonly DEFAULT_AGENT_S2_WORKFLOWS_DIR="${DEFAULT_AGENT_S2_DATA_DIR}/workflows"
