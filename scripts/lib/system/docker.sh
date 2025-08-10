@@ -21,6 +21,8 @@ source "${var_LIB_UTILS_DIR}/flow.sh"
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 ################################################################################
 # Core Docker Command Wrappers
@@ -110,7 +112,7 @@ docker::_install_if_missing() {
 # Docker installation function
 docker::_do_install_docker() {
     curl -fsSL https://get.docker.com -o get-docker.sh
-    trap 'rm -f get-docker.sh' EXIT
+    trap 'trash::safe_remove get-docker.sh --no-confirm' EXIT
     sudo sh get-docker.sh
 }
 
@@ -348,7 +350,7 @@ docker::update_daemon() {
         log::success "Docker daemon DNS updated (preserved existing config)"
     else
         log::error "Invalid JSON generated, keeping original"
-        sudo rm -f "${daemon_file}.tmp"
+        trash::safe_remove "${daemon_file}.tmp" --no-confirm
         return 1
     fi
 }

@@ -126,7 +126,7 @@ postgres::instance::create() {
         # Clean up configuration on Docker container creation failure
         local instance_dir="${POSTGRES_INSTANCES_DIR}/${instance_name}"
         if [[ -d "$instance_dir" ]]; then
-            rm -rf "$instance_dir"
+            trash::safe_remove "$instance_dir" --no-confirm
             log::debug "Cleaned up instance configuration due to container creation failure"
         fi
         return 1
@@ -167,7 +167,7 @@ postgres::instance::destroy() {
         local instance_dir="${POSTGRES_INSTANCES_DIR}/${instance_name}"
         if [[ -d "$instance_dir" ]]; then
             # First try normal removal
-            if rm -rf "$instance_dir" 2>/dev/null; then
+            if trash::safe_remove "$instance_dir" --no-confirm 2>/dev/null; then
                 log::debug "Removed instance directory: $instance_dir"
             else
                 # If that fails, try using Docker to remove root-owned files
@@ -176,7 +176,7 @@ postgres::instance::destroy() {
                 # Use a temporary container to remove files with proper permissions
                 if docker run --rm -v "${instance_dir}:/cleanup" alpine:latest sh -c "rm -rf /cleanup/*" 2>/dev/null; then
                     # Now remove the empty directory
-                    rmdir "$instance_dir" 2>/dev/null || rm -rf "$instance_dir"
+                    rmdir "$instance_dir" 2>/dev/null || trash::safe_remove "$instance_dir" --no-confirm
                     log::debug "Removed instance directory using Docker: $instance_dir"
                 else
                     log::warn "Could not fully remove instance directory. Manual cleanup may be required: $instance_dir"

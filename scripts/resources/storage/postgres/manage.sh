@@ -17,6 +17,8 @@ source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/args-cli.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 # Source configuration
 # shellcheck disable=SC1091

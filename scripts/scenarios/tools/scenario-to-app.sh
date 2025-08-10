@@ -40,6 +40,8 @@ source "${SCENARIO_TOOLS_DIR}/../../lib/utils/var.sh"
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 # Global variables
 SCENARIO_NAME=""
@@ -640,7 +642,7 @@ scenario_to_app::adjust_inheritance_path() {
             [[ "$VERBOSE" == "true" ]] && log::info "DEBUG: Phases after filtering: $(echo "$filtered_base" | jq -r 'keys | join(", ")' 2>/dev/null)"
             
             # Clean up temp file
-            rm -f "$temp_base"
+            trash::safe_remove "$temp_base" --no-confirm
             
             
             # Now merge with app lifecycle (app phases take precedence, but base phases are preserved)
@@ -935,7 +937,7 @@ scenario_to_app::copy_item() {
                 fi
             else
                 # Replace directory - create destination first, then copy contents
-                [[ -d "$dest" ]] && rm -rf "$dest"
+                [[ -d "$dest" ]] && trash::safe_remove "$dest" --no-confirm
                 mkdir -p "$dest"
                 
                 if command -v rsync >/dev/null 2>&1; then
@@ -1067,14 +1069,14 @@ scenario_to_app::generate_app() {
         }
         
         # Set up cleanup trap
-        trap "rm -rf '$temp_path'" EXIT ERR INT TERM
+        trap "trash::safe_remove '$temp_path' --no-confirm" EXIT ERR INT TERM
         
         log::info "Building app in temporary directory..."
         
         # Copy all files to temp directory using manifest
         if ! scenario_to_app::copy_from_manifest "$temp_path" "$SCENARIO_PATH"; then
             log::error "Failed to copy files according to manifest"
-            rm -rf "$temp_path"
+            trash::safe_remove "$temp_path" --no-confirm
             return 1
         fi
         
@@ -1089,12 +1091,12 @@ scenario_to_app::generate_app() {
         # Atomic move: Remove old and move temp to final location
         if [[ -d "$app_path" ]]; then
             log::info "Removing existing app directory..."
-            rm -rf "$app_path"
+            trash::safe_remove "$app_path" --no-confirm
         fi
         
         mv "$temp_path" "$app_path" || {
             log::error "Failed to move app to final location"
-            rm -rf "$temp_path"
+            trash::safe_remove "$temp_path" --no-confirm
             return 1
         }
         

@@ -12,6 +12,8 @@ source "${var_APP_UTILS_DIR}/env.sh"
 source "${var_LIB_NETWORK_DIR}/keyless_ssh.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 # Default values
 BACKUP_COUNT="5"
@@ -55,7 +57,7 @@ backup::do() {
     shopt -u nullglob
     if [ "${#dirs[@]}" -gt "$BACKUP_COUNT" ]; then
         for dir in "${dirs[@]:$BACKUP_COUNT}"; do
-            rm -rf -- "$dir"
+            trash::safe_remove "$dir" --no-confirm
         done
     fi
 

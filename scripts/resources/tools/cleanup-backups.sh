@@ -8,6 +8,12 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 RESOURCES_DIR=$(dirname "$SCRIPT_DIR")
 BACKUP_ARCHIVE_DIR="$HOME/.vrooli/resource-backups"
 
+# Source utilities
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
+
 echo "🧹 Cleaning up backup files in resources directory..."
 echo "   Archive location: $BACKUP_ARCHIVE_DIR"
 echo
@@ -81,8 +87,14 @@ if [ -d "agents/agent-s2/backups" ]; then
     cd agents/agent-s2/backups
     BACKUP_DIRS=$(ls -t 2>/dev/null | tail -n +3)
     if [ -n "$BACKUP_DIRS" ]; then
-        echo "$BACKUP_DIRS" | xargs -r rm -rf
-        echo "   Kept 2 most recent, removed: $(echo "$BACKUP_DIRS" | wc -l) old backups"
+        local removed_count=0
+        while IFS= read -r backup_dir; do
+            if [ -n "$backup_dir" ]; then
+                trash::safe_remove "$backup_dir" --no-confirm
+                ((removed_count++))
+            fi
+        done <<< "$BACKUP_DIRS"
+        echo "   Kept 2 most recent, removed: $removed_count old backups"
     fi
     cd "$RESOURCES_DIR"
 fi
