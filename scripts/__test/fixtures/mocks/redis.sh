@@ -23,6 +23,12 @@ declare -g REDIS_MOCK_LOADED=1
 MOCK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [[ -f "$MOCK_DIR/logs.sh" ]] && source "$MOCK_DIR/logs.sh"
 
+# Source trash module for safe cleanup
+# shellcheck disable=SC1091
+source "${MOCK_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Global configuration
 declare -g REDIS_MOCK_STATE_DIR="${REDIS_MOCK_STATE_DIR:-/tmp/redis-mock-state}"
 declare -g REDIS_MOCK_DEBUG="${REDIS_MOCK_DEBUG:-}"
@@ -1119,7 +1125,7 @@ mock::redis::cmd_exec() {
         results+=("$result")
     done
     
-    rm -f "$temp_file"
+    trash::safe_remove "$temp_file" --test-cleanup
     
     REDIS_MOCK_TRANSACTION_QUEUE=()
     

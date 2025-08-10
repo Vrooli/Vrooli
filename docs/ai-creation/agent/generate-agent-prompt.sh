@@ -6,6 +6,12 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source trash module for safe cleanup
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../scripts/lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 AGENT_DIR="$SCRIPT_DIR"
 ROUTINE_DIR="$SCRIPT_DIR/../routine"
 
@@ -284,7 +290,7 @@ generate_prompt() {
     }
     
     # Clean up
-    rm -f "$temp_prompt"
+    trash::safe_remove "$temp_prompt" --temp
 }
 
 main() {

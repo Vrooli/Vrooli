@@ -15,6 +15,12 @@ readonly NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCRIPT_DIR
 
+# Source trash module for safe cleanup
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Load cleanup manager
 source "$SCRIPT_DIR/fixtures/cleanup-manager.sh"
 
@@ -244,14 +250,14 @@ check_permissions() {
         log_error "Cannot write to /tmp - insufficient permissions"
         exit 1
     fi
-    rm -f /tmp/.cleanup_test_$$
+    trash::safe_remove /tmp/.cleanup_test_$$ --test-cleanup
     
     # Check if we can write to /dev/shm (if it exists)
     if [[ -d "/dev/shm" ]]; then
         if ! touch /dev/shm/.cleanup_test_$$ 2>/dev/null; then
             log_warning "Cannot write to /dev/shm - some cleanup may be limited"
         else
-            rm -f /dev/shm/.cleanup_test_$$
+            trash::safe_remove /dev/shm/.cleanup_test_$$ --test-cleanup
         fi
     fi
 }

@@ -5,6 +5,13 @@
 
 set -euo pipefail
 
+# Source trash module for safe cleanup
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../scripts/lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Default settings
 UPDATE_REFERENCE=true
 
@@ -190,6 +197,8 @@ echo "  - Available routines:       $AVAILABLE_ROUTINES_FILE"
 echo "  - Missing routines:         $MISSING_ROUTINES_FILE"
 
 # Clean up temp files
-rm -f "$TEMP_AGENT_REFS" "$TEMP_AVAILABLE" "$TEMP_MISSING"
+trash::safe_remove "$TEMP_AGENT_REFS" --temp
+trash::safe_remove "$TEMP_AVAILABLE" --temp
+trash::safe_remove "$TEMP_MISSING" --temp
 
 success "Analysis complete!"

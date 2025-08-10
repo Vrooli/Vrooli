@@ -14,6 +14,8 @@ source "${var_LIB_UTILS_DIR}/flow.sh"
 source "${var_LIB_UTILS_DIR}/exit_codes.sh"
 # shellcheck disable=SC1091
 source "${var_APP_UTILS_DIR}/env.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 #######################################
 # Vrooli-specific backup logic
@@ -115,7 +117,8 @@ backup::vrooli_redis() {
             done
             
             # Clean up temp files
-            rm -f "${BACKUP_SESSION_DIR}/.redis_last_save_old" "${BACKUP_SESSION_DIR}/.redis_last_save_new"
+            trash::safe_remove "${BACKUP_SESSION_DIR}/.redis_last_save_old" --temp
+            trash::safe_remove "${BACKUP_SESSION_DIR}/.redis_last_save_new" --temp
         else
             log::warning "Failed to trigger Redis BGSAVE - Redis data backup skipped"
         fi
