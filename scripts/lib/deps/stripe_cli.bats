@@ -1,6 +1,13 @@
 #!/usr/bin/env bats
 bats_require_minimum_version 1.5.0
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Path to the script under test
 SCRIPT_PATH="$BATS_TEST_DIRNAME/stripe_cli.sh"
 
@@ -10,7 +17,7 @@ setup() {
 }
 
 teardown() {
-    rm -rf "$TMP_DIR"
+    trash::safe_remove "$TMP_DIR" --test-cleanup
 }
 
 @test "sourcing stripe_cli.sh defines functions" {

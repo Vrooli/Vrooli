@@ -10,6 +10,8 @@ SCRIPTS_DIR="$(dirname "$(dirname "$SCENARIO_TOOLS_DIR")")"
 # Source dependencies
 . "$SCRIPTS_DIR/lib/utils/var.sh"
 . "$SCRIPTS_DIR/lib/utils/log.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # ============================================================================
 # Helper Function Tests
@@ -256,7 +258,7 @@ SCRIPTS_DIR="$(dirname "$(dirname "$SCENARIO_TOOLS_DIR")")"
         pre_commit_port_check::install_hook 2>/dev/null || echo \"installation attempted\"
         
         cd - >/dev/null
-        rm -rf \"\$TEMP_REPO\"
+        trash::safe_remove \"\$TEMP_REPO\" --test-cleanup
     "
     [[ "$output" == *"installation attempted"* ]] || [[ "$output" == *"Pre-commit hook installed"* ]]
 }
@@ -284,7 +286,7 @@ SCRIPTS_DIR="$(dirname "$(dirname "$SCENARIO_TOOLS_DIR")")"
         pre_commit_port_check::install_hook 2>/dev/null || echo \"handled existing hook\"
         
         cd - >/dev/null
-        rm -rf \"\$TEMP_REPO\"
+        trash::safe_remove \"\$TEMP_REPO\" --test-cleanup
     "
     [[ "$output" == *"backup created"* ]] || [[ "$output" == *"handled existing hook"* ]]
 }
@@ -305,7 +307,7 @@ SCRIPTS_DIR="$(dirname "$(dirname "$SCENARIO_TOOLS_DIR")")"
         fi
         
         cd - >/dev/null
-        rm -rf \"\$TEMP_DIR\"
+        trash::safe_remove \"\$TEMP_DIR\" --test-cleanup
     "
     [[ "$output" == *"installation: failed (expected)"* ]]
 }
@@ -511,7 +513,7 @@ SCRIPTS_DIR="$(dirname "$(dirname "$SCENARIO_TOOLS_DIR")")"
         fi
         
         cd - >/dev/null
-        rm -rf \"\$TEMP_REPO\"
+        trash::safe_remove \"\$TEMP_REPO\" --test-cleanup
     "
     [[ "$output" == *"hook: commit blocked"* ]]
     [[ "$output" == *"localhost:11434"* ]]

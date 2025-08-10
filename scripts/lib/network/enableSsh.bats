@@ -165,7 +165,7 @@ setup_mocks() {
     grep -q "chmod 600 ~/.ssh/authorized_keys" "${MOCK_RESPONSES_DIR}/chmod_calls.log"
     
     # Clean up
-    rm -rf "${MOCK_RESPONSES_DIR}"
+    trash::safe_remove "${MOCK_RESPONSES_DIR}" --test-cleanup
 }
 
 # Tests for enableSsh::enable_password_authentication function
@@ -186,7 +186,7 @@ setup_mocks() {
     grep -q "AuthorizedKeysFile" "${MOCK_RESPONSES_DIR}/sed_calls.log"
     
     # Clean up
-    rm -rf "${MOCK_RESPONSES_DIR}"
+    trash::safe_remove "${MOCK_RESPONSES_DIR}" --test-cleanup
 }
 
 @test "enableSsh::enable_password_authentication skips when sudo mode is skip" {
@@ -214,7 +214,7 @@ setup_mocks() {
     grep -q "systemctl restart sshd" "${MOCK_RESPONSES_DIR}/systemctl_calls.log"
     
     # Clean up
-    rm -rf "${MOCK_RESPONSES_DIR}"
+    trash::safe_remove "${MOCK_RESPONSES_DIR}" --test-cleanup
 }
 
 @test "enableSsh::restart_ssh falls back to ssh service when sshd fails" {

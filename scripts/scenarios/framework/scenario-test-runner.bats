@@ -1,6 +1,13 @@
 #!/usr/bin/env bats
 # Tests for scenario-test-runner.sh
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Source test setup infrastructure
 source "$(dirname "${BATS_TEST_FILENAME}")/../../../__test/fixtures/setup.bash"
 
@@ -77,7 +84,7 @@ teardown() {
 
 @test "scenario-test-runner creates minimal config when missing" {
     # Remove the config file
-    rm -f "$TEST_SCENARIO_DIR/scenario-test.yaml"
+    trash::safe_remove "$TEST_SCENARIO_DIR/scenario-test.yaml" --test-cleanup
     
     # Mock mktemp to avoid temp files in tests
     mktemp() { echo "$VROOLI_TEST_TMPDIR/test-config-$$"; }

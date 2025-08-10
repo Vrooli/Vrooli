@@ -13,76 +13,31 @@ source "$var_LIB_SYSTEM_DIR/system_commands.sh"
 source "$var_LIB_UTILS_DIR/flow.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/retry.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/hash.sh"
 
 # Default Node.js version if not specified
 DEFAULT_NODE_VERSION="20"
+# NVM version to install
+NVM_VERSION="0.40.3"
 
-# Retry configuration - only set if not already defined
-if [[ -z "${MAX_RETRY_ATTEMPTS:-}" ]]; then
-    readonly MAX_RETRY_ATTEMPTS=3
-    readonly RETRY_DELAY=2
-fi
 
-nodejs::download_with_retry() {
-    local url="$1"
-    local attempt=1
-    
-    while [[ $attempt -le $MAX_RETRY_ATTEMPTS ]]; do
-        log::info "Download attempt $attempt of $MAX_RETRY_ATTEMPTS..."
-        
-        if curl -fsSL "$url"; then
-            return 0
-        fi
-        
-        if [[ $attempt -lt $MAX_RETRY_ATTEMPTS ]]; then
-            log::warning "Download failed, retrying in ${RETRY_DELAY} seconds..."
-            sleep "$RETRY_DELAY"
-        fi
-        
-        ((attempt++))
-    done
-    
-    log::error "Download failed after $MAX_RETRY_ATTEMPTS attempts"
-    return 1
+# Get platform name with Node.js-specific conventions
+nodejs::get_platform() {
+    local platform
+    platform=$(system::detect_platform)
+    # Convert darwin to mac for backward compatibility
+    [[ "$platform" == "darwin" ]] && platform="mac"
+    echo "$platform"
 }
 
-nodejs::detect_platform() {
-    local uname_out
-    uname_out="$(uname -s)"
-    case "${uname_out}" in
-        Linux*)     echo "linux";;
-        Darwin*)    echo "mac";;
-        CYGWIN*|MINGW*|MSYS*) echo "windows";;
-        *)          echo "unknown";;
-    esac
-}
-
-nodejs::get_nvm_dir() {
-    echo "${NVM_DIR:-$HOME/.nvm}"
-}
-
+# Simple verification that Node.js is available
 nodejs::verify_installation() {
-    local expected_version="${1:-}"
-    
-    if command -v node >/dev/null 2>&1; then
-        local installed_version
-        installed_version=$(node --version)
-        log::success "Node.js installed successfully: $installed_version"
-        
-        # Also check npm
-        local npm_version
-        npm_version=$(npm --version 2>/dev/null || echo "not found")
-        log::info "npm version: $npm_version"
-        
-        # Check if version matches expected (if provided)
-        if [[ -n "$expected_version" ]] && [[ "$expected_version" != "lts" ]] && [[ "$expected_version" != "latest" ]]; then
-            if [[ "$installed_version" == v"$expected_version"* ]]; then
-                log::info "Installed version matches requested version"
-            else
-                log::warning "Installed version ($installed_version) differs from requested (v$expected_version)"
-            fi
-        fi
-        
+    if system::is_command node; then
+        log::success "Node.js installed: $(node --version)"
+        system::is_command npm && log::info "npm version: $(npm --version)"
         return 0
     else
         log::error "Node.js installation verification failed"
@@ -92,7 +47,7 @@ nodejs::verify_installation() {
 
 nodejs::ensure_nvm() {
     local nvm_dir
-    nvm_dir=$(nodejs::get_nvm_dir)
+    nvm_dir="${NVM_DIR:-$HOME/.nvm}"
     
     # Check if nvm is already installed
     if [[ -s "$nvm_dir/nvm.sh" ]]; then
@@ -100,27 +55,28 @@ nodejs::ensure_nvm() {
         return 0
     fi
     
-    log::info "Installing nvm..."
+    log::info "Installing nvm v${NVM_VERSION}..."
     
     # Download and install nvm with retry
-    if ! nodejs::download_with_retry "https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh" | bash; then
-        log::error "Failed to download nvm installer"
+    local nvm_install_url="https://raw.githubusercontent.com/nvm-sh/nvm/v${NVM_VERSION}/install.sh"
+    if ! retry::download "$nvm_install_url" | bash; then
+        log::error "Failed to install nvm from $nvm_install_url"
         return 1
     fi
     
     # Verify installation
     if [[ ! -s "$nvm_dir/nvm.sh" ]]; then
-        log::error "Failed to install nvm"
+        log::error "nvm installation verification failed"
         return 1
     fi
     
-    log::success "nvm installed successfully"
+    log::success "nvm v${NVM_VERSION} installed successfully"
     return 0
 }
 
 nodejs::source_nvm() {
     local nvm_dir
-    nvm_dir=$(nodejs::get_nvm_dir)
+    nvm_dir="${NVM_DIR:-$HOME/.nvm}"
     
     # Source nvm
     export NVM_DIR="$nvm_dir"
@@ -142,7 +98,7 @@ nodejs::install_node() {
     nodejs::source_nvm
     
     # Check if node is already installed
-    if command -v node >/dev/null 2>&1; then
+    if system::is_command node; then
         local current_version
         current_version=$(node --version)
         log::info "Node.js is already installed: $current_version"
@@ -183,18 +139,20 @@ nodejs::install_node_volta() {
     log::header "Installing Node.js via Volta..."
     
     # Check if Volta is already installed
-    if ! command -v volta >/dev/null 2>&1; then
+    if ! system::is_command volta; then
         log::info "Volta not found. Installing Volta..."
         
         # Check if Homebrew is available (Mac)
-        if command -v brew >/dev/null 2>&1; then
+        if system::is_command brew; then
             brew install volta || {
                 log::error "Failed to install Volta via Homebrew"
                 return 1
             }
         else
-            # Fallback to curl installation with retry
-            if ! nodejs::download_with_retry "https://get.volta.sh" | bash; then
+                # Fallback to curl installation with retry
+            local volta_install_url="https://get.volta.sh"
+            log::info "Installing Volta from $volta_install_url..."
+            if ! retry::download "$volta_install_url" | bash; then
                 log::error "Failed to install Volta"
                 return 1
             fi
@@ -229,7 +187,7 @@ nodejs::install_node_windows() {
     log::header "Installing Node.js via nvm-windows..."
     
     # Check if nvm-windows is installed
-    if ! command -v nvm >/dev/null 2>&1; then
+    if ! system::is_command nvm; then
         log::error "nvm-windows is not installed. Please install it from https://github.com/coreybutler/nvm-windows"
         log::info "Run the Windows setup script or install manually"
         return 1
@@ -254,13 +212,13 @@ nodejs::install_node_windows() {
 
 nodejs::source_environment() {
     local platform
-    platform=$(nodejs::detect_platform)
+    platform=$(nodejs::get_platform)
     
     case "$platform" in
         linux)
             nodejs::source_nvm
             ;;
-        mac)
+        darwin|mac)
             # Source Volta
             export VOLTA_HOME="${VOLTA_HOME:-$HOME/.volta}"
             export PATH="$VOLTA_HOME/bin:$PATH"
@@ -278,44 +236,59 @@ nodejs::install_system_wide() {
     
     log::header "Installing Node.js system-wide..."
     
-    # Check if running with proper permissions
-    if [[ $EUID -ne 0 ]] && [[ -z "${SUDO_USER:-}" ]]; then
+    # Check if we can run privileged operations
+    if ! flow::can_run_sudo "system-wide Node.js installation"; then
         log::error "System-wide installation requires root privileges"
+        log::info "Run with sudo or use --sudo-mode ask to enable privileged operations"
         return 1
     fi
     
     local platform
-    platform=$(nodejs::detect_platform)
+    platform=$(nodejs::get_platform)
     
     case "$platform" in
         linux)
             # Install Node.js using NodeSource repository for consistent system-wide installation
             log::info "Setting up NodeSource repository for Node.js ${version}.x..."
             
-            # Install prerequisites
-            if command -v apt-get >/dev/null 2>&1; then
-                apt-get update
-                apt-get install -y ca-certificates curl gnupg
-                
-                # Add NodeSource GPG key
-                mkdir -p /etc/apt/keyrings
-                curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
-                
-                # Add NodeSource repository
-                NODE_MAJOR="${version}"
-                echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" > /etc/apt/sources.list.d/nodesource.list
-                
-                # Update and install
-                apt-get update
-                apt-get install -y nodejs
-                
-            elif command -v yum >/dev/null 2>&1; then
-                # For RHEL/CentOS/Fedora
-                curl -fsSL https://rpm.nodesource.com/setup_${version}.x | bash -
-                yum install -y nodejs
-                
-            else
-                log::warning "Package manager not supported for automatic installation"
+            # Install prerequisites using system package utilities
+            local pm
+            pm=$(system::detect_pm)
+            
+            case "$pm" in
+                apt-get)
+                    # Install prerequisites
+                    system::install_pkg ca-certificates
+                    system::install_pkg curl
+                    system::install_pkg gnupg
+                    
+                    # Add NodeSource GPG key with retry
+                    flow::maybe_run_sudo mkdir -p /etc/apt/keyrings
+                    local gpg_key_url="https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key"
+                    if ! retry::download "$gpg_key_url" | flow::maybe_run_sudo gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg; then
+                        log::error "Failed to download NodeSource GPG key"
+                        return 1
+                    fi
+                    
+                    # Add NodeSource repository
+                    NODE_MAJOR="${version}"
+                    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_${NODE_MAJOR}.x nodistro main" | flow::maybe_run_sudo tee /etc/apt/sources.list.d/nodesource.list > /dev/null
+                    
+                    # Update and install using system utilities
+                    system::update
+                    system::install_pkg nodejs
+                    ;;
+                yum|dnf)
+                    # For RHEL/CentOS/Fedora with retry
+                    local rpm_setup_url="https://rpm.nodesource.com/setup_${version}.x"
+                    if ! retry::download "$rpm_setup_url" | flow::maybe_run_sudo bash -; then
+                        log::error "Failed to setup NodeSource repository"
+                        return 1
+                    fi
+                    system::install_pkg nodejs
+                    ;;
+                *)
+                    log::warning "Package manager $pm not supported for automatic installation"
                 log::info "Falling back to manual binary installation..."
                 
                 # Manual installation from nodejs.org binaries
@@ -328,43 +301,47 @@ nodejs::install_system_wide() {
                     *) log::error "Unsupported architecture: $arch"; return 1 ;;
                 esac
                 
-                # Get the latest version number for the major version
+                # Get the latest version number for the major version with retry
+                local version_list_url="https://nodejs.org/dist/latest-v${version}.x/"
                 local latest_version
-                latest_version=$(curl -sL "https://nodejs.org/dist/latest-v${version}.x/" | grep -oP 'node-v\K[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+                latest_version=$(retry::download "$version_list_url" 3 2 | grep -oP 'node-v\K[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
                 if [[ -z "$latest_version" ]]; then
                     log::error "Failed to determine latest Node.js version"
                     return 1
                 fi
+                    
+                    local node_url="https://nodejs.org/dist/v${latest_version}/node-v${latest_version}-linux-${arch}.tar.xz"
+                    local node_tarball="/tmp/node-v${latest_version}.tar.xz"
+                    log::info "Downloading Node.js v${latest_version}..."
+                    
+                    if ! retry::download "$node_url" > "$node_tarball"; then
+                        log::error "Failed to download Node.js from $node_url"
+                        return 1
+                    fi
+                    
+                    cd /tmp || return 1
                 
-                local node_url="https://nodejs.org/dist/v${latest_version}/node-v${latest_version}-linux-${arch}.tar.xz"
-                log::info "Downloading Node.js v${latest_version} from $node_url..."
-                
-                cd /tmp || return 1
-                if ! nodejs::download_with_retry "$node_url" > "node.tar.xz"; then
-                    log::error "Failed to download Node.js"
-                    return 1
-                fi
-                
-                tar -xf node.tar.xz
-                rm node.tar.xz
+                tar -xf "$node_tarball"
+                rm -f "$node_tarball"
                 
                 # Find the extracted directory
                 local node_dir
                 node_dir=$(find . -maxdepth 1 -type d -name "node-v*" | head -1)
                 
                 # Copy to /usr/local
-                cp -r "${node_dir}"/* /usr/local/
+                flow::maybe_run_sudo cp -r "${node_dir}"/* /usr/local/
                 trash::safe_remove "${node_dir}" --no-confirm
                 
                 # Create symlinks in /usr/bin for compatibility
-                ln -sf /usr/local/bin/node /usr/bin/node
-                ln -sf /usr/local/bin/npm /usr/bin/npm
-                ln -sf /usr/local/bin/npx /usr/bin/npx
-            fi
+                flow::maybe_run_sudo ln -sf /usr/local/bin/node /usr/bin/node
+                flow::maybe_run_sudo ln -sf /usr/local/bin/npm /usr/bin/npm
+                flow::maybe_run_sudo ln -sf /usr/local/bin/npx /usr/bin/npx
+                    ;;
+            esac
             ;;
-        mac)
+        darwin|mac)
             # On Mac, use Homebrew for system-wide installation
-            if command -v brew >/dev/null 2>&1; then
+            if system::is_command brew; then
                 log::info "Installing Node.js via Homebrew..."
                 brew install node@${version} || brew install node
             else
@@ -379,37 +356,29 @@ nodejs::install_system_wide() {
     esac
     
     # Verify installation
-    if command -v node >/dev/null 2>&1; then
-        log::success "Node.js installed system-wide: $(node --version)"
-        log::info "npm version: $(npm --version)"
-        
-        # Enable corepack globally
-        if command -v corepack >/dev/null 2>&1; then
-            log::info "Enabling corepack globally..."
-            corepack enable
-        fi
-        
-        return 0
-    else
-        log::error "System-wide Node.js installation failed"
-        return 1
+    nodejs::verify_installation
+    
+    # Enable corepack globally if available
+    if system::is_command corepack; then
+        log::info "Enabling corepack globally..."
+        flow::maybe_run_sudo corepack enable
     fi
 }
 
 nodejs::check_and_install() {
     local platform
-    platform=$(nodejs::detect_platform)
+    platform=$(nodejs::get_platform)
     
     # If running with sudo on Linux, check if Node.js is available to the actual user
-    if [[ -n "${SUDO_USER:-}" ]] && [[ "$platform" == "linux" ]]; then
+    if [[ -n "${SUDO_USER:-}" ]] && [[ "$platform" == "linux" ]] && flow::can_run_sudo "user Node.js check"; then
         log::info "Running with sudo - checking if Node.js is available to user: ${SUDO_USER}"
         
         # Check if Node.js is available to the actual user (not root)
         local node_available_to_user=false
-        if sudo -u "${SUDO_USER}" bash -c 'command -v node >/dev/null 2>&1'; then
+        if flow::maybe_run_sudo -u "${SUDO_USER}" bash -c 'command -v node >/dev/null 2>&1'; then
             node_available_to_user=true
             local user_node_version
-            user_node_version=$(sudo -u "${SUDO_USER}" bash -c 'node --version 2>/dev/null' || echo "unknown")
+            user_node_version=$(flow::maybe_run_sudo -u "${SUDO_USER}" bash -c 'node --version 2>/dev/null' || echo "unknown")
             log::info "Node.js is available to ${SUDO_USER}: ${user_node_version}"
         else
             log::info "Node.js is NOT available to ${SUDO_USER}"
@@ -438,7 +407,7 @@ nodejs::check_and_install() {
                 return 1
             fi
             ;;
-        mac)
+        darwin|mac)
             nodejs::install_node_volta "$@"
             ;;
         windows)
@@ -450,6 +419,239 @@ nodejs::check_and_install() {
             ;;
     esac
 }
+
+################################################################################
+# Package Manager Functions (pnpm, npm, yarn)
+################################################################################
+
+
+# Ensure pnpm is available, using corepack if possible, otherwise fallback to standalone installation
+nodejs::ensure_pnpm() {
+    local version="${1:-latest}"
+    
+    # Check if pnpm is already available
+    if system::is_command pnpm; then
+        local current_version
+        current_version=$(pnpm --version 2>/dev/null || echo "unknown")
+        log::info "pnpm is already installed: v${current_version}"
+        return 0
+    fi
+    
+    log::info "Installing pnpm..."
+    
+    # Try to use corepack first (comes with Node.js 16.10+)
+    if system::is_command corepack; then
+        log::info "Using corepack to enable pnpm..."
+        
+        # Enable corepack and prepare pnpm
+        flow::run_as_user "corepack enable" || true
+        
+        if [[ "$version" == "latest" ]]; then
+            flow::run_as_user "corepack prepare pnpm@latest --activate" || true
+        else
+            flow::run_as_user "corepack prepare pnpm@${version} --activate" || true
+        fi
+        
+        # Check if pnpm is now available
+        if system::is_command pnpm; then
+            log::success "pnpm installed via corepack: $(pnpm --version)"
+            return 0
+        fi
+    fi
+    
+    # Fallback to standalone installation
+    log::info "Installing pnpm standalone..."
+    
+    # Set PNPM_HOME based on actual user's home directory
+    local actual_home="$HOME"
+    if [[ -n "${SUDO_USER:-}" ]]; then
+        actual_home=$(eval echo "~${SUDO_USER}")
+    fi
+    export PNPM_HOME="$actual_home/.local/share/pnpm"
+    
+    # Create directory with proper ownership
+    if [[ -n "${SUDO_USER:-}" ]]; then
+        sudo -u "${SUDO_USER}" mkdir -p "$PNPM_HOME"
+    else
+        mkdir -p "$PNPM_HOME"
+    fi
+    
+    # Download and run pnpm installer with retry
+    local pnpm_install_url="https://get.pnpm.io/install.sh"
+    if [[ -n "${SUDO_USER:-}" ]]; then
+        # For sudo users, we need to download first then pipe to their bash
+        local install_script
+        install_script=$(retry::download "$pnpm_install_url")
+        if [[ -z "$install_script" ]]; then
+            log::error "Failed to download pnpm installer"
+            return 1
+        fi
+        echo "$install_script" | sudo -u "${SUDO_USER}" bash -c "export PNPM_HOME='$PNPM_HOME' && bash -"
+    else
+        retry::download "$pnpm_install_url" | bash -
+    fi
+    
+    # Add to PATH for current session
+    export PATH="$PNPM_HOME:$PATH"
+    
+    # Verify installation
+    if system::is_command pnpm; then
+        log::success "pnpm installed successfully: $(pnpm --version)"
+        
+        # Inform user about PATH update needed
+        log::info "Add the following to your shell profile to use pnpm:"
+        log::info "  export PNPM_HOME=\"$PNPM_HOME\""
+        log::info "  export PATH=\"\$PNPM_HOME:\$PATH\""
+        
+        return 0
+    else
+        log::error "Failed to install pnpm"
+        return 1
+    fi
+}
+
+# Ensure npm is available and up to date
+nodejs::ensure_npm() {
+    if ! system::is_command npm; then
+        log::error "npm is not available. Please install Node.js first."
+        return 1
+    fi
+    
+    local current_version
+    current_version=$(npm --version)
+    log::info "npm version: $current_version"
+    
+    # Update npm to latest if requested
+    if [[ "${1:-}" == "--update" ]]; then
+        log::info "Updating npm to latest version..."
+        flow::run_as_user "npm install -g npm@latest"
+        log::success "npm updated to: $(npm --version)"
+    fi
+    
+    return 0
+}
+
+# Ensure yarn is available
+nodejs::ensure_yarn() {
+    local version="${1:-latest}"
+    
+    # Check if yarn is already available
+    if system::is_command yarn; then
+        local current_version
+        current_version=$(yarn --version 2>/dev/null || echo "unknown")
+        log::info "yarn is already installed: v${current_version}"
+        return 0
+    fi
+    
+    log::info "Installing yarn..."
+    
+    # Try corepack first
+    if system::is_command corepack; then
+        log::info "Using corepack to enable yarn..."
+        flow::run_as_user "corepack enable"
+        
+        if [[ "$version" == "latest" ]]; then
+            flow::run_as_user "corepack prepare yarn@stable --activate"
+        else
+            flow::run_as_user "corepack prepare yarn@${version} --activate"
+        fi
+        
+        if system::is_command yarn; then
+            log::success "yarn installed via corepack: $(yarn --version)"
+            return 0
+        fi
+    fi
+    
+    # Fallback to npm installation
+    if system::is_command npm; then
+        log::info "Installing yarn via npm..."
+        flow::run_as_user "npm install -g yarn"
+        
+        if system::is_command yarn; then
+            log::success "yarn installed via npm: $(yarn --version)"
+            return 0
+        fi
+    fi
+    
+    log::error "Failed to install yarn"
+    return 1
+}
+
+# Detect which package manager is being used in the current project
+nodejs::detect_package_manager() {
+    local project_dir="${1:-$(pwd)}"
+    
+    # Check for lock files
+    if [[ -f "$project_dir/pnpm-lock.yaml" ]]; then
+        echo "pnpm"
+    elif [[ -f "$project_dir/yarn.lock" ]]; then
+        echo "yarn"
+    elif [[ -f "$project_dir/package-lock.json" ]]; then
+        echo "npm"
+    elif [[ -f "$project_dir/package.json" ]]; then
+        # No lock file, check packageManager field in package.json
+        if system::is_command jq; then
+            local pkg_manager
+            pkg_manager=$(jq -r '.packageManager // ""' "$project_dir/package.json")
+            if [[ -n "$pkg_manager" ]]; then
+                # Extract manager name from format like "pnpm@8.0.0"
+                echo "${pkg_manager%%@*}"
+            else
+                echo "npm"  # Default to npm
+            fi
+        else
+            echo "npm"  # Default to npm
+        fi
+    else
+        echo "none"  # No package.json found
+    fi
+}
+
+# Install dependencies using the appropriate package manager
+nodejs::install_dependencies() {
+    local project_dir="${1:-$(pwd)}"
+    local flags="${2:-}"
+    
+    local pkg_manager
+    pkg_manager=$(nodejs::detect_package_manager "$project_dir")
+    
+    if [[ "$pkg_manager" == "none" ]]; then
+        log::warning "No package.json found in $project_dir"
+        return 1
+    fi
+    
+    log::info "Installing dependencies with $pkg_manager..."
+    
+    # Change to project directory
+    pushd "$project_dir" > /dev/null || return 1
+    
+    case "$pkg_manager" in
+        pnpm)
+            nodejs::ensure_pnpm || return 1
+            flow::run_as_user "pnpm install $flags"
+            ;;
+        yarn)
+            nodejs::ensure_yarn || return 1
+            flow::run_as_user "yarn install $flags"
+            ;;
+        npm)
+            nodejs::ensure_npm || return 1
+            flow::run_as_user "npm install $flags"
+            ;;
+    esac
+    
+    local result=$?
+    popd > /dev/null || return 1
+    
+    if [[ $result -eq 0 ]]; then
+        log::success "Dependencies installed successfully"
+    else
+        log::error "Failed to install dependencies"
+    fi
+    
+    return $result
+}
+
 
 # If this script is run directly, invoke its main function
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

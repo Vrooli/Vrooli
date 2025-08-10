@@ -10,6 +10,8 @@ SCRIPTS_DIR="$(dirname "$(dirname "$SCENARIO_TOOLS_DIR")")"
 # Source dependencies
 . "$SCRIPTS_DIR/lib/utils/var.sh"
 . "$SCRIPTS_DIR/lib/utils/log.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Mock file operations and external commands
 setup_mocks() {
@@ -99,7 +101,7 @@ EOF
         
         count=\$(migrate_hardcoded_ports::count_hardcoded_ports \"\$TEMP_FILE\")
         echo \"count: \$count\"
-        rm -f \"\$TEMP_FILE\"
+        trash::safe_remove \"\$TEMP_FILE\" --test-cleanup
     "
     [[ "$output" == *"count: 3"* ]]
 }
@@ -151,7 +153,7 @@ EOF
         changed=\$(migrate_hardcoded_ports::migrate_file \"\$TEMP_FILE\")
         echo \"Changed: \$changed\"
         
-        rm -f \"\$TEMP_FILE\"
+        trash::safe_remove \"\$TEMP_FILE\" --test-cleanup
     "
     [[ "$output" == *"Changed: true"* ]]
     [[ "$output" == *"backup created"* ]]
@@ -179,7 +181,7 @@ EOF
         changed=\$(migrate_hardcoded_ports::migrate_file \"\$TEMP_FILE\")
         echo \"Changed: \$changed\"
         
-        rm -f \"\$TEMP_FILE\"
+        trash::safe_remove \"\$TEMP_FILE\" --test-cleanup
     "
     [[ "$output" == *"Changed: false"* ]]
     [[ "$output" != *"backup created"* ]]
@@ -311,7 +313,7 @@ EOF
             echo \"file was modified (incorrect)\"
         fi
         
-        rm -f \"\$TEMP_FILE\"
+        trash::safe_remove \"\$TEMP_FILE\" --test-cleanup
     "
     [[ "$output" == *"Dry run changed: true"* ]]
     [[ "$output" == *"file unchanged (correct)"* ]]

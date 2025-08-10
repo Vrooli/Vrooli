@@ -42,6 +42,33 @@ system::detect_pm() {
     fi
 }
 
+# Detect the operating system platform
+# Returns: linux, darwin (mac), windows, or unknown
+system::detect_platform() {
+    local uname_out
+    uname_out="$(uname -s)"
+    case "${uname_out}" in
+        Linux*)     echo "linux";;
+        Darwin*)    echo "darwin";;
+        CYGWIN*|MINGW*|MSYS*) echo "windows";;
+        *)          echo "unknown";;
+    esac
+}
+
+# Detect system architecture
+# Returns: amd64, arm64, armv7, 386, or unknown
+system::detect_arch() {
+    local arch
+    arch="$(uname -m)"
+    case "${arch}" in
+        x86_64|amd64) echo "amd64";;
+        aarch64|arm64) echo "arm64";;
+        armv7l) echo "armv7";;
+        i386|i686) echo "386";;
+        *) echo "unknown";;
+    esac
+}
+
 # Given a command name, return the real package to install on this distro.
 system::get_package_name() {
     local cmd="$1"

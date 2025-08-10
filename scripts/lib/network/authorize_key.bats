@@ -15,6 +15,8 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/authorize_key.sh"
 # Source necessary dependencies that the script needs
 # Note: These need to be sourced here so functions are available
 source "${BATS_TEST_DIRNAME}/../utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 source "${var_LOG_FILE}"
 
 setup() {
@@ -37,7 +39,7 @@ teardown() {
     
     # Clean up test environment
     if [[ -n "${TEST_HOME:-}" ]] && [[ -d "$TEST_HOME" ]]; then
-        rm -rf "$TEST_HOME"
+        trash::safe_remove "$TEST_HOME" --test-cleanup
     fi
     unset TEST_HOME HOME
 }

@@ -10,6 +10,8 @@ SCRIPTS_DIR="$(dirname "$(dirname "$SCENARIO_TOOLS_DIR")")"
 # Source dependencies
 . "$SCRIPTS_DIR/lib/utils/var.sh"
 . "$SCRIPTS_DIR/lib/utils/log.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Mock file operations and external commands
 setup_mocks() {
@@ -58,7 +60,7 @@ EOF
             echo \"found n8n pattern\"
         fi
         
-        rm -f \"\$TEMP_FILE\"
+        trash::safe_remove \"\$TEMP_FILE\" --test-cleanup
     "
     [[ "$output" == *"Changed: true"* ]]
     [[ "$output" == *"backup:"* ]]
@@ -81,7 +83,7 @@ EOF
         changed=\$(migrate_ports_simple::migrate_file \"\$TEMP_FILE\" false)
         echo \"Changed: \$changed\"
         
-        rm -f \"\$TEMP_FILE\"
+        trash::safe_remove \"\$TEMP_FILE\" --test-cleanup
     "
     [[ "$output" == *"Changed: false"* ]]
 }
@@ -102,7 +104,7 @@ EOF
         content=\$(cat \"\$TEMP_FILE\")
         echo \"Content: \$content\"
         
-        rm -f \"\$TEMP_FILE\"
+        trash::safe_remove \"\$TEMP_FILE\" --test-cleanup
     "
     [[ "$output" == *"Dry run changed: true"* ]]
     [[ "$output" == *"Content: localhost:11434"* ]]
@@ -155,7 +157,7 @@ EOF
             fi
         done
         
-        rm -f \"\$TEMP_FILE\"
+        trash::safe_remove \"\$TEMP_FILE\" --test-cleanup
     "
     [[ "$output" == *"localhost:11434"* ]]
     [[ "$output" == *"http://localhost:11434"* ]]
@@ -193,7 +195,7 @@ EOF
         migrate_ports_simple::migrate_scenario \"\$TEMP_SCENARIO\" true
         
         # Cleanup
-        rm -rf \"\$TEMP_SCENARIO\"
+        trash::safe_remove \"\$TEMP_SCENARIO\" --test-cleanup
     "
     [[ "$output" == *"Processing:"* ]]
     [[ "$output" == *"service.json"* ]]
@@ -217,7 +219,7 @@ EOF
         migrate_ports_simple::migrate_scenario \"\$TEMP_SCENARIO\" true 2>/dev/null
         echo \"Migration completed without errors\"
         
-        rm -rf \"\$TEMP_SCENARIO\"
+        trash::safe_remove \"\$TEMP_SCENARIO\" --test-cleanup
     "
     [[ "$output" == *"Migration completed without errors"* ]]
 }
@@ -277,7 +279,7 @@ EOF
         
         main \"\$TEMP_DIR\" --dry-run
         
-        rm -rf \"\$TEMP_DIR\"
+        trash::safe_remove \"\$TEMP_DIR\" --test-cleanup
     "
     [[ "$output" == *"Dry run: true"* ]]
 }
@@ -323,7 +325,7 @@ EOF
         changed=\$(migrate_ports_simple::migrate_file \"\$TEMP_FILE\" false 2>/dev/null || echo \"backup_error_handled\")
         echo \"Result: \$changed\"
         
-        rm -f \"\$TEMP_FILE\"
+        trash::safe_remove \"\$TEMP_FILE\" --test-cleanup
     "
     [[ "$output" == *"backup_error_handled"* ]] || [[ "$status" -eq 1 ]]
 }
@@ -369,7 +371,7 @@ EOF
         changed=\$(migrate_ports_simple::migrate_file \"\$TEMP_FILE\" true)
         echo \"Would change: \$changed\"
         
-        rm -f \"\$TEMP_FILE\"
+        trash::safe_remove \"\$TEMP_FILE\" --test-cleanup
     "
     [[ "$output" == *"Patterns that would be migrated: 3"* ]]
     [[ "$output" == *"Would change: true"* ]]

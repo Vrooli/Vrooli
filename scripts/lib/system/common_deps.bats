@@ -1,6 +1,13 @@
 #!/usr/bin/env bats
 bats_require_minimum_version 1.5.0
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Test file for common_deps.sh
 # Tests the installation and verification of common system dependencies
 
@@ -13,7 +20,7 @@ setup() {
 
 teardown() {
     # Clean up test files
-    [[ -f "$MOCK_SCRIPT" ]] && rm -f "$MOCK_SCRIPT"
+    [[ -f "$MOCK_SCRIPT" ]] && trash::safe_remove "$MOCK_SCRIPT" --test-cleanup
     unset SCRIPT_PATH
     unset TEST_TMPDIR
     unset MOCK_SCRIPT

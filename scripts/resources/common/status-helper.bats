@@ -10,6 +10,8 @@ _HERE="$COMMON_DIR"
 # shellcheck disable=SC1091
 source "${_HERE}/../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
 source "${var_SCRIPTS_TEST_DIR}/test_helper.bash"
 
 # Load mocks for testing
@@ -36,7 +38,7 @@ setup() {
 
 teardown() {
     # Clean up test artifacts
-    rm -rf /tmp/test_status_* 2>/dev/null || true
+    trash::safe_remove /tmp/test_status_* --test-cleanup 2>/dev/null || true
 }
 
 # ============================================================================

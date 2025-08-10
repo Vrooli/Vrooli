@@ -7,6 +7,8 @@ APP_LIFECYCLE_DEPLOY_DIR="$BATS_TEST_DIRNAME"
 # shellcheck disable=SC1091
 source "${APP_LIFECYCLE_DEPLOY_DIR}/../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
 source "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/helm.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/logs.sh"
@@ -34,7 +36,7 @@ teardown() {
     mock::logs::cleanup
     
     # Clean up test directories
-    rm -rf "${var_DEST_DIR}"
+    trash::safe_remove "${var_DEST_DIR}" --test-cleanup
 }
 
 @test "k8s::deploy_k8s function exists when sourced" {

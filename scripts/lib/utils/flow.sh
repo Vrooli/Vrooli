@@ -107,3 +107,16 @@ flow::maybe_run_sudo() {
         "$@"
     fi
 }
+
+# Run command as the actual user when running under sudo
+# This ensures files created are owned by the actual user, not root
+flow::run_as_user() {
+    local cmd="$*"
+    if [[ -n "${SUDO_USER:-}" ]]; then
+        # Running with sudo - execute as the actual user
+        flow::maybe_run_sudo -u "${SUDO_USER}" bash -c "$cmd"
+    else
+        # Not running with sudo - execute normally
+        bash -c "$cmd"
+    fi
+}

@@ -14,61 +14,35 @@ source "$var_LIB_UTILS_DIR/flow.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh"
 # shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/retry.sh"
+# shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/permissions.sh"
 
 # Default Go version if not specified
 DEFAULT_GO_VERSION="1.21"
 
-# Retry configuration - only set if not already defined
-if [[ -z "${MAX_RETRY_ATTEMPTS:-}" ]]; then
-    readonly MAX_RETRY_ATTEMPTS=3
-    readonly RETRY_DELAY=2
-fi
-
 go::download_with_retry() {
     local url="$1"
     local output_file="$2"
-    local attempt=1
     
-    while [[ $attempt -le $MAX_RETRY_ATTEMPTS ]]; do
-        log::info "Download attempt $attempt of $MAX_RETRY_ATTEMPTS..."
-        
-        if curl -fsSL "$url" -o "$output_file"; then
-            return 0
-        fi
-        
-        if [[ $attempt -lt $MAX_RETRY_ATTEMPTS ]]; then
-            log::warning "Download failed, retrying in ${RETRY_DELAY} seconds..."
-            sleep "$RETRY_DELAY"
-        fi
-        
-        ((attempt++))
-    done
-    
-    log::error "Download failed after $MAX_RETRY_ATTEMPTS attempts"
-    return 1
-}
-
-go::detect_platform() {
-    local uname_out
-    uname_out="$(uname -s)"
-    case "${uname_out}" in
-        Linux*)     echo "linux";;
-        Darwin*)    echo "darwin";;
-        CYGWIN*|MINGW*|MSYS*) echo "windows";;
-        *)          echo "unknown";;
-    esac
+    # Use the retry utility with output to file
+    if retry::download "$url" > "$output_file"; then
+        return 0
+    else
+        log::error "Download failed after retries"
+        return 1
+    fi
 }
 
 go::detect_arch() {
+    # Map Go-specific architecture names
     local arch
-    arch="$(uname -m)"
+    arch=$(system::detect_arch)
+    
+    # Go uses slightly different naming
     case "$arch" in
-        x86_64) echo "amd64" ;;
-        aarch64|arm64) echo "arm64" ;;
-        armv7l) echo "armv6l" ;;
-        i386|i686) echo "386" ;;
-        *) echo "unknown" ;;
+        armv7) echo "armv6l" ;;  # Go uses armv6l for ARMv7
+        *) echo "$arch" ;;       # Others match
     esac
 }
 
@@ -157,7 +131,7 @@ go::install_binary() {
     
     # Detect platform and architecture
     local platform arch
-    platform=$(go::detect_platform)
+    platform=$(system::detect_platform)
     arch=$(go::detect_arch)
     
     if [[ "$platform" == "unknown" ]] || [[ "$arch" == "unknown" ]]; then
@@ -225,7 +199,7 @@ go::install_binary() {
 go::install_package_manager() {
     local version="${1:-$DEFAULT_GO_VERSION}"
     local platform
-    platform=$(go::detect_platform)
+    platform=$(system::detect_platform)
     
     log::header "Installing Go via package manager..."
     
@@ -393,7 +367,7 @@ EOF
 go::check_and_install() {
     local version="${1:-$DEFAULT_GO_VERSION}"
     local platform
-    platform=$(go::detect_platform)
+    platform=$(system::detect_platform)
     
     # Check if Go is already installed
     if command -v go >/dev/null 2>&1; then

@@ -7,6 +7,8 @@ APP_LIFECYCLE_DEPLOY_DIR="$BATS_TEST_DIRNAME"
 # shellcheck disable=SC1091
 source "${APP_LIFECYCLE_DEPLOY_DIR}/../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
 source "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/docker.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_TEST_DIR}/fixtures/mocks/logs.sh"
@@ -70,7 +72,7 @@ teardown() {
     "
     
     # Clean up
-    rm -rf "$test_dir"
+    trash::safe_remove "$test_dir" --test-cleanup
     
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Loading images from" ]]
@@ -105,7 +107,7 @@ teardown() {
     "
     
     # Clean up
-    rm -rf "$test_dir"
+    trash::safe_remove "$test_dir" --test-cleanup
     
     [ "$status" -eq 0 ]
     [[ ! "$output" =~ "Loading images from" ]]
@@ -144,7 +146,7 @@ teardown() {
     "
     
     # Clean up
-    rm -rf "$test_dir"
+    trash::safe_remove "$test_dir" --test-cleanup
     
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Order: compose:down;kill_all;compose:up;" ]]
@@ -197,7 +199,7 @@ teardown() {
     run bash -c "$SCRIPT_PATH '$test_dir' 2>&1"
     
     # Clean up
-    rm -rf "$test_dir"
+    trash::safe_remove "$test_dir" --test-cleanup
     
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Docker deployment completed" ]]

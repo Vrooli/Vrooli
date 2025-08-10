@@ -27,6 +27,8 @@ _HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${_HERE}/../../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091,SC2154,SC1090
 source "${var_LOG_FILE}" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/hash.sh" 2>/dev/null || true
 
 # Cache configuration
 CACHE_DIR=""
@@ -57,11 +59,7 @@ cache_manager::init() {
         return 1
     fi
     
-    # Validate required tools
-    if ! command -v sha256sum &> /dev/null; then
-        echo "ERROR: sha256sum not found - required for cache key generation" >&2
-        return 1
-    fi
+    # Hash utilities are now provided by hash.sh utility
     
     # Initialize performance counters
     CACHE_HITS=0
@@ -85,9 +83,9 @@ cache_manager::generate_key() {
         return 1
     fi
     
-    # Generate SHA256 hash of file content
+    # Generate SHA256 hash of file content using hash utility
     local file_hash
-    file_hash=$(sha256sum "$file_path" | cut -d' ' -f1)
+    file_hash=$(hash::compute_file_hash "$file_path")
     
     # Generate cache key
     echo "${CACHE_PREFIX}-${resource_name}-${file_hash}"

@@ -6,6 +6,8 @@ APP_LIFECYCLE_DEPLOY_DIR="$BATS_TEST_DIRNAME"
 
 # shellcheck disable=SC1091
 source "${APP_LIFECYCLE_DEPLOY_DIR}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Path to the script under test
 SCRIPT_PATH="${APP_LIFECYCLE_DEPLOY_DIR}/index.sh"
@@ -49,7 +51,7 @@ EOF
     "
     
     # Clean up
-    rm -rf "$test_dir"
+    trash::safe_remove "$test_dir" --test-cleanup
     
     [ "$status" -eq 0 ]
 }
@@ -85,7 +87,7 @@ EOF
     "
     
     # Clean up
-    rm -rf "$test_dir"
+    trash::safe_remove "$test_dir" --test-cleanup
     
     [ "$status" -eq 0 ]
 }
@@ -117,7 +119,7 @@ EOF
     "
     
     # Clean up
-    rm -rf "$test_dir"
+    trash::safe_remove "$test_dir" --test-cleanup
     
     [ "$status" -eq 0 ]
 }

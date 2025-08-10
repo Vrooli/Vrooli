@@ -6,6 +6,8 @@ bats_require_minimum_version 1.5.0
 SCRIPT_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")" && pwd)"
 # shellcheck disable=SC1091
 source "$(cd "${SCRIPT_DIR}/../../../../" && pwd)/lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Load Vrooli test infrastructure using var_ variables
 # shellcheck disable=SC1091
@@ -119,8 +121,9 @@ teardown() {
     vrooli_cleanup_test
     
     # Clean up test data directories
-    rm -rf "${BATS_TEST_TMPDIR}/browserless" 2>/dev/null || true
-    rm -f "$TEST_SCRIPT_FILE" "$TEST_FUNCTION_FILE" 2>/dev/null || true
+    trash::safe_remove "${BATS_TEST_TMPDIR}/browserless" --test-cleanup 2>/dev/null || true
+    trash::safe_remove "$TEST_SCRIPT_FILE" --test-cleanup 2>/dev/null || true
+    trash::safe_remove "$TEST_FUNCTION_FILE" --test-cleanup 2>/dev/null || true
 }
 
 # ============================================================================
@@ -291,7 +294,7 @@ EOF
     [[ "$output" =~ "valid" ]]
     
     # Clean up
-    rm -f "${VROOLI_PROJECT_ROOT}/$(basename "$TEST_SCRIPT_FILE")"
+    trash::safe_remove "${VROOLI_PROJECT_ROOT}/$(basename "$TEST_SCRIPT_FILE")" --test-cleanup
 }
 
 @test "browserless_inject::validate_config accepts valid function configuration" {
@@ -307,7 +310,7 @@ EOF
     [[ "$output" =~ "valid" ]]
     
     # Clean up
-    rm -f "${VROOLI_PROJECT_ROOT}/$(basename "$TEST_FUNCTION_FILE")"
+    trash::safe_remove "${VROOLI_PROJECT_ROOT}/$(basename "$TEST_FUNCTION_FILE")" --test-cleanup
 }
 
 @test "browserless_inject::validate_config accepts valid context configuration" {
@@ -349,7 +352,7 @@ EOF
     [[ "$output" =~ "Invalid script type" ]]
     
     # Clean up
-    rm -f "${VROOLI_PROJECT_ROOT}/$(basename "$TEST_SCRIPT_FILE")"
+    trash::safe_remove "${VROOLI_PROJECT_ROOT}/$(basename "$TEST_SCRIPT_FILE")" --test-cleanup
 }
 
 @test "browserless_inject::validate_config rejects empty configuration" {
@@ -377,7 +380,7 @@ EOF
     [ -f "${BROWSERLESS_SCRIPTS_DIR}/test_script.meta.json" ]
     
     # Clean up
-    rm -f "${VROOLI_PROJECT_ROOT}/test-script.js" "${VROOLI_PROJECT_ROOT}/test-function.js"
+    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-script.js" --test-cleanup\n    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-function.js" --test-cleanup
 }
 
 @test "browserless_inject::inject_data injects functions successfully" {
@@ -394,7 +397,7 @@ EOF
     [ -f "${BROWSERLESS_FUNCTIONS_DIR}/test_function.meta.json" ]
     
     # Clean up
-    rm -f "${VROOLI_PROJECT_ROOT}/test-script.js" "${VROOLI_PROJECT_ROOT}/test-function.js"
+    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-script.js" --test-cleanup\n    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-function.js" --test-cleanup
 }
 
 @test "browserless_inject::inject_data creates browser contexts" {
@@ -520,7 +523,7 @@ EOF
     [ ! -f "${BROWSERLESS_SCRIPTS_DIR}/test_script.meta.json" ]
     
     # Clean up
-    rm -f "${VROOLI_PROJECT_ROOT}/test-script.js" "${VROOLI_PROJECT_ROOT}/test-function.js"
+    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-script.js" --test-cleanup\n    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-function.js" --test-cleanup
 }
 
 # ============================================================================
@@ -540,7 +543,7 @@ EOF
     [[ "$output" =~ "valid" ]]
     
     # Clean up
-    rm -f "${VROOLI_PROJECT_ROOT}/$(basename "$TEST_SCRIPT_FILE")"
+    trash::safe_remove "${VROOLI_PROJECT_ROOT}/$(basename "$TEST_SCRIPT_FILE")" --test-cleanup
 }
 
 @test "browserless_inject::main injects data" {
@@ -553,7 +556,7 @@ EOF
     [[ "$output" =~ "injection completed" ]]
     
     # Clean up
-    rm -f "${VROOLI_PROJECT_ROOT}/test-script.js" "${VROOLI_PROJECT_ROOT}/test-function.js"
+    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-script.js" --test-cleanup\n    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-function.js" --test-cleanup
 }
 
 @test "browserless_inject::main checks status" {
@@ -633,7 +636,7 @@ EOF
     [ -f "${BROWSERLESS_FUNCTIONS_DIR}/test_function.js" ]
     
     # Clean up
-    rm -f "${VROOLI_PROJECT_ROOT}/test-script.js" "${VROOLI_PROJECT_ROOT}/test-function.js"
+    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-script.js" --test-cleanup\n    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-function.js" --test-cleanup
 }
 
 @test "complete injection and status workflow" {
@@ -665,5 +668,5 @@ EOF
     [[ "$output" =~ "rollback" ]]
     
     # Clean up
-    rm -f "${VROOLI_PROJECT_ROOT}/test-script.js" "${VROOLI_PROJECT_ROOT}/test-function.js"
+    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-script.js" --test-cleanup\n    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-function.js" --test-cleanup
 }

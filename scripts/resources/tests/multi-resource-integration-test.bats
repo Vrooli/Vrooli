@@ -3,6 +3,8 @@
 
 # shellcheck disable=SC1091
 source "${BATS_TEST_DIRNAME}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 # shellcheck disable=SC1091  
 source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
 
@@ -20,7 +22,7 @@ setup() {
 
 teardown() {
     vrooli_cleanup_test
-    rm -rf "$TEST_TMPDIR" 2>/dev/null || true
+    trash::safe_remove "$TEST_TMPDIR" --test-cleanup 2>/dev/null || true
 }
 
 @test "multi-resource integration test script exists and is executable" {

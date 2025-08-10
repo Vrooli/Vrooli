@@ -8,6 +8,13 @@
 # Run with: bats scripts/lib/utils/json.test.bats
 ################################################################################
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Test setup and teardown
 setup() {
     # Load the JSON utilities
@@ -26,7 +33,7 @@ setup() {
 
 teardown() {
     # Clean up temporary files
-    [[ -d "$TEST_DIR" ]] && rm -rf "$TEST_DIR"
+    [[ -d "$TEST_DIR" ]] && trash::safe_remove "$TEST_DIR" --test-cleanup
     
     # Clear JSON cache
     json::clear_cache

@@ -4,6 +4,13 @@
 
 set -euo pipefail
 
+# Source hash utilities
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/hash.sh" 2>/dev/null || true
+
 # Cache configuration
 CACHE_DIR="${HOME}/.cache/vrooli/test-results"
 CACHE_FILE="${CACHE_DIR}/shell-tests.json"
@@ -18,15 +25,18 @@ if [[ ! -f "$CACHE_FILE" ]]; then
     echo '{}' > "$CACHE_FILE"
 fi
 
-# Calculate file checksum (MD5 for speed)
+# Calculate file checksum using hash utility (fallback to modification time if needed)
 cache::calculate_checksum() {
     local file="$1"
-    if command -v md5sum &>/dev/null; then
-        md5sum "$file" | cut -d' ' -f1
-    elif command -v md5 &>/dev/null; then
-        md5 -q "$file"
+    
+    # Try to use hash utility first
+    if command -v hash::compute_file_hash &>/dev/null; then
+        hash::compute_file_hash "$file" 2>/dev/null || {
+            # Fallback to modification time if hash utility fails
+            stat -c %Y "$file" 2>/dev/null || stat -f %m "$file" 2>/dev/null || echo "0"
+        }
     else
-        # Fallback to modification time if no checksum available
+        # Fallback to modification time if hash utility not available
         stat -c %Y "$file" 2>/dev/null || stat -f %m "$file" 2>/dev/null || echo "0"
     fi
 }

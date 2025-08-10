@@ -6,6 +6,8 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/hash.sh" 2>/dev/null || true
 
 # Simplified caching implementation without Redis dependency
 # Uses filesystem-based caching for simplicity
@@ -38,14 +40,14 @@ unstructured_io::get_cache_key() {
     local output_format="${3:-json}"
     local languages="${4:-eng}"
     
-    # Get file hash
+    # Get file hash using hash utility
     local file_hash=""
-    if command -v sha256sum &> /dev/null; then
-        file_hash=$(sha256sum "$file" 2>/dev/null | cut -d' ' -f1)
-    elif command -v md5sum &> /dev/null; then
-        file_hash=$(md5sum "$file" 2>/dev/null | cut -d' ' -f1)
-    else
-        # Fallback to file size and modification time
+    if command -v hash::compute_file_hash &> /dev/null; then
+        file_hash=$(hash::compute_file_hash "$file" 2>/dev/null)
+    fi
+    
+    # Fallback to file size and modification time if hash utility fails
+    if [[ -z "$file_hash" ]]; then
         local file_size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo "0")
         local file_mtime=$(stat -f%m "$file" 2>/dev/null || stat -c%Y "$file" 2>/dev/null || echo "0")
         file_hash="${file_size}_${file_mtime}"

@@ -1,16 +1,23 @@
 #!/usr/bin/env bats
 bats_require_minimum_version 1.5.0
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Ensure the temporary deps dir is cleaned up even if a test crashes
 TMP_DEPS_DIR="$BATS_TEST_DIRNAME/deps_dir"
-trap 'rm -rf "$TMP_DEPS_DIR"' EXIT
+trap 'trash::safe_remove "$TMP_DEPS_DIR" --test-cleanup' EXIT
 
 # Path to the script under test
 SCRIPT_PATH="$BATS_TEST_DIRNAME/bats.sh"
 
 setup() {
     # Prepare a clean temporary dependencies dir for each test
-    rm -rf "$TMP_DEPS_DIR"
+    trash::safe_remove "$TMP_DEPS_DIR" --test-cleanup
     mkdir -p "$TMP_DEPS_DIR"
     # Save original CWD and override the deps directory
     export ORIGINAL_DIR="$PWD"
@@ -20,7 +27,7 @@ setup() {
 teardown() {
     # Restore CWD and clean up
     cd "$ORIGINAL_DIR"
-    rm -rf "$TMP_DEPS_DIR"
+    trash::safe_remove "$TMP_DEPS_DIR" --test-cleanup
 }
 
 @test "sourcing setupBats.sh defines functions" {
@@ -35,7 +42,7 @@ teardown() {
 
 @test "bats::create_dependencies_dir creates directory when missing" {
     source "$SCRIPT_PATH"
-    rm -rf "$BATS_DEPENDENCIES_DIR"
+    trash::safe_remove "$BATS_DEPENDENCIES_DIR" --test-cleanup
     bats::create_dependencies_dir
     [ -d "$BATS_DEPENDENCIES_DIR" ]
 }

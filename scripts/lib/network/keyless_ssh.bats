@@ -15,6 +15,8 @@ SCRIPT_PATH="$BATS_TEST_DIRNAME/keyless_ssh.sh"
 
 # Source necessary dependencies that the script needs
 source "${BATS_TEST_DIRNAME}/../utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 source "${var_LOG_FILE}"
 source "${var_EXIT_CODES_FILE}"
 source "${var_FLOW_FILE}"
@@ -47,8 +49,8 @@ teardown() {
     mock::system::reset || true
     
     # Clean up temporary directories and files
-    rm -rf "$HOME" || true
-    rm -rf "$MOCK_RESPONSES_DIR" || true
+    trash::safe_remove "$HOME" --test-cleanup || true
+    trash::safe_remove "$MOCK_RESPONSES_DIR" --test-cleanup || true
     
     # Unset environment variables
     unset SITE_IP SSH_KEY_PATH HOME TEST_NAMESPACE MOCK_RESPONSES_DIR

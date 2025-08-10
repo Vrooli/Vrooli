@@ -2,6 +2,13 @@
 
 # Test suite for manage.sh - the universal lifecycle management script
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 setup() {
     # Set test directory
     export TEST_DIR="$(cd "$BATS_TEST_DIRNAME" && pwd)"
@@ -74,7 +81,7 @@ teardown() {
     
     # Clean up temporary directory
     if [[ -n "$TEST_TEMP_DIR" ]] && [[ -d "$TEST_TEMP_DIR" ]]; then
-        rm -rf "$TEST_TEMP_DIR"
+        trash::safe_remove "$TEST_TEMP_DIR" --test-cleanup
     fi
 }
 
@@ -141,7 +148,7 @@ run_manage() {
 
 # Test: Error when service.json is missing
 @test "manage.sh errors when service.json is missing" {
-    rm -f "$TEST_SERVICE_JSON"
+    trash::safe_remove "$TEST_SERVICE_JSON" --test-cleanup
     run_manage setup
     [ "$status" -eq 1 ]
     [[ "$output" =~ "No service.json found" ]]
@@ -150,7 +157,7 @@ run_manage() {
 
 # Test: Error when lifecycle engine is missing
 @test "manage.sh errors when lifecycle engine is missing" {
-    rm -f "$MOCK_ENGINE"
+    trash::safe_remove "$MOCK_ENGINE" --test-cleanup
     run_manage setup
     [ "$status" -eq 1 ]
     [[ "$output" =~ "Lifecycle engine not found" ]]
@@ -172,7 +179,7 @@ EOF
 # Test: Detects standalone context
 @test "manage.sh detects standalone context when packages directory is missing" {
     # Ensure no packages directory exists
-    rm -rf "$TEST_TEMP_DIR/packages"
+    trash::safe_remove "$TEST_TEMP_DIR/packages" --test-cleanup
     
     run_manage test-phase
     [ "$status" -eq 0 ]
@@ -300,7 +307,7 @@ EOF
 @test "manage.sh provides monorepo-specific help when engine missing" {
     # Create monorepo structure
     mkdir -p "$TEST_TEMP_DIR/packages"
-    rm -f "$MOCK_ENGINE"
+    trash::safe_remove "$MOCK_ENGINE" --test-cleanup
     
     run_manage setup
     [ "$status" -eq 1 ]
@@ -311,8 +318,8 @@ EOF
 # Test: Helpful error for missing lifecycle engine in standalone
 @test "manage.sh provides standalone-specific help when engine missing" {
     # Ensure no packages directory
-    rm -rf "$TEST_TEMP_DIR/packages"
-    rm -f "$MOCK_ENGINE"
+    trash::safe_remove "$TEST_TEMP_DIR/packages" --test-cleanup
+    trash::safe_remove "$MOCK_ENGINE" --test-cleanup
     
     run_manage setup
     [ "$status" -eq 1 ]

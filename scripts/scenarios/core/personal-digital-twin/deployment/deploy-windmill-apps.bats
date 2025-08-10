@@ -3,6 +3,13 @@
 
 bats_require_minimum_version 1.5.0
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Load test infrastructure
 source "${BATS_TEST_DIRNAME}/../../../../../__test/fixtures/setup.bash"
 
@@ -116,7 +123,7 @@ run_deploy_script() {
 
 @test "script should handle missing apps directory gracefully" {
     # Remove the apps directory
-    rm -rf "${TEST_APPS_DIR}"
+    trash::safe_remove "${TEST_APPS_DIR}" --test-cleanup
     
     run bash "${BATS_TEST_DIRNAME}/deploy-windmill-apps.sh"
     

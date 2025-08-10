@@ -4,6 +4,8 @@
 # Load dependencies using BATS_TEST_DIRNAME
 # shellcheck disable=SC1091
 source "${BATS_TEST_DIRNAME}/../utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Test environment setup
 export TEST_TEMP_DIR=""
@@ -38,7 +40,7 @@ setup() {
 
 teardown() {
   # Clean up temp directory
-  [[ -n "$TEST_TEMP_DIR" ]] && rm -rf "$TEST_TEMP_DIR"
+  [[ -n "$TEST_TEMP_DIR" ]] && trash::safe_remove "$TEST_TEMP_DIR" --test-cleanup
   
   # Reset mocks
   mock::helm::reset
