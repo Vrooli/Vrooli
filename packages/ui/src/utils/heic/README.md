@@ -1,1 +1,0 @@
-This folder contains the code from https://github.com/alexcorvi/heic2any, and is under the MIT license. The code has been modified to load the wasm files for libheif from the `packages/ui/public` folder, so that it does not take up space in the main bundle.
