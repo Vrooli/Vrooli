@@ -1,5 +1,12 @@
 #!/usr/bin/env bats
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # BATS setup function - runs before each test
@@ -84,7 +91,7 @@ setup() {
     system::is_command() { [[ "$1" == "jq" ]] && return 1; }
     run claude_code::settings 2>&1
     
-    rm -f "$TMP_FILE"
+    trash::safe_remove "$TMP_FILE" --test-cleanup
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Project settings found" ]]
     [[ "$output" =~ "project" ]]
@@ -100,7 +107,7 @@ setup() {
     system::is_command() { [[ "$1" == "jq" ]] && return 1; }
     run claude_code::settings 2>&1
     
-    rm -f "$TMP_FILE"
+    trash::safe_remove "$TMP_FILE" --test-cleanup
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Global settings found" ]]
     [[ "$output" =~ "global" ]]
@@ -134,7 +141,7 @@ setup() {
         claude_code::settings_get 'key' 'auto' 2>&1
     )
     
-    rm -f "$TMP_PROJECT" "$TMP_GLOBAL"
+    trash::safe_remove "$TMP_PROJECT" "$TMP_GLOBAL" --test-cleanup
     [[ "$output" == "project-value" ]]
 }
 
@@ -149,7 +156,7 @@ setup() {
         claude_code::settings_get 'key' 'global' 2>&1
     )
     
-    rm -f "$TMP_FILE"
+    trash::safe_remove "$TMP_FILE" --test-cleanup
     [[ "$output" == "value" ]]
 }
 
@@ -194,7 +201,7 @@ setup() {
     )
     
     [ -f "$TMP_FILE" ]
-    rm -rf "$TMP_DIR"
+    trash::safe_remove "$TMP_DIR" --test-cleanup
     [[ "$output" =~ "Settings file created" ]]
 }
 
@@ -235,7 +242,7 @@ setup() {
     )
     
     [ -f "$TMP_FILE" ]
-    rm -f "$TMP_FILE"
+    trash::safe_remove "$TMP_FILE" --test-cleanup
     [[ "$output" =~ "Reset cancelled" ]]
 }
 

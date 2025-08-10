@@ -3,6 +3,10 @@
 bats_require_minimum_version 1.5.0
 
 # Load Vrooli test infrastructure
+# shellcheck disable=SC1091
+source "${BATS_TEST_DIRNAME}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # Setup for each test
@@ -35,7 +39,7 @@ setup() {
 teardown() {
     # Clean up test environment
     if [[ -n "${HOME:-}" && -d "$HOME" && "$HOME" == *"/tmp"* ]]; then
-        rm -rf "$HOME"
+        trash::safe_remove "$HOME" --test-cleanup
     fi
     
     vrooli_cleanup_test

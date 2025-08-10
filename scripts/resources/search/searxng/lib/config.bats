@@ -1,5 +1,12 @@
 #!/usr/bin/env bats
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Setup for each test
 setup() {
     # Source var.sh to get path variables
@@ -110,7 +117,7 @@ setup() {
     [[ "$output" =~ "[SUCCESS]" ]]
     
     # Cleanup
-    rm -f "$SEARXNG_DIR/config/settings.yml.template"
+    trash::safe_remove "$SEARXNG_DIR/config/settings.yml.template" --test-cleanup
 }
 
 @test "searxng::generate_config fails when template missing" {
@@ -133,7 +140,7 @@ setup() {
     [[ "$output" =~ "[SUCCESS]" ]]
     
     # Cleanup
-    rm -f "$SEARXNG_DIR/docker/limiter.toml.template"
+    trash::safe_remove "$SEARXNG_DIR/docker/limiter.toml.template" --test-cleanup
 }
 
 @test "searxng::generate_limiter_config skips when disabled" {
@@ -180,7 +187,7 @@ setup() {
     [[ "$output" =~ "settings.yml: ✅ Present" ]]
     
     # Cleanup
-    rm -rf "$SEARXNG_DATA_DIR"
+    trash::safe_remove "$SEARXNG_DATA_DIR" --test-cleanup
 }
 
 @test "searxng::show_config indicates missing files" {
@@ -209,7 +216,7 @@ setup() {
     [[ "$output" =~ "Configuration validation passed" ]]
     
     # Cleanup
-    rm -rf "$SEARXNG_DATA_DIR"
+    trash::safe_remove "$SEARXNG_DATA_DIR" --test-cleanup
 }
 
 @test "searxng::validate_config_files fails when config missing" {
@@ -233,7 +240,7 @@ setup() {
     [[ "$output" =~ "Invalid YAML syntax" ]]
     
     # Cleanup
-    rm -rf "$SEARXNG_DATA_DIR"
+    trash::safe_remove "$SEARXNG_DATA_DIR" --test-cleanup
 }
 
 @test "searxng::validate_config_files skips validation when yq unavailable" {
@@ -248,7 +255,7 @@ setup() {
     [[ "$output" =~ "YAML validation skipped" ]]
     
     # Cleanup
-    rm -rf "$SEARXNG_DATA_DIR"
+    trash::safe_remove "$SEARXNG_DATA_DIR" --test-cleanup
 }
 
 # ============================================================================
@@ -265,7 +272,7 @@ setup() {
     [[ "$output" =~ "Configuration exported to: $output_file" ]]
     
     # Cleanup
-    rm -f "$output_file"
+    trash::safe_remove "$output_file" --test-cleanup
 }
 
 @test "searxng::export_config fails when no output file specified" {
@@ -297,7 +304,7 @@ setup() {
     [[ "$output" =~ "Configuration reset to defaults" ]]
     
     # Cleanup
-    rm -rf "$SEARXNG_DATA_DIR"
+    trash::safe_remove "$SEARXNG_DATA_DIR" --test-cleanup
 }
 
 @test "searxng::reset_config handles missing existing config" {
@@ -327,7 +334,7 @@ setup() {
     [[ "$output" =~ "Engine list cannot be empty" ]]
     
     # Cleanup
-    rm -rf "$SEARXNG_DATA_DIR"
+    trash::safe_remove "$SEARXNG_DATA_DIR" --test-cleanup
 }
 
 @test "searxng::update_engines handles missing config file" {
@@ -350,7 +357,7 @@ setup() {
     [[ "$output" =~ "Supported engines:" ]]
     
     # Cleanup
-    rm -rf "$SEARXNG_DATA_DIR"
+    trash::safe_remove "$SEARXNG_DATA_DIR" --test-cleanup
 }
 
 # ============================================================================
@@ -383,5 +390,5 @@ EOF
     [[ "$output" =~ "[SUCCESS]" ]]
     
     # Cleanup
-    rm -f "$SEARXNG_DIR/config/settings.yml.template"
+    trash::safe_remove "$SEARXNG_DIR/config/settings.yml.template" --test-cleanup
 }

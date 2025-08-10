@@ -48,7 +48,7 @@ teardown() {
     
     # Clean up test environment
     if [[ -n "${TEST_HOME:-}" ]] && [[ -d "$TEST_HOME" ]]; then
-        rm -rf "$TEST_HOME"
+        trash::safe_remove "$TEST_HOME" --test-cleanup
     fi
     unset TEST_HOME HOME SUDO_MODE
     unset MOCK_SUDO_AVAILABLE MOCK_SUDO_PASSWORDLESS MOCK_SYSTEMCTL_SUCCESS

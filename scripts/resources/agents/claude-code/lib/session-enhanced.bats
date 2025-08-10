@@ -3,6 +3,10 @@
 bats_require_minimum_version 1.5.0
 
 # Load Vrooli test infrastructure
+# shellcheck disable=SC1091
+source "${BATS_TEST_DIRNAME}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 setup_file() {
@@ -50,7 +54,7 @@ setup() {
 
 teardown() {
     # Clean up test files
-    rm -rf "$TEST_SESSION_DIR"
+    trash::safe_remove "$TEST_SESSION_DIR" --test-cleanup
 }
 
 #######################################
@@ -59,7 +63,7 @@ teardown() {
 
 @test "claude_code::session_enhanced_init - should create necessary directories" {
     # Remove directories to test creation
-    rm -rf "$CLAUDE_SESSION_METADATA_DIR"
+    trash::safe_remove "$CLAUDE_SESSION_METADATA_DIR" --test-cleanup
     
     run claude_code::session_enhanced_init
     
@@ -69,7 +73,7 @@ teardown() {
 
 @test "claude_code::session_enhanced_init - should initialize analytics cache" {
     # Remove cache to test initialization
-    rm -f "$CLAUDE_SESSION_ANALYTICS_CACHE"
+    trash::safe_remove "$CLAUDE_SESSION_ANALYTICS_CACHE" --test-cleanup
     
     run claude_code::session_enhanced_init
     

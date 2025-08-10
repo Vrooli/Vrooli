@@ -294,7 +294,7 @@ EOF
     [[ "$output" == *"No service.json found"* ]]
     
     popd > /dev/null
-    rm -rf "$isolated_dir"
+    trash::safe_remove "$isolated_dir" --test-cleanup
 }
 
 @test "json::load_service_config loads valid configuration" {

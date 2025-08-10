@@ -7,6 +7,8 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Load Vrooli test infrastructure using var_ variables
 # shellcheck disable=SC1091
@@ -97,7 +99,7 @@ setup() {
 # BATS teardown function - runs after each test
 teardown() {
     # Clean up test directories
-    rm -rf "${BATS_TEST_TMPDIR}/agent-s2" 2>/dev/null || true
+    trash::safe_remove "${BATS_TEST_TMPDIR}/agent-s2" --test-cleanup 2>/dev/null || true
     
     vrooli_cleanup_test
 }
@@ -210,7 +212,7 @@ teardown() {
     run inject::validate_workflows "$workflows"
     
     # Clean up
-    rm -f "$test_file"
+    trash::safe_remove "$test_file" --test-cleanup
     
     [ "$status" -eq 0 ]
     [[ "$output" == *"All workflow configurations are valid"* ]]
@@ -288,7 +290,7 @@ teardown() {
     run inject::install_workflow "$workflow"
     
     # Clean up source file
-    rm -f "$test_file"
+    trash::safe_remove "$test_file" --test-cleanup
     
     [ "$status" -eq 0 ]
     [ -f "${AGENT_S2_WORKFLOWS_DIR}/test_workflow.json" ]
@@ -310,7 +312,7 @@ teardown() {
     inject::install_workflow "$workflow"
     
     # Clean up source file
-    rm -f "$test_file"
+    trash::safe_remove "$test_file" --test-cleanup
     
     [ -f "${AGENT_S2_WORKFLOWS_DIR}/meta_test.meta.json" ]
     
@@ -370,8 +372,8 @@ teardown() {
     touch "${BATS_TEST_TMPDIR}/file2.txt"
     
     # Add rollback actions
-    inject::add_rollback_action "Remove file1" "rm -f '${BATS_TEST_TMPDIR}/file1.txt'"
-    inject::add_rollback_action "Remove file2" "rm -f '${BATS_TEST_TMPDIR}/file2.txt'"
+    inject::add_rollback_action "Remove file1" "trash::safe_remove '${BATS_TEST_TMPDIR}/file1.txt' --test-cleanup"
+    inject::add_rollback_action "Remove file2" "trash::safe_remove '${BATS_TEST_TMPDIR}/file2.txt' --test-cleanup"
     
     # Files should exist before rollback
     [ -f "${BATS_TEST_TMPDIR}/file1.txt" ]

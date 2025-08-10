@@ -56,7 +56,13 @@ source "${var_LIB_SYSTEM_DIR}/common_deps.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/config.sh"  # Consolidated config
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/docker.sh"
+source "${LIB_DIR}/runtimes/docker.sh"
+# shellcheck disable=SC1091
+source "${LIB_DIR}/runtimes/nodejs.sh"
+# shellcheck disable=SC1091
+source "${LIB_DIR}/runtimes/go.sh"
+# shellcheck disable=SC1091
+source "${LIB_DIR}/runtimes/helm.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_NETWORK_DIR}/firewall.sh"
 # shellcheck disable=SC1091
@@ -167,25 +173,29 @@ setup::generic_main() {
         shellcheck::install
     fi
     
-    # Step 6: Docker Setup
-    log::header "🐳 Docker Setup"
-    if ! docker::setup; then
-        log::error "Docker setup failed"
+    # Step 6: Install Common Runtimes
+    log::header "🚀 Installing Common Runtimes"
+    
+    # Docker (commonly needed)
+    log::info "Installing Docker..."
+    if ! docker::ensure_installed; then
+        log::error "Docker installation failed"
         log::info "Running Docker diagnostics..."
         docker::diagnose || true
-        
-        # Provide helpful error message
-        if grep -qi microsoft /proc/version 2>/dev/null || [[ -f /proc/sys/fs/binfmt_misc/WSLInterop ]]; then
-            log::error ""
-            log::error "Docker setup failed in WSL environment!"
-            log::error "Please ensure Docker Desktop is running on Windows and WSL integration is enabled."
-        else
-            log::error ""
-            log::error "Docker setup failed!"
-            log::error "Run './diagnose-docker.sh' for detailed diagnostics."
-        fi
         return "${ERROR_DOCKER_SETUP_FAILED:-1}"
     fi
+    
+    # Node.js (commonly needed)
+    log::info "Installing Node.js..."
+    nodejs::ensure_installed || log::warning "Node.js installation failed (not critical)"
+    
+    # Go (commonly needed)
+    log::info "Installing Go..."
+    go::ensure_installed || log::warning "Go installation failed (not critical)"
+    
+    # Helm (for Kubernetes deployments)
+    log::info "Installing Helm..."
+    helm::ensure_installed || log::warning "Helm installation failed (not critical)"
     
     # Step 7: Complete generic setup
     log::info "Generic setup tasks completed"

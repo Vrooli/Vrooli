@@ -1,5 +1,12 @@
 #!/usr/bin/env bats
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Setup for each test
 setup() {
     # Source var.sh to get path variables
@@ -428,8 +435,8 @@ setup() {
     [[ "$output" =~ "backup created successfully" ]]
     
     # Cleanup
-    rm -rf "$SEARXNG_DATA_DIR"
-    rm -rf ~/.searxng-backup-*
+    trash::safe_remove "$SEARXNG_DATA_DIR" --test-cleanup
+    trash::safe_remove ~/.searxng-backup-* --test-cleanup
 }
 
 @test "searxng::backup fails when data directory missing" {
@@ -461,8 +468,8 @@ setup() {
     [[ "$output" =~ "restore completed successfully" ]]
     
     # Cleanup
-    rm -rf "$backup_dir"
-    rm -rf "$SEARXNG_DATA_DIR"
+    trash::safe_remove "$backup_dir" --test-cleanup
+    trash::safe_remove "$SEARXNG_DATA_DIR" --test-cleanup
 }
 
 @test "searxng::restore fails when backup directory missing" {

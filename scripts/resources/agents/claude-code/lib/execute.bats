@@ -1,5 +1,12 @@
 #!/usr/bin/env bats
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # BATS setup function - runs before each test
@@ -338,7 +345,7 @@ teardown() {
     run claude_code::batch
     
     # Clean up any created files
-    rm -f /tmp/claude-batch-*.json
+    trash::safe_remove /tmp/claude-batch-*.json --test-cleanup
     
     # Check results
     [ "$status" -eq 0 ]

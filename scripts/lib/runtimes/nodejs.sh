@@ -2,9 +2,10 @@
 # Install Node.js via platform-appropriate version manager
 set -euo pipefail
 
-# Source var.sh with relative path first
+# Get runtime directory
+RUNTIME_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../utils/var.sh"
+source "${RUNTIME_DIR}/../utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
@@ -13,6 +14,11 @@ source "$var_LIB_SYSTEM_DIR/system_commands.sh"
 source "$var_LIB_UTILS_DIR/flow.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh"
+
+# Clean interface for setup.sh
+nodejs::ensure_installed() {
+    nodejs::check_and_install "$@"
+}
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/retry.sh"
 # shellcheck disable=SC1091

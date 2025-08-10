@@ -11,6 +11,8 @@ _HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck disable=SC1091
 source "${_HERE}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Set up VROOLI_TEST_ROOT for all tests  
 if [[ -z "${VROOLI_TEST_ROOT:-}" ]]; then
@@ -327,7 +329,7 @@ standard_cleanup() {
     jobs -p | xargs -r kill 2>/dev/null || true
     
     # Clean up temporary files
-    rm -rf "$BATS_TEST_TMPDIR"/* 2>/dev/null || true
+    trash::safe_remove "$BATS_TEST_TMPDIR"/* --test-cleanup 2>/dev/null || true
     
     # Restore working directory
     restore_cwd 2>/dev/null || true

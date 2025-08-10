@@ -9,10 +9,10 @@
 set -euo pipefail
 
 # Get script directory
-DOCKER_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+RUNTIME_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck disable=SC1091
-source "${DOCKER_LIB_DIR}/../utils/var.sh"
+source "${RUNTIME_DIR}/../utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/exit_codes.sh"
 # shellcheck disable=SC1091
@@ -598,6 +598,11 @@ docker::setup() {
         docker::configure_resource_limits
         docker::configure_gpu_runtime
     fi
+}
+
+# Clean interface for setup.sh
+docker::ensure_installed() {
+    docker::setup
 }
 
 # Export functions for use by other scripts

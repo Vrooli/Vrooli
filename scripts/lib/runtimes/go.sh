@@ -2,9 +2,10 @@
 # Install Go via platform-appropriate method
 set -euo pipefail
 
-# Source var.sh with relative path first
+# Get runtime directory
+RUNTIME_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../utils/var.sh"
+source "${RUNTIME_DIR}/../utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
@@ -16,7 +17,12 @@ source "${var_LIB_SYSTEM_DIR}/trash.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/retry.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/permissions.sh"
+source "${var_LIB_UTILS_DIR}/permissions.sh"
+
+# Clean interface for setup.sh
+go::ensure_installed() {
+    go::check_and_install "$@"
+}
 
 # Default Go version if not specified
 DEFAULT_GO_VERSION="1.21"

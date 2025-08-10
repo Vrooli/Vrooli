@@ -1,5 +1,12 @@
 #!/usr/bin/env bats
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # BATS setup function - runs before each test
@@ -112,7 +119,7 @@ teardown() {
         CLAUDE_SESSIONS_DIR="$TMP_DIR"
         claude_code::session_list 2>&1
     )
-    rm -rf "$TMP_DIR"
+    trash::safe_remove "$TMP_DIR" --test-cleanup
     [[ "$output" =~ "No sessions found" ]]
 }
 
@@ -125,7 +132,7 @@ teardown() {
         claude_code::session_list 2>&1
     )
     
-    rm -rf "$TMP_DIR"
+    trash::safe_remove "$TMP_DIR" --test-cleanup
     [[ "$output" =~ "Recent sessions:" ]]
     [[ "$output" =~ "session" ]]
 }
@@ -227,7 +234,7 @@ teardown() {
     )
     
     [ ! -f "$TMP_DIR/test-session" ]
-    rm -rf "$TMP_DIR"
+    trash::safe_remove "$TMP_DIR" --test-cleanup
     [[ "$output" =~ "Session deleted" ]]
 }
 
@@ -242,7 +249,7 @@ teardown() {
     )
     
     [ -f "$TMP_DIR/test-session" ]
-    rm -rf "$TMP_DIR"
+    trash::safe_remove "$TMP_DIR" --test-cleanup
     [[ "$output" =~ "cancelled" ]]
 }
 
@@ -275,7 +282,7 @@ teardown() {
         claude_code::session_view 'test-session' 2>&1
     )
     
-    rm -rf "$TMP_DIR"
+    trash::safe_remove "$TMP_DIR" --test-cleanup
     [[ "$output" =~ "Session details for: test-session" ]]
     [[ "$output" =~ "test" ]]
     [[ "$output" =~ "data" ]]

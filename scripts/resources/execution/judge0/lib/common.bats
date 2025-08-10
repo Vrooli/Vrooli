@@ -1,6 +1,13 @@
 #!/usr/bin/env bats
 # Tests for Judge0 common.sh functions
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Setup for each test
 setup() {
     # Load Vrooli test infrastructure
@@ -64,13 +71,13 @@ setup() {
 
 # Cleanup after each test
 teardown() {
-    rm -rf "$JUDGE0_DATA_DIR"
+    trash::safe_remove "$JUDGE0_DATA_DIR" --test-cleanup
 }
 
 # Test directory creation
 @test "judge0::create_directories creates required directories" {
     # Remove test directories first
-    rm -rf "$JUDGE0_DATA_DIR"
+    trash::safe_remove "$JUDGE0_DATA_DIR" --test-cleanup
     
     result=$(judge0::create_directories)
     
@@ -135,7 +142,7 @@ teardown() {
 
 # Test API key retrieval with missing file
 @test "judge0::get_api_key handles missing API key file" {
-    rm -f "${JUDGE0_CONFIG_DIR}/api_key"
+    trash::safe_remove "${JUDGE0_CONFIG_DIR}/api_key" --test-cleanup
     
     result=$(judge0::get_api_key)
     
@@ -192,7 +199,7 @@ teardown() {
     [ -n "$result" ]
     [[ "$result" =~ "encoded" ]]
     
-    rm -f "$test_file"
+    trash::safe_remove "$test_file" --test-cleanup
 }
 
 # Test file encoding with missing file

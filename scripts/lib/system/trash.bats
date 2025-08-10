@@ -42,7 +42,7 @@ teardown() {
     if [[ -d "$BATS_TEST_TMPDIR" ]]; then
         # Use direct rm for teardown since trash module might be in inconsistent state after tests
         # This is safe because BATS_TEST_TMPDIR is always in /tmp
-        rm -rf "$BATS_TEST_TMPDIR"
+        trash::safe_remove "$BATS_TEST_TMPDIR" --test-cleanup
     fi
 }
 

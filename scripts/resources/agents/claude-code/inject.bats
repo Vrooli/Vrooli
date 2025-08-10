@@ -2,6 +2,13 @@
 # Tests for Claude Code inject.sh script
 bats_require_minimum_version 1.5.0
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Load Vrooli test infrastructure
 source "${BATS_TEST_DIRNAME}/../../../__test/fixtures/setup.bash"
 
@@ -52,18 +59,18 @@ setup() {
     mock::claude::reset >/dev/null 2>&1 || true
     
     # Clean up test directories for each test
-    rm -rf "$TEST_CLAUDE_CODE_DATA_DIR"
+    trash::safe_remove "$TEST_CLAUDE_CODE_DATA_DIR" --test-cleanup
     mkdir -p "$TEST_CLAUDE_CODE_DATA_DIR"
 }
 
 teardown() {
     # Clean up test directories
-    rm -rf "$TEST_CLAUDE_CODE_DATA_DIR"
+    trash::safe_remove "$TEST_CLAUDE_CODE_DATA_DIR" --test-cleanup
 }
 
 teardown_file() {
     # Clean up any remaining test artifacts
-    rm -rf "${BATS_TMPDIR}/claude-code-test"
+    trash::safe_remove "${BATS_TMPDIR}/claude-code-test" --test-cleanup
 }
 
 #######################################
@@ -176,7 +183,7 @@ teardown_file() {
     assert [ -f "${CLAUDE_CODE_TEMPLATES_DIR}/test-template.meta.json" ]
     
     # Clean up
-    rm -f "$test_file"
+    trash::safe_remove "$test_file" --test-cleanup
 }
 
 #######################################
@@ -199,7 +206,7 @@ teardown_file() {
     assert_success
     
     # Clean up
-    rm -rf "$temp_bin"
+    trash::safe_remove "$temp_bin" --test-cleanup
 }
 
 @test "claude_code_inject::check_accessibility - should return success when data directory exists" {
@@ -213,7 +220,7 @@ teardown_file() {
 
 @test "claude_code_inject::check_accessibility - should return failure when neither command nor directory exists" {
     # Ensure data directory doesn't exist
-    rm -rf "$CLAUDE_CODE_DATA_DIR"
+    trash::safe_remove "$CLAUDE_CODE_DATA_DIR" --test-cleanup
     
     run claude_code_inject::check_accessibility
     

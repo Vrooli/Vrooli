@@ -1,5 +1,12 @@
 #!/usr/bin/env bats
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Path to the script under test
 SCRIPT_PATH="$BATS_TEST_DIRNAME/docker.sh"
 VAULT_DIR="$BATS_TEST_DIRNAME/.."
@@ -445,7 +452,7 @@ VAULT_DOCKER_TEST_SETUP="
         export -f tar
         touch /tmp/test-backup.tar.gz
         vault::docker::restore /tmp/test-backup.tar.gz
-        rm -f /tmp/test-backup.tar.gz
+        trash::safe_remove /tmp/test-backup.tar.gz --test-cleanup
     "
     [ "$status" -eq 0 ]
 }

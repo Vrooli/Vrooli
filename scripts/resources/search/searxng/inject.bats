@@ -4,6 +4,13 @@
 # Source var.sh to get test paths
 source "${BATS_TEST_DIRNAME}/../../../lib/utils/var.sh"
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Load Vrooli test infrastructure
 source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
 
@@ -32,7 +39,7 @@ teardown() {
     vrooli_cleanup_test
     
     # Clean up test directories
-    rm -rf "${BATS_TMPDIR}/searxng_test" 2>/dev/null || true
+    trash::safe_remove "${BATS_TMPDIR}/searxng_test" --test-cleanup
 }
 
 # ============================================================================

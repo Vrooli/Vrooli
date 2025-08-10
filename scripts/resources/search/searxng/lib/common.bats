@@ -3,6 +3,13 @@
 # Source var.sh to get path variables
 source "${BATS_TEST_DIRNAME}/../../../../lib/utils/var.sh"
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Path to the script under test
 SCRIPT_PATH="$BATS_TEST_DIRNAME/common.sh"
 SEARXNG_DIR="$BATS_TEST_DIRNAME/.."
@@ -437,14 +444,14 @@ setup_searxng_test_env_no_defaults() {
     export SEARXNG_DATA_DIR="/tmp/searxng-test-$(date +%s)"
     
     # Ensure directory doesn't exist
-    rm -rf "$SEARXNG_DATA_DIR"
+    trash::safe_remove "$SEARXNG_DATA_DIR" --test-cleanup
     
     run searxng::ensure_data_dir
     [ "$status" -eq 0 ]
     [ -d "$SEARXNG_DATA_DIR" ]
     
     # Cleanup
-    rm -rf "$SEARXNG_DATA_DIR"
+    trash::safe_remove "$SEARXNG_DATA_DIR" --test-cleanup
 }
 
 @test "searxng::ensure_data_dir succeeds when directory already exists" {
@@ -460,7 +467,7 @@ setup_searxng_test_env_no_defaults() {
     [ -d "$SEARXNG_DATA_DIR" ]
     
     # Cleanup
-    rm -rf "$SEARXNG_DATA_DIR"
+    trash::safe_remove "$SEARXNG_DATA_DIR" --test-cleanup
 }
 
 # ============================================================================

@@ -1,6 +1,13 @@
 #!/usr/bin/env bats
 # Tests for Qdrant install.sh functions
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Load standard test setup
 load "${BATS_TEST_DIRNAME}/../../../tests/bats-fixtures/setup/standard_setup.bash"
 
@@ -139,7 +146,9 @@ teardown() {
 # Test directory creation
 @test "qdrant::install::create_directories creates required directories" {
     # Remove test directories first
-    rm -rf "$QDRANT_DATA_DIR" "$QDRANT_CONFIG_DIR" "$QDRANT_SNAPSHOTS_DIR"
+    trash::safe_remove "$QDRANT_DATA_DIR" --test-cleanup
+    trash::safe_remove "$QDRANT_CONFIG_DIR" --test-cleanup
+    trash::safe_remove "$QDRANT_SNAPSHOTS_DIR" --test-cleanup
     
     if ! declare -f qdrant::install::create_directories >/dev/null 2>&1; then
         skip "qdrant::install::create_directories function not found"

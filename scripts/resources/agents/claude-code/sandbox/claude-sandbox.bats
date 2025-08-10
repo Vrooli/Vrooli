@@ -3,6 +3,10 @@
 bats_require_minimum_version 1.5.0
 
 # Load Vrooli test infrastructure
+# shellcheck disable=SC1091
+source "${BATS_TEST_DIRNAME}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
 # Setup for the test file
@@ -43,11 +47,11 @@ setup() {
 teardown() {
     # Clean up test directories
     if [[ -n "${CLAUDE_SANDBOX_CONFIG:-}" && -d "$CLAUDE_SANDBOX_CONFIG" ]]; then
-        rm -rf "$CLAUDE_SANDBOX_CONFIG"
+        trash::safe_remove "$CLAUDE_SANDBOX_CONFIG" --test-cleanup
     fi
     
     if [[ -n "${BATS_TEST_TMPDIR:-}" && -d "${BATS_TEST_TMPDIR}/test-files" ]]; then
-        rm -rf "${BATS_TEST_TMPDIR}/test-files"
+        trash::safe_remove "${BATS_TEST_TMPDIR}/test-files" --test-cleanup
     fi
     
     vrooli_cleanup_test
@@ -176,7 +180,7 @@ teardown() {
 
 @test "claude_sandbox::check_auth detects missing authentication" {
     # Ensure no credentials file exists
-    rm -f "${CLAUDE_SANDBOX_CONFIG}/.credentials.json"
+    trash::safe_remove "${CLAUDE_SANDBOX_CONFIG}/.credentials.json" --test-cleanup
     
     # Mock claude command to skip actual authentication
     claude() {
@@ -198,7 +202,7 @@ teardown() {
 
 @test "claude_sandbox::setup_auth creates configuration directory" {
     # Remove existing config
-    rm -rf "${CLAUDE_SANDBOX_CONFIG}"
+    trash::safe_remove "${CLAUDE_SANDBOX_CONFIG}" --test-cleanup
     
     # Mock claude command
     claude() {

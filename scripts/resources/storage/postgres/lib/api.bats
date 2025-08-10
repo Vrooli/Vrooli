@@ -1,6 +1,13 @@
 #!/usr/bin/env bats
 # Tests for PostgreSQL API functions
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Load Vrooli test infrastructure
 # shellcheck disable=SC1091
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
@@ -232,7 +239,7 @@ teardown() {
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Command completed successfully" ]]
     
-    rm -f "/tmp/$BACKUP_FILE"
+    trash::safe_remove "/tmp/$BACKUP_FILE" --test-cleanup
 }
 
 @test "postgres::backup::list shows available backups" {
@@ -264,7 +271,7 @@ teardown() {
     run postgres::backup::verify "/tmp/$BACKUP_FILE"
     [ "$status" -eq 0 ]
     
-    rm -f "/tmp/$BACKUP_FILE"
+    trash::safe_remove "/tmp/$BACKUP_FILE" --test-cleanup
 }
 
 # ============================================================================
@@ -331,7 +338,7 @@ teardown() {
     [ "$status" -eq 0 ]
     [[ "$output" =~ "Command completed successfully" ]]
     
-    rm -f "/tmp/001_create_test_table.sql"
+    trash::safe_remove "/tmp/001_create_test_table.sql" --test-cleanup
 }
 
 @test "postgres full workflow: create instance, database, user, backup" {

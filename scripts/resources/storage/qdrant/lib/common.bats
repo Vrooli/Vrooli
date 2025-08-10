@@ -1,6 +1,13 @@
 #!/usr/bin/env bats
 # Tests for Qdrant common.sh functions
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Setup for each test
 setup() {
     # Load Vrooli test infrastructure
@@ -77,13 +84,13 @@ setup() {
 
 # Cleanup after each test
 teardown() {
-    rm -rf "/tmp/qdrant-test"
+    trash::safe_remove "/tmp/qdrant-test" --test-cleanup
 }
 
 # Test directory creation
 @test "qdrant::create_directories creates required directories" {
     # Remove test directories first
-    rm -rf "/tmp/qdrant-test"
+    trash::safe_remove "/tmp/qdrant-test" --test-cleanup
     
     result=$(qdrant::create_directories)
     
@@ -153,7 +160,7 @@ teardown() {
 
 # Test API key retrieval with missing file
 @test "qdrant::get_api_key handles missing API key file" {
-    rm -f "${QDRANT_CONFIG_DIR}/api_key"
+    trash::safe_remove "${QDRANT_CONFIG_DIR}/api_key" --test-cleanup
     
     result=$(qdrant::get_api_key)
     

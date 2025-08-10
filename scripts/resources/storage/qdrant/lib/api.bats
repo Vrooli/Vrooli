@@ -2,6 +2,13 @@
 
 # Tests for Qdrant api.sh functions
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 
 # Load test infrastructure
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
@@ -99,7 +106,7 @@ setup() {
 # Cleanup after each test
 teardown() {
     vrooli_cleanup_test
-    rm -rf "/tmp/qdrant-test"
+    trash::safe_remove "/tmp/qdrant-test" --test-cleanup
 }
 
 # Test API health check

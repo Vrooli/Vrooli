@@ -1,17 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Source trash system for safe removal
-# shellcheck disable=SC1091
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../system/trash.sh" 2>/dev/null || true
-
 # Helm deployment library - comprehensive Helm operations for Kubernetes deployments
 # Provides installation, chart management, release operations, and health checks
 
-# Get script directory and source var.sh first  
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get runtime directory
+RUNTIME_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../utils/var.sh"
+source "${RUNTIME_DIR}/../utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
@@ -25,6 +21,11 @@ HELM_NAMESPACE="${HELM_NAMESPACE:-default}"
 HELM_HISTORY_MAX="${HELM_HISTORY_MAX:-10}"
 HELM_WAIT="${HELM_WAIT:-true}"
 HELM_DEBUG="${HELM_DEBUG:-false}"
+
+# Clean interface for setup.sh
+helm::ensure_installed() {
+    helm::check_and_install "$@"
+}
 
 # Check and install Helm CLI for Kubernetes package management
 helm::check_and_install() {

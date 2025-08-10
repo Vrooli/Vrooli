@@ -9,7 +9,7 @@ source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "$var_LIB_SYSTEM_DIR/system_commands.sh"
 # shellcheck disable=SC1091
-source "$var_LIB_DEPLOY_DIR/helm.sh"
+source "$var_LIB_DIR/runtimes/helm.sh"
 
 common_deps::check_and_install() {
     log::header "⚙️ Checking common dependencies (curl, jq)..."
