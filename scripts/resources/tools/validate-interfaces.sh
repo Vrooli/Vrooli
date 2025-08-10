@@ -42,6 +42,12 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RESOURCES_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 TESTS_DIR="$RESOURCES_DIR/tests"
 
+# Source required utilities
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
+
 # Configuration
 VERBOSE=false
 SPECIFIC_RESOURCE=""
@@ -511,7 +517,7 @@ run_validation() {
         done
         
         # Cleanup temp directory
-        rm -rf "$temp_results_dir"
+        trash::safe_remove "$temp_results_dir" --no-confirm
         
     else
         # Sequential processing (original implementation)

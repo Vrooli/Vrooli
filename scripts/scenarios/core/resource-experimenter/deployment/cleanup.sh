@@ -7,6 +7,12 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCENARIO_DIR="$(dirname "${SCRIPT_DIR}")"
 
+# Source required utilities
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
+
 # Logging functions
 log_info() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $*"
@@ -42,7 +48,9 @@ cleanup_failed_experiments() {
     local sandbox_base="${HOME}/.vrooli/sandbox"
     if [[ -d "${sandbox_base}" ]]; then
         log_info "Cleaning up old sandbox directories..."
-        find "${sandbox_base}" -name "experiment-*" -type d -mtime +1 -exec rm -rf {} \; 2>/dev/null || true
+        find "${sandbox_base}" -name "experiment-*" -type d -mtime +1 -print0 | while IFS= read -r -d '' experiment_dir; do
+            trash::safe_remove "$experiment_dir" --no-confirm 2>/dev/null || true
+        done
     fi
     
     log_info "✅ Failed experiments cleanup completed"
@@ -185,7 +193,7 @@ optimize_storage() {
     # Optimize MinIO (if running)
     if docker ps --format "{{.Names}}" | grep -q "vrooli-minio"; then
         # Clean up incomplete uploads
-        docker exec vrooli-minio sh -c "find /data -name '.minio.sys/multipart' -type d -exec rm -rf {} \; 2>/dev/null || true" || true
+        docker exec vrooli-minio sh -c "find /data -name '.minio.sys/multipart' -type d -print0 | while IFS= read -r -d '' dir; do rm -rf \"\$dir\"; done 2>/dev/null || true" || true
     fi
     
     # Optimize Qdrant (if running)

@@ -8,6 +8,12 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 POSTGRES_DIR="$(dirname "$SCRIPT_DIR")/storage/postgres"
 INSTANCES_DIR="$POSTGRES_DIR/instances"
 
+# Source required utilities
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
+
 echo "🧹 PostgreSQL Instance Cleanup"
 echo "   Location: $INSTANCES_DIR"
 echo
@@ -54,9 +60,9 @@ for instance in "${REMOVE_INSTANCES[@]}"; do
     if [ -d "$INSTANCES_DIR/$instance" ]; then
         echo "   Removing: $instance"
         # Try normal removal first, use sudo if it fails
-        if ! rm -rf "$INSTANCES_DIR/$instance" 2>/dev/null; then
+        if ! trash::safe_remove "$INSTANCES_DIR/$instance" --no-confirm 2>/dev/null; then
             echo "     Using sudo for: $instance"
-            sudo rm -rf "$INSTANCES_DIR/$instance"
+            sudo bash -c "source ${var_LIB_SYSTEM_DIR}/trash.sh && trash::safe_remove '$INSTANCES_DIR/$instance' --no-confirm"
         fi
     else
         echo "   Already gone: $instance"

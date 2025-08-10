@@ -6,6 +6,13 @@ set -euo pipefail
 
 AGENT_S2_DIR="/home/matthalloran8/Vrooli/scripts/resources/agents/agent-s2"
 
+# Source required utilities
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
+
 echo "🧹 Agent-S2 Cleanup"
 echo "   Location: $AGENT_S2_DIR"
 echo
@@ -13,7 +20,7 @@ echo
 # Remove backups directory
 if [ -d "$AGENT_S2_DIR/backups" ]; then
     echo "🗑️  Removing backups directory..."
-    rm -rf "$AGENT_S2_DIR/backups"
+    trash::safe_remove "$AGENT_S2_DIR/backups" --no-confirm
     echo "   ✓ Removed backups/"
 fi
 
@@ -23,7 +30,7 @@ for dir in "$AGENT_S2_DIR/testing" "$AGENT_S2_DIR/docker/compose/testing" "$AGEN
     if [ -d "$dir" ]; then
         # Check if directory only contains test-outputs or is empty
         if [ -z "$(find "$dir" -type f -not -path "*/test-outputs/*" 2>/dev/null)" ]; then
-            rm -rf "$dir"
+            trash::safe_remove "$dir" --no-confirm
             echo "   ✓ Removed empty: $(basename $(dirname "$dir"))/$(basename "$dir")"
         fi
     fi

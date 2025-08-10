@@ -7,6 +7,12 @@ set -euo pipefail
 readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly SCENARIO_DIR="$(dirname "${SCRIPT_DIR}")"
 
+# Source required utilities
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
+
 # Validation functions
 validate_docker() {
     echo "Validating Docker..."
@@ -107,7 +113,7 @@ validate_permissions() {
         echo "❌ Cannot create directories in HOME"
         return 1
     fi
-    rm -rf "${test_dir}"
+    trash::safe_remove "${test_dir}" --no-confirm
     
     # Check Docker socket access
     if [[ -S "/var/run/docker.sock" ]] && [[ ! -w "/var/run/docker.sock" ]]; then

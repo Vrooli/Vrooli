@@ -64,9 +64,56 @@ trash::safe_remove() {
         return 1
     fi
     
+    # Extra protection in CI/test environments
+    if [[ -n "${CI:-}" || -n "${BATS_TEST_FILENAME:-}" || -n "${GITHUB_ACTIONS:-}" ]]; then
+        log::warn "Running in CI/test environment - extra safety checks enabled"
+        
+        # In test mode, be extra conservative
+        if [[ "$force_permanent" == true && "$no_confirm" == true ]]; then
+            log::error "CRITICAL: Test environment detected - refusing permanent deletion without confirmation"
+            trash::log_operation "BLOCKED_CI_UNSAFE" "$canonical_target" "REJECTED"
+            return 1
+        fi
+    fi
+    
     # Calculate size for large file warning
     local size_mb
     size_mb=$(trash::calculate_size_mb "$canonical_target")
+    
+    # HARD LIMIT: refuse to delete anything over 5GB without explicit override
+    if [[ "$size_mb" -gt 5120 ]]; then
+        log::error "CRITICAL: Refusing to delete extremely large item (${size_mb}MB > 5GB limit): $canonical_target"
+        log::error "This seems dangerous - manual review required"
+        trash::log_operation "BLOCKED_SIZE_LIMIT" "$canonical_target" "${size_mb}MB too large"
+        return 1
+    fi
+    
+    # Count files being deleted for directories
+    if [[ -d "$canonical_target" ]]; then
+        local file_count
+        file_count=$(find "$canonical_target" -type f 2>/dev/null | wc -l)
+        if [[ "$file_count" -gt 10000 && "$no_confirm" == true ]]; then
+            log::error "CRITICAL: Refusing to delete $file_count files without confirmation"
+            trash::log_operation "BLOCKED_FILE_COUNT" "$canonical_target" "$file_count files"
+            return 1
+        fi
+        if [[ "$file_count" -gt 1000 ]]; then
+            log::warn "Large directory deletion: $file_count files in $canonical_target"
+        fi
+    fi
+    
+    # For critical files, create backup first
+    if trash::is_critical_file "$canonical_target"; then
+        local backup_path="/tmp/trash_backup_$(date +%Y%m%d_%H%M%S)_$(basename "$canonical_target")"
+        log::warn "Creating backup of critical file before deletion: $backup_path"
+        if ! cp -r "$canonical_target" "$backup_path" 2>/dev/null; then
+            log::error "Failed to create backup - aborting deletion for safety"
+            trash::log_operation "BACKUP_FAILED" "$canonical_target" "ABORTED"
+            return 1
+        fi
+        log::info "Safety backup created at: $backup_path"
+        trash::log_operation "BACKUP_CREATED" "$canonical_target" "$backup_path"
+    fi
     
     # Warn for large deletions (>100MB) unless confirmation disabled
     if [[ "$no_confirm" == false && "$size_mb" -gt 100 ]]; then
@@ -82,11 +129,14 @@ trash::safe_remove() {
     # Force permanent deletion if requested
     if [[ "$force_permanent" == true ]]; then
         log::warn "PERMANENT DELETION requested for: $canonical_target"
+        trash::log_operation "PERMANENT_DELETE_REQUESTED" "$canonical_target" "size_mb=${size_mb}"
+        
         if [[ "$no_confirm" == false ]]; then
             echo -n "This will PERMANENTLY delete the file(s). Are you sure? (y/N): "
             read -r response
             if [[ "$response" != "y" && "$response" != "Y" ]]; then
                 log::info "Permanent deletion cancelled by user"
+                trash::log_operation "PERMANENT_DELETE_CANCELLED" "$canonical_target" "USER_CANCELLED"
                 return 1
             fi
         fi
@@ -94,9 +144,11 @@ trash::safe_remove() {
         log::info "Permanently deleting: $canonical_target"
         if rm -rf "$canonical_target"; then
             log::success "Permanently deleted: $canonical_target"
+            trash::log_operation "PERMANENT_DELETE_SUCCESS" "$canonical_target" "COMPLETED"
             return 0
         else
             log::error "Failed to permanently delete: $canonical_target"
+            trash::log_operation "PERMANENT_DELETE_FAILED" "$canonical_target" "rm command failed"
             return 1
         fi
     fi
@@ -104,25 +156,30 @@ trash::safe_remove() {
     # Attempt to move to trash
     if trash::move_to_trash "$canonical_target"; then
         log::success "Moved to trash: $canonical_target"
+        trash::log_operation "TRASH_SUCCESS" "$canonical_target" "COMPLETED"
         return 0
     else
         log::error "Failed to move to trash, falling back to permanent deletion"
         log::warn "FALLBACK: Permanently deleting: $canonical_target"
+        trash::log_operation "TRASH_FAILED_FALLBACK" "$canonical_target" "attempting permanent delete"
         
         if [[ "$no_confirm" == false ]]; then
             echo -n "Trash failed. Permanently delete instead? (y/N): "
             read -r response
             if [[ "$response" != "y" && "$response" != "Y" ]]; then
                 log::info "Deletion cancelled by user"
+                trash::log_operation "FALLBACK_CANCELLED" "$canonical_target" "USER_CANCELLED"
                 return 1
             fi
         fi
         
         if rm -rf "$canonical_target"; then
             log::warn "PERMANENTLY DELETED (trash failed): $canonical_target"
+            trash::log_operation "FALLBACK_SUCCESS" "$canonical_target" "rm completed"
             return 0
         else
             log::error "Failed to delete: $canonical_target"
+            trash::log_operation "FALLBACK_FAILED" "$canonical_target" "rm failed"
             return 1
         fi
     fi
@@ -327,6 +384,81 @@ trash::get_trash_dirs() {
 }
 
 #######################################
+# Find the project root directory by looking for markers
+# Arguments:
+#   $1 - starting path to search from
+# Returns: project root path via stdout
+#######################################
+trash::find_project_root() {
+    local start_path="$1"
+    local current_dir
+    
+    if [[ -f "$start_path" ]]; then
+        current_dir="$(dirname "$start_path")"
+    else
+        current_dir="$start_path"
+    fi
+    
+    # Walk up directory tree looking for project markers
+    while [[ "$current_dir" != "/" ]]; do
+        if [[ -f "$current_dir/package.json" ]] || [[ -d "$current_dir/.git" ]] || [[ -f "$current_dir/pnpm-workspace.yaml" ]]; then
+            echo "$current_dir"
+            return 0
+        fi
+        current_dir="$(dirname "$current_dir")"
+    done
+    
+    # Fallback to current working directory
+    echo "$PWD"
+}
+
+#######################################
+# Check if a file is critical and needs special protection
+# Arguments:
+#   $1 - path to check
+# Returns: 0 if critical, 1 if not
+#######################################
+trash::is_critical_file() {
+    local path="$1"
+    local basename_file="$(basename "$path")"
+    
+    case "$basename_file" in
+        package.json|pnpm-lock.yaml|yarn.lock|package-lock.json|Dockerfile|docker-compose*.yml|.env*|*.key|*.pem|.git|.gitignore)
+            return 0
+            ;;
+    esac
+    
+    # Check for critical directories
+    case "$path" in
+        */.git|*/.git/*|*/node_modules|*/packages|*/src)
+            return 0
+            ;;
+    esac
+    
+    return 1
+}
+
+#######################################
+# Log operations to audit trail
+# Arguments:
+#   $1 - operation type
+#   $2 - target path
+#   $3 - result
+#######################################
+trash::log_operation() {
+    local operation="$1"
+    local target="$2" 
+    local result="$3"
+    local audit_log="${XDG_DATA_HOME:-$HOME/.local/share}/trash_audit.log"
+    
+    # Create directory if it doesn't exist
+    mkdir -p "$(dirname "$audit_log")"
+    
+    # Log the operation with timestamp and context
+    echo "$(date --iso-8601=seconds 2>/dev/null || date) - $operation - $target - $result - PID:$$ - USER:${USER:-unknown} - PWD:$PWD" >> "$audit_log"
+}
+
+#######################################
 # Validate that a path is safe to delete
 # Arguments:
 #   $1 - canonical path to validate
@@ -335,18 +467,83 @@ trash::get_trash_dirs() {
 trash::validate_path() {
     local canonical_target="$1"
     
-    # Safety check: prevent deletion of critical system paths
-    case "$canonical_target" in
-        /|/bin|/boot|/dev|/etc|/lib|/lib64|/proc|/root|/sbin|/sys|/usr|/var)
-            log::error "trash::safe_remove: Refusing to delete critical system directory: $canonical_target"
-            return 1
-            ;;
-        /home|"$HOME")
-            log::error "trash::safe_remove: Refusing to delete entire home directory: $canonical_target"
+    # Find project root for context
+    local project_root
+    project_root=$(trash::find_project_root "$canonical_target")
+    
+    # CRITICAL: Prevent deletion of entire project root
+    if [[ "$canonical_target" == "$project_root" ]]; then
+        log::error "CRITICAL: Refusing to delete entire project root: $canonical_target"
+        trash::log_operation "BLOCKED_PROJECT_ROOT" "$canonical_target" "REJECTED"
+        return 1
+    fi
+    
+    # CRITICAL: Prevent deletion of current working directory or its parents
+    local pwd_canonical
+    pwd_canonical="$(trash::canonicalize "$PWD")"
+    
+    # Check if target is PWD or contains PWD
+    if [[ "$pwd_canonical" == "$canonical_target"* ]]; then
+        log::error "CRITICAL: Refusing to delete current working directory or its parent: $canonical_target"
+        trash::log_operation "BLOCKED_PWD_PARENT" "$canonical_target" "REJECTED"
+        return 1
+    fi
+    
+    # CRITICAL: Prevent deletion of critical project files/directories
+    if [[ "$canonical_target" =~ ^"$project_root" ]]; then
+        local relative_path="${canonical_target#$project_root/}"
+        case "$relative_path" in
+            ".git"|.git/*|"package.json"|"pnpm-lock.yaml"|"pnpm-workspace.yaml"|"node_modules")
+                log::error "CRITICAL: Refusing to delete critical project file/directory: $canonical_target"
+                trash::log_operation "BLOCKED_CRITICAL_FILE" "$canonical_target" "REJECTED"
+                return 1
+                ;;
+        esac
+    fi
+    
+    # CRITICAL: Repository integrity protection
+    if [[ "$canonical_target" =~ \.git$ ]] || [[ "$canonical_target" =~ \.git/ ]]; then
+        log::error "CRITICAL: Refusing to delete Git repository data: $canonical_target"
+        trash::log_operation "BLOCKED_GIT_DATA" "$canonical_target" "REJECTED"
+        return 1
+    fi
+    
+    # Check for other VCS directories
+    case "$(basename "$canonical_target")" in
+        .svn|.hg|.bzr)
+            log::error "CRITICAL: Refusing to delete version control directory: $canonical_target"
+            trash::log_operation "BLOCKED_VCS_DIR" "$canonical_target" "REJECTED"
             return 1
             ;;
     esac
     
+    # Safety check: prevent deletion of critical system paths
+    case "$canonical_target" in
+        /|/bin|/boot|/dev|/etc|/lib|/lib64|/proc|/root|/sbin|/sys|/usr|/var)
+            log::error "CRITICAL: Refusing to delete critical system directory: $canonical_target"
+            trash::log_operation "BLOCKED_SYSTEM_DIR" "$canonical_target" "REJECTED"
+            return 1
+            ;;
+        /home|"$HOME")
+            log::error "CRITICAL: Refusing to delete entire home directory: $canonical_target"
+            trash::log_operation "BLOCKED_HOME_DIR" "$canonical_target" "REJECTED"
+            return 1
+            ;;
+    esac
+    
+    # Check if any processes are using files in this path (if lsof is available)
+    if command -v lsof >/dev/null 2>&1 && [[ -d "$canonical_target" ]]; then
+        local open_files
+        open_files=$(lsof +D "$canonical_target" 2>/dev/null | wc -l)
+        if [[ "$open_files" -gt 0 ]]; then
+            log::warn "WARNING: $open_files files in $canonical_target are currently open by processes"
+            # This is a warning, not a blocker, but we log it
+            trash::log_operation "WARNING_FILES_IN_USE" "$canonical_target" "$open_files files in use"
+        fi
+    fi
+    
+    # Log successful validation
+    trash::log_operation "VALIDATED" "$canonical_target" "ALLOWED"
     return 0
 }
 
@@ -421,6 +618,64 @@ trash::canonicalize() {
     fi
 }
 
+#######################################
+# Safe cleanup function specifically for test environments
+# Only allows deletion of whitelisted test/temp paths
+# Arguments:
+#   $1 - path to clean up
+#   $@ - additional options passed to safe_remove
+# Returns: 0 on success, 1 on failure
+#######################################
+trash::safe_test_cleanup() {
+    local target="$1"
+    shift  # Remove target from arguments, keep the rest
+    
+    if [[ -z "$target" ]]; then
+        log::error "trash::safe_test_cleanup: No target specified"
+        return 1
+    fi
+    
+    local canonical_target
+    canonical_target=$(trash::canonicalize "$target")
+    
+    # Only allow deletion of specific test patterns
+    local allowed=false
+    case "$canonical_target" in
+        */tmp/*|*/temp/*|*/test-output/*|*/coverage/*|*/.nyc_output/*|*/build/*|*/dist/*)
+            allowed=true
+            ;;
+        */node_modules/.cache/*|*/.cache/*|*/.vitest/*|*/.jest/*)
+            allowed=true
+            ;;
+        # Allow test-specific directories but be very specific
+        */test_*/|*/tests_*/|*/*-test-*/|*/*-tests-*/)
+            allowed=true
+            ;;
+        # Allow tmp directories in project
+        */*tmp|*/*temp|*/.tmp/*)
+            allowed=true
+            ;;
+    esac
+    
+    # Additional check: must be within a project or temp area
+    if [[ "$canonical_target" =~ ^/tmp/ ]] || [[ "$canonical_target" =~ ^/var/tmp/ ]]; then
+        allowed=true
+    fi
+    
+    if [[ "$allowed" == false ]]; then
+        log::error "CRITICAL: Test cleanup refusing to delete non-whitelisted path: $canonical_target"
+        log::error "Only test/temp directories are allowed for test cleanup"
+        trash::log_operation "BLOCKED_TEST_CLEANUP" "$canonical_target" "NOT_WHITELISTED"
+        return 1
+    fi
+    
+    log::info "Test cleanup allowing deletion of: $canonical_target"
+    trash::log_operation "TEST_CLEANUP_ALLOWED" "$canonical_target" "WHITELISTED"
+    
+    # Call the regular safe_remove with additional no-confirm for test cleanup
+    trash::safe_remove "$canonical_target" --no-confirm "$@"
+}
+
 # Export functions if sourced
 if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
     export -f trash::safe_remove
@@ -431,4 +686,8 @@ if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
     export -f trash::validate_path
     export -f trash::calculate_size_mb
     export -f trash::canonicalize
+    export -f trash::find_project_root
+    export -f trash::is_critical_file
+    export -f trash::log_operation
+    export -f trash::safe_test_cleanup
 fi

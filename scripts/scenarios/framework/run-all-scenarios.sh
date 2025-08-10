@@ -34,6 +34,12 @@ declare -a PASSED_SCENARIOS=()
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCENARIOS_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Source required utilities
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
+
 # Print functions
 print_info() {
     echo -e "${BLUE}[INFO]${NC} $1"
@@ -317,7 +323,7 @@ run_scenarios_parallel() {
     done
     
     # Cleanup
-    rm -rf "$results_dir"
+    trash::safe_remove "$results_dir" --no-confirm
 }
 
 # Run scenarios sequentially

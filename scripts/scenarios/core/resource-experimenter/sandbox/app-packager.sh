@@ -9,6 +9,12 @@ readonly SCENARIO_DIR="$(dirname "${SCRIPT_DIR}")"
 readonly SANDBOX_BASE="${HOME}/.vrooli/sandbox"
 readonly OUTPUT_BASE="${HOME}/.vrooli/generated-apps"
 
+# Source required utilities
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
+
 # Configuration
 readonly APP_TEMPLATE_DIR="${SCENARIO_DIR}/initialization/templates/app-structure"
 readonly CURRENT_DATE=$(date +%Y-%m-%d)
@@ -877,7 +883,7 @@ package_experiment() {
     upload_to_minio "${package_dir}" "${app_name}"
     
     # Clean up the temporary app directory
-    rm -rf "${app_dir}"
+    trash::safe_remove "${app_dir}" --no-confirm
     
     log_info "🎉 Successfully packaged ${app_name}"
     log_info "Package location: ${package_dir}"

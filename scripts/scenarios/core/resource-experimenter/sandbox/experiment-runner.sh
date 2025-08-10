@@ -10,6 +10,12 @@ readonly EXPERIMENT_ID="${1:-$(date +%s)-$$}"
 readonly RESOURCE_NAME="${2:-unknown}"
 readonly DOCKER_IMAGE="${3:-}"
 
+# Source required utilities
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
+
 # Configuration
 readonly SANDBOX_BASE="${HOME}/.vrooli/sandbox"
 readonly SANDBOX_DIR="${SANDBOX_BASE}/experiment-${EXPERIMENT_ID}"
@@ -412,7 +418,7 @@ cleanup_experiment() {
         local archive_dir="${SANDBOX_BASE}/archived"
         mkdir -p "${archive_dir}"
         tar -czf "${archive_dir}/experiment-${EXPERIMENT_ID}.tar.gz" -C "$(dirname "${SANDBOX_DIR}")" "$(basename "${SANDBOX_DIR}")" 2>/dev/null || true
-        rm -rf "${SANDBOX_DIR}"
+        trash::safe_remove "${SANDBOX_DIR}" --no-confirm
     fi
     
     log_info "✅ Cleanup completed"

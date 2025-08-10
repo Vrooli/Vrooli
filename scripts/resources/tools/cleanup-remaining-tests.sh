@@ -5,27 +5,34 @@ set -euo pipefail
 
 RESOURCES_DIR="/home/matthalloran8/Vrooli/scripts/resources"
 
+# Source required utilities
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
+
 echo "🧹 Cleaning up remaining test directories"
 echo
 
 # Windmill - remove fixtures and test_fixtures
 if [ -d "$RESOURCES_DIR/automation/windmill/fixtures" ] || [ -d "$RESOURCES_DIR/automation/windmill/test_fixtures" ]; then
     echo "📦 Windmill:"
-    rm -rf "$RESOURCES_DIR/automation/windmill/fixtures" 2>/dev/null && echo "   ✓ Removed fixtures/"
-    rm -rf "$RESOURCES_DIR/automation/windmill/test_fixtures" 2>/dev/null && echo "   ✓ Removed test_fixtures/"
+    trash::safe_remove "$RESOURCES_DIR/automation/windmill/fixtures" --no-confirm 2>/dev/null && echo "   ✓ Removed fixtures/"
+    trash::safe_remove "$RESOURCES_DIR/automation/windmill/test_fixtures" --no-confirm 2>/dev/null && echo "   ✓ Removed test_fixtures/"
 fi
 
 # Node-RED - remove test_fixtures
 if [ -d "$RESOURCES_DIR/automation/node-red/test_fixtures" ]; then
     echo "📦 Node-RED:"
-    rm -rf "$RESOURCES_DIR/automation/node-red/test_fixtures" && echo "   ✓ Removed test_fixtures/"
+    trash::safe_remove "$RESOURCES_DIR/automation/node-red/test_fixtures" --no-confirm && echo "   ✓ Removed test_fixtures/"
 fi
 
 # Huginn - remove test-fixtures and test_fixtures
 if [ -d "$RESOURCES_DIR/automation/huginn/test-fixtures" ] || [ -d "$RESOURCES_DIR/automation/huginn/test_fixtures" ]; then
     echo "📦 Huginn:"
-    rm -rf "$RESOURCES_DIR/automation/huginn/test-fixtures" 2>/dev/null && echo "   ✓ Removed test-fixtures/"
-    rm -rf "$RESOURCES_DIR/automation/huginn/test_fixtures" 2>/dev/null && echo "   ✓ Removed test_fixtures/"
+    trash::safe_remove "$RESOURCES_DIR/automation/huginn/test-fixtures" --no-confirm 2>/dev/null && echo "   ✓ Removed test-fixtures/"
+    trash::safe_remove "$RESOURCES_DIR/automation/huginn/test_fixtures" --no-confirm 2>/dev/null && echo "   ✓ Removed test_fixtures/"
 fi
 
 # Whisper - check if tests directory has unique content
@@ -35,14 +42,14 @@ if [ -d "$RESOURCES_DIR/ai/whisper/tests" ]; then
     if [ -n "$(find "$RESOURCES_DIR/ai/whisper/tests" -name "*.wav" -o -name "*.mp3" 2>/dev/null)" ]; then
         echo "   ⚠️  Found audio files in tests/ - preserving for manual review"
     else
-        rm -rf "$RESOURCES_DIR/ai/whisper/tests" && echo "   ✓ Removed tests/"
+        trash::safe_remove "$RESOURCES_DIR/ai/whisper/tests" --no-confirm && echo "   ✓ Removed tests/"
     fi
 fi
 
 # ComfyUI - remove test directory
 if [ -d "$RESOURCES_DIR/ai/comfyui/test" ]; then
     echo "📦 ComfyUI:"
-    rm -rf "$RESOURCES_DIR/ai/comfyui/test" && echo "   ✓ Removed test/"
+    trash::safe_remove "$RESOURCES_DIR/ai/comfyui/test" --no-confirm && echo "   ✓ Removed test/"
 fi
 
 # Claude-code - check sandbox/test-files

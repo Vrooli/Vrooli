@@ -10,6 +10,8 @@ _HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${_HERE}/../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
+# shellcheck disable=SC1091
 source "${_HERE}/lib/integration-test-lib.sh"
 # shellcheck disable=SC1091
 source "${_HERE}/lib/fixture-helpers.sh"
@@ -474,7 +476,7 @@ test_parallel_resource_processing() {
     done
     
     # Clean up
-    rm -rf "$results_dir"
+    trash::safe_remove "$results_dir" --no-confirm
     
     echo
     echo "Parallel Processing Results:"
