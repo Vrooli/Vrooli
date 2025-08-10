@@ -1,6 +1,13 @@
 #!/usr/bin/env bats
 # Tests for Windmill auth.sh functions
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Setup for each test
 setup() {
     # Load shared test infrastructure
@@ -455,7 +462,7 @@ setup() {
     [[ "$result" =~ "bulk" ]] || [[ "$result" =~ "created" ]]
     [[ "$result" =~ "2" ]] || [[ "$result" =~ "users" ]]
     
-    rm -f "$users_file"
+    trash::safe_remove "$users_file" --test-cleanup
 }
 
 # Test authentication metrics
@@ -481,5 +488,5 @@ setup() {
     [[ "$result" =~ "restore" ]]
     [[ "$result" =~ "/tmp/auth_backup.json" ]]
     
-    rm -f "/tmp/auth_backup.json"
+    trash::safe_remove "/tmp/auth_backup.json" --test-cleanup
 }

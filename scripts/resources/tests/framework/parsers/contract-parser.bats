@@ -2,6 +2,13 @@
 # Contract Parser Tests - Comprehensive test suite for YAML contract parsing
 # Tests the foundation of the Layer 1 validation system
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Get to the var.sh file from our location
 # shellcheck disable=SC1091
 source "${BATS_TEST_DIRNAME}/../../../../lib/utils/var.sh"
@@ -39,9 +46,9 @@ teardown() {
     
     # Clean up test environment
     vrooli_cleanup_test
-    rm -rf "$TEST_CONTRACTS_DIR" 2>/dev/null || true
-    rm -rf "$TEST_CACHE_DIR" 2>/dev/null || true
-    rm -rf "${TMPDIR:-/tmp}/vrooli_contract_cache_"* 2>/dev/null || true
+    trash::safe_remove "$TEST_CONTRACTS_DIR" --test-cleanup
+    trash::safe_remove "$TEST_CACHE_DIR" --test-cleanup
+    trash::safe_remove "${TMPDIR:-/tmp}/vrooli_contract_cache_"* --test-cleanup
 }
 
 # =============================================================================
@@ -467,7 +474,7 @@ EOF
     contract_parser::init "$TEST_CONTRACTS_DIR"
     
     # Remove contracts directory to test fallback
-    rm -rf "$TEST_CONTRACTS_DIR/v1.0"
+    trash::safe_remove "$TEST_CONTRACTS_DIR/v1.0" --test-cleanup
     
     run contract_parser::get_required_actions "ai"
     
@@ -788,7 +795,7 @@ EOF
     
     # Cleanup
     chmod 755 "$readonly_dir" 2>/dev/null || true
-    rm -rf "$readonly_dir" 2>/dev/null || true
+    trash::safe_remove "$readonly_dir" --test-cleanup
 }
 
 # =============================================================================

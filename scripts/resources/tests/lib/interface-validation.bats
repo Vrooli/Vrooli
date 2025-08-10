@@ -5,6 +5,13 @@ setup() {
     # Get the directory of the test file
     TEST_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
     
+    # Source trash module for safe test cleanup
+    SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+    # shellcheck disable=SC1091
+    source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+    
     # Source var.sh
     # shellcheck disable=SC1091
     source "$TEST_DIR/../../../../lib/utils/var.sh"
@@ -27,7 +34,7 @@ setup() {
 
 teardown() {
     # Cleanup
-    rm -rf "$TEST_RESOURCE_DIR"
+    trash::safe_remove "$TEST_RESOURCE_DIR" --test-cleanup
 }
 
 @test "interface_validation::detect_resource_category - detects AI category" {
@@ -228,7 +235,7 @@ EOF
     assert_output --partial "not found in port registry"
     
     # Cleanup
-    rm -f "$var_PORT_REGISTRY_FILE"
+    trash::safe_remove "$var_PORT_REGISTRY_FILE" --test-cleanup
 }
 
 @test "interface_validation::validate_resource_interface - runs full validation" {

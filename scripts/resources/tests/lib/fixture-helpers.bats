@@ -1,6 +1,13 @@
 #!/usr/bin/env bats
 # Test suite for fixture-helpers.sh
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # shellcheck disable=SC1091
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
@@ -131,7 +138,7 @@ teardown() {
     assert_failure
     assert_output --partial "not found"
     
-    rm -f "$test_file"
+    trash::safe_remove "$test_file" --test-cleanup
 }
 
 @test "fixture_helpers::validate_transcription - validates transcription accuracy" {

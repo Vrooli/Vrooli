@@ -1,6 +1,13 @@
 #!/usr/bin/env bats
 # Tests for n8n database.sh functions
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Setup for each test
 setup() {
     # Load shared test infrastructure
@@ -64,7 +71,7 @@ setup() {
 
 # Cleanup after each test
 teardown() {
-    rm -rf "$N8N_DATA_DIR"
+    trash::safe_remove "$N8N_DATA_DIR" --test-cleanup
 }
 
 # Test PostgreSQL container start
@@ -207,7 +214,7 @@ teardown() {
     [[ "$result" =~ "DOCKER_EXEC:" ]]
     [[ "$result" =~ "psql" ]]
     
-    rm -f "$backup_file"
+    trash::safe_remove "$backup_file" --test-cleanup
 }
 
 # Test database restore with missing file

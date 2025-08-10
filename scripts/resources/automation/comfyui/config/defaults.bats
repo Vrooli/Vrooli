@@ -1,6 +1,13 @@
 #!/usr/bin/env bats
 # Tests for ComfyUI defaults.sh configuration
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Setup for each test
 setup() {
     # Load dependencies
@@ -22,8 +29,8 @@ setup() {
 
 # Cleanup after each test
 teardown() {
-    rm -rf "/tmp/test-home"
-    rm -rf "/tmp/vrooli"
+    trash::safe_remove "/tmp/test-home" --test-cleanup
+    trash::safe_remove "/tmp/vrooli" --test-cleanup
 }
 
 # Test core service configuration
@@ -335,7 +342,7 @@ teardown() {
     grep -q "COMFYUI_SERVICE_NAME=" "$config_file"
     grep -q "COMFYUI_DEFAULT_PORT=" "$config_file"
     
-    rm -f "$config_file"
+    trash::safe_remove "$config_file" --test-cleanup
 }
 
 # Test configuration backup

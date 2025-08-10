@@ -1,6 +1,13 @@
 #!/usr/bin/env bats
 # Tests for Resource Smoke Test
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # shellcheck disable=SC1091
 source "${BATS_TEST_DIRNAME}/../../../lib/utils/var.sh"
 # shellcheck disable=SC1091  
@@ -24,7 +31,7 @@ setup() {
 
 teardown() {
     vrooli_cleanup_test
-    rm -rf "$TEST_TMPDIR" 2>/dev/null || true
+    trash::safe_remove "$TEST_TMPDIR" --test-cleanup
 }
 
 @test "smoke test script exists and is executable" {

@@ -8,6 +8,11 @@ API_BATS_DIR="${BATS_TEST_DIRNAME}"
 # shellcheck disable=SC1091
 source "${API_BATS_DIR}/../../../../lib/utils/var.sh"
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Load Vrooli test infrastructure using var_ variables
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
@@ -50,7 +55,7 @@ setup_file() {
 # Cleanup once per file  
 teardown_file() {
     # Clean up test files
-    rm -rf "$TEST_DIR"
+    trash::safe_remove "$TEST_DIR" --test-cleanup
 }
 
 # Lightweight per-test setup

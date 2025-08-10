@@ -1,5 +1,12 @@
 #!/usr/bin/env bats
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Load Vrooli test infrastructure (REQUIRED)
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
@@ -142,8 +149,8 @@ EOF
 
 # Cleanup after each test
 teardown() {
-    rm -rf "$WINDMILL_DATA_DIR" 2>/dev/null || true
-    rm -rf "/tmp/test-apps" 2>/dev/null || true
+    trash::safe_remove "$WINDMILL_DATA_DIR" --test-cleanup
+    trash::safe_remove "/tmp/test-apps" --test-cleanup
     vrooli_cleanup_test
 }
 

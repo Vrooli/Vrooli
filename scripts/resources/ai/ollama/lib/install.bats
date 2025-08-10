@@ -8,6 +8,11 @@ INSTALL_BATS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
 source "${INSTALL_BATS_DIR}/../../../../lib/utils/var.sh"
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Load Vrooli test infrastructure using var_ variables
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
@@ -423,7 +428,7 @@ teardown() {
     [[ "$output" =~ "Ollama installation verification passed" ]]
     
     # Cleanup
-    rm -f "$TEST_VROOLI_RESOURCES_CONFIG"
+    trash::safe_remove "$TEST_VROOLI_RESOURCES_CONFIG" --test-cleanup
 }
 
 @test "ollama::verify_installation fails with missing components" {
@@ -476,8 +481,8 @@ teardown() {
 teardown() {
     # Clean up test environment with timeout protection
     timeout 5s vrooli_cleanup_test 2>/dev/null || true
-    rm -rf "/tmp/test_installer"* 2>/dev/null || true
-    rm -rf "$TEST_VROOLI_RESOURCES_CONFIG" 2>/dev/null || true
+    trash::safe_remove "/tmp/test_installer"* --test-cleanup
+    trash::safe_remove "$TEST_VROOLI_RESOURCES_CONFIG" --test-cleanup
     
     # Kill any hanging background processes
     jobs -p | xargs -r kill 2>/dev/null || true

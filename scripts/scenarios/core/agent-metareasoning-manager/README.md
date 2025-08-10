@@ -179,7 +179,7 @@ This demonstrates the Vrooli principle: **scenarios should orchestrate, not impl
 
 - [n8n Workflow Development](../../resources/automation/n8n/)
 - [Windmill App Creation](../../resources/automation/windmill/)  
-- [Go Runtime Setup](../../lib/system/go.sh)
+- [Go Runtime Setup](../../lib/runtimes/go.sh)
 - [Scenario Architecture Guide](../../../docs/scenarios/)
 
 ---

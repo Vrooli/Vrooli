@@ -1,6 +1,13 @@
 #!/usr/bin/env bats
 # Tests for ComfyUI models.sh functions
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Setup for each test
 setup() {
     # Load shared test infrastructure
@@ -113,8 +120,8 @@ setup() {
 
 # Cleanup after each test
 teardown() {
-    rm -rf "$COMFYUI_MODELS_DIR"
-    rm -rf "$COMFYUI_DATA_DIR"
+    trash::safe_remove "$COMFYUI_MODELS_DIR" --test-cleanup
+    trash::safe_remove "$COMFYUI_DATA_DIR" --test-cleanup
 }
 
 # Test model directory listing

@@ -48,7 +48,7 @@ source "${var_LIB_UTILS_DIR}/permissions.sh"  # Consolidated permissions
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/clock.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_NETWORK_DIR}/network_diagnostics.sh"
+source "${var_LIB_NETWORK_DIR}/diagnostics/network_diagnostics.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 # shellcheck disable=SC1091
@@ -133,11 +133,27 @@ setup::generic_main() {
         log::info "Checking system clock..."
         clock::fix
         
-        # Run network diagnostics
-        log::info "Running network diagnostics..."
-        network_diagnostics::run || {
-            log::info "Some network tests failed, but continuing with setup..."
-        }
+        # Run network diagnostics with automatic fixes
+        log::info "Running comprehensive network diagnostics..."
+        if ! network_diagnostics::run; then
+            log::warning "Network diagnostic tests failed - attempting automatic fixes..."
+            
+            # Try to fix common network issues
+            network_diagnostics_fixes::fix_ipv6_issues || true
+            network_diagnostics_fixes::fix_ipv4_only_issues || true
+            network_diagnostics_fixes::fix_dns_issues || true
+            network_diagnostics_fixes::fix_ufw_blocking || true
+            
+            # Re-run diagnostics to verify fixes
+            log::info "Re-running diagnostics to verify fixes..."
+            if network_diagnostics::run; then
+                log::success "✅ Network issues resolved by automatic fixes"
+            else
+                log::warning "Some network issues remain - continuing with setup..."
+            fi
+        else
+            log::success "✅ All network diagnostics passed"
+        fi
         
         # Setup firewall early for network connectivity
         if flow::can_run_sudo "firewall setup" 2>/dev/null; then

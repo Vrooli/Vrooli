@@ -1,5 +1,12 @@
 #!/usr/bin/env bats
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Load Vrooli test infrastructure (REQUIRED)
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
@@ -87,7 +94,7 @@ setup() {
 
 # Cleanup after each test
 teardown() {
-    rm -rf "$WINDMILL_DATA_DIR"
+    trash::safe_remove "$WINDMILL_DATA_DIR" --test-cleanup
     vrooli_cleanup_test
 }
 
@@ -196,7 +203,7 @@ teardown() {
     
     [[ "$result" == "valid" ]]
     
-    rm -f "$script_path"
+    trash::safe_remove "$script_path" --test-cleanup
 }
 
 # Test script path validation with missing file
@@ -252,7 +259,7 @@ teardown() {
     [ -f "$config_file" ]
     [[ "$result" =~ "created" ]] || [[ "$result" =~ "generated" ]]
     
-    rm -f "$config_file"
+    trash::safe_remove "$config_file" --test-cleanup
 }
 
 # Test configuration file loading
@@ -265,7 +272,7 @@ teardown() {
     [[ "$WINDMILL_CUSTOM_PORT" == "9876" ]]
     [[ "$result" =~ "loaded" ]] || [[ "$result" =~ "config" ]]
     
-    rm -f "$config_file"
+    trash::safe_remove "$config_file" --test-cleanup
 }
 
 # Test network connectivity check
@@ -316,7 +323,7 @@ teardown() {
     [ -d "$backup_dir" ]
     [[ "$result" =~ "backup" ]] || [[ "$result" =~ "directory" ]]
     
-    rm -rf "$backup_dir"
+    trash::safe_remove "$backup_dir" --test-cleanup
 }
 
 # Test log directory creation
@@ -328,7 +335,7 @@ teardown() {
     [ -d "$log_dir" ]
     [[ "$result" =~ "log" ]] || [[ "$result" =~ "directory" ]]
     
-    rm -rf "$log_dir"
+    trash::safe_remove "$log_dir" --test-cleanup
 }
 
 # Test data directory initialization
@@ -365,7 +372,8 @@ teardown() {
     [[ "$result" =~ "backup" ]]
     [ -f "${test_file}.backup" ] || [[ "$result" =~ "created" ]]
     
-    rm -f "$test_file" "${test_file}.backup"
+    trash::safe_remove "$test_file" --test-cleanup
+    trash::safe_remove "${test_file}.backup" --test-cleanup
 }
 
 # Test file restoration
@@ -379,7 +387,8 @@ teardown() {
     
     [[ "$result" =~ "restore" ]]
     
-    rm -f "$test_file" "$backup_file"
+    trash::safe_remove "$test_file" --test-cleanup
+    trash::safe_remove "$backup_file" --test-cleanup
 }
 
 # Test random string generation
@@ -498,5 +507,7 @@ teardown() {
     [ -f "$merged" ]
     [[ "$result" =~ "merged" ]]
     
-    rm -f "$config1" "$config2" "$merged"
+    trash::safe_remove "$config1" --test-cleanup
+    trash::safe_remove "$config2" --test-cleanup
+    trash::safe_remove "$merged" --test-cleanup
 }

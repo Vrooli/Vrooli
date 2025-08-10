@@ -3,6 +3,13 @@
 # Tests for n8n api.sh functions
 
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Load Vrooli test infrastructure (REQUIRED)
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
@@ -295,7 +302,7 @@ setup() {
     [[ "$result" =~ "INFO: Importing workflow" ]]
     [[ "$result" =~ "Imported Workflow" ]]
     
-    rm -f "$workflow_file"
+    trash::safe_remove "$workflow_file" --test-cleanup
 }
 
 # Test workflow export
@@ -308,7 +315,7 @@ setup() {
     [[ "$result" =~ "INFO: Exporting workflow" ]]
     [[ "$result" =~ "$workflow_id" ]]
     
-    rm -f "$output_file"
+    trash::safe_remove "$output_file" --test-cleanup
 }
 
 # Test bulk operations
@@ -373,7 +380,7 @@ setup() {
     [[ "$result" =~ "INFO: Backing up workflows" ]]
     [[ "$result" =~ "backup" ]]
     
-    rm -rf "$backup_dir"
+    trash::safe_remove "$backup_dir" --test-cleanup
 }
 
 # Test restore operations
@@ -387,7 +394,7 @@ setup() {
     [[ "$result" =~ "INFO: Restoring workflows" ]]
     [[ "$result" =~ "backup" ]]
     
-    rm -rf "$backup_dir"
+    trash::safe_remove "$backup_dir" --test-cleanup
 }
 
 # Teardown

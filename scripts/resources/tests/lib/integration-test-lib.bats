@@ -5,6 +5,13 @@ setup() {
     # Get the directory of the test file
     TEST_DIR="$(cd "$(dirname "$BATS_TEST_FILENAME")" && pwd)"
     
+    # Source trash module for safe test cleanup
+    SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+    # shellcheck disable=SC1091
+    source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+    # shellcheck disable=SC1091
+    source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+    
     # Source var.sh
     # shellcheck disable=SC1091
     source "$TEST_DIR/../../../../lib/utils/var.sh"
@@ -155,7 +162,7 @@ teardown() {
     
     assert_failure
     
-    rm -f "$test_file"
+    trash::safe_remove "$test_file" --test-cleanup
     unset -f curl
 }
 
@@ -217,7 +224,7 @@ teardown() {
     [[ ${#TEST_TEMP_FILES[@]} -eq 1 ]]
     
     # Cleanup
-    rm -f "$test_file"
+    trash::safe_remove "$test_file" --test-cleanup
 }
 
 @test "integration_test_lib::cleanup_test_files - removes temporary files" {

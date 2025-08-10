@@ -1,6 +1,13 @@
 #!/usr/bin/env bats
 # Tests for Whisper API functions
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Load Vrooli test infrastructure (REQUIRED)
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
@@ -50,7 +57,7 @@ teardown() {
     vrooli_cleanup_test
     
     # Clean up any test files
-    rm -f /tmp/whisper_test_*
+    trash::safe_remove "/tmp/whisper_test_*" --test-cleanup
 }
 
 # === API Health Check Tests ===
@@ -210,7 +217,7 @@ teardown() {
     [[ "$output" == *"file2.wav"* ]]
     
     # Cleanup
-    rm -rf "$test_dir"
+    trash::safe_remove "$test_dir" --test-cleanup
 }
 
 # === Error Handling Tests ===

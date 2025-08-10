@@ -304,7 +304,7 @@ teardown() {
 
 @test "validate_configuration with missing files" {
     # Remove a config file
-    rm "$SCENARIO_DIR/initialization/configuration/app-config.json"
+    trash::safe_remove "$SCENARIO_DIR/initialization/configuration/app-config.json" --test-cleanup
     
     run bash -c "source '$VALIDATE_SCRIPT'; SCENARIO_DIR='$SCENARIO_DIR'; validate_configuration"
     assert_success  # Function doesn't fail, just reports errors
@@ -337,7 +337,7 @@ teardown() {
 # Test error counting and exit codes
 @test "validation fails with errors" {
     # Remove service.json to force error
-    rm "$SCENARIO_DIR/.vrooli/service.json"
+    trash::safe_remove "$SCENARIO_DIR/.vrooli/service.json" --test-cleanup
     
     run bash "$VALIDATE_SCRIPT" validate
     assert_failure

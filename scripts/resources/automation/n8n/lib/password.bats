@@ -1,6 +1,13 @@
 #!/usr/bin/env bats
 # Tests for n8n password.sh functions
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Load Vrooli test infrastructure (REQUIRED)
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
@@ -161,8 +168,8 @@ teardown() {
     
     # Clean up test environment with timeout protection
     timeout 5s vrooli_cleanup_test 2>/dev/null || true
-    rm -rf "$N8N_DATA_DIR" 2>/dev/null || true
-    rm -rf "$MOCK_RESPONSES_DIR" 2>/dev/null || true
+    trash::safe_remove "$N8N_DATA_DIR" --test-cleanup
+    trash::safe_remove "$MOCK_RESPONSES_DIR" --test-cleanup
     
     # Kill any hanging background processes
     jobs -p | xargs -r kill 2>/dev/null || true

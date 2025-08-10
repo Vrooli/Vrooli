@@ -1,5 +1,12 @@
 #!/usr/bin/env bats
 
+# Source trash module for safe test cleanup
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Load Vrooli test infrastructure (REQUIRED)
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
 
@@ -122,7 +129,7 @@ setup() {
 
 # Cleanup after each test
 teardown() {
-    rm -f "$SCRIPT_PATH"
+    trash::safe_remove "$SCRIPT_PATH" --test-cleanup
     vrooli_cleanup_test
 }
 
@@ -406,7 +413,7 @@ teardown() {
     [ "$status" -eq 1 ]
     [[ "$output" =~ "syntax" ]] || [[ "$output" =~ "error" ]]
     
-    rm -f "/tmp/invalid.py"
+    trash::safe_remove "/tmp/invalid.py" --test-cleanup
 }
 
 # Test batch script execution
@@ -452,7 +459,7 @@ teardown() {
     [[ "$result" =~ "bulk" ]] || [[ "$result" =~ "import" ]]
     [[ "$result" =~ "2" ]] || [[ "$result" =~ "scripts" ]]
     
-    rm -rf "$scripts_dir"
+    trash::safe_remove "$scripts_dir" --test-cleanup
 }
 
 # Test export operations
@@ -472,7 +479,7 @@ teardown() {
     [[ "$result" =~ "import" ]]
     [[ "$result" =~ "/tmp/workspace_import.json" ]]
     
-    rm -f "/tmp/workspace_import.json"
+    trash::safe_remove "/tmp/workspace_import.json" --test-cleanup
 }
 
 # Test API endpoint discovery
