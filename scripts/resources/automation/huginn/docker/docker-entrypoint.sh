@@ -2,6 +2,12 @@
 set -e
 # Enhanced entrypoint for Huginn with Vrooli integration
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "/host/scripts/lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 echo "Starting Huginn with enhanced entrypoint..."
 
 # Set up PATH to include host directories
@@ -117,7 +123,11 @@ if [[ "$RAILS_ENV" == "production" ]] && [[ ! -d "public/assets" ]]; then
 fi
 
 # Clean up old PID files
-rm -f /app/tmp/pids/server.pid
+if command -v trash::safe_remove >/dev/null 2>&1; then
+    trash::safe_remove /app/tmp/pids/server.pid --temp
+else
+    rm -f /app/tmp/pids/server.pid  # fallback inside container
+fi
 
 # Export host directories in PATH for child processes
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/host/usr/bin:/host/bin:$PATH"

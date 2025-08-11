@@ -10,6 +10,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Source common utilities using var_ variables
 # shellcheck disable=SC1091
@@ -91,7 +93,7 @@ EOF
     
     # Run authentication setup
     CLAUDE_CONFIG_DIR="${CLAUDE_SANDBOX_CONFIG}" bash /tmp/claude-auth-setup.sh
-    rm -f /tmp/claude-auth-setup.sh
+    trash::safe_remove /tmp/claude-auth-setup.sh --temp
     
     if [[ -f "${CLAUDE_SANDBOX_CONFIG}/.credentials.json" ]]; then
         claude_sandbox::print_success "Authentication setup complete"

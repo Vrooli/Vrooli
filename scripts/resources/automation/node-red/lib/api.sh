@@ -2,6 +2,12 @@
 # Node-RED API and Flow Management Functions
 # Functions for interacting with Node-RED admin API and managing flows
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # List all flows in Node-RED
 #######################################
@@ -431,7 +437,7 @@ node_red::validate_flows() {
     
     # Export flows to temporary file for validation
     local temp_file=$(mktemp)
-    trap "rm -f $temp_file" EXIT
+    trap "trash::safe_remove $temp_file --temp" EXIT
     
     if node_red::export_flows_to_file "$temp_file"; then
         # Validate JSON structure
@@ -493,7 +499,7 @@ node_red::search_flows() {
     
     # Export flows to temporary file for searching
     local temp_file=$(mktemp)
-    trap "rm -f $temp_file" EXIT
+    trap "trash::safe_remove $temp_file --temp" EXIT
     
     if node_red::export_flows_to_file "$temp_file"; then
         # Search in the JSON content

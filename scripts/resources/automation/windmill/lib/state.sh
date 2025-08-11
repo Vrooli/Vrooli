@@ -3,6 +3,13 @@
 # Handles password persistence, installation state, and auto-recovery
 # Ensures no sensitive data is stored in git
 
+# Source trash module for safe cleanup
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # Initialize state management system
 # Creates necessary directories and files
@@ -105,7 +112,7 @@ windmill::encrypt_secret() {
     
     # Encrypt the entire secrets file
     windmill::encrypt_file "$temp_file" "$secret_file"
-    rm -f "$temp_file"
+    trash::safe_remove "$temp_file" --temp
     
     chmod 600 "$secret_file"
     return 0
@@ -323,7 +330,7 @@ windmill::save_password_history() {
     local temp_file="$state_dir/.history.tmp"
     echo "$history" > "$temp_file"
     windmill::encrypt_file "$temp_file" "$history_file"
-    rm -f "$temp_file"
+    trash::safe_remove "$temp_file" --temp
     
     chmod 600 "$history_file"
     return 0
@@ -541,7 +548,7 @@ windmill::acquire_lock() {
         
         if [[ $elapsed -gt $timeout ]]; then
             echo "WARN: Lock timeout exceeded, forcing lock"
-            rm -f "$lock_file"
+            trash::safe_remove "$lock_file" --temp
             break
         fi
         
@@ -558,7 +565,7 @@ windmill::acquire_lock() {
 #######################################
 windmill::release_lock() {
     local lock_file="${WINDMILL_INSTALLATION_STATE_DIR}/.lock"
-    rm -f "$lock_file"
+    trash::safe_remove "$lock_file" --temp
     return 0
 }
 

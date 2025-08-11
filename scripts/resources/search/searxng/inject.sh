@@ -9,13 +9,12 @@ DESCRIPTION="Inject search engines, settings, and configurations into SearXNG me
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Source var.sh first to get path variables
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
-
-# Source common utilities using var_ variables
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Source SearXNG configuration if available
 if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
@@ -350,7 +349,7 @@ EOF
     # Add rollback action
     searxng_inject::add_rollback_action \
         "Remove engine configuration: $name" \
-        "rm -f '${engine_file}' 2>/dev/null || true"
+        "trash::safe_remove '${engine_file}' --temp"
     
     return 0
 }
@@ -392,7 +391,7 @@ EOF
     # Add rollback actions
     searxng_inject::add_rollback_action \
         "Remove preferences" \
-        "rm -f '${pref_file}' '${yaml_file}' 2>/dev/null || true"
+        "trash::safe_remove '${pref_file}' --temp; trash::safe_remove '${yaml_file}' --temp"
     
     return 0
 }
@@ -431,7 +430,7 @@ EOF
     # Add rollback action
     searxng_inject::add_rollback_action \
         "Remove outgoing settings" \
-        "rm -f '${outgoing_file}' 2>/dev/null || true"
+        "trash::safe_remove '${outgoing_file}' --temp"
     
     return 0
 }
@@ -470,7 +469,7 @@ EOF
     # Add rollback action
     searxng_inject::add_rollback_action \
         "Remove server settings" \
-        "rm -f '${server_file}' 2>/dev/null || true"
+        "trash::safe_remove '${server_file}' --temp"
     
     return 0
 }
@@ -583,7 +582,7 @@ EOF
     # Add rollback actions
     searxng_inject::add_rollback_action \
         "Remove configuration files" \
-        "rm -f '${config_file}' '${settings_snippet}' 2>/dev/null || true"
+        "trash::safe_remove '${config_file}' --temp; trash::safe_remove '${settings_snippet}' --temp"
     
     return 0
 }

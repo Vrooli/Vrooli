@@ -30,14 +30,45 @@ DEFAULT_GO_VERSION="1.21"
 go::download_with_retry() {
     local url="$1"
     local output_file="$2"
+    local max_attempts="${3:-3}"
+    local delay="${4:-2}"
     
-    # Use the retry utility with output to file
-    if retry::download "$url" > "$output_file"; then
-        return 0
-    else
-        log::error "Download failed after retries"
-        return 1
-    fi
+    local attempt=1
+    
+    while [[ $attempt -le $max_attempts ]]; do
+        log::info "Download attempt $attempt of $max_attempts..."
+        log::info "Downloading from: $url"
+        log::info "Saving to: $output_file"
+        
+        # Use curl with extended timeouts for large file downloads
+        if curl -fsSL \
+            --connect-timeout 30 \
+            --max-time 600 \
+            --retry 2 \
+            --retry-delay 1 \
+            "$url" -o "$output_file"; then
+            
+            # Verify file was downloaded and has content
+            if [[ -f "$output_file" ]] && [[ -s "$output_file" ]]; then
+                log::success "Download completed successfully"
+                return 0
+            else
+                log::error "Downloaded file is empty or doesn't exist"
+            fi
+        fi
+        
+        if [[ $attempt -lt $max_attempts ]]; then
+            log::warning "Download failed, retrying in ${delay} seconds..."
+            # Clean up failed download
+            [[ -f "$output_file" ]] && rm -f "$output_file"
+            sleep "$delay"
+        fi
+        
+        ((attempt++))
+    done
+    
+    log::error "Download failed after $max_attempts attempts"
+    return 1
 }
 
 go::detect_arch() {
@@ -94,13 +125,13 @@ go::get_latest_version() {
     
     # Get latest patch version for the major version
     local latest_version
-    latest_version=$(curl -s "https://go.dev/dl/" | grep -oE "go${major_version}\.[0-9]+" | head -1 | sed 's/go//')
+    latest_version=$(curl -s "https://go.dev/dl/" | grep -oE "go${major_version}\.[0-9]+" | head -1 | sed 's/^go//')
     
     if [[ -n "$latest_version" ]]; then
         echo "$latest_version"
     else
-        # Fallback to provided version
-        echo "$major_version.0"
+        # Fallback to provided version with .0 patch
+        echo "${major_version}.0"
     fi
 }
 
@@ -159,6 +190,20 @@ go::install_binary() {
     
     # Download with retry
     if ! go::download_with_retry "$url" "$temp_file"; then
+        log::error "Failed to download Go from $url"
+        trash::safe_remove "$temp_dir" --no-confirm
+        return 1
+    fi
+    
+    # Verify the downloaded file is a valid tar.gz
+    if ! file "$temp_file" | grep -q "gzip compressed"; then
+        log::error "Downloaded file is not a valid gzip archive"
+        log::info "Downloaded file type: $(file "$temp_file")"
+        if [[ -f "$temp_file" ]]; then
+            log::info "File size: $(wc -c < "$temp_file") bytes"
+            log::info "First 100 characters:"
+            head -c 100 "$temp_file" | cat -v
+        fi
         trash::safe_remove "$temp_dir" --no-confirm
         return 1
     fi

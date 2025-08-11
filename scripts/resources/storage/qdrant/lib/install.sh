@@ -226,7 +226,7 @@ EOF
         log::debug "Resource configuration updated"
         return 0
     else
-        rm -f "${config_file}.tmp"
+        trash::safe_remove "${config_file}.tmp" --temp
         log::warn "Failed to update resource configuration"
         return 1
     fi
@@ -283,7 +283,7 @@ qdrant::install::remove_from_resource_config() {
         log::debug "Removed from resource configuration"
         return 0
     else
-        rm -f "${config_file}.tmp"
+        trash::safe_remove "${config_file}.tmp" --temp
         log::warn "Failed to remove from resource configuration"
         return 1
     fi
@@ -384,7 +384,7 @@ qdrant::install::reset_configuration() {
     if command -v trash::safe_remove >/dev/null 2>&1; then
         trash::safe_remove "${QDRANT_CONFIG_DIR}" --no-confirm 2>/dev/null || true
     else
-        rm -rf "${QDRANT_CONFIG_DIR}" 2>/dev/null || true
+        trash::safe_remove "${QDRANT_CONFIG_DIR}" --no-confirm 2>/dev/null || true
     fi
     
     # Recreate directories

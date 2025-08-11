@@ -2,6 +2,13 @@
 # Claude Code Enhanced Batch Execution Framework
 # Provides clean, reusable batch execution patterns
 
+# Source trash module for safe cleanup
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # Simple batch runner - cleaner alternative to maintenance-agent.sh
 # Arguments:
@@ -400,7 +407,8 @@ claude_code::batch_parallel() {
     done
     
     # Clean up
-    rm -f "$queue_file" "$queue_file.lock"
+    trash::safe_remove "$queue_file" --temp
+    trash::safe_remove "$queue_file.lock" --temp
     
     log::success "✅ All parallel tasks completed"
     log::info "Output directory: $output_dir"

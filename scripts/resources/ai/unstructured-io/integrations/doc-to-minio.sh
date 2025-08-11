@@ -5,6 +5,11 @@
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Source trash module for safe cleanup
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 MANAGE_SCRIPT="${SCRIPT_DIR}/../manage.sh"
 
 # Parse arguments
@@ -106,7 +111,7 @@ mc cp "$DOCUMENT" "minio/$BUCKET/originals/${BASENAME}.${EXTENSION}" \
     --attr "X-Amz-Meta-Processed-Location=$BUCKET/processed/${BASENAME}.json"
 
 # Clean up
-rm -f "$TEMP_JSON"
+trash::safe_remove "$TEMP_JSON" --temp
 
 echo "✅ Successfully archived to MinIO"
 echo "   Bucket: $BUCKET"

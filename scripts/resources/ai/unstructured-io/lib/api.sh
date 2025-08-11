@@ -3,6 +3,13 @@
 # Unstructured.io API Functions
 # This file contains functions for interacting with the Unstructured.io API
 
+# Source trash module for safe cleanup
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # Process a single document
 #######################################
@@ -66,7 +73,7 @@ unstructured_io::process_document() {
     
     local exit_code=$?
     local curl_error=$(cat "$curl_stderr" 2>/dev/null)
-    rm -f "$curl_stderr"
+    trash::safe_remove "$curl_stderr" --temp
     
     # Enhanced error handling with specific codes
     if [ $exit_code -ne 0 ]; then
@@ -504,14 +511,14 @@ EOF
     
     # Process the test file
     if unstructured_io::process_document "$test_file" "fast" "markdown"; then
-        rm -f "$test_file"
+        trash::safe_remove "$test_file" --temp
         if [[ "$QUIET" != "yes" ]]; then
             echo >&2
             echo "✅ API test passed successfully" >&2
         fi
         return 0
     else
-        rm -f "$test_file"
+        trash::safe_remove "$test_file" --temp
         if [[ "$QUIET" != "yes" ]]; then
             echo >&2
             echo "❌ API test failed" >&2

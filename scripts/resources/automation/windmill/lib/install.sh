@@ -2,6 +2,13 @@
 # Windmill Installation Functions
 # Complete installation workflow for Windmill platform
 
+# Source trash module for safe cleanup
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # Main installation function
 # Returns: 0 if successful, 1 otherwise
@@ -311,7 +318,7 @@ windmill::uninstall() {
     # Remove configuration files (with confirmation)
     if [[ -f "$WINDMILL_ENV_FILE" ]]; then
         log::info "Removing configuration files..."
-        rm -f "$WINDMILL_ENV_FILE"
+        trash::safe_remove "$WINDMILL_ENV_FILE" --temp
     fi
     
     # Remove from Vrooli configuration

@@ -2,6 +2,12 @@
 # Claude Code Settings Management Functions
 # Handles viewing and updating Claude settings
 
+# Source var.sh for directory variables if not already sourced
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # View or update Claude settings
 #######################################
@@ -141,7 +147,7 @@ claude_code::settings_set() {
             mv "$temp_file" "$settings_file"
             log::success "✓ Setting updated: $key = $value"
         else
-            rm -f "$temp_file"
+            trash::safe_remove "$temp_file" --temp
             log::error "Failed to update setting (invalid JSON value?)"
             return 1
         fi
@@ -172,7 +178,7 @@ claude_code::settings_reset() {
         "project")
             if [[ -f "$CLAUDE_PROJECT_SETTINGS" ]]; then
                 if confirm "Reset project settings to defaults?"; then
-                    rm -f "$CLAUDE_PROJECT_SETTINGS"
+                    trash::safe_remove "$CLAUDE_PROJECT_SETTINGS" --temp
                     log::success "✓ Project settings reset"
                 else
                     log::info "Reset cancelled"
@@ -184,7 +190,7 @@ claude_code::settings_reset() {
         "global")
             if [[ -f "$CLAUDE_SETTINGS_FILE" ]]; then
                 if confirm "Reset global settings to defaults?"; then
-                    rm -f "$CLAUDE_SETTINGS_FILE"
+                    trash::safe_remove "$CLAUDE_SETTINGS_FILE" --temp
                     log::success "✓ Global settings reset"
                 else
                     log::info "Reset cancelled"

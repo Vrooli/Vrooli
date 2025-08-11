@@ -2,6 +2,12 @@
 # Browserless Usage Examples and Help
 # User guidance and example coordination
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # Show usage examples help
 #######################################
@@ -140,7 +146,7 @@ browserless::cleanup_usage_files() {
     
     for file in "${files[@]}"; do
         if [[ -f "$file" ]]; then
-            if rm -f "$file" 2>/dev/null; then
+            if trash::safe_remove "$file" --temp 2>/dev/null; then
                 log::debug "✓ Cleaned up: $file"
             else
                 log::debug "⚠ Failed to clean up: $file"

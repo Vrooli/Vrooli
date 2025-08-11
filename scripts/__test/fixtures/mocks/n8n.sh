@@ -21,6 +21,11 @@ declare -g N8N_MOCK_LOADED=1
 
 # Load dependencies
 MOCK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$MOCK_DIR/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 [[ -f "$MOCK_DIR/logs.sh" ]] && source "$MOCK_DIR/logs.sh"
 [[ -f "$MOCK_DIR/http.sh" ]] && source "$MOCK_DIR/http.sh"
 [[ -f "$MOCK_DIR/docker.sh" ]] && source "$MOCK_DIR/docker.sh"
@@ -774,7 +779,7 @@ mock::n8n::reset() {
     mock::n8n::create_default_data
     
     # Clean state file
-    rm -f "$N8N_MOCK_STATE_DIR/n8n-state.sh" 2>/dev/null || true
+    trash::safe_remove "$N8N_MOCK_STATE_DIR/n8n-state.sh" --test-cleanup 2>/dev/null || true
     
     mock::n8n::save_state
 }

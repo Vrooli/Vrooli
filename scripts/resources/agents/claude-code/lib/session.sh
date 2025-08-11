@@ -2,6 +2,13 @@
 # Claude Code Session Management Functions
 # Handles session listing and resumption
 
+# Source trash module for safe cleanup
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # Manage Claude sessions
 #######################################
@@ -84,7 +91,7 @@ claude_code::session_delete() {
     
     if [[ -f "$session_file" ]]; then
         if confirm "Delete session $session_id?"; then
-            rm -f "$session_file"
+            trash::safe_remove "$session_file" --temp
             log::success "✓ Session deleted: $session_id"
         else
             log::info "Session deletion cancelled"

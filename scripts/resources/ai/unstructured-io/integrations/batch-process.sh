@@ -5,6 +5,11 @@
 set -euo pipefail
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Source trash module for safe cleanup
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 MANAGE_SCRIPT="${SCRIPT_DIR}/../manage.sh"
 
 # Default values
@@ -101,7 +106,9 @@ echo "0" > "$FAILED_FILE"
 
 # Cleanup function
 cleanup() {
-    rm -f "$LOCK_FILE" "$COMPLETED_FILE" "$FAILED_FILE"
+    trash::safe_remove "$LOCK_FILE" --temp
+    trash::safe_remove "$COMPLETED_FILE" --temp
+    trash::safe_remove "$FAILED_FILE" --temp
 }
 trap cleanup EXIT
 

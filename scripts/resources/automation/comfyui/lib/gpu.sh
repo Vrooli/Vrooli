@@ -2,6 +2,13 @@
 # ComfyUI GPU Detection and Management
 # Handles GPU detection, NVIDIA runtime setup, and GPU-specific configurations
 
+# Source trash module for safe cleanup
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # Detect GPU type without logging (for use in conditionals)
 #######################################
@@ -279,7 +286,7 @@ gpu::install_nvidia_runtime_apt() {
     # Add rollback action
     resources::add_rollback_action \
         "Remove NVIDIA Container Runtime repository" \
-        "flow::maybe_run_sudo rm -f /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg /etc/apt/sources.list.d/nvidia-container-toolkit.list" \
+        "flow::maybe_run_sudo trash::safe_remove /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg --temp; flow::maybe_run_sudo trash::safe_remove /etc/apt/sources.list.d/nvidia-container-toolkit.list --temp" \
         5
     
     # Set up the repository

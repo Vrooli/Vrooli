@@ -2,6 +2,13 @@
 # Windmill App Management Functions
 # Functions for managing and preparing Windmill app definitions
 
+# Source trash module for safe cleanup
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # List available app examples
 #######################################
@@ -281,7 +288,7 @@ windmill::deploy_app() {
     local body=$(echo "$response" | head -n -1)
     
     # Clean up temp file
-    rm -f "$temp_file"
+    trash::safe_remove "$temp_file" --temp
     
     if [[ "$http_code" == "201" ]] || [[ "$http_code" == "200" ]]; then
         log::success "App deployed successfully!"

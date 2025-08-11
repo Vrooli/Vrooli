@@ -13,6 +13,8 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${SCRIPT_DIR}/../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Source Unstructured.io configuration if available
 if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
@@ -337,7 +339,7 @@ unstructured_inject::enable_parser() {
     # Add rollback action
     unstructured_inject::add_rollback_action \
         "Remove parser configuration: $type" \
-        "rm -f '${parser_config_dir}/${type}.json' 2>/dev/null || true"
+        "trash::safe_remove '${parser_config_dir}/${type}.json' --temp"
     
     return 0
 }
@@ -387,7 +389,7 @@ unstructured_inject::download_model() {
     # Add rollback action
     unstructured_inject::add_rollback_action \
         "Remove model marker: $name" \
-        "rm -f '${UNSTRUCTURED_MODELS_DIR}/.${name}_enabled' 2>/dev/null || true"
+        "trash::safe_remove '${UNSTRUCTURED_MODELS_DIR}/.${name}_enabled' --temp"
     
     return 0
 }
@@ -427,7 +429,7 @@ unstructured_inject::upload_document() {
     # Add rollback action
     unstructured_inject::add_rollback_action \
         "Remove test document: $name" \
-        "rm -f '${test_docs_dir}/${name}' 2>/dev/null || true"
+        "trash::safe_remove '${test_docs_dir}/${name}' --temp"
     
     return 0
 }
@@ -594,7 +596,7 @@ unstructured_inject::apply_configurations() {
     # Add rollback action
     unstructured_inject::add_rollback_action \
         "Remove configuration file" \
-        "rm -f '${config_file}' 2>/dev/null || true"
+        "trash::safe_remove '${config_file}' --temp"
     
     return 0
 }

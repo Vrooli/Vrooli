@@ -4,6 +4,13 @@
 # This script provides comprehensive testing of the Unstructured.io API functionality
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 BASE_URL="${UNSTRUCTURED_IO_BASE_URL:-http://localhost:11450}"
 TIMEOUT=30
 PASSED_TESTS=0
@@ -95,7 +102,7 @@ EOF
     fi
     
     # Cleanup
-    rm -f "$test_file"
+    trash::safe_remove "$test_file" --temp
     echo
     
     # Test 3: Processing Strategies
@@ -125,7 +132,7 @@ EOF
         fi
     done
     
-    rm -f "$simple_file"
+    trash::safe_remove "$simple_file" --temp
     echo
     
     # Test 4: Error Handling

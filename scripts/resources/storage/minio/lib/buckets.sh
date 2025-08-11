@@ -2,6 +2,13 @@
 # MinIO Bucket Management
 # Functions for managing MinIO buckets
 
+# Source trash module for safe cleanup
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # Initialize default buckets for Vrooli
 # Returns: 0 on success, 1 on failure
@@ -85,13 +92,13 @@ minio::buckets::test_upload() {
                 log::error "Downloaded file content doesn't match"
             fi
             
-            rm -f "$download_file"
+            trash::safe_remove "$download_file" --temp
         else
             log::error "Failed to download test file"
         fi
         
         # Clean up test files
-        rm -f "$test_file"
+        trash::safe_remove "$test_file" --temp
         
         # Delete from MinIO
         minio::api::mc rm "local/vrooli-user-uploads/test/minio-test.txt" >/dev/null 2>&1
@@ -99,7 +106,7 @@ minio::buckets::test_upload() {
         return 0
     else
         log::error "Failed to upload test file"
-        rm -f "$test_file"
+        trash::safe_remove "$test_file" --temp
         return 1
     fi
 }

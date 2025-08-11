@@ -109,30 +109,18 @@ helm::install_via_script() {
         # Run the installation script
         if [ "$use_sudo" = "true" ]; then
             if sudo "$tmpdir/get_helm.sh"; then
-                if command -v trash::safe_remove >/dev/null 2>&1; then
-    trash::safe_remove "$tmpdir" --no-confirm
-else
-    rm -rf "$tmpdir"
-fi
+                trash::safe_remove "$tmpdir" --temp
                 return 0
             fi
         else
             if USE_SUDO=false "$tmpdir/get_helm.sh"; then
-                if command -v trash::safe_remove >/dev/null 2>&1; then
-    trash::safe_remove "$tmpdir" --no-confirm
-else
-    rm -rf "$tmpdir"
-fi
+                trash::safe_remove "$tmpdir" --temp
                 return 0
             fi
         fi
     fi
     
-    if command -v trash::safe_remove >/dev/null 2>&1; then
-    trash::safe_remove "$tmpdir" --no-confirm
-else
-    rm -rf "$tmpdir"
-fi
+    trash::safe_remove "$tmpdir" --temp
     return 1
 }
 

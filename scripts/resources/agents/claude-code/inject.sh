@@ -16,6 +16,8 @@ source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
 # Source common utilities using var_ variables
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Source Claude Code configuration if available
 if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
@@ -372,7 +374,7 @@ EOF
     # Add rollback actions
     claude_code_inject::add_rollback_action \
         "Remove template: $name" \
-        "rm -f '${dest_file}' '${metadata_file}' 2>/dev/null || true"
+        "trash::safe_remove '${dest_file}' --temp; trash::safe_remove '${metadata_file}' --temp"
     
     return 0
 }
@@ -420,7 +422,7 @@ EOF
     # Add rollback actions
     claude_code_inject::add_rollback_action \
         "Remove prompt: $name" \
-        "rm -f '${dest_file}' '${metadata_file}' 2>/dev/null || true"
+        "trash::safe_remove '${dest_file}' --temp; trash::safe_remove '${metadata_file}' --temp"
     
     return 0
 }
@@ -472,12 +474,12 @@ EOF
     # Add rollback actions
     claude_code_inject::add_rollback_action \
         "Remove session: $name" \
-        "rm -f '${dest_file}' '${metadata_file}' 2>/dev/null || true"
+        "trash::safe_remove '${dest_file}' --temp; trash::safe_remove '${metadata_file}' --temp"
     
     if [[ "$autoload" == "true" ]]; then
         claude_code_inject::add_rollback_action \
             "Remove default session marker" \
-            "rm -f '${CLAUDE_CODE_SESSIONS_DIR}/.default_session' 2>/dev/null || true"
+            "trash::safe_remove '${CLAUDE_CODE_SESSIONS_DIR}/.default_session' --temp"
     fi
     
     return 0
@@ -535,7 +537,7 @@ claude_code_inject::configure_api_keys() {
         # Add rollback action
         claude_code_inject::add_rollback_action \
             "Remove API key: $provider" \
-            "rm -f '${key_file}' 2>/dev/null || true"
+            "trash::safe_remove '${key_file}' --temp"
     done
     
     log::success "Configured API keys"
@@ -700,7 +702,7 @@ claude_code_inject::apply_configurations() {
     # Add rollback action
     claude_code_inject::add_rollback_action \
         "Remove configuration file" \
-        "rm -f '${config_file}' 2>/dev/null || true"
+        "trash::safe_remove '${config_file}' --temp"
     
     return 0
 }

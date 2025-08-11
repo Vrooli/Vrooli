@@ -2,6 +2,13 @@
 # Enhanced Claude Code Session Management and Result Extraction
 # Provides advanced session tracking, analytics, result extraction, and recovery
 
+# Source trash module for safe cleanup
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Session metadata directory for enhanced tracking
 CLAUDE_SESSION_METADATA_DIR="${CLAUDE_SESSIONS_DIR}/.metadata"
 
@@ -663,10 +670,10 @@ claude_code::session_cleanup() {
                     
                     if [[ -f "$session_file" ]]; then
                         file_size=$(wc -c < "$session_file" 2>/dev/null || echo "0")
-                        rm -f "$session_file"
+                        trash::safe_remove "$session_file" --temp
                     fi
                     
-                    rm -f "$metadata_file"
+                    trash::safe_remove "$metadata_file" --temp
                     
                     sessions_cleaned=$((sessions_cleaned + 1))
                     space_freed=$((space_freed + file_size))
@@ -693,10 +700,10 @@ claude_code::session_cleanup() {
                     
                     if [[ -f "$session_file" ]]; then
                         file_size=$(wc -c < "$session_file" 2>/dev/null || echo "0")
-                        rm -f "$session_file"
+                        trash::safe_remove "$session_file" --temp
                     fi
                     
-                    rm -f "$metadata_file"
+                    trash::safe_remove "$metadata_file" --temp
                     
                     sessions_cleaned=$((sessions_cleaned + 1))
                     space_freed=$((space_freed + file_size))
@@ -733,8 +740,8 @@ claude_code::session_cleanup() {
                     local file_size
                     file_size=$(wc -c < "$session_file" 2>/dev/null || echo "0")
                     
-                    rm -f "$session_file"
-                    [[ -f "$metadata_file" ]] && rm -f "$metadata_file"
+                    trash::safe_remove "$session_file" --temp
+                    [[ -f "$metadata_file" ]] && trash::safe_remove "$metadata_file" --temp
                     
                     current_size=$((current_size - file_size))
                     sessions_cleaned=$((sessions_cleaned + 1))
@@ -752,14 +759,14 @@ claude_code::session_cleanup() {
                     [[ ! -f "$session_file" ]] && continue
                     local file_size
                     file_size=$(wc -c < "$session_file" 2>/dev/null || echo "0")
-                    rm -f "$session_file"
+                    trash::safe_remove "$session_file" --temp
                     space_freed=$((space_freed + file_size))
                     sessions_cleaned=$((sessions_cleaned + 1))
                 done
                 
                 for metadata_file in "$CLAUDE_SESSION_METADATA_DIR"/*.json; do
                     [[ ! -f "$metadata_file" ]] && continue
-                    rm -f "$metadata_file"
+                    trash::safe_remove "$metadata_file" --temp
                 done
             else
                 log::info "Cleanup cancelled"

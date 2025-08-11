@@ -2,6 +2,12 @@
 # Browserless API Functions
 # API testing, examples, and usage demonstrations
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Test output directory configuration
 BROWSERLESS_TEST_OUTPUT_DIR="${BROWSERLESS_TEST_OUTPUT_DIR:-/tmp/browserless-test-outputs}"
 
@@ -55,7 +61,7 @@ browserless::test_screenshot() {
     # Check curl succeeded
     if [[ $curl_exit_code -ne 0 ]]; then
         log::error "Failed to connect to browserless service (exit code: $curl_exit_code)"
-        rm -f "$temp_file"
+        trash::safe_remove "$temp_file" --temp
         return 1
     fi
     
@@ -64,7 +70,7 @@ browserless::test_screenshot() {
         log::error "Screenshot request failed with HTTP status: $http_status"
         if [[ -f "$temp_file" ]]; then
             log::debug "Error response: $(head -c 200 "$temp_file" 2>/dev/null || echo 'No response body')"
-            rm -f "$temp_file"
+            trash::safe_remove "$temp_file" --temp
         fi
         return 1
     fi
@@ -72,7 +78,7 @@ browserless::test_screenshot() {
     # Validate file exists and has content
     if [[ ! -f "$temp_file" ]] || [[ ! -s "$temp_file" ]]; then
         log::error "No screenshot data received"
-        rm -f "$temp_file"
+        trash::safe_remove "$temp_file" --temp
         return 1
     fi
     
@@ -83,7 +89,7 @@ browserless::test_screenshot() {
         if [[ "$file_type" != image/* ]]; then
             log::error "Response is not an image (detected: $file_type)"
             log::debug "Response preview: $(head -c 100 "$temp_file" 2>/dev/null || echo 'Cannot read file')"
-            rm -f "$temp_file"
+            trash::safe_remove "$temp_file" --temp
             return 1
         fi
     fi
@@ -94,7 +100,7 @@ browserless::test_screenshot() {
     if [[ "$file_size" -lt 1024 ]]; then
         log::error "Screenshot file too small ($file_size bytes) - likely an error message"
         log::debug "Content: $(cat "$temp_file" 2>/dev/null || echo 'Cannot read file')"
-        rm -f "$temp_file"
+        trash::safe_remove "$temp_file" --temp
         return 1
     fi
     
@@ -106,7 +112,7 @@ browserless::test_screenshot() {
         return 0
     else
         log::error "Failed to save screenshot to: $output_file"
-        rm -f "$temp_file"
+        trash::safe_remove "$temp_file" --temp
         return 1
     fi
 }
@@ -142,7 +148,7 @@ browserless::safe_screenshot() {
     file_size=$(stat -f%z "$output" 2>/dev/null || stat -c%s "$output" 2>/dev/null || echo "0")
     if [[ "$file_size" -lt 1024 ]]; then
         log::error "Screenshot file suspiciously small - removing for safety"
-        rm -f "$output"
+        trash::safe_remove "$output" --temp
         return 1
     fi
     
@@ -152,7 +158,7 @@ browserless::safe_screenshot() {
         mime_type=$(file -b --mime-type "$output" 2>/dev/null || echo "unknown")
         if [[ "$mime_type" != image/* ]]; then
             log::error "File is not an image (mime: $mime_type) - removing for safety"
-            rm -f "$output"
+            trash::safe_remove "$output" --temp
             return 1
         fi
     fi

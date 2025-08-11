@@ -8,6 +8,8 @@ LIB_TESTING_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${LIB_TESTING_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SERVICE_DIR}/secrets.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 #######################################
 # Run complete Node-RED test suite
@@ -474,7 +476,7 @@ node_red::stress_test() {
     
     # Start memory monitoring in background
     local temp_file=$(mktemp)
-    trap "rm -f $temp_file" EXIT
+    trap "trash::safe_remove $temp_file --temp" EXIT
     
     # Monitor memory usage
     (

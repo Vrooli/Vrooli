@@ -8,6 +8,13 @@ if [[ "${HELM_MOCKS_LOADED:-}" == "true" ]]; then
 fi
 export HELM_MOCKS_LOADED="true"
 
+# Source trash module for safe cleanup
+HELM_MOCK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${HELM_MOCK_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # ----------------------------
 # Global mock state & options
 # ----------------------------
@@ -1143,4 +1150,4 @@ export -f mock::helm::release_exists
 export -f mock::helm::get_release_info
 
 # Clean up on exit
-trap 'rm -f "${HELM_MOCK_STATE_FILE}"' EXIT
+trap 'trash::safe_remove "${HELM_MOCK_STATE_FILE}" --test-cleanup 2>/dev/null' EXIT

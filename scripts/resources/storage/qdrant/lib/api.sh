@@ -2,6 +2,12 @@
 # Qdrant API Management
 # Functions for interacting with Qdrant REST API
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # Make authenticated API request to Qdrant
 # Arguments:
@@ -96,7 +102,7 @@ qdrant::api::detailed_health_check() {
     curl_exit_code=$?
     
     # Clean up temp file
-    rm -f "$temp_output"
+    trash::safe_remove "$temp_output" --temp
     
     # Analyze the results and provide specific error messages
     case $curl_exit_code in

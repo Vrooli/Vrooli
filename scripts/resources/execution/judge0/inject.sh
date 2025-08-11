@@ -16,6 +16,8 @@ source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
 # Source common utilities using var_ variables
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Source Judge0 configuration if available
 if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
@@ -431,7 +433,7 @@ EOF
     # Add rollback action
     judge0_inject::add_rollback_action \
         "Remove language configuration: $name" \
-        "rm -f '${lang_file}' 2>/dev/null || true"
+        "trash::safe_remove '${lang_file}' --temp"
     
     return 0
 }
@@ -485,7 +487,7 @@ EOF
     # Add rollback actions
     judge0_inject::add_rollback_action \
         "Remove template: $name" \
-        "rm -f '${dest_file}' '${metadata_file}' 2>/dev/null || true"
+        "trash::safe_remove '${dest_file}' --temp; trash::safe_remove '${metadata_file}' --temp"
     
     return 0
 }
@@ -561,7 +563,7 @@ EOF
     # Add rollback action
     judge0_inject::add_rollback_action \
         "Remove test submission: $name" \
-        "rm -f '${submission_file}' '${submission_file}.token' 2>/dev/null || true"
+        "trash::safe_remove '${submission_file}' --temp; trash::safe_remove '${submission_file}.token' --temp"
     
     return 0
 }
@@ -725,7 +727,7 @@ judge0_inject::apply_configurations() {
     # Add rollback action
     judge0_inject::add_rollback_action \
         "Remove configuration file" \
-        "rm -f '${config_file}' 2>/dev/null || true"
+        "trash::safe_remove '${config_file}' --temp"
     
     return 0
 }

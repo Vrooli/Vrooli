@@ -2,6 +2,13 @@
 # SearXNG Configuration Management
 # Generate and manage SearXNG configuration files
 
+# Source trash module for safe cleanup
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # Generate SearXNG settings.yml from template
 #######################################
@@ -65,7 +72,7 @@ searxng::generate_config() {
         return 0
     else
         log::error "Failed to generate SearXNG configuration"
-        rm -f "$temp_config"
+        trash::safe_remove "$temp_config" --temp
         return 1
     fi
 }
@@ -109,7 +116,7 @@ searxng::generate_limiter_config() {
         return 0
     else
         log::warn "Failed to generate rate limiter configuration"
-        rm -f "$temp_config"
+        trash::safe_remove "$temp_config" --temp
         return 1
     fi
 }

@@ -7,6 +7,11 @@ set -euo pipefail
 # Source test utilities
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MANAGE_SCRIPT="${SCRIPT_DIR}/../manage.sh"
+# Source trash module for safe cleanup
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Test configuration
 TEST_WORKFLOW_FILE="/tmp/test_workflow_simple.json"
@@ -246,7 +251,7 @@ main() {
     test_workflow_execution
     
     # Cleanup
-    rm -f "$TEST_WORKFLOW_FILE"
+    trash::safe_remove "$TEST_WORKFLOW_FILE" --test-cleanup
     
     # Summary
     echo

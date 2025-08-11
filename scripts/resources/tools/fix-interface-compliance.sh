@@ -44,6 +44,12 @@ RESOURCES_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 TOOLS_DIR="$SCRIPT_DIR"
 CONTRACTS_DIR="$RESOURCES_DIR/contracts"
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Configuration
 VERBOSE=false
 SPECIFIC_RESOURCE=""
@@ -707,7 +713,7 @@ fix_action_patterns() {
                 return 0
             else
                 log_error "Pattern fixing created syntax errors, reverting"
-                rm -f "$temp_file"
+                trash::safe_remove "$temp_file" --temp
                 return 1
             fi
         fi
@@ -777,7 +783,7 @@ EOF
                         return 0
                     else
                         log_error "Adding logs function created syntax errors"
-                        rm -f "$temp_file"
+                        trash::safe_remove "$temp_file" --temp
                         return 1
                     fi
                 else
@@ -1026,13 +1032,14 @@ apply_fixes() {
     # Validate generated script
     if ! bash -n "$temp_file"; then
         log_error "Generated script has syntax errors!"
-        rm -f "$temp_file" "$additions_file"
+        trash::safe_remove "$temp_file" --temp
+        trash::safe_remove "$additions_file" --temp
         return 1
     fi
     
     # Apply changes
     mv "$temp_file" "$script_path"
-    rm -f "$additions_file"
+    trash::safe_remove "$additions_file" --temp
     
     log_success "Applied fixes to $script_path"
     log_info "Generated function stubs for: ${missing_actions[*]}"

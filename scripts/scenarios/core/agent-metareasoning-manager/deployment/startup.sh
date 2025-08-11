@@ -13,6 +13,8 @@ SCENARIO_DIR="$(dirname "$SCRIPT_DIR")"
 source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Configuration
 API_PORT="${API_PORT:-8093}"
@@ -134,7 +136,7 @@ startup::cleanup() {
         if kill "$api_pid" 2>/dev/null; then
             log::info "Stopped API server (PID: $api_pid)"
         fi
-        rm -f "$SCENARIO_DIR/.api_pid"
+        trash::safe_remove "$SCENARIO_DIR/.api_pid" --temp
     fi
 }
 

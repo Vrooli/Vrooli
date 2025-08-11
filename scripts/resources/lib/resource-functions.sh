@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Source trash module for safe cleanup
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 ################################################################################
 # Vrooli Resource Management Functions
 # 
@@ -340,7 +347,7 @@ stop_application_services() {
         app_pid=$(cat "${APP_ROOT}/app.pid")
         if kill -0 "$app_pid" 2>/dev/null; then
             kill "$app_pid" || true
-            rm -f "${APP_ROOT}/app.pid"
+            trash::safe_remove "${APP_ROOT}/app.pid" --temp
         fi
     fi
     

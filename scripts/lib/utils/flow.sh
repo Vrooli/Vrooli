@@ -74,6 +74,11 @@ flow::can_run_sudo() {
         return 1
     fi
 
+    # If already running as root, we have privileges
+    if [[ $EUID -eq 0 ]]; then
+        return 0
+    fi
+
     # If sudo is not installed, skip privileged ops
     # NOTE: Don't use system::is_command here, because it will cause a circular dependency
     if ! command -v sudo >/dev/null 2>&1; then
@@ -93,7 +98,11 @@ flow::can_run_sudo() {
 
     # If error mode, abort; otherwise just skip
     if [[ "$mode" == "error" ]]; then
-        flow::exit_with_error "Unable to run sudo for: $operation. Either run setup with 'sudo' prefix, or use --sudo-mode skip to bypass privileged operations." "$EXIT_GENERAL_ERROR"
+        if [[ -n "${SUDO_USER:-}" ]]; then
+            flow::exit_with_error "Running under sudo but can't execute privileged operations for: $operation. This usually means sudo has timed out or there's a permission issue." "$EXIT_GENERAL_ERROR"
+        else
+            flow::exit_with_error "Unable to run sudo for: $operation. Either run setup with 'sudo' prefix, or use --sudo-mode skip to bypass privileged operations." "$EXIT_GENERAL_ERROR"
+        fi
     else
         log::info "sudo requires password or is blocked, skipping $operation"
         return 1

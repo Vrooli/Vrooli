@@ -2,6 +2,13 @@
 # ComfyUI Model Management
 # Handles downloading, listing, and managing AI models
 
+# Source trash module for safe cleanup
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # Download default models (SDXL)
 #######################################
@@ -47,7 +54,7 @@ models::download_default_models() {
                 continue
             else
                 log::warn "Existing model failed verification, re-downloading: $model_name"
-                rm -f "$target_path"
+                trash::safe_remove "$target_path" --temp
             fi
         fi
         
@@ -166,7 +173,7 @@ models::download_model() {
                         return 0
                     else
                         log::warn "Model verification failed, retrying download..."
-                        rm -f "$target_path"
+                        trash::safe_remove "$target_path" --temp
                     fi
                 else
                     return 0
@@ -183,7 +190,7 @@ models::download_model() {
                         return 0
                     else
                         log::warn "Model verification failed, retrying download..."
-                        rm -f "$target_path"
+                        trash::safe_remove "$target_path" --temp
                     fi
                 else
                     return 0
@@ -204,7 +211,7 @@ models::download_model() {
     done
     
     log::error "Failed to download model after $max_retries attempts"
-    rm -f "$target_path"
+    trash::safe_remove "$target_path" --temp
     return 1
 }
 

@@ -3,6 +3,12 @@
 # Unstructured.io Installation Validation
 # This file contains functions to validate the installation and configuration
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # Validate Unstructured.io installation
 #######################################
@@ -135,7 +141,7 @@ unstructured_io::validate_installation() {
         echo "❌ Processing failed"
         ((errors++))
     fi
-    rm -f "$test_file"
+    trash::safe_remove "$test_file" --temp
     
     # Check supported formats
     if [[ "$verbose" == "yes" ]]; then

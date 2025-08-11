@@ -2,6 +2,12 @@
 # Claude Code Status Functions
 # Handles status checking, info display, and log viewing
 
+# Source var.sh for directory variables if not already sourced
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # Check Claude Code status
 #######################################
@@ -46,7 +52,7 @@ claude_code::status() {
             if echo "$health_output" | grep -q "Errors:"; then
                 echo "$health_output" | grep -A5 "Errors:" | sed 's/^/  /'
             fi
-            rm -f /tmp/claude_health_check.log
+            trash::safe_remove /tmp/claude_health_check.log --temp
         else
             log::warn "⚠️  Health check failed - some issues detected"
             log::info "  Use: $0 --action health-check --check-type full for detailed information"
