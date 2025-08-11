@@ -152,8 +152,8 @@ redis::install::create_cli_helper() {
 # This script connects to the Redis resource instance
 
 # Source var.sh to get proper directory variables  
-_CLI_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${_CLI_SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || {
+REDIS_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${REDIS_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || {
     # Fallback for older installations
     _detect_project_root() {
         local current_dir

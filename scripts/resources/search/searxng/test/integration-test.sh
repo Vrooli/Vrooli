@@ -6,9 +6,9 @@
 set -euo pipefail
 
 # Source var.sh first to get path variables
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SEARXNG_TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+source "${SEARXNG_TEST_DIR}/../../../../lib/utils/var.sh"
 
 # Source shared integration test library
 # shellcheck disable=SC1091
@@ -22,7 +22,7 @@ source "${var_SCRIPTS_RESOURCES_DIR}/tests/lib/enhanced-integration-test-lib.sh"
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../config/defaults.sh"
+source "$SEARXNG_TEST_DIR/../config/defaults.sh"
 searxng::export_config
 
 # Override library defaults with SearXNG-specific settings

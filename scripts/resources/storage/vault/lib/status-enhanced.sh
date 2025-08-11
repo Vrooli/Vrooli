@@ -3,8 +3,8 @@
 # Provides both legacy and modern status reporting
 
 # Source the standardized status helper
-SCRIPT_DIR="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
-RESOURCES_DIR="${SCRIPT_DIR}/../../.."
+VAULT_LIB_DIR="${VAULT_LIB_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+RESOURCES_DIR="${VAULT_LIB_DIR}/../../.."
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/common/status-helper.sh"
 

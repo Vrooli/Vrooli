@@ -6,10 +6,11 @@ set -euo pipefail
 
 DESCRIPTION="Install and manage Qdrant vector database using Docker"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+QDRANT_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+QDRANT_LIB_DIR="${QDRANT_SCRIPT_DIR}/lib"
 
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${QDRANT_SCRIPT_DIR}/../../../lib/utils/var.sh"
 
 # Source common resources
 # shellcheck disable=SC1091
@@ -21,9 +22,9 @@ source "${var_APP_DIR}/utils/docker.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/defaults.sh"
+source "${QDRANT_SCRIPT_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/messages.sh"
+source "${QDRANT_SCRIPT_DIR}/config/messages.sh"
 
 # Export configuration
 qdrant::export_config
@@ -31,19 +32,19 @@ qdrant::messages::init
 
 # Source all library modules
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/common.sh"
+source "${QDRANT_LIB_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/docker.sh"
+source "${QDRANT_LIB_DIR}/docker.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/api.sh"
+source "${QDRANT_LIB_DIR}/api.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/collections.sh"
+source "${QDRANT_LIB_DIR}/collections.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/status.sh"
+source "${QDRANT_LIB_DIR}/status.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/install.sh"
+source "${QDRANT_LIB_DIR}/install.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/snapshots.sh"
+source "${QDRANT_LIB_DIR}/snapshots.sh"
 
 #######################################
 # Parse command line arguments

@@ -9,11 +9,12 @@ trap 'huginn::show_interrupt_message; exit 130' INT TERM
 
 DESCRIPTION="Install and manage Huginn agent-based workflow automation platform"
 
-# Get the directory of this script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the directory of this script (unique variable name)
+HUGINN_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HUGINN_LIB_DIR="${HUGINN_SCRIPT_DIR}/lib"
 
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${HUGINN_SCRIPT_DIR}/../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
@@ -21,24 +22,24 @@ source "${var_LIB_UTILS_DIR}/args-cli.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/defaults.sh"
+source "${HUGINN_SCRIPT_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/messages.sh"
+source "${HUGINN_SCRIPT_DIR}/config/messages.sh"
 
 # Export configuration
 huginn::export_config
 
 # Source all library modules
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/common.sh"
+source "${HUGINN_LIB_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/docker.sh"
+source "${HUGINN_LIB_DIR}/docker.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/install.sh"
+source "${HUGINN_LIB_DIR}/install.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/status.sh"
+source "${HUGINN_LIB_DIR}/status.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/api.sh"
+source "${HUGINN_LIB_DIR}/api.sh"
 
 #######################################
 # Parse command line arguments

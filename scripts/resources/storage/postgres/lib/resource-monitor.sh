@@ -6,8 +6,8 @@ set -euo pipefail
 
 DESCRIPTION="Monitor resource usage for PostgreSQL instances"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "${SCRIPT_DIR}/config/defaults.sh"
+POSTGRES_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "${POSTGRES_LIB_DIR}/../config/defaults.sh"
 
 # Configuration
 MONITOR_INTERVAL=5

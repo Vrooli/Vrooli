@@ -6,11 +6,11 @@ set -euo pipefail
 
 DESCRIPTION="Install and manage Redis in-memory data structure store using Docker"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+REDIS_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Source var.sh to get proper directory variables
 # shellcheck disable=SC1091
-source "$(dirname "$(dirname "$(dirname "${SCRIPT_DIR}")")")/lib/utils/var.sh"
+source "$(dirname "$(dirname "$(dirname "${REDIS_SCRIPT_DIR}")")")/lib/utils/var.sh"
 
 # Source common resources
 # shellcheck disable=SC1091
@@ -20,9 +20,9 @@ source "${var_LIB_UTILS_DIR}/args-cli.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/defaults.sh"
+source "${REDIS_SCRIPT_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/messages.sh"
+source "${REDIS_SCRIPT_DIR}/config/messages.sh"
 
 # Export configuration
 redis::export_config
@@ -30,15 +30,15 @@ redis::messages::init
 
 # Source all library modules
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/common.sh"
+source "${REDIS_SCRIPT_DIR}/lib/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/docker.sh"
+source "${REDIS_SCRIPT_DIR}/lib/docker.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/status.sh"
+source "${REDIS_SCRIPT_DIR}/lib/status.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/backup.sh"
+source "${REDIS_SCRIPT_DIR}/lib/backup.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/install.sh"
+source "${REDIS_SCRIPT_DIR}/lib/install.sh"
 
 #######################################
 # Parse command line arguments

@@ -6,35 +6,36 @@ set -euo pipefail
 
 DESCRIPTION="Manages ComfyUI - AI image generation workflow platform"
 
-# Get script directory
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# Get script directory (unique variable name)
+COMFYUI_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+COMFYUI_LIB_DIR="${COMFYUI_SCRIPT_DIR}/lib"
 
 # Source var.sh first to get all path variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${COMFYUI_SCRIPT_DIR}/../../../lib/utils/var.sh"
 
 # Source all modules in correct order using var_ variables
 # 1. Common utilities first (includes config)
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/common.sh"
+source "${COMFYUI_LIB_DIR}/common.sh"
 
 # 2. Core functionality modules
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/gpu.sh"
+source "${COMFYUI_LIB_DIR}/gpu.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/docker.sh"
+source "${COMFYUI_LIB_DIR}/docker.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/models.sh"
+source "${COMFYUI_LIB_DIR}/models.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/workflows.sh"
+source "${COMFYUI_LIB_DIR}/workflows.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/status.sh"
+source "${COMFYUI_LIB_DIR}/status.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/install.sh"
+source "${COMFYUI_LIB_DIR}/install.sh"
 
 # 3. User messages (optional)
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/messages.sh"
+source "${COMFYUI_SCRIPT_DIR}/config/messages.sh"
 
 #######################################
 # Main function - route actions to appropriate handlers

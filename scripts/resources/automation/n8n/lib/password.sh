@@ -3,9 +3,9 @@
 # Authentication and password reset functionality
 
 # Source shared utilities
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/utils.sh" 2>/dev/null || true
 
 #######################################
 # Reset admin password

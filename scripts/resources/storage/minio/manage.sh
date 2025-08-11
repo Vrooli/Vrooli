@@ -6,11 +6,12 @@ set -euo pipefail
 
 DESCRIPTION="Install and manage MinIO S3-compatible object storage using Docker"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+MINIO_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+MINIO_LIB_DIR="${MINIO_SCRIPT_DIR}/lib"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+source "${MINIO_SCRIPT_DIR}/../../../../lib/utils/var.sh"
 
 # Source common resources using var_ variables
 # shellcheck disable=SC1091
@@ -22,9 +23,9 @@ source "${var_APP_UTILS_DIR}/docker.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/defaults.sh"
+source "${MINIO_SCRIPT_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/messages.sh"
+source "${MINIO_SCRIPT_DIR}/config/messages.sh"
 
 # Export configuration
 minio::export_config
@@ -32,17 +33,17 @@ minio::messages::init
 
 # Source all library modules
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/common.sh"
+source "${MINIO_LIB_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/docker.sh"
+source "${MINIO_LIB_DIR}/docker.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/api.sh"
+source "${MINIO_LIB_DIR}/api.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/buckets.sh"
+source "${MINIO_LIB_DIR}/buckets.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/status.sh"
+source "${MINIO_LIB_DIR}/status.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/install.sh"
+source "${MINIO_LIB_DIR}/install.sh"
 
 #######################################
 # Parse command line arguments
@@ -286,7 +287,7 @@ main() {
                 log::info "Use: --injection-config 'JSON_CONFIG'"
                 exit 1
             fi
-            "${SCRIPT_DIR}/inject.sh" --inject "$INJECTION_CONFIG"
+            "${MINIO_SCRIPT_DIR}/inject.sh" --inject "$INJECTION_CONFIG"
             ;;
         validate-injection)
             if [[ -z "$INJECTION_CONFIG" ]]; then
@@ -294,7 +295,7 @@ main() {
                 log::info "Use: --injection-config 'JSON_CONFIG'"
                 exit 1
             fi
-            "${SCRIPT_DIR}/inject.sh" --validate "$INJECTION_CONFIG"
+            "${MINIO_SCRIPT_DIR}/inject.sh" --validate "$INJECTION_CONFIG"
             ;;
         *)
             log::error "Unknown action: $ACTION"

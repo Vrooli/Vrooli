@@ -3,110 +3,135 @@
 # Status checking, health monitoring, and information display
 
 # Source specialized modules
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../lib/docker-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../lib/docker-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../lib/http-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../lib/http-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/health.sh"
+source "${N8N_LIB_DIR}/../../lib/status-engine.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/utils.sh"
+source "${N8N_LIB_DIR}/health.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/constants.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/utils.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${N8N_LIB_DIR}/constants.sh" 2>/dev/null || true
+
+# NOTE: Old display functions removed - replaced by unified status engine
+# All status display now handled by n8n::enhanced_status() using status::display_unified_status()
 
 #######################################
-# Display container status and stats
-# Args: none
-# Returns: 0 if running, 2 if not
+# Create n8n status configuration for the unified status engine
+# Returns: JSON configuration via stdout
 #######################################
-n8n::display_container_status() {
-    if ! n8n::container_exists_any; then
-        log::error "❌ Container: Not found"
-        return 2
-    elif ! n8n::container_running; then
-        log::error "❌ Container: Exists but not running"
-        return 2
-    fi
-    local stats=$(docker stats "$N8N_CONTAINER_NAME" --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}" 2>/dev/null || echo "")
-    log::success "✅ Container: Running ($N8N_CONTAINER_NAME) [$stats]"
-    return 0
+n8n::_build_status_config() {
+    local config='{
+        "resource": {
+            "name": "n8n",
+            "category": "automation",
+            "description": "Business workflow automation platform",
+            "port": '${N8N_PORT}',
+            "container_name": "'${N8N_CONTAINER_NAME}'",
+            "data_dir": "'${N8N_DATA_DIR}'"
+        },
+        "endpoints": {
+            "ui": "'${N8N_BASE_URL}'",
+            "api": "'${N8N_BASE_URL}'/api/v1",
+            "health": "'${N8N_BASE_URL}'/healthz"
+        },
+        "health_tiers": {
+            "healthy": "All systems operational",
+            "degraded": "API key missing - Go to '${N8N_BASE_URL}' → Settings → n8n API → Create API key, then save with: ./manage.sh --action save-api-key --api-key YOUR_KEY",
+            "unhealthy": "Service not responding - Try: ./manage.sh --action restart"
+        },
+        "auth": {
+            "type": "api-key",
+            "status_func": "n8n::_display_auth_status"
+        }
+    }'
+    echo "$config"
 }
 
 #######################################
-# Display health tier with actionable feedback
-# Args: $1 - health tier (HEALTHY/DEGRADED/UNHEALTHY)
+# Custom authentication status display for n8n
+# Called by the status engine when auth.status_func is specified
 #######################################
-n8n::display_health_tier_feedback() {
-    local health_tier="$1"
-    case "$health_tier" in
-        "HEALTHY")
-            log::success "✅ Health: HEALTHY - All systems operational"
-            ;;
-        "DEGRADED")
-            log::warn "⚠️  Health: DEGRADED - API key missing"
-            log::info "Fix: Go to $N8N_BASE_URL → Settings → n8n API → Create API key"
-            log::info "Then: $0 --action save-api-key --api-key YOUR_KEY"
-            ;;
-        "UNHEALTHY") 
-            log::error "❌ Health: UNHEALTHY - Service not responding. Try: $0 --action restart"
-            ;;
-    esac
-}
-
-#######################################
-# Display service endpoint details
-#######################################
-n8n::display_service_details() {
-    log::info "Service: UI=$N8N_BASE_URL | Health=$N8N_BASE_URL/healthz | API=$N8N_BASE_URL/api/v1"
-}
-
-#######################################
-# Display authentication information
-#######################################
-n8n::display_authentication_info() {
-    # Basic auth status using shared utility
-    local auth_active
-    auth_active=$(n8n::extract_container_env "N8N_BASIC_AUTH_ACTIVE")
-    if [[ "$auth_active" == "true" ]]; then
-        local auth_user
-        auth_user=$(n8n::extract_container_env "N8N_BASIC_AUTH_USER")
-        log::info "  Web Auth: Enabled (user: ${auth_user:-admin})"
+n8n::_display_auth_status() {
+    # Basic auth status
+    if n8n::container_running; then
+        local auth_active
+        auth_active=$(n8n::extract_container_env "N8N_BASIC_AUTH_ACTIVE")
+        if [[ "$auth_active" == "true" ]]; then
+            local auth_user
+            auth_user=$(n8n::extract_container_env "N8N_BASIC_AUTH_USER")
+            log::info "   ✅ Basic Auth: Enabled (user: ${auth_user:-admin})"
+        else
+            log::warn "   ⚠️  Basic Auth: Disabled"
+        fi
     else
-        log::warn "  Web Auth: Disabled"
+        log::warn "   ❓ Basic Auth: Cannot determine (container not running)"
     fi
-    # API key status using shared utility
-    local api_key_status="Not configured"
+    
+    # API key status
     local api_key
     api_key=$(n8n::resolve_api_key)
     if [[ -n "$api_key" ]]; then
-        api_key_status="Configured (${#api_key} chars)"
+        # Validate the API key
+        if n8n::validate_api_key_setup >/dev/null 2>&1; then
+            log::success "   ✅ API Key: Valid and configured (${#api_key} chars)"
+        else
+            log::error "   ❌ API Key: Configured but invalid (${#api_key} chars)"
+        fi
+    else
+        log::warn "   ⚠️  API Key: Not configured"
+        log::info "      Set up at: $N8N_BASE_URL → Settings → n8n API"
     fi
-    log::info "  API Key: $api_key_status"
 }
 
 #######################################
-# Enhanced status with tiered health reporting
-# REFACTORED: Main orchestrator function (moved from common.sh)
-# Provides clear feedback about what works vs what's missing
+# Enhanced status with unified status engine
+# REFACTORED: Now uses the unified status display system
 #######################################
 n8n::enhanced_status() {
-    log::header "📊 n8n Enhanced Status Check"
-    # Get tiered health status
-    local health_tier
-    local health_code
-    health_tier=$(n8n::tiered_health_check)
-    health_code=$?
-    # Display container status
-    if ! n8n::display_container_status; then
-        return 2
+    local status_config
+    status_config=$(n8n::_build_status_config)
+    
+    # Use the unified status engine with custom workflow section
+    status::display_unified_status "$status_config" "n8n::_display_workflow_section"
+}
+
+#######################################
+# Custom workflow section for n8n status display
+# Args: $1 - status_config (JSON configuration)
+#######################################
+n8n::_display_workflow_section() {
+    local status_config="$1"
+    
+    local container_name
+    container_name=$(echo "$status_config" | jq -r '.resource.container_name // empty')
+    
+    if [[ -z "$container_name" ]] || ! n8n::container_running; then
+        return 0
     fi
-    # Display health tier feedback
-    n8n::display_health_tier_feedback "$health_tier"
-    # Display service and authentication details
-    n8n::display_service_details
-    n8n::display_authentication_info
-    return $health_code
+    
+    log::info "⚡ Workflow Management:"
+    
+    # Try to get workflow count via API if available
+    local api_key
+    api_key=$(n8n::resolve_api_key)
+    if [[ -n "$api_key" ]] && n8n::validate_api_key_setup >/dev/null 2>&1; then
+        local workflow_count
+        workflow_count=$(n8n::safe_curl_call "GET" "${N8N_BASE_URL}/api/v1/workflows?limit=1" "" "X-N8N-API-KEY: $api_key" 2>/dev/null | jq -r '.count // "unknown"' 2>/dev/null || echo "unknown")
+        log::info "   💼 Total Workflows: $workflow_count"
+        log::info "   📋 Management: ./manage.sh --action workflow-list"
+        log::info "   ▶️  Execution: ./manage.sh --action execute --workflow-id ID"
+    else
+        log::info "   💼 Workflows: Configure API key to see workflow details"
+        log::info "   📋 Management: Set up API access first"
+    fi
+    
+    # Show example workflow creation
+    log::info "   ➕ Create: Access $N8N_BASE_URL to build workflows"
 }
 
 #######################################

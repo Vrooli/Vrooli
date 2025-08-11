@@ -4,12 +4,12 @@
 
 set -euo pipefail
 
-# Source test utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-MANAGE_SCRIPT="${SCRIPT_DIR}/../manage.sh"
+# Source test utilities using unique directory variable
+COMFYUI_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MANAGE_SCRIPT="${COMFYUI_LIB_DIR}/../manage.sh"
 # Source trash module for safe cleanup
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${COMFYUI_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 

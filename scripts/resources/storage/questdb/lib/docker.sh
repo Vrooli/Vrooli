@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # QuestDB Docker Management Functions
 
+QUESTDB_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
 #######################################
 # Check if QuestDB container is running
 # Returns:
@@ -54,7 +56,7 @@ questdb::docker::start() {
         docker start "${QUESTDB_CONTAINER_NAME}" || return 1
     else
         # Run new container
-        cd "${SCRIPT_DIR}/docker" || return 1
+        cd "${QUESTDB_LIB_DIR}/../docker" || return 1
         docker-compose up -d || return 1
         cd - > /dev/null || return 1
     fi

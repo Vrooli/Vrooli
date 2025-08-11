@@ -2,9 +2,9 @@
 # QuestDB Installation Functions
 
 # Source required utilities
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+QUESTDB_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${QUESTDB_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
@@ -118,7 +118,7 @@ questdb::install::init_tables() {
     sleep 5
     
     # Create default tables
-    local schemas_dir="${SCRIPT_DIR}/schemas"
+    local schemas_dir="${QUESTDB_LIB_DIR}/schemas"
     local schema_files=(
         "system_metrics.sql"
         "ai_metrics.sql"

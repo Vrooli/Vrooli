@@ -6,11 +6,12 @@ set -euo pipefail
 
 DESCRIPTION="Install and manage PostgreSQL database instances for client isolation using Docker"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+POSTGRES_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+POSTGRES_LIB_DIR="${POSTGRES_SCRIPT_DIR}/lib"
 
 # Source var.sh first for directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${POSTGRES_SCRIPT_DIR}/../../../lib/utils/var.sh"
 
 # Source common resources using var_ variables
 # shellcheck disable=SC1091
@@ -22,9 +23,9 @@ source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/defaults.sh"
+source "${POSTGRES_SCRIPT_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/messages.sh"
+source "${POSTGRES_SCRIPT_DIR}/config/messages.sh"
 
 # Export configuration
 postgres::export_config
@@ -32,27 +33,27 @@ postgres::messages::init
 
 # Source all library modules
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/common.sh"
+source "${POSTGRES_LIB_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/docker.sh"
+source "${POSTGRES_LIB_DIR}/docker.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/instance.sh"
+source "${POSTGRES_LIB_DIR}/instance.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/status.sh"
+source "${POSTGRES_LIB_DIR}/status.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/install.sh"
+source "${POSTGRES_LIB_DIR}/install.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/database.sh"
+source "${POSTGRES_LIB_DIR}/database.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/backup.sh"
+source "${POSTGRES_LIB_DIR}/backup.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/migration.sh"
+source "${POSTGRES_LIB_DIR}/migration.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/multi_instance.sh"
+source "${POSTGRES_LIB_DIR}/multi_instance.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/network.sh"
+source "${POSTGRES_LIB_DIR}/network.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/gui.sh"
+source "${POSTGRES_LIB_DIR}/gui.sh"
 
 #######################################
 # Parse command line arguments
@@ -836,7 +837,7 @@ postgres::main() {
                 log::info "Use: --injection-config 'JSON_CONFIG'"
                 exit 1
             fi
-            "${SCRIPT_DIR}/inject.sh" --inject "$INJECTION_CONFIG"
+            "${POSTGRES_SCRIPT_DIR}/inject.sh" --inject "$INJECTION_CONFIG"
             ;;
         "validate-injection")
             if [[ -z "$INJECTION_CONFIG" ]]; then
@@ -844,7 +845,7 @@ postgres::main() {
                 log::info "Use: --injection-config 'JSON_CONFIG'"
                 exit 1
             fi
-            "${SCRIPT_DIR}/inject.sh" --validate "$INJECTION_CONFIG"
+            "${POSTGRES_SCRIPT_DIR}/inject.sh" --validate "$INJECTION_CONFIG"
             ;;
         *)
             log::error "Unknown action: $ACTION"

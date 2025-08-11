@@ -8,7 +8,8 @@ DESCRIPTION="Install and manage Windmill developer-centric workflow automation p
 
 # Source var.sh first with relative path
 # shellcheck disable=SC1091
-source "../../../lib/utils/var.sh"
+WINDMILL_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "$(dirname "$(dirname "$(dirname "${WINDMILL_SCRIPT_DIR}")")")/lib/utils/var.sh"
 
 # Source common resources using var_ variables
 # shellcheck disable=SC1091

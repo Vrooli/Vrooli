@@ -3,15 +3,15 @@
 # Workflow execution, API key management, and REST API interactions
 
 # Source shared libraries
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+N8N_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${var_LIB_SERVICE_DIR}/secrets.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../lib/http-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../lib/http-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/utils.sh"
+source "${N8N_LIB_DIR}/utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/constants.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/constants.sh" 2>/dev/null || true
 
 #######################################
 # Execute workflow via API

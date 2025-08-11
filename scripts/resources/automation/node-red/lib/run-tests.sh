@@ -11,8 +11,8 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Get script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get script directory using unique directory variable
+NODE_RED_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Default options
 VERBOSE=false
@@ -110,7 +110,7 @@ run_tests::check_environment() {
     )
     
     for file in "${test_files[@]}"; do
-        if [[ -f "$SCRIPT_DIR/$file" ]]; then
+        if [[ -f "$NODE_RED_LIB_DIR/$file" ]]; then
             echo -e "${GREEN}✓ $file${NC}"
         else
             echo -e "${RED}✗ $file (missing)${NC}"
@@ -131,7 +131,7 @@ run_tests::check_environment() {
     )
     
     for file in "${source_files[@]}"; do
-        if [[ -f "$SCRIPT_DIR/$file" ]]; then
+        if [[ -f "$NODE_RED_LIB_DIR/$file" ]]; then
             echo -e "${GREEN}✓ $file${NC}"
         else
             echo -e "${YELLOW}⚠ $file (missing)${NC}"
@@ -146,7 +146,7 @@ run_tests::list_tests() {
     echo
     
     # Config tests
-    for test_file in "$SCRIPT_DIR/config"/*.bats; do
+    for test_file in "$NODE_RED_LIB_DIR/../config"/*.bats; do
         if [[ -f "$test_file" ]]; then
             local basename=$(basename "$test_file" .bats)
             echo -e "${BLUE}$basename (config/$basename.bats)${NC}"
@@ -156,7 +156,7 @@ run_tests::list_tests() {
     done
     
     # Library tests
-    for test_file in "$SCRIPT_DIR/lib"/*.bats; do
+    for test_file in "$NODE_RED_LIB_DIR/lib"/*.bats; do
         if [[ -f "$test_file" ]]; then
             local basename=$(basename "$test_file" .bats)
             echo -e "${BLUE}$basename (lib/$basename.bats)${NC}"
@@ -166,9 +166,9 @@ run_tests::list_tests() {
     done
     
     # Main script tests
-    if [[ -f "$SCRIPT_DIR/manage.bats" ]]; then
+    if [[ -f "$NODE_RED_LIB_DIR/../manage.bats" ]]; then
         echo -e "${BLUE}manage (manage.bats)${NC}"
-        grep -E "^@test" "$SCRIPT_DIR/manage.bats" | sed 's/@test "/  - /' | sed 's/" {$//' || true
+        grep -E "^@test" "$NODE_RED_LIB_DIR/../manage.bats" | sed 's/@test "/  - /' | sed 's/" {$//' || true
         echo
     fi
 }
@@ -180,28 +180,28 @@ run_tests::get_test_files() {
     case "$category" in
         "all")
             files+=(
-                "$SCRIPT_DIR/config"/*.bats
-                "$SCRIPT_DIR/lib"/*.bats
-                "$SCRIPT_DIR/manage.bats"
+                "$NODE_RED_LIB_DIR/../config"/*.bats
+                "$NODE_RED_LIB_DIR/lib"/*.bats
+                "$NODE_RED_LIB_DIR/../manage.bats"
             )
             ;;
         "unit")
             files+=(
-                "$SCRIPT_DIR/config"/*.bats
-                "$SCRIPT_DIR/lib"/*.bats
+                "$NODE_RED_LIB_DIR/../config"/*.bats
+                "$NODE_RED_LIB_DIR/lib"/*.bats
             )
             ;;
         "integration"|"manage")
-            files+=("$SCRIPT_DIR/manage.bats")
+            files+=("$NODE_RED_LIB_DIR/../manage.bats")
             ;;
         "config")
-            files+=("$SCRIPT_DIR/config"/*.bats)
+            files+=("$NODE_RED_LIB_DIR/../config"/*.bats)
             ;;
         "lib")
-            files+=("$SCRIPT_DIR/lib"/*.bats)
+            files+=("$NODE_RED_LIB_DIR/lib"/*.bats)
             ;;
         "defaults"|"messages")
-            local test_file="$SCRIPT_DIR/config/${category}.bats"
+            local test_file="$NODE_RED_LIB_DIR/../config/${category}.bats"
             if [[ -f "$test_file" ]]; then
                 files+=("$test_file")
             else
@@ -210,7 +210,7 @@ run_tests::get_test_files() {
             fi
             ;;
         "common"|"docker"|"install"|"status"|"api"|"testing")
-            local test_file="$SCRIPT_DIR/lib/${category}.bats"
+            local test_file="$NODE_RED_LIB_DIR/lib/${category}.bats"
             if [[ -f "$test_file" ]]; then
                 files+=("$test_file")
             else
@@ -278,7 +278,7 @@ run_tests::run_bats() {
     echo
     
     # Change to script directory for consistent relative paths
-    cd "$SCRIPT_DIR"
+    cd "$NODE_RED_LIB_DIR"
     
     # Run bats
     if bats "${bats_args[@]}" "${files[@]}"; then

@@ -243,7 +243,7 @@ n8n::main() {
                 content=$(cat "$VALIDATION_FILE")
                 
                 # Call inject.sh with type and content
-                "${SCRIPT_DIR}/lib/inject.sh" \
+                "${N8N_SCRIPT_DIR}/lib/inject.sh" \
                     --validate \
                     --type "$VALIDATION_TYPE" \
                     --content "$content"

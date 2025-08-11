@@ -64,7 +64,7 @@ NC='\033[0m' # No Color
 VAULT_BASE_URL="http://localhost:8200"
 TOKEN_FILE="/tmp/vault-token"
 CONFIG_FILE="$(secrets::get_project_config_file)"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VAULT_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Parse command line arguments
 CREATE_TOKEN=false

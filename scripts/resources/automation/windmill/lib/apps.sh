@@ -3,9 +3,9 @@
 # Functions for managing and preparing Windmill app definitions
 
 # Source trash module for safe cleanup
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+WINDMILL_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${WINDMILL_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
@@ -15,8 +15,8 @@ source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 windmill::list_apps() {
     log::header "📱 Available Windmill App Examples"
     
-    # Get script directory dynamically if SCRIPT_DIR is not set
-    local script_dir="${SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+    # Get script directory dynamically if WINDMILL_LIB_DIR is not set
+    local script_dir="${WINDMILL_LIB_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
     local apps_dir="${script_dir}/examples/apps"
     
     if [[ ! -d "$apps_dir" ]]; then
@@ -82,7 +82,7 @@ windmill::prepare_app() {
         return 1
     fi
     
-    local apps_dir="${SCRIPT_DIR}/examples/apps"
+    local apps_dir="$(dirname "${WINDMILL_LIB_DIR}")/examples/apps"
     local app_file="${apps_dir}/${app_name}.json"
     
     if [[ ! -f "$app_file" ]]; then
@@ -246,7 +246,7 @@ windmill::deploy_app() {
     fi
     
     # Find the app file
-    local apps_dir="${SCRIPT_DIR}/examples/apps"
+    local apps_dir="$(dirname "${WINDMILL_LIB_DIR}")/examples/apps"
     local app_file="${apps_dir}/${app_name}.json"
     
     if [[ ! -f "$app_file" ]]; then

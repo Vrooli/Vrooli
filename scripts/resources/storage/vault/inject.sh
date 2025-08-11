@@ -7,17 +7,17 @@ set -euo pipefail
 
 DESCRIPTION="Inject secrets and policies into HashiCorp Vault"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
+VAULT_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+RESOURCES_DIR="${VAULT_SCRIPT_DIR}/../.."
 
 # Source common utilities
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/common.sh"
 
 # Source Vault configuration if available
-if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
+if [[ -f "${VAULT_SCRIPT_DIR}/config/defaults.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
+    source "${VAULT_SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
 fi
 
 # Default Vault settings

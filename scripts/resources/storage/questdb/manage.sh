@@ -6,8 +6,8 @@ set -euo pipefail
 
 DESCRIPTION="Install and manage QuestDB time-series database for high-performance analytics"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-RESOURCES_DIR="${SCRIPT_DIR}/../.."
+QUESTDB_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+RESOURCES_DIR="${QUESTDB_SCRIPT_DIR}/../.."
 
 # Source common resources
 # shellcheck disable=SC1091
@@ -23,9 +23,9 @@ source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/defaults.sh"
+source "${QUESTDB_SCRIPT_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/messages.sh"
+source "${QUESTDB_SCRIPT_DIR}/config/messages.sh"
 
 # Export configuration
 questdb::export_config
@@ -33,17 +33,17 @@ questdb::messages::init
 
 # Source all library modules
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/common.sh"
+source "${QUESTDB_SCRIPT_DIR}/lib/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/docker.sh"
+source "${QUESTDB_SCRIPT_DIR}/lib/docker.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/api.sh"
+source "${QUESTDB_SCRIPT_DIR}/lib/api.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/status.sh"
+source "${QUESTDB_SCRIPT_DIR}/lib/status.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/install.sh"
+source "${QUESTDB_SCRIPT_DIR}/lib/install.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/tables.sh"
+source "${QUESTDB_SCRIPT_DIR}/lib/tables.sh"
 
 #######################################
 # Parse command line arguments

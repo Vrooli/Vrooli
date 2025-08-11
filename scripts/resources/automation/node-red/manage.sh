@@ -8,12 +8,13 @@ set -euo pipefail
 # Handle Ctrl+C gracefully
 trap 'node_red::show_interrupt_message; exit 130' INT TERM
 
-# Get the directory of this script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Get the directory of this script (unique variable name)
+NODE_RED_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NODE_RED_LIB_DIR="${NODE_RED_SCRIPT_DIR}/lib"
 
 # Source var.sh first to get standard directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${NODE_RED_SCRIPT_DIR}/../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
@@ -21,26 +22,26 @@ source "${var_LIB_UTILS_DIR}/args-cli.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/defaults.sh"
+source "${NODE_RED_SCRIPT_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/messages.sh"
+source "${NODE_RED_SCRIPT_DIR}/config/messages.sh"
 
 # Export configuration
 node_red::export_config
 
 # Source all library modules
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/common.sh"
+source "${NODE_RED_LIB_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/docker.sh"
+source "${NODE_RED_LIB_DIR}/docker.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/install.sh"
+source "${NODE_RED_LIB_DIR}/install.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/status.sh"
+source "${NODE_RED_LIB_DIR}/status.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/api.sh"
+source "${NODE_RED_LIB_DIR}/api.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/testing.sh"
+source "${NODE_RED_LIB_DIR}/testing.sh"
 
 #######################################
 # Parse command line arguments

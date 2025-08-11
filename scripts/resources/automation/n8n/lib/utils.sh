@@ -3,15 +3,15 @@
 # Common patterns extracted from multiple n8n modules
 
 # Source shared utilities
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+N8N_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/docker-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../lib/docker-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/http-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../lib/http-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/wait-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../lib/wait-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/constants.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/constants.sh" 2>/dev/null || true
 
 #######################################
 # Unified API key resolution

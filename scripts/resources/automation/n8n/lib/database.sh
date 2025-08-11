@@ -3,9 +3,9 @@
 # PostgreSQL support for n8n
 
 # Source required utilities
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../lib/wait-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../lib/wait-utils.sh" 2>/dev/null || true
 
 #######################################
 # Start PostgreSQL container for n8n

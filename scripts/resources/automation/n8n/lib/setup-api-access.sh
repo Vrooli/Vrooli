@@ -32,11 +32,11 @@ NC='\033[0m' # No Color
 # Configuration
 N8N_BASE_URL="http://localhost:5678"
 CONFIG_FILE="$HOME/.vrooli/service.json"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+N8N_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../lib/http-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../lib/http-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/constants.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/constants.sh" 2>/dev/null || true
 
 # Parse command line arguments
 API_KEY=""
@@ -115,9 +115,9 @@ n8n::check_n8n_status() {
 n8n::get_basic_auth_credentials() {
     n8n::print_info "Getting n8n basic auth credentials..."
     # Try to get credentials from management script
-    if [[ -f "$SCRIPT_DIR/manage.sh" ]]; then
+    if [[ -f "$(dirname "$N8N_LIB_DIR")/manage.sh" ]]; then
         local auth_info
-        auth_info=$("$SCRIPT_DIR/manage.sh" --action api-setup 2>/dev/null || echo "")
+        auth_info=$("$(dirname "$N8N_LIB_DIR")/manage.sh" --action api-setup 2>/dev/null || echo "")
         if echo "$auth_info" | grep -q "Username:" && echo "$auth_info" | grep -q "Password:"; then
             local username
             local password

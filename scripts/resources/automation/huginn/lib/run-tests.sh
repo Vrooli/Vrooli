@@ -2,9 +2,9 @@
 # Run tests for Huginn resource management scripts
 set -euo pipefail
 
-# Get the directory of this script
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$SCRIPT_DIR"
+# Get the directory of this script using unique directory variable
+HUGINN_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$HUGINN_LIB_DIR"
 
 # Colors for output
 readonly COLOR_RED='\033[0;31m'

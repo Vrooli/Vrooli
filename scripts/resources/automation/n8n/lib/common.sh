@@ -3,27 +3,27 @@
 # Shared utilities used across all modules
 
 # Source required utilities
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/sudo.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/docker-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../lib/docker-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/http-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../lib/http-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/wait-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../lib/wait-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/constants.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/constants.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/health.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/health.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/recovery.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/recovery.sh" 2>/dev/null || true
 
 #######################################
 # Check if Docker is installed
@@ -212,7 +212,7 @@ n8n::inject_data() {
         return 1
     fi
     # Framework handles all validation and error handling
-    "${SCRIPT_DIR}/lib/inject.sh" --inject "$config"
+    "${N8N_LIB_DIR}/inject.sh" --inject "$config"
 }
 
 #######################################
@@ -230,6 +230,6 @@ n8n::validate_injection() {
         return 1
     fi
     # Framework handles all validation logic
-    "${SCRIPT_DIR}/lib/inject.sh" --validate "$config"
+    "${N8N_LIB_DIR}/inject.sh" --validate "$config"
 }
 

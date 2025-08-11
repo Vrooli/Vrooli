@@ -6,8 +6,8 @@ set -euo pipefail
 
 DESCRIPTION="Automated client database environment setup for Vrooli projects"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-source "${SCRIPT_DIR}/config/defaults.sh"
+POSTGRES_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+source "${POSTGRES_LIB_DIR}/../config/defaults.sh"
 
 # Default values
 CLIENT_NAME=""
