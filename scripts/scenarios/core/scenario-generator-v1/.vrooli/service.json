@@ -33,34 +33,35 @@
         "type": "n8n",
         "enabled": true,
         "required": true,
-        "initialization": {
-          "workflows": [
-            {
-              "file": "initialization/automation/n8n/main-workflow.json"
-            },
-            {
-              "file": "initialization/automation/n8n/planning-workflow.json"
-            },
-            {
-              "file": "initialization/automation/n8n/building-workflow.json"
-            },
-            {
-              "file": "initialization/automation/n8n/validation-workflow.json"
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/main-workflow.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/planning-workflow.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/building-workflow.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/validation-workflow.json",
+            "type": "workflow"
+          }
+        ]
       },
       "windmill": {
         "type": "windmill",
         "enabled": true,
         "required": true,
-        "initialization": {
-          "apps": [
-            {
-              "file": "initialization/automation/windmill/scenario-dashboard-app.json"
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "file": "initialization/automation/windmill/scenario-dashboard-app.json",
+            "type": "app"
+          }
+        ]
       }
     },
     "ai": {

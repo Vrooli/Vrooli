@@ -30,40 +30,34 @@
         "type": "postgresql",
         "enabled": true,
         "required": true,
-        "initialization": {
-          "data": [
-            {
-              "type": "schema",
-              "file": "initialization/storage/postgres/schema.sql"
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "type": "data",
+            "file": "initialization/storage/postgres/schema.sql"
+          }
+        ]
       },
       "questdb": {
         "type": "questdb",
         "enabled": true,
         "required": true,
-        "initialization": {
-          "data": [
-            {
-              "type": "config",
-              "file": "initialization/storage/questdb/server.conf"
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "type": "data",
+            "file": "initialization/storage/questdb/server.conf"
+          }
+        ]
       },
       "redis": {
         "type": "redis",
         "enabled": true,
         "required": true,
-        "initialization": {
-          "data": [
-            {
-              "type": "config",
-              "file": "initialization/storage/redis/redis.conf"
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "type": "data",
+            "file": "initialization/storage/redis/redis.conf"
+          }
+        ]
       }
     },
     "automation": {
@@ -71,35 +65,35 @@
         "type": "node-red",
         "enabled": true,
         "required": true,
-        "initialization": {
-          "workflows": [
-            {
-              "name": "anomaly-detector",
-              "file": "initialization/automation/node-red/anomaly-detector.json"
-            },
-            {
-              "name": "metric-collector",
-              "file": "initialization/automation/node-red/metric-collector.json"
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "name": "anomaly-detector",
+            "file": "initialization/automation/node-red/anomaly-detector.json",
+            "type": "workflow"
+          },
+          {
+            "name": "metric-collector",
+            "file": "initialization/automation/node-red/metric-collector.json",
+            "type": "workflow"
+          }
+        ]
       },
       "n8n": {
         "type": "n8n",
         "enabled": true,
         "required": true,
-        "initialization": {
-          "workflows": [
-            {
-              "name": "scheduled-reports",
-              "file": "initialization/automation/n8n/scheduled-reports.json"
-            },
-            {
-              "name": "threshold-monitor",
-              "file": "initialization/automation/n8n/threshold-monitor.json"
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "name": "scheduled-reports",
+            "file": "initialization/automation/n8n/scheduled-reports.json",
+            "type": "workflow"
+          },
+          {
+            "name": "threshold-monitor",
+            "file": "initialization/automation/n8n/threshold-monitor.json",
+            "type": "workflow"
+          }
+        ]
       }
     },
     "ai": {

@@ -122,12 +122,11 @@
       ]
     },
     "test": {
-      "description": "Test document manager functionality",
+      "description": "Run document manager tests",
       "steps": [
         {
           "name": "run-tests",
-          "run": "bash scenario-test.yaml",
-          "description": "Execute scenario tests"
+          "run": "./test.sh"
         }
       ]
     },
@@ -147,15 +146,6 @@
         {
           "name": "build-artifacts",
           "run": "./scripts/manage.sh build"
-        }
-      ]
-    },
-    "test": {
-      "description": "Run document manager tests",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "./test.sh"
         }
       ]
     },

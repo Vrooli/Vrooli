@@ -27,37 +27,39 @@
         "type": "n8n",
         "enabled": true,
         "required": true,
-        "initialization": {
-          "workflows": [
-            {
-              "file": "initialization/automation/n8n/chat-rag-workflow.json"
-            },
-            {
-              "file": "initialization/automation/n8n/main-workflow.json"
-            },
-            {
-              "file": "initialization/automation/n8n/research-orchestrator.json"
-            },
-            {
-              "file": "initialization/automation/n8n/scheduled-reports.json"
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/chat-rag-workflow.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/main-workflow.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/research-orchestrator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/scheduled-reports.json",
+            "type": "workflow"
+          }
+        ]
       },
       "windmill": {
         "type": "windmill",
         "enabled": true,
         "required": true,
-        "initialization": {
-          "apps": [
-            {
-              "file": "initialization/automation/windmill/dashboard-app.json"
-            },
-            {
-              "file": "initialization/automation/windmill/windmill-app.json"
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "file": "initialization/automation/windmill/dashboard-app.json",
+            "type": "app"
+          },
+          {
+            "file": "initialization/automation/windmill/windmill-app.json",
+            "type": "app"
+          }
+        ]
       }
     },
     "ai": {

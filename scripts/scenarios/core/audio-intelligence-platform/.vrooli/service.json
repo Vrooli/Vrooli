@@ -33,31 +33,31 @@
         "type": "n8n",
         "enabled": true,
         "required": true,
-        "initialization": {
-          "workflows": [
-            {
-              "file": "initialization/automation/n8n/transcription-pipeline.json"
-            },
-            {
-              "file": "initialization/automation/n8n/ai-analysis-workflow.json"
-            },
-            {
-              "file": "initialization/automation/n8n/semantic-search.json"
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/transcription-pipeline.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/ai-analysis-workflow.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/semantic-search.json",
+            "type": "workflow"
+          }
+        ]
       },
       "windmill": {
         "type": "windmill",
         "enabled": true,
         "required": true,
-        "initialization": {
-          "apps": [
-            {
-              "file": "initialization/automation/windmill/transcription-manager-app.json"
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "file": "initialization/automation/windmill/transcription-manager-app.json",
+            "type": "app"
+          }
+        ]
       }
     },
     "ai": {

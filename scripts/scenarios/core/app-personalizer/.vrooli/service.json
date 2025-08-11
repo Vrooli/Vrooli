@@ -23,13 +23,12 @@
         "type": "n8n",
         "enabled": true,
         "required": true,
-        "initialization": {
-          "workflows": [
-            {
-              "file": "initialization/automation/n8n/personalization-pipeline.json"
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/personalization-pipeline.json",
+            "type": "workflow"
+          }
+        ]
       }
     },
     "ai": {

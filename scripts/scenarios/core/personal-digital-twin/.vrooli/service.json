@@ -223,12 +223,11 @@
       ]
     },
     "test": {
-      "description": "Test Personal Digital Twin functionality",
+      "description": "Run Personal Digital Twin tests",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "bash scenario-test.yaml",
-          "description": "Execute scenario tests"
+          "name": "run-scenario-tests",
+          "run": "../../tools/scenario-test-runner.sh scenario-test.yaml"
         }
       ]
     },
@@ -248,15 +247,6 @@
         {
           "name": "build-artifacts",
           "run": "./scripts/manage.sh build"
-        }
-      ]
-    },
-    "test": {
-      "description": "Run Personal Digital Twin tests",
-      "steps": [
-        {
-          "name": "run-scenario-tests",
-          "run": "../../tools/scenario-test-runner.sh scenario-test.yaml"
         }
       ]
     },

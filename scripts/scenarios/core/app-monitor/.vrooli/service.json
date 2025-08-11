@@ -24,32 +24,32 @@
         "type": "n8n",
         "enabled": true,
         "required": true,
-        "initialization": {
-          "workflows": [
-            {
-              "file": "initialization/automation/n8n/app-health-checker.json"
-            },
-            {
-              "file": "initialization/automation/n8n/auto-restart.json"
-            },
-            {
-              "file": "initialization/automation/n8n/resource-monitor.json"
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/app-health-checker.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/auto-restart.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/resource-monitor.json",
+            "type": "workflow"
+          }
+        ]
       },
       "node-red": {
         "type": "node-red",
         "enabled": true,
         "required": false,
         "purpose": "real-time docker container monitoring",
-        "initialization": {
-          "flows": [
-            {
-              "file": "initialization/automation/node-red/docker-monitor.json"
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "file": "initialization/automation/node-red/docker-monitor.json",
+            "type": "flow"
+          }
+        ]
       }
     },
     "agents": {

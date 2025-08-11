@@ -33,40 +33,43 @@
         "type": "n8n",
         "enabled": true,
         "required": true,
-        "initialization": {
-          "workflows": [
-            {
-              "file": "initialization/automation/n8n/pros-cons-analyzer.json"
-            },
-            {
-              "file": "initialization/automation/n8n/swot-analysis.json"
-            },
-            {
-              "file": "initialization/automation/n8n/risk-assessment.json"
-            },
-            {
-              "file": "initialization/automation/n8n/self-review.json"
-            },
-            {
-              "file": "initialization/automation/n8n/reasoning-chain.json"
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/pros-cons-analyzer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/swot-analysis.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/risk-assessment.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/self-review.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/reasoning-chain.json",
+            "type": "workflow"
+          }
+        ]
       },
       "windmill": {
         "type": "windmill",
         "enabled": true,
         "required": true,
-        "initialization": {
-          "apps": [
-            {
-              "file": "initialization/automation/windmill/metareasoning-orchestrator.json"
-            },
-            {
-              "file": "initialization/automation/windmill/prompt-tester.json"
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "file": "initialization/automation/windmill/metareasoning-orchestrator.json",
+            "type": "app"
+          },
+          {
+            "file": "initialization/automation/windmill/prompt-tester.json",
+            "type": "app"
+          }
+        ]
       }
     },
     "ai": {
@@ -87,20 +90,20 @@
         "enabled": true,
         "required": true,
         "purpose": "execution history and workflow metadata",
-        "initialization": {
-          "scripts": [
-            {
-              "file": "initialization/storage/postgres/schema.sql",
-              "order": 1,
-              "description": "Create tables for workflow metadata, execution history, and reasoning patterns"
-            },
-            {
-              "file": "initialization/storage/postgres/seed.sql",
-              "order": 2,
-              "description": "Seed initial reasoning templates and example workflows"
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "order": 1,
+            "description": "Create tables for workflow metadata, execution history, and reasoning patterns",
+            "type": "script"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "order": 2,
+            "description": "Seed initial reasoning templates and example workflows",
+            "type": "script"
+          }
+        ]
       },
       "qdrant": {
         "type": "qdrant",

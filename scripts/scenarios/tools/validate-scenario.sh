@@ -465,6 +465,114 @@ validate_resources() {
     return 0
 }
 
+#######################################
+# Validate resource initialization data using manage.sh validators
+#######################################
+validate_resource_initializations() {
+    print_check "Validating resource initialization data..."
+    
+    local total=0
+    local passed=0
+    local failed=0
+    local skipped=0
+    
+    # Process each resource category
+    for category in ai automation agents storage execution; do
+        # Get resources in this category
+        local resources
+        resources=$(echo "$VALIDATE_SERVICE_JSON" | jq -r "
+            .resources.$category // {} | 
+            to_entries[] | 
+            select(.value.enabled == true) | 
+            .key
+        " 2>/dev/null || true)
+        
+        [[ -z "$resources" ]] && continue
+        
+        while IFS= read -r resource_type; do
+            [[ -z "$resource_type" ]] && continue
+            
+            # Get initialization array
+            local init_items
+            init_items=$(echo "$VALIDATE_SERVICE_JSON" | jq -c "
+                .resources.$category.\"$resource_type\".initialization // []
+            " 2>/dev/null)
+            
+            # Skip if no initialization
+            [[ "$init_items" == "[]" ]] && continue
+            
+            # Check if manage.sh exists
+            local manage_script="${var_SCRIPTS_RESOURCES_DIR}/${category}/${resource_type}/manage.sh"
+            if [[ ! -x "$manage_script" ]]; then
+                print_info "No validator available for $resource_type"
+                continue
+            fi
+            
+            # Validate each item
+            echo "$init_items" | jq -c '.[]' | while IFS= read -r item; do
+                ((total++))
+                
+                local item_type item_file item_enabled item_description
+                item_type=$(echo "$item" | jq -r '.type')
+                item_file=$(echo "$item" | jq -r '.file')
+                item_enabled=$(echo "$item" | jq -r '.enabled // true')
+                item_description=$(echo "$item" | jq -r '.description // ""')
+                
+                # Skip disabled items
+                if [[ "$item_enabled" == "false" ]]; then
+                    print_info "Skipping disabled: $resource_type/$item_type"
+                    ((skipped++))
+                    continue
+                fi
+                
+                # Build full file path
+                local file_path="${VALIDATE_SCENARIO_PATH}/${item_file}"
+                
+                # Check file exists
+                if [[ ! -f "$file_path" ]]; then
+                    print_error "$resource_type: File not found - $item_file"
+                    ((failed++))
+                    continue
+                fi
+                
+                # Run validation using new interface
+                local validation_result=0
+                "$manage_script" \
+                    --action validate-injection \
+                    --validation-type "$item_type" \
+                    --validation-file "$file_path" \
+                    --yes yes >/dev/null 2>&1 || validation_result=$?
+                
+                if [[ $validation_result -eq 0 ]]; then
+                    local display_name="$(basename "$item_file")"
+                    [[ -n "$item_description" ]] && display_name="$display_name ($item_description)"
+                    print_success "$resource_type: $item_type validated ($display_name)"
+                    ((passed++))
+                else
+                    local display_name="$(basename "$item_file")"
+                    print_warning "$resource_type: $item_type validation failed ($display_name)"
+                    ((failed++))
+                fi
+            done
+        done <<< "$resources"
+    done
+    
+    # Summary
+    if [[ $total -eq 0 ]]; then
+        print_info "No resource initialization data to validate"
+    else
+        echo
+        print_info "Resource Initialization Summary:"
+        print_info "  Total items: $total"
+        [[ $passed -gt 0 ]] && print_success "  Passed: $passed"
+        [[ $failed -gt 0 ]] && print_warning "  Failed: $failed"
+        [[ $skipped -gt 0 ]] && print_info "  Skipped: $skipped"
+    fi
+    
+    # Don't fail overall validation for resource init issues (warnings only)
+    return 0
+}
+
 # Generate summary
 generate_summary() {
     echo
@@ -513,6 +621,7 @@ validate_scenario_main() {
     validate_schema_compliance
     validate_file_paths
     validate_resources
+    validate_resource_initializations
     
     # Generate summary and return exit code
     generate_summary

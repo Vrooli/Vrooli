@@ -123,12 +123,11 @@
       ]
     },
     "test": {
-      "description": "Test idea generator functionality",
+      "description": "Run idea generator tests",
       "steps": [
         {
           "name": "run-tests",
-          "run": "bash test.sh",
-          "description": "Execute integration tests"
+          "run": "./test.sh"
         }
       ]
     },
@@ -148,15 +147,6 @@
         {
           "name": "build-artifacts",
           "run": "./scripts/manage.sh build"
-        }
-      ]
-    },
-    "test": {
-      "description": "Run idea generator tests",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "./test.sh"
         }
       ]
     },
