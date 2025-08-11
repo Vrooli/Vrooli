@@ -14,6 +14,7 @@
     "description": "Enterprise-grade AI image generation platform with voice briefings, multi-brand management, and quality control",
     "version": "1.0.0",
     "type": "business-application",
+    "category": "creative-tools",
     "tags": [
       "visual-generation",
       "voice-enabled",
@@ -22,606 +23,125 @@
       "windmill-ui",
       "high-revenue-potential",
       "brand-management",
-      "quality-control"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "team@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/core/image-generation-pipeline"
-    },
-    "license": "GPL-3.0",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "./README.md",
-    "support": {
-      "email": "support@vrooli.com",
-      "issues": "https://github.com/Vrooli/Vrooli/issues",
-      "chat": "https://discord.gg/vrooli"
-    }
+      "quality-control",
+      "comfyui-workflows"
+    ]
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "type": "postgresql",
-        "enabled": true,
-        "version": "16",
-        "required": true,
-        "initialization": {
-          "data": [
-            {
-              "type": "schema",
-              "file": "initialization/storage/postgres/schema.sql"
-            },
-            {
-              "type": "seed",
-              "file": "initialization/storage/postgres/seed.sql"
-            }
-          ]
-        }
-      },
-      "minio": {
-        "type": "minio",
+    "automation": {
+      "n8n": {
+        "type": "n8n",
         "enabled": true,
         "required": true,
         "initialization": {
-          "buckets": [
-            {
-              "name": "generated-images",
-              "policy": "private"
-            },
-            {
-              "name": "brand-assets",
-              "policy": "private"
-            },
-            {
-              "name": "workflows",
-              "policy": "private"
-            }
+          "workflows": [
+            { "file": "initialization/automation/n8n/main-workflow.json" }
           ]
         }
       },
-      "qdrant": {
-        "type": "qdrant",
+      "windmill": {
+        "type": "windmill",
         "enabled": true,
         "required": true,
         "initialization": {
-          "collections": [
-            {
-              "name": "brand-vectors",
-              "config": {
-                "vectors": {
-                  "size": 384,
-                  "distance": "Cosine"
-                }
-              }
-            },
-            {
-              "name": "style-vectors",
-              "config": {
-                "vectors": {
-                  "size": 384,
-                  "distance": "Cosine"
-                }
-              }
-            }
+          "apps": [
+            { "file": "initialization/automation/windmill/windmill-app.json" }
           ]
         }
       },
-      "vault": {
-        "type": "vault",
-        "enabled": false,
-        "required": false,
+      "comfyui": {
+        "type": "comfyui",
+        "enabled": true,
+        "required": true,
+        "purpose": "AI image generation workflows",
         "initialization": {
-          "secrets": [
-            {
-              "path": "image-generation/api-keys",
-              "description": "External API keys for image services"
-            }
+          "workflows": [
+            { "file": "initialization/workflows/comfyui/brand-workflow.json" },
+            { "file": "initialization/workflows/comfyui/qc-workflow.json" }
           ]
         }
       }
     },
     "ai": {
       "ollama": {
+        "type": "ollama",
         "enabled": true,
         "required": true,
-        "models": [
-          "llama3.1:8b",
-          "nomic-embed-text",
-          "llava:13b"
-        ]
+        "models": ["llama3.1:8b", "nomic-embed-text", "llava:13b"]
       },
       "whisper": {
-        "enabled": true,
-        "required": true
-      }
-    },
-    "automation": {
-      "comfyui": {
+        "type": "whisper",
         "enabled": true,
         "required": true,
-        "initialization": {
-          "workflows": [
-            {
-              "name": "brand-consistent-generation",
-              "file": "initialization/workflows/comfyui/brand-workflow.json",
-              "enabled": true,
-              "tags": [
-                "brand",
-                "consistency"
-              ]
-            },
-            {
-              "name": "quality-control-pipeline",
-              "file": "initialization/workflows/comfyui/qc-workflow.json",
-              "enabled": true,
-              "tags": [
-                "quality",
-                "validation"
-              ]
-            }
-          ]
-        }
+        "purpose": "voice-to-text for image briefings"
       }
     },
-    "agents": {
-      "agent-s2": {
+    "storage": {
+      "postgres": {
+        "type": "postgres",
         "enabled": true,
         "required": true,
-        "mode": "service"
+        "purpose": "campaign and brand data"
       },
-      "browserless": {
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": false,
+        "purpose": "style and brand vector embeddings"
+      },
+      "minio": {
+        "type": "minio",
         "enabled": true,
         "required": true,
-        "mode": "service"
+        "purpose": "generated images and brand assets storage"
+      },
+      "vault": {
+        "type": "vault",
+        "enabled": false,
+        "required": false,
+        "purpose": "API keys and secrets management"
       }
     }
-  },
-  "deployment": {
-    "target": "docker",
-    "strategy": "rolling-update",
-    "urls": {
-      "application": "http://localhost:3000",
-      "api": "http://localhost:3000/api/image-generation-pipeline",
-      "health": "http://localhost:3000/api/image-generation-pipeline/health",
-      "comfyui": "${service.comfyui.url}",
-      "minio": "${service.minio.url}",
-      "qdrant": "${service.qdrant.url}",
-      "agent-s2": "${service.agent-s2.url}",
-      "browserless": "${service.browserless.url}"
-    },
-    "initialization": {
-      "phases": [
-        {
-          "name": "database-setup",
-          "tasks": [
-            {
-              "name": "apply-schema",
-              "type": "sql",
-              "target": "storage.postgres",
-              "file": "initialization/storage/postgres/schema.sql"
-            },
-            {
-              "name": "seed-data",
-              "type": "sql",
-              "target": "storage.postgres",
-              "file": "initialization/storage/postgres/seed.sql"
-            }
-          ]
-        },
-        {
-          "name": "storage-setup",
-          "parallel": true,
-          "tasks": [
-            {
-              "name": "setup-minio-buckets",
-              "type": "resource-inject",
-              "target": "storage.minio",
-              "timeout": "2m"
-            },
-            {
-              "name": "setup-vector-collections",
-              "type": "resource-inject",
-              "target": "storage.qdrant",
-              "timeout": "2m"
-            }
-          ]
-        },
-        {
-          "name": "ai-setup",
-          "parallel": true,
-          "tasks": [
-            {
-              "name": "load-ai-models",
-              "type": "resource-inject",
-              "target": "ai.ollama",
-              "timeout": "15m"
-            },
-            {
-              "name": "verify-whisper",
-              "type": "resource-inject",
-              "target": "ai.whisper",
-              "timeout": "2m"
-            }
-          ]
-        },
-        {
-          "name": "workflow-deployment",
-          "tasks": [
-            {
-              "name": "deploy-comfyui-workflows",
-              "type": "resource-inject",
-              "target": "automation.comfyui",
-              "config": "initialization/workflows/comfyui/",
-              "timeout": "5m"
-            }
-          ]
-        },
-        {
-          "name": "application-configuration",
-          "tasks": []
-        },
-        {
-          "name": "startup",
-          "tasks": [
-            {
-              "name": "start-application",
-              "type": "script",
-              "script": "./deployment/startup.sh",
-              "timeout": "3m"
-            }
-          ]
-        },
-        {
-          "name": "post-validation",
-          "tasks": [
-            {
-              "name": "health-check",
-              "type": "healthcheck",
-              "target": "${service.vrooli.url}/api/image-generation-pipeline/health",
-              "timeout": "30s",
-              "retries": 3
-            },
-            {
-              "name": "monitor-startup",
-              "type": "script",
-              "script": "./deployment/monitor.sh",
-              "background": true
-            }
-          ]
-        }
-      ]
-    },
-    "monitoring": {
-      "enabled": true,
-      "healthChecks": {
-        "application": {
-          "endpoint": "${service.vrooli.url}/api/image-generation-pipeline/health",
-          "interval": "30s",
-          "timeout": "5s",
-          "threshold": 3
-        },
-        "comfyui": {
-          "endpoint": "${service.comfyui.url}/system_stats",
-          "interval": "60s",
-          "timeout": "15s"
-        },
-        "minio": {
-          "endpoint": "${service.minio.url}/minio/health/ready",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "qdrant": {
-          "endpoint": "${service.qdrant.url}/health",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "agent-s2": {
-          "endpoint": "${service.agent-s2.url}/health",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "browserless": {
-          "endpoint": "${service.browserless.url}/pressure",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "ollama": {
-          "endpoint": "${service.ollama.url}/api/tags",
-          "interval": "60s",
-          "timeout": "15s"
-        },
-        "whisper": {
-          "endpoint": "${service.whisper.url}/health",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "database": {
-          "type": "tcp",
-          "port": 5432,
-          "interval": "30s"
-        }
-      },
-      "metrics": {
-        "responseTime": {
-          "p50": "1000ms",
-          "p95": "5000ms",
-          "p99": "10000ms"
-        },
-        "throughput": {
-          "rps": 5,
-          "concurrent": 10
-        },
-        "errorRate": {
-          "threshold": "5%"
-        }
-      }
-    },
-    "cleanup": {
-      "enabled": true,
-      "tasks": [
-        {
-          "name": "delete-comfyui-workflows",
-          "type": "resource-cleanup",
-          "target": "automation.comfyui"
-        },
-        {
-          "name": "drop-database",
-          "type": "sql",
-          "target": "storage.postgres",
-          "query": "DROP DATABASE IF EXISTS image_generation_pipeline"
-        },
-        {
-          "name": "clear-vector-collections",
-          "type": "resource-cleanup",
-          "target": "storage.qdrant"
-        },
-        {
-          "name": "clear-storage-buckets",
-          "type": "resource-cleanup",
-          "target": "storage.minio"
-        }
-      ]
-    },
-    "testing": {
-      "enabled": true,
-      "timeout": "60m",
-      "script": "./test.sh",
-      "ui": {
-        "required": true,
-        "type": "comfyui",
-        "url": "${service.comfyui.url}"
-      },
-      "performance": {
-        "loadTest": {
-          "users": 3,
-          "duration": "10m",
-          "rampUp": "2m"
-        }
-      }
-    },
-    "resources": {
-      "requests": {
-        "cpu": "2000m",
-        "memory": "4Gi"
-      },
-      "limits": {
-        "cpu": "8000m",
-        "memory": "16Gi"
-      }
-    }
-  },
-  "metadata": {
-    "businessModel": {
-      "purpose": "commercial",
-      "valueProposition": "Enterprise visual content automation platform for multi-brand campaigns with compliance and quality control",
-      "targetMarket": "Large enterprises, marketing agencies, and brands requiring high-volume visual content generation",
-      "painPoints": [
-        "High costs and slow turnaround for professional visual content creation",
-        "Inconsistent brand compliance across multiple campaigns and teams",
-        "Manual quality control processes for large-scale visual content production"
-      ],
-      "solution": "AI-powered image generation pipeline with voice briefings, automated brand compliance, and quality control workflows",
-      "competitiveAdvantage": "Complete enterprise solution combining ComfyUI generation, voice input, brand consistency, and automated quality control",
-      "revenuePotential": {
-        "initial": "$15,000",
-        "recurring": "$35,000",
-        "expansion": "$75,000",
-        "totalEstimate": "$125,000"
-      },
-      "marketDemand": {
-        "level": "very-high",
-        "growth": "45% annually",
-        "evidence": "Explosive growth in AI image generation market and enterprise demand for brand-consistent content at scale"
-      },
-      "roi": {
-        "developmentCost": "$12,000",
-        "timeToMarket": "4 weeks",
-        "breakEven": "6 months"
-      }
-    },
-    "performance": {
-      "targets": {
-        "initializationTime": "10m",
-        "responseTime": {
-          "p50": "1000ms",
-          "p95": "5000ms",
-          "p99": "10000ms"
-        },
-        "throughput": {
-          "minimum": 2,
-          "target": 5,
-          "peak": 20
-        },
-        "availability": "99.5%",
-        "errorRate": "<5%"
-      },
-      "resources": {
-        "cpu": {
-          "minimum": "4.0",
-          "target": "8.0",
-          "maximum": "16.0"
-        },
-        "memory": {
-          "minimum": "8Gi",
-          "target": "16Gi",
-          "maximum": "32Gi"
-        },
-        "storage": {
-          "database": "50Gi",
-          "vectors": "100Gi",
-          "images": "1Ti",
-          "workflows": "50Gi"
-        }
-      }
-    },
-    "customization": {
-      "variables": {
-        "APP_NAME": {
-          "type": "string",
-          "default": "Enterprise Image Generation Pipeline",
-          "description": "Application display name"
-        },
-        "COMPANY_NAME": {
-          "type": "string",
-          "default": "Your Company",
-          "description": "Customer company name"
-        },
-        "PRIMARY_COLOR": {
-          "type": "string",
-          "default": "#8b5cf6",
-          "description": "Brand primary color"
-        },
-        "DATABASE_NAME": {
-          "type": "string",
-          "default": "image_generation_pipeline",
-          "description": "Database name"
-        },
-        "APP_PORT": {
-          "type": "number",
-          "default": 3000,
-          "description": "Application port"
-        },
-        "COMFYUI_PORT": {
-          "type": "number",
-          "default": 8188,
-          "description": "ComfyUI interface port"
-        },
-        "MINIO_PORT": {
-          "type": "number",
-          "default": 9000,
-          "description": "MinIO storage port"
-        }
-      },
-      "features": {
-        "authentication": {
-          "enabled": true,
-          "provider": "jwt",
-          "sso": true
-        },
-        "notifications": {
-          "enabled": true,
-          "channels": [
-            "email",
-            "webhook",
-            "slack"
-          ]
-        },
-        "analytics": {
-          "enabled": true,
-          "provider": "internal"
-        },
-        "voiceInput": {
-          "enabled": true,
-          "provider": "whisper"
-        },
-        "brandCompliance": {
-          "enabled": true,
-          "provider": "qdrant"
-        },
-        "qualityControl": {
-          "enabled": true,
-          "provider": "comfyui"
-        }
-      },
-      "integrations": [
-        {
-          "name": "Brand Management Systems",
-          "type": "api",
-          "required": false
-        },
-        {
-          "name": "Content Management Platforms",
-          "type": "webhook",
-          "required": false
-        },
-        {
-          "name": "Marketing Automation",
-          "type": "api",
-          "required": false
-        }
-      ]
-    },
-    "category": "ai-content-creation",
-    "complexity": "advanced",
-    "marketDemand": "very-high"
   },
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize image generation pipeline environment",
+      "description": "Initialize image generation pipeline",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/image-generation-pipeline/.vrooli/service.json",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "show-access-urls",
-          "run": "echo '✅ Image Generation Pipeline initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ComfyUI: http://localhost:${RESOURCE_PORTS[comfyui]}'",
+          "name": "add-data",
+          "run": "scripts/lib/resources/runtime-engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Image Generation Pipeline initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ComfyUI: http://localhost:${RESOURCE_PORTS[comfyui]}'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start image generation pipeline services",
+      "description": "Start image generation services",
       "steps": [
         {
           "name": "start-services",
-          "run": "../deployment/startup.sh"
-        }
-      ]
-    },
-    "build": {
-      "description": "Build image generation pipeline artifacts",
-      "steps": [
-        {
-          "name": "build-artifacts",
-          "run": "./scripts/manage.sh build"
+          "run": "cd deployment && ./startup.sh",
+          "description": "Start all image generation services"
         }
       ]
     },
     "test": {
-      "description": "Run image generation pipeline tests",
+      "description": "Run image generation tests",
       "steps": [
         {
           "name": "run-tests",
-          "run": "./test.sh"
-        }
-      ]
-    },
-    "clean": {
-      "description": "Clean build artifacts and temporary files",
-      "steps": [
-        {
-          "name": "clean-artifacts",
-          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+          "run": "./test.sh",
+          "description": "Execute integration tests"
         }
       ]
     }

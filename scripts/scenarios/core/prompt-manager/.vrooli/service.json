@@ -209,16 +209,21 @@
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize Prompt Manager environment",
+      "description": "Initialize Prompt Manager",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/prompt-manager/.vrooli/service.json",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "show-access-urls",
-          "run": "echo '✅ Prompt Manager initialized\\n  n8n Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Redis Cache: redis://localhost:${RESOURCE_PORTS[redis]}\\n  PostgreSQL DB: postgres://localhost:${RESOURCE_PORTS[postgres]}'",
+          "name": "add-data",
+          "run": "scripts/lib/resources/runtime-engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Prompt Manager initialized\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Redis Cache: redis://localhost:${RESOURCE_PORTS[redis]}\\n  PostgreSQL DB: postgres://localhost:${RESOURCE_PORTS[postgres]}'",
           "description": "Display service access URLs"
         }
       ]
@@ -228,7 +233,28 @@
       "steps": [
         {
           "name": "start-services",
-          "run": "../deployment/startup.sh"
+          "run": "cd deployment && ./startup.sh",
+          "description": "Start prompt manager services"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test prompt manager functionality",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "bash deployment/validate.sh",
+          "description": "Execute validation tests"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop prompt manager services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'prompt-manager' || true",
+          "description": "Stop all prompt manager processes"
         }
       ]
     },

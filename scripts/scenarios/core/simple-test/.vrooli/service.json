@@ -14,128 +14,49 @@
     "description": "Minimal test app for lifecycle validation",
     "version": "1.0.0",
     "type": "application",
+    "category": "testing",
     "tags": [
       "test",
       "minimal",
       "framework-validation"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "team@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/core/simple-test"
-    },
-    "license": "GPL-3.0",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "./README.md",
-    "support": {
-      "email": "support@vrooli.com",
-      "issues": "https://github.com/Vrooli/Vrooli/issues",
-      "chat": "https://discord.gg/vrooli"
+    ]
+  },
+  "ports": {
+    "app": {
+      "env_var": "SERVICE_PORT",
+      "range": "3000-3999",
+      "fallback": "auto",
+      "description": "Main application port"
     }
   },
   "resources": {
     "storage": {
       "postgres": {
-        "type": "postgresql", 
+        "type": "postgres",
         "enabled": true,
-        "version": "16",
         "required": true,
-        "initialization": {
-          "data": [
-            {
-              "type": "schema",
-              "file": "initialization/storage/postgres/schema.sql"
-            },
-            {
-              "type": "seed",
-              "file": "initialization/storage/postgres/seed.sql"
-            }
-          ]
-        }
+        "purpose": "test data storage"
       }
     }
-  },
-  "deployment": {
-    "target": "docker",
-    "strategy": "rolling-update",
-    "urls": {
-      "application": "http://localhost:3000",
-      "health": "http://localhost:3000/health"
-    },
-    "testing": {
-      "enabled": true,
-      "timeout": "10m",
-      "script": "./npm test",
-      "ui": {
-        "required": false,
-        "type": "web",
-        "url": "http://localhost:3000"
-      }
-    },
-    "resources": {
-      "requests": {
-        "cpu": "100m",
-        "memory": "256Mi"
-      },
-      "limits": {
-        "cpu": "500m", 
-        "memory": "512Mi"
-      }
-    }
-  },
-  "metadata": {
-    "businessModel": {
-      "purpose": "testing",
-      "valueProposition": "Framework validation and testing infrastructure",
-      "targetMarket": "Internal development and CI/CD pipelines",
-      "revenuePotential": {
-        "initial": "$0",
-        "recurring": "$0", 
-        "expansion": "$0",
-        "totalEstimate": "$0"
-      }
-    },
-    "performance": {
-      "targets": {
-        "initializationTime": "30s",
-        "responseTime": {
-          "p50": "100ms",
-          "p95": "500ms",
-          "p99": "1000ms"
-        },
-        "throughput": {
-          "minimum": 10,
-          "target": 50,
-          "peak": 100
-        },
-        "availability": "99.9%",
-        "errorRate": "<0.1%"
-      }
-    },
-    "category": "testing",
-    "complexity": "simple",
-    "marketDemand": "internal"
   },
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize Simple Test App environment",
+      "description": "Initialize Simple Test App",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/simple-test/.vrooli/service.json",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "show-access-urls",
-          "run": "echo '✅ Simple Test App initialized\\n  📱 Application: http://localhost:3000'",
+          "name": "add-data",
+          "run": "scripts/lib/resources/runtime-engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Simple Test App initialized\\n  Application: http://localhost:${SERVICE_PORT}\\n  Health: http://localhost:${SERVICE_PORT}/health'",
           "description": "Display service access URLs"
         }
       ]
@@ -144,26 +65,57 @@
       "description": "Start development server",
       "steps": [
         {
-          "name": "start",
-          "run": "npm start"
-        }
-      ]
-    },
-    "build": {
-      "description": "Build app",
-      "steps": [
+          "name": "start-app",
+          "run": "PORT=${SERVICE_PORT} npm start &",
+          "description": "Start the application server in background",
+          "background": true
+        },
         {
-          "name": "build",
-          "run": "npm run build"
+          "name": "wait-for-app",
+          "run": "sleep 2 && curl -sf http://localhost:${SERVICE_PORT}/health > /dev/null",
+          "description": "Wait for application to be ready",
+          "retry": {
+            "max_attempts": 10,
+            "delay": 1
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  Application: http://localhost:${SERVICE_PORT}'",
+          "description": "Display running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Run tests",
+      "description": "Run application tests",
       "steps": [
         {
-          "name": "test",
-          "run": "npm test"
+          "name": "test-app-health",
+          "run": "curl -sf http://localhost:${SERVICE_PORT}/health",
+          "description": "Test application health endpoint"
+        },
+        {
+          "name": "run-unit-tests",
+          "run": "npm test",
+          "description": "Run unit test suite",
+          "condition": {
+            "file_exists": "package.json"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop application services",
+      "steps": [
+        {
+          "name": "stop-app",
+          "run": "pkill -f 'npm start' || true",
+          "description": "Stop application processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Simple Test App services stopped'",
+          "description": "Confirm services stopped"
         }
       ]
     }

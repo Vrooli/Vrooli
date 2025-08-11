@@ -91,16 +91,21 @@
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize idea generator environment",
+      "description": "Initialize Idea Generator",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/idea-generator/.vrooli/service.json",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "show-access-urls",
-          "run": "echo '✅ Idea Generator initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  N8n Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Vector Search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Document Storage: http://localhost:${RESOURCE_PORTS[minio]}'",
+          "name": "add-data",
+          "run": "scripts/lib/resources/runtime-engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Idea Generator initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Qdrant Vector Search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO Document Storage: http://localhost:${RESOURCE_PORTS[minio]}'",
           "description": "Display service access URLs"
         }
       ]
@@ -110,7 +115,28 @@
       "steps": [
         {
           "name": "start-services",
-          "run": "../deployment/startup.sh"
+          "run": "cd deployment && ./startup.sh",
+          "description": "Start idea generator services"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test idea generator functionality",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "bash test.sh",
+          "description": "Execute integration tests"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop idea generator services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'idea-generator' || true",
+          "description": "Stop all idea generator processes"
         }
       ]
     },

@@ -28,11 +28,6 @@
         "email": "team@vrooli.com"
       }
     ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/core/system-monitor"
-    },
     "license": "GPL-3.0"
   },
   "resources": {

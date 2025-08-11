@@ -13,136 +13,166 @@
     "displayName": "App Monitor",
     "description": "Dashboard to manage all running generated apps",
     "version": "1.0.0",
-    "type": "application",
-    "category": "vrooli-helpers"
+    "type": "vrooli-enhancement",
+    "category": "vrooli-helpers",
+    "tags": [
+      "monitoring",
+      "dashboard",
+      "health-checks",
+      "auto-restart",
+      "docker-monitoring",
+      "real-time-updates"
+    ]
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "enabled": true,
-        "config": {
-          "database": "app_monitor",
-          "schema": "public"
-        },
-        "initialization": {
-          "data": [
-            {
-              "file": "initialization/storage/postgres/schema.sql",
-              "description": "Database schema for app monitoring"
-            }
-          ]
-        }
-      },
-      "redis": {
-        "enabled": true,
-        "config": {
-          "db": 0,
-          "purpose": "real-time status updates and pub/sub for app events"
-        }
-      }
-    },
     "automation": {
       "n8n": {
+        "type": "n8n",
         "enabled": true,
+        "required": true,
         "initialization": {
           "workflows": [
             {
-              "file": "initialization/automation/n8n/app-health-checker.json",
-              "description": "Health checking workflow for generated apps"
+              "file": "initialization/automation/n8n/app-health-checker.json"
             },
             {
-              "file": "initialization/automation/n8n/auto-restart.json",
-              "description": "Automatic restart workflow for failed apps"
+              "file": "initialization/automation/n8n/auto-restart.json"
             },
             {
-              "file": "initialization/automation/n8n/resource-monitor.json",
-              "description": "Resource usage monitoring workflow"
+              "file": "initialization/automation/n8n/resource-monitor.json"
             }
           ]
         }
       },
       "node-red": {
+        "type": "node-red",
         "enabled": true,
+        "required": false,
+        "purpose": "real-time docker container monitoring",
         "initialization": {
-          "data": [
+          "flows": [
             {
-              "file": "initialization/automation/node-red/docker-monitor.json",
-              "description": "Docker container monitoring flow"
+              "file": "initialization/automation/node-red/docker-monitor.json"
             }
           ]
         }
       }
     },
-    "execution": {
+    "agents": {
       "browserless": {
+        "type": "browserless",
         "enabled": true,
-        "config": {
-          "purpose": "Web scraping for app health checks and UI testing"
-        }
+        "required": false,
+        "purpose": "web scraping for app health checks and UI testing"
       }
-    }
-  },
-  "deployment": {
-    "initialization": {
-      "phases": [
-        {
-          "name": "setup-config",
-          "tasks": [
-            {
-              "type": "config",
-              "file": "initialization/configuration/app-config.json",
-              "description": "Application configuration"
-            },
-            {
-              "type": "config",
-              "file": "initialization/configuration/resource-urls.json",
-              "description": "Resource connection URLs"
-            }
-          ]
-        }
-      ]
+    },
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "app monitoring data and metrics"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "real-time status updates and pub/sub for app events"
+      }
     }
   },
   "ports": {
-    "ui": 3001,
-    "api": 8081,
-    "websocket": 3002
-  },
-  "monitoring": {
-    "healthcheck": {
-      "enabled": true,
-      "interval": "30s",
-      "endpoints": ["/health", "/api/health"]
+    "ui": {
+      "env_var": "UI_PORT", 
+      "range": "3000-3999",
+      "fallback": "auto",
+      "description": "Web UI port"
     },
-    "metrics": {
-      "enabled": true,
-      "collectors": ["docker-stats", "process-monitor", "port-scanner"]
-    }
-  },
-  "integrations": {
-    "docker": {
-      "socket": "/var/run/docker.sock",
-      "api": "v1.41"
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999", 
+      "fallback": "auto",
+      "description": "API server port"
     },
-    "kubernetes": {
-      "enabled": false,
-      "namespace": "generated-apps"
+    "websocket": {
+      "env_var": "WS_PORT",
+      "range": "3000-3999",
+      "fallback": "auto", 
+      "description": "WebSocket server port"
     }
   },
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize App Monitor environment",
+      "description": "Initialize App Monitor",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/app-monitor/.vrooli/service.json",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "show-access-urls",
-          "run": "echo '✅ App Monitor initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  API: http://localhost:8081\\n  WebSocket: http://localhost:3002'",
+          "name": "add-data",
+          "run": "scripts/lib/resources/runtime-engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "install-dependencies",
+          "run": "cd initialization/configuration && npm install",
+          "description": "Install Node.js dependencies for API and WebSocket servers"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 App Monitor initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}\\n  WebSocket: ws://localhost:${WS_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Node-RED flows: http://localhost:${RESOURCE_PORTS[node-red]}'",
           "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start App Monitor services",
+      "steps": [
+        {
+          "name": "start-api-server",
+          "run": "cd initialization/configuration && PORT=$SERVICE_PORT node api-server.js &",
+          "description": "Start API server in background",
+          "background": true
+        },
+        {
+          "name": "start-websocket-server",
+          "run": "cd initialization/configuration && PORT=$WS_PORT node websocket-server.js &",
+          "description": "Start WebSocket server in background",
+          "background": true
+        },
+        {
+          "name": "start-ui",
+          "run": "cd initialization/configuration/ui && python3 -m http.server $UI_PORT &",
+          "description": "Start UI server",
+          "background": true
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}\\n  WebSocket: ws://localhost:${WS_PORT}'",
+          "description": "Display all running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test App Monitor functionality",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "bash deployment/validate.sh",
+          "description": "Run validation tests"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop App Monitor services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'api-server.js' || true; pkill -f 'websocket-server.js' || true; pkill -f 'http.server 3001' || true",
+          "description": "Stop all App Monitor processes"
         }
       ]
     }

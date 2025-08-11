@@ -30,11 +30,6 @@
         "url": "https://github.com/Vrooli"
       }
     ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/core/brand-manager"
-    },
     "license": "GPL-3.0",
     "homepage": "https://github.com/Vrooli/Vrooli",
     "documentation": "./README.md",
@@ -574,16 +569,21 @@
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize Brand Manager environment",
+      "description": "Initialize Brand Manager",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/brand-manager/.vrooli/service.json",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "show-access-urls",
-          "run": "echo '✅ Brand Manager initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ComfyUI Studio: http://localhost:${RESOURCE_PORTS[comfyui]}\\n  Vault Config: http://localhost:${RESOURCE_PORTS[vault]}'",
+          "name": "add-data",
+          "run": "scripts/lib/resources/runtime-engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Brand Manager initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ComfyUI Studio: http://localhost:${RESOURCE_PORTS[comfyui]}\\n  Vault Config: http://localhost:${RESOURCE_PORTS[vault]}'",
           "description": "Display service access URLs"
         }
       ]
@@ -593,7 +593,28 @@
       "steps": [
         {
           "name": "start-services",
-          "run": "../deployment/startup.sh"
+          "run": "cd deployment && ./startup.sh",
+          "description": "Start brand manager services"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test brand manager functionality",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "bash test.sh",
+          "description": "Execute integration tests"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop brand manager services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'brand-manager' || true",
+          "description": "Stop all brand manager processes"
         }
       ]
     },

@@ -28,11 +28,6 @@
         "url": "https://github.com/Vrooli"
       }
     ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/core/resource-experimenter"
-    },
     "license": "GPL-3.0",
     "homepage": "https://github.com/Vrooli/Vrooli"
   },

@@ -25,9 +25,6 @@
       "workflow-orchestration"
     ]
   },
-  "repository": {
-    "mirrors": []
-  },
   "ports": {
     "api": {
       "env_var": "SERVICE_PORT",

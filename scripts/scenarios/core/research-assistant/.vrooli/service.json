@@ -14,6 +14,7 @@
     "description": "Enterprise-grade AI research platform with DeepSearch-quality reports, chatbot interface, and automated scheduling",
     "version": "1.0.0",
     "type": "business-application",
+    "category": "ai-research",
     "tags": [
       "research-automation",
       "competitive-intelligence",
@@ -21,554 +22,96 @@
       "privacy-focused",
       "windmill-ui",
       "market-analysis",
-      "content-synthesis"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "team@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/core/research-assistant"
-    },
-    "license": "GPL-3.0",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "./README.md",
-    "support": {
-      "email": "support@vrooli.com",
-      "issues": "https://github.com/Vrooli/Vrooli/issues",
-      "chat": "https://discord.gg/vrooli"
-    }
+      "content-synthesis",
+      "searxng-integration",
+      "rag-system"
+    ]
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "type": "postgresql",
+    "automation": {
+      "n8n": {
+        "type": "n8n",
         "enabled": true,
-        "version": "16",
         "required": true,
         "initialization": {
-          "data": [
-            {
-              "type": "schema",
-              "file": "initialization/storage/postgres/schema.sql"
-            },
-            {
-              "type": "seed",
-              "file": "initialization/storage/postgres/seed.sql"
-            }
+          "workflows": [
+            { "file": "initialization/automation/n8n/chat-rag-workflow.json" },
+            { "file": "initialization/automation/n8n/main-workflow.json" },
+            { "file": "initialization/automation/n8n/research-orchestrator.json" },
+            { "file": "initialization/automation/n8n/scheduled-reports.json" }
           ]
         }
       },
-      "qdrant": {
-        "type": "qdrant",
+      "windmill": {
+        "type": "windmill",
         "enabled": true,
         "required": true,
         "initialization": {
-          "collections": [
-            {
-              "name": "research-documents",
-              "config": {
-                "vectors": {
-                  "size": 384,
-                  "distance": "Cosine"
-                }
-              }
-            },
-            {
-              "name": "knowledge-base",
-              "config": {
-                "vectors": {
-                  "size": 384,
-                  "distance": "Cosine"
-                }
-              }
-            },
-            {
-              "name": "search-results",
-              "config": {
-                "vectors": {
-                  "size": 384,
-                  "distance": "Cosine"
-                }
-              }
-            }
-          ]
-        }
-      },
-      "minio": {
-        "type": "minio",
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "buckets": [
-            {
-              "name": "research-pdfs",
-              "policy": "private"
-            },
-            {
-              "name": "report-assets",
-              "policy": "private"
-            },
-            {
-              "name": "source-cache",
-              "policy": "private"
-            }
+          "apps": [
+            { "file": "initialization/automation/windmill/dashboard-app.json" },
+            { "file": "initialization/automation/windmill/windmill-app.json" }
           ]
         }
       }
     },
     "ai": {
       "ollama": {
+        "type": "ollama",
         "enabled": true,
         "required": true,
-        "models": [
-          "qwen2.5:32b",
-          "nomic-embed-text",
-          "llama3.2:3b"
-        ],
-        "configuration": {
-          "default_model": "qwen2.5:32b",
-          "temperature": 0.7,
-          "max_tokens": 2048,
-          "timeout_seconds": 30,
-          "retry_attempts": 3
-        }
+        "models": ["qwen2.5:32b", "nomic-embed-text", "llama3.2:3b"]
       },
       "unstructured-io": {
+        "type": "unstructured-io",
         "enabled": true,
-        "required": true,
-        "type": "unstructured-io"
-      }
-    },
-    "search": {
-      "searxng": {
-        "enabled": true,
-        "required": true,
-        "type": "searxng"
-      }
-    },
-    "automation": {
-      "n8n": {
-        "enabled": true,
-        "required": true,
-        "type": "n8n"
-      },
-      "windmill": {
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "apps": [
-            {
-              "path": "f/research-assistant/dashboard",
-              "file": "initialization/automation/windmill/dashboard-app.json",
-              "summary": "Research Management Dashboard"
-            }
-          ],
-          "scripts": []
-        }
+        "required": false,
+        "purpose": "document processing and text extraction"
       }
     },
     "agents": {
       "browserless": {
+        "type": "browserless",
+        "enabled": true,
+        "required": false,
+        "purpose": "web scraping for research content"
+      }
+    },
+    "search": {
+      "searxng": {
+        "type": "searxng",
         "enabled": true,
         "required": true,
-        "type": "browserless"
+        "purpose": "privacy-focused web search"
       }
-    }
-  },
-  "deployment": {
-    "target": "docker",
-    "strategy": "rolling-update",
-    "urls": {
-      "application": "${service.vrooli.url}",
-      "api": "${service.vrooli.url}/api/research-assistant",
-      "health": "${service.vrooli.url}/api/research-assistant/health",
-      "searxng": "${service.searxng.url}",
-      "qdrant": "${service.qdrant.url}",
-      "windmill": "${service.windmill.url}"
     },
-    "initialization": {
-      "phases": [
-        {
-          "name": "database-setup",
-          "tasks": [
-            {
-              "name": "apply-schema",
-              "type": "sql",
-              "target": "storage.postgres",
-              "file": "initialization/storage/postgres/schema.sql"
-            },
-            {
-              "name": "seed-data",
-              "type": "sql",
-              "target": "storage.postgres",
-              "file": "initialization/storage/postgres/seed.sql"
-            }
-          ]
-        },
-        {
-          "name": "search-setup",
-          "tasks": [
-            {
-              "name": "configure-searxng",
-              "type": "resource-inject",
-              "target": "search.searxng",
-              "timeout": "3m"
-            }
-          ]
-        },
-        {
-          "name": "ai-setup",
-          "parallel": true,
-          "tasks": [
-            {
-              "name": "load-ai-models",
-              "type": "resource-inject",
-              "target": "ai.ollama",
-              "timeout": "10m"
-            },
-            {
-              "name": "setup-vector-collections",
-              "type": "resource-inject",
-              "target": "storage.qdrant",
-              "timeout": "2m"
-            }
-          ]
-        },
-        {
-          "name": "optional-services-setup",
-          "parallel": true,
-          "tasks": [
-            {
-              "name": "setup-storage-buckets",
-              "type": "resource-inject",
-              "target": "storage.minio",
-              "timeout": "2m"
-            },
-            {
-              "name": "deploy-windmill-apps",
-              "type": "resource-inject",
-              "target": "automation.windmill",
-              "config": "initialization/automation/windmill/",
-              "timeout": "3m"
-            }
-          ]
-        },
-        {
-          "name": "application-configuration",
-          "tasks": [
-            {
-              "name": "set-research-settings",
-              "type": "config",
-              "file": "initialization/configuration/research-config.json"
-            }
-          ]
-        },
-        {
-          "name": "startup",
-          "tasks": [
-            {
-              "name": "start-application",
-              "type": "script",
-              "script": "./deployment/startup.sh",
-              "timeout": "2m"
-            }
-          ]
-        },
-        {
-          "name": "post-validation",
-          "tasks": [
-            {
-              "name": "health-check",
-              "type": "healthcheck",
-              "target": "${service.vrooli.url}/api/research-assistant/health",
-              "timeout": "30s",
-              "retries": 3
-            },
-            {
-              "name": "monitor-startup",
-              "type": "script",
-              "script": "./deployment/monitor.sh",
-              "background": true
-            }
-          ]
-        }
-      ]
-    },
-    "monitoring": {
-      "enabled": true,
-      "healthChecks": {
-        "application": {
-          "endpoint": "${service.vrooli.url}/api/research-assistant/health",
-          "interval": "30s",
-          "timeout": "5s",
-          "threshold": 3
-        },
-        "searxng": {
-          "endpoint": "${service.searxng.url}/healthz",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "qdrant": {
-          "endpoint": "${service.qdrant.url}/health",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "ollama": {
-          "endpoint": "${service.ollama.url}/api/tags",
-          "interval": "60s",
-          "timeout": "15s"
-        },
-        "windmill": {
-          "endpoint": "${service.windmill.url}/api/version",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "minio": {
-          "endpoint": "${service.minio.url}/minio/health/ready",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "database": {
-          "type": "tcp",
-          "port": 5432,
-          "interval": "30s"
-        }
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "research data and report storage"
       },
-      "metrics": {
-        "responseTime": {
-          "p50": "800ms",
-          "p95": "3000ms",
-          "p99": "8000ms"
-        },
-        "throughput": {
-          "rps": 5,
-          "concurrent": 8
-        },
-        "errorRate": {
-          "threshold": "4%"
-        }
-      }
-    },
-    "cleanup": {
-      "enabled": true,
-      "tasks": [
-        {
-          "name": "delete-windmill-apps",
-          "type": "resource-cleanup",
-          "target": "automation.windmill"
-        },
-        {
-          "name": "drop-database",
-          "type": "sql",
-          "target": "storage.postgres",
-          "query": "DROP DATABASE IF EXISTS research_assistant"
-        },
-        {
-          "name": "clear-vector-collections",
-          "type": "resource-cleanup",
-          "target": "storage.qdrant"
-        },
-        {
-          "name": "clear-storage-buckets",
-          "type": "resource-cleanup",
-          "target": "storage.minio"
-        }
-      ]
-    },
-    "testing": {
-      "enabled": true,
-      "timeout": "40m",
-      "script": "./test.sh",
-      "ui": {
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "vector embeddings for RAG system"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
         "required": false,
-        "type": "windmill",
-        "url": "${service.windmill.url}"
-      },
-      "performance": {
-        "loadTest": {
-          "users": 5,
-          "duration": "6m",
-          "rampUp": "1m"
-        }
-      }
-    },
-    "resources": {
-      "requests": {
-        "cpu": "700m",
-        "memory": "1.5Gi"
-      },
-      "limits": {
-        "cpu": "2500m",
-        "memory": "5Gi"
+        "purpose": "document and asset storage"
       }
     }
   },
-  "metadata": {
-    "businessModel": {
-      "purpose": "commercial",
-      "valueProposition": "Enterprise-grade AI research platform delivering DeepSearch-quality reports with conversational interface, automated scheduling, and complete data privacy",
-      "targetMarket": "Business analysts, researchers, consultants, competitive intelligence teams, and market research professionals",
-      "painPoints": [
-        "Manual web research consuming hours of analyst time daily",
-        "Difficulty synthesizing information from multiple sources into actionable insights",
-        "Privacy concerns with cloud-based research tools handling sensitive competitive intelligence"
-      ],
-      "solution": "Local AI-powered research assistant combining privacy-respecting search with intelligent analysis and knowledge management",
-      "competitiveAdvantage": "Complete privacy-focused solution with SearXNG search, local AI processing, and intelligent knowledge synthesis",
-      "revenuePotential": {
-        "initial": "$4,000",
-        "recurring": "$15,000",
-        "expansion": "$30,000",
-        "totalEstimate": "$49,000"
-      },
-      "marketDemand": {
-        "level": "high",
-        "growth": "25% annually",
-        "evidence": "Growing demand for privacy-focused business intelligence tools and automated research solutions"
-      },
-      "roi": {
-        "developmentCost": "$6,000",
-        "timeToMarket": "3 weeks",
-        "breakEven": "4 months"
-      }
-    },
-    "performance": {
-      "targets": {
-        "initializationTime": "6m",
-        "responseTime": {
-          "p50": "800ms",
-          "p95": "3000ms",
-          "p99": "8000ms"
-        },
-        "throughput": {
-          "minimum": 3,
-          "target": 5,
-          "peak": 15
-        },
-        "availability": "99.5%",
-        "errorRate": "<4%"
-      },
-      "resources": {
-        "cpu": {
-          "minimum": "1.5",
-          "target": "2.5",
-          "maximum": "5.0"
-        },
-        "memory": {
-          "minimum": "3Gi",
-          "target": "5Gi",
-          "maximum": "10Gi"
-        },
-        "storage": {
-          "database": "100Gi",
-          "vectors": "200Gi",
-          "documents": "500Gi"
-        }
-      }
-    },
-    "customization": {
-      "variables": {
-        "APP_NAME": {
-          "type": "string",
-          "default": "AI Research Assistant",
-          "description": "Application display name"
-        },
-        "COMPANY_NAME": {
-          "type": "string",
-          "default": "Your Company",
-          "description": "Customer company name"
-        },
-        "PRIMARY_COLOR": {
-          "type": "string",
-          "default": "#3b82f6",
-          "description": "Brand primary color"
-        },
-        "DATABASE_NAME": {
-          "type": "string",
-          "default": "research_assistant",
-          "description": "Database name"
-        },
-        "APP_PORT": {
-          "type": "number",
-          "default": 3000,
-          "description": "Application port"
-        },
-        "SEARXNG_PORT": {
-          "type": "number",
-          "default": 8080,
-          "description": "SearXNG search engine port"
-        },
-        "QDRANT_PORT": {
-          "type": "number",
-          "default": 6333,
-          "description": "Qdrant vector database port"
-        }
-      },
-      "features": {
-        "authentication": {
-          "enabled": true,
-          "provider": "jwt",
-          "sso": false
-        },
-        "notifications": {
-          "enabled": true,
-          "channels": [
-            "email",
-            "webhook"
-          ]
-        },
-        "analytics": {
-          "enabled": true,
-          "provider": "internal"
-        },
-        "webSearch": {
-          "enabled": true,
-          "provider": "searxng"
-        },
-        "aiAnalysis": {
-          "enabled": true,
-          "provider": "ollama"
-        },
-        "knowledgeBase": {
-          "enabled": true,
-          "provider": "qdrant"
-        },
-        "documentStorage": {
-          "enabled": false,
-          "provider": "minio"
-        },
-        "workflowAutomation": {
-          "enabled": false,
-          "provider": "windmill"
-        }
-      },
-      "integrations": [
-        {
-          "name": "Business Intelligence Tools",
-          "type": "api",
-          "required": false
-        },
-        {
-          "name": "CRM Systems",
-          "type": "webhook",
-          "required": false
-        },
-        {
-          "name": "Document Management Systems",
-          "type": "api",
-          "required": false
-        }
-      ]
-    },
-    "category": "ai-research",
-    "complexity": "intermediate",
-    "marketDemand": "high"
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto",
+      "description": "Research assistant API port"
+    }
   },
   "lifecycle": {
     "version": "1.0.0",
@@ -576,13 +119,18 @@
       "description": "Initialize research assistant environment",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/research-assistant/.vrooli/service.json",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "show-access-urls",
-          "run": "echo '✅ Research Assistant initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  SearXNG: http://localhost:${RESOURCE_PORTS[searxng]}'",
+          "name": "add-data",
+          "run": "scripts/lib/resources/runtime-engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Research Assistant initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  SearXNG: http://localhost:${RESOURCE_PORTS[searxng]}'",
           "description": "Display service access URLs"
         }
       ]
@@ -592,16 +140,8 @@
       "steps": [
         {
           "name": "start-services",
-          "run": "../deployment/startup.sh"
-        }
-      ]
-    },
-    "build": {
-      "description": "Build research assistant artifacts",
-      "steps": [
-        {
-          "name": "build-artifacts",
-          "run": "./scripts/manage.sh build"
+          "run": "cd deployment && ./startup.sh",
+          "description": "Start all research assistant services"
         }
       ]
     },
@@ -610,16 +150,8 @@
       "steps": [
         {
           "name": "run-tests",
-          "run": "./test.sh"
-        }
-      ]
-    },
-    "clean": {
-      "description": "Clean build artifacts and temporary files",
-      "steps": [
-        {
-          "name": "clean-artifacts",
-          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+          "run": "./test.sh",
+          "description": "Execute integration tests"
         }
       ]
     }

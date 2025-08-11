@@ -4,6 +4,11 @@
 
 set -euo pipefail
 
+# Get script directory and source utilities if available
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../../../../.." && pwd)"
+source "${PROJECT_ROOT}/scripts/lib/utils/sudo.sh"
+
 # Logging functions
 log_info() {
     echo "[$(date '+%Y-%m-%d %H:%M:%S')] INFO: $*"
@@ -194,7 +199,13 @@ optimize_docker_for_experiments() {
     
     # Configure Docker CLI to use BuildKit by default
     local docker_cli_config="${HOME}/.docker/config.json"
-    mkdir -p "${HOME}/.docker"
+    
+    # Create Docker config directory with proper ownership
+    if command -v sudo::mkdir_as_user &>/dev/null; then
+        sudo::mkdir_as_user "${HOME}/.docker"
+    else
+        mkdir -p "${HOME}/.docker"
+    fi
     
     if [[ ! -f "${docker_cli_config}" ]]; then
         cat > "${docker_cli_config}" << EOF
@@ -205,6 +216,10 @@ optimize_docker_for_experiments() {
   }
 }
 EOF
+        # Restore ownership if running under sudo
+        if command -v sudo::restore_owner &>/dev/null; then
+            sudo::restore_owner "${docker_cli_config}"
+        fi
     else
         # Update existing config to enable BuildKit
         jq '.features.buildkit = true' "${docker_cli_config}" > "${docker_cli_config}.tmp" && mv "${docker_cli_config}.tmp" "${docker_cli_config}" 2>/dev/null || true

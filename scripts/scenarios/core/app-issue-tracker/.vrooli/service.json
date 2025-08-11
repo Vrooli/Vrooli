@@ -13,71 +13,31 @@
     "displayName": "App Issue Tracker",
     "description": "Centralized issue tracking hub for all Vrooli-generated applications with AI-powered investigation",
     "version": "1.0.0",
-    "type": "scenario",
+    "type": "vrooli-enhancement",
     "category": "vrooli-helpers",
     "tags": [
       "issue-tracking",
       "ai-investigation",
       "debugging",
       "monitoring",
-      "claude-integration"
+      "claude-integration",
+      "windmill-ui",
+      "semantic-search"
     ]
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "type": "postgresql",
-        "enabled": true,
-        "version": "16",
-        "required": true,
-        "initialization": {
-          "data": [
-            {
-              "type": "schema",
-              "file": "initialization/storage/postgres/schema.sql"
-            },
-            {
-              "type": "seed",
-              "file": "initialization/storage/postgres/seed.sql"
-            }
-          ]
-        }
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "collections": [
-            {
-              "name": "issues",
-              "vector_size": 1536,
-              "distance": "Cosine"
-            }
-          ]
-        }
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": true,
-        "required": true
-      },
-      "minio": {
-        "type": "minio",
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "buckets": [
-            {
-              "name": "issue-artifacts",
-              "public": false,
-              "retention": "30d"
-            }
-          ]
-        }
-      }
-    },
     "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": {
+          "workflows": [
+            { "file": "initialization/automation/n8n/claude-investigation.json" },
+            { "file": "initialization/automation/n8n/issue-ingestion.json" }
+          ]
+        }
+      },
       "windmill": {
         "type": "windmill",
         "enabled": true,
@@ -89,64 +49,78 @@
             { "file": "initialization/automation/windmill/apps/agents.json" }
           ]
         }
-      },
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "workflows": [
-            { "file": "initialization/automation/n8n/claude-investigation.json" },
-            { "file": "initialization/automation/n8n/issue-ingestion.json" }
-          ]
-        }
       }
     },
     "ai": {
-      "claude-code": {
-        "type": "claude-code",
-        "enabled": true,
-        "required": false
-      },
       "ollama": {
         "type": "ollama",
         "enabled": true,
         "required": true,
         "models": ["nomic-embed-text", "llama3.2"]
       }
+    },
+    "agents": {
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": false,
+        "purpose": "AI-powered issue investigation and code analysis"
+      }
+    },
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "issue tracking data and metadata"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "semantic search for similar issues"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "required": false,
+        "purpose": "caching and real-time updates"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": false,
+        "purpose": "issue artifacts and attachments storage"
+      }
     }
   },
-  "cli": {
-    "name": "vrooli-tracker",
-    "description": "CLI for managing issues across Vrooli applications",
-    "installation": {
-      "script": "deployment/install-cli.sh"
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto",
+      "description": "Issue tracker API server port"
     }
-  },
-  "api": {
-    "port": 8091,
-    "endpoints": [
-      "/api/issues",
-      "/api/issues/search",
-      "/api/issues/investigate",
-      "/api/metrics"
-    ],
-    "startup": "deployment/start-api-server.sh"
   },
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize issue tracker with CLI, API, and data injection",
+      "description": "Initialize App Issue Tracker",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/app-issue-tracker/.vrooli/service.json",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
+        },
+        {
+          "name": "add-data",
+          "run": "scripts/lib/resources/runtime-engine.sh .",
+          "description": "Add app data to resources"
         },
         {
           "name": "install-cli",
-          "run": "deployment/install-cli.sh",
-          "description": "Install vrooli-tracker CLI tool"
+          "run": "ln -sf \"$(pwd)/cli/vrooli-tracker.sh\" /usr/local/bin/vrooli-tracker && chmod +x /usr/local/bin/vrooli-tracker",
+          "description": "Install CLI command globally"
         },
         {
           "name": "generate-api-token",
@@ -154,14 +128,39 @@
           "description": "Generate secure API access token"
         },
         {
-          "name": "start-api-server",
-          "run": "deployment/start-api-server.sh &",
-          "description": "Start issue tracker API server"
-        },
+          "name": "show-urls",
+          "run": "echo '🚀 App Issue Tracker initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: vrooli-tracker --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start issue tracker API server",
+      "steps": [
         {
-          "name": "show-access-urls",
-          "run": "echo '✅ App Issue Tracker initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:8091\\n  CLI: vrooli-tracker --help'",
-          "description": "Display service access information"
+          "name": "start-api-server",
+          "run": "cd deployment && ./startup.sh",
+          "description": "Start issue tracker services"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test issue tracker functionality",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "bash test.sh",
+          "description": "Run integration tests"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop issue tracker services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'issue-tracker' || true",
+          "description": "Stop all issue tracker processes"
         }
       ]
     }

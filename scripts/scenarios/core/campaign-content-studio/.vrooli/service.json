@@ -30,11 +30,6 @@
         "url": "https://github.com/Vrooli"
       }
     ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/core/campaign-content-studio"
-    },
     "license": "GPL-3.0",
     "homepage": "https://github.com/Vrooli/Vrooli",
     "documentation": "./README.md",
@@ -527,16 +522,21 @@
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize Campaign Content Studio environment",
+      "description": "Initialize Campaign Content Studio",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/campaign-content-studio/.vrooli/service.json",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "show-access-urls",
-          "run": "echo '✅ Campaign Content Studio initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Ollama: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}\\n  ComfyUI: http://localhost:${RESOURCE_PORTS[comfyui]}\\n  Unstructured: http://localhost:${RESOURCE_PORTS[unstructured-io]}'",
+          "name": "add-data",
+          "run": "scripts/lib/resources/runtime-engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Campaign Content Studio initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Ollama API: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  ComfyUI: http://localhost:${RESOURCE_PORTS[comfyui]}\\n  Unstructured-IO: http://localhost:${RESOURCE_PORTS[unstructured-io]}'",
           "description": "Display service access URLs"
         }
       ]
@@ -546,7 +546,28 @@
       "steps": [
         {
           "name": "start-services",
-          "run": "../deployment/startup.sh"
+          "run": "cd deployment && ./startup.sh",
+          "description": "Start content studio services"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test campaign content studio functionality",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "bash test.sh",
+          "description": "Execute integration tests"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop campaign content studio services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'campaign-content' || true",
+          "description": "Stop all content studio processes"
         }
       ]
     },

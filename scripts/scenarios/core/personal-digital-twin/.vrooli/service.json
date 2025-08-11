@@ -186,16 +186,21 @@
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize Personal Digital Twin environment",
+      "description": "Initialize Personal Digital Twin",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/personal-digital-twin/.vrooli/service.json",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "show-access-urls",
-          "run": "echo '✅ Personal Digital Twin initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  N8n Workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Vector Search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Model Training: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Chat Interface: http://localhost:8201'",
+          "name": "add-data",
+          "run": "scripts/lib/resources/runtime-engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Personal Digital Twin initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Qdrant Vector Search: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Ollama Model Training: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Chat Interface: http://localhost:8201'",
           "description": "Display service access URLs"
         }
       ]
@@ -205,7 +210,34 @@
       "steps": [
         {
           "name": "start-services",
-          "run": "../deployment/startup.sh"
+          "run": "cd deployment && ./deploy-windmill-apps.sh && ./import-n8n-workflows.sh",
+          "description": "Deploy apps and import workflows"
+        },
+        {
+          "name": "start-servers",
+          "run": "cd deployment && node api-server.js &; node chat-server.js &",
+          "description": "Start API and chat servers",
+          "background": true
+        }
+      ]
+    },
+    "test": {
+      "description": "Test Personal Digital Twin functionality",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "bash scenario-test.yaml",
+          "description": "Execute scenario tests"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop Personal Digital Twin services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'api-server.js' || true; pkill -f 'chat-server.js' || true",
+          "description": "Stop all digital twin processes"
         }
       ]
     },

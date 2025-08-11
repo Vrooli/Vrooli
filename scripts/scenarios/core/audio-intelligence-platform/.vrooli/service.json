@@ -30,11 +30,6 @@
         "url": "https://github.com/Vrooli"
       }
     ],
-    "repository": {
-      "type": "git",
-      "url": "https://github.com/Vrooli/Vrooli",
-      "directory": "/scripts/scenarios/core/audio-intelligence-platform"
-    },
     "license": "GPL-3.0",
     "homepage": "https://github.com/Vrooli/Vrooli",
     "documentation": "./README.md",
@@ -45,93 +40,6 @@
     }
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "type": "postgresql",
-        "enabled": true,
-        "version": "16",
-        "required": true,
-        "initialization": {
-          "data": [
-            {
-              "type": "schema",
-              "file": "initialization/storage/postgres/schema.sql"
-            },
-            {
-              "type": "seed",
-              "file": "initialization/storage/postgres/seed.sql"
-            }
-          ]
-        }
-      },
-      "minio": {
-        "type": "minio",
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "buckets": [
-            {
-              "name": "audio-files",
-              "policy": "private"
-            },
-            {
-              "name": "transcriptions",
-              "policy": "private"
-            },
-            {
-              "name": "exports",
-              "policy": "private"
-            }
-          ]
-        }
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "collections": [
-            {
-              "name": "transcription-embeddings",
-              "config": {
-                "vectors": {
-                  "size": 384,
-                  "distance": "Cosine"
-                }
-              }
-            }
-          ]
-        }
-      }
-    },
-    "ai": {
-      "whisper": {
-        "enabled": true,
-        "required": true
-      },
-      "ollama": {
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.1:8b",
-          "nomic-embed-text"
-        ],
-        "fallback_models": {
-          "text_generation": [
-            "qwen2.5-coder:7b",
-            "llama3.2:3b",
-            "llama3.2:1b",
-            "gemma2:2b"
-          ],
-          "embedding": [
-            "all-minilm",
-            "mxbai-embed-large",
-            "snowflake-arctic-embed:s"
-          ]
-        },
-        "model_check_enabled": true
-      }
-    },
     "automation": {
       "n8n": {
         "type": "n8n",
@@ -140,15 +48,12 @@
         "initialization": {
           "workflows": [
             {
-              "name": "transcription-pipeline",
               "file": "initialization/automation/n8n/transcription-pipeline.json"
             },
             {
-              "name": "ai-analysis-workflow",
               "file": "initialization/automation/n8n/ai-analysis-workflow.json"
             },
             {
-              "name": "semantic-search",
               "file": "initialization/automation/n8n/semantic-search.json"
             }
           ]
@@ -161,29 +66,46 @@
         "initialization": {
           "apps": [
             {
-              "path": "f/audio-intelligence/manager",
-              "file": "initialization/automation/windmill/transcription-manager-app.json",
-              "summary": "Audio Intelligence Manager with AI Analysis"
-            }
-          ],
-          "scripts": [
-            {
-              "name": "upload-handler",
-              "file": "initialization/automation/windmill/scripts/upload-handler.ts",
-              "language": "typescript"
-            },
-            {
-              "name": "search-handler",
-              "file": "initialization/automation/windmill/scripts/search-handler.ts",
-              "language": "typescript"
-            },
-            {
-              "name": "ai-analysis",
-              "file": "initialization/automation/windmill/scripts/ai-analysis.ts",
-              "language": "typescript"
+              "file": "initialization/automation/windmill/transcription-manager-app.json"
             }
           ]
         }
+      }
+    },
+    "ai": {
+      "whisper": {
+        "type": "whisper",
+        "enabled": true,
+        "required": true
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.1:8b",
+          "nomic-embed-text"
+        ]
+      }
+    },
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "transcription metadata and analytics"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "purpose": "audio files and transcription storage"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "semantic search for transcriptions"
       }
     }
   },
@@ -584,16 +506,21 @@
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize Audio Intelligence Platform environment",
+      "description": "Initialize Audio Intelligence Platform",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/audio-intelligence-platform/.vrooli/service.json",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "show-access-urls",
-          "run": "echo '✅ Audio Intelligence Platform initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Whisper: http://localhost:${RESOURCE_PORTS[whisper]}\\n  Ollama: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO: http://localhost:${RESOURCE_PORTS[minio]}'",
+          "name": "add-data",
+          "run": "scripts/lib/resources/runtime-engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Audio Intelligence Platform initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Whisper API: http://localhost:${RESOURCE_PORTS[whisper]}\\n  Ollama API: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO Storage: http://localhost:${RESOURCE_PORTS[minio]}'",
           "description": "Display service access URLs"
         }
       ]
@@ -603,16 +530,8 @@
       "steps": [
         {
           "name": "start-services",
-          "run": "../deployment/startup.sh"
-        }
-      ]
-    },
-    "build": {
-      "description": "Build audio intelligence platform artifacts",
-      "steps": [
-        {
-          "name": "build-artifacts",
-          "run": "./scripts/manage.sh build"
+          "run": "cd deployment && ./startup.sh",
+          "description": "Start platform services"
         }
       ]
     },
@@ -621,16 +540,18 @@
       "steps": [
         {
           "name": "run-tests",
-          "run": "./test.sh"
+          "run": "bash test.sh",
+          "description": "Execute integration tests"
         }
       ]
     },
-    "clean": {
-      "description": "Clean build artifacts and temporary files",
+    "stop": {
+      "description": "Stop audio intelligence platform services",
       "steps": [
         {
-          "name": "clean-artifacts",
-          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+          "name": "stop-services",
+          "run": "pkill -f 'audio-intelligence' || true",
+          "description": "Stop all platform processes"
         }
       ]
     }

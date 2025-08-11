@@ -14,152 +14,124 @@
     "description": "Customize generated apps using prompts or digital twins for personalized experiences",
     "version": "1.0.0",
     "type": "business-application",
-    "tags": ["personalization", "customization", "app-modification"],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "team@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
+    "category": "business",
+    "tags": [
+      "personalization",
+      "customization",
+      "app-modification",
+      "digital-twin",
+      "branding"
     ]
   },
   "resources": {
-    "agents": {
-      "claude-code": {
+    "automation": {
+      "n8n": {
+        "type": "n8n",
         "enabled": true,
-        "purpose": "Modify app code based on personalization requirements"
+        "required": true,
+        "initialization": {
+          "workflows": [
+            {
+              "file": "initialization/automation/n8n/personalization-pipeline.json"
+            }
+          ]
+        }
       }
     },
     "ai": {
       "ollama": {
+        "type": "ollama",
         "enabled": true,
-        "models": ["llama3.2", "codellama"],
-        "purpose": "Analyze app structure and generate modification plans"
+        "required": true,
+        "models": ["llama3.2", "codellama"]
+      }
+    },
+    "agents": {
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": false,
+        "purpose": "modify app code based on personalization requirements"
       }
     },
     "storage": {
       "postgres": {
+        "type": "postgres",
         "enabled": true,
-        "config": {
-          "database": "app_personalizer",
-          "schema": "public"
-        },
-        "initialization": {
-          "data": [
-            {
-              "file": "initialization/storage/postgres/schema.sql",
-              "description": "Database schema for app personalization"
-            }
-          ]
-        }
+        "required": true,
+        "purpose": "app personalization metadata and configurations"
       },
       "minio": {
+        "type": "minio",
         "enabled": true,
-        "buckets": ["app-backups", "personalized-apps", "modification-logs"],
-        "purpose": "Store app versions and modification history"
-      }
-    },
-    "automation": {
-      "n8n": {
-        "enabled": true,
-        "initialization": {
-          "workflows": [
-            {
-              "file": "initialization/automation/n8n/personalization-pipeline.json",
-              "description": "Orchestrate personalization workflow"
-            }
-          ]
-        }
+        "required": false,
+        "purpose": "app versions and modification history storage"
       }
     }
   },
-  "deployment": {
-    "ports": {
-      "ui": 3300,
-      "api": 8300
+  "ports": {
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "3000-3999", 
+      "fallback": "auto",
+      "description": "Personalization UI port"
     },
-    "environment": {
-      "NODE_ENV": "production",
-      "GENERATED_APPS_PATH": "/generated-apps",
-      "BACKUP_RETENTION_DAYS": "30"
-    }
-  },
-  "integrations": {
-    "required": {
-      "personal-digital-twin": {
-        "api_endpoint": "http://localhost:8200",
-        "features": ["chat", "search", "persona-export"],
-        "auth": "api_token"
-      },
-      "brand-manager": {
-        "api_endpoint": "http://localhost:8100",
-        "features": ["brand-export", "asset-retrieval"],
-        "auth": "api_key"
-      }
-    },
-    "supported_apps": {
-      "generated_apps": {
-        "path": "/generated-apps/*",
-        "detection": "service.json"
-      },
-      "external_apps": {
-        "protocols": ["git", "filesystem"],
-        "frameworks": ["react", "vue", "next.js"]
-      }
-    }
-  },
-  "features": {
-    "personalization_types": {
-      "ui_theme": {
-        "enabled": true,
-        "description": "Modify colors, fonts, layouts based on preferences"
-      },
-      "content": {
-        "enabled": true,
-        "description": "Inject personalized content from digital twin"
-      },
-      "functionality": {
-        "enabled": true,
-        "description": "Add/remove features based on user persona"
-      },
-      "branding": {
-        "enabled": true,
-        "description": "Apply complete branding from brand-manager"
-      },
-      "behavior": {
-        "enabled": true,
-        "description": "Modify app behavior based on digital twin interactions"
-      }
-    },
-    "deployment_modes": {
-      "copy": {
-        "description": "Create personalized copy of the app",
-        "default": true
-      },
-      "patch": {
-        "description": "Apply modifications to existing app",
-        "requires_backup": true
-      },
-      "multi_tenant": {
-        "description": "Single app with user-specific personalizations",
-        "advanced": true
-      }
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto", 
+      "description": "Personalization API port"
     }
   },
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize App Personalizer environment",
+      "description": "Initialize App Personalizer",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/app-personalizer/.vrooli/service.json",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "show-access-urls",
-          "run": "echo '✅ App Personalizer initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  API: http://localhost:8300\\n  UI: http://localhost:3300'",
+          "name": "add-data",
+          "run": "scripts/lib/resources/runtime-engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 App Personalizer initialized\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  UI: http://localhost:${UI_PORT}'",
           "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start App Personalizer services",
+      "steps": [
+        {
+          "name": "start-services",
+          "run": "echo 'Starting App Personalizer services...'",
+          "description": "Start personalization services"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test App Personalizer functionality",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "bash scenario-test.yaml",
+          "description": "Run scenario tests"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop App Personalizer services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'app-personalizer' || true",
+          "description": "Stop all personalizer processes"
         }
       ]
     }
