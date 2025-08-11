@@ -1,6 +1,8 @@
 {
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
+    "parent": "vrooli",
     "name": "retro-game-launcher",
     "displayName": "Retro Game Launcher",
     "description": "Platform for launching and managing retro games with AI-generated game creation capabilities",

@@ -1,14 +1,8 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "inheritance": {
-    "extends": "../../../../../.vrooli/service.json",
-    "merge": {
-      "strategy": "merge",
-      "arrays": "concat"
-    }
-  },
   "service": {
+    "parent": "vrooli",
     "name": "research-assistant",
     "displayName": "AI Research Assistant",
     "description": "Enterprise-grade AI research platform with DeepSearch-quality reports, chatbot interface, and automated scheduling",

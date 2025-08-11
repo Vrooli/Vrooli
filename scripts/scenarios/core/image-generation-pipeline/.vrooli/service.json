@@ -1,14 +1,8 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "inheritance": {
-    "extends": "../../../../../.vrooli/service.json",
-    "merge": {
-      "strategy": "merge",
-      "arrays": "concat"
-    }
-  },
   "service": {
+    "parent": "vrooli",
     "name": "image-generation-pipeline",
     "displayName": "Enterprise Image Generation Pipeline",
     "description": "Enterprise-grade AI image generation platform with voice briefings, multi-brand management, and quality control",

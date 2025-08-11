@@ -1,14 +1,8 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "inheritance": {
-    "extends": "../../../../../.vrooli/service.json",
-    "merge": {
-      "strategy": "merge",
-      "arrays": "concat"
-    }
-  },
   "service": {
+    "parent": "vrooli",
     "name": "prompt-manager",
     "displayName": "Prompt Manager",
     "description": "Clean UX for storing prompts organized by campaigns",

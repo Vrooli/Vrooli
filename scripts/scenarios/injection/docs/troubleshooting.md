@@ -601,7 +601,7 @@ cat > simple-workflow.json << 'EOF'
 EOF
 
 # Test minimal case
-./scripts/scenarios/injection/engine.sh --action inject --scenario minimal-test --config-file minimal-test.json
+./scripts/scenarios/injection/engine.sh --action inject --scenario minimal-test
 ```
 
 ## 📚 Reference

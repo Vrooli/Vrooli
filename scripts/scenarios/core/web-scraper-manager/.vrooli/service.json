@@ -1,14 +1,8 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "inheritance": {
-    "extends": "../../../../../.vrooli/service.json",
-    "merge": {
-      "strategy": "merge",
-      "arrays": "concat"
-    }
-  },
   "service": {
+    "parent": "vrooli",
     "name": "web-scraper-manager",
     "displayName": "Web Scraper Management Platform",
     "description": "Unified dashboard for managing and orchestrating web scraping agents across Huginn, Browserless, and Agent-S2",

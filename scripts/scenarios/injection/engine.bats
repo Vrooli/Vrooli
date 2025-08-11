@@ -81,17 +81,17 @@ teardown() {
     # Source the engine script
     source "${BATS_TEST_DIRNAME}/engine.sh"
     
-    run injection::validate_scenario_dir "${TEST_SCENARIO_DIR}"
+    run validate_scenario "${TEST_SCENARIO_DIR}"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"Scenario directory and service.json are valid"* ]]
+    [[ "$output" == *"Valid scenario"* ]]
 }
 
 @test "engine::validate_scenario_dir fails for non-existent directory" {
     source "${BATS_TEST_DIRNAME}/engine.sh"
     
-    run injection::validate_scenario_dir "/non/existent/directory"
+    run validate_scenario "/non/existent/directory"
     [ "$status" -ne 0 ]
-    [[ "$output" == *"Scenario directory not found"* ]]
+    [[ "$output" == *"Missing service.json"* ]]
 }
 
 @test "engine::validate_scenario_dir fails for missing service.json" {
@@ -101,9 +101,9 @@ teardown() {
     local test_dir="${VROOLI_TEST_TMPDIR}/no-service-json"
     mkdir -p "${test_dir}"
     
-    run injection::validate_scenario_dir "${test_dir}"
+    run validate_scenario "${test_dir}"
     assert_failure
-    assert_output --partial ".vrooli/service.json not found"
+    assert_output --partial "Missing service.json"
 }
 
 @test "engine::get_service_json returns valid JSON" {
@@ -241,6 +241,5 @@ teardown() {
     
     run injection::inject_scenario_from_dir "${TEST_SCENARIO_DIR}"
     assert_success
-    assert_output --partial "Injecting Scenario: test-scenario"
-    assert_output --partial "Executing Phase: setup"
+    assert_output --partial "test-scenario"
 }

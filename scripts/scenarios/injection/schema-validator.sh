@@ -25,7 +25,7 @@ source "${var_LOG_FILE}"
 
 # Source argument helpers
 # shellcheck disable=SC1091
-source "${var_LIB_UTILS_DIR}/args.sh"
+source "${var_LIB_UTILS_DIR}/args-cli.sh"
 
 # Schema file paths - use official schemas
 readonly SCHEMA_FILE="${var_VROOLI_CONFIG_DIR}/schemas/scenarios.schema.json"

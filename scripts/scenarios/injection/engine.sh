@@ -12,10 +12,9 @@ source "${var_LOG_FILE}"
 
 DEFAULT_SCENARIOS_DIR="${var_SCRIPTS_SCENARIOS_DIR}/core"
 
-# Parse arguments (maintain compatibility)
+# Parse arguments
 ACTION="inject"
 SCENARIO_NAME=""
-SCENARIO_DIR=""
 CONFIG_FILE=""
 ALL_ACTIVE="no"
 DRY_RUN="no"
@@ -26,7 +25,7 @@ FORCE="no"
 #######################################
 usage() {
     cat << EOF
-Resource Data Injection Engine (Simplified)
+Resource Data Injection Engine
 
 USAGE:
     $0 [OPTIONS]
@@ -34,8 +33,7 @@ USAGE:
 OPTIONS:
     -a, --action ACTION        Action to perform (default: inject)
                               Options: inject, validate, list-scenarios
-    -s, --scenario-dir PATH    Path to scenario directory
-        --scenario NAME        Scenario name (for backwards compatibility)
+    -s, --scenario NAME        Scenario name to process
         --config-file PATH     Config file (ignored - for compatibility)
         --all-active          Process all scenarios (yes/no, default: no)
         --dry-run             Show what would be done (yes/no, default: no)
@@ -44,10 +42,13 @@ OPTIONS:
 
 EXAMPLES:
     # Inject specific scenario
-    $0 --scenario-dir /path/to/scenario
+    $0 --action inject --scenario scenario-name
     
     # Inject all scenarios
-    $0 --all-active yes
+    $0 --action inject --all-active yes
+    
+    # Validate scenario
+    $0 --action validate --scenario scenario-name
     
     # List available scenarios
     $0 --action list-scenarios
@@ -62,11 +63,7 @@ while [[ $# -gt 0 ]]; do
             ACTION="$2"
             shift 2
             ;;
-        -s|--scenario-dir)
-            SCENARIO_DIR="$2"
-            shift 2
-            ;;
-        --scenario)
+        -s|--scenario)
             SCENARIO_NAME="$2"
             shift 2
             ;;
@@ -310,36 +307,29 @@ main() {
                         process_scenario "$dir"
                     fi
                 done
-            elif [[ -n "$SCENARIO_DIR" ]]; then
-                process_scenario "$SCENARIO_DIR"
             elif [[ -n "$SCENARIO_NAME" ]]; then
-                # Backwards compatibility: find scenario by name
-                local found=false
-                for dir in "${DEFAULT_SCENARIOS_DIR}"/*/; do
-                    if [[ -d "$dir" ]]; then
-                        local name
-                        name=$(basename "$dir")
-                        if [[ "$name" == "$SCENARIO_NAME" ]]; then
-                            process_scenario "$dir"
-                            found=true
-                            break
-                        fi
-                    fi
-                done
-                if [[ "$found" != "true" ]]; then
+                # Find scenario by name
+                local scenario_dir="${DEFAULT_SCENARIOS_DIR}/${SCENARIO_NAME}"
+                if [[ ! -d "$scenario_dir" ]]; then
                     log::error "Scenario not found: $SCENARIO_NAME"
                     exit 1
                 fi
+                process_scenario "$scenario_dir"
             else
-                log::error "Specify --scenario-dir or --all-active"
+                log::error "Specify --scenario or --all-active"
                 exit 1
             fi
             ;;
         "validate")
-            if [[ -n "$SCENARIO_DIR" ]]; then
-                validate_scenario "$SCENARIO_DIR"
+            if [[ -n "$SCENARIO_NAME" ]]; then
+                local scenario_dir="${DEFAULT_SCENARIOS_DIR}/${SCENARIO_NAME}"
+                if [[ ! -d "$scenario_dir" ]]; then
+                    log::error "Scenario not found: $SCENARIO_NAME"
+                    exit 1
+                fi
+                validate_scenario "$scenario_dir"
             else
-                log::error "Specify --scenario-dir"
+                log::error "Specify --scenario"
                 exit 1
             fi
             ;;

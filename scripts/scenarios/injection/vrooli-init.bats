@@ -111,8 +111,9 @@ teardown() {
 @test "vrooli_init::parse_args handles all options correctly" {
     source "${BATS_TEST_DIRNAME}/vrooli-init.sh"
     
-    parse_args --scenario test-scenario --resources n8n,postgres --dry-run --verbose --force
+    parse_args --action init --scenario test-scenario --resources n8n,postgres --dry-run --verbose --force
     
+    [ "${ACTION}" = "init" ]
     [ "${SCENARIO_NAME}" = "test-scenario" ]
     [ "${RESOURCES}" = "n8n,postgres" ]
     [ "${DRY_RUN}" = true ]
@@ -125,6 +126,7 @@ teardown() {
     
     parse_args
     
+    [ "${ACTION}" = "init" ]
     [ "${DRY_RUN}" = false ]
     [ "${VERBOSE}" = false ]
     [ "${FORCE}" = false ]
@@ -369,7 +371,7 @@ EOF
     DRY_RUN=true
     FORCE=true
     
-    run main --dry-run --force --scenario test-scenario --resources n8n,postgres
+    run main --action init --dry-run --force --scenario test-scenario --resources n8n,postgres
     assert_success
     assert_output --partial "Vrooli Self-Initialization"
     assert_output --partial "DRY RUN MODE"

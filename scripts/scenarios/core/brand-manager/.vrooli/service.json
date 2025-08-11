@@ -1,14 +1,8 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "inheritance": {
-    "extends": "../../../../../.vrooli/service.json",
-    "merge": {
-      "strategy": "merge",
-      "arrays": "concat"
-    }
-  },
   "service": {
+    "parent": "vrooli",
     "name": "brand-manager",
     "displayName": "AI Brand Manager",
     "description": "Complete AI-powered branding solution with logo generation, copywriting, and automated app integration via Claude Code agents",

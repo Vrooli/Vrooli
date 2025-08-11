@@ -1,7 +1,8 @@
 {
-  "$schema": "./schemas/service.schema.json",
+  "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
+    "parent": "vrooli",
     "name": "personal-digital-twin",
     "displayName": "Personal Digital Twin",
     "description": "Create AI personas from personal data with semantic search and model fine-tuning for personal productivity",

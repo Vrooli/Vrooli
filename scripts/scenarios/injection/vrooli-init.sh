@@ -10,6 +10,7 @@
 #   ./vrooli-init.sh [options]
 #
 # Options:
+#   --action      Action to perform (default: init)
 #   --scenario    Specific scenario to import (default: all)
 #   --resources   Comma-separated list of resources to initialize
 #   --dry-run     Show what would be done without executing
@@ -18,9 +19,9 @@
 #   --help        Show this help message
 #
 # Examples:
-#   ./vrooli-init.sh                              # Initialize from all scenarios
-#   ./vrooli-init.sh --scenario multi-resource    # Initialize from specific scenario
-#   ./vrooli-init.sh --resources n8n,windmill     # Initialize only specific resources
+#   ./vrooli-init.sh --action init                              # Initialize from all scenarios
+#   ./vrooli-init.sh --action init --scenario multi-resource    # Initialize from specific scenario
+#   ./vrooli-init.sh --action init --resources n8n,windmill     # Initialize only specific resources
 #
 ################################################################################
 
@@ -40,6 +41,7 @@ INIT_STATE_FILE="${var_VROOLI_CONFIG_DIR}/.initialization-state.json"
 
 
 # Global variables
+ACTION="init"
 DRY_RUN=false
 VERBOSE=false
 FORCE=false
@@ -60,7 +62,11 @@ show_usage() {
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case $1 in
-            --scenario)
+            -a|--action)
+                ACTION="$2"
+                shift 2
+                ;;
+            -s|--scenario)
                 SCENARIO_NAME="$2"
                 shift 2
                 ;;
@@ -80,7 +86,7 @@ parse_args() {
                 FORCE=true
                 shift
                 ;;
-            --help)
+            -h|--help)
                 show_usage
                 exit 0
                 ;;
@@ -455,6 +461,19 @@ generate_report() {
 main() {
     parse_args "$@"
     
+    case "$ACTION" in
+        "init")
+            init_action
+            ;;
+        *)
+            log::error "Unknown action: $ACTION"
+            show_usage
+            exit 1
+            ;;
+    esac
+}
+
+init_action() {
     log::header "Vrooli Self-Initialization"
     
     if [[ "$DRY_RUN" == true ]]; then

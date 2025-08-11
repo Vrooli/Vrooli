@@ -1,14 +1,8 @@
 {
   "$schema": "../../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
-  "inheritance": {
-    "extends": "../../../../../.vrooli/service.json",
-    "merge": {
-      "strategy": "merge",
-      "arrays": "concat"
-    }
-  },
   "service": {
+    "parent": "vrooli",
     "name": "resource-experimenter",
     "displayName": "Resource Experimenter",
     "description": "Fully automated resource discovery and testing platform that generates complete standalone applications with their own resource providers and scenarios",
