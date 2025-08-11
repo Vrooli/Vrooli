@@ -5,9 +5,9 @@
 # Source required modules
 N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../lib/docker-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../lib/docker-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../lib/wait-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../lib/wait-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/health.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
@@ -291,7 +291,7 @@ n8n::logs() {
     log::info "Showing n8n logs (last ${LINES:-50} lines)..."
     log::info "Use 'docker logs -f $N8N_CONTAINER_NAME' to follow logs in real-time"
     echo
-    docker logs --tail "${LINES:-50}" "$N8N_CONTAINER_NAME"
+    docker::get_logs "$N8N_CONTAINER_NAME" "${LINES:-50}"
 }
 
 #######################################

@@ -47,8 +47,8 @@ n8n::reset_password() {
     ports=$(docker::get_port_args "$N8N_CONTAINER_NAME")
     # Stop and remove old container
     log::info "Stopping n8n container..."
-    docker stop "$N8N_CONTAINER_NAME" >/dev/null 2>&1
-    docker rm "$N8N_CONTAINER_NAME" >/dev/null 2>&1
+    docker::stop_container "$N8N_CONTAINER_NAME"
+    docker::remove_container "$N8N_CONTAINER_NAME"
     # Start new container with updated password
     log::info "Starting n8n with new password..."
     if docker run -d \

@@ -5,13 +5,13 @@
 # Source required utilities
 N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../lib/wait-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../lib/wait-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../lib/http-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../lib/http-utils.sh" 2>/dev/null || true
 
 #######################################
 # Update Vrooli configuration
@@ -70,7 +70,7 @@ n8n::handle_existing_installation() {
 #######################################
 n8n::validate_installation_prereqs() {
     # Check Docker
-    if ! n8n::check_docker; then
+    if ! docker::check_daemon; then
         return 1
     fi
     # Validate port assignment
@@ -136,7 +136,7 @@ n8n::execute_container_installation() {
     if [[ "$DATABASE_TYPE" == "postgres" ]]; then
         if ! n8n::start_postgres; then
             local pg_logs
-            pg_logs=$(docker logs "$N8N_DB_CONTAINER_NAME" --tail 10 2>/dev/null || echo "No logs available")
+            pg_logs=$(docker::get_logs "$N8N_DB_CONTAINER_NAME" 10 2>/dev/null || echo "No logs available")
             n8n::handle_error_with_diagnosis "database" "Failed to start PostgreSQL" "$pg_logs"
             return 1
         fi
@@ -277,21 +277,21 @@ n8n::uninstall() {
     # Stop and remove n8n container
     if n8n::container_exists_any; then
         log::info "Removing n8n container..."
-        docker stop "$N8N_CONTAINER_NAME" 2>/dev/null || true
-        docker rm "$N8N_CONTAINER_NAME" 2>/dev/null || true
+        docker::stop_container "$N8N_CONTAINER_NAME"
+        docker::remove_container "$N8N_CONTAINER_NAME"
         log::success "n8n container removed"
     fi
     # Stop and remove PostgreSQL container
     if n8n::postgres_exists; then
         log::info "Removing PostgreSQL container..."
-        docker stop "$N8N_DB_CONTAINER_NAME" 2>/dev/null || true
-        docker rm "$N8N_DB_CONTAINER_NAME" 2>/dev/null || true
+        docker::stop_container "$N8N_DB_CONTAINER_NAME"
+        docker::remove_container "$N8N_DB_CONTAINER_NAME"
         log::success "PostgreSQL container removed"
     fi
     # Remove Docker network
     if docker network ls | grep -q "$N8N_NETWORK_NAME"; then
         log::info "Removing Docker network..."
-        docker network rm "$N8N_NETWORK_NAME" 2>/dev/null || true
+        docker::remove_network "$N8N_NETWORK_NAME"
     fi
     # Backup data before removal
     if [[ -d "$N8N_DATA_DIR" ]]; then

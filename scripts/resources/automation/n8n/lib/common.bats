@@ -78,7 +78,7 @@ setup_n8n_test_env_no_defaults() {
     setup_n8n_test_env
     
     # Check if functions are defined
-    declare -f n8n::check_docker
+    # n8n::check_docker removed - now uses docker::check_daemon
     declare -f n8n::container_exists
     declare -f n8n::is_running
     declare -f n8n::is_healthy

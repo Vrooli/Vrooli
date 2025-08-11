@@ -5,7 +5,7 @@
 # Source required utilities
 N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../lib/wait-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../lib/wait-utils.sh" 2>/dev/null || true
 
 #######################################
 # Start PostgreSQL container for n8n
@@ -68,7 +68,7 @@ n8n::postgres_is_healthy() {
         return 1
     fi
     # Check if postgres is accepting connections
-    if docker exec "$N8N_DB_CONTAINER_NAME" pg_isready -U n8n >/dev/null 2>&1; then
+    if docker::exec "$N8N_DB_CONTAINER_NAME" pg_isready -U n8n >/dev/null 2>&1; then
         return 0
     else
         return 1
@@ -131,7 +131,7 @@ n8n::backup_postgres() {
     local backup_file="${backup_dir}/n8n_postgres_backup_${timestamp}.sql"
     log::info "Backing up PostgreSQL database..."
     mkdir -p "$backup_dir"
-    if docker exec "$N8N_DB_CONTAINER_NAME" pg_dump -U n8n n8n > "$backup_file" 2>/dev/null; then
+    if docker::exec "$N8N_DB_CONTAINER_NAME" pg_dump -U n8n n8n > "$backup_file" 2>/dev/null; then
         log::success "PostgreSQL backup saved to: $backup_file"
         return 0
     else
@@ -160,7 +160,7 @@ n8n::restore_postgres() {
         return 1
     fi
     log::info "Restoring PostgreSQL database from: $backup_file"
-    if docker exec -i "$N8N_DB_CONTAINER_NAME" psql -U n8n n8n < "$backup_file" 2>/dev/null; then
+    if docker::exec "$N8N_DB_CONTAINER_NAME" -i psql -U n8n n8n < "$backup_file" 2>/dev/null; then
         log::success "PostgreSQL database restored successfully"
         return 0
     else

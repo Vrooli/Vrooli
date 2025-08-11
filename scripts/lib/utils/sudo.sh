@@ -38,6 +38,43 @@ sudo::is_root() {
     [[ $EUID -eq 0 ]]
 }
 
+#######################################
+# Check if sudo is available and can be used
+# Returns:
+#   0 if sudo can be used, 1 otherwise
+#######################################
+sudo::can_use_sudo() {
+    # Check if sudo command exists
+    if ! command -v sudo >/dev/null 2>&1; then
+        return 1
+    fi
+    
+    # If running as root, don't need sudo
+    if sudo::is_root; then
+        return 0
+    fi
+    
+    # Check if user has sudo privileges (with timeout to avoid hanging)
+    sudo -n true 2>/dev/null || sudo -v 2>/dev/null
+}
+
+#######################################
+# Execute command with sudo, falling back to direct execution if sudo unavailable
+# Arguments:
+#   $1 - Command string to execute
+# Returns:
+#   Command exit code
+#######################################
+sudo::exec_with_fallback() {
+    local cmd="$1"
+    
+    if sudo::can_use_sudo; then
+        sudo bash -c "$cmd"
+    else
+        bash -c "$cmd"
+    fi
+}
+
 ################################################################################
 # User Information Functions
 ################################################################################
@@ -358,6 +395,8 @@ sudo::fix_created_files() {
 # Detection
 export -f sudo::is_running_as_sudo
 export -f sudo::is_root
+export -f sudo::can_use_sudo
+export -f sudo::exec_with_fallback
 
 # User Information
 export -f sudo::get_actual_user

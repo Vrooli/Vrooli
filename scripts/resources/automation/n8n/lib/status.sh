@@ -5,11 +5,11 @@
 # Source specialized modules
 N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../lib/docker-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../lib/docker-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../lib/http-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../lib/http-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../lib/status-engine.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../lib/status-engine.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/health.sh"
 # shellcheck disable=SC1091
@@ -138,18 +138,12 @@ n8n::_display_workflow_section() {
 # Show n8n status with enhanced tiered health check
 #######################################
 n8n::status() {
-    # Pre-flight checks
-    if ! system::is_command "docker"; then
-        log::error "$N8N_ERR_DOCKER_NOT_INSTALLED"
-        log::info "$N8N_FIX_INSTALL_DOCKER"
+    # Use shared Docker validation
+    if ! docker::check_daemon; then
         return 1
     fi
-    if ! docker info >/dev/null 2>&1; then
-        log::error "$N8N_ERR_DOCKER_NOT_RUNNING"
-        log::info "$N8N_FIX_START_DOCKER"
-        return 1
-    fi
-    # Use enhanced status with tiered health check
+    
+    # Delegate to unified status engine
     n8n::enhanced_status
     local result=$?
     # Show PostgreSQL status if relevant
@@ -279,7 +273,7 @@ n8n::version() {
         return 1
     fi
     local version
-    version=$(docker exec "$N8N_CONTAINER_NAME" n8n --version 2>/dev/null)
+    version=$(docker::exec "$N8N_CONTAINER_NAME" n8n --version 2>/dev/null)
     if [[ -n "$version" ]]; then
         log::info "n8n version: $version"
     else
@@ -298,12 +292,12 @@ n8n::stats() {
     fi
     log::header "📈 n8n Resource Usage"
     # Container stats
-    docker stats "$N8N_CONTAINER_NAME" --no-stream
+    docker::get_stats "$N8N_CONTAINER_NAME"
     # If using PostgreSQL, show its stats too
     if n8n::postgres_running; then
         echo
         log::info "PostgreSQL Stats:"
-        docker stats "$N8N_DB_CONTAINER_NAME" --no-stream
+        docker::get_stats "$N8N_DB_CONTAINER_NAME"
     fi
 }
 
@@ -315,7 +309,7 @@ n8n::check_all() {
     local all_good=true
     local recovery_attempted=false
     # Docker check
-    if n8n::check_docker; then
+    if docker::check_daemon; then
         log::success "✅ Docker is ready"
     else
         log::error "❌ Docker issues detected"
@@ -368,7 +362,7 @@ n8n::check_all() {
         # Check for common issues
         if n8n::container_running; then
             local recent_logs
-            recent_logs=$(docker logs "$N8N_CONTAINER_NAME" --tail 20 2>&1 || echo "")
+            recent_logs=$(docker::get_logs "$N8N_CONTAINER_NAME" 20 2>&1 || echo "")
             if echo "$recent_logs" | grep -qi "SQLITE_READONLY"; then
                 log::info "💡 Detected SQLite readonly errors - restart may help"
             fi

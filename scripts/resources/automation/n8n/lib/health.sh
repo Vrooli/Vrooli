@@ -5,13 +5,13 @@
 # Source required utilities
 N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../lib/wait-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../lib/wait-utils.sh" 2>/dev/null || true
 
 #######################################
 # Check if n8n API is responsive with enhanced diagnostics
@@ -24,7 +24,7 @@ n8n::is_healthy() {
     fi
     # Check for database corruption indicators in logs
     local recent_logs
-    recent_logs=$(docker logs "$N8N_CONTAINER_NAME" --tail 50 2>&1 || echo "")
+    recent_logs=$(docker::get_logs "$N8N_CONTAINER_NAME" 50 2>&1 || echo "")
     if echo "$recent_logs" | grep -qi "SQLITE_READONLY\|database.*locked\|database.*corrupted"; then
         log::warn "Database corruption detected in logs"
         return 1
@@ -60,10 +60,10 @@ n8n::detect_filesystem_corruption() {
     # Check for deleted but open database files (if container is running)
     if n8n::container_running; then
         local n8n_pid
-        n8n_pid=$(docker exec "$N8N_CONTAINER_NAME" pgrep -f 'node.*n8n' 2>/dev/null | head -1)
+        n8n_pid=$(docker::exec "$N8N_CONTAINER_NAME" pgrep -f 'node.*n8n' 2>/dev/null | head -1)
         if [[ -n "$n8n_pid" ]]; then
             local deleted_files
-            deleted_files=$(docker exec "$N8N_CONTAINER_NAME" lsof -p "$n8n_pid" 2>/dev/null | grep -c '(deleted)' 2>/dev/null || echo "0")
+            deleted_files=$(docker::exec "$N8N_CONTAINER_NAME" lsof -p "$n8n_pid" 2>/dev/null | grep -c '(deleted)' 2>/dev/null || echo "0")
             if [[ "$deleted_files" =~ ^[0-9]+$ ]] && [[ "$deleted_files" -gt 0 ]]; then
                 log::error "Database corruption detected: $deleted_files deleted files still open"
                 return 1

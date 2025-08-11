@@ -34,7 +34,7 @@ N8N_BASE_URL="http://localhost:5678"
 CONFIG_FILE="$HOME/.vrooli/service.json"
 N8N_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../lib/http-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../lib/http-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/constants.sh" 2>/dev/null || true
 

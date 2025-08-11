@@ -7,7 +7,7 @@ N8N_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${var_LIB_SERVICE_DIR}/secrets.sh"
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../lib/http-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../lib/http-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
@@ -26,7 +26,7 @@ n8n::execute() {
         echo "Usage: $0 --action execute --workflow-id YOUR_WORKFLOW_ID"
         echo ""
         echo "To find workflow IDs:"
-        echo "  docker exec $N8N_CONTAINER_NAME n8n list:workflow"
+        echo "  docker::exec $N8N_CONTAINER_NAME n8n list:workflow"
         return 1
     fi
     # Check for API key using unified resolution
@@ -48,7 +48,7 @@ n8n::execute() {
         log::error "Workflow not found"
         echo ""
         echo "Available workflows:"
-        docker exec "$N8N_CONTAINER_NAME" n8n list:workflow
+        docker::exec "$N8N_CONTAINER_NAME" n8n list:workflow
         return 1
     fi
     # Check if workflow has a webhook node
@@ -192,7 +192,7 @@ n8n::list_workflows() {
     if [[ -z "$api_key" ]]; then
         # Fallback to CLI if no API key
         if n8n::container_exists_any; then
-            docker exec "$N8N_CONTAINER_NAME" n8n list:workflow
+            docker::exec "$N8N_CONTAINER_NAME" n8n list:workflow
         else
             log::error "n8n container not found and no API key available"
             return 1

@@ -5,7 +5,7 @@
 # Source required utilities
 N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
@@ -71,8 +71,8 @@ n8n::auto_recover() {
     # Stop container if running
     if n8n::container_running; then
         log::info "Stopping corrupted n8n container..."
-        docker stop "$N8N_CONTAINER_NAME" >/dev/null 2>&1 || true
-        docker rm "$N8N_CONTAINER_NAME" >/dev/null 2>&1 || true
+        docker::stop_container "$N8N_CONTAINER_NAME"
+        docker::remove_container "$N8N_CONTAINER_NAME"
     fi
     # Recreate data directory
     log::info "Recreating data directory..."
@@ -122,7 +122,7 @@ n8n::restore_from_backup() {
     # Stop n8n if running
     if n8n::container_running; then
         log::info "Stopping n8n for restore..."
-        docker stop "$N8N_CONTAINER_NAME" >/dev/null 2>&1 || true
+        docker::stop_container "$N8N_CONTAINER_NAME"
     fi
     # Backup current data before restore
     log::info "Backing up current data before restore..."

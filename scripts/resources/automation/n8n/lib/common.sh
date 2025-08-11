@@ -5,17 +5,17 @@
 # Source required utilities
 N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/sudo.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../../lib/docker-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../../lib/docker-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../../lib/http-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../../lib/http-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../../lib/wait-utils.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../../lib/wait-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/constants.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
@@ -25,31 +25,7 @@ source "${N8N_LIB_DIR}/health.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/recovery.sh" 2>/dev/null || true
 
-#######################################
-# Check if Docker is installed
-# Returns: 0 if installed, 1 otherwise
-#######################################
-n8n::check_docker() {
-    if ! system::is_command "docker"; then
-        n8n::log_with_context "error" "docker" "$N8N_ERR_DOCKER_NOT_INSTALLED"
-        n8n::log_with_context "info" "docker" "$N8N_FIX_INSTALL_DOCKER"
-        return 1
-    fi
-    # Check if Docker daemon is running
-    if ! docker info >/dev/null 2>&1; then
-        n8n::log_with_context "error" "docker" "$N8N_ERR_DOCKER_NOT_RUNNING"
-        n8n::log_with_context "info" "docker" "$N8N_FIX_START_DOCKER"
-        return 1
-    fi
-    # Check if user has permissions
-    if ! docker ps >/dev/null 2>&1; then
-        n8n::log_with_context "error" "docker" "$N8N_ERR_DOCKER_NO_PERMISSION"
-        n8n::log_with_context "info" "docker" "$N8N_FIX_DOCKER_PERMISSION"
-        n8n::log_with_context "info" "docker" "Then log out and back in for changes to take effect"
-        return 1
-    fi
-    return 0
-}
+# Docker checking now handled by docker::check_daemon() from shared utilities
 
 # Container check functions are in utils.sh
 # Direct usage: n8n::container_exists_any and n8n::container_running

@@ -23,6 +23,4 @@ readonly N8N_FIX_CHECK_LOGS="Check logs: docker logs \$N8N_CONTAINER_NAME"
 readonly N8N_FIX_CHECK_PORT="Check if port is in use: lsof -i :\$N8N_PORT"
 readonly N8N_FIX_API_SETUP="Set up API key: \$0 --action api-setup"
 
-# Common Patterns
-readonly N8N_PATTERN_CONTAINER_CHECK='docker ps --format "{{.Names}}" | grep -q "^\${N8N_CONTAINER_NAME}\$"'
-readonly N8N_PATTERN_CONTAINER_EXISTS='docker ps -a --format "{{.Names}}" | grep -q "^\${N8N_CONTAINER_NAME}\$"'
+# Docker patterns now handled by docker::* functions from shared utilities

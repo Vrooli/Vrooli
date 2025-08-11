@@ -19,6 +19,7 @@ CONFIG_FILE=""
 ALL_ACTIVE="no"
 DRY_RUN="no"
 FORCE="no"
+INITIALIZATION_DIR=""
 
 #######################################
 # Display usage
@@ -28,7 +29,7 @@ usage() {
 Resource Data Injection Engine
 
 USAGE:
-    $0 [OPTIONS]
+    $0 [OPTIONS] [INITIALIZATION_DIRECTORY]
 
 OPTIONS:
     -a, --action ACTION        Action to perform (default: inject)
@@ -40,7 +41,15 @@ OPTIONS:
         --force               Force injection (yes/no, default: no)
     -h, --help                Show this help
 
+ARGUMENTS:
+    INITIALIZATION_DIRECTORY   Directory containing resource initialization files
+                              Structure: category/resource/files
+                              Example: initialization/automation/comfyui/
+
 EXAMPLES:
+    # Inject from initialization directory
+    $0 initialization/
+    
     # Inject specific scenario
     $0 --action inject --scenario scenario-name
     
@@ -88,9 +97,15 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         *)
-            log::error "Unknown option: $1"
-            usage
-            exit 1
+            # If it's a directory path, treat it as initialization directory
+            if [[ -d "$1" ]] || [[ "$1" =~ ^[^-] ]]; then
+                INITIALIZATION_DIR="$1"
+                shift
+            else
+                log::error "Unknown option: $1"
+                usage
+                exit 1
+            fi
             ;;
     esac
 done
@@ -235,11 +250,11 @@ process_scenario() {
     local failed=0
     for category in automation data storage ai; do
         local resources
-        resources=$(echo "$service_config" | jq -r ".resources.$category // {} | keys[]" 2>/dev/null || true)
+        resources=$(echo "$service_config" | jq -r --arg cat "$category" '.resources[$cat] // {} | keys[]' 2>/dev/null || true)
         
         for resource in $resources; do
             local resource_config
-            resource_config=$(echo "$service_config" | jq -c ".resources.$category.$resource")
+            resource_config=$(echo "$service_config" | jq -c --arg cat "$category" --arg res "$resource" '.resources[$cat][$res]')
             
             if ! inject_resource "$resource" "$resource_config" "$scenario_dir"; then
                 ((failed++))
@@ -252,6 +267,134 @@ process_scenario() {
         return 0
     else
         log::error "❌ Failed: $scenario_name ($failed errors)"
+        return 1
+    fi
+}
+
+#######################################
+# Process initialization directory
+#######################################
+process_initialization_directory() {
+    local init_dir="$1"
+    
+    if [[ ! -d "$init_dir" ]]; then
+        log::error "Initialization directory not found: $init_dir"
+        return 1
+    fi
+    
+    log::header "📁 Processing initialization directory: $init_dir"
+    
+    # Look for service.json in the parent directory
+    local service_json
+    if [[ -f "${init_dir}/../.vrooli/service.json" ]]; then
+        service_json="${init_dir}/../.vrooli/service.json"
+    elif [[ -f "${init_dir}/.vrooli/service.json" ]]; then
+        service_json="${init_dir}/.vrooli/service.json"
+    elif [[ -f "${PWD}/.vrooli/service.json" ]]; then
+        service_json="${PWD}/.vrooli/service.json"
+    else
+        log::info "No service.json found, proceeding with directory-based injection"
+        return process_directory_based_injection "$init_dir"
+    fi
+    
+    # If we have a service.json, process it normally using the directory containing it
+    local parent_dir="$(dirname "$(dirname "$service_json")")"
+    process_scenario "$parent_dir"
+}
+
+#######################################
+# Process directory-based injection (fallback when no service.json)
+#######################################
+process_directory_based_injection() {
+    local init_dir="$1"
+    
+    log::info "Scanning for resource data in: $init_dir"
+    
+    local failed=0
+    local processed=0
+    
+    # Walk through the directory structure looking for category/resource/files
+    for category_dir in "$init_dir"/*/; do
+        if [[ ! -d "$category_dir" ]]; then
+            continue
+        fi
+        
+        local category="$(basename "$category_dir")"
+        log::info "Processing category: $category"
+        
+        for resource_dir in "$category_dir"/*/; do
+            if [[ ! -d "$resource_dir" ]]; then
+                continue
+            fi
+            
+            local resource="$(basename "$resource_dir")"
+            log::info "Processing resource: $resource"
+            
+            # Find inject script
+            local inject_script
+            inject_script=$(find_inject_script "$resource")
+            
+            if [[ -z "$inject_script" ]] || [[ ! -x "$inject_script" ]]; then
+                log::debug "No injection script for: $resource"
+                continue
+            fi
+            
+            # Look for data files in the resource directory
+            local data_files=()
+            while IFS= read -r -d '' file; do
+                data_files+=("$file")
+            done < <(find "$resource_dir" -type f -print0 2>/dev/null)
+            
+            if [[ ${#data_files[@]} -eq 0 ]]; then
+                log::debug "No data files found in: $resource_dir"
+                continue
+            fi
+            
+            # Create basic initialization structure for each file
+            for file in "${data_files[@]}"; do
+                local relative_path="${file#$PWD/}"
+                local filename="$(basename "$file")"
+                local extension="${filename##*.}"
+                
+                # Determine type based on file extension
+                local file_type="workflow"
+                case "$extension" in
+                    "json") file_type="workflow" ;;
+                    "sql") file_type="script" ;;
+                    "sh"|"bash") file_type="script" ;;
+                    *) file_type="data" ;;
+                esac
+                
+                # Create JSON for this file
+                local init_data="{\"workflows\":[{\"file\":\"$relative_path\",\"type\":\"$file_type\",\"enabled\":true}]}"
+                
+                log::info "Injecting $resource from $filename..."
+                
+                if [[ "$DRY_RUN" == "yes" ]]; then
+                    log::info "[DRY RUN] Would inject $resource with $filename"
+                    ((processed++))
+                    continue
+                fi
+                
+                if "$inject_script" --inject "$init_data" 2>/dev/null; then
+                    log::success "✓ $resource ($filename)"
+                    ((processed++))
+                else
+                    log::error "✗ $resource ($filename)"
+                    ((failed++))
+                fi
+            done
+        done
+    done
+    
+    if [[ $processed -eq 0 && $failed -eq 0 ]]; then
+        log::info "No processable resource data found"
+        return 0
+    elif [[ $failed -eq 0 ]]; then
+        log::success "✅ Processed $processed items from initialization directory"
+        return 0
+    else
+        log::error "❌ Failed: $failed errors, $processed successful"
         return 1
     fi
 }
@@ -300,7 +443,10 @@ list_scenarios() {
 main() {
     case "$ACTION" in
         "inject")
-            if [[ "$ALL_ACTIVE" == "yes" ]]; then
+            if [[ -n "$INITIALIZATION_DIR" ]]; then
+                # Process initialization directory
+                process_initialization_directory "$INITIALIZATION_DIR"
+            elif [[ "$ALL_ACTIVE" == "yes" ]]; then
                 # Process all scenarios
                 for dir in "${DEFAULT_SCENARIOS_DIR}"/*/; do
                     if [[ -d "$dir" ]]; then
@@ -316,7 +462,7 @@ main() {
                 fi
                 process_scenario "$scenario_dir"
             else
-                log::error "Specify --scenario or --all-active"
+                log::error "Specify --scenario, --all-active, or provide initialization directory"
                 exit 1
             fi
             ;;
