@@ -150,7 +150,7 @@ substitute_secrets() {
 #######################################
 find_inject_script() {
     local resource="$1"
-    find "${var_SCRIPTS_RESOURCES_DIR}" -name "inject.sh" -path "*/${resource}/*" 2>/dev/null | head -1
+    find "${var_SCRIPTS_RESOURCES_DIR}" -name "inject.sh" -path "*/${resource}/lib/*" 2>/dev/null | head -1
 }
 
 #######################################

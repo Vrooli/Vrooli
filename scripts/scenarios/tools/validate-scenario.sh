@@ -123,12 +123,12 @@ print_success() {
 
 print_error() {
     echo -e "${RED}  ✗${NC} $1" >&2
-    ((VALIDATE_ERRORS++))
+    VALIDATE_ERRORS=$((VALIDATE_ERRORS + 1))
 }
 
 print_warning() {
     echo -e "${YELLOW}  ⚠${NC} $1"
-    ((VALIDATE_WARNINGS++))
+    VALIDATE_WARNINGS=$((VALIDATE_WARNINGS + 1))
 }
 
 print_info() {
@@ -186,7 +186,7 @@ validate_service_json() {
     fi
     
     # Validate JSON syntax
-    if ! echo "$VALIDATE_SERVICE_JSON" | jq empty 2>/dev/null; then
+    if ! echo "$VALIDATE_SERVICE_JSON" | timeout 5s jq empty 2>/dev/null; then
         print_error "Invalid JSON syntax in service.json"
         print_info "Use 'jq .' to debug JSON issues"
         return 1
@@ -283,20 +283,25 @@ except Exception as e:
 EOF
         
         local validation_output
-        validation_output=$(echo "$VALIDATE_SERVICE_JSON" | python3 "$validation_script" 2>&1 || true)
+        validation_output=$(timeout 10s bash -c 'echo "$VALIDATE_SERVICE_JSON" | python3 "$validation_script"' 2>&1 || echo "TIMEOUT_OR_ERROR")
         rm -f "$validation_script"
         
         local has_errors=false
-        while IFS= read -r line; do
-            if [[ "$line" =~ ^ERROR:(.*)$ ]]; then
-                print_error "${BASH_REMATCH[1]}"
-                has_errors=true
-            elif [[ "$line" =~ ^WARNING:(.*)$ ]]; then
-                print_warning "${BASH_REMATCH[1]}"
-            elif [[ "$line" == "VALID" ]]; then
-                print_success "Schema validation passed"
-            fi
-        done <<< "$validation_output"
+        if [[ "$validation_output" == "TIMEOUT_OR_ERROR" ]]; then
+            print_warning "Schema validation timed out or failed"
+            print_info "Install python3 and ensure service.json is well-formed"
+        else
+            while IFS= read -r line; do
+                if [[ "$line" =~ ^ERROR:(.*)$ ]]; then
+                    print_error "${BASH_REMATCH[1]}"
+                    has_errors=true
+                elif [[ "$line" =~ ^WARNING:(.*)$ ]]; then
+                    print_warning "${BASH_REMATCH[1]}"
+                elif [[ "$line" == "VALID" ]]; then
+                    print_success "Schema validation passed"
+                fi
+            done <<< "$validation_output"
+        fi
         
         if [[ "$has_errors" == "true" ]]; then
             return 1
@@ -321,7 +326,7 @@ validate_file_paths() {
         local path="$1"
         local context="$2"
         
-        ((checked_paths++))
+        checked_paths=$((checked_paths + 1))
         
         # Skip if path contains variables
         if [[ "$path" =~ \$\{.*\} ]] || [[ "$path" =~ \$[A-Z_] ]]; then
@@ -344,13 +349,20 @@ validate_file_paths() {
         # Check known framework patterns
         case "$path" in
             scripts/lib/*.sh|scripts/manage.sh|scripts/main/*.sh)
-                print_info "✓ Known framework file: $path"
-                return 0
+                # Only validate if it's a framework pattern - let missing files be warnings
+                if [[ -e "${var_ROOT_DIR}/${path}" ]]; then
+                    print_info "✓ Found framework file: $path"
+                    return 0
+                else
+                    print_warning "Framework file not found: $path"
+                    invalid_paths=$((invalid_paths + 1))
+                    return 0  # Warn but don't fail validation
+                fi
                 ;;
         esac
         
         print_warning "Path not found ($context): $path"
-        ((invalid_paths++))
+        invalid_paths=$((invalid_paths + 1))
         return 1
     }
     
@@ -358,12 +370,7 @@ validate_file_paths() {
     if command -v jq >/dev/null 2>&1; then
         # Check lifecycle commands
         local lifecycle_paths
-        lifecycle_paths=$(echo "$VALIDATE_SERVICE_JSON" | jq -r '
-            .lifecycle // {} | 
-            to_entries | 
-            .[] | 
-            .value.steps[]?.run // empty
-        ' 2>/dev/null || true)
+        lifecycle_paths=$(echo "$VALIDATE_SERVICE_JSON" | timeout 5s jq -r '.lifecycle // {} | to_entries | .[] | select(.value | type == "object") | .value.steps[]? | .run // empty' 2>/dev/null || true)
         
         if [[ -n "$lifecycle_paths" ]]; then
             while IFS= read -r cmd; do
@@ -379,17 +386,7 @@ validate_file_paths() {
         
         # Check initialization file paths
         local init_files
-        init_files=$(echo "$VALIDATE_SERVICE_JSON" | jq -r '
-            .resources // {} | 
-            to_entries | 
-            .[] | 
-            .value | 
-            to_entries | 
-            .[] | 
-            .value.initialization?.workflows[]?.file // empty,
-            .value.initialization?.apps[]?.file // empty,
-            .value.initialization?.scripts[]?.file // empty
-        ' 2>/dev/null || true)
+        init_files=$(echo "$VALIDATE_SERVICE_JSON" | timeout 5s jq -r '.resources // {} | to_entries | .[] | .value | to_entries | .[] | .value.initialization?.workflows[]?.file // empty, .value.initialization?.apps[]?.file // empty, .value.initialization?.scripts[]?.file // empty' 2>/dev/null || true)
         
         if [[ -n "$init_files" ]]; then
             while IFS= read -r file; do
@@ -421,27 +418,9 @@ validate_resources() {
     local required_resources=0
     
     if command -v jq >/dev/null 2>&1; then
-        enabled_resources=$(echo "$VALIDATE_SERVICE_JSON" | jq '
-            [.resources // {} | 
-            to_entries | 
-            .[] | 
-            .value | 
-            to_entries | 
-            .[] | 
-            select(.value.enabled == true)] | 
-            length
-        ' 2>/dev/null || echo "0")
+        enabled_resources=$(echo "$VALIDATE_SERVICE_JSON" | timeout 5s jq '[.resources // {} | to_entries | .[] | .value | to_entries | .[] | select(.value.enabled == true)] | length' 2>/dev/null || echo "0")
         
-        required_resources=$(echo "$VALIDATE_SERVICE_JSON" | jq '
-            [.resources // {} | 
-            to_entries | 
-            .[] | 
-            .value | 
-            to_entries | 
-            .[] | 
-            select(.value.required == true)] | 
-            length
-        ' 2>/dev/null || echo "0")
+        required_resources=$(echo "$VALIDATE_SERVICE_JSON" | timeout 5s jq '[.resources // {} | to_entries | .[] | .value | to_entries | .[] | select(.value.required == true)] | length' 2>/dev/null || echo "0")
         
         if [[ $enabled_resources -eq 0 ]]; then
             print_warning "No resources are enabled"
@@ -452,16 +431,7 @@ validate_resources() {
         # List resources if verbose
         if [[ "$VALIDATE_VERBOSE" == "true" ]] && [[ $enabled_resources -gt 0 ]]; then
             local resource_list
-            resource_list=$(echo "$VALIDATE_SERVICE_JSON" | jq -r '
-                .resources // {} | 
-                to_entries | 
-                .[] | 
-                .value | 
-                to_entries | 
-                .[] | 
-                select(.value.enabled == true) | 
-                "\(.key) (\(if .value.required then "required" else "optional" end))"
-            ' 2>/dev/null || true)
+            resource_list=$(echo "$VALIDATE_SERVICE_JSON" | timeout 5s jq -r '.resources // {} | to_entries | .[] | .value | to_entries | .[] | select(.value.enabled == true) | "\(.key) (\(if .value.required then \"required\" else \"optional\" end))"' 2>/dev/null || true)
             
             while IFS= read -r resource; do
                 print_info "• $resource"

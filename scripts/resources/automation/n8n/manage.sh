@@ -6,10 +6,10 @@ set -euo pipefail
 
 DESCRIPTION="Install and manage n8n workflow automation platform using Docker"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+N8N_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck disable=SC1091
-source "$(dirname "$(dirname "$(dirname "${SCRIPT_DIR}")")")/lib/utils/var.sh"
+source "$(dirname "$(dirname "$(dirname "${N8N_SCRIPT_DIR}")")")/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
@@ -17,28 +17,28 @@ source "${var_LIB_UTILS_DIR}/args-cli.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/defaults.sh"
+source "${N8N_SCRIPT_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/messages.sh"
+source "${N8N_SCRIPT_DIR}/config/messages.sh"
 
 # Export configuration
 n8n::export_config
 
 # Source all library modules
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/common.sh"
+source "${N8N_SCRIPT_DIR}/lib/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/docker.sh"
+source "${N8N_SCRIPT_DIR}/lib/docker.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/database.sh"
+source "${N8N_SCRIPT_DIR}/lib/database.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/password.sh"
+source "${N8N_SCRIPT_DIR}/lib/password.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/api.sh"
+source "${N8N_SCRIPT_DIR}/lib/api.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/status.sh"
+source "${N8N_SCRIPT_DIR}/lib/status.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/install.sh"
+source "${N8N_SCRIPT_DIR}/lib/install.sh"
 
 #######################################
 # Parse command line arguments
@@ -214,20 +214,10 @@ n8n::main() {
             n8n::save_api_key
             ;;
         inject)
-            if [[ -z "$INJECTION_CONFIG" ]]; then
-                log::error "Injection configuration required for inject action"
-                log::info "Use: --injection-config 'JSON_CONFIG'"
-                exit 1
-            fi
-            "${SCRIPT_DIR}/inject.sh" --inject "$INJECTION_CONFIG"
+            n8n::inject_data "$INJECTION_CONFIG"
             ;;
         validate-injection)
-            if [[ -z "$INJECTION_CONFIG" ]]; then
-                log::error "Injection configuration required for validate-injection action"
-                log::info "Use: --injection-config 'JSON_CONFIG'"
-                exit 1
-            fi
-            "${SCRIPT_DIR}/inject.sh" --validate "$INJECTION_CONFIG"
+            n8n::validate_injection "$INJECTION_CONFIG"
             ;;
         url)
             n8n::get_urls

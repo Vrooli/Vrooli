@@ -142,7 +142,7 @@ cd core/customer-call-assistant
 
 # Orchestrates:
 # ✅ Resource startup (via manage.sh scripts)
-# ✅ Data injection (via inject.sh scripts)
+# ✅ Data injection (via lib/inject.sh scripts)
 # ✅ Application services startup
 # ✅ Health monitoring and access URLs
 # ✅ Complete business functionality

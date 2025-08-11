@@ -30,7 +30,7 @@ The Resource Data Injection System extends Vrooli's resource management to autom
 
 1. **🎛️ Engine (`engine.sh`)**: Orchestrates injection across resources
 2. **📋 Validator (`schema-validator.sh`)**: Validates scenario configurations  
-3. **🔌 Adapters**: Co-located with each resource (e.g., `n8n/inject.sh`)
+3. **🔌 Adapters**: Co-located with each resource (e.g., `n8n/lib/inject.sh`)
 4. **📄 Schema**: Comprehensive JSON schema for validation
 
 ## 🚀 Quick Start
@@ -140,21 +140,21 @@ Scenarios are defined in `~/.vrooli/scenarios.json`:
 
 ## 🔌 Resource Adapter Interface
 
-Each resource implements a standardized injection adapter (`resource/inject.sh`):
+Each resource implements a standardized injection adapter (`resource/lib/inject.sh`):
 
 ```bash
 # Standard interface for all adapters
-./resource/inject.sh --validate CONFIG_JSON    # Validate injection config
-./resource/inject.sh --inject CONFIG_JSON     # Perform injection  
-./resource/inject.sh --status CONFIG_JSON     # Check injection status
-./resource/inject.sh --rollback CONFIG_JSON   # Rollback injection
+./resource/lib/inject.sh --validate CONFIG_JSON    # Validate injection config
+./resource/lib/inject.sh --inject CONFIG_JSON     # Perform injection  
+./resource/lib/inject.sh --status CONFIG_JSON     # Check injection status
+./resource/lib/inject.sh --rollback CONFIG_JSON   # Rollback injection
 ```
 
 ### Example: Direct Resource Injection
 
 ```bash
 # Inject workflows directly into n8n
-./scripts/resources/automation/n8n/inject.sh --inject '{
+./scripts/resources/automation/n8n/lib/inject.sh --inject '{
   "workflows": [
     {
       "name": "test-workflow",
@@ -165,7 +165,7 @@ Each resource implements a standardized injection adapter (`resource/inject.sh`)
 }'
 
 # Validate before injection
-./scripts/resources/automation/n8n/inject.sh --validate '{
+./scripts/resources/automation/n8n/lib/inject.sh --validate '{
   "workflows": [{"name": "test", "file": "test.json"}]
 }'
 ```
@@ -256,7 +256,7 @@ Every injection is validated before execution:
 ./scripts/scenarios/injection/engine.sh --action validate --scenario my-app
 
 # Resource-specific validation
-./scripts/resources/automation/n8n/inject.sh --validate CONFIG_JSON
+./scripts/resources/automation/n8n/lib/inject.sh --validate CONFIG_JSON
 ```
 
 ### Safe Operations
@@ -342,7 +342,7 @@ Real-time analytics with dashboards and data processing:
 
 ### Creating New Resource Adapters
 
-1. **Create injection adapter**: `resource/inject.sh`
+1. **Create injection adapter**: `resource/lib/inject.sh`
 2. **Implement standard interface**: `--validate|--inject|--status|--rollback`
 3. **Add to resource management**: Extend `resource/manage.sh`
 4. **Document configuration format**: Update schema if needed
@@ -352,7 +352,7 @@ See [Adapter Development Guide](docs/adapter-development.md) for details.
 ### Adding New Injection Types
 
 1. **Update JSON schema**: Add new injection type to `../../.vrooli/schemas/schema.json`
-2. **Implement in adapters**: Handle new type in relevant `inject.sh` scripts
+2. **Implement in adapters**: Handle new type in relevant `lib/inject.sh` scripts
 3. **Add examples**: Include in `../../.vrooli/schemas/defaults.json`
 4. **Update documentation**: Document the new injection type
 

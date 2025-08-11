@@ -221,7 +221,7 @@ scripts/tests/tmp
 
 # Local execution configuration
 .vrooli/*.local.json
-.vrooli/service.json
+.vrooli/secrets.json
 
 # Node-RED test artifacts
 node-red-flows-export-*.json

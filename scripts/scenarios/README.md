@@ -38,7 +38,7 @@ Instead of building every feature into one monolithic platform, Vrooli uses scen
 
 ### Resource-Based Architecture (NEW!)
 The scenario-to-app.sh script now uses **existing resource infrastructure**:
-- **Leverages Proven Systems**: Uses existing manage.sh and inject.sh scripts
+- **Leverages Proven Systems**: Uses existing manage.sh and lib/inject.sh scripts
 - **No Docker Generation**: Orchestrates local resources instead of creating containers
 - **One-Shot Experience**: Customer requirements → running app in minutes
 - **Battle-Tested**: Built on proven resource management from scripts/resources/
@@ -265,7 +265,7 @@ Scenarios integrate with Vrooli's AI architecture:
 The updated `./tools/scenario-to-app.sh` script converts scenarios into running applications using existing resource infrastructure:
 
 **Key Features:**
-- **Leverages Existing Infrastructure**: Uses proven manage.sh and inject.sh scripts
+- **Leverages Existing Infrastructure**: Uses proven manage.sh and lib/inject.sh scripts
 - **No Container Generation**: Orchestrates local resources instead of creating Docker configs
 - **Battle-Tested**: Built on existing resource management that already works
 - **One-Shot Experience**: Customer requirements → running app in minutes
@@ -274,7 +274,7 @@ The updated `./tools/scenario-to-app.sh` script converts scenarios into running 
 1. **Validation Phase**: Validates scenario structure and service.json
 2. **Resource Analysis**: Extracts required resources from configuration
 3. **Resource Startup**: Uses existing manage.sh scripts to start each resource
-4. **Data Injection**: Uses existing inject.sh scripts to initialize data
+4. **Data Injection**: Uses existing lib/inject.sh scripts to initialize data
 5. **Application Startup**: Runs scenario-specific startup scripts
 6. **Ready State**: Provides access URLs and keeps application running
 
@@ -287,7 +287,7 @@ Scenario Running State:
 │   ├── windmill (http://localhost:8000)
 │   ├── ollama (http://localhost:11434)
 │   └── ... (other resources as needed)
-├── Data Injection (via inject.sh)
+├── Data Injection (via lib/inject.sh)
 │   ├── Database schemas and seeds
 │   ├── n8n workflows
 │   ├── Windmill applications

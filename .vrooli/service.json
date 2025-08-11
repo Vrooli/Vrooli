@@ -1,0 +1,226 @@
+{
+  "$schema": "schemas/service.schema.json",
+  "version": "2.0.2",
+  "service": {
+    "name": "vrooli-dev",
+    "displayName": "Vrooli Development Environment",
+    "description": "Development environment for building and testing Vrooli scenarios - self-contained apps that extend the intelligence system",
+    "version": "2.0.2",
+    "type": "development-environment",
+    "category": "infrastructure",
+    "tags": [
+      "ai-platform",
+      "agent-swarms",
+      "recursive-improvement",
+      "automation",
+      "intelligence-system",
+      "self-improving"
+    ],
+    "maintainers": [
+      {
+        "name": "Vrooli Team",
+        "email": "team@vrooli.com",
+        "url": "https://github.com/Vrooli"
+      }
+    ],
+    "repository": {
+      "type": "git",
+      "url": "https://github.com/Vrooli/Vrooli",
+      "directory": "/"
+    },
+    "license": "AGPL-3.0-only",
+    "homepage": "https://github.com/Vrooli/Vrooli",
+    "documentation": "./docs/README.md",
+    "support": {
+      "email": "team@vrooli.com",
+      "issues": "https://github.com/Vrooli/Vrooli/issues"
+    }
+  },
+  "resources": {
+    "storage": {
+      "postgres": {
+        "type": "postgresql",
+        "enabled": true,
+        "version": "16",
+        "required": true,
+        "description": "Main application database"
+      },
+      "redis": {
+        "type": "redis",
+        "enabled": true,
+        "version": "7",
+        "required": true,
+        "description": "Event bus and caching layer"
+      }
+    },
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": false,
+        "description": "Local AI inference server"
+      }
+    },
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": false,
+        "required": false,
+        "description": "Workflow automation platform"
+      },
+      "windmill": {
+        "type": "windmill",
+        "enabled": false,
+        "required": false,
+        "description": "Developer platform for building automation apps"
+      },
+      "node-red": {
+        "type": "node-red",
+        "enabled": false,
+        "required": false,
+        "description": "Visual programming for IoT and automation"
+      }
+    },
+    "agents": {
+      "browserless": {
+        "type": "browserless",
+        "enabled": false,
+        "required": false,
+        "description": "Headless browser automation"
+      },
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": false,
+        "required": false,
+        "description": "Claude Code development assistant"
+      }
+    },
+    "search": {
+      "searxng": {
+        "type": "searxng",
+        "enabled": false,
+        "required": false,
+        "description": "Privacy-respecting search engine"
+      }
+    }
+  },
+  "deployment": {
+    "target": "docker",
+    "strategy": "rolling-update",
+    "urls": {
+      "application": "http://localhost:3000",
+      "api": "http://localhost:3000/api",
+      "health": "http://localhost:3000/api/health"
+    },
+    "monitoring": {
+      "enabled": true,
+      "healthChecks": {
+        "application": {
+          "endpoint": "http://localhost:3000/api/health",
+          "interval": "30s",
+          "timeout": "5s",
+          "threshold": 3
+        },
+        "database": {
+          "type": "tcp",
+          "port": 5432,
+          "interval": "30s"
+        },
+        "redis": {
+          "type": "tcp",
+          "port": 6379,
+          "interval": "30s"
+        }
+      }
+    }
+  },
+  "lifecycle": {
+    "version": "2.0.2",
+    "setup": {
+      "description": "Initialize system for scenario development",
+      "steps": [
+        {
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
+        },
+        {
+          "name": "add-data",
+          "run": "scripts/lib/resources/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "convert-scenarios",
+          "run": "./scripts/scenarios/auto-converter.sh",
+          "description": "Convert enabled scenarios to standalone apps",
+          "timeout": "5m"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Prepare development environment",
+      "steps": [
+        {
+          "name": "check-ports",
+          "run": "for port in 3000 3001 5432 6379 8080 8081; do lsof -i :$port >/dev/null 2>&1 && echo \"⚠️  Port $port is already in use\" || true; done",
+          "description": "Check common development ports"
+        },
+        {
+          "name": "load-env",
+          "run": "[[ -f .env ]] && (echo 'Loading .env file' && set -a && source .env && set +a) || echo 'No .env file found'",
+          "description": "Load environment variables from .env if exists"
+        },
+        {
+          "name": "show-generated-apps",
+          "run": "if [[ -d \"$HOME/generated-apps\" ]]; then echo '\\nGenerated apps ready to start:'; ls -1 \"$HOME/generated-apps\" 2>/dev/null | sed 's/^/  📱 /' || echo '  (No apps generated yet)'; echo '\\n🚀 To start an app:'; echo '  cd ~/generated-apps/<app-name>'; echo '  ./scripts/manage.sh develop'; else echo '\\n⚠️  No generated apps found. Run setup first to auto-convert scenarios.'; fi",
+          "description": "Show available generated apps and startup instructions"
+        }
+      ]
+    },
+    "build": {
+      "description": "Prepare build environment",
+      "steps": [
+        {
+          "name": "create-directories",
+          "run": "mkdir -p build dist",
+          "description": "Create build and dist directories"
+        },
+        {
+          "name": "set-build-env",
+          "run": "export BUILD_TIME=\"$(date -u +'%Y-%m-%dT%H:%M:%SZ')\" && export BUILD_ENV=\"${ENVIRONMENT:-development}\" && echo \"Build environment: $BUILD_ENV at $BUILD_TIME\"",
+          "description": "Set build environment variables"
+        }
+      ]
+    },
+    "test": {
+      "description": "Prepare test environment",
+      "steps": [
+        {
+          "name": "set-test-env",
+          "run": "export NODE_ENV=test && export CI=${CI:-false} && echo \"Test environment: NODE_ENV=$NODE_ENV, CI=$CI\"",
+          "description": "Set test environment variables"
+        }
+      ]
+    },
+    "deploy": {
+      "description": "Deployment preparation",
+      "steps": [
+        {
+          "name": "show-deploy-info",
+          "run": "echo 'Scenarios should be deployed individually from their directories'",
+          "description": "Deployment information"
+        }
+      ]
+    },
+    "clean": {
+      "description": "Clean build artifacts and dependencies",
+      "steps": [
+        {
+          "name": "run-clean",
+          "run": "rm -rf packages/*/dist packages/*/build packages/*/.next node_modules packages/*/node_modules || true",
+          "description": "Remove build artifacts and dependencies"
+        }
+      ]
+    }
+  }
+}

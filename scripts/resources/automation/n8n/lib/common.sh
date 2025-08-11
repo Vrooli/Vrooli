@@ -458,3 +458,198 @@ n8n::check_requirements() {
     
     return $missing
 }
+
+#######################################
+# Simplified injection wrapper with built-in validation
+# Arguments:
+#   $1 - injection configuration JSON
+# Returns:
+#   0 if successful, 1 if failed
+#######################################
+n8n::inject_data() {
+    local config="$1"
+    
+    if [[ -z "$config" ]]; then
+        log::error "Injection configuration required"
+        log::info "Use: --injection-config 'JSON_CONFIG'"
+        return 1
+    fi
+    
+    # Framework handles all validation and error handling
+    "${SCRIPT_DIR}/lib/inject.sh" --inject "$config"
+}
+
+#######################################
+# Simplified injection validation wrapper
+# Arguments:
+#   $1 - injection configuration JSON
+# Returns:
+#   0 if valid, 1 if invalid
+#######################################
+n8n::validate_injection() {
+    local config="$1"
+    
+    if [[ -z "$config" ]]; then
+        log::error "Injection configuration required for validation"
+        log::info "Use: --injection-config 'JSON_CONFIG'"
+        return 1
+    fi
+    
+    # Framework handles all validation logic
+    "${SCRIPT_DIR}/lib/inject.sh" --validate "$config"
+}
+
+#######################################
+# Tiered health check with API functionality validation
+# Returns: 
+#   0 = HEALTHY (fully functional with API auth)
+#   1 = DEGRADED (container healthy, but API unusable) 
+#   2 = UNHEALTHY (container or basic health issues)
+# Outputs: Health tier (HEALTHY/DEGRADED/UNHEALTHY)
+#######################################
+n8n::tiered_health_check() {
+    # Tier 1: Basic container and endpoint health
+    if ! n8n::is_running; then
+        echo "UNHEALTHY"
+        return 2
+    fi
+    
+    # Check basic healthz endpoint
+    if ! n8n::is_healthy >/dev/null 2>&1; then
+        echo "UNHEALTHY" 
+        return 2
+    fi
+    
+    # Tier 2: API functionality validation
+    local api_key
+    if ! api_key=$(secrets::resolve "N8N_API_KEY" 2>/dev/null); then
+        api_key="${N8N_API_KEY:-}"
+    fi
+    
+    if [[ -z "$api_key" ]]; then
+        # No API key configured - container works but automation unusable
+        echo "DEGRADED"
+        return 1
+    fi
+    
+    # Test API authentication with configured key
+    local workflows_response
+    workflows_response=$(curl -s -w "%{http_code}" -o /dev/null \
+        -H "X-N8N-API-KEY: $api_key" \
+        -H "Accept: application/json" \
+        "${N8N_BASE_URL}/api/v1/workflows?limit=1" 2>/dev/null || echo "000")
+    
+    if [[ "$workflows_response" == "200" ]]; then
+        # API key works and can access workflows - fully functional
+        echo "HEALTHY"
+        return 0
+    elif [[ "$workflows_response" == "401" ]]; then
+        # API key invalid/expired - automation unusable
+        echo "DEGRADED" 
+        return 1
+    else
+        # API endpoint not responding properly
+        echo "UNHEALTHY"
+        return 2
+    fi
+}
+
+#######################################
+# Enhanced status with tiered health reporting
+# Provides clear feedback about what works vs what's missing
+#######################################
+n8n::enhanced_status() {
+    log::header "📊 n8n Enhanced Status Check"
+    
+    # Get tiered health status
+    local health_tier
+    local health_code
+    health_tier=$(n8n::tiered_health_check)
+    health_code=$?
+    
+    # Report container basics
+    if n8n::container_exists; then
+        if n8n::is_running; then
+            log::success "✅ Container: Running ($N8N_CONTAINER_NAME)"
+            
+            # Container stats
+            local stats
+            stats=$(docker stats "$N8N_CONTAINER_NAME" --no-stream --format "CPU: {{.CPUPerc}} | Memory: {{.MemUsage}}" 2>/dev/null || echo "")
+            if [[ -n "$stats" ]]; then
+                log::info "   Resource usage: $stats"
+            fi
+        else
+            log::error "❌ Container: Exists but not running"
+            return 2
+        fi
+    else
+        log::error "❌ Container: Not found"
+        return 2
+    fi
+    
+    # Report health tier with actionable feedback
+    case "$health_tier" in
+        "HEALTHY")
+            log::success "✅ Health Tier: HEALTHY (Fully Functional)"
+            log::success "   - Basic health: OK"
+            log::success "   - API authentication: OK" 
+            log::success "   - Workflow access: OK"
+            echo
+            log::info "🎉 n8n is ready for automation!"
+            ;;
+        "DEGRADED")
+            log::warn "⚠️  Health Tier: DEGRADED (Limited Functionality)"
+            log::success "   - Basic health: OK"
+            log::error "   - API authentication: MISSING"
+            log::error "   - Workflow access: UNAVAILABLE"
+            echo
+            log::error "❌ n8n cannot be used for automation without API key"
+            echo
+            log::info "🔧 To fix:"
+            log::info "   1. Access n8n at $N8N_BASE_URL"
+            log::info "   2. Go to Settings → n8n API → Create API key"
+            log::info "   3. Save key: $0 --action save-api-key --api-key YOUR_KEY"
+            log::info "   4. Or set: export N8N_API_KEY=your_key"
+            ;;
+        "UNHEALTHY") 
+            log::error "❌ Health Tier: UNHEALTHY (Non-Functional)"
+            log::error "   - Basic health: FAILED"
+            log::error "   - API authentication: UNTESTED"
+            log::error "   - Workflow access: UNAVAILABLE"
+            echo
+            log::error "❌ n8n has serious issues preventing operation"
+            log::info "🔧 Try: $0 --action restart"
+            ;;
+    esac
+    
+    # Additional service details
+    echo
+    log::info "Service Details:"
+    log::info "  Web UI: $N8N_BASE_URL"
+    log::info "  Health Check: $N8N_BASE_URL/healthz"
+    log::info "  API Endpoint: $N8N_BASE_URL/api/v1"
+    
+    # Authentication details
+    local auth_active
+    auth_active=$(docker inspect "$N8N_CONTAINER_NAME" --format='{{range .Config.Env}}{{if eq (index (split . "=") 0) "N8N_BASIC_AUTH_ACTIVE"}}{{index (split . "=") 1}}{{end}}{{end}}' 2>/dev/null)
+    
+    if [[ "$auth_active" == "true" ]]; then
+        local auth_user
+        auth_user=$(docker inspect "$N8N_CONTAINER_NAME" --format='{{range .Config.Env}}{{if eq (index (split . "=") 0) "N8N_BASIC_AUTH_USER"}}{{index (split . "=") 1}}{{end}}{{end}}' 2>/dev/null)
+        log::info "  Web Auth: Enabled (user: ${auth_user:-admin})"
+    else
+        log::warn "  Web Auth: Disabled"
+    fi
+    
+    # API key status
+    local api_key_status="Not configured"
+    local api_key
+    if api_key=$(secrets::resolve "N8N_API_KEY" 2>/dev/null) || api_key="${N8N_API_KEY:-}"; then
+        if [[ -n "$api_key" ]]; then
+            api_key_status="Configured (${#api_key} chars)"
+        fi
+    fi
+    log::info "  API Key: $api_key_status"
+    
+    return $health_code
+}

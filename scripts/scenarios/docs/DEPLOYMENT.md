@@ -113,7 +113,7 @@ cd ~/generated-apps/research-assistant
 
 # The app will:
 # 1. Start required resources based on service.json
-# 2. Inject initialization data using resource inject.sh scripts  
+# 2. Inject initialization data using resource lib/inject.sh scripts  
 # 3. Provide access URLs when ready
 ```
 

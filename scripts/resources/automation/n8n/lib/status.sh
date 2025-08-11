@@ -3,102 +3,45 @@
 # Status checking, health monitoring, and information display
 
 #######################################
-# Show n8n status
+# Show n8n status with enhanced tiered health check
 #######################################
 n8n::status() {
-    log::header "📊 n8n Status"
-    
-    # Check Docker
+    # Pre-flight checks
     if ! system::is_command "docker"; then
         log::error "Docker is not installed"
+        log::info "Please install Docker first: https://docs.docker.com/get-docker/"
         return 1
     fi
     
     if ! docker info >/dev/null 2>&1; then
         log::error "Docker daemon is not running"
+        log::info "Start Docker with: sudo systemctl start docker"
         return 1
     fi
     
-    # Check container status
-    if n8n::container_exists; then
-        if n8n::is_running; then
-            log::success "✅ n8n container is running"
-            
-            # Get container stats
-            local stats
-            stats=$(docker stats "$N8N_CONTAINER_NAME" --no-stream --format "CPU: {{.CPUPerc}} | Memory: {{.MemUsage}}" 2>/dev/null || echo "")
-            if [[ -n "$stats" ]]; then
-                log::info "Resource usage: $stats"
-            fi
-            
-            # Check health with comprehensive diagnostics
-            if n8n::is_healthy; then
-                log::success "✅ n8n API is healthy"
-                
-                # Run comprehensive health check
-                if n8n::comprehensive_health_check; then
-                    log::success "✅ Comprehensive health check passed"
-                else
-                    log::warn "⚠️  Some health issues detected (check logs)"
-                fi
-            else
-                log::warn "⚠️  n8n API health check failed"
-                
-                # Try to diagnose the issue
-                if ! n8n::detect_filesystem_corruption; then
-                    log::error "❌ Filesystem corruption detected"
-                    log::info "Run with --action restart to attempt automatic recovery"
-                fi
-            fi
-            
-            # Additional details
-            echo
-            log::info "n8n Details:"
-            log::info "  Web UI: $N8N_BASE_URL"
-            log::info "  Container: $N8N_CONTAINER_NAME"
-            
-            # Get environment info
-            local auth_active
-            auth_active=$(docker inspect "$N8N_CONTAINER_NAME" --format='{{range .Config.Env}}{{if eq (index (split . "=") 0) "N8N_BASIC_AUTH_ACTIVE"}}{{index (split . "=") 1}}{{end}}{{end}}' 2>/dev/null)
-            
-            if [[ "$auth_active" == "true" ]]; then
-                local auth_user
-                auth_user=$(docker inspect "$N8N_CONTAINER_NAME" --format='{{range .Config.Env}}{{if eq (index (split . "=") 0) "N8N_BASIC_AUTH_USER"}}{{index (split . "=") 1}}{{end}}{{end}}' 2>/dev/null)
-                log::info "  Authentication: Enabled (user: ${auth_user:-unknown})"
-            else
-                log::warn "  Authentication: Disabled"
-            fi
-            
-            # Database info
-            if docker ps --format '{{.Names}}' | grep -q "^${N8N_DB_CONTAINER_NAME}$"; then
-                log::info "  Database: PostgreSQL (running)"
-            else
-                local db_type
-                db_type=$(docker inspect "$N8N_CONTAINER_NAME" --format='{{range .Config.Env}}{{if eq (index (split . "=") 0) "DB_TYPE"}}{{index (split . "=") 1}}{{end}}{{end}}' 2>/dev/null)
-                log::info "  Database: ${db_type:-sqlite}"
-            fi
-            
-            # Show logs command
-            echo
-            log::info "View logs: $0 --action logs"
-        else
-            log::warn "⚠️  n8n container exists but is not running"
-            log::info "Start with: $0 --action start"
-        fi
-    else
-        log::error "❌ n8n is not installed"
-        log::info "Install with: $0 --action install"
-    fi
+    # Use enhanced status with tiered health check
+    n8n::enhanced_status
+    local result=$?
     
-    # Check for PostgreSQL
+    # Show PostgreSQL status if relevant
     if docker ps -a --format '{{.Names}}' | grep -q "^${N8N_DB_CONTAINER_NAME}$"; then
         echo
+        log::info "PostgreSQL Database:"
         if docker ps --format '{{.Names}}' | grep -q "^${N8N_DB_CONTAINER_NAME}$"; then
-            log::info "PostgreSQL Status: ✅ Running"
+            log::success "  Status: ✅ Running"
         else
-            log::warn "PostgreSQL Status: ⚠️  Stopped"
+            log::warn "  Status: ⚠️  Stopped"
         fi
     fi
+    
+    # Show helpful commands
+    echo
+    log::info "Available Commands:"
+    log::info "  View logs: $0 --action logs"
+    log::info "  Restart: $0 --action restart"
+    log::info "  Full test: $0 --action test"
+    
+    return $result
 }
 
 #######################################
