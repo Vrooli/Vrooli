@@ -52,11 +52,20 @@ var (
 )
 
 func init() {
-	// Load configuration from environment
+	// Load configuration from environment variables
+	// When run via `manage.sh develop`, these are set by service.json:
+	//   - PORT: Dynamically allocated from range 8090-8999 as $SERVICE_PORT
+	//   - N8N_BASE_URL: Built using ${RESOURCE_PORTS[n8n]} from port_registry.sh (5678)
+	//   - WINDMILL_BASE_URL: Built using ${RESOURCE_PORTS[windmill]} from port_registry.sh (5681)
+	// 
+	// The hardcoded defaults below are ONLY used as fallbacks when:
+	//   - Running the binary directly without manage.sh (development/testing)
+	//   - Environment variables fail to be set (error condition)
+	// In normal operation via manage.sh, the environment variables are always set.
 	config = Config{
 		Port:              getEnv("PORT", "8093"),
 		N8nBase:          getEnv("N8N_BASE_URL", "http://localhost:5678"),
-		WindmillBase:     getEnv("WINDMILL_BASE_URL", "http://localhost:8000"),
+		WindmillBase:     getEnv("WINDMILL_BASE_URL", "http://localhost:5681"),
 		WindmillWorkspace: getEnv("WINDMILL_WORKSPACE", "demo"),
 	}
 

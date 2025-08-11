@@ -1,68 +1,121 @@
 # Agent Metareasoning Manager
 
-A **minimal coordination API** built in Go that enhances AI agent decision-making through structured reasoning patterns and workflows.
+> **A lightweight Go API that orchestrates AI reasoning workflows, providing structured decision-making patterns for Vrooli agents**
 
-## 🎯 **What It Does**
+## 📝 **Overview**
 
-This scenario provides metareasoning capabilities to AI agents by orchestrating reasoning workflows through n8n and Windmill. Instead of complex business logic in code, it acts as a **lightweight coordination layer** that lets workflows handle the actual reasoning.
+This scenario enhances Vrooli's AI agents with sophisticated metareasoning capabilities—the ability to think about thinking. It provides a minimal coordination layer (8MB Go binary) that orchestrates complex reasoning workflows through n8n and Windmill, enabling agents to:
+
+- Analyze decisions with multiple reasoning frameworks
+- Self-review and improve their own reasoning
+- Track performance metrics and learn from past decisions
+- Share reasoning patterns across the entire Vrooli ecosystem
 
 ## ⚡ **Architecture** 
 
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────────┐
-│                 │    │                  │    │                     │
-│   CLI Client    ├────► Go Coordination  ├────► n8n/Windmill       │
-│                 │    │ API (8MB binary) │    │ Reasoning Workflows │
-│                 │    │                  │    │                     │
-└─────────────────┘    └──────────────────┘    └─────────────────────┘
-                                │                         │
-                                │                         │
-                                ▼                         ▼
-                       ┌──────────────────┐    ┌─────────────────────┐
-                       │                  │    │                     │
-                       │  Workflow Config │    │   Ollama LLM        │
-                       │  (JSON Registry) │    │   Local Inference   │
-                       │                  │    │                     │
-                       └──────────────────┘    └─────────────────────┘
+```mermaid
+flowchart TB
+    subgraph "Client Layer"
+        CLI[CLI Client<br/>metareasoning]
+        API_CLIENT[API Clients<br/>HTTP/REST]
+    end
+    
+    subgraph "Coordination Layer"
+        GO_API[Go Coordination API<br/>8MB Binary<br/>Port: SERVICE_PORT]
+        WORKFLOWS_JSON[(workflows.json<br/>Registry)]
+    end
+    
+    subgraph "Workflow Orchestration"
+        N8N[n8n Workflows<br/>5 Reasoning Patterns]
+        WINDMILL[Windmill Apps<br/>UI & Orchestration]
+    end
+    
+    subgraph "AI Processing"
+        OLLAMA[Ollama LLM<br/>Local Inference<br/>llama3.2, mistral, codellama]
+    end
+    
+    subgraph "Data Storage"
+        POSTGRES[(PostgreSQL<br/>Execution History<br/>Metrics)]
+        QDRANT[(Qdrant<br/>Vector Embeddings<br/>Semantic Search)]
+    end
+    
+    CLI -->|Request| GO_API
+    API_CLIENT -->|Request| GO_API
+    GO_API <-->|Config| WORKFLOWS_JSON
+    GO_API -->|Webhook| N8N
+    GO_API -->|Job| WINDMILL
+    N8N -->|Inference| OLLAMA
+    WINDMILL -->|Inference| OLLAMA
+    N8N -->|Store| POSTGRES
+    WINDMILL -->|Store| POSTGRES
+    N8N -->|Embeddings| QDRANT
+    WINDMILL -->|Embeddings| QDRANT
+    
+    style GO_API fill:#e1bee7,stroke:#333,stroke-width:2px
+    style OLLAMA fill:#b3e5fc,stroke:#333,stroke-width:2px
+    style N8N fill:#fff9c4,stroke:#333,stroke-width:2px
+    style WINDMILL fill:#fff9c4,stroke:#333,stroke-width:2px
 ```
 
 ## 🚀 **Key Features**
 
-- **Minimal Footprint**: Single 8MB Go binary (vs 100MB+ Node.js apps)
-- **Direct Workflow Integration**: Calls n8n webhooks and Windmill jobs directly
-- **No Database Required**: Uses simple JSON configuration files
+- **Lightweight**: Single 8MB Go binary with fast startup (<0.5s)
 - **5 Reasoning Patterns**: Pros/cons, SWOT, risk assessment, decision analysis, self-review
-- **CLI Interface**: `metareasoning` command for easy interaction
-- **Cross-Platform**: Linux, macOS, Windows support
+- **Multiple Interfaces**: REST API, CLI tool, and Windmill UI dashboards
+- **Performance Tracking**: Built-in metrics and execution history
+- **Semantic Search**: Vector embeddings for pattern matching
+- **Authentication**: Token-based API security
 
 ## 📋 **Available Analysis Types**
 
-1. **Pros/Cons Analysis**: Weighted advantages vs disadvantages with scoring
-2. **SWOT Analysis**: Strategic strengths, weaknesses, opportunities, threats  
-3. **Risk Assessment**: Probability × Impact analysis with mitigation strategies
-4. **Decision Analysis**: Multi-factor decision support with recommendations
-5. **Self-Review**: Iterative reasoning validation and improvement
+| Pattern | Description | Use Case |
+|---------|-------------|----------|
+| **Pros/Cons** | Weighted advantages vs disadvantages | Feature decisions, trade-offs |
+| **SWOT** | Strengths, Weaknesses, Opportunities, Threats | Strategic planning, market analysis |
+| **Risk Assessment** | Probability × Impact with mitigations | Project planning, change management |
+| **Decision Analysis** | Multi-factor scoring with recommendations | Complex choices, vendor selection |
+| **Self-Review** | Iterative reasoning validation | Critical decisions, quality assurance |
 
 ## 🛠️ **Quick Start**
 
+### **Prerequisites**
+```bash
+# Ensure required Ollama models are available
+ollama pull llama3.2     # Primary reasoning model
+ollama pull mistral      # Alternative model for comparison
+ollama pull codellama    # Code-specific reasoning
+
+# Verify models are downloaded
+ollama list | grep -E "llama3.2|mistral|codellama"
+```
+
 ### **Setup**
 ```bash
-# Install via Vrooli lifecycle system
-./scripts/manage.sh setup --target native-linux
+# Navigate to the scenario directory
+cd /path/to/vrooli/scripts/scenarios/core/agent-metareasoning-manager
 
-# This automatically:
-# - Installs Go runtime if needed
-# - Builds the 8MB coordination API binary  
-# - Sets up n8n workflows and Windmill apps
-# - Installs global 'metareasoning' CLI command
+# Run setup lifecycle phase (with target environment specification)
+../../manage.sh setup --target native-linux
+
+# This automatically executes the steps defined in .vrooli/service.json:
+# - Executes generic setup (network, system, git)
+# - Adds app data to resources  
+# - Installs CLI command globally as 'metareasoning'
+# - Builds the 8MB Go coordination API binary
+# - Displays service access URLs with dynamic ports
 ```
 
 ### **Usage**
 ```bash
-# Start the system
-./scripts/manage.sh develop
+# Start the development environment
+../../manage.sh develop --target native-linux
 
-# Use the CLI
+# The 'develop' phase starts:
+# - Go API server on dynamic $SERVICE_PORT
+# - Connects to n8n on ${RESOURCE_PORTS[n8n]} 
+# - Connects to Windmill on ${RESOURCE_PORTS[windmill]}
+
+# Use the CLI (after setup)
 metareasoning health                                    # Check system status
 metareasoning api                                       # Show API info
 metareasoning analyze pros-cons "Remote work policy"   # Run analysis
@@ -71,16 +124,35 @@ metareasoning workflow list                             # Show available workflo
 
 ### **API Direct Usage**
 ```bash
+# Get the actual ports from the running system
+SERVICE_PORT=$(../../resources/port_registry.sh --action get --service agent-metareasoning-manager)
+N8N_PORT=$(../../resources/port_registry.sh --action get --service n8n)
+WINDMILL_PORT=$(../../resources/port_registry.sh --action get --service windmill)
+
 # Health check
-curl http://localhost:8093/health
+curl http://localhost:$SERVICE_PORT/health
 
 # List workflows
-curl http://localhost:8093/workflows
+curl http://localhost:$SERVICE_PORT/workflows
 
-# Run analysis
-curl -X POST http://localhost:8093/analyze/pros-cons \
+# Run analysis (requires authentication)
+curl -X POST http://localhost:$SERVICE_PORT/analyze/pros-cons \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer metareasoning_cli_default_2024" \
   -d '{"input": "Should we migrate to microservices?", "context": "Legacy monolith"}'
+```
+
+### **Available Lifecycle Commands**
+All lifecycle phases are defined in `.vrooli/service.json`:
+```bash
+../../manage.sh setup    # Initialize scenario and build components
+../../manage.sh develop  # Start development environment  
+../../manage.sh test     # Run scenario tests
+../../manage.sh stop     # Stop all scenario services
+
+# Each command accepts options:
+../../manage.sh <phase> --target <environment>  # native-linux, docker, k8s, etc.
+../../manage.sh <phase> --help                  # Show phase-specific options
 ```
 
 ## 📁 **Project Structure**
@@ -103,84 +175,148 @@ agent-metareasoning-manager/
 
 ## 🔄 **How It Works**
 
-1. **CLI/API Request**: User requests analysis via CLI or direct API
-2. **Workflow Dispatch**: Go API identifies appropriate n8n/Windmill workflow
-3. **LLM Processing**: Workflow calls Ollama for actual reasoning
-4. **Result Processing**: Structured results returned via API
-5. **Response**: Formatted output delivered to user
+1. **Request**: User sends analysis request via CLI or REST API
+2. **Routing**: Go API looks up workflow type in `workflows.json` registry
+3. **Orchestration**: Request forwarded to n8n webhook or Windmill job
+4. **AI Processing**: Workflow invokes Ollama LLM for reasoning
+5. **Storage**: Results saved to PostgreSQL, embeddings to Qdrant
+6. **Response**: Structured JSON results returned to client
 
-## 🎯 **Cross-Application Benefits**
+## 🎯 **Extension Points**
 
-### **Easy Extension**
-- **Add New Patterns**: Just add new n8n workflow + registry entry
-- **Share Workflows**: Other apps can use same reasoning patterns
-- **No Code Changes**: All logic in workflows, not API code
-
-### **Resource Efficiency**
-- **Single Binary**: No complex runtime dependencies
-- **Fast Startup**: <0.5s vs 5-8s for Node.js equivalents
-- **Low Memory**: 8MB binary vs 100MB+ typical alternatives
+- **Add Reasoning Patterns**: Create n8n workflow → Add to `workflows.json` → Ready to use
+- **Custom Models**: Configure different Ollama models per workflow type
+- **UI Dashboards**: Build Windmill apps that consume the API
+- **Semantic Search**: Leverage Qdrant embeddings for pattern matching
 
 ## 🧪 **Testing**
 
+### **Quick Testing with Helper Script**
 ```bash
-# Build test
-./scripts/manage.sh test
+# Use the test helper for rapid validation
+./test-helper.sh health    # Check all services are running
+./test-helper.sh api       # Test API endpoints
+./test-helper.sh cli       # Test CLI functionality  
+./test-helper.sh workflows # List deployed n8n workflows
+./test-helper.sh quick     # Run quick smoke tests
+./test-helper.sh full      # Run complete test suite
+```
 
-# Manual testing
+### **Standard Lifecycle Testing**
+```bash
+# Run the test lifecycle phase (defined in .vrooli/service.json)
+../../manage.sh test --target native-linux
+
+# This executes:
+# - Go compilation test
+# - API health endpoint test
+# - Workflows endpoint test  
+# - Analysis endpoint test
+# - CLI test suite (if bats file exists)
+```
+
+### **Manual Testing Examples**
+```bash
+# After 'develop' is running, test CLI commands
 metareasoning analyze decision "Should we adopt GraphQL?"
 metareasoning analyze swot "Our SaaS product" "competitive market"
+metareasoning analyze risk-assessment "Cloud migration" "Limited budget"
+
+# Test API directly (remember authentication!)
+curl -X POST http://localhost:$SERVICE_PORT/analyze/self-review \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer metareasoning_cli_default_2024" \
+  -d '{"decision": "Implement microservices", "iterations": 3}'
+```
+
+### **Comprehensive Scenario Testing**
+```bash
+# Run the full scenario test suite
+cd ../.. && ./tools/scenario-to-app.sh test agent-metareasoning-manager
+
+# Or use the scenario test YAML directly
+../../scenarios/tests/runner.sh agent-metareasoning-manager/scenario-test.yaml
 ```
 
 ## 🔧 **Configuration**
 
-The API uses environment variables for configuration:
+The API uses environment variables for configuration (automatically set by service.json):
 
 ```bash
-export PORT=8093                                    # API port
-export N8N_BASE_URL=http://localhost:5678          # n8n instance
-export WINDMILL_BASE_URL=http://localhost:8000     # Windmill instance
-export WINDMILL_WORKSPACE=demo                     # Windmill workspace
+# These are set dynamically during 'develop' phase:
+export PORT=$SERVICE_PORT                                          # Dynamic API port
+export N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]}       # n8n instance
+export WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} # Windmill instance
+export WINDMILL_WORKSPACE=demo                                    # Windmill workspace
+
+# To get actual runtime ports:
+source ../../resources/port_registry.sh
+echo "n8n port: ${RESOURCE_PORTS[n8n]}"
+echo "Windmill port: ${RESOURCE_PORTS[windmill]}"
 ```
 
 CLI configuration is stored in `~/.metareasoning/config.json`:
 
 ```json
 {
-  "api_base": "http://localhost:8093",
+  "api_base": "http://localhost:${SERVICE_PORT}",
   "default_format": "table",
-  "api_token": "",
+  "api_token": "metareasoning_cli_default_2024",
   "created_at": "2024-01-01T00:00:00Z"
 }
 ```
 
-## ⚡ **Why Go Instead of Node.js?**
+**Note:** The CLI should auto-detect the service port from the running API, or you can manually update the config file after deployment.
 
-| **Aspect** | **Go** | **Node.js** |
-|------------|--------|-------------|
-| **Binary Size** | 8MB single file | 100MB+ with node_modules |
-| **Startup Time** | <0.5 seconds | 5-8 seconds |
-| **Memory Usage** | ~10MB | ~50-100MB |
-| **Dependencies** | 2 packages | 15+ packages |
-| **Deployment** | Copy single binary | Complex runtime setup |
-| **Cross-platform** | Single build → all platforms | Platform-specific considerations |
+## 🔍 **Troubleshooting & Testing Tips**
 
-## 🎯 **Perfect for Scenarios**
+### **Port Discovery**
+```bash
+# Find what ports are actually in use
+../../resources/port_registry.sh --action list
 
-This demonstrates the Vrooli principle: **scenarios should orchestrate, not implement**. By keeping business logic in workflows and using a minimal coordination layer, we get:
+# Check if services are running on expected ports
+lsof -i :${RESOURCE_PORTS[n8n]}       # Should show n8n
+lsof -i :${RESOURCE_PORTS[windmill]}  # Should show Windmill
+lsof -i :$SERVICE_PORT                 # Should show Go API
+```
 
-- ✅ **90% less code** to maintain
-- ✅ **Better performance** and resource usage  
-- ✅ **Easier extension** by other applications
-- ✅ **Simpler deployment** and scaling
-- ✅ **Cross-application sharing** of reasoning patterns
+### **Service Health Checks**
+```bash
+# Check each service independently
+curl -f http://localhost:${RESOURCE_PORTS[n8n]}/healthz       # n8n health
+curl -f http://localhost:${RESOURCE_PORTS[windmill]}/api/version # Windmill
+curl -f http://localhost:$SERVICE_PORT/health                  # Go API
+```
+
+### **Common Issues**
+
+| **Issue** | **Solution** |
+|-----------|-------------|
+| **Port conflicts** | Check `../../resources/port_registry.sh --action check` for conflicts |
+| **Go build fails** | Ensure Go 1.21+ is installed: `go version` |
+| **CLI not found** | Re-run setup: `../../manage.sh setup --target native-linux` |
+| **Workflows missing** | Check n8n UI at `http://localhost:${RESOURCE_PORTS[n8n]}` |
+| **Authentication errors** | Use token: `metareasoning_cli_default_2024` in API calls |
+
+### **Testing Checklist**
+- [ ] All resources started (`ollama`, `n8n`, `windmill`, `postgres`, `qdrant`)
+- [ ] Go API compiled and running on `$SERVICE_PORT`
+- [ ] CLI installed globally as `metareasoning`
+- [ ] n8n workflows imported (5 workflows visible in n8n UI)
+- [ ] Windmill apps deployed (2 apps visible in Windmill)
+- [ ] PostgreSQL tables created (check with `psql`)
+- [ ] Qdrant collections initialized (check via API)
 
 ## 📚 **Related Documentation**
 
+- [Port Registry System](../../resources/port_registry.sh) - Central port definitions
+- [Scenario Lifecycle Management](../../manage.sh) - How lifecycle commands work
 - [n8n Workflow Development](../../resources/automation/n8n/)
 - [Windmill App Creation](../../resources/automation/windmill/)  
 - [Go Runtime Setup](../../lib/runtimes/go.sh)
 - [Scenario Architecture Guide](../../../docs/scenarios/)
+- [Converting Scenarios to Apps](../../tools/scenario-to-app.sh)
 
 ---
 
