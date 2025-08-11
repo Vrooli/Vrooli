@@ -133,15 +133,28 @@ save_cache() {
             continue
         fi
         
-        # Build JSON for this result
+        # Build JSON for this result - use --arg for all values to avoid JSON encoding issues
         local result_json
+        local clean_timestamp="${timestamp:-0}"
+        local clean_duration="${duration:-0}"
+        local clean_exit_code="${exit_code:-0}"
+        local clean_message="${message:-}"
+        
+        # Ensure numeric values are valid integers
+        [[ ! "$clean_timestamp" =~ ^[0-9]+$ ]] && clean_timestamp="0"
+        [[ ! "$clean_duration" =~ ^[0-9]+$ ]] && clean_duration="0"
+        [[ ! "$clean_exit_code" =~ ^[0-9]+$ ]] && clean_exit_code="0"
+        
+        # Clean message of problematic characters that could break JSON
+        clean_message="$(echo "$clean_message" | tr '"' "'" | tr '\n' ' ' | tr '\r' ' ')"
+        
         result_json=$(jq -n \
             --arg status "$status" \
-            --argjson timestamp "${timestamp:-0}" \
-            --argjson duration "${duration:-0}" \
-            --arg message "${message:-}" \
-            --argjson exit_code "${exit_code:-0}" \
-            '{status: $status, timestamp: $timestamp, duration_ms: $duration, message: (if $message == "" then null else $message end), exit_code: $exit_code}')
+            --arg timestamp "$clean_timestamp" \
+            --arg duration "$clean_duration" \
+            --arg message "$clean_message" \
+            --arg exit_code "$clean_exit_code" \
+            '{status: $status, timestamp: ($timestamp | tonumber), duration_ms: ($duration | tonumber), message: (if $message == "" then null else $message end), exit_code: ($exit_code | tonumber)}')
         
         # Add to file's results
         if [[ -z "${file_results[$file]:-}" ]]; then
@@ -150,10 +163,10 @@ save_cache() {
             [[ -z "$safe_mtime" ]] && safe_mtime="0"
             
             file_results["$file"]=$(jq -n \
-                --argjson mtime "$safe_mtime" \
+                --arg mtime "$safe_mtime" \
                 --argjson result "$result_json" \
                 --arg test_type "$test_type" \
-                '{file: {mtime: $mtime}, results: {($test_type): $result}}')
+                '{file: {mtime: ($mtime | tonumber)}, results: {($test_type): $result}}')
         else
             file_results["$file"]=$(echo "${file_results[$file]}" | jq \
                 --argjson result "$result_json" \
@@ -177,9 +190,9 @@ save_cache() {
         --arg version "$CACHE_VERSION" \
         --arg phase "$phase" \
         --arg updated "$(date -Iseconds)" \
-        --argjson ttl "$CACHE_TTL" \
+        --arg ttl "$CACHE_TTL" \
         --argjson entries "$json_entries" \
-        '{version: $version, phase: $phase, updated: $updated, ttl_seconds: $ttl, entries: $entries}')
+        '{version: $version, phase: $phase, updated: $updated, ttl_seconds: ($ttl | tonumber), entries: $entries}')
     
     # Write atomically
     if echo "$cache_json" | jq . > "$temp_file" 2>/dev/null; then

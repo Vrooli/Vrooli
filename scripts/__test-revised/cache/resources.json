@@ -1,0 +1,197 @@
+{
+  "version": "3.0",
+  "phase": "resources",
+  "updated": "2025-08-11T18:39:01-04:00",
+  "ttl_seconds": 3600,
+  "entries": {
+    "/home/matthalloran8/Vrooli/scripts/resources/port_registry.sh": {
+      "file": {
+        "mtime": 1754799699
+      },
+      "results": {
+        "syntax": {
+          "status": "passed",
+          "timestamp": 1754951940,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1754951940,
+          "duration_ms": 3,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scripts/resources/index.sh": {
+      "file": {
+        "mtime": 1754939360
+      },
+      "results": {
+        "syntax": {
+          "status": "passed",
+          "timestamp": 1754951940,
+          "duration_ms": 6,
+          "message": " ",
+          "exit_code": 0
+        },
+        "shellcheck": {
+          "status": "failed",
+          "timestamp": 1754951940,
+          "duration_ms": 293,
+          "message": "exit code ",
+          "exit_code": 0
+        },
+        "executable": {
+          "status": "passed",
+          "timestamp": 1754951940,
+          "duration_ms": 3,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "mock-postgres": {
+      "file": {
+        "mtime": 0
+      },
+      "results": {
+        "advanced": {
+          "status": "passed",
+          "timestamp": 1754951940,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "basic": {
+          "status": "passed",
+          "timestamp": 1754951940,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "health": {
+          "status": "passed",
+          "timestamp": 1754951940,
+          "duration_ms": 3,
+          "message": " ",
+          "exit_code": 0
+        },
+        "connection": {
+          "status": "passed",
+          "timestamp": 1754951940,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/.vrooli/service.json": {
+      "file": {
+        "mtime": 1754939298
+      },
+      "results": {
+        "existence": {
+          "status": "passed",
+          "timestamp": 1754951940,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "has-resources": {
+          "status": "passed",
+          "timestamp": 1754951940,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "json-valid": {
+          "status": "passed",
+          "timestamp": 1754951940,
+          "duration_ms": 5,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "/home/matthalloran8/Vrooli/scripts/resources/common.sh": {
+      "file": {
+        "mtime": 1754881822
+      },
+      "results": {
+        "executable": {
+          "status": "passed",
+          "timestamp": 1754951940,
+          "duration_ms": 3,
+          "message": " ",
+          "exit_code": 0
+        },
+        "syntax": {
+          "status": "passed",
+          "timestamp": 1754951940,
+          "duration_ms": 5,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "mock-redis": {
+      "file": {
+        "mtime": 0
+      },
+      "results": {
+        "basic": {
+          "status": "passed",
+          "timestamp": 1754951940,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "connection": {
+          "status": "passed",
+          "timestamp": 1754951940,
+          "duration_ms": 2,
+          "message": " ",
+          "exit_code": 0
+        },
+        "health": {
+          "status": "passed",
+          "timestamp": 1754951940,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    },
+    "mock-ollama": {
+      "file": {
+        "mtime": 0
+      },
+      "results": {
+        "connection": {
+          "status": "passed",
+          "timestamp": 1754951940,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        },
+        "health": {
+          "status": "passed",
+          "timestamp": 1754951940,
+          "duration_ms": 3,
+          "message": " ",
+          "exit_code": 0
+        },
+        "basic": {
+          "status": "passed",
+          "timestamp": 1754951940,
+          "duration_ms": 4,
+          "message": " ",
+          "exit_code": 0
+        }
+      }
+    }
+  }
+}

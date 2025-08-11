@@ -259,18 +259,29 @@ show_discovery_summary() {
         local exec_files
         exec_files=$(eval "find '$scripts_dir' $find_excludes -type f -executable ! -name '*.sh' -print 2>/dev/null")
         if [[ -n "$exec_files" ]]; then
-            executable_count=$(echo "$exec_files" | xargs -I{} head -n1 {} 2>/dev/null | grep -c '^#!/.*sh' || echo "0")
+            # Count shell scripts among executable files
+            executable_count=$(echo "$exec_files" | xargs -I{} head -n1 {} 2>/dev/null | grep -c '^#!/.*sh' 2>/dev/null || echo "0")
         else
             executable_count=0
         fi
     fi
     
-    # Ensure counts are clean integers
-    sh_count=${sh_count:-0}
-    executable_count=${executable_count:-0}
-    # Remove any newlines or whitespace
-    sh_count=$(echo "$sh_count" | tr -d '\n' | xargs)
-    executable_count=$(echo "$executable_count" | tr -d '\n' | xargs)
+    # Ensure counts are clean integers (avoid any formatting issues)
+    sh_count="${sh_count:-0}"
+    executable_count="${executable_count:-0}"
+    
+    # Clean up any whitespace or formatting issues - but avoid string manipulation that could cause duplication
+    if [[ "$sh_count" =~ ^[0-9]+$ ]]; then
+        sh_count="$sh_count"
+    else
+        sh_count="0"
+    fi
+    
+    if [[ "$executable_count" =~ ^[0-9]+$ ]]; then
+        executable_count="$executable_count"
+    else
+        executable_count="0"
+    fi
     
     log_info "  .sh files: $sh_count"
     log_info "  Executable shell scripts: ${executable_count}"

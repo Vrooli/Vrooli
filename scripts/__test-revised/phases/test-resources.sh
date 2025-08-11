@@ -224,35 +224,14 @@ test_enabled_resources() {
         return 1
     fi
     
-    # Test each enabled resource
+    # Test each enabled resource using convention-based discovery
     while IFS= read -r resource_name; do
         [[ -n "$resource_name" ]] || continue
         
         log_info "🧪 Testing resource: $resource_name"
         
-        case "$resource_name" in
-            "postgres")
-                test_postgres_mock "$resource_name"
-                ;;
-            "redis") 
-                test_redis_mock "$resource_name"
-                ;;
-            "ollama")
-                test_ollama_mock "$resource_name"
-                ;;
-            "n8n")
-                test_automation_mock "$resource_name"
-                ;;
-            "windmill")
-                test_automation_mock "$resource_name"
-                ;;
-            "node-red")
-                test_automation_mock "$resource_name"
-                ;;
-            *)
-                test_generic_resource_mock "$resource_name"
-                ;;
-        esac
+        # Use convention-based function discovery
+        test_resource_with_conventions "$resource_name"
         
     done <<< "$enabled_resources"
     
@@ -285,87 +264,66 @@ load_resource_mocks() {
     return 0
 }
 
-# Test postgres resource with mock
-test_postgres_mock() {
+
+# Test resource using convention-based function discovery
+test_resource_with_conventions() {
     local resource_name="$1"
+    local tests_run=0
+    local tests_passed=0
     
-    # Test basic connection
-    if run_cached_test "mock-$resource_name" "connection" "test_postgres_connection" "postgres-connection: $resource_name"; then
-        increment_test_counter "passed"
-    else
-        increment_test_counter "failed"
-        return 1
-    fi
+    # Define standard test types in priority order
+    local test_types=("connection" "health" "basic" "advanced")
     
-    # Test basic query
-    if run_cached_test "mock-$resource_name" "query" "test_postgres_query" "postgres-query: $resource_name"; then
-        increment_test_counter "passed"
+    # Convert resource name to function-safe format (replace hyphens with underscores)
+    local function_safe_name="${resource_name//-/_}"
+    # Handle special cases
+    case "$resource_name" in
+        "node-red")
+            function_safe_name="nodered"
+            ;;
+    esac
+    
+    log_debug "Discovering test functions for resource: $resource_name (function prefix: $function_safe_name)"
+    
+    # Discover and run tests based on naming conventions
+    for test_type in "${test_types[@]}"; do
+        local test_function="test_${function_safe_name}_${test_type}"
+        
+        # Check if the function exists
+        if command -v "$test_function" >/dev/null 2>&1; then
+            log_debug "Discovered function: $test_function"
+            ((tests_run++))
+            
+            # Run the test with caching
+            if run_cached_test "mock-$resource_name" "$test_type" "$test_function" "${resource_name}-${test_type}: $resource_name"; then
+                ((tests_passed++))
+                increment_test_counter "passed"
+            else
+                increment_test_counter "failed"
+            fi
+        else
+            log_debug "Function not found: $test_function"
+            
+            # Only skip advanced tests silently - others are expected
+            if [[ "$test_type" != "advanced" ]]; then
+                log_test_skip "${resource_name}-${test_type}: $resource_name" "Function $test_function not available"
+                increment_test_counter "skipped"
+            fi
+        fi
+    done
+    
+    # If no tests were found, fall back to generic testing
+    if [[ $tests_run -eq 0 ]]; then
+        log_warning "No convention-based tests found for resource: $resource_name"
+        test_generic_resource_mock "$resource_name"
     else
-        increment_test_counter "failed"
+        log_info "Resource $resource_name: $tests_passed/$tests_run tests passed"
     fi
     
     return 0
 }
 
-# Test redis resource with mock
-test_redis_mock() {
-    local resource_name="$1"
-    
-    # Test ping
-    if run_cached_test "mock-$resource_name" "ping" "test_redis_ping" "redis-ping: $resource_name"; then
-        increment_test_counter "passed"
-    else
-        increment_test_counter "failed"
-        return 1
-    fi
-    
-    # Test set/get
-    if run_cached_test "mock-$resource_name" "setget" "test_redis_setget" "redis-setget: $resource_name"; then
-        increment_test_counter "passed"
-    else
-        increment_test_counter "failed"
-    fi
-    
-    return 0
-}
-
-# Test ollama resource with mock
-test_ollama_mock() {
-    local resource_name="$1"
-    
-    # Test API health
-    if run_cached_test "mock-$resource_name" "health" "test_ollama_health" "ollama-health: $resource_name"; then
-        increment_test_counter "passed"
-    else
-        increment_test_counter "failed"
-        return 1
-    fi
-    
-    # Test model listing
-    if run_cached_test "mock-$resource_name" "models" "test_ollama_models" "ollama-models: $resource_name"; then
-        increment_test_counter "passed"
-    else
-        increment_test_counter "failed"
-    fi
-    
-    return 0
-}
-
-# Test automation resources (n8n, windmill, node-red)
-test_automation_mock() {
-    local resource_name="$1"
-    
-    # Test basic health check
-    if run_cached_test "mock-$resource_name" "health" "test_automation_health '$resource_name'" "automation-health: $resource_name"; then
-        increment_test_counter "passed"
-    else
-        increment_test_counter "failed"
-    fi
-    
-    return 0
-}
-
-# Test generic resource
+# Test generic resource (fallback for resources without specific mocks)
 test_generic_resource_mock() {
     local resource_name="$1"
     
@@ -459,7 +417,8 @@ main() {
 
 # Export functions for testing
 export -f run_resource_validation test_service_json_config test_resource_construction
-export -f test_enabled_resources load_resource_mocks
+export -f test_enabled_resources load_resource_mocks test_resource_with_conventions
+export -f test_generic_resource_mock
 
 # Run main function if script is executed directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then

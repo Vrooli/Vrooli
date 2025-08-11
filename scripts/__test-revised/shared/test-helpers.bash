@@ -263,6 +263,94 @@ is_shell_script() {
     return 1
 }
 
+# Validate and fix file permissions for testing
+validate_test_file_permissions() {
+    local file_path="$1"
+    local required_permission="${2:-readable}" # readable, executable, writable
+    local description="${3:-file}"
+    
+    if [[ ! -f "$file_path" ]]; then
+        log_error "$description does not exist: $file_path"
+        return 1
+    fi
+    
+    case "$required_permission" in
+        "readable")
+            if [[ ! -r "$file_path" ]]; then
+                log_error "$description is not readable: $file_path"
+                return 1
+            fi
+            ;;
+        "executable")
+            if [[ ! -x "$file_path" ]]; then
+                log_warning "$description is not executable, attempting to fix: $file_path"
+                if chmod +x "$file_path" 2>/dev/null; then
+                    log_success "Fixed executable permissions for $description: $file_path"
+                else
+                    log_error "Cannot make $description executable: $file_path"
+                    return 1
+                fi
+            fi
+            ;;
+        "writable")
+            if [[ ! -w "$file_path" ]]; then
+                log_error "$description is not writable: $file_path"
+                return 1
+            fi
+            ;;
+        *)
+            log_error "Invalid permission type: $required_permission"
+            return 1
+            ;;
+    esac
+    
+    return 0
+}
+
+# Validate directory permissions
+validate_directory_permissions() {
+    local dir_path="$1"
+    local required_permission="${2:-readable}" # readable, writable
+    local description="${3:-directory}"
+    local create_if_missing="${4:-false}"
+    
+    if [[ ! -d "$dir_path" ]]; then
+        if [[ "$create_if_missing" == "true" ]]; then
+            log_info "Creating missing $description: $dir_path"
+            if mkdir -p "$dir_path" 2>/dev/null; then
+                log_success "Created $description: $dir_path"
+            else
+                log_error "Cannot create $description: $dir_path"
+                return 1
+            fi
+        else
+            log_error "$description does not exist: $dir_path"
+            return 1
+        fi
+    fi
+    
+    case "$required_permission" in
+        "readable")
+            if [[ ! -r "$dir_path" ]]; then
+                log_error "$description is not readable: $dir_path"
+                return 1
+            fi
+            ;;
+        "writable")
+            if [[ ! -w "$dir_path" ]]; then
+                log_error "$description is not writable: $dir_path"
+                return 1
+            fi
+            ;;
+        *)
+            log_error "Invalid permission type: $required_permission"
+            return 1
+            ;;
+    esac
+    
+    return 0
+}
+
 # Export functions for use in subshells
 export -f assert_file_exists assert_directory_exists assert_file_executable
 export -f assert_file_not_empty assert_json_valid
@@ -271,3 +359,4 @@ export -f find_shell_scripts find_bats_tests find_json_files
 export -f get_enabled_resources run_test_with_timeout
 export -f reset_test_counters increment_test_counter get_test_counters print_test_summary
 export -f relative_path is_shell_script
+export -f validate_test_file_permissions validate_directory_permissions

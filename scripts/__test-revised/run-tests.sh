@@ -30,6 +30,7 @@ OPTIONS:
   --parallel      Run tests in parallel where possible
   --no-cache      Skip caching optimizations
   --dry-run       Show what would be tested without running
+  --clear-cache   Clear test cache before running
   --help         Show this help
 
 EXAMPLES:
@@ -49,6 +50,7 @@ VERBOSE=""
 PARALLEL=""
 NO_CACHE=""
 DRY_RUN=""
+CLEAR_CACHE=""
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -72,6 +74,10 @@ while [[ $# -gt 0 ]]; do
             DRY_RUN="--dry-run"
             shift
             ;;
+        --clear-cache)
+            CLEAR_CACHE="--clear-cache"
+            shift
+            ;;
         --help)
             show_usage
             exit 0
@@ -84,13 +90,99 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-# Set environment variables for all phases
+# Set environment variables for all phases - ensure they have values
+# This prevents issues with empty variable exports
+VERBOSE="${VERBOSE:-}"
+PARALLEL="${PARALLEL:-}"
+NO_CACHE="${NO_CACHE:-}"
+DRY_RUN="${DRY_RUN:-}"
+CLEAR_CACHE="${CLEAR_CACHE:-}"
+
 export PROJECT_ROOT
 export SCRIPT_DIR
 export VERBOSE
 export PARALLEL
 export NO_CACHE
 export DRY_RUN
+export CLEAR_CACHE
+
+# Also export these for backward compatibility
+export LOG_LEVEL="${LOG_LEVEL:-INFO}"
+export TEST_CACHE_TTL="${TEST_CACHE_TTL:-3600}"
+export TEST_CACHE_MAX_AGE="${TEST_CACHE_MAX_AGE:-86400}"
+
+# Ensure all test framework scripts have proper permissions
+ensure_script_permissions() {
+    local scripts_to_check=(
+        "$SCRIPT_DIR/phases/test-static.sh"
+        "$SCRIPT_DIR/phases/test-resources.sh"
+        "$SCRIPT_DIR/phases/test-scenarios.sh"
+        "$SCRIPT_DIR/phases/test-bats.sh"
+        "$SCRIPT_DIR/shared/logging.bash"
+        "$SCRIPT_DIR/shared/test-helpers.bash"
+        "$SCRIPT_DIR/shared/cache.bash"
+    )
+    
+    local permission_issues=false
+    
+    for script in "${scripts_to_check[@]}"; do
+        if [[ ! -f "$script" ]]; then
+            log_error "Required script missing: $script"
+            permission_issues=true
+            continue
+        fi
+        
+        # Check if file is readable
+        if [[ ! -r "$script" ]]; then
+            log_error "Script not readable: $script"
+            permission_issues=true
+            continue
+        fi
+        
+        # For phase scripts, ensure they're executable
+        if [[ "$script" =~ /phases/test-.*\.sh$ ]]; then
+            if [[ ! -x "$script" ]]; then
+                log_warning "Phase script not executable, attempting to fix: $script"
+                if chmod +x "$script" 2>/dev/null; then
+                    log_success "Fixed permissions for: $script"
+                else
+                    log_error "Cannot make script executable: $script"
+                    permission_issues=true
+                fi
+            fi
+        fi
+        
+        # For shared scripts, ensure they're readable (they're sourced, not executed)
+        if [[ "$script" =~ /shared/.*\.bash$ ]]; then
+            if [[ ! -r "$script" ]]; then
+                log_error "Shared script not readable: $script"
+                permission_issues=true
+            fi
+        fi
+    done
+    
+    # Check cache directory permissions
+    local cache_dir="$SCRIPT_DIR/cache"
+    if [[ -d "$cache_dir" ]]; then
+        if [[ ! -w "$cache_dir" ]]; then
+            log_error "Cache directory not writable: $cache_dir"
+            permission_issues=true
+        fi
+    else
+        # Try to create cache directory
+        if ! mkdir -p "$cache_dir" 2>/dev/null; then
+            log_error "Cannot create cache directory: $cache_dir"
+            permission_issues=true
+        fi
+    fi
+    
+    if [[ "$permission_issues" == "true" ]]; then
+        log_error "Permission issues detected. Fix these issues before running tests."
+        return 1
+    fi
+    
+    return 0
+}
 
 # Phase execution tracking
 declare -A PHASE_RESULTS=()
@@ -102,9 +194,20 @@ run_phase() {
     local phase_name="$1"
     local phase_script="$SCRIPT_DIR/phases/test-$phase_name.sh"
     
-    if [[ ! -x "$phase_script" ]]; then
-        log_error "Phase script not found or not executable: $phase_script"
+    # Double-check permissions before running (in case they changed)
+    if [[ ! -f "$phase_script" ]]; then
+        log_error "Phase script not found: $phase_script"
         return 1
+    fi
+    
+    if [[ ! -x "$phase_script" ]]; then
+        log_warning "Phase script not executable, attempting to fix: $phase_script"
+        if chmod +x "$phase_script" 2>/dev/null; then
+            log_success "Fixed permissions for: $phase_script"
+        else
+            log_error "Cannot make phase script executable: $phase_script"
+            return 1
+        fi
     fi
     
     log_info "🚀 Starting $phase_name phase..."
@@ -118,8 +221,22 @@ run_phase() {
     [[ -n "$PARALLEL" ]] && cmd+=("$PARALLEL")
     [[ -n "$NO_CACHE" ]] && cmd+=("$NO_CACHE")
     [[ -n "$DRY_RUN" ]] && cmd+=("$DRY_RUN")
+    [[ -n "$CLEAR_CACHE" ]] && cmd+=("$CLEAR_CACHE")
     
-    if "${cmd[@]}"; then
+    # Execute with explicit environment variable propagation
+    # This ensures all variables are available to the child process
+    if env \
+        PROJECT_ROOT="$PROJECT_ROOT" \
+        SCRIPT_DIR="$SCRIPT_DIR" \
+        VERBOSE="$VERBOSE" \
+        PARALLEL="$PARALLEL" \
+        NO_CACHE="$NO_CACHE" \
+        DRY_RUN="$DRY_RUN" \
+        CLEAR_CACHE="$CLEAR_CACHE" \
+        LOG_LEVEL="$LOG_LEVEL" \
+        TEST_CACHE_TTL="$TEST_CACHE_TTL" \
+        TEST_CACHE_MAX_AGE="$TEST_CACHE_MAX_AGE" \
+        "${cmd[@]}"; then
         local end_time
         end_time=$(date +%s)
         local duration=$((end_time - start_time))
@@ -147,6 +264,12 @@ main() {
     [[ -n "$PARALLEL" ]] && log_info "🚀 Parallel execution enabled"
     [[ -n "$NO_CACHE" ]] && log_info "🚫 Cache disabled"
     [[ -n "$DRY_RUN" ]] && log_info "👀 Dry run mode - no actual execution"
+    
+    # Check and fix script permissions before proceeding
+    if ! ensure_script_permissions; then
+        log_error "Script permission validation failed. Cannot continue."
+        exit 1
+    fi
     
     local overall_success=true
     
