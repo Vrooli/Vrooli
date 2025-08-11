@@ -42,7 +42,7 @@ claude_code::install() {
     
     # Install Claude Code globally
     log::info "Installing Claude Code globally..."
-    if npm install -g "$CLAUDE_PACKAGE"; then
+    if sudo::exec_as_actual_user "npm install -g $CLAUDE_PACKAGE"; then
         log::success "✓ Claude Code installed successfully"
     else
         log::error "Failed to install Claude Code"
@@ -92,7 +92,7 @@ claude_code::uninstall() {
     
     # Uninstall globally
     log::info "Removing Claude Code..."
-    if npm uninstall -g "$CLAUDE_PACKAGE"; then
+    if sudo::exec_as_actual_user "npm uninstall -g $CLAUDE_PACKAGE"; then
         log::success "✓ Claude Code removed successfully"
     else
         log::error "Failed to uninstall Claude Code"

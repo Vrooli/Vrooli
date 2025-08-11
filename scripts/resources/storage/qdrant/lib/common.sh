@@ -7,6 +7,8 @@
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/sudo.sh" 2>/dev/null || true
 
 #######################################
 # Check if Qdrant container exists
@@ -199,7 +201,11 @@ qdrant::common::check_disk_space() {
     local min_space_gb="${QDRANT_MIN_DISK_SPACE_GB}"
     
     # Create directory if it doesn't exist
-    mkdir -p "$data_dir"
+    if sudo::is_running_as_sudo && [[ "$data_dir" == "${HOME}/"* || "$data_dir" == "/home/"* ]]; then
+        sudo::mkdir_as_user "$data_dir"
+    else
+        mkdir -p "$data_dir"
+    fi
     
     # Check available space
     local available_kb

@@ -14,6 +14,8 @@ source "$var_LIB_UTILS_DIR/flow.sh"
 source "$var_LIB_SYSTEM_DIR/system_commands.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/sudo.sh"
 
 # Configuration constants
 readonly DESKTOP_MIN_PERCENT=15    # Minimum % of RAM for desktop
@@ -114,9 +116,9 @@ remote_session::check_gdm3_status() {
         else
             log::warning "⚠️  GDM service (${gdm_service}) is not running"
             
-            if flow::can_run_sudo "restart GDM"; then
+            if sudo::can_use_sudo; then
                 log::info "Attempting to restart ${gdm_service}..."
-                if sudo systemctl restart "${gdm_service}" 2>/dev/null; then
+                if sudo::exec_with_fallback "systemctl restart '${gdm_service}'" 2>/dev/null; then
                     log::success "✅ GDM restarted successfully"
                     sleep 3  # Give it time to start
                     
@@ -148,9 +150,9 @@ remote_session::check_gdm3_status() {
                 
                 if ! systemctl is-active --quiet "${dm}" 2>/dev/null; then
                     log::warning "Display manager ${dm} is not running"
-                    if flow::can_run_sudo "restart display manager"; then
+                    if sudo::can_use_sudo; then
                         log::info "Attempting to restart ${dm}..."
-                        if sudo systemctl restart "${dm}" 2>/dev/null; then
+                        if sudo::exec_with_fallback "systemctl restart '${dm}'" 2>/dev/null; then
                             log::success "✅ Display manager ${dm} restarted successfully"
                             return 0
                         else
@@ -173,8 +175,8 @@ remote_session::check_gdm3_status() {
     if (systemctl list-unit-files | grep -qE "xrdp\.service") 2>/dev/null; then
         if ! systemctl is-active --quiet xrdp 2>/dev/null; then
             log::warning "xrdp service is not running"
-            if flow::can_run_sudo "restart xrdp"; then
-                sudo systemctl restart xrdp 2>/dev/null || true
+            if sudo::can_use_sudo; then
+                sudo::exec_with_fallback "systemctl restart xrdp" 2>/dev/null || true
                 log::info "Attempted to restart xrdp service"
             fi
         else
@@ -257,7 +259,7 @@ remote_session::configure_swap() {
         return 0
     fi
     
-    if ! flow::can_run_sudo "configure swap"; then
+    if ! sudo::can_use_sudo; then
         log::warning "Sudo access required to configure swap"
         log::info "Current swap (${total_swap_gb}GB) is less than recommended (${TARGET_SWAP_GB}GB)"
         return 0  # Don't fail, just warn
@@ -267,37 +269,37 @@ remote_session::configure_swap() {
     
     # Disable existing swap file if it exists
     if [[ -f "$SWAP_FILE" ]]; then
-        sudo swapoff "$SWAP_FILE" 2>/dev/null || true
+        sudo::exec_with_fallback "swapoff '$SWAP_FILE'" 2>/dev/null || true
     fi
     
     # Create new swap file
-    if sudo fallocate -l "${TARGET_SWAP_GB}G" "$SWAP_FILE" 2>/dev/null; then
+    if sudo::exec_with_fallback "fallocate -l '${TARGET_SWAP_GB}G' '$SWAP_FILE'" 2>/dev/null; then
         log::info "Swap file created with fallocate"
     else
         # Fallback to dd if fallocate fails
         log::info "Using dd to create swap file (this may take a while)..."
-        if ! sudo dd if=/dev/zero of="$SWAP_FILE" bs=1G count="$TARGET_SWAP_GB" status=progress 2>/dev/null; then
+        if ! sudo::exec_with_fallback "dd if=/dev/zero of='$SWAP_FILE' bs=1G count='$TARGET_SWAP_GB' status=progress" 2>/dev/null; then
             log::error "Failed to create swap file"
             return 1
         fi
     fi
     
     # Set permissions and make swap
-    sudo chmod 600 "$SWAP_FILE"
-    sudo mkswap "$SWAP_FILE" >/dev/null 2>&1
+    sudo::exec_with_fallback "chmod 600 '$SWAP_FILE'"
+    sudo::exec_with_fallback "mkswap '$SWAP_FILE'" >/dev/null 2>&1
     
     # Add to fstab if not already there
     if ! grep -qE "^\\s*${SWAP_FILE}\\s" /etc/fstab 2>/dev/null; then
-        echo "${SWAP_FILE} none swap sw 0 0" | sudo tee -a /etc/fstab >/dev/null
+        echo "${SWAP_FILE} none swap sw 0 0" | sudo::exec_with_fallback "tee -a /etc/fstab" >/dev/null
         log::info "Added swap file to /etc/fstab"
     fi
     
     # Enable swap
-    if sudo swapon "$SWAP_FILE" 2>/dev/null; then
+    if sudo::exec_with_fallback "swapon '$SWAP_FILE'" 2>/dev/null; then
         log::success "✅ Swap file activated"
     else
         # Try enabling all swap from fstab
-        sudo swapon -a 2>/dev/null || true
+        sudo::exec_with_fallback "swapon -a" 2>/dev/null || true
     fi
     
     # Verify new swap size
@@ -321,7 +323,7 @@ remote_session::protect_desktop_slice() {
         remote_session::calculate_memory_allocation
     fi
     
-    if ! flow::can_run_sudo "configure memory protection"; then
+    if ! sudo::can_use_sudo; then
         log::warning "Sudo access required to protect desktop memory"
         log::info "Desktop session may be vulnerable to OOM killer"
         return 0  # Don't fail
@@ -329,11 +331,11 @@ remote_session::protect_desktop_slice() {
     
     # Create systemd slice configuration directory
     local slice_dir="/etc/systemd/system/user-${DESKTOP_UID}.slice.d"
-    sudo mkdir -p "$slice_dir"
+    sudo::exec_with_fallback "mkdir -p '$slice_dir'"
     
     # Create memory protection configuration
     local config_file="${slice_dir}/50-memory-protect.conf"
-    sudo tee "$config_file" >/dev/null <<EOF
+    sudo::exec_with_fallback "tee '$config_file'" >/dev/null <<EOF
 [Slice]
 # Vrooli Remote Session Protection
 # Hard reservation: cannot be reclaimed under memory pressure
@@ -351,8 +353,8 @@ EOF
     if [[ -d "$cgroup_path" ]]; then
         # Check if we have cgroup v2
         if [[ -f "${cgroup_path}/memory.min" ]]; then
-            echo $((DESKTOP_MIN_CALC_MB * 1024 * 1024)) | sudo tee "${cgroup_path}/memory.min" >/dev/null 2>&1 || true
-            echo $((DESKTOP_LOW_CALC_MB * 1024 * 1024)) | sudo tee "${cgroup_path}/memory.low" >/dev/null 2>&1 || true
+            echo $((DESKTOP_MIN_CALC_MB * 1024 * 1024)) | sudo::exec_with_fallback "tee '${cgroup_path}/memory.min'" >/dev/null 2>&1 || true
+            echo $((DESKTOP_LOW_CALC_MB * 1024 * 1024)) | sudo::exec_with_fallback "tee '${cgroup_path}/memory.low'" >/dev/null 2>&1 || true
             log::success "✅ Applied memory protection to running session"
         else
             log::info "cgroup v1 detected, changes will apply on next login"
@@ -370,13 +372,13 @@ EOF
 remote_session::configure_workload_slice() {
     log::info "📦 Creating workload containment slice..."
     
-    if ! flow::can_run_sudo "configure workload slice"; then
+    if ! sudo::can_use_sudo; then
         log::warning "Sudo access required to create workload slice"
         return 0  # Don't fail
     fi
     
     # Create workload slice configuration
-    sudo tee /etc/systemd/system/workload.slice >/dev/null <<EOF
+    sudo::exec_with_fallback "tee /etc/systemd/system/workload.slice" >/dev/null <<EOF
 [Unit]
 Description=Slice for batch jobs and AI workloads
 Documentation=https://github.com/Vrooli/Vrooli
@@ -396,7 +398,7 @@ EOF
     log::success "✅ Created workload.slice configuration"
     
     # Reload systemd to pick up new slice
-    sudo systemctl daemon-reload
+    sudo::exec_with_fallback "systemctl daemon-reload"
     
     return 0
 }
@@ -415,13 +417,13 @@ remote_session::update_docker_config() {
         return 0
     fi
     
-    if ! flow::can_run_sudo "configure Docker"; then
+    if ! sudo::can_use_sudo; then
         log::warning "Sudo access required to configure Docker"
         return 0  # Don't fail
     fi
     
     # Ensure Docker config directory exists
-    sudo mkdir -p /etc/docker
+    sudo::exec_with_fallback "mkdir -p /etc/docker"
     
     local docker_config="/etc/docker/daemon.json"
     local temp_config="/tmp/docker-daemon-$$.json"
@@ -429,12 +431,12 @@ remote_session::update_docker_config() {
     # Create or update Docker configuration
     if [[ -f "$docker_config" ]]; then
         # Backup existing config
-        sudo cp "$docker_config" "${docker_config}.backup"
+        sudo::exec_with_fallback "cp '$docker_config' '${docker_config}.backup'"
         
         # Try to merge with existing config
         if command -v jq >/dev/null 2>&1; then
             # Use jq for proper JSON merging
-            sudo cat "$docker_config" | jq '. + {
+            sudo::exec_with_fallback "cat '$docker_config'" | jq '. + {
                 "exec-opts": ((.["exec-opts"] // []) + ["native.cgroupdriver=systemd"] | unique),
                 "default-cgroup-parent": "workload.slice"
             }' > "$temp_config" 2>/dev/null || {
@@ -464,7 +466,7 @@ remote_session::update_docker_config() {
     # Validate JSON before applying
     if command -v python3 >/dev/null 2>&1; then
         if python3 -m json.tool < "$temp_config" >/dev/null 2>&1; then
-            sudo mv "$temp_config" "$docker_config"
+            sudo::exec_with_fallback "mv '$temp_config' '$docker_config'"
             log::success "✅ Docker configuration updated"
         else
             log::error "Invalid JSON in Docker config, not applying"
@@ -473,17 +475,17 @@ remote_session::update_docker_config() {
         fi
     else
         # No validation available, just apply
-        sudo mv "$temp_config" "$docker_config"
+        sudo::exec_with_fallback "mv '$temp_config' '$docker_config'"
         log::success "✅ Docker configuration updated"
     fi
     
     # Reload and restart Docker
-    sudo systemctl daemon-reload
+    sudo::exec_with_fallback "systemctl daemon-reload"
     
     # Only restart if Docker is running
     if systemctl is-active --quiet docker 2>/dev/null; then
         log::info "Restarting Docker to apply changes..."
-        if sudo systemctl restart docker 2>/dev/null; then
+        if sudo::exec_with_fallback "systemctl restart docker" 2>/dev/null; then
             log::success "✅ Docker restarted with workload slice"
         else
             log::warning "Failed to restart Docker, changes will apply on next restart"
@@ -540,8 +542,8 @@ remote_session::main() {
             remote_session::update_docker_config || true  # Don't fail if Docker config fails
             
             # Reload systemd to apply all changes
-            if flow::can_run_sudo "reload systemd"; then
-                sudo systemctl daemon-reload
+            if sudo::can_use_sudo; then
+                sudo::exec_with_fallback "systemctl daemon-reload"
             fi
             
             if [[ "$all_success" == "true" ]]; then
@@ -575,7 +577,7 @@ remote_session::main() {
         cleanup)
             log::header "🧹 Removing remote session protections"
             
-            if ! flow::can_run_sudo "cleanup protections"; then
+            if ! sudo::can_use_sudo; then
                 log::error "Sudo access required for cleanup"
                 return 1
             fi
@@ -583,19 +585,19 @@ remote_session::main() {
             # Remove desktop slice protection
             local slice_dir="/etc/systemd/system/user-${DESKTOP_UID}.slice.d"
             if [[ -d "$slice_dir" ]]; then
-                sudo bash -c "source ${var_LIB_SYSTEM_DIR}/trash.sh && trash::safe_remove '$slice_dir' --no-confirm"
+                sudo::exec_with_fallback "bash -c 'source ${var_LIB_SYSTEM_DIR}/trash.sh && trash::safe_remove \"$slice_dir\" --no-confirm'"
                 log::info "Removed desktop memory protection"
             fi
             
             # Remove workload slice
             if [[ -f "/etc/systemd/system/workload.slice" ]]; then
-                sudo rm -f "/etc/systemd/system/workload.slice"
+                sudo::exec_with_fallback "rm -f '/etc/systemd/system/workload.slice'"
                 log::info "Removed workload slice"
             fi
             
             # Note: Not removing swap or Docker config as these may be wanted for other reasons
             
-            sudo systemctl daemon-reload
+            sudo::exec_with_fallback "systemctl daemon-reload"
             log::success "✅ Remote session protections removed"
             ;;
             

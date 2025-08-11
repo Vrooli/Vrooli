@@ -10,6 +10,8 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../utils/var.sh"
 source "${var_LIB_UTILS_DIR}/flow.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/sudo.sh"
 
 # enable PasswordAuthentication for ssh
 enableSsh::enable_password_authentication() {
@@ -34,10 +36,15 @@ enableSsh::enable_password_authentication() {
 
 # Ensure .ssh directory and authorized_keys file exist with correct permissions
 enableSsh::ensure_ssh_files() {
-    mkdir -p ~/.ssh
+    # Create .ssh directory with proper ownership
+    sudo::mkdir_as_user ~/.ssh 700
+    
+    # Create authorized_keys file with proper ownership
     touch ~/.ssh/authorized_keys
-    chmod 700 ~/.ssh
     chmod 600 ~/.ssh/authorized_keys
+    
+    # Restore ownership if running under sudo
+    sudo::restore_owner ~/.ssh/authorized_keys
 }
 
 # Try restarting SSH service, checking for both common service names

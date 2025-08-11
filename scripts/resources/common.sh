@@ -11,14 +11,15 @@ readonly VROOLI_COMMON_SOURCED=1
 # Updated to use standardized JSON utilities for consistent service.json
 # parsing and configuration management.
 
-RESOURCES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
+# Source var.sh first with relative path
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../lib/utils/var.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_FLOW_FILE}"
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/sudo.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_NETWORK_DIR}/ports.sh"
 # shellcheck disable=SC1091
@@ -28,20 +29,19 @@ source "${var_PORT_REGISTRY_FILE}"
 # shellcheck disable=SC1091
 source "${var_REPOSITORY_FILE}"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 # shellcheck disable=SC1091
 source "${var_SYSTEM_COMMANDS_FILE}"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../lib/utils/json.sh"
+source "${var_LIB_UTILS_DIR}/json.sh"
 
 # Resource configuration paths
 # Use the project's .vrooli directory, not the home directory
-VROOLI_PROJECT_ROOT=$(cd "${RESOURCES_DIR}/../.." && pwd)
-readonly VROOLI_CONFIG_DIR="${VROOLI_PROJECT_ROOT}/.vrooli"
-readonly VROOLI_RESOURCES_CONFIG="${VROOLI_CONFIG_DIR}/service.json"
+readonly VROOLI_CONFIG_DIR="${var_VROOLI_CONFIG_DIR}"
+readonly VROOLI_RESOURCES_CONFIG="${var_SERVICE_JSON_FILE}"
 
 # Configuration manager script path
-readonly CONFIG_MANAGER_SCRIPT="${RESOURCES_DIR}/config-manager.js"
+readonly CONFIG_MANAGER_SCRIPT="${var_SCRIPTS_RESOURCES_DIR}/common/config-manager.js"
 
 # Common default ports for local resources (from port registry)
 declare -A DEFAULT_PORTS
@@ -254,7 +254,7 @@ resources::is_cli_resource_healthy() {
     case "$resource" in
         "claude-code")
             # Use the claude-code resource's health check
-            local script_path="${RESOURCES_DIR}/agents/claude-code/manage.sh"
+            local script_path="${var_SCRIPTS_RESOURCES_DIR}/agents/claude-code/manage.sh"
             if [[ -x "$script_path" ]]; then
                 # Run health check and capture both exit code and output
                 local health_output
@@ -1104,14 +1104,6 @@ resources::download_file() {
     fi
 }
 
-#######################################
-# Check if user has sudo privileges
-# Returns:
-#   0 if user can sudo, 1 otherwise
-#######################################
-resources::can_sudo() {
-    sudo -n true 2>/dev/null
-}
 
 #######################################
 # Install a systemd service
@@ -1124,7 +1116,7 @@ resources::install_systemd_service() {
     local service_content="$2"
     local service_file="/etc/systemd/system/${service_name}.service"
     
-    if ! resources::can_sudo; then
+    if ! sudo::can_use_sudo; then
         log::error "Sudo privileges required to install systemd service"
         return 1
     fi
@@ -1132,11 +1124,11 @@ resources::install_systemd_service() {
     log::info "Installing systemd service: $service_name"
     
     # Write service file
-    echo "$service_content" | sudo tee "$service_file" >/dev/null
+    echo "$service_content" | sudo::exec_with_fallback "tee '$service_file'" >/dev/null
     
     # Reload systemd and enable service
-    sudo systemctl daemon-reload
-    sudo systemctl enable "$service_name"
+    sudo::exec_with_fallback "systemctl daemon-reload"
+    sudo::exec_with_fallback "systemctl enable '$service_name'"
     
     log::success "Systemd service $service_name installed and enabled"
 }
@@ -1149,13 +1141,13 @@ resources::install_systemd_service() {
 resources::start_service() {
     local service_name="$1"
     
-    if ! resources::can_sudo; then
+    if ! sudo::can_use_sudo; then
         log::error "Sudo privileges required to start systemd service"
         return 1
     fi
     
     log::info "Starting service: $service_name"
-    sudo systemctl start "$service_name"
+    sudo::exec_with_fallback "systemctl start '$service_name'"
     log::success "Service $service_name started"
 }
 
@@ -1167,13 +1159,13 @@ resources::start_service() {
 resources::stop_service() {
     local service_name="$1"
     
-    if ! resources::can_sudo; then
+    if ! sudo::can_use_sudo; then
         log::error "Sudo privileges required to stop systemd service"
         return 1
     fi
     
     log::info "Stopping service: $service_name"
-    sudo systemctl stop "$service_name" 2>/dev/null || true
+    sudo::exec_with_fallback "systemctl stop '$service_name'" 2>/dev/null || true
     log::success "Service $service_name stopped"
 }
 

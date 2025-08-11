@@ -6,16 +6,16 @@ set -euo pipefail
 
 DESCRIPTION="Manages local development resources (AI, automation, storage, agents)"
 
-RESOURCES_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-
+# Source var.sh first with relative path
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../lib/utils/var.sh"
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../lib/utils/var.sh"
 
 # Handle Ctrl+C and other signals gracefully
 trap 'echo ""; log::info "Resource installation interrupted by user. Exiting..."; exit 130' INT TERM
 
+# Now source everything else using var_ variables
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
+source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/args-cli.sh"
 # shellcheck disable=SC1091

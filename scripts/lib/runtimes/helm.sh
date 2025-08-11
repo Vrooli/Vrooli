@@ -14,6 +14,8 @@ source "${var_LOG_FILE}"
 source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/sudo.sh"
 
 # Global configuration
 HELM_TIMEOUT="${HELM_TIMEOUT:-600}"
@@ -95,10 +97,14 @@ helm::install_via_script() {
         
         # Check if we need sudo
         local use_sudo="true"
-        if [ "${SUDO_MODE:-error}" = "skip" ] || ! command -v sudo >/dev/null 2>&1 || ! sudo -n true >/dev/null 2>&1; then
+        if [ "${SUDO_MODE:-error}" = "skip" ] || ! sudo::can_use_sudo; then
             use_sudo="false"
             export HELM_INSTALL_DIR="$HOME/.local/bin"
-            mkdir -p "$HELM_INSTALL_DIR"
+            if sudo::is_running_as_sudo; then
+                sudo::mkdir_as_user "$HELM_INSTALL_DIR"
+            else
+                mkdir -p "$HELM_INSTALL_DIR"
+            fi
             
             # Ensure local bin is in PATH
             if [[ ":$PATH:" != *":$HELM_INSTALL_DIR:"* ]]; then
@@ -108,7 +114,7 @@ helm::install_via_script() {
         
         # Run the installation script
         if [ "$use_sudo" = "true" ]; then
-            if sudo "$tmpdir/get_helm.sh"; then
+            if sudo::exec_with_fallback "$tmpdir/get_helm.sh"; then
                 trash::safe_remove "$tmpdir" --temp
                 return 0
             fi
@@ -165,10 +171,14 @@ helm::install_version() {
         local install_dir="/usr/local/bin"
         local use_sudo="true"
         
-        if [ "${SUDO_MODE:-error}" = "skip" ] || ! command -v sudo >/dev/null 2>&1 || ! sudo -n true >/dev/null 2>&1; then
+        if [ "${SUDO_MODE:-error}" = "skip" ] || ! sudo::can_use_sudo; then
             use_sudo="false"
             install_dir="$HOME/.local/bin"
-            mkdir -p "$install_dir"
+            if sudo::is_running_as_sudo; then
+                sudo::mkdir_as_user "$install_dir"
+            else
+                mkdir -p "$install_dir"
+            fi
             
             # Ensure local bin is in PATH
             if [[ ":$PATH:" != *":$install_dir:"* ]]; then
@@ -178,8 +188,8 @@ helm::install_version() {
         
         # Install the binary
         if [ "$use_sudo" = "true" ]; then
-            sudo mv "$tmpdir/${os}-${arch}/helm" "$install_dir/helm"
-            sudo chmod +x "$install_dir/helm"
+            sudo::exec_with_fallback "mv '$tmpdir/${os}-${arch}/helm' '$install_dir/helm'"
+            sudo::exec_with_fallback "chmod +x '$install_dir/helm'"
         else
             mv "$tmpdir/${os}-${arch}/helm" "$install_dir/helm"
             chmod +x "$install_dir/helm"

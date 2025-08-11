@@ -140,7 +140,7 @@ ollama::start() {
     fi
     
     # Validate prerequisites
-    if ! resources::can_sudo; then
+    if ! sudo::can_use_sudo; then
         resources::handle_error \
             "Sudo privileges required to start Ollama service" \
             "permission" \

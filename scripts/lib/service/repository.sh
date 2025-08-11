@@ -18,6 +18,8 @@ source "${var_LOG_FILE}"
 source "${var_SYSTEM_COMMANDS_FILE}"
 # shellcheck disable=SC1091
 source "${LIB_SERVICE_DIR}/../utils/json.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/sudo.sh"
 
 # Path to service.json file
 SERVICE_JSON_PATH="${SERVICE_JSON_PATH:-${var_SERVICE_JSON_FILE:-$(cd "${LIB_SERVICE_DIR}/../../.." && pwd)/.vrooli/service.json}}"
@@ -254,8 +256,20 @@ repository::clone() {
         clone_cmd="$clone_cmd $target_dir"
     fi
     
-    # Execute clone
-    if eval "$clone_cmd"; then
+    # Execute clone - use sudo helper if cloning to user directory under sudo
+    local exec_result=0
+    if sudo::is_running_as_sudo && [[ "${target_dir:-$(pwd)}" == "${HOME}"* || "${target_dir:-$(pwd)}" == "/home/"* ]]; then
+        # Clone as actual user to avoid permission issues
+        if ! sudo::exec_as_actual_user "$clone_cmd"; then
+            exec_result=1
+        fi
+    else
+        if ! eval "$clone_cmd"; then
+            exec_result=1
+        fi
+    fi
+    
+    if [[ $exec_result -eq 0 ]]; then
         log::success "Repository cloned successfully"
         
         # Change to cloned directory if specified

@@ -8,6 +8,8 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/sudo.sh" 2>/dev/null || true
 
 #######################################
 # Determine best storage strategy
@@ -127,7 +129,7 @@ vault::docker::prepare_bind_directories() {
         if [[ ! -d "${dir}" ]]; then
             if ! mkdir -p "${dir}" 2>/dev/null; then
                 log::error "Cannot create directory: ${dir}"
-                log::info "Try: sudo mkdir -p ${dir} && sudo chown \$USER:\$USER ${dir}"
+                log::info "Try: sudo mkdir -p ${dir} && sudo chown $(sudo::get_actual_user 2>/dev/null || echo '\$USER'):$(sudo::get_actual_group 2>/dev/null || echo '\$USER') ${dir}"
                 return 1
             fi
         fi
@@ -135,7 +137,7 @@ vault::docker::prepare_bind_directories() {
         # Check if directory is writable
         if [[ ! -w "${dir}" ]]; then
             log::error "Directory not writable: ${dir}"
-            log::info "Try: sudo chown \$USER:\$USER ${dir}"
+            log::info "Try: sudo chown $(sudo::get_actual_user 2>/dev/null || echo '\$USER'):$(sudo::get_actual_group 2>/dev/null || echo '\$USER') ${dir}"
             return 1
         fi
         
@@ -556,8 +558,8 @@ vault::docker::repair_permissions() {
     
     for dir in "${dirs[@]}"; do
         if [[ -d "${dir}" ]]; then
-            # Try to fix ownership without sudo
-            if chown -R "$(id -u):$(id -g)" "${dir}" 2>/dev/null; then
+            # Try to fix ownership
+            if sudo::restore_owner "${dir}" -R; then
                 log::info "Fixed ownership for: ${dir}"
                 repaired=$((repaired + 1))
             else
@@ -577,7 +579,7 @@ vault::docker::repair_permissions() {
     if [[ ${failed} -gt 0 ]]; then
         log::error "Some directories need elevated permissions to repair"
         log::info "Run the following command with sudo:"
-        log::info "  sudo chown -R \$USER:\$USER ${VAULT_DATA_DIR%/*}"
+        log::info "  sudo chown -R $(sudo::get_actual_user 2>/dev/null || echo '\$USER'):$(sudo::get_actual_group 2>/dev/null || echo '\$USER') ${VAULT_DATA_DIR%/*}"
         log::info "  sudo chmod -R 755 ${VAULT_DATA_DIR%/*}"
         return 1
     fi

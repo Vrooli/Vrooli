@@ -8,6 +8,8 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/sudo.sh" 2>/dev/null || true
 
 #######################################
 # Check if SearXNG is installed
@@ -343,19 +345,31 @@ searxng::ensure_data_dir() {
         log::info "Setting ownership for SearXNG container access (uid:gid 977:977)..."
         
         # First try to change ownership to SearXNG user (977:977)
-        if chown -R 977:977 "$SEARXNG_DATA_DIR" 2>/dev/null; then
+        # Note: This is for Docker container compatibility, not regular user ownership
+        if sudo::is_running_as_sudo && [[ "$SEARXNG_DATA_DIR" == "${HOME}/"* || "$SEARXNG_DATA_DIR" == "/home/"* ]]; then
+            # If running under sudo and in user directory, set ownership to actual user first
+            sudo::restore_owner "$SEARXNG_DATA_DIR" -R
+            # Then set container permissions
+            if sudo::exec_with_fallback "chown -R 977:977 '$SEARXNG_DATA_DIR'" 2>/dev/null; then
+                log::success "✅ Changed ownership to SearXNG user (977:977)"
+            fi
+        elif chown -R 977:977 "$SEARXNG_DATA_DIR" 2>/dev/null; then
             log::success "✅ Changed ownership to SearXNG user (977:977)"
-            # Set appropriate permissions for SearXNG container
-            chmod -R 755 "$SEARXNG_DATA_DIR" 2>/dev/null || {
-                log::warn "Could not set directory permissions to 755"
-            }
-        else
+        fi
+        
+        # Set appropriate permissions for SearXNG container
+        if ! chmod -R 755 "$SEARXNG_DATA_DIR" 2>/dev/null; then
+            log::warn "Could not set directory permissions to 755"
+        }
+        
+        # If ownership change failed, use fallback permissions
+        if [[ ! -O "$SEARXNG_DATA_DIR" ]]; then
             log::warn "Could not change ownership to SearXNG user, using fallback permissions"
             # Fallback: make directory world-writable so container can access it
-            chmod -R 777 "$SEARXNG_DATA_DIR" 2>/dev/null || {
+            if ! chmod -R 777 "$SEARXNG_DATA_DIR" 2>/dev/null; then
                 log::warn "Permission setting failed - SearXNG may have issues accessing config files"
                 return 1
-            }
+            fi
         fi
         
         return 0

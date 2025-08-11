@@ -8,6 +8,8 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/sudo.sh" 2>/dev/null || true
 
 #######################################
 # Check if Docker is installed
@@ -223,7 +225,11 @@ n8n::auto_recover() {
         }
         
         # Fix permissions
-        chown "$(whoami):$(whoami)" "$N8N_DATA_DIR/database.sqlite" 2>/dev/null || true
+        if command -v sudo::restore_owner &>/dev/null; then
+            sudo::restore_owner "$N8N_DATA_DIR/database.sqlite"
+        else
+            chown "$(whoami):$(whoami)" "$N8N_DATA_DIR/database.sqlite" 2>/dev/null || true
+        fi
         chmod 644 "$N8N_DATA_DIR/database.sqlite" || true
         
         log::success "Database restored from backup"
@@ -259,9 +265,13 @@ n8n::create_directories() {
     }
     
     # Set proper ownership and permissions
-    local current_user
-    current_user=$(whoami)
-    chown "$current_user:$current_user" "$N8N_DATA_DIR" 2>/dev/null || true
+    if command -v sudo::restore_owner &>/dev/null; then
+        sudo::restore_owner "$N8N_DATA_DIR"
+    else
+        local current_user
+        current_user=$(whoami)
+        chown "$current_user:$current_user" "$N8N_DATA_DIR" 2>/dev/null || true
+    fi
     chmod 755 "$N8N_DATA_DIR" || true
     
     # Verify directory is healthy

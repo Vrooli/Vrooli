@@ -13,6 +13,8 @@ source "${var_LOG_FILE}"
 source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/sudo.sh"
 
 # Function to install ShellCheck for shell script linting
 shellcheck::install() {
@@ -32,33 +34,22 @@ shellcheck::install() {
         log::warning "Package manager install failed or timed out, falling back to GitHub releases"
     fi
 
-    # Determine the installation directory and command prefix based on sudo availability
+    # Determine the installation directory based on sudo availability
     INSTALL_DIR="/usr/local/bin"
-    MV_CMD="sudo mv"
-    CHMOD_CMD="sudo chmod"
+    local use_sudo=true
 
     # Check if we should use local installation
-    local use_local=false
-    
-    if [ "${SUDO_MODE:-error}" = "skip" ]; then
-        use_local=true
-        log::info "SUDO_MODE=skip: switching to user-local ShellCheck installation"
-    else
-        # Check if sudo is available without exiting
-        if ! command -v sudo >/dev/null 2>&1 || ! sudo -n true >/dev/null 2>&1; then
-            use_local=true
-            log::info "Sudo not available: switching to user-local ShellCheck installation"
-        fi
-    fi
-    
-    if [ "$use_local" = "true" ]; then
+    if [ "${SUDO_MODE:-error}" = "skip" ] || ! sudo::can_use_sudo; then
+        use_sudo=false
         log::info "Installing ShellCheck to user directory."
         INSTALL_DIR="$HOME/.local/bin"
-        MV_CMD="mv"
-        CHMOD_CMD="chmod"
 
         # Ensure the local bin directory exists
-        mkdir -p "$INSTALL_DIR"
+        if sudo::is_running_as_sudo; then
+            sudo::mkdir_as_user "$INSTALL_DIR"
+        else
+            mkdir -p "$INSTALL_DIR"
+        fi
 
         # Ensure the local bin directory is in PATH
         if [[ ":$PATH:" != *":$INSTALL_DIR:"* ]]; then
@@ -83,9 +74,14 @@ shellcheck::install() {
         tmpdir=$(mktemp -d)
         if curl -fsSL "https://github.com/koalaman/shellcheck/releases/download/v${version}/shellcheck-v${version}.linux.${arch}.tar.xz" \
                | tar -xJ -C "$tmpdir"; then
-            # Move and make executable using determined command and path
-            ${MV_CMD} "$tmpdir/shellcheck-v${version}/shellcheck" "${INSTALL_DIR}/shellcheck"
-            ${CHMOD_CMD} +x "${INSTALL_DIR}/shellcheck"
+            # Move and make executable
+            if [ "$use_sudo" = "true" ]; then
+                sudo::exec_with_fallback "mv '$tmpdir/shellcheck-v${version}/shellcheck' '${INSTALL_DIR}/shellcheck'"
+                sudo::exec_with_fallback "chmod +x '${INSTALL_DIR}/shellcheck'"
+            else
+                mv "$tmpdir/shellcheck-v${version}/shellcheck" "${INSTALL_DIR}/shellcheck"
+                chmod +x "${INSTALL_DIR}/shellcheck"
+            fi
             trash::safe_remove "$tmpdir" --no-confirm
             log::success "ShellCheck v${version} installed to ${INSTALL_DIR}"
             return

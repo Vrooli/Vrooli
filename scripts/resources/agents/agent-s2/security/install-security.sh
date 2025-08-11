@@ -50,12 +50,12 @@ check_system() {
         print_warning "AppArmor not found. Installing AppArmor utilities..."
         
         if command -v apt-get >/dev/null 2>&1; then
-            apt-get update -qq
-            apt-get install -y apparmor-utils apparmor-profiles
+            sudo::exec_with_fallback "apt-get update -qq"
+            sudo::exec_with_fallback "apt-get install -y apparmor-utils apparmor-profiles"
         elif command -v yum >/dev/null 2>&1; then
-            yum install -y apparmor-utils apparmor-profiles
+            sudo::exec_with_fallback "yum install -y apparmor-utils apparmor-profiles"
         elif command -v dnf >/dev/null 2>&1; then
-            dnf install -y apparmor-utils apparmor-profiles
+            sudo::exec_with_fallback "dnf install -y apparmor-utils apparmor-profiles"
         else
             print_error "Could not install AppArmor. Please install manually."
             return 1
@@ -67,7 +67,7 @@ check_system() {
         print_warning "AppArmor kernel module not loaded"
         print_status "Attempting to load AppArmor module..."
         
-        if modprobe apparmor 2>/dev/null; then
+        if sudo::exec_with_fallback "modprobe apparmor" 2>/dev/null; then
             print_success "AppArmor module loaded"
         else
             print_warning "Could not load AppArmor module. Security profiles may not work."

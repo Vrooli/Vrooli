@@ -9,6 +9,8 @@ source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
 # Source trash system for safe removal using var_ variables
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/sudo.sh" 2>/dev/null || true
 
 # PostgreSQL Client Deployment Packaging Example
 # Demonstrates packaging PostgreSQL instances for client deployment
@@ -986,19 +988,19 @@ CONFIG_DIR="/etc/postgresql/${CLIENT_NAME}"
 echo "Setting up PostgreSQL for client: $CLIENT_NAME"
 
 # Create directories
-sudo mkdir -p "$DATA_DIR"
-sudo mkdir -p "$CONFIG_DIR"
-sudo chown postgres:postgres "$DATA_DIR"
-sudo chown postgres:postgres "$CONFIG_DIR"
+sudo::exec_with_fallback "mkdir -p '$DATA_DIR'"
+sudo::exec_with_fallback "mkdir -p '$CONFIG_DIR'"
+sudo::exec_with_fallback "chown postgres:postgres '$DATA_DIR'"
+sudo::exec_with_fallback "chown postgres:postgres '$CONFIG_DIR'"
 
 # Copy configuration
-sudo cp "../config/postgresql.conf" "$CONFIG_DIR/"
-sudo chown postgres:postgres "$CONFIG_DIR/postgresql.conf"
+sudo::exec_with_fallback "cp '../config/postgresql.conf' '$CONFIG_DIR/'"
+sudo::exec_with_fallback "chown postgres:postgres '$CONFIG_DIR/postgresql.conf'"
 
 # Initialize database
 if [[ ! -f "$DATA_DIR/PG_VERSION" ]]; then
     echo "Initializing database..."
-    sudo -u postgres initdb -D "$DATA_DIR" --encoding=UTF8 --locale=en_US.UTF-8
+    sudo::exec_with_fallback "-u postgres initdb -D '$DATA_DIR' --encoding=UTF8 --locale=en_US.UTF-8"
 fi
 
 # Install systemd service
@@ -1006,20 +1008,20 @@ if [[ -f "/etc/systemd/system/postgresql-${CLIENT_NAME}.service" ]]; then
     echo "Systemd service already exists"
 else
     echo "Installing systemd service..."
-    sudo cp "../systemd/postgresql-${CLIENT_NAME}.service" "/etc/systemd/system/"
-    sudo systemctl daemon-reload
-    sudo systemctl enable "postgresql-${CLIENT_NAME}"
+    sudo::exec_with_fallback "cp '../systemd/postgresql-${CLIENT_NAME}.service' '/etc/systemd/system/'"
+    sudo::exec_with_fallback "systemctl daemon-reload"
+    sudo::exec_with_fallback "systemctl enable 'postgresql-${CLIENT_NAME}'"
 fi
 
 # Start service
 echo "Starting PostgreSQL service..."
-sudo systemctl start "postgresql-${CLIENT_NAME}"
+sudo::exec_with_fallback "systemctl start 'postgresql-${CLIENT_NAME}'"
 
 # Wait for service to be ready
 sleep 5
 
 # Test connection
-if sudo -u postgres pg_isready -p 5432; then
+if sudo::exec_with_fallback "-u postgres pg_isready -p 5432"; then
     echo "✅ PostgreSQL is running and ready"
     echo ""
     echo "Service name: postgresql-${CLIENT_NAME}"
@@ -1031,7 +1033,7 @@ if sudo -u postgres pg_isready -p 5432; then
     echo "To check status: sudo systemctl status postgresql-${CLIENT_NAME}"
 else
     echo "❌ PostgreSQL deployment failed"
-    sudo systemctl status "postgresql-${CLIENT_NAME}"
+    sudo::exec_with_fallback "systemctl status 'postgresql-${CLIENT_NAME}'"
     exit 1
 fi
 EOF

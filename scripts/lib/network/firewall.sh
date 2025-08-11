@@ -14,6 +14,8 @@ source "${var_LOG_FILE}"
 source "${var_EXIT_CODES_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/sudo.sh"
 
 # Simple environment check function (universal replacement for env::in_development)
 firewall::is_development() {
@@ -47,17 +49,17 @@ firewall::setup() {
 
     # Cache verbose status for initial checks
     local status_verbose
-    status_verbose=$(sudo ufw status verbose)
+    status_verbose=$(sudo::exec_with_fallback "ufw status verbose")
 
     # 1) Enable UFW only if not already active
     if echo "$status_verbose" | grep -q "^Status: active"; then
         log::info "UFW already active"
     else
         log::info "Enabling UFW"
-        sudo ufw --force enable
+        sudo::exec_with_fallback "ufw --force enable"
         changes_made=true
         # Update status after enabling
-        status_verbose=$(sudo ufw status verbose)
+        status_verbose=$(sudo::exec_with_fallback "ufw status verbose")
     fi
 
     # 2) Apply default policies only if they differ
@@ -67,8 +69,8 @@ firewall::setup() {
         log::info "Default policies already set"
     else
         log::info "Setting default policies"
-        sudo ufw default allow outgoing
-        sudo ufw default deny incoming
+        sudo::exec_with_fallback "ufw default allow outgoing"
+        sudo::exec_with_fallback "ufw default deny incoming"
         changes_made=true
     fi
 
@@ -78,7 +80,7 @@ firewall::setup() {
     
     # Get current status including direction info
     local status_numbered
-    status_numbered=$(sudo ufw status numbered)
+    status_numbered=$(sudo::exec_with_fallback "ufw status numbered")
     
     # Define critical outbound rules
     local outbound_rules=("80/tcp" "443/tcp" "53" "53/udp")
@@ -89,7 +91,7 @@ firewall::setup() {
             log::info "Outbound rule for ${port_proto} already exists"
         else
             log::info "Adding critical outbound rule: ufw allow out ${port_proto}"
-            sudo ufw allow out "${port_proto}"
+            sudo::exec_with_fallback "ufw allow out '${port_proto}'"
             changes_made=true
         fi
     done
@@ -102,7 +104,7 @@ firewall::setup() {
 
     # Cache plain status for rule checks
     local status_plain
-    status_plain=$(sudo ufw status)
+    status_plain=$(sudo::exec_with_fallback "ufw status")
 
     for port_proto in "${ports[@]}"; do
         # Check for incoming rules (default when direction not specified)
@@ -110,7 +112,7 @@ firewall::setup() {
             log::info "Incoming rule for $port_proto already exists"
         else
             log::info "Allowing incoming $port_proto"
-            sudo ufw allow "$port_proto"
+            sudo::exec_with_fallback "ufw allow '$port_proto'"
             changes_made=true
         fi
     done
@@ -118,8 +120,8 @@ firewall::setup() {
     # 4) Reload sysctl and UFW only if changes were made
     if $changes_made; then
         log::info "Reloading sysctl and UFW"
-        sudo sysctl -p >/dev/null 2>&1
-        sudo ufw reload >/dev/null 2>&1
+        sudo::exec_with_fallback "sysctl -p" >/dev/null 2>&1
+        sudo::exec_with_fallback "ufw reload" >/dev/null 2>&1
     else
         log::info "No firewall changes needed; skipping reload"
     fi
