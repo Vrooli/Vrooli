@@ -108,7 +108,7 @@
       "steps": [
         {
           "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/retro-game-launcher/.vrooli/service.json",
+          "run": "scripts/scenarios/injection/engine.sh scripts/scenarios/core/retro-game-launcher/.vrooli/service.json",
           "description": "Inject SQL schemas, workflows, and configurations"
         },
         {

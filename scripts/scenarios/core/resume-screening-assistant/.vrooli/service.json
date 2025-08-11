@@ -11,615 +11,105 @@
   "service": {
     "name": "resume-screening-assistant",
     "displayName": "Resume Screening Assistant",
-    "description": "AI-powered recruitment automation for resume parsing, candidate scoring, and job matching",
+    "description": "AI-powered resume screening and candidate evaluation platform with semantic matching and automated assessment workflows",
     "version": "1.0.0",
     "type": "business-application",
+    "category": "business",
     "tags": [
-      "hr-tech",
+      "resume-screening",
+      "candidate-evaluation",
       "recruitment",
-      "resume-parsing",
-      "candidate-matching",
-      "automation",
-      "talent-acquisition",
-      "ai-recruiting"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "team@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "license": "GPL-3.0",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "./README.md",
-    "support": {
-      "email": "support@vrooli.com",
-      "issues": "https://github.com/Vrooli/Vrooli/issues",
-      "chat": "https://discord.gg/vrooli"
+      "semantic-matching",
+      "windmill-ui",
+      "ai-assessment",
+      "job-matching"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto",
+      "description": "Resume screening assistant API port"
     }
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "type": "postgresql",
-        "enabled": true,
-        "version": "16",
-        "required": true,
-        "initialization": {
-          "data": [
-            {
-              "type": "schema",
-              "file": "initialization/storage/postgres/schema.sql"
-            },
-            {
-              "type": "seed",
-              "file": "initialization/storage/postgres/seed.sql"
-            }
-          ]
-        }
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "collections": [
-            {
-              "name": "resumes",
-              "config": {
-                "vectors": {
-                  "size": 384,
-                  "distance": "Cosine"
-                }
-              }
-            },
-            {
-              "name": "job-descriptions",
-              "config": {
-                "vectors": {
-                  "size": 384,
-                  "distance": "Cosine"
-                }
-              }
-            },
-            {
-              "name": "candidate-profiles",
-              "config": {
-                "vectors": {
-                  "size": 384,
-                  "distance": "Cosine"
-                }
-              }
-            }
-          ]
-        }
-      },
-      "minio": {
-        "type": "minio",
-        "enabled": false,
-        "required": false,
-        "initialization": {
-          "buckets": [
-            {
-              "name": "resume-uploads",
-              "policy": "private"
-            },
-            {
-              "name": "processed-documents",
-              "policy": "private"
-            },
-            {
-              "name": "candidate-photos",
-              "policy": "private"
-            }
-          ]
-        }
-      }
-    },
-    "ai": {
-      "unstructured-io": {
-        "enabled": true,
-        "required": true,
-        "type": "unstructured-io"
-      },
-      "ollama": {
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.1:8b",
-          "nomic-embed-text"
-        ]
-      }
-    },
     "automation": {
       "n8n": {
+        "type": "n8n",
         "enabled": true,
         "required": true,
-        "type": "n8n",
-        "version": "latest",
         "initialization": {
           "workflows": [
             {
-              "name": "resume-processing-pipeline",
-              "file": "initialization/automation/n8n/resume-processing-pipeline.json"
-            },
-            {
-              "name": "job-management-workflow",
               "file": "initialization/automation/n8n/job-management-workflow.json"
             },
             {
-              "name": "semantic-search-workflow",
+              "file": "initialization/automation/n8n/resume-processing-pipeline.json"
+            },
+            {
               "file": "initialization/automation/n8n/semantic-search-workflow.json"
             }
           ]
         }
       },
       "windmill": {
+        "type": "windmill",
         "enabled": true,
         "required": true,
-        "type": "windmill",
-        "version": "latest",
         "initialization": {
           "apps": [
             {
-              "name": "recruitment-dashboard",
               "file": "initialization/automation/windmill/recruitment-app.json"
             }
-          ],
-          "scripts": [
-            {
-              "name": "job_matcher",
-              "file": "initialization/automation/windmill/scripts/job_matcher.py"
-            },
-            {
-              "name": "semantic_search",
-              "file": "initialization/automation/windmill/scripts/semantic_search.py"
-            },
-            {
-              "name": "resume_processor",
-              "file": "initialization/automation/windmill/scripts/resume_processor.py"
-            }
           ]
         }
       }
     },
-    "agents": {
-      "browserless": {
-        "enabled": false,
-        "required": false,
-        "mode": "service"
-      }
-    }
-  },
-  "deployment": {
-    "target": "docker",
-    "strategy": "rolling-update",
-    "urls": {
-      "application": "${service.windmill.url}/apps/d/recruitment-dashboard",
-      "admin": "${service.windmill.url}/admin/recruitment-dashboard",
-      "api": "${service.n8n.url}/webhook",
-      "health": "${service.n8n.url}/webhook/health",
-      "upload": "${service.n8n.url}/webhook/resume-upload",
-      "search": "${service.n8n.url}/webhook/search",
-      "jobs": "${service.n8n.url}/webhook/jobs",
-      "windmill": "${service.windmill.url}",
-      "n8n": "${service.n8n.url}",
-      "unstructured": "${service.unstructured-io.url}",
-      "qdrant": "${service.qdrant.url}",
-      "ollama": "${service.ollama.url}",
-      "postgres": "${service.postgres.url}",
-      "minio": "${service.minio.url}"
-    },
-    "initialization": {
-      "phases": [
-        {
-          "name": "database-setup",
-          "tasks": [
-            {
-              "name": "apply-schema",
-              "type": "sql",
-              "target": "storage.postgres",
-              "file": "initialization/storage/postgres/schema.sql"
-            },
-            {
-              "name": "seed-data",
-              "type": "sql",
-              "target": "storage.postgres",
-              "file": "initialization/storage/postgres/seed.sql"
-            }
-          ]
-        },
-        {
-          "name": "ai-setup",
-          "parallel": true,
-          "tasks": [
-            {
-              "name": "verify-unstructured-io",
-              "type": "resource-inject",
-              "target": "ai.unstructured-io",
-              "timeout": "2m"
-            },
-            {
-              "name": "load-ai-models",
-              "type": "resource-inject",
-              "target": "ai.ollama",
-              "timeout": "10m"
-            },
-            {
-              "name": "setup-vector-collections",
-              "type": "resource-inject",
-              "target": "storage.qdrant",
-              "timeout": "2m"
-            }
-          ]
-        },
-        {
-          "name": "optional-services-setup",
-          "tasks": [
-            {
-              "name": "setup-storage-buckets",
-              "type": "resource-inject",
-              "target": "storage.minio",
-              "timeout": "2m"
-            }
-          ]
-        },
-        {
-          "name": "automation-setup",
-          "parallel": true,
-          "tasks": [
-            {
-              "name": "deploy-n8n-workflows",
-              "type": "resource-inject",
-              "target": "automation.n8n",
-              "timeout": "5m"
-            },
-            {
-              "name": "deploy-windmill-apps",
-              "type": "resource-inject",
-              "target": "automation.windmill",
-              "timeout": "5m"
-            }
-          ]
-        },
-        {
-          "name": "application-configuration",
-          "tasks": [
-            {
-              "name": "load-windmill-config",
-              "type": "config",
-              "file": "initialization/configuration/windmill-app-config.json"
-            }
-          ]
-        },
-        {
-          "name": "startup",
-          "tasks": [
-            {
-              "name": "start-application",
-              "type": "script",
-              "script": "./deployment/startup.sh",
-              "timeout": "2m"
-            }
-          ]
-        },
-        {
-          "name": "post-validation",
-          "tasks": [
-            {
-              "name": "health-check",
-              "type": "healthcheck",
-              "target": "${service.vrooli.url}/api/resume-screening-assistant/health",
-              "timeout": "30s",
-              "retries": 3
-            },
-            {
-              "name": "monitor-startup",
-              "type": "script",
-              "script": "./deployment/monitor.sh",
-              "background": true
-            }
-          ]
-        }
-      ]
-    },
-    "monitoring": {
-      "enabled": true,
-      "healthChecks": {
-        "windmill": {
-          "endpoint": "${service.windmill.url}/api/version",
-          "interval": "30s",
-          "timeout": "5s",
-          "threshold": 3
-        },
-        "n8n": {
-          "endpoint": "${service.n8n.url}/healthz",
-          "interval": "30s",
-          "timeout": "5s",
-          "threshold": 3
-        },
-        "upload-endpoint": {
-          "endpoint": "${service.n8n.url}/webhook/resume-upload",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "search-endpoint": {
-          "endpoint": "${service.n8n.url}/webhook/search",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "unstructured-io": {
-          "endpoint": "${service.unstructured-io.url}/general/v0/general",
-          "interval": "60s",
-          "timeout": "15s"
-        },
-        "qdrant": {
-          "endpoint": "${service.qdrant.url}/health",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "ollama": {
-          "endpoint": "${service.ollama.url}/api/tags",
-          "interval": "60s",
-          "timeout": "15s"
-        },
-        "browserless": {
-          "endpoint": "${service.browserless.url}/pressure",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "database": {
-          "type": "tcp",
-          "port": 5432,
-          "interval": "30s"
-        }
-      },
-      "metrics": {
-        "responseTime": {
-          "p50": "600ms",
-          "p95": "2000ms",
-          "p99": "5000ms"
-        },
-        "throughput": {
-          "rps": 8,
-          "concurrent": 12
-        },
-        "errorRate": {
-          "threshold": "3%"
-        }
-      }
-    },
-    "cleanup": {
-      "enabled": true,
-      "tasks": [
-        {
-          "name": "drop-database",
-          "type": "sql",
-          "target": "storage.postgres",
-          "query": "DROP DATABASE IF EXISTS resume_screening_assistant"
-        },
-        {
-          "name": "clear-vector-collections",
-          "type": "resource-cleanup",
-          "target": "storage.qdrant"
-        },
-        {
-          "name": "clear-storage-buckets",
-          "type": "resource-cleanup",
-          "target": "storage.minio"
-        }
-      ]
-    },
-    "testing": {
-      "enabled": true,
-      "timeout": "35m",
-      "script": "./test.sh",
-      "ui": {
+    "ai": {
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
         "required": true,
-        "type": "web",
-        "url": "${service.vrooli.url}/resume-screening-assistant"
-      },
-      "performance": {
-        "loadTest": {
-          "users": 8,
-          "duration": "5m",
-          "rampUp": "1m"
-        }
+        "models": [
+          "llama3.2",
+          "nomic-embed-text"
+        ]
       }
     },
-    "resources": {
-      "requests": {
-        "cpu": "800m",
-        "memory": "2Gi"
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "resume data, job listings, and assessment results"
       },
-      "limits": {
-        "cpu": "3000m",
-        "memory": "6Gi"
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "semantic search and candidate-job matching"
       }
     }
-  },
-  "metadata": {
-    "businessModel": {
-      "purpose": "commercial",
-      "valueProposition": "AI-powered recruitment automation platform for resume parsing, candidate scoring, and intelligent job matching",
-      "targetMarket": "HR departments, recruitment agencies, talent acquisition teams, and staffing companies",
-      "painPoints": [
-        "Manual resume screening consuming hours of recruiter time per position",
-        "Inconsistent candidate evaluation and bias in hiring decisions",
-        "Difficulty matching qualified candidates to appropriate job openings at scale"
-      ],
-      "solution": "Automated recruitment platform with AI-powered resume parsing, candidate scoring, and intelligent matching capabilities",
-      "competitiveAdvantage": "Complete HR tech solution combining Unstructured.io document processing with AI analysis and vector-based candidate matching",
-      "revenuePotential": {
-        "initial": "$5,000",
-        "recurring": "$18,000",
-        "expansion": "$35,000",
-        "totalEstimate": "$58,000"
-      },
-      "marketDemand": {
-        "level": "high",
-        "growth": "30% annually",
-        "evidence": "Growing HR tech market and increasing demand for AI-powered recruitment solutions to address talent shortage"
-      },
-      "roi": {
-        "developmentCost": "$8,000",
-        "timeToMarket": "3 weeks",
-        "breakEven": "4 months"
-      }
-    },
-    "performance": {
-      "targets": {
-        "initializationTime": "6m",
-        "responseTime": {
-          "p50": "600ms",
-          "p95": "2000ms",
-          "p99": "5000ms"
-        },
-        "throughput": {
-          "minimum": 5,
-          "target": 8,
-          "peak": 25
-        },
-        "availability": "99.5%",
-        "errorRate": "<3%"
-      },
-      "resources": {
-        "cpu": {
-          "minimum": "1.5",
-          "target": "3.0",
-          "maximum": "6.0"
-        },
-        "memory": {
-          "minimum": "3Gi",
-          "target": "6Gi",
-          "maximum": "12Gi"
-        },
-        "storage": {
-          "database": "200Gi",
-          "vectors": "100Gi",
-          "documents": "500Gi"
-        }
-      }
-    },
-    "customization": {
-      "variables": {
-        "APP_NAME": {
-          "type": "string",
-          "default": "Resume Screening Assistant",
-          "description": "Application display name"
-        },
-        "COMPANY_NAME": {
-          "type": "string",
-          "default": "Your Company",
-          "description": "Customer company name"
-        },
-        "PRIMARY_COLOR": {
-          "type": "string",
-          "default": "#16a34a",
-          "description": "Brand primary color"
-        },
-        "DATABASE_NAME": {
-          "type": "string",
-          "default": "resume_screening_assistant",
-          "description": "Database name"
-        },
-        "APP_PORT": {
-          "type": "number",
-          "default": 8000,
-          "description": "Windmill application port"
-        },
-        "N8N_PORT": {
-          "type": "number",
-          "default": 5678,
-          "description": "n8n automation port"
-        },
-        "UNSTRUCTURED_PORT": {
-          "type": "number",
-          "default": 11450,
-          "description": "Unstructured.io API port"
-        },
-        "QDRANT_PORT": {
-          "type": "number",
-          "default": 6333,
-          "description": "Qdrant vector database port"
-        }
-      },
-      "features": {
-        "authentication": {
-          "enabled": true,
-          "provider": "jwt",
-          "sso": true
-        },
-        "notifications": {
-          "enabled": true,
-          "channels": [
-            "email",
-            "webhook",
-            "slack"
-          ]
-        },
-        "analytics": {
-          "enabled": true,
-          "provider": "internal"
-        },
-        "resumeParsing": {
-          "enabled": true,
-          "provider": "unstructured-io"
-        },
-        "candidateScoring": {
-          "enabled": true,
-          "provider": "ollama"
-        },
-        "candidateMatching": {
-          "enabled": true,
-          "provider": "qdrant"
-        },
-        "webAutomation": {
-          "enabled": false,
-          "provider": "browserless"
-        }
-      },
-      "integrations": [
-        {
-          "name": "Applicant Tracking Systems (ATS)",
-          "type": "api",
-          "required": false
-        },
-        {
-          "name": "HR Information Systems (HRIS)",
-          "type": "webhook",
-          "required": false
-        },
-        {
-          "name": "Job Boards",
-          "type": "api",
-          "required": false
-        },
-        {
-          "name": "Background Check Services",
-          "type": "api",
-          "required": false
-        }
-      ]
-    },
-    "category": "ai-recruitment",
-    "complexity": "intermediate",
-    "marketDemand": "high"
   },
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize Resume Screening Assistant environment",
+      "description": "Initialize Resume Screening Assistant",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/resume-screening-assistant/.vrooli/service.json",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "show-access-urls",
-          "run": "echo '✅ Resume Screening Assistant initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Ollama: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  Unstructured: http://localhost:${RESOURCE_PORTS[unstructured-io]}\\n  PostgreSQL: postgresql://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/resume_screening_assistant'",
+          "name": "add-data",
+          "run": "scripts/lib/resources/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Resume Screening Assistant initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Ollama API: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  API: http://localhost:${SERVICE_PORT}'",
           "description": "Display service access URLs"
         }
       ]
@@ -629,34 +119,28 @@
       "steps": [
         {
           "name": "start-services",
-          "run": "../deployment/startup.sh"
-        }
-      ]
-    },
-    "build": {
-      "description": "Build resume screening assistant artifacts",
-      "steps": [
-        {
-          "name": "build-artifacts",
-          "run": "./scripts/manage.sh build"
+          "run": "cd deployment && ./startup.sh",
+          "description": "Start resume screening assistant services"
         }
       ]
     },
     "test": {
-      "description": "Run resume screening assistant tests",
+      "description": "Test resume screening assistant functionality",
       "steps": [
         {
           "name": "run-tests",
-          "run": "./test.sh"
+          "run": "bash test.sh",
+          "description": "Execute integration tests"
         }
       ]
     },
-    "clean": {
-      "description": "Clean build artifacts and temporary files",
+    "stop": {
+      "description": "Stop resume screening assistant services",
       "steps": [
         {
-          "name": "clean-artifacts",
-          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+          "name": "stop-services",
+          "run": "pkill -f 'resume-screening' || true",
+          "description": "Stop all resume screening assistant processes"
         }
       ]
     }

@@ -55,8 +55,14 @@
       "minio": {
         "enabled": true,
         "config": {
-          "buckets": ["generated-apps", "resource-artifacts", "test-reports"],
-          "public_buckets": ["generated-apps"],
+          "buckets": [
+            "generated-apps",
+            "resource-artifacts",
+            "test-reports"
+          ],
+          "public_buckets": [
+            "generated-apps"
+          ],
           "initialization": {
             "buckets": "initialization/storage/minio/buckets.json"
           }
@@ -65,7 +71,11 @@
       "qdrant": {
         "enabled": true,
         "config": {
-          "collections": ["resources", "test-results", "compatibility"],
+          "collections": [
+            "resources",
+            "test-results",
+            "compatibility"
+          ],
           "initialization": {
             "collections": "initialization/storage/qdrant/collections.json"
           }
@@ -110,7 +120,10 @@
       "ollama": {
         "enabled": true,
         "config": {
-          "models": ["llama3.2", "codellama"],
+          "models": [
+            "llama3.2",
+            "codellama"
+          ],
           "analysis": {
             "model": "llama3.2",
             "temperature": 0.3
@@ -131,7 +144,12 @@
       "judge0": {
         "enabled": true,
         "config": {
-          "languages": ["bash", "python", "javascript", "typescript"],
+          "languages": [
+            "bash",
+            "python",
+            "javascript",
+            "typescript"
+          ],
           "timeout": 60000
         }
       }
@@ -201,7 +219,7 @@
       "steps": [
         {
           "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/resource-experimenter/.vrooli/service.json",
+          "run": "scripts/scenarios/injection/engine.sh scripts/scenarios/core/resource-experimenter/.vrooli/service.json",
           "description": "Inject SQL schemas, workflows, and configurations"
         },
         {

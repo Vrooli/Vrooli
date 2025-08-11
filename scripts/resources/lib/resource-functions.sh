@@ -215,7 +215,7 @@ inject_initialization_data() {
     log_info "Injecting initialization data..."
     
     # Use the runtime injection engine
-    local runtime_engine="${VROOLI_RUNTIME_DIR}/scripts/scenarios/injection/runtime-engine.sh"
+    local runtime_engine="${VROOLI_RUNTIME_DIR}/scripts/scenarios/injection/engine.sh"
     
     if [[ ! -x "$runtime_engine" ]]; then
         log_error "Runtime injection engine not found: $runtime_engine"

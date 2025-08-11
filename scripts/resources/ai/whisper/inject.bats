@@ -1,8 +1,16 @@
 #!/usr/bin/env bats
 # Tests for Whisper inject.sh script
 
-# Load Vrooli test infrastructure (REQUIRED)
-source "${BATS_TEST_DIRNAME}/../../../__test/fixtures/setup.bash"
+# Get script directory first
+INJECT_BATS_DIR="${BATS_TEST_DIRNAME}"
+
+# Source var.sh first to get directory variables
+# shellcheck disable=SC1091
+source "${INJECT_BATS_DIR}/../../../lib/utils/var.sh"
+
+# Load Vrooli test infrastructure using var_ variables
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
 
 # Expensive setup operations (run once per file)
 setup_file() {
@@ -45,14 +53,14 @@ teardown() {
 }
 
 # Test usage function exists
-@test "whisper_inject::usage function is defined" {
+@test "inject::usage function is defined" {
     # Check if the function is defined
-    declare -f whisper_inject::usage >/dev/null
+    declare -f inject::usage >/dev/null
 }
 
 # Test validation function exists
-@test "whisper_inject::validate_config function is defined" {
-    declare -f whisper_inject::validate_config >/dev/null
+@test "inject::validate_config function is defined" {
+    declare -f inject::validate_config >/dev/null
 }
 
 # Test model validation
@@ -60,7 +68,7 @@ teardown() {
     # Test valid model configuration
     local valid_config='{"models": [{"name": "base", "download": true}]}'
     
-    run whisper_inject::validate_config "$valid_config"
+    run inject::validate_config "$valid_config"
     [ "$status" -eq 0 ]
 }
 
@@ -69,7 +77,7 @@ teardown() {
     # Test invalid model configuration
     local invalid_config='{"models": [{"name": "invalid_model", "download": true}]}'
     
-    run whisper_inject::validate_config "$invalid_config"
+    run inject::validate_config "$invalid_config"
     [ "$status" -eq 1 ]
 }
 
@@ -78,7 +86,7 @@ teardown() {
     # Test empty configuration
     local empty_config='{}'
     
-    run whisper_inject::validate_config "$empty_config"
+    run inject::validate_config "$empty_config"
     [ "$status" -eq 1 ]
 }
 
@@ -87,7 +95,7 @@ teardown() {
     # Test malformed JSON
     local malformed_config='{"models": [{'
     
-    run whisper_inject::validate_config "$malformed_config"
+    run inject::validate_config "$malformed_config"
     [ "$status" -eq 1 ]
 }
 
@@ -95,25 +103,25 @@ teardown() {
 @test "models configuration validation works" {
     local models_config='[{"name": "tiny", "download": true}, {"name": "base", "download": false}]'
     
-    run whisper_inject::validate_models "$models_config"
+    run inject::validate_models "$models_config"
     [ "$status" -eq 0 ]
 }
 
 # Test accessibility check
 @test "accessibility check function works" {
     # Mock the accessibility check to avoid requiring real service
-    whisper_inject::check_accessibility() {
+    inject::check_accessibility() {
         return 0  # Always accessible for test
     }
     
-    run whisper_inject::check_accessibility
+    run inject::check_accessibility
     [ "$status" -eq 0 ]
 }
 
 # Test rollback actions
 @test "rollback actions can be added" {
     # Test adding rollback action
-    whisper_inject::add_rollback_action "test action" "echo 'test command'"
+    inject::add_rollback_action "test action" "echo 'test command'"
     
     # Check that the action was added
     [ ${#WHISPER_ROLLBACK_ACTIONS[@]} -eq 1 ]
@@ -129,19 +137,19 @@ teardown() {
     
     # This will fail because the file path is not relative to var_ROOT_DIR
     # but it tests the validation logic
-    run whisper_inject::validate_config "$audio_config"
+    run inject::validate_config "$audio_config"
     [ "$status" -eq 1 ]  # Expected to fail due to path validation
 }
 
 # Test main function parameter validation
 @test "main function requires parameters" {
     # Test main function without parameters
-    run whisper_inject::main
+    run inject::main
     [ "$status" -eq 1 ]
 }
 
 # Test help action
 @test "help action works" {
-    run whisper_inject::main "--help"
+    run inject::main "--help"
     [ "$status" -eq 0 ]
 }

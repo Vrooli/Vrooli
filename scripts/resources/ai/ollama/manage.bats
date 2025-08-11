@@ -2,7 +2,7 @@
 # Tests for Ollama manage.sh script
 
 # Get script directory first
-MANAGE_BATS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+MANAGE_BATS_DIR="${BATS_TEST_DIRNAME}"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
@@ -12,6 +12,7 @@ source "${MANAGE_BATS_DIR}/../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_TEST_DIR}/fixtures/setup.bash"
 # Load fixture helpers for accessing test data
+# shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/tests/lib/fixture-helpers.sh" 2>/dev/null || true
 
 # Helper function to initialize MODEL_CATALOG (fixes BATS associative array issue)

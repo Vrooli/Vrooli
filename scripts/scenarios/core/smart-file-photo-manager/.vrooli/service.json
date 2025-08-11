@@ -6,7 +6,12 @@
     "description": "Semantic file and photo management with AI-powered organization suggestions",
     "version": "1.0.0",
     "type": "business-application",
-    "tags": ["file-management", "photo-management", "ai-organization", "semantic-search"],
+    "tags": [
+      "file-management",
+      "photo-management",
+      "ai-organization",
+      "semantic-search"
+    ],
     "maintainers": [
       {
         "name": "Vrooli Team",
@@ -40,7 +45,11 @@
       "qdrant": {
         "enabled": true,
         "config": {
-          "collections": ["file_embeddings", "image_embeddings", "content_chunks"],
+          "collections": [
+            "file_embeddings",
+            "image_embeddings",
+            "content_chunks"
+          ],
           "port": 6335,
           "vectorSize": 1536
         }
@@ -48,7 +57,12 @@
       "minio": {
         "enabled": true,
         "config": {
-          "buckets": ["original-files", "processed-files", "thumbnails", "exports"],
+          "buckets": [
+            "original-files",
+            "processed-files",
+            "thumbnails",
+            "exports"
+          ],
           "port": 9001,
           "public": false,
           "retention": "90d"
@@ -99,7 +113,11 @@
       "ollama": {
         "enabled": true,
         "config": {
-          "models": ["llava:13b", "llama3.2", "nomic-embed-text"],
+          "models": [
+            "llava:13b",
+            "llama3.2",
+            "nomic-embed-text"
+          ],
           "vision": {
             "model": "llava:13b",
             "purpose": "image_analysis_and_description"
@@ -118,7 +136,12 @@
           "strategy": "hi_res",
           "pdf_infer_table_structure": true,
           "extract_images_in_pdf": true,
-          "ocr_languages": ["eng", "spa", "fra", "deu"]
+          "ocr_languages": [
+            "eng",
+            "spa",
+            "fra",
+            "deu"
+          ]
         }
       }
     }
@@ -155,7 +178,7 @@
       "steps": [
         {
           "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/smart-file-photo-manager/.vrooli/service.json",
+          "run": "scripts/scenarios/injection/engine.sh scripts/scenarios/core/smart-file-photo-manager/.vrooli/service.json",
           "description": "Inject SQL schemas, workflows, and configurations"
         },
         {

@@ -12,7 +12,7 @@ The Resource Data Injection System extends Vrooli's resource management to autom
 - **📋 Standardized Templates**: Consistent patterns for SaaS, e-commerce, analytics platforms
 - **🤖 AI Generation Ready**: Perfect foundation for automated application creation  
 - **🔄 Reproducible**: Same scenario always produces identical resource configurations
-- **🛡️ Safe Operations**: Comprehensive validation and rollback support
+- **🛡️ Safe Operations**: Idempotent operations and comprehensive validation
 
 ## 🏗️ Architecture
 
@@ -259,24 +259,12 @@ Every injection is validated before execution:
 ./scripts/resources/automation/n8n/inject.sh --validate CONFIG_JSON
 ```
 
-### Rollback Support
-
-Failed injections automatically trigger rollback:
-
-```bash
-# Manual rollback
-./scripts/resources/_injection/engine.sh --action rollback
-
-# Resource-specific rollback
-./scripts/resources/automation/n8n/inject.sh --rollback CONFIG_JSON
-```
-
 ### Safe Operations
 
 - **Dry Run Mode**: See what would be injected without making changes
-- **Validation First**: All configurations validated before injection
-- **Atomic Operations**: Either all resources succeed or all are rolled back
+- **Validation First**: All configurations validated before injection  
 - **Idempotent**: Same scenario can be injected multiple times safely
+- **Error Recovery**: Clear error messages guide manual recovery when needed
 
 ## 🚀 Integration with Resource Management
 

@@ -728,24 +728,6 @@ trash::validate_test_cleanup_path() {
     return 0
 }
 
-#######################################
-# Safe cleanup function specifically for test environments (DEPRECATED)
-# Use trash::safe_remove with --test-cleanup flag instead
-# Arguments:
-#   $1 - path to clean up
-#   $@ - additional options passed to safe_remove
-# Returns: 0 on success, 1 on failure
-#######################################
-trash::safe_test_cleanup() {
-    local target="$1"
-    shift  # Remove target from arguments, keep the rest
-    
-    log::warn "trash::safe_test_cleanup is deprecated. Use trash::safe_remove --test-cleanup instead"
-    
-    # Call the regular safe_remove with test-cleanup flag
-    trash::safe_remove "$target" --test-cleanup "$@"
-}
-
 # Export functions if sourced
 if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
     export -f trash::safe_remove
@@ -760,5 +742,4 @@ if [[ "${BASH_SOURCE[0]}" != "${0}" ]]; then
     export -f trash::find_project_root
     export -f trash::is_critical_file
     export -f trash::log_operation
-    export -f trash::safe_test_cleanup
 fi

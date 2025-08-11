@@ -369,60 +369,6 @@ create_test_dir() {
 }
 
 #######################################
-# Tests for trash::safe_test_cleanup
-#######################################
-
-@test "trash::safe_test_cleanup allows whitelisted paths" {
-    local temp_file="$BATS_TEST_TMPDIR/tmp/test_output.log"
-    mkdir -p "$(dirname "$temp_file")"
-    create_test_file "$temp_file"
-    
-    trash::safe_test_cleanup "$temp_file"
-    
-    # File should be removed (or moved to trash)
-    [[ ! -f "$temp_file" ]]
-}
-
-@test "trash::safe_test_cleanup allows /tmp paths" {
-    # Create a file in actual /tmp (if writable)
-    if [[ -w "/tmp" ]]; then
-        local tmp_file="/tmp/test_cleanup_$$"
-        create_test_file "$tmp_file"
-        
-        trash::safe_test_cleanup "$tmp_file"
-        
-        [[ ! -f "$tmp_file" ]]
-    else
-        skip "No write access to /tmp"
-    fi
-}
-
-@test "trash::safe_test_cleanup blocks non-whitelisted paths" {
-    # Create a separate directory that won't match /tmp patterns  
-    local non_tmp_root="/home/$USER/test_trash_$$"
-    mkdir -p "$non_tmp_root/config"
-    local unsafe_file="$non_tmp_root/config/production.conf"
-    create_test_file "$unsafe_file"
-    
-    ! trash::safe_test_cleanup "$unsafe_file"
-    
-    # File should still exist
-    [[ -f "$unsafe_file" ]]
-    
-    # Clean up
-    trash::safe_remove "$non_tmp_root" --test-cleanup
-}
-
-@test "trash::safe_test_cleanup allows test directories" {
-    local test_dir="$BATS_TEST_TMPDIR/test_results"
-    create_test_dir "$test_dir"
-    
-    trash::safe_test_cleanup "$test_dir"
-    
-    [[ ! -d "$test_dir" ]]
-}
-
-#######################################
 # Tests for trash::safe_remove (Main Function)
 #######################################
 
@@ -575,26 +521,6 @@ create_test_dir() {
     local audit_log="$XDG_DATA_HOME/trash_audit.log"
     [[ -f "$audit_log" ]]
     grep -q "BLOCKED_CRITICAL_FILE" "$audit_log"
-}
-
-@test "integration: test cleanup workflow" {
-    # Create test-like directories
-    local test_output="$BATS_TEST_TMPDIR/test-output"
-    local build_dir="$BATS_TEST_TMPDIR/build"
-    local coverage_dir="$BATS_TEST_TMPDIR/.nyc_output"
-    
-    create_test_dir "$test_output" 3
-    create_test_dir "$build_dir" 5
-    create_test_dir "$coverage_dir" 2
-    
-    # All should be cleanable via safe_test_cleanup
-    trash::safe_test_cleanup "$test_output"
-    trash::safe_test_cleanup "$build_dir"
-    trash::safe_test_cleanup "$coverage_dir"
-    
-    [[ ! -d "$test_output" ]]
-    [[ ! -d "$build_dir" ]]
-    [[ ! -d "$coverage_dir" ]]
 }
 
 @test "integration: CI safety protections" {

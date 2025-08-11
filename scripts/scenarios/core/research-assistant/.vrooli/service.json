@@ -35,10 +35,18 @@
         "required": true,
         "initialization": {
           "workflows": [
-            { "file": "initialization/automation/n8n/chat-rag-workflow.json" },
-            { "file": "initialization/automation/n8n/main-workflow.json" },
-            { "file": "initialization/automation/n8n/research-orchestrator.json" },
-            { "file": "initialization/automation/n8n/scheduled-reports.json" }
+            {
+              "file": "initialization/automation/n8n/chat-rag-workflow.json"
+            },
+            {
+              "file": "initialization/automation/n8n/main-workflow.json"
+            },
+            {
+              "file": "initialization/automation/n8n/research-orchestrator.json"
+            },
+            {
+              "file": "initialization/automation/n8n/scheduled-reports.json"
+            }
           ]
         }
       },
@@ -48,8 +56,12 @@
         "required": true,
         "initialization": {
           "apps": [
-            { "file": "initialization/automation/windmill/dashboard-app.json" },
-            { "file": "initialization/automation/windmill/windmill-app.json" }
+            {
+              "file": "initialization/automation/windmill/dashboard-app.json"
+            },
+            {
+              "file": "initialization/automation/windmill/windmill-app.json"
+            }
           ]
         }
       }
@@ -59,7 +71,11 @@
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "models": ["qwen2.5:32b", "nomic-embed-text", "llama3.2:3b"]
+        "models": [
+          "qwen2.5:32b",
+          "nomic-embed-text",
+          "llama3.2:3b"
+        ]
       },
       "unstructured-io": {
         "type": "unstructured-io",
@@ -125,7 +141,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/lib/resources/runtime-engine.sh .",
+          "run": "scripts/lib/resources/engine.sh .",
           "description": "Add app data to resources"
         },
         {
@@ -140,8 +156,23 @@
       "steps": [
         {
           "name": "start-services",
-          "run": "cd deployment && ./startup.sh",
-          "description": "Start all research assistant services"
+          "run": "cd deployment && ./startup.sh &",
+          "description": "Start all research assistant services in background",
+          "background": true
+        },
+        {
+          "name": "wait-for-services",
+          "run": "sleep 3 && curl -sf http://localhost:${RESOURCE_PORTS[windmill]}/api/version > /dev/null",
+          "description": "Wait for services to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 2
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  SearXNG: http://localhost:${RESOURCE_PORTS[searxng]}'",
+          "description": "Display running service URLs"
         }
       ]
     },
@@ -149,9 +180,32 @@
       "description": "Run research assistant tests",
       "steps": [
         {
-          "name": "run-tests",
+          "name": "test-services-health",
+          "run": "curl -sf http://localhost:${RESOURCE_PORTS[windmill]}/api/version && curl -sf http://localhost:${RESOURCE_PORTS[n8n]}/healthz",
+          "description": "Test service health endpoints"
+        },
+        {
+          "name": "run-integration-tests",
           "run": "./test.sh",
-          "description": "Execute integration tests"
+          "description": "Execute integration test suite",
+          "condition": {
+            "file_exists": "test.sh"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop research assistant services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'startup.sh' || true",
+          "description": "Stop research assistant processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Research Assistant services stopped'",
+          "description": "Confirm services stopped"
         }
       ]
     }

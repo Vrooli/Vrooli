@@ -11,7 +11,7 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
 
 # Source common utilities using var.sh variables
 # shellcheck disable=SC1091

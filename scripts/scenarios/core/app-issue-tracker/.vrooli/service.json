@@ -33,8 +33,12 @@
         "required": true,
         "initialization": {
           "workflows": [
-            { "file": "initialization/automation/n8n/claude-investigation.json" },
-            { "file": "initialization/automation/n8n/issue-ingestion.json" }
+            {
+              "file": "initialization/automation/n8n/claude-investigation.json"
+            },
+            {
+              "file": "initialization/automation/n8n/issue-ingestion.json"
+            }
           ]
         }
       },
@@ -44,9 +48,15 @@
         "required": true,
         "initialization": {
           "apps": [
-            { "file": "initialization/automation/windmill/apps/dashboard.json" },
-            { "file": "initialization/automation/windmill/apps/metrics.json" },
-            { "file": "initialization/automation/windmill/apps/agents.json" }
+            {
+              "file": "initialization/automation/windmill/apps/dashboard.json"
+            },
+            {
+              "file": "initialization/automation/windmill/apps/metrics.json"
+            },
+            {
+              "file": "initialization/automation/windmill/apps/agents.json"
+            }
           ]
         }
       }
@@ -56,7 +66,10 @@
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "models": ["nomic-embed-text", "llama3.2"]
+        "models": [
+          "nomic-embed-text",
+          "llama3.2"
+        ]
       }
     },
     "agents": {
@@ -114,7 +127,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/lib/resources/runtime-engine.sh .",
+          "run": "scripts/lib/resources/engine.sh .",
           "description": "Add app data to resources"
         },
         {

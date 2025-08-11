@@ -27,6 +27,14 @@
       "comfyui-workflows"
     ]
   },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto",
+      "description": "Image generation API port"
+    }
+  },
   "resources": {
     "automation": {
       "n8n": {
@@ -35,7 +43,9 @@
         "required": true,
         "initialization": {
           "workflows": [
-            { "file": "initialization/automation/n8n/main-workflow.json" }
+            {
+              "file": "initialization/automation/n8n/main-workflow.json"
+            }
           ]
         }
       },
@@ -45,7 +55,9 @@
         "required": true,
         "initialization": {
           "apps": [
-            { "file": "initialization/automation/windmill/windmill-app.json" }
+            {
+              "file": "initialization/automation/windmill/windmill-app.json"
+            }
           ]
         }
       },
@@ -56,8 +68,12 @@
         "purpose": "AI image generation workflows",
         "initialization": {
           "workflows": [
-            { "file": "initialization/workflows/comfyui/brand-workflow.json" },
-            { "file": "initialization/workflows/comfyui/qc-workflow.json" }
+            {
+              "file": "initialization/workflows/comfyui/brand-workflow.json"
+            },
+            {
+              "file": "initialization/workflows/comfyui/qc-workflow.json"
+            }
           ]
         }
       }
@@ -67,7 +83,11 @@
         "type": "ollama",
         "enabled": true,
         "required": true,
-        "models": ["llama3.1:8b", "nomic-embed-text", "llava:13b"]
+        "models": [
+          "llama3.1:8b",
+          "nomic-embed-text",
+          "llava:13b"
+        ]
       },
       "whisper": {
         "type": "whisper",
@@ -115,7 +135,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/lib/resources/runtime-engine.sh .",
+          "run": "scripts/lib/resources/engine.sh .",
           "description": "Add app data to resources"
         },
         {
@@ -130,8 +150,23 @@
       "steps": [
         {
           "name": "start-services",
-          "run": "cd deployment && ./startup.sh",
-          "description": "Start all image generation services"
+          "run": "cd deployment && ./startup.sh &",
+          "description": "Start all image generation services in background",
+          "background": true
+        },
+        {
+          "name": "wait-for-services",
+          "run": "sleep 3 && curl -sf http://localhost:${RESOURCE_PORTS[windmill]}/api/version > /dev/null",
+          "description": "Wait for services to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 2
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  ComfyUI: http://localhost:${RESOURCE_PORTS[comfyui]}'",
+          "description": "Display running service URLs"
         }
       ]
     },
@@ -139,9 +174,32 @@
       "description": "Run image generation tests",
       "steps": [
         {
-          "name": "run-tests",
+          "name": "test-services-health",
+          "run": "curl -sf http://localhost:${RESOURCE_PORTS[windmill]}/api/version && curl -sf http://localhost:${RESOURCE_PORTS[n8n]}/healthz && curl -sf http://localhost:${RESOURCE_PORTS[comfyui]}",
+          "description": "Test service health endpoints"
+        },
+        {
+          "name": "run-integration-tests",
           "run": "./test.sh",
-          "description": "Execute integration tests"
+          "description": "Execute integration test suite",
+          "condition": {
+            "file_exists": "test.sh"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop image generation services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'startup.sh' || true",
+          "description": "Stop image generation processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Image Generation Pipeline services stopped'",
+          "description": "Confirm services stopped"
         }
       ]
     }

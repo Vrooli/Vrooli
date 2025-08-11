@@ -14,6 +14,7 @@
     "description": "Enterprise-grade secure document processing with encryption, audit trails, and compliance automation",
     "version": "1.0.0",
     "type": "business-application",
+    "category": "security",
     "tags": [
       "compliance-focused",
       "enterprise-ready",
@@ -24,132 +25,17 @@
       "security-first",
       "zero-trust",
       "audit-trails"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "team@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "license": "GPL-3.0",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "./README.md",
-    "support": {
-      "email": "support@vrooli.com",
-      "issues": "https://github.com/Vrooli/Vrooli/issues",
-      "chat": "https://discord.gg/vrooli"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto",
+      "description": "Secure document processing API port"
     }
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "type": "postgresql",
-        "enabled": true,
-        "version": "16",
-        "required": true,
-        "initialization": {
-          "data": [
-            {
-              "type": "schema",
-              "file": "initialization/storage/postgres/schema.sql"
-            },
-            {
-              "type": "seed",
-              "file": "initialization/storage/postgres/seed.sql"
-            }
-          ]
-        }
-      },
-      "minio": {
-        "type": "minio",
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "buckets": [
-            {
-              "name": "encrypted-documents",
-              "policy": "private"
-            },
-            {
-              "name": "processed-documents",
-              "policy": "private"
-            },
-            {
-              "name": "audit-logs",
-              "policy": "private"
-            },
-            {
-              "name": "compliance-reports",
-              "policy": "private"
-            }
-          ]
-        }
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "collections": [
-            {
-              "name": "document-metadata",
-              "config": {
-                "vectors": {
-                  "size": 384,
-                  "distance": "Cosine"
-                }
-              }
-            },
-            {
-              "name": "compliance-vectors",
-              "config": {
-                "vectors": {
-                  "size": 384,
-                  "distance": "Cosine"
-                }
-              }
-            }
-          ]
-        }
-      },
-      "vault": {
-        "type": "vault",
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "secrets": [
-            {
-              "path": "secure-processing/encryption-keys",
-              "description": "Document encryption keys"
-            },
-            {
-              "path": "secure-processing/audit-keys",
-              "description": "Audit trail signing keys"
-            },
-            {
-              "path": "secure-processing/compliance-certs",
-              "description": "Compliance certificates and tokens"
-            }
-          ]
-        }
-      }
-    },
-    "ai": {
-      "unstructured-io": {
-        "enabled": true,
-        "required": true,
-        "type": "unstructured-io"
-      },
-      "ollama": {
-        "enabled": true,
-        "required": true,
-        "models": [
-          "llama3.1:8b",
-          "nomic-embed-text"
-        ]
-      }
-    },
     "automation": {
       "n8n": {
         "type": "n8n",
@@ -157,11 +43,21 @@
         "required": true,
         "initialization": {
           "workflows": [
-            "initialization/automation/n8n/document-intake.json",
-            "initialization/automation/n8n/process-orchestrator.json",
-            "initialization/automation/n8n/prompt-processor.json",
-            "initialization/automation/n8n/workflow-executor.json",
-            "initialization/automation/n8n/semantic-indexer.json"
+            {
+              "file": "initialization/automation/n8n/document-intake.json"
+            },
+            {
+              "file": "initialization/automation/n8n/process-orchestrator.json"
+            },
+            {
+              "file": "initialization/automation/n8n/prompt-processor.json"
+            },
+            {
+              "file": "initialization/automation/n8n/workflow-executor.json"
+            },
+            {
+              "file": "initialization/automation/n8n/semantic-indexer.json"
+            }
           ]
         }
       },
@@ -171,445 +67,75 @@
         "required": true,
         "initialization": {
           "apps": [
-            "initialization/automation/windmill/document-portal.json"
+            {
+              "file": "initialization/automation/windmill/document-portal.json"
+            }
           ]
         }
+      }
+    },
+    "ai": {
+      "unstructured-io": {
+        "type": "unstructured-io",
+        "enabled": true,
+        "required": true,
+        "purpose": "secure document processing and text extraction"
+      },
+      "ollama": {
+        "type": "ollama",
+        "enabled": true,
+        "required": true,
+        "models": [
+          "llama3.1:8b",
+          "nomic-embed-text"
+        ]
+      }
+    },
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "document metadata and audit trails"
+      },
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "purpose": "encrypted document storage"
+      },
+      "qdrant": {
+        "type": "qdrant",
+        "enabled": true,
+        "required": true,
+        "purpose": "document vector search and compliance metadata"
+      },
+      "vault": {
+        "type": "vault",
+        "enabled": true,
+        "required": true,
+        "purpose": "encryption keys and compliance credentials"
       }
     }
-  },
-  "deployment": {
-    "target": "docker",
-    "strategy": "rolling-update",
-    "urls": {
-      "application": "${service.vrooli.url}",
-      "api": "${service.vrooli.url}/api/secure-document-processing",
-      "health": "${service.vrooli.url}/api/secure-document-processing/health",
-      "vault": "${service.vault.url}",
-      "minio": "${service.minio.url}",
-      "unstructured": "${service.unstructured-io.url}"
-    },
-    "initialization": {
-      "phases": [
-        {
-          "name": "security-setup",
-          "tasks": [
-            {
-              "name": "initialize-vault",
-              "type": "resource-inject",
-              "target": "storage.vault",
-              "timeout": "5m"
-            }
-          ]
-        },
-        {
-          "name": "database-setup",
-          "tasks": [
-            {
-              "name": "apply-schema",
-              "type": "sql",
-              "target": "storage.postgres",
-              "file": "initialization/storage/postgres/schema.sql"
-            },
-            {
-              "name": "seed-data",
-              "type": "sql",
-              "target": "storage.postgres",
-              "file": "initialization/storage/postgres/seed.sql"
-            }
-          ]
-        },
-        {
-          "name": "storage-setup",
-          "parallel": true,
-          "tasks": [
-            {
-              "name": "setup-encrypted-buckets",
-              "type": "resource-inject",
-              "target": "storage.minio",
-              "timeout": "3m"
-            },
-            {
-              "name": "setup-vector-collections",
-              "type": "resource-inject",
-              "target": "storage.qdrant",
-              "timeout": "2m"
-            }
-          ]
-        },
-        {
-          "name": "ai-setup",
-          "parallel": true,
-          "tasks": [
-            {
-              "name": "verify-unstructured-io",
-              "type": "resource-inject",
-              "target": "ai.unstructured-io",
-              "timeout": "2m"
-            },
-            {
-              "name": "load-ai-models",
-              "type": "resource-inject",
-              "target": "ai.ollama",
-              "timeout": "10m"
-            }
-          ]
-        },
-        {
-          "name": "compliance-configuration",
-          "tasks": [
-            {
-              "name": "load-compliance-config",
-              "type": "config",
-              "file": "initialization/configuration/compliance-config.json"
-            },
-            {
-              "name": "set-security-policies",
-              "type": "config",
-              "file": "initialization/configuration/security-policies.json"
-            },
-            {
-              "name": "configure-audit-settings",
-              "type": "config",
-              "file": "initialization/configuration/audit-settings.json"
-            }
-          ]
-        },
-        {
-          "name": "startup",
-          "tasks": [
-            {
-              "name": "start-application",
-              "type": "script",
-              "script": "./deployment/startup.sh",
-              "timeout": "3m"
-            }
-          ]
-        },
-        {
-          "name": "post-validation",
-          "tasks": [
-            {
-              "name": "health-check",
-              "type": "healthcheck",
-              "target": "${service.vrooli.url}/api/secure-document-processing/health",
-              "timeout": "30s",
-              "retries": 3
-            },
-            {
-              "name": "security-validation",
-              "type": "script",
-              "script": "./deployment/security-validation.sh",
-              "timeout": "2m"
-            },
-            {
-              "name": "monitor-startup",
-              "type": "script",
-              "script": "./deployment/monitor.sh",
-              "background": true
-            }
-          ]
-        }
-      ]
-    },
-    "monitoring": {
-      "enabled": true,
-      "healthChecks": {
-        "application": {
-          "endpoint": "${service.vrooli.url}/api/secure-document-processing/health",
-          "interval": "30s",
-          "timeout": "5s",
-          "threshold": 3
-        },
-        "vault": {
-          "endpoint": "${service.vault.url}/v1/sys/health",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "minio": {
-          "endpoint": "${service.minio.url}/minio/health/ready",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "unstructured-io": {
-          "endpoint": "${service.unstructured-io.url}/general/v0/general",
-          "interval": "60s",
-          "timeout": "15s"
-        },
-        "qdrant": {
-          "endpoint": "${service.qdrant.url}/health",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "ollama": {
-          "endpoint": "${service.ollama.url}/api/tags",
-          "interval": "60s",
-          "timeout": "15s"
-        },
-        "database": {
-          "type": "tcp",
-          "port": 5432,
-          "interval": "30s"
-        }
-      },
-      "metrics": {
-        "responseTime": {
-          "p50": "1000ms",
-          "p95": "4000ms",
-          "p99": "10000ms"
-        },
-        "throughput": {
-          "rps": 5,
-          "concurrent": 8
-        },
-        "errorRate": {
-          "threshold": "1%"
-        }
-      }
-    },
-    "cleanup": {
-      "enabled": true,
-      "tasks": [
-        {
-          "name": "secure-data-deletion",
-          "type": "script",
-          "script": "./deployment/secure-cleanup.sh",
-          "timeout": "5m"
-        },
-        {
-          "name": "drop-database",
-          "type": "sql",
-          "target": "storage.postgres",
-          "query": "DROP DATABASE IF EXISTS secure_document_processing"
-        },
-        {
-          "name": "clear-vector-collections",
-          "type": "resource-cleanup",
-          "target": "storage.qdrant"
-        },
-        {
-          "name": "clear-encrypted-buckets",
-          "type": "resource-cleanup",
-          "target": "storage.minio"
-        },
-        {
-          "name": "revoke-vault-secrets",
-          "type": "resource-cleanup",
-          "target": "storage.vault"
-        }
-      ]
-    },
-    "testing": {
-      "enabled": true,
-      "timeout": "50m",
-      "script": "./test.sh",
-      "ui": {
-        "required": false,
-        "type": "api",
-        "url": "${service.vrooli.url}/api/secure-document-processing"
-      },
-      "performance": {
-        "loadTest": {
-          "users": 5,
-          "duration": "8m",
-          "rampUp": "2m"
-        }
-      }
-    },
-    "resources": {
-      "requests": {
-        "cpu": "1500m",
-        "memory": "3Gi"
-      },
-      "limits": {
-        "cpu": "6000m",
-        "memory": "12Gi"
-      }
-    }
-  },
-  "metadata": {
-    "businessModel": {
-      "purpose": "commercial",
-      "valueProposition": "Zero-trust enterprise document processing platform with military-grade security and automated compliance for HIPAA, GDPR, and SOX",
-      "targetMarket": "Healthcare organizations, financial institutions, government agencies, and enterprises with strict compliance requirements",
-      "painPoints": [
-        "Manual compliance processes consuming significant resources and creating audit risks",
-        "Lack of end-to-end encryption and audit trails in document processing workflows",
-        "Difficulty meeting multiple regulatory requirements (HIPAA, GDPR, SOX) simultaneously"
-      ],
-      "solution": "Comprehensive secure document processing pipeline with Vault encryption, automated compliance, and complete audit trails",
-      "competitiveAdvantage": "First integrated solution combining Unstructured.io processing with HashiCorp Vault security and automated compliance reporting",
-      "revenuePotential": {
-        "initial": "$15,000",
-        "recurring": "$45,000",
-        "expansion": "$100,000",
-        "totalEstimate": "$160,000"
-      },
-      "marketDemand": {
-        "level": "very-high",
-        "growth": "35% annually",
-        "evidence": "Increasing regulatory requirements and security breaches driving demand for secure document processing solutions"
-      },
-      "roi": {
-        "developmentCost": "$20,000",
-        "timeToMarket": "5 weeks",
-        "breakEven": "6 months"
-      }
-    },
-    "performance": {
-      "targets": {
-        "initializationTime": "10m",
-        "responseTime": {
-          "p50": "1000ms",
-          "p95": "4000ms",
-          "p99": "10000ms"
-        },
-        "throughput": {
-          "minimum": 3,
-          "target": 5,
-          "peak": 15
-        },
-        "availability": "99.9%",
-        "errorRate": "<1%"
-      },
-      "resources": {
-        "cpu": {
-          "minimum": "3.0",
-          "target": "6.0",
-          "maximum": "12.0"
-        },
-        "memory": {
-          "minimum": "6Gi",
-          "target": "12Gi",
-          "maximum": "24Gi"
-        },
-        "storage": {
-          "database": "500Gi",
-          "encrypted-documents": "2Ti",
-          "audit-logs": "1Ti",
-          "compliance-reports": "200Gi"
-        }
-      }
-    },
-    "customization": {
-      "variables": {
-        "APP_NAME": {
-          "type": "string",
-          "default": "Secure Document Processing Pipeline",
-          "description": "Application display name"
-        },
-        "COMPANY_NAME": {
-          "type": "string",
-          "default": "Your Company",
-          "description": "Customer company name"
-        },
-        "PRIMARY_COLOR": {
-          "type": "string",
-          "default": "#dc2626",
-          "description": "Brand primary color"
-        },
-        "DATABASE_NAME": {
-          "type": "string",
-          "default": "secure_document_processing",
-          "description": "Database name"
-        },
-        "APP_PORT": {
-          "type": "number",
-          "default": 3000,
-          "description": "Application port"
-        },
-        "VAULT_PORT": {
-          "type": "number",
-          "default": 8200,
-          "description": "HashiCorp Vault port"
-        },
-        "MINIO_PORT": {
-          "type": "number",
-          "default": 9000,
-          "description": "MinIO secure storage port"
-        }
-      },
-      "features": {
-        "authentication": {
-          "enabled": true,
-          "provider": "jwt",
-          "sso": true,
-          "mfa": true
-        },
-        "notifications": {
-          "enabled": true,
-          "channels": [
-            "email",
-            "webhook",
-            "sms",
-            "compliance-alerts"
-          ]
-        },
-        "analytics": {
-          "enabled": true,
-          "provider": "internal"
-        },
-        "encryption": {
-          "enabled": true,
-          "provider": "vault"
-        },
-        "auditTrails": {
-          "enabled": true,
-          "provider": "internal"
-        },
-        "complianceReporting": {
-          "enabled": true,
-          "standards": [
-            "HIPAA",
-            "GDPR",
-            "SOX",
-            "PCI-DSS"
-          ]
-        },
-        "documentProcessing": {
-          "enabled": true,
-          "provider": "unstructured-io"
-        }
-      },
-      "integrations": [
-        {
-          "name": "Enterprise Identity Providers",
-          "type": "saml",
-          "required": false
-        },
-        {
-          "name": "Compliance Management Systems",
-          "type": "api",
-          "required": false
-        },
-        {
-          "name": "Security Information and Event Management (SIEM)",
-          "type": "webhook",
-          "required": false
-        },
-        {
-          "name": "Document Management Systems",
-          "type": "api",
-          "required": false
-        }
-      ]
-    },
-    "category": "security",
-    "complexity": "advanced",
-    "marketDemand": "very-high"
   },
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize secure document processing environment",
+      "description": "Initialize Secure Document Processing Pipeline",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/secure-document-processing/.vrooli/service.json",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "show-access-urls",
-          "run": "echo '✅ Secure Document Processing Pipeline initialized\\n  🔐 Application: ${service.vrooli.url}/api/secure-document-processing\\n  🛡️ Vault: ${service.vault.url}\\n  📦 MinIO: ${service.minio.url}\\n  🔍 Unstructured: ${service.unstructured-io.url}'",
+          "name": "add-data",
+          "run": "scripts/lib/resources/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Secure Document Processing initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Vault: http://localhost:${RESOURCE_PORTS[vault]}\\n  Storage: http://localhost:${RESOURCE_PORTS[minio]}'",
           "description": "Display service access URLs"
         }
       ]
@@ -619,16 +145,23 @@
       "steps": [
         {
           "name": "start-services",
-          "run": "../deployment/startup.sh"
-        }
-      ]
-    },
-    "build": {
-      "description": "Build secure document processing artifacts",
-      "steps": [
+          "run": "cd deployment && ./startup.sh &",
+          "description": "Start all secure processing services in background",
+          "background": true
+        },
         {
-          "name": "build-artifacts",
-          "run": "./scripts/manage.sh build"
+          "name": "wait-for-services",
+          "run": "sleep 5 && curl -sf http://localhost:${RESOURCE_PORTS[windmill]}/api/version > /dev/null",
+          "description": "Wait for services to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 2
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Vault: http://localhost:${RESOURCE_PORTS[vault]}\\n  Storage: http://localhost:${RESOURCE_PORTS[minio]}'",
+          "description": "Display running service URLs"
         }
       ]
     },
@@ -636,17 +169,32 @@
       "description": "Run secure document processing tests",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "./test.sh"
+          "name": "test-services-health",
+          "run": "curl -sf http://localhost:${RESOURCE_PORTS[windmill]}/api/version && curl -sf http://localhost:${RESOURCE_PORTS[n8n]}/healthz && curl -sf http://localhost:${RESOURCE_PORTS[vault]}/v1/sys/health",
+          "description": "Test service health endpoints"
+        },
+        {
+          "name": "run-integration-tests",
+          "run": "./test.sh",
+          "description": "Execute integration test suite",
+          "condition": {
+            "file_exists": "test.sh"
+          }
         }
       ]
     },
-    "clean": {
-      "description": "Clean build artifacts and temporary files",
+    "stop": {
+      "description": "Stop secure document processing services",
       "steps": [
         {
-          "name": "clean-artifacts",
-          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+          "name": "stop-services",
+          "run": "pkill -f 'startup.sh' || true",
+          "description": "Stop secure processing processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Secure Document Processing services stopped'",
+          "description": "Confirm services stopped"
         }
       ]
     }

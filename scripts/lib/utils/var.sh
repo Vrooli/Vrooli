@@ -34,7 +34,7 @@ export var_FLOW_FILE="$var_LIB_UTILS_DIR/flow.sh"
 export var_LOG_FILE="$var_LIB_UTILS_DIR/log.sh"
 export var_RESOURCES_COMMON_FILE="$var_SCRIPTS_RESOURCES_DIR/common.sh"
 export var_PORT_REGISTRY_FILE="$var_SCRIPTS_RESOURCES_DIR/port_registry.sh"
-export var_RUNTIME_ENGINE="$var_SCRIPTS_SCENARIOS_INJECTION_DIR/runtime-engine.sh"
+export var_RUNTIME_ENGINE="$var_SCRIPTS_SCENARIOS_INJECTION_DIR/engine.sh"
 
 # Detect if we're in Vrooli monorepo or standalone app based on package.json
 if [[ -f "$var_ROOT_DIR/package.json" ]] && \

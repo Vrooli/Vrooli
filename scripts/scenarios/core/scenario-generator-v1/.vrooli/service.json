@@ -14,6 +14,7 @@
     "description": "A meta-scenario that generates Vrooli scenarios from customer requirements using AI",
     "version": "1.0.0",
     "type": "business-application",
+    "category": "ai-development",
     "tags": [
       "meta-scenario",
       "code-generation",
@@ -22,76 +23,55 @@
       "business-automation",
       "claude-code",
       "ultra-high-revenue-potential"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "team@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "license": "GPL-3.0",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "./README.md",
-    "support": {
-      "email": "support@vrooli.com",
-      "issues": "https://github.com/Vrooli/Vrooli/issues",
-      "chat": "https://discord.gg/vrooli"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto",
+      "description": "Scenario generator API port"
     }
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "type": "postgresql",
+    "automation": {
+      "n8n": {
+        "type": "n8n",
         "enabled": true,
-        "version": "16",
         "required": true,
         "initialization": {
-          "data": [
+          "workflows": [
             {
-              "type": "schema",
-              "file": "initialization/storage/postgres/schema.sql"
+              "file": "initialization/automation/n8n/main-workflow.json"
             },
             {
-              "type": "seed",
-              "file": "initialization/storage/postgres/seed.sql"
+              "file": "initialization/automation/n8n/planning-workflow.json"
+            },
+            {
+              "file": "initialization/automation/n8n/building-workflow.json"
+            },
+            {
+              "file": "initialization/automation/n8n/validation-workflow.json"
             }
           ]
         }
       },
-      "minio": {
-        "type": "minio",
+      "windmill": {
+        "type": "windmill",
         "enabled": true,
         "required": true,
         "initialization": {
-          "buckets": [
+          "apps": [
             {
-              "name": "generated-scenarios",
-              "policy": "private"
-            },
-            {
-              "name": "scenario-templates",
-              "policy": "private"
-            },
-            {
-              "name": "customer-requirements",
-              "policy": "private"
-            },
-            {
-              "name": "scenario-artifacts",
-              "policy": "private"
+              "file": "initialization/automation/windmill/scenario-dashboard-app.json"
             }
           ]
         }
-      },
-      "redis": {
-        "type": "redis",
-        "enabled": false,
-        "required": false
       }
     },
     "ai": {
       "ollama": {
+        "type": "ollama",
         "enabled": false,
         "required": false,
         "models": [
@@ -100,471 +80,43 @@
         ]
       }
     },
-    "automation": {
-      "windmill": {
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "apps": [
-            {
-              "path": "f/scenario-generator/dashboard",
-              "file": "initialization/automation/windmill/scenario-dashboard-app.json",
-              "summary": "Scenario Generation Dashboard"
-            }
-          ],
-          "scripts": []
-        }
-      },
-      "n8n": {
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "workflows": [
-            {
-              "name": "scenario-generation-pipeline",
-              "file": "initialization/automation/n8n/main-workflow.json",
-              "enabled": true,
-              "tags": [
-                "generation",
-                "automation"
-              ]
-            },
-            {
-              "name": "planning-workflow",
-              "file": "initialization/automation/n8n/planning-workflow.json",
-              "enabled": true,
-              "tags": [
-                "planning",
-                "generation"
-              ]
-            },
-            {
-              "name": "building-workflow",
-              "file": "initialization/automation/n8n/building-workflow.json",
-              "enabled": true,
-              "tags": [
-                "implementation",
-                "generation"
-              ]
-            },
-            {
-              "name": "validation-workflow",
-              "file": "initialization/automation/n8n/validation-workflow.json",
-              "enabled": true,
-              "tags": [
-                "validation",
-                "testing"
-              ]
-            }
-          ]
-        }
-      }
-    },
     "agents": {
       "claude-code": {
+        "type": "claude-code",
         "enabled": true,
         "required": true,
-        "mode": "service"
-      }
-    }
-  },
-  "deployment": {
-    "target": "docker",
-    "strategy": "rolling-update",
-    "urls": {
-      "application": "${service.vrooli.url}",
-      "api": "${service.vrooli.url}/api/scenario-generator-v1",
-      "health": "${service.vrooli.url}/api/scenario-generator-v1/health",
-      "windmill": "${service.windmill.url}",
-      "n8n": "${service.n8n.url}",
-      "minio": "${service.minio.url}"
-    },
-    "initialization": {
-      "phases": [
-        {
-          "name": "database-setup",
-          "tasks": [
-            {
-              "name": "apply-schema",
-              "type": "sql",
-              "target": "storage.postgres",
-              "file": "initialization/storage/postgres/schema.sql"
-            },
-            {
-              "name": "seed-data",
-              "type": "sql",
-              "target": "storage.postgres",
-              "file": "initialization/storage/postgres/seed.sql"
-            }
-          ]
-        },
-        {
-          "name": "storage-setup",
-          "parallel": true,
-          "tasks": [
-            {
-              "name": "setup-minio-buckets",
-              "type": "resource-inject",
-              "target": "storage.minio",
-              "timeout": "2m"
-            },
-            {
-              "name": "setup-redis-cache",
-              "type": "resource-inject",
-              "target": "storage.redis",
-              "timeout": "1m"
-            }
-          ]
-        },
-        {
-          "name": "ai-setup",
-          "tasks": [
-            {
-              "name": "configure-claude-code",
-              "type": "resource-inject",
-              "target": "agents.claude-code",
-              "timeout": "3m"
-            },
-            {
-              "name": "load-ai-models",
-              "type": "resource-inject",
-              "target": "ai.ollama",
-              "timeout": "10m"
-            }
-          ]
-        },
-        {
-          "name": "workflow-deployment",
-          "parallel": true,
-          "tasks": [
-            {
-              "name": "deploy-n8n-workflows",
-              "type": "resource-inject",
-              "target": "automation.n8n",
-              "config": "initialization/workflows/n8n/",
-              "timeout": "5m"
-            },
-            {
-              "name": "deploy-windmill-apps",
-              "type": "resource-inject",
-              "target": "automation.windmill",
-              "config": "initialization/ui/",
-              "timeout": "3m"
-            }
-          ]
-        },
-        {
-          "name": "application-configuration",
-          "tasks": []
-        },
-        {
-          "name": "startup",
-          "tasks": [
-            {
-              "name": "start-application",
-              "type": "script",
-              "script": "./deployment/startup.sh",
-              "timeout": "3m"
-            }
-          ]
-        },
-        {
-          "name": "post-validation",
-          "tasks": [
-            {
-              "name": "health-check",
-              "type": "healthcheck",
-              "target": "${service.vrooli.url}/api/scenario-generator-v1/health",
-              "timeout": "30s",
-              "retries": 3
-            },
-            {
-              "name": "monitor-startup",
-              "type": "script",
-              "script": "./deployment/monitor.sh",
-              "background": true
-            }
-          ]
-        }
-      ]
-    },
-    "monitoring": {
-      "enabled": true,
-      "healthChecks": {
-        "application": {
-          "endpoint": "${service.vrooli.url}/api/scenario-generator-v1/health",
-          "interval": "30s",
-          "timeout": "5s",
-          "threshold": 3
-        },
-        "windmill": {
-          "endpoint": "${service.windmill.url}/api/version",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "n8n": {
-          "endpoint": "${service.n8n.url}/api/v1/info",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "minio": {
-          "endpoint": "${service.minio.url}/minio/health/ready",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "ollama": {
-          "endpoint": "${service.ollama.url}/api/tags",
-          "interval": "60s",
-          "timeout": "15s"
-        },
-        "redis": {
-          "type": "tcp",
-          "port": 6379,
-          "interval": "30s"
-        },
-        "database": {
-          "type": "tcp",
-          "port": 5432,
-          "interval": "30s"
-        }
-      },
-      "metrics": {
-        "responseTime": {
-          "p50": "2000ms",
-          "p95": "10000ms",
-          "p99": "30000ms"
-        },
-        "throughput": {
-          "rps": 2,
-          "concurrent": 3
-        },
-        "errorRate": {
-          "threshold": "5%"
-        }
+        "purpose": "AI-powered code generation and scenario building"
       }
     },
-    "cleanup": {
-      "enabled": true,
-      "tasks": [
-        {
-          "name": "delete-windmill-apps",
-          "type": "resource-cleanup",
-          "target": "automation.windmill"
-        },
-        {
-          "name": "delete-n8n-workflows",
-          "type": "resource-cleanup",
-          "target": "automation.n8n"
-        },
-        {
-          "name": "drop-database",
-          "type": "sql",
-          "target": "storage.postgres",
-          "query": "DROP DATABASE IF EXISTS scenario_generator_v1"
-        },
-        {
-          "name": "clear-storage-buckets",
-          "type": "resource-cleanup",
-          "target": "storage.minio"
-        }
-      ]
-    },
-    "testing": {
-      "enabled": true,
-      "timeout": "60m",
-      "script": "./test.sh",
-      "ui": {
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
         "required": true,
-        "type": "windmill",
-        "url": "${service.windmill.url}"
+        "purpose": "scenario templates and generation metadata"
       },
-      "performance": {
-        "loadTest": {
-          "users": 2,
-          "duration": "10m",
-          "rampUp": "2m"
-        }
-      }
-    },
-    "resources": {
-      "requests": {
-        "cpu": "2000m",
-        "memory": "4Gi"
-      },
-      "limits": {
-        "cpu": "8000m",
-        "memory": "16Gi"
+      "minio": {
+        "type": "minio",
+        "enabled": true,
+        "required": true,
+        "purpose": "generated scenario artifacts and templates"
       }
     }
-  },
-  "metadata": {
-    "businessModel": {
-      "purpose": "commercial",
-      "valueProposition": "Revolutionary AI-powered SaaS generator that creates complete business applications from customer requirements in minutes",
-      "targetMarket": "Software development agencies, digital transformation consultants, entrepreneurs, and enterprises seeking rapid application development",
-      "painPoints": [
-        "Custom software development taking months and costing hundreds of thousands of dollars",
-        "Shortage of skilled developers creating bottlenecks in digital transformation",
-        "Need for rapid prototyping and MVP development to validate business ideas quickly"
-      ],
-      "solution": "AI-powered scenario generator that automatically creates complete SaaS applications with full deployment configurations from natural language requirements",
-      "competitiveAdvantage": "First-to-market meta-scenario system using Claude Code for autonomous application generation with complete infrastructure automation",
-      "revenuePotential": {
-        "initial": "$25,000",
-        "recurring": "$75,000",
-        "expansion": "$200,000",
-        "totalEstimate": "$300,000"
-      },
-      "marketDemand": {
-        "level": "ultra-high",
-        "growth": "60% annually",
-        "evidence": "Explosive demand for no-code/low-code solutions and AI-powered development tools in the face of developer shortage"
-      },
-      "roi": {
-        "developmentCost": "$30,000",
-        "timeToMarket": "6 weeks",
-        "breakEven": "8 months"
-      }
-    },
-    "performance": {
-      "targets": {
-        "initializationTime": "12m",
-        "responseTime": {
-          "p50": "2000ms",
-          "p95": "10000ms",
-          "p99": "30000ms"
-        },
-        "throughput": {
-          "minimum": 1,
-          "target": 2,
-          "peak": 5
-        },
-        "availability": "99.0%",
-        "errorRate": "<5%"
-      },
-      "resources": {
-        "cpu": {
-          "minimum": "4.0",
-          "target": "8.0",
-          "maximum": "16.0"
-        },
-        "memory": {
-          "minimum": "8Gi",
-          "target": "16Gi",
-          "maximum": "32Gi"
-        },
-        "storage": {
-          "database": "500Gi",
-          "scenarios": "2Ti",
-          "templates": "500Gi",
-          "code-artifacts": "1Ti"
-        }
-      }
-    },
-    "customization": {
-      "variables": {
-        "APP_NAME": {
-          "type": "string",
-          "default": "Scenario Generator V1",
-          "description": "Application display name"
-        },
-        "COMPANY_NAME": {
-          "type": "string",
-          "default": "Your Company",
-          "description": "Customer company name"
-        },
-        "PRIMARY_COLOR": {
-          "type": "string",
-          "default": "#9333ea",
-          "description": "Brand primary color"
-        },
-        "DATABASE_NAME": {
-          "type": "string",
-          "default": "scenario_generator_v1",
-          "description": "Database name"
-        },
-        "APP_PORT": {
-          "type": "number",
-          "default": 3000,
-          "description": "Application port"
-        },
-        "WINDMILL_PORT": {
-          "type": "number",
-          "default": 8000,
-          "description": "Windmill UI port"
-        },
-        "N8N_PORT": {
-          "type": "number",
-          "default": 5678,
-          "description": "n8n workflow editor port"
-        }
-      },
-      "features": {
-        "authentication": {
-          "enabled": true,
-          "provider": "jwt",
-          "sso": true
-        },
-        "notifications": {
-          "enabled": true,
-          "channels": [
-            "email",
-            "webhook",
-            "slack"
-          ]
-        },
-        "analytics": {
-          "enabled": true,
-          "provider": "internal"
-        },
-        "codeGeneration": {
-          "enabled": true,
-          "provider": "claude-code"
-        },
-        "workflowAutomation": {
-          "enabled": true,
-          "provider": "n8n"
-        },
-        "uiGeneration": {
-          "enabled": true,
-          "provider": "windmill"
-        },
-        "scenarioTemplates": {
-          "enabled": true,
-          "provider": "minio"
-        }
-      },
-      "integrations": [
-        {
-          "name": "Version Control Systems",
-          "type": "api",
-          "required": false
-        },
-        {
-          "name": "Cloud Deployment Services",
-          "type": "api",
-          "required": false
-        },
-        {
-          "name": "Customer Requirements Management",
-          "type": "webhook",
-          "required": false
-        }
-      ]
-    },
-    "category": "ai-development",
-    "complexity": "advanced",
-    "marketDemand": "ultra-high"
   },
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize scenario generator environment",
+      "description": "Initialize Scenario Generator V1",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/scenario-generator-v1/.vrooli/service.json",
-          "description": "Inject SQL schemas and workflow configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
+        },
+        {
+          "name": "add-data",
+          "run": "scripts/lib/resources/engine.sh .",
+          "description": "Add app data to resources"
         },
         {
           "name": "check-claude-code",
@@ -572,8 +124,8 @@
           "description": "Verify Claude Code availability for AI generation"
         },
         {
-          "name": "show-access-urls",
-          "run": "echo '✅ Scenario Generator V1 initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}/apps/scenario-generator\\n  n8n Workflows: http://localhost:${RESOURCE_PORTS[n8n]}'",
+          "name": "show-urls",
+          "run": "echo '🚀 Scenario Generator V1 initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Storage: http://localhost:${RESOURCE_PORTS[minio]}'",
           "description": "Display service access URLs"
         }
       ]
@@ -583,16 +135,23 @@
       "steps": [
         {
           "name": "start-services",
-          "run": "../deployment/startup.sh"
-        }
-      ]
-    },
-    "build": {
-      "description": "Build scenario generator artifacts",
-      "steps": [
+          "run": "cd deployment && ./startup.sh &",
+          "description": "Start all scenario generator services in background",
+          "background": true
+        },
         {
-          "name": "build-artifacts",
-          "run": "./scripts/manage.sh build"
+          "name": "wait-for-services",
+          "run": "sleep 3 && curl -sf http://localhost:${RESOURCE_PORTS[windmill]}/api/version > /dev/null",
+          "description": "Wait for services to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 2
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Storage: http://localhost:${RESOURCE_PORTS[minio]}'",
+          "description": "Display running service URLs"
         }
       ]
     },
@@ -600,17 +159,32 @@
       "description": "Run scenario generator tests",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "./test.sh"
+          "name": "test-services-health",
+          "run": "curl -sf http://localhost:${RESOURCE_PORTS[windmill]}/api/version && curl -sf http://localhost:${RESOURCE_PORTS[n8n]}/healthz",
+          "description": "Test service health endpoints"
+        },
+        {
+          "name": "run-integration-tests",
+          "run": "./test.sh",
+          "description": "Execute integration test suite",
+          "condition": {
+            "file_exists": "test.sh"
+          }
         }
       ]
     },
-    "clean": {
-      "description": "Clean build artifacts and temporary files",
+    "stop": {
+      "description": "Stop scenario generator services",
       "steps": [
         {
-          "name": "clean-artifacts",
-          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+          "name": "stop-services",
+          "run": "pkill -f 'startup.sh' || true",
+          "description": "Stop scenario generator processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Scenario Generator V1 services stopped'",
+          "description": "Confirm services stopped"
         }
       ]
     }

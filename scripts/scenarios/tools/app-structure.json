@@ -29,8 +29,8 @@
     },
     {
       "name": "runtime-engine",
-      "source": "scripts/scenarios/injection/runtime-engine.sh",
-      "destination": "scripts/lib/resources/runtime-engine.sh",
+      "source": "scripts/scenarios/injection/engine.sh",
+      "destination": "scripts/lib/resources/engine.sh",
       "type": "file",
       "from": "vrooli",
       "required": true,
@@ -43,7 +43,10 @@
       "type": "directory",
       "from": "scenario",
       "optional": true,
-      "process": ["resolve_inheritance", "substitute_variables"]
+      "process": [
+        "resolve_inheritance",
+        "substitute_variables"
+      ]
     },
     {
       "name": "scenario-data",

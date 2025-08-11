@@ -3,6 +3,12 @@
 # Ollama Installation Functions
 # This file contains all installation, uninstallation, and verification functions
 
+# Source sudo utilities if not already available
+if ! command -v sudo::exec_with_fallback &>/dev/null; then
+    # shellcheck disable=SC1091
+    source "${var_LIB_UTILS_DIR}/sudo.sh" 2>/dev/null || true
+fi
+
 #######################################
 # Install Ollama binary with rollback support
 #######################################
@@ -41,8 +47,8 @@ ollama::install_binary() {
     # Make executable and run
     chmod +x "$install_script"
     
-    if resources::can_sudo; then
-        if sudo bash "$install_script"; then
+    if sudo::can_use_sudo; then
+        if sudo::exec_with_fallback "bash '$install_script'"; then
             log::success "$MSG_INSTALLER_SUCCESS"
         else
             log::error "$MSG_INSTALLER_FAILED"
@@ -63,7 +69,7 @@ ollama::install_binary() {
         # Add rollback action for binary removal
         resources::add_rollback_action \
             "Remove Ollama binary" \
-            "sudo rm -f /usr/local/bin/ollama" \
+            "sudo::exec_with_fallback 'rm -f /usr/local/bin/ollama' 2>/dev/null || true" \
             20
         
         return 0
@@ -82,20 +88,20 @@ ollama::create_user() {
         return 0
     fi
     
-    if ! resources::can_sudo; then
+    if ! sudo::can_use_sudo; then
         log::error "$MSG_USER_SUDO_REQUIRED"
         return 1
     fi
     
     log::info "Creating $OLLAMA_USER user..."
     
-    if sudo useradd -r -s /bin/false -d /usr/share/ollama -c "Ollama service user" "$OLLAMA_USER"; then
+    if sudo::exec_with_fallback "useradd -r -s /bin/false -d /usr/share/ollama -c 'Ollama service user' '$OLLAMA_USER'"; then
         log::success "$MSG_USER_CREATE_SUCCESS"
         
         # Add rollback action for user removal
         resources::add_rollback_action \
             "Remove Ollama user" \
-            "sudo userdel $OLLAMA_USER 2>/dev/null || true" \
+            "sudo::exec_with_fallback 'userdel $OLLAMA_USER' 2>/dev/null || true" \
             15
         
         return 0
@@ -114,8 +120,8 @@ ollama::install_service() {
         log::info "Ollama systemd service already exists (installed by official installer)"
         
         # Just ensure it's enabled
-        if resources::can_sudo; then
-            sudo systemctl enable "$OLLAMA_SERVICE_NAME" 2>/dev/null || true
+        if sudo::can_use_sudo; then
+            sudo::exec_with_fallback "systemctl enable '$OLLAMA_SERVICE_NAME'" 2>/dev/null || true
         fi
         
         return 0
@@ -140,7 +146,7 @@ WantedBy=default.target"
     
     log::info "Installing Ollama systemd service..."
     
-    if ! resources::can_sudo; then
+    if ! sudo::can_use_sudo; then
         resources::handle_error \
             "Sudo privileges required to install systemd service" \
             "permission" \
@@ -154,7 +160,7 @@ WantedBy=default.target"
         # Add rollback action for service removal
         resources::add_rollback_action \
             "Remove Ollama systemd service" \
-            "sudo systemctl stop $OLLAMA_SERVICE_NAME 2>/dev/null || true; sudo systemctl disable $OLLAMA_SERVICE_NAME 2>/dev/null || true; sudo rm -f /etc/systemd/system/${OLLAMA_SERVICE_NAME}.service; sudo systemctl daemon-reload" \
+            "sudo::exec_with_fallback 'systemctl stop $OLLAMA_SERVICE_NAME' 2>/dev/null || true; sudo::exec_with_fallback 'systemctl disable $OLLAMA_SERVICE_NAME' 2>/dev/null || true; sudo::exec_with_fallback 'rm -f /etc/systemd/system/${OLLAMA_SERVICE_NAME}.service' 2>/dev/null || true; sudo::exec_with_fallback 'systemctl daemon-reload' 2>/dev/null || true" \
             18
         
         return 0
@@ -184,7 +190,7 @@ ollama::install() {
     fi
     
     # Validate prerequisites
-    if ! resources::can_sudo; then
+    if ! sudo::can_use_sudo; then
         resources::handle_error \
             "Ollama installation requires sudo privileges for system service management" \
             "permission" \
@@ -449,24 +455,24 @@ ollama::uninstall() {
     fi
     
     # Remove systemd service
-    if resources::can_sudo && [[ -f "/etc/systemd/system/${OLLAMA_SERVICE_NAME}.service" ]]; then
-        sudo systemctl disable "$OLLAMA_SERVICE_NAME" 2>/dev/null || true
-        sudo rm -f "/etc/systemd/system/${OLLAMA_SERVICE_NAME}.service"
-        sudo systemctl daemon-reload
+    if sudo::can_use_sudo && [[ -f "/etc/systemd/system/${OLLAMA_SERVICE_NAME}.service" ]]; then
+        sudo::exec_with_fallback "systemctl disable '$OLLAMA_SERVICE_NAME'" 2>/dev/null || true
+        sudo::exec_with_fallback "rm -f '/etc/systemd/system/${OLLAMA_SERVICE_NAME}.service'"
+        sudo::exec_with_fallback "systemctl daemon-reload"
         log::info "Systemd service removed"
     fi
     
     # Remove binary
-    if resources::can_sudo && [[ -f "${OLLAMA_INSTALL_DIR}/ollama" ]]; then
-        sudo rm -f "${OLLAMA_INSTALL_DIR}/ollama"
+    if sudo::can_use_sudo && [[ -f "${OLLAMA_INSTALL_DIR}/ollama" ]]; then
+        sudo::exec_with_fallback "rm -f '${OLLAMA_INSTALL_DIR}/ollama'"
         log::info "Ollama binary removed"
     fi
     
     # Remove user (optional - may have other uses)
-    if id "$OLLAMA_USER" &>/dev/null && resources::can_sudo; then
+    if id "$OLLAMA_USER" &>/dev/null && sudo::can_use_sudo; then
         read -p "Remove $OLLAMA_USER user? (y/N): " -r
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            sudo userdel "$OLLAMA_USER" 2>/dev/null || true
+            sudo::exec_with_fallback "userdel '$OLLAMA_USER'" 2>/dev/null || true
             log::info "User $OLLAMA_USER removed"
         fi
     fi

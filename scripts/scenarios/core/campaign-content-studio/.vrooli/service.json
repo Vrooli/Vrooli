@@ -11,89 +11,58 @@
   "service": {
     "name": "campaign-content-studio",
     "displayName": "Campaign Content Studio",
-    "description": "Campaign-based AI content assistant with document context management, semantic search, and multi-format content generation",
+    "description": "AI-powered content studio for automated campaign creation, content generation, and multi-channel marketing",
     "version": "1.0.0",
     "type": "business-application",
+    "category": "business",
     "tags": [
-      "ai-assistant",
-      "content-creation",
-      "voice-enabled",
-      "workflow-automation",
-      "enterprise-ready",
-      "high-revenue-potential",
-      "example-scenario"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "team@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "license": "GPL-3.0",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "./README.md",
-    "support": {
-      "email": "support@vrooli.com",
-      "issues": "https://github.com/Vrooli/Vrooli/issues",
-      "chat": "https://discord.gg/vrooli"
+      "content-generation",
+      "campaign-management",
+      "marketing-automation",
+      "document-processing",
+      "windmill-ui",
+      "ai-content"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto",
+      "description": "Campaign content studio API port"
     }
   },
   "resources": {
-    "storage": {
-      "postgres": {
-        "type": "postgresql",
+    "automation": {
+      "n8n": {
+        "type": "n8n",
         "enabled": true,
-        "version": "16",
         "required": true,
         "initialization": {
-          "data": [
+          "workflows": [
             {
-              "type": "schema",
-              "file": "initialization/storage/postgres/schema.sql"
+              "file": "initialization/automation/n8n/campaign-management.json"
             },
             {
-              "type": "seed",
-              "file": "initialization/storage/postgres/seed.sql"
+              "file": "initialization/automation/n8n/content-generation.json"
+            },
+            {
+              "file": "initialization/automation/n8n/document-processing.json"
+            },
+            {
+              "file": "initialization/automation/n8n/search-retrieval.json"
             }
           ]
         }
       },
-      "minio": {
-        "type": "minio",
+      "windmill": {
+        "type": "windmill",
         "enabled": true,
         "required": true,
         "initialization": {
-          "buckets": [
+          "apps": [
             {
-              "name": "campaign-content-studio",
-              "policy": "private"
-            },
-            {
-              "name": "campaign-documents",
-              "policy": "private"
-            },
-            {
-              "name": "generated-assets",
-              "policy": "private"
-            }
-          ]
-        }
-      },
-      "qdrant": {
-        "type": "qdrant",
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "collections": [
-            {
-              "name": "campaign_documents",
-              "vector_size": 384,
-              "distance": "Cosine",
-              "hnsw_config": {
-                "m": 16,
-                "ef_construct": 100
-              }
+              "file": "initialization/automation/windmill/campaign-dashboard.json"
             }
           ]
         }
@@ -101,423 +70,23 @@
     },
     "ai": {
       "ollama": {
+        "type": "ollama",
         "enabled": true,
         "required": true,
         "models": [
-          "llama3.1:8b",
-          "nomic-embed-text:latest"
-        ]
-      },
-      "whisper": {
-        "enabled": true,
-        "required": true
-      },
-      "comfyui": {
-        "enabled": true,
-        "required": true,
-        "workflows": [
-          {
-            "name": "blog-header-generation",
-            "type": "text-to-image"
-          },
-          {
-            "name": "social-media-graphics",
-            "type": "text-to-image"
-          }
-        ]
-      },
-      "unstructured-io": {
-        "enabled": true,
-        "required": true,
-        "supported_formats": [
-          "pdf",
-          "docx",
-          "txt",
-          "html",
-          "md"
+          "llama3.2",
+          "mistral"
         ]
       }
     },
-    "automation": {
-      "n8n": {
+    "storage": {
+      "postgres": {
+        "type": "postgres",
         "enabled": true,
         "required": true,
-        "initialization": {
-          "workflows": [
-            {
-              "name": "campaign-management",
-              "file": "initialization/automation/n8n/campaign-management.json",
-              "enabled": true,
-              "tags": [
-                "core",
-                "campaigns",
-                "crud"
-              ]
-            },
-            {
-              "name": "document-processing",
-              "file": "initialization/automation/n8n/document-processing.json",
-              "enabled": true,
-              "tags": [
-                "core",
-                "documents",
-                "processing",
-                "embedding"
-              ]
-            },
-            {
-              "name": "content-generation",
-              "file": "initialization/automation/n8n/content-generation.json",
-              "enabled": true,
-              "tags": [
-                "core",
-                "ai-generation",
-                "content"
-              ]
-            },
-            {
-              "name": "search-retrieval",
-              "file": "initialization/automation/n8n/search-retrieval.json",
-              "enabled": true,
-              "tags": [
-                "core",
-                "search",
-                "retrieval"
-              ]
-            }
-          ],
-          "credentials": [
-            {
-              "name": "campaign-content-studio-postgres",
-              "type": "postgres",
-              "config": {
-                "host": "localhost",
-                "port": 5433,
-                "database": "campaign_content_studio",
-                "username": "postgres",
-                "password": "postgres"
-              }
-            },
-            {
-              "name": "minio-credentials",
-              "type": "httpBasicAuth",
-              "config": {
-                "username": "minioadmin",
-                "password": "minioadmin"
-              }
-            }
-          ]
-        }
-      },
-      "windmill": {
-        "enabled": true,
-        "required": true,
-        "initialization": {
-          "apps": [
-            {
-              "path": "f/campaign-content-studio/dashboard",
-              "file": "initialization/automation/windmill/campaign-dashboard.json",
-              "summary": "Campaign Content Studio - Management Dashboard"
-            }
-          ],
-          "scripts": []
-        }
+        "purpose": "campaign content data and project metadata"
       }
     }
-  },
-  "deployment": {
-    "target": "docker",
-    "strategy": "rolling-update",
-    "urls": {
-      "application": "${service.vrooli.url}",
-      "api": "${service.vrooli.url}/api/campaign-content-studio",
-      "health": "${service.vrooli.url}/api/campaign-content-studio/health"
-    },
-    "initialization": {
-      "phases": [
-        {
-          "name": "database-setup",
-          "tasks": [
-            {
-              "name": "apply-schema",
-              "type": "sql",
-              "target": "storage.postgres",
-              "file": "initialization/storage/postgres/schema.sql"
-            },
-            {
-              "name": "seed-data",
-              "type": "sql",
-              "target": "storage.postgres",
-              "file": "initialization/storage/postgres/seed.sql"
-            }
-          ]
-        },
-        {
-          "name": "workflow-deployment",
-          "parallel": true,
-          "tasks": [
-            {
-              "name": "deploy-n8n-workflows",
-              "type": "resource-inject",
-              "target": "automation.n8n",
-              "config": "initialization/automation/n8n/"
-            },
-            {
-              "name": "deploy-windmill-apps",
-              "type": "resource-inject",
-              "target": "automation.windmill",
-              "config": "initialization/automation/windmill/"
-            }
-          ]
-        },
-        {
-          "name": "application-configuration",
-          "tasks": []
-        },
-        {
-          "name": "startup",
-          "tasks": [
-            {
-              "name": "start-application",
-              "type": "script",
-              "script": "./deployment/startup.sh",
-              "timeout": "2m"
-            }
-          ]
-        },
-        {
-          "name": "post-validation",
-          "tasks": [
-            {
-              "name": "health-check",
-              "type": "healthcheck",
-              "target": "${service.vrooli.url}/api/campaign-content-studio/health",
-              "timeout": "30s",
-              "retries": 3
-            },
-            {
-              "name": "monitor-startup",
-              "type": "script",
-              "script": "./deployment/monitor.sh",
-              "background": true
-            }
-          ]
-        }
-      ]
-    },
-    "monitoring": {
-      "enabled": true,
-      "healthChecks": {
-        "application": {
-          "endpoint": "${service.vrooli.url}/api/campaign-content-studio/health",
-          "interval": "30s",
-          "timeout": "5s",
-          "threshold": 3
-        },
-        "workflows": {
-          "endpoint": "${service.n8n.url}/api/v1/info",
-          "interval": "60s",
-          "timeout": "10s"
-        },
-        "database": {
-          "type": "tcp",
-          "port": 5432,
-          "interval": "30s"
-        }
-      },
-      "metrics": {
-        "responseTime": {
-          "p50": "100ms",
-          "p95": "500ms",
-          "p99": "1000ms"
-        },
-        "throughput": {
-          "rps": 100,
-          "concurrent": 10
-        },
-        "errorRate": {
-          "threshold": "1%"
-        }
-      }
-    },
-    "cleanup": {
-      "enabled": true,
-      "tasks": [
-        {
-          "name": "delete-workflows",
-          "type": "resource-cleanup",
-          "target": "automation.n8n"
-        },
-        {
-          "name": "drop-database",
-          "type": "sql",
-          "target": "storage.postgres",
-          "query": "DROP DATABASE IF EXISTS campaign_content_studio"
-        },
-        {
-          "name": "clear-storage",
-          "type": "resource-cleanup",
-          "target": "storage.minio"
-        }
-      ]
-    },
-    "testing": {
-      "enabled": true,
-      "timeout": "30m",
-      "script": "./test.sh",
-      "ui": {
-        "required": true,
-        "type": "windmill",
-        "url": "${service.vrooli.url}"
-      },
-      "performance": {
-        "loadTest": {
-          "users": 10,
-          "duration": "5m",
-          "rampUp": "30s"
-        }
-      }
-    },
-    "resources": {
-      "requests": {
-        "cpu": "100m",
-        "memory": "128Mi"
-      },
-      "limits": {
-        "cpu": "1000m",
-        "memory": "1Gi"
-      }
-    }
-  },
-  "metadata": {
-    "businessModel": {
-      "purpose": "commercial",
-      "valueProposition": "Campaign-based AI content assistant with intelligent document context and multi-format generation capabilities",
-      "targetMarket": "Content creators, marketing agencies, small businesses managing multiple content campaigns",
-      "painPoints": [
-        "Managing context across multiple content campaigns",
-        "Inconsistent brand messaging without proper context",
-        "Time-consuming content creation and campaign management",
-        "Difficulty maintaining relevant context for AI-generated content"
-      ],
-      "solution": "Campaign-organized content assistant with document context management, semantic search, and AI-powered generation of blogs, social media, and images",
-      "competitiveAdvantage": "Campaign-based organization with intelligent document context retrieval and multi-format content generation",
-      "revenuePotential": {
-        "initial": "$25,000",
-        "recurring": "$45,000",
-        "expansion": "$75,000",
-        "totalEstimate": "$145,000"
-      },
-      "marketDemand": {
-        "level": "very-high",
-        "growth": "25% annually",
-        "evidence": "Growing demand for AI content tools with intelligent context management and campaign organization"
-      },
-      "roi": {
-        "developmentCost": "$5,000",
-        "timeToMarket": "2 weeks",
-        "breakEven": "3 months"
-      }
-    },
-    "performance": {
-      "targets": {
-        "initializationTime": "2m",
-        "responseTime": {
-          "p50": "100ms",
-          "p95": "500ms",
-          "p99": "1000ms"
-        },
-        "throughput": {
-          "minimum": 50,
-          "target": 100,
-          "peak": 500
-        },
-        "availability": "99.9%",
-        "errorRate": "<1%"
-      },
-      "resources": {
-        "cpu": {
-          "minimum": "0.5",
-          "target": "1.0",
-          "maximum": "2.0"
-        },
-        "memory": {
-          "minimum": "512Mi",
-          "target": "1Gi",
-          "maximum": "2Gi"
-        },
-        "storage": {
-          "database": "10Gi",
-          "files": "20Gi"
-        }
-      }
-    },
-    "customization": {
-      "variables": {
-        "APP_NAME": {
-          "type": "string",
-          "default": "Campaign Content Studio",
-          "description": "Application display name"
-        },
-        "COMPANY_NAME": {
-          "type": "string",
-          "default": "Your Company",
-          "description": "Customer company name"
-        },
-        "PRIMARY_COLOR": {
-          "type": "string",
-          "default": "#2563eb",
-          "description": "Brand primary color"
-        },
-        "DATABASE_NAME": {
-          "type": "string",
-          "default": "campaign_content_studio",
-          "description": "Database name"
-        },
-        "APP_PORT": {
-          "type": "number",
-          "default": 3000,
-          "description": "Application port"
-        },
-        "API_PORT": {
-          "type": "number",
-          "default": 3000,
-          "description": "API server port"
-        }
-      },
-      "features": {
-        "authentication": {
-          "enabled": true,
-          "provider": "jwt",
-          "sso": false
-        },
-        "notifications": {
-          "enabled": true,
-          "channels": [
-            "email",
-            "webhook"
-          ]
-        },
-        "analytics": {
-          "enabled": true,
-          "provider": "internal"
-        },
-        "payments": {
-          "enabled": false,
-          "provider": "stripe"
-        }
-      },
-      "integrations": [
-        {
-          "name": "Content APIs",
-          "type": "api",
-          "required": false
-        }
-      ]
-    },
-    "category": "ai-assistance",
-    "complexity": "intermediate",
-    "marketDemand": "very-high"
   },
   "lifecycle": {
     "version": "1.0.0",
@@ -531,12 +100,12 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/lib/resources/runtime-engine.sh .",
+          "run": "scripts/lib/resources/engine.sh .",
           "description": "Add app data to resources"
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Campaign Content Studio initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Ollama API: http://localhost:${RESOURCE_PORTS[ollama]}\\n  Qdrant DB: http://localhost:${RESOURCE_PORTS[qdrant]}\\n  MinIO Storage: http://localhost:${RESOURCE_PORTS[minio]}\\n  ComfyUI: http://localhost:${RESOURCE_PORTS[comfyui]}\\n  Unstructured-IO: http://localhost:${RESOURCE_PORTS[unstructured-io]}'",
+          "run": "echo '🚀 Campaign Content Studio initialized\\n  Windmill Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Ollama API: http://localhost:${RESOURCE_PORTS[ollama]}\\n  API: http://localhost:${SERVICE_PORT}'",
           "description": "Display service access URLs"
         }
       ]
@@ -547,7 +116,7 @@
         {
           "name": "start-services",
           "run": "cd deployment && ./startup.sh",
-          "description": "Start content studio services"
+          "description": "Start campaign content studio services"
         }
       ]
     },
@@ -567,34 +136,7 @@
         {
           "name": "stop-services",
           "run": "pkill -f 'campaign-content' || true",
-          "description": "Stop all content studio processes"
-        }
-      ]
-    },
-    "build": {
-      "description": "Build campaign content studio artifacts",
-      "steps": [
-        {
-          "name": "build-artifacts",
-          "run": "./scripts/manage.sh build"
-        }
-      ]
-    },
-    "test": {
-      "description": "Run campaign content studio tests",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "./test.sh"
-        }
-      ]
-    },
-    "clean": {
-      "description": "Clean build artifacts and temporary files",
-      "steps": [
-        {
-          "name": "clean-artifacts",
-          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+          "description": "Stop all campaign content studio processes"
         }
       ]
     }

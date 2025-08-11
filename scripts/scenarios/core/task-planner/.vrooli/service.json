@@ -56,7 +56,10 @@
       "qdrant": {
         "enabled": true,
         "config": {
-          "collections": ["task_embeddings", "research_embeddings"],
+          "collections": [
+            "task_embeddings",
+            "research_embeddings"
+          ],
           "port": 6334,
           "vectorSize": 1536,
           "initialization": {
@@ -107,7 +110,10 @@
       "ollama": {
         "enabled": true,
         "config": {
-          "models": ["llama3.2", "nomic-embed-text"],
+          "models": [
+            "llama3.2",
+            "nomic-embed-text"
+          ],
           "embeddings": {
             "model": "nomic-embed-text",
             "dimensions": 1536
@@ -121,7 +127,12 @@
         "enabled": true,
         "config": {
           "purpose": "research_for_task_context",
-          "engines": ["duckduckgo", "github", "stackoverflow", "wikipedia"],
+          "engines": [
+            "duckduckgo",
+            "github",
+            "stackoverflow",
+            "wikipedia"
+          ],
           "port": 9201
         }
       }
@@ -158,7 +169,7 @@
       "steps": [
         {
           "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/runtime-engine.sh scripts/scenarios/core/task-planner/.vrooli/service.json",
+          "run": "scripts/scenarios/injection/engine.sh scripts/scenarios/core/task-planner/.vrooli/service.json",
           "description": "Inject SQL schemas, workflows, and configurations"
         },
         {
