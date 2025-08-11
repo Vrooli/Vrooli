@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class ProxyService:
-    """Manages the mitmproxy transparent proxy for URL security"""
+    """Manages the mitmproxy regular proxy service for URL security"""
     
     def __init__(self, port: int = 8085):
         self.port = port
@@ -47,11 +47,17 @@ class ProxyService:
             
         try:
             # Create mitmproxy options
+            # Changed from transparent to regular proxy mode to prevent system-wide traffic hijacking
             opts = options.Options(
                 listen_port=self.port,
-                mode=["transparent"],  # Transparent proxy mode
+                mode=["regular"],  # Regular proxy mode (safer than transparent)
                 ssl_insecure=True,  # Accept self-signed certificates
                 confdir=os.path.expanduser("~/.mitmproxy"),
+                # Add connection management to prevent TCP leaks
+                connection_strategy="lazy",  # Use lazy connection strategy
+                stream_large_bodies="50m",   # Stream large bodies to prevent memory issues
+                body_size_limit="50m",       # Limit body size
+                keep_host_header=True,       # Preserve original host headers
             )
             
             # Create master with our security addon
@@ -104,7 +110,12 @@ class ProxyService:
         logger.info("Proxy service stopped")
     
     def setup_transparent_proxy(self) -> bool:
-        """Configure system for transparent proxy (requires root)"""
+        """DEPRECATED: Configure system for transparent proxy (requires root)
+        
+        NOTE: This method is deprecated since we switched to regular proxy mode.
+        Regular proxy mode is safer and doesn't require system-wide iptables rules.
+        Applications should be configured to use HTTP_PROXY/HTTPS_PROXY environment variables instead.
+        """
         if os.geteuid() != 0:
             logger.warning("Transparent proxy setup requires root privileges")
             return False
@@ -285,6 +296,26 @@ class ProxyService:
         except Exception as e:
             logger.error(f"Failed to install CA certificate: {e}")
             return False
+    
+    def get_proxy_config(self) -> dict:
+        """Get proxy configuration for applications in regular proxy mode"""
+        proxy_url = f"http://localhost:{self.port}"
+        return {
+            "HTTP_PROXY": proxy_url,
+            "HTTPS_PROXY": proxy_url,
+            "http_proxy": proxy_url,
+            "https_proxy": proxy_url,
+            # Don't proxy localhost and internal services
+            "NO_PROXY": "localhost,127.0.0.1,::1,host.docker.internal",
+            "no_proxy": "localhost,127.0.0.1,::1,host.docker.internal"
+        }
+    
+    def configure_environment_for_proxy(self):
+        """Configure current process environment for proxy usage"""
+        proxy_config = self.get_proxy_config()
+        for key, value in proxy_config.items():
+            os.environ[key] = value
+        logger.info(f"Configured environment for regular proxy mode on port {self.port}")
     
     def is_proxy_configured(self) -> bool:
         """Check if transparent proxy is configured"""

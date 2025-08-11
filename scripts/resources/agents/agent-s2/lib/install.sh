@@ -387,6 +387,10 @@ agents2::uninstall_service() {
     # Clean up Docker resources
     agents2::docker_cleanup
     
+    # CRITICAL: Clean up NAT redirection rules to prevent traffic hijacking
+    log::info "Cleaning up NAT redirection rules..."
+    agents2::cleanup_nat_rules || log::warn "Failed to clean NAT rules - manual cleanup may be required"
+    
     # Uninstall security components if they were installed
     agents2::uninstall_security_components
     

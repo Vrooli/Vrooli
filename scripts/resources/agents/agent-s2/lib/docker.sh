@@ -158,12 +158,17 @@ agents2::docker_start() {
 agents2::docker_stop() {
     if ! agents2::is_running; then
         log::info "$MSG_CONTAINER_NOT_RUNNING"
+        # Still clean NAT rules in case container stopped uncleanly
+        agents2::cleanup_nat_rules
         return 0
     fi
     
     log::info "$MSG_STOPPING_CONTAINER"
     if docker stop "$AGENTS2_CONTAINER_NAME" >/dev/null 2>&1; then
         log::success "$MSG_CONTAINER_STOPPED"
+        
+        # CRITICAL: Clean up NAT redirection rules to prevent future hijacking
+        agents2::cleanup_nat_rules
         return 0
     else
         log::error "Failed to stop container"
@@ -265,6 +270,78 @@ agents2::docker_cleanup() {
     $success && return 0 || return 1
 }
 
+#######################################
+# Clean up NAT redirection rules created by Agent-S2
+# This prevents traffic hijacking when the proxy service is stopped
+# Returns: 0 if successful, 1 if failed
+#######################################
+agents2::cleanup_nat_rules() {
+    log::info "Cleaning up Agent-S2 NAT redirection rules..."
+    
+    # Use the clean-iptables.sh script if available
+    local cleanup_script="${SCRIPT_DIR}/docker/scripts/clean-iptables.sh"
+    
+    if [[ -f "$cleanup_script" ]]; then
+        log::debug "Using cleanup script: $cleanup_script"
+        if "$cleanup_script" 2>/dev/null; then
+            log::success "NAT redirection rules cleaned successfully"
+            return 0
+        else
+            log::warn "Cleanup script failed, attempting manual cleanup..."
+        fi
+    else
+        log::debug "Cleanup script not found, attempting manual cleanup..."
+    fi
+    
+    # Manual cleanup as fallback
+    local removed=0
+    local success=true
+    
+    # Use sudo if available and needed, otherwise skip (non-critical for some environments)
+    local SUDO_CMD=""
+    if [[ $EUID -ne 0 ]] && command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+        SUDO_CMD="sudo"
+    fi
+    
+    if [[ -n "$SUDO_CMD" ]] || [[ $EUID -eq 0 ]]; then
+        # Remove all OUTPUT rules in nat table that redirect to Agent-S2 ports
+        while true; do
+            # Find first rule that matches our patterns
+            local rule_num=$($SUDO_CMD iptables -t nat -L OUTPUT --line-numbers -n 2>/dev/null | \
+                grep -E "REDIRECT.*tcp.*dpt:(80|443|8080|8443).*redir ports (8080|8085)" | \
+                head -1 | awk '{print $1}')
+            
+            if [[ -n "$rule_num" ]]; then
+                if $SUDO_CMD iptables -t nat -D OUTPUT "$rule_num" 2>/dev/null; then
+                    ((removed++))
+                else
+                    success=false
+                    break
+                fi
+            else
+                break
+            fi
+        done
+        
+        # Also remove loopback exclusion rules
+        while $SUDO_CMD iptables -t nat -D OUTPUT -o lo -j RETURN 2>/dev/null; do
+            ((removed++))
+        done
+        
+        if [[ $removed -gt 0 ]]; then
+            log::success "Removed $removed NAT redirection rules"
+        else
+            log::debug "No Agent-S2 NAT rules found to remove"
+        fi
+    else
+        log::warn "Cannot clean NAT rules - requires root privileges or sudo access"
+        log::info "If you experience connectivity issues, manually run: sudo ${cleanup_script}"
+        return 1
+    fi
+    
+    $success && return 0 || return 1
+}
+
 # Export functions for subshell availability
 export -f agents2::docker_build
 export -f agents2::docker_create_network
@@ -275,3 +352,4 @@ export -f agents2::docker_logs
 export -f agents2::docker_exec
 export -f agents2::docker_stats
 export -f agents2::docker_cleanup
+export -f agents2::cleanup_nat_rules

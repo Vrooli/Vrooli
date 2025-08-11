@@ -378,15 +378,11 @@ case "${1:-install}" in
         ;;
     "uninstall")
         print_status "Uninstalling Agent S2 security components..."
-        rm -f "${APPARMOR_PROFILE_DIR}/docker-agent-s2-host"
-        if command -v trash::safe_remove >/dev/null 2>&1; then
-            trash::safe_remove "$LOG_DIR" --no-confirm
-        else
-            rm -rf "$LOG_DIR"
-        fi
-        rm -f "/etc/logrotate.d/agent-s2-audit"
-        rm -f "/etc/systemd/system/agent-s2-security-monitor.service"
-        rm -f "/etc/agent-s2-security.conf"
+        trash::safe_remove "${APPARMOR_PROFILE_DIR}/docker-agent-s2-host" --production
+        trash::safe_remove "$LOG_DIR" --production
+        trash::safe_remove "/etc/logrotate.d/agent-s2-audit" --production
+        trash::safe_remove "/etc/systemd/system/agent-s2-security-monitor.service" --production
+        trash::safe_remove "/etc/agent-s2-security.conf" --production
         systemctl daemon-reload
         print_success "Agent S2 security components uninstalled"
         ;;

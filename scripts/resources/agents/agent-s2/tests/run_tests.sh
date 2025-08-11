@@ -205,12 +205,9 @@ setup_test_environment() {
     # Clean previous results if requested
     if [[ "$CLEAN" == "true" ]]; then
         print_status "Cleaning previous test results..."
-        if command -v trash::safe_remove >/dev/null 2>&1; then
-            for item in "${TEST_RESULTS_DIR:?}"/*; do
-                [ -e "$item" ] && trash::safe_remove "$item" --no-confirm
-            done
-        else
-            rm -rf "${TEST_RESULTS_DIR:?}"/*
+        for item in "${TEST_RESULTS_DIR:?}"/*; do
+            [ -e "$item" ] && trash::safe_remove "$item" --test-cleanup
+        done
         fi
     fi
     

@@ -21,6 +21,22 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
+# Global flag to track if NAT rules were created
+NAT_RULES_CREATED=false
+
+# Automatic cleanup trap - ensures NAT rules are cleaned up on exit
+cleanup_on_exit() {
+    local exit_code=$?
+    if [[ "$NAT_RULES_CREATED" == "true" ]]; then
+        log_warn "Script exiting - cleaning up NAT rules..."
+        cleanup_proxy 2>/dev/null || true
+    fi
+    exit $exit_code
+}
+
+# Set trap for cleanup on exit, interrupt, or termination
+trap cleanup_on_exit EXIT INT TERM
+
 # Check if running as root (required for iptables)
 check_root() {
     if [[ $EUID -ne 0 ]]; then
@@ -48,6 +64,12 @@ setup_iptables() {
     
     log_info "Setting up iptables rules for transparent proxy on port $proxy_port..."
     
+    # CRITICAL: Verify proxy service is running before creating redirects
+    if ! verify_proxy_service; then
+        log_error "Aborting iptables setup - proxy service verification failed"
+        return 1
+    fi
+    
     # Create nat table rules for HTTP/HTTPS redirection
     # HTTP (port 80)
     iptables -t nat -A OUTPUT -p tcp --dport 80 -m owner ! --uid-owner $proxy_user -j REDIRECT --to-port $proxy_port
@@ -61,6 +83,9 @@ setup_iptables() {
     
     # Exclude local traffic
     iptables -t nat -I OUTPUT -o lo -j RETURN
+    
+    # Mark that NAT rules were successfully created (for cleanup trap)
+    NAT_RULES_CREATED=true
     
     log_info "iptables rules configured successfully"
 }
@@ -159,6 +184,35 @@ verify_setup() {
     else
         log_warn "✗ CA certificate not in system store"
     fi
+}
+
+# Verify proxy service is listening before creating NAT rules
+verify_proxy_service() {
+    local proxy_port="${PROXY_PORT:-8085}"
+    local max_wait="${PROXY_VERIFY_TIMEOUT:-30}"
+    
+    log_info "Verifying proxy service is listening on port $proxy_port..."
+    
+    # Wait for the service to be ready
+    local waited=0
+    while [[ $waited -lt $max_wait ]]; do
+        if ss -tlnp 2>/dev/null | grep -q ":$proxy_port "; then
+            log_info "✓ Proxy service confirmed listening on port $proxy_port"
+            return 0
+        fi
+        
+        if [[ $waited -eq 0 ]]; then
+            log_info "Waiting for proxy service to start listening..."
+        fi
+        
+        sleep 2
+        waited=$((waited + 2))
+    done
+    
+    log_error "✗ Proxy service not listening on port $proxy_port after ${max_wait}s"
+    log_error "Cannot create NAT redirection rules - would cause traffic hijacking!"
+    log_info "Check if mitmproxy/Agent-S2 is running correctly"
+    return 1
 }
 
 # Cleanup function
