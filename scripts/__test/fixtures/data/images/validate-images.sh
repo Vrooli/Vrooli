@@ -6,9 +6,13 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Source trash system for safe removal
+# Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/system/trash.sh" 2>/dev/null || true
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+
+# Source trash system for safe removal using var_ variables
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 FIXTURES_DIR="$SCRIPT_DIR"
 METADATA_FILE="$FIXTURES_DIR/metadata.yaml"
 

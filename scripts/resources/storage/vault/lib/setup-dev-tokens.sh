@@ -24,6 +24,10 @@ _vault_setup_detect_project_root() {
 PROJECT_ROOT="$(_vault_setup_detect_project_root)"
 # shellcheck disable=SC1091
 source "$PROJECT_ROOT/scripts/lib/service/secrets.sh"
+# shellcheck disable=SC1091
+source "$PROJECT_ROOT/scripts/lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 # ====================================================================
 # Vault Development Token Setup Script  
 # ====================================================================
@@ -366,7 +370,7 @@ reset_dev_environment() {
     
     # Clean up token file
     if [[ -f "$TOKEN_FILE" ]]; then
-        rm -f "$TOKEN_FILE"
+        trash::safe_remove "$TOKEN_FILE" --temp
         print_info "Token file removed"
     fi
     

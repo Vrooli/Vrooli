@@ -8,6 +8,12 @@ if [[ "${MOCK_UTILS_LOADED:-}" == "true" ]]; then
 fi
 export MOCK_UTILS_LOADED="true"
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Configuration variables (can be overridden for testing)
 export MOCK_UTILS_VERBOSE="${MOCK_UTILS_VERBOSE:-true}"
 export MOCK_UTILS_AUTO_INIT="${MOCK_UTILS_AUTO_INIT:-true}"
@@ -328,7 +334,7 @@ mock::cleanup_logs() {
     if [[ -n "${MOCK_LOG_DIR:-}" ]]; then
         if [[ -d "$MOCK_LOG_DIR" ]]; then
             # Try to remove log files
-            if ! rm -f "$MOCK_LOG_DIR"/*.log 2>/dev/null; then
+            if ! trash::safe_remove "$MOCK_LOG_DIR"/*.log --test-cleanup 2>/dev/null; then
                 if [[ "$MOCK_UTILS_VERBOSE" == "true" ]]; then
                     echo "[MOCK_UTILS] WARNING: Could not remove all log files from: $MOCK_LOG_DIR" >&2
                 fi

@@ -104,11 +104,7 @@ url_discovery::clear_cache() {
     if [[ -n "$resource" ]]; then
         rm -f "${URL_DISCOVERY_CACHE_DIR}/${resource}.json"
     else
-        if command -v trash::safe_remove >/dev/null 2>&1; then
-            trash::safe_remove "$URL_DISCOVERY_CACHE_DIR" --no-confirm
-        else
-            rm -rf "$URL_DISCOVERY_CACHE_DIR"
-        fi
+        trash::safe_remove "$URL_DISCOVERY_CACHE_DIR" --temp
         url_discovery::init_cache
     fi
 }

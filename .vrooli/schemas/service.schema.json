@@ -26,6 +26,10 @@
       "$ref": "#/definitions/repository",
       "description": "Repository information"
     },
+    "ports": {
+      "$ref": "#/definitions/portsConfig",
+      "description": "Dynamic port allocation configuration"
+    },
     "resources": {
       "$ref": "resources.schema.json#/definitions/resourcesConfig",
       "description": "Resource dependencies and configuration"
@@ -171,6 +175,46 @@
             "format": "uri"
           }
         }
+      }
+    },
+    "portsConfig": {
+      "type": "object",
+      "description": "Dynamic port allocation configuration for scenario services",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["env_var"],
+        "properties": {
+          "env_var": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$",
+            "description": "Environment variable name for the allocated port"
+          },
+          "range": {
+            "type": "string",
+            "pattern": "^[0-9]+-[0-9]+$",
+            "description": "Port range (e.g., 8090-8999) for dynamic allocation"
+          },
+          "fixed": {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 65535,
+            "description": "Fixed port number (alternative to range)"
+          },
+          "fallback": {
+            "type": "string",
+            "enum": ["auto", "error"],
+            "default": "auto",
+            "description": "Behavior when port allocation fails"
+          },
+          "description": {
+            "type": "string",
+            "description": "Human-readable description of this port's purpose"
+          }
+        },
+        "oneOf": [
+          {"required": ["range"]},
+          {"required": ["fixed"]}
+        ]
       }
     }
   }

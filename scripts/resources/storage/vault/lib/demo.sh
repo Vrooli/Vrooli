@@ -13,6 +13,12 @@ NC='\033[0m'
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 cd "$SCRIPT_DIR"
 
+# Source trash module for safe cleanup
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 echo -e "${BLUE}=== HashiCorp Vault Demo ===${NC}"
 echo "This demo will show you how Vault manages secrets"
 echo
@@ -112,7 +118,7 @@ echo -e "${GREEN}✓ Migration complete${NC}"
 echo
 echo "Migrated secrets:"
 ./manage.sh --action list-secrets --path "demo/migrated/"
-rm -f /tmp/demo.env
+trash::safe_remove /tmp/demo.env --temp
 pause
 
 # 7. Bulk operations
@@ -132,7 +138,7 @@ echo -e "${GREEN}✓ Bulk import complete${NC}"
 echo
 echo "Imported tokens:"
 ./manage.sh --action list-secrets --path "demo/tokens/"
-rm -f /tmp/demo-bulk.json
+trash::safe_remove /tmp/demo-bulk.json --temp
 pause
 
 # 8. Export secrets
@@ -141,7 +147,7 @@ echo "Exporting all demo/tokens secrets to JSON..."
 ./manage.sh --action export-secrets --path "demo/tokens" > /tmp/exported-tokens.json
 echo "Exported to /tmp/exported-tokens.json:"
 cat /tmp/exported-tokens.json | jq '.'
-rm -f /tmp/exported-tokens.json
+trash::safe_remove /tmp/exported-tokens.json --temp
 pause
 
 # 9. Cleanup

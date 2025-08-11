@@ -2,14 +2,12 @@
 # Windmill Docker Management Functions
 # All Docker Compose operations for Windmill multi-container setup
 
-# Source required utilities if not already loaded
-if ! command -v trash::safe_remove >/dev/null 2>&1; then
-    SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-    # shellcheck disable=SC1091
-    source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
-    # shellcheck disable=SC1091
-    source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
-fi
+# Source required utilities
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 #######################################
 # Start Windmill services using Docker Compose
@@ -435,11 +433,9 @@ EOF
     local compressed_backup="$backup_dir/windmill_backup_$timestamp.tar.gz"
     if tar -czf "$compressed_backup" -C "$backup_dir" "windmill_backup_$timestamp"; then
         # Remove uncompressed backup directory
-        if command -v trash::safe_remove >/dev/null 2>&1; then
-            trash::safe_remove "$backup_path" --no-confirm
-        else
-            rm -rf "$backup_path"
-        fi
+        # Direct trash removal
+        trash::safe_remove "$backup_path" --temp
+        trash::safe_remove "$backup_path" --temp
         log::success "Backup completed: $compressed_backup"
         echo "$compressed_backup"
     else
@@ -477,11 +473,9 @@ windmill::restore_data() {
     log::info "Extracting backup..."
     if ! tar -xzf "$backup_file" -C "$restore_dir"; then
         log::error "Failed to extract backup file"
-        if command -v trash::safe_remove >/dev/null 2>&1; then
-            trash::safe_remove "$restore_dir" --no-confirm
-        else
-            rm -rf "$restore_dir"
-        fi
+        # Direct trash removal
+        trash::safe_remove "$restore_dir" --temp
+        trash::safe_remove "$restore_dir" --temp
         return 1
     fi
     
@@ -491,11 +485,9 @@ windmill::restore_data() {
     
     if [[ ! -d "$backup_dir" ]]; then
         log::error "Invalid backup structure"
-        if command -v trash::safe_remove >/dev/null 2>&1; then
-            trash::safe_remove "$restore_dir" --no-confirm
-        else
-            rm -rf "$restore_dir"
-        fi
+        # Direct trash removal
+        trash::safe_remove "$restore_dir" --temp
+        trash::safe_remove "$restore_dir" --temp
         return 1
     fi
     
@@ -513,11 +505,9 @@ windmill::restore_data() {
     log::info "Starting services..."
     if ! windmill::compose_up; then
         log::error "Failed to start services for restore"
-        if command -v trash::safe_remove >/dev/null 2>&1; then
-            trash::safe_remove "$restore_dir" --no-confirm
-        else
-            rm -rf "$restore_dir"
-        fi
+        # Direct trash removal
+        trash::safe_remove "$restore_dir" --temp
+        trash::safe_remove "$restore_dir" --temp
         return 1
     fi
     
@@ -530,11 +520,9 @@ windmill::restore_data() {
         
         if ! windmill::compose_cmd exec -T windmill-db psql -U postgres -d windmill < "$backup_dir/database.sql"; then
             log::error "Failed to restore database"
-            if command -v trash::safe_remove >/dev/null 2>&1; then
-            trash::safe_remove "$restore_dir" --no-confirm
-        else
-            rm -rf "$restore_dir"
-        fi
+            # Direct trash removal
+        trash::safe_remove "$restore_dir" --temp
+        trash::safe_remove "$restore_dir" --temp
             return 1
         fi
         
@@ -575,11 +563,9 @@ windmill::restore_data() {
     fi
     
     # Cleanup
-    if command -v trash::safe_remove >/dev/null 2>&1; then
-            trash::safe_remove "$restore_dir" --no-confirm
-        else
-            rm -rf "$restore_dir"
-        fi
+    # Direct trash removal
+        trash::safe_remove "$restore_dir" --temp
+        trash::safe_remove "$restore_dir" --temp
     
     return 0
 }

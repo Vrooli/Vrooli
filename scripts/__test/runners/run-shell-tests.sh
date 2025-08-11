@@ -18,6 +18,12 @@ source "$TEST_ROOT/shared/utils.bash"
 source "$TEST_ROOT/shared/config-simple.bash"
 # NOTE: test-isolation.bash is NOT loaded to prevent EXIT trap interference
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$TEST_ROOT/../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Configuration
 VERBOSE="${VROOLI_TEST_VERBOSE:-false}"
 FAIL_FAST="${VROOLI_TEST_FAIL_FAST:-false}"
@@ -296,13 +302,13 @@ main() {
         # Check for interrupt indicators if exit code is ambiguous
         if [[ $test_exit_code -eq 1 ]]; then
             if grep -q "Received SIGINT" "$temp_stderr" 2>/dev/null; then
-                rm -f "$temp_stderr"
+                trash::safe_remove "$temp_stderr" --test-cleanup
                 vrooli_log_warn "Test interrupted by user (Ctrl+C)"
                 INTERRUPTED=true
                 break
             fi
         fi
-        rm -f "$temp_stderr"
+        trash::safe_remove "$temp_stderr" --test-cleanup
         
         # If interrupted flag was set by signal handler, break immediately
         if [[ "$INTERRUPTED" == "true" ]]; then

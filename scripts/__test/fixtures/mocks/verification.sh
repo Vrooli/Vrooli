@@ -8,6 +8,12 @@ if [[ "${MOCK_VERIFICATION_LOADED:-}" == "true" ]]; then
 fi
 export MOCK_VERIFICATION_LOADED="true"
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Mock verification state
 declare -gA MOCK_CALL_COUNTS
 declare -gA MOCK_CALL_HISTORY
@@ -352,10 +358,10 @@ mock::verify::reset() {
     MOCK_CALL_SEQUENCES=()
     
     if [[ -n "${MOCK_RESPONSES_DIR:-}" ]]; then
-        rm -f "${MOCK_RESPONSES_DIR}/command_calls.log"
-        rm -f "${MOCK_RESPONSES_DIR}/http_calls.log"
-        rm -f "${MOCK_RESPONSES_DIR}/docker_calls.log"
-        rm -f "${MOCK_RESPONSES_DIR}/verification_errors.log"
+        trash::safe_remove "${MOCK_RESPONSES_DIR}/command_calls.log" --test-cleanup
+        trash::safe_remove "${MOCK_RESPONSES_DIR}/http_calls.log" --test-cleanup
+        trash::safe_remove "${MOCK_RESPONSES_DIR}/docker_calls.log" --test-cleanup
+        trash::safe_remove "${MOCK_RESPONSES_DIR}/verification_errors.log" --test-cleanup
     fi
     
     echo "[MOCK_VERIFICATION] Verification state reset"

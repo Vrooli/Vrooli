@@ -123,11 +123,7 @@ if [[ "$RAILS_ENV" == "production" ]] && [[ ! -d "public/assets" ]]; then
 fi
 
 # Clean up old PID files
-if command -v trash::safe_remove >/dev/null 2>&1; then
-    trash::safe_remove /app/tmp/pids/server.pid --temp
-else
-    rm -f /app/tmp/pids/server.pid  # fallback inside container
-fi
+trash::safe_remove /app/tmp/pids/server.pid --temp
 
 # Export host directories in PATH for child processes
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/host/usr/bin:/host/bin:$PATH"

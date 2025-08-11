@@ -13,9 +13,13 @@ fi
 # Load the base cleanup functions
 source "$CLEANUP_MANAGER_SCRIPT_DIR/cleanup.bash"
 
-# Source trash system for safe removal
+# Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${CLEANUP_MANAGER_SCRIPT_DIR}/../../lib/system/trash.sh" 2>/dev/null || true
+source "${CLEANUP_MANAGER_SCRIPT_DIR}/../../lib/utils/var.sh" 2>/dev/null || true
+
+# Source trash system for safe removal using var_ variables
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Cleanup configuration
 readonly CLEANUP_AGE_HOURS="${CLEANUP_AGE_HOURS:-24}"  # Clean resources older than X hours
@@ -103,12 +107,10 @@ vrooli_aggressive_cleanup() {
         if [[ -n "$dirs" ]]; then
             echo "$dirs" | while IFS= read -r dir; do
                 if [[ -d "$dir" ]]; then
-                    if command -v trash::safe_remove >/dev/null 2>&1; then
-                        if trash::safe_remove "$dir" --no-confirm 2>/dev/null; then
-                            echo "[CLEANUP-MANAGER] Removed: $dir"
-                            ((cleaned_count++))
-                        fi
-                    elif trash::safe_remove "$dir" --no-confirm 2>/dev/null; then
+                    if trash::safe_remove "$dir" --test-cleanup 2>/dev/null; then
+                        echo "[CLEANUP-MANAGER] Removed: $dir"
+                        ((cleaned_count++))
+                    elif trash::safe_remove "$dir" --test-cleanup 2>/dev/null; then
                         echo "[CLEANUP-MANAGER] Removed: $dir"
                         ((cleaned_count++))
                     fi
@@ -142,12 +144,10 @@ vrooli_aggressive_cleanup() {
             if [[ -n "$items" ]]; then
                 echo "$items" | while IFS= read -r item; do
                     if [[ -e "$item" ]]; then
-                        if command -v trash::safe_remove >/dev/null 2>&1; then
-                            if trash::safe_remove "$item" --no-confirm 2>/dev/null; then
-                                echo "[CLEANUP-MANAGER] Removed: $item"
-                                ((cleaned_count++))
-                            fi
-                        elif trash::safe_remove "$item" --no-confirm 2>/dev/null; then
+                        if trash::safe_remove "$item" --test-cleanup 2>/dev/null; then
+                            echo "[CLEANUP-MANAGER] Removed: $item"
+                            ((cleaned_count++))
+                        elif trash::safe_remove "$item" --test-cleanup 2>/dev/null; then
                             echo "[CLEANUP-MANAGER] Removed: $item"
                             ((cleaned_count++))
                         fi
@@ -168,12 +168,10 @@ vrooli_aggressive_cleanup() {
     
     for dir in "${known_dirs[@]}"; do
         if [[ -d "$dir" ]]; then
-            if command -v trash::safe_remove >/dev/null 2>&1; then
-                if trash::safe_remove "$dir" --no-confirm 2>/dev/null; then
-                    echo "[CLEANUP-MANAGER] Removed known directory: $dir"
-                    ((cleaned_count++))
-                fi
-            elif trash::safe_remove "$dir" --no-confirm 2>/dev/null; then
+            if trash::safe_remove "$dir" --test-cleanup 2>/dev/null; then
+                echo "[CLEANUP-MANAGER] Removed known directory: $dir"
+                ((cleaned_count++))
+            elif trash::safe_remove "$dir" --test-cleanup 2>/dev/null; then
                 echo "[CLEANUP-MANAGER] Removed known directory: $dir"
                 ((cleaned_count++))
             fi
@@ -209,11 +207,9 @@ vrooli_cleanup_old_resources() {
         if [[ -n "$old_items" ]]; then
             echo "$old_items" | while IFS= read -r item; do
                 if [[ -e "$item" ]]; then
-                    if command -v trash::safe_remove >/dev/null 2>&1; then
-                        if trash::safe_remove "$item" --no-confirm 2>/dev/null; then
-                            echo "[CLEANUP-MANAGER] Removed old resource: $item"
-                            ((cleaned_count++))
-                        fi
+                    if trash::safe_remove "$item" --test-cleanup 2>/dev/null; then
+                        echo "[CLEANUP-MANAGER] Removed old resource: $item"
+                        ((cleaned_count++))
                     elif trash::safe_remove "$item" --test-cleanup 2>/dev/null; then
                         echo "[CLEANUP-MANAGER] Removed old resource: $item"
                         ((cleaned_count++))
@@ -232,12 +228,10 @@ vrooli_cleanup_old_resources() {
             if [[ -n "$old_items" ]]; then
                 echo "$old_items" | while IFS= read -r item; do
                     if [[ -e "$item" ]]; then
-                        if command -v trash::safe_remove >/dev/null 2>&1; then
-                            if trash::safe_remove "$item" --no-confirm 2>/dev/null; then
-                                echo "[CLEANUP-MANAGER] Removed old resource: $item"
-                                ((cleaned_count++))
-                            fi
-                        elif trash::safe_remove "$item" --no-confirm 2>/dev/null; then
+                        if trash::safe_remove "$item" --test-cleanup 2>/dev/null; then
+                            echo "[CLEANUP-MANAGER] Removed old resource: $item"
+                            ((cleaned_count++))
+                        elif trash::safe_remove "$item" --test-cleanup 2>/dev/null; then
                             echo "[CLEANUP-MANAGER] Removed old resource: $item"
                             ((cleaned_count++))
                         fi

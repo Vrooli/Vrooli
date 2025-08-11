@@ -2,14 +2,12 @@
 # Qdrant Snapshot Management
 # Functions for creating and restoring snapshots/backups
 
-# Source required utilities if not already loaded
-if ! command -v trash::safe_remove >/dev/null 2>&1; then
-    SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-    # shellcheck disable=SC1091
-    source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
-    # shellcheck disable=SC1091
-    source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
-fi
+# Source required utilities
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 #######################################
 # Create a snapshot of collections
@@ -214,7 +212,7 @@ qdrant::snapshots::create_collection_snapshot() {
             qdrant::api::request "DELETE" "/collections/${collection_name}/snapshots/${snapshot_file}" >/dev/null 2>&1
             return 0
         else
-            rm -f "$local_file"
+            trash::safe_remove "$local_file" --temp
             return 1 
         fi
     else

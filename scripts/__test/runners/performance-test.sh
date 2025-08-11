@@ -8,6 +8,12 @@ set -euo pipefail
 RUNNER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TEST_ROOT="$(dirname "$RUNNER_DIR")"
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$RUNNER_DIR/../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Colors for output
 readonly GREEN='\033[0;32m'
 readonly YELLOW='\033[1;33m'
@@ -98,7 +104,7 @@ EOF
     run_timed_test "Config loading and lookup" \
         "/tmp/config_perf_test.sh"
     
-    rm -f /tmp/config_perf_test.sh
+    trash::safe_remove /tmp/config_perf_test.sh --test-cleanup
 }
 
 #######################################
@@ -123,7 +129,7 @@ EOF
     run_timed_test "100 assertions" \
         "VROOLI_TEST_ROOT=$TEST_ROOT bats /tmp/assertion_perf.bats"
     
-    rm -f /tmp/assertion_perf.bats
+    trash::safe_remove /tmp/assertion_perf.bats --test-cleanup
 }
 
 #######################################
@@ -154,7 +160,7 @@ EOF
     run_timed_test "Cleanup of 10 files" \
         "VROOLI_TEST_ROOT=$TEST_ROOT bats /tmp/cleanup_perf.bats"
     
-    rm -f /tmp/cleanup_perf.bats
+    trash::safe_remove /tmp/cleanup_perf.bats --test-cleanup
 }
 
 #######################################

@@ -15,6 +15,12 @@ readonly TIMEOUT="${SCENARIO_TIMEOUT:-60}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly DATA_DIR="$SCRIPT_DIR/../data"
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Colors
 readonly GREEN='\033[0;32m'
 readonly RED='\033[0;31m'
@@ -184,7 +190,7 @@ step_5_validate_pipeline() {
 # Cleanup function
 cleanup() {
     if [[ -d "$DATA_DIR" ]]; then
-        rm -f "$DATA_DIR"/*.txt 2>/dev/null || true
+        find "$DATA_DIR" -name "*.txt" -exec trash::safe_remove {} --test-cleanup \; 2>/dev/null || true
     fi
 }
 

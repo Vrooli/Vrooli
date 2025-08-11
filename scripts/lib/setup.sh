@@ -115,10 +115,16 @@ setup::generic_main() {
     fi
     export TARGET="$canonical"
     
-    # Default to skip sudo unless explicitly set
+    # Set SUDO_MODE based on context if not explicitly set
     if [[ -z "${SUDO_MODE_EXPLICIT:-}" ]]; then
-        log::debug "Defaulting to SUDO_MODE=skip (use --sudo-mode to override)"
-        export SUDO_MODE="skip"
+        # If running as root or with sudo, default to error mode
+        if [[ $EUID -eq 0 ]] || [[ -n "${SUDO_USER:-}" ]]; then
+            log::debug "Running with sudo privileges - setting SUDO_MODE=error"
+            export SUDO_MODE="error"
+        else
+            log::debug "Not running with sudo - setting SUDO_MODE=skip"
+            export SUDO_MODE="skip"
+        fi
     fi
     
     # Step 1: System Preparation

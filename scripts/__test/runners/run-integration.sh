@@ -16,6 +16,12 @@ source "$TEST_ROOT/shared/test-isolation.bash"
 source "$TEST_ROOT/shared/port-manager.bash"
 source "$TEST_ROOT/shared/resource-manager.bash"
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$TEST_ROOT/../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Configuration
 VERBOSE="${VROOLI_TEST_VERBOSE:-false}"
 FAIL_FAST="${VROOLI_TEST_FAIL_FAST:-false}"
@@ -311,7 +317,7 @@ run_single_test() {
     fi
     
     # Clean up
-    rm -f "$output_file"
+    trash::safe_remove "$output_file" --test-cleanup
     vrooli_isolation_cleanup
     
     return $exit_code

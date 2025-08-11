@@ -17,6 +17,8 @@ source "$SCRIPT_DIR/lib/utils/var.sh"
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/lib/utils/json.sh"
+# shellcheck disable=SC1091
+source "${var_PORT_REGISTRY_FILE}" 2>/dev/null || true
 
 #######################################
 # Execute lifecycle phase
@@ -46,6 +48,9 @@ manage::execute_phase() {
     # Export phase info for scripts
     export LIFECYCLE_PHASE="$phase"
     export LIFECYCLE_ARGS="$*"
+    
+    # Allocate and export dynamic ports from service.json
+    manage::allocate_service_ports
     
     # Get and execute steps
     local steps
@@ -86,6 +91,80 @@ manage::execute_phase() {
     done
     
     log::success "Phase '$phase' completed successfully"
+    return 0
+}
+
+#######################################
+# Allocate dynamic ports from service.json
+# Reads .ports config and allocates/exports ports
+#######################################
+manage::allocate_service_ports() {
+    local ports_config
+    ports_config=$(json::get_value '.ports // {}' '{}')
+    
+    [[ "$ports_config" == '{}' ]] && return 0
+    
+    log::info "Allocating service ports..."
+    
+    # Process each port configuration
+    echo "$ports_config" | jq -r 'to_entries | .[] | @base64' | while IFS= read -r port_entry; do
+        # Decode the port configuration
+        local port_name port_config
+        port_name=$(echo "$port_entry" | base64 -d | jq -r '.key')
+        port_config=$(echo "$port_entry" | base64 -d | jq -r '.value')
+        
+        local env_var range fixed fallback description
+        env_var=$(echo "$port_config" | jq -r '.env_var // ""')
+        range=$(echo "$port_config" | jq -r '.range // ""')
+        fixed=$(echo "$port_config" | jq -r '.fixed // ""')
+        fallback=$(echo "$port_config" | jq -r '.fallback // "auto"')
+        description=$(echo "$port_config" | jq -r '.description // ""')
+        
+        [[ -z "$env_var" ]] && continue
+        
+        # Check if already set
+        if [[ -n "${!env_var:-}" ]]; then
+            log::info "  • $port_name: Using existing $env_var=${!env_var}"
+            continue
+        fi
+        
+        local allocated_port=""
+        
+        # Try fixed port first
+        if [[ -n "$fixed" ]]; then
+            allocated_port="$fixed"
+        # Try dynamic range allocation
+        elif [[ -n "$range" ]]; then
+            local start_port end_port
+            start_port=$(echo "$range" | cut -d'-' -f1)
+            end_port=$(echo "$range" | cut -d'-' -f2)
+            
+            if command -v ports::find_available_in_range &>/dev/null; then
+                allocated_port=$(ports::find_available_in_range "$start_port" "$end_port")
+            else
+                # Fallback to simple allocation if port registry not available
+                for ((port=start_port; port<=end_port; port++)); do
+                    if ! nc -z localhost "$port" 2>/dev/null; then
+                        allocated_port="$port"
+                        break
+                    fi
+                done
+            fi
+        fi
+        
+        # Handle allocation result
+        if [[ -n "$allocated_port" ]]; then
+            export "$env_var=$allocated_port"
+            log::info "  • $port_name: Allocated $env_var=$allocated_port"
+            [[ -n "$description" ]] && log::info "    $description"
+        elif [[ "$fallback" == "error" ]]; then
+            log::error "Failed to allocate port for $port_name"
+            return 1
+        else
+            log::warning "Could not allocate port for $port_name (fallback: auto)"
+        fi
+    done
+    
     return 0
 }
 

@@ -3,6 +3,12 @@
 
 set -euo pipefail
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -196,7 +202,7 @@ else
     VERIFICATION_PASSED=false
 fi
 
-rm -f /tmp/vault-test-bulk.json
+trash::safe_remove /tmp/vault-test-bulk.json --temp
 echo
 
 # 8. Display summary

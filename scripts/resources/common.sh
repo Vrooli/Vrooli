@@ -22,11 +22,13 @@ source "${var_FLOW_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_NETWORK_DIR}/ports.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/docker.sh"
+source "${var_LIB_DIR}/runtimes/docker.sh"
 # shellcheck disable=SC1091
 source "${var_PORT_REGISTRY_FILE}"
 # shellcheck disable=SC1091
 source "${var_REPOSITORY_FILE}"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_SYSTEM_COMMANDS_FILE}"
 # shellcheck disable=SC1091
@@ -163,7 +165,7 @@ resources::get_detailed_health_status() {
     curl_exit_code=$?
     
     # Clean up temp file
-    rm -f "$temp_output"
+    trash::safe_remove "$temp_output" --temp
     
     # Analyze the results and provide specific error messages
     case $curl_exit_code in
@@ -814,7 +816,7 @@ resources::update_config() {
     # Add rollback action for temp file cleanup
     resources::add_rollback_action \
         "Clean up temporary configuration file" \
-        "rm -f \"$temp_config\"" \
+        "trash::safe_remove \"$temp_config\" --temp" \
         1
     
     # Update configuration atomically
@@ -838,12 +840,12 @@ resources::update_config() {
             
             return 0
         else
-            rm -f "$temp_config"
+            trash::safe_remove "$temp_config" --temp
             resources::handle_error "Generated configuration is invalid JSON" "config"
             return 1
         fi
     else
-        rm -f "$temp_config"
+        trash::safe_remove "$temp_config" --temp
         resources::handle_error "Failed to update configuration with jq" "config"
         return 1
     fi
@@ -921,7 +923,7 @@ resources::update_cli_config() {
         fi
     fi
     
-    rm -f "$temp_config"
+    trash::safe_remove "$temp_config" --temp
     log::error "Failed to update CLI resource configuration"
     return 1
 }
@@ -979,7 +981,7 @@ resources::remove_config() {
         mv "$temp_config" "$VROOLI_RESOURCES_CONFIG"
         log::success "Removed resource configuration for $category/$resource_name"
     else
-        rm -f "$temp_config"
+        trash::safe_remove "$temp_config" --temp
         resources::handle_error "Failed to remove configuration with jq" "config"
         return 1
     fi

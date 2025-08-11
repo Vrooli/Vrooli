@@ -17,7 +17,9 @@ source "${RESOURCES_DIR}/../lib/utils/args-cli.sh"
 # shellcheck disable=SC1091
 source "${RESOURCES_DIR}/../app/utils/docker.sh"
 # shellcheck disable=SC1091
-source "${RESOURCES_DIR}/../lib/system/trash.sh"
+source "${RESOURCES_DIR}/../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 # Source configuration
 # shellcheck disable=SC1091

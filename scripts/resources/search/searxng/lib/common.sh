@@ -2,14 +2,12 @@
 # SearXNG Common Utilities
 # Shared functions used by other SearXNG modules
 
-# Source required utilities if not already loaded
-if ! command -v trash::safe_remove >/dev/null 2>&1; then
-    SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-    # shellcheck disable=SC1091
-    source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
-    # shellcheck disable=SC1091
-    source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
-fi
+# Source required utilities
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 #######################################
 # Check if SearXNG is installed
@@ -398,11 +396,7 @@ searxng::cleanup() {
     # Remove data directory if requested
     if [[ "$level" == "all" ]] && [[ -d "$SEARXNG_DATA_DIR" ]]; then
         log::info "Removing SearXNG data directory..."
-        if command -v trash::safe_remove >/dev/null 2>&1; then
-            trash::safe_remove "$SEARXNG_DATA_DIR" --no-confirm
-        else
-            rm -rf "$SEARXNG_DATA_DIR"
-        fi
+        trash::safe_remove "$SEARXNG_DATA_DIR" --production
     fi
     
     log::success "SearXNG cleanup completed"

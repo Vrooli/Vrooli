@@ -8,10 +8,16 @@ if [[ "${CLAUDE_MOCKS_LOADED:-}" == "true" ]]; then
 fi
 export CLAUDE_MOCKS_LOADED="true"
 
+# Source var.sh for directory variables
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$script_dir/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Load centralized logging utilities
 if ! command -v mock::log_call &>/dev/null; then
   # Try to load from relative path
-  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   if [[ -f "$script_dir/logs.sh" ]]; then
     source "$script_dir/logs.sh"
   else
@@ -231,7 +237,7 @@ mock::claude::reset() {
   
   # Clean up state file first
   if [[ -n "${CLAUDE_MOCK_STATE_FILE}" && -f "$CLAUDE_MOCK_STATE_FILE" ]]; then
-    rm -f "$CLAUDE_MOCK_STATE_FILE"
+    trash::safe_remove "$CLAUDE_MOCK_STATE_FILE" --test-cleanup
   fi
   
   # Initialize state file for subshell access

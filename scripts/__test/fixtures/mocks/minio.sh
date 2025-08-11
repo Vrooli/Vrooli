@@ -24,9 +24,13 @@ MOCK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [[ -f "$MOCK_DIR/logs.sh" ]] && source "$MOCK_DIR/logs.sh"
 [[ -f "$MOCK_DIR/docker.sh" ]] && source "$MOCK_DIR/docker.sh"
 
-# Source trash system for safe removal
+# Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${MOCK_DIR}/../../../lib/system/trash.sh" 2>/dev/null || true
+source "${MOCK_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+
+# Source trash system for safe removal using var_ variables
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Global configuration
 declare -g MINIO_MOCK_STATE_DIR="${MINIO_MOCK_STATE_DIR:-/tmp/minio-mock-state}"
@@ -931,11 +935,7 @@ mock::minio::reset() {
     )
     
     # Clean up mock files
-    if command -v trash::safe_remove >/dev/null 2>&1; then
-        trash::safe_remove "$MINIO_MOCK_FILES_DIR" --no-confirm
-    else
-        rm -rf "$MINIO_MOCK_FILES_DIR"
-    fi
+    trash::safe_remove "$MINIO_MOCK_FILES_DIR" --test-cleanup
     mkdir -p "$MINIO_MOCK_FILES_DIR"
     
     # Save the reset state if requested
