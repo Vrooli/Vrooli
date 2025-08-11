@@ -39,36 +39,36 @@ The Resource Data Injection System extends Vrooli's resource management to autom
 
 ```bash
 # Create scenarios configuration from defaults
-./scripts/scenarios/injection/schema-validator.sh --action init
+./scripts/resources/injection/schema-validator.sh --action init
 
 # Or create custom location
-./scripts/scenarios/injection/schema-validator.sh --action init --config-file ./my-scenarios.json
+./scripts/resources/injection/schema-validator.sh --action init --config-file ./my-scenarios.json
 ```
 
 ### 2. Inject Scenarios
 
 ```bash
 # Inject specific scenario
-./scripts/scenarios/injection/engine.sh --action inject --scenario vrooli-core
+./scripts/resources/injection/engine.sh --action inject --scenario vrooli-core
 
 # Inject all active scenarios
-./scripts/scenarios/injection/engine.sh --action inject --all-active yes
+./scripts/resources/injection/engine.sh --action inject --all-active yes
 
 # Dry run to see what would be injected
-./scripts/scenarios/injection/engine.sh --action inject --scenario test-scenario --dry-run yes
+./scripts/resources/injection/engine.sh --action inject --scenario test-scenario --dry-run yes
 ```
 
 ### 3. Manage Scenarios
 
 ```bash
 # List available scenarios
-./scripts/scenarios/injection/engine.sh --action list-scenarios
+./scripts/resources/injection/engine.sh --action list-scenarios
 
 # Validate configuration
-./scripts/scenarios/injection/schema-validator.sh --action validate
+./scripts/resources/injection/schema-validator.sh --action validate
 
 # Validate specific scenario
-./scripts/scenarios/injection/engine.sh --action validate --scenario vrooli-core
+./scripts/resources/injection/engine.sh --action validate --scenario vrooli-core
 ```
 
 ## 📋 Scenario Configuration Format
@@ -250,10 +250,10 @@ Every injection is validated before execution:
 
 ```bash
 # Configuration validation
-./scripts/scenarios/injection/schema-validator.sh --action validate
+./scripts/resources/injection/schema-validator.sh --action validate
 
 # Scenario-specific validation  
-./scripts/scenarios/injection/engine.sh --action validate --scenario my-app
+./scripts/resources/injection/engine.sh --action validate --scenario my-app
 
 # Resource-specific validation
 ./scripts/resources/automation/n8n/lib/inject.sh --validate CONFIG_JSON
@@ -282,10 +282,10 @@ Add injection to resource startup:
 
 ```bash
 # Inject specific scenario
-./scripts/scenarios/injection/engine.sh --action inject --scenario my-app
+./scripts/resources/injection/engine.sh --action inject --scenario my-app
 
 # Inject all active scenarios
-./scripts/scenarios/injection/engine.sh --action inject --all-active yes
+./scripts/resources/injection/engine.sh --action inject --all-active yes
 ```
 
 ## 🎯 Use Cases

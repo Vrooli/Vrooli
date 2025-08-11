@@ -29,8 +29,8 @@
     },
     {
       "name": "runtime-engine",
-      "source": "scripts/scenarios/injection/engine.sh",
-      "destination": "scripts/lib/resources/engine.sh",
+      "source": "scripts/resources/injection/engine.sh",
+      "destination": "scripts/resources/injection/engine.sh",
       "type": "file",
       "from": "vrooli",
       "required": true,

@@ -11,7 +11,7 @@ This document provides comprehensive API documentation for the Resource Data Inj
 ### Command Line Interface
 
 ```bash
-./scripts/scenarios/injection/engine.sh [OPTIONS]
+./scripts/resources/injection/engine.sh [OPTIONS]
 ```
 
 #### Options
@@ -31,19 +31,19 @@ This document provides comprehensive API documentation for the Resource Data Inj
 
 ```bash
 # Inject specific scenario
-./scripts/scenarios/injection/engine.sh --action inject --scenario vrooli-core
+./scripts/resources/injection/engine.sh --action inject --scenario vrooli-core
 
 # Inject all active scenarios
-./scripts/scenarios/injection/engine.sh --action inject --all-active yes
+./scripts/resources/injection/engine.sh --action inject --all-active yes
 
 # Validate scenario configuration
-./scripts/scenarios/injection/engine.sh --action validate --scenario test-app
+./scripts/resources/injection/engine.sh --action validate --scenario test-app
 
 # List available scenarios
-./scripts/scenarios/injection/engine.sh --action list-scenarios
+./scripts/resources/injection/engine.sh --action list-scenarios
 
 # Dry run injection
-./scripts/scenarios/injection/engine.sh --action inject --scenario test-app --dry-run yes
+./scripts/resources/injection/engine.sh --action inject --scenario test-app --dry-run yes
 ```
 
 #### Exit Codes
@@ -61,7 +61,7 @@ This document provides comprehensive API documentation for the Resource Data Inj
 ### Command Line Interface
 
 ```bash
-./scripts/scenarios/injection/schema-validator.sh [OPTIONS]
+./scripts/resources/injection/schema-validator.sh [OPTIONS]
 ```
 
 #### Options
@@ -77,13 +77,13 @@ This document provides comprehensive API documentation for the Resource Data Inj
 
 ```bash
 # Validate configuration file
-./scripts/scenarios/injection/schema-validator.sh --action validate
+./scripts/resources/injection/schema-validator.sh --action validate
 
 # Initialize new configuration
-./scripts/scenarios/injection/schema-validator.sh --action init --config-file ./new-config.json
+./scripts/resources/injection/schema-validator.sh --action init --config-file ./new-config.json
 
 # Check schema validity
-./scripts/scenarios/injection/schema-validator.sh --action check-schema
+./scripts/resources/injection/schema-validator.sh --action check-schema
 ```
 
 ## 🔌 Resource Adapter API

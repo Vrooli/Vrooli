@@ -213,7 +213,7 @@
       "steps": [
         {
           "name": "inject-resource-data",
-          "run": "scripts/scenarios/injection/engine.sh scripts/scenarios/core/resource-experimenter/.vrooli/service.json",
+          "run": "scripts/resources/injection/engine.sh scripts/scenarios/core/resource-experimenter/.vrooli/service.json",
           "description": "Inject SQL schemas, workflows, and configurations"
         },
         {

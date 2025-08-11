@@ -121,7 +121,7 @@
         },
         {
           "name": "add-data",
-          "run": "scripts/lib/resources/engine.sh .",
+          "run": "scripts/resources/injection/engine.sh .",
           "description": "Add app data to resources"
         },
         {

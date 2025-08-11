@@ -12,11 +12,11 @@ This guide covers common problems, diagnostic steps, and solutions for the Resou
 
 ```bash
 # Check if injection system is properly installed
-ls -la scripts/scenarios/injection/
-ls -la scripts/scenarios/injection/engine.sh
+ls -la scripts/resources/injection/
+ls -la scripts/resources/injection/engine.sh
 
 # Verify permissions
-test -x scripts/scenarios/injection/engine.sh && echo "✅ Engine executable" || echo "❌ Engine not executable"
+test -x scripts/resources/injection/engine.sh && echo "✅ Engine executable" || echo "❌ Engine not executable"
 
 # Check dependencies
 command -v jq >/dev/null && echo "✅ jq available" || echo "❌ jq missing"
@@ -27,13 +27,13 @@ command -v curl >/dev/null && echo "✅ curl available" || echo "❌ curl missin
 
 ```bash
 # Validate scenarios configuration
-./scripts/scenarios/injection/schema-validator.sh --action validate
+./scripts/resources/injection/schema-validator.sh --action validate
 
 # Check specific scenario
-./scripts/scenarios/injection/engine.sh --action validate --scenario YOUR_SCENARIO
+./scripts/resources/injection/engine.sh --action validate --scenario YOUR_SCENARIO
 
 # List available scenarios
-./scripts/scenarios/injection/engine.sh --action list-scenarios
+./scripts/resources/injection/engine.sh --action list-scenarios
 ```
 
 ### Resource Status
@@ -57,13 +57,13 @@ command -v curl >/dev/null && echo "✅ curl available" || echo "❌ curl missin
 **Solution**:
 ```bash
 # List available scenarios
-./scripts/scenarios/injection/engine.sh --action list-scenarios
+./scripts/resources/injection/engine.sh --action list-scenarios
 
 # Check configuration file location
 ls -la ~/.vrooli/scenarios.json
 
 # Validate configuration syntax
-./scripts/scenarios/injection/schema-validator.sh --action validate
+./scripts/resources/injection/schema-validator.sh --action validate
 ```
 
 #### **Error**: `Invalid JSON in scenarios configuration`
@@ -76,7 +76,7 @@ ls -la ~/.vrooli/scenarios.json
 jq . ~/.vrooli/scenarios.json
 
 # Validate against schema
-./scripts/scenarios/injection/schema-validator.sh --action validate
+./scripts/resources/injection/schema-validator.sh --action validate
 
 # Fix common JSON issues
 # - Missing commas between array elements
@@ -143,12 +143,12 @@ brew install curl                                  # macOS
 **Solution**:
 ```bash
 # Make scripts executable
-chmod +x scripts/scenarios/injection/engine.sh
-chmod +x scripts/scenarios/injection/schema-validator.sh
+chmod +x scripts/resources/injection/engine.sh
+chmod +x scripts/resources/injection/schema-validator.sh
 chmod +x scripts/resources/*/inject.sh
 
 # Check permissions
-ls -la scripts/scenarios/injection/engine.sh
+ls -la scripts/resources/injection/engine.sh
 ```
 
 #### **Error**: `Permission denied` when accessing files
@@ -253,13 +253,13 @@ psql -h localhost -p 5432 -U postgres -c "SELECT version();"
 
 ```bash
 # Validate entire configuration
-./scripts/scenarios/injection/schema-validator.sh --action validate --verbose yes
+./scripts/resources/injection/schema-validator.sh --action validate --verbose yes
 
 # Check specific scenario structure
 jq '.scenarios.YOUR_SCENARIO' ~/.vrooli/scenarios.json
 
 # Validate JSON schema itself
-./scripts/scenarios/injection/schema-validator.sh --action check-schema
+./scripts/resources/injection/schema-validator.sh --action check-schema
 
 # Test with minimal configuration
 echo '{
@@ -274,7 +274,7 @@ echo '{
   "active": []
 }' | jq . > test-config.json
 
-./scripts/scenarios/injection/schema-validator.sh --action validate --config-file test-config.json
+./scripts/resources/injection/schema-validator.sh --action validate --config-file test-config.json
 ```
 
 ### Resource Debugging
@@ -322,29 +322,29 @@ Enable verbose logging for detailed diagnostics:
 export LOG_LEVEL=debug
 
 # Run injection with debug output
-./scripts/scenarios/injection/engine.sh --action inject --scenario test-scenario --dry-run yes
+./scripts/resources/injection/engine.sh --action inject --scenario test-scenario --dry-run yes
 
 # Check specific function
-bash -x scripts/scenarios/injection/engine.sh --action validate --scenario test-scenario
+bash -x scripts/resources/injection/engine.sh --action validate --scenario test-scenario
 ```
 
 ### Manual Step-by-Step Testing
 
 ```bash
 # 1. Test schema validation
-./scripts/scenarios/injection/schema-validator.sh --action validate
+./scripts/resources/injection/schema-validator.sh --action validate
 
 # 2. Test scenario parsing
-./scripts/scenarios/injection/engine.sh --action list-scenarios
+./scripts/resources/injection/engine.sh --action list-scenarios
 
 # 3. Test specific scenario validation
-./scripts/scenarios/injection/engine.sh --action validate --scenario YOUR_SCENARIO
+./scripts/resources/injection/engine.sh --action validate --scenario YOUR_SCENARIO
 
 # 4. Test dry run
-./scripts/scenarios/injection/engine.sh --action inject --scenario YOUR_SCENARIO --dry-run yes
+./scripts/resources/injection/engine.sh --action inject --scenario YOUR_SCENARIO --dry-run yes
 
 # 5. Test actual injection
-./scripts/scenarios/injection/engine.sh --action inject --scenario YOUR_SCENARIO
+./scripts/resources/injection/engine.sh --action inject --scenario YOUR_SCENARIO
 ```
 
 ### Configuration Recovery
@@ -354,7 +354,7 @@ bash -x scripts/scenarios/injection/engine.sh --action validate --scenario test-
 cp ~/.vrooli/scenarios.json ~/.vrooli/scenarios.json.backup
 
 # Reset to defaults
-./scripts/scenarios/injection/schema-validator.sh --action init
+./scripts/resources/injection/schema-validator.sh --action init
 
 # Restore from backup
 cp ~/.vrooli/scenarios.json.backup ~/.vrooli/scenarios.json
@@ -436,7 +436,7 @@ ls -la scripts/resources/category/resource/inject.sh
 # For file storage: Remove files/buckets manually
 
 # Then retry injection
-./scripts/scenarios/injection/engine.sh --action inject --scenario YOUR_SCENARIO
+./scripts/resources/injection/engine.sh --action inject --scenario YOUR_SCENARIO
 ```
 
 ## 📋 Environment-Specific Issues
@@ -500,7 +500,7 @@ iostat
 ping localhost
 
 # Monitor injection progress
-./scripts/scenarios/injection/engine.sh --action inject --scenario large-scenario --verbose yes
+./scripts/resources/injection/engine.sh --action inject --scenario large-scenario --verbose yes
 ```
 
 **Solutions**:
@@ -548,7 +548,7 @@ cat ~/.vrooli/scenarios.json
 cat ~/.vrooli/service.json
 
 # Error output
-./scripts/scenarios/injection/engine.sh --action inject --scenario PROBLEM_SCENARIO 2>&1 | tee injection-error.log
+./scripts/resources/injection/engine.sh --action inject --scenario PROBLEM_SCENARIO 2>&1 | tee injection-error.log
 ```
 
 ### Minimal Reproduction
@@ -601,7 +601,7 @@ cat > simple-workflow.json << 'EOF'
 EOF
 
 # Test minimal case
-./scripts/scenarios/injection/engine.sh --action inject --scenario minimal-test
+./scripts/resources/injection/engine.sh --action inject --scenario minimal-test
 ```
 
 ## 📚 Reference
