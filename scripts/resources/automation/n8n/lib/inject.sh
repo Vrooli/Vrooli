@@ -398,13 +398,106 @@ n8n_usage() {
 #######################################
 # Main function
 #######################################
+# New type-aware validation function
+#######################################
+n8n_validate_typed_content() {
+    local type="$1"
+    local content="$2"
+    
+    case "$type" in
+        workflow)
+            # Validate n8n workflow JSON
+            if ! echo "$content" | jq empty >/dev/null 2>&1; then
+                log::error "Invalid JSON in workflow content"
+                return 1
+            fi
+            
+            # Check for required workflow fields
+            local name
+            name=$(echo "$content" | jq -r '.name // empty')
+            if [[ -z "$name" ]]; then
+                log::error "Workflow missing required 'name' field"
+                return 1
+            fi
+            
+            # Check for nodes array
+            if ! echo "$content" | jq -e '.nodes | type == "array"' >/dev/null 2>&1; then
+                log::error "Workflow missing or invalid 'nodes' array"
+                return 1
+            fi
+            
+            log::debug "Workflow '$name' validation passed"
+            return 0
+            ;;
+        credential)
+            # Validate n8n credential JSON
+            if ! echo "$content" | jq empty >/dev/null 2>&1; then
+                log::error "Invalid JSON in credential content"
+                return 1
+            fi
+            
+            local name type_name
+            name=$(echo "$content" | jq -r '.name // empty')
+            type_name=$(echo "$content" | jq -r '.type // empty')
+            
+            if [[ -z "$name" ]]; then
+                log::error "Credential missing required 'name' field"
+                return 1
+            fi
+            
+            if [[ -z "$type_name" ]]; then
+                log::error "Credential missing required 'type' field"
+                return 1
+            fi
+            
+            log::debug "Credential '$name' of type '$type_name' validation passed"
+            return 0
+            ;;
+        *)
+            log::error "Unknown n8n content type: $type"
+            log::info "Supported types: workflow, credential"
+            return 1
+            ;;
+    esac
+}
+
+#######################################
 n8n_main() {
     # Handle help separately
     if [[ "${1:-}" == "--help" ]]; then
         n8n_usage
         exit 0
     fi
-    # Register adapter with framework
+    
+    # Handle new typed validation interface
+    if [[ "$1" == "--validate" && "$2" == "--type" ]]; then
+        local type="$3"
+        local content=""
+        
+        # Parse remaining arguments
+        shift 3
+        while [[ $# -gt 0 ]]; do
+            case $1 in
+                --content)
+                    content="$2"
+                    shift 2
+                    ;;
+                *)
+                    shift
+                    ;;
+            esac
+        done
+        
+        if [[ -z "$type" || -z "$content" ]]; then
+            log::error "Type-aware validation requires --type TYPE --content CONTENT"
+            return 1
+        fi
+        
+        n8n_validate_typed_content "$type" "$content"
+        return $?
+    fi
+    
+    # Register adapter with framework (legacy path)
     inject_framework::register "n8n" \
         --service-host "$N8N_BASE_URL" \
         --health-endpoint "/healthz" \

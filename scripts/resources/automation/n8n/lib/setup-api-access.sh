@@ -33,6 +33,8 @@ NC='\033[0m' # No Color
 N8N_BASE_URL="http://localhost:5678"
 CONFIG_FILE="$HOME/.vrooli/service.json"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../lib/http-utils.sh" 2>/dev/null || true
 
 # Parse command line arguments
 API_KEY=""
@@ -86,13 +88,15 @@ n8n::n8n::print_info() { n8n::print_status "$BLUE" "ℹ️  $1"; }
 #######################################
 n8n::check_n8n_status() {
     n8n::n8n::print_info "Checking n8n status..."
-    if ! curl -s --max-time 5 "$N8N_BASE_URL/healthz" >/dev/null 2>&1; then
+    # Use standardized HTTP utility
+    if ! http::request "GET" "$N8N_BASE_URL/healthz" >/dev/null 2>&1; then
         n8n::n8n::print_error "n8n is not accessible at $N8N_BASE_URL"
         n8n::n8n::print_info "Make sure n8n is running: ./manage.sh --action start"
         return 1
     fi
     local health_response
-    health_response=$(curl -s --max-time 5 "$N8N_BASE_URL/healthz" || echo "")
+    # Use standardized HTTP utility
+    health_response=$(http::request "GET" "$N8N_BASE_URL/healthz" || echo "")
     if echo "$health_response" | grep -q '"status":"ok"'; then
         n8n::n8n::print_success "n8n is running and healthy"
         return 0
@@ -140,11 +144,10 @@ n8n::validate_api_key() {
         return 1
     fi
     n8n::print_info "Validating API key..."
+    # Use standardized HTTP utility
     local response
-    response=$(curl -s -w "%{http_code}" \
-        -H "X-N8N-API-KEY: $api_key" \
-        "$N8N_BASE_URL/rest/workflows" || echo "000")
-    local http_code="${response: -3}"
+    response=$(http::request "GET" "$N8N_BASE_URL/rest/workflows" "" "X-N8N-API-KEY: $api_key")
+    local http_code=$?
     local body="${response%???}"
     case "$http_code" in
         200)

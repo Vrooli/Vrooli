@@ -2,6 +2,11 @@
 # n8n Database Management Functions
 # PostgreSQL support for n8n
 
+# Source required utilities
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../lib/wait-utils.sh" 2>/dev/null || true
+
 #######################################
 # Start PostgreSQL container for n8n
 #######################################
@@ -81,19 +86,12 @@ n8n::wait_for_postgres() {
     if [[ "$DATABASE_TYPE" != "postgres" ]]; then
         return 0  # Not using postgres
     fi
-    log::info "Waiting for PostgreSQL to be ready..."
-    while [ $attempt -lt $max_attempts ]; do
-        if n8n::postgres_is_healthy; then
-            log::success "PostgreSQL is ready!"
-            return 0
-        fi
-        attempt=$((attempt + 1))
-        echo -n "."
-        sleep 1
-    done
-    echo
-    log::error "PostgreSQL failed to become ready after $max_attempts seconds"
-    return 1
+    # Use standardized wait utility
+    wait::for_condition \
+        "n8n::postgres_is_healthy" \
+        "$max_attempts" \
+        "PostgreSQL to be ready"
+    return $?
 }
 
 #######################################

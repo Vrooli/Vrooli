@@ -12,7 +12,7 @@ source "${SCRIPT_DIR}/utils.sh" 2>/dev/null || true
 #######################################
 n8n::reset_password() {
     log::header "🔐 Reset n8n Password"
-    if ! n8n::container_exists; then
+    if ! n8n::container_exists_any; then
         log::error "n8n is not installed"
         return 1
     fi
@@ -20,9 +20,9 @@ n8n::reset_password() {
     local new_password
     new_password=$(n8n::generate_password)
     log::info "Generating new password..."
-    # Get current environment variables
+    # Get current environment variables using standardized Docker utilities
     local current_env
-    current_env=$(docker inspect "$N8N_CONTAINER_NAME" --format='{{range .Config.Env}}{{println .}}{{end}}' 2>/dev/null)
+    current_env=$(docker::get_all_env "$N8N_CONTAINER_NAME")
     # Update password in environment
     local new_env=()
     local username="admin"
@@ -40,13 +40,11 @@ n8n::reset_password() {
     if ! echo "$current_env" | grep -q "N8N_BASIC_AUTH_ACTIVE=true"; then
         new_env+=("-e" "N8N_BASIC_AUTH_ACTIVE=true")
     fi
-    # Get container configuration
-    local image
-    image=$(docker inspect "$N8N_CONTAINER_NAME" --format='{{.Config.Image}}')
-    local volumes
-    volumes=$(docker inspect "$N8N_CONTAINER_NAME" --format='{{range .Mounts}}{{if eq .Type "bind"}}-v {{.Source}}:{{.Destination}} {{end}}{{end}}')
-    local ports
-    ports=$(docker inspect "$N8N_CONTAINER_NAME" --format='{{range $p, $conf := .NetworkSettings.Ports}}{{if $conf}}-p {{(index $conf 0).HostPort}}:{{$p}} {{end}}{{end}}' | sed 's|/tcp||g')
+    # Get container configuration using standardized Docker utilities
+    local image volumes ports
+    image=$(docker::get_image "$N8N_CONTAINER_NAME")
+    volumes=$(docker::get_volume_args "$N8N_CONTAINER_NAME")
+    ports=$(docker::get_port_args "$N8N_CONTAINER_NAME")
     # Stop and remove old container
     log::info "Stopping n8n container..."
     docker stop "$N8N_CONTAINER_NAME" >/dev/null 2>&1
@@ -82,7 +80,7 @@ n8n::reset_password() {
 # Returns: Username and password if found
 #######################################
 n8n::get_current_credentials() {
-    if ! n8n::is_running; then
+    if ! n8n::container_running; then
         return 1
     fi
     local username=$(n8n::extract_container_env "N8N_BASIC_AUTH_USER")
@@ -101,7 +99,7 @@ n8n::get_current_credentials() {
 # Returns: 0 if auth required, 1 if not
 #######################################
 n8n::is_auth_required() {
-    if n8n::is_running; then
+    if n8n::container_running; then
         local auth_active=$(n8n::extract_container_env "N8N_BASIC_AUTH_ACTIVE")
         [[ "$auth_active" == "true" ]]
     else

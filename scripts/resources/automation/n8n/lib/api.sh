@@ -3,8 +3,11 @@
 # Workflow execution, API key management, and REST API interactions
 
 # Source shared libraries
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${var_LIB_SERVICE_DIR}/secrets.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../lib/http-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/utils.sh"
 
@@ -36,8 +39,8 @@ n8n::execute() {
     # First, get workflow details to check if it has a webhook
     log::info "Fetching workflow details: $workflow_id"
     local workflow_details
-    workflow_details=$(curl -s -H "X-N8N-API-KEY: $api_key" \
-        "${N8N_BASE_URL}/api/v1/workflows/${workflow_id}" 2>&1)
+    # Use standardized HTTP utility
+    workflow_details=$(http::request "GET" "${N8N_BASE_URL}/api/v1/workflows/${workflow_id}" "" "X-N8N-API-KEY: $api_key")
     # Check if workflow exists
     if echo "$workflow_details" | grep -q '"message".*not found'; then
         log::error "Workflow not found"
@@ -57,11 +60,8 @@ n8n::execute() {
             log::warn "Webhook workflow is not active. Activating it..."
             # Activate the workflow
             local activate_response
-            activate_response=$(curl -s -X POST \
-                -H "X-N8N-API-KEY: $api_key" \
-                -H "Content-Type: application/json" \
-                -d '{}' \
-                "${N8N_BASE_URL}/api/v1/workflows/${workflow_id}/activate" 2>&1)
+            # Use standardized HTTP utility
+            activate_response=$(http::request "POST" "${N8N_BASE_URL}/api/v1/workflows/${workflow_id}/activate" '{}' "X-N8N-API-KEY: $api_key")
             if echo "$activate_response" | grep -q '"active":true'; then
                 log::success "✅ Workflow activated"
             else
@@ -85,18 +85,15 @@ n8n::execute() {
             if [[ "$data" != "{}" ]]; then
                 query_string="?data=$(echo "$data" | jq -c . | sed 's/ /%20/g')"
             fi
-            response=$(curl -s -w "\n__HTTP_CODE__:%{http_code}" -X GET \
-                "${N8N_BASE_URL}/webhook/${webhook_path}${query_string}" 2>&1)
+            # Use standardized HTTP utility
+            response=$(http::request "GET" "${N8N_BASE_URL}/webhook/${webhook_path}${query_string}")
+            http_code=$?
         else
             # For POST/PUT/etc, send data in body
-            response=$(curl -s -w "\n__HTTP_CODE__:%{http_code}" -X "$webhook_method" \
-                -H "Content-Type: application/json" \
-                -d "$data" \
-                "${N8N_BASE_URL}/webhook/${webhook_path}" 2>&1)
+            # Use standardized HTTP utility
+            response=$(http::request "$webhook_method" "${N8N_BASE_URL}/webhook/${webhook_path}" "$data")
+            http_code=$?
         fi
-        # Extract HTTP code
-        http_code=$(echo "$response" | grep "__HTTP_CODE__:" | cut -d':' -f2)
-        response=$(echo "$response" | grep -v "__HTTP_CODE__:")
         if [[ "$http_code" == "200" ]] || [[ "$http_code" == "201" ]]; then
             log::success "✅ Webhook workflow executed successfully"
             if [[ -n "$response" ]] && [[ "$response" != "{}" ]] && [[ "$response" != "null" ]]; then
@@ -192,7 +189,7 @@ n8n::list_workflows() {
     api_key=$(n8n::resolve_api_key)
     if [[ -z "$api_key" ]]; then
         # Fallback to CLI if no API key
-        if n8n::container_exists; then
+        if n8n::container_exists_any; then
             docker exec "$N8N_CONTAINER_NAME" n8n list:workflow
         else
             log::error "n8n container not found and no API key available"
@@ -201,8 +198,8 @@ n8n::list_workflows() {
     else
         # Use API to list workflows
         local response
-        response=$(curl -s -H "X-N8N-API-KEY: $api_key" \
-            "${N8N_BASE_URL}/api/v1/workflows" 2>&1)
+        # Use standardized HTTP utility
+        response=$(http::request "GET" "${N8N_BASE_URL}/api/v1/workflows" "" "X-N8N-API-KEY: $api_key")
         if echo "$response" | jq empty 2>/dev/null; then
             echo "$response" | jq -r '.data[] | "\(.id)\t\(.name)\t\(.active)"' | \
                 column -t -s $'\t' -N "ID,Name,Active"
@@ -233,7 +230,8 @@ n8n::get_executions() {
         url="${url}?workflowId=${workflow_id}"
     fi
     local response
-    response=$(curl -s -H "X-N8N-API-KEY: $api_key" "$url" 2>&1)
+    # Use standardized HTTP utility
+    response=$(http::request "GET" "$url" "" "X-N8N-API-KEY: $api_key")
     if echo "$response" | jq empty 2>/dev/null; then
         echo "$response" | jq -r '.data[] | "\(.id)\t\(.workflowData.name)\t\(.finished)\t\(.stoppedAt)"' | \
             column -t -s $'\t' -N "ID,Workflow,Success,Finished"
@@ -253,7 +251,8 @@ n8n::test_api() {
     api_key=$(n8n::resolve_api_key)
     if [[ -z "$api_key" ]]; then
         # Test without API key (basic connectivity)
-        if curl -s -f "$N8N_BASE_URL/healthz" >/dev/null 2>&1; then
+        # Use standardized HTTP utility
+        if http::request "GET" "$N8N_BASE_URL/healthz" >/dev/null 2>&1; then
             log::success "n8n API is accessible (no auth)"
             return 0
         else
@@ -263,8 +262,8 @@ n8n::test_api() {
     else
         # Test with API key
         local response
-        response=$(curl -s -H "X-N8N-API-KEY: $api_key" \
-            "${N8N_BASE_URL}/api/v1/workflows?limit=1" 2>&1)
+        # Use standardized HTTP utility
+        response=$(http::request "GET" "${N8N_BASE_URL}/api/v1/workflows?limit=1" "" "X-N8N-API-KEY: $api_key")
         if echo "$response" | jq empty 2>/dev/null; then
             log::success "n8n API is accessible and authenticated"
             return 0

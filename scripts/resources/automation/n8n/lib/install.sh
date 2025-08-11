@@ -8,6 +8,10 @@ SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../lib/wait-utils.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../lib/http-utils.sh" 2>/dev/null || true
 
 #######################################
 # Update Vrooli configuration
@@ -52,7 +56,7 @@ EOF
 #######################################
 n8n::handle_existing_installation() {
     # Check if already installed
-    if n8n::container_exists && n8n::is_running && [[ "$FORCE" != "yes" ]]; then
+    if n8n::container_exists_any && n8n::container_running && [[ "$FORCE" != "yes" ]]; then
         log::info "n8n is already installed and running"
         log::info "Use --force yes to reinstall"
         return 1  # Stop installation
@@ -100,7 +104,8 @@ n8n::prepare_installation_data() {
         # Try to detect public IP or hostname
         if system::is_command "curl"; then
             local public_ip
-            public_ip=$(curl -s -4 https://api.ipify.org 2>/dev/null || echo "")
+            # Use standardized HTTP utility
+            public_ip=$(http::request "GET" "https://api.ipify.org" 2>/dev/null || echo "")
             if [[ -n "$public_ip" ]]; then
                 WEBHOOK_URL="http://$public_ip:$N8N_PORT"
                 log::info "Auto-detected webhook URL: $WEBHOOK_URL"
@@ -152,27 +157,18 @@ n8n::execute_container_installation() {
 # Returns: 0 if ready, 1 if timeout
 #######################################
 n8n::wait_for_service_ready() {
-    log::info "Waiting for n8n to start..."
-    # Wait for container to be running and port to be available
-    local wait_time=0
-    local max_wait=60
-    while [ $wait_time -lt $max_wait ]; do
-        if n8n::is_running && ss -tlnp 2>/dev/null | grep -q ":$N8N_PORT"; then
-            log::info "Container is running and port is bound"
-            break
-        fi
-        sleep 2
-        wait_time=$((wait_time + 2))
-        echo -n "."
-    done
-    echo
-    if [ $wait_time -ge $max_wait ]; then
+    # Use standardized wait utility
+    if ! wait::for_condition \
+        "n8n::container_running && ss -tlnp 2>/dev/null | grep -q ':$N8N_PORT'" \
+        60 \
+        "n8n container and port binding"; then
         resources::handle_error \
             "n8n failed to start within timeout" \
             "system" \
             "Check container logs for errors"
         return 1
     fi
+    log::info "Container is running and port is bound"
     # Give n8n time to initialize and run migrations
     log::info "Waiting for n8n to complete initialization..."
     sleep 10
@@ -279,7 +275,7 @@ n8n::uninstall() {
         fi
     fi
     # Stop and remove n8n container
-    if n8n::container_exists; then
+    if n8n::container_exists_any; then
         log::info "Removing n8n container..."
         docker stop "$N8N_CONTAINER_NAME" 2>/dev/null || true
         docker rm "$N8N_CONTAINER_NAME" 2>/dev/null || true
@@ -319,7 +315,7 @@ n8n::uninstall() {
 #######################################
 n8n::upgrade() {
     log::header "⬆️  Upgrading n8n"
-    if ! n8n::container_exists; then
+    if ! n8n::container_exists_any; then
         log::error "n8n is not installed"
         return 1
     fi
@@ -329,9 +325,7 @@ n8n::upgrade() {
         log::error "Failed to pull latest image"
         return 1
     fi
-    # Get current container configuration
-    local current_config
-    current_config=$(docker inspect "$N8N_CONTAINER_NAME" 2>/dev/null)
+    # Container configuration no longer needed - using standardized utilities
     # Stop current container
     n8n::stop
     # Backup data

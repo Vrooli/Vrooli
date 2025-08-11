@@ -97,6 +97,18 @@ n8n::parse_arguments() {
         --default ""
     
     args::register \
+        --name "validation-type" \
+        --desc "Type of content being validated (workflow, credential, etc.)" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "validation-file" \
+        --desc "Path to file containing content to validate" \
+        --type "value" \
+        --default ""
+    
+    args::register \
         --name "basic-auth" \
         --desc "Enable basic authentication" \
         --type "value" \
@@ -164,6 +176,8 @@ n8n::parse_arguments() {
     export TUNNEL_ENABLED=$(args::get "tunnel")
     export BUILD_IMAGE=$(args::get "build-image")
     export INJECTION_CONFIG=$(args::get "injection-config")
+    export VALIDATION_TYPE=$(args::get "validation-type")
+    export VALIDATION_FILE=$(args::get "validation-file")
 }
 
 #######################################
@@ -217,7 +231,30 @@ n8n::main() {
             n8n::inject_data "$INJECTION_CONFIG"
             ;;
         validate-injection)
-            n8n::validate_injection "$INJECTION_CONFIG"
+            # Support both legacy and new validation interfaces
+            if [[ -n "$VALIDATION_TYPE" && -n "$VALIDATION_FILE" ]]; then
+                # New interface: type + file
+                if [[ ! -f "$VALIDATION_FILE" ]]; then
+                    log::error "Validation file not found: $VALIDATION_FILE"
+                    exit 1
+                fi
+                
+                local content
+                content=$(cat "$VALIDATION_FILE")
+                
+                # Call inject.sh with type and content
+                "${SCRIPT_DIR}/lib/inject.sh" \
+                    --validate \
+                    --type "$VALIDATION_TYPE" \
+                    --content "$content"
+            elif [[ -n "$INJECTION_CONFIG" ]]; then
+                # Legacy interface: full config JSON
+                n8n::validate_injection "$INJECTION_CONFIG"
+            else
+                log::error "Required: --validation-type TYPE --validation-file PATH"
+                log::info "   or legacy: --injection-config 'JSON_CONFIG'"
+                exit 1
+            fi
             ;;
         url)
             n8n::get_urls

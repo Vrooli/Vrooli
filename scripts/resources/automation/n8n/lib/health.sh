@@ -10,6 +10,8 @@ source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/utils.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../lib/wait-utils.sh" 2>/dev/null || true
 
 #######################################
 # Check if n8n API is responsive with enhanced diagnostics
@@ -17,7 +19,7 @@ source "${SCRIPT_DIR}/utils.sh" 2>/dev/null || true
 #######################################
 n8n::is_healthy() {
     # Check if container is running first
-    if ! n8n::is_running; then
+    if ! n8n::container_running; then
         return 1
     fi
     # Check for database corruption indicators in logs
@@ -29,15 +31,12 @@ n8n::is_healthy() {
     fi
     # n8n uses /healthz endpoint for health checks
     if system::is_command "curl"; then
-        # Try multiple times as n8n takes time to fully initialize
-        local attempts=0
-        while [ $attempts -lt 5 ]; do
-            if curl -f -s --max-time 5 "$N8N_BASE_URL/healthz" >/dev/null 2>&1; then
-                return 0
-            fi
-            attempts=$((attempts + 1))
-            sleep 2
-        done
+        # Use standardized wait utility
+        wait::for_condition \
+            "http::request 'GET' '$N8N_BASE_URL/healthz' >/dev/null 2>&1" \
+            10 \
+            "n8n healthz endpoint"
+        return $?
     fi
     return 1
 }
@@ -59,7 +58,7 @@ n8n::detect_filesystem_corruption() {
         return 1
     fi
     # Check for deleted but open database files (if container is running)
-    if n8n::is_running; then
+    if n8n::container_running; then
         local n8n_pid
         n8n_pid=$(docker exec "$N8N_CONTAINER_NAME" pgrep -f 'node.*n8n' 2>/dev/null | head -1)
         if [[ -n "$n8n_pid" ]]; then
@@ -134,7 +133,7 @@ n8n::comprehensive_health_check() {
 #######################################
 n8n::check_basic_health() {
     # Basic container health
-    if ! n8n::is_running; then
+    if ! n8n::container_running; then
         return 2
     fi
     # Check basic healthz endpoint

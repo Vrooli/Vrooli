@@ -2,20 +2,22 @@
 # n8n Shared Utility Functions
 # Common patterns extracted from multiple n8n modules
 
+# Source shared utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/docker-utils.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/http-utils.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/wait-utils.sh" 2>/dev/null || true
+
 #######################################
 # Unified API key resolution
 # Uses 3-layer resolution: env variable, secrets file, vault
 # Returns: API key via stdout, empty if not found
 #######################################
 n8n::resolve_api_key() {
-    local api_key="${N8N_API_KEY:-}"
-    # Try to load API key using 3-layer resolution if not in env
-    if [[ -z "$api_key" ]]; then
-        if ! api_key=$(secrets::resolve "N8N_API_KEY" 2>/dev/null); then
-            api_key=""
-        fi
-    fi
-    echo "$api_key"
+    http::resolve_api_key "N8N_API_KEY"
 }
 
 #######################################
@@ -24,36 +26,7 @@ n8n::resolve_api_key() {
 # Returns: Response body via stdout, HTTP code via return value
 #######################################
 n8n::safe_curl_call() {
-    local method="$1"
-    local url="$2"
-    local data="${3:-}"
-    local headers="${4:-}"
-    local curl_args=("-s" "-w" "\n__HTTP_CODE__:%{http_code}")
-    curl_args+=("-X" "$method")
-    # Add headers if provided
-    if [[ -n "$headers" ]]; then
-        while IFS= read -r header; do
-            curl_args+=("-H" "$header")
-        done <<< "$headers"
-    fi
-    # Add data for POST/PUT requests
-    if [[ -n "$data" && "$method" != "GET" ]]; then
-        curl_args+=("-d" "$data")
-        curl_args+=("-H" "Content-Type: application/json")
-    fi
-    # Add timeout
-    curl_args+=("--max-time" "30")
-    # Make the request
-    local response
-    response=$(curl "${curl_args[@]}" "$url" 2>/dev/null || echo "__HTTP_CODE__:000")
-    # Extract HTTP code and body
-    local http_code
-    http_code=$(echo "$response" | grep "__HTTP_CODE__:" | cut -d':' -f2)
-    local body
-    body=$(echo "$response" | grep -v "__HTTP_CODE__:")
-    # Output body and return code
-    echo "$body"
-    return "${http_code:-0}"
+    http::request "$@"
 }
 
 #######################################
@@ -64,11 +37,7 @@ n8n::safe_curl_call() {
 n8n::extract_container_env() {
     local var_name="$1"
     local container_name="${2:-$N8N_CONTAINER_NAME}"
-    if n8n::container_running "$container_name"; then
-        docker exec "$container_name" env 2>/dev/null | grep "^${var_name}=" | cut -d'=' -f2- || echo ""
-    else
-        echo ""
-    fi
+    docker::extract_env "$container_name" "$var_name"
 }
 
 #######################################
@@ -106,26 +75,20 @@ n8n::log_with_context() {
 n8n::validate_json_response() {
     local response="$1"
     local expected_fields="$2"
-    # Check if response is valid JSON
-    if ! echo "$response" | jq empty 2>/dev/null; then
-        n8n::log_with_context "error" "api" "Invalid JSON response: $response"
+    
+    if ! http::validate_json "$response" "$expected_fields"; then
+        n8n::log_with_context "error" "api" "JSON validation failed"
         return 1
     fi
-    # Check for error messages in response
+    
+    # Check for error messages in response (n8n specific)
     if echo "$response" | jq -e '.message' >/dev/null 2>&1; then
         local error_msg
         error_msg=$(echo "$response" | jq -r '.message')
         n8n::log_with_context "error" "api" "API error: $error_msg"
         return 1
     fi
-    # Check for expected fields if provided
-    if [[ -n "$expected_fields" ]]; then
-        for field in $expected_fields; do
-            if ! echo "$response" | jq -e ".$field" >/dev/null 2>&1; then
-                n8n::log_with_context "warn" "api" "Expected field '$field' not found in response"
-            fi
-        done
-    fi
+    
     return 0
 }
 
@@ -136,12 +99,13 @@ n8n::validate_json_response() {
 #######################################
 n8n::extract_response_id() {
     local response="$1"
-    if echo "$response" | jq -e '.id' >/dev/null 2>&1; then
-        echo "$response" | jq -r '.id'
-    elif echo "$response" | jq -e '.data.id' >/dev/null 2>&1; then
-        echo "$response" | jq -r '.data.id'
+    # Try .id first, then .data.id
+    local id
+    id=$(http::extract_json_field "$response" ".id")
+    if [[ -n "$id" ]]; then
+        echo "$id"
     else
-        echo ""
+        http::extract_json_field "$response" ".data.id"
     fi
 }
 
@@ -187,23 +151,7 @@ n8n::validate_api_key_setup() {
 # Returns: 0 if condition met, 1 if timeout
 #######################################
 n8n::wait_for_condition() {
-    local test_command="$1"
-    local timeout_seconds="${2:-30}"
-    local description="${3:-condition}"
-    n8n::log_with_context "info" "wait" "Waiting for $description..."
-    local elapsed=0
-    while [ $elapsed -lt $timeout_seconds ]; do
-        if eval "$test_command" >/dev/null 2>&1; then
-            n8n::log_with_context "success" "wait" "$description is ready!"
-            return 0
-        fi
-        sleep 2
-        elapsed=$((elapsed + 2))
-        echo -n "."
-    done
-    echo
-    n8n::log_with_context "error" "wait" "$description failed to be ready after $timeout_seconds seconds"
-    return 1
+    wait::for_condition "$@"
 }
 
 #######################################
@@ -372,23 +320,23 @@ n8n::detect_and_suggest_fix() {
 # Check if container is running
 n8n::container_running() {
     local container_name="${1:-$N8N_CONTAINER_NAME}"
-    docker ps --format '{{.Names}}' | grep -q "^${container_name}$"
+    docker::is_running "$container_name"
 }
 
 # Check if container exists (running or stopped)
 n8n::container_exists_any() {
     local container_name="${1:-$N8N_CONTAINER_NAME}"
-    docker ps -a --format '{{.Names}}' | grep -q "^${container_name}$"
+    docker::container_exists "$container_name"
 }
 
 # Check if postgres container is running
 n8n::postgres_running() {
-    n8n::container_running "$N8N_DB_CONTAINER_NAME"
+    docker::is_running "$N8N_DB_CONTAINER_NAME"
 }
 
 # Check if postgres container exists
 n8n::postgres_exists() {
-    n8n::container_exists_any "$N8N_DB_CONTAINER_NAME"
+    docker::container_exists "$N8N_DB_CONTAINER_NAME"
 }
 
 # Unified error check wrapper - reduces if/then/return patterns

@@ -960,7 +960,7 @@ resources::main() {
             ;;
         "inject")
             if [[ -n "$SCENARIO_NAME" ]]; then
-                "${var_ROOT_DIR}/scripts/scenarios/injection/engine.sh" --action inject --scenario "$SCENARIO_NAME" --config-file "$SCENARIOS_CONFIG"
+                "${var_ROOT_DIR}/scripts/resources/injection/engine.sh" --action inject --scenario "$SCENARIO_NAME" --config-file "$SCENARIOS_CONFIG"
             else
                 log::error "Scenario name required for injection action"
                 log::info "Use: --scenario SCENARIO_NAME"
@@ -969,7 +969,7 @@ resources::main() {
             return 0
             ;;
         "inject-all")
-            "${var_ROOT_DIR}/scripts/scenarios/injection/engine.sh" --action inject --all-active yes --config-file "$SCENARIOS_CONFIG"
+            "${var_ROOT_DIR}/scripts/resources/injection/engine.sh" --action inject --all-active yes --config-file "$SCENARIOS_CONFIG"
             return 0
             ;;
     esac

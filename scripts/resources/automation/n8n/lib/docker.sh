@@ -5,6 +5,10 @@
 # Source specialized modules
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../lib/docker-utils.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../lib/wait-utils.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
 source "${SCRIPT_DIR}/health.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/recovery.sh" 2>/dev/null || true
@@ -15,20 +19,20 @@ source "${SCRIPT_DIR}/utils.sh" 2>/dev/null || true
 # Build custom n8n Docker image
 #######################################
 n8n::build_custom_image() {
-    log::info "Building custom n8n image with host access..."
+    n8n::log_with_context "info" "build" "Building custom n8n image with host access..."
     # Ensure files exist
     local docker_dir="$SCRIPT_DIR/docker"
     if [[ ! -f "$docker_dir/Dockerfile" ]] || [[ ! -f "$docker_dir/docker-entrypoint.sh" ]]; then
-        log::error "Required files missing in $docker_dir"
-        log::info "Please ensure Dockerfile and docker-entrypoint.sh exist"
+        n8n::log_with_context "error" "build" "Required files missing in $docker_dir"
+        n8n::log_with_context "info" "build" "Please ensure Dockerfile and docker-entrypoint.sh exist"
         return 1
     fi
     # Build image
     if docker build -t "$N8N_CUSTOM_IMAGE" "$docker_dir"; then
-        log::success "Custom n8n image built successfully"
+        n8n::log_with_context "success" "build" "Custom n8n image built successfully"
         return 0
     else
-        log::error "Failed to build custom image"
+        n8n::log_with_context "error" "build" "Failed to build custom image"
         return 1
     fi
 }
@@ -136,7 +140,7 @@ n8n::select_docker_image() {
     # Use custom image if available
     if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${N8N_CUSTOM_IMAGE}$"; then
         image_to_use="$N8N_CUSTOM_IMAGE"
-        log::info "Using custom n8n image: $N8N_CUSTOM_IMAGE"
+        n8n::log_with_context "info" "docker" "Using custom n8n image: $N8N_CUSTOM_IMAGE"
     fi
     echo "$image_to_use"
 }
@@ -150,7 +154,7 @@ n8n::add_tunnel_config() {
     # Add tunnel flag if enabled (development only)
     if [[ "$TUNNEL_ENABLED" == "yes" ]]; then
         tunnel_args+=" --tunnel"
-        log::warn "⚠️  Tunnel mode enabled - for development only!"
+        n8n::log_with_context "warn" "docker" "Tunnel mode enabled - for development only!"
     fi
     echo "$tunnel_args"
 }
@@ -180,12 +184,12 @@ n8n::build_docker_command() {
 n8n::start_container() {
     local webhook_url="$1"
     local auth_password="$2"
-    log::info "Starting n8n container..."
+    n8n::log_with_context "info" "docker" "Starting n8n container..."
     # Build and execute Docker command
     local docker_cmd
     docker_cmd=$(n8n::build_docker_command "$webhook_url" "$auth_password")
     if eval "$docker_cmd" >/dev/null 2>&1; then
-        log::success "n8n container started"
+        n8n::log_with_context "success" "docker" "n8n container started"
         # Add rollback action
         resources::add_rollback_action \
             "Stop and remove n8n container" \
@@ -193,7 +197,7 @@ n8n::start_container() {
             25
         return 0
     else
-        log::error "Failed to start n8n container"
+        n8n::log_with_context "error" "docker" "Failed to start n8n container"
         return 1
     fi
 }
@@ -202,21 +206,21 @@ n8n::start_container() {
 # Stop n8n
 #######################################
 n8n::stop() {
-    if ! n8n::is_running; then
-        log::info "n8n is not running"
+    if ! n8n::container_running; then
+        n8n::log_with_context "info" "docker" "n8n is not running"
         return 0
     fi
-    log::info "Stopping n8n..."
+    n8n::log_with_context "info" "docker" "Stopping n8n..."
     # Stop n8n container
     if docker stop "$N8N_CONTAINER_NAME" >/dev/null 2>&1; then
-        log::success "n8n stopped"
+        n8n::log_with_context "success" "docker" "n8n stopped"
     else
-        log::error "Failed to stop n8n"
+        n8n::log_with_context "error" "docker" "Failed to stop n8n"
         return 1
     fi
     # Stop PostgreSQL if used
     if [[ "$DATABASE_TYPE" == "postgres" ]] && n8n::postgres_running; then
-        log::info "Stopping PostgreSQL..."
+        n8n::log_with_context "info" "docker" "Stopping PostgreSQL..."
         docker stop "$N8N_DB_CONTAINER_NAME" >/dev/null 2>&1
     fi
 }
@@ -226,14 +230,14 @@ n8n::stop() {
 # Returns: 0 if should continue, 1 if should stop
 #######################################
 n8n::handle_existing_instance() {
-    if n8n::is_running && [[ "$FORCE" != "yes" ]]; then
-        log::info "n8n is already running on port $N8N_PORT"
+    if n8n::container_running && [[ "$FORCE" != "yes" ]]; then
+        n8n::log_with_context "info" "docker" "n8n is already running on port $N8N_PORT"
         # Still run health check to ensure it's working properly
         if n8n::comprehensive_health_check; then
-            log::success "Running instance is healthy"
+            n8n::log_with_context "success" "docker" "Running instance is healthy"
             return 1  # Stop - already running and healthy
         else
-            log::warn "Running instance has health issues, restarting..."
+            n8n::log_with_context "warn" "docker" "Running instance has health issues, restarting..."
             n8n::stop
         fi
     fi
@@ -260,7 +264,7 @@ n8n::run_preflight_checks() {
         return 1
     fi
     # Check if container exists
-    if ! n8n::container_exists; then
+    if ! n8n::container_exists_any; then
         log::error "n8n container does not exist. Run install first."
         return 1
     fi
@@ -282,58 +286,67 @@ n8n::start_database_if_needed() {
 }
 
 #######################################
+# Health check with corruption detection and recovery
+# Returns: 0 if healthy, 1 if unhealthy, 2 if recovery attempted
+#######################################
+n8n::health_check_with_recovery() {
+    if n8n::is_healthy; then
+        return 0
+    fi
+    
+    # Check for corruption during startup using shared utility
+    local recent_logs
+    recent_logs=$(docker logs "$N8N_CONTAINER_NAME" --tail 10 2>&1 || echo "")
+    if n8n::detect_and_suggest_fix "$recent_logs" >/dev/null; then
+        if echo "$recent_logs" | grep -qi "SQLITE_READONLY\|database.*locked"; then
+            log::error "Database corruption detected during startup"
+            log::info "Stopping container and attempting recovery..."
+            docker stop "$N8N_CONTAINER_NAME" >/dev/null 2>&1 || true
+            if n8n::auto_recover; then
+                log::info "Recovery completed, restarting..."
+                docker start "$N8N_CONTAINER_NAME" >/dev/null 2>&1
+                return 2  # Recovery attempted
+            else
+                log::error "Recovery failed"
+                return 1
+            fi
+        fi
+    fi
+    return 1
+}
+
+#######################################
 # Start container and wait for readiness with recovery
 # Returns: 0 if successful, 1 if failed
 #######################################
 n8n::start_container_and_wait() {
     # Start n8n container
     if ! docker start "$N8N_CONTAINER_NAME" >/dev/null 2>&1; then
-        log::error "Failed to start n8n container"
+        n8n::log_with_context "error" "docker" "Failed to start n8n container"
         return 1
     fi
     log::success "n8n container started"
-    # Use shared wait utility with corruption detection
-    log::info "Waiting for n8n to be ready (this may take a moment)..."
-    local wait_attempts=0
-    local max_wait_attempts=60
-    while [ $wait_attempts -lt $max_wait_attempts ]; do
-        if n8n::is_healthy; then
-            log::success "✅ n8n is healthy and ready on port $N8N_PORT"
-            log::info "Access n8n at: $N8N_BASE_URL"
-            # Final comprehensive health check
-            if n8n::comprehensive_health_check; then
-                log::success "✅ All systems operational"
-            else
-                log::warn "⚠️  Minor health issues detected but service is running"
-            fi
-            return 0
-        fi
-        # Check for corruption during startup using shared utility
-        local recent_logs
-        recent_logs=$(docker logs "$N8N_CONTAINER_NAME" --tail 10 2>&1 || echo "")
-        if n8n::detect_and_suggest_fix "$recent_logs" >/dev/null; then
-            if echo "$recent_logs" | grep -qi "SQLITE_READONLY\|database.*locked"; then
-                log::error "Database corruption detected during startup"
-                log::info "Stopping container and attempting recovery..."
-                docker stop "$N8N_CONTAINER_NAME" >/dev/null 2>&1 || true
-                if n8n::auto_recover; then
-                    log::info "Recovery completed, restarting..."
-                    docker start "$N8N_CONTAINER_NAME" >/dev/null 2>&1
-                    wait_attempts=0  # Reset wait counter after recovery
-                else
-                    log::error "Recovery failed"
-                    return 1
-                fi
-            fi
-        fi
-        wait_attempts=$((wait_attempts + 1))
-        echo -n "."
-        sleep 2
-    done
-    echo
-    log::error "n8n failed to become ready within $((max_wait_attempts * 2)) seconds"
-    log::info "Check logs with: $0 --action logs"
-    return 1
+    
+    # Use standardized wait utility with enhanced health checks
+    if ! wait::for_condition \
+        "n8n::health_check_with_recovery" \
+        120 \
+        "n8n to be ready with auto-recovery"; then
+        log::error "n8n failed to become ready within timeout"
+        log::info "Check logs with: $0 --action logs"
+        return 1
+    fi
+    
+    log::success "✅ n8n is healthy and ready on port $N8N_PORT"
+    log::info "Access n8n at: $N8N_BASE_URL"
+    
+    # Final comprehensive health check
+    if n8n::comprehensive_health_check; then
+        log::success "✅ All systems operational"
+    else
+        log::warn "⚠️  Minor health issues detected but service is running"
+    fi
+    return 0
 }
 
 #######################################
@@ -375,7 +388,7 @@ n8n::restart() {
 # Show n8n logs
 #######################################
 n8n::logs() {
-    if ! n8n::container_exists; then
+    if ! n8n::container_exists_any; then
         log::error "n8n container does not exist"
         return 1
     fi
@@ -389,7 +402,7 @@ n8n::logs() {
 # Remove n8n container
 #######################################
 n8n::remove_container() {
-    if n8n::container_exists; then
+    if n8n::container_exists_any; then
         log::info "Removing n8n container..."
         docker rm -f "$N8N_CONTAINER_NAME" >/dev/null 2>&1 || true
     fi

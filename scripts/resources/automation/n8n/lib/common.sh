@@ -11,6 +11,14 @@ source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/sudo.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/docker-utils.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/http-utils.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/wait-utils.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/constants.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
 source "${SCRIPT_DIR}/utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/health.sh" 2>/dev/null || true
@@ -23,29 +31,28 @@ source "${SCRIPT_DIR}/recovery.sh" 2>/dev/null || true
 #######################################
 n8n::check_docker() {
     if ! system::is_command "docker"; then
-        log::error "Docker is not installed"
-        log::info "Please install Docker first: https://docs.docker.com/get-docker/"
+        n8n::log_with_context "error" "docker" "$N8N_ERR_DOCKER_NOT_INSTALLED"
+        n8n::log_with_context "info" "docker" "$N8N_FIX_INSTALL_DOCKER"
         return 1
     fi
     # Check if Docker daemon is running
     if ! docker info >/dev/null 2>&1; then
-        log::error "Docker daemon is not running"
-        log::info "Start Docker with: sudo systemctl start docker"
+        n8n::log_with_context "error" "docker" "$N8N_ERR_DOCKER_NOT_RUNNING"
+        n8n::log_with_context "info" "docker" "$N8N_FIX_START_DOCKER"
         return 1
     fi
     # Check if user has permissions
     if ! docker ps >/dev/null 2>&1; then
-        log::error "Current user doesn't have Docker permissions"
-        log::info "Add user to docker group: sudo usermod -aG docker $USER"
-        log::info "Then log out and back in for changes to take effect"
+        n8n::log_with_context "error" "docker" "$N8N_ERR_DOCKER_NO_PERMISSION"
+        n8n::log_with_context "info" "docker" "$N8N_FIX_DOCKER_PERMISSION"
+        n8n::log_with_context "info" "docker" "Then log out and back in for changes to take effect"
         return 1
     fi
     return 0
 }
 
-# Container check functions now in utils.sh
-n8n::container_exists() { n8n::container_exists_any; }
-n8n::is_running() { n8n::container_running; }
+# Container check functions are in utils.sh
+# Direct usage: n8n::container_exists_any and n8n::container_running
 
 #######################################
 # Generate secure random password
@@ -66,20 +73,20 @@ n8n::generate_password() {
 # Create n8n data directory with enhanced validation
 #######################################
 n8n::create_directories() {
-    log::info "Creating n8n data directory..."
+    n8n::log_with_context "info" "setup" "Creating n8n data directory..."
     # Check if directory already exists and is corrupted
     if [[ -d "$N8N_DATA_DIR" ]] && ! n8n::detect_filesystem_corruption; then
-        log::info "Data directory already exists and appears healthy"
+        n8n::log_with_context "info" "setup" "Data directory already exists and appears healthy"
         return 0
     fi
     # Remove any corrupted directory
     if [[ -d "$N8N_DATA_DIR" ]]; then
-        log::warn "Removing potentially corrupted directory"
+        n8n::log_with_context "warn" "setup" "Removing potentially corrupted directory"
         trash::safe_remove "$N8N_DATA_DIR" --no-confirm 2>/dev/null || true
     fi
     # Create fresh directory
     mkdir -p "$N8N_DATA_DIR" || {
-        log::error "Failed to create n8n data directory"
+        n8n::log_with_context "error" "setup" "$N8N_ERR_CREATE_DIR_FAILED"
         return 1
     }
     # Set proper ownership and permissions
@@ -93,7 +100,7 @@ n8n::create_directories() {
     chmod 755 "$N8N_DATA_DIR" || true
     # Verify directory is healthy
     if ! n8n::detect_filesystem_corruption; then
-        log::error "Created directory is still corrupted"
+        n8n::log_with_context "error" "setup" "Created directory is still corrupted"
         return 1
     fi
     # Add rollback action
@@ -101,7 +108,7 @@ n8n::create_directories() {
         "Remove n8n data directory" \
         "trash::safe_remove '$N8N_DATA_DIR' --no-confirm 2>/dev/null || true" \
         10
-    log::success "n8n directories created with proper permissions"
+    n8n::log_with_context "success" "setup" "n8n directories created with proper permissions"
     return 0
 }
 
@@ -109,18 +116,12 @@ n8n::create_directories() {
 # Create Docker network for n8n
 #######################################
 n8n::create_network() {
-    if ! docker network ls | grep -q "$N8N_NETWORK_NAME"; then
-        log::info "Creating Docker network for n8n..."
-        if docker network create "$N8N_NETWORK_NAME" >/dev/null 2>&1; then
-            log::success "Docker network created"
-            # Add rollback action
-            resources::add_rollback_action \
-                "Remove Docker network" \
-                "docker network rm $N8N_NETWORK_NAME 2>/dev/null || true" \
-                5
-        else
-            log::warn "Failed to create Docker network (may already exist)"
-        fi
+    if docker::create_network "$N8N_NETWORK_NAME"; then
+        n8n::log_with_context "success" "network" "Docker network created"
+        resources::add_rollback_action \
+            "Remove Docker network" \
+            "docker network rm $N8N_NETWORK_NAME 2>/dev/null || true" \
+            5
     fi
 }
 
@@ -131,14 +132,7 @@ n8n::create_network() {
 #######################################
 n8n::is_port_available() {
     local port=$1
-    if system::is_command "lsof"; then
-        ! lsof -i :"$port" >/dev/null 2>&1
-    elif system::is_command "netstat"; then
-        ! netstat -tln | grep -q ":$port "
-    else
-        # If we can't check, assume it's available
-        return 0
-    fi
+    docker::is_port_available "$port"
 }
 
 #######################################
@@ -148,20 +142,9 @@ n8n::is_port_available() {
 #######################################
 n8n::wait_for_ready() {
     local max_attempts=${1:-$N8N_HEALTH_CHECK_MAX_ATTEMPTS}
-    local attempt=0
-    log::info "Waiting for n8n to be ready..."
-    while [ $attempt -lt $max_attempts ]; do
-        if n8n::is_healthy; then
-            log::success "n8n is ready!"
-            return 0
-        fi
-        attempt=$((attempt + 1))
-        echo -n "."
-        sleep $N8N_HEALTH_CHECK_INTERVAL
-    done
-    echo
-    log::error "n8n failed to become ready after $((max_attempts * N8N_HEALTH_CHECK_INTERVAL)) seconds"
-    return 1
+    local timeout=$((max_attempts * N8N_HEALTH_CHECK_INTERVAL))
+    
+    wait::for_condition "n8n::is_healthy" "$timeout" "n8n to be ready"
 }
 
 #######################################
