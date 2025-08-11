@@ -2,107 +2,6 @@
 # n8n Status and Information Functions
 # Status checking, health monitoring, and information display
 
-# Source specialized modules
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-# shellcheck disable=SC1091
-source "${SCRIPT_DIR}/health.sh"
-# shellcheck disable=SC1091
-source "${SCRIPT_DIR}/utils.sh"
-
-#######################################
-# Display container status and stats
-# Args: none
-# Returns: 0 if running, 2 if not
-#######################################
-n8n::display_container_status() {
-    if ! n8n::container_exists; then
-        log::error "❌ Container: Not found"
-        return 2
-    elif ! n8n::is_running; then
-        log::error "❌ Container: Exists but not running"
-        return 2
-    fi
-    local stats=$(docker stats "$N8N_CONTAINER_NAME" --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}" 2>/dev/null || echo "")
-    log::success "✅ Container: Running ($N8N_CONTAINER_NAME) [$stats]"
-    return 0
-}
-
-#######################################
-# Display health tier with actionable feedback
-# Args: $1 - health tier (HEALTHY/DEGRADED/UNHEALTHY)
-#######################################
-n8n::display_health_tier_feedback() {
-    local health_tier="$1"
-    case "$health_tier" in
-        "HEALTHY")
-            log::success "✅ Health: HEALTHY - All systems operational"
-            ;;
-        "DEGRADED")
-            log::warn "⚠️  Health: DEGRADED - API key missing"
-            log::info "Fix: Go to $N8N_BASE_URL → Settings → n8n API → Create API key"
-            log::info "Then: $0 --action save-api-key --api-key YOUR_KEY"
-            ;;
-        "UNHEALTHY") 
-            log::error "❌ Health: UNHEALTHY - Service not responding. Try: $0 --action restart"
-            ;;
-    esac
-}
-
-#######################################
-# Display service endpoint details
-#######################################
-n8n::display_service_details() {
-    log::info "Service: UI=$N8N_BASE_URL | Health=$N8N_BASE_URL/healthz | API=$N8N_BASE_URL/api/v1"
-}
-
-#######################################
-# Display authentication information
-#######################################
-n8n::display_authentication_info() {
-    # Basic auth status using shared utility
-    local auth_active
-    auth_active=$(n8n::extract_container_env "N8N_BASIC_AUTH_ACTIVE")
-    if [[ "$auth_active" == "true" ]]; then
-        local auth_user
-        auth_user=$(n8n::extract_container_env "N8N_BASIC_AUTH_USER")
-        log::info "  Web Auth: Enabled (user: ${auth_user:-admin})"
-    else
-        log::warn "  Web Auth: Disabled"
-    fi
-    # API key status using shared utility
-    local api_key_status="Not configured"
-    local api_key
-    api_key=$(n8n::resolve_api_key)
-    if [[ -n "$api_key" ]]; then
-        api_key_status="Configured (${#api_key} chars)"
-    fi
-    log::info "  API Key: $api_key_status"
-}
-
-#######################################
-# Enhanced status with tiered health reporting
-# REFACTORED: Main orchestrator function (moved from common.sh)
-# Provides clear feedback about what works vs what's missing
-#######################################
-n8n::enhanced_status() {
-    log::header "📊 n8n Enhanced Status Check"
-    # Get tiered health status
-    local health_tier
-    local health_code
-    health_tier=$(n8n::tiered_health_check)
-    health_code=$?
-    # Display container status
-    if ! n8n::display_container_status; then
-        return 2
-    fi
-    # Display health tier feedback
-    n8n::display_health_tier_feedback "$health_tier"
-    # Display service and authentication details
-    n8n::display_service_details
-    n8n::display_authentication_info
-    return $health_code
-}
-
 #######################################
 # Show n8n status with enhanced tiered health check
 #######################################
@@ -113,30 +12,35 @@ n8n::status() {
         log::info "Please install Docker first: https://docs.docker.com/get-docker/"
         return 1
     fi
+    
     if ! docker info >/dev/null 2>&1; then
         log::error "Docker daemon is not running"
         log::info "Start Docker with: sudo systemctl start docker"
         return 1
     fi
+    
     # Use enhanced status with tiered health check
     n8n::enhanced_status
     local result=$?
+    
     # Show PostgreSQL status if relevant
-    if n8n::postgres_exists; then
+    if docker ps -a --format '{{.Names}}' | grep -q "^${N8N_DB_CONTAINER_NAME}$"; then
         echo
         log::info "PostgreSQL Database:"
-        if n8n::postgres_running; then
+        if docker ps --format '{{.Names}}' | grep -q "^${N8N_DB_CONTAINER_NAME}$"; then
             log::success "  Status: ✅ Running"
         else
             log::warn "  Status: ⚠️  Stopped"
         fi
     fi
+    
     # Show helpful commands
     echo
     log::info "Available Commands:"
     log::info "  View logs: $0 --action logs"
     log::info "  Restart: $0 --action restart"
     log::info "  Full test: $0 --action test"
+    
     return $result
 }
 
@@ -214,22 +118,28 @@ n8n::inspect() {
         log::error "n8n container does not exist"
         return 1
     fi
+    
     log::header "🔍 n8n Container Details"
+    
     # Basic info
     local created
     created=$(docker inspect "$N8N_CONTAINER_NAME" --format='{{.Created}}' 2>/dev/null)
     log::info "Created: $created"
+    
     local image
     image=$(docker inspect "$N8N_CONTAINER_NAME" --format='{{.Config.Image}}' 2>/dev/null)
     log::info "Image: $image"
+    
     # Network info
     echo
     log::info "Network Configuration:"
     docker inspect "$N8N_CONTAINER_NAME" --format='{{range $net, $conf := .NetworkSettings.Networks}}  {{$net}}: {{$conf.IPAddress}}{{end}}' 2>/dev/null
+    
     # Volume mounts
     echo
     log::info "Volume Mounts:"
     docker inspect "$N8N_CONTAINER_NAME" --format='{{range .Mounts}}  {{.Source}} -> {{.Destination}}{{println}}{{end}}' 2>/dev/null
+    
     # Environment variables (filtered)
     echo
     log::info "Environment Variables (filtered):"
@@ -247,8 +157,10 @@ n8n::version() {
         log::error "n8n is not running"
         return 1
     fi
+    
     local version
     version=$(docker exec "$N8N_CONTAINER_NAME" n8n --version 2>/dev/null)
+    
     if [[ -n "$version" ]]; then
         log::info "n8n version: $version"
     else
@@ -265,11 +177,14 @@ n8n::stats() {
         log::error "n8n is not running"
         return 1
     fi
+    
     log::header "📈 n8n Resource Usage"
+    
     # Container stats
     docker stats "$N8N_CONTAINER_NAME" --no-stream
+    
     # If using PostgreSQL, show its stats too
-    if n8n::postgres_running; then
+    if docker ps --format '{{.Names}}' | grep -q "^${N8N_DB_CONTAINER_NAME}$"; then
         echo
         log::info "PostgreSQL Stats:"
         docker stats "$N8N_DB_CONTAINER_NAME" --no-stream
@@ -281,8 +196,10 @@ n8n::stats() {
 #######################################
 n8n::check_all() {
     log::header "🔍 n8n Comprehensive Health Check"
+    
     local all_good=true
     local recovery_attempted=false
+    
     # Docker check
     if n8n::check_docker; then
         log::success "✅ Docker is ready"
@@ -290,6 +207,7 @@ n8n::check_all() {
         log::error "❌ Docker issues detected"
         all_good=false
     fi
+    
     # Filesystem corruption check
     if ! n8n::detect_filesystem_corruption; then
         log::error "❌ Filesystem corruption detected"
@@ -308,6 +226,7 @@ n8n::check_all() {
     else
         log::success "✅ Filesystem is healthy"
     fi
+    
     # Database health check
     if n8n::check_database_health; then
         log::success "✅ Database is healthy"
@@ -315,9 +234,11 @@ n8n::check_all() {
         log::error "❌ Database issues detected"
         all_good=false
     fi
+    
     # Container check
     if n8n::container_exists; then
         log::success "✅ n8n container exists"
+        
         if n8n::is_running; then
             log::success "✅ n8n container is running"
         else
@@ -328,12 +249,14 @@ n8n::check_all() {
         log::error "❌ n8n container does not exist"
         all_good=false
     fi
+    
     # API check with enhanced diagnostics
     if n8n::is_healthy; then
         log::success "✅ n8n API is healthy"
     else
         log::error "❌ n8n API is not responding"
         all_good=false
+        
         # Check for common issues
         if n8n::is_running; then
             local recent_logs
@@ -346,6 +269,7 @@ n8n::check_all() {
             fi
         fi
     fi
+    
     # Database check
     if [[ "$DATABASE_TYPE" == "postgres" ]]; then
         if n8n::postgres_is_healthy; then
@@ -355,6 +279,7 @@ n8n::check_all() {
             all_good=false
         fi
     fi
+    
     # Port check
     if n8n::is_port_available "$N8N_PORT"; then
         if n8n::is_running; then
@@ -368,6 +293,7 @@ n8n::check_all() {
             all_good=false
         fi
     fi
+    
     echo
     if [[ "$all_good" == "true" ]]; then
         log::success "✅ All checks passed!"
@@ -389,30 +315,35 @@ n8n::check_all() {
 #######################################
 n8n::test() {
     log::info "Testing n8n functionality..."
+    
     # Test 1: Check if Docker is available
     if ! system::is_command "docker"; then
         log::error "❌ Docker is not installed"
         return 1
     fi
     log::success "✅ Docker is available"
+    
     # Test 2: Check if n8n container exists
     if ! n8n::container_exists; then
         log::error "❌ n8n container does not exist"
         return 1
     fi
     log::success "✅ n8n container exists"
+    
     # Test 3: Check if n8n is running
     if ! n8n::is_running; then
         log::error "❌ n8n container is not running"
         return 1
     fi
     log::success "✅ n8n container is running"
+    
     # Test 4: Check API health
     if ! n8n::is_healthy; then
         log::error "❌ n8n API is not responding"
         return 1
     fi
     log::success "✅ n8n API is healthy"
+    
     # Test 5: Run comprehensive health check
     log::info "Running comprehensive health check..."
     if n8n::check_all; then
@@ -421,6 +352,7 @@ n8n::test() {
         log::error "❌ Comprehensive health check failed"
         return 1
     fi
+    
     # Test 6: Check workflows endpoint (automation-specific test)
     if n8n::is_healthy; then
         log::info "Testing workflows API endpoint..."
@@ -428,12 +360,14 @@ n8n::test() {
         workflows_response=$(curl -s -w "%{http_code}" -o /dev/null \
             "http://localhost:${N8N_PORT}/api/v1/workflows" \
             -H "Accept: application/json" 2>/dev/null || echo "000")
+        
         if [[ "$workflows_response" == "200" ]] || [[ "$workflows_response" == "401" ]]; then
             log::success "✅ Workflows API endpoint is accessible"
         else
             log::warn "⚠️  Workflows API endpoint test failed (HTTP: $workflows_response)"
         fi
     fi
+    
     log::success "🎉 All n8n tests passed"
     return 0
 }

@@ -86,13 +86,16 @@ n8n::n8n::print_info() { n8n::print_status "$BLUE" "ℹ️  $1"; }
 #######################################
 n8n::check_n8n_status() {
     n8n::n8n::print_info "Checking n8n status..."
+    
     if ! curl -s --max-time 5 "$N8N_BASE_URL/healthz" >/dev/null 2>&1; then
         n8n::n8n::print_error "n8n is not accessible at $N8N_BASE_URL"
         n8n::n8n::print_info "Make sure n8n is running: ./manage.sh --action start"
         return 1
     fi
+    
     local health_response
     health_response=$(curl -s --max-time 5 "$N8N_BASE_URL/healthz" || echo "")
+    
     if echo "$health_response" | grep -q '"status":"ok"'; then
         n8n::n8n::print_success "n8n is running and healthy"
         return 0
@@ -108,22 +111,27 @@ n8n::check_n8n_status() {
 #######################################
 n8n::get_basic_auth_credentials() {
     n8n::print_info "Getting n8n basic auth credentials..."
+    
     # Try to get credentials from management script
     if [[ -f "$SCRIPT_DIR/manage.sh" ]]; then
         local auth_info
         auth_info=$("$SCRIPT_DIR/manage.sh" --action api-setup 2>/dev/null || echo "")
+        
         if echo "$auth_info" | grep -q "Username:" && echo "$auth_info" | grep -q "Password:"; then
             local username
             local password
             username=$(echo "$auth_info" | grep "Username:" | cut -d' ' -f2)
             password=$(echo "$auth_info" | grep "Password:" | cut -d' ' -f2)
+            
             n8n::print_success "Found basic auth credentials"
             n8n::print_info "Username: $username"
             n8n::print_info "Password: ${password:0:4}***"
+            
             echo "$username:$password"
             return 0
         fi
     fi
+    
     # Default credentials if not found
     n8n::print_warning "Could not retrieve credentials from management script"
     n8n::print_info "Using default credentials (admin:password)"
@@ -135,17 +143,22 @@ n8n::get_basic_auth_credentials() {
 #######################################
 n8n::validate_api_key() {
     local api_key="$1"
+    
     if [[ -z "$api_key" ]]; then
         n8n::print_error "No API key provided for validation"
         return 1
     fi
+    
     n8n::print_info "Validating API key..."
+    
     local response
     response=$(curl -s -w "%{http_code}" \
         -H "X-N8N-API-KEY: $api_key" \
         "$N8N_BASE_URL/rest/workflows" || echo "000")
+    
     local http_code="${response: -3}"
     local body="${response%???}"
+    
     case "$http_code" in
         200)
             n8n::print_success "API key is valid and working"
@@ -172,19 +185,24 @@ n8n::validate_api_key() {
 #######################################
 n8n::update_config_file() {
     local api_key="$1"
+    
     n8n::print_info "Updating configuration file..."
+    
     if [[ ! -f "$CONFIG_FILE" ]]; then
         n8n::print_warning "Configuration file not found, creating basic structure"
         mkdir -p "$(dirname "$CONFIG_FILE")"
         echo '{"services": {"automation": {}}}' > "$CONFIG_FILE"
     fi
+    
     # Use jq to update the configuration
     if command -v jq >/dev/null 2>&1; then
         local temp_file
         temp_file=$(mktemp)
+        
         jq --arg key "$api_key" \
            '.services.automation.n8n.apiKey = $key' \
            "$CONFIG_FILE" > "$temp_file" && mv "$temp_file" "$CONFIG_FILE"
+        
         n8n::print_success "Configuration file updated with API key"
         return 0
     else
@@ -201,11 +219,13 @@ n8n::update_config_file() {
 n8n::interactive_setup() {
     n8n::print_info "=== n8n API Access Setup ==="
     echo
+    
     # Get basic auth credentials
     local basic_auth
     basic_auth=$(n8n::get_basic_auth_credentials)
     local username="${basic_auth%:*}"
     local password="${basic_auth#*:}"
+    
     echo
     n8n::print_info "To set up API access, you need to:"
     echo "  1. Open n8n web interface: $N8N_BASE_URL"
@@ -215,20 +235,25 @@ n8n::interactive_setup() {
     echo "  5. Set a label (e.g., 'CLI Access')"
     echo "  6. Copy the generated API key"
     echo
+    
     n8n::print_warning "The API key is shown only once - make sure to copy it!"
     echo
+    
     # Wait for user to create API key
     local api_key
     while true; do
         read -r -p "Enter the API key (or 'quit' to exit): " api_key
+        
         if [[ "$api_key" == "quit" ]]; then
             n8n::print_info "Setup cancelled"
             return 1
         fi
+        
         if [[ -z "$api_key" ]]; then
             n8n::print_warning "Please enter a valid API key"
             continue
         fi
+        
         # Test the API key
         if n8n::validate_api_key "$api_key"; then
             break
@@ -236,6 +261,7 @@ n8n::interactive_setup() {
             n8n::print_warning "API key validation failed, please try again"
         fi
     done
+    
     # Update configuration
     if n8n::update_config_file "$api_key"; then
         echo
@@ -253,13 +279,17 @@ n8n::interactive_setup() {
 #######################################
 n8n::reset_authentication() {
     n8n::print_info "Resetting n8n authentication setup..."
+    
     if [[ -f "$CONFIG_FILE" ]] && command -v jq >/dev/null 2>&1; then
         local temp_file
         temp_file=$(mktemp)
+        
         jq 'del(.services.automation.n8n.apiKey)' \
            "$CONFIG_FILE" > "$temp_file" && mv "$temp_file" "$CONFIG_FILE"
+        
         n8n::print_success "API key removed from configuration"
     fi
+    
     n8n::print_info "Authentication has been reset"
     n8n::print_info "Run this script again to set up a new API key"
 }
@@ -269,17 +299,21 @@ n8n::reset_authentication() {
 #######################################
 n8n::validate_existing_setup() {
     n8n::print_info "Validating existing n8n API setup..."
+    
     # Check if API key exists in config
     local existing_key=""
     if [[ -f "$CONFIG_FILE" ]] && command -v jq >/dev/null 2>&1; then
         existing_key=$(jq -r '.services.automation.n8n.apiKey // empty' "$CONFIG_FILE" 2>/dev/null || echo "")
     fi
+    
     if [[ -z "$existing_key" ]]; then
         n8n::print_warning "No API key found in configuration"
         n8n::print_info "Run this script without --validate to set up API access"
         return 1
     fi
+    
     n8n::print_info "Found API key in configuration"
+    
     # Validate the key
     if n8n::validate_api_key "$existing_key"; then
         n8n::print_success "Existing API setup is working correctly"
@@ -298,20 +332,24 @@ n8n::main() {
     echo "n8n API Access Setup"
     echo "===================="
     echo
+    
     # Check n8n status first
     if ! n8n::check_n8n_status; then
         exit 1
     fi
     echo
+    
     # Handle different modes
     if [[ "$RESET_AUTH" == true ]]; then
         n8n::reset_authentication
         exit 0
     fi
+    
     if [[ "$VALIDATE_ONLY" == true ]]; then
         n8n::validate_existing_setup
         exit $?
     fi
+    
     if [[ -n "$API_KEY" ]]; then
         # Direct API key provided
         n8n::print_info "Setting up API access with provided key..."
@@ -323,10 +361,12 @@ n8n::main() {
             exit 1
         fi
     fi
+    
     if [[ "$INTERACTIVE" == true ]]; then
         n8n::interactive_setup
         exit $?
     fi
+    
     n8n::print_error "No valid operation specified"
     exit 1
 }

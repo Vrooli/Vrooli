@@ -1,0 +1,238 @@
+apiVersion: vrooli.com/v1
+kind: ResourceCapability
+metadata:
+  name: n8n
+  category: automation
+  subcategory: workflow
+  description: "Visual workflow automation platform with 400+ integrations"
+  maturity: stable
+  complexity: intermediate
+  
+spec:
+  # Core capabilities this resource provides
+  capabilities:
+    primary:
+      - workflow-automation
+      - api-orchestration
+      - data-transformation
+      - scheduled-execution
+    secondary:
+      - webhook-processing
+      - data-integration
+      - notification-systems
+      - file-processing
+      - database-operations
+    specialized:
+      - host-system-access
+      - docker-integration
+      - credential-management
+      - audit-trails
+  
+  # API interfaces available
+  interfaces:
+    - name: workflow-management
+      endpoint: "/api/v1/workflows"
+      method: [GET, POST, PUT, DELETE]
+      inputTypes: [json]
+      outputTypes: [json]
+      description: "Manage workflow definitions"
+    - name: execution
+      endpoint: "/api/v1/executions"
+      method: [GET, POST]
+      inputTypes: [json]
+      outputTypes: [json]
+      description: "Execute workflows and view execution history"
+    - name: webhook
+      endpoint: "/webhook/*"
+      method: [GET, POST, PUT, DELETE]
+      inputTypes: [json, form-data, xml]
+      outputTypes: [json, text]
+      description: "External webhook endpoints for triggering workflows"
+    - name: credentials
+      endpoint: "/api/v1/credentials"
+      method: [GET, POST, PUT, DELETE]
+      inputTypes: [json]
+      outputTypes: [json]
+      description: "Manage encrypted credentials for integrations"
+  
+  # Resource dependencies and requirements
+  dependencies:
+    required: []
+    optional:
+      - postgresql
+      - redis
+      - docker-host-access
+    incompatible: []
+  
+  # Scenario compatibility
+  scenarios:
+    primary:
+      - secure-document-processing
+      - analytics-dashboard
+    secondary:
+      - research-assistant
+      - campaign-content-studio
+    optimal_combinations:
+      - [n8n, ollama, minio]           # AI-powered automation
+      - [n8n, postgres, vault]        # Secure business workflows
+      - [n8n, whisper, agent-s2]      # Multi-modal automation
+      - [n8n, unstructured-io, qdrant] # Document processing pipelines
+  
+  # Business intelligence
+  business:
+    revenue_range:
+      min: 5000
+      max: 35000
+      currency: USD
+    complexity_score: 7  # 1-10 scale
+    implementation_time: "2-5 days"
+    upwork_demand: high
+    target_industries:
+      - business-automation
+      - data-processing
+      - saas-platforms
+      - e-commerce
+      - marketing-agencies
+      - operations
+    common_project_types:
+      - "Business process automation suite"
+      - "Data integration and transformation"
+      - "Multi-system workflow orchestration"
+      - "Automated reporting and notifications"
+      - "API gateway and orchestration"
+  
+  # Technical specifications
+  technical:
+    ports: [5678]
+    protocols: [http, rest, webhook]
+    data_formats: [json, xml, csv, form-data]
+    resource_requirements:
+      memory:
+        minimum: "1GB"
+        recommended: "2GB"
+        optimal: "4GB+"
+      cpu:
+        minimum: "1 core"
+        recommended: "2 cores"
+        optimal: "4+ cores"
+      storage:
+        minimum: "1GB"
+        recommended: "5GB"
+        optimal: "20GB+"
+      database:
+        required: false
+        recommended: true
+        supported: [sqlite, postgresql]
+    scaling:
+      horizontal: true
+      vertical: true
+      max_concurrent_workflows: 1000
+      execution_modes: [main, queue, webhook]
+  
+  # AI generation hints for automated scenario creation
+  ai_generation:
+    common_patterns:
+      - api-orchestration
+      - data-transformation-pipelines
+      - business-workflow-automation
+      - scheduled-data-processing
+      - multi-system-integration
+    integration_targets:
+      preferred: [ollama, postgres, minio, vault]
+      compatible: [whisper, agent-s2, qdrant, redis]
+      avoid: [real-time-streaming, low-latency-requirements]
+    workflow_templates:
+      data_processing: "Extract data from {source} → Transform using {logic} → Load to {destination}"
+      api_integration: "Trigger on {event} → Call {api_services} → Process {data} → Notify {stakeholders}"
+      business_automation: "Monitor {conditions} → Execute {business_logic} → Update {systems} → Report {results}"
+    complexity_indicators:
+      simple: ["single-system automation", "basic data transformation", "simple notifications"]
+      intermediate: ["multi-system integration", "complex data processing", "conditional workflows"]
+      advanced: ["enterprise orchestration", "AI-powered decisions", "real-time data pipelines"]
+  
+  # Specialized features
+  features:
+    host_system_access:
+      enabled: true
+      description: "Execute system commands and access host filesystem"
+      security_level: controlled
+    docker_integration:
+      enabled: true
+      description: "Manage Docker containers from workflows"
+      requires: docker_socket_access
+    credential_encryption:
+      enabled: true
+      description: "Secure storage and management of API keys and secrets"
+      encryption: AES-256
+    audit_logging:
+      enabled: true
+      description: "Complete execution history and audit trails"
+      retention: configurable
+  
+  # Integration capabilities
+  integrations:
+    built_in_nodes: 400+
+    categories:
+      - cloud_services
+      - databases
+      - communication
+      - productivity
+      - development
+      - marketing
+      - e-commerce
+      - finance
+    popular_integrations:
+      - slack
+      - google_sheets
+      - github
+      - stripe
+      - sendgrid
+      - aws
+      - postgresql
+      - mongodb
+  
+  # Testing and validation
+  testing:
+    test_file: "scripts/__test/resources/single/automation/n8n.test.sh"
+    test_coverage:
+      - service_health
+      - api_functionality
+      - workflow_management
+      - execution_capabilities
+      - host_system_access
+    fixtures:
+      - sample_workflows
+      - test_webhooks
+      - integration_scenarios
+    integration_tests:
+      - n8n_ollama_workflow
+      - n8n_postgres_integration
+      - multi_resource_orchestration
+  
+  # Documentation and examples
+  documentation:
+    readme: "scripts/resources/automation/n8n/README.md"
+    api_reference: "scripts/resources/automation/n8n/docs/API.md"
+    examples_dir: "scripts/resources/automation/n8n/examples/"
+    configuration: "scripts/resources/automation/n8n/docs/CONFIGURATION.md"
+    troubleshooting: "scripts/resources/automation/n8n/docs/TROUBLESHOOTING.md"
+  
+  # Version and compatibility
+  version_info:
+    min_version: "1.0.0"
+    tested_version: "1.93.0"
+    api_version: "v1"
+    compatibility_matrix:
+      docker: ">=20.10.0"
+      node: ">=18.0.0"
+      memory: ">=1GB"
+      architecture: [amd64, arm64]
+
+# Metadata for resource discovery and automation
+labels:
+  resource.vrooli.com/category: "automation"
+  resource.vrooli.com/type: "workflow"
+  resource.vrooli.com/maturity: "stable"
+  resource.vrooli.com/business-value: "very-high"
+  resource.vrooli.com/ai-friendly: "true"
+  resource.vrooli.com/host-access: "true"
