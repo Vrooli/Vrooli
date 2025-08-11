@@ -9,6 +9,12 @@ VROOLI_ROOT="$(cd "$SCENARIO_ROOT/../../.." && pwd)"
 # Load environment variables
 source "$VROOLI_ROOT/scripts/resources/lib/resource-helper.sh"
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$VROOLI_ROOT/scripts/lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Configuration
 MINIO_HOST="localhost"
 MINIO_PORT="9001"
@@ -158,7 +164,7 @@ EOF
         log_info "Lifecycle policy setup skipped for bucket: $bucket_name"
     }
     
-    rm -f "$lifecycle_config"
+    trash::safe_remove "$lifecycle_config" --temp
 }
 
 # Setup all buckets
@@ -253,7 +259,8 @@ test_operations() {
     
     # Clean up test files
     mc rm "$MC_ALIAS/original-files/test/minio_test.txt" 2>/dev/null || true
-    rm -f "$test_file" "$download_file"
+    trash::safe_remove "$test_file" --temp
+    trash::safe_remove "$download_file" --temp
 }
 
 # Verify bucket setup

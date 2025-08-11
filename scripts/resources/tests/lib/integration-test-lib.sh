@@ -11,6 +11,8 @@ _HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${_HERE}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 #######################################
 # CORE CONFIGURATION FRAMEWORK
@@ -265,7 +267,7 @@ create_test_file() {
 cleanup_test_files() {
     if [[ ${#TEST_TEMP_FILES[@]} -gt 0 ]]; then
         for file in "${TEST_TEMP_FILES[@]}"; do
-            [[ -f "$file" ]] && rm -f "$file"
+            [[ -f "$file" ]] && trash::safe_remove "$file" --test-cleanup
         done
     fi
 }

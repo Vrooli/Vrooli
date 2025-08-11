@@ -13,6 +13,12 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../../../" && pwd)"
 # Load configuration
 source "${SCRIPT_DIR}/../initialization/configuration/resource-urls.json" 2>/dev/null || true
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "${PROJECT_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -258,7 +264,7 @@ cleanup() {
         if kill -0 "$pid" 2>/dev/null; then
             log "Stopping Task Planner API (PID: $pid)"
             kill "$pid"
-            rm -f /var/run/task-planner-api.pid
+            trash::safe_remove /var/run/task-planner-api.pid --temp
         fi
     fi
 }

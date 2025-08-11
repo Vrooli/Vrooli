@@ -9,6 +9,12 @@ VROOLI_ROOT="$(cd "$SCENARIO_ROOT/../../.." && pwd)"
 # Load environment variables
 source "$VROOLI_ROOT/scripts/resources/lib/resource-helper.sh"
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$VROOLI_ROOT/scripts/lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Configuration
 OLLAMA_HOST="localhost"
 OLLAMA_PORT="11434"
@@ -118,7 +124,7 @@ pull_model() {
     local exit_code=$?
     
     # Clean up temp file
-    rm -f "$temp_output"
+    trash::safe_remove "$temp_output" --temp
     
     if [ $exit_code -eq 0 ] && model_exists "$model_name"; then
         log_success "Successfully pulled model: $model_name"

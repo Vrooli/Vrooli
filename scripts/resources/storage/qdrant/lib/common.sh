@@ -2,6 +2,12 @@
 # Qdrant Common Utilities
 # Shared functions used across Qdrant management scripts
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 #######################################
 # Check if Qdrant container exists
 # Returns: 0 if exists, 1 if not
@@ -213,8 +219,8 @@ qdrant::common::check_disk_space() {
 #######################################
 qdrant::common::cleanup() {
     # Remove any temporary files created during operations
-    rm -f /tmp/qdrant_*.json 2>/dev/null || true
-    rm -f /tmp/qdrant_*.tmp 2>/dev/null || true
+    trash::safe_remove /tmp/qdrant_*.json --temp 2>/dev/null || true
+    trash::safe_remove /tmp/qdrant_*.tmp --temp 2>/dev/null || true
 }
 
 #######################################

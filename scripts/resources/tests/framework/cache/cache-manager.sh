@@ -29,6 +29,8 @@ source "${_HERE}/../../../../../lib/utils/var.sh"
 source "${var_LOG_FILE}" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/hash.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Cache configuration
 CACHE_DIR=""
@@ -200,7 +202,7 @@ cache_manager::clear_expired() {
     # Find and remove expired cache files
     while IFS= read -r -d '' cache_file; do
         if [[ -f "$cache_file" ]] && ! cache_manager::is_valid "$cache_file"; then
-            rm -f "$cache_file"
+            trash::safe_remove "$cache_file" --test-cleanup
             cleared_count=$((cleared_count + 1))
         fi
     done < <(find "$CACHE_DIR" -name "${CACHE_PREFIX}-*.${CACHE_EXTENSION}" -print0 2>/dev/null)
@@ -220,7 +222,7 @@ cache_manager::clear_all() {
     # Count and remove all cache files
     while IFS= read -r -d '' cache_file; do
         if [[ -f "$cache_file" ]]; then
-            rm -f "$cache_file"
+            trash::safe_remove "$cache_file" --test-cleanup
             cleared_count=$((cleared_count + 1))
         fi
     done < <(find "$CACHE_DIR" -name "${CACHE_PREFIX}-*.${CACHE_EXTENSION}" -print0 2>/dev/null)

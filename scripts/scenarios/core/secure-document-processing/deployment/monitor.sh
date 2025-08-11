@@ -4,6 +4,12 @@
 
 set -euo pipefail
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Configuration
 SCENARIO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SCENARIO_ID="secure-document-processing"
@@ -57,7 +63,7 @@ log_recovery() {
 # Signal handlers
 cleanup_and_exit() {
     log_monitor "Monitoring stopped for $SCENARIO_NAME"
-    rm -f "$PID_FILE"
+    trash::safe_remove "$PID_FILE" --temp
     exit 0
 }
 
@@ -349,7 +355,7 @@ start_monitoring() {
             echo "Monitoring is already running (PID: $existing_pid)"
             exit 1
         else
-            rm -f "$PID_FILE"
+            trash::safe_remove "$PID_FILE" --temp
         fi
     fi
     
@@ -385,11 +391,11 @@ stop_monitoring() {
         if kill -0 "$monitor_pid" 2>/dev/null; then
             log_monitor "Stopping monitoring (PID: $monitor_pid)"
             kill -TERM "$monitor_pid"
-            rm -f "$PID_FILE"
+            trash::safe_remove "$PID_FILE" --temp
             echo "Monitoring stopped"
         else
             echo "Monitoring is not running"
-            rm -f "$PID_FILE"
+            trash::safe_remove "$PID_FILE" --temp
         fi
     else
         echo "No monitoring PID file found"
@@ -406,7 +412,7 @@ status_monitoring() {
             return 0
         else
             echo "Monitoring PID file exists but process is not running"
-            rm -f "$PID_FILE"
+            trash::safe_remove "$PID_FILE" --temp
             return 1
         fi
     else

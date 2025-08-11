@@ -92,7 +92,7 @@ EOF
         
         # Clean up temp files
         for f in \"\$TEMP_FILE1\" \"\$TEMP_FILE2\" \"\$TEMP_FILE3\"; do
-            [[ -f \"\$f\" ]] && rm -f \"\$f\"
+            [[ -f \"\$f\" ]] && trash::safe_remove \"\$f\" --test-cleanup
         done
     "
     [[ "$output" == *"File1 violations: 2"* ]]
@@ -116,7 +116,7 @@ EOF
         count=\$(validate_port_abstraction::find_hardcoded_ports \"\$TEMP_FILE\" true)
         echo \"Total violations: \$count\"
         
-        rm -f \"\$TEMP_FILE\"
+        trash::safe_remove \"\$TEMP_FILE\" --test-cleanup
     "
     [[ "$output" == *"Total violations: 2"* ]]
     [[ "$output" == *"Line"* ]]
@@ -172,7 +172,7 @@ EOF
             echo \"validation: failed\"
         fi
         
-        rm -f \"\$TEMP_FILE\"
+        trash::safe_remove \"\$TEMP_FILE\" --test-cleanup
     "
     [[ "$output" == *"validation: passed"* ]]
 }
@@ -196,7 +196,7 @@ EOF
             echo \"validation: failed\"
         fi
         
-        rm -f \"\$TEMP_FILE\"
+        trash::safe_remove \"\$TEMP_FILE\" --test-cleanup
     "
     [[ "$output" == *"validation: failed"* ]]
 }
@@ -214,7 +214,7 @@ EOF
         # Capture output with suggestions enabled
         validate_port_abstraction::validate_file \"\$TEMP_FILE\" false true 2>&1 || true
         
-        rm -f \"\$TEMP_FILE\"
+        trash::safe_remove \"\$TEMP_FILE\" --test-cleanup
     "
     [[ "$output" == *"Fix suggestions"* ]]
     [[ "$output" == *"localhost:11434"* ]]
@@ -239,7 +239,7 @@ EOF
             echo \"single file: failed\"
         fi
         
-        rm -f \"\$TEMP_FILE\"
+        trash::safe_remove \"\$TEMP_FILE\" --test-cleanup
     "
     [[ "$output" == *"single file: passed"* ]]
 }
@@ -269,7 +269,7 @@ EOF
         fi
         
         # Clean up temp directory
-        [[ -d \"\$TEMP_DIR\" ]] && rm -rf \"\$TEMP_DIR\"
+        [[ -d \"\$TEMP_DIR\" ]] && trash::safe_remove \"\$TEMP_DIR\" --test-cleanup
     "
     [[ "$output" == *"directory: failed"* ]] || [[ "$status" -eq 1 ]]
 }
@@ -311,7 +311,7 @@ EOF
         validate_port_abstraction::validate_path \"\$TEMP_DIR\" false false true 2>&1 || true
         
         # Clean up temp directory
-        [[ -d \"\$TEMP_DIR\" ]] && rm -rf \"\$TEMP_DIR\"
+        [[ -d \"\$TEMP_DIR\" ]] && trash::safe_remove \"\$TEMP_DIR\" --test-cleanup
     "
     [[ "$output" == *"Files checked:"* ]]
     [[ "$output" == *"Files with violations:"* ]]
@@ -377,7 +377,7 @@ EOF
         
         main \"\$TEMP_FILE\" --verbose
         
-        rm -f \"\$TEMP_FILE\"
+        trash::safe_remove \"\$TEMP_FILE\" --test-cleanup
     "
     [[ "$output" == *"Verbose: true"* ]]
 }
@@ -455,7 +455,7 @@ EOF
         validate_port_abstraction::validate_path \"\$TEMP_DIR\" false true false 2>&1 || echo \"validation completed\"
         
         # Clean up temp directory
-        [[ -d \"\$TEMP_DIR\" ]] && rm -rf \"\$TEMP_DIR\"
+        [[ -d \"\$TEMP_DIR\" ]] && trash::safe_remove \"\$TEMP_DIR\" --test-cleanup
     "
     [[ "$output" == *"hardcoded port"* ]]
     [[ "$output" == *"localhost:11434"* ]]

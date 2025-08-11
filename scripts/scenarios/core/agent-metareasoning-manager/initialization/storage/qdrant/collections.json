@@ -1,0 +1,220 @@
+{
+  "collections": [
+    {
+      "name": "reasoning_patterns",
+      "description": "Embeddings of reasoning patterns and workflows for semantic search",
+      "config": {
+        "vectors": {
+          "size": 1536,
+          "distance": "Cosine"
+        },
+        "optimizers_config": {
+          "default_segment_number": 2
+        },
+        "replication_factor": 1
+      },
+      "payload_schema": {
+        "pattern_id": "keyword",
+        "pattern_type": "keyword",
+        "pattern_name": "text",
+        "description": "text",
+        "tags": "keyword[]",
+        "usage_count": "integer",
+        "effectiveness_score": "float",
+        "created_at": "datetime",
+        "workflow_reference": "keyword"
+      },
+      "initial_points": [
+        {
+          "id": "pros-cons-basic",
+          "payload": {
+            "pattern_id": "pros-cons-basic",
+            "pattern_type": "analytical",
+            "pattern_name": "Basic Pros and Cons Analysis",
+            "description": "Weighted analysis of advantages and disadvantages for decision making",
+            "tags": ["decision-making", "evaluation", "comparison"],
+            "usage_count": 0,
+            "effectiveness_score": 0.85,
+            "workflow_reference": "pros-cons"
+          }
+        },
+        {
+          "id": "swot-strategic",
+          "payload": {
+            "pattern_id": "swot-strategic",
+            "pattern_type": "strategic",
+            "pattern_name": "Strategic SWOT Analysis",
+            "description": "Comprehensive strengths, weaknesses, opportunities, and threats analysis",
+            "tags": ["strategy", "planning", "analysis", "business"],
+            "usage_count": 0,
+            "effectiveness_score": 0.88,
+            "workflow_reference": "swot"
+          }
+        },
+        {
+          "id": "risk-matrix",
+          "payload": {
+            "pattern_id": "risk-matrix",
+            "pattern_type": "risk",
+            "pattern_name": "Risk Assessment Matrix",
+            "description": "Probability × Impact analysis with mitigation strategies",
+            "tags": ["risk", "mitigation", "assessment", "planning"],
+            "usage_count": 0,
+            "effectiveness_score": 0.87,
+            "workflow_reference": "risk-assessment"
+          }
+        },
+        {
+          "id": "devils-advocate",
+          "payload": {
+            "pattern_id": "devils-advocate",
+            "pattern_type": "critical",
+            "pattern_name": "Devil's Advocate Challenge",
+            "description": "Rigorous challenge of assumptions and identification of flaws",
+            "tags": ["critical-thinking", "validation", "challenge", "assumptions"],
+            "usage_count": 0,
+            "effectiveness_score": 0.82,
+            "workflow_reference": "self-review"
+          }
+        },
+        {
+          "id": "six-hats",
+          "payload": {
+            "pattern_id": "six-hats",
+            "pattern_type": "creative",
+            "pattern_name": "Six Thinking Hats",
+            "description": "Multi-perspective analysis using Edward de Bono's method",
+            "tags": ["creativity", "perspectives", "comprehensive", "brainstorming"],
+            "usage_count": 0,
+            "effectiveness_score": 0.84,
+            "workflow_reference": "reasoning-chain"
+          }
+        }
+      ]
+    },
+    {
+      "name": "execution_embeddings",
+      "description": "Embeddings of actual execution inputs/outputs for similarity search",
+      "config": {
+        "vectors": {
+          "size": 1536,
+          "distance": "Cosine"
+        },
+        "optimizers_config": {
+          "default_segment_number": 4,
+          "indexing_threshold": 20000
+        },
+        "replication_factor": 1,
+        "shard_number": 2
+      },
+      "payload_schema": {
+        "execution_id": "keyword",
+        "workflow_type": "keyword",
+        "model_used": "keyword",
+        "input_text": "text",
+        "output_summary": "text",
+        "status": "keyword",
+        "execution_time_ms": "integer",
+        "created_at": "datetime",
+        "tags": "keyword[]",
+        "confidence_score": "float",
+        "postgres_ref": "uuid"
+      },
+      "indexes": [
+        {
+          "field_name": "workflow_type",
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "status",
+          "field_schema": "keyword"
+        },
+        {
+          "field_name": "model_used",
+          "field_schema": "keyword"
+        }
+      ]
+    },
+    {
+      "name": "prompt_templates",
+      "description": "Embeddings of prompt templates for finding similar prompts",
+      "config": {
+        "vectors": {
+          "size": 1536,
+          "distance": "Cosine"
+        },
+        "optimizers_config": {
+          "default_segment_number": 2
+        },
+        "replication_factor": 1
+      },
+      "payload_schema": {
+        "prompt_id": "keyword",
+        "prompt_name": "text",
+        "prompt_pattern": "keyword",
+        "prompt_text": "text",
+        "collection": "keyword",
+        "best_models": "keyword[]",
+        "temperature_range": "float[]",
+        "usage_count": "integer",
+        "avg_effectiveness": "float",
+        "created_at": "datetime"
+      },
+      "initial_points": [
+        {
+          "id": "analytical-pros-cons",
+          "payload": {
+            "prompt_id": "basic_pros_cons",
+            "prompt_name": "Basic Pros and Cons Analysis",
+            "prompt_pattern": "pros_cons_analysis",
+            "collection": "analytical_prompts",
+            "best_models": ["mistral", "llama3.2"],
+            "temperature_range": [0.3, 0.6],
+            "usage_count": 0,
+            "avg_effectiveness": 0.0
+          }
+        },
+        {
+          "id": "strategic-swot",
+          "payload": {
+            "prompt_id": "detailed_swot",
+            "prompt_name": "Comprehensive SWOT Analysis",
+            "prompt_pattern": "swot_analysis",
+            "collection": "analytical_prompts",
+            "best_models": ["llama3.2", "mistral"],
+            "temperature_range": [0.4, 0.7],
+            "usage_count": 0,
+            "avg_effectiveness": 0.0
+          }
+        },
+        {
+          "id": "risk-assessment",
+          "payload": {
+            "prompt_id": "risk_assessment_matrix",
+            "prompt_name": "Risk Assessment with Mitigation",
+            "prompt_pattern": "risk_assessment",
+            "collection": "analytical_prompts",
+            "best_models": ["llama3.2", "codellama"],
+            "temperature_range": [0.2, 0.5],
+            "usage_count": 0,
+            "avg_effectiveness": 0.0
+          }
+        }
+      ]
+    }
+  ],
+  "initialization_config": {
+    "embedding_model": "text-embedding-ada-002",
+    "embedding_dimensions": 1536,
+    "auto_create_embeddings": false,
+    "batch_size": 100,
+    "parallel_workers": 4
+  },
+  "search_config": {
+    "default_limit": 10,
+    "score_threshold": 0.7,
+    "enable_filtering": true,
+    "cache_results": true,
+    "cache_ttl_seconds": 300
+  }
+}

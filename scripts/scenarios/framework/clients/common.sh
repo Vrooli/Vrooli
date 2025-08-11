@@ -4,6 +4,12 @@
 
 set -euo pipefail
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Colors for output (only define if not already defined)
 if [[ -z "${RED:-}" ]]; then
     readonly RED='\033[0;31m'
@@ -545,7 +551,7 @@ cleanup_temp_files() {
     if [[ -n "${TEMP_FILES:-}" ]]; then
         for file in "${TEMP_FILES[@]}"; do
             if [[ -f "$file" ]]; then
-                rm -f "$file"
+                trash::safe_remove "$file" --temp
                 print_debug "Cleaned up temp file: $file"
             fi
         done

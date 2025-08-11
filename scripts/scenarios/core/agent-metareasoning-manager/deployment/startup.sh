@@ -17,7 +17,7 @@ source "${var_LOG_FILE}"
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Configuration
-API_PORT="${API_PORT:-8093}"
+API_PORT="${SERVICE_PORT:-${API_PORT:-8093}}"
 
 startup::check_go_available() {
     log::info "Checking Go implementation..."

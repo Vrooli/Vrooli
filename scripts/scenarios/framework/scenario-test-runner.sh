@@ -7,6 +7,8 @@ set -euo pipefail
 # Source var.sh first with proper relative path
 # shellcheck disable=SC1091
 source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Colors for output
 readonly RED='\033[0;31m'
@@ -182,9 +184,91 @@ validate_structure() {
     fi
 }
 
+# Load environment variables from test config
+load_test_environment() {
+    local config_file="$1"
+    
+    if [[ ! -f "$config_file" ]] || ! command -v yq >/dev/null 2>&1; then
+        # If yq not available, try basic parsing with grep/sed
+        if [[ -f "$config_file" ]]; then
+            print_info "Loading environment variables from config..."
+            
+            # Source the port registry for RESOURCE_PORTS
+            if [[ -f "${var_PORT_REGISTRY_FILE:-}" ]]; then
+                # shellcheck disable=SC1090
+                source "${var_PORT_REGISTRY_FILE}"
+            fi
+            
+            # Load service.json to get dynamic ports
+            local service_json="$SCENARIO_DIR/.vrooli/service.json"
+            if [[ -f "$service_json" ]] && command -v jq >/dev/null 2>&1; then
+                # Process ports configuration
+                local ports_config
+                ports_config=$(jq -r '.ports // {}' "$service_json" 2>/dev/null || echo '{}')
+                
+                if [[ "$ports_config" != '{}' ]]; then
+                    # Process each port configuration
+                    echo "$ports_config" | jq -r 'to_entries | .[] | @base64' | while IFS= read -r port_entry; do
+                        local env_var range fixed
+                        env_var=$(echo "$port_entry" | base64 -d | jq -r '.value.env_var // ""')
+                        range=$(echo "$port_entry" | base64 -d | jq -r '.value.range // ""')
+                        fixed=$(echo "$port_entry" | base64 -d | jq -r '.value.fixed // ""')
+                        
+                        [[ -z "$env_var" ]] && continue
+                        
+                        # Skip if already set
+                        [[ -n "${!env_var:-}" ]] && continue
+                        
+                        local allocated_port=""
+                        
+                        if [[ -n "$fixed" ]]; then
+                            allocated_port="$fixed"
+                        elif [[ -n "$range" ]]; then
+                            local start_port end_port
+                            start_port=$(echo "$range" | cut -d'-' -f1)
+                            end_port=$(echo "$range" | cut -d'-' -f2)
+                            
+                            # Find available port
+                            for ((port=start_port; port<=end_port; port++)); do
+                                if ! nc -z localhost "$port" 2>/dev/null; then
+                                    allocated_port="$port"
+                                    break
+                                fi
+                            done
+                        fi
+                        
+                        if [[ -n "$allocated_port" ]]; then
+                            export "$env_var=$allocated_port"
+                            [[ "$VERBOSE" == "true" ]] && print_info "Allocated $env_var=$allocated_port"
+                        fi
+                    done
+                fi
+            fi
+        fi
+        return 0
+    fi
+    
+    # Use yq if available for more robust parsing
+    local env_vars
+    env_vars=$(yq eval '.prerequisites.environment // {}' "$config_file" 2>/dev/null || echo '{}')
+    
+    if [[ "$env_vars" != '{}' ]]; then
+        print_info "Loading environment variables from test config..."
+        echo "$env_vars" | yq eval 'to_entries | .[] | "\(.key)=\(.value)"' - | while IFS= read -r env_line; do
+            if [[ -n "$env_line" ]]; then
+                export "$env_line"
+                [[ "$VERBOSE" == "true" ]] && print_info "  Export: $env_line"
+            fi
+        done
+    fi
+}
+
 # Check resource health
 check_resources() {
     print_info "Checking resource health..."
+    
+    # Load environment variables first
+    load_test_environment "$TEST_CONFIG"
     
     if [[ -f "$FRAMEWORK_DIR/validators/resources.sh" ]]; then
         source "$FRAMEWORK_DIR/validators/resources.sh"
@@ -349,7 +433,7 @@ run_tests() {
         execute_test "$test_name" "$test_type" "$test_config_file"
         
         # Clean up temp file
-        rm -f "$test_config_file"
+        trash::safe_remove "$test_config_file" --temp
     done
 }
 

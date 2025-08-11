@@ -6,10 +6,16 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
+# Source trash module for safe cleanup
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Configuration
 CLI_VERSION="1.0.0"
 CLI_NAME="metareasoning"
-DEFAULT_API_BASE="${METAREASONING_API_BASE:-http://localhost:8093}"
+DEFAULT_API_BASE="${METAREASONING_API_BASE:-http://localhost:${SERVICE_PORT:-8093}}"
 CONFIG_DIR="${HOME}/.metareasoning"
 CONFIG_FILE="${CONFIG_DIR}/config.json"
 
@@ -616,7 +622,7 @@ cmd_config() {
             success "Configuration updated: $key = $value"
             ;;
         "reset")
-            rm -f "$CONFIG_FILE"
+            trash::safe_remove "$CONFIG_FILE" --temp
             create_default_config
             success "Configuration reset to defaults"
             ;;

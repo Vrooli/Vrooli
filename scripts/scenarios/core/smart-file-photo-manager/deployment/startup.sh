@@ -12,6 +12,8 @@ source "$var_LOG_FILE"
 
 # Source resource helper functions
 source "$var_SCRIPTS_RESOURCES_DIR/lib/resource-helper.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 
 # Check if required resources are running
@@ -154,7 +156,7 @@ cleanup() {
             kill "$monitor_pid"
             log_info "Stopped health monitor"
         fi
-        rm -f "$SCENARIO_ROOT/.monitor.pid"
+        trash::safe_remove "$SCENARIO_ROOT/.monitor.pid" --temp
     fi
 }
 

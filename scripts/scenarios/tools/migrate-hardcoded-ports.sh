@@ -13,6 +13,8 @@ source "${SCENARIO_TOOLS_DIR}/../../lib/utils/var.sh"
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
 source "${var_PORT_REGISTRY_FILE}"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 #######################################
 # Configuration and constants
@@ -226,7 +228,7 @@ migrate_hardcoded_ports::migrate_file() {
     
     # Remove backup if no changes or if dry run
     if [[ "$DRY_RUN" == "true" ]] || [[ "$changed" == "false" ]]; then
-        rm -f "$backup_file"
+        trash::safe_remove "$backup_file" --temp
     else
         [[ "$VERBOSE" == "true" ]] && log::info "  Backup created: $backup_file"
     fi

@@ -10,6 +10,8 @@ DESCRIPTION="Validates scenarios configuration files against the JSON schema"
 SCRIPTS_SCENARIOS_INJECTION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${SCRIPTS_SCENARIOS_INJECTION_DIR}/../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Source common utilities if available
 if [[ -f "${var_SCRIPTS_RESOURCES_DIR}/common.sh" ]]; then
@@ -390,7 +392,7 @@ validator::init_config() {
         return 0
     else
         log::error "Failed to validate newly created configuration file"
-        rm -f "$target_file"
+        trash::safe_remove "$target_file" --temp
         return 1
     fi
 }

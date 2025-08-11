@@ -5,6 +5,12 @@
 
 set -euo pipefail
 
+# Source var.sh for directory variables
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+
 # Configuration
 CLI_VERSION="1.0.0"
 CLI_NAME="task-planner"
@@ -625,7 +631,7 @@ cmd_config() {
             success "Configuration updated: $key = $value"
             ;;
         "reset")
-            rm -f "$CONFIG_FILE"
+            trash::safe_remove "$CONFIG_FILE" --temp
             create_default_config
             success "Configuration reset to defaults"
             ;;

@@ -1509,11 +1509,7 @@ main() {
     # Remove existing package if it exists
     if [[ -d "$package_path" ]]; then
         log_info "Removing existing package: $package_path"
-        if command -v trash::safe_remove >/dev/null 2>&1; then
-            trash::safe_remove "$package_path" --no-confirm
-        else
-            rm -rf "$package_path"
-        fi
+        trash::safe_remove "$package_path" --temp
     fi
     
     # Execute packaging steps

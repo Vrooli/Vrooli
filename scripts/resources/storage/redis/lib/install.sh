@@ -10,6 +10,8 @@ source "${_REDIS_INSTALL_DIR}/../../../../lib/utils/var.sh"
 # Source shared secrets management library
 # shellcheck disable=SC1091
 source "${var_LIB_SERVICE_DIR}/secrets.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 #######################################
 # Install Redis resource
@@ -269,11 +271,11 @@ redis::install::uninstall() {
     # Remove CLI helper from project config directory
     local redis_config_dir
     redis_config_dir="$(secrets::get_project_config_dir)/redis"
-    rm -f "${redis_config_dir}/redis-cli"
+    trash::safe_remove "${redis_config_dir}/redis-cli" --temp
     
     # Remove configuration if data is being removed
     if [[ "$remove_data" == "yes" ]]; then
-        rm -f "${redis_config_dir}/logrotate.conf"
+        trash::safe_remove "${redis_config_dir}/logrotate.conf" --temp
         
         # Update resource configuration
         local config_file
@@ -353,7 +355,7 @@ redis::install::cleanup_failed_install() {
         local file_count
         file_count=$(find "${REDIS_DATA_DIR}" -type f 2>/dev/null | wc -l)
         if [[ "$file_count" -eq 0 ]]; then
-            rmdir "${REDIS_DATA_DIR}" 2>/dev/null
+            trash::safe_remove "${REDIS_DATA_DIR}" --temp
         fi
     fi
 }

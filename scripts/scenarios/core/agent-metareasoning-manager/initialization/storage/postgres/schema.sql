@@ -1,184 +1,118 @@
 -- Agent Metareasoning Manager Database Schema
--- Purpose: Store prompts, workflows, and reasoning patterns for enhanced agent decision-making
+-- Stores execution history, workflow metadata, and performance metrics
 
--- Enable necessary extensions
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-CREATE EXTENSION IF NOT EXISTS "pg_trgm";
-
--- Reasoning patterns enum
-CREATE TYPE reasoning_pattern AS ENUM (
-    'pros_cons_analysis',
-    'swot_analysis',
-    'risk_assessment',
-    'devil_advocate',
-    'introspection',
-    'multi_perspective',
-    'assumption_checking',
-    'bias_detection',
-    'yes_man_avoidance',
-    'critical_thinking',
-    'creative_exploration',
-    'systematic_review'
-);
-
--- Prompts table
-CREATE TABLE prompts (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    category VARCHAR(100),
-    pattern reasoning_pattern,
-    content TEXT NOT NULL,
-    variables JSONB DEFAULT '[]', -- Variables that can be injected
-    metadata JSONB DEFAULT '{}',
-    version INTEGER DEFAULT 1,
-    is_active BOOLEAN DEFAULT true,
-    tags TEXT[],
-    usage_count INTEGER DEFAULT 0,
-    average_rating DECIMAL(3,2),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID
-);
-
--- Workflows table (n8n and Windmill workflows)
-CREATE TABLE workflows (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    platform VARCHAR(50) NOT NULL, -- 'n8n' or 'windmill'
-    pattern reasoning_pattern,
-    workflow_data JSONB NOT NULL, -- Full workflow JSON
-    input_schema JSONB DEFAULT '{}',
-    output_schema JSONB DEFAULT '{}',
-    dependencies TEXT[], -- Other workflows this depends on
-    version INTEGER DEFAULT 1,
-    is_active BOOLEAN DEFAULT true,
-    tags TEXT[],
-    execution_count INTEGER DEFAULT 0,
-    average_duration_ms INTEGER,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID
-);
-
--- Templates table (reusable reasoning templates)
-CREATE TABLE templates (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    pattern reasoning_pattern NOT NULL,
-    structure JSONB NOT NULL, -- Template structure with placeholders
-    example_usage TEXT,
-    best_practices TEXT,
-    limitations TEXT,
-    tags TEXT[],
-    is_public BOOLEAN DEFAULT false,
-    usage_count INTEGER DEFAULT 0,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID
-);
-
--- Reasoning chains table (sequences of reasoning steps)
-CREATE TABLE reasoning_chains (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
-    description TEXT,
-    steps JSONB NOT NULL, -- Array of steps with prompt/workflow references
-    input_requirements JSONB DEFAULT '{}',
-    output_format JSONB DEFAULT '{}',
-    use_cases TEXT[],
-    tags TEXT[],
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID
-);
-
--- Execution history table
-CREATE TABLE execution_history (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    resource_type VARCHAR(50) NOT NULL, -- 'prompt', 'workflow', 'template', 'chain'
-    resource_id UUID NOT NULL,
-    input_data JSONB,
+-- Execution history for tracking all reasoning workflow executions
+CREATE TABLE IF NOT EXISTS execution_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    resource_type VARCHAR(50) NOT NULL,
+    resource_id VARCHAR(100) NOT NULL,
+    workflow_type VARCHAR(50) NOT NULL,
+    input_data JSONB NOT NULL,
     output_data JSONB,
     execution_time_ms INTEGER,
-    status VARCHAR(50), -- 'success', 'failed', 'timeout'
+    status VARCHAR(20) NOT NULL CHECK (status IN ('pending', 'running', 'success', 'failed', 'timeout')),
+    model_used VARCHAR(50),
     error_message TEXT,
-    model_used VARCHAR(100),
     metadata JSONB DEFAULT '{}',
-    executed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    executed_by UUID
-);
-
--- Prompt versions table
-CREATE TABLE prompt_versions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    prompt_id UUID REFERENCES prompts(id) ON DELETE CASCADE,
-    version_number INTEGER NOT NULL,
-    content TEXT NOT NULL,
-    variables JSONB DEFAULT '[]',
-    change_summary TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID,
-    UNIQUE(prompt_id, version_number)
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Workflow versions table
-CREATE TABLE workflow_versions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    workflow_id UUID REFERENCES workflows(id) ON DELETE CASCADE,
-    version_number INTEGER NOT NULL,
-    workflow_data JSONB NOT NULL,
-    change_summary TEXT,
+-- Prompt usage tracking for effectiveness analysis
+CREATE TABLE IF NOT EXISTS prompt_usage (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    prompt_id VARCHAR(100) NOT NULL,
+    prompt_collection VARCHAR(50) NOT NULL,
+    execution_id UUID REFERENCES execution_history(id) ON DELETE CASCADE,
+    effectiveness_score DECIMAL(3,2) CHECK (effectiveness_score >= 0 AND effectiveness_score <= 1),
+    user_feedback JSONB,
+    model_performance JSONB DEFAULT '{}',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Workflow performance metrics for optimization
+CREATE TABLE IF NOT EXISTS workflow_metrics (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workflow_name VARCHAR(100) NOT NULL UNIQUE,
+    workflow_platform VARCHAR(20) NOT NULL CHECK (workflow_platform IN ('n8n', 'windmill')),
+    total_executions INTEGER DEFAULT 0,
+    successful_executions INTEGER DEFAULT 0,
+    failed_executions INTEGER DEFAULT 0,
+    avg_execution_time_ms INTEGER,
+    min_execution_time_ms INTEGER,
+    max_execution_time_ms INTEGER,
+    success_rate DECIMAL(5,2) GENERATED ALWAYS AS (
+        CASE 
+            WHEN total_executions > 0 THEN (successful_executions::DECIMAL / total_executions * 100)
+            ELSE 0
+        END
+    ) STORED,
+    last_execution TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID,
-    UNIQUE(workflow_id, version_number)
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Collections table (organize prompts/workflows)
-CREATE TABLE collections (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
+-- Reasoning patterns for semantic search integration
+CREATE TABLE IF NOT EXISTS reasoning_patterns (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    pattern_name VARCHAR(100) NOT NULL,
+    pattern_type VARCHAR(50) NOT NULL,
     description TEXT,
-    type VARCHAR(50), -- 'prompts', 'workflows', 'mixed'
-    items JSONB DEFAULT '[]', -- Array of {type, id} references
+    usage_count INTEGER DEFAULT 0,
+    effectiveness_avg DECIMAL(3,2),
+    embedding_id VARCHAR(100), -- Reference to Qdrant vector
     tags TEXT[],
-    is_public BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Workflow chains for complex reasoning sequences
+CREATE TABLE IF NOT EXISTS workflow_chains (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    chain_name VARCHAR(100) NOT NULL,
+    chain_description TEXT,
+    workflow_sequence JSONB NOT NULL, -- Array of workflow IDs in order
+    total_executions INTEGER DEFAULT 0,
+    avg_total_time_ms INTEGER,
+    success_rate DECIMAL(5,2),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Model performance tracking
+CREATE TABLE IF NOT EXISTS model_performance (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    model_name VARCHAR(50) NOT NULL,
+    workflow_type VARCHAR(50) NOT NULL,
+    total_uses INTEGER DEFAULT 0,
+    avg_response_time_ms INTEGER,
+    avg_token_count INTEGER,
+    quality_score DECIMAL(3,2),
+    cost_estimate DECIMAL(10,4),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID
+    UNIQUE(model_name, workflow_type)
 );
 
--- Ratings table
-CREATE TABLE ratings (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    resource_type VARCHAR(50) NOT NULL,
-    resource_id UUID NOT NULL,
-    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
-    review TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID,
-    UNIQUE(resource_type, resource_id, created_by)
-);
-
--- Indexes for performance
-CREATE INDEX idx_prompts_pattern ON prompts(pattern);
-CREATE INDEX idx_prompts_category ON prompts(category);
-CREATE INDEX idx_prompts_tags ON prompts USING GIN(tags);
-CREATE INDEX idx_prompts_active ON prompts(is_active);
-CREATE INDEX idx_workflows_platform ON workflows(platform);
-CREATE INDEX idx_workflows_pattern ON workflows(pattern);
-CREATE INDEX idx_workflows_tags ON workflows USING GIN(tags);
-CREATE INDEX idx_templates_pattern ON templates(pattern);
-CREATE INDEX idx_templates_public ON templates(is_public);
-CREATE INDEX idx_execution_history_resource ON execution_history(resource_type, resource_id);
+-- Create indexes for performance
+CREATE INDEX idx_execution_history_workflow ON execution_history(workflow_type);
 CREATE INDEX idx_execution_history_status ON execution_history(status);
-CREATE INDEX idx_execution_history_date ON execution_history(executed_at);
+CREATE INDEX idx_execution_history_created ON execution_history(created_at DESC);
+CREATE INDEX idx_execution_history_model ON execution_history(model_used);
 
--- Triggers for updated_at
+CREATE INDEX idx_prompt_usage_prompt ON prompt_usage(prompt_id);
+CREATE INDEX idx_prompt_usage_collection ON prompt_usage(prompt_collection);
+CREATE INDEX idx_prompt_usage_effectiveness ON prompt_usage(effectiveness_score);
+
+CREATE INDEX idx_workflow_metrics_name ON workflow_metrics(workflow_name);
+CREATE INDEX idx_workflow_metrics_platform ON workflow_metrics(workflow_platform);
+CREATE INDEX idx_workflow_metrics_success_rate ON workflow_metrics(success_rate);
+
+CREATE INDEX idx_reasoning_patterns_type ON reasoning_patterns(pattern_type);
+CREATE INDEX idx_reasoning_patterns_tags ON reasoning_patterns USING GIN(tags);
+CREATE INDEX idx_reasoning_patterns_effectiveness ON reasoning_patterns(effectiveness_avg);
+
+-- Update triggers for updated_at timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -187,155 +121,78 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
-CREATE TRIGGER update_prompts_updated_at BEFORE UPDATE ON prompts
+CREATE TRIGGER update_execution_history_updated_at BEFORE UPDATE ON execution_history
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_workflows_updated_at BEFORE UPDATE ON workflows
+CREATE TRIGGER update_workflow_metrics_updated_at BEFORE UPDATE ON workflow_metrics
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_templates_updated_at BEFORE UPDATE ON templates
+CREATE TRIGGER update_reasoning_patterns_updated_at BEFORE UPDATE ON reasoning_patterns
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
-CREATE TRIGGER update_collections_updated_at BEFORE UPDATE ON collections
+CREATE TRIGGER update_workflow_chains_updated_at BEFORE UPDATE ON workflow_chains
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- API-specific tables for CLI/API functionality
-
--- API tokens table (for CLI authentication)
-CREATE TABLE api_tokens (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    name VARCHAR(255) NOT NULL,
-    token_hash VARCHAR(255) UNIQUE NOT NULL,
-    permissions JSONB DEFAULT '{}', -- {read: true, write: false, admin: false}
-    scopes TEXT[] DEFAULT '{}', -- ['prompts', 'workflows', 'analyze']
-    expires_at TIMESTAMP WITH TIME ZONE,
-    last_used_at TIMESTAMP WITH TIME ZONE,
-    is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    created_by UUID
-);
-
--- Execution status enum for API operations
-CREATE TYPE execution_status AS ENUM (
-    'pending',
-    'running', 
-    'completed',
-    'failed',
-    'timeout',
-    'cancelled'
-);
-
--- Analysis type enum for API endpoints
-CREATE TYPE analysis_type AS ENUM (
-    'decision',
-    'pros_cons',
-    'swot',
-    'risk_assessment',
-    'reasoning_chain',
-    'template_application'
-);
-
--- Analysis executions table (track API analysis requests)
-CREATE TABLE analysis_executions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    type analysis_type NOT NULL,
-    input_data JSONB NOT NULL,
-    output_data JSONB,
-    status execution_status DEFAULT 'pending',
-    execution_time_ms INTEGER,
-    workflow_id UUID, -- Reference to workflow used
-    prompt_id UUID,   -- Reference to prompt used
-    template_id UUID, -- Reference to template used
-    error_message TEXT,
-    n8n_execution_id VARCHAR(255), -- External n8n execution ID
-    windmill_job_id VARCHAR(255),  -- External Windmill job ID
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    completed_at TIMESTAMP WITH TIME ZONE,
-    executed_by UUID,
-    api_token_id UUID REFERENCES api_tokens(id)
-);
-
--- API usage statistics table
-CREATE TABLE api_usage_stats (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    endpoint VARCHAR(255) NOT NULL,
-    method VARCHAR(10) NOT NULL,
-    response_code INTEGER NOT NULL,
-    execution_time_ms INTEGER NOT NULL,
-    request_size_bytes INTEGER,
-    response_size_bytes INTEGER,
-    user_agent VARCHAR(500),
-    ip_address INET,
-    api_token_id UUID REFERENCES api_tokens(id),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- Workflow execution queue table
-CREATE TABLE workflow_queue (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    analysis_execution_id UUID REFERENCES analysis_executions(id) ON DELETE CASCADE,
-    workflow_name VARCHAR(255) NOT NULL,
-    platform VARCHAR(50) NOT NULL, -- 'n8n' or 'windmill'
-    input_payload JSONB NOT NULL,
-    priority INTEGER DEFAULT 5, -- 1-10 priority scale
-    status execution_status DEFAULT 'pending',
-    scheduled_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    started_at TIMESTAMP WITH TIME ZONE,
-    completed_at TIMESTAMP WITH TIME ZONE,
-    external_id VARCHAR(255), -- n8n/windmill execution ID
-    result_data JSONB,
-    error_message TEXT,
-    retry_count INTEGER DEFAULT 0,
-    max_retries INTEGER DEFAULT 3
-);
-
--- User sessions table (optional - for future web UI)
-CREATE TABLE user_sessions (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    session_token VARCHAR(255) UNIQUE NOT NULL,
-    user_identifier VARCHAR(255) NOT NULL, -- Could be email, username, etc.
-    metadata JSONB DEFAULT '{}',
-    expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    last_accessed_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
-
--- API configuration table
-CREATE TABLE api_config (
-    key VARCHAR(255) PRIMARY KEY,
-    value JSONB NOT NULL,
-    description TEXT,
-    is_sensitive BOOLEAN DEFAULT false,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_by UUID
-);
-
--- Additional indexes for API performance
-CREATE INDEX idx_api_tokens_hash ON api_tokens(token_hash);
-CREATE INDEX idx_api_tokens_active ON api_tokens(is_active);
-CREATE INDEX idx_analysis_executions_status ON analysis_executions(status);
-CREATE INDEX idx_analysis_executions_type ON analysis_executions(type);
-CREATE INDEX idx_analysis_executions_created ON analysis_executions(created_at);
-CREATE INDEX idx_api_usage_endpoint ON api_usage_stats(endpoint);
-CREATE INDEX idx_api_usage_created ON api_usage_stats(created_at);
-CREATE INDEX idx_workflow_queue_status ON workflow_queue(status);
-CREATE INDEX idx_workflow_queue_priority ON workflow_queue(priority, scheduled_at);
-CREATE INDEX idx_user_sessions_token ON user_sessions(session_token);
-CREATE INDEX idx_user_sessions_expires ON user_sessions(expires_at);
-
--- Triggers for API tables
-CREATE TRIGGER update_api_config_updated_at BEFORE UPDATE ON api_config
+CREATE TRIGGER update_model_performance_updated_at BEFORE UPDATE ON model_performance
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
--- Foreign key constraints (optional references)
-ALTER TABLE analysis_executions 
-    ADD CONSTRAINT fk_analysis_workflow 
-    FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE SET NULL;
+-- Function to update workflow metrics after execution
+CREATE OR REPLACE FUNCTION update_workflow_metrics_on_execution()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.status IN ('success', 'failed') THEN
+        INSERT INTO workflow_metrics (
+            workflow_name,
+            workflow_platform,
+            total_executions,
+            successful_executions,
+            failed_executions,
+            avg_execution_time_ms,
+            min_execution_time_ms,
+            max_execution_time_ms,
+            last_execution
+        )
+        VALUES (
+            NEW.workflow_type,
+            CASE 
+                WHEN NEW.resource_type = 'n8n' THEN 'n8n'
+                WHEN NEW.resource_type = 'windmill' THEN 'windmill'
+                ELSE 'n8n'
+            END,
+            1,
+            CASE WHEN NEW.status = 'success' THEN 1 ELSE 0 END,
+            CASE WHEN NEW.status = 'failed' THEN 1 ELSE 0 END,
+            NEW.execution_time_ms,
+            NEW.execution_time_ms,
+            NEW.execution_time_ms,
+            NEW.created_at
+        )
+        ON CONFLICT (workflow_name) DO UPDATE SET
+            total_executions = workflow_metrics.total_executions + 1,
+            successful_executions = workflow_metrics.successful_executions + 
+                CASE WHEN NEW.status = 'success' THEN 1 ELSE 0 END,
+            failed_executions = workflow_metrics.failed_executions + 
+                CASE WHEN NEW.status = 'failed' THEN 1 ELSE 0 END,
+            avg_execution_time_ms = (
+                (workflow_metrics.avg_execution_time_ms * workflow_metrics.total_executions + NEW.execution_time_ms) / 
+                (workflow_metrics.total_executions + 1)
+            ),
+            min_execution_time_ms = LEAST(workflow_metrics.min_execution_time_ms, NEW.execution_time_ms),
+            max_execution_time_ms = GREATEST(workflow_metrics.max_execution_time_ms, NEW.execution_time_ms),
+            last_execution = NEW.created_at,
+            updated_at = CURRENT_TIMESTAMP;
+    END IF;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
 
-ALTER TABLE analysis_executions 
-    ADD CONSTRAINT fk_analysis_prompt 
-    FOREIGN KEY (prompt_id) REFERENCES prompts(id) ON DELETE SET NULL;
+CREATE TRIGGER update_metrics_on_execution_insert
+    AFTER INSERT ON execution_history
+    FOR EACH ROW
+    EXECUTE FUNCTION update_workflow_metrics_on_execution();
 
-ALTER TABLE analysis_executions 
-    ADD CONSTRAINT fk_analysis_template 
-    FOREIGN KEY (template_id) REFERENCES templates(id) ON DELETE SET NULL;
+CREATE TRIGGER update_metrics_on_execution_update
+    AFTER UPDATE OF status ON execution_history
+    FOR EACH ROW
+    WHEN (OLD.status IS DISTINCT FROM NEW.status)
+    EXECUTE FUNCTION update_workflow_metrics_on_execution();

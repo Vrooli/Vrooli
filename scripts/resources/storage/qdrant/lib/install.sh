@@ -2,14 +2,12 @@
 # Qdrant Installation Management
 # Functions for installing, upgrading, and uninstalling Qdrant
 
-# Source required utilities if not already loaded
-if ! command -v trash::safe_remove >/dev/null 2>&1; then
-    SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-    # shellcheck disable=SC1091
-    source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
-    # shellcheck disable=SC1091
-    source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
-fi
+# Source required utilities
+SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 #######################################
 # Install Qdrant with all dependencies
@@ -381,11 +379,7 @@ qdrant::install::reset_configuration() {
     fi
     
     # Remove configuration files but preserve data
-    if command -v trash::safe_remove >/dev/null 2>&1; then
-        trash::safe_remove "${QDRANT_CONFIG_DIR}" --no-confirm 2>/dev/null || true
-    else
-        trash::safe_remove "${QDRANT_CONFIG_DIR}" --no-confirm 2>/dev/null || true
-    fi
+    trash::safe_remove "${QDRANT_CONFIG_DIR}" --production 2>/dev/null || true
     
     # Recreate directories
     qdrant::docker::create_directories || return 1

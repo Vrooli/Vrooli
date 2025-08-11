@@ -1,139 +1,161 @@
 name: agent-metareasoning-manager
-description: Test suite for metareasoning tools management dashboard
+description: Test suite for lightweight metareasoning coordination service
 version: 1.0.0
 
 prerequisites:
   resources:
-    - postgres
-    - redis
     - ollama
     - n8n
     - windmill
+    - postgres
+    - qdrant
+    - go
   environment:
-    POSTGRES_PASSWORD: test_password
-    REDIS_PASSWORD: test_redis
-    N8N_WEBHOOK_URL: http://localhost:5678
-    WINDMILL_API_URL: http://localhost:8000
+    N8N_BASE_URL: http://localhost:${RESOURCE_PORTS[n8n]}
+    WINDMILL_BASE_URL: http://localhost:${RESOURCE_PORTS[windmill]}
+    SERVICE_PORT: ${SERVICE_PORT:-dynamic}
 
 tests:
   - name: resource_availability
     description: Verify all required resources are running
     steps:
-      - check: postgres_connection
-        command: pg_isready -h localhost -p 5432
-        expected: accepting connections
-      - check: redis_connection
-        command: redis-cli ping
-        expected: PONG
       - check: ollama_api
-        command: curl -f http://localhost:11434/api/version
+        command: curl -f http://localhost:${RESOURCE_PORTS[ollama]}/api/version
         expected_status: 200
       - check: n8n_health
-        command: curl -f http://localhost:5678/healthz
+        command: curl -f http://localhost:${RESOURCE_PORTS[n8n]}/healthz
         expected_status: 200
       - check: windmill_health
-        command: curl -f http://localhost:8000/api/version
+        command: curl -f http://localhost:${RESOURCE_PORTS[windmill]}/api/version
         expected_status: 200
+      - check: go_runtime
+        command: go version
+        contains: go1.21
 
-  - name: database_initialization
-    description: Verify database schema is properly initialized
+  - name: go_api_service
+    description: Verify Go coordination API is built and running
     steps:
-      - check: tables_exist
-        query: |
-          SELECT COUNT(*) FROM information_schema.tables 
-          WHERE table_schema = 'public' 
-          AND table_name IN ('prompts', 'workflows', 'templates', 'reasoning_chains', 'execution_history')
-        expected: 5
-      - check: enum_types
-        query: |
-          SELECT COUNT(*) FROM pg_type 
-          WHERE typname = 'reasoning_pattern'
-        expected: 1
+      - check: api_binary_exists
+        command: test -f api/metareasoning-api
+        expected_status: 0
+      - check: api_health
+        command: curl -f http://localhost:${SERVICE_PORT}/health
+        expected_status: 200
+      - check: api_workflows_endpoint
+        command: curl -f http://localhost:${SERVICE_PORT}/workflows
+        expected_status: 200
+        contains: pros-cons-analyzer
 
-  - name: workflow_deployment
-    description: Verify metareasoning workflows are deployed
+  - name: n8n_workflow_deployment
+    description: Verify all 5 metareasoning workflows are deployed to n8n
     steps:
       - check: pros_cons_workflow
-        command: curl -X GET http://localhost:5678/rest/workflows
+        command: curl -X GET http://localhost:${RESOURCE_PORTS[n8n]}/rest/workflows
         contains: pros-cons-analyzer
       - check: swot_workflow
-        command: curl -X GET http://localhost:5678/rest/workflows
+        command: curl -X GET http://localhost:${RESOURCE_PORTS[n8n]}/rest/workflows
         contains: swot-analysis
+      - check: risk_assessment_workflow
+        command: curl -X GET http://localhost:${RESOURCE_PORTS[n8n]}/rest/workflows
+        contains: risk-assessment
+      - check: self_review_workflow
+        command: curl -X GET http://localhost:${RESOURCE_PORTS[n8n]}/rest/workflows
+        contains: self-review
+      - check: reasoning_chain_workflow
+        command: curl -X GET http://localhost:${RESOURCE_PORTS[n8n]}/rest/workflows
+        contains: reasoning-chain
 
-  - name: api_endpoints
-    description: Test core API endpoints
+  - name: go_api_endpoints
+    description: Test Go coordination API endpoints
     steps:
-      - check: create_prompt
+      - check: health_endpoint
+        command: curl -f http://localhost:${SERVICE_PORT}/health
+        expected_status: 200
+        contains: "status":"healthy"
+      - check: workflows_registry
+        command: curl -f http://localhost:${SERVICE_PORT}/workflows
+        expected_status: 200
+        contains: pros-cons-analyzer
+      - check: analyze_pros_cons
         method: POST
-        url: http://localhost:8080/api/prompts
+        url: http://localhost:${SERVICE_PORT}/analyze/pros-cons
+        headers:
+          Content-Type: application/json
         body:
-          name: Test Prompt
-          content: Analyze {{input}} for potential issues
-          pattern: risk_assessment
-        expected_status: 201
-      - check: create_workflow
-        method: POST
-        url: http://localhost:8080/api/workflows
-        body:
-          name: Test Workflow
-          platform: n8n
-          workflow_data: {}
-        expected_status: 201
-      - check: execute_reasoning
-        method: POST
-        url: http://localhost:8080/api/execute
-        body:
-          type: pros_cons_analysis
           input: Should we implement feature X?
+          context: Technical decision
         expected_status: 200
-
-  - name: reasoning_patterns
-    description: Test metareasoning pattern execution
-    steps:
-      - check: pros_cons_analysis
+      - check: analyze_swot
         method: POST
-        url: http://localhost:5678/webhook/analyze-pros-cons
-        body:
-          input: Implementing a new feature
-          model: llama3.2
-        expected_status: 200
-      - check: swot_analysis
-        method: POST
-        url: http://localhost:5678/webhook/swot-analysis
+        url: http://localhost:${SERVICE_PORT}/analyze/swot
+        headers:
+          Content-Type: application/json
         body:
           input: New product launch
           context: Competitive market
         expected_status: 200
 
-  - name: windmill_integration
-    description: Verify Windmill workflow orchestration
+  - name: end_to_end_reasoning_flow
+    description: Test complete reasoning flow through Go API -> n8n -> Ollama
+    steps:
+      - check: pros_cons_via_api
+        method: POST
+        url: http://localhost:${SERVICE_PORT}/analyze/pros-cons
+        headers:
+          Content-Type: application/json
+        body:
+          input: Implementing a new microservice architecture
+          model: llama3.2
+        expected_status: 200
+        contains: pros
+        timeout: 60
+      - check: risk_assessment_via_api
+        method: POST
+        url: http://localhost:${SERVICE_PORT}/analyze/risk-assessment
+        headers:
+          Content-Type: application/json
+        body:
+          input: Migrating to cloud infrastructure
+          constraints: Limited budget and timeline
+        expected_status: 200
+        timeout: 60
+
+  - name: windmill_apps_deployment
+    description: Verify Windmill metareasoning apps are deployed
     steps:
       - check: windmill_api
-        command: curl -f http://localhost:8000/api/version
+        command: curl -f http://localhost:${RESOURCE_PORTS[windmill]}/api/version
         expected_status: 200
-      - check: create_windmill_flow
-        method: POST
-        url: http://localhost:8000/api/w/main/flows/create
-        body:
-          path: test_flow
-          summary: Test metareasoning flow
-        expected_status: 201
+      - check: metareasoning_orchestrator_app
+        command: curl -f http://localhost:${RESOURCE_PORTS[windmill]}/api/w/main/apps
+        expected_status: 200
+        contains: metareasoning-orchestrator
+      - check: prompt_tester_app
+        command: curl -f http://localhost:${RESOURCE_PORTS[windmill]}/api/w/main/apps
+        expected_status: 200
+        contains: prompt-tester
 
-  - name: ui_availability
-    description: Verify UI components are accessible
+  - name: cli_functionality
+    description: Verify metareasoning CLI is installed and functional
     steps:
-      - check: ui_homepage
-        command: curl -f http://localhost:3000
-        expected_status: 200
-      - check: prompt_editor
-        command: curl -f http://localhost:3000/prompts
-        expected_status: 200
-      - check: workflow_designer
-        command: curl -f http://localhost:3000/workflows
-        expected_status: 200
+      - check: cli_installed
+        command: which metareasoning
+        expected: /usr/local/bin/metareasoning
+      - check: cli_health
+        command: metareasoning health
+        expected_status: 0
+        contains: API Status
+      - check: cli_workflow_list
+        command: metareasoning workflow list
+        expected_status: 0
+        contains: pros-cons-analyzer
+      - check: cli_analyze_command
+        command: metareasoning analyze pros-cons "Should we adopt TypeScript?"
+        expected_status: 0
+        timeout: 30
 
   - name: model_availability
-    description: Verify required AI models are available
+    description: Verify required AI models are available in Ollama
     steps:
       - check: llama_model
         command: ollama list | grep llama3.2
@@ -144,6 +166,60 @@ tests:
       - check: codellama_model
         command: ollama list | grep codellama
         expected: codellama
+  
+  - name: configuration_loading
+    description: Verify configuration files are properly loaded
+    steps:
+      - check: prompt_library_exists
+        command: test -f initialization/configuration/prompt-library.json
+        expected_status: 0
+      - check: reasoning_templates_exists
+        command: test -f initialization/configuration/reasoning-templates.json
+        expected_status: 0
+      - check: workflow_registry_exists
+        command: test -f initialization/configuration/workflow-registry.json
+        expected_status: 0
+      - check: go_workflows_config
+        command: test -f api/workflows.json
+        expected_status: 0
+
+  - name: postgres_database
+    description: Verify PostgreSQL database and tables are initialized
+    steps:
+      - check: database_exists
+        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -lqt | cut -d \| -f 1 | grep -qw metareasoning
+        expected_status: 0
+      - check: execution_history_table
+        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d metareasoning -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'execution_history')"
+        contains: "t"
+      - check: workflow_metrics_table
+        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d metareasoning -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'workflow_metrics')"
+        contains: "t"
+      - check: reasoning_patterns_table
+        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d metareasoning -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'reasoning_patterns')"
+        contains: "t"
+      - check: seed_data_loaded
+        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d metareasoning -t -c "SELECT COUNT(*) FROM workflow_metrics"
+        min_value: 6
+
+  - name: qdrant_collections
+    description: Verify Qdrant vector collections are initialized
+    steps:
+      - check: qdrant_health
+        command: curl -f http://localhost:${RESOURCE_PORTS[qdrant]}/collections
+        expected_status: 200
+      - check: reasoning_patterns_collection
+        command: curl -f http://localhost:${RESOURCE_PORTS[qdrant]}/collections/reasoning_patterns
+        expected_status: 200
+        contains: "reasoning_patterns"
+      - check: execution_embeddings_collection
+        command: curl -f http://localhost:${RESOURCE_PORTS[qdrant]}/collections/execution_embeddings
+        expected_status: 200
+        contains: "execution_embeddings"
+      - check: prompt_templates_collection
+        command: curl -f http://localhost:${RESOURCE_PORTS[qdrant]}/collections/prompt_templates
+        expected_status: 200
+        contains: "prompt_templates"
 
 validation:
   timeout: 300
