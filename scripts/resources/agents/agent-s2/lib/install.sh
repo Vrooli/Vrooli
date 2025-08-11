@@ -2,9 +2,9 @@
 # Agent S2 Installation Logic
 
 # Source var.sh first to get proper directory variables
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+AGENT_S2_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${AGENT_S2_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
 
 # Source trash system for safe removal using var_ variables
 # shellcheck disable=SC1091

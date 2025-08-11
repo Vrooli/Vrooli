@@ -7,20 +7,20 @@ set -euo pipefail
 
 DESCRIPTION="Inject configurations and scripts into Browserless headless browser service"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+BROWSERLESS_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "$(dirname "$(dirname "$(dirname "${SCRIPT_DIR}")")")/lib/utils/var.sh"
+source "$(dirname "$(dirname "$(dirname "${BROWSERLESS_SCRIPT_DIR}")")")/lib/utils/var.sh"
 
 # Source common utilities using var_ variables
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 
 # Source Browserless configuration if available
-if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
+if [[ -f "${BROWSERLESS_SCRIPT_DIR}/config/defaults.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
+    source "${BROWSERLESS_SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
 fi
 
 # Default Browserless settings

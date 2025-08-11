@@ -7,19 +7,19 @@ set -euo pipefail
 
 DESCRIPTION="Inject search engines, settings, and configurations into SearXNG meta search engine"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+SEARXNG_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${SEARXNG_SCRIPT_DIR}/../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Source SearXNG configuration if available
-if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
+if [[ -f "${SEARXNG_SCRIPT_DIR}/config/defaults.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
+    source "${SEARXNG_SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
 fi
 
 # Default SearXNG settings

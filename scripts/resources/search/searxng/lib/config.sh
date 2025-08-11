@@ -3,9 +3,9 @@
 # Generate and manage SearXNG configuration files
 
 # Source trash module for safe cleanup
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SEARXNG_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${SEARXNG_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
@@ -13,7 +13,7 @@ source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 # Generate SearXNG settings.yml from template
 #######################################
 searxng::generate_config() {
-    local template_file="$SCRIPT_DIR/config/settings.yml.template"
+    local template_file="$SEARXNG_LIB_DIR/../config/settings.yml.template"
     local config_file="$SEARXNG_DATA_DIR/settings.yml"
     
     if [[ ! -f "$template_file" ]]; then
@@ -85,7 +85,7 @@ searxng::generate_limiter_config() {
         return 0
     fi
     
-    local template_file="$SCRIPT_DIR/docker/limiter.toml.template"
+    local template_file="$SEARXNG_LIB_DIR/../docker/limiter.toml.template"
     local config_file="$SEARXNG_DATA_DIR/limiter.toml"
     
     if [[ ! -f "$template_file" ]]; then

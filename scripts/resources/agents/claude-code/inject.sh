@@ -7,11 +7,11 @@ set -euo pipefail
 
 DESCRIPTION="Inject templates, prompts, and configurations into Claude Code assistant"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+CLAUDE_CODE_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${CLAUDE_CODE_SCRIPT_DIR}/../../../lib/utils/var.sh"
 
 # Source common utilities using var_ variables
 # shellcheck disable=SC1091
@@ -20,9 +20,9 @@ source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Source Claude Code configuration if available
-if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
+if [[ -f "${CLAUDE_CODE_SCRIPT_DIR}/config/defaults.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
+    source "${CLAUDE_CODE_SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
 fi
 
 # Default Claude Code settings

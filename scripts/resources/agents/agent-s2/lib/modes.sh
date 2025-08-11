@@ -105,7 +105,7 @@ agents2::setup_x11_permissions() {
 #######################################
 agents2::start_in_mode() {
     local mode="${1:-sandbox}"
-    local compose_files=("-f" "${SCRIPT_DIR}/docker/compose/docker-compose.yml")
+    local compose_files=("-f" "${AGENT_S2_SCRIPT_DIR}/docker/compose/docker-compose.yml")
     
     log::info "Starting Agent S2 in $mode mode..."
     
@@ -125,7 +125,7 @@ agents2::start_in_mode() {
             agents2::setup_x11_permissions
             
             # Add host mode compose override
-            compose_files+=("-f" "${SCRIPT_DIR}/docker/compose/docker-compose.host.yml")
+            compose_files+=("-f" "${AGENT_S2_SCRIPT_DIR}/docker/compose/docker-compose.host.yml")
             export AGENT_S2_MODE=host
             export AGENT_S2_HOST_MODE_ENABLED=true
             ;;

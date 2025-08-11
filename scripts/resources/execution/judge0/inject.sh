@@ -7,11 +7,11 @@ set -euo pipefail
 
 DESCRIPTION="Inject languages, submissions, and configurations into Judge0 code execution service"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+JUDGE0_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${JUDGE0_SCRIPT_DIR}/../../../lib/utils/var.sh"
 
 # Source common utilities using var_ variables
 # shellcheck disable=SC1091
@@ -20,9 +20,9 @@ source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Source Judge0 configuration if available
-if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
+if [[ -f "${JUDGE0_SCRIPT_DIR}/config/defaults.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
+    source "${JUDGE0_SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
 fi
 
 # Default Judge0 settings

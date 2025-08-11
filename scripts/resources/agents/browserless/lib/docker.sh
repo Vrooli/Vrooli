@@ -3,9 +3,9 @@
 # Container lifecycle management and Docker operations
 
 # Source var.sh first to get proper directory variables
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+BROWSERLESS_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${BROWSERLESS_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
 
 # Source trash system for safe removal using var_ variables
 # shellcheck disable=SC1091

@@ -196,7 +196,7 @@ claude_code::test() {
     fi
     
     # Report sandbox availability
-    if [[ -f "${SCRIPT_DIR}/../sandbox/claude-sandbox.sh" ]]; then
+    if [[ -f "${CLAUDE_CODE_SCRIPT_DIR}/sandbox/claude-sandbox.sh" ]]; then
         log::success "✓ Sandbox is available for safe testing"
     else
         log::info "ℹ️  Sandbox not available"

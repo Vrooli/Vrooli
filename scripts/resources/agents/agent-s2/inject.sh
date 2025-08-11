@@ -7,20 +7,20 @@ set -euo pipefail
 
 DESCRIPTION="Inject configurations and automations into Agent-S2 web automation agent"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+AGENT_S2_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${AGENT_S2_SCRIPT_DIR}/../../../lib/utils/var.sh"
 
 # Source common utilities using var_ variables
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 
 # Source Agent-S2 configuration if available
-if [[ -f "${SCRIPT_DIR}/config/defaults.sh" ]]; then
+if [[ -f "${AGENT_S2_SCRIPT_DIR}/config/defaults.sh" ]]; then
     # shellcheck disable=SC1091
-    source "${SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
+    source "${AGENT_S2_SCRIPT_DIR}/config/defaults.sh" 2>/dev/null || true
 fi
 
 # Default Agent-S2 settings  

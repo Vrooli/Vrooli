@@ -9,11 +9,11 @@ trap 'echo ""; log::info "Claude Code operation interrupted by user. Exiting..."
 
 DESCRIPTION="Manages Claude Code CLI installation and configuration"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+CLAUDE_CODE_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${CLAUDE_CODE_SCRIPT_DIR}/../../../lib/utils/var.sh"
 
 # Source common resources using var_ variables
 # shellcheck disable=SC1091
@@ -23,38 +23,38 @@ source "${var_LIB_UTILS_DIR}/args-cli.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/defaults.sh"
+source "${CLAUDE_CODE_SCRIPT_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/messages.sh"
+source "${CLAUDE_CODE_SCRIPT_DIR}/config/messages.sh"
 
 # Export configuration
 claude_code::export_config
 
 # Source all library modules
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/common.sh"
+source "${CLAUDE_CODE_SCRIPT_DIR}/lib/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/install.sh"
+source "${CLAUDE_CODE_SCRIPT_DIR}/lib/install.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/status.sh"
+source "${CLAUDE_CODE_SCRIPT_DIR}/lib/status.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/execute.sh"
+source "${CLAUDE_CODE_SCRIPT_DIR}/lib/execute.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/session.sh"
+source "${CLAUDE_CODE_SCRIPT_DIR}/lib/session.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/settings.sh"
+source "${CLAUDE_CODE_SCRIPT_DIR}/lib/settings.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/mcp.sh"
+source "${CLAUDE_CODE_SCRIPT_DIR}/lib/mcp.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/automation.sh"
+source "${CLAUDE_CODE_SCRIPT_DIR}/lib/automation.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/batch.sh"
+source "${CLAUDE_CODE_SCRIPT_DIR}/lib/batch.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/error-handling.sh"
+source "${CLAUDE_CODE_SCRIPT_DIR}/lib/error-handling.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/templates.sh"
+source "${CLAUDE_CODE_SCRIPT_DIR}/lib/templates.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/session-enhanced.sh"
+source "${CLAUDE_CODE_SCRIPT_DIR}/lib/session-enhanced.sh"
 
 #######################################
 # Parse command line arguments
@@ -544,7 +544,7 @@ claude_code::main() {
         "sandbox")
             # Run claude-code in sandboxed environment
             export SANDBOX_COMMAND="${SANDBOX_COMMAND:-interactive}"
-            "${SCRIPT_DIR}/sandbox/claude-sandbox.sh" "${SANDBOX_COMMAND}" "${PROMPT:-}"
+            "${CLAUDE_CODE_SCRIPT_DIR}/sandbox/claude-sandbox.sh" "${SANDBOX_COMMAND}" "${PROMPT:-}"
             ;;
         "test-safe")
             # Safe test mode - only checks status, no prompt execution
@@ -569,7 +569,7 @@ claude_code::main() {
                 fi
                 
                 # Report sandbox availability
-                if [[ -f "${SCRIPT_DIR}/sandbox/claude-sandbox.sh" ]]; then
+                if [[ -f "${CLAUDE_CODE_SCRIPT_DIR}/sandbox/claude-sandbox.sh" ]]; then
                     log::success "Sandbox is available for safe testing"
                     log::info "Use --action sandbox for isolated testing"
                 else

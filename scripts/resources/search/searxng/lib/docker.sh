@@ -2,6 +2,8 @@
 # SearXNG Docker Operations
 # All Docker-related operations for SearXNG containers
 
+SEARXNG_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
 #######################################
 # Create SearXNG Docker network
 #######################################
@@ -213,7 +215,7 @@ searxng::remove_container() {
 # Start SearXNG using Docker Compose
 #######################################
 searxng::compose_up() {
-    local compose_file="$SCRIPT_DIR/docker/docker-compose.yml"
+    local compose_file="$SEARXNG_LIB_DIR/../docker/docker-compose.yml"
     local redis_profile=""
     
     if [[ ! -f "$compose_file" ]]; then
@@ -253,7 +255,7 @@ searxng::compose_up() {
 # Stop SearXNG using Docker Compose
 #######################################
 searxng::compose_down() {
-    local compose_file="$SCRIPT_DIR/docker/docker-compose.yml"
+    local compose_file="$SEARXNG_LIB_DIR/../docker/docker-compose.yml"
     
     if [[ ! -f "$compose_file" ]]; then
         log::error "Docker Compose file not found: $compose_file"

@@ -3,23 +3,23 @@
 # Shared functions used across Judge0 management modules
 
 # Source required utilities
-SCRIPT_DIR_TRASH=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+JUDGE0_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR_TRASH}/../../../lib/utils/var.sh" 2>/dev/null || true
+source "${JUDGE0_LIB_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 # Load dependencies if not already loaded (but preserve test environment)
 if [[ -z "${JUDGE0_API_KEY_LENGTH:-}" ]]; then
     # Try to load config from relative path
-    SCRIPT_DIR_COMMON=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-    if [[ -f "${SCRIPT_DIR_COMMON}/config/defaults.sh" ]]; then
+    JUDGE0_PARENT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+    if [[ -f "${JUDGE0_PARENT_DIR}/config/defaults.sh" ]]; then
         # Store test environment variables
         _test_config_dir="${JUDGE0_CONFIG_DIR:-}"
         _test_data_dir="${JUDGE0_DATA_DIR:-}"
         
         # shellcheck disable=SC1091
-        source "${SCRIPT_DIR_COMMON}/config/defaults.sh"
+        source "${JUDGE0_PARENT_DIR}/config/defaults.sh"
         judge0::export_config
         
         # Restore test environment if it was set
@@ -38,7 +38,7 @@ fi
 # Load logging utilities if not available
 if ! declare -f log::info >/dev/null 2>&1; then
     # Try to source log utilities
-    RESOURCES_DIR_COMMON="${SCRIPT_DIR_COMMON}/../.."
+    RESOURCES_DIR_COMMON="${JUDGE0_PARENT_DIR}/../.."
     if [[ -f "${RESOURCES_DIR_COMMON}/../lib/utils/log.sh" ]]; then
         # shellcheck disable=SC1091
         source "${RESOURCES_DIR_COMMON}/../lib/utils/log.sh"

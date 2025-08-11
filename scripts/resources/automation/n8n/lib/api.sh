@@ -10,6 +10,8 @@ source "${var_LIB_SERVICE_DIR}/secrets.sh"
 source "${SCRIPT_DIR}/../../lib/http-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/utils.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/constants.sh" 2>/dev/null || true
 
 #######################################
 # Execute workflow via API
@@ -31,7 +33,7 @@ n8n::execute() {
     local api_key
     api_key=$(n8n::resolve_api_key)
     if [[ -z "$api_key" ]]; then
-        log::warn "No API key found"
+        log::warn "$N8N_ERR_API_KEY_MISSING"
         echo ""
         n8n::show_api_setup_instructions
         return 1

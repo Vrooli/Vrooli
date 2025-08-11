@@ -6,11 +6,11 @@
 set -euo pipefail
 
 # Source shared integration test library
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AGENT_S2_TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../../../lib/utils/var.sh"
+source "$AGENT_S2_TEST_DIR/../../../../lib/utils/var.sh"
 
 # shellcheck disable=SC1091
 source "$var_SCRIPTS_RESOURCES_DIR/tests/lib/integration-test-lib.sh"
@@ -23,7 +23,7 @@ source "$var_SCRIPTS_RESOURCES_DIR/tests/lib/integration-test-lib.sh"
 # shellcheck disable=SC1091
 source "$var_SCRIPTS_RESOURCES_DIR/common.sh"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../config/defaults.sh"
+source "$AGENT_S2_TEST_DIR/../config/defaults.sh"
 agents2::export_config
 
 # Override library defaults with Agent-S2-specific settings

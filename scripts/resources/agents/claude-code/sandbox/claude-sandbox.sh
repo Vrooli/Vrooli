@@ -5,11 +5,11 @@
 set -euo pipefail
 
 # Script directory
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CLAUDE_CODE_SANDBOX_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+source "${CLAUDE_CODE_SANDBOX_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
@@ -18,8 +18,8 @@ source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 
 # Local directories
-DOCKER_DIR="${SCRIPT_DIR}/docker"
-TEST_FILES_DIR="${SCRIPT_DIR}/test-files"
+DOCKER_DIR="${CLAUDE_CODE_SANDBOX_DIR}/docker"
+TEST_FILES_DIR="${CLAUDE_CODE_SANDBOX_DIR}/test-files"
 
 # Configuration
 CLAUDE_SANDBOX_CONFIG="${CLAUDE_SANDBOX_CONFIG:-${HOME}/.claude-sandbox}"

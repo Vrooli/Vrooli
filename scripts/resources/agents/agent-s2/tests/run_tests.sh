@@ -4,11 +4,11 @@
 
 set -euo pipefail
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+AGENT_S2_TESTS_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
+source "${AGENT_S2_TESTS_DIR}/../../../../lib/utils/var.sh"
 
 # Source common utilities using var_ variables
 # shellcheck disable=SC1091
@@ -18,7 +18,7 @@ source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
-AGENT_S2_DIR="${SCRIPT_DIR}/.."
+AGENT_S2_DIR="${AGENT_S2_TESTS_DIR}/.."
 PYTHON_VENV=""
 TEST_RESULTS_DIR="${var_ROOT_DIR}/data/test-outputs/agent-s2-tests"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
@@ -230,23 +230,23 @@ build_pytest_command() {
     # Determine test paths based on test type
     case "$TEST_TYPE" in
         "unit")
-            test_paths=("${SCRIPT_DIR}/unit")
+            test_paths=("${AGENT_S2_TESTS_DIR}/unit")
             ;;
         "integration") 
-            test_paths=("${SCRIPT_DIR}/integration")
+            test_paths=("${AGENT_S2_TESTS_DIR}/integration")
             ;;
         "modes")
-            test_paths=("${SCRIPT_DIR}/modes")
+            test_paths=("${AGENT_S2_TESTS_DIR}/modes")
             ;;
         "security")
-            test_paths=("${SCRIPT_DIR}/unit/test_security.py")
+            test_paths=("${AGENT_S2_TESTS_DIR}/unit/test_security.py")
             ;;
         "quick")
-            test_paths=("${SCRIPT_DIR}")
+            test_paths=("${AGENT_S2_TESTS_DIR}")
             pytest_args+=("-m" "not slow")
             ;;
         "all")
-            test_paths=("${SCRIPT_DIR}")
+            test_paths=("${AGENT_S2_TESTS_DIR}")
             ;;
         *)
             print_error "Unknown test type: $TEST_TYPE"
@@ -322,7 +322,7 @@ run_tests() {
     print_status "Results Directory: $TEST_RESULTS_DIR"
     
     # Change to test directory
-    cd "$SCRIPT_DIR"
+    cd "$AGENT_S2_TESTS_DIR"
     
     # Run tests
     local start_time

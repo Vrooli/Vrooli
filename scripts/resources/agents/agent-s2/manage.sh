@@ -9,11 +9,11 @@ trap 'echo ""; log::info "Agent S2 installation interrupted by user. Exiting..."
 
 DESCRIPTION="Install and manage Agent S2 autonomous computer interaction service using Docker"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+AGENT_S2_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Source var.sh first to get proper directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${AGENT_S2_SCRIPT_DIR}/../../../lib/utils/var.sh"
 
 # Source common resources using var_ variables
 # shellcheck disable=SC1091
@@ -23,30 +23,30 @@ source "${var_LIB_UTILS_DIR}/args-cli.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/defaults.sh"
+source "${AGENT_S2_SCRIPT_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/messages.sh"
+source "${AGENT_S2_SCRIPT_DIR}/config/messages.sh"
 
 # Export messages (config will be exported after parsing arguments)
 agents2::export_messages
 
 # Source all library modules
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/common.sh"
+source "${AGENT_S2_SCRIPT_DIR}/lib/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/docker.sh"
+source "${AGENT_S2_SCRIPT_DIR}/lib/docker.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/status.sh"
+source "${AGENT_S2_SCRIPT_DIR}/lib/status.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/install.sh"
+source "${AGENT_S2_SCRIPT_DIR}/lib/install.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/api.sh"
+source "${AGENT_S2_SCRIPT_DIR}/lib/api.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/usage.sh"
+source "${AGENT_S2_SCRIPT_DIR}/lib/usage.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/modes.sh"
+source "${AGENT_S2_SCRIPT_DIR}/lib/modes.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/stealth.sh"
+source "${AGENT_S2_SCRIPT_DIR}/lib/stealth.sh"
 
 #######################################
 # Parse command line arguments

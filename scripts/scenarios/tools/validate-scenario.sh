@@ -478,14 +478,17 @@ validate_resource_initializations() {
     
     # Process each resource category
     for category in ai automation agents storage execution; do
+        print_info "Processing category: $category"
         # Get resources in this category
         local resources
-        resources=$(echo "$VALIDATE_SERVICE_JSON" | jq -r "
+        resources=$(timeout 5 echo "$VALIDATE_SERVICE_JSON" | jq -r "
             .resources.$category // {} | 
             to_entries[] | 
             select(.value.enabled == true) | 
             .key
         " 2>/dev/null || true)
+        
+        print_info "Found resources in $category: $resources"
         
         [[ -z "$resources" ]] && continue
         
@@ -494,9 +497,11 @@ validate_resource_initializations() {
             
             # Get initialization array
             local init_items
-            init_items=$(echo "$VALIDATE_SERVICE_JSON" | jq -c "
+            init_items=$(timeout 5 echo "$VALIDATE_SERVICE_JSON" | jq -c "
                 .resources.$category.\"$resource_type\".initialization // []
-            " 2>/dev/null)
+            " 2>/dev/null || echo "[]")
+            
+            print_info "Processing $resource_type with initialization items: $init_items"
             
             # Skip if no initialization
             [[ "$init_items" == "[]" ]] && continue
@@ -508,15 +513,19 @@ validate_resource_initializations() {
                 continue
             fi
             
-            # Validate each item
-            echo "$init_items" | jq -c '.[]' | while IFS= read -r item; do
+            # Get the length of the array and iterate by index
+            local array_length
+            array_length=$(timeout 3 echo "$init_items" | jq 'length' 2>/dev/null || echo "0")
+            print_info "Found $array_length initialization items for $resource_type"
+            
+            for (( i=0; i<array_length; i++ )); do
                 ((total++))
                 
                 local item_type item_file item_enabled item_description
-                item_type=$(echo "$item" | jq -r '.type')
-                item_file=$(echo "$item" | jq -r '.file')
-                item_enabled=$(echo "$item" | jq -r '.enabled // true')
-                item_description=$(echo "$item" | jq -r '.description // ""')
+                item_type=$(timeout 3 echo "$init_items" | jq -r ".[$i].type" 2>/dev/null || echo "unknown")
+                item_file=$(timeout 3 echo "$init_items" | jq -r ".[$i].file" 2>/dev/null || echo "")
+                item_enabled=$(timeout 3 echo "$init_items" | jq -r ".[$i].enabled // true" 2>/dev/null || echo "true")
+                item_description=$(timeout 3 echo "$init_items" | jq -r ".[$i].description // \"\"" 2>/dev/null || echo "")
                 
                 # Skip disabled items
                 if [[ "$item_enabled" == "false" ]]; then
@@ -535,9 +544,9 @@ validate_resource_initializations() {
                     continue
                 fi
                 
-                # Run validation using new interface
+                # Run validation using new interface with timeout protection
                 local validation_result=0
-                "$manage_script" \
+                timeout 10 "$manage_script" \
                     --action validate-injection \
                     --validation-type "$item_type" \
                     --validation-file "$file_path" \
@@ -548,6 +557,10 @@ validate_resource_initializations() {
                     [[ -n "$item_description" ]] && display_name="$display_name ($item_description)"
                     print_success "$resource_type: $item_type validated ($display_name)"
                     ((passed++))
+                elif [[ $validation_result -eq 124 ]]; then
+                    local display_name="$(basename "$item_file")"
+                    print_warning "$resource_type: $item_type validation timed out ($display_name)"
+                    ((failed++))
                 else
                     local display_name="$(basename "$item_file")"
                     print_warning "$resource_type: $item_type validation failed ($display_name)"

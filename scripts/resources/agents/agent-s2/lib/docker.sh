@@ -9,7 +9,7 @@
 agents2::docker_build() {
     log::info "$MSG_BUILDING_IMAGE"
     
-    local build_dir="${SCRIPT_DIR}"
+    local build_dir="${AGENT_S2_SCRIPT_DIR}"
     local dockerfile="${build_dir}/docker/images/agent-s2/Dockerfile"
     
     # Ensure Dockerfile exists
@@ -18,7 +18,7 @@ agents2::docker_build() {
         return 1
     fi
     
-    # Build with proper arguments - note context is at SCRIPT_DIR level
+    # Build with proper arguments - note context is at AGENT_S2_SCRIPT_DIR level
     local build_args=(
         --build-arg "VNC_PASSWORD=$AGENTS2_VNC_PASSWORD"
         --build-arg "USER_ID=$AGENTS2_USER_ID"
@@ -279,7 +279,7 @@ agents2::cleanup_nat_rules() {
     log::info "Cleaning up Agent-S2 NAT redirection rules..."
     
     # Use the clean-iptables.sh script if available
-    local cleanup_script="${SCRIPT_DIR}/docker/scripts/clean-iptables.sh"
+    local cleanup_script="${AGENT_S2_SCRIPT_DIR}/docker/scripts/clean-iptables.sh"
     
     if [[ -f "$cleanup_script" ]]; then
         log::debug "Using cleanup script: $cleanup_script"

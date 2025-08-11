@@ -6,11 +6,11 @@ set -euo pipefail
 
 DESCRIPTION="Install and manage SearXNG metasearch engine using Docker"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+SEARXNG_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Source var.sh first to get path variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${SEARXNG_SCRIPT_DIR}/../../../lib/utils/var.sh"
 
 # Source common resources using var_ variables
 # shellcheck disable=SC1091
@@ -22,26 +22,26 @@ source "${var_APP_UTILS_DIR}/docker.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/defaults.sh"
+source "${SEARXNG_SCRIPT_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/messages.sh"
+source "${SEARXNG_SCRIPT_DIR}/config/messages.sh"
 
 # Export configuration
 searxng::export_config
 
 # Source all library modules
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/common.sh"
+source "${SEARXNG_SCRIPT_DIR}/lib/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/docker.sh"
+source "${SEARXNG_SCRIPT_DIR}/lib/docker.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/install.sh"
+source "${SEARXNG_SCRIPT_DIR}/lib/install.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/status.sh"
+source "${SEARXNG_SCRIPT_DIR}/lib/status.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/config.sh"
+source "${SEARXNG_SCRIPT_DIR}/lib/config.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/api.sh"
+source "${SEARXNG_SCRIPT_DIR}/lib/api.sh"
 
 #######################################
 # Parse command line arguments

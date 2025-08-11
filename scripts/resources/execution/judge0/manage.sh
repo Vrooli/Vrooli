@@ -6,11 +6,11 @@ set -euo pipefail
 
 DESCRIPTION="Install and manage Judge0 secure code execution service"
 
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+JUDGE0_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../lib/utils/var.sh"
+source "${JUDGE0_SCRIPT_DIR}/../../../lib/utils/var.sh"
 
 # Handle Ctrl+C gracefully
 trap 'echo ""; log::info "Judge0 operation interrupted by user. Exiting..."; exit 130' INT TERM
@@ -23,9 +23,9 @@ source "${var_LIB_UTILS_DIR}/args-cli.sh"
 
 # Source configuration modules
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/defaults.sh"
+source "${JUDGE0_SCRIPT_DIR}/config/defaults.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/config/messages.sh"
+source "${JUDGE0_SCRIPT_DIR}/config/messages.sh"
 
 # Export configuration and messages
 judge0::export_config
@@ -33,21 +33,21 @@ judge0::export_messages
 
 # Source all library modules
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/common.sh"
+source "${JUDGE0_SCRIPT_DIR}/lib/common.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/install.sh"
+source "${JUDGE0_SCRIPT_DIR}/lib/install.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/docker.sh"
+source "${JUDGE0_SCRIPT_DIR}/lib/docker.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/status.sh"
+source "${JUDGE0_SCRIPT_DIR}/lib/status.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/api.sh"
+source "${JUDGE0_SCRIPT_DIR}/lib/api.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/languages.sh"
+source "${JUDGE0_SCRIPT_DIR}/lib/languages.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/security.sh"
+source "${JUDGE0_SCRIPT_DIR}/lib/security.sh"
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/lib/usage.sh"
+source "${JUDGE0_SCRIPT_DIR}/lib/usage.sh"
 
 #######################################
 # Parse command line arguments
@@ -204,7 +204,7 @@ judge0::main() {
         monitor)
             log::info "Starting Judge0 security monitoring..."
             log::warn "WARNING: Running with elevated privileges - monitor actively for security alerts"
-            "${SCRIPT_DIR}/lib/security-monitor.sh"
+            "${JUDGE0_SCRIPT_DIR}/lib/security-monitor.sh"
             ;;
         *)
             log::error "Unknown action: $action"

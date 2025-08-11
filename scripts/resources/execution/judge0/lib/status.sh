@@ -5,10 +5,10 @@
 # Load dependencies if not already loaded
 if [[ -z "${JUDGE0_WORKERS_COUNT:-}" ]]; then
     # Try to load config from relative path
-    SCRIPT_DIR_STATUS=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
-    if [[ -f "${SCRIPT_DIR_STATUS}/config/defaults.sh" ]]; then
+    JUDGE0_PARENT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+    if [[ -f "${JUDGE0_PARENT_DIR}/config/defaults.sh" ]]; then
         # shellcheck disable=SC1091
-        source "${SCRIPT_DIR_STATUS}/config/defaults.sh"
+        source "${JUDGE0_PARENT_DIR}/config/defaults.sh"
         judge0::export_config
     fi
 fi

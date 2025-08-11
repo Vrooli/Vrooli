@@ -6,20 +6,20 @@
 set -euo pipefail
 
 # Source enhanced integration test library with fixture support
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+BROWSERLESS_TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../../../tests/lib/enhanced-integration-test-lib.sh"
+source "$BROWSERLESS_TEST_DIR/../../../tests/lib/enhanced-integration-test-lib.sh"
 
 #######################################
 # SERVICE-SPECIFIC CONFIGURATION
 #######################################
 
 # Load Browserless configuration
-RESOURCES_DIR="$SCRIPT_DIR/../../.."
+RESOURCES_DIR="$BROWSERLESS_TEST_DIR/../../.."
 # shellcheck disable=SC1091
 source "$RESOURCES_DIR/common.sh"
 # shellcheck disable=SC1091
-source "$SCRIPT_DIR/../config/defaults.sh"
+source "$BROWSERLESS_TEST_DIR/../config/defaults.sh"
 browserless::export_config
 
 # Override library defaults with Browserless-specific settings

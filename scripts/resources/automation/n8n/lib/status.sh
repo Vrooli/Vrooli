@@ -12,6 +12,8 @@ source "${SCRIPT_DIR}/../../lib/http-utils.sh" 2>/dev/null || true
 source "${SCRIPT_DIR}/health.sh"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/utils.sh"
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/constants.sh" 2>/dev/null || true
 
 #######################################
 # Display container status and stats
@@ -113,13 +115,13 @@ n8n::enhanced_status() {
 n8n::status() {
     # Pre-flight checks
     if ! system::is_command "docker"; then
-        log::error "Docker is not installed"
-        log::info "Please install Docker first: https://docs.docker.com/get-docker/"
+        log::error "$N8N_ERR_DOCKER_NOT_INSTALLED"
+        log::info "$N8N_FIX_INSTALL_DOCKER"
         return 1
     fi
     if ! docker info >/dev/null 2>&1; then
-        log::error "Docker daemon is not running"
-        log::info "Start Docker with: sudo systemctl start docker"
+        log::error "$N8N_ERR_DOCKER_NOT_RUNNING"
+        log::info "$N8N_FIX_START_DOCKER"
         return 1
     fi
     # Use enhanced status with tiered health check
@@ -213,7 +215,7 @@ EOF
 #######################################
 n8n::inspect() {
     if ! n8n::container_exists_any; then
-        log::error "n8n container does not exist"
+        log::error "$N8N_ERR_CONTAINER_NOT_EXISTS"
         return 1
     fi
     log::header "🔍 n8n Container Details"
@@ -248,7 +250,7 @@ EOF
 #######################################
 n8n::version() {
     if ! n8n::container_running; then
-        log::error "n8n is not running"
+        log::error "$N8N_ERR_CONTAINER_NOT_RUNNING"
         return 1
     fi
     local version
@@ -266,7 +268,7 @@ n8n::version() {
 #######################################
 n8n::stats() {
     if ! n8n::container_running; then
-        log::error "n8n is not running"
+        log::error "$N8N_ERR_CONTAINER_NOT_RUNNING"
         return 1
     fi
     log::header "📈 n8n Resource Usage"
@@ -329,7 +331,7 @@ n8n::check_all() {
             all_good=false
         fi
     else
-        log::error "❌ n8n container does not exist"
+        log::error "❌ $N8N_ERR_CONTAINER_NOT_EXISTS"
         all_good=false
     fi
     # API check with enhanced diagnostics
@@ -395,13 +397,13 @@ n8n::test() {
     log::info "Testing n8n functionality..."
     # Test 1: Check if Docker is available
     if ! system::is_command "docker"; then
-        log::error "❌ Docker is not installed"
+        log::error "❌ $N8N_ERR_DOCKER_NOT_INSTALLED"
         return 1
     fi
     log::success "✅ Docker is available"
     # Test 2: Check if n8n container exists
     if ! n8n::container_exists_any; then
-        log::error "❌ n8n container does not exist"
+        log::error "❌ $N8N_ERR_CONTAINER_NOT_EXISTS"
         return 1
     fi
     log::success "✅ n8n container exists"

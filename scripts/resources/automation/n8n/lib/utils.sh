@@ -10,6 +10,8 @@ source "${SCRIPT_DIR}/../../../lib/docker-utils.sh" 2>/dev/null || true
 source "${SCRIPT_DIR}/../../../lib/http-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../../../lib/wait-utils.sh" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "${SCRIPT_DIR}/constants.sh" 2>/dev/null || true
 
 #######################################
 # Unified API key resolution
@@ -117,7 +119,7 @@ n8n::validate_api_key_setup() {
     local api_key
     api_key=$(n8n::resolve_api_key)
     if [[ -z "$api_key" ]]; then
-        n8n::log_with_context "error" "api" "No API key found"
+        n8n::log_with_context "error" "api" "$N8N_ERR_API_KEY_MISSING"
         return 1
     fi
     # Test the API key with a simple request
@@ -131,7 +133,7 @@ n8n::validate_api_key_setup() {
             return 0
             ;;
         401)
-            n8n::log_with_context "error" "api" "API key is invalid or expired"
+            n8n::log_with_context "error" "api" "$N8N_ERR_API_KEY_INVALID"
             return 1
             ;;
         403)
