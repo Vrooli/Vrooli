@@ -42,6 +42,10 @@ else
     log::header() { echo ""; echo "🎯 $*"; echo ""; }
 fi
 
+# Source sudo utilities
+# shellcheck disable=SC1091
+source "${PROJECT_ROOT}/scripts/lib/utils/sudo.sh"
+
 # Configuration
 FORCE=false
 VERBOSE=false
@@ -208,6 +212,11 @@ save_hashes() {
     # Create data directory if needed
     mkdir -p "$hash_dir"
     echo "$hashes_json" | jq '.' > "$HASH_FILE"
+    
+    # Fix permissions if running under sudo
+    sudo::restore_owner "$HASH_FILE"
+    sudo::restore_owner "$hash_dir"
+    
     [[ "$VERBOSE" == "true" ]] && log::info "Updated scenario hashes: $HASH_FILE"
 }
 

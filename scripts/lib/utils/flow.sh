@@ -8,6 +8,8 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/var.sh"
 source "${var_EXIT_CODES_FILE}"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
+# shellcheck disable=SC1091
+source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/sudo.sh"
 
 # Returns 0 if the first argument is a recognized "yes" (y/yes), else 1.
 flow::is_yes() {
@@ -98,7 +100,7 @@ flow::can_run_sudo() {
 
     # If error mode, abort; otherwise just skip
     if [[ "$mode" == "error" ]]; then
-        if [[ -n "${SUDO_USER:-}" ]]; then
+        if sudo::is_running_as_sudo; then
             flow::exit_with_error "Running under sudo but can't execute privileged operations for: $operation. This usually means sudo has timed out or there's a permission issue." "$EXIT_GENERAL_ERROR"
         else
             flow::exit_with_error "Unable to run sudo for: $operation. Either run setup with 'sudo' prefix, or use --sudo-mode skip to bypass privileged operations." "$EXIT_GENERAL_ERROR"
@@ -117,15 +119,3 @@ flow::maybe_run_sudo() {
     fi
 }
 
-# Run command as the actual user when running under sudo
-# This ensures files created are owned by the actual user, not root
-flow::run_as_user() {
-    local cmd="$*"
-    if [[ -n "${SUDO_USER:-}" ]]; then
-        # Running with sudo - execute as the actual user
-        flow::maybe_run_sudo -u "${SUDO_USER}" bash -c "$cmd"
-    else
-        # Not running with sudo - execute normally
-        bash -c "$cmd"
-    fi
-}

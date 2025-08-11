@@ -23,6 +23,8 @@ nodejs::ensure_installed() {
 source "${var_LIB_UTILS_DIR}/retry.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/hash.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/sudo.sh"
 
 # Default Node.js version if not specified
 DEFAULT_NODE_VERSION="20"
@@ -376,18 +378,20 @@ nodejs::check_and_install() {
     platform=$(nodejs::get_platform)
     
     # If running with sudo on Linux, check if Node.js is available to the actual user
-    if [[ -n "${SUDO_USER:-}" ]] && [[ "$platform" == "linux" ]] && flow::can_run_sudo "user Node.js check"; then
-        log::info "Running with sudo - checking if Node.js is available to user: ${SUDO_USER}"
+    if sudo::is_running_as_sudo && [[ "$platform" == "linux" ]] && flow::can_run_sudo "user Node.js check"; then
+        local actual_user
+        actual_user=$(sudo::get_actual_user)
+        log::info "Running with sudo - checking if Node.js is available to user: ${actual_user}"
         
         # Check if Node.js is available to the actual user (not root)
         local node_available_to_user=false
-        if flow::maybe_run_sudo -u "${SUDO_USER}" bash -c 'command -v node >/dev/null 2>&1'; then
+        if sudo::exec_as_actual_user 'command -v node >/dev/null 2>&1'; then
             node_available_to_user=true
             local user_node_version
-            user_node_version=$(flow::maybe_run_sudo -u "${SUDO_USER}" bash -c 'node --version 2>/dev/null' || echo "unknown")
-            log::info "Node.js is available to ${SUDO_USER}: ${user_node_version}"
+            user_node_version=$(sudo::exec_as_actual_user 'node --version 2>/dev/null' || echo "unknown")
+            log::info "Node.js is available to ${actual_user}: ${user_node_version}"
         else
-            log::info "Node.js is NOT available to ${SUDO_USER}"
+            log::info "Node.js is NOT available to ${actual_user}"
         fi
         
         # If Node.js is not available to the actual user, install it system-wide
@@ -397,7 +401,7 @@ nodejs::check_and_install() {
             return $?
         else
             # Node.js is already available to the user
-            log::info "Node.js is already accessible to ${SUDO_USER}, skipping installation"
+            log::info "Node.js is already accessible to ${actual_user}, skipping installation"
             return 0
         fi
     fi
@@ -450,12 +454,12 @@ nodejs::ensure_pnpm() {
         log::info "Using corepack to enable pnpm..."
         
         # Enable corepack and prepare pnpm
-        flow::run_as_user "corepack enable" || true
+        sudo::exec_as_actual_user "corepack enable" || true
         
         if [[ "$version" == "latest" ]]; then
-            flow::run_as_user "corepack prepare pnpm@latest --activate" || true
+            sudo::exec_as_actual_user "corepack prepare pnpm@latest --activate" || true
         else
-            flow::run_as_user "corepack prepare pnpm@${version} --activate" || true
+            sudo::exec_as_actual_user "corepack prepare pnpm@${version} --activate" || true
         fi
         
         # Check if pnpm is now available
@@ -469,33 +473,22 @@ nodejs::ensure_pnpm() {
     log::info "Installing pnpm standalone..."
     
     # Set PNPM_HOME based on actual user's home directory
-    local actual_home="$HOME"
-    if [[ -n "${SUDO_USER:-}" ]]; then
-        actual_home=$(eval echo "~${SUDO_USER}")
-    fi
+    local actual_home
+    actual_home=$(sudo::get_actual_home)
     export PNPM_HOME="$actual_home/.local/share/pnpm"
     
     # Create directory with proper ownership
-    if [[ -n "${SUDO_USER:-}" ]]; then
-        sudo -u "${SUDO_USER}" mkdir -p "$PNPM_HOME"
-    else
-        mkdir -p "$PNPM_HOME"
-    fi
+    sudo::mkdir_as_user "$PNPM_HOME"
     
     # Download and run pnpm installer with retry
     local pnpm_install_url="https://get.pnpm.io/install.sh"
-    if [[ -n "${SUDO_USER:-}" ]]; then
-        # For sudo users, we need to download first then pipe to their bash
-        local install_script
-        install_script=$(retry::download "$pnpm_install_url")
-        if [[ -z "$install_script" ]]; then
-            log::error "Failed to download pnpm installer"
-            return 1
-        fi
-        echo "$install_script" | sudo -u "${SUDO_USER}" bash -c "export PNPM_HOME='$PNPM_HOME' && bash -"
-    else
-        retry::download "$pnpm_install_url" | bash -
+    local install_script
+    install_script=$(retry::download "$pnpm_install_url")
+    if [[ -z "$install_script" ]]; then
+        log::error "Failed to download pnpm installer"
+        return 1
     fi
+    echo "$install_script" | sudo::exec_as_actual_user "export PNPM_HOME='$PNPM_HOME' && bash -"
     
     # Add to PATH for current session
     export PATH="$PNPM_HOME:$PATH"
@@ -530,7 +523,7 @@ nodejs::ensure_npm() {
     # Update npm to latest if requested
     if [[ "${1:-}" == "--update" ]]; then
         log::info "Updating npm to latest version..."
-        flow::run_as_user "npm install -g npm@latest"
+        sudo::exec_as_actual_user "npm install -g npm@latest"
         log::success "npm updated to: $(npm --version)"
     fi
     
@@ -554,12 +547,12 @@ nodejs::ensure_yarn() {
     # Try corepack first
     if system::is_command corepack; then
         log::info "Using corepack to enable yarn..."
-        flow::run_as_user "corepack enable"
+        sudo::exec_as_actual_user "corepack enable"
         
         if [[ "$version" == "latest" ]]; then
-            flow::run_as_user "corepack prepare yarn@stable --activate"
+            sudo::exec_as_actual_user "corepack prepare yarn@stable --activate"
         else
-            flow::run_as_user "corepack prepare yarn@${version} --activate"
+            sudo::exec_as_actual_user "corepack prepare yarn@${version} --activate"
         fi
         
         if system::is_command yarn; then
@@ -571,7 +564,7 @@ nodejs::ensure_yarn() {
     # Fallback to npm installation
     if system::is_command npm; then
         log::info "Installing yarn via npm..."
-        flow::run_as_user "npm install -g yarn"
+        sudo::exec_as_actual_user "npm install -g yarn"
         
         if system::is_command yarn; then
             log::success "yarn installed via npm: $(yarn --version)"
@@ -634,15 +627,15 @@ nodejs::install_dependencies() {
     case "$pkg_manager" in
         pnpm)
             nodejs::ensure_pnpm || return 1
-            flow::run_as_user "pnpm install $flags"
+            sudo::exec_as_actual_user "pnpm install $flags"
             ;;
         yarn)
             nodejs::ensure_yarn || return 1
-            flow::run_as_user "yarn install $flags"
+            sudo::exec_as_actual_user "yarn install $flags"
             ;;
         npm)
             nodejs::ensure_npm || return 1
-            flow::run_as_user "npm install $flags"
+            sudo::exec_as_actual_user "npm install $flags"
             ;;
     esac
     

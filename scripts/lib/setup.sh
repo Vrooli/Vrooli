@@ -46,6 +46,8 @@ source "${var_LIB_UTILS_DIR}/target_matcher.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/permissions.sh"  # Consolidated permissions
 # shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/sudo.sh"  # Sudo utilities
+# shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/clock.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_NETWORK_DIR}/diagnostics/network_diagnostics.sh"
@@ -118,7 +120,7 @@ setup::generic_main() {
     # Set SUDO_MODE based on context if not explicitly set
     if [[ -z "${SUDO_MODE_EXPLICIT:-}" ]]; then
         # If running as root or with sudo, default to error mode
-        if [[ $EUID -eq 0 ]] || [[ -n "${SUDO_USER:-}" ]]; then
+        if sudo::is_root || sudo::is_running_as_sudo; then
             log::debug "Running with sudo privileges - setting SUDO_MODE=error"
             export SUDO_MODE="error"
         else

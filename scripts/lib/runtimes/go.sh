@@ -18,6 +18,8 @@ source "${var_LIB_SYSTEM_DIR}/trash.sh"
 source "${var_LIB_UTILS_DIR}/retry.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/permissions.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/sudo.sh"
 
 # Clean interface for setup.sh
 go::ensure_installed() {
@@ -375,7 +377,7 @@ go::install_system_wide() {
     log::header "Installing Go system-wide..."
     
     # Check if running with proper permissions
-    if [[ $EUID -ne 0 ]] && [[ -z "${SUDO_USER:-}" ]]; then
+    if ! sudo::is_root; then
         log::error "System-wide installation requires root privileges"
         return 1
     fi
@@ -402,14 +404,16 @@ EOF
     log::success "Go installed system-wide at /usr/local/go"
     
     # If we have SUDO_USER, also set up their personal environment
-    if [[ -n "${SUDO_USER:-}" ]]; then
+    if sudo::is_running_as_sudo; then
         local user_home
-        user_home=$(eval echo "~${SUDO_USER}")
-        sudo -u "${SUDO_USER}" bash -c "
+        user_home=$(sudo::get_actual_home)
+        local actual_user
+        actual_user=$(sudo::get_actual_user)
+        sudo::exec_as_actual_user "
             export GOPATH=\"${user_home}/go\"
             mkdir -p \"\$GOPATH\"/{bin,src,pkg}
         "
-        log::info "Created Go workspace for user: ${SUDO_USER} at ${user_home}/go"
+        log::info "Created Go workspace for user: ${actual_user} at ${user_home}/go"
     fi
     
     return 0
@@ -442,7 +446,7 @@ go::check_and_install() {
     fi
     
     # Check if we're running with sudo privileges
-    if [[ -n "${SUDO_USER:-}" ]] && [[ "$platform" == "linux" ]]; then
+    if sudo::is_running_as_sudo && [[ "$platform" == "linux" ]]; then
         log::info "Running with sudo - installing Go system-wide"
         go::install_system_wide "$version"
         return $?

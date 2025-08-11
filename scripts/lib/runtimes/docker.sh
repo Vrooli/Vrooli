@@ -23,6 +23,8 @@ source "${var_LOG_FILE}"
 source "${var_LIB_SYSTEM_DIR}/system_commands.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/sudo.sh"
 
 ################################################################################
 # Core Docker Command Wrappers
@@ -158,7 +160,8 @@ docker::_try_alternative_access() {
 
 # Diagnose Docker permission issues
 docker::_diagnose_permission_issue() {
-    local current_user="${SUDO_USER:-$USER}"
+    local current_user
+    current_user=$(sudo::get_actual_user)
     
     # Check if user is in docker group (system-wide)
     if groups "$current_user" 2>/dev/null | grep -q docker; then
@@ -181,7 +184,8 @@ docker::_diagnose_permission_issue() {
 }
 
 docker::manage_docker_group() {
-    local actual_user="${SUDO_USER:-$USER}"
+    local actual_user
+    actual_user=$(sudo::get_actual_user)
     
     # Check if user is already in docker group
     if groups "$actual_user" 2>/dev/null | grep -q docker; then
@@ -225,7 +229,8 @@ docker::start() {
     fi
     
     # Check if we have docker group but it's not active
-    local current_user="${SUDO_USER:-$USER}"
+    local current_user
+    current_user=$(sudo::get_actual_user)
     if groups "$current_user" 2>/dev/null | grep -q docker && ! groups | grep -q docker; then
         if docker::_try_alternative_access; then
             return 0
