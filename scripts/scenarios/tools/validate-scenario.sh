@@ -214,10 +214,12 @@ validate_schema_compliance() {
         cat > "$validation_script" << 'EOF'
 import json
 import sys
+import os
 
 def validate_basic_schema(service_json):
     errors = []
     warnings = []
+    scenario_path = os.environ.get('VALIDATE_SCENARIO_PATH')
     
     # Check required top-level fields
     if 'version' not in service_json:
@@ -251,9 +253,17 @@ def validate_basic_schema(service_json):
                 if config.get('enabled', False):
                     resource_count += 1
                     if config.get('required', False):
-                        # Required resources should have initialization
+                        # Check for initialization in config or actual files
                         if 'initialization' not in config and category in ['automation', 'storage']:
-                            warnings.append(f"Resource '{name}' is required but has no initialization")
+                            # Check if initialization directory exists with files
+                            if scenario_path:
+                                init_dir = os.path.join(scenario_path, 'initialization', category, name)
+                                if os.path.exists(init_dir) and os.listdir(init_dir):
+                                    warnings.append(f"Resource '{name}' has initialization files but no 'initialization' field in service.json")
+                                else:
+                                    warnings.append(f"Resource '{name}' is required but has no initialization")
+                            else:
+                                warnings.append(f"Resource '{name}' is required but has no initialization field")
         
         if resource_count == 0:
             warnings.append("No resources are enabled")
@@ -283,7 +293,7 @@ except Exception as e:
 EOF
         
         local validation_output
-        validation_output=$(timeout 10s bash -c 'echo "$VALIDATE_SERVICE_JSON" | python3 "$validation_script"' 2>&1 || echo "TIMEOUT_OR_ERROR")
+        validation_output=$(timeout 10s bash -c 'echo "$VALIDATE_SERVICE_JSON" | VALIDATE_SCENARIO_PATH="$VALIDATE_SCENARIO_PATH" python3 "$validation_script"' 2>&1 || echo "TIMEOUT_OR_ERROR")
         rm -f "$validation_script"
         
         local has_errors=false
@@ -431,11 +441,22 @@ validate_resources() {
         # List resources if verbose
         if [[ "$VALIDATE_VERBOSE" == "true" ]] && [[ $enabled_resources -gt 0 ]]; then
             local resource_list
-            resource_list=$(echo "$VALIDATE_SERVICE_JSON" | timeout 5s jq -r '.resources // {} | to_entries | .[] | .value | to_entries | .[] | select(.value.enabled == true) | "\(.key) (\(if .value.required then \"required\" else \"optional\" end))"' 2>/dev/null || true)
+            resource_list=$(echo "$VALIDATE_SERVICE_JSON" | timeout 5s jq -r '
+                .resources // {} | 
+                to_entries | 
+                .[] | 
+                .value | 
+                to_entries | 
+                .[] | 
+                select(.value.enabled == true) | 
+                "\(.key) (\(if .value.required then "required" else "optional" end))"
+            ' 2>/dev/null || true)
             
-            while IFS= read -r resource; do
-                print_info "• $resource"
-            done <<< "$resource_list"
+            if [[ -n "$resource_list" ]]; then
+                while IFS= read -r resource; do
+                    [[ -n "$resource" ]] && print_info "• $resource"
+                done <<< "$resource_list"
+            fi
         fi
     else
         print_warning "jq not available for resource analysis"

@@ -86,13 +86,27 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "execution history and workflow metadata"
+        "purpose": "execution history and workflow metadata",
+        "initialization": {
+          "scripts": [
+            {
+              "file": "initialization/storage/postgres/schema.sql",
+              "order": 1,
+              "description": "Create tables for workflow metadata, execution history, and reasoning patterns"
+            },
+            {
+              "file": "initialization/storage/postgres/seed.sql",
+              "order": 2,
+              "description": "Seed initial reasoning templates and example workflows"
+            }
+          ]
+        }
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": false,
-        "purpose": "semantic search for workflows and reasoning patterns"
+        "purpose": "Vector database for semantic search of reasoning patterns, workflow templates, and decision history - enables AI-powered similarity matching and recommendation of relevant metareasoning strategies"
       }
     }
   },
