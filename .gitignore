@@ -186,15 +186,7 @@ build/
 *.db
 
 #Persistent data
-data/logs*
-data/postgres*
-data/redis/
-data/stats/
-data/uploads/
-data/schema-hash
-data/backup*
-data/test-state/
-data/test-outputs/
+data/
 
 #Backups
 backups/
@@ -233,3 +225,13 @@ scripts/tests/tmp
 
 # Node-RED test artifacts
 node-red-flows-export-*.json
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzw
+*.pyzwz

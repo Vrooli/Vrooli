@@ -205,3 +205,13 @@ upload-keystore.jks
 # Bats test helpers (e.g. bats-core)
 scripts/tests/helpers
 scripts/tests/tmp
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+*.pywz
+*.pyzw
+*.pyzwz
