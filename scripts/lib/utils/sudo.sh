@@ -150,12 +150,19 @@ sudo::restore_owner() {
     owner=$(sudo::get_owner_string)
     
     if [[ "$recursive" == "recursive" ]] || [[ "$recursive" == "r" ]]; then
-        chown -R "$owner" "$path"
+        if ! chown -R "$owner" "$path" 2>/dev/null; then
+            log::debug "Failed to restore ownership of $path (recursive) to $owner"
+            return 1
+        fi
         log::debug "Restored ownership of $path (recursive) to $owner"
     else
-        chown "$owner" "$path"
+        if ! chown "$owner" "$path" 2>/dev/null; then
+            log::debug "Failed to restore ownership of $path to $owner"
+            return 1
+        fi
         log::debug "Restored ownership of $path to $owner"
     fi
+    return 0
 }
 
 #######################################
@@ -173,12 +180,24 @@ sudo::mkdir_as_user() {
     if sudo::is_running_as_sudo; then
         local user
         user=$(sudo::get_actual_user)
-        sudo -u "$user" mkdir -p "$dir"
-        chmod "$perms" "$dir"
+        if ! sudo -u "$user" mkdir -p "$dir"; then
+            return 1
+        fi
+        if ! sudo chown "$user:$user" "$dir"; then
+            return 1
+        fi
+        if ! chmod "$perms" "$dir"; then
+            return 1
+        fi
     else
-        mkdir -p "$dir"
-        chmod "$perms" "$dir"
+        if ! mkdir -p "$dir"; then
+            return 1
+        fi
+        if ! chmod "$perms" "$dir"; then
+            return 1
+        fi
     fi
+    return 0
 }
 
 #######################################
@@ -194,12 +213,20 @@ sudo::write_file_as_user() {
     local content="${2:-}"
     
     if [[ -n "$content" ]]; then
-        echo "$content" > "$file"
+        if ! echo "$content" > "$file"; then
+            return 1
+        fi
     else
-        cat > "$file"
+        if ! cat > "$file"; then
+            return 1
+        fi
     fi
     
-    sudo::restore_owner "$file"
+    if ! sudo::restore_owner "$file"; then
+        return 1
+    fi
+    
+    return 0
 }
 
 ################################################################################

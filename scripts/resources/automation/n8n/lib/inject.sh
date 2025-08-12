@@ -6,18 +6,20 @@ DESCRIPTION="Inject workflows and configurations into n8n automation platform"
 # Get script directory and source framework
 N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../../../lib/inject_framework.sh"
+source "${N8N_LIB_DIR}/../../../lib/inject_framework.sh"
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../../../lib/validation_utils.sh"
+source "${N8N_LIB_DIR}/../../../lib/validation_utils.sh"
 
 # Load n8n configuration and infrastructure
-inject_framework::load_adapter_config "n8n" "$(dirname "$N8N_LIB_DIR")"
+if command -v inject_framework::load_adapter_config &>/dev/null; then
+    inject_framework::load_adapter_config "n8n" "$(dirname "$N8N_LIB_DIR")"
+fi
 
-# Source n8n lib functions (load essential ones, skip api.sh for now due to dependency)
-for lib_file in "${N8N_LIB_DIR}/"{common,status}.sh; do
+# Source n8n lib functions (load core and status)
+for lib_file in "${N8N_LIB_DIR}/"{core,status}.sh; do
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
-        source "$lib_file" 2>/dev/null || log::warn "Could not load $lib_file"
+        source "$lib_file" || log::warn "Could not load $lib_file"
     fi
 done
 

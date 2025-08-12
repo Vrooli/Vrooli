@@ -66,6 +66,8 @@ source "${LIB_DIR}/runtimes/go.sh"
 # shellcheck disable=SC1091
 source "${LIB_DIR}/runtimes/helm.sh"
 # shellcheck disable=SC1091
+source "${LIB_DIR}/runtimes/sqlite.sh"
+# shellcheck disable=SC1091
 source "${var_LIB_NETWORK_DIR}/firewall.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_DEPS_DIR}/bats.sh"
@@ -220,6 +222,10 @@ setup::generic_main() {
     # Helm (for Kubernetes deployments)
     log::info "Installing Helm..."
     helm::ensure_installed || log::warning "Helm installation failed (not critical)"
+    
+    # SQLite (for database operations)
+    log::info "Installing SQLite..."
+    sqlite::ensure_installed || log::warning "SQLite installation failed (not critical)"
     
     # Step 7: Complete generic setup
     log::info "Generic setup tasks completed"

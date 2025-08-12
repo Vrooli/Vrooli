@@ -24,21 +24,24 @@ source "${N8N_SCRIPT_DIR}/config/messages.sh"
 # Export configuration
 n8n::export_config
 
-# Source all library modules
+# Source refactored library modules
+# Core module contains most shared functionality
 # shellcheck disable=SC1091
-source "${N8N_SCRIPT_DIR}/lib/common.sh"
+source "${N8N_SCRIPT_DIR}/lib/core.sh"
 # shellcheck disable=SC1091
 source "${N8N_SCRIPT_DIR}/lib/docker.sh"
 # shellcheck disable=SC1091
-source "${N8N_SCRIPT_DIR}/lib/database.sh"
+source "${N8N_SCRIPT_DIR}/lib/health.sh"
 # shellcheck disable=SC1091
-source "${N8N_SCRIPT_DIR}/lib/password.sh"
-# shellcheck disable=SC1091
-source "${N8N_SCRIPT_DIR}/lib/api.sh"
+source "${N8N_SCRIPT_DIR}/lib/recovery.sh"
 # shellcheck disable=SC1091
 source "${N8N_SCRIPT_DIR}/lib/status.sh"
 # shellcheck disable=SC1091
 source "${N8N_SCRIPT_DIR}/lib/install.sh"
+# shellcheck disable=SC1091
+source "${N8N_SCRIPT_DIR}/lib/api.sh"
+# shellcheck disable=SC1091
+source "${N8N_SCRIPT_DIR}/lib/inject.sh"
 
 #######################################
 # Parse command line arguments
