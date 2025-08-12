@@ -7,7 +7,7 @@ N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_RESOURCES_LIB_DIR}/recovery-framework.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/backup-framework.sh"
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/core.sh"
 
@@ -16,9 +16,8 @@ source "${N8N_LIB_DIR}/core.sh"
 # Returns: 0 on success, 1 on failure
 #######################################
 n8n::auto_recover() {
-    local config
-    config=$(n8n::get_recovery_config)
-    recovery::auto_recover "$config"
+    # Use the new backup framework-based recovery
+    n8n::recover
 }
 
 #######################################
@@ -31,13 +30,12 @@ n8n::create_directories() {
         mkdir -p "$N8N_DATA_DIR" || return 1
     fi
     
-    # Create backup directory
-    if [[ ! -d "${N8N_DATA_DIR}/backups" ]]; then
-        mkdir -p "${N8N_DATA_DIR}/backups" || return 1
-    fi
+    # Initialize backup framework (creates backup directories)
+    backup::init >/dev/null 2>&1
     
     # Fix permissions
-    recovery::fix_permissions "$N8N_DATA_DIR" "1000:1000"
+    chown -R 1000:1000 "$N8N_DATA_DIR" 2>/dev/null || true
+    chmod -R u+rw "$N8N_DATA_DIR" 2>/dev/null || true
     
     return 0
 }

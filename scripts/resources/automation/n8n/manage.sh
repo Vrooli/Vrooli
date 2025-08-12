@@ -55,7 +55,7 @@ n8n::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|reset-password|logs|info|version|test|execute|api-setup|save-api-key|list-workflows|list-executions|inject|validate-injection|url" \
+        --options "install|uninstall|start|stop|restart|status|reset-password|logs|info|version|test|test-api-key|execute|api-setup|save-api-key|list-workflows|list-executions|inject|validate-injection|url|create-backup|list-backups|backup-info|recover|recover-api-key" \
         --default "install"
     
     args::register \
@@ -96,6 +96,12 @@ n8n::parse_arguments() {
         --desc "JSON data to pass to workflow (for webhook workflows)" \
         --type "value" \
         --default ""
+    
+    args::register \
+        --name "label" \
+        --desc "Label for backup (default: auto)" \
+        --type "value" \
+        --default "auto"
     
     args::register \
         --name "validation-type" \
@@ -222,6 +228,9 @@ n8n::main() {
         test)
             n8n::test
             ;;
+        test-api-key)
+            n8n::test_api_key
+            ;;
         execute)
             n8n::execute
             ;;
@@ -245,6 +254,21 @@ n8n::main() {
             ;;
         url)
             n8n::get_urls
+            ;;
+        create-backup)
+            n8n::create_backup "${LABEL:-auto}"
+            ;;
+        list-backups)
+            backup::list "n8n"
+            ;;
+        backup-info)
+            backup::info "n8n"
+            ;;
+        recover)
+            n8n::recover
+            ;;
+        recover-api-key)
+            n8n::recover_api_key
             ;;
         *)
             log::error "Unknown action: $ACTION"

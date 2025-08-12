@@ -156,7 +156,7 @@
         },
         {
           "name": "convert-scenarios",
-          "run": "./scripts/scenarios/tools/auto-converter.sh",
+          "run": "if command -v vrooli >/dev/null 2>&1; then vrooli scenario convert-all; else echo '⚠️  Vrooli CLI not installed, using direct script' && ./scripts/scenarios/tools/auto-converter.sh; fi",
           "description": "Convert enabled scenarios to standalone apps",
           "timeout": "5m"
         }

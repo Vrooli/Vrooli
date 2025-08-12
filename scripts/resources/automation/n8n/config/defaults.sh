@@ -55,8 +55,13 @@ readonly N8N_HEALTH_CHECK_MAX_ATTEMPTS=30
 # API configuration
 readonly N8N_API_TIMEOUT=30
 
-# Backup configuration
+# Backup configuration (legacy)
 readonly N8N_BACKUP_DIR="${HOME}/.n8n-backup"
+
+# Backup framework policies
+readonly N8N_BACKUP_MAX_COUNT=10          # Keep last 10 backups
+readonly N8N_BACKUP_MAX_SIZE_MB=200       # Max 200MB total
+readonly N8N_BACKUP_MIN_AGE_DAYS=1        # Keep all backups < 1 day old
 
 # Log configuration
 readonly N8N_LOG_LINES=100
@@ -84,6 +89,7 @@ n8n::export_config() {
     export N8N_HEALTH_CHECK_INTERVAL N8N_HEALTH_CHECK_MAX_ATTEMPTS
     export N8N_API_TIMEOUT
     export N8N_BACKUP_DIR N8N_LOG_LINES
+    export N8N_BACKUP_MAX_COUNT N8N_BACKUP_MAX_SIZE_MB N8N_BACKUP_MIN_AGE_DAYS
     export N8N_PASSWORD_RESET_TIMEOUT
     export N8N_DEFAULT_USERNAME N8N_DEFAULT_EMAIL N8N_DEFAULT_FIRSTNAME N8N_DEFAULT_LASTNAME
     export N8N_ENABLE_BASIC_AUTH N8N_ENABLE_POSTGRES

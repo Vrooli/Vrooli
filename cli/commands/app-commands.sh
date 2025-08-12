@@ -272,9 +272,11 @@ app_regenerate() {
         curl -s -X POST "${API_BASE}/apps/${app_name}/backup" >/dev/null
     fi
     
-    # Regenerate using scenario-to-app
+    # Regenerate using scenario convert command
     log::info "Regenerating app: $app_name"
-    if "${var_SCRIPTS_SCENARIOS_DIR}/tools/scenario-to-app.sh" "$app_name" --force; then
+    
+    # Use the CLI's own scenario convert command (dogfooding)
+    if "${VROOLI_ROOT}/cli/vrooli" scenario convert "$app_name" --force; then
         log::success "✅ App regenerated successfully: $app_name"
         
         # Remove protection if forced

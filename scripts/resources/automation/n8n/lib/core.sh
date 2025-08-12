@@ -16,7 +16,7 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR}/status-engine.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/health-framework.sh"
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_RESOURCES_LIB_DIR}/recovery-framework.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/backup-framework.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_LIB_DIR}/init-framework.sh"
 # shellcheck disable=SC1091
@@ -128,19 +128,114 @@ n8n::get_health_config() {
 }
 
 #######################################
-# Get recovery configuration
-# Returns: JSON configuration for recovery framework
+# Create n8n backup using backup framework
+# Args: $1 - optional label (default: "auto")
+# Returns: 0 on success, 1 on failure
 #######################################
-n8n::get_recovery_config() {
-    echo '{
-        "container_name": "'$N8N_CONTAINER_NAME'",
-        "data_dir": "'$N8N_DATA_DIR'",
-        "backup_dir": "'$N8N_DATA_DIR'/backups",
-        "backup_pattern": "*.db",
-        "stop_func": "n8n::stop",
-        "start_func": "n8n::start",
-        "owner": "1000:1000"
-    }'
+n8n::create_backup() {
+    local label="${1:-auto}"
+    
+    if ! n8n::is_running; then
+        log::error "n8n must be running to create backup"
+        return 1
+    fi
+    
+    log::info "Creating n8n backup..."
+    
+    # Create temporary backup directory with n8n data
+    local temp_dir=$(mktemp -d)
+    
+    # Copy n8n data directory
+    if [[ -d "$N8N_DATA_DIR" ]]; then
+        cp -r "$N8N_DATA_DIR"/* "$temp_dir/" 2>/dev/null || true
+    fi
+    
+    # Include current API key from secrets if available
+    local api_key
+    api_key=$(n8n::resolve_api_key 2>/dev/null)
+    if [[ -n "$api_key" ]]; then
+        echo "{\"N8N_API_KEY\":\"$api_key\"}" > "$temp_dir/api_key_backup.json"
+    fi
+    
+    # Store backup using framework
+    local backup_path
+    if backup_path=$(backup::store "n8n" "$temp_dir" "$label"); then
+        log::success "n8n backup created: $(basename "$backup_path")"
+        rm -rf "$temp_dir"
+        echo "$backup_path"
+        return 0
+    else
+        log::error "Failed to create n8n backup"
+        rm -rf "$temp_dir"
+        return 1
+    fi
+}
+
+#######################################
+# Test if backup contains valid API key
+# Args: $1 - backup path
+# Returns: 0 if valid API key found, 1 otherwise
+#######################################
+n8n::backup_has_valid_api_key() {
+    local backup_path="$1"
+    
+    # Check for API key backup file
+    local api_key_file="$backup_path/api_key_backup.json"
+    [[ -f "$api_key_file" ]] || return 1
+    
+    # Extract API key
+    local stored_key
+    stored_key=$(jq -r '.N8N_API_KEY // empty' "$api_key_file" 2>/dev/null)
+    [[ -n "$stored_key" ]] || return 1
+    
+    # Test if key would work (basic validation only - don't actually test against server)
+    # Keys are typically long alphanumeric strings
+    [[ ${#stored_key} -gt 20 ]] && [[ "$stored_key" =~ ^[A-Za-z0-9_-]+$ ]]
+}
+
+#######################################
+# Smart API key recovery - find working backup
+# Returns: 0 on success, 1 if no valid key found
+#######################################
+n8n::recover_api_key() {
+    log::header "🔑 Smart API Key Recovery"
+    
+    local valid_backup
+    valid_backup=$(backup::find_first "n8n" 'n8n::backup_has_valid_api_key')
+    
+    if [[ -n "$valid_backup" ]]; then
+        local backup_id=$(basename "$valid_backup")
+        log::info "Found valid API key in backup: $backup_id"
+        
+        # Extract and save the API key
+        local api_key_file="$valid_backup/api_key_backup.json"
+        local recovered_key
+        recovered_key=$(jq -r '.N8N_API_KEY' "$api_key_file" 2>/dev/null)
+        
+        if [[ -n "$recovered_key" ]] && secrets::save_key "N8N_API_KEY" "$recovered_key"; then
+            log::success "✅ API key recovered and saved"
+            log::info "Key source: backup $backup_id"
+            return 0
+        else
+            log::error "Failed to save recovered API key"
+            return 1
+        fi
+    else
+        log::error "❌ No valid API key found in any backup"
+        echo ""
+        echo "This can happen when:"
+        echo "  • No backups exist yet"
+        echo "  • All existing backups were created when API key was already invalid"
+        echo "  • Backups don't contain API key information"
+        echo ""
+        echo "To fix this:"
+        echo "  1. Access n8n at $N8N_BASE_URL"
+        echo "  2. Login with your credentials"  
+        echo "  3. Go to Settings → n8n API"
+        echo "  4. Create a new API key"
+        echo "  5. Save it with: \$0 --action save-api-key --api-key YOUR_NEW_KEY"
+        return 1
+    fi
 }
 
 #######################################
@@ -348,14 +443,89 @@ n8n::health() {
 }
 
 n8n::recover() {
-    # Use recovery framework
-    local config
-    config=$(n8n::get_recovery_config)
-    recovery::auto_recover "$config"
+    # Warn about API key risk - recovery can wipe database
+    if ! n8n::warn_api_key_risk "recovery operation"; then
+        return 1
+    fi
+    
+    log::header "🔧 n8n Recovery"
+    
+    # Find the latest backup
+    local latest_backup
+    latest_backup=$(backup::get_latest "n8n")
+    
+    if [[ -z "$latest_backup" ]]; then
+        log::error "No backups found for n8n"
+        echo ""
+        echo "Cannot recover without backups. To create a backup:"
+        echo "  \$0 --action create-backup"
+        return 1
+    fi
+    
+    local backup_id=$(basename "$latest_backup")
+    log::info "Found backup to restore: $backup_id"
+    
+    # Stop n8n if running
+    if n8n::is_running; then
+        log::info "Stopping n8n for recovery..."
+        n8n::stop
+    fi
+    
+    # Backup current state before recovery
+    if [[ -d "$N8N_DATA_DIR" ]]; then
+        local emergency_backup="${N8N_DATA_DIR}.corrupted.$(date +%Y%m%d_%H%M%S)"
+        log::info "Backing up current state to: $emergency_backup"
+        mv "$N8N_DATA_DIR" "$emergency_backup" || true
+    fi
+    
+    # Create fresh data directory
+    mkdir -p "$N8N_DATA_DIR"
+    
+    # Restore from backup
+    log::info "Restoring from backup..."
+    if cp -r "$latest_backup"/* "$N8N_DATA_DIR/" 2>/dev/null; then
+        # Remove backup-specific files that shouldn't be in data dir
+        rm -f "$N8N_DATA_DIR/api_key_backup.json" 2>/dev/null || true
+        rm -f "$N8N_DATA_DIR/.metadata.json" 2>/dev/null || true
+        
+        # Fix permissions
+        chown -R 1000:1000 "$N8N_DATA_DIR" 2>/dev/null || true
+        
+        log::success "Data restored from backup"
+        
+        # Start n8n
+        log::info "Starting n8n..."
+        if n8n::start; then
+            # Try to recover API key from backup
+            log::info "Attempting API key recovery..."
+            if n8n::recover_api_key; then
+                log::success "✅ Recovery completed successfully with API key"
+            else
+                log::success "✅ Recovery completed (API key recovery failed)"
+                log::info "You may need to create a new API key manually"
+            fi
+        else
+            log::error "Failed to start n8n after recovery"
+            return 1
+        fi
+    else
+        log::error "Failed to restore from backup"
+        return 1
+    fi
+    
+    # Check API key status after recovery
+    n8n::check_api_key_after_operation "recovery"
 }
 
 n8n::uninstall() {
     log::warn "Uninstalling n8n..."
+    
+    # Warn about API key risk if data will be removed
+    if [[ "${REMOVE_DATA:-no}" == "yes" ]]; then
+        if ! n8n::warn_api_key_risk "uninstall with data removal"; then
+            return 1
+        fi
+    fi
     
     # Stop containers
     n8n::stop
@@ -369,7 +539,16 @@ n8n::uninstall() {
     # Optionally remove data
     if [[ "${REMOVE_DATA:-no}" == "yes" ]]; then
         log::warn "Removing n8n data directory..."
+        # Create backup before removal using backup framework
+        if n8n::is_running && [[ -d "$N8N_DATA_DIR" ]]; then
+            log::info "Creating final backup before data removal..."
+            n8n::create_backup "pre-uninstall" || log::warn "Backup creation failed"
+        fi
+        
         rm -rf "$N8N_DATA_DIR"
+        
+        # Check API key status after data removal
+        n8n::check_api_key_after_operation "data removal"
     fi
     
     log::info "n8n uninstalled"
@@ -423,6 +602,11 @@ n8n::reset_password() {
         return 1
     fi
     
+    # Warn about API key risk
+    if ! n8n::warn_api_key_risk "password reset"; then
+        return 1
+    fi
+    
     local new_password="${AUTH_PASSWORD:-$(openssl rand -base64 16 2>/dev/null || date +%s | sha256sum | head -c 16)}"
     
     log::info "Restarting n8n with new password..."
@@ -433,6 +617,9 @@ n8n::reset_password() {
     
     # Reinstall with new password
     AUTH_PASSWORD="$new_password" n8n::install
+    
+    # Check API key status after password reset
+    n8n::check_api_key_after_operation "password reset"
     
     log::success "Password reset successfully"
     log::info "New login credentials:"

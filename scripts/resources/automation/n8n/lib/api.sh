@@ -276,6 +276,193 @@ n8n::test_api() {
 }
 
 #######################################
+# Validate API key is still working
+# Returns: 0 if valid, 1 if invalid/missing
+#######################################
+n8n::validate_api_key() {
+    local api_key
+    api_key=$(n8n::resolve_api_key)
+    
+    if [[ -z "$api_key" ]]; then
+        return 1
+    fi
+    
+    # Test API key by making a simple request
+    local response
+    response=$(http::request "GET" "${N8N_BASE_URL}/api/v1/workflows?limit=1" "" "X-N8N-API-KEY: $api_key" 2>/dev/null || echo "")
+    
+    # Check if response is valid JSON with data field
+    if echo "$response" | jq -e '.data' >/dev/null 2>&1; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+#######################################
+# Warn about API key invalidation risk
+# Args: operation_name
+#######################################
+n8n::warn_api_key_risk() {
+    local operation="${1:-operation}"
+    
+    # Check if we have an API key stored
+    local stored_key
+    stored_key=$(n8n::resolve_api_key)
+    
+    if [[ -n "$stored_key" ]]; then
+        log::warn "⚠️  WARNING: API Key Invalidation Risk"
+        echo ""
+        echo "This $operation may invalidate your stored API key!"
+        echo ""
+        echo "API keys are tied to the n8n database and user accounts."
+        echo "If the database is reset or user accounts are recreated,"
+        echo "your stored API key will become invalid."
+        echo ""
+        echo "Current API key status:"
+        if n8n::validate_api_key; then
+            log::success "  ✅ API key is currently valid"
+        else
+            log::error "  ❌ API key is already invalid or n8n is not accessible"
+        fi
+        echo ""
+        echo "If the API key becomes invalid after this operation:"
+        echo "  1. Access n8n at $N8N_BASE_URL"
+        echo "  2. Login with your credentials"
+        echo "  3. Go to Settings → n8n API"
+        echo "  4. Create a new API key"
+        echo "  5. Save it with: $0 --action save-api-key --api-key YOUR_NEW_KEY"
+        echo ""
+        
+        if [[ "${YES:-no}" != "yes" ]]; then
+            read -p "Do you want to continue? (y/N): " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                log::info "Operation cancelled"
+                return 1
+            fi
+        fi
+    fi
+    
+    return 0
+}
+
+#######################################
+# Check and report API key status after operation
+# Args: operation_name
+#######################################
+n8n::check_api_key_after_operation() {
+    local operation="${1:-operation}"
+    
+    # Only check if we have a stored key
+    local stored_key
+    stored_key=$(n8n::resolve_api_key)
+    
+    if [[ -n "$stored_key" ]]; then
+        log::info "Checking API key status after $operation..."
+        
+        # Wait a moment for services to stabilize
+        sleep 2
+        
+        if n8n::validate_api_key; then
+            log::success "✅ API key is still valid"
+        else
+            log::error "❌ API key has been invalidated!"
+            echo ""
+            echo "Your stored API key is no longer valid."
+            echo "This typically happens when:"
+            echo "  • The n8n database was reset"
+            echo "  • User accounts were recreated"
+            echo "  • The container was recreated with different settings"
+            echo ""
+            echo "To fix this:"
+            echo "  1. Access n8n at $N8N_BASE_URL"
+            echo "  2. Login with your credentials"
+            echo "  3. Go to Settings → n8n API"
+            echo "  4. Create a new API key"
+            echo "  5. Save it with: $0 --action save-api-key --api-key YOUR_NEW_KEY"
+        fi
+    fi
+}
+
+#######################################
+# Test API key command for users
+# Provides detailed feedback about API key status
+#######################################
+n8n::test_api_key() {
+    log::header "🔑 Testing n8n API Key"
+    
+    # Check if n8n is running
+    if ! docker::is_running "$N8N_CONTAINER_NAME"; then
+        log::error "n8n is not running"
+        echo "Start n8n with: $0 --action start"
+        return 1
+    fi
+    
+    # Check if we have an API key
+    local api_key
+    api_key=$(n8n::resolve_api_key)
+    
+    if [[ -z "$api_key" ]]; then
+        log::error "No API key found"
+        echo ""
+        echo "API key resolution order:"
+        echo "  1. Environment variable: N8N_API_KEY"
+        echo "  2. Project secrets: .vrooli/secrets.json"
+        echo "  3. Container environment (if running)"
+        echo ""
+        echo "To set up an API key:"
+        n8n::show_api_setup_instructions
+        return 1
+    fi
+    
+    log::info "Found API key in: $(
+        if [[ -n "${N8N_API_KEY:-}" ]]; then
+            echo "environment variable"
+        elif secrets::get_key "N8N_API_KEY" >/dev/null 2>&1; then
+            echo "project secrets (.vrooli/secrets.json)"
+        else
+            echo "container environment"
+        fi
+    )"
+    
+    log::info "Testing API key validity..."
+    
+    if n8n::validate_api_key; then
+        log::success "✅ API key is valid and working!"
+        
+        # Try to get some basic info to prove it works
+        local workflows_response
+        workflows_response=$(http::request "GET" "${N8N_BASE_URL}/api/v1/workflows?limit=5" "" "X-N8N-API-KEY: $api_key" 2>/dev/null || echo "{}")
+        
+        if echo "$workflows_response" | jq -e '.data' >/dev/null 2>&1; then
+            local workflow_count
+            workflow_count=$(echo "$workflows_response" | jq '.data | length')
+            echo ""
+            echo "API key has access to $workflow_count workflow(s)"
+        fi
+    else
+        log::error "❌ API key is invalid or not working"
+        echo ""
+        echo "This can happen when:"
+        echo "  • The n8n database was reset or corrupted"
+        echo "  • User accounts were recreated"
+        echo "  • The API key was revoked in n8n"
+        echo ""
+        echo "To fix this:"
+        echo "  1. Access n8n at $N8N_BASE_URL"
+        echo "  2. Login with your credentials"
+        echo "  3. Go to Settings → n8n API"
+        echo "  4. Create a new API key"
+        echo "  5. Save it with: $0 --action save-api-key --api-key YOUR_NEW_KEY"
+        echo ""
+        echo "For detailed recovery instructions, see:"
+        echo "  docs/API_KEY_RECOVERY.md"
+        return 1
+    fi
+}
+
+#######################################
 # Get n8n service URLs with health status
 # Outputs JSON with service URLs and health information
 #######################################

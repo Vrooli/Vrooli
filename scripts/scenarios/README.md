@@ -77,16 +77,16 @@ done
 ### For App Generation
 ```bash
 # Convert scenario to running application using existing resource infrastructure
-./tools/scenario-to-app.sh campaign-content-studio
+vrooli scenario convert campaign-content-studio
 
 # Run with verbose output
-./tools/scenario-to-app.sh research-assistant --verbose
+vrooli scenario convert research-assistant --verbose
 
 # Preview what would be done without executing
-./tools/scenario-to-app.sh research-assistant --dry-run
+vrooli scenario convert research-assistant --dry-run
 
 # Keep resources running after errors for debugging
-./tools/scenario-to-app.sh secure-document-processing --no-cleanup
+vrooli scenario convert secure-document-processing --no-cleanup
 ```
 
 ### For Developers
@@ -104,7 +104,7 @@ cd core/my-new-scenario/
 ./test.sh                                # Run validation tests
 
 # 4. Run as live application using resource infrastructure
-../../tools/scenario-to-app.sh my-new-scenario
+vrooli scenario convert my-new-scenario
 # Starts all required resources and runs the application
 ```
 
@@ -118,7 +118,7 @@ cp -r templates/full/ core/ai-generated-scenario/
 #   - Both Jinja2 templates AND AI placeholders supported
 
 # Run AI-generated scenario as live application
-../../tools/scenario-to-app.sh ai-generated-scenario
+vrooli scenario convert ai-generated-scenario
 # Orchestrates existing resources to run the application
 ```
 
