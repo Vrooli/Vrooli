@@ -24,14 +24,6 @@ n8n::tiered_health_check() {
 }
 
 #######################################
-# Check if n8n is healthy (backward compatibility)
-# Returns: 0 if healthy, 1 otherwise
-#######################################
-n8n::is_healthy() {
-    n8n::check_basic_health
-}
-
-#######################################
 # Check filesystem corruption
 # Returns: 0 if healthy, 1 if corrupted
 #######################################

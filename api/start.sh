@@ -1,18 +1,16 @@
 #!/usr/bin/env bash
 ################################################################################
-# Start Vrooli App API Server
-#
-# Simple script to start the app management API server
+# Start Vrooli Unified API Server
 ################################################################################
 
 set -euo pipefail
 
 API_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PORT="${VROOLI_APP_API_PORT:-8094}"
+PORT="${VROOLI_API_PORT:-8090}"
 
 # Check if already running
 if lsof -i ":${PORT}" >/dev/null 2>&1; then
-    echo "⚠️  API already running on port ${PORT}"
+    echo "⚠️  Vrooli API already running on port ${PORT}"
     exit 0
 fi
 
@@ -24,6 +22,6 @@ if [[ ! -f "$API_DIR/go.sum" ]]; then
 fi
 
 # Start server
-echo "🚀 Starting Vrooli App API on port ${PORT}..."
+echo "🚀 Starting Vrooli Unified API on port ${PORT}..."
 cd "$API_DIR"
 exec go run main.go

@@ -24,7 +24,7 @@ n8n::start() {
     # Handle existing instance
     if docker::is_running "$N8N_CONTAINER_NAME" && [[ "${FORCE:-no}" != "yes" ]]; then
         log::info "n8n is already running on port $N8N_PORT"
-        if n8n::is_healthy; then
+        if n8n::check_basic_health; then
             log::success "Running instance is healthy"
             return 0
         else

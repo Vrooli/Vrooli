@@ -12,12 +12,13 @@
 set -euo pipefail
 
 # API configuration
-API_PORT="${VROOLI_APP_API_PORT:-8094}"
+API_PORT="${VROOLI_API_PORT:-8090}"
 API_BASE="http://localhost:${API_PORT}"
 
 # Source utilities for display
 # shellcheck disable=SC1091
-source "$(dirname "${BASH_SOURCE[0]}")/../../scripts/lib/utils/var.sh"
+VROOLI_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "${VROOLI_ROOT}/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LOG_FILE}"
 # shellcheck disable=SC1091
@@ -27,7 +28,7 @@ source "${var_LIB_UTILS_DIR}/flow.sh"
 check_api() {
     if ! curl -s "${API_BASE}/health" >/dev/null 2>&1; then
         log::error "App API is not running"
-        echo "Start it with: cd scripts/cli/api && go run main.go"
+        echo "Start it with: cd api && go run main.go"
         return 1
     fi
 }

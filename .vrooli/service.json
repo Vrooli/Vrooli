@@ -146,7 +146,7 @@
         },
         {
           "name": "install-cli",
-          "run": "if [[ -f scripts/cli/install-cli.sh ]]; then scripts/cli/install-cli.sh; else echo '⚠️  CLI installer not found, skipping'; fi",
+          "run": "if [[ -f cli/install.sh ]]; then cli/install.sh; else echo '⚠️  CLI installer not found, skipping'; fi",
           "description": "Install Vrooli CLI command"
         },
         {
@@ -171,9 +171,9 @@
           "description": "Load environment variables from .env if exists"
         },
         {
-          "name": "start-app-api",
-          "run": "if [[ -f scripts/cli/api/start-api.sh ]]; then (scripts/cli/api/start-api.sh >/dev/null 2>&1 &) && echo '📱 App API started on port 8094' || echo '⚠️  Failed to start App API'; else echo '⚠️  App API not found'; fi",
-          "description": "Start the app management API server"
+          "name": "start-api",
+          "run": "if [[ -f api/start.sh ]]; then (api/start.sh >/dev/null 2>&1 &) && echo '🚀 Vrooli API started on port 8090' || echo '⚠️  Failed to start API'; else echo '⚠️  API not found'; fi",
+          "description": "Start the Vrooli unified API server"
         },
         {
           "name": "show-generated-apps",

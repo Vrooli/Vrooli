@@ -285,7 +285,7 @@ n8n::get_urls() {
     local primary_url="$N8N_BASE_URL"
     local health_url="${N8N_BASE_URL}${health_path}"
     # Check if n8n is running and healthy
-    if n8n::is_healthy >/dev/null 2>&1; then
+    if n8n::check_basic_health >/dev/null 2>&1; then
         health_status="healthy"
     elif n8n::is_installed >/dev/null 2>&1; then
         # Installed but not running

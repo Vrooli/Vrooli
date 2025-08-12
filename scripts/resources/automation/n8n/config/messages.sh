@@ -3,29 +3,6 @@
 # All user-facing messages, prompts, and documentation
 
 #######################################
-# Display usage information
-#######################################
-n8n::usage() {
-    args::usage "$DESCRIPTION"
-    echo
-    echo "Examples:"
-    echo "  $0 --action install                              # Install n8n with basic auth"
-    echo "  $0 --action install --basic-auth no              # Install without authentication"
-    echo "  $0 --action install --username admin --password secret  # Custom credentials"
-    echo "  $0 --action install --database postgres          # Use PostgreSQL instead of SQLite"
-    echo "  $0 --action install --tunnel yes                 # Enable webhook tunnel (dev only)"
-    echo "  $0 --action install --build-image yes            # Build custom image with host access"
-    echo "  $0 --action status                               # Check n8n status"
-    echo "  $0 --action test                                 # Test n8n functionality and API"
-    echo "  $0 --action list-workflows                       # List all workflows"
-    echo "  $0 --action list-executions                      # List workflow executions"
-    echo "  $0 --action execute --workflow-id ID             # Execute specific workflow"
-    echo "  $0 --action logs                                 # View n8n logs"
-    echo "  $0 --action reset-password                       # Reset admin password"
-    echo "  $0 --action uninstall                           # Remove n8n"
-}
-
-#######################################
 # API setup instructions
 #######################################
 n8n::show_api_setup_instructions() {

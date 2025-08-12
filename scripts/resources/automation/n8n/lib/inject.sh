@@ -35,12 +35,12 @@ readonly N8N_API_BASE="$N8N_BASE_URL/api/v1"
 
 #######################################
 # n8n-specific health check - ULTRA-OPTIMIZED
-# Direct usage of robust n8n::is_healthy() - 90% code reduction
+# Direct usage of n8n infrastructure (replaces 19 lines with 6 lines)
 # Returns: 0 if healthy, 1 otherwise
 #######################################
-n8n_check_health() {
+n8n::check_health() {
     # Direct usage of n8n infrastructure (replaces 19 lines with 6 lines)
-    if n8n::is_healthy; then
+    if n8n::check_basic_health; then
         log::debug "n8n is healthy and ready for data injection"
         return 0
     else
@@ -59,7 +59,7 @@ n8n_check_health() {
 # Returns:
 #   0 if valid, 1 if invalid
 #######################################
-n8n_validate_workflow() {
+n8n::validate_workflow() {
     local workflow="$1"
     local index="$2" 
     local name="$3"
@@ -119,7 +119,7 @@ n8n_validate_workflow() {
 # Returns:
 #   0 if valid, 1 if invalid
 #######################################
-n8n_validate_config() {
+n8n::validate_config() {
     local config="$1"
     log::info "Validating n8n injection configuration..."
     # Use framework JSON validation with required fields
@@ -135,7 +135,7 @@ n8n_validate_config() {
         local workflows
         workflows=$(echo "$config" | jq -c '.workflows')
         # Use enhanced validation with custom validator
-        if ! inject_framework::validate_array_with_context "$workflows" "workflows" "name file" "n8n_validate_workflow"; then
+        if ! inject_framework::validate_array_with_context "$workflows" "workflows" "name file" "n8n::validate_workflow"; then
             return 1
         fi
     fi
@@ -168,7 +168,7 @@ n8n_validate_config() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-n8n_import_workflow() {
+n8n::import_workflow() {
     local workflow="$1"
     local name file enabled tags
     name=$(echo "$workflow" | jq -r '.name')
@@ -230,7 +230,7 @@ n8n_import_workflow() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-n8n_set_variables() {
+n8n::set_variables() {
     local variables="$1"
     log::info "Setting n8n environment variables..."
     # Note: n8n doesn't have a direct API for environment variables
@@ -254,7 +254,7 @@ n8n_set_variables() {
 # Returns:
 #   0 if successful, 1 if failed
 #######################################
-n8n_inject_data() {
+n8n::inject_data() {
     local config="$1"
     log::header "🔄 Injecting data into n8n"
     # Use framework accessibility check (which calls our optimized health check)
@@ -267,7 +267,7 @@ n8n_inject_data() {
     if echo "$config" | jq -e '.workflows' >/dev/null 2>&1; then
         local workflows
         workflows=$(echo "$config" | jq -c '.workflows')
-        if ! inject_framework::process_array "$workflows" "n8n_import_workflow" "workflows"; then
+        if ! inject_framework::process_array "$workflows" "n8n::import_workflow" "workflows"; then
             log::error "Failed to import workflows"
             inject_framework::execute_rollback
             return 1
@@ -282,7 +282,7 @@ n8n_inject_data() {
     if echo "$config" | jq -e '.variables' >/dev/null 2>&1; then
         local variables
         variables=$(echo "$config" | jq -c '.variables')
-        if ! n8n_set_variables "$variables"; then
+        if ! n8n::set_variables "$variables"; then
             log::error "Failed to set variables"
             inject_framework::execute_rollback
             return 1
@@ -297,7 +297,7 @@ n8n_inject_data() {
 # Arguments: $1 - workflow configuration object
 # Returns: 0 if found, 1 if not found
 #######################################
-n8n_check_workflow_status() {
+n8n::check_workflow_status() {
     local workflow="$1"
     local name
     name=$(echo "$workflow" | jq -r '.name')
@@ -341,7 +341,7 @@ n8n_check_workflow_status() {
 # Arguments: $1 - configuration JSON
 # Returns: 0 if successful, 1 if failed
 #######################################
-n8n_check_status() {
+n8n::check_status() {
     local config="$1"
     # Use comprehensive n8n infrastructure status (replaces 47 lines with 6 lines)
     log::header "📊 Checking n8n injection status"
@@ -360,7 +360,7 @@ n8n_check_status() {
         for ((i=0; i<workflow_count; i++)); do
             local workflow
             workflow=$(echo "$workflows" | jq -c ".[$i]")
-            if n8n_check_workflow_status "$workflow"; then
+            if n8n::check_workflow_status "$workflow"; then
                 found_count=$((found_count + 1))
             fi
         done
@@ -376,7 +376,7 @@ n8n_check_status() {
 #######################################
 # Display usage information
 #######################################
-n8n_usage() {
+n8n::usage_inject() {
     inject_framework::usage "n8n" "$DESCRIPTION" '{
   "workflows": [
     {
@@ -405,7 +405,7 @@ n8n_usage() {
 #######################################
 # New type-aware validation function
 #######################################
-n8n_validate_typed_content() {
+n8n::validate_typed_content() {
     local type="$1"
     local content="$2"
     
@@ -467,10 +467,10 @@ n8n_validate_typed_content() {
 }
 
 #######################################
-n8n_main() {
+n8n::main() {
     # Handle help separately
     if [[ "${1:-}" == "--help" ]]; then
-        n8n_usage
+        n8n::usage_inject
         exit 0
     fi
     
@@ -498,7 +498,7 @@ n8n_main() {
             return 1
         fi
         
-        n8n_validate_typed_content "$type" "$content"
+        n8n::validate_typed_content "$type" "$content"
         return $?
     fi
     
@@ -506,10 +506,10 @@ n8n_main() {
     inject_framework::register "n8n" \
         --service-host "$N8N_BASE_URL" \
         --health-endpoint "/healthz" \
-        --validate-func "n8n_validate_config" \
-        --inject-func "n8n_inject_data" \
-        --status-func "n8n_check_status" \
-        --health-func "n8n_check_health"
+        --validate-func "n8n::validate_config" \
+        --inject-func "n8n::inject_data" \
+        --status-func "n8n::check_status" \
+        --health-func "n8n::check_health"
     # Use framework main dispatcher
     inject_framework::main "$@"
 }
@@ -517,8 +517,8 @@ n8n_main() {
 # Execute if run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
     if [[ $# -eq 0 ]]; then
-        n8n_usage
+        n8n::usage_inject
         exit 1
     fi
-    n8n_main "$@"
+    n8n::main "$@"
 fi

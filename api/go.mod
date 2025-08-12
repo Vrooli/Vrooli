@@ -1,4 +1,4 @@
-module vrooli-app-api
+module vrooli.com/api
 
 go 1.21
 

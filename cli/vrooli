@@ -20,13 +20,13 @@ if [[ -n "${VROOLI_ROOT:-}" ]]; then
 elif [[ -L "${BASH_SOURCE[0]}" ]]; then
     # If this script is a symlink, resolve it
     SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
-    VROOLI_ROOT="$(cd "$(dirname "$SCRIPT_PATH")/../.." && pwd)"
+    VROOLI_ROOT="$(cd "$(dirname "$SCRIPT_PATH")/.." && pwd)"
 elif git rev-parse --show-toplevel >/dev/null 2>&1; then
     # Try to find git root
     VROOLI_ROOT="$(git rev-parse --show-toplevel)"
 else
     # Fallback to relative path from script location
-    VROOLI_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+    VROOLI_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fi
 
 export VROOLI_ROOT
@@ -53,11 +53,61 @@ show_version() {
     echo "Root: ${VROOLI_ROOT}"
 }
 
+# Show main help
+show_main_help() {
+    cat << EOF
+🚀 Vrooli CLI - Command-line interface for Vrooli operations
+
+USAGE:
+    vrooli <command> [options]
+
+LIFECYCLE COMMANDS:
+    setup               Initialize the development environment
+    develop             Start development servers
+    build               Build the project
+    test                Run tests
+    deploy              Deploy to production
+    clean               Clean build artifacts
+
+APP MANAGEMENT:
+    app list            List all generated apps
+    app status <name>   Show app details
+    app protect <name>  Protect app from regeneration
+    app backup <name>   Create app backup
+
+SCENARIO MANAGEMENT:
+    scenario list       List available scenarios
+    scenario generate   Generate app from scenario
+    scenario validate   Validate scenario configuration
+
+RESOURCE MANAGEMENT:
+    resource list       List available resources
+    resource status     Show resource status
+    resource install    Install a resource
+
+OPTIONS:
+    --help, -h          Show help for a command
+    --version, -v       Show version information
+
+EXAMPLES:
+    vrooli setup                        # First-time setup
+    vrooli develop                      # Start development
+    vrooli app list                     # List generated apps
+    vrooli scenario generate assistant  # Generate research assistant
+
+For more help on a specific command:
+    vrooli <command> --help
+
+Documentation: https://docs.vrooli.com/cli
+EOF
+}
+
 # Main command router
 main() {
     # Handle no arguments
     if [[ $# -eq 0 ]]; then
-        exec "${VROOLI_ROOT}/scripts/cli/show-help.sh"
+        # Built-in help (no external script needed)
+        show_main_help
     fi
     
     local command="$1"
@@ -71,17 +121,17 @@ main() {
         
         # App management commands
         app)
-            exec "${VROOLI_ROOT}/scripts/cli/app-commands.sh" "$@"
+            exec "${VROOLI_ROOT}/cli/commands/app-commands.sh" "$@"
             ;;
         
         # Scenario commands  
         scenario)
-            exec "${VROOLI_ROOT}/scripts/cli/scenario-commands.sh" "$@"
+            exec "${VROOLI_ROOT}/cli/commands/scenario-commands.sh" "$@"
             ;;
             
         # Resource commands
         resource)
-            exec "${VROOLI_ROOT}/scripts/cli/resource-commands.sh" "$@"
+            exec "${VROOLI_ROOT}/cli/commands/resource-commands.sh" "$@"
             ;;
         
         # Version command
@@ -91,7 +141,8 @@ main() {
             
         # Help and unknown commands
         help|--help|-h)
-            exec "${VROOLI_ROOT}/scripts/cli/show-help.sh"
+            # Built-in help (no external script needed)
+        show_main_help
             ;;
             
         *)

@@ -22,33 +22,6 @@ n8n::auto_recover() {
 }
 
 #######################################
-# Create backup of current data (wrapper)
-# Returns: 0 on success, 1 on failure
-#######################################
-n8n::create_backup() {
-    local backup_dir="${N8N_DATA_DIR}/backups"
-    recovery::create_backup "$N8N_DATA_DIR" "$backup_dir" "n8n"
-}
-
-#######################################
-# Cleanup old backups (wrapper)
-# Returns: 0 always
-#######################################
-n8n::cleanup_backups() {
-    local backup_dir="${N8N_DATA_DIR}/backups"
-    recovery::cleanup_old_backups "$backup_dir" 5
-}
-
-#######################################
-# Find best backup for recovery (wrapper)
-# Returns: Path to best backup or empty
-#######################################
-n8n::find_best_backup() {
-    local backup_dir="${N8N_DATA_DIR}/backups"
-    recovery::find_best_backup "$backup_dir" "*.db"
-}
-
-#######################################
 # Create directories with proper permissions
 # Returns: 0 on success, 1 on failure
 #######################################
