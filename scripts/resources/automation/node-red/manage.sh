@@ -29,19 +29,20 @@ source "${NODE_RED_SCRIPT_DIR}/config/messages.sh"
 # Export configuration
 node_red::export_config
 
-# Source all library modules
+# Source refactored library modules
+# Core module contains most shared functionality
 # shellcheck disable=SC1091
-source "${NODE_RED_LIB_DIR}/common.sh"
+source "${NODE_RED_LIB_DIR}/core.sh"
 # shellcheck disable=SC1091
 source "${NODE_RED_LIB_DIR}/docker.sh"
 # shellcheck disable=SC1091
-source "${NODE_RED_LIB_DIR}/install.sh"
+source "${NODE_RED_LIB_DIR}/health.sh"
+# shellcheck disable=SC1091
+source "${NODE_RED_LIB_DIR}/recovery.sh"
 # shellcheck disable=SC1091
 source "${NODE_RED_LIB_DIR}/status.sh"
 # shellcheck disable=SC1091
 source "${NODE_RED_LIB_DIR}/api.sh"
-# shellcheck disable=SC1091
-source "${NODE_RED_LIB_DIR}/testing.sh"
 
 #######################################
 # Parse command line arguments
@@ -189,31 +190,43 @@ main() {
             node_red::restart
             ;;
         status)
-            node_red::show_status
+            node_red::status
             ;;
         logs)
-            node_red::view_logs
+            node_red::view_logs "$LOG_LINES" "$FOLLOW"
             ;;
         info)
-            node_red::show_info
+            log::info "Node-RED Service Information"
+            echo "Service: Node-RED Visual Programming"
+            echo "Port: $NODE_RED_PORT"
+            echo "Container: $NODE_RED_CONTAINER_NAME"
+            echo "Data Directory: $NODE_RED_DATA_DIR"
+            echo "Access URL: http://localhost:$NODE_RED_PORT"
             ;;
         health)
-            node_red::health_check
+            node_red::health
             ;;
         monitor)
-            node_red::monitor "$INTERVAL"
+            log::info "Starting Node-RED monitoring (interval: ${INTERVAL}s)"
+            while true; do
+                clear
+                echo "Node-RED Monitor - $(date)"
+                echo "========================"
+                node_red::status
+                sleep "$INTERVAL"
+            done
             ;;
         flow-list)
             node_red::list_flows
             ;;
         flow-export)
-            node_red::export_flows
+            node_red::export_flows "$OUTPUT"
             ;;
         flow-import)
-            node_red::import_flow
+            node_red::import_flows "$FLOW_FILE"
             ;;
         flow-execute)
-            node_red::execute_flow
+            node_red::execute_flow "$ENDPOINT" "$DATA"
             ;;
         flow-enable)
             node_red::enable_flow "$FLOW_ID"
@@ -222,31 +235,46 @@ main() {
             node_red::disable_flow "$FLOW_ID"
             ;;
         test)
-            node_red::run_tests
+            "${NODE_RED_SCRIPT_DIR}/test/integration-test.sh"
             ;;
         validate-host)
-            node_red::validate_host_access
+            log::info "Validating host access..."
+            if docker::check_daemon; then
+                log::success "Docker daemon accessible"
+            else
+                log::error "Docker daemon not accessible"
+                exit 1
+            fi
             ;;
         validate-docker)
-            node_red::validate_docker_access
+            log::info "Validating Docker setup..."
+            if docker::check_daemon; then
+                log::success "Docker is properly configured"
+            else
+                log::error "Docker validation failed"
+                exit 1
+            fi
             ;;
         benchmark)
+            log::info "Running Node-RED benchmark..."
             node_red::benchmark
             ;;
         stress-test)
+            log::info "Running Node-RED stress test for ${DURATION}s..."
             node_red::stress_test "$DURATION"
             ;;
         metrics)
-            node_red::show_metrics
+            node_red::get_status_json | jq .
             ;;
         verify)
-            node_red::verify_installation
+            log::info "Verifying Node-RED installation..."
+            node_red::health
             ;;
         backup)
-            node_red::backup
+            node_red::create_backup "manual-$(date +%Y%m%d-%H%M%S)"
             ;;
         restore)
-            node_red::restore "$BACKUP_PATH"
+            node_red::restore_backup "$BACKUP_PATH"
             ;;
         inject)
             if [[ -z "$INJECTION_CONFIG" ]]; then
@@ -254,7 +282,7 @@ main() {
                 log::info "Use: --injection-config 'JSON_CONFIG'"
                 exit 1
             fi
-            "${SCRIPT_DIR}/inject.sh" --inject "$INJECTION_CONFIG"
+            "${NODE_RED_SCRIPT_DIR}/inject.sh" --inject "$INJECTION_CONFIG"
             ;;
         validate-injection)
             if [[ -z "$INJECTION_CONFIG" ]]; then
@@ -262,7 +290,7 @@ main() {
                 log::info "Use: --injection-config 'JSON_CONFIG'"
                 exit 1
             fi
-            "${SCRIPT_DIR}/inject.sh" --validate "$INJECTION_CONFIG"
+            "${NODE_RED_SCRIPT_DIR}/inject.sh" --validate "$INJECTION_CONFIG"
             ;;
         *)
             log::error "Unknown action: $ACTION"

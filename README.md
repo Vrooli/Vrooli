@@ -152,20 +152,20 @@
 # 📖 About
 
 ## ❓ What is Vrooli?
-Vrooli is an innovative AI execution platform that enables **recursive self-improvement** through collaborative intelligence ecosystems. Unlike traditional automation platforms, Vrooli creates autonomous systems where AI agents progressively enhance their own capabilities by building, improving, and sharing automated processes. Here's how it works:
+Vrooli is a **resource orchestration platform** that enables agents to build complete business applications by orchestrating local resources. Unlike traditional platforms limited by API restrictions, Vrooli provides agents with direct access to databases, AI models, automation platforms, and 20+ local services to create fully-functional, revenue-generating applications. Here's how it works:
 
-- **Create Autonomous Agents:** Users create AI-driven agents capable of sophisticated reasoning, planning, and execution without constant human supervision. These agents can interact through chat and coordinate complex multi-step tasks. [Check out our current agents here](https://vrooli.com/search?type="User"&isBot=true).
+- **Deploy Business Applications:** Agents build complete SaaS applications using **scenarios** - dual-purpose templates that serve as both integration tests AND deployable business applications. From research assistants to content studios, each scenario represents real revenue potential. [Explore current scenarios](scripts/scenarios/core/).
 
-- **Orchestrate Dynamic Swarms:** Agents can be organized into temporary task forces called "swarms" - dynamic coalitions that assemble automatically around specific objectives, then disband when complete. Swarms enable sophisticated coordination through AI metacognition rather than rigid programming.
+- **Orchestrate Local Resources:** Instead of being limited to API calls, agents orchestrate powerful local resources: Ollama (AI models), PostgreSQL (databases), n8n (workflows), Windmill (UIs), ComfyUI (image generation), and more. This resource access enables building complete applications, not just simple automations.
 
-- **Build Hierarchical Teams:** Users and agents can be organized into persistent teams with defined roles and organizational structures using MOISE+ modeling. Teams provide strategic direction and resource allocation while swarms handle tactical execution. [Check out our current teams here](https://vrooli.com/search?type="Team").
+- **Generate Revenue-Ready Apps:** The scenario system converts customer requirements into deployed applications in hours. Each scenario includes business logic, database schemas, user interfaces, and monitoring - everything needed for a complete business solution.
 
-- **Execute Evolutionary Routines:** Tasks are accomplished using routines — reusable automation building blocks that evolve from conversational (natural language) to reasoning (structured analysis) to deterministic (reliable automation) as patterns emerge. Routines combine AI reasoning, API calls, code execution, and human oversight. [Check out our current routines here](https://vrooli.com/search?type="Routine").
+- **Enable Self-Improvement:** Meta-scenarios improve Vrooli itself: scenario-generator creates new scenarios, agent-metareasoning-manager optimizes decision-making, system-monitor manages deployments, resource-researcher investigates and figures out how to add support for new local resources, and so on. The system uses itself to debug, optimize, and expand its own capabilities.
 
-- **Enable Recursive Self-Improvement:** The system achieves true recursive self-improvement through **compound knowledge effects** - where every routine becomes a building block for more sophisticated automation, creating exponential growth in capability over time.
+- **Achieve Recursive Enhancement:** Every deployed scenario becomes a permanent capability. Revenue-generating applications fund development while meta-scenarios ensure continuous evolution, creating unstoppable compound intelligence growth.
 
 ## 🤔 Why use Vrooli?
-Vrooli represents a fundamental breakthrough in automation - moving beyond simple task execution to **collaborative intelligence ecosystems** where capabilities grow exponentially through agent cooperation and routine evolution:
+Vrooli represents a fundamental breakthrough in application development - moving beyond API-limited automation to **complete business application generation** through local resource orchestration:
 
 - **Three-Tier Intelligence Architecture:** Vrooli's unique architecture enables coordination intelligence (swarm orchestration), process intelligence (universal routine execution), and execution intelligence (strategy-aware processing) working together seamlessly.
 

@@ -1,345 +1,194 @@
 #!/usr/bin/env bash
-# Node-RED Docker Management Functions
-# All Docker-related operations for Node-RED containers
+# Node-RED Docker Operations
+# Minimal Docker wrapper delegating to docker-utils framework
+
+NODE_RED_DOCKER_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
+# shellcheck disable=SC1091
+source "${NODE_RED_DOCKER_LIB_DIR}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-utils.sh"
 
 #######################################
 # Build custom Node-RED Docker image
+# Returns: 0 on success, 1 on failure
 #######################################
 node_red::build_custom_image() {
-    node_red::show_building_image
+    local docker_dir="${NODE_RED_SCRIPT_DIR}/docker"
     
-    # Check if Dockerfile exists in docker directory
-    local docker_dir="$SCRIPT_DIR/docker"
     if [[ ! -f "$docker_dir/Dockerfile" ]]; then
-        node_red::show_docker_build_error
+        log::error "Dockerfile not found at: $docker_dir/Dockerfile"
         return 1
     fi
     
-    # Build the image
-    if docker build -t "$IMAGE_NAME" "$docker_dir"; then
-        log::success "Custom image built successfully"
+    log::info "Building custom Node-RED image..."
+    docker::build_image "$NODE_RED_CUSTOM_IMAGE" "$docker_dir"
+}
+
+#######################################
+# Remove Node-RED Docker image
+# Returns: 0 on success, 1 on failure
+#######################################
+node_red::remove_image() {
+    local image="${1:-$NODE_RED_CUSTOM_IMAGE}"
+    
+    log::info "Removing Node-RED image: $image"
+    docker::remove_image "$image"
+}
+
+#######################################
+# Pull latest Node-RED official image
+# Returns: 0 on success, 1 on failure
+#######################################
+node_red::pull_image() {
+    local image="${1:-$NODE_RED_IMAGE}"
+    
+    log::info "Pulling Node-RED image: $image"
+    docker::pull_image "$image"
+}
+
+#######################################
+# Get Node-RED image information
+# Arguments:
+#   $1 - image name (optional, default: NODE_RED_IMAGE)
+# Returns: JSON image information
+#######################################
+node_red::get_image_info() {
+    local image="${1:-$NODE_RED_IMAGE}"
+    
+    docker::get_image_info "$image"
+}
+
+#######################################
+# List all Node-RED related images
+# Returns: List of Node-RED images
+#######################################
+node_red::list_images() {
+    echo "Node-RED Docker Images:"
+    echo "======================"
+    
+    # Official image
+    if docker::image_exists "$NODE_RED_IMAGE"; then
+        echo "✓ Official: $NODE_RED_IMAGE"
+        local size
+        size=$(docker images --format "{{.Size}}" "$NODE_RED_IMAGE" | head -1)
+        echo "  Size: $size"
+    else
+        echo "✗ Official: $NODE_RED_IMAGE (not pulled)"
+    fi
+    
+    # Custom image
+    if docker::image_exists "$NODE_RED_CUSTOM_IMAGE"; then
+        echo "✓ Custom: $NODE_RED_CUSTOM_IMAGE"
+        local size
+        size=$(docker images --format "{{.Size}}" "$NODE_RED_CUSTOM_IMAGE" | head -1)
+        echo "  Size: $size"
+    else
+        echo "✗ Custom: $NODE_RED_CUSTOM_IMAGE (not built)"
+    fi
+}
+
+#######################################
+# Clean up Node-RED Docker resources
+# Removes stopped containers, unused networks, and dangling images
+# Returns: 0 on success, 1 on failure
+#######################################
+node_red::cleanup_docker() {
+    log::info "Cleaning up Node-RED Docker resources..."
+    
+    # Remove stopped Node-RED containers
+    local stopped_containers
+    stopped_containers=$(docker ps -a -f "name=$NODE_RED_CONTAINER_NAME" -f "status=exited" -q)
+    if [[ -n "$stopped_containers" ]]; then
+        log::info "Removing stopped Node-RED containers..."
+        docker rm $stopped_containers
+    fi
+    
+    # Remove Node-RED networks that are not in use
+    if docker network exists "$NODE_RED_NETWORK_NAME"; then
+        local connected_containers
+        connected_containers=$(docker network inspect "$NODE_RED_NETWORK_NAME" --format '{{len .Containers}}' 2>/dev/null || echo "0")
+        if [[ "$connected_containers" == "0" ]]; then
+            log::info "Removing unused Node-RED network..."
+            docker network rm "$NODE_RED_NETWORK_NAME"
+        fi
+    fi
+    
+    # Remove dangling Node-RED images
+    local dangling_images
+    dangling_images=$(docker images -f "dangling=true" -f "label=org.opencontainers.image.title=Node-RED" -q)
+    if [[ -n "$dangling_images" ]]; then
+        log::info "Removing dangling Node-RED images..."
+        docker rmi $dangling_images
+    fi
+    
+    log::success "Docker cleanup completed"
+}
+
+#######################################
+# Export Node-RED container as image
+# Arguments:
+#   $1 - export name (optional, default: node-red-export-TIMESTAMP)
+# Returns: 0 on success, 1 on failure
+#######################################
+node_red::export_container() {
+    local export_name="${1:-node-red-export-$(date +%Y%m%d-%H%M%S)}"
+    
+    if ! docker::container_exists "$NODE_RED_CONTAINER_NAME"; then
+        log::error "Node-RED container does not exist"
+        return 1
+    fi
+    
+    log::info "Exporting Node-RED container as: $export_name"
+    docker commit "$NODE_RED_CONTAINER_NAME" "$export_name"
+    
+    if docker::image_exists "$export_name"; then
+        log::success "Container exported as image: $export_name"
         return 0
     else
-        node_red::show_build_failed_error
+        log::error "Failed to export container"
         return 1
     fi
 }
 
 #######################################
-# Create Docker network if it doesn't exist
+# Get Node-RED container logs with filtering
+# Arguments:
+#   $1 - log level filter (optional: error, warn, info, debug)
+#   $2 - lines to show (optional, default: 100)
+# Returns: Filtered log output
 #######################################
-node_red::create_network() {
-    if ! docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
-        node_red::show_creating_network
-        docker network create "$NETWORK_NAME"
-    fi
-}
-
-#######################################
-# Create Docker volume for Node-RED data
-#######################################
-node_red::create_volume() {
-    node_red::show_creating_volume
-    docker volume create "$VOLUME_NAME"
-}
-
-#######################################
-# Build Node-RED Docker run command
-#######################################
-node_red::build_docker_command() {
-    local image_to_use="$1"
+node_red::get_filtered_logs() {
+    local level_filter="${1:-}"
+    local lines="${2:-100}"
     
-    local docker_cmd="docker run -d"
-    docker_cmd+=" --name $CONTAINER_NAME"
-    docker_cmd+=" --restart unless-stopped"
-    docker_cmd+=" --network $NETWORK_NAME"
-    docker_cmd+=" -p $RESOURCE_PORT:1880"
-    docker_cmd+=" -v $VOLUME_NAME:/data"
-    docker_cmd+=" -v $SCRIPT_DIR/flows:/data/flows"
-    docker_cmd+=" -v $SCRIPT_DIR/settings.js:/data/settings.js:ro"
-    
-    # Add host access volumes if enabled
-    if [[ "$NODE_RED_ENABLE_HOST_ACCESS" == "yes" ]]; then
-        # Host system binaries (read-only)
-        if [[ -d /usr/bin ]]; then
-            docker_cmd+=" -v /usr/bin:/host/usr/bin:ro"
-        fi
-        if [[ -d /bin ]]; then
-            docker_cmd+=" -v /bin:/host/bin:ro"
-        fi
-        
-        # Workspace access (read-write) - mount project root as workspace
-        docker_cmd+=" -v ${var_ROOT_DIR:-$HOME/Vrooli}:/workspace:rw"
+    if ! docker::container_exists "$NODE_RED_CONTAINER_NAME"; then
+        log::error "Node-RED container does not exist"
+        return 1
     fi
     
-    # Add Docker socket access if enabled
-    if [[ "$NODE_RED_ENABLE_DOCKER_SOCKET" == "yes" ]] && [[ -S /var/run/docker.sock ]]; then
-        docker_cmd+=" -v /var/run/docker.sock:/var/run/docker.sock:ro"
-    fi
+    local logs
+    logs=$(docker logs --tail "$lines" "$NODE_RED_CONTAINER_NAME" 2>&1)
     
-    # Environment variables
-    docker_cmd+=" -e NODE_RED_FLOW_FILE=$DEFAULT_FLOW_FILE"
-    docker_cmd+=" -e NODE_RED_CREDENTIAL_SECRET=$DEFAULT_SECRET"
-    docker_cmd+=" -e TZ=${TZ:-UTC}"
-    
-    # Health check
-    docker_cmd+=" --health-cmd=\"curl -f http://localhost:1880 || exit 1\""
-    docker_cmd+=" --health-interval=$DOCKER_HEALTH_INTERVAL"
-    docker_cmd+=" --health-timeout=$DOCKER_HEALTH_TIMEOUT"
-    docker_cmd+=" --health-retries=$DOCKER_HEALTH_RETRIES"
-    
-    # Add the image name
-    docker_cmd+=" $image_to_use"
-    
-    echo "$docker_cmd"
-}
-
-#######################################
-# Start Node-RED container
-#######################################
-node_red::start_container() {
-    local build_image="${1:-$NODE_RED_ENABLE_CUSTOM_IMAGE}"
-    
-    # Determine which image to use
-    local image_to_use
-    if [[ "$build_image" == "yes" ]]; then
-        node_red::build_custom_image || return 1
-        image_to_use="$IMAGE_NAME"
+    if [[ -n "$level_filter" ]]; then
+        case "$level_filter" in
+            "error")
+                echo "$logs" | grep -i "error\|fatal"
+                ;;
+            "warn")
+                echo "$logs" | grep -i "warn\|warning"
+                ;;
+            "info")
+                echo "$logs" | grep -i "info"
+                ;;
+            "debug")
+                echo "$logs" | grep -i "debug\|trace"
+                ;;
+            *)
+                echo "$logs"
+                ;;
+        esac
     else
-        image_to_use="$OFFICIAL_IMAGE"
+        echo "$logs"
     fi
-    
-    # Create network if it doesn't exist
-    node_red::create_network
-    
-    # Create volume
-    node_red::create_volume
-    
-    # Create settings.js if it doesn't exist
-    node_red::create_default_settings
-    
-    # Build and execute Docker command
-    node_red::show_starting_container
-    local docker_cmd
-    docker_cmd=$(node_red::build_docker_command "$image_to_use")
-    
-    # Execute the command
-    eval "$docker_cmd"
-}
-
-#######################################
-# Stop Node-RED container
-#######################################
-node_red::stop_container() {
-    if ! node_red::is_installed; then
-        node_red::show_not_installed_error
-        return 1
-    fi
-    
-    if ! node_red::is_running; then
-        node_red::show_already_running_warning
-        return 0
-    fi
-    
-    node_red::show_stopping
-    docker stop "$CONTAINER_NAME"
-    log::success "Node-RED stopped"
-}
-
-#######################################
-# Start existing Node-RED container
-#######################################
-node_red::start_existing_container() {
-    if ! node_red::is_installed; then
-        node_red::show_not_installed_error
-        return 1
-    fi
-    
-    if node_red::is_running; then
-        node_red::show_already_running_warning
-        return 0
-    fi
-    
-    node_red::show_starting
-    docker start "$CONTAINER_NAME"
-    
-    if node_red::wait_for_ready; then
-        log::success "Node-RED started successfully"
-        return 0
-    else
-        return 1
-    fi
-}
-
-#######################################
-# Restart Node-RED container
-#######################################
-node_red::restart_container() {
-    node_red::show_restarting
-    node_red::stop_container
-    node_red::start_existing_container
-}
-
-#######################################
-# Remove Node-RED container
-#######################################
-node_red::remove_container() {
-    if ! node_red::is_installed; then
-        return 0  # Already removed
-    fi
-    
-    # Stop container if running
-    if node_red::is_running; then
-        docker stop "$CONTAINER_NAME"
-    fi
-    
-    # Remove container
-    docker rm "$CONTAINER_NAME"
-}
-
-#######################################
-# Remove Node-RED volume
-#######################################
-node_red::remove_volume() {
-    if docker volume inspect "$VOLUME_NAME" >/dev/null 2>&1; then
-        docker volume rm "$VOLUME_NAME"
-    fi
-}
-
-#######################################
-# Remove custom Node-RED image
-#######################################
-node_red::remove_custom_image() {
-    if docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
-        docker rmi "$IMAGE_NAME"
-    fi
-}
-
-#######################################
-# Get container information
-#######################################
-node_red::get_container_info() {
-    if ! node_red::is_installed; then
-        return 1
-    fi
-    
-    docker container inspect "$CONTAINER_NAME" 2>/dev/null
-}
-
-#######################################
-# Check if custom image exists
-#######################################
-node_red::custom_image_exists() {
-    docker image inspect "$IMAGE_NAME" >/dev/null 2>&1
-}
-
-#######################################
-# Pull official Node-RED image
-#######################################
-node_red::pull_official_image() {
-    log::info "Pulling official Node-RED image..."
-    docker pull "$OFFICIAL_IMAGE"
-}
-
-#######################################
-# Validate Docker setup for Node-RED
-#######################################
-node_red::validate_docker_setup() {
-    # Check Docker is available
-    if ! node_red::check_docker; then
-        return 1
-    fi
-    
-    # Check port availability
-    if ! node_red::check_port "$RESOURCE_PORT"; then
-        # Check if it's our own container using the port
-        if node_red::is_running; then
-            log::info "Node-RED is already running on port $RESOURCE_PORT"
-            return 0  # Not an error if it's our container
-        else
-            log::error "Port $RESOURCE_PORT is already in use by another service"
-            log::info "Stop the service using port $RESOURCE_PORT or use a different port"
-            log::info "Example: NODE_RED_CUSTOM_PORT=1881 $0 --action install"
-            return 1
-        fi
-    fi
-    
-    return 0
-}
-
-#######################################
-# Clean up all Node-RED Docker resources
-#######################################
-node_red::cleanup_docker_resources() {
-    node_red::remove_container
-    node_red::remove_volume
-    node_red::remove_custom_image
-    
-    # Clean up orphaned networks if no other containers are using them
-    if docker network inspect "$NETWORK_NAME" >/dev/null 2>&1; then
-        local containers_using_network
-        containers_using_network=$(docker network inspect "$NETWORK_NAME" --format '{{len .Containers}}' 2>/dev/null || echo "0")
-        if [[ "$containers_using_network" == "0" ]]; then
-            docker network rm "$NETWORK_NAME" 2>/dev/null || true
-        fi
-    fi
-}
-
-#######################################
-# Execute command inside Node-RED container
-#######################################
-node_red::exec_in_container() {
-    local cmd="$1"
-    
-    if ! node_red::is_running; then
-        node_red::show_not_running_error
-        return 1
-    fi
-    
-    docker exec "$CONTAINER_NAME" $cmd
-}
-
-#######################################
-# Copy files to/from Node-RED container
-#######################################
-node_red::copy_to_container() {
-    local src="$1"
-    local dest="$2"
-    
-    if ! node_red::is_running; then
-        node_red::show_not_running_error
-        return 1
-    fi
-    
-    docker cp "$src" "$CONTAINER_NAME:$dest"
-}
-
-node_red::copy_from_container() {
-    local src="$1"
-    local dest="$2"
-    
-    if ! node_red::is_running; then
-        node_red::show_not_running_error
-        return 1
-    fi
-    
-    docker cp "$CONTAINER_NAME:$src" "$dest"
-}
-
-#######################################
-# Get Docker resource usage stats
-#######################################
-node_red::get_docker_stats() {
-    if ! node_red::is_running; then
-        return 1
-    fi
-    
-    docker stats --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}" "$CONTAINER_NAME"
-}
-
-#######################################
-# Inspect Node-RED container network
-#######################################
-node_red::inspect_network() {
-    docker network inspect "$NETWORK_NAME" 2>/dev/null
 }

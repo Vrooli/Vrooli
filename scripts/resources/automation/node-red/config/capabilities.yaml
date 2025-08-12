@@ -1,0 +1,250 @@
+apiVersion: vrooli.com/v1
+kind: ResourceCapability
+metadata:
+  name: node-red
+  category: automation
+  subcategory: workflow
+  description: "Low-code visual programming for wiring together hardware devices, APIs and online services"
+  maturity: stable
+  complexity: beginner
+  
+spec:
+  # Core capabilities this resource provides
+  capabilities:
+    primary:
+      - visual-flow-programming
+      - iot-device-management
+      - api-integration
+      - real-time-data-processing
+    secondary:
+      - dashboard-creation
+      - mqtt-messaging
+      - web-service-creation
+      - automation-scripting
+    specialized:
+      - hardware-interfacing
+      - protocol-bridging
+      - edge-computing
+      - home-automation
+  
+  # API interfaces available
+  interfaces:
+    - name: flow-management
+      endpoint: "/flows"
+      method: [GET, POST]
+      inputTypes: [json]
+      outputTypes: [json]
+      description: "Manage flow definitions and deployment"
+    - name: admin-api
+      endpoint: "/settings"
+      method: [GET, POST]
+      inputTypes: [json]
+      outputTypes: [json]
+      description: "Runtime settings and configuration"
+    - name: dashboard
+      endpoint: "/ui"
+      method: [GET, POST]
+      inputTypes: [json, form-data]
+      outputTypes: [html, json]
+      description: "Interactive dashboard interface"
+    - name: websocket
+      endpoint: "/comms"
+      method: [GET]
+      inputTypes: [websocket]
+      outputTypes: [websocket]
+      description: "Real-time communication with editor"
+    - name: http-endpoints
+      endpoint: "/*"
+      method: [GET, POST, PUT, DELETE]
+      inputTypes: [json, form-data, text]
+      outputTypes: [json, html, text]
+      description: "Custom HTTP endpoints created by flows"
+  
+  # Resource dependencies and requirements
+  dependencies:
+    required: []
+    optional:
+      - mqtt-broker
+      - influxdb
+      - postgres
+      - mysql
+    incompatible: []
+  
+  # Scenario compatibility
+  scenarios:
+    primary:
+      - system-monitor
+      - app-monitor
+      - web-scraper-manager
+    secondary:
+      - secure-document-processing
+      - analytics-dashboard
+      - brand-manager
+    optimal_combinations:
+      - [node-red, influxdb, grafana]      # IoT monitoring stack
+      - [node-red, postgres, vault]        # Secure data processing
+      - [node-red, mqtt, ollama]           # AI-powered IoT automation
+      - [node-red, browserless, minio]     # Web automation with storage
+  
+  # Business intelligence
+  business:
+    revenue_range:
+      min: 3000
+      max: 25000
+      currency: USD
+    complexity_score: 5  # 1-10 scale
+    implementation_time: "1-3 days"
+    upwork_demand: medium
+    target_industries:
+      - iot-solutions
+      - home-automation
+      - industrial-automation
+      - prototyping
+      - small-business-automation
+      - monitoring-systems
+    common_project_types:
+      - "IoT data collection and visualization"
+      - "Home automation system"
+      - "Industrial monitoring dashboard"
+      - "API integration prototype"
+      - "Device management platform"
+      - "Simple workflow automation"
+  
+  # Technical specifications
+  technical:
+    ports: [1880]
+    protocols: [http, websocket, mqtt, modbus, tcp, udp]
+    data_formats: [json, xml, csv, raw]
+    resource_requirements:
+      memory:
+        minimum: "512MB"
+        recommended: "1GB"
+        optimal: "2GB+"
+      cpu:
+        minimum: "1 core"
+        recommended: "2 cores"
+        optimal: "2+ cores"
+      storage:
+        minimum: "500MB"
+        recommended: "2GB"
+        optimal: "10GB+"
+      database:
+        required: false
+        recommended: false
+        supported: [file-based, context-store]
+    scaling:
+      horizontal: limited
+      vertical: true
+      max_concurrent_flows: 100
+      execution_modes: [single-instance, cluster]
+  
+  # AI generation hints for automated scenario creation
+  ai_generation:
+    common_patterns:
+      - iot-data-collection
+      - dashboard-creation
+      - api-orchestration
+      - device-monitoring
+      - real-time-processing
+    integration_targets:
+      preferred: [mqtt, influxdb, grafana, postgres]
+      compatible: [ollama, browserless, minio, vault]
+      avoid: [high-throughput-streaming, complex-business-logic]
+    flow_templates:
+      iot_monitoring: "Collect from {sensors} → Process {data} → Store in {database} → Display on {dashboard}"
+      automation: "Trigger on {condition} → Execute {action} → Log {result} → Notify {users}"
+      integration: "Poll {api} → Transform {data} → Send to {destination} → Handle {errors}"
+    complexity_indicators:
+      simple: ["single-device integration", "basic dashboard", "simple alerts"]
+      intermediate: ["multi-device coordination", "data transformation", "conditional logic"]
+      advanced: ["industrial protocols", "complex orchestration", "edge computing"]
+  
+  # Specialized features
+  features:
+    visual_programming:
+      enabled: true
+      description: "Drag-and-drop visual flow programming interface"
+      skill_level: beginner
+    node_ecosystem:
+      enabled: true
+      description: "Extensive library of contributed nodes"
+      count: "4000+"
+    dashboard_builder:
+      enabled: true
+      description: "Built-in dashboard creation tools"
+      features: [charts, gauges, buttons, forms]
+    context_storage:
+      enabled: true
+      description: "Persistent data storage across flow executions"
+      types: [memory, file, redis]
+  
+  # Integration capabilities
+  integrations:
+    built_in_nodes: 80+
+    contributed_nodes: 4000+
+    categories:
+      - networking
+      - storage
+      - parsing
+      - hardware
+      - social
+      - utility
+      - analysis
+      - advanced
+    popular_integrations:
+      - mqtt
+      - http_request
+      - websocket
+      - tcp
+      - udp
+      - serial
+      - dashboard
+      - function
+      - switch
+      - change
+  
+  # Testing and validation
+  testing:
+    test_file: "test/integration-test.sh"
+    test_coverage:
+      - service_health
+      - api_functionality
+      - flow_management
+      - dashboard_functionality
+      - websocket_communication
+    fixtures:
+      - default_flows
+      - test_flows
+      - dashboard_examples
+    integration_tests:
+      - node_red_mqtt_integration
+      - node_red_dashboard_creation
+      - flow_execution_validation
+  
+  # Documentation and examples
+  documentation:
+    readme: "README.md"
+    api_reference: "docs/API.md"
+    examples_dir: "flows/"
+    configuration: "docs/CONFIGURATION.md"
+    troubleshooting: "docs/TROUBLESHOOTING.md"
+  
+  # Version and compatibility
+  version_info:
+    min_version: "3.0.0"
+    tested_version: "4.0.5"
+    api_version: "v2"
+    compatibility_matrix:
+      docker: ">=20.10.0"
+      node: ">=18.0.0"
+      memory: ">=512MB"
+      architecture: [amd64, arm64, arm32]
+
+# Metadata for resource discovery and automation
+labels:
+  resource.vrooli.com/category: "automation"
+  resource.vrooli.com/type: "visual-programming"
+  resource.vrooli.com/maturity: "stable"
+  resource.vrooli.com/business-value: "high"
+  resource.vrooli.com/ai-friendly: "true"
+  resource.vrooli.com/skill-level: "beginner"

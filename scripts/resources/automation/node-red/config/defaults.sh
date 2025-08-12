@@ -5,7 +5,7 @@
 # Source var.sh first to get standard directory variables
 NODE_RED_CONFIG_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "${NODE_RED_CONFIG_DIR}/../../../lib/utils/var.sh"
+source "$(dirname "$(dirname "$(dirname "$(dirname "${NODE_RED_CONFIG_DIR}")")")")/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 
@@ -80,4 +80,13 @@ node_red::export_config() {
     export CONFIG_HEALTH_CHECK_INTERVAL_MS CONFIG_HEALTH_CHECK_TIMEOUT_MS CONFIG_BACKUP_INTERVAL
     export DESCRIPTION
     export NODE_RED_ENABLE_CUSTOM_IMAGE NODE_RED_ENABLE_HOST_ACCESS NODE_RED_ENABLE_DOCKER_SOCKET
+    
+    # Export with standardized names expected by the code
+    export NODE_RED_CONTAINER_NAME="$CONTAINER_NAME"
+    export NODE_RED_VOLUME_NAME="$VOLUME_NAME"  
+    export NODE_RED_NETWORK_NAME="$NETWORK_NAME"
+    export NODE_RED_IMAGE="$OFFICIAL_IMAGE"
+    export NODE_RED_CUSTOM_IMAGE="$IMAGE_NAME"
+    export NODE_RED_DATA_DIR="./data/node-red"
+    export NODE_RED_FLOWS_FILE="$DEFAULT_FLOW_FILE"
 }
