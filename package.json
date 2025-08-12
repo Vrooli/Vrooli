@@ -1,73 +1,23 @@
 {
   "name": "vrooli",
   "private": true,
-  "workspaces": [
-    "packages/*"
-  ],
   "author": "Vrooli",
   "license": "AGPL-3.0-only",
-  "resolutions": {
-    "babel-loader": "8.1.0"
-  },
   "version": "2.0.2",
+  "description": "Self-improving intelligence system where AI agents build permanent capabilities",
   "scripts": {
-    "test": "vrooli test",
-    "test:static": "vrooli test static",
-    "test:resources": "vrooli test resources", 
-    "test:scenarios": "vrooli test scenarios",
-    "test:bats": "vrooli test bats"
-  },
-  "build": {
-    "appId": "com.vrooli.app",
-    "productName": "Vrooli",
-    "directories": {
-      "output": "dist/desktop",
-      "buildResources": "platforms/desktop/assets"
-    },
-    "files": [
-      "dist/desktop/main.cjs",
-      "dist/desktop/preload.cjs",
-      "platforms/desktop/src/splash.html",
-      "packages/server/dist",
-      "!packages/server/dist/**/*.map",
-      {
-        "from": "packages/server/package.json",
-        "to": "packages/server/package.json"
-      }
-    ],
-    "asarUnpack": [
-      "**/node_modules/*.node"
-    ],
-    "extraMetadata": {
-      "main": "dist/desktop/main.cjs"
-    },
-    "win": {
-      "target": "nsis",
-      "icon": "icon.ico",
-      "signAndEditExecutable": false
-    },
-    "nsis": {
-      "installerIcon": "icon.ico",
-      "uninstallerIcon": "icon.ico",
-      "uninstallDisplayName": "Vrooli",
-      "oneClick": false,
-      "allowToChangeInstallationDirectory": true,
-      "createDesktopShortcut": true,
-      "createStartMenuShortcut": true,
-      "menuCategory": true
-    },
-    "mac": {
-      "target": "dmg",
-      "icon": "icon.icns"
-    },
-    "linux": {
-      "target": "AppImage",
-      "icon": "icon.png"
-    }
-  },
-  "dependencies": {
-    "@prisma/client": "6.1.0",
-    "npm-run-all": "^4.1.5",
-    "sharp": "^0.32.3"
+    "info": "echo '🚀 Vrooli uses its own CLI. Run these commands instead:' && echo '' && echo '  Setup:     ./scripts/manage.sh setup  OR  make setup' && echo '  Develop:   vrooli develop            OR  make dev' && echo '  Test:      vrooli test               OR  make test' && echo '  Help:      vrooli --help             OR  make help' && echo '' && echo 'First time? Start with: make setup'",
+    "setup": "echo '⚡ Run this instead: ./scripts/manage.sh setup' && echo 'This will install the Vrooli CLI and set up your environment' && exit 1",
+    "dev": "echo '⚡ Run this instead: vrooli develop' && echo 'If vrooli is not found, run: ./scripts/manage.sh setup' && exit 1",
+    "develop": "echo '⚡ Run this instead: vrooli develop' && echo 'If vrooli is not found, run: ./scripts/manage.sh setup' && exit 1",
+    "start": "echo '⚡ Run this instead: vrooli develop' && echo 'If vrooli is not found, run: ./scripts/manage.sh setup' && exit 1",
+    "test": "echo '⚡ Run this instead: vrooli test' && echo 'If vrooli is not found, run: ./scripts/manage.sh setup' && exit 1",
+    "test:static": "echo '⚡ Run this instead: vrooli test static' && exit 1",
+    "test:resources": "echo '⚡ Run this instead: vrooli test resources' && exit 1",
+    "test:scenarios": "echo '⚡ Run this instead: vrooli test scenarios' && exit 1",
+    "test:bats": "echo '⚡ Run this instead: vrooli test bats' && exit 1",
+    "build": "echo '⚡ Run this instead: vrooli build' && exit 1",
+    "clean": "echo '⚡ Run this instead: vrooli clean' && exit 1",
+    "help": "npm run info"
   }
 }
