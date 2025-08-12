@@ -4,10 +4,13 @@
 
 # Source shared libraries
 N8N_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck disable=SC1091
+source "${N8N_LIB_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SERVICE_DIR}/secrets.sh"
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../../lib/http-utils.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/http-utils.sh"
 
 #######################################
 # Execute workflow via API

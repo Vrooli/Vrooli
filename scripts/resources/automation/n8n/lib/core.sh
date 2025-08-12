@@ -4,37 +4,32 @@
 
 # Source shared libraries
 N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-SHARED_LIB_DIR="${N8N_LIB_DIR}/../../../lib"
 
 # shellcheck disable=SC1091
-source "${SHARED_LIB_DIR}/docker-utils.sh"
+source "${N8N_LIB_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${SHARED_LIB_DIR}/http-utils.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-utils.sh"
 # shellcheck disable=SC1091
-source "${SHARED_LIB_DIR}/status-engine.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/http-utils.sh"
 # shellcheck disable=SC1091
-source "${SHARED_LIB_DIR}/health-framework.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/status-engine.sh"
 # shellcheck disable=SC1091
-source "${SHARED_LIB_DIR}/recovery-framework.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/health-framework.sh"
 # shellcheck disable=SC1091
-source "${SHARED_LIB_DIR}/init-framework.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/recovery-framework.sh"
 # shellcheck disable=SC1091
-source "${SHARED_LIB_DIR}/wait-utils.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/init-framework.sh"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/wait-utils.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SERVICE_DIR}/secrets.sh"
 
 #######################################
 # n8n Configuration Constants
-# Only set if not already defined
+# These are set in config/defaults.sh as readonly
+# Only set non-readonly variables here
 #######################################
-: "${N8N_CONTAINER_NAME:=n8n}"
-: "${N8N_DB_CONTAINER_NAME:=n8n-postgres}"
-: "${N8N_PORT:=5678}"
-: "${N8N_BASE_URL:=http://localhost:$N8N_PORT}"
-: "${N8N_DATA_DIR:=/data/n8n}"
-: "${N8N_IMAGE:=n8nio/n8n:latest}"
-: "${N8N_CUSTOM_IMAGE:=n8n-custom:latest}"
-: "${N8N_NETWORK_NAME:=vrooli-network}"
+# Variables that aren't set as readonly in defaults.sh
 : "${DATABASE_TYPE:=sqlite}"
 : "${BASIC_AUTH:=yes}"
 : "${AUTH_USERNAME:=admin}"
@@ -336,7 +331,7 @@ n8n::display_workflow_info() {
     local api_key
     api_key=$(n8n::resolve_api_key)
     if [[ -n "$api_key" ]]; then
-        log::info "   📋 List workflows: ./manage.sh --action workflow-list"
+        log::info "   📋 List workflows: ./manage.sh --action list-workflows"
         log::info "   ▶️  Execute: ./manage.sh --action execute --workflow-id ID"
     else
         log::info "   Configure API key to manage workflows"

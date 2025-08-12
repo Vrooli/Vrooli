@@ -5,10 +5,13 @@ DESCRIPTION="Inject workflows and configurations into n8n automation platform"
 
 # Get script directory and source framework
 N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../../lib/inject_framework.sh"
+source "${N8N_LIB_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../../lib/validation_utils.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/inject_framework.sh"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/validation_utils.sh"
 
 # Load n8n configuration and infrastructure
 if command -v inject_framework::load_adapter_config &>/dev/null; then

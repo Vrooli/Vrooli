@@ -3,10 +3,13 @@
 
 # Source core and frameworks
 N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../../lib/docker-utils.sh"
+source "${N8N_LIB_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/../../../lib/wait-utils.sh"
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-utils.sh"
+# shellcheck disable=SC1091
+source "${var_SCRIPTS_RESOURCES_LIB_DIR}/wait-utils.sh"
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/core.sh"
 # shellcheck disable=SC1091

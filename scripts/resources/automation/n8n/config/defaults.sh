@@ -4,7 +4,12 @@
 
 # n8n port configuration - check if already set to avoid readonly conflicts in tests
 if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* N8N_PORT="; then
-    readonly N8N_PORT="${N8N_CUSTOM_PORT:-$(resources::get_default_port "n8n")}"
+    # Use resources function if available, otherwise use default port
+    if declare -f resources::get_default_port >/dev/null 2>&1; then
+        readonly N8N_PORT="${N8N_CUSTOM_PORT:-$(resources::get_default_port "n8n")}"
+    else
+        readonly N8N_PORT="${N8N_CUSTOM_PORT:-5678}"
+    fi
 fi
 if ! readonly -p | grep -q "^declare -[a-z]*r[a-z]* N8N_BASE_URL="; then
     readonly N8N_BASE_URL="http://localhost:${N8N_PORT}"

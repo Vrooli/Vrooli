@@ -4,11 +4,12 @@
 
 
 # Source trash module for safe test cleanup
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+N8N_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${N8N_LIB_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_LIB_SYSTEM_DIR}/trash.sh"
 
 # Load Vrooli test infrastructure (REQUIRED)
 source "${BATS_TEST_DIRNAME}/../../../../__test/fixtures/setup.bash"
@@ -29,7 +30,7 @@ setup() {
     vrooli_auto_setup
     
     # Use paths from setup_file
-    SCRIPT_DIR="${SETUP_FILE_SCRIPT_DIR}"
+    N8N_LIB_DIR="${SETUP_FILE_SCRIPT_DIR}"
     N8N_DIR="${SETUP_FILE_N8N_DIR}"
     
     # Set test environment BEFORE sourcing config files to avoid readonly conflicts
