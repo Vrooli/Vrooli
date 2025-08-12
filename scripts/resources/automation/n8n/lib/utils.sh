@@ -10,8 +10,6 @@ source "${N8N_LIB_DIR}/../../../lib/docker-utils.sh" 2>/dev/null || true
 source "${N8N_LIB_DIR}/../../../lib/http-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/../../../lib/wait-utils.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/constants.sh" 2>/dev/null || true
 
 #######################################
 # Unified API key resolution
@@ -22,14 +20,6 @@ n8n::resolve_api_key() {
     http::resolve_api_key "N8N_API_KEY"
 }
 
-#######################################
-# Standardized HTTP calls with error handling
-# Args: $1 - method, $2 - url, $3 - data (optional), $4 - headers (optional)
-# Returns: Response body via stdout, HTTP code via return value
-#######################################
-n8n::safe_curl_call() {
-    http::request "$@"
-}
 
 #######################################
 # Get container environment variable safely
@@ -119,13 +109,13 @@ n8n::validate_api_key_setup() {
     local api_key
     api_key=$(n8n::resolve_api_key)
     if [[ -z "$api_key" ]]; then
-        n8n::log_with_context "error" "api" "$N8N_ERR_API_KEY_MISSING"
+        n8n::log_with_context "error" "api" "No API key found"
         return 1
     fi
     # Test the API key with a simple request
     local response
     local http_code
-    response=$(n8n::safe_curl_call "GET" "${N8N_BASE_URL}/api/v1/workflows?limit=1" "" "X-N8N-API-KEY: $api_key")
+    response=$(http::request "GET" "${N8N_BASE_URL}/api/v1/workflows?limit=1" "" "X-N8N-API-KEY: $api_key")
     http_code=$?
     case "$http_code" in
         200)
@@ -133,7 +123,7 @@ n8n::validate_api_key_setup() {
             return 0
             ;;
         401)
-            n8n::log_with_context "error" "api" "$N8N_ERR_API_KEY_INVALID"
+            n8n::log_with_context "error" "api" "API key is invalid or expired"
             return 1
             ;;
         403)
@@ -147,14 +137,6 @@ n8n::validate_api_key_setup() {
     esac
 }
 
-#######################################
-# Wait for condition with timeout and progress indication
-# Args: $1 - test_command, $2 - timeout_seconds, $3 - description
-# Returns: 0 if condition met, 1 if timeout
-#######################################
-n8n::wait_for_condition() {
-    wait::for_condition "$@"
-}
 
 #######################################
 # Show standardized API setup instructions
@@ -319,17 +301,6 @@ n8n::detect_and_suggest_fix() {
 # Consolidates repeated docker patterns
 #######################################
 
-# Check if container is running
-n8n::container_running() {
-    local container_name="${1:-$N8N_CONTAINER_NAME}"
-    docker::is_running "$container_name"
-}
-
-# Check if container exists (running or stopped)
-n8n::container_exists_any() {
-    local container_name="${1:-$N8N_CONTAINER_NAME}"
-    docker::container_exists "$container_name"
-}
 
 # Check if postgres container is running
 n8n::postgres_running() {

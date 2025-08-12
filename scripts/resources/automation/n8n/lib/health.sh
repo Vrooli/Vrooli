@@ -19,7 +19,7 @@ source "${N8N_LIB_DIR}/../../../lib/wait-utils.sh" 2>/dev/null || true
 #######################################
 n8n::is_healthy() {
     # Check if container is running first
-    if ! n8n::container_running; then
+    if ! docker::is_running "$N8N_CONTAINER_NAME"; then
         return 1
     fi
     # Check for database corruption indicators in logs
@@ -58,7 +58,7 @@ n8n::detect_filesystem_corruption() {
         return 1
     fi
     # Check for deleted but open database files (if container is running)
-    if n8n::container_running; then
+    if docker::is_running "$N8N_CONTAINER_NAME"; then
         local n8n_pid
         n8n_pid=$(docker::exec "$N8N_CONTAINER_NAME" pgrep -f 'node.*n8n' 2>/dev/null | head -1)
         if [[ -n "$n8n_pid" ]]; then
@@ -133,7 +133,7 @@ n8n::comprehensive_health_check() {
 #######################################
 n8n::check_basic_health() {
     # Basic container health
-    if ! n8n::container_running; then
+    if ! docker::is_running "$N8N_CONTAINER_NAME"; then
         return 2
     fi
     # Check basic healthz endpoint
@@ -158,7 +158,7 @@ n8n::test_api_functionality() {
     # Test API authentication using shared utility
     local response
     local http_code
-    response=$(n8n::safe_curl_call "GET" "${N8N_BASE_URL}/api/v1/workflows?limit=1" "" "X-N8N-API-KEY: $api_key\nAccept: application/json")
+    response=$(http::request "GET" "${N8N_BASE_URL}/api/v1/workflows?limit=1" "" "X-N8N-API-KEY: $api_key\nAccept: application/json")
     http_code=$?
     case "$http_code" in
         200)

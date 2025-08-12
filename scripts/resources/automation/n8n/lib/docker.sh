@@ -14,8 +14,6 @@ source "${N8N_LIB_DIR}/health.sh" 2>/dev/null || true
 source "${N8N_LIB_DIR}/recovery.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/utils.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/constants.sh" 2>/dev/null || true
 
 #######################################
 # Build custom n8n Docker image
@@ -171,8 +169,8 @@ n8n::stop() {
 # Returns: 0 if should continue, 1 if should stop
 #######################################
 n8n::handle_existing_instance() {
-    if n8n::container_running && [[ "$FORCE" != "yes" ]]; then
-        n8n::log_with_context "info" "docker" "$N8N_ERR_ALREADY_RUNNING on port $N8N_PORT"
+    if docker::is_running "$N8N_CONTAINER_NAME" && [[ "$FORCE" != "yes" ]]; then
+        n8n::log_with_context "info" "docker" "n8n is already running on port $N8N_PORT"
         if n8n::comprehensive_health_check; then
             n8n::log_with_context "success" "docker" "Running instance is healthy"
             return 1  # Stop - already running and healthy
@@ -204,8 +202,8 @@ n8n::run_preflight_checks() {
         return 1
     fi
     # Check if container exists
-    if ! n8n::container_exists_any; then
-        log::error "$N8N_ERR_CONTAINER_NOT_EXISTS. $N8N_FIX_RUN_INSTALL"
+    if ! docker::container_exists "$N8N_CONTAINER_NAME"; then
+        log::error "n8n container does not exist. Run install first: $0 --action install"
         return 1
     fi
     return 0
@@ -284,8 +282,8 @@ n8n::restart() {
 # Show n8n logs
 #######################################
 n8n::logs() {
-    if ! n8n::container_exists_any; then
-        log::error "$N8N_ERR_CONTAINER_NOT_EXISTS"
+    if ! docker::container_exists "$N8N_CONTAINER_NAME"; then
+        log::error "n8n container does not exist"
         return 1
     fi
     log::info "Showing n8n logs (last ${LINES:-50} lines)..."

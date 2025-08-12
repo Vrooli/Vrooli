@@ -35,8 +35,6 @@ CONFIG_FILE="$HOME/.vrooli/service.json"
 N8N_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/../../../lib/http-utils.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/constants.sh" 2>/dev/null || true
 
 # Parse command line arguments
 API_KEY=""
@@ -157,7 +155,7 @@ n8n::validate_api_key() {
             return 0
             ;;
         401)
-            n8n::print_error "$N8N_ERR_API_KEY_INVALID"
+            n8n::print_error "API key is invalid or expired"
             return 1
             ;;
         403)

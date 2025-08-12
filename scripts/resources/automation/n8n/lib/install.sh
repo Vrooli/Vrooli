@@ -56,7 +56,7 @@ EOF
 #######################################
 n8n::handle_existing_installation() {
     # Check if already installed
-    if n8n::container_exists_any && n8n::container_running && [[ "$FORCE" != "yes" ]]; then
+    if docker::container_exists "$N8N_CONTAINER_NAME" && docker::is_running "$N8N_CONTAINER_NAME" && [[ "$FORCE" != "yes" ]]; then
         log::info "n8n is already installed and running"
         log::info "Use --force yes to reinstall"
         return 1  # Stop installation
@@ -159,7 +159,7 @@ n8n::execute_container_installation() {
 n8n::wait_for_service_ready() {
     # Use standardized wait utility
     if ! wait::for_condition \
-        "n8n::container_running && ss -tlnp 2>/dev/null | grep -q ':$N8N_PORT'" \
+        "docker::is_running "$N8N_CONTAINER_NAME" && ss -tlnp 2>/dev/null | grep -q ':$N8N_PORT'" \
         60 \
         "n8n container and port binding"; then
         resources::handle_error \
@@ -275,7 +275,7 @@ n8n::uninstall() {
         fi
     fi
     # Stop and remove n8n container
-    if n8n::container_exists_any; then
+    if docker::container_exists "$N8N_CONTAINER_NAME"; then
         log::info "Removing n8n container..."
         docker::stop_container "$N8N_CONTAINER_NAME"
         docker::remove_container "$N8N_CONTAINER_NAME"
@@ -315,7 +315,7 @@ n8n::uninstall() {
 #######################################
 n8n::upgrade() {
     log::header "⬆️  Upgrading n8n"
-    if ! n8n::container_exists_any; then
+    if ! docker::container_exists "$N8N_CONTAINER_NAME"; then
         log::error "n8n is not installed"
         return 1
     fi

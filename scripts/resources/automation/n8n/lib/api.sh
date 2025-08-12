@@ -10,8 +10,6 @@ source "${var_LIB_SERVICE_DIR}/secrets.sh"
 source "${N8N_LIB_DIR}/../../../lib/http-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/utils.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/constants.sh" 2>/dev/null || true
 
 #######################################
 # Execute workflow via API
@@ -33,7 +31,7 @@ n8n::execute() {
     local api_key
     api_key=$(n8n::resolve_api_key)
     if [[ -z "$api_key" ]]; then
-        log::warn "$N8N_ERR_API_KEY_MISSING"
+        log::warn "No API key found"
         echo ""
         n8n::show_api_setup_instructions
         return 1
@@ -191,7 +189,7 @@ n8n::list_workflows() {
     api_key=$(n8n::resolve_api_key)
     if [[ -z "$api_key" ]]; then
         # Fallback to CLI if no API key
-        if n8n::container_exists_any; then
+        if docker::container_exists "$N8N_CONTAINER_NAME"; then
             docker::exec "$N8N_CONTAINER_NAME" n8n list:workflow
         else
             log::error "n8n container not found and no API key available"

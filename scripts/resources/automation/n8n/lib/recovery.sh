@@ -69,7 +69,7 @@ n8n::create_backup() {
 n8n::auto_recover() {
     log::warn "Attempting automatic recovery..."
     # Stop container if running
-    if n8n::container_running; then
+    if docker::is_running "$N8N_CONTAINER_NAME"; then
         log::info "Stopping corrupted n8n container..."
         docker::stop_container "$N8N_CONTAINER_NAME"
         docker::remove_container "$N8N_CONTAINER_NAME"
@@ -120,7 +120,7 @@ n8n::restore_from_backup() {
         return 1
     fi
     # Stop n8n if running
-    if n8n::container_running; then
+    if docker::is_running "$N8N_CONTAINER_NAME"; then
         log::info "Stopping n8n for restore..."
         docker::stop_container "$N8N_CONTAINER_NAME"
     fi

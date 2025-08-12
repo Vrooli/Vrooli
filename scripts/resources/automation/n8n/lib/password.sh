@@ -12,7 +12,7 @@ source "${N8N_LIB_DIR}/utils.sh" 2>/dev/null || true
 #######################################
 n8n::reset_password() {
     log::header "🔐 Reset n8n Password"
-    if ! n8n::container_exists_any; then
+    if ! docker::container_exists "$N8N_CONTAINER_NAME"; then
         log::error "n8n is not installed"
         return 1
     fi
@@ -80,7 +80,7 @@ n8n::reset_password() {
 # Returns: Username and password if found
 #######################################
 n8n::get_current_credentials() {
-    if ! n8n::container_running; then
+    if ! docker::is_running "$N8N_CONTAINER_NAME"; then
         return 1
     fi
     local username=$(n8n::extract_container_env "N8N_BASIC_AUTH_USER")
@@ -99,7 +99,7 @@ n8n::get_current_credentials() {
 # Returns: 0 if auth required, 1 if not
 #######################################
 n8n::is_auth_required() {
-    if n8n::container_running; then
+    if docker::is_running "$N8N_CONTAINER_NAME"; then
         local auth_active=$(n8n::extract_container_env "N8N_BASIC_AUTH_ACTIVE")
         [[ "$auth_active" == "true" ]]
     else

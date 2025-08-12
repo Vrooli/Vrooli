@@ -14,8 +14,6 @@ source "${N8N_LIB_DIR}/../../../lib/status-engine.sh" 2>/dev/null || true
 source "${N8N_LIB_DIR}/health.sh"
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/utils.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/constants.sh" 2>/dev/null || true
 
 # NOTE: Old display functions removed - replaced by unified status engine
 # All status display now handled by n8n::enhanced_status() using status::display_unified_status()
@@ -58,7 +56,7 @@ n8n::_build_status_config() {
 #######################################
 n8n::_display_auth_status() {
     # Basic auth status
-    if n8n::container_running; then
+    if docker::is_running "$N8N_CONTAINER_NAME"; then
         local auth_active
         auth_active=$(n8n::extract_container_env "N8N_BASIC_AUTH_ACTIVE")
         if [[ "$auth_active" == "true" ]]; then
@@ -110,7 +108,7 @@ n8n::_display_workflow_section() {
     local container_name
     container_name=$(echo "$status_config" | jq -r '.resource.container_name // empty')
     
-    if [[ -z "$container_name" ]] || ! n8n::container_running; then
+    if [[ -z "$container_name" ]] || ! docker::is_running "$N8N_CONTAINER_NAME"; then
         return 0
     fi
     
@@ -121,7 +119,7 @@ n8n::_display_workflow_section() {
     api_key=$(n8n::resolve_api_key)
     if [[ -n "$api_key" ]] && n8n::validate_api_key_setup >/dev/null 2>&1; then
         local workflow_count
-        workflow_count=$(n8n::safe_curl_call "GET" "${N8N_BASE_URL}/api/v1/workflows?limit=1" "" "X-N8N-API-KEY: $api_key" 2>/dev/null | jq -r '.count // "unknown"' 2>/dev/null || echo "unknown")
+        workflow_count=$(http::request "GET" "${N8N_BASE_URL}/api/v1/workflows?limit=1" "" "X-N8N-API-KEY: $api_key" 2>/dev/null | jq -r '.count // "unknown"' 2>/dev/null || echo "unknown")
         log::info "   💼 Total Workflows: $workflow_count"
         log::info "   📋 Management: ./manage.sh --action workflow-list"
         log::info "   ▶️  Execution: ./manage.sh --action execute --workflow-id ID"
@@ -233,8 +231,8 @@ EOF
 # Show detailed container information
 #######################################
 n8n::inspect() {
-    if ! n8n::container_exists_any; then
-        log::error "$N8N_ERR_CONTAINER_NOT_EXISTS"
+    if ! docker::container_exists "$N8N_CONTAINER_NAME"; then
+        log::error "n8n container does not exist"
         return 1
     fi
     log::header "🔍 n8n Container Details"
@@ -268,8 +266,8 @@ EOF
 # Get n8n version
 #######################################
 n8n::version() {
-    if ! n8n::container_running; then
-        log::error "$N8N_ERR_CONTAINER_NOT_RUNNING"
+    if ! docker::is_running "$N8N_CONTAINER_NAME"; then
+        log::error "n8n is not running"
         return 1
     fi
     local version
@@ -286,8 +284,8 @@ n8n::version() {
 # Show resource usage statistics
 #######################################
 n8n::stats() {
-    if ! n8n::container_running; then
-        log::error "$N8N_ERR_CONTAINER_NOT_RUNNING"
+    if ! docker::is_running "$N8N_CONTAINER_NAME"; then
+        log::error "n8n is not running"
         return 1
     fi
     log::header "📈 n8n Resource Usage"
@@ -341,16 +339,16 @@ n8n::check_all() {
         all_good=false
     fi
     # Container check
-    if n8n::container_exists_any; then
+    if docker::container_exists "$N8N_CONTAINER_NAME"; then
         log::success "✅ n8n container exists"
-        if n8n::container_running; then
+        if docker::is_running "$N8N_CONTAINER_NAME"; then
             log::success "✅ n8n container is running"
         else
             log::error "❌ n8n container is not running"
             all_good=false
         fi
     else
-        log::error "❌ $N8N_ERR_CONTAINER_NOT_EXISTS"
+        log::error "❌ n8n container does not exist"
         all_good=false
     fi
     # API check with enhanced diagnostics
@@ -360,7 +358,7 @@ n8n::check_all() {
         log::error "❌ n8n API is not responding"
         all_good=false
         # Check for common issues
-        if n8n::container_running; then
+        if docker::is_running "$N8N_CONTAINER_NAME"; then
             local recent_logs
             recent_logs=$(docker::get_logs "$N8N_CONTAINER_NAME" 20 2>&1 || echo "")
             if echo "$recent_logs" | grep -qi "SQLITE_READONLY"; then
@@ -382,13 +380,13 @@ n8n::check_all() {
     fi
     # Port check
     if n8n::is_port_available "$N8N_PORT"; then
-        if n8n::container_running; then
+        if docker::is_running "$N8N_CONTAINER_NAME"; then
             log::success "✅ Port $N8N_PORT is in use by n8n"
         else
             log::warn "⚠️  Port $N8N_PORT is available"
         fi
     else
-        if ! n8n::container_running; then
+        if ! docker::is_running "$N8N_CONTAINER_NAME"; then
             log::error "❌ Port $N8N_PORT is in use by another service"
             all_good=false
         fi
@@ -416,18 +414,18 @@ n8n::test() {
     log::info "Testing n8n functionality..."
     # Test 1: Check if Docker is available
     if ! system::is_command "docker"; then
-        log::error "❌ $N8N_ERR_DOCKER_NOT_INSTALLED"
+        log::error "❌ Docker is not installed"
         return 1
     fi
     log::success "✅ Docker is available"
     # Test 2: Check if n8n container exists
-    if ! n8n::container_exists_any; then
-        log::error "❌ $N8N_ERR_CONTAINER_NOT_EXISTS"
+    if ! docker::container_exists "$N8N_CONTAINER_NAME"; then
+        log::error "❌ n8n container does not exist"
         return 1
     fi
     log::success "✅ n8n container exists"
     # Test 3: Check if n8n is running
-    if ! n8n::container_running; then
+    if ! docker::is_running "$N8N_CONTAINER_NAME"; then
         log::error "❌ n8n container is not running"
         return 1
     fi

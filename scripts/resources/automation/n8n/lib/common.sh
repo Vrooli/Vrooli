@@ -17,8 +17,6 @@ source "${N8N_LIB_DIR}/../../../../lib/http-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/../../../../lib/wait-utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/constants.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/utils.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/health.sh" 2>/dev/null || true
@@ -27,8 +25,7 @@ source "${N8N_LIB_DIR}/recovery.sh" 2>/dev/null || true
 
 # Docker checking now handled by docker::check_daemon() from shared utilities
 
-# Container check functions are in utils.sh
-# Direct usage: n8n::container_exists_any and n8n::container_running
+# Container check functions now use docker::* utilities directly
 
 #######################################
 # Generate secure random password
@@ -62,7 +59,7 @@ n8n::create_directories() {
     fi
     # Create fresh directory
     mkdir -p "$N8N_DATA_DIR" || {
-        n8n::log_with_context "error" "setup" "$N8N_ERR_CREATE_DIR_FAILED"
+        n8n::log_with_context "error" "setup" "Failed to create n8n data directory"
         return 1
     }
     # Set proper ownership and permissions
