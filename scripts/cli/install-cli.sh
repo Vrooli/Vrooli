@@ -97,10 +97,28 @@ add_to_path() {
     fi
 }
 
+# Check if CLI is already installed and up-to-date
+check_existing_installation() {
+    local symlink_path="$1"
+    
+    # Check if symlink exists and points to the correct location
+    if [[ -L "$symlink_path" ]]; then
+        local current_target
+        current_target=$(readlink -f "$symlink_path" 2>/dev/null)
+        local expected_target
+        expected_target=$(readlink -f "$CLI_SCRIPT" 2>/dev/null)
+        
+        if [[ "$current_target" == "$expected_target" ]]; then
+            return 0  # Already installed and pointing to correct location
+        fi
+    fi
+    
+    return 1  # Not installed or pointing to wrong location
+}
+
 # Install the CLI
 install_cli() {
-    print_info "🚀 Installing Vrooli CLI..."
-    echo ""
+    local force="${1:-false}"
     
     # Check if CLI script exists
     if [[ ! -f "$CLI_SCRIPT" ]]; then
@@ -113,6 +131,41 @@ install_cli() {
     install_dir=$(find_install_dir)
     local symlink_path="$install_dir/vrooli"
     
+    # Check if already installed and up-to-date (unless force is specified)
+    if [[ "$force" != "true" ]] && check_existing_installation "$symlink_path"; then
+        print_success "✅ Vrooli CLI is already installed and up-to-date!"
+        
+        # Check if the command is available in PATH
+        if command -v vrooli >/dev/null 2>&1; then
+            print_info "   Location: $symlink_path -> $CLI_SCRIPT"
+            
+            # Verify VROOLI_ROOT is set
+            if [[ -n "${VROOLI_ROOT:-}" ]]; then
+                print_info "   VROOLI_ROOT: $VROOLI_ROOT"
+            else
+                print_warning "   VROOLI_ROOT not set in current session"
+            fi
+            
+            echo ""
+            echo "The 'vrooli' command is ready to use!"
+            echo "Use --force to reinstall anyway"
+            return 0
+        else
+            # CLI is installed but not in PATH yet
+            if ! check_path "$install_dir"; then
+                print_warning "$install_dir is not in your PATH"
+                add_to_path "$install_dir"
+                echo ""
+                echo "To start using the CLI:"
+                echo "  source ~/.bashrc (or ~/.zshrc)"
+                echo "  Or open a new terminal"
+            fi
+            return 0
+        fi
+    fi
+    
+    print_info "🚀 Installing Vrooli CLI..."
+    echo ""
     print_info "Installation directory: $install_dir"
     
     # Create directory if it doesn't exist
@@ -245,6 +298,9 @@ main() {
         --uninstall|-u)
             uninstall_cli
             ;;
+        --force|-f)
+            install_cli true
+            ;;
         --help|-h)
             cat << EOF
 Vrooli CLI Installation Script
@@ -253,22 +309,33 @@ USAGE:
     $0 [OPTIONS]
 
 OPTIONS:
-    --uninstall, -u    Uninstall the Vrooli CLI
-    --help, -h         Show this help message
+    --force, -f         Force reinstallation even if already up-to-date
+    --uninstall, -u     Uninstall the Vrooli CLI
+    --help, -h          Show this help message
 
 DESCRIPTION:
     This script installs the 'vrooli' command by creating a symlink
-    in a directory that's in your PATH. It will:
+    in a directory that's in your PATH.
     
-    1. Find an appropriate directory in your PATH
-    2. Create a symlink to the CLI script
-    3. Add the directory to PATH if needed
-    4. Set the VROOLI_ROOT environment variable
+    Features:
+    • Checks if CLI is already installed and up-to-date
+    • Skips installation if no changes are needed
+    • Finds appropriate directory in PATH automatically
+    • Creates symlink to the CLI script
+    • Adds directory to PATH if needed
+    • Sets VROOLI_ROOT environment variable
+    
+    The script will skip installation if:
+    • The symlink already exists
+    • It points to the correct CLI script
+    • No updates are needed
+    
+    Use --force to reinstall regardless of current state.
 
 EOF
             ;;
         "")
-            install_cli
+            install_cli false
             ;;
         *)
             print_error "Unknown option: $1"

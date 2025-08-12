@@ -145,6 +145,11 @@
           "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
+          "name": "install-cli",
+          "run": "if [[ -f scripts/cli/install-cli.sh ]]; then scripts/cli/install-cli.sh; else echo '⚠️  CLI installer not found, skipping'; fi",
+          "description": "Install Vrooli CLI command"
+        },
+        {
           "name": "add-data",
           "run": "scripts/resources/injection/engine.sh .",
           "description": "Add app data to resources"
