@@ -4,7 +4,7 @@
 
 ## 📝 **Overview**
 
-This scenario enhances Vrooli's AI agents with sophisticated metareasoning capabilities—the ability to think about thinking. It provides a minimal coordination layer (8MB Go binary) that orchestrates complex reasoning workflows through n8n and Windmill, enabling agents to:
+This scenario enhances Vrooli's AI agents with sophisticated metareasoning capabilities—the ability to think about thinking. It provides a database-driven Go API that orchestrates complex reasoning workflows through n8n and Windmill, enabling agents to:
 
 - Analyze decisions with multiple reasoning frameworks
 - Self-review and improve their own reasoning
@@ -21,8 +21,7 @@ flowchart TB
     end
     
     subgraph "Coordination Layer"
-        GO_API[Go Coordination API<br/>8MB Binary<br/>Port: SERVICE_PORT]
-        WORKFLOWS_JSON[(workflows.json<br/>Registry)]
+        GO_API[Go Coordination API<br/>Database-Driven<br/>Port: SERVICE_PORT]
     end
     
     subgraph "Workflow Orchestration"
@@ -35,15 +34,15 @@ flowchart TB
     end
     
     subgraph "Data Storage"
-        POSTGRES[(PostgreSQL<br/>Execution History<br/>Metrics)]
+        POSTGRES[(PostgreSQL<br/>Workflows, History<br/>Metrics, Versions)]
         QDRANT[(Qdrant<br/>Vector Embeddings<br/>Semantic Search)]
     end
     
     CLI -->|Request| GO_API
     API_CLIENT -->|Request| GO_API
-    GO_API <-->|Config| WORKFLOWS_JSON
     GO_API -->|Webhook| N8N
     GO_API -->|Job| WINDMILL
+    GO_API <-->|CRUD| POSTGRES
     N8N -->|Inference| OLLAMA
     WINDMILL -->|Inference| OLLAMA
     N8N -->|Store| POSTGRES
@@ -59,11 +58,14 @@ flowchart TB
 
 ## 🚀 **Key Features**
 
-- **Lightweight**: Single 8MB Go binary with fast startup (<0.5s)
-- **5 Reasoning Patterns**: Pros/cons, SWOT, risk assessment, decision analysis, self-review
+- **Database-Driven**: PostgreSQL stores all workflows, no static JSON files
+- **Full CRUD API**: Complete workflow management with versioning support
+- **Dynamic Workflows**: Add, update, and manage workflows at runtime
+- **5+ Built-in Patterns**: Pros/cons, SWOT, risk assessment, decision analysis, self-review
+- **Execution Tracking**: Every execution logged with performance metrics
+- **Thin CLI**: Minimal 174-line wrapper (down from 690 lines)
 - **Multiple Interfaces**: REST API, CLI tool, and Windmill UI dashboards
-- **Performance Tracking**: Built-in metrics and execution history
-- **Semantic Search**: Vector embeddings for pattern matching
+- **Auto-Metrics**: Database triggers automatically update statistics
 - **Authentication**: Token-based API security
 
 ## 📋 **Available Analysis Types**
@@ -160,34 +162,38 @@ All lifecycle phases are defined in `.vrooli/service.json`:
 ```
 agent-metareasoning-manager/
 ├── api/                           # Go coordination API
-│   ├── main.go                    # Complete API server (150 lines)
-│   ├── workflows.json             # Workflow registry configuration
-│   └── go.mod                     # Dependencies (2 packages)
+│   ├── main.go                    # Database-driven API server (771 lines)
+│   └── go.mod                     # Dependencies (3 packages: uuid, mux, pq)
 ├── cli/                           # Command-line interface
-│   └── metareasoning-cli.sh       # Bash CLI with auto-detection
+│   └── metareasoning-cli.sh       # Thin API wrapper (174 lines)
 ├── initialization/
 │   ├── automation/n8n/            # 5 reasoning workflows
 │   ├── automation/windmill/       # UI dashboards and apps
-│   └── configuration/             # Prompt libraries and templates
-└── deployment/
-    └── startup.sh                 # Go-only startup script
+│   ├── configuration/             # Prompt libraries and templates
+│   └── storage/postgres/          # Database schema and seed data
+├── deployment/
+│   └── startup.sh                 # Go-only startup script
+└── IMPLEMENTATION_PLAN.md         # Detailed upgrade plan and progress
 ```
 
 ## 🔄 **How It Works**
 
 1. **Request**: User sends analysis request via CLI or REST API
-2. **Routing**: Go API looks up workflow type in `workflows.json` registry
+2. **Database Lookup**: Go API queries PostgreSQL for workflow configuration
 3. **Orchestration**: Request forwarded to n8n webhook or Windmill job
 4. **AI Processing**: Workflow invokes Ollama LLM for reasoning
-5. **Storage**: Results saved to PostgreSQL, embeddings to Qdrant
-6. **Response**: Structured JSON results returned to client
+5. **Storage**: Results saved to PostgreSQL with automatic metrics updates
+6. **Response**: Structured JSON results with execution tracking
+7. **Metrics**: Database triggers update workflow statistics automatically
 
 ## 🎯 **Extension Points**
 
-- **Add Reasoning Patterns**: Create n8n workflow → Add to `workflows.json` → Ready to use
-- **Custom Models**: Configure different Ollama models per workflow type
+- **Add Reasoning Patterns**: Use API `POST /workflows` to add new patterns dynamically
+- **Version Control**: Updates create new versions, preserving history
+- **Custom Models**: Configure different Ollama models per workflow
 - **UI Dashboards**: Build Windmill apps that consume the API
-- **Semantic Search**: Leverage Qdrant embeddings for pattern matching
+- **Semantic Search**: Qdrant ready for embedding integration (Phase 3)
+- **Import/Export**: Coming in Phase 3 for workflow portability
 
 ## 🧪 **Testing**
 

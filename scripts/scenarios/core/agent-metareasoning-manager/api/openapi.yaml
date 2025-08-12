@@ -1,0 +1,942 @@
+openapi: 3.0.3
+info:
+  title: Metareasoning API
+  description: |
+    A comprehensive API for managing and executing AI-powered metareasoning workflows.
+    
+    ## Features
+    - **Workflow Management**: Create, update, and manage workflows across multiple platforms
+    - **AI Integration**: Generate workflows using large language models
+    - **Multi-Platform Support**: Execute workflows on n8n, Windmill, and other platforms
+    - **Performance Optimized**: <100ms response times for most endpoints
+    - **Import/Export**: Seamless workflow portability
+    - **Search & Discovery**: Find workflows with semantic search
+    
+    ## Authentication
+    All endpoints (except `/health`) require Bearer token authentication.
+    
+    ## Performance
+    - Response times are tracked via `X-Response-Time` headers
+    - Caching is indicated via `X-Cache` headers
+    - Most endpoints target <100ms response time
+  version: 3.0.0
+  contact:
+    name: Metareasoning API Support
+    url: https://github.com/vrooli/vrooli
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:8093
+    description: Development server
+  - url: https://api.metareasoning.example.com
+    description: Production server
+
+security:
+  - BearerAuth: []
+
+paths:
+  /health:
+    get:
+      summary: Quick Health Check
+      description: Fast health check endpoint (<10ms target)
+      tags:
+        - System
+      security: []
+      responses:
+        '200':
+          description: Service is healthy
+          headers:
+            X-Response-Time:
+              schema:
+                type: string
+              description: Server processing time
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: healthy
+                  version:
+                    type: string
+                    example: "3.0.0"
+                  database:
+                    type: boolean
+                    example: true
+                  response_time_ms:
+                    type: number
+                    example: 5.23
+                  timestamp:
+                    type: integer
+                    example: 1640995200
+
+  /health/full:
+    get:
+      summary: Comprehensive Health Check
+      description: Detailed health check with service status
+      tags:
+        - System
+      security: []
+      responses:
+        '200':
+          description: Detailed health information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /workflows:
+    get:
+      summary: List Workflows
+      description: Get paginated list of workflows with filtering
+      tags:
+        - Workflows
+      parameters:
+        - name: platform
+          in: query
+          schema:
+            type: string
+            enum: [n8n, windmill, both]
+          description: Filter by execution platform
+        - name: type
+          in: query
+          schema:
+            type: string
+          description: Filter by workflow type
+        - name: active
+          in: query
+          schema:
+            type: boolean
+            default: true
+          description: Show only active workflows
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Page number for pagination
+        - name: page_size
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Number of items per page
+      responses:
+        '200':
+          description: List of workflows
+          headers:
+            X-Cache:
+              schema:
+                type: string
+              description: Cache status (HIT/MISS)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ListResponse'
+
+    post:
+      summary: Create Workflow
+      description: Create a new workflow
+      tags:
+        - Workflows
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowCreate'
+      responses:
+        '201':
+          description: Workflow created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+        '400':
+          description: Invalid request data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /workflows/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        description: Workflow ID
+    
+    get:
+      summary: Get Workflow
+      description: Retrieve a specific workflow by ID
+      tags:
+        - Workflows
+      responses:
+        '200':
+          description: Workflow details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+        '404':
+          description: Workflow not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+    put:
+      summary: Update Workflow
+      description: Update an existing workflow (creates new version)
+      tags:
+        - Workflows
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowCreate'
+      responses:
+        '200':
+          description: Workflow updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+
+    delete:
+      summary: Delete Workflow
+      description: Soft delete a workflow (marks as inactive)
+      tags:
+        - Workflows
+      responses:
+        '200':
+          description: Workflow deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: workflow deleted
+
+  /workflows/{id}/execute:
+    post:
+      summary: Execute Workflow
+      description: Execute a specific workflow
+      tags:
+        - Execution
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Workflow ID to execute
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecutionRequest'
+      responses:
+        '200':
+          description: Workflow execution completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionResponse'
+        '404':
+          description: Workflow not found
+
+  /workflows/search:
+    get:
+      summary: Search Workflows
+      description: Search workflows using text-based or semantic search
+      tags:
+        - Workflows
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Search query
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+
+  /workflows/generate:
+    post:
+      summary: Generate Workflow
+      description: AI-powered workflow generation from natural language prompt
+      tags:
+        - AI Generation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GenerateRequest'
+      responses:
+        '200':
+          description: Workflow generated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowCreate'
+        '400':
+          description: Invalid generation request
+
+  /workflows/import:
+    post:
+      summary: Import Workflow
+      description: Import workflow from external platform format
+      tags:
+        - Import/Export
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImportRequest'
+      responses:
+        '201':
+          description: Workflow imported successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowCreate'
+
+  /workflows/{id}/export:
+    get:
+      summary: Export Workflow
+      description: Export workflow to platform-specific format
+      tags:
+        - Import/Export
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: format
+          in: query
+          schema:
+            type: string
+            enum: [json, yaml]
+            default: json
+          description: Export format
+      responses:
+        '200':
+          description: Workflow exported successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  format:
+                    type: string
+                  platform:
+                    type: string
+                  data:
+                    type: object
+
+  /workflows/{id}/clone:
+    post:
+      summary: Clone Workflow
+      description: Create a copy of an existing workflow
+      tags:
+        - Workflows
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CloneRequest'
+      responses:
+        '201':
+          description: Workflow cloned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Workflow'
+
+  /workflows/{id}/history:
+    get:
+      summary: Get Execution History
+      description: Retrieve execution history for a workflow
+      tags:
+        - Execution
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+          description: Maximum number of history entries
+      responses:
+        '200':
+          description: Execution history
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HistoryResponse'
+
+  /workflows/{id}/metrics:
+    get:
+      summary: Get Workflow Metrics
+      description: Performance metrics for a specific workflow
+      tags:
+        - Metrics
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Workflow metrics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MetricsResponse'
+
+  /analyze/{type}:
+    post:
+      summary: Quick Analysis (Legacy)
+      description: Backward compatibility endpoint for quick analysis
+      tags:
+        - Execution
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Analysis type
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecutionRequest'
+      responses:
+        '200':
+          description: Analysis completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionResponse'
+
+  /models:
+    get:
+      summary: List Available Models
+      description: Get list of available AI models from Ollama
+      tags:
+        - System
+      responses:
+        '200':
+          description: Available models
+          headers:
+            X-Cache:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ModelsResponse'
+
+  /platforms:
+    get:
+      summary: List Execution Platforms
+      description: Get status of available execution platforms
+      tags:
+        - System
+      responses:
+        '200':
+          description: Platform status information
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformsResponse'
+
+  /stats:
+    get:
+      summary: System Statistics
+      description: Get system-wide statistics and metrics
+      tags:
+        - System
+      responses:
+        '200':
+          description: System statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatsResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: Bearer token authentication
+
+  schemas:
+    Workflow:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique workflow identifier
+        name:
+          type: string
+          description: Human-readable workflow name
+        description:
+          type: string
+          description: Detailed workflow description
+        type:
+          type: string
+          description: Workflow category/type
+        platform:
+          type: string
+          enum: [n8n, windmill, both]
+          description: Target execution platform
+        config:
+          type: object
+          description: Platform-specific configuration
+        webhook_path:
+          type: string
+          nullable: true
+          description: Webhook endpoint path
+        job_path:
+          type: string
+          nullable: true
+          description: Job execution path
+        schema:
+          type: object
+          description: Input/output schema
+        estimated_duration:
+          type: integer
+          description: Estimated execution time in ms
+        version:
+          type: integer
+          description: Workflow version number
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Parent workflow for versioning
+        is_active:
+          type: boolean
+          description: Whether workflow is active
+        is_builtin:
+          type: boolean
+          description: Whether workflow is built-in
+        tags:
+          type: array
+          items:
+            type: string
+          description: Workflow tags for categorization
+        usage_count:
+          type: integer
+          description: Number of times executed
+        success_count:
+          type: integer
+          description: Number of successful executions
+        failure_count:
+          type: integer
+          description: Number of failed executions
+        avg_execution_time_ms:
+          type: integer
+          nullable: true
+          description: Average execution time
+        created_by:
+          type: string
+          description: Creator username
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+
+    WorkflowCreate:
+      type: object
+      required:
+        - name
+        - type
+        - platform
+        - config
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          description: Workflow name
+        description:
+          type: string
+          description: Workflow description
+        type:
+          type: string
+          maxLength: 50
+          description: Workflow type/category
+        platform:
+          type: string
+          enum: [n8n, windmill, both]
+          description: Target platform
+        config:
+          type: object
+          description: Platform configuration
+        webhook_path:
+          type: string
+          nullable: true
+          description: Webhook path
+        job_path:
+          type: string
+          nullable: true
+          description: Job path
+        schema:
+          type: object
+          description: Input/output schema
+        estimated_duration:
+          type: integer
+          minimum: 0
+          description: Estimated duration in ms
+        tags:
+          type: array
+          items:
+            type: string
+          description: Workflow tags
+
+    ExecutionRequest:
+      type: object
+      properties:
+        input:
+          type: object
+          description: Input data for workflow
+        context:
+          type: string
+          description: Execution context
+        model:
+          type: string
+          description: AI model to use
+        metadata:
+          type: object
+          description: Additional metadata
+
+    ExecutionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Execution ID
+        workflow_id:
+          type: string
+          format: uuid
+          description: Workflow ID
+        status:
+          type: string
+          enum: [success, failed, running]
+          description: Execution status
+        data:
+          type: object
+          description: Execution result data
+        error:
+          type: string
+          description: Error message if failed
+        execution_ms:
+          type: integer
+          description: Execution time in milliseconds
+        timestamp:
+          type: string
+          format: date-time
+          description: Execution timestamp
+
+    ListResponse:
+      type: object
+      properties:
+        workflows:
+          type: array
+          items:
+            $ref: '#/components/schemas/Workflow'
+        total:
+          type: integer
+          description: Total number of workflows
+        page:
+          type: integer
+          description: Current page number
+        page_size:
+          type: integer
+          description: Items per page
+
+    SearchResponse:
+      type: object
+      properties:
+        query:
+          type: string
+          description: Search query used
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Workflow'
+        count:
+          type: integer
+          description: Number of results found
+
+    GenerateRequest:
+      type: object
+      required:
+        - prompt
+      properties:
+        prompt:
+          type: string
+          minLength: 10
+          description: Natural language description
+        platform:
+          type: string
+          enum: [n8n, windmill]
+          default: n8n
+          description: Target platform
+        model:
+          type: string
+          description: AI model to use
+        temperature:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Generation creativity
+
+    ImportRequest:
+      type: object
+      required:
+        - platform
+        - data
+      properties:
+        platform:
+          type: string
+          enum: [n8n, windmill]
+          description: Source platform
+        data:
+          type: object
+          description: Platform-specific workflow data
+        name:
+          type: string
+          description: Optional custom name
+
+    CloneRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          description: Name for cloned workflow
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, degraded, unhealthy]
+        version:
+          type: string
+        database:
+          type: boolean
+        services:
+          type: object
+          additionalProperties:
+            type: boolean
+        workflows_count:
+          type: integer
+        timestamp:
+          type: string
+          format: date-time
+
+    MetricsResponse:
+      type: object
+      properties:
+        total_executions:
+          type: integer
+        success_count:
+          type: integer
+        failure_count:
+          type: integer
+        avg_execution_time:
+          type: integer
+        min_execution_time:
+          type: integer
+        max_execution_time:
+          type: integer
+        last_execution:
+          type: string
+          format: date-time
+          nullable: true
+        success_rate:
+          type: number
+        models_used:
+          type: array
+          items:
+            type: string
+
+    StatsResponse:
+      type: object
+      properties:
+        total_workflows:
+          type: integer
+        active_workflows:
+          type: integer
+        total_executions:
+          type: integer
+        successful_execs:
+          type: integer
+        failed_execs:
+          type: integer
+        avg_execution_time:
+          type: integer
+        most_used_workflow:
+          type: string
+        most_used_model:
+          type: string
+        last_execution:
+          type: string
+          format: date-time
+          nullable: true
+
+    ModelsResponse:
+      type: object
+      properties:
+        models:
+          type: array
+          items:
+            $ref: '#/components/schemas/ModelInfo'
+        count:
+          type: integer
+
+    ModelInfo:
+      type: object
+      properties:
+        name:
+          type: string
+        size_mb:
+          type: integer
+        modified_at:
+          type: string
+          format: date-time
+
+    PlatformsResponse:
+      type: object
+      properties:
+        platforms:
+          type: array
+          items:
+            $ref: '#/components/schemas/PlatformInfo'
+
+    PlatformInfo:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: boolean
+        url:
+          type: string
+
+    ExecutionHistory:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        execution_time_ms:
+          type: integer
+        model_used:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        input_summary:
+          type: string
+        has_output:
+          type: boolean
+
+    HistoryResponse:
+      type: object
+      properties:
+        workflow_id:
+          type: string
+          format: uuid
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExecutionHistory'
+        count:
+          type: integer
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        code:
+          type: integer
+          description: Error code
+        timestamp:
+          type: string
+          format: date-time
+          description: Error timestamp
+
+tags:
+  - name: System
+    description: System health, status, and configuration
+  - name: Workflows
+    description: Workflow management operations
+  - name: Execution
+    description: Workflow execution and history
+  - name: AI Generation
+    description: AI-powered workflow generation
+  - name: Import/Export
+    description: Workflow import and export operations
+  - name: Metrics
+    description: Performance metrics and analytics

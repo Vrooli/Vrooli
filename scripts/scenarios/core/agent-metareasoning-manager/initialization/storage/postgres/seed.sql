@@ -1,6 +1,107 @@
 -- Agent Metareasoning Manager Seed Data
 -- Initial workflow configurations and example patterns
 
+-- Insert built-in workflows from the original workflows.json
+INSERT INTO workflows (
+    name,
+    description,
+    type,
+    platform,
+    webhook_path,
+    job_path,
+    schema,
+    estimated_duration_ms,
+    config,
+    is_builtin,
+    is_active,
+    tags,
+    created_by
+) VALUES 
+    ('pros-cons',
+     'Weighted advantages vs disadvantages with scoring',
+     'pros-cons',
+     'n8n',
+     'analyze-pros-cons',
+     NULL,
+     '{"input": {"required": ["input"], "optional": ["context", "model"]}, "output": {"analysis": {"pros": "array of {item, weight, explanation}", "cons": "array of {item, weight, explanation}", "recommendation": "string", "confidence": "number 0-100"}}}'::jsonb,
+     8000,
+     '{"name": "Pros & Cons Analysis", "webhook_trigger": true, "model_default": "llama3.2", "temperature": 0.5, "max_tokens": 2000}'::jsonb,
+     true,
+     true,
+     ARRAY['decision-making', 'evaluation', 'comparison', 'analytical'],
+     'system'),
+     
+    ('swot',
+     'Strategic Strengths, Weaknesses, Opportunities, Threats analysis',
+     'swot',
+     'n8n',
+     'swot-analysis',
+     NULL,
+     '{"input": {"required": ["input"], "optional": ["context", "model"]}, "output": {"swot_analysis": {"strengths": "array of strategic strengths", "weaknesses": "array of strategic weaknesses", "opportunities": "array of external opportunities", "threats": "array of external threats"}, "strategic_position": "string assessment"}}'::jsonb,
+     15000,
+     '{"name": "SWOT Analysis", "webhook_trigger": true, "model_default": "llama3.2", "temperature": 0.5, "max_tokens": 2500}'::jsonb,
+     true,
+     true,
+     ARRAY['strategic', 'planning', 'analysis', 'business'],
+     'system'),
+     
+    ('risk-assessment',
+     'Probability × Impact analysis with mitigation strategies',
+     'risk-assessment',
+     'n8n',
+     'risk-assessment',
+     NULL,
+     '{"input": {"required": ["action"], "optional": ["constraints", "model"]}, "output": {"risk_assessment": {"risks": "array of risk objects with probability/impact/mitigation"}, "risk_metrics": {"total_risks": "number", "overall_risk_posture": "string"}}}'::jsonb,
+     18000,
+     '{"name": "Risk Assessment", "webhook_trigger": true, "model_default": "llama3.2", "temperature": 0.4, "max_tokens": 3000}'::jsonb,
+     true,
+     true,
+     ARRAY['risk', 'mitigation', 'assessment', 'planning'],
+     'system'),
+     
+    ('self-review',
+     'Recursive reasoning validation and improvement',
+     'self-review',
+     'n8n',
+     'self-review',
+     NULL,
+     '{"input": {"required": ["decision"], "optional": ["model", "iterations"]}, "output": {"review_process": {"initial_confidence": "number", "final_assessment": "object with improved reasoning"}, "learning_outcomes": {"iteration_count": "number", "improvement_areas": "array"}}}'::jsonb,
+     25000,
+     '{"name": "Self-Review Loop", "webhook_trigger": true, "model_default": "llama3.2", "temperature": 0.6, "max_tokens": 3500, "iterations_default": 3}'::jsonb,
+     true,
+     true,
+     ARRAY['metacognitive', 'self-improvement', 'validation', 'iterative'],
+     'system'),
+     
+    ('reasoning-chain',
+     'Orchestrated execution of multiple reasoning patterns',
+     'reasoning-chain',
+     'n8n',
+     'reasoning-chain',
+     NULL,
+     '{"input": {"required": ["input"], "optional": ["chain_type", "model", "custom_steps"]}, "output": {"chain_execution": {"results": "array of step results", "status": "string"}, "synthesis": "object with combined insights"}}'::jsonb,
+     45000,
+     '{"name": "Multi-Step Reasoning Chain", "webhook_trigger": true, "model_default": "llama3.2", "temperature": 0.5, "max_tokens": 4000}'::jsonb,
+     true,
+     true,
+     ARRAY['orchestration', 'complex', 'multi-step', 'comprehensive'],
+     'system'),
+     
+    ('decision',
+     'Comprehensive decision framework with multiple factors',
+     'decision',
+     'windmill',
+     NULL,
+     'decision-analyzer',
+     '{"input": {"required": ["input"], "optional": ["factors", "weights", "model"]}, "output": {"decision_analysis": {"factors_analysis": "object", "recommendation": "string", "confidence": "number", "reasoning": "string"}}}'::jsonb,
+     12000,
+     '{"name": "Decision Analysis", "job_based": true, "model_default": "llama3.2", "temperature": 0.5, "max_tokens": 2500}'::jsonb,
+     true,
+     true,
+     ARRAY['decision-making', 'multi-factor', 'weighted', 'analytical'],
+     'system')
+ON CONFLICT (name, version) DO NOTHING;
+
 -- Insert initial workflow metrics for all configured workflows
 INSERT INTO workflow_metrics (workflow_name, workflow_platform) VALUES 
     ('pros-cons', 'n8n'),
@@ -54,7 +155,9 @@ INSERT INTO model_performance (model_name, workflow_type, avg_response_time_ms, 
 ON CONFLICT (model_name, workflow_type) DO NOTHING;
 
 -- Sample execution history (for demonstration/testing)
+-- Note: Uses workflow_id references from the workflows table
 INSERT INTO execution_history (
+    workflow_id,
     resource_type,
     resource_id,
     workflow_type,
@@ -65,19 +168,22 @@ INSERT INTO execution_history (
     model_used,
     metadata
 ) VALUES
-    ('n8n', 'demo-001', 'pros-cons',
+    ((SELECT id FROM workflows WHERE name = 'pros-cons' AND version = 1),
+     'n8n', 'demo-001', 'pros-cons',
      '{"input": "Should we migrate to microservices?", "context": "Legacy monolith with 5-person team"}'::jsonb,
      '{"pros": [{"item": "Better scalability", "weight": 8}, {"item": "Independent deployments", "weight": 7}], "cons": [{"item": "Increased complexity", "weight": 9}, {"item": "Team size concerns", "weight": 8}], "recommendation": "Consider gradual migration", "confidence": 75}'::jsonb,
      3200, 'success', 'llama3.2',
      '{"demo": true, "category": "architecture"}'::jsonb),
     
-    ('n8n', 'demo-002', 'swot',
+    ((SELECT id FROM workflows WHERE name = 'swot' AND version = 1),
+     'n8n', 'demo-002', 'swot',
      '{"input": "New SaaS product launch", "context": "B2B market, established competitors"}'::jsonb,
      '{"strengths": ["Innovative features", "Strong team"], "weaknesses": ["Limited marketing budget", "No brand recognition"], "opportunities": ["Growing market", "Partnership potential"], "threats": ["Established competitors", "Economic uncertainty"], "strategic_position": "Differentiation strategy recommended"}'::jsonb,
      5500, 'success', 'llama3.2',
      '{"demo": true, "category": "product-strategy"}'::jsonb),
     
-    ('n8n', 'demo-003', 'risk-assessment',
+    ((SELECT id FROM workflows WHERE name = 'risk-assessment' AND version = 1),
+     'n8n', 'demo-003', 'risk-assessment',
      '{"action": "Cloud migration", "constraints": "6-month timeline, limited budget"}'::jsonb,
      '{"risks": [{"description": "Data loss during migration", "probability": 2, "impact": 5, "mitigation": "Comprehensive backup strategy"}, {"description": "Downtime exceeding SLA", "probability": 3, "impact": 4, "mitigation": "Phased migration approach"}], "overall_risk": "Medium", "recommendation": "Proceed with phased approach"}'::jsonb,
      4800, 'success', 'codellama',

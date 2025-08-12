@@ -1,12 +1,56 @@
 -- Agent Metareasoning Manager Database Schema
--- Stores execution history, workflow metadata, and performance metrics
+-- Stores workflows, execution history, and performance metrics
+
+-- Workflows table: Core storage for all workflow definitions
+CREATE TABLE IF NOT EXISTS workflows (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    type VARCHAR(50) NOT NULL,
+    platform VARCHAR(20) NOT NULL CHECK (platform IN ('n8n', 'windmill', 'both')),
+    config JSONB NOT NULL,  -- Full workflow definition/configuration
+    webhook_path VARCHAR(255),  -- For n8n webhooks
+    job_path VARCHAR(255),  -- For Windmill jobs
+    schema JSONB,  -- Input/output schema definition
+    estimated_duration_ms INTEGER DEFAULT 10000,
+    version INTEGER DEFAULT 1,
+    parent_id UUID REFERENCES workflows(id) ON DELETE SET NULL,  -- For versioning
+    is_active BOOLEAN DEFAULT true,
+    is_builtin BOOLEAN DEFAULT false,  -- For pre-installed workflows
+    tags TEXT[],
+    embedding_id VARCHAR(100),  -- Reference to Qdrant vector
+    usage_count INTEGER DEFAULT 0,
+    success_count INTEGER DEFAULT 0,
+    failure_count INTEGER DEFAULT 0,
+    avg_execution_time_ms INTEGER,
+    created_by VARCHAR(100) DEFAULT 'system',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(name, version)
+);
+
+-- Create indexes for workflows table
+CREATE INDEX idx_workflows_name ON workflows(name);
+CREATE INDEX idx_workflows_type ON workflows(type);
+CREATE INDEX idx_workflows_platform ON workflows(platform);
+CREATE INDEX idx_workflows_active ON workflows(is_active);
+CREATE INDEX idx_workflows_tags ON workflows USING GIN(tags);
+CREATE INDEX idx_workflows_created ON workflows(created_at DESC);
+CREATE INDEX idx_workflows_parent ON workflows(parent_id);
+
+-- Performance optimization: Compound indexes for common query patterns
+CREATE INDEX idx_workflows_platform_active ON workflows(platform, is_active) WHERE is_active = true;
+CREATE INDEX idx_workflows_type_active ON workflows(type, is_active) WHERE is_active = true;
+CREATE INDEX idx_workflows_usage_count ON workflows(usage_count DESC) WHERE is_active = true;
+CREATE INDEX idx_workflows_platform_type_active ON workflows(platform, type, is_active) WHERE is_active = true;
 
 -- Execution history for tracking all reasoning workflow executions
 CREATE TABLE IF NOT EXISTS execution_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workflow_id UUID REFERENCES workflows(id) ON DELETE CASCADE,
+    workflow_type VARCHAR(50) NOT NULL,  -- Kept for backward compatibility
     resource_type VARCHAR(50) NOT NULL,
     resource_id VARCHAR(100) NOT NULL,
-    workflow_type VARCHAR(50) NOT NULL,
     input_data JSONB NOT NULL,
     output_data JSONB,
     execution_time_ms INTEGER,
@@ -100,6 +144,9 @@ CREATE INDEX idx_execution_history_status ON execution_history(status);
 CREATE INDEX idx_execution_history_created ON execution_history(created_at DESC);
 CREATE INDEX idx_execution_history_model ON execution_history(model_used);
 
+-- Performance optimization: Critical index for workflow execution history queries
+CREATE INDEX idx_execution_history_workflow_id ON execution_history(workflow_id, created_at DESC);
+
 CREATE INDEX idx_prompt_usage_prompt ON prompt_usage(prompt_id);
 CREATE INDEX idx_prompt_usage_collection ON prompt_usage(prompt_collection);
 CREATE INDEX idx_prompt_usage_effectiveness ON prompt_usage(effectiveness_score);
@@ -134,6 +181,9 @@ CREATE TRIGGER update_workflow_chains_updated_at BEFORE UPDATE ON workflow_chain
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 CREATE TRIGGER update_model_performance_updated_at BEFORE UPDATE ON model_performance
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER update_workflows_updated_at BEFORE UPDATE ON workflows
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- Function to update workflow metrics after execution
@@ -196,3 +246,35 @@ CREATE TRIGGER update_metrics_on_execution_update
     FOR EACH ROW
     WHEN (OLD.status IS DISTINCT FROM NEW.status)
     EXECUTE FUNCTION update_workflow_metrics_on_execution();
+
+-- Function to update workflow statistics after execution
+CREATE OR REPLACE FUNCTION update_workflow_stats_on_execution()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.workflow_id IS NOT NULL AND NEW.status IN ('success', 'failed') THEN
+        UPDATE workflows SET
+            usage_count = usage_count + 1,
+            success_count = success_count + CASE WHEN NEW.status = 'success' THEN 1 ELSE 0 END,
+            failure_count = failure_count + CASE WHEN NEW.status = 'failed' THEN 1 ELSE 0 END,
+            avg_execution_time_ms = CASE
+                WHEN usage_count = 0 THEN NEW.execution_time_ms
+                ELSE ((avg_execution_time_ms * usage_count + NEW.execution_time_ms) / (usage_count + 1))::INTEGER
+            END,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = NEW.workflow_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ language 'plpgsql';
+
+CREATE TRIGGER update_workflow_stats_on_execution_complete
+    AFTER INSERT ON execution_history
+    FOR EACH ROW
+    WHEN (NEW.status IN ('success', 'failed'))
+    EXECUTE FUNCTION update_workflow_stats_on_execution();
+
+CREATE TRIGGER update_workflow_stats_on_status_change
+    AFTER UPDATE OF status ON execution_history
+    FOR EACH ROW
+    WHEN (OLD.status IS DISTINCT FROM NEW.status AND NEW.status IN ('success', 'failed'))
+    EXECUTE FUNCTION update_workflow_stats_on_execution();

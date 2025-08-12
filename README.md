@@ -103,7 +103,7 @@
       <li><a href="#-quick-tutorial" style="text-decoration: none; color: #007acc;">🚀 Quick Tutorial</a></li>
       <li><a href="#-personal-assistant-bot" style="text-decoration: none; color: #007acc;">🤖 Personal Assistant Bot</a></li>
       <li><a href="#-research-team" style="text-decoration: none; color: #007acc;">🔬 Research Team</a></li>
-      <li><a href="#-employee-onboarding-routine" style="text-decoration: none; color: #007acc;">👥 Employee Onboarding Routine</a></li>
+      <li><a href="#-employee-onboarding-scenario" style="text-decoration: none; color: #007acc;">👥 Employee Onboarding Scenario</a></li>
     </ul>
   </div>
   <div style="flex: 1 1 45%; margin: 10px;">
@@ -167,13 +167,13 @@ Vrooli is a **resource orchestration platform** that enables agents to build com
 ## 🤔 Why use Vrooli?
 Vrooli represents a fundamental breakthrough in application development - moving beyond API-limited automation to **complete business application generation** through local resource orchestration:
 
-- **Three-Tier Intelligence Architecture:** Vrooli's unique architecture enables coordination intelligence (swarm orchestration), process intelligence (universal routine execution), and execution intelligence (strategy-aware processing) working together seamlessly.
+- **Resource-Rich Development:** Break free from API limitations. Agents access databases, AI models, automation platforms, web browsers, and file systems directly - enabling complete application building instead of simple task automation.
 
-- **Strategy Evolution Pipeline:** Routines naturally progress from human-like flexibility to machine-like reliability as usage patterns emerge, creating a path from exploration to optimization without losing adaptability.
+- **Dual-Purpose Scenarios:** Revolutionary architecture where every scenario simultaneously validates resource integration AND provides a revenue-generating business template. Tests prove deployment readiness while generating $10K-50K applications.
 
-- **Universal Automation Ecosystem:** Platform-agnostic execution means routines created in BPMN can run in Langchain, Temporal workflows can integrate with n8n - creating unprecedented interoperability.
+- **Instant Application Deployment:** Customer requirements → Working application in one conversation. Scenarios include complete business logic, database schemas, user interfaces, and monitoring infrastructure.
 
-- **Event-Driven Intelligence:** Specialized agents monitor performance, security, and quality through a sophisticated event system, providing adaptive capabilities that evolve with your needs.
+- **Self-Improving Platform:** Meta-scenarios continuously enhance Vrooli itself. The platform debugs its own issues, optimizes its own performance, and expands its own capabilities through deployed scenarios.
 
 - **Polymorphic Execution:** The same routine produces different outputs based on the executing agent's personality, role, and team context - enabling truly personalized automation at scale.
 

@@ -1,96 +1,27 @@
 #!/usr/bin/env bash
-# Agent Metareasoning Manager CLI
-# Command-line interface for managing metareasoning tools and decision support
+# Metareasoning CLI - Thin wrapper for the API
+# Ultra-minimal implementation focusing on API calls only
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-# Source trash module for safe cleanup
-# shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
-
 # Configuration
-CLI_VERSION="1.0.0"
-CLI_NAME="metareasoning"
-DEFAULT_API_BASE="${METAREASONING_API_BASE:-http://localhost:${SERVICE_PORT:-8093}}"
-CONFIG_DIR="${HOME}/.metareasoning"
-CONFIG_FILE="${CONFIG_DIR}/config.json"
+CLI_VERSION="2.0.0"
+API_BASE="${METAREASONING_API_BASE:-http://localhost:${SERVICE_PORT:-8093}}"
+API_TOKEN="${METAREASONING_TOKEN:-metareasoning_cli_default_2024}"
 
-# Colors
+# Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-BOLD='\033[1m'
 NC='\033[0m'
 
 # Helper functions
-log() { echo -e "${BLUE}$*${NC}"; }
+error() { echo -e "${RED}❌ $*${NC}" >&2; exit 1; }
 success() { echo -e "${GREEN}✅ $*${NC}"; }
-warn() { echo -e "${YELLOW}⚠️  $*${NC}"; }
-error() { echo -e "${RED}❌ $*${NC}" >&2; }
-bold() { echo -e "${BOLD}$*${NC}"; }
+info() { echo -e "${BLUE}ℹ️  $*${NC}"; }
 
-# Ensure config directory exists
-ensure_config_dir() {
-    mkdir -p "$CONFIG_DIR"
-}
-
-# Load configuration
-load_config() {
-    ensure_config_dir
-    
-    if [[ -f "$CONFIG_FILE" ]]; then
-        API_BASE=$(jq -r '.api_base // "'$DEFAULT_API_BASE'"' "$CONFIG_FILE" 2>/dev/null || echo "$DEFAULT_API_BASE")
-        DEFAULT_FORMAT=$(jq -r '.default_format // "table"' "$CONFIG_FILE" 2>/dev/null || echo "table")
-        API_TOKEN=$(jq -r '.api_token // ""' "$CONFIG_FILE" 2>/dev/null || echo "")
-    else
-        API_BASE="$DEFAULT_API_BASE"
-        DEFAULT_FORMAT="table"
-        API_TOKEN=""
-        create_default_config
-    fi
-}
-
-# Create default configuration
-create_default_config() {
-    cat > "$CONFIG_FILE" << EOF
-{
-  "api_base": "$DEFAULT_API_BASE",
-  "default_format": "table",
-  "api_token": "",
-  "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-}
-EOF
-}
-
-# Show API information
-show_api_info() {
-    load_config
-    
-    bold "🔗 Go Metareasoning API Connection Info"
-    echo "  Base URL: $API_BASE"
-    echo "  Token: ${API_TOKEN:-"(not set)"}"
-    echo ""
-    echo "📡 Available Endpoints:"
-    echo "  Health:    $API_BASE/health"
-    echo "  Workflows: $API_BASE/workflows"
-    echo "  Analysis:  $API_BASE/analyze/{type}"
-    echo "  Execute:   $API_BASE/execute/{platform}/{workflow}"
-    echo ""
-    echo "🔍 Analysis Types:"
-    echo "  pros-cons    - Weighted pros and cons analysis"
-    echo "  swot         - Strategic SWOT analysis"
-    echo "  risk         - Risk assessment with mitigation"
-    echo "  self-review  - Iterative reasoning validation"
-    echo ""
-}
-
-# Make API request
+# API request wrapper
 api_request() {
     local method="$1"
     local endpoint="$2"
@@ -98,594 +29,235 @@ api_request() {
     
     local curl_args=("-s" "-X" "$method")
     curl_args+=("-H" "Content-Type: application/json")
+    curl_args+=("-H" "Authorization: Bearer $API_TOKEN")
     
-    if [[ -n "$API_TOKEN" ]]; then
-        curl_args+=("-H" "Authorization: Bearer $API_TOKEN")
-    fi
-    
-    if [[ -n "$data" ]]; then
-        curl_args+=("-d" "$data")
-    fi
-    
-    local url="${API_BASE}${endpoint}"
-    curl_args+=("$url")
+    [[ -n "$data" ]] && curl_args+=("-d" "$data")
     
     local response
-    response=$(curl "${curl_args[@]}" 2>/dev/null) || {
+    if ! response=$(curl "${curl_args[@]}" "$API_BASE$endpoint" 2>/dev/null); then
         error "Failed to connect to API at $API_BASE"
-        error "Is the metareasoning API server running?"
-        return 1
-    }
+    fi
     
     echo "$response"
 }
 
-# Format output based on format preference
-format_output() {
-    local data="$1"
-    local format="${2:-$DEFAULT_FORMAT}"
-    
-    case "$format" in
-        "json")
-            echo "$data" | jq '.'
-            ;;
-        "table")
-            format_table "$data"
-            ;;
-        "yaml")
-            echo "$data" | jq -r 'to_entries[] | "\(.key): \(.value)"'
-            ;;
-        *)
-            echo "$data" | jq '.'
-            ;;
-    esac
-}
-
-# Format data as table
-format_table() {
-    local data="$1"
-    
-    # Check if this is a prompts list
-    if echo "$data" | jq -e '.prompts' > /dev/null 2>&1; then
-        echo "$data" | jq -r '
-            ["ID", "NAME", "CATEGORY", "DESCRIPTION"] as $headers |
-            $headers, 
-            (.prompts[] | [
-                .id[0:8],
-                .name,
-                .category,
-                .description[0:40]
-            ]) |
-            @tsv
-        ' | column -t -s $'\t'
-    # Check if this is a workflows list
-    elif echo "$data" | jq -e '.workflows' > /dev/null 2>&1; then
-        echo "$data" | jq -r '
-            ["NAME", "TYPE", "STATUS", "LAST_RUN"] as $headers |
-            $headers,
-            (.workflows[] | [
-                .name,
-                .type,
-                .status,
-                .last_run // "never"
-            ]) |
-            @tsv
-        ' | column -t -s $'\t'
+# Format JSON output
+format_json() {
+    if command -v jq >/dev/null 2>&1; then
+        jq '.' 2>/dev/null || cat
     else
-        echo "$data" | jq '.'
+        cat
     fi
 }
 
-# Show usage information
-show_usage() {
-    bold "Agent Metareasoning Manager CLI v$CLI_VERSION"
-    echo "Command-line interface for managing metareasoning tools and decision support"
-    echo ""
-    echo "Usage: $CLI_NAME <command> [options] [args]"
-    echo ""
-    echo "Commands:"
-    echo "  prompt <subcommand>       Manage reasoning prompts"
-    echo "  workflow <subcommand>     Manage and execute workflows"
-    echo "  analyze <type> <input>    Perform analysis (decision, pros-cons, swot, risk)"
-    echo "  template <subcommand>     Manage reasoning templates"
-    echo "  health                    Check API server health"
-    echo "  api                       Show API connection and implementation info"
-    echo "  config                    Manage CLI configuration"
-    echo "  help                      Show this help message"
-    echo ""
-    echo "Prompt Subcommands:"
-    echo "  list [--category TYPE]    List available prompts"
-    echo "  show <prompt-id>          Show prompt details"
-    echo "  create                    Create a new prompt"
-    echo "  test <prompt-id>          Test a prompt with sample input"
-    echo ""
-    echo "Workflow Subcommands:"
-    echo "  list [--type TYPE]        List available workflows"
-    echo "  run <workflow-name>       Execute a workflow"
-    echo "  status <execution-id>     Check workflow execution status"
-    echo ""
-    echo "Analysis Types:"
-    echo "  decision                  Analyze a decision scenario"
-    echo "  pros-cons                 Generate pros and cons analysis"
-    echo "  swot                      Perform SWOT analysis"
-    echo "  risk                      Assess risks"
-    echo "  self-review               Iterative reasoning validation"
-    echo ""
-    echo "Global Options:"
-    echo "  --format FORMAT           Output format (json, table, yaml)"
-    echo "  --api-base URL           Override API base URL"
-    echo ""
-    echo "Examples:"
-    echo "  $CLI_NAME api                                           # Show API implementation info"
-    echo "  $CLI_NAME prompt list                                   # List available prompts"
-    echo "  $CLI_NAME workflow run pros-cons-analyzer               # Execute workflow"
-    echo "  $CLI_NAME analyze decision 'Should we migrate?'         # Perform decision analysis"
-    echo "  $CLI_NAME analyze pros-cons 'Remote work policy'        # Generate pros/cons"
-    echo "  $CLI_NAME health                                        # Check API health"
-    echo ""
-    echo "Powered by Go:"
-    echo "  • Fast, lightweight 8MB binary"
-    echo "  • Direct workflow integration with n8n/Windmill"  
-    echo "  • Simple JSON configuration (no database required)"
-    echo ""
+# Format table output
+format_table() {
+    if command -v jq >/dev/null 2>&1; then
+        jq -r '.workflows[] | [.name, .type, .platform, .usage_count] | @tsv' 2>/dev/null | \
+            column -t -s $'\t' 2>/dev/null || format_json
+    else
+        format_json
+    fi
 }
 
-# Parse command line arguments
-parse_args() {
-    COMMAND=""
-    SUBCOMMAND=""
-    ARGS=()
-    FORMAT="$DEFAULT_FORMAT"
-    
-    while [[ $# -gt 0 ]]; do
-        case $1 in
-            --format)
-                FORMAT="$2"
-                shift 2
-                ;;
-            --api-base)
-                API_BASE="$2"
-                shift 2
-                ;;
-            --help|-h)
-                show_usage
-                exit 0
-                ;;
-            --version|-v)
-                echo "$CLI_VERSION"
-                exit 0
-                ;;
-            -*)
-                error "Unknown option: $1"
-                exit 1
-                ;;
-            *)
-                if [[ -z "$COMMAND" ]]; then
-                    COMMAND="$1"
-                elif [[ -z "$SUBCOMMAND" ]] && [[ "$COMMAND" =~ ^(prompt|workflow|template|config)$ ]]; then
-                    SUBCOMMAND="$1"
-                else
-                    ARGS+=("$1")
-                fi
-                shift
-                ;;
-        esac
-    done
-}
-
-# Health check command
+# Commands
 cmd_health() {
-    log "Checking API server health..."
+    local response
+    response=$(api_request GET "/health")
+    echo "$response" | format_json
+}
+
+cmd_list() {
+    local query=""
+    [[ -n "${1:-}" ]] && query="?platform=$1"
+    [[ -n "${2:-}" ]] && query="${query}&type=$2"
     
     local response
-    response=$(api_request "GET" "/health") || exit 1
+    response=$(api_request GET "/workflows$query")
     
-    local status
-    status=$(echo "$response" | jq -r '.status')
-    
-    case "$status" in
-        "healthy")
-            success "API server is healthy"
-            ;;
-        "degraded")
-            warn "API server is running but some services are unavailable"
-            ;;
-        "unhealthy")
-            error "API server is unhealthy"
-            ;;
-        *)
-            warn "Unknown health status: $status"
-            ;;
-    esac
-    
-    format_output "$response" "$FORMAT"
+    if [[ "${FORMAT:-table}" == "json" ]]; then
+        echo "$response" | format_json
+    else
+        echo -e "${BLUE}Available Workflows:${NC}"
+        echo "$response" | format_table
+    fi
 }
 
-# Prompt management commands
-cmd_prompt() {
-    case "$SUBCOMMAND" in
-        "list")
-            log "Fetching prompts..."
-            local response
-            response=$(api_request "GET" "/prompts") || exit 1
-            format_output "$response" "$FORMAT"
-            ;;
-        "show")
-            local prompt_id="${ARGS[0]:-}"
-            if [[ -z "$prompt_id" ]]; then
-                error "Prompt ID required"
-                exit 1
-            fi
-            
-            log "Fetching prompt details..."
-            local response
-            response=$(api_request "GET" "/prompts/$prompt_id") || exit 1
-            format_output "$response" "$FORMAT"
-            ;;
-        "create")
-            log "Creating new prompt..."
-            
-            # Collect input
-            local name="${ARGS[0]:-}"
-            local category="${ARGS[1]:-decision}"
-            local description="${ARGS[2]:-}"
-            
-            if [[ -z "$name" ]]; then
-                error "Prompt name required"
-                exit 1
-            fi
-            
-            local payload
-            payload=$(jq -n \
-                --arg name "$name" \
-                --arg category "$category" \
-                --arg description "$description" \
-                '{
-                    name: $name,
-                    category: $category,
-                    description: $description,
-                    content: "",
-                    parameters: []
-                }'
-            )
-            
-            local response
-            response=$(api_request "POST" "/prompts" "$payload") || exit 1
-            success "Prompt created"
-            format_output "$response" "$FORMAT"
-            ;;
-        "test")
-            local prompt_id="${ARGS[0]:-}"
-            local test_input="${ARGS[1]:-}"
-            
-            if [[ -z "$prompt_id" ]]; then
-                error "Prompt ID required"
-                exit 1
-            fi
-            
-            if [[ -z "$test_input" ]]; then
-                error "Test input required"
-                exit 1
-            fi
-            
-            log "Testing prompt..."
-            
-            local payload
-            payload=$(jq -n --arg input "$test_input" '{ input: $input }')
-            
-            local response
-            response=$(api_request "POST" "/prompts/$prompt_id/test" "$payload") || exit 1
-            format_output "$response" "$FORMAT"
-            ;;
-        *)
-            error "Unknown prompt subcommand: $SUBCOMMAND"
-            echo "Available: list, show, create, test"
-            exit 1
-            ;;
-    esac
+cmd_get() {
+    [[ -z "${1:-}" ]] && error "Workflow ID required"
+    api_request GET "/workflows/$1" | format_json
 }
 
-# Workflow management commands
-cmd_workflow() {
-    case "$SUBCOMMAND" in
-        "list")
-            log "Fetching workflows..."
-            local response
-            response=$(api_request "GET" "/workflows") || exit 1
-            format_output "$response" "$FORMAT"
-            ;;
-        "run")
-            local workflow_id="${ARGS[0]:-}"
-            local input_data="${ARGS[1]:-{}}"
-            
-            if [[ -z "$workflow_id" ]]; then
-                error "Workflow ID or name required"
-                exit 1
-            fi
-            
-            log "Executing workflow: $workflow_id"
-            
-            # Check if input is a file
-            if [[ -f "$input_data" ]]; then
-                input_data=$(cat "$input_data")
-            fi
-            
-            local payload
-            payload=$(jq -n --argjson input "$input_data" '{
-                input: $input,
-                async: false,
-                timeout: 30000
-            }')
-            
-            local response
-            response=$(api_request "POST" "/workflows/$workflow_id/execute" "$payload") || exit 1
-            
-            local status
-            status=$(echo "$response" | jq -r '.status')
-            
-            if [[ "$status" == "completed" ]]; then
-                success "Workflow executed successfully"
-            else
-                warn "Workflow execution status: $status"
-            fi
-            
-            format_output "$response" "$FORMAT"
-            ;;
-        "status")
-            local workflow_id="${ARGS[0]:-}"
-            local execution_id="${ARGS[1]:-}"
-            
-            if [[ -z "$workflow_id" || -z "$execution_id" ]]; then
-                error "Workflow ID and execution ID required"
-                exit 1
-            fi
-            
-            log "Checking execution status..."
-            
-            local response
-            response=$(api_request "GET" "/workflows/$workflow_id/executions/$execution_id") || exit 1
-            
-            local status
-            status=$(echo "$response" | jq -r '.status')
-            
-            case "$status" in
-                "completed")
-                    success "Execution completed"
-                    ;;
-                "running")
-                    log "Execution still running..."
-                    ;;
-                "failed")
-                    error "Execution failed"
-                    ;;
-                *)
-                    warn "Unknown status: $status"
-                    ;;
-            esac
-            
-            format_output "$response" "$FORMAT"
-            ;;
-        *)
-            error "Unknown workflow subcommand: $SUBCOMMAND"
-            echo "Available: list, run, status"
-            exit 1
-            ;;
-    esac
+cmd_create() {
+    [[ -z "${1:-}" ]] && error "Workflow JSON required"
+    api_request POST "/workflows" "$1" | format_json
 }
 
-# Analysis commands
+cmd_update() {
+    [[ -z "${1:-}" ]] && error "Workflow ID required"
+    [[ -z "${2:-}" ]] && error "Workflow JSON required"
+    api_request PUT "/workflows/$1" "$2" | format_json
+}
+
+cmd_delete() {
+    [[ -z "${1:-}" ]] && error "Workflow ID required"
+    api_request DELETE "/workflows/$1" | format_json
+    success "Workflow deactivated"
+}
+
+cmd_execute() {
+    [[ -z "${1:-}" ]] && error "Workflow ID required"
+    [[ -z "${2:-}" ]] && error "Input JSON required"
+    
+    info "Executing workflow..."
+    api_request POST "/workflows/$1/execute" "$2" | format_json
+}
+
 cmd_analyze() {
-    local analysis_type="$SUBCOMMAND"
-    local input="${ARGS[0]:-}"
+    [[ -z "${1:-}" ]] && error "Analysis type required"
+    [[ -z "${2:-}" ]] && error "Input required"
     
-    if [[ -z "$input" ]]; then
-        error "Analysis input required"
-        exit 1
-    fi
+    local data="{\"input\": \"$2\", \"context\": \"${3:-}\", \"model\": \"${MODEL:-llama3.2}\"}"
     
-    local payload
-    local endpoint
-    
-    # Create payload for Go API
-    case "$analysis_type" in
-        "decision")
-            log "Performing decision analysis..."
-            local context="${ARGS[1]:-}"
-            payload=$(jq -n \
-                --arg input "$input" \
-                --arg context "$context" \
-                '{
-                    input: $input,
-                    context: (if $context != "" then $context else null end)
-                }'
-            )
-            endpoint="/analyze/decision"
-            ;;
-        "pros-cons")
-            log "Generating pros-cons analysis..."
-            local context="${ARGS[1]:-}"
-            payload=$(jq -n \
-                --arg input "$input" \
-                --arg context "$context" \
-                '{
-                    input: $input,
-                    context: (if $context != "" then $context else null end)
-                }'
-            )
-            endpoint="/analyze/pros-cons"
-            ;;
-        "swot")
-            log "Performing SWOT analysis..."
-            local context="${ARGS[1]:-}"
-            payload=$(jq -n \
-                --arg input "$input" \
-                --arg context "$context" \
-                '{
-                    input: $input,
-                    context: (if $context != "" then $context else null end)
-                }'
-            )
-            endpoint="/analyze/swot"
-            ;;
-        "risk"|"risks")
-            log "Assessing risks..."
-            local constraints="${ARGS[1]:-}"
-            payload=$(jq -n \
-                --arg action "$input" \
-                --arg constraints "$constraints" \
-                '{
-                    action: $action,
-                    constraints: (if $constraints != "" then $constraints else null end)
-                }'
-            )
-            endpoint="/analyze/risk-assessment"
-            ;;
-        "self-review")
-            log "Starting self-review process..."
-            payload=$(jq -n \
-                --arg decision "$input" \
-                '{
-                    decision: $decision
-                }'
-            )
-            endpoint="/analyze/self-review"
-            ;;
-        *)
-            error "Unknown analysis type: $analysis_type"
-            echo "Available: decision, pros-cons, swot, risk, self-review"
-            exit 1
-            ;;
-    esac
-    
-    local response
-    response=$(api_request "POST" "$endpoint" "$payload") || exit 1
-    
-    # Check for success
-    local status
-    status=$(echo "$response" | jq -r '.status // "unknown"')
-    
-    if [[ "$status" == "success" ]]; then
-        success "Analysis completed"
-    elif [[ "$status" == "error" ]]; then
-        error "Analysis failed"
-    fi
-    
-    format_output "$response" "$FORMAT"
+    info "Running $1 analysis..."
+    api_request POST "/analyze/$1" "$data" | format_json
 }
 
-# Template management commands
-cmd_template() {
-    case "$SUBCOMMAND" in
-        "list")
-            log "Fetching templates..."
-            local response
-            response=$(api_request "GET" "/templates") || exit 1
-            format_output "$response" "$FORMAT"
-            ;;
-        *)
-            warn "Template $SUBCOMMAND command - implementation pending"
-            ;;
-    esac
+cmd_search() {
+    [[ -z "${1:-}" ]] && error "Search query required"
+    api_request GET "/workflows/search?q=$1" | format_json
 }
 
-# Configuration management command
-cmd_config() {
-    case "$SUBCOMMAND" in
-        "show")
-            if [[ -f "$CONFIG_FILE" ]]; then
-                bold "Configuration ($CONFIG_FILE):"
-                cat "$CONFIG_FILE" | jq '.'
-            else
-                warn "No configuration file found"
-            fi
-            ;;
-        "set")
-            local key="${ARGS[0]:-}"
-            local value="${ARGS[1]:-}"
-            
-            if [[ -z "$key" || -z "$value" ]]; then
-                error "Key and value required: $CLI_NAME config set <key> <value>"
-                exit 1
-            fi
-            
-            ensure_config_dir
-            
-            # Update configuration
-            local updated_config
-            if [[ -f "$CONFIG_FILE" ]]; then
-                updated_config=$(cat "$CONFIG_FILE" | jq --arg key "$key" --arg value "$value" '.[$key] = $value')
-            else
-                updated_config=$(jq -n --arg key "$key" --arg value "$value" '{($key): $value}')
-            fi
-            
-            echo "$updated_config" > "$CONFIG_FILE"
-            success "Configuration updated: $key = $value"
-            ;;
-        "reset")
-            trash::safe_remove "$CONFIG_FILE" --temp
-            create_default_config
-            success "Configuration reset to defaults"
-            ;;
-        *)
-            error "Unknown config subcommand: $SUBCOMMAND"
-            echo "Available: show, set, reset"
-            exit 1
-            ;;
-    esac
+cmd_generate() {
+    [[ -z "${1:-}" ]] && error "Prompt required"
+    local platform="${2:-n8n}"
+    local data="{\"prompt\": \"$1\", \"platform\": \"$platform\"}"
+    
+    info "Generating workflow..."
+    api_request POST "/workflows/generate" "$data" | format_json
 }
 
-# Main execution
+cmd_import() {
+    [[ -z "${1:-}" ]] && error "Platform required"
+    [[ -z "${2:-}" ]] && error "Workflow data required"
+    
+    local data="{\"platform\": \"$1\", \"data\": $2}"
+    api_request POST "/workflows/import" "$data" | format_json
+}
+
+cmd_export() {
+    [[ -z "${1:-}" ]] && error "Workflow ID required"
+    local format="${2:-json}"
+    api_request GET "/workflows/$1/export?format=$format" | format_json
+}
+
+cmd_clone() {
+    [[ -z "${1:-}" ]] && error "Workflow ID required"
+    local name="${2:-}"
+    local data="{\"name\": \"$name\"}"
+    api_request POST "/workflows/$1/clone" "$data" | format_json
+}
+
+cmd_history() {
+    [[ -z "${1:-}" ]] && error "Workflow ID required"
+    local limit="${2:-50}"
+    api_request GET "/workflows/$1/history?limit=$limit" | format_json
+}
+
+cmd_metrics() {
+    [[ -z "${1:-}" ]] && error "Workflow ID required"
+    api_request GET "/workflows/$1/metrics" | format_json
+}
+
+cmd_models() {
+    api_request GET "/models" | format_json
+}
+
+cmd_platforms() {
+    api_request GET "/platforms" | format_json
+}
+
+cmd_stats() {
+    api_request GET "/stats" | format_json
+}
+
+# Show usage
+show_usage() {
+    cat << EOF
+Metareasoning CLI v3.0.0
+
+Usage: $(basename "$0") <command> [args]
+
+Core Commands:
+  health                      Check API health
+  list [platform] [type]      List workflows
+  get <id>                    Get workflow details
+  create <json>               Create new workflow
+  update <id> <json>          Update workflow
+  delete <id>                 Delete workflow (soft)
+  execute <id> <json>         Execute workflow
+
+Advanced Commands:
+  search <query>              Search workflows
+  generate <prompt> [plat]    Generate workflow from prompt
+  import <platform> <data>    Import workflow
+  export <id> [format]        Export workflow
+  clone <id> [name]           Clone workflow
+  history <id> [limit]        Get execution history
+  metrics <id>                Get performance metrics
+
+System Commands:
+  models                      List available AI models
+  platforms                   List execution platforms
+  stats                       System statistics
+  analyze <type> <input>      Quick analysis
+
+Environment:
+  API_BASE:    $API_BASE
+  API_TOKEN:   ${API_TOKEN:0:10}...
+
+Examples:
+  $(basename "$0") search "risk assessment"
+  $(basename "$0") generate "Create a workflow that analyzes sentiment"
+  $(basename "$0") export abc-123 n8n
+  $(basename "$0") history abc-123 100
+
+EOF
+}
+
+# Main
 main() {
-    # Check dependencies
-    if ! command -v jq &> /dev/null; then
-        error "jq is required. Please install it first."
-        exit 1
-    fi
+    local cmd="${1:-help}"
+    shift || true
     
-    if ! command -v curl &> /dev/null; then
-        error "curl is required. Please install it first."
-        exit 1
-    fi
-    
-    # Load configuration
-    load_config
-    
-    # Parse arguments
-    parse_args "$@"
-    
-    # Execute command
-    case "$COMMAND" in
-        "prompt")
-            cmd_prompt
-            ;;
-        "workflow")
-            cmd_workflow
-            ;;
-        "analyze")
-            cmd_analyze
-            ;;
-        "template")
-            cmd_template
-            ;;
-        "health")
-            cmd_health
-            ;;
-        "config")
-            cmd_config
-            ;;
-        "api")
-            show_api_info
-            ;;
-        "help"|"")
-            show_usage
-            ;;
-        *)
-            error "Unknown command: $COMMAND"
-            echo "Use '$CLI_NAME help' for usage information"
-            exit 1
-            ;;
+    case "$cmd" in
+        # Core commands
+        health) cmd_health "$@" ;;
+        list)   cmd_list "$@" ;;
+        get)    cmd_get "$@" ;;
+        create) cmd_create "$@" ;;
+        update) cmd_update "$@" ;;
+        delete) cmd_delete "$@" ;;
+        execute) cmd_execute "$@" ;;
+        
+        # Advanced commands
+        search) cmd_search "$@" ;;
+        generate) cmd_generate "$@" ;;
+        import) cmd_import "$@" ;;
+        export) cmd_export "$@" ;;
+        clone) cmd_clone "$@" ;;
+        history) cmd_history "$@" ;;
+        metrics) cmd_metrics "$@" ;;
+        
+        # System commands
+        models) cmd_models "$@" ;;
+        platforms) cmd_platforms "$@" ;;
+        stats) cmd_stats "$@" ;;
+        analyze) cmd_analyze "$@" ;;
+        
+        help|--help|-h) show_usage ;;
+        *) error "Unknown command: $cmd" ;;
     esac
 }
 
-# Execute main function
 main "$@"
