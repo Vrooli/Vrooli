@@ -14,14 +14,14 @@ This recursive loop means Vrooli's intelligence compounds. Each solution doesn't
 
 ## The Architecture of Emergent Intelligence
 
-### Layer 1: Agent Swarms - The Workforce
-Individual AI agents with specialized capabilities collaborate in dynamic swarms. Unlike traditional bots that follow scripts, these agents:
-- **Reason** about problems and devise novel solutions
-- **Learn** from every interaction and share knowledge instantly
-- **Adapt** their strategies based on context and past successes
-- **Create** new tools and workflows autonomously
+### Layer 1: Scenario Intelligence - The Templates
+Businesses applications are generated from dual-purpose scenarios that serve as both integration tests AND revenue-generating templates. These scenarios:
+- **Validate** resource integration while proving deployment readiness
+- **Generate** $10K-50K revenue applications from customer requirements
+- **Compound** intelligence by becoming permanent platform capabilities
+- **Improve** themselves through meta-scenarios that enhance Vrooli itself
 
-Swarms self-organize around objectives, pooling diverse capabilities to tackle complex challenges no single agent could handle.
+Scenarios create reliable, repeatable application generation that transcends traditional development limitations.
 
 ### Layer 2: Resource Orchestration - The Toolkit
 Access to local resources transformed everything. Moving from web APIs to inference servers with direct resource access meant agents could:
