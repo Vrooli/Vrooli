@@ -11,7 +11,7 @@ NODE_RED_ROOT_DIR="$(dirname "$SCRIPT_DIR")"
 # shellcheck disable=SC1091
 source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_RESOURCES_DIR}/tests/lib/enhanced-integration-test-lib.sh"
+source "${var_SCRIPTS_RESOURCES_TESTS_LIB_DIR}/enhanced-integration-test-lib.sh"
 
 # Load Node-RED configuration
 # shellcheck disable=SC1091
@@ -23,12 +23,10 @@ node_red::export_config
 #######################################
 SERVICE_TESTS=(
     "test_node_red_installation"
-    "test_node_red_health_endpoint"
-    "test_node_red_web_interface"
-    "test_node_red_api_endpoints"
+    "test_web_and_api_accessibility"
     "test_container_health"
     "test_configuration_validation"
-    "run_node_red_fixture_tests"
+    "test_fixtures_and_examples"
 )
 
 #######################################
@@ -68,10 +66,10 @@ test_node_red_installation() {
 }
 
 #######################################
-# Node-RED Health Endpoint Test
+# Consolidated Web and API Accessibility Test
 #######################################
-test_node_red_health_endpoint() {
-    test::header "Node-RED Health Endpoint Test"
+test_web_and_api_accessibility() {
+    test::header "Web Interface & API Accessibility Test"
     
     # Wait for Node-RED to be ready
     local max_attempts=30
@@ -87,67 +85,44 @@ test_node_red_health_endpoint() {
     done
     
     if [[ $attempt -gt $max_attempts ]]; then
-        test::fail "Node-RED health endpoint not accessible after ${max_attempts} attempts"
+        test::fail "Node-RED not accessible after ${max_attempts} attempts"
         return 1
     fi
+    test::pass "Node-RED is accessible"
     
-    test::pass "Node-RED health endpoint accessible"
-    return 0
-}
-
-#######################################
-# Node-RED Web Interface Test
-#######################################
-test_node_red_web_interface() {
-    test::header "Node-RED Web Interface Test"
-    
-    # Test main editor interface
-    local response_code
+    # Test main web interface
+    local response_code content
     response_code=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$NODE_RED_PORT" 2>/dev/null || echo "000")
     
     if [[ "$response_code" != "200" ]]; then
-        test::fail "Node-RED web interface not accessible (HTTP $response_code)"
+        test::fail "Web interface not accessible (HTTP $response_code)"
         return 1
     fi
-    test::pass "Node-RED web interface accessible (HTTP $response_code)"
+    test::pass "Web interface accessible (HTTP $response_code)"
     
-    # Test if the response contains Node-RED specific content
-    local content
+    # Test content validation
     content=$(curl -s "http://localhost:$NODE_RED_PORT" 2>/dev/null || echo "")
-    
     if [[ "$content" == *"Node-RED"* ]]; then
-        test::pass "Node-RED interface contains expected content"
+        test::pass "Web interface contains expected Node-RED content"
     else
-        test::warn "Node-RED interface content validation failed"
+        test::warn "Web interface content validation failed"
     fi
     
-    return 0
-}
-
-#######################################
-# Node-RED API Endpoints Test
-#######################################
-test_node_red_api_endpoints() {
-    test::header "Node-RED API Endpoints Test"
-    
-    # Test flows API
-    local flows_response
+    # Test API endpoints
+    local flows_response settings_response
     flows_response=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$NODE_RED_PORT/flows" 2>/dev/null || echo "000")
-    
-    if [[ "$flows_response" == "200" ]]; then
-        test::pass "Node-RED flows API accessible (HTTP $flows_response)"
-    else
-        test::warn "Node-RED flows API not accessible (HTTP $flows_response)"
-    fi
-    
-    # Test settings API
-    local settings_response
     settings_response=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$NODE_RED_PORT/settings" 2>/dev/null || echo "000")
     
-    if [[ "$settings_response" == "200" ]]; then
-        test::pass "Node-RED settings API accessible (HTTP $settings_response)"
+    if [[ "$flows_response" == "200" ]]; then
+        test::pass "Flows API accessible (HTTP $flows_response)"
     else
-        test::warn "Node-RED settings API not accessible (HTTP $settings_response)"
+        test::warn "Flows API not accessible (HTTP $flows_response)"
+    fi
+    
+    if [[ "$settings_response" == "200" ]]; then
+        test::pass "Settings API accessible (HTTP $settings_response)"
+    else
+        test::warn "Settings API not accessible (HTTP $settings_response)"
     fi
     
     return 0
@@ -216,7 +191,7 @@ test_configuration_validation() {
     fi
     
     # Test port accessibility
-    if http::check_endpoint "$NODE_RED_BASE_URL"; then
+    if http::port_accessible "localhost" "$NODE_RED_PORT"; then
         test::pass "Node-RED port accessible: $NODE_RED_PORT"
     else
         test::fail "Node-RED port not accessible: $NODE_RED_PORT"
@@ -227,32 +202,20 @@ test_configuration_validation() {
 }
 
 #######################################
-# Node-RED Fixture Tests
+# Consolidated Fixtures and Examples Test
 #######################################
-run_node_red_fixture_tests() {
-    test::header "Node-RED Fixture Tests"
+test_fixtures_and_examples() {
+    test::header "Fixtures & Examples Validation Test"
     
-    # Test default flows if they exist
-    local default_flows="${NODE_RED_ROOT_DIR}/examples/default-flows.json"
-    if [[ -f "$default_flows" ]]; then
-        if jq empty "$default_flows" 2>/dev/null; then
-            test::pass "Default flows file is valid JSON"
-        else
-            test::fail "Default flows file contains invalid JSON"
-            return 1
-        fi
-    else
-        test::info "No default flows file found"
-    fi
-    
-    # Test example flows
+    # Test example flows directory
     local example_count=0
+    local invalid_count=0
+    
     if [[ -d "${NODE_RED_ROOT_DIR}/examples" ]]; then
         example_count=$(find "${NODE_RED_ROOT_DIR}/examples" -name "*.json" -type f 2>/dev/null | wc -l)
         test::info "Found $example_count example flow files"
         
-        # Validate each example flow
-        local invalid_count=0
+        # Validate JSON in all example flows
         while IFS= read -r -d '' flow_file; do
             if ! jq empty "$flow_file" 2>/dev/null; then
                 test::warn "Invalid JSON in example flow: $(basename "$flow_file")"
@@ -261,9 +224,22 @@ run_node_red_fixture_tests() {
         done < <(find "${NODE_RED_ROOT_DIR}/examples" -name "*.json" -type f -print0 2>/dev/null)
         
         if [[ "$invalid_count" -eq 0 ]]; then
-            test::pass "All example flows contain valid JSON"
+            test::pass "All $example_count example flows contain valid JSON"
         else
-            test::fail "$invalid_count example flows contain invalid JSON"
+            test::fail "$invalid_count of $example_count example flows contain invalid JSON"
+            return 1
+        fi
+    else
+        test::info "No examples directory found - skipping flow validation"
+    fi
+    
+    # Test default flows if they exist
+    local default_flows="${NODE_RED_ROOT_DIR}/examples/default-flows.json"
+    if [[ -f "$default_flows" ]]; then
+        if jq empty "$default_flows" 2>/dev/null; then
+            test::pass "Default flows file is valid JSON"
+        else
+            test::fail "Default flows file contains invalid JSON"
             return 1
         fi
     fi

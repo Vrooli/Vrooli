@@ -358,3 +358,254 @@ node_red::get_status_config() {
         }
     }'
 }
+
+#######################################
+# Node-RED Utility Functions
+# Consolidated from lib/common.sh
+#######################################
+
+#######################################
+# Generate secure random secret
+# Returns: 64-character hexadecimal secret
+#######################################
+node_red::generate_secret() {
+    if command -v openssl >/dev/null 2>&1; then
+        openssl rand -hex 32 2>/dev/null
+    elif [[ -r /dev/urandom ]]; then
+        tr -dc 'A-Za-z0-9' < /dev/urandom | head -c 64
+    else
+        # Fallback to timestamp-based secret
+        echo "node-red-$(date +%s)-$RANDOM" | sha256sum | cut -c1-64
+    fi
+}
+
+#######################################
+# Create default settings.js if it doesn't exist
+#######################################
+node_red::create_default_settings() {
+    local settings_file="${NODE_RED_SCRIPT_DIR}/config/settings.js"
+    
+    if [[ -f "$settings_file" ]]; then
+        return 0  # Settings already exist
+    fi
+    
+    log::info "Creating default Node-RED settings..."
+    
+    cat > "$settings_file" << 'EOF'
+module.exports = {
+    // Flow file settings
+    flowFile: 'flows.json',
+    flowFilePretty: true,
+    
+    // User directory
+    userDir: '/data/',
+    
+    // Node-RED settings
+    uiPort: process.env.PORT || 1880,
+    
+    // Logging
+    logging: {
+        console: {
+            level: "info",
+            metrics: false,
+            audit: false
+        }
+    },
+    
+    // Editor theme
+    editorTheme: {
+        theme: "dark",
+        projects: {
+            enabled: false
+        }
+    },
+    
+    // Function node settings
+    functionGlobalContext: {
+        // Add global libraries here
+        // os: require('os'),
+    },
+    
+    // Allow external npm modules in function nodes
+    functionExternalModules: true,
+    
+    // Debug settings
+    debugMaxLength: 1000,
+    
+    // Exec node settings
+    execMaxBufferSize: 10000000, // 10MB
+    
+    // HTTP request timeout
+    httpRequestTimeout: 120000, // 2 minutes
+}
+EOF
+}
+
+#######################################
+# Update Vrooli resource configuration
+# SAFE VERSION - Uses proper ConfigurationManager to prevent data loss
+#######################################
+node_red::update_resource_config() {
+    log::info "Updating Node-RED resource configuration..."
+    
+    # Source the common resources functions for safe config management
+    if [[ -f "${var_SCRIPTS_RESOURCES_DIR}/common.sh" ]]; then
+        # shellcheck disable=SC1091
+        source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
+    else
+        log::error "Cannot find resources common.sh script for safe configuration management"
+        return 1
+    fi
+    
+    # Create Node-RED specific configuration
+    local node_red_config=$(cat << EOF
+{
+    "enabled": true,
+    "baseUrl": "http://localhost:$NODE_RED_PORT",
+    "adminUrl": "http://localhost:$NODE_RED_PORT/admin",
+    "healthCheck": {
+        "endpoint": "/flows",
+        "intervalMs": 60000,
+        "timeoutMs": 5000
+    },
+    "flows": {
+        "directory": "/data/flows",
+        "autoBackup": true,
+        "backupInterval": "1h"
+    }
+}
+EOF
+    )
+    
+    # Use the safe configuration update function from common.sh
+    if resources::update_config "automation" "node-red" "http://localhost:$NODE_RED_PORT" "$node_red_config"; then
+        log::success "Node-RED configuration updated safely"
+        return 0
+    else
+        log::error "Failed to update Node-RED configuration using safe method"
+        return 1
+    fi
+}
+
+#######################################
+# Validate JSON file
+# Arguments: file path
+# Returns: 0 if valid, 1 if invalid
+#######################################
+node_red::validate_json() {
+    local file="$1"
+    
+    if [[ ! -f "$file" ]]; then
+        return 1
+    fi
+    
+    jq . "$file" >/dev/null 2>&1
+}
+
+#######################################
+# Update Node-RED to latest version
+# Returns: 0 on success, 1 on failure
+#######################################
+node_red::update() {
+    if ! docker::container_exists "$NODE_RED_CONTAINER_NAME"; then
+        log::error "Node-RED is not installed. Run: $0 --action install"
+        return 1
+    fi
+    
+    log::info "Updating Node-RED to latest version..."
+    
+    # Pull latest official image if not using custom
+    if [[ "$BUILD_IMAGE" != "yes" ]]; then
+        log::info "Pulling latest Node-RED image..."
+        docker::pull_image "$NODE_RED_IMAGE"
+    fi
+    
+    # Restart with updated image
+    log::info "Restarting Node-RED with updated image..."
+    node_red::restart
+    
+    log::success "Node-RED updated successfully"
+    return 0
+}
+
+#######################################
+# Check for Node-RED updates
+# Returns: 0 if updates available, 1 if up to date
+#######################################
+node_red::check_updates() {
+    if ! docker::container_exists "$NODE_RED_CONTAINER_NAME"; then
+        log::error "Node-RED is not installed"
+        return 1
+    fi
+    
+    log::info "Checking for Node-RED updates..."
+    
+    # Get current image ID
+    local current_image_id
+    current_image_id=$(docker inspect --format='{{.Image}}' "$NODE_RED_CONTAINER_NAME" 2>/dev/null)
+    
+    # Pull latest image quietly
+    docker pull "$NODE_RED_IMAGE" >/dev/null 2>&1
+    
+    # Get new image ID
+    local latest_image_id
+    latest_image_id=$(docker inspect --format='{{.Id}}' "$NODE_RED_IMAGE" 2>/dev/null)
+    
+    if [[ "$current_image_id" != "$latest_image_id" ]]; then
+        log::info "Updates available for Node-RED"
+        echo "Current image: ${current_image_id:7:12}"
+        echo "Latest image:  ${latest_image_id:7:12}"
+        echo "Run '$0 --action update' to update"
+        return 0
+    else
+        log::success "Node-RED is up to date"
+        return 1
+    fi
+}
+
+#######################################
+# Validate Node-RED installation
+# Returns: 0 if valid, 1 if issues found
+#######################################
+node_red::validate_installation() {
+    local issues=0
+    
+    log::info "Validating Node-RED installation..."
+    
+    # Check if container exists
+    if ! docker::container_exists "$NODE_RED_CONTAINER_NAME"; then
+        log::error "Container does not exist"
+        ((issues++))
+    fi
+    
+    # Check if running
+    if ! docker::container_running "$NODE_RED_CONTAINER_NAME"; then
+        log::warning "Container is not running"
+        ((issues++))
+    fi
+    
+    # Check if responsive
+    if ! node_red::is_responding; then
+        log::error "Node-RED is not responding to HTTP requests"
+        ((issues++))
+    fi
+    
+    # Check data directory
+    if [[ ! -d "$NODE_RED_DATA_DIR" ]]; then
+        log::warning "Data directory missing: $NODE_RED_DATA_DIR"
+        ((issues++))
+    fi
+    
+    # Check if flows file exists
+    if [[ ! -f "$NODE_RED_DATA_DIR/$NODE_RED_FLOWS_FILE" ]]; then
+        log::info "No flows file found (this is normal for new installations)"
+    fi
+    
+    if [[ $issues -eq 0 ]]; then
+        log::success "Installation validation passed"
+        return 0
+    else
+        log::error "Found $issues issues with the installation"
+        return 1
+    fi
+}
