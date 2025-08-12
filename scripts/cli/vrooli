@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+################################################################################
+# Vrooli CLI - Unified interface for Vrooli operations
+# 
+# This is the main entry point for the Vrooli command-line interface.
+# It delegates to specific command handlers based on the first argument.
+#
+# Usage:
+#   vrooli <command> [options]
+#   vrooli --help
+#
+################################################################################
+
+set -euo pipefail
+
+# Determine Vrooli root directory
+if [[ -n "${VROOLI_ROOT:-}" ]]; then
+    # Use environment variable if set
+    VROOLI_ROOT="${VROOLI_ROOT}"
+elif [[ -L "${BASH_SOURCE[0]}" ]]; then
+    # If this script is a symlink, resolve it
+    SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+    VROOLI_ROOT="$(cd "$(dirname "$SCRIPT_PATH")/../.." && pwd)"
+elif git rev-parse --show-toplevel >/dev/null 2>&1; then
+    # Try to find git root
+    VROOLI_ROOT="$(git rev-parse --show-toplevel)"
+else
+    # Fallback to relative path from script location
+    VROOLI_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+fi
+
+export VROOLI_ROOT
+
+# Source common utilities
+# shellcheck disable=SC1091
+source "${VROOLI_ROOT}/scripts/lib/utils/var.sh" 2>/dev/null || {
+    echo "Error: Cannot find Vrooli utilities at ${VROOLI_ROOT}/scripts/lib/utils/var.sh"
+    echo "Please ensure VROOLI_ROOT is set correctly or run from within the Vrooli repository"
+    exit 1
+}
+
+# shellcheck disable=SC1091
+source "${var_LOG_FILE}"
+
+# Version information
+VROOLI_VERSION="2.0.0"
+CLI_VERSION="1.0.0"
+
+# Show version
+show_version() {
+    echo "Vrooli CLI v${CLI_VERSION}"
+    echo "Vrooli Platform v${VROOLI_VERSION}"
+    echo "Root: ${VROOLI_ROOT}"
+}
+
+# Main command router
+main() {
+    # Handle no arguments
+    if [[ $# -eq 0 ]]; then
+        exec "${VROOLI_ROOT}/scripts/cli/show-help.sh"
+    fi
+    
+    local command="$1"
+    shift
+    
+    case "$command" in
+        # Lifecycle commands (delegate to manage.sh)
+        setup|develop|build|test|deploy|clean|backup|restore)
+            exec "${VROOLI_ROOT}/scripts/manage.sh" "$command" "$@"
+            ;;
+        
+        # App management commands
+        app)
+            exec "${VROOLI_ROOT}/scripts/cli/app-commands.sh" "$@"
+            ;;
+        
+        # Scenario commands  
+        scenario)
+            exec "${VROOLI_ROOT}/scripts/cli/scenario-commands.sh" "$@"
+            ;;
+            
+        # Resource commands
+        resource)
+            exec "${VROOLI_ROOT}/scripts/cli/resource-commands.sh" "$@"
+            ;;
+        
+        # Version command
+        version|--version|-v)
+            show_version
+            ;;
+            
+        # Help and unknown commands
+        help|--help|-h)
+            exec "${VROOLI_ROOT}/scripts/cli/show-help.sh"
+            ;;
+            
+        *)
+            log::error "Unknown command: $command"
+            echo ""
+            echo "Run 'vrooli --help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+# Execute main function with all arguments
+main "$@"

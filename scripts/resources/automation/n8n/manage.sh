@@ -55,7 +55,7 @@ n8n::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|reset-password|logs|info|test|execute|api-setup|save-api-key|list-workflows|list-executions|inject|validate-injection|url" \
+        --options "install|uninstall|start|stop|restart|status|reset-password|logs|info|version|test|execute|api-setup|save-api-key|list-workflows|list-executions|inject|validate-injection|url" \
         --default "install"
     
     args::register \
@@ -215,6 +215,9 @@ n8n::main() {
             ;;
         info)
             n8n::info
+            ;;
+        version)
+            n8n::version
             ;;
         test)
             n8n::test

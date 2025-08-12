@@ -45,7 +45,7 @@ n8n is a powerful workflow automation platform that connects various services an
 ./manage.sh --action execute --workflow-id WORKFLOW_ID
 
 # List all workflows
-./manage.sh --action workflow-list
+./manage.sh --action list-workflows
 
 # View service logs
 ./manage.sh --action logs
@@ -57,7 +57,7 @@ n8n is a powerful workflow automation platform that connects various services an
 ./manage.sh --action status
 
 # Test workflow management
-./manage.sh --action workflow-list
+./manage.sh --action list-workflows
 
 # Access web interface: http://localhost:5678
 # API base URL: http://localhost:5678/api/v1/

@@ -56,6 +56,45 @@ For more information, visit: https://docs.n8n.io
 EOF
 }
 
+#######################################
+# Show n8n version information
+#######################################
+n8n::version() {
+    log::header "🔧 n8n Version Information"
+    
+    # Check if container exists and is running
+    if ! docker::is_running "$N8N_CONTAINER_NAME"; then
+        log::warn "n8n container is not running"
+        log::info "Try: ./manage.sh --action start"
+        return 1
+    fi
+    
+    # Get n8n version from container
+    local version_output
+    if version_output=$(docker exec "$N8N_CONTAINER_NAME" n8n --version 2>/dev/null); then
+        log::success "n8n Version: $version_output"
+    else
+        log::error "Failed to retrieve n8n version"
+        return 1
+    fi
+    
+    # Get container image info
+    local image_info
+    image_info=$(docker inspect "$N8N_CONTAINER_NAME" --format='{{.Config.Image}}' 2>/dev/null)
+    if [[ -n "$image_info" ]]; then
+        log::info "Docker Image: $image_info"
+    fi
+    
+    # Get container creation date
+    local created_date
+    created_date=$(docker inspect "$N8N_CONTAINER_NAME" --format='{{.Created}}' 2>/dev/null)
+    if [[ -n "$created_date" ]]; then
+        log::info "Container Created: $created_date"
+    fi
+    
+    return 0
+}
+
 
 
 

@@ -322,36 +322,8 @@ n8n::install() {
     init::setup_resource "$init_config"
 }
 
-n8n::start() {
-    log::info "Starting n8n..."
-    
-    # Start database if needed
-    if [[ "$DATABASE_TYPE" == "postgres" ]] && docker::container_exists "$N8N_DB_CONTAINER_NAME"; then
-        docker start "$N8N_DB_CONTAINER_NAME" >/dev/null 2>&1
-        sleep 3
-    fi
-    
-    # Start n8n container
-    docker start "$N8N_CONTAINER_NAME" >/dev/null 2>&1
-    
-    # Wait for ready
-    n8n::wait_for_ready
-}
 
-n8n::stop() {
-    log::info "Stopping n8n..."
-    docker stop "$N8N_CONTAINER_NAME" >/dev/null 2>&1
-    
-    if [[ "$DATABASE_TYPE" == "postgres" ]] && docker::is_running "$N8N_DB_CONTAINER_NAME"; then
-        docker stop "$N8N_DB_CONTAINER_NAME" >/dev/null 2>&1
-    fi
-}
 
-n8n::restart() {
-    n8n::stop
-    sleep 2
-    n8n::start
-}
 
 n8n::display_workflow_info() {
     # Custom workflow information section
@@ -431,17 +403,6 @@ n8n::install_postgres() {
     wait::for_condition "docker exec $N8N_DB_CONTAINER_NAME pg_isready -U n8n" 30
 }
 
-#######################################
-# Extract container environment variable
-# Args: $1 - variable_name
-# Returns: Variable value or empty string
-#######################################
-n8n::extract_container_env() {
-    local var_name="$1"
-    if docker::is_running "$N8N_CONTAINER_NAME"; then
-        docker exec "$N8N_CONTAINER_NAME" printenv "$var_name" 2>/dev/null || echo ""
-    fi
-}
 
 #######################################
 # Show API setup instructions
@@ -482,27 +443,8 @@ n8n::reset_password() {
     log::info "  Password: $new_password"
 }
 
-#######################################
-# Generate password
-#######################################
-n8n::generate_password() {
-    openssl rand -base64 16 2>/dev/null || date +%s | sha256sum | head -c 16
-}
 
 
-#######################################
-# Export configuration
-#######################################
-n8n::export_config() {
-    export N8N_CONTAINER_NAME
-    export N8N_DB_CONTAINER_NAME
-    export N8N_PORT
-    export N8N_BASE_URL
-    export N8N_DATA_DIR
-    export N8N_IMAGE
-    export N8N_CUSTOM_IMAGE
-    export N8N_NETWORK_NAME
-}
 
 #######################################
 # Usage information
