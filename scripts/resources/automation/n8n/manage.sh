@@ -37,8 +37,6 @@ source "${N8N_SCRIPT_DIR}/lib/recovery.sh"
 # shellcheck disable=SC1091
 source "${N8N_SCRIPT_DIR}/lib/status.sh"
 # shellcheck disable=SC1091
-source "${N8N_SCRIPT_DIR}/lib/install.sh"
-# shellcheck disable=SC1091
 source "${N8N_SCRIPT_DIR}/lib/api.sh"
 # shellcheck disable=SC1091
 source "${N8N_SCRIPT_DIR}/lib/inject.sh"
@@ -57,7 +55,7 @@ n8n::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|reset-password|logs|info|test|execute|api-setup|save-api-key|inject|validate-injection|url" \
+        --options "install|uninstall|start|stop|restart|status|reset-password|logs|info|test|execute|api-setup|save-api-key|list-workflows|list-executions|inject|validate-injection|url" \
         --default "install"
     
     args::register \
@@ -230,8 +228,14 @@ n8n::main() {
         save-api-key)
             n8n::save_api_key
             ;;
+        list-workflows)
+            n8n::list_workflows
+            ;;
+        list-executions)
+            n8n::get_executions
+            ;;
         inject)
-            n8n::inject_data "$INJECTION_CONFIG"
+            "${N8N_SCRIPT_DIR}/lib/inject.sh" --inject --config "$INJECTION_CONFIG"
             ;;
         validate-injection)
             # Support both legacy and new validation interfaces
@@ -252,7 +256,7 @@ n8n::main() {
                     --content "$content"
             elif [[ -n "$INJECTION_CONFIG" ]]; then
                 # Legacy interface: full config JSON
-                n8n::validate_injection "$INJECTION_CONFIG"
+                "${N8N_SCRIPT_DIR}/lib/inject.sh" --validate --config "$INJECTION_CONFIG"
             else
                 log::error "Required: --validation-type TYPE --validation-file PATH"
                 log::info "   or legacy: --injection-config 'JSON_CONFIG'"

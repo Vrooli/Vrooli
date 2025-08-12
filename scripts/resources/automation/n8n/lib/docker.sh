@@ -13,8 +13,6 @@ source "${N8N_LIB_DIR}/core.sh"
 source "${N8N_LIB_DIR}/health.sh"
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/recovery.sh"
-# shellcheck disable=SC1091
-source "${N8N_LIB_DIR}/install.sh"
 
 #######################################
 # Start n8n (delegates to core)
@@ -113,39 +111,7 @@ n8n::logs() {
     docker logs --tail "${LINES:-50}" "$N8N_CONTAINER_NAME"
 }
 
-#######################################
-# Remove container (cleanup wrapper)
-#######################################
-n8n::remove_container() {
-    docker::remove_container "$N8N_CONTAINER_NAME" "true"
-}
 
-#######################################
-# Remove PostgreSQL container
-#######################################
-n8n::remove_postgres_container() {
-    docker::remove_container "$N8N_DB_CONTAINER_NAME" "true"
-}
 
-#######################################
-# Remove network
-#######################################
-n8n::remove_network() {
-    docker::remove_network "$N8N_NETWORK_NAME"
-}
 
-#######################################
-# Pull image
-#######################################
-n8n::pull_image() {
-    docker::pull_image "$N8N_IMAGE"
-}
 
-# Note: n8n::build_custom_image is defined in install.sh
-
-#######################################
-# Start container (internal helper)
-#######################################
-n8n::start_container() {
-    n8n::start
-}

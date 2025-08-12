@@ -17,7 +17,8 @@ HASH_FILE="${var_DATA_DIR}/scenario-hashes.json"
 SCENARIO_TO_APP="${var_SCRIPTS_SCENARIOS_DIR}/tools/scenario-to-app.sh"
 
 # Default app output directory (can be overridden via environment variable)
-GENERATED_APPS_DIR="${GENERATED_APPS_DIR:-${var_ROOT_DIR}/generated-apps}"
+# This matches the hardcoded path in scenario-to-app.sh
+GENERATED_APPS_DIR="${GENERATED_APPS_DIR:-$HOME/generated-apps}"
 
 # Parse arguments
 FORCE=false
@@ -51,6 +52,7 @@ if [[ -f "$HASH_FILE" ]]; then
             stored_hashes["${BASH_REMATCH[1]}"]="${BASH_REMATCH[2]}"
         fi
     done < "$HASH_FILE"
+    [[ "$VERBOSE" == "true" ]] && log::info "Loaded ${#stored_hashes[@]} stored hashes"
 fi
 
 # Calculate scenario hash
@@ -117,7 +119,7 @@ while IFS= read -r scenario_info; do
     # Calculate current hash
     current_hash=$(calculate_hash "$path" 2>/dev/null) || {
         log::error "Failed to hash: $name"
-        ((failed++))
+        failed=$((failed + 1))
         continue
     }
     
@@ -147,10 +149,10 @@ while IFS= read -r scenario_info; do
         else
             if "$SCENARIO_TO_APP" "$name" ${VERBOSE:+--verbose} --force >/dev/null 2>&1; then
                 log::success "✓ $name"
-                ((converted++))
+                converted=$((converted + 1))
             else
                 log::error "✗ $name"
-                ((failed++))
+                failed=$((failed + 1))
                 continue
             fi
         fi
@@ -158,12 +160,17 @@ while IFS= read -r scenario_info; do
     else
         [[ "$VERBOSE" == "true" ]] && log::info "Skipping $name (unchanged)"
         new_hashes["$name"]="${stored_hashes[$name]}"
-        ((skipped++))
+        skipped=$((skipped + 1))
     fi
 done <<< "$enabled_scenarios"
 
+[[ "$VERBOSE" == "true" ]] && log::info "Processing completed. Converted: $converted, Skipped: $skipped, Failed: $failed"
+
 # Save updated hashes
+[[ "$VERBOSE" == "true" ]] && log::info "Saving ${#new_hashes[@]} hashes to $HASH_FILE"
 if [[ "$DRY_RUN" != "true" ]] && [[ ${#new_hashes[@]} -gt 0 ]]; then
+    # Create temp file first to avoid partial writes
+    temp_file="${HASH_FILE}.tmp"
     {
         echo "{"
         first=true
@@ -173,7 +180,18 @@ if [[ "$DRY_RUN" != "true" ]] && [[ ${#new_hashes[@]} -gt 0 ]]; then
         done
         echo ""
         echo "}"
-    } > "$HASH_FILE"
+    } > "$temp_file" || {
+        log::error "Failed to write hash file"
+        rm -f "$temp_file"
+        exit 1
+    }
+    
+    # Atomic move
+    mv "$temp_file" "$HASH_FILE" || {
+        log::error "Failed to save hash file"
+        rm -f "$temp_file"
+        exit 1
+    }
 fi
 
 # Summary

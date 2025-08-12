@@ -58,34 +58,7 @@ n8n::check_database_health() {
     fi
 }
 
-#######################################
-# Comprehensive health check
-# Returns: 0 if all healthy, 1 if any issues
-#######################################
-n8n::comprehensive_health_check() {
-    local tier
-    tier=$(n8n::tiered_health_check)
-    
-    case "$tier" in
-        "HEALTHY")
-            return 0
-            ;;
-        "DEGRADED"|"UNHEALTHY")
-            return 1
-            ;;
-        *)
-            return 1
-            ;;
-    esac
-}
 
-#######################################
-# PostgreSQL health check
-# Returns: 0 if healthy, 1 otherwise
-#######################################
-n8n::postgres_is_healthy() {
-    [[ "$DATABASE_TYPE" == "postgres" ]] && docker::is_running "$N8N_DB_CONTAINER_NAME"
-}
 
 #######################################
 # Check if PostgreSQL exists
@@ -111,18 +84,4 @@ n8n::is_installed() {
     docker::container_exists "$N8N_CONTAINER_NAME"
 }
 
-#######################################
-# Check if port is available
-# Returns: 0 if available, 1 if in use
-#######################################
-n8n::is_port_available() {
-    docker::is_port_available "$1"
-}
 
-#######################################
-# Validate API key setup
-# Returns: 0 if valid, 1 otherwise
-#######################################
-n8n::validate_api_key_setup() {
-    n8n::check_api_functionality
-}

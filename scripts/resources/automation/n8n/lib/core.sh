@@ -489,23 +489,6 @@ n8n::generate_password() {
     openssl rand -base64 16 2>/dev/null || date +%s | sha256sum | head -c 16
 }
 
-#######################################
-# Inject data (delegates to inject.sh)
-#######################################
-n8n::inject_data() {
-    local config="$1"
-    # This will be handled by inject.sh
-    "${N8N_LIB_DIR}/inject.sh" --inject --config "$config"
-}
-
-#######################################
-# Validate injection (delegates to inject.sh)
-#######################################
-n8n::validate_injection() {
-    local config="$1"
-    # This will be handled by inject.sh
-    "${N8N_LIB_DIR}/inject.sh" --validate --config "$config"
-}
 
 #######################################
 # Export configuration
