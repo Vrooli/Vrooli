@@ -14,16 +14,7 @@
       "automation",
       "testing",
       "generator"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "team@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "license": "GPL-3.0",
-    "homepage": "https://github.com/Vrooli/Vrooli"
+    ]
   },
   "resources": {
     "storage": {

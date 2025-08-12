@@ -7,197 +7,72 @@
     "displayName": "Prompt Manager",
     "description": "Clean UX for storing prompts organized by campaigns",
     "version": "1.0.0",
-    "type": "business-application",
+    "type": "application",
     "category": "saas-applications",
     "tags": [
       "prompts",
       "campaigns",
       "ai",
       "management"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "team@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
     ]
   },
   "resources": {
     "storage": {
       "postgres": {
+        "type": "postgres",
         "enabled": true,
-        "config": {
-          "database": "prompt_manager",
-          "schema": "public",
-          "tables": [
-            "campaigns",
-            "prompts",
-            "versions",
-            "metrics",
-            "tags",
-            "templates"
-          ]
-        }
+        "required": true,
+        "purpose": "prompt management data"
       },
       "qdrant": {
+        "type": "qdrant",
         "enabled": true,
-        "config": {
-          "collection": "prompts",
-          "purpose": "semantic search and similarity matching",
-          "dimensions": 1536
-        }
+        "required": false,
+        "purpose": "semantic search and similarity matching"
       },
       "redis": {
+        "type": "redis",
         "enabled": true,
-        "config": {
-          "db": 2,
-          "purpose": "session management and caching"
-        }
+        "required": false,
+        "purpose": "session management and caching"
       }
     },
     "ai": {
       "ollama": {
+        "type": "ollama",
         "enabled": true,
+        "required": false,
         "models": [
           "llama3.2",
           "mistral"
         ],
         "purpose": "prompt enhancement and testing"
-      },
-      "unstructured-io": {
-        "enabled": false,
-        "purpose": "document parsing for prompt extraction"
       }
     },
     "automation": {
       "n8n": {
+        "type": "n8n",
         "enabled": true,
-        "workflows": [
-          "prompt-backup",
-          "campaign-sync",
-          "performance-tracker"
+        "required": false,
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/prompt-backup.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/campaign-sync.json",
+            "type": "workflow"
+          }
         ]
       }
-    },
-    "ui": {
-      "enabled": true,
-      "framework": "react",
-      "features": [
-        "campaign-manager",
-        "prompt-editor",
-        "version-control",
-        "search-interface",
-        "metrics-dashboard",
-        "template-library",
-        "export-import"
-      ]
     }
   },
   "ports": {
-    "ui": 3005,
-    "api": 8085,
-    "qdrant": 6333
-  },
-  "features": {
-    "campaigns": {
-      "hierarchical": true,
-      "metadata": [
-        "client",
-        "project",
-        "date",
-        "status"
-      ],
-      "sharing": [
-        "private",
-        "team",
-        "public"
-      ]
-    },
-    "prompts": {
-      "versioning": true,
-      "diff-viewer": true,
-      "variables": true,
-      "templates": true,
-      "testing": {
-        "enabled": true,
-        "providers": [
-          "ollama",
-          "openai",
-          "anthropic"
-        ]
-      }
-    },
-    "search": {
-      "full-text": true,
-      "semantic": true,
-      "filters": [
-        "campaign",
-        "tag",
-        "date",
-        "performance"
-      ]
-    },
-    "metrics": {
-      "tracking": [
-        "usage",
-        "performance",
-        "cost"
-      ],
-      "ab-testing": true,
-      "reports": [
-        "campaign-summary",
-        "prompt-effectiveness"
-      ]
-    },
-    "export": {
-      "formats": [
-        "json",
-        "csv",
-        "markdown"
-      ],
-      "api": true
-    }
-  },
-  "authentication": {
-    "local": true,
-    "oauth": [
-      "google",
-      "github"
-    ],
-    "rbac": {
-      "roles": [
-        "admin",
-        "editor",
-        "viewer"
-      ],
-      "permissions": [
-        "create",
-        "read",
-        "update",
-        "delete",
-        "share"
-      ]
-    }
-  },
-  "business-model": {
-    "pricing": {
-      "free": {
-        "campaigns": 3,
-        "prompts": 100,
-        "users": 1
-      },
-      "pro": {
-        "campaigns": "unlimited",
-        "prompts": "unlimited",
-        "users": 10,
-        "price": "$49/month"
-      },
-      "enterprise": {
-        "custom": true,
-        "sso": true,
-        "api": true
-      }
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto",
+      "description": "Prompt manager API port"
     }
   },
   "lifecycle": {
@@ -237,7 +112,7 @@
       "steps": [
         {
           "name": "run-tests",
-          "run": "bash deployment/validate.sh",
+          "run": "bash test.sh",
           "description": "Execute validation tests"
         }
       ]
@@ -252,30 +127,13 @@
         }
       ]
     },
-    "build": {
-      "description": "Build prompt manager artifacts",
-      "steps": [
-        {
-          "name": "build-artifacts",
-          "run": "./scripts/manage.sh build"
-        }
-      ]
-    },
-    "test": {
-      "description": "Run prompt manager tests",
-      "steps": [
-        {
-          "name": "run-tests",
-          "run": "./test.sh"
-        }
-      ]
-    },
     "clean": {
       "description": "Clean build artifacts and temporary files",
       "steps": [
         {
           "name": "clean-artifacts",
-          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true",
+          "description": "Remove build artifacts and temporary files"
         }
       ]
     }

@@ -7,7 +7,12 @@
     "description": "Enterprise automation platform derived from Vrooli with custom integrations",
     "version": "1.0.0",
     "type": "platform",
-    "tags": ["automation", "enterprise", "custom", "integration"],
+    "tags": [
+      "automation",
+      "enterprise",
+      "custom",
+      "integration"
+    ],
     "maintainers": [
       {
         "name": "Enterprise Team",
@@ -154,14 +159,21 @@
         "enabled": true,
         "baseUrl": "http://localhost:5678",
         "webhookUrl": "http://localhost:5678/webhook",
-        "workspaces": ["enterprise", "finance", "hr"],
+        "workspaces": [
+          "enterprise",
+          "finance",
+          "hr"
+        ],
         "executionLimit": 50
       },
       "windmill": {
         "type": "windmill",
         "enabled": true,
         "baseUrl": "http://localhost:8000",
-        "workspaces": ["platform-admin", "workflow-dev"],
+        "workspaces": [
+          "platform-admin",
+          "workflow-dev"
+        ],
         "executionLimit": 100
       },
       "zapier": {
@@ -183,7 +195,11 @@
       "claude-code": {
         "type": "claude-code",
         "enabled": true,
-        "capabilities": ["code-execution", "file-management", "api-interaction"],
+        "capabilities": [
+          "code-execution",
+          "file-management",
+          "api-interaction"
+        ],
         "sandbox": true,
         "maxSessionTime": "60m"
       },
@@ -191,7 +207,11 @@
         "type": "custom-agent",
         "enabled": true,
         "baseUrl": "http://localhost:9000",
-        "capabilities": ["document-processing", "data-analysis", "report-generation"],
+        "capabilities": [
+          "document-processing",
+          "data-analysis",
+          "report-generation"
+        ],
         "sandbox": true,
         "maxSessionTime": "30m",
         "rateLimits": {
@@ -232,7 +252,13 @@
         "type": "judge0",
         "enabled": true,
         "baseUrl": "http://localhost:2358",
-        "languages": ["javascript", "typescript", "python", "go", "java"],
+        "languages": [
+          "javascript",
+          "typescript",
+          "python",
+          "go",
+          "java"
+        ],
         "timeout": "60s",
         "memoryLimit": "512Mi",
         "networkAccess": false,
@@ -247,11 +273,17 @@
       "category": "development",
       "resources": {
         "include": [
-          "storage.postgres", "storage.redis", "storage.mongodb",
-          "ai.ollama", "ai.openai",
-          "automation.n8n", "automation.windmill",
-          "agents.claude-code", "agents.custom-agent",
-          "execution.bullmq", "execution.judge0"
+          "storage.postgres",
+          "storage.redis",
+          "storage.mongodb",
+          "ai.ollama",
+          "ai.openai",
+          "automation.n8n",
+          "automation.windmill",
+          "agents.claude-code",
+          "agents.custom-agent",
+          "execution.bullmq",
+          "execution.judge0"
         ]
       },
       "deployment": {
@@ -265,12 +297,20 @@
               {
                 "name": "migrate-enterprise-schema",
                 "type": "command",
-                "command": ["npm", "run", "db:migrate:enterprise"]
+                "command": [
+                  "npm",
+                  "run",
+                  "db:migrate:enterprise"
+                ]
               },
               {
                 "name": "seed-enterprise-data",
                 "type": "command",
-                "command": ["npm", "run", "db:seed:enterprise"]
+                "command": [
+                  "npm",
+                  "run",
+                  "db:seed:enterprise"
+                ]
               }
             ]
           },
@@ -299,10 +339,20 @@
       "category": "production",
       "resources": {
         "required": [
-          "storage.postgres", "storage.redis", "storage.mongodb", "storage.elasticsearch",
-          "ai.openai", "automation.n8n", "automation.windmill", "execution.bullmq"
+          "storage.postgres",
+          "storage.redis",
+          "storage.mongodb",
+          "storage.elasticsearch",
+          "ai.openai",
+          "automation.n8n",
+          "automation.windmill",
+          "execution.bullmq"
         ],
-        "optional": ["ai.ollama", "agents.claude-code", "execution.judge0"]
+        "optional": [
+          "ai.ollama",
+          "agents.claude-code",
+          "execution.judge0"
+        ]
       },
       "deployment": {
         "target": "kubernetes",
@@ -404,12 +454,19 @@
           {
             "name": "workflow_executions_total",
             "type": "counter",
-            "labels": ["workspace", "status", "workflow_type"]
+            "labels": [
+              "workspace",
+              "status",
+              "workflow_type"
+            ]
           },
           {
             "name": "enterprise_user_sessions",
             "type": "gauge",
-            "labels": ["department", "role"]
+            "labels": [
+              "department",
+              "role"
+            ]
           }
         ]
       },
@@ -462,7 +519,9 @@
     "hooks": {
       "preInstall": {
         "exec": {
-          "command": ["./scripts/enterprise-prereqs.sh"],
+          "command": [
+            "./scripts/enterprise-prereqs.sh"
+          ],
           "environment": {
             "ENTERPRISE_MODE": "true",
             "COMPLIANCE_LEVEL": "strict"
@@ -471,7 +530,9 @@
       },
       "postInstall": {
         "exec": {
-          "command": ["./scripts/validate-enterprise-setup.sh"]
+          "command": [
+            "./scripts/validate-enterprise-setup.sh"
+          ]
         }
       }
     },

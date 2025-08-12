@@ -25,7 +25,15 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 SCENARIOS_DIR="${PROJECT_ROOT}/scripts/scenarios/core"
 CATALOG_FILE="${PROJECT_ROOT}/scripts/scenarios/catalog.json"
-HASH_FILE="${PROJECT_ROOT}/data/scenario-hashes.json"
+# Use fallback location if main data directory is not writable
+if [[ -w "${PROJECT_ROOT}/data" ]] || mkdir -p "${PROJECT_ROOT}/data" 2>/dev/null && [[ -w "${PROJECT_ROOT}/data" ]]; then
+    HASH_FILE="${PROJECT_ROOT}/data/scenario-hashes.json"
+    USING_FALLBACK_LOCATION=false
+else
+    # Fallback to user's cache directory
+    HASH_FILE="${HOME}/.cache/vrooli/scenario-hashes.json"
+    USING_FALLBACK_LOCATION=true
+fi
 SCENARIO_TO_APP="${PROJECT_ROOT}/scripts/scenarios/tools/scenario-to-app.sh"
 
 # Source common utilities
@@ -45,6 +53,11 @@ fi
 # Source sudo utilities
 # shellcheck disable=SC1091
 source "${PROJECT_ROOT}/scripts/lib/utils/sudo.sh"
+
+# Inform about fallback location after logging is available
+if [[ "$USING_FALLBACK_LOCATION" == "true" ]]; then
+    log::info "Using fallback hash file location: $HASH_FILE"
+fi
 
 # Configuration
 FORCE=false
@@ -209,13 +222,17 @@ save_hashes() {
         return 0
     fi
     
-    # Create data directory if needed
-    mkdir -p "$hash_dir"
-    echo "$hashes_json" | jq '.' > "$HASH_FILE"
-    
-    # Fix permissions if running under sudo
-    sudo::restore_owner "$HASH_FILE"
-    sudo::restore_owner "$hash_dir"
+    # Create data directory and file as the actual user (not root)
+    if sudo::is_running_as_sudo; then
+        # Create directory as actual user
+        sudo::mkdir_as_user "$hash_dir"
+        # Write file as actual user
+        echo "$hashes_json" | jq '.' | sudo::write_file_as_user "$HASH_FILE"
+    else
+        # Create normally when not under sudo - fallback location should be writable
+        mkdir -p "$hash_dir"
+        echo "$hashes_json" | jq '.' > "$HASH_FILE"
+    fi
     
     [[ "$VERBOSE" == "true" ]] && log::info "Updated scenario hashes: $HASH_FILE"
 }

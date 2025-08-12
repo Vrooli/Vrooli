@@ -14,192 +14,174 @@
       "planning",
       "scheduling",
       "ai"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "team@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "license": "GPL-3.0",
-    "homepage": "https://github.com/Vrooli/Vrooli"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto",
+      "description": "Task planner API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "3000-3999",
+      "fallback": "auto",
+      "description": "Task dashboard UI port"
+    }
   },
   "resources": {
     "storage": {
       "postgres": {
+        "type": "postgres",
         "enabled": true,
-        "config": {
-          "database": "task_planner",
-          "port": 5434,
-          "username": "taskplanner_user",
-          "password": "${POSTGRES_PASSWORD}",
-          "initialization": {
-            "schema": "initialization/storage/postgres/schema.sql",
-            "seed": "initialization/storage/postgres/seed.sql"
+        "required": true,
+        "purpose": "Store tasks, plans, and status",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "script"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "script"
           }
-        }
+        ]
       },
       "redis": {
+        "type": "redis",
         "enabled": true,
-        "config": {
-          "database": 0,
-          "keyPrefix": "task_planner:"
-        }
+        "required": true,
+        "purpose": "Caching and real-time updates"
       },
       "qdrant": {
+        "type": "qdrant",
         "enabled": true,
-        "config": {
-          "collections": [
-            "task_embeddings",
-            "research_embeddings"
-          ],
-          "port": 6334,
-          "vectorSize": 1536,
-          "initialization": {
-            "collections": "initialization/storage/qdrant/collections.json"
-          }
-        }
+        "required": true,
+        "purpose": "Vector database for semantic search of tasks and research"
       }
     },
     "automation": {
       "n8n": {
+        "type": "n8n",
         "enabled": true,
-        "config": {
-          "workflows": [
-            "initialization/automation/n8n/task-parser.json",
-            "initialization/automation/n8n/task-researcher.json",
-            "initialization/automation/n8n/task-implementer.json",
-            "initialization/automation/n8n/status-monitor.json"
-          ]
-        }
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/task-parser.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/task-researcher.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/task-implementer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/status-monitor.json",
+            "type": "workflow"
+          }
+        ]
       },
       "windmill": {
+        "type": "windmill",
         "enabled": true,
-        "config": {
-          "workspace": "task_planner",
-          "scripts": [
-            "initialization/automation/windmill/scripts/parse-unstructured.ts",
-            "initialization/automation/windmill/scripts/research-task.ts",
-            "initialization/automation/windmill/scripts/generate-plan.ts",
-            "initialization/automation/windmill/scripts/implement-task.ts",
-            "initialization/automation/windmill/scripts/update-status.ts"
-          ],
-          "apps": [
-            "initialization/automation/windmill/task-dashboard.json"
-          ]
-        }
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/automation/windmill/task-dashboard.json",
+            "type": "app"
+          }
+        ]
       }
     },
     "ai": {
-      "claude-code": {
-        "enabled": true,
-        "config": {
-          "model": "claude-3-opus-20240229",
-          "maxTokens": 8192,
-          "temperature": 0.3,
-          "purpose": "task_implementation"
-        }
-      },
       "ollama": {
+        "type": "ollama",
         "enabled": true,
-        "config": {
-          "models": [
-            "llama3.2",
-            "nomic-embed-text"
-          ],
-          "embeddings": {
-            "model": "nomic-embed-text",
-            "dimensions": 1536
-          },
-          "primary_use": "task_analysis_and_embeddings"
-        }
+        "required": true,
+        "models": [
+          "llama3.2",
+          "nomic-embed-text"
+        ]
       }
     },
     "search": {
       "searxng": {
+        "type": "searxng",
         "enabled": true,
-        "config": {
-          "purpose": "research_for_task_context",
-          "engines": [
-            "duckduckgo",
-            "github",
-            "stackoverflow",
-            "wikipedia"
-          ],
-          "port": 9201
-        }
+        "required": false
       }
     },
     "agents": {
-      "agent-s2": {
+      "claude-code": {
+        "type": "claude-code",
         "enabled": true,
-        "config": {
-          "purpose": "web_research_for_tasks",
-          "maxInstances": 3
-        }
+        "required": false
+      },
+      "agent-s2": {
+        "type": "agent-s2",
+        "enabled": true,
+        "required": false
       }
-    }
-  },
-  "deployment": {
-    "ports": {
-      "windmill": 8001,
-      "api": 8092,
-      "n8n": 5679,
-      "ui": 3001
-    },
-    "environment": {
-      "NODE_ENV": "production",
-      "LOG_LEVEL": "info",
-      "CLAUDE_API_KEY": "${CLAUDE_API_KEY}",
-      "TASK_PLANNER_API_PORT": "8092",
-      "TASK_PLANNER_SECRET": "${TASK_PLANNER_SECRET}"
     }
   },
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize Task Planner environment with API server and CLI tool",
+      "description": "Initialize Task Planner",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/resources/injection/engine.sh scripts/scenarios/core/task-planner/.vrooli/service.json",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "install-cli-tool",
-          "run": "chmod +x cli/task-planner-cli.sh && sudo ln -sf $PWD/cli/task-planner-cli.sh /usr/local/bin/task-planner",
-          "description": "Install task-planner CLI tool globally"
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources"
         },
         {
-          "name": "install-api-dependencies",
-          "run": "cd deployment && npm install express cors helmet express-rate-limit pg ioredis axios uuid",
-          "description": "Install Node.js dependencies for API server"
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install CLI command globally"
         },
         {
-          "name": "setup-database",
-          "run": "deployment/setup-postgres.sh",
-          "description": "Initialize PostgreSQL database with schemas"
-        },
+          "name": "show-urls",
+          "run": "echo '🚀 Task Planner initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: task-planner --help'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start task planner services",
+      "steps": [
         {
-          "name": "setup-vector-db",
-          "run": "deployment/setup-qdrant.sh",
-          "description": "Initialize Qdrant vector database with collections"
-        },
+          "name": "start-services",
+          "run": "cd deployment && ./startup.sh",
+          "description": "Start task planner services"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test task planner functionality",
+      "steps": [
         {
-          "name": "import-automations",
-          "run": "deployment/import-automations.sh",
-          "description": "Import n8n workflows and Windmill scripts"
-        },
+          "name": "run-tests",
+          "run": "bash test.sh",
+          "description": "Run integration tests"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop task planner services",
+      "steps": [
         {
-          "name": "start-api-server",
-          "run": "deployment/startup.sh",
-          "description": "Start API server and all required services"
-        },
-        {
-          "name": "show-access-urls",
-          "run": "echo '✅ Task Planner initialized\\n  🎯 Task Dashboard: http://localhost:8001/apps/get/task-dashboard\\n  🔧 API Endpoint: http://localhost:8092/api\\n  🔍 n8n Workflows: http://localhost:5679\\n  ⚙️  Windmill Workspace: http://localhost:8001/w/task_planner\\n  📊 PostgreSQL: localhost:5434/task_planner\\n  🔍 Qdrant: http://localhost:6334\\n  📦 CLI: task-planner --help'",
-          "description": "Display service access URLs and CLI usage"
+          "name": "stop-services",
+          "run": "pkill -f 'task-planner' || true",
+          "description": "Stop all task planner processes"
         }
       ]
     }

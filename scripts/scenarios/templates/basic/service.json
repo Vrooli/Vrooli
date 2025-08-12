@@ -29,112 +29,70 @@
   "resources": {
     "storage": {
       "postgres": {
-        "type": "postgresql",
+        "type": "postgres",
         "enabled": true,
-        "version": "16",
         "required": true,
-        "initialization": {
-          "data": [
-            {
-              "type": "schema",
-              "file": "initialization/database/schema.sql"
-            },
-            {
-              "type": "seed",
-              "file": "initialization/database/seed.sql"
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "file": "initialization/database/schema.sql",
+            "type": "script"
+          },
+          {
+            "file": "initialization/database/seed.sql",
+            "type": "script"
+          }
+        ]
       },
       "redis": {
         "type": "redis",
         "enabled": true,
-        "version": "7",
         "required": false
       }
     },
     "automation": {
       "n8n": {
+        "type": "n8n",
         "enabled": false,
-        "required": false,
-        "workflows": []
+        "required": false
       }
     }
   },
-  "deployment": {
-    "target": "local",
-    "strategy": "recreate",
-    "testing": {
-      "enabled": true,
-      "timeout": "5m",
-      "script": "./test.sh",
-      "successCriteria": {
-        "exitCode": 0,
-        "outputContains": ["SUCCESS", "PASSED"]
-      }
-    },
-    "initialization": {
-      "phases": [
+  "lifecycle": {
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize Basic Scenario Template",
+      "steps": [
         {
-          "name": "validate-resources",
-          "tasks": [
-            {
-              "name": "check-postgres",
-              "type": "healthcheck",
-              "target": "storage.postgres",
-              "timeout": "30s"
-            }
-          ]
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "setup-database",
-          "tasks": [
-            {
-              "name": "apply-schema",
-              "type": "sql",
-              "target": "storage.postgres",
-              "file": "initialization/database/schema.sql"
-            },
-            {
-              "name": "seed-data",
-              "type": "sql",
-              "target": "storage.postgres",
-              "file": "initialization/database/seed.sql"
-            }
-          ]
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources"
         }
       ]
-    }
-  },
-  "metadata": {
-    "businessModel": {
-      "purpose": "internal",
-      "valueProposition": "Validates resource connectivity and basic operations",
-      "targetMarket": "Development and QA teams",
-      "revenuePotential": {
-        "type": "internal-use",
-        "value": "N/A"
-      }
     },
-    "performance": {
-      "targets": {
-        "initializationTime": "30s",
-        "testDuration": "5m"
-      }
-    },
-    "customization": {
-      "variables": {
-        "DATABASE_NAME": {
-          "type": "string",
-          "default": "test_db",
-          "description": "Database name for testing"
-        },
-        "TEST_TIMEOUT": {
-          "type": "duration",
-          "default": "5m",
-          "description": "Maximum test execution time"
+    "develop": {
+      "description": "Start template services",
+      "steps": [
+        {
+          "name": "start-services",
+          "run": "cd deployment && ./startup.sh",
+          "description": "Start template services"
         }
-      }
+      ]
+    },
+    "test": {
+      "description": "Test template functionality",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "bash test.sh",
+          "description": "Run integration tests"
+        }
+      ]
     }
   }
 }

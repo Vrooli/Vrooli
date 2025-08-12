@@ -16,22 +16,7 @@
       "windmill-ui",
       "agent-orchestration",
       "data-analytics"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "team@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
-    ],
-    "license": "GPL-3.0",
-    "homepage": "https://github.com/Vrooli/Vrooli",
-    "documentation": "./README.md",
-    "support": {
-      "email": "support@vrooli.com",
-      "issues": "https://github.com/Vrooli/Vrooli/issues",
-      "chat": "https://discord.gg/vrooli"
-    }
+    ]
   },
   "resources": {
     "storage": {
@@ -40,105 +25,60 @@
         "enabled": true,
         "version": "16",
         "required": true,
-        "initialization": {
-          "data": [
-            {
-              "type": "schema",
-              "file": "initialization/storage/postgres/schema.sql"
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "script"
+          }
+        ]
       },
       "redis": {
         "type": "redis",
         "enabled": true,
         "required": true,
-        "initialization": {
-          "description": "Job queue for scraping tasks and rate limiting"
-        }
+        "description": "Job queue for scraping tasks and rate limiting"
       },
       "minio": {
         "type": "minio",
         "enabled": true,
         "required": true,
-        "initialization": {
-          "buckets": [
-            {
-              "name": "scraper-assets",
-              "policy": "private"
-            },
-            {
-              "name": "screenshots",
-              "policy": "private"
-            },
-            {
-              "name": "exports",
-              "policy": "private"
-            }
-          ]
-        }
+        "description": "Object storage for scraper assets, screenshots, and exports"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": true,
         "required": true,
-        "initialization": {
-          "collections": [
-            {
-              "name": "scraped-content",
-              "config": {
-                "vectors": {
-                  "size": 768,
-                  "distance": "Cosine"
-                }
-              }
-            }
-          ]
-        }
+        "description": "Vector database for semantic search of scraped content"
       }
     },
     "automation": {
       "n8n": {
         "enabled": true,
         "required": true,
-        "initialization": {
-          "workflows": [
-            {
-              "name": "scraper-orchestrator",
-              "file": "initialization/automation/n8n/scraper-orchestrator.json",
-              "enabled": true,
-              "tags": [
-                "orchestration",
-                "scheduling",
-                "routing"
-              ]
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/scraper-orchestrator.json",
+            "type": "workflow"
+          }
+        ]
       },
       "windmill": {
         "enabled": true,
         "required": true,
-        "initialization": {
-          "apps": [
-            {
-              "path": "f/scraper/dashboard",
-              "file": "initialization/automation/windmill/dashboard-app.json",
-              "summary": "Web Scraper Management Dashboard"
-            },
-            {
-              "path": "f/scraper/agents",
-              "file": "initialization/automation/windmill/agents-manager.json",
-              "summary": "Agent Configuration and Monitoring"
-            },
-            {
-              "path": "f/scraper/analytics",
-              "file": "initialization/automation/windmill/analytics-panel.json",
-              "summary": "Scraping Analytics and Reporting"
-            }
-          ],
-          "scripts": []
-        }
+        "initialization": [
+          {
+            "file": "initialization/automation/windmill/dashboard-app.json",
+            "type": "app"
+          },
+          {
+            "file": "initialization/automation/windmill/agents-manager.json",
+            "type": "app"
+          },
+          {
+            "file": "initialization/automation/windmill/analytics-panel.json",
+            "type": "app"
+          }
+        ]
       },
       "huginn": {
         "enabled": true,
@@ -379,16 +319,21 @@
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize Web Scraper Manager environment",
+      "description": "Initialize Web Scraper Manager",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/resources/injection/engine.sh scripts/scenarios/core/web-scraper-manager/.vrooli/service.json",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "show-access-urls",
-          "run": "echo '✅ Web Scraper Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Huginn: http://localhost:${RESOURCE_PORTS[huginn]}\\n  Browserless: http://localhost:${RESOURCE_PORTS[browserless]}\\n  Agent-S2: http://localhost:${RESOURCE_PORTS[agent-s2]}\\n  N8n Orchestrator: http://localhost:${RESOURCE_PORTS[n8n]}'",
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Web Scraper Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}'",
           "description": "Display service access URLs"
         }
       ]
@@ -398,34 +343,28 @@
       "steps": [
         {
           "name": "start-services",
-          "run": "../deployment/startup.sh"
-        }
-      ]
-    },
-    "build": {
-      "description": "Build Web Scraper Manager artifacts",
-      "steps": [
-        {
-          "name": "build-artifacts",
-          "run": "./scripts/manage.sh build"
+          "run": "cd deployment && ./startup.sh",
+          "description": "Start Web Scraper Manager services"
         }
       ]
     },
     "test": {
-      "description": "Run Web Scraper Manager tests",
+      "description": "Test Web Scraper Manager functionality",
       "steps": [
         {
-          "name": "run-scenario-tests",
-          "run": "../../tools/scenario-test-runner.sh scenario-test.yaml"
+          "name": "run-tests",
+          "run": "bash test.sh",
+          "description": "Run integration tests"
         }
       ]
     },
-    "clean": {
-      "description": "Clean build artifacts and temporary files",
+    "stop": {
+      "description": "Stop Web Scraper Manager services",
       "steps": [
         {
-          "name": "clean-artifacts",
-          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+          "name": "stop-services",
+          "run": "pkill -f 'scraper-manager' || true",
+          "description": "Stop all Web Scraper Manager processes"
         }
       ]
     }

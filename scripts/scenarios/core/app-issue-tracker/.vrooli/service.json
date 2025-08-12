@@ -127,7 +127,7 @@
         },
         {
           "name": "install-cli",
-          "run": "ln -sf \"$(pwd)/cli/vrooli-tracker.sh\" /usr/local/bin/vrooli-tracker && chmod +x /usr/local/bin/vrooli-tracker",
+          "run": "cd cli && ./install-cli.sh",
           "description": "Install CLI command globally"
         },
         {

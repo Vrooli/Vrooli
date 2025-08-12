@@ -26,14 +26,15 @@ setup() {
     "version": "1.0.0"
   },
   "resources": {
-    "n8n": {
-      "enabled": true,
-      "initialization": {
-        "workflows": [
+    "automation": {
+      "n8n": {
+        "type": "n8n",
+        "enabled": true,
+        "required": true,
+        "initialization": [
           {
-            "name": "test-workflow",
             "file": "workflows/test-workflow.json",
-            "enabled": true
+            "type": "workflow"
           }
         ]
       }
@@ -148,8 +149,8 @@ teardown() {
     assert_success
     
     # Verify resource configs structure
-    echo "$output" | jq -e '.n8n.enabled == true'
-    echo "$output" | jq -e '.n8n.initialization.workflows | length == 1'
+    echo "$output" | jq -e '.automation.n8n.enabled == true'
+    echo "$output" | jq -e '.automation.n8n.initialization | length == 1'
 }
 
 @test "engine::execute_script_task executes valid script" {
@@ -223,14 +224,13 @@ teardown() {
 @test "engine::map_n8n_config converts service.json format to adapter format" {
     source "${BATS_TEST_DIRNAME}/engine.sh"
     
-    local resource_config='{"initialization": {"workflows": [{"name": "test", "file": "workflows/test.json", "enabled": true}]}}'
+    local resource_config='{"initialization": [{"file": "workflows/test.json", "type": "workflow"}]}'
     
     run injection::map_n8n_config "$resource_config" "${TEST_SCENARIO_DIR}"
     assert_success
     
     # Verify adapter format output
     echo "$output" | jq -e '.workflows | length == 1'
-    echo "$output" | jq -e '.workflows[0].name == "test"'
     echo "$output" | jq -e '.workflows[0].file' | grep -q "${TEST_SCENARIO_DIR}/workflows/test.json"
 }
 

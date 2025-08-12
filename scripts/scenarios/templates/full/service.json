@@ -40,18 +40,16 @@
         "enabled": true,
         "version": "16",
         "required": true,
-        "initialization": {
-          "data": [
-            {
-              "type": "schema",
-              "file": "initialization/database/schema.sql"
-            },
-            {
-              "type": "seed",
-              "file": "initialization/database/seed.sql"
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "file": "initialization/database/schema.sql",
+            "type": "script"
+          },
+          {
+            "file": "initialization/database/seed.sql",
+            "type": "script"
+          }
+        ]
       },
       "redis": {
         "type": "redis",
@@ -62,70 +60,38 @@
       "minio": {
         "type": "minio",
         "enabled": true,
-        "required": false,
-        "initialization": {
-          "buckets": [
-            {
-              "name": "APPLICATION_BUCKET_PLACEHOLDER",
-              "policy": "private"
-            }
-          ]
-        }
+        "required": false
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": false,
-        "required": false,
-        "initialization": {
-          "collections": []
-        }
+        "required": false
       }
     },
     "automation": {
       "n8n": {
         "enabled": true,
         "required": true,
-        "initialization": {
-          "workflows": [
-            {
-              "name": "main-workflow",
-              "file": "initialization/workflows/n8n/main-workflow.json",
-              "enabled": true,
-              "tags": ["core", "automation"]
-            }
-          ],
-          "credentials": [
-            {
-              "name": "api-auth",
-              "type": "httpAuth",
-              "config": {
-                "url": "{{ API_URL }}",
-                "authType": "bearer"
-              }
-            }
-          ]
-        }
+        "initialization": [
+          {
+            "file": "initialization/workflows/n8n/main-workflow.json",
+            "type": "workflow"
+          }
+        ]
       },
       "windmill": {
         "enabled": true,
         "required": false,
-        "initialization": {
-          "apps": [
-            {
-              "path": "f/APPLICATION_PATH_PLACEHOLDER/dashboard",
-              "file": "initialization/ui/windmill-app.json",
-              "summary": "APPLICATION_DASHBOARD_DESCRIPTION_PLACEHOLDER"
-            }
-          ],
-          "scripts": []
-        }
+        "initialization": [
+          {
+            "file": "initialization/ui/windmill-app.json",
+            "type": "app"
+          }
+        ]
       },
       "node-red": {
         "enabled": false,
-        "required": false,
-        "initialization": {
-          "flows": []
-        }
+        "required": false
       }
     },
     "ai": {
@@ -134,6 +100,59 @@
         "required": false,
         "models": ["AI_MODEL_PLACEHOLDER"]
       }
+    }
+  },
+  "lifecycle": {
+    "version": "1.0.0",
+    "setup": {
+      "description": "Initialize Scenario",
+      "steps": [
+        {
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
+        },
+        {
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Application initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start application services",
+      "steps": [
+        {
+          "name": "start-services",
+          "run": "cd deployment && ./startup.sh",
+          "description": "Start application services"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test application functionality",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "bash test.sh",
+          "description": "Run integration tests"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop application services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'application' || true",
+          "description": "Stop all application processes"
+        }
+      ]
     }
   },
   "deployment": {

@@ -93,14 +93,10 @@
         "initialization": [
           {
             "file": "initialization/storage/postgres/schema.sql",
-            "order": 1,
-            "description": "Create tables for workflow metadata, execution history, and reasoning patterns",
             "type": "script"
           },
           {
             "file": "initialization/storage/postgres/seed.sql",
-            "order": 2,
-            "description": "Seed initial reasoning templates and example workflows",
             "type": "script"
           }
         ]
@@ -130,7 +126,7 @@
         },
         {
           "name": "install-cli",
-          "run": "ln -sf \"$(pwd)/cli/metareasoning-cli.sh\" /usr/local/bin/metareasoning && chmod +x /usr/local/bin/metareasoning",
+          "run": "cd cli && ./install-cli.sh",
           "description": "Install CLI command globally"
         },
         {
@@ -196,7 +192,7 @@
         },
         {
           "name": "test-analyze-endpoint",
-          "run": "curl -sf -X POST -H 'Content-Type: application/json' -d '{\"input\":\"test decision\",\"context\":\"test context\"}' http://localhost:$SERVICE_PORT/analyze/pros-cons",
+          "run": "bash test/test-analyze-endpoint.sh",
           "description": "Test API analysis endpoint"
         },
         {

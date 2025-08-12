@@ -7,7 +7,12 @@
     "description": "A complete AI assistant application built on Vrooli",
     "version": "1.0.0",
     "type": "application",
-    "tags": ["ai", "assistant", "chat", "automation"],
+    "tags": [
+      "ai",
+      "assistant",
+      "chat",
+      "automation"
+    ],
     "maintainers": [
       {
         "name": "Your Name",
@@ -117,10 +122,15 @@
         "permissions": {
           "filesystem": {
             "read": {
-              "allowed": ["./"]
+              "allowed": [
+                "./"
+              ]
             },
             "write": {
-              "allowed": ["./tmp", "./uploads"]
+              "allowed": [
+                "./tmp",
+                "./uploads"
+              ]
             }
           },
           "network": {
@@ -140,7 +150,12 @@
       "name": "local-development",
       "category": "development",
       "resources": {
-        "include": ["storage.postgres", "storage.redis", "ai.ollama", "execution.bullmq"]
+        "include": [
+          "storage.postgres",
+          "storage.redis",
+          "ai.ollama",
+          "execution.bullmq"
+        ]
       },
       "deployment": {
         "target": "local"
@@ -153,7 +168,11 @@
               {
                 "name": "migrate",
                 "type": "command",
-                "command": ["npm", "run", "db:migrate"]
+                "command": [
+                  "npm",
+                  "run",
+                  "db:migrate"
+                ]
               }
             ]
           },
@@ -163,7 +182,11 @@
               {
                 "name": "pull-model",
                 "type": "command",
-                "command": ["ollama", "pull", "llama3.1:8b"]
+                "command": [
+                  "ollama",
+                  "pull",
+                  "llama3.1:8b"
+                ]
               }
             ]
           }
@@ -174,7 +197,12 @@
       "name": "production",
       "category": "production",
       "resources": {
-        "required": ["storage.postgres", "storage.redis", "ai.ollama", "execution.bullmq"]
+        "required": [
+          "storage.postgres",
+          "storage.redis",
+          "ai.ollama",
+          "execution.bullmq"
+        ]
       },
       "deployment": {
         "target": "kubernetes",
@@ -235,7 +263,9 @@
     "hooks": {
       "preStart": {
         "exec": {
-          "command": ["./scripts/health-check.sh"]
+          "command": [
+            "./scripts/health-check.sh"
+          ]
         }
       }
     },

@@ -13,179 +13,142 @@
       "photo-management",
       "ai-organization",
       "semantic-search"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "team@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
     ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto",
+      "description": "File manager API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "3000-3999",
+      "fallback": "auto",
+      "description": "File manager UI port"
+    }
   },
   "resources": {
     "storage": {
       "postgres": {
+        "type": "postgres",
         "enabled": true,
-        "config": {
-          "database": "file_manager",
-          "port": 5435,
-          "username": "filemanager_user",
-          "password": "${POSTGRES_PASSWORD}",
-          "initialization": {
-            "schema": "initialization/storage/postgres/schema.sql",
-            "seed": "initialization/storage/postgres/seed.sql"
+        "required": true,
+        "purpose": "Store file metadata, organization structure, and settings",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "script"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "script"
           }
-        }
+        ]
       },
       "redis": {
+        "type": "redis",
         "enabled": true,
-        "config": {
-          "database": 1,
-          "keyPrefix": "file_manager:"
-        }
+        "required": true,
+        "purpose": "Caching and real-time updates"
       },
       "qdrant": {
+        "type": "qdrant",
         "enabled": true,
-        "config": {
-          "collections": [
-            "file_embeddings",
-            "image_embeddings",
-            "content_chunks"
-          ],
-          "port": 6335,
-          "vectorSize": 1536
-        }
+        "required": true,
+        "purpose": "Vector database for semantic search of files and images"
       },
       "minio": {
+        "type": "minio",
         "enabled": true,
-        "config": {
-          "buckets": [
-            "original-files",
-            "processed-files",
-            "thumbnails",
-            "exports"
-          ],
-          "port": 9001,
-          "public": false,
-          "retention": "90d"
-        }
+        "required": true,
+        "purpose": "Object storage for files, processed files, thumbnails, and exports"
       }
     },
     "automation": {
       "n8n": {
+        "type": "n8n",
         "enabled": true,
-        "config": {
-          "workflows": [
-            "initialization/automation/n8n/file-processor.json",
-            "initialization/automation/n8n/image-analyzer.json",
-            "initialization/automation/n8n/document-processor.json",
-            "initialization/automation/n8n/embedding-generator.json",
-            "initialization/automation/n8n/duplicate-detector.json",
-            "initialization/automation/n8n/organization-suggester.json",
-            "initialization/automation/n8n/batch-processor.json",
-            "initialization/automation/n8n/semantic-search.json"
-          ],
-          "webhooks": {
-            "file_upload": "http://localhost:5680/webhook/file-upload",
-            "batch_process": "http://localhost:5680/webhook/batch-process",
-            "search_query": "http://localhost:5680/webhook/search"
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/file-processor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/image-analyzer.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/document-processor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/embedding-generator.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/duplicate-detector.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/organization-suggester.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/batch-processor.json",
+            "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/semantic-search.json",
+            "type": "workflow"
           }
-        }
+        ]
       },
       "windmill": {
+        "type": "windmill",
         "enabled": true,
-        "config": {
-          "workspace": "file_manager",
-          "scripts": [
-            "initialization/automation/windmill/scripts/process-image.ts",
-            "initialization/automation/windmill/scripts/extract-text.ts",
-            "initialization/automation/windmill/scripts/generate-embeddings.ts",
-            "initialization/automation/windmill/scripts/find-duplicates.ts",
-            "initialization/automation/windmill/scripts/suggest-organization.ts",
-            "initialization/automation/windmill/scripts/batch-organize.ts",
-            "initialization/automation/windmill/scripts/semantic-search.ts"
-          ],
-          "apps": [
-            "initialization/automation/windmill/apps/file-manager-ui.json"
-          ]
-        }
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/automation/windmill/apps/file-manager-ui.json",
+            "type": "app"
+          }
+        ]
       }
     },
     "ai": {
       "ollama": {
+        "type": "ollama",
         "enabled": true,
-        "config": {
-          "models": [
-            "llava:13b",
-            "llama3.2",
-            "nomic-embed-text"
-          ],
-          "vision": {
-            "model": "llava:13b",
-            "purpose": "image_analysis_and_description"
-          },
-          "embeddings": {
-            "model": "nomic-embed-text",
-            "dimensions": 1536
-          },
-          "primary_use": "file_content_analysis"
-        }
-      },
-      "unstructured-io": {
-        "enabled": true,
-        "config": {
-          "api_url": "http://localhost:8000",
-          "strategy": "hi_res",
-          "pdf_infer_table_structure": true,
-          "extract_images_in_pdf": true,
-          "ocr_languages": [
-            "eng",
-            "spa",
-            "fra",
-            "deu"
-          ]
-        }
+        "required": true,
+        "models": [
+          "llava:13b",
+          "llama3.2",
+          "nomic-embed-text"
+        ]
       }
-    }
-  },
-  "deployment": {
-    "ports": {
-      "windmill": 8002,
-      "api": 8093,
-      "n8n": 5680,
-      "ui": 3002,
-      "unstructured": 8000
-    },
-    "environment": {
-      "NODE_ENV": "production",
-      "LOG_LEVEL": "info",
-      "FILE_MANAGER_API_PORT": "8093",
-      "FILE_MANAGER_SECRET": "${FILE_MANAGER_SECRET}",
-      "MAX_FILE_SIZE_MB": "500",
-      "SUPPORTED_FORMATS": "jpg,jpeg,png,gif,bmp,webp,pdf,doc,docx,txt,md,csv,xlsx",
-      "OLLAMA_BASE_URL": "http://localhost:11434",
-      "UNSTRUCTURED_API_URL": "http://localhost:8000",
-      "QDRANT_URL": "http://localhost:6335",
-      "MINIO_ENDPOINT": "localhost:9001",
-      "POSTGRES_HOST": "localhost",
-      "POSTGRES_PORT": "5435",
-      "REDIS_URL": "redis://localhost:6380",
-      "N8N_WEBHOOK_URL": "http://localhost:5680"
     }
   },
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize smart file photo manager environment",
+      "description": "Initialize Smart File Photo Manager",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/resources/injection/engine.sh scripts/scenarios/core/smart-file-photo-manager/.vrooli/service.json",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "show-access-urls",
-          "run": "echo '✅ Smart File Photo Manager initialized\\n  File Manager UI: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Workflow Manager: http://localhost:${RESOURCE_PORTS[n8n]}\\n  MinIO Console: http://localhost:${RESOURCE_PORTS[minio_console]}\\n  Qdrant Dashboard: http://localhost:${RESOURCE_PORTS[qdrant]}/dashboard'",
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Smart File Photo Manager initialized\\n  File Manager UI: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}'",
           "description": "Display service access URLs"
         }
       ]
@@ -195,16 +158,28 @@
       "steps": [
         {
           "name": "start-services",
-          "run": "deployment/startup.sh"
+          "run": "cd deployment && ./startup.sh",
+          "description": "Start file manager services"
         }
       ]
     },
-    "build": {
-      "description": "Build file manager artifacts",
+    "test": {
+      "description": "Test file manager functionality",
       "steps": [
         {
-          "name": "build-artifacts",
-          "run": "deployment/build.sh"
+          "name": "run-tests",
+          "run": "bash test.sh",
+          "description": "Run integration tests"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop file manager services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'file-manager' || true",
+          "description": "Stop all file manager processes"
         }
       ]
     }

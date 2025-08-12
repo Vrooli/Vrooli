@@ -13,109 +13,95 @@
       "retro",
       "entertainment",
       "ai-generation"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "team@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
     ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto",
+      "description": "Retro game launcher API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "3000-3999",
+      "fallback": "auto",
+      "description": "Game launcher UI port"
+    }
   },
   "resources": {
     "storage": {
       "postgres": {
+        "type": "postgres",
         "enabled": true,
-        "config": {
-          "database": "retro_games",
-          "port": 5436,
-          "username": "retro_user",
-          "password": "${POSTGRES_PASSWORD}",
-          "initialization": {
-            "schema": "initialization/storage/postgres/schema.sql",
-            "seed": "initialization/storage/postgres/seed.sql"
+        "required": true,
+        "purpose": "Store game metadata, user progress, and settings",
+        "initialization": [
+          {
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "script"
+          },
+          {
+            "file": "initialization/storage/postgres/seed.sql",
+            "type": "script"
           }
-        },
-        "purpose": "Store game metadata, user progress, and settings"
+        ]
       }
     },
     "automation": {
       "n8n": {
+        "type": "n8n",
         "enabled": true,
-        "config": {
-          "workflows": [
-            "initialization/automation/n8n/game-generation-workflow.json"
-          ]
-        },
-        "purpose": "Orchestrate game generation and management workflows"
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/automation/n8n/game-generation-workflow.json",
+            "type": "workflow"
+          }
+        ]
       },
       "windmill": {
+        "type": "windmill",
         "enabled": true,
-        "config": {
-          "workspace": "retro_games",
-          "apps": [
-            "initialization/automation/windmill/retro-game-launcher-ui.json"
-          ]
-        },
-        "purpose": "Game launcher UI and management interface"
+        "required": true,
+        "initialization": [
+          {
+            "file": "initialization/automation/windmill/retro-game-launcher-ui.json",
+            "type": "app"
+          }
+        ]
       }
     },
     "ai": {
       "ollama": {
+        "type": "ollama",
         "enabled": true,
+        "required": true,
         "models": [
           "llama3.2",
           "codellama"
-        ],
-        "purpose": "Generate game ideas and code"
+        ]
       }
-    }
-  },
-  "deployment": {
-    "ports": {
-      "windmill": 8001,
-      "api": 8400,
-      "n8n": 5679,
-      "ui": 3400
-    },
-    "environment": {
-      "NODE_ENV": "production",
-      "LOG_LEVEL": "info",
-      "RETRO_GAMES_API_PORT": "8400",
-      "RETRO_GAMES_SECRET": "${RETRO_GAMES_SECRET}",
-      "OLLAMA_BASE_URL": "http://localhost:11434",
-      "POSTGRES_HOST": "localhost",
-      "POSTGRES_PORT": "5436",
-      "N8N_WEBHOOK_URL": "http://localhost:5679"
-    }
-  },
-  "features": {
-    "game_templates": {
-      "enabled": true,
-      "description": "Pre-built templates for various game types"
-    },
-    "ai_generation": {
-      "enabled": true,
-      "description": "Generate new games based on prompts"
-    },
-    "save_states": {
-      "enabled": true,
-      "description": "Save and load game states"
     }
   },
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize retro game launcher environment",
+      "description": "Initialize Retro Game Launcher",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/resources/injection/engine.sh scripts/scenarios/core/retro-game-launcher/.vrooli/service.json",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "show-access-urls",
-          "run": "echo '✅ Retro Game Launcher initialized\\n  Game Launcher: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Workflow Manager: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Database Admin: http://localhost:8080'",
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 Retro Game Launcher initialized\\n  Game Launcher: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}'",
           "description": "Display service access URLs"
         }
       ]
@@ -125,34 +111,28 @@
       "steps": [
         {
           "name": "start-services",
-          "run": "../deployment/startup.sh"
-        }
-      ]
-    },
-    "build": {
-      "description": "Build retro game launcher artifacts",
-      "steps": [
-        {
-          "name": "build-artifacts",
-          "run": "./scripts/manage.sh build"
+          "run": "cd deployment && ./startup.sh",
+          "description": "Start retro game launcher services"
         }
       ]
     },
     "test": {
-      "description": "Run retro game launcher tests",
+      "description": "Test retro game launcher functionality",
       "steps": [
         {
           "name": "run-tests",
-          "run": "./test.sh"
+          "run": "bash test.sh",
+          "description": "Run integration tests"
         }
       ]
     },
-    "clean": {
-      "description": "Clean build artifacts and temporary files",
+    "stop": {
+      "description": "Stop retro game launcher services",
       "steps": [
         {
-          "name": "clean-artifacts",
-          "run": "rm -rf dist/ build/ .next/ node_modules/ .cache/ || true"
+          "name": "stop-services",
+          "run": "pkill -f 'retro-game' || true",
+          "description": "Stop all retro game launcher processes"
         }
       ]
     }

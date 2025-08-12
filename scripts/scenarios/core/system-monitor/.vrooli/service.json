@@ -15,25 +15,33 @@
       "infrastructure-monitoring",
       "alerting",
       "performance-analytics"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "team@vrooli.com"
-      }
-    ],
-    "license": "GPL-3.0"
+    ]
+  },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto",
+      "description": "System monitor API port"
+    },
+    "ui": {
+      "env_var": "UI_PORT",
+      "range": "3000-3999",
+      "fallback": "auto",
+      "description": "System monitor dashboard port"
+    }
   },
   "resources": {
     "storage": {
       "postgres": {
-        "type": "postgresql",
+        "type": "postgres",
         "enabled": true,
         "required": true,
+        "purpose": "Store monitoring data and configuration",
         "initialization": [
           {
-            "type": "data",
-            "file": "initialization/storage/postgres/schema.sql"
+            "file": "initialization/storage/postgres/schema.sql",
+            "type": "script"
           }
         ]
       },
@@ -41,23 +49,13 @@
         "type": "questdb",
         "enabled": true,
         "required": true,
-        "initialization": [
-          {
-            "type": "data",
-            "file": "initialization/storage/questdb/server.conf"
-          }
-        ]
+        "purpose": "High-performance time-series database for metrics"
       },
       "redis": {
         "type": "redis",
         "enabled": true,
         "required": true,
-        "initialization": [
-          {
-            "type": "data",
-            "file": "initialization/storage/redis/redis.conf"
-          }
-        ]
+        "purpose": "Real-time metrics and alert caching"
       }
     },
     "automation": {
@@ -67,14 +65,12 @@
         "required": true,
         "initialization": [
           {
-            "name": "anomaly-detector",
             "file": "initialization/automation/node-red/anomaly-detector.json",
-            "type": "workflow"
+            "type": "flow"
           },
           {
-            "name": "metric-collector",
             "file": "initialization/automation/node-red/metric-collector.json",
-            "type": "workflow"
+            "type": "flow"
           }
         ]
       },
@@ -84,12 +80,10 @@
         "required": true,
         "initialization": [
           {
-            "name": "scheduled-reports",
             "file": "initialization/automation/n8n/scheduled-reports.json",
             "type": "workflow"
           },
           {
-            "name": "threshold-monitor",
             "file": "initialization/automation/n8n/threshold-monitor.json",
             "type": "workflow"
           }
@@ -103,12 +97,7 @@
         "required": false,
         "models": [
           "llama3.2:3b"
-        ],
-        "configuration": {
-          "default_model": "llama3.2:3b",
-          "temperature": 0.1,
-          "max_tokens": 1024
-        }
+        ]
       }
     },
     "agents": {
@@ -119,123 +108,55 @@
       }
     }
   },
-  "deployment": {
-    "target": "docker",
-    "urls": {
-      "ui": "${service.system-monitor.url}:3003",
-      "api": "${service.system-monitor.url}:8083",
-      "grafana": "${service.system-monitor.url}:3004"
-    },
-    "initialization": {
-      "phases": [
-        {
-          "name": "database-setup",
-          "tasks": [
-            {
-              "name": "apply-schema",
-              "type": "sql",
-              "target": "storage.postgres",
-              "file": "initialization/storage/postgres/schema.sql"
-            }
-          ]
-        },
-        {
-          "name": "storage-setup",
-          "parallel": true,
-          "tasks": [
-            {
-              "name": "configure-questdb",
-              "type": "resource-inject",
-              "target": "storage.questdb"
-            },
-            {
-              "name": "configure-redis",
-              "type": "resource-inject",
-              "target": "storage.redis"
-            }
-          ]
-        },
-        {
-          "name": "automation-setup",
-          "tasks": [
-            {
-              "name": "deploy-node-red-flows",
-              "type": "resource-inject",
-              "target": "automation.node-red"
-            },
-            {
-              "name": "deploy-n8n-workflows",
-              "type": "resource-inject",
-              "target": "automation.n8n"
-            }
-          ]
-        },
-        {
-          "name": "ai-setup",
-          "tasks": [
-            {
-              "name": "load-ai-models",
-              "type": "resource-inject",
-              "target": "ai.ollama",
-              "timeout": "5m"
-            }
-          ]
-        },
-        {
-          "name": "application-configuration",
-          "tasks": [
-            {
-              "name": "set-monitoring-config",
-              "type": "config",
-              "file": "initialization/configuration/monitoring-config.json"
-            }
-          ]
-        },
-        {
-          "name": "startup",
-          "tasks": [
-            {
-              "name": "start-application",
-              "type": "script",
-              "script": "./deployment/startup.sh",
-              "timeout": "2m"
-            }
-          ]
-        }
-      ]
-    },
-    "monitoring": {
-      "enabled": true,
-      "healthChecks": {
-        "application": {
-          "endpoint": "${service.system-monitor.url}:8083/health",
-          "interval": "30s",
-          "timeout": "5s"
-        }
-      }
-    }
-  },
-  "metadata": {
-    "businessModel": {
-      "purpose": "internal-tool",
-      "valueProposition": "AI-powered system monitoring with automated anomaly detection and investigation",
-      "targetMarket": "DevOps teams, system administrators, infrastructure monitoring"
-    }
-  },
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize System Monitor environment",
+      "description": "Initialize AI System Monitor",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/resources/injection/engine.sh scripts/scenarios/core/system-monitor/.vrooli/service.json",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "show-access-urls",
-          "run": "echo '✅ System Monitor initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  Grafana: http://localhost:3004\\n  API: http://localhost:8083'",
+          "name": "add-data",
+          "run": "scripts/resources/injection/engine.sh .",
+          "description": "Add app data to resources"
+        },
+        {
+          "name": "show-urls",
+          "run": "echo '🚀 System Monitor initialized\\n  Dashboard: http://localhost:${UI_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Node-RED flows: http://localhost:${RESOURCE_PORTS[node-red]}\\n  API: http://localhost:${SERVICE_PORT}'",
           "description": "Display service access URLs"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start system monitor services",
+      "steps": [
+        {
+          "name": "start-services",
+          "run": "cd deployment && ./startup.sh",
+          "description": "Start system monitor services"
+        }
+      ]
+    },
+    "test": {
+      "description": "Test system monitor functionality",
+      "steps": [
+        {
+          "name": "run-tests",
+          "run": "bash test.sh",
+          "description": "Run integration tests"
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop system monitor services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'system-monitor' || true",
+          "description": "Stop all system monitor processes"
         }
       ]
     }

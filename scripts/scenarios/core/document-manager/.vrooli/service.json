@@ -14,13 +14,6 @@
       "automation",
       "saas",
       "monitoring"
-    ],
-    "maintainers": [
-      {
-        "name": "Vrooli Team",
-        "email": "team@vrooli.com",
-        "url": "https://github.com/Vrooli"
-      }
     ]
   },
   "resources": {
