@@ -166,14 +166,14 @@
       "description": "Prepare development environment",
       "steps": [
         {
-          "name": "check-ports",
-          "run": "for port in 3000 3001 5432 6379 8080 8081; do lsof -i :$port >/dev/null 2>&1 && echo \"⚠️  Port $port is already in use\" || true; done",
-          "description": "Check common development ports"
-        },
-        {
           "name": "load-env",
           "run": "[[ -f .env ]] && (echo 'Loading .env file' && set -a && source .env && set +a) || echo 'No .env file found'",
           "description": "Load environment variables from .env if exists"
+        },
+        {
+          "name": "start-app-api",
+          "run": "if [[ -f scripts/cli/api/start-api.sh ]]; then (scripts/cli/api/start-api.sh >/dev/null 2>&1 &) && echo '📱 App API started on port 8094' || echo '⚠️  Failed to start App API'; else echo '⚠️  App API not found'; fi",
+          "description": "Start the app management API server"
         },
         {
           "name": "show-generated-apps",

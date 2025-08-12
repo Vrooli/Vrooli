@@ -1,0 +1,8 @@
+# Go build artifacts
+app-api
+*.exe
+go.sum
+
+# Temporary files
+*.tmp
+*.log
