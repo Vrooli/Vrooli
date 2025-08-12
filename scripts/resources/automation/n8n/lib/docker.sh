@@ -63,7 +63,8 @@ n8n::start() {
     docker start "$N8N_CONTAINER_NAME" >/dev/null 2>&1
     
     # Wait for ready
-    if wait::for_http "${N8N_BASE_URL}/healthz" 60; then
+    # wait::for_http expects: (url, expected_code, timeout, headers)
+    if wait::for_http "${N8N_BASE_URL}/healthz" 200 60; then
         log::success "✅ n8n is ready on port $N8N_PORT"
         log::info "Access n8n at: $N8N_BASE_URL"
         return 0

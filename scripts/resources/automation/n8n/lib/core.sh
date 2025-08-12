@@ -266,7 +266,9 @@ n8n::first_time_setup() {
 # Wait for n8n to be ready
 #######################################
 n8n::wait_for_ready() {
-    wait::for_http "${N8N_BASE_URL}/healthz" 60
+    # wait::for_http expects: (url, expected_code, timeout, headers)
+    # n8n health endpoint returns HTTP 200
+    wait::for_http "${N8N_BASE_URL}/healthz" 200 60
 }
 
 #######################################
