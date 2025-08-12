@@ -4,7 +4,7 @@ This directory contains comprehensive documentation of Vrooli's architecture, fr
 
 ## System Architecture Overview
 
-Vrooli is built as a sophisticated AI execution platform that enables recursive self-improvement through collaborative intelligence ecosystems. The architecture is designed to support advanced AI coordination, distributed execution, and universal automation capabilities.
+Vrooli is built as a resource orchestration platform that enables agents to build complete business applications by orchestrating local resources. The architecture is designed to support scenario-based application generation, dual-purpose validation (testing + revenue), and recursive self-improvement through meta-scenarios.
 
 ### High-Level Architecture
 
