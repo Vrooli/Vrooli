@@ -65,9 +65,15 @@ LIFECYCLE COMMANDS:
     setup               Initialize the development environment
     develop             Start development servers
     build               Build the project
-    test                Run tests
     deploy              Deploy to production
     clean               Clean build artifacts
+
+TESTING COMMANDS:
+    test                Run comprehensive scenario-first test suite
+    test static         Run static analysis (shellcheck, syntax)
+    test resources      Run resource validation and mock testing
+    test scenarios      Run scenario validation and integration tests
+    test bats           Run BATS test execution with caching
 
 APP MANAGEMENT:
     app list            List all generated apps
@@ -92,6 +98,8 @@ OPTIONS:
 EXAMPLES:
     vrooli setup                        # First-time setup
     vrooli develop                      # Start development
+    vrooli test                         # Run all tests
+    vrooli test resources --verbose     # Test resources with details
     vrooli app list                     # List generated apps
     vrooli scenario generate assistant  # Generate research assistant
 
@@ -115,8 +123,13 @@ main() {
     
     case "$command" in
         # Lifecycle commands (delegate to manage.sh)
-        setup|develop|build|test|deploy|clean|backup|restore)
+        setup|develop|build|deploy|clean|backup|restore)
             exec "${VROOLI_ROOT}/scripts/manage.sh" "$command" "$@"
+            ;;
+        
+        # Test commands (delegate to test-commands.sh)
+        test)
+            exec "${VROOLI_ROOT}/cli/commands/test-commands.sh" "$@"
             ;;
         
         # App management commands

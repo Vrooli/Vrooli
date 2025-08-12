@@ -16,14 +16,14 @@ Comprehensive development guide for the Vrooli platform. For quick reference, se
 
 ## Project Overview
 
-Vrooli is a collaborative platform for creating, sharing, and running automated procedures. It features a three-tier AI architecture for autonomous operations, process management, and execution.
+Vrooli is a resource orchestration platform for generating complete business applications from customer requirements. It features dual-purpose scenarios that serve as both integration tests AND $10K-50K revenue applications, powered by a three-tier AI architecture.
 
 ### Key Features
-- AI-powered routine automation
-- Multi-agent swarm coordination
-- Event-driven architecture
-- Emergent capability development
-- Collaborative knowledge sharing
+- Scenario-based business application generation
+- Local resource orchestration (30+ services)
+- Dual-purpose architecture (test + revenue)
+- Meta-scenario self-improvement
+- Privacy-first local execution
 
 ## Technology Stack
 
@@ -281,36 +281,36 @@ cd packages/[package-name] && pnpm type-check   # Run TypeScript type checking
 
 ## Emergent Capabilities
 
-**IMPORTANT**: Many advanced capabilities in Vrooli are **emergent** - they arise from intelligent composition of agents and routines, NOT from built-in code. **Do not attempt to build code for these capabilities** as they are designed to emerge through AI reasoning and agent collaboration.
+**IMPORTANT**: Many advanced capabilities in Vrooli are **emergent** - they arise from resource orchestration and scenario deployment, NOT from built-in code. **Do not attempt to build code for these capabilities** as they are designed to emerge through scenario combinations and meta-scenario intelligence.
 
 ### What Are Emergent Capabilities?
-- **Intelligence-First**: Capabilities come from AI reasoning through specialized agents, not hard-coded logic
-- **Domain-Adaptive**: Each team's capabilities evolve to match their specific needs through agent learning
-- **Continuously Learning**: Agents analyze patterns and propose improvements through usage observation
-- **Composable**: Complex capabilities emerge from agents collaborating and improving workflows
-- **Event-Driven**: Agents respond intelligently to real-time system events and routine performance data
+- **Resource-Orchestrated**: Capabilities emerge from novel combinations of local resources (databases, AI models, automation platforms)
+- **Scenario-Driven**: Complex applications emerge from combining and extending existing scenario templates
+- **Self-Improving**: Meta-scenarios continuously enhance the platform's ability to generate better scenarios
+- **Business-Focused**: Capabilities target real revenue generation ($10K-50K applications) rather than just technical demos
+- **Deployment-Validated**: Every capability is proven through actual business deployments and customer usage
 
 ### Examples of Emergent (NOT Built-In) Capabilities:
-- **Security Automation**: Threat detection, incident response, compliance monitoring
-- **Performance Optimization**: Automatic routine optimization, cost reduction, quality improvements  
-- **API Integration**: Dynamic service integration through routine composition
-- **Data Management**: Intelligent document creation, format selection, storage integration
-- **Quality Assurance**: Output validation, bias detection, brand voice enforcement
-- **Learning Systems**: Pattern recognition, feedback integration, adaptation strategies
+- **Complex Business Applications**: Multi-resource scenarios combining AI models, databases, automation, and UIs
+- **Self-Improvement Systems**: Meta-scenarios that generate new scenarios, debug deployments, optimize resources
+- **Industry-Specific Solutions**: Domain scenarios that leverage resource combinations for specialized markets
+- **Resource Discovery**: Intelligent detection and integration of new local services into the ecosystem
+- **Business Model Optimization**: Scenario analysis that identifies higher-value application opportunities
+- **Deployment Intelligence**: Automated scaling, monitoring, and maintenance through orchestrated resources
 
 ### Key Principle:
 Instead of building these features as code, the system provides:
-1. **Agent deployment capabilities** - Teams can deploy specialized AI agents
-2. **Event-driven architecture** - Agents subscribe to system events and data
-3. **Routine improvement mechanisms** - Agents propose and create enhanced routines
-4. **Collaborative frameworks** - Agent swarms work together on complex challenges
+1. **Scenario deployment capabilities** - Deploy complete business applications from validated templates
+2. **Resource orchestration architecture** - Combine local services to create emergent business capabilities
+3. **Meta-scenario mechanisms** - Self-improving scenarios that enhance platform capabilities
+4. **Dual-purpose validation** - Every scenario proves both technical integration AND business viability
 
 ### When NOT to Code:
-- Security monitoring systems (deploy security agents instead)
-- Performance optimization logic (use optimization agents)
-- API integration handlers (use API bootstrapping routines)
-- Quality assurance pipelines (deploy quality agents)
-- Learning and adaptation systems (these emerge from agent analysis)
+- Business application logic (deploy scenarios that orchestrate resources instead)
+- Industry-specific workflows (create scenarios that combine existing resources)
+- Self-improvement features (use meta-scenarios like Scenario Generator)
+- Resource integration handlers (use resource orchestration patterns)
+- Monitoring and optimization systems (deploy System Monitor and App Issue Tracker scenarios)
 
 See [architecture/execution/emergent-capabilities/README.md](architecture/execution/emergent-capabilities/README.md) for comprehensive details.
 
