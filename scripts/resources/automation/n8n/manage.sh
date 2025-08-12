@@ -238,33 +238,10 @@ n8n::main() {
             n8n::get_executions
             ;;
         inject)
-            "${N8N_SCRIPT_DIR}/lib/inject.sh" --inject --config "$INJECTION_CONFIG"
+            n8n::inject
             ;;
         validate-injection)
-            # Support both legacy and new validation interfaces
-            if [[ -n "$VALIDATION_TYPE" && -n "$VALIDATION_FILE" ]]; then
-                # New interface: type + file
-                if [[ ! -f "$VALIDATION_FILE" ]]; then
-                    log::error "Validation file not found: $VALIDATION_FILE"
-                    exit 1
-                fi
-                
-                local content
-                content=$(cat "$VALIDATION_FILE")
-                
-                # Call inject.sh with type and content
-                "${N8N_SCRIPT_DIR}/lib/inject.sh" \
-                    --validate \
-                    --type "$VALIDATION_TYPE" \
-                    --content "$content"
-            elif [[ -n "$INJECTION_CONFIG" ]]; then
-                # Legacy interface: full config JSON
-                "${N8N_SCRIPT_DIR}/lib/inject.sh" --validate --config "$INJECTION_CONFIG"
-            else
-                log::error "Required: --validation-type TYPE --validation-file PATH"
-                log::info "   or legacy: --injection-config 'JSON_CONFIG'"
-                exit 1
-            fi
+            n8n::validate_injection
             ;;
         url)
             n8n::get_urls

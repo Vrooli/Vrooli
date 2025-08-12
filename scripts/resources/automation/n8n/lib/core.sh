@@ -489,3 +489,49 @@ EXAMPLES:
 
 EOF
 }
+
+# ============================================================================
+# Injection Functions
+# ============================================================================
+
+n8n::inject() {
+    local injection_config="${INJECTION_CONFIG:-}"
+    
+    if [[ -z "$injection_config" ]]; then
+        log::error "Missing required --injection-config parameter"
+        return 1
+    fi
+    
+    "${N8N_SCRIPT_DIR}/lib/inject.sh" --inject --config "$injection_config"
+}
+
+n8n::validate_injection() {
+    local validation_type="${VALIDATION_TYPE:-}"
+    local validation_file="${VALIDATION_FILE:-}"
+    local injection_config="${INJECTION_CONFIG:-}"
+    
+    # Support both legacy and new validation interfaces
+    if [[ -n "$validation_type" && -n "$validation_file" ]]; then
+        # New interface: type + file
+        if [[ ! -f "$validation_file" ]]; then
+            log::error "Validation file not found: $validation_file"
+            return 1
+        fi
+        
+        local content
+        content=$(cat "$validation_file")
+        
+        # Call inject.sh with type and content
+        "${N8N_SCRIPT_DIR}/lib/inject.sh" \
+            --validate \
+            --type "$validation_type" \
+            --content "$content"
+    elif [[ -n "$injection_config" ]]; then
+        # Legacy interface: full config JSON
+        "${N8N_SCRIPT_DIR}/lib/inject.sh" --validate --config "$injection_config"
+    else
+        log::error "Required: --validation-type TYPE --validation-file PATH"
+        log::info "   or legacy: --injection-config 'JSON_CONFIG'"
+        return 1
+    fi
+}
