@@ -1183,6 +1183,44 @@ scenario_to_app::generate_app() {
         trap - EXIT ERR INT TERM
         
         log::success "Created app directory: $app_path"
+        
+        # Initialize git repository for change tracking
+        if command -v git >/dev/null 2>&1; then
+            [[ "$VERBOSE" == "true" ]] && log::info "Initializing app version control..."
+            cd "$app_path" || {
+                log::warning "Failed to change to app directory for git initialization"
+                cd - >/dev/null || true
+            }
+            
+            if git init --quiet 2>/dev/null; then
+                # Configure git for generated apps
+                git config user.name "Vrooli App Generator" 2>/dev/null || true
+                git config user.email "apps@vrooli.local" 2>/dev/null || true
+                
+                # Create initial commit with metadata
+                local scenario_hash
+                scenario_hash=$(calculate_hash "$SCENARIO_PATH" 2>/dev/null || echo "unknown")
+                local generator_version
+                generator_version=$(git -C "$var_ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+                
+                git add . 2>/dev/null || true
+                git commit --quiet -m "Initial generation from scenario: $scenario_name
+
+Generated from scenario: $scenario_name
+Scenario hash: $scenario_hash
+Generation time: $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+Generator version: $generator_version
+" 2>/dev/null || true
+                
+                [[ "$VERBOSE" == "true" ]] && log::success "✅ App initialized with version control"
+            else
+                [[ "$VERBOSE" == "true" ]] && log::warning "Failed to initialize git repository (git may not be available)"
+            fi
+            
+            cd - >/dev/null || true
+        else
+            [[ "$VERBOSE" == "true" ]] && log::info "Git not available - skipping version control initialization"
+        fi
     fi
     
     log::success "Generated app: $app_path"

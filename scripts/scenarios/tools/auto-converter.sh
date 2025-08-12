@@ -123,6 +123,27 @@ while IFS= read -r scenario_info; do
         continue
     }
     
+    # Check for app customizations (git-based detection)
+    app_customized=false
+    customization_reason=""
+    
+    if [[ -d "$app_path" ]] && [[ -d "$app_path/.git" ]]; then
+        # Change to app directory to check git status
+        current_dir=$(pwd)
+        if cd "$app_path" 2>/dev/null; then
+            # Check for uncommitted changes (modified, staged, or untracked files)
+            if ! git diff --quiet 2>/dev/null || ! git diff --cached --quiet 2>/dev/null || [[ -n "$(git ls-files --others --exclude-standard 2>/dev/null)" ]]; then
+                app_customized=true
+                customization_reason="uncommitted changes"
+            # Check for commits after initial generation
+            elif [[ $(git rev-list --count HEAD 2>/dev/null || echo "0") -gt 1 ]]; then
+                app_customized=true
+                customization_reason="additional commits"
+            fi
+            cd "$current_dir" || true
+        fi
+    fi
+    
     # Check if conversion needed
     needs_conversion=false
     reason=""
@@ -130,6 +151,34 @@ while IFS= read -r scenario_info; do
     if [[ "$FORCE" == "true" ]]; then
         needs_conversion=true
         reason="forced"
+    elif [[ "$app_customized" == "true" ]]; then
+        needs_conversion=false
+        reason="customized"
+        log::warning "⚠️  $name has been customized ($customization_reason)"
+        
+        # Show helpful information about customizations
+        if [[ -d "$app_path/.git" ]]; then
+            current_dir=$(pwd)
+            if cd "$app_path" 2>/dev/null; then
+                modified_files=$(git status --porcelain 2>/dev/null | wc -l || echo "0")
+                uncommitted_files=$(git status --porcelain 2>/dev/null | head -3 | awk '{print "     " $2}' || true)
+                
+                if [[ $modified_files -gt 0 ]]; then
+                    log::info "   📁 Modified files: $modified_files"
+                    if [[ -n "$uncommitted_files" ]] && [[ "$VERBOSE" == "true" ]]; then
+                        log::info "   🔍 Recent changes:"
+                        echo "$uncommitted_files"
+                    fi
+                elif [[ "$customization_reason" == "additional commits" ]]; then
+                    commit_count=$(git rev-list --count HEAD 2>/dev/null || echo "0")
+                    log::info "   📝 Total commits: $commit_count"
+                fi
+                
+                cd "$current_dir" || true
+            fi
+        fi
+        
+        log::info "   ⏭️  Skipping regeneration (use --force to override)"
     elif [[ -z "${stored_hashes[$name]:-}" ]]; then
         needs_conversion=true
         reason="new"
@@ -147,6 +196,32 @@ while IFS= read -r scenario_info; do
         if [[ "$DRY_RUN" == "true" ]]; then
             log::info "[DRY RUN] Would convert: $name"
         else
+            # Create backup if force regenerating a customized app
+            if [[ "$reason" == "forced" ]] && [[ "$app_customized" == "true" ]] && [[ -d "$app_path" ]]; then
+                log::warning "🔄 Force regenerating customized app: $name"
+                
+                # Create backup directory structure
+                backup_dir="${GENERATED_APPS_DIR}/.backups"
+                backup_name="${name}-$(date +%Y%m%d-%H%M%S)"
+                backup_path="$backup_dir/$backup_name"
+                
+                mkdir -p "$backup_dir" || {
+                    log::error "Failed to create backup directory: $backup_dir"
+                    failed=$((failed + 1))
+                    continue
+                }
+                
+                # Copy app to backup location
+                if cp -r "$app_path" "$backup_path" 2>/dev/null; then
+                    log::info "💾 Backup created: $backup_path"
+                    [[ "$VERBOSE" == "true" ]] && log::info "   📂 Backup contains all customizations and version history"
+                else
+                    log::error "Failed to create backup for $name"
+                    failed=$((failed + 1))
+                    continue
+                fi
+            fi
+            
             if "$SCENARIO_TO_APP" "$name" ${VERBOSE:+--verbose} --force >/dev/null 2>&1; then
                 log::success "✓ $name"
                 converted=$((converted + 1))
