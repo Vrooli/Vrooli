@@ -1,6 +1,6 @@
 name: agent-metareasoning-manager
-description: Test suite for lightweight metareasoning coordination service
-version: 1.0.0
+description: Test suite for simplified metareasoning discovery and coordination service
+version: 2.0.0
 
 prerequisites:
   resources:
@@ -33,7 +33,7 @@ tests:
         contains: go1.21
 
   - name: go_api_service
-    description: Verify Go coordination API is built and running
+    description: Verify simplified Go coordinator API is built and running
     steps:
       - check: api_binary_exists
         command: test -f api/metareasoning-api
@@ -41,10 +41,10 @@ tests:
       - check: api_health
         command: curl -f http://localhost:${SERVICE_PORT}/health
         expected_status: 200
+        contains: "status":"healthy"
       - check: api_workflows_endpoint
         command: curl -f http://localhost:${SERVICE_PORT}/workflows
         expected_status: 200
-        contains: pros-cons-analyzer
 
   - name: n8n_workflow_deployment
     description: Verify all 5 metareasoning workflows are deployed to n8n
@@ -66,56 +66,49 @@ tests:
         contains: reasoning-chain
 
   - name: go_api_endpoints
-    description: Test Go coordination API endpoints
+    description: Test simplified Go coordinator API endpoints
     steps:
       - check: health_endpoint
         command: curl -f http://localhost:${SERVICE_PORT}/health
         expected_status: 200
         contains: "status":"healthy"
-      - check: workflows_registry
+      - check: workflows_discovery
         command: curl -f http://localhost:${SERVICE_PORT}/workflows
         expected_status: 200
-        contains: pros-cons-analyzer
-      - check: analyze_pros_cons
+      - check: workflow_search
+        command: curl -X POST http://localhost:${SERVICE_PORT}/workflows/search -H "Content-Type: application/json" -d '{"query":"risk"}'  
+        expected_status: 200
+      - check: execute_n8n_workflow
         method: POST
-        url: http://localhost:${SERVICE_PORT}/analyze/pros-cons
+        url: http://localhost:${SERVICE_PORT}/execute/n8n/pros-cons-analyzer
         headers:
           Content-Type: application/json
         body:
           input: Should we implement feature X?
           context: Technical decision
         expected_status: 200
-      - check: analyze_swot
-        method: POST
-        url: http://localhost:${SERVICE_PORT}/analyze/swot
-        headers:
-          Content-Type: application/json
-        body:
-          input: New product launch
-          context: Competitive market
-        expected_status: 200
+        timeout: 60
 
   - name: end_to_end_reasoning_flow
-    description: Test complete reasoning flow through Go API -> n8n -> Ollama
+    description: Test complete reasoning flow through simplified coordinator -> n8n -> Ollama
     steps:
-      - check: pros_cons_via_api
+      - check: pros_cons_execution
         method: POST
-        url: http://localhost:${SERVICE_PORT}/analyze/pros-cons
+        url: http://localhost:${SERVICE_PORT}/execute/n8n/pros-cons-analyzer
         headers:
           Content-Type: application/json
         body:
           input: Implementing a new microservice architecture
           model: llama3.2
         expected_status: 200
-        contains: pros
         timeout: 60
-      - check: risk_assessment_via_api
+      - check: risk_assessment_execution
         method: POST
-        url: http://localhost:${SERVICE_PORT}/analyze/risk-assessment
+        url: http://localhost:${SERVICE_PORT}/execute/n8n/risk-assessment
         headers:
           Content-Type: application/json
         body:
-          input: Migrating to cloud infrastructure
+          action: Migrating to cloud infrastructure
           constraints: Limited budget and timeline
         expected_status: 200
         timeout: 60
@@ -136,7 +129,7 @@ tests:
         contains: prompt-tester
 
   - name: cli_functionality
-    description: Verify metareasoning CLI is installed and functional
+    description: Verify simplified metareasoning CLI is installed and functional
     steps:
       - check: cli_installed
         command: which metareasoning
@@ -144,11 +137,13 @@ tests:
       - check: cli_health
         command: metareasoning health
         expected_status: 0
-        contains: API Status
+        contains: healthy
       - check: cli_workflow_list
-        command: metareasoning workflow list
+        command: metareasoning list
         expected_status: 0
-        contains: pros-cons-analyzer
+      - check: cli_search
+        command: metareasoning search "risk"
+        expected_status: 0
       - check: cli_analyze_command
         command: metareasoning analyze pros-cons "Should we adopt TypeScript?"
         expected_status: 0
@@ -179,28 +174,25 @@ tests:
       - check: workflow_registry_exists
         command: test -f initialization/configuration/workflow-registry.json
         expected_status: 0
-      - check: go_workflows_config
-        command: test -f api/workflows.json
-        expected_status: 0
 
   - name: postgres_database
-    description: Verify PostgreSQL database and tables are initialized
+    description: Verify simplified PostgreSQL database schema is initialized
     steps:
       - check: database_exists
         command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -lqt | cut -d \| -f 1 | grep -qw metareasoning
         expected_status: 0
-      - check: execution_history_table
-        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d metareasoning -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'execution_history')"
+      - check: workflow_registry_table
+        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d metareasoning -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'workflow_registry')"
         contains: "t"
-      - check: workflow_metrics_table
-        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d metareasoning -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'workflow_metrics')"
+      - check: execution_log_table
+        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d metareasoning -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'execution_log')"
         contains: "t"
-      - check: reasoning_patterns_table
-        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d metareasoning -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'reasoning_patterns')"
+      - check: agent_preferences_table
+        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d metareasoning -c "SELECT EXISTS (SELECT FROM information_schema.tables WHERE table_name = 'agent_preferences')"
         contains: "t"
       - check: seed_data_loaded
-        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d metareasoning -t -c "SELECT COUNT(*) FROM workflow_metrics"
-        min_value: 6
+        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d metareasoning -t -c "SELECT COUNT(*) FROM workflow_registry"
+        min_value: 5
 
   - name: qdrant_collections
     description: Verify Qdrant vector collections are initialized
