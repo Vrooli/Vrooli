@@ -157,7 +157,7 @@ permissions::make_files_in_dir_executable() {
     log::header "Making scripts in ${1} executable"
     if [ -d "${1}" ]; then
         local count files_output
-        files_output=$(find -- "${1}" -type f \( -name '*.sh' -o -name '*.bats' \) 2>&1 || true)
+        files_output=$(find -- "${1}" -type f \( -name '*.sh' -o -name '*.bats' \) -not -executable 2>&1 || true)
         
         # Show permission errors to user if any
         if echo "$files_output" | grep -q "Permission denied"; then
@@ -184,7 +184,7 @@ permissions::make_files_in_dir_executable() {
             echo "$clean_files" | while IFS= read -r file; do
                 [ -n "$file" ] && chmod a+x "$file"
             done
-            log::success "Made ${count} script(s) in ${1} executable"
+            log::success "Made ${count} non-executable script(s) in ${1} executable"
         else
             log::info "No scripts found in ${1}"
         fi

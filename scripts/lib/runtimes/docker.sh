@@ -513,13 +513,13 @@ docker::configure_gpu_runtime() {
         return 0
     fi
 
-    log::header "Configuring Docker GPU Runtime"
-    
-    # First check if GPU support is already working
+    # Early check if GPU support is already working (before starting configuration)
     if docker::run run --rm --gpus all nvidia/cuda:11.0-base nvidia-smi >/dev/null 2>&1; then
         log::success "Docker GPU runtime is already working"
         return 0
     fi
+
+    log::header "Configuring Docker GPU Runtime"
     
     # Check if nvidia-container-runtime is available (alternative to nvidia-docker2)
     if system::is_command "nvidia-container-runtime"; then
