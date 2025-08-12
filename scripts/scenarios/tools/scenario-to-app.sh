@@ -767,16 +767,32 @@ scenario_to_app::process_template_variables() {
     [[ ! -f "$file" ]] && return 0
     file -b --mime-type "$file" | grep -q "text/" || return 0
     
-    # Source required utilities
-    local secrets_util="${var_ROOT_DIR}/scripts/lib/service/secrets.sh"
-    local service_config_util="${var_ROOT_DIR}/scripts/lib/service/service_config.sh"
+    # Skip Windmill app files - they contain UI templates, not secrets
+    if [[ "$file" == */automation/windmill/apps/* ]]; then
+        [[ "$VERBOSE" == "true" ]] && log::info "Skipping Windmill app file (contains UI templates): $(basename "$file")"
+        return 0
+    fi
+    
+    # Check if utilities are already loaded, if not source them
+    if ! command -v secrets::substitute_all_templates >/dev/null 2>&1; then
+        local secrets_util="${var_ROOT_DIR}/scripts/lib/service/secrets.sh"
+        if [[ -f "$secrets_util" ]]; then
+            # shellcheck disable=SC1091
+            source "$secrets_util"
+        fi
+    fi
+    
+    if ! command -v service_config::has_inheritance >/dev/null 2>&1; then
+        local service_config_util="${var_ROOT_DIR}/scripts/lib/service/service_config.sh"
+        if [[ -f "$service_config_util" ]]; then
+            # shellcheck disable=SC1090
+            source "$service_config_util"
+        fi
+    fi
     
     # Check if the service.json has inheritance defined
     local should_substitute="yes"
-    if [[ -f "$service_config_util" ]] && [[ "$(basename "$file")" == "service.json" ]]; then
-        # shellcheck disable=SC1090
-        source "$service_config_util"
-        
+    if [[ "$(basename "$file")" == "service.json" ]] && command -v service_config::has_inheritance >/dev/null 2>&1; then
         # Check for inheritance - if present, preserve templates for runtime resolution
         if service_config::has_inheritance "$file"; then
             should_substitute="no"
@@ -785,20 +801,25 @@ scenario_to_app::process_template_variables() {
     fi
     
     # Only substitute if no inheritance or if not a service.json file
-    if [[ "$should_substitute" == "yes" ]] && [[ -f "$secrets_util" ]]; then
-        # shellcheck disable=SC1091
-        source "$secrets_util"
-        
+    if [[ "$should_substitute" == "yes" ]] && command -v secrets::substitute_all_templates >/dev/null 2>&1; then
         # Read file content and substitute all templates (both secrets and service references)
         local content
         content=$(cat "$file")
-        local processed
-        processed=$(echo "$content" | secrets::substitute_all_templates)
         
-        # Write back if changed
-        if [[ "$content" != "$processed" ]]; then
-            echo "$processed" > "$file"
-            [[ "$VERBOSE" == "true" ]] && log::info "Processed templates in: $(basename "$file")"
+        # Check if content has any templates before processing
+        if echo "$content" | grep -qE '\{\{[^}]+\}\}|\$\{service\.[^}]+\}'; then
+            local sub_start=$(date +"%s%N")
+            local processed
+            processed=$(echo "$content" | secrets::substitute_all_templates)
+            local sub_end=$(date +"%s%N")
+            local sub_time=$(( (sub_end - sub_start) / 1000000 ))
+            [[ "$VERBOSE" == "true" ]] && [[ $sub_time -gt 100 ]] && log::info "    Template substitution took ${sub_time}ms for $(basename "$file")"
+            
+            # Write back if changed
+            if [[ "$content" != "$processed" ]]; then
+                echo "$processed" > "$file"
+                [[ "$VERBOSE" == "true" ]] && log::info "Processed templates in: $(basename "$file")"
+            fi
         fi
     fi
 }
@@ -1068,8 +1089,8 @@ scenario_to_app::generate_app() {
             return 1
         }
         
-        # Set up cleanup trap
-        trap "trash::safe_remove '$temp_path' --no-confirm" EXIT ERR INT TERM
+        # Set up cleanup trap (use || true to prevent trap failures from affecting exit code)
+        trap "trash::safe_remove '$temp_path' --no-confirm 2>/dev/null || true" EXIT ERR INT TERM
         
         log::info "Building app in temporary directory..."
         
@@ -1082,16 +1103,74 @@ scenario_to_app::generate_app() {
         
         # Process template variables in initialization files
         if [[ -d "$temp_path/initialization" ]]; then
-            log::info "Processing template variables in initialization files..."
-            find "$temp_path/initialization" -type f \( -name "*.json" -o -name "*.yaml" -o -name "*.yml" -o -name "*.sql" -o -name "*.ts" -o -name "*.js" \) | while read -r file; do
-                scenario_to_app::process_template_variables "$file" "$SERVICE_JSON"
-            done
+            # Count files first to provide better feedback
+            local init_files=()
+            while IFS= read -r -d '' file; do
+                init_files+=("$file")
+            done < <(find "$temp_path/initialization" -type f \( -name "*.json" -o -name "*.yaml" -o -name "*.yml" -o -name "*.sql" -o -name "*.ts" -o -name "*.js" \) -print0)
+            
+            if [[ ${#init_files[@]} -gt 0 ]]; then
+                log::info "Processing template variables in ${#init_files[@]} initialization files..."
+                
+                # Debug timing
+                local start_time=$(date +"%s%N")
+                
+                # Source utilities once for all files
+                local secrets_util="${var_ROOT_DIR}/scripts/lib/service/secrets.sh"
+                local service_config_util="${var_ROOT_DIR}/scripts/lib/service/service_config.sh"
+                
+                local source_start=$(date +"%s%N")
+                if [[ -f "$secrets_util" ]]; then
+                    # shellcheck disable=SC1091
+                    source "$secrets_util"
+                fi
+                
+                if [[ -f "$service_config_util" ]]; then
+                    # shellcheck disable=SC1090
+                    source "$service_config_util"
+                fi
+                local source_end=$(date +"%s%N")
+                local source_time=$(( (source_end - source_start) / 1000000 ))
+                [[ "$VERBOSE" == "true" ]] && log::info "  Sourcing utilities took ${source_time}ms"
+                
+                # Process files with progress indicator
+                local processed=0
+                local process_start=$(date +"%s%N")
+                for file in "${init_files[@]}"; do
+                    local file_start=$(date +"%s%N")
+                    scenario_to_app::process_template_variables "$file" "$SERVICE_JSON"
+                    local file_end=$(date +"%s%N")
+                    local file_time=$(( (file_end - file_start) / 1000000 ))
+                    [[ "$VERBOSE" == "true" ]] && [[ $file_time -gt 100 ]] && log::info "  File $(basename "$file") took ${file_time}ms"
+                    ((processed++))
+                    # Show progress every 5 files for large sets
+                    if [[ $processed -gt 10 ]] && [[ $((processed % 5)) -eq 0 ]]; then
+                        echo -n "." >&2
+                    fi
+                done
+                local process_end=$(date +"%s%N")
+                local process_time=$(( (process_end - process_start) / 1000000 ))
+                
+                # Clear progress line if we showed dots
+                if [[ $processed -gt 10 ]]; then
+                    echo "" >&2
+                fi
+                
+                local end_time=$(date +"%s%N")
+                local total_time=$(( (end_time - start_time) / 1000000 ))
+                
+                [[ "$VERBOSE" == "true" ]] && log::info "Processed $processed initialization files in ${total_time}ms (processing: ${process_time}ms)"
+            fi
         fi
         
         # Atomic move: Remove old and move temp to final location
         if [[ -d "$app_path" ]]; then
             log::info "Removing existing app directory..."
-            trash::safe_remove "$app_path" --no-confirm
+            if ! trash::safe_remove "$app_path" --no-confirm; then
+                log::error "Failed to remove existing app directory: $app_path"
+                trash::safe_remove "$temp_path" --no-confirm
+                return 1
+            fi
         fi
         
         mv "$temp_path" "$app_path" || {
@@ -1242,3 +1321,4 @@ main() {
 
 # Execute main function
 main "$@"
+exit $?

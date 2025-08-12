@@ -242,7 +242,7 @@ test_scenario_validation() {
 test_auto_converter() {
     log_info "⚙️ Testing auto-converter functionality..."
     
-    local auto_converter="$PROJECT_ROOT/scripts/scenarios/auto-converter.sh"
+    local auto_converter="$PROJECT_ROOT/scripts/scenarios/tools/auto-converter.sh"
     local relative_path
     relative_path=$(relative_path "$auto_converter")
     

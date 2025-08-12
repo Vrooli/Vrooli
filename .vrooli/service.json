@@ -151,7 +151,7 @@
         },
         {
           "name": "convert-scenarios",
-          "run": "./scripts/scenarios/auto-converter.sh",
+          "run": "./scripts/scenarios/tools/auto-converter.sh",
           "description": "Convert enabled scenarios to standalone apps",
           "timeout": "5m"
         }
