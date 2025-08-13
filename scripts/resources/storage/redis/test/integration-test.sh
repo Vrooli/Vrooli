@@ -68,8 +68,10 @@ test_basic_operations() {
     fi
     
     local port="${REDIS_PORT:-6380}"
-    local test_key="integration_test_$(date +%s)"
-    local test_value="test_value_$(date +%s)"
+    local test_key
+    test_key="integration_test_$(date +%s)"
+    local test_value
+    test_value="test_value_$(date +%s)"
     
     # Set a key
     if redis-cli -h localhost -p "$port" set "$test_key" "$test_value" >/dev/null 2>&1; then
@@ -99,7 +101,8 @@ test_data_types() {
     fi
     
     local port="${REDIS_PORT:-6380}"
-    local test_prefix="integration_test_$(date +%s)"
+    local test_prefix
+    test_prefix="integration_test_$(date +%s)"
     local success_count=0
     
     # Test string
@@ -143,7 +146,8 @@ test_expiration() {
     fi
     
     local port="${REDIS_PORT:-6380}"
-    local test_key="integration_expire_test_$(date +%s)"
+    local test_key
+    test_key="integration_expire_test_$(date +%s)"
     
     # Set a key with expiration
     if redis-cli -h localhost -p "$port" setex "$test_key" 2 "expire_value" >/dev/null 2>&1; then

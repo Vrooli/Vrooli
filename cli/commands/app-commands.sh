@@ -247,6 +247,8 @@ app_regenerate() {
         case "$1" in
             --force) force=true ;;
             --no-backup) no_backup=true ;;
+            # Ignore shell redirections and operators that might be passed accidentally
+            '2>&1'|'1>&2'|'&>'|'>'|'<'|'|'|'&&'|'||'|';') ;; # Silently ignore
             *) log::error "Unknown option: $1"; return 1 ;;
         esac
         shift
@@ -319,6 +321,8 @@ app_restore() {
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --from) backup_name="${2:-}"; shift 2 ;;
+            # Ignore shell redirections and operators that might be passed accidentally
+            '2>&1'|'1>&2'|'&>'|'>'|'<'|'|'|'&&'|'||'|';') ;; # Silently ignore
             *) log::error "Unknown option: $1"; return 1 ;;
         esac
     done

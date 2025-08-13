@@ -253,7 +253,8 @@ run_migration() {
     fi
     
     # Check if migration has already been applied
-    local migration_name=$(basename "$migration_file" .sql)
+    local migration_name
+    migration_name=$(basename "$migration_file" .sql)
     local check_query="SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'schema_migrations';"
     
     local migrations_table_exists
@@ -322,8 +323,9 @@ execute_database_test_from_config() {
     local test_config="$1"
     
     # Parse configuration (simplified)
-    local db_type=$(echo "$test_config" | grep "type:" | cut -d: -f2 | xargs)
-    local operations=$(echo "$test_config" | grep -A 20 "operations:")
+    local db_type
+    db_type=$(echo "$test_config" | grep "type:" | cut -d: -f2 | xargs)
+    # Note: operations variable was unused, removing it
     
     db_type="${db_type:-postgres}"
     

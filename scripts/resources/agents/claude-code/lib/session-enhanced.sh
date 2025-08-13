@@ -3,9 +3,9 @@
 # Provides advanced session tracking, analytics, result extraction, and recovery
 
 # Source trash module for safe cleanup
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Note: CLAUDE_CODE_SCRIPT_DIR should be set by manage.sh before sourcing this file
 # shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${CLAUDE_CODE_SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
@@ -809,6 +809,26 @@ claude_code::session_list_enhanced() {
     # Collect session data
     local sessions=()
     
+    # Check if metadata directory exists and has JSON files
+    if [[ ! -d "$CLAUDE_SESSION_METADATA_DIR" ]]; then
+        log::info "No sessions found. Run a Claude session first."
+        return 0
+    fi
+    
+    # Check if there are any JSON files
+    local has_json_files=false
+    for check_file in "$CLAUDE_SESSION_METADATA_DIR"/*.json; do
+        if [[ -f "$check_file" ]]; then
+            has_json_files=true
+            break
+        fi
+    done
+    
+    if [[ "$has_json_files" == "false" ]]; then
+        log::info "No session metadata found. Run a Claude session first."
+        return 0
+    fi
+    
     for metadata_file in "$CLAUDE_SESSION_METADATA_DIR"/*.json; do
         [[ ! -f "$metadata_file" ]] && continue
         
@@ -823,7 +843,7 @@ claude_code::session_list_enhanced() {
             duration: (if .end_time and .start_time then 
                 (((.end_time | fromdateiso8601) - (.start_time | fromdateiso8601)) | tostring) 
                 else null end),
-            initial_prompt: (.initial_prompt | .[0:50] + "...")
+            initial_prompt: ((.initial_prompt // "") | tostring | if length > 50 then .[0:50] + "..." else . end)
         }' "$metadata_file" 2>/dev/null)
         
         if [[ -n "$session_data" ]]; then

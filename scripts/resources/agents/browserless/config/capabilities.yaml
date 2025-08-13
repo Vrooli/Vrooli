@@ -1,0 +1,306 @@
+# Browserless Resource Capabilities and Business Intelligence
+# This file provides comprehensive metadata for AI agents and automation systems
+
+metadata:
+  name: browserless
+  display_name: Browserless Chrome Service
+  category: agents
+  version: "2.0"
+  description: High-performance headless Chrome automation service for web scraping, screenshots, PDFs, and browser automation
+  tags:
+    - browser-automation
+    - web-scraping
+    - screenshot-generation
+    - pdf-generation
+    - headless-chrome
+    - visual-testing
+    - javascript-execution
+    - api-service
+
+business_intelligence:
+  revenue_potential:
+    range: "$10,000 - $50,000/month"
+    breakdown:
+      automation_services: "$5,000 - $15,000/month"
+      visual_testing: "$3,000 - $8,000/month"
+      pdf_generation: "$2,000 - $5,000/month"
+      data_extraction: "$10,000 - $30,000/month"
+      compliance_monitoring: "$5,000 - $20,000/month"
+  
+  implementation_time:
+    basic_setup: "15 minutes"
+    production_ready: "2-4 hours"
+    full_integration: "1-2 days"
+  
+  complexity_score: 6  # 1-10 scale
+  
+  market_applications:
+    - e_commerce_price_monitoring
+    - social_media_aggregation
+    - website_change_detection
+    - automated_testing_pipelines
+    - document_generation_services
+    - seo_monitoring_tools
+    - competitive_intelligence
+    - compliance_verification
+    - visual_regression_testing
+    - content_archiving
+
+scenario_compatibility:
+  primary_scenarios:
+    - web_scraping_service:
+        value: "$15,000/month"
+        description: "Automated data extraction from dynamic websites"
+        integration_time: "4 hours"
+    
+    - visual_testing_platform:
+        value: "$8,000/month"
+        description: "Screenshot-based regression testing service"
+        integration_time: "6 hours"
+    
+    - pdf_generation_api:
+        value: "$5,000/month"
+        description: "Convert web content to professional PDFs"
+        integration_time: "2 hours"
+  
+  secondary_scenarios:
+    - e_commerce_monitor:
+        description: "Track competitor prices and inventory"
+        combines_with: ["n8n", "postgres", "redis"]
+    
+    - content_aggregator:
+        description: "Collect and process web content"
+        combines_with: ["ollama", "milvus", "postgres"]
+    
+    - compliance_checker:
+        description: "Monitor website compliance and changes"
+        combines_with: ["n8n", "vault", "postgres"]
+
+api_interfaces:
+  endpoints:
+    screenshot:
+      method: POST
+      path: /screenshot
+      description: "Capture webpage screenshots"
+      parameters:
+        url: string
+        fullPage: boolean
+        type: "png|jpeg|webp"
+        quality: integer
+        width: integer
+        height: integer
+      response: binary_image
+      avg_response_time: "2-5 seconds"
+    
+    pdf:
+      method: POST
+      path: /pdf
+      description: "Generate PDF from webpage"
+      parameters:
+        url: string
+        format: string
+        printBackground: boolean
+        landscape: boolean
+        margin: object
+      response: binary_pdf
+      avg_response_time: "3-8 seconds"
+    
+    content:
+      method: POST
+      path: /content
+      description: "Extract webpage content"
+      parameters:
+        url: string
+        selector: string
+        waitForSelector: string
+        timeout: integer
+      response: html_content
+      avg_response_time: "1-4 seconds"
+    
+    function:
+      method: POST
+      path: /function
+      description: "Execute custom JavaScript"
+      parameters:
+        code: string
+        context: object
+        timeout: integer
+      response: execution_result
+      avg_response_time: "1-3 seconds"
+    
+    pressure:
+      method: GET
+      path: /pressure
+      description: "Check browser pool status"
+      response:
+        running: integer
+        queued: integer
+        maxConcurrent: integer
+        cpu: float
+        memory: float
+      avg_response_time: "<100ms"
+
+technical_specifications:
+  resource_requirements:
+    minimum:
+      cpu: "2 cores"
+      memory: "2GB"
+      storage: "1GB"
+    
+    recommended:
+      cpu: "4 cores"
+      memory: "4GB"
+      storage: "10GB"
+    
+    production:
+      cpu: "8+ cores"
+      memory: "8GB+"
+      storage: "50GB+"
+  
+  scaling:
+    horizontal: true
+    vertical: true
+    auto_scaling_supported: true
+    max_concurrent_browsers: 100
+    requests_per_second: 50
+  
+  performance:
+    startup_time: "10-30 seconds"
+    request_latency: "1-8 seconds"
+    throughput: "10-50 requests/second"
+    memory_per_browser: "100-200MB"
+  
+  networking:
+    ports:
+      - port: 4110
+        protocol: HTTP
+        description: "Main API and dashboard"
+    
+    internal_communication:
+      - service: "docker"
+        purpose: "Container management"
+      - service: "chrome"
+        purpose: "Browser automation"
+
+integration_targets:
+  high_value:
+    - n8n: "Workflow automation with browser actions"
+    - postgres: "Store scraped data and screenshots"
+    - redis: "Cache browser sessions and results"
+    - milvus: "Index visual content for similarity search"
+    - ollama: "AI analysis of captured content"
+  
+  medium_value:
+    - vault: "Secure credential storage for authenticated scraping"
+    - prometheus: "Performance monitoring and alerting"
+    - elasticsearch: "Full-text search of scraped content"
+  
+  utility:
+    - nginx: "Load balancing for multiple instances"
+    - grafana: "Visualization of performance metrics"
+
+ai_generation_hints:
+  common_patterns:
+    - "Screenshot → AI Vision Analysis"
+    - "Scrape → Transform → Store"
+    - "Monitor → Detect Changes → Alert"
+    - "Generate PDF → Email/Upload"
+    - "Test UI → Compare → Report"
+  
+  optimization_tips:
+    - "Pre-warm browsers for better performance"
+    - "Use session pooling for repeated operations"
+    - "Implement request queuing for rate limiting"
+    - "Cache static resources between requests"
+    - "Use custom Chrome flags for specific scenarios"
+  
+  error_handling:
+    - "Implement retry logic for transient failures"
+    - "Handle timeout gracefully with partial results"
+    - "Validate URLs before processing"
+    - "Clean up browser instances on failure"
+    - "Monitor memory usage and restart if needed"
+
+testing_configuration:
+  test_files:
+    - "test/integration-test.sh"
+    - "examples/screenshot-test.js"
+    - "examples/pdf-test.js"
+    - "examples/scrape-test.js"
+  
+  coverage_areas:
+    - api_endpoints: 95%
+    - error_handling: 90%
+    - performance: 85%
+    - security: 80%
+  
+  fixture_data:
+    - "examples/fixtures/test-sites.json"
+    - "examples/fixtures/selectors.json"
+    - "examples/fixtures/javascript-snippets.js"
+
+operational_metrics:
+  sla_targets:
+    availability: "99.9%"
+    response_time_p95: "5 seconds"
+    error_rate: "<1%"
+  
+  monitoring_endpoints:
+    health: "/pressure"
+    metrics: "/metrics"
+    stats: "/json/version"
+  
+  alerting_thresholds:
+    cpu_usage: 80
+    memory_usage: 85
+    queue_depth: 50
+    error_rate: 5
+    response_time: 10000
+
+security_features:
+  - sandboxed_chrome_processes
+  - network_isolation_per_instance
+  - automatic_session_cleanup
+  - rate_limiting_support
+  - input_validation
+  - xss_protection
+  - csrf_protection
+  - secure_headers
+
+deployment_models:
+  docker:
+    supported: true
+    image: "browserless/chrome:latest"
+    compose_file: "docker/docker-compose.yml"
+  
+  kubernetes:
+    supported: true
+    helm_chart: "browserless/browserless"
+    min_replicas: 1
+    max_replicas: 10
+  
+  standalone:
+    supported: false
+    reason: "Requires containerization for Chrome isolation"
+
+documentation:
+  internal:
+    - "README.md"
+    - "docs/API.md"
+    - "docs/CONFIGURATION.md"
+    - "docs/TROUBLESHOOTING.md"
+  
+  external:
+    - url: "https://www.browserless.io/docs/"
+      description: "Official documentation"
+    - url: "https://github.com/browserless/chrome"
+      description: "GitHub repository"
+    - url: "https://www.browserless.io/docs/api"
+      description: "API reference"
+
+compliance:
+  gdpr_compliant: true
+  sox_compliant: true
+  hipaa_compliant: false  # Requires additional configuration
+  data_retention: "7 days default, configurable"
+  audit_logging: true

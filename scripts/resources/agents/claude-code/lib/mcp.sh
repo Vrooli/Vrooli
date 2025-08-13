@@ -310,7 +310,7 @@ mcp::create_config() {
     local server_url="$2"
     local api_key="${3:-}"
     
-    local template_file="${SCRIPT_DIR}/templates/mcp-${scope}.json"
+    local template_file="${CLAUDE_CODE_SCRIPT_DIR}/templates/mcp-${scope}.json"
     local config_file
     
     # Determine config file location based on scope

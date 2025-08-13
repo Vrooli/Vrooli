@@ -44,7 +44,7 @@ get_test_suite_images() {
     local suite_name="$1"
     
     if command -v yq >/dev/null 2>&1; then
-        yq eval ".testSuites.$suite_name[]" "$METADATA_FILE"
+        yq eval ".testSuites.${suite_name}[]" "$METADATA_FILE"
     else
         echo "WARNING: yq not installed. Install with: pip install yq" >&2
         return 1
@@ -66,7 +66,8 @@ validate_image_dimensions() {
     
     # Get actual dimensions using identify (ImageMagick)
     if command -v identify >/dev/null 2>&1; then
-        local dims=$(identify -format "%wx%h" "$full_path" 2>/dev/null)
+        local dims
+        dims=$(identify -format "%wx%h" "$full_path" 2>/dev/null)
         local actual_width="${dims%x*}"
         local actual_height="${dims#*x}"
         

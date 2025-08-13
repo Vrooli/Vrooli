@@ -385,6 +385,122 @@ claude_code::handle_mcp() {
 }
 
 #######################################
+# Handle session subcommands
+#######################################
+claude_code::handle_session() {
+    local subcommand="${SUBCOMMAND:-list}"
+    
+    case "$subcommand" in
+        "list")
+            claude_code::session_list_enhanced "$FILTER" "$SORT_BY" "${MCP_FORMAT:-text}" "$LIMIT"
+            ;;
+        "manage")
+            claude_code::session_manage "$EXTRACT_TYPE" "$SESSION_ID" "$MCP_FORMAT"
+            ;;
+        "extract")
+            if [[ -z "$OUTPUT_FILE" ]]; then
+                log::error "Output file required for session extract"
+                log::info "Use --output-file <path>"
+                exit 1
+            fi
+            claude_code::session_extract_results "$OUTPUT_FILE" "$SESSION_ID" "${MCP_FORMAT:-json}"
+            ;;
+        "analytics")
+            claude_code::session_analytics "$ANALYSIS_PERIOD" "${MCP_FORMAT:-text}"
+            ;;
+        "recover")
+            if [[ -z "$SESSION_ID" ]]; then
+                log::error "Session ID required for session recover"
+                log::info "Use --session-id <id>"
+                exit 1
+            fi
+            claude_code::session_recover "$SESSION_ID" "$RECOVERY_STRATEGY" "$PROMPT"
+            ;;
+        "cleanup")
+            claude_code::session_cleanup "$CLEANUP_STRATEGY" "$THRESHOLD"
+            ;;
+        *)
+            # Default to original session behavior for backwards compatibility
+            claude_code::session
+            ;;
+    esac
+}
+
+#######################################
+# Handle template subcommands
+#######################################
+claude_code::handle_template() {
+    local subcommand="${SUBCOMMAND:-list}"
+    
+    case "$subcommand" in
+        "list")
+            claude_code::templates_list "${MCP_FORMAT:-text}"
+            ;;
+        "load")
+            if [[ -z "$TEMPLATE_NAME" ]]; then
+                log::error "Template name required for template load"
+                log::info "Use --template-name <name>"
+                exit 1
+            fi
+            # Parse template variables from comma-separated format
+            local template_args=()
+            if [[ -n "$TEMPLATE_VARS" ]]; then
+                IFS=',' read -ra var_pairs <<< "$TEMPLATE_VARS"
+                for pair in "${var_pairs[@]}"; do
+                    template_args+=("$pair")
+                done
+            fi
+            claude_code::template_load "$TEMPLATE_NAME" "${template_args[@]}"
+            ;;
+        "run")
+            if [[ -z "$TEMPLATE_NAME" ]]; then
+                log::error "Template name required for template run"
+                log::info "Use --template-name <name>"
+                exit 1
+            fi
+            # Parse template variables from comma-separated format
+            local template_args=()
+            if [[ -n "$TEMPLATE_VARS" ]]; then
+                IFS=',' read -ra var_pairs <<< "$TEMPLATE_VARS"
+                for pair in "${var_pairs[@]}"; do
+                    template_args+=("$pair")
+                done
+            fi
+            claude_code::template_run "$TEMPLATE_NAME" "$MAX_TURNS" "$ALLOWED_TOOLS" "${template_args[@]}"
+            ;;
+        "create")
+            if [[ -z "$TEMPLATE_NAME" ]]; then
+                log::error "Template name required for template create"
+                log::info "Use --template-name <name>"
+                exit 1
+            fi
+            claude_code::template_create "$TEMPLATE_NAME" "${TEMPLATE_DESCRIPTION:-Custom template}"
+            ;;
+        "info")
+            if [[ -z "$TEMPLATE_NAME" ]]; then
+                log::error "Template name required for template info"
+                log::info "Use --template-name <name>"
+                exit 1
+            fi
+            claude_code::template_info "$TEMPLATE_NAME"
+            ;;
+        "validate")
+            if [[ -z "$TEMPLATE_NAME" ]]; then
+                log::error "Template name required for template validate"
+                log::info "Use --template-name <name>"
+                exit 1
+            fi
+            claude_code::template_validate "$TEMPLATE_NAME"
+            ;;
+        *)
+            log::error "Unknown template subcommand: $subcommand"
+            log::info "Available subcommands: list, load, run, create, info, validate"
+            exit 1
+            ;;
+    esac
+}
+
+#######################################
 # Handle batch subcommands
 #######################################
 claude_code::handle_batch() {
@@ -464,13 +580,16 @@ claude_code::main() {
             claude_code::handle_batch
             ;;
         "session")
-            claude_code::session
+            claude_code::handle_session
             ;;
         "logs")
             claude_code::logs
             ;;
         "mcp")
             claude_code::handle_mcp
+            ;;
+        "template")
+            claude_code::handle_template
             ;;
         # Legacy MCP actions for backwards compatibility
         "register-mcp")

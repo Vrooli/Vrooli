@@ -183,6 +183,12 @@ setup::generic_main() {
     log::header "🔧 Installing Dependencies"
     common_deps::check_and_install
     
+    # Step 2a: Setup Orchestrator
+    log::info "Setting up Vrooli Orchestrator..."
+    # shellcheck disable=SC1091
+    source "${var_LIB_DEPS_DIR}/orchestrator.sh"
+    orchestrator::setup
+    
     # Step 3: Initialize Configuration
     log::info "Initializing configuration..."
     config::init

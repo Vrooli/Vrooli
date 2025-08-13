@@ -156,7 +156,7 @@
         },
         {
           "name": "convert-scenarios",
-          "run": "if command -v vrooli >/dev/null 2>&1; then vrooli scenario convert-all; else echo '⚠️  Vrooli CLI not installed, using direct script' && ./scripts/scenarios/tools/auto-converter.sh; fi",
+          "run": "./scripts/scenarios/tools/auto-converter.sh",
           "description": "Convert enabled scenarios to standalone apps",
           "timeout": "5m"
         }
@@ -176,9 +176,10 @@
           "description": "Start the Vrooli unified API server"
         },
         {
-          "name": "show-generated-apps",
-          "run": "if [[ -d \"$HOME/generated-apps\" ]]; then echo '\\nGenerated apps ready to start:'; ls -1 \"$HOME/generated-apps\" 2>/dev/null | sed 's/^/  📱 /' || echo '  (No apps generated yet)'; echo '\\n🚀 To start an app:'; echo '  cd ~/generated-apps/<app-name>'; echo '  ./scripts/manage.sh develop'; else echo '\\n⚠️  No generated apps found. Run setup first to auto-convert scenarios.'; fi",
-          "description": "Show available generated apps and startup instructions"
+          "name": "start-generated-apps",
+          "run": "./scripts/scenarios/tools/multi-app-runner.sh --verbose",
+          "description": "Start all generated apps using the orchestrator",
+          "timeout": "10m"
         }
       ]
     },

@@ -14,11 +14,12 @@ source "${var_LOG_FILE}"
 # Moves files to trash instead of permanent deletion to prevent data loss
 # Arguments:
 #   $1 - path to delete (file or directory)
-#   $2 - options: --force-permanent (skip trash), --no-confirm (skip confirmation for large files)
+#   $2 - options: --force-permanent (skip trash), --no-confirm (skip confirmation), --temp (temp files, no confirm)
 # Returns: 0 on success, 1 on failure
 # Usage: trash::safe_remove /path/to/file
 #        trash::safe_remove /path/to/dir --no-confirm
 #        trash::safe_remove /path/to/file --force-permanent
+#        trash::safe_remove /tmp/tempfile --temp
 #######################################
 trash::safe_remove() {
     local target="$1"
@@ -41,6 +42,10 @@ trash::safe_remove() {
             --test-cleanup)
                 test_cleanup=true
                 no_confirm=true  # Test cleanup always skips confirmation
+                shift
+                ;;
+            --temp)
+                no_confirm=true  # Temp files don't need confirmation
                 shift
                 ;;
             *)

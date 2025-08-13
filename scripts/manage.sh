@@ -19,6 +19,8 @@ source "${var_LOG_FILE}"
 source "$SCRIPT_DIR/lib/utils/json.sh"
 # shellcheck disable=SC1091
 source "${var_PORT_REGISTRY_FILE}" 2>/dev/null || true
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/lib/service/secrets.sh" 2>/dev/null || true
 
 #######################################
 # Execute lifecycle phase
@@ -84,8 +86,17 @@ manage::execute_phase() {
         if [[ "${DRY_RUN:-}" == "true" ]]; then
             echo "[DRY RUN] Would execute: $run" >&2
         else
+            # Process template variables in the command before execution
+            local processed_run
+            if command -v secrets::process_bash_templates >/dev/null 2>&1; then
+                processed_run=$(secrets::process_bash_templates "$run")
+            else
+                processed_run="$run"
+            fi
+            
             # Execute in project root for consistency
-            (cd "$var_ROOT_DIR" && eval "$run") || {
+            # Export SERVICE_PORT explicitly if it exists
+            (cd "$var_ROOT_DIR" && export SERVICE_PORT="${SERVICE_PORT:-}" && eval "$processed_run") || {
                 local exit_code=$?
                 log::error "Step '$name' failed with exit code $exit_code"
                 return $exit_code

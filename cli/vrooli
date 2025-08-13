@@ -91,17 +91,25 @@ RESOURCE MANAGEMENT:
     resource status     Show resource status
     resource install    Install a resource
 
+ORCHESTRATOR MANAGEMENT:
+    orchestrator start  Start the process orchestrator
+    orchestrator status Show all running processes
+    orchestrator logs   Show process logs
+    orchestrator tree   Show process hierarchy
+    orchestrator stop   Stop all processes
+
 OPTIONS:
     --help, -h          Show help for a command
     --version, -v       Show version information
 
 EXAMPLES:
     vrooli setup                        # First-time setup
-    vrooli develop                      # Start development
+    vrooli develop                      # Start development (includes orchestrator)
     vrooli test                         # Run all tests
     vrooli test resources --verbose     # Test resources with details
     vrooli app list                     # List generated apps
-    vrooli scenario generate assistant  # Generate research assistant
+    vrooli orchestrator status          # Show all running processes
+    vrooli orchestrator logs my-app     # Show app logs
 
 For more help on a specific command:
     vrooli <command> --help
@@ -145,6 +153,11 @@ main() {
         # Resource commands
         resource)
             exec "${VROOLI_ROOT}/cli/commands/resource-commands.sh" "$@"
+            ;;
+            
+        # Orchestrator commands
+        orchestrator)
+            exec "${VROOLI_ROOT}/cli/commands/orchestrator-commands.sh" "$@"
             ;;
         
         # Version command

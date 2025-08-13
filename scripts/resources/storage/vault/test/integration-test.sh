@@ -23,10 +23,18 @@ source "$SCRIPT_DIR/../config/defaults.sh"
 vault::export_config
 
 # Override library defaults with Vault-specific settings
+# SERVICE_NAME="vault"  # Used by sourced library functions
+# shellcheck disable=SC2034
 SERVICE_NAME="vault"
 BASE_URL="${VAULT_BASE_URL:-http://localhost:8200}"
+# HEALTH_ENDPOINT="/v1/sys/health"  # Used by sourced library functions
+# shellcheck disable=SC2034
 HEALTH_ENDPOINT="/v1/sys/health"
+# REQUIRED_TOOLS=("curl" "jq" "docker")  # Used by sourced library functions
+# shellcheck disable=SC2034
 REQUIRED_TOOLS=("curl" "jq" "docker")
+# SERVICE_METADATA array used by sourced library functions
+# shellcheck disable=SC2034
 SERVICE_METADATA=(
     "Port: ${VAULT_PORT:-8200}"
     "Container: ${VAULT_CONTAINER_NAME:-vault}"
@@ -140,10 +148,9 @@ test_auth_methods() {
     local test_name="authentication methods endpoint"
     
     # This endpoint typically requires authentication, but should respond with 403/401
-    local status_code
-    if status_code=$(check_http_status "/v1/sys/auth" "403" "GET" 2>/dev/null ||
-                     check_http_status "/v1/sys/auth" "401" "GET" 2>/dev/null ||
-                     check_http_status "/v1/sys/auth" "200" "GET" 2>/dev/null); then
+    if check_http_status "/v1/sys/auth" "403" "GET" 2>/dev/null ||
+       check_http_status "/v1/sys/auth" "401" "GET" 2>/dev/null ||
+       check_http_status "/v1/sys/auth" "200" "GET" 2>/dev/null; then
         log_test_result "$test_name" "PASS" "auth methods endpoint responsive"
         return 0
     fi
@@ -156,10 +163,9 @@ test_secret_engines() {
     local test_name="secret engines endpoint"
     
     # This endpoint typically requires authentication, but should respond with 403/401
-    local status_code
-    if status_code=$(check_http_status "/v1/sys/mounts" "403" "GET" 2>/dev/null ||
-                     check_http_status "/v1/sys/mounts" "401" "GET" 2>/dev/null ||
-                     check_http_status "/v1/sys/mounts" "200" "GET" 2>/dev/null); then
+    if check_http_status "/v1/sys/mounts" "403" "GET" 2>/dev/null ||
+       check_http_status "/v1/sys/mounts" "401" "GET" 2>/dev/null ||
+       check_http_status "/v1/sys/mounts" "200" "GET" 2>/dev/null; then
         log_test_result "$test_name" "PASS" "secret engines endpoint responsive"
         return 0
     fi

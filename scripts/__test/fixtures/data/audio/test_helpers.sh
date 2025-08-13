@@ -44,7 +44,7 @@ get_test_suite_audio() {
     local suite_name="$1"
     
     if command -v yq >/dev/null 2>&1; then
-        yq eval ".testSuites.$suite_name[]" "$METADATA_FILE"
+        yq eval ".testSuites.${suite_name}[]" "$METADATA_FILE"
     else
         echo "WARNING: yq not installed. Install with: pip install yq" >&2
         return 1

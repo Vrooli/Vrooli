@@ -337,6 +337,56 @@ secrets::substitute_all_templates() {
 }
 
 #######################################
+# Process bash command templates with RESOURCE_PORTS substitution
+# This function handles ${RESOURCE_PORTS[...]} patterns in bash commands
+# Arguments:
+#   $1 - Bash command string with ${RESOURCE_PORTS[...]} templates
+# Returns:
+#   Command with RESOURCE_PORTS values substituted
+#######################################
+secrets::process_bash_templates() {
+    local command="$1"
+    
+    # Ensure port registry is sourced
+    secrets::source_port_registry
+    
+    # Check if RESOURCE_PORTS is available
+    if [[ "${#RESOURCE_PORTS[@]}" -eq 0 ]] 2>/dev/null; then
+        # If no RESOURCE_PORTS, return command as-is
+        echo "$command"
+        return 0
+    fi
+    
+    # Process each RESOURCE_PORTS reference
+    local processed_command="$command"
+    
+    # Find all ${RESOURCE_PORTS[...]} patterns
+    while [[ "$processed_command" =~ \$\{RESOURCE_PORTS\[([^]]+)\]\} ]]; do
+        local full_match="${BASH_REMATCH[0]}"
+        local resource_name="${BASH_REMATCH[1]}"
+        
+        # Get the port value
+        local port_value="${RESOURCE_PORTS[$resource_name]:-}"
+        
+        if [[ -n "$port_value" ]]; then
+            # Replace the pattern with the actual port value
+            processed_command="${processed_command//$full_match/$port_value}"
+        else
+            # Log warning but don't fail
+            if command -v log::warn >/dev/null 2>&1; then
+                log::warn "Resource port not found: $resource_name"
+            else
+                echo "WARNING: Resource port not found: $resource_name" >&2
+            fi
+            # Replace with empty string to avoid execution errors
+            processed_command="${processed_command//$full_match/}"
+        fi
+    done
+    
+    echo "$processed_command"
+}
+
+#######################################
 # Save API key to project secrets.json
 # Arguments:
 #   $1 - secret key name (e.g., "N8N_API_KEY") 

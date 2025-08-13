@@ -8,6 +8,13 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
+# Source configuration messages
+BROWSERLESS_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${BROWSERLESS_LIB_DIR}/../config/messages.sh" 2>/dev/null || true
+# Export message variables
+browserless::export_messages 2>/dev/null || true
+
 # Test output directory configuration
 BROWSERLESS_TEST_OUTPUT_DIR="${BROWSERLESS_TEST_OUTPUT_DIR:-/tmp/browserless-test-outputs}"
 

@@ -1,23 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Handle Ctrl+C gracefully
-trap 'echo ""; log::info "Browserless installation interrupted by user. Exiting..."; exit 130' INT TERM
-
 # Browserless Chrome Service Setup and Management
 # This script handles installation, configuration, and management of Browserless.io using Docker
 
-DESCRIPTION="Install and manage Browserless headless Chrome service using Docker"
+export DESCRIPTION="Install and manage Browserless headless Chrome service using Docker"
 
 BROWSERLESS_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
-# Source var.sh first to get directory variables
 # shellcheck disable=SC1091
 source "$(dirname "$(dirname "$(dirname "${BROWSERLESS_SCRIPT_DIR}")")")/lib/utils/var.sh"
-
-# Source common resources using var_ variables
 # shellcheck disable=SC1091
-source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
+source "${var_RESOURCES_COMMON_FILE}"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/args-cli.sh"
 
@@ -29,21 +23,23 @@ source "${BROWSERLESS_SCRIPT_DIR}/config/messages.sh"
 
 # Export configuration
 browserless::export_config
-browserless::export_messages
 
-# Source all library modules
+# Source refactored library modules
+# Core module contains most shared functionality
 # shellcheck disable=SC1091
-source "${BROWSERLESS_SCRIPT_DIR}/lib/common.sh"
+source "${BROWSERLESS_SCRIPT_DIR}/lib/core.sh"
 # shellcheck disable=SC1091
 source "${BROWSERLESS_SCRIPT_DIR}/lib/docker.sh"
 # shellcheck disable=SC1091
-source "${BROWSERLESS_SCRIPT_DIR}/lib/status.sh"
+source "${BROWSERLESS_SCRIPT_DIR}/lib/health.sh"
 # shellcheck disable=SC1091
-source "${BROWSERLESS_SCRIPT_DIR}/lib/install.sh"
+source "${BROWSERLESS_SCRIPT_DIR}/lib/recovery.sh"
+# shellcheck disable=SC1091
+source "${BROWSERLESS_SCRIPT_DIR}/lib/status.sh"
 # shellcheck disable=SC1091
 source "${BROWSERLESS_SCRIPT_DIR}/lib/api.sh"
 # shellcheck disable=SC1091
-source "${BROWSERLESS_SCRIPT_DIR}/lib/usage.sh"
+source "${BROWSERLESS_SCRIPT_DIR}/lib/inject.sh"
 
 #######################################
 # Parse command line arguments
@@ -59,7 +55,7 @@ browserless::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|info|test|usage" \
+        --options "install|uninstall|start|stop|restart|status|logs|info|version|test|usage|screenshot|pdf|scrape|pressure|inject|validate-injection|url|create-backup|list-backups|backup-info|recover" \
         --default "install"
     
     args::register \
@@ -69,6 +65,13 @@ browserless::parse_arguments() {
         --type "value" \
         --options "yes|no" \
         --default "no"
+    
+    args::register \
+        --name "lines" \
+        --flag "n" \
+        --desc "Number of log lines to show" \
+        --type "value" \
+        --default "50"
     
     args::register \
         --name "max-browsers" \
@@ -98,13 +101,49 @@ browserless::parse_arguments() {
     
     args::register \
         --name "url" \
-        --desc "URL to use for usage examples" \
+        --desc "URL to use for operations" \
         --type "value" \
         --default "https://example.com"
     
     args::register \
         --name "output" \
-        --desc "Output file for usage examples" \
+        --desc "Output file for operations" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "selector" \
+        --desc "CSS selector for scraping" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "data" \
+        --desc "JSON data for API operations" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "label" \
+        --desc "Label for backup (default: auto)" \
+        --type "value" \
+        --default "auto"
+    
+    args::register \
+        --name "injection-config" \
+        --desc "JSON configuration for data injection" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "validation-type" \
+        --desc "Type of content being validated" \
+        --type "value" \
+        --default ""
+    
+    args::register \
+        --name "validation-file" \
+        --desc "Path to file containing content to validate" \
         --type "value" \
         --default ""
     
@@ -117,6 +156,7 @@ browserless::parse_arguments() {
     
     ACTION=$(args::get "action")
     FORCE=$(args::get "force")
+    LINES=$(args::get "lines")
     YES=$(args::get "yes")
     MAX_BROWSERS=$(args::get "max-browsers")
     HEADLESS=$(args::get "headless")
@@ -124,7 +164,13 @@ browserless::parse_arguments() {
     USAGE_TYPE=$(args::get "usage-type")
     URL=$(args::get "url")
     OUTPUT=$(args::get "output")
-    export ACTION FORCE YES MAX_BROWSERS HEADLESS TIMEOUT USAGE_TYPE URL OUTPUT
+    SELECTOR=$(args::get "selector")
+    DATA=$(args::get "data")
+    LABEL=$(args::get "label")
+    INJECTION_CONFIG=$(args::get "injection-config")
+    VALIDATION_TYPE=$(args::get "validation-type")
+    VALIDATION_FILE=$(args::get "validation-file")
+    export ACTION FORCE LINES YES MAX_BROWSERS HEADLESS TIMEOUT USAGE_TYPE URL OUTPUT SELECTOR DATA LABEL INJECTION_CONFIG VALIDATION_TYPE VALIDATION_FILE
 }
 
 #######################################
@@ -134,15 +180,30 @@ browserless::usage() {
     args::usage "$DESCRIPTION"
     echo
     echo "Examples:"
-    echo "  $0 --action install                              # Install Browserless with default settings"
-    echo "  $0 --action install --max-browsers 10           # Install with 10 max browsers"
-    echo "  $0 --action install --headless no                # Install with headed browsers"
-    echo "  $0 --action status                               # Check Browserless status"
-    echo "  $0 --action logs                                 # View Browserless logs"
-    echo "  $0 --action usage                                # Show usage examples"
-    echo "  $0 --action usage --usage-type screenshot        # Test screenshot API"
-    echo "  $0 --action usage --usage-type all              # Run all usage examples"
-    echo "  $0 --action uninstall                           # Remove Browserless"
+    echo "  # Installation"
+    echo "  $0 --action install                             # Install with defaults"
+    echo "  $0 --action install --max-browsers 10          # Install with 10 max browsers"
+    echo "  $0 --action install --headless no              # Install with headed browsers"
+    echo
+    echo "  # Container Management"
+    echo "  $0 --action status                              # Check status"
+    echo "  $0 --action logs                                # View logs"
+    echo "  $0 --action restart                             # Restart container"
+    echo
+    echo "  # API Operations"
+    echo "  $0 --action screenshot --url https://google.com # Take screenshot"
+    echo "  $0 --action pdf --url https://example.com      # Generate PDF"
+    echo "  $0 --action scrape --url https://example.com   # Scrape content"
+    echo "  $0 --action test                                # Test all APIs"
+    echo
+    echo "  # Data Management"
+    echo "  $0 --action inject                              # Inject test data"
+    echo "  $0 --action create-backup                       # Create backup"
+    echo "  $0 --action recover                             # Recover from backup"
+    echo
+    echo "  # Usage Examples"
+    echo "  $0 --action usage                               # Show usage examples"
+    echo "  $0 --action usage --usage-type all             # Run all examples"
 }
 
 #######################################
@@ -152,35 +213,71 @@ browserless::main() {
     browserless::parse_arguments "$@"
     
     case "$ACTION" in
-        "install")
-            browserless::install_service
+        install)
+            browserless::install
             ;;
-        "uninstall")
-            browserless::uninstall_service
+        uninstall)
+            browserless::uninstall
             ;;
-        "start")
-            browserless::docker_start
+        start)
+            browserless::start
             ;;
-        "stop")
-            browserless::docker_stop
+        stop)
+            browserless::stop
             ;;
-        "restart")
-            browserless::docker_restart
+        restart)
+            browserless::restart
             ;;
-        "status")
-            browserless::show_status
+        status)
+            browserless::status
             ;;
-        "logs")
-            browserless::docker_logs
+        logs)
+            browserless::logs
             ;;
-        "info")
-            browserless::show_info
+        info)
+            browserless::info
             ;;
-        "test")
-            browserless::test_all_apis "${URL:-https://example.com}"
+        version)
+            browserless::version
             ;;
-        "usage")
+        test)
+            browserless::test
+            ;;
+        usage)
             browserless::run_usage_example "$USAGE_TYPE"
+            ;;
+        screenshot)
+            browserless::screenshot "$URL" "$OUTPUT"
+            ;;
+        pdf)
+            browserless::pdf "$URL" "$OUTPUT"
+            ;;
+        scrape)
+            browserless::scrape "$URL" "$SELECTOR"
+            ;;
+        pressure)
+            browserless::pressure_test
+            ;;
+        inject)
+            browserless::inject
+            ;;
+        validate-injection)
+            browserless::validate_injection
+            ;;
+        url)
+            browserless::get_urls
+            ;;
+        create-backup)
+            browserless::create_backup "${LABEL:-auto}"
+            ;;
+        list-backups)
+            backup::list "browserless"
+            ;;
+        backup-info)
+            backup::info "browserless"
+            ;;
+        recover)
+            browserless::recover
             ;;
         *)
             log::error "Unknown action: $ACTION"

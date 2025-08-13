@@ -41,9 +41,9 @@ export var_RESOURCES_COMMON_FILE="$var_SCRIPTS_RESOURCES_DIR/common.sh"
 export var_PORT_REGISTRY_FILE="$var_SCRIPTS_RESOURCES_DIR/port_registry.sh"
 export var_RUNTIME_ENGINE="$var_SCRIPTS_SCENARIOS_INJECTION_DIR/engine.sh"
 
-# Detect if we're in Vrooli monorepo or standalone app based on package.json
-if [[ -f "$var_ROOT_DIR/package.json" ]] && \
-   jq -e '.name == "vrooli" and .workspaces' "$var_ROOT_DIR/package.json" >/dev/null 2>&1; then
+# Detect if we're in Vrooli monorepo based on root folder name (case-insensitive)
+ROOT_FOLDER_NAME=$(basename "$var_ROOT_DIR")
+if [[ "${ROOT_FOLDER_NAME,,}" == "vrooli" ]]; then
     export VROOLI_CONTEXT="monorepo"
 
     export var_PACKAGES_DIR="$var_ROOT_DIR/packages"
