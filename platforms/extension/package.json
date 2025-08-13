@@ -1,20 +1,23 @@
 {
-  "name": "@vrooli/extension",
-  "author": "Vrooli",
-  "license": "AGPL-3.0-only",
-  "version": "2.0.2",
+  "name": "{{APP_NAME}}-extension",
+  "displayName": "{{APP_NAME}} Browser Extension",
+  "description": "{{APP_DESCRIPTION}}",
+  "author": "{{AUTHOR_NAME}}",
+  "license": "{{LICENSE}}",
+  "version": "1.0.0",
   "main": "index.ts",
   "type": "module",
   "private": true,
   "dependencies": {
-    "@vrooli/shared": "workspace:*",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "typescript": "5.8.3"
   },
   "scripts": {
     "dev": "vite build --watch",
-    "build": "vite build"
+    "build": "vite build",
+    "clean": "rm -rf dist",
+    "pack": "pnpm build && cd dist && zip -r ../extension.zip *"
   },
   "browserslist": [
     ">0.2%",
@@ -29,14 +32,15 @@
     "@vitejs/plugin-react-swc": "^3.7.1",
     "vite": "^5.4.7"
   },
-  "packageManager": "pnpm@10.5.2",
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/Vrooli/Vrooli.git",
-    "directory": "packages/extension"
+    "url": "{{REPO_URL}}"
   },
   "bugs": {
-    "url": "https://github.com/Vrooli/Vrooli/issues"
+    "url": "{{BUGS_URL}}"
   },
-  "homepage": "https://vrooli.com"
+  "homepage": "{{HOMEPAGE_URL}}"
 }
