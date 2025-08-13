@@ -39,6 +39,8 @@ source "${BROWSERLESS_SCRIPT_DIR}/lib/status.sh"
 # shellcheck disable=SC1091
 source "${BROWSERLESS_SCRIPT_DIR}/lib/api.sh"
 # shellcheck disable=SC1091
+source "${BROWSERLESS_SCRIPT_DIR}/lib/usage.sh"
+# shellcheck disable=SC1091
 source "${BROWSERLESS_SCRIPT_DIR}/lib/inject.sh"
 
 #######################################
@@ -55,7 +57,7 @@ browserless::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|info|version|test|usage|screenshot|pdf|scrape|pressure|inject|validate-injection|url|create-backup|list-backups|backup-info|recover" \
+        --options "install|uninstall|start|stop|restart|status|logs|info|version|test|usage|screenshot|pdf|scrape|pressure|inject|injection-status|url|create-backup|list-backups|backup-info|recover" \
         --default "install"
     
     args::register \
@@ -103,7 +105,7 @@ browserless::parse_arguments() {
         --name "url" \
         --desc "URL to use for operations" \
         --type "value" \
-        --default "https://example.com"
+        --default "http://httpbin.org/html"
     
     args::register \
         --name "output" \
@@ -129,23 +131,6 @@ browserless::parse_arguments() {
         --type "value" \
         --default "auto"
     
-    args::register \
-        --name "injection-config" \
-        --desc "JSON configuration for data injection" \
-        --type "value" \
-        --default ""
-    
-    args::register \
-        --name "validation-type" \
-        --desc "Type of content being validated" \
-        --type "value" \
-        --default ""
-    
-    args::register \
-        --name "validation-file" \
-        --desc "Path to file containing content to validate" \
-        --type "value" \
-        --default ""
     
     if args::is_asking_for_help "$@"; then
         browserless::usage
@@ -167,10 +152,7 @@ browserless::parse_arguments() {
     SELECTOR=$(args::get "selector")
     DATA=$(args::get "data")
     LABEL=$(args::get "label")
-    INJECTION_CONFIG=$(args::get "injection-config")
-    VALIDATION_TYPE=$(args::get "validation-type")
-    VALIDATION_FILE=$(args::get "validation-file")
-    export ACTION FORCE LINES YES MAX_BROWSERS HEADLESS TIMEOUT USAGE_TYPE URL OUTPUT SELECTOR DATA LABEL INJECTION_CONFIG VALIDATION_TYPE VALIDATION_FILE
+    export ACTION FORCE LINES YES MAX_BROWSERS HEADLESS TIMEOUT USAGE_TYPE URL OUTPUT SELECTOR DATA LABEL
 }
 
 #######################################
@@ -198,6 +180,7 @@ browserless::usage() {
     echo
     echo "  # Data Management"
     echo "  $0 --action inject                              # Inject test data"
+    echo "  $0 --action injection-status                    # Check injection status"
     echo "  $0 --action create-backup                       # Create backup"
     echo "  $0 --action recover                             # Recover from backup"
     echo
@@ -247,22 +230,22 @@ browserless::main() {
             browserless::run_usage_example "$USAGE_TYPE"
             ;;
         screenshot)
-            browserless::screenshot "$URL" "$OUTPUT"
+            browserless::test_screenshot "$URL" "$OUTPUT"
             ;;
         pdf)
-            browserless::pdf "$URL" "$OUTPUT"
+            browserless::test_pdf "$URL" "$OUTPUT"
             ;;
         scrape)
-            browserless::scrape "$URL" "$SELECTOR"
+            browserless::test_scrape "$URL" "$OUTPUT"
             ;;
         pressure)
-            browserless::pressure_test
+            browserless::test_pressure
             ;;
         inject)
             browserless::inject
             ;;
-        validate-injection)
-            browserless::validate_injection
+        injection-status)
+            browserless::injection_status
             ;;
         url)
             browserless::get_urls

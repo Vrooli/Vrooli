@@ -66,7 +66,14 @@
         "type": "n8n",
         "enabled": false,
         "required": false,
-        "description": "Workflow automation platform"
+        "description": "Workflow automation platform",
+        "initialization": [
+          {
+            "file": "initialization/n8n/embedding-generator.json",
+            "type": "workflow",
+            "description": "Converts text to embeddings. Useful for storing text in a vector database, such as Qdrant."
+          }
+        ]
       },
       "windmill": {
         "type": "windmill",
@@ -83,10 +90,12 @@
     },
     "agents": {
       "browserless": {
-        "type": "browserless",
-        "enabled": false,
-        "required": false,
-        "description": "Headless browser automation"
+                "enabled": true,
+        "baseUrl": "http://localhost:4110",
+        "healthCheck": {
+          "intervalMs": 60000,
+          "timeoutMs": 5000
+        }
       },
       "claude-code": {
         "type": "claude-code",

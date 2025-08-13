@@ -1,0 +1,171 @@
+{
+  "name": "Shared Text Embedding Generator",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "embed",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook_trigger",
+      "name": "Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Validate and prepare input for embedding generation\nconst input = $json;\n\n// Required field validation\nif (!input.text) {\n  throw new Error('Missing required field: text');\n}\n\n// Extract and validate inputs\nconst text = input.text.trim();\nif (text.length === 0) {\n  throw new Error('Text field cannot be empty');\n}\n\nif (text.length > 8192) {\n  throw new Error('Text exceeds maximum length of 8192 characters');\n}\n\n// Validate model selection\nconst model = input.model || 'mxbai-embed-large';\nconst supportedModels = [\n  'mxbai-embed-large',\n  'nomic-embed-text', \n  'all-minilm'\n];\n\nif (!supportedModels.includes(model)) {\n  throw new Error(`Unsupported model: ${model}. Supported models: ${supportedModels.join(', ')}`);\n}\n\n// Set expected vector dimensions based on model\nconst vectorDimensions = {\n  'mxbai-embed-large': 1024,\n  'nomic-embed-text': 1024,\n  'all-minilm': 384\n};\n\n// Prepare metadata\nconst metadata = {\n  text_length: text.length,\n  model_used: model,\n  expected_dimensions: vectorDimensions[model],\n  generated_at: new Date().toISOString(),\n  collection: input.collection || 'general_embeddings',\n  point_id: input.point_id || `emb_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`\n};\n\nreturn {\n  json: {\n    text: text,\n    model: model,\n    metadata: metadata\n  }\n};"
+      },
+      "id": "validate_input",
+      "name": "Validate Input",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {
+        "model": "={{ $json.model }}",
+        "prompt": "={{ $json.text }}",
+        "options": {}
+      },
+      "id": "generate_embedding",
+      "name": "Generate Embedding",
+      "type": "n8n-nodes-langchain.embeddingsOllama",
+      "typeVersion": 1,
+      "position": [650, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process the embedding response and prepare final output\nconst embeddingResponse = $node['Generate Embedding'].json;\nconst inputData = $json;\n\n// Extract embedding vector from response\nlet embedding;\nif (embeddingResponse.embedding) {\n  embedding = embeddingResponse.embedding;\n} else if (Array.isArray(embeddingResponse)) {\n  embedding = embeddingResponse;\n} else {\n  throw new Error('Invalid embedding response format');\n}\n\n// Validate embedding dimensions\nif (!Array.isArray(embedding)) {\n  throw new Error('Embedding is not an array');\n}\n\nconst expectedDim = inputData.metadata.expected_dimensions;\nif (embedding.length !== expectedDim) {\n  console.warn(`Unexpected embedding dimension: ${embedding.length}, expected ${expectedDim}`);\n}\n\n// Prepare response data\nconst response = {\n  success: true,\n  embedding: embedding,\n  dimensions: embedding.length,\n  model: inputData.model,\n  text_length: inputData.metadata.text_length,\n  collection: inputData.metadata.collection,\n  point_id: inputData.metadata.point_id,\n  generated_at: inputData.metadata.generated_at,\n  processing_time_ms: Date.now() - new Date(inputData.metadata.generated_at).getTime()\n};\n\n// Prepare Qdrant point structure if requested\nif ($json.include_qdrant_point) {\n  response.qdrant_point = {\n    id: inputData.metadata.point_id,\n    vector: embedding,\n    payload: {\n      text: inputData.text,\n      model: inputData.model,\n      text_length: inputData.metadata.text_length,\n      generated_at: inputData.metadata.generated_at\n    }\n  };\n}\n\nreturn { json: response };"
+      },
+      "id": "process_embedding",
+      "name": "Process Embedding",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 2,
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {\n            \"caseSensitive\": true,\n            \"leftValue\": \"\",\n            \"typeValidation\": \"strict\"\n          },\n          \"conditions\": [\n            {\n              \"leftValue\": \"={{ $json.success }}\",\n              \"rightValue\": true,\n              \"operator\": {\n                \"type\": \"boolean\",\n                \"operation\": \"equals\"\n              }\n            }\n          ],\n          \"combineOperation\": \"all\"\n        }"
+      },
+      "id": "check_success",
+      "name": "Success Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}"
+      },
+      "id": "success_response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseCode": 500,
+        "responseBody": "{\n  \"success\": false,\n  \"error\": \"{{ $json.error || 'Embedding generation failed' }}\",\n  \"model\": \"{{ $json.model }}\",\n  \"timestamp\": \"{{ $now }}\"\n}"
+      },
+      "id": "error_response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1250, 400]
+    }
+  ],
+  "connections": {
+    "webhook_trigger": {
+      "main": [
+        [
+          {
+            "node": "validate_input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "validate_input": {
+      "main": [
+        [
+          {
+            "node": "generate_embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate_embedding": {
+      "main": [
+        [
+          {
+            "node": "process_embedding",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_embedding": {
+      "main": [
+        [
+          {
+            "node": "check_success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_success": {
+      "main": [
+        [
+          {
+            "node": "success_response",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "error_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "shared-v2.0.0",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "embedding-generator",
+  "tags": [
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "shared-utility",
+      "name": "shared-utility"
+    },
+    {
+      "createdAt": "2025-01-13T00:00:00.000Z",
+      "updatedAt": "2025-01-13T00:00:00.000Z",
+      "id": "embeddings",
+      "name": "embeddings"
+    }
+  ]
+}

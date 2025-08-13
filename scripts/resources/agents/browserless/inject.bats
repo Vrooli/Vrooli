@@ -1,11 +1,11 @@
 #!/usr/bin/env bats
-# Tests for Browserless inject.sh script
+# Tests for Browserless simplified injection system
 bats_require_minimum_version 1.5.0
 
 # Setup paths and source var.sh first
 SCRIPT_DIR="$(cd "$(dirname "${BATS_TEST_FILENAME}")" && pwd)"
 # shellcheck disable=SC1091
-source "$(cd "${SCRIPT_DIR}/../../../../" && pwd)/lib/utils/var.sh"
+source "$(cd "${SCRIPT_DIR}/../../../.." && pwd)/scripts/lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
@@ -25,648 +25,179 @@ setup_file() {
     # shellcheck disable=SC1091
     source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
     
-    # Load the browserless mock once
-    if [[ -f "$MOCK_DIR/browserless.sh" ]]; then
-        # shellcheck disable=SC1091
-        source "$MOCK_DIR/browserless.sh"
-    fi
+    # Load the simplified injection system
+    # shellcheck disable=SC1091  
+    source "${SCRIPT_DIR}/lib/inject.sh"
     
-    # Load inject.sh with all its dependencies
-    # shellcheck disable=SC1091
-    source "${SCRIPT_DIR}/inject.sh"
-    
-    # Export key functions for BATS subshells
-    export -f browserless_inject::main
-    export -f browserless_inject::usage
-    export -f browserless_inject::validate_config
-    export -f browserless_inject::inject_data
-    export -f browserless_inject::check_status
-    export -f browserless_inject::execute_rollback
-    export -f browserless_inject::check_accessibility
-    export -f browserless_inject::validate_scripts
-    export -f browserless_inject::inject_scripts
-    export -f browserless_inject::inject_functions
-    export -f browserless_inject::inject_contexts
-    export -f browserless_inject::apply_configurations
-    
-    # Export log functions
-    log::header() { echo "=== $* ==="; }
-    log::info() { echo "[INFO] $*"; }
-    log::error() { echo "[ERROR] $*" >&2; }
-    log::success() { echo "[SUCCESS] $*"; }
-    log::warning() { echo "[WARNING] $*" >&2; }
-    log::debug() { echo "[DEBUG] $*"; }
-    export -f log::header log::info log::error log::success log::warning log::debug
-    
-    # Mock VROOLI_PROJECT_ROOT if not set
-    export VROOLI_PROJECT_ROOT="${var_ROOT_DIR}"
+    # Export simplified injection functions for BATS subshells
+    export -f browserless::inject
+    export -f browserless::validate_injection
+    export -f browserless::injection_status
+    export -f browserless::cleanup_injection
+    export -f browserless::show_injection_info
 }
 
-# Lightweight per-test setup
+# Setup for each test
 setup() {
-    # Setup standard Vrooli mocks
-    vrooli_auto_setup
+    # Use Vrooli test directories
+    export BROWSERLESS_DATA_DIR="${BATS_TEST_TMPDIR}/browserless-data"
+    export BROWSERLESS_CONTAINER_NAME="test-browserless"
+    export BROWSERLESS_PORT="3001"
     
-    # Ensure mock log directory exists to prevent warnings
-    MOCK_LOG_DIR="${MOCK_RESPONSES_DIR:-${BATS_TEST_DIRNAME}/../../../../data/test-outputs/mock-logs}"
-    if [[ ! -d "$MOCK_LOG_DIR" ]]; then
-        mkdir -p "$MOCK_LOG_DIR" 2>/dev/null || true
-    fi
+    # Create test directories
+    mkdir -p "$BROWSERLESS_DATA_DIR"
     
-    # Reset mock state to clean slate for each test
-    if declare -f mock::browserless::reset >/dev/null 2>&1; then
-        mock::browserless::reset
-    fi
+    # Mock docker and http utilities for testing
+    docker() {
+        case "$1" in
+            ps)
+                if [[ "$*" == *"test-browserless"* ]]; then
+                    echo "test-browserless"
+                fi
+                ;;
+        esac
+    }
     
-    # Set test-specific environment variables
-    export BROWSERLESS_HOST="http://localhost:3001"
-    export BROWSERLESS_DATA_DIR="${BATS_TEST_TMPDIR}/browserless"
-    export BROWSERLESS_SCRIPTS_DIR="${BROWSERLESS_DATA_DIR}/scripts"
-    export BROWSERLESS_FUNCTIONS_DIR="${BROWSERLESS_DATA_DIR}/functions"
+    http::check_endpoint() {
+        # Mock successful endpoint check
+        return 0
+    }
     
-    # Create test data directories
-    mkdir -p "$BROWSERLESS_DATA_DIR" "$BROWSERLESS_SCRIPTS_DIR" "$BROWSERLESS_FUNCTIONS_DIR"
+    docker::is_running() {
+        local container_name="$1"
+        [[ "$container_name" == "test-browserless" ]]
+    }
     
-    # Configure browserless mock with clean default state
-    if declare -f mock::browserless::set_server_status >/dev/null 2>&1; then
-        mock::browserless::set_server_status "running"
-        mock::browserless::set_health_status "healthy"
-    fi
-    
-    # Create test fixture files
-    export TEST_SCRIPT_FILE="${BATS_TEST_TMPDIR}/test-script.js"
-    export TEST_FUNCTION_FILE="${BATS_TEST_TMPDIR}/test-function.js"
-    
-    cat > "$TEST_SCRIPT_FILE" << 'EOF'
-// Test Puppeteer script
-const puppeteer = require('puppeteer');
-
-module.exports = async (page) => {
-    await page.goto('https://example.com');
-    return await page.title();
-};
-EOF
-    
-    cat > "$TEST_FUNCTION_FILE" << 'EOF'
-// Test Browserless function
-module.exports = async ({ page, context }) => {
-    await page.goto(context.url);
-    return { title: await page.title() };
-};
-EOF
+    export -f docker
+    export -f http::check_endpoint  
+    export -f docker::is_running
 }
 
-# BATS teardown function - runs after each test
+# Cleanup after each test
 teardown() {
-    vrooli_cleanup_test
-    
-    # Clean up test data directories
-    trash::safe_remove "${BATS_TEST_TMPDIR}/browserless" --test-cleanup 2>/dev/null || true
-    trash::safe_remove "$TEST_SCRIPT_FILE" --test-cleanup 2>/dev/null || true
-    trash::safe_remove "$TEST_FUNCTION_FILE" --test-cleanup 2>/dev/null || true
-}
-
-# ============================================================================
-# Test Helper Functions
-# ============================================================================
-
-# Create test configuration JSON
-create_test_config() {
-    local type="$1"
-    
-    case "$type" in
-        "scripts")
-            cat << EOF
-{
-  "scripts": [
-    {
-      "name": "test_script",
-      "file": "$(basename "$TEST_SCRIPT_FILE")",
-      "type": "puppeteer"
-    }
-  ]
-}
-EOF
-            ;;
-        "functions")
-            cat << EOF
-{
-  "functions": [
-    {
-      "name": "test_function",
-      "file": "$(basename "$TEST_FUNCTION_FILE")",
-      "endpoint": "/function/test_function"
-    }
-  ]
-}
-EOF
-            ;;
-        "contexts")
-            cat << EOF
-{
-  "browser_contexts": [
-    {
-      "name": "mobile",
-      "viewport": {
-        "width": 375,
-        "height": 667
-      },
-      "user_agent": "Mozilla/5.0 Mobile"
-    }
-  ]
-}
-EOF
-            ;;
-        "configurations")
-            cat << EOF
-{
-  "configurations": [
-    {
-      "key": "max_concurrent_sessions",
-      "value": 10
-    },
-    {
-      "key": "preboot_chrome",
-      "value": true
-    }
-  ]
-}
-EOF
-            ;;
-        "complete")
-            # Move test files to VROOLI_PROJECT_ROOT for validation
-            cp "$TEST_SCRIPT_FILE" "${VROOLI_PROJECT_ROOT}/test-script.js"
-            cp "$TEST_FUNCTION_FILE" "${VROOLI_PROJECT_ROOT}/test-function.js"
-            cat << EOF
-{
-  "scripts": [
-    {
-      "name": "test_script",
-      "file": "test-script.js",
-      "type": "puppeteer"
-    }
-  ],
-  "functions": [
-    {
-      "name": "test_function",
-      "file": "test-function.js",
-      "endpoint": "/function/test_function"
-    }
-  ],
-  "browser_contexts": [
-    {
-      "name": "desktop",
-      "viewport": {
-        "width": 1920,
-        "height": 1080
-      }
-    }
-  ],
-  "configurations": [
-    {
-      "key": "timeout",
-      "value": 30000
-    }
-  ]
-}
-EOF
-            ;;
-        *)
-            echo "{}"
-            ;;
-    esac
-}
-
-# ============================================================================
-# Script Loading Tests
-# ============================================================================
-
-@test "inject.sh loads without errors" {
-    # Should load successfully in setup_file
-    [ "$?" -eq 0 ]
-}
-
-@test "inject.sh defines required functions" {
-    # Functions should be available from setup
-    declare -f browserless_inject::main >/dev/null
-    declare -f browserless_inject::validate_config >/dev/null
-    declare -f browserless_inject::inject_data >/dev/null
-    declare -f browserless_inject::check_status >/dev/null
-}
-
-# ============================================================================
-# Usage and Help Tests
-# ============================================================================
-
-@test "browserless_inject::usage displays help text" {
-    run browserless_inject::usage
-    
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "Browserless Data Injection Adapter" ]]
-    [[ "$output" =~ "--validate" ]]
-    [[ "$output" =~ "--inject" ]]
-    [[ "$output" =~ "--status" ]]
-    [[ "$output" =~ "--rollback" ]]
-}
-
-@test "inject.sh shows usage when called with --help" {
-    run browserless_inject::main --help
-    
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "Browserless Data Injection Adapter" ]]
-    [[ "$output" =~ "USAGE:" ]]
-}
-
-# ============================================================================
-# Configuration Validation Tests
-# ============================================================================
-
-@test "browserless_inject::validate_config accepts valid script configuration" {
-    local config
-    config=$(create_test_config "scripts")
-    
-    # Move test file to expected location for validation
-    cp "$TEST_SCRIPT_FILE" "${VROOLI_PROJECT_ROOT}/$(basename "$TEST_SCRIPT_FILE")"
-    
-    run browserless_inject::validate_config "$config"
-    
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "valid" ]]
-    
-    # Clean up
-    trash::safe_remove "${VROOLI_PROJECT_ROOT}/$(basename "$TEST_SCRIPT_FILE")" --test-cleanup
-}
-
-@test "browserless_inject::validate_config accepts valid function configuration" {
-    local config
-    config=$(create_test_config "functions")
-    
-    # Move test file to expected location for validation
-    cp "$TEST_FUNCTION_FILE" "${VROOLI_PROJECT_ROOT}/$(basename "$TEST_FUNCTION_FILE")"
-    
-    run browserless_inject::validate_config "$config"
-    
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "valid" ]]
-    
-    # Clean up
-    trash::safe_remove "${VROOLI_PROJECT_ROOT}/$(basename "$TEST_FUNCTION_FILE")" --test-cleanup
-}
-
-@test "browserless_inject::validate_config accepts valid context configuration" {
-    local config
-    config=$(create_test_config "contexts")
-    
-    run browserless_inject::validate_config "$config"
-    
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "valid" ]]
-}
-
-@test "browserless_inject::validate_config rejects invalid JSON" {
-    run browserless_inject::validate_config '{"invalid": json}'
-    
-    [ "$status" -eq 1 ]
-    [[ "$output" =~ "Invalid JSON" ]]
-}
-
-@test "browserless_inject::validate_config rejects configuration with missing files" {
-    local config='{"scripts": [{"name": "missing", "file": "nonexistent.js", "type": "puppeteer"}]}'
-    
-    run browserless_inject::validate_config "$config"
-    
-    [ "$status" -eq 1 ]
-    [[ "$output" =~ "not found" ]]
-}
-
-@test "browserless_inject::validate_config rejects script with invalid type" {
-    local config
-    # Move test file to expected location for validation
-    cp "$TEST_SCRIPT_FILE" "${VROOLI_PROJECT_ROOT}/$(basename "$TEST_SCRIPT_FILE")"
-    
-    config='{"scripts": [{"name": "test", "file": "'"$(basename "$TEST_SCRIPT_FILE")"'", "type": "invalid_type"}]}'
-    
-    run browserless_inject::validate_config "$config"
-    
-    [ "$status" -eq 1 ]
-    [[ "$output" =~ "Invalid script type" ]]
-    
-    # Clean up
-    trash::safe_remove "${VROOLI_PROJECT_ROOT}/$(basename "$TEST_SCRIPT_FILE")" --test-cleanup
-}
-
-@test "browserless_inject::validate_config rejects empty configuration" {
-    run browserless_inject::validate_config '{}'
-    
-    [ "$status" -eq 1 ]
-    [[ "$output" =~ "must have" ]]
-}
-
-# ============================================================================
-# Data Injection Tests
-# ============================================================================
-
-@test "browserless_inject::inject_data injects scripts successfully" {
-    local config
-    config=$(create_test_config "complete")
-    
-    run browserless_inject::inject_data "$config"
-    
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "injection completed" ]]
-    
-    # Verify script was installed
-    [ -f "${BROWSERLESS_SCRIPTS_DIR}/test_script.js" ]
-    [ -f "${BROWSERLESS_SCRIPTS_DIR}/test_script.meta.json" ]
-    
-    # Clean up
-    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-script.js" --test-cleanup\n    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-function.js" --test-cleanup
-}
-
-@test "browserless_inject::inject_data injects functions successfully" {
-    local config
-    config=$(create_test_config "complete")
-    
-    run browserless_inject::inject_data "$config"
-    
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "injection completed" ]]
-    
-    # Verify function was installed
-    [ -f "${BROWSERLESS_FUNCTIONS_DIR}/test_function.js" ]
-    [ -f "${BROWSERLESS_FUNCTIONS_DIR}/test_function.meta.json" ]
-    
-    # Clean up
-    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-script.js" --test-cleanup\n    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-function.js" --test-cleanup
-}
-
-@test "browserless_inject::inject_data creates browser contexts" {
-    local config
-    config=$(create_test_config "contexts")
-    
-    run browserless_inject::inject_data "$config"
-    
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "injection completed" ]]
-    
-    # Verify context was created
-    [ -f "${BROWSERLESS_DATA_DIR}/contexts/mobile.json" ]
-}
-
-@test "browserless_inject::inject_data applies configurations" {
-    local config
-    config=$(create_test_config "configurations")
-    
-    run browserless_inject::inject_data "$config"
-    
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "injection completed" ]]
-    
-    # Verify configuration file was created
-    [ -f "${BROWSERLESS_DATA_DIR}/config.json" ]
-}
-
-# ============================================================================
-# Status Check Tests
-# ============================================================================
-
-@test "browserless_inject::check_status reports running service" {
-    # Set up running service
-    if declare -f mock::browserless::scenario::create_running_service >/dev/null 2>&1; then
-        mock::browserless::scenario::create_running_service
+    if [[ -d "$BROWSERLESS_DATA_DIR" ]]; then
+        rm -rf "$BROWSERLESS_DATA_DIR"
     fi
-    
-    local config
-    config=$(create_test_config "scripts")
-    
-    run browserless_inject::check_status "$config"
-    
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "running" ]] || [[ "$output" =~ "responding" ]]
 }
 
-@test "browserless_inject::check_status detects stopped service" {
-    # Set up stopped service
-    if declare -f mock::browserless::set_server_status >/dev/null 2>&1; then
-        mock::browserless::set_server_status "stopped"
-        mock::browserless::set_health_status "unhealthy"
-    fi
-    
-    local config
-    config=$(create_test_config "scripts")
-    
-    run browserless_inject::check_status "$config"
+@test "browserless::inject creates test data directory" {
+    run browserless::inject
     
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "not running" ]]
+    [ -d "$BROWSERLESS_DATA_DIR/test-data" ]
 }
 
-@test "browserless_inject::check_status counts installed scripts" {
-    # Create some test script files
-    echo "test script 1" > "${BROWSERLESS_SCRIPTS_DIR}/script1.js"
-    echo "test script 2" > "${BROWSERLESS_SCRIPTS_DIR}/script2.js"
-    
-    local config
-    config=$(create_test_config "scripts")
-    
-    run browserless_inject::check_status "$config"
+@test "browserless::inject creates validation scripts" {
+    run browserless::inject
     
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Found 2 scripts" ]]
+    [ -f "$BROWSERLESS_DATA_DIR/test-data/validation.js" ]
+    [ -f "$BROWSERLESS_DATA_DIR/test-data/screenshot-test.js" ]
 }
 
-@test "browserless_inject::check_status counts installed functions" {
-    # Create some test function files
-    echo "test function 1" > "${BROWSERLESS_FUNCTIONS_DIR}/func1.js"
-    echo "test function 2" > "${BROWSERLESS_FUNCTIONS_DIR}/func2.js"
-    echo "test function 3" > "${BROWSERLESS_FUNCTIONS_DIR}/func3.js"
-    
-    local config
-    config=$(create_test_config "functions")
-    
-    run browserless_inject::check_status "$config"
+@test "browserless::inject validates after creating files" {
+    run browserless::inject
     
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Found 3 functions" ]]
+    [[ "$output" == *"Test data injected and validated successfully"* ]]
 }
 
-# ============================================================================
-# Rollback Tests
-# ============================================================================
-
-@test "browserless_inject::execute_rollback with no actions" {
-    run browserless_inject::execute_rollback
+@test "browserless::inject fails when container not running" {
+    # Mock container not running
+    docker::is_running() {
+        return 1
+    }
+    export -f docker::is_running
     
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "No.*rollback actions" ]]
-}
-
-@test "rollback removes injected scripts" {
-    local config
-    config=$(create_test_config "complete")
-    
-    # First inject data
-    browserless_inject::inject_data "$config"
-    
-    # Verify files exist
-    [ -f "${BROWSERLESS_SCRIPTS_DIR}/test_script.js" ]
-    [ -f "${BROWSERLESS_SCRIPTS_DIR}/test_script.meta.json" ]
-    
-    # Execute rollback
-    run browserless_inject::execute_rollback
-    
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "rollback" ]]
-    
-    # Verify files were removed
-    [ ! -f "${BROWSERLESS_SCRIPTS_DIR}/test_script.js" ]
-    [ ! -f "${BROWSERLESS_SCRIPTS_DIR}/test_script.meta.json" ]
-    
-    # Clean up
-    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-script.js" --test-cleanup\n    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-function.js" --test-cleanup
-}
-
-# ============================================================================
-# Main Function Tests
-# ============================================================================
-
-@test "browserless_inject::main validates configuration" {
-    local config
-    config=$(create_test_config "scripts")
-    
-    # Move test file to expected location for validation
-    cp "$TEST_SCRIPT_FILE" "${VROOLI_PROJECT_ROOT}/$(basename "$TEST_SCRIPT_FILE")"
-    
-    run browserless_inject::main --validate "$config"
-    
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "valid" ]]
-    
-    # Clean up
-    trash::safe_remove "${VROOLI_PROJECT_ROOT}/$(basename "$TEST_SCRIPT_FILE")" --test-cleanup
-}
-
-@test "browserless_inject::main injects data" {
-    local config
-    config=$(create_test_config "complete")
-    
-    run browserless_inject::main --inject "$config"
-    
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "injection completed" ]]
-    
-    # Clean up
-    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-script.js" --test-cleanup\n    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-function.js" --test-cleanup
-}
-
-@test "browserless_inject::main checks status" {
-    local config
-    config=$(create_test_config "scripts")
-    
-    run browserless_inject::main --status "$config"
-    
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "status" ]] || [[ "$output" =~ "Found" ]]
-}
-
-@test "browserless_inject::main executes rollback" {
-    run browserless_inject::main --rollback ""
-    
-    [ "$status" -eq 0 ]
-    [[ "$output" =~ "rollback" ]]
-}
-
-@test "browserless_inject::main rejects unknown action" {
-    run browserless_inject::main --unknown-action ""
+    run browserless::inject
     
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "Unknown action" ]]
+    [[ "$output" == *"Browserless container not running"* ]]
 }
 
-@test "browserless_inject::main requires configuration for most actions" {
-    run browserless_inject::main --validate
+@test "browserless::validate_injection checks test directory exists" {
+    run browserless::validate_injection
     
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "Configuration JSON required" ]]
+    [[ "$output" == *"Test data directory not found"* ]]
 }
 
-# ============================================================================
-# Integration Tests with Mock
-# ============================================================================
-
-@test "accessibility check with running service" {
-    # Set up running service that responds to pressure endpoint
-    if declare -f mock::browserless::scenario::create_running_service >/dev/null 2>&1; then
-        mock::browserless::scenario::create_running_service
-    fi
+@test "browserless::validate_injection checks required files exist" {
+    mkdir -p "$BROWSERLESS_DATA_DIR/test-data"
     
-    run browserless_inject::check_accessibility
-    
-    [ "$status" -eq 0 ]
-}
-
-@test "accessibility check with stopped service" {
-    # Set up stopped service
-    if declare -f mock::browserless::set_server_status >/dev/null 2>&1; then
-        mock::browserless::set_server_status "stopped"
-    fi
-    
-    run browserless_inject::check_accessibility
+    run browserless::validate_injection
     
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "not accessible" ]]
+    [[ "$output" == *"Validation script not found"* ]]
 }
 
-@test "injection works without running service" {
-    # Set up stopped service (file-based injection should still work)
-    if declare -f mock::browserless::set_server_status >/dev/null 2>&1; then
-        mock::browserless::set_server_status "stopped"
-    fi
+@test "browserless::validate_injection passes with complete setup" {
+    # Create test directory and files
+    mkdir -p "$BROWSERLESS_DATA_DIR/test-data"
+    echo "test content" > "$BROWSERLESS_DATA_DIR/test-data/validation.js"
+    echo "test content" > "$BROWSERLESS_DATA_DIR/test-data/screenshot-test.js"
     
-    local config
-    config=$(create_test_config "complete")
-    
-    run browserless_inject::inject_data "$config"
+    run browserless::validate_injection
     
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "injection completed" ]]
-    
-    # Verify files were created despite service being stopped
-    [ -f "${BROWSERLESS_SCRIPTS_DIR}/test_script.js" ]
-    [ -f "${BROWSERLESS_FUNCTIONS_DIR}/test_function.js" ]
-    
-    # Clean up
-    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-script.js" --test-cleanup\n    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-function.js" --test-cleanup
+    [[ "$output" == *"All injection validation checks passed"* ]]
 }
 
-@test "complete injection and status workflow" {
-    # Set up running service
-    if declare -f mock::browserless::scenario::create_running_service >/dev/null 2>&1; then
-        mock::browserless::scenario::create_running_service
-    fi
+@test "browserless::injection_status shows no data when empty" {
+    run browserless::injection_status
     
-    local config
-    config=$(create_test_config "complete")
-    
-    # Validate configuration
-    run browserless_inject::main --validate "$config"
     [ "$status" -eq 0 ]
+    [[ "$output" == *"No test data found"* ]]
+}
+
+@test "browserless::injection_status shows test files when present" {
+    # Create test setup
+    mkdir -p "$BROWSERLESS_DATA_DIR/test-data"
+    echo "test" > "$BROWSERLESS_DATA_DIR/test-data/validation.js"
+    echo "test" > "$BROWSERLESS_DATA_DIR/test-data/screenshot-test.js"
     
-    # Inject data
-    run browserless_inject::main --inject "$config"
+    run browserless::injection_status
+    
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "injection completed" ]]
+    [[ "$output" == *"Test script files: 2"* ]]
+    [[ "$output" == *"validation.js"* ]]
+    [[ "$output" == *"screenshot-test.js"* ]]
+}
+
+@test "browserless::cleanup_injection removes test data" {
+    # Create test data
+    mkdir -p "$BROWSERLESS_DATA_DIR/test-data"
+    echo "test" > "$BROWSERLESS_DATA_DIR/test-data/validation.js"
     
-    # Check status
-    run browserless_inject::main --status "$config"
+    run browserless::cleanup_injection
+    
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "Found" ]]
+    [ ! -d "$BROWSERLESS_DATA_DIR/test-data" ]
+    [[ "$output" == *"Test data cleaned up"* ]]
+}
+
+@test "browserless::cleanup_injection handles missing test data gracefully" {
+    run browserless::cleanup_injection
     
-    # Execute rollback
-    run browserless_inject::main --rollback "$config"
     [ "$status" -eq 0 ]
-    [[ "$output" =~ "rollback" ]]
+    [[ "$output" == *"No test data to clean up"* ]]
+}
+
+@test "manage.sh inject action calls browserless::inject" {
+    # Test via manage.sh interface
+    run "${SCRIPT_DIR}/manage.sh" --action inject --yes yes
     
-    # Clean up
-    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-script.js" --test-cleanup\n    trash::safe_remove "${VROOLI_PROJECT_ROOT}/test-function.js" --test-cleanup
+    [ "$status" -eq 0 ]
+    [ -d "$BROWSERLESS_DATA_DIR/test-data" ]
+}
+
+@test "manage.sh injection-status action calls browserless::injection_status" {
+    # Create some test data first
+    mkdir -p "$BROWSERLESS_DATA_DIR/test-data"
+    echo "test" > "$BROWSERLESS_DATA_DIR/test-data/validation.js"
+    
+    run "${SCRIPT_DIR}/manage.sh" --action injection-status --yes yes
+    
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Browserless Injection Status"* ]]
 }

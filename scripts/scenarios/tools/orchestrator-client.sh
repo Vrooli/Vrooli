@@ -88,7 +88,7 @@ orchestrator::ensure_daemon() {
     
     # Cleanup function for lock
     cleanup_startup_lock() {
-        rm -f "$startup_lock" 2>/dev/null || true
+        rm -f "$ORCHESTRATOR_HOME/startup.lock" 2>/dev/null || true
         [[ -n "${lockfile:-}" ]] && rm -f "$lockfile" 2>/dev/null || true
     }
     trap cleanup_startup_lock EXIT

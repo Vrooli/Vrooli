@@ -8,6 +8,11 @@ source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
+# Source API functions for test functions
+BROWSERLESS_LIB_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+# shellcheck disable=SC1091
+source "${BROWSERLESS_LIB_DIR}/api.sh" 2>/dev/null || true
+
 #######################################
 # Show usage examples help
 #######################################
@@ -272,8 +277,136 @@ curl -X POST $BROWSERLESS_BASE_URL/chrome/scrape \\
 EOF
 }
 
+#######################################
+# Test Function Implementations
+# These functions provide actual API testing functionality
+#######################################
+
+#######################################
+# Screenshot helper function
+#######################################
+browserless::screenshot() {
+    local url="${1:-http://httpbin.org/html}"
+    local output="${2:-/tmp/screenshot.png}"
+    
+    curl -s -X POST \
+        "http://localhost:$BROWSERLESS_PORT/screenshot" \
+        -H "Content-Type: application/json" \
+        -d "{\"url\":\"$url\"}" \
+        -o "$output"
+}
+
+#######################################
+# PDF helper function
+#######################################
+browserless::pdf() {
+    local url="${1:-http://httpbin.org/html}"
+    local output="${2:-/tmp/document.pdf}"
+    
+    curl -s -X POST \
+        "http://localhost:$BROWSERLESS_PORT/chrome/pdf" \
+        -H "Content-Type: application/json" \
+        -d "{\"url\":\"$url\"}" \
+        -o "$output"
+}
+
+#######################################
+# Scrape helper function
+#######################################
+browserless::scrape() {
+    local url="${1:-http://httpbin.org/html}"
+    local selector="${2:-}"
+    
+    local data="{\"url\":\"$url\""
+    if [[ -n "$selector" ]]; then
+        data+=",\"selector\":\"$selector\""
+    fi
+    data+="}"
+    
+    curl -s -X POST \
+        "http://localhost:$BROWSERLESS_PORT/chrome/content" \
+        -H "Content-Type: application/json" \
+        -d "$data"
+}
+
+#######################################
+# Pressure test helper function
+#######################################
+browserless::pressure_test() {
+    local pressure_data
+    pressure_data=$(curl -s "http://localhost:$BROWSERLESS_PORT/pressure")
+    
+    if [[ -n "$pressure_data" ]]; then
+        echo "Browser Pressure Status:"
+        echo "$pressure_data" | jq '.' 2>/dev/null || echo "$pressure_data"
+        return 0
+    else
+        return 1
+    fi
+}
+
+# Note: Test functions browserless::test_screenshot, browserless::test_pdf, 
+# browserless::test_scrape, browserless::test_pressure, and browserless::test_function
+# are now provided by api.sh which is sourced above
+
+#######################################
+# Test all APIs
+#######################################
+browserless::test_all_apis() {
+    local url="${1:-${URL:-http://httpbin.org/html}}"
+    
+    log::header "🧪 Testing all Browserless APIs"
+    
+    local failed_tests=0
+    
+    # Test screenshot
+    if ! browserless::test_screenshot "$url"; then
+        ((failed_tests++))
+    fi
+    
+    echo
+    
+    # Test PDF
+    if ! browserless::test_pdf "$url"; then
+        ((failed_tests++))
+    fi
+    
+    echo
+    
+    # Test scraping
+    if ! browserless::test_scrape "$url"; then
+        ((failed_tests++))
+    fi
+    
+    echo
+    
+    # Test pressure
+    if ! browserless::test_pressure; then
+        ((failed_tests++))
+    fi
+    
+    echo
+    
+    # Test function
+    if ! browserless::test_function "$url"; then
+        ((failed_tests++))
+    fi
+    
+    echo
+    log::header "🏁 Test Summary"
+    
+    if [[ $failed_tests -eq 0 ]]; then
+        log::success "✅ All API tests passed!"
+    else
+        log::error "❌ $failed_tests test(s) failed"
+        return 1
+    fi
+}
+
 # Export functions for subshell availability
 export -f browserless::show_usage_help
 export -f browserless::run_usage_example
 export -f browserless::show_api_reference
 export -f browserless::show_curl_examples
+# Test functions are exported by api.sh
+export -f browserless::test_all_apis

@@ -209,15 +209,22 @@ list_processes() {
             return 0
         fi
         
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        printf "%-40s %-12s %-8s %-10s %-8s %-12s %s\n" \
-            "NAME" "STATE" "PID" "RESTARTS" "UPTIME" "MEMORY" "COMMAND"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        printf "%-40s %-12s %-8s %-10s %-8s %-12s %-25s %s\n" \
+            "NAME" "STATE" "PID" "RESTARTS" "UPTIME" "MEMORY" "URL" "COMMAND"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         
         jq -r '.processes | to_entries | .[] | 
             [.value.name, .value.state, (.value.pid // "-"), 
-             .value.restart_count, .value.started_at, .value.command] | 
-            @tsv' "$registry_file" | while IFS=$'\t' read -r name state pid restarts started command; do
+             .value.restart_count, .value.started_at, .value.command,
+             (.value.env_vars // "{}" | fromjson.PORT // ""),
+             (.value.metadata // "{}" | fromjson.port // "")] | 
+            @tsv' "$registry_file" | while IFS=$'\t' read -r name state pid restarts started command env_port meta_port; do
+            
+            # Get port from either env vars or metadata
+            local port=""
+            [[ -n "$env_port" ]] && port="$env_port"
+            [[ -z "$port" && -n "$meta_port" ]] && port="$meta_port"
             
             # Color code by state
             case "$state" in
@@ -261,15 +268,33 @@ except:
                 fi
             fi
             
-            # Truncate command
-            local short_command=$(echo "$command" | cut -c1-30)
-            [[ ${#command} -gt 30 ]] && short_command="${short_command}..."
+            # Show URL if port is available and app is running
+            local url_display="-"
+            if [[ -n "$port" && "$state" == "running" ]]; then
+                url_display="http://localhost:$port"
+            fi
             
-            printf "%-40s %-20s %-8s %-10s %-8s %-12s %s\n" \
-                "$name" "$state_display" "$pid" "$restarts" "$uptime" "$memory" "$short_command"
+            # Truncate command
+            local short_command=$(echo "$command" | cut -c1-20)
+            [[ ${#command} -gt 20 ]] && short_command="${short_command}..."
+            
+            # Use echo -e to properly handle color codes
+            if [[ "$url_display" != "-" ]]; then
+                printf "%-40s " "$name"
+                echo -en "$state_display"
+                printf " %-8s %-10s %-8s %-12s " "$pid" "$restarts" "$uptime" "$memory"
+                echo -en "${BLUE}"
+                printf "%-25s" "$url_display"
+                echo -en "${NC}"
+                printf " %s\n" "$short_command"
+            else
+                printf "%-40s " "$name"
+                echo -en "$state_display"
+                printf " %-8s %-10s %-8s %-12s %-25s %s\n" "$pid" "$restarts" "$uptime" "$memory" "$url_display" "$short_command"
+            fi
         done
         
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
     fi
 }
 

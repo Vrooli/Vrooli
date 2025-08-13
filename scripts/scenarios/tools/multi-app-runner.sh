@@ -26,7 +26,7 @@ ORCHESTRATOR_CTL="$SCRIPT_DIR/orchestrator-ctl.sh"
 
 # Default configuration
 PORT_START="${VROOLI_DEV_PORT_START:-3001}"
-MAX_APPS="${VROOLI_DEV_MAX_APPS:-10}"
+MAX_APPS="${VROOLI_DEV_MAX_APPS:-100}"
 DRY_RUN=false
 VERBOSE=false
 GENERATED_APPS_DIR="$HOME/generated-apps"
@@ -107,7 +107,7 @@ ${YELLOW}USAGE:${NC}
 ${YELLOW}OPTIONS:${NC}
     --dry-run          Show what would be started without starting
     --port-start N     Start port assignment from N (default: $PORT_START)
-    --max-apps N       Maximum apps to start (default: $MAX_APPS)
+    --max-apps N       Maximum apps to start (default: 100)
     --verbose          Show detailed output
     --help, -h         Show this help message
 
@@ -318,18 +318,19 @@ main() {
     
     # Count and validate scenarios
     local scenario_list=()
-    local valid_count=0
+    local valid_apps=()
     
     while IFS= read -r scenario_name; do
         [[ -z "$scenario_name" ]] && continue
         
         scenario_list+=("$scenario_name")
         
-        if validate_app "$scenario_name"; then
-            valid_count=$((valid_count + 1))
+        if validate_app "$scenario_name" >/dev/null 2>&1; then
+            valid_apps+=("$scenario_name")
         fi
     done <<< "$enabled_scenarios"
     
+    local valid_count=${#valid_apps[@]}
     echo "Found ${#scenario_list[@]} enabled scenarios, $valid_count valid for startup"
     
     if [[ $valid_count -eq 0 ]]; then
@@ -361,16 +362,12 @@ main() {
     local current_port=$PORT_START
     local started_count=0
     local failed_count=0
+    local started_apps=()
     
-    for scenario_name in "${scenario_list[@]}"; do
+    for scenario_name in "${valid_apps[@]}"; do
         # Stop if we've reached the limit
         if [[ $started_count -ge $MAX_APPS ]]; then
             break
-        fi
-        
-        # Skip invalid apps
-        if ! validate_app "$scenario_name"; then
-            continue
         fi
         
         # Assign port
@@ -379,6 +376,7 @@ main() {
         
         # Register and start the app
         if register_and_start_app "$scenario_name" "$app_port"; then
+            started_apps+=("$scenario_name:$app_port")
             started_count=$((started_count + 1))
             current_port=$((app_port + 1))
         else
@@ -401,20 +399,36 @@ main() {
         echo ""
         log_success "✅ Multi-app environment started successfully!"
         echo ""
-        echo "Management Commands:"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo -e "${CYAN}Running Applications:${NC}"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        
+        # Display clickable URLs for each started app
+        for app_info in "${started_apps[@]}"; do
+            local app_name="${app_info%%:*}"
+            local app_port="${app_info##*:}"
+            printf "  %-30s → " "$app_name"
+            echo -e "${BLUE}http://localhost:$app_port${NC}"
+        done
+        
+        echo ""
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo -e "${CYAN}Management Commands:${NC}"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
         echo "  vrooli orchestrator status     # Show all app status"
         echo "  vrooli orchestrator tree       # Show app hierarchy"
         echo "  vrooli orchestrator logs <app> # Show app logs"
         echo "  vrooli orchestrator monitor    # Real-time dashboard"
         echo "  vrooli orchestrator stop       # Stop all apps"
         echo ""
-        echo "Individual app logs:"
-        for scenario_name in "${scenario_list[@]}"; do
-            [[ $started_count -le 0 ]] && break
-            if validate_app "$scenario_name"; then
-                echo "  tail -f ~/.vrooli/orchestrator/logs/vrooli.$scenario_name.develop.log"
-                started_count=$((started_count - 1))
-            fi
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        echo -e "${CYAN}View Logs:${NC}"
+        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        
+        # Display log commands for each started app
+        for app_info in "${started_apps[@]}"; do
+            local app_name="${app_info%%:*}"
+            echo "  vrooli orchestrator logs $app_name    # View $app_name logs"
         done
     fi
     

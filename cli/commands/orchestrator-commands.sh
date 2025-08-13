@@ -51,7 +51,8 @@ ${YELLOW}USAGE:${NC}
 
 ${YELLOW}LIFECYCLE COMMANDS:${NC}
     start               Start the orchestrator daemon
-    stop                Stop daemon and all processes  
+    stop                Stop daemon, processes, and resources
+                        (use --no-resources to skip resource shutdown)
     restart             Restart the orchestrator
     status              Show process status
     tree                Show process hierarchy tree
@@ -109,12 +110,49 @@ orchestrator_start() {
     exec "$ORCHESTRATOR_CTL" start "$@"
 }
 
-# Delegate stop command
+# Delegate stop command (enhanced to stop resources too)
 orchestrator_stop() {
     check_orchestrator_ctl || return 1
     
     log::info "Stopping Vrooli Orchestrator..."
-    exec "$ORCHESTRATOR_CTL" stop "$@"
+    
+    # First stop the orchestrator and its managed processes
+    "$ORCHESTRATOR_CTL" stop "$@"
+    
+    # Then stop all resources if --with-resources flag is provided
+    local stop_resources=false
+    for arg in "$@"; do
+        if [[ "$arg" == "--with-resources" || "$arg" == "--all" ]]; then
+            stop_resources=true
+            break
+        fi
+    done
+    
+    # Default to stopping resources unless --no-resources is specified
+    local skip_resources=false
+    for arg in "$@"; do
+        if [[ "$arg" == "--no-resources" ]]; then
+            skip_resources=true
+            break
+        fi
+    done
+    
+    # Stop resources by default (unless explicitly skipped)
+    if [[ "$skip_resources" == "false" ]]; then
+        log::info "Stopping all resources..."
+        
+        # Source the auto-install module if available
+        if [[ -f "${var_LIB_DIR}/resources/auto-install.sh" ]]; then
+            # shellcheck disable=SC1091
+            source "${var_LIB_DIR}/resources/auto-install.sh"
+            resource_auto::stop_all
+        else
+            # Fallback to using vrooli resource stop-all
+            "${CLI_DIR}/../../cli/vrooli" resource stop-all
+        fi
+    fi
+    
+    log::success "✅ Orchestrator and resources stopped"
 }
 
 # Delegate restart command

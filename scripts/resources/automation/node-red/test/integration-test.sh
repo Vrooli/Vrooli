@@ -13,6 +13,83 @@ source "${SCRIPT_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_SCRIPTS_RESOURCES_TESTS_LIB_DIR}/enhanced-integration-test-lib.sh"
 
+#######################################
+# Simple Test Framework Adapter
+# Provides test:: functions expected by this integration test
+#######################################
+
+# Test result counters
+TESTS_PASSED=0
+TESTS_FAILED=0
+TESTS_WARNED=0
+
+test::header() {
+    echo
+    echo "=== $1 ==="
+}
+
+test::suite_header() {
+    echo
+    echo "======================================="
+    echo "    $1"
+    echo "======================================="
+    echo
+}
+
+test::pass() {
+    echo "✅ PASS: $1"
+    ((TESTS_PASSED++))
+}
+
+test::fail() {
+    echo "❌ FAIL: $1"
+    ((TESTS_FAILED++))
+    return 1
+}
+
+test::warn() {
+    echo "⚠️  WARN: $1"
+    ((TESTS_WARNED++))
+}
+
+test::info() {
+    echo "ℹ️  INFO: $1"
+}
+
+test::run_test_suite() {
+    local test_array_name="$1"
+    local -n test_array_ref="$test_array_name"
+    
+    for test_func in "${test_array_ref[@]}"; do
+        echo
+        echo "Running: $test_func"
+        if "$test_func"; then
+            test::pass "$test_func completed"
+        else
+            test::fail "$test_func failed"
+        fi
+    done
+}
+
+test::suite_summary() {
+    echo
+    echo "======================================="
+    echo "Test Summary:"
+    echo "  Passed: $TESTS_PASSED"
+    echo "  Failed: $TESTS_FAILED"  
+    echo "  Warned: $TESTS_WARNED"
+    echo "  Total:  $((TESTS_PASSED + TESTS_FAILED + TESTS_WARNED))"
+    echo "======================================="
+    
+    if [[ $TESTS_FAILED -gt 0 ]]; then
+        echo "❌ Some tests failed!"
+        return 1
+    else
+        echo "✅ All tests passed!"
+        return 0
+    fi
+}
+
 # Load Node-RED configuration
 # shellcheck disable=SC1091
 source "${NODE_RED_ROOT_DIR}/config/defaults.sh"

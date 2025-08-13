@@ -49,12 +49,25 @@
       ]
     },
     {
+      "name": "shared-initialization",
+      "source": "initialization",
+      "destination": "initialization",
+      "type": "directory",
+      "from": "vrooli",
+      "optional": true,
+      "merge": "overlay",
+      "process": [
+        "filter_by_service_references"
+      ]
+    },
+    {
       "name": "scenario-data",
       "source": "initialization",
       "destination": "initialization",
       "type": "directory",
       "from": "scenario",
-      "optional": true
+      "optional": true,
+      "merge": "overlay"
     },
     {
       "name": "scenario-scripts",

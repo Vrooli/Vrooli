@@ -76,10 +76,13 @@ TESTING COMMANDS:
     test bats           Run BATS test execution with caching
 
 APP MANAGEMENT:
-    app list            List all generated apps
-    app status <name>   Show app details
+    app list            List all apps with runtime status
+    app start <name>    Start a specific app
+    app stop <name>     Stop a specific app
+    app restart <name>  Restart a specific app
+    app logs <name>     Show logs for an app
+    app status <name>   Show detailed app status
     app protect <name>  Protect app from regeneration
-    app backup <name>   Create app backup
 
 SCENARIO MANAGEMENT:
     scenario list       List available scenarios

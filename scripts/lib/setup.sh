@@ -235,11 +235,23 @@ setup::generic_main() {
     log::info "Installing SQLite..."
     sqlite::ensure_installed || log::warning "SQLite installation failed (not critical)"
     
-    # Step 7: Complete generic setup
+    # Step 7: Install Enabled Resources
+    log::header "🔨 Installing Enabled Resources"
+    # shellcheck disable=SC1091
+    source "${var_LIB_DIR}/resources/auto-install.sh"
+    if [[ -f "${var_SERVICE_JSON_FILE}" ]]; then
+        resource_auto::install_enabled "${var_SERVICE_JSON_FILE}" || {
+            log::warning "Some resources failed to install - continuing with setup"
+        }
+    else
+        log::debug "No service.json found - skipping resource installation"
+    fi
+    
+    # Step 8: Complete generic setup
     log::info "Generic setup tasks completed"
     log::info "App-specific setup will be handled by service.json configuration"
     
-    # Step 8: Complete phase
+    # Step 9: Complete phase
     phase::complete
     
     # Export key variables for next phases
