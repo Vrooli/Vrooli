@@ -5,232 +5,146 @@
     "parent": "vrooli",
     "name": "resource-experimenter",
     "displayName": "Resource Experimenter",
-    "description": "Fully automated resource discovery and testing platform that generates complete standalone applications with their own resource providers and scenarios",
+    "description": "Ultra-simple resource experimentation platform using Claude Code to copy and modify existing scenarios with new resources",
     "version": "1.0.0",
     "type": "business-application",
-    "category": "vrooli-helpers",
+    "category": "ai-development",
     "tags": [
-      "resource-discovery",
-      "automation",
-      "testing",
-      "generator"
+      "resource-experimentation",
+      "claude-code",
+      "scenario-modification",
+      "ai-development"
     ]
   },
-  "resources": {
-    "storage": {
-      "postgres": {
-        "enabled": true,
-        "config": {
-          "database": "resource_experiments",
-          "schema": "public",
-          "initialization": {
-            "schema": "initialization/storage/postgres/schema.sql",
-            "seed": "initialization/storage/postgres/seed.sql"
-          }
-        }
-      },
-      "redis": {
-        "enabled": true,
-        "config": {
-          "database": 1,
-          "keyPrefix": "experiment:",
-          "persistence": true
-        }
-      },
-      "minio": {
-        "enabled": true,
-        "config": {
-          "buckets": [
-            "generated-apps",
-            "resource-artifacts",
-            "test-reports"
-          ],
-          "public_buckets": [
-            "generated-apps"
-          ],
-          "initialization": {
-            "buckets": "initialization/storage/minio/buckets.json"
-          }
-        }
-      },
-      "qdrant": {
-        "enabled": true,
-        "config": {
-          "collections": [
-            "resources",
-            "test-results",
-            "compatibility"
-          ],
-          "initialization": {
-            "collections": "initialization/storage/qdrant/collections.json"
-          }
-        }
-      }
-    },
-    "automation": {
-      "windmill": {
-        "enabled": true,
-        "config": {
-          "workspace": "experiments",
-          "apps": [
-            "initialization/automation/windmill/experiment-dashboard.json",
-            "initialization/automation/windmill/resource-catalog.json",
-            "initialization/automation/windmill/app-viewer.json"
-          ]
-        }
-      },
-      "n8n": {
-        "enabled": true,
-        "config": {
-          "workflows": [
-            "initialization/automation/n8n/resource-discovery.json",
-            "initialization/automation/n8n/experiment-orchestrator.json",
-            "initialization/automation/n8n/app-generator.json",
-            "initialization/automation/n8n/test-runner.json",
-            "initialization/automation/n8n/publish-results.json"
-          ]
-        }
-      }
-    },
-    "agents": {
-      "browserless": {
-        "enabled": true,
-        "config": {
-          "timeout": 30000,
-          "maxConcurrent": 5
-        }
-      }
-    },
-    "ai": {
-      "ollama": {
-        "enabled": true,
-        "config": {
-          "models": [
-            "llama3.2",
-            "codellama"
-          ],
-          "analysis": {
-            "model": "llama3.2",
-            "temperature": 0.3
-          }
-        }
-      },
-      "claude-code": {
-        "enabled": true,
-        "config": {
-          "model": "claude-3-sonnet-20240229",
-          "maxTokens": 8192,
-          "temperature": 0.4,
-          "purpose": "resource_integration_analysis"
-        }
-      }
-    },
-    "execution": {
-      "judge0": {
-        "enabled": true,
-        "config": {
-          "languages": [
-            "bash",
-            "python",
-            "javascript",
-            "typescript"
-          ],
-          "timeout": 60000
-        }
-      }
-    },
-    "monitoring": {
-      "prometheus": {
-        "enabled": false,
-        "note": "Can be enabled for resource metrics collection"
-      },
-      "grafana": {
-        "enabled": false,
-        "note": "Can be enabled for visualization"
-      }
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto",
+      "description": "Resource experimenter API port"
     }
   },
-  "experimental": {
-    "sandbox_mode": true,
-    "docker_access": true,
-    "network_isolation": false,
-    "resource_limits": {
-      "max_containers": 10,
-      "max_memory_gb": 16,
-      "max_cpu_cores": 8,
-      "max_storage_gb": 100
+  "resources": {
+    "agents": {
+      "claude-code": {
+        "type": "claude-code",
+        "enabled": true,
+        "required": true,
+        "purpose": "AI-powered scenario copying and resource integration"
+      }
     },
-    "discovery_sources": [
-      "https://github.com/awesome-selfhosted/awesome-selfhosted",
-      "https://hub.docker.com",
-      "https://artifacthub.io",
-      "https://bitnami.com/stacks"
-    ]
-  },
-  "deployment": {
-    "ports": {
-      "api": 8091,
-      "windmill": 8001,
-      "n8n": 5679,
-      "minio": 9000,
-      "qdrant": 6333,
-      "experiment_range_start": 9000,
-      "experiment_range_end": 9999
-    },
-    "volumes": [
-      "./sandbox:/app/sandbox",
-      "./generated-apps:/app/generated-apps",
-      "./templates:/app/templates",
-      "/var/run/docker.sock:/var/run/docker.sock"
-    ],
-    "environment": {
-      "NODE_ENV": "development",
-      "LOG_LEVEL": "debug",
-      "EXPERIMENT_MODE": "true",
-      "DOCKER_HOST": "unix:///var/run/docker.sock",
-      "SANDBOX_PATH": "/app/sandbox",
-      "GENERATED_APPS_PATH": "/app/generated-apps",
-      "TEMPLATES_PATH": "/app/templates",
-      "AUTO_CLEANUP": "true",
-      "CLEANUP_INTERVAL": "3600",
-      "MAX_CONCURRENT_EXPERIMENTS": "10",
-      "BATS_TEST_TIMEOUT": "300"
+    "storage": {
+      "postgres": {
+        "type": "postgres",
+        "enabled": true,
+        "required": true,
+        "purpose": "experiment tracking and results storage"
+      }
     }
   },
   "lifecycle": {
     "version": "1.0.0",
     "setup": {
-      "description": "Initialize Resource Experimenter environment with Docker orchestration and experiment templates",
+      "description": "Initialize Resource Experimenter",
       "steps": [
         {
-          "name": "inject-resource-data",
-          "run": "scripts/resources/injection/engine.sh scripts/scenarios/core/resource-experimenter/.vrooli/service.json",
-          "description": "Inject SQL schemas, workflows, and configurations"
+          "name": "base-setup",
+          "run": "bash scripts/lib/setup.sh",
+          "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "configure-docker",
-          "run": "deployment/configure-docker.sh",
-          "description": "Configure Docker daemon for container orchestration and resource management"
+          "name": "initialize-database",
+          "run": "cd initialization && psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d postgres -f postgres/schema.sql || echo 'Database schema initialization completed'",
+          "description": "Initialize PostgreSQL database schema"
         },
         {
-          "name": "validate-environment",
-          "run": "deployment/validate.sh",
-          "description": "Validate system requirements and Docker configuration"
+          "name": "seed-database",
+          "run": "cd initialization && psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d postgres -f postgres/seed.sql || echo 'Database seed data loaded'",
+          "description": "Load experiment templates and sample data"
         },
         {
-          "name": "setup-experiment-templates",
-          "run": "deployment/setup-templates.sh",
-          "description": "Initialize resource provider and scenario templates"
+          "name": "check-claude-code",
+          "run": "bash ${VROOLI_ROOT:-/home/matthalloran8/Vrooli}/scripts/resources/agents/claude-code/manage.sh --action health-check --check-type basic || echo 'Claude Code not available - experiment features will be limited'",
+          "description": "Verify Claude Code availability for AI experimentation"
         },
         {
-          "name": "start-core-services",
-          "run": "deployment/startup.sh",
-          "description": "Start PostgreSQL, Redis, MinIO, Qdrant, Ollama, n8n, and Windmill"
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install resource experimenter CLI globally"
         },
         {
-          "name": "show-access-urls",
-          "run": "echo '✅ Resource Experimenter initialized\\n  🎯 Windmill Dashboard: http://localhost:8000\\n  🔧 n8n Workflows: http://localhost:5678\\n  📊 MinIO Console: http://localhost:9001\\n  🔍 Qdrant API: http://localhost:6333\\n  🤖 Ollama API: http://localhost:11434\\n  📦 Experiment Sandbox: ./sandbox/\\n  🏗️  Generated Apps: ./generated-apps/'",
-          "description": "Display service access URLs and directories"
+          "name": "show-urls",
+          "run": "echo '🚀 Resource Experimenter initialized\\n  API: http://localhost:${SERVICE_PORT}\\n  Database: localhost:${RESOURCE_PORTS[postgres]}\\n  CLI: resource-experimenter'",
+          "description": "Display service access information"
+        }
+      ]
+    },
+    "develop": {
+      "description": "Start resource experimenter services",
+      "steps": [
+        {
+          "name": "start-api",
+          "run": "cd api && go run main.go &",
+          "description": "Start Go API server in background",
+          "background": true
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 3 && curl -sf http://localhost:${SERVICE_PORT}/health > /dev/null",
+          "description": "Wait for API to be ready",
+          "retry": {
+            "max_attempts": 10,
+            "delay": 2
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && npm start &",
+          "description": "Start React UI in development mode",
+          "background": true
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  API: http://localhost:${SERVICE_PORT}\\n  UI: http://localhost:3000\\n  CLI: resource-experimenter help'",
+          "description": "Display running service URLs"
+        }
+      ]
+    },
+    "test": {
+      "description": "Run resource experimenter tests",
+      "steps": [
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:${SERVICE_PORT}/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-claude-code",
+          "run": "bash ${VROOLI_ROOT:-/home/matthalloran8/Vrooli}/scripts/resources/agents/claude-code/manage.sh --action health-check --check-type basic",
+          "description": "Test Claude Code availability"
+        },
+        {
+          "name": "run-integration-tests",
+          "run": "./test.sh",
+          "description": "Execute integration test suite",
+          "condition": {
+            "file_exists": "test.sh"
+          }
+        }
+      ]
+    },
+    "stop": {
+      "description": "Stop resource experimenter services",
+      "steps": [
+        {
+          "name": "stop-services",
+          "run": "pkill -f 'go run main.go' || true; pkill -f 'npm start' || true",
+          "description": "Stop API and UI processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Resource Experimenter services stopped'",
+          "description": "Confirm services stopped"
         }
       ]
     }

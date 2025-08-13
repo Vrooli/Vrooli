@@ -1000,6 +1000,95 @@ scenario_to_app::copy_item() {
 }
 
 #######################################
+# Filter shared initialization directory to only include referenced files
+# Arguments:
+#   $1 - initialization directory path
+#   $2 - service.json content
+# Returns:
+#   0 on success, 1 on failure
+#######################################
+scenario_to_app::filter_shared_initialization() {
+    local init_dir="$1"
+    local service_json_content="$2"
+    
+    [[ "$VERBOSE" == "true" ]] && log::info "Filtering shared initialization files in: $init_dir"
+    
+    # Extract all file paths referenced in initialization sections
+    local referenced_files
+    referenced_files=$(echo "$service_json_content" | jq -r '
+        .resources // {} | 
+        to_entries[] | 
+        .value // {} | 
+        to_entries[] | 
+        .value.initialization[]? // empty |
+        .file // empty' 2>/dev/null | sort | uniq)
+    
+    if [[ -z "$referenced_files" ]]; then
+        [[ "$VERBOSE" == "true" ]] && log::info "No initialization files referenced in service.json"
+        return 0
+    fi
+    
+    # Build list of shared files to keep
+    local shared_files_to_keep=()
+    
+    while IFS= read -r file_ref; do
+        [[ -z "$file_ref" ]] && continue
+        
+        # Handle both "shared:" prefix and direct paths to initialization/
+        local actual_path=""
+        if [[ "$file_ref" == shared:* ]]; then
+            # Remove "shared:" prefix
+            actual_path="${file_ref#shared:}"
+        elif [[ "$file_ref" == initialization/* ]]; then
+            # Direct reference to initialization file
+            actual_path="$file_ref"
+        fi
+        
+        # If this is a path within initialization/, add it to keep list
+        if [[ -n "$actual_path" && "$actual_path" == initialization/* ]]; then
+            # Remove "initialization/" prefix to get relative path within init dir
+            local rel_path="${actual_path#initialization/}"
+            shared_files_to_keep+=("$rel_path")
+            [[ "$VERBOSE" == "true" ]] && log::info "Will keep shared file: $rel_path"
+        fi
+    done <<< "$referenced_files"
+    
+    # If no shared files to keep, remove everything
+    if [[ ${#shared_files_to_keep[@]} -eq 0 ]]; then
+        [[ "$VERBOSE" == "true" ]] && log::info "No shared files referenced, removing all shared initialization files"
+        rm -rf "$init_dir"/*
+        return 0
+    fi
+    
+    # Remove files not in the keep list
+    find "$init_dir" -type f | while IFS= read -r file; do
+        # Get relative path from init_dir
+        local rel_path="${file#$init_dir/}"
+        
+        # Check if this file should be kept
+        local should_keep=false
+        for keep_file in "${shared_files_to_keep[@]}"; do
+            if [[ "$rel_path" == "$keep_file" ]]; then
+                should_keep=true
+                break
+            fi
+        done
+        
+        # Remove file if not in keep list
+        if [[ "$should_keep" == "false" ]]; then
+            [[ "$VERBOSE" == "true" ]] && log::info "Removing unreferenced shared file: $rel_path"
+            rm -f "$file"
+        fi
+    done
+    
+    # Remove empty directories
+    find "$init_dir" -type d -empty -delete 2>/dev/null || true
+    
+    log::success "Filtered shared initialization files (kept ${#shared_files_to_keep[@]} referenced files)"
+    return 0
+}
+
+#######################################
 # Apply post-processing to copied files
 # Arguments:
 #   $1 - file path
@@ -1025,6 +1114,11 @@ scenario_to_app::process_file() {
         substitute_variables)
             if [[ -f "$file_path/service.json" ]]; then
                 scenario_to_app::process_template_variables "$file_path/service.json" "$SERVICE_JSON"
+            fi
+            ;;
+        filter_by_service_references)
+            if [[ -d "$file_path" ]]; then
+                scenario_to_app::filter_shared_initialization "$file_path" "$SERVICE_JSON"
             fi
             ;;
         *)

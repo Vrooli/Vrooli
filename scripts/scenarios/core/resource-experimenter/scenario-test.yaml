@@ -1,147 +1,95 @@
 name: resource-experimenter
-description: Experimental resource testing platform
+description: Ultra-simple resource experimentation platform
 version: 1.0.0
 
 resources:
   required:
     - postgres
-    - redis
-    - windmill
-    - n8n
-    - ollama
     - claude-code
-    - judge0
 
 tests:
   - name: Database Connection
     type: connectivity
     target: postgres
     config:
-      database: resource_experiments
+      database: postgres
       timeout: 30
     
-  - name: Redis Cache
-    type: redis
-    command: PING
-    expected: PONG
-    
-  - name: Docker Socket Access
-    type: command
-    command: docker version
-    expected:
-      exit_code: 0
-      
-  - name: Windmill Dashboard
-    type: http
-    method: GET
-    url: http://localhost:8001
-    expected:
-      status: 200
-      
-  - name: N8N Health Check
-    type: http
-    method: GET
-    url: http://localhost:5679/healthz
-    expected:
-      status: 200
-      body:
-        status: ok
-        
-  - name: Judge0 API
-    type: http
-    method: GET
-    url: http://localhost:2358/system_info
-    expected:
-      status: 200
-      
-  - name: Create Test Resource
-    type: postgres
-    operation: INSERT
-    query: |
-      INSERT INTO resources (name, display_name, type, description)
-      VALUES ('test-resource', 'Test Resource', 'other', 'Resource for testing')
-      RETURNING id
-    expected:
-      rows: 1
-      
-  - name: Sandbox Creation
-    type: command
-    command: |
-      mkdir -p /app/sandbox/test-experiment && \
-      echo "test" > /app/sandbox/test-experiment/test.txt && \
-      ls /app/sandbox/test-experiment/test.txt
-    expected:
-      exit_code: 0
-      output:
-        contains: "test.txt"
-        
-  - name: Discovery Workflow
-    type: n8n
-    workflow: resource-discovery
-    trigger: manual
-    expected:
-      execution:
-        status: success
-        nodes:
-          - schedule_trigger
-          - prepare_sources
-          - fetch_source
-          - parse_resources
-          
-  - name: Docker Container Listing
-    type: command
-    command: docker ps --format "table {{.Names}}\t{{.Status}}"
-    expected:
-      exit_code: 0
-      
-  - name: Resource Template Check
+  - name: Database Schema Check
     type: postgres
     operation: SELECT
-    query: SELECT COUNT(*) as count FROM resource_templates
+    query: SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_name IN ('experiments', 'experiment_templates', 'available_scenarios')
     expected:
-      rows: 1
+      rows: 3
       
-  - name: Experiment API
+  - name: API Health Check
     type: http
-    method: POST
-    url: http://localhost:8091/api/experiments
-    body:
-      resource_name: "test-resource"
-      experiment_type: "connectivity"
+    method: GET
+    url: http://localhost:8092/health
     expected:
       status: 200
       body:
-        experiment_id: ".*"
-        status: "planned"
-
+        status: healthy
+        
+  - name: Experiments API
+    type: http
+    method: GET
+    url: http://localhost:8092/api/experiments
+    expected:
+      status: 200
+      
+  - name: Scenarios API
+    type: http
+    method: GET
+    url: http://localhost:8092/api/scenarios
+    expected:
+      status: 200
+      
+  - name: Templates API
+    type: http
+    method: GET
+    url: http://localhost:8092/api/templates
+    expected:
+      status: 200
+      
+  - name: Create Test Experiment
+    type: http
+    method: POST
+    url: http://localhost:8092/api/experiments
+    body:
+      name: Test Experiment
+      description: Test resource experimentation
+      prompt: Add redis to analytics-dashboard
+      target_scenario: analytics-dashboard
+      new_resource: redis
+    expected:
+      status: 200
+      body:
+        name: Test Experiment
+        status: requested
+        
+  - name: Claude Code Health Check
+    type: command
+    command: bash ${VROOLI_ROOT:-/home/matthalloran8/Vrooli}/scripts/resources/agents/claude-code/manage.sh --action health-check --check-type basic
+    expected:
+      exit_code: 0
+      
 validation:
   startup:
-    timeout: 120
+    timeout: 60
     health_checks:
       - service: postgres
-        port: 5432
-      - service: redis
-        port: 6379
-      - service: windmill
-        port: 8001
-      - service: n8n
-        port: 5679
-      - service: judge0
-        port: 2358
+        port: 5433
       - service: api
-        port: 8091
+        port: 8092
         
   runtime:
     monitoring:
       - metric: active_experiments
+        threshold: 100
+      - metric: database_connections
         threshold: 10
-      - metric: sandbox_count
-        threshold: 10
-      - metric: discovery_queue_size
-        threshold: 1000
         
   cleanup:
     commands:
-      - docker ps -aq --filter "label=experiment" | xargs -r docker rm -f
-      - rm -rf /app/sandbox/*/
-      - redis-cli -n 1 FLUSHDB
+      - echo "Cleaning up test data..."
