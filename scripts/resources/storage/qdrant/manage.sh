@@ -32,13 +32,9 @@ qdrant::messages::init
 
 # Source library modules
 # shellcheck disable=SC1091
-source "${QDRANT_LIB_DIR}/common.sh"
-# shellcheck disable=SC1091
-source "${QDRANT_LIB_DIR}/api.sh"
+source "${QDRANT_LIB_DIR}/core.sh"
 # shellcheck disable=SC1091
 source "${QDRANT_LIB_DIR}/health.sh"
-# shellcheck disable=SC1091
-source "${QDRANT_LIB_DIR}/core.sh"
 # shellcheck disable=SC1091
 source "${QDRANT_LIB_DIR}/collections.sh"
 # shellcheck disable=SC1091

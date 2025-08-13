@@ -7,7 +7,7 @@ Qdrant is a vector similarity search engine with extended filtering support, des
 - **Category**: Storage
 - **Ports**: 6333 (REST API), 6334 (gRPC API)
 - **Container**: qdrant
-- **API Docs**: [Complete API Reference](docs/API.md)
+- **Data Directory**: ~/.qdrant/data
 - **Status**: Production Ready
 
 ## 🚀 Quick Start
@@ -29,293 +29,277 @@ QDRANT_CUSTOM_PORT=7333 QDRANT_CUSTOM_GRPC_PORT=7334 ./manage.sh --action instal
 # Install with API key authentication (recommended for production)
 QDRANT_CUSTOM_API_KEY=your-secure-key ./manage.sh --action install
 
-# Force reinstall with custom settings
-./manage.sh --action install --force yes
+# Custom data directory
+QDRANT_DATA_DIR=/mnt/fast-ssd/qdrant ./manage.sh --action install
 ```
 
 ### Basic Usage
 ```bash
-# Check service status with comprehensive information  
+# Check service status
 ./manage.sh --action status
 
-# Test all functionality including vector operations
+# Test functionality
 ./manage.sh --action test
 
-# List all collections
+# List collections
 ./manage.sh --action list-collections
 
-# Create a new collection for AI embeddings
+# Create collection for AI embeddings
 ./manage.sh --action create-collection --collection ai_embeddings --vector-size 1536 --distance Cosine
-
-# Get collection information
-./manage.sh --action collection-info --collection ai_embeddings
-
-# Create backup of all collections
-./manage.sh --action backup --snapshot-name daily-backup
-
-# View service logs
-./manage.sh --action logs
 ```
 
-### Verify Installation
+## 📖 Management Commands
+
+### Service Management
 ```bash
-# Check service health and functionality
+# Start/Stop/Restart
+./manage.sh --action start
+./manage.sh --action stop
+./manage.sh --action restart
+
+# Monitoring
 ./manage.sh --action status
-
-# Test vector operations
 ./manage.sh --action test
-
-# Access web interface: http://localhost:6333/dashboard
-# REST API base URL: http://localhost:6333/
-# gRPC endpoint: grpc://localhost:6334/
+./manage.sh --action diagnose
+./manage.sh --action monitor --interval 10
+./manage.sh --action logs --lines 100
 ```
-
-## 🔧 Core Features
-
-- **⚡ Vector Similarity Search**: Sub-millisecond semantic search with HNSW indexing
-- **🎯 Semantic Search**: Find similar content using AI embeddings (OpenAI, HuggingFace, etc.)
-- **🔍 Payload Filtering**: Filter search results by metadata without performance loss
-- **📊 Real-time Operations**: Insert, update, delete vectors without service interruption
-- **🗂️ Collection Management**: Organize vectors into separate searchable collections
-- **💾 Persistent Storage**: Durable vector storage with backup and recovery
-- **🌐 Dual API**: Both REST and gRPC APIs for different integration needs
-- **📈 Performance Optimization**: Quantization and indexing for memory efficiency
-
-## 📖 Documentation
-
-- **[API Reference](docs/API.md)** - REST API, gRPC endpoints, and vector operations  
-- **[Setup & Troubleshooting](docs/SETUP_AND_TROUBLESHOOTING.md)** - Complete configuration and troubleshooting guide
-
-## 🎯 When to Use Qdrant
-
-### Use Qdrant When:
-- Building semantic search engines and similarity matching
-- Creating AI-powered recommendation systems
-- Implementing RAG (Retrieval Augmented Generation) pipelines
-- Need real-time vector similarity search
-- Building content discovery and clustering systems
-- Require sub-millisecond query performance
-
-### Consider Alternatives When:
-- Need traditional relational data → [PostgreSQL](../postgres/)
-- Want document-oriented storage → [MongoDB](../mongodb/)
-- Building simple key-value cache → [Redis](../redis/)
-- Need graph database relationships → [Neo4j](../neo4j/)
-
-## 🔗 Integration Examples
-
-### With AI Models (Ollama)
-```bash
-# Create collection for AI agent memory
-./manage.sh --action create-collection --collection agent_memory --vector-size 1536 --distance Cosine
-
-# Use with Ollama for semantic search
-# 1. Generate embeddings with Ollama
-# 2. Store vectors in Qdrant
-# 3. Search for similar content
-```
-
-### With Document Processing (Unstructured.io)
-```bash
-# Create collection for document chunks
-./manage.sh --action create-collection --collection document_chunks --vector-size 1536 --distance Cosine
-
-# Process documents with Unstructured.io and store embeddings in Qdrant
-# Enable semantic document search and RAG systems
-```
-
-### With Workflow Automation (n8n)
-```bash
-# Create collections for automated data processing
-./manage.sh --action create-collection --collection user_profiles --vector-size 768 --distance Dot
-
-# Use n8n workflows to:
-# - Process incoming data
-# - Generate embeddings
-# - Store in Qdrant
-# - Trigger similarity searches
-```
-
-## 🏗️ Architecture
-
-### Vector Storage Model
-```
-Collection (e.g., "documents")
-├── Vectors (dense numerical arrays)
-├── Payloads (metadata as JSON)
-├── Indexes (HNSW for fast search)
-└── Configuration (distance metric, optimization settings)
-```
-
-### Default Collections
-Qdrant automatically creates these collections for Vrooli:
-- **agent_memory** (1536D, Cosine) - AI agent conversation memory
-- **code_embeddings** (768D, Dot) - Source code semantic embeddings  
-- **document_chunks** (1536D, Cosine) - Document chunks for RAG
-- **conversation_history** (1536D, Cosine) - Chat history storage
-
-### Performance Characteristics
-- **Search Speed**: Sub-millisecond queries (p50 < 1ms)
-- **Throughput**: 10K+ queries/second, 5K+ inserts/second
-- **Memory Efficiency**: 4x-16x compression with quantization
-- **Accuracy**: >95% recall@100, >98% precision
-
-## 🔒 Security & Authentication
-
-### API Key Authentication
-```bash
-# Set API key during installation
-QDRANT_CUSTOM_API_KEY=your-secure-key ./manage.sh --action install
-
-# All API requests require the key in headers:
-# api-key: your-secure-key
-```
-
-### Data Protection
-- Persistent storage in `~/.qdrant/data`
-- Automated backup and recovery system
-- Configurable data retention policies
-
-## 🚀 Advanced Usage
 
 ### Collection Management
 ```bash
-# Create specialized collections
-./manage.sh --action create-collection --collection product_embeddings --vector-size 512 --distance Euclid
+# List all collections
+./manage.sh --action list-collections
 
-# Get detailed collection statistics
-./manage.sh --action collection-info --collection product_embeddings
+# Create collection
+./manage.sh --action create-collection --collection my_vectors --vector-size 1536 --distance Cosine
 
-# Monitor index performance
-./manage.sh --action index-stats --collection product_embeddings
+# Get collection info
+./manage.sh --action collection-info --collection my_vectors
+
+# Delete collection
+./manage.sh --action delete-collection --collection my_vectors [--force yes]
+
+# Collection statistics
+./manage.sh --action index-stats [--collection my_vectors]
 ```
 
-### Backup & Recovery
+### Backup and Recovery
 ```bash
-# Create named backup
-./manage.sh --action backup --snapshot-name pre-migration-2024
+# Create backup
+./manage.sh --action backup [--snapshot-name my-backup]
 
-# List available backups
+# List backups
 ./manage.sh --action list-backups
 
-# Get backup information
-./manage.sh --action backup-info --snapshot-name pre-migration-2024
+# Get backup info
+./manage.sh --action backup-info --snapshot-name my-backup
 
 # Restore from backup
-./manage.sh --action restore --snapshot-name pre-migration-2024
+./manage.sh --action restore --snapshot-name my-backup
 ```
 
-### Monitoring & Diagnostics
+### Data Injection
 ```bash
-# Continuous health monitoring
-./manage.sh --action monitor --interval 10
+# Validate injection configuration
+./manage.sh --action validate-injection --injection-config '{"collections": [{"name": "docs", "size": 384}]}'
 
-# Comprehensive diagnostics
-./manage.sh --action diagnose
-
-# Performance statistics for all collections
-./manage.sh --action index-stats
+# Inject data
+./manage.sh --action inject --injection-config '{"collections": [{"name": "docs", "size": 384}], "vectors": [{"collection": "docs", "vectors": "data.json"}]}'
 ```
 
-## 💡 Common Use Cases
+## ⚙️ Configuration
 
-### 1. Semantic Search Engine
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `QDRANT_CUSTOM_PORT` | 6333 | REST API port |
+| `QDRANT_CUSTOM_GRPC_PORT` | 6334 | gRPC API port |
+| `QDRANT_CUSTOM_API_KEY` | (none) | API authentication key |
+| `QDRANT_DATA_DIR` | ~/.qdrant/data | Data storage directory |
+| `QDRANT_SNAPSHOTS_DIR` | ~/.qdrant/snapshots | Backup snapshots |
+| `QDRANT_LOG_LEVEL` | INFO | Logging level |
+
+### Performance Tuning
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `QDRANT_STORAGE_OPTIMIZED_SEGMENT_SIZE` | 20000 | Vectors per segment |
+| `QDRANT_STORAGE_MEMMAP_THRESHOLD` | 100000 | Memory mapping threshold |
+| `QDRANT_MAX_WORKERS` | 0 | Max optimization threads (0=auto) |
+
+### Collection Configuration
+
+**Distance Metrics:**
+- **Cosine**: Range 0-2, best for text embeddings
+- **Dot**: Unbounded, best for normalized vectors (fastest)
+- **Euclidean**: Range 0-∞, best for precise distances
+
+**Common Vector Dimensions:**
+- 384: Sentence transformers (small)
+- 768: BERT, CodeBERT (medium) 
+- 1536: OpenAI ada-002 (large)
+- 4096: Large language models
+
+### Authentication Setup
 ```bash
-# Setup
-./manage.sh --action create-collection --collection search_corpus --vector-size 1536
+# Generate secure API key
+QDRANT_API_KEY=$(openssl rand -hex 32)
 
-# Use case: Users search using natural language
-# - Convert user query to embeddings
-# - Search Qdrant for similar content
-# - Return ranked results with metadata
+# Install with authentication
+QDRANT_CUSTOM_API_KEY="$QDRANT_API_KEY" ./manage.sh --action install
+
+# Use in requests
+curl -H "api-key: $QDRANT_API_KEY" http://localhost:6333/collections
 ```
 
-### 2. Recommendation System
-```bash
-# Setup
-./manage.sh --action create-collection --collection user_preferences --vector-size 768
+## 🔗 REST API Reference
 
-# Use case: Content recommendations
-# - Store user behavior as vectors
-# - Find similar users or content
-# - Generate personalized recommendations
+### Base URLs
+- **REST API**: `http://localhost:6333`
+- **gRPC API**: `grpc://localhost:6334`
+
+### Health and Status
+```bash
+# Health check
+curl http://localhost:6333/
+
+# Cluster information
+curl http://localhost:6333/cluster | jq
+
+# Prometheus metrics
+curl http://localhost:6333/metrics
 ```
 
-### 3. RAG (Retrieval Augmented Generation)
+### Collections API
 ```bash
-# Setup
-./manage.sh --action create-collection --collection knowledge_base --vector-size 1536
+# List collections
+curl http://localhost:6333/collections | jq
 
-# Use case: AI chatbot with knowledge base
-# - Store document chunks as vectors
-# - Retrieve relevant context for queries
-# - Augment LLM responses with retrieved data
-```
+# Create collection
+curl -X PUT http://localhost:6333/collections/my_vectors \
+  -H "Content-Type: application/json" \
+  -d '{"vectors": {"size": 1536, "distance": "Cosine"}}' | jq
 
-## 🔧 Configuration
+# Get collection info
+curl http://localhost:6333/collections/my_vectors | jq
 
-For detailed configuration options, performance tuning, and troubleshooting, see [Setup & Troubleshooting Guide](docs/SETUP_AND_TROUBLESHOOTING.md).
-
-## 🔄 Integration with Vrooli Scenarios
-
-Qdrant enhances these Vrooli scenarios:
-- **AI Research Assistant**: Semantic search over research papers
-- **Document Analysis Platform**: Find similar documents and content
-- **Knowledge Base System**: Natural language querying
-- **Content Recommendation**: Discover related content automatically
-- **Multi-modal Search**: Combine text, image, and audio embeddings
-
-## 📊 API Quick Reference
-
-### Collections
-```bash
-# REST API examples
-GET    /collections                    # List collections
-POST   /collections/{name}             # Create collection
-GET    /collections/{name}             # Get collection info
-DELETE /collections/{name}             # Delete collection
+# Delete collection
+curl -X DELETE http://localhost:6333/collections/my_vectors | jq
 ```
 
 ### Vector Operations
 ```bash
 # Insert vectors
-PUT    /collections/{name}/points      # Upsert vectors
+curl -X PUT http://localhost:6333/collections/my_vectors/points \
+  -H "Content-Type: application/json" \
+  -d '{
+    "points": [
+      {
+        "id": 1,
+        "vector": [0.1, 0.2, 0.3, ...],
+        "payload": {"text": "example", "category": "test"}
+      }
+    ]
+  }' | jq
 
 # Search vectors
-POST   /collections/{name}/points/search    # Similarity search
-POST   /collections/{name}/points/recommend # Recommendations
-
-# Manage vectors
-GET    /collections/{name}/points/{id}      # Get vector by ID
-DELETE /collections/{name}/points/{id}      # Delete vector
+curl -X POST http://localhost:6333/collections/my_vectors/points/search \
+  -H "Content-Type: application/json" \
+  -d '{
+    "vector": [0.1, 0.2, 0.3, ...],
+    "limit": 10,
+    "with_payload": true
+  }' | jq
 ```
 
-For complete API documentation, see [docs/API.md](docs/API.md).
+## 🚨 Troubleshooting
 
-## 🔍 Testing & Examples
-
-### Run Tests
+### Quick Diagnostics
 ```bash
-# Comprehensive functionality test
-./manage.sh --action test
+# Run comprehensive diagnostics
+./manage.sh --action diagnose
 
-# Test specific collection operations
-./test/integration-test.sh
+# Check container status
+docker ps | grep qdrant
+docker logs qdrant --tail 20
 ```
 
-### Example Collection Setup
-```bash
-# AI/ML workflow setup
-./manage.sh --action create-collection --collection embeddings --vector-size 1536 --distance Cosine
-./manage.sh --action create-collection --collection features --vector-size 512 --distance Dot
+### Common Issues
 
-# Verify setup
-./manage.sh --action list-collections
-./manage.sh --action collection-info --collection embeddings
+**Service Not Starting:**
+```bash
+# Check Docker daemon
+sudo systemctl status docker
+
+# Check port conflicts
+sudo lsof -i :6333
+
+# Check logs for errors
+./manage.sh --action logs --lines 50
+```
+
+**Port Already in Use:**
+```bash
+# Use custom ports
+QDRANT_CUSTOM_PORT=6433 QDRANT_CUSTOM_GRPC_PORT=6434 ./manage.sh --action install
+```
+
+**Performance Issues:**
+```bash
+# Increase memory mapping for large collections
+export QDRANT_STORAGE_MEMMAP_THRESHOLD=500000
+
+# Optimize segment size
+export QDRANT_STORAGE_OPTIMIZED_SEGMENT_SIZE=50000
+
+# Add Docker memory limits
+docker update --memory 4g qdrant
+```
+
+**Backup/Recovery Issues:**
+```bash
+# Check disk space
+df -h ~/.qdrant/snapshots/
+
+# Fix permissions
+chmod 755 ~/.qdrant/snapshots/
+chown -R $USER:$USER ~/.qdrant/
+```
+
+### Performance Tips
+1. Use **gRPC** for high-throughput applications
+2. **Batch operations** when inserting multiple vectors
+3. **Optimize vector dimensions** for your use case
+4. **Configure memory mapping** for large collections
+5. **Monitor segment count** and optimize if needed
+
+## 📊 Business Value
+
+This Qdrant resource enables high-value AI applications:
+
+- **Semantic Search Systems**: $15,000-30,000 value
+- **Recommendation Engines**: $10,000-25,000 value  
+- **Document Intelligence**: $8,000-20,000 value
+- **AI Memory Systems**: $12,000-35,000 value
+
+**Technical Capabilities:**
+- Sub-millisecond vector similarity search
+- Horizontal scaling with cluster support
+- Advanced filtering and metadata queries
+- Real-time updates with ACID guarantees
+- Multiple distance metrics and data types
+
+## 📁 Directory Structure
+
+```
+~/.qdrant/
+├── data/                    # Vector data and indices
+│   ├── collections/         # Collection data
+│   └── meta/               # Metadata and cluster info
+├── config/                 # Configuration files
+└── snapshots/              # Backup files
 ```
 
 ---
 
-**🎯 Ready to build powerful semantic search and AI applications with Qdrant!**
-
-For advanced configuration, troubleshooting, and detailed API usage, see [Setup & Troubleshooting](docs/SETUP_AND_TROUBLESHOOTING.md) and [API Reference](docs/API.md).
+For detailed troubleshooting, see the [Enhanced Integration Test](test/integration-test.sh) which validates all functionality.

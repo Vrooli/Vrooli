@@ -1105,3 +1105,32 @@ docker::_cleanup_container_volumes() {
     
     return 0
 }
+
+#######################################
+# Remove network if it has no containers connected
+# Args: $1 - network_name
+# Returns: 0 on success, 1 on failure
+#######################################
+docker::remove_network_if_empty() {
+    local network_name="$1"
+    
+    if ! docker network exists "$network_name" 2>/dev/null; then
+        return 0  # Network doesn't exist, nothing to do
+    fi
+    
+    # Check if network has connected containers
+    local connected_containers
+    connected_containers=$(docker network inspect "$network_name" --format '{{len .Containers}}' 2>/dev/null || echo "0")
+    
+    if [[ "$connected_containers" == "0" ]]; then
+        log::info "Removing empty network: $network_name"
+        docker network rm "$network_name" 2>/dev/null || {
+            log::warn "Failed to remove network: $network_name"
+            return 1
+        }
+    else
+        log::debug "Network $network_name has $connected_containers containers, not removing"
+    fi
+    
+    return 0
+}

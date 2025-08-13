@@ -223,3 +223,170 @@ health::monitor_with_retry() {
     
     echo "$last_status"
 }
+
+#######################################
+# Check API endpoint health (alias for health::check_api)
+# Args: $1 - endpoint_url
+#       $2 - timeout_seconds (optional, default: 5)
+#       $3 - auth_header (optional)
+# Returns: 0 if healthy, 1 otherwise
+#######################################
+health::check_endpoint() {
+    local endpoint_url="$1"
+    local timeout="${2:-5}"
+    local auth_header="${3:-}"
+    
+    local curl_args=(-s -o /dev/null -w "%{http_code}" --max-time "$timeout")
+    
+    if [[ -n "$auth_header" ]]; then
+        curl_args+=(-H "$auth_header")
+    fi
+    
+    local status_code
+    status_code=$(curl "${curl_args[@]}" "$endpoint_url" 2>/dev/null || echo "000")
+    
+    [[ "$status_code" =~ ^(200|201|204)$ ]]
+}
+
+#######################################
+# Diagnose health issues with detailed reporting
+# Args: $1 - health_config (JSON configuration)
+#       $2 - additional_diagnostics_func (optional)
+# Returns: 0 on success
+#######################################
+health::diagnose() {
+    local health_config="$1"
+    local additional_diagnostics_func="${2:-}"
+    
+    echo
+    echo "🔍 Health Diagnostics Report"
+    echo "=========================="
+    
+    local container_name
+    local basic_check_func
+    local advanced_check_func
+    
+    container_name=$(echo "$health_config" | jq -r '.container_name // empty')
+    basic_check_func=$(echo "$health_config" | jq -r '.checks.basic // empty')
+    advanced_check_func=$(echo "$health_config" | jq -r '.checks.advanced // empty')
+    
+    # Container status
+    if [[ -n "$container_name" ]]; then
+        echo
+        echo "📦 Container Status:"
+        if docker::is_running "$container_name"; then
+            echo "   ✅ Container '$container_name' is running"
+            
+            # Get container stats
+            local container_stats
+            container_stats=$(docker stats "$container_name" --no-stream --format "table {{.CPUPerc}}\t{{.MemUsage}}" 2>/dev/null | tail -n 1)
+            if [[ -n "$container_stats" ]]; then
+                echo "   📊 Resource usage: $container_stats"
+            fi
+        else
+            echo "   ❌ Container '$container_name' is not running"
+        fi
+    fi
+    
+    # Basic health check
+    echo
+    echo "🏥 Basic Health Check:"
+    if [[ -n "$basic_check_func" ]] && command -v "$basic_check_func" &>/dev/null; then
+        if "$basic_check_func"; then
+            echo "   ✅ Basic health check passed"
+        else
+            echo "   ❌ Basic health check failed"
+        fi
+    else
+        echo "   ⚠️  Basic health check function not available: $basic_check_func"
+    fi
+    
+    # Advanced health check
+    echo
+    echo "🔧 Advanced Health Check:"
+    if [[ -n "$advanced_check_func" ]] && command -v "$advanced_check_func" &>/dev/null; then
+        if "$advanced_check_func"; then
+            echo "   ✅ Advanced health check passed"
+        else
+            echo "   ❌ Advanced health check failed"
+        fi
+    else
+        echo "   ⚠️  Advanced health check function not available: $advanced_check_func"
+    fi
+    
+    # Network connectivity
+    echo
+    echo "🌐 Network Connectivity:"
+    local endpoints
+    endpoints=$(echo "$health_config" | jq -r '.endpoints[]? | .url' 2>/dev/null)
+    if [[ -n "$endpoints" ]]; then
+        while IFS= read -r endpoint; do
+            if [[ -n "$endpoint" ]]; then
+                if health::check_endpoint "$endpoint" 3; then
+                    echo "   ✅ $endpoint - responding"
+                else
+                    echo "   ❌ $endpoint - not responding"
+                fi
+            fi
+        done <<< "$endpoints"
+    else
+        echo "   ⚠️  No endpoints configured for testing"
+    fi
+    
+    # Run additional diagnostics if provided
+    if [[ -n "$additional_diagnostics_func" ]] && command -v "$additional_diagnostics_func" &>/dev/null; then
+        "$additional_diagnostics_func"
+    fi
+    
+    echo
+    echo "=========================="
+    echo "Diagnostics complete"
+    
+    return 0
+}
+
+#######################################
+# Monitor health continuously
+# Args: $1 - health_config (JSON configuration)
+# Returns: Never returns (runs until interrupted)
+#######################################
+health::monitor() {
+    local health_config="$1"
+    
+    local interval
+    interval=$(echo "$health_config" | jq -r '.monitoring.interval // 30')
+    
+    echo "Starting health monitoring (interval: ${interval}s)"
+    echo "Press Ctrl+C to stop"
+    echo
+    
+    local check_count=0
+    local last_status=""
+    
+    while true; do
+        ((check_count++))
+        local timestamp
+        timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+        
+        local current_status
+        current_status=$(health::tiered_check "$health_config")
+        
+        # Only show status if it changed or every 10 checks
+        if [[ "$current_status" != "$last_status" ]] || [[ $((check_count % 10)) -eq 0 ]]; then
+            case "$current_status" in
+                "HEALTHY")
+                    echo "[$timestamp] ✅ HEALTHY (check #$check_count)"
+                    ;;
+                "DEGRADED")
+                    echo "[$timestamp] ⚠️  DEGRADED (check #$check_count)"
+                    ;;
+                "UNHEALTHY")
+                    echo "[$timestamp] ❌ UNHEALTHY (check #$check_count)"
+                    ;;
+            esac
+            last_status="$current_status"
+        fi
+        
+        sleep "$interval"
+    done
+}

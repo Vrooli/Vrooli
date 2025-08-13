@@ -576,6 +576,192 @@ qdrant::api::get_telemetry() {
     qdrant::api::request "GET" "/telemetry"
 }
 
+# Additional API functions consolidated from api.sh
+qdrant::api::test() {
+    local response
+    response=$(qdrant::api::request "GET" "/" 2>/dev/null || true)
+    
+    if echo "$response" | grep -q "qdrant\|version"; then
+        log::success "Qdrant API is accessible"
+        return 0
+    else
+        log::error "Qdrant API connection failed"
+        return 1
+    fi
+}
+
+qdrant::api::list_collections() {
+    local response
+    response=$(qdrant::api::request "GET" "/collections" 2>/dev/null || true)
+    
+    if [[ -n "$response" ]] && echo "$response" | jq -e '.result' >/dev/null 2>&1; then
+        echo "$response"
+        return 0
+    fi
+    
+    log::error "Failed to list collections"
+    return 1
+}
+
+qdrant::api::get_collection() {
+    local collection="${1:-}"
+    
+    if [[ -z "$collection" ]]; then
+        log::error "Collection name is required"
+        return 1
+    fi
+    
+    local response
+    response=$(qdrant::api::request "GET" "/collections/${collection}" 2>/dev/null || true)
+    
+    if echo "$response" | grep -q '"status":"ok"\|"result"'; then
+        echo "$response"
+        return 0
+    elif echo "$response" | grep -q "not found"; then
+        log::error "Collection '$collection' not found"
+        return 1
+    else
+        log::error "Failed to get collection info: $collection"
+        return 1
+    fi
+}
+
+qdrant::api::create_collection() {
+    local collection="${1:-}"
+    local vector_size="${2:-1536}"
+    local distance="${3:-Cosine}"
+    
+    if [[ -z "$collection" ]]; then
+        log::error "Collection name is required"
+        return 1
+    fi
+    
+    local config='{"vectors":{"size":'$vector_size',"distance":"'$distance'"}}'
+    
+    local response
+    response=$(qdrant::api::request "PUT" "/collections/${collection}" "$config" 2>/dev/null || true)
+    
+    if echo "$response" | grep -q '"status":"ok"\|"result"'; then
+        echo "$response"
+        return 0
+    else
+        log::error "Failed to create collection: $collection"
+        return 1
+    fi
+}
+
+qdrant::api::delete_collection() {
+    local collection="${1:-}"
+    
+    if [[ -z "$collection" ]]; then
+        log::error "Collection name is required"
+        return 1
+    fi
+    
+    local response
+    response=$(qdrant::api::request "DELETE" "/collections/${collection}" 2>/dev/null || true)
+    echo "$response"
+    return 0
+}
+
+qdrant::api::create_snapshot() {
+    local collection="${1:-}"
+    
+    if [[ -z "$collection" ]]; then
+        log::error "Collection name is required"
+        return 1
+    fi
+    
+    qdrant::api::request "POST" "/collections/${collection}/snapshots"
+}
+
+qdrant::api::list_snapshots() {
+    local collection="${1:-}"
+    
+    if [[ -z "$collection" ]]; then
+        log::error "Collection name is required"
+        return 1
+    fi
+    
+    qdrant::api::request "GET" "/collections/${collection}/snapshots"
+}
+
+#######################################
+# ESSENTIAL COMMON FUNCTIONS (from common.sh)
+#######################################
+
+qdrant::common::container_exists() {
+    docker::container_exists "$QDRANT_CONTAINER_NAME"
+}
+
+qdrant::common::is_port_available() {
+    local port=$1
+    
+    if command -v lsof >/dev/null 2>&1; then
+        ! lsof -Pi :"${port}" -sTCP:LISTEN -t >/dev/null 2>&1
+    else
+        ! netstat -tuln 2>/dev/null | grep -q ":${port} "
+    fi
+}
+
+qdrant::common::check_ports() {
+    local rest_port_available=true
+    local grpc_port_available=true
+    
+    if ! qdrant::common::is_port_available "${QDRANT_PORT}"; then
+        rest_port_available=false
+        log::warn "Port ${QDRANT_PORT} is already in use"
+    fi
+    
+    if ! qdrant::common::is_port_available "${QDRANT_GRPC_PORT}"; then
+        grpc_port_available=false
+        log::warn "gRPC port ${QDRANT_GRPC_PORT} is already in use"
+    fi
+    
+    if [[ "$rest_port_available" == "true" && "$grpc_port_available" == "true" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+qdrant::common::check_disk_space() {
+    local data_dir="${QDRANT_DATA_DIR}"
+    local min_space_gb="${QDRANT_MIN_DISK_SPACE_GB}"
+    
+    mkdir -p "$data_dir"
+    
+    # Check available space
+    local available_kb
+    available_kb=$(df "$data_dir" | awk 'NR==2 {print $4}')
+    local available_gb=$((available_kb / 1024 / 1024))
+    
+    if [[ $available_gb -lt $min_space_gb ]]; then
+        log::warn "Low disk space: ${available_gb}GB available (minimum: ${min_space_gb}GB)"
+        return 1
+    fi
+    
+    return 0
+}
+
+qdrant::common::cleanup() {
+    trash::safe_remove /tmp/qdrant_*.json --temp 2>/dev/null || true
+    trash::safe_remove /tmp/qdrant_*.tmp --temp 2>/dev/null || true
+}
+
+qdrant::common::get_process_info() {
+    if ! qdrant::common::is_running; then
+        echo "Qdrant container is not running"
+        return 1
+    fi
+    
+    echo "Container Information:"
+    docker inspect "${QDRANT_CONTAINER_NAME}" --format='{{json .State}}' | jq '.'
+    echo
+    echo "Resource Usage:"
+    docker stats "${QDRANT_CONTAINER_NAME}" --no-stream --format="table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.NetIO}}\t{{.BlockIO}}"
+}
+
 #######################################
 # HEALTH FRAMEWORK CONFIGURATION
 #######################################
