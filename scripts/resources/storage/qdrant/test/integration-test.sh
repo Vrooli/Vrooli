@@ -10,6 +10,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/../../../tests/lib/integration-test-lib.sh"
 
+# Create alias for make_api_request function  
+make_api_request() {
+    integration_test_lib::make_api_request "$@"
+}
+
 #######################################
 # SERVICE-SPECIFIC CONFIGURATION
 #######################################

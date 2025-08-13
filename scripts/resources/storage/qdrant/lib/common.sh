@@ -68,21 +68,11 @@ qdrant::common::check_ports() {
 }
 
 #######################################
-# Get Qdrant container status
-# Outputs: Status description
-# Returns: 0 if container exists, 1 if not
+# Get Qdrant container status  
+# Returns: Status string
 #######################################
 qdrant::common::get_container_status() {
-    if ! qdrant::common::container_exists; then
-        echo "Container does not exist"
-        return 1
-    fi
-    
-    if qdrant::common::is_running; then
-        echo "Running"
-    else
-        echo "Stopped"
-    fi
+    docker::get_container_status "$QDRANT_CONTAINER_NAME"
 }
 
 #######################################
@@ -156,14 +146,8 @@ qdrant::common::wait_for_startup() {
 #######################################
 qdrant::common::show_logs() {
     local lines="${1:-50}"
-    
-    if ! qdrant::common::container_exists; then
-        log::error "Qdrant container does not exist"
-        return 1
-    fi
-    
-    log::info "Showing last ${lines} lines of Qdrant logs:"
-    docker logs --tail "$lines" "${QDRANT_CONTAINER_NAME}" 2>&1
+    # Use docker logs with --tail to avoid hanging
+    docker logs "$QDRANT_CONTAINER_NAME" --tail "$lines" 2>&1
 }
 
 #######################################

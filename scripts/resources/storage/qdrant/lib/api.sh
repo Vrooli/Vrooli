@@ -1,297 +1,352 @@
 #!/usr/bin/env bash
-# Qdrant API Management
-# Functions for interacting with Qdrant REST API
+# Qdrant API Interface
+# Provides HTTP request handling for Qdrant API operations using shared frameworks
 
-# Source var.sh for directory variables
+set -euo pipefail
+
+# Get directory of this script
+QDRANT_API_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source required utilities
 # shellcheck disable=SC1091
-source "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${QDRANT_API_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+source "${var_LIB_UTILS_DIR}/log.sh"
+
+# Source configuration
+# shellcheck disable=SC1091
+source "${QDRANT_API_DIR}/../config/defaults.sh"
+qdrant::export_config
 
 #######################################
 # Make authenticated API request to Qdrant
 # Arguments:
 #   $1 - HTTP method (GET, POST, PUT, DELETE)
-#   $2 - API endpoint (without base URL)
-#   $3 - Request body (optional, for POST/PUT)
-# Outputs: API response
-# Returns: 0 on success, 1 on failure
+#   $2 - API endpoint (e.g., /collections)
+#   $3 - Request body (optional, JSON string)
+#   $4 - Additional headers (optional)
+# Returns:
+#   Response body via stdout
+#   0 for successful request, 1 for failure
 #######################################
 qdrant::api::request() {
-    local method="$1"
-    local endpoint="$2"
+    local method="${1:-GET}"
+    local endpoint="${2:-/}"
     local body="${3:-}"
+    local extra_headers="${4:-}"
     
+    # Ensure endpoint starts with /
+    if [[ "$endpoint" != /* ]]; then
+        endpoint="/$endpoint"
+    fi
+    
+    # Build full URL
     local url="${QDRANT_BASE_URL}${endpoint}"
-    local curl_cmd=(
-        "curl" "-s" "-X" "$method"
-        "--max-time" "${QDRANT_API_TIMEOUT}"
-        "-H" "Content-Type: application/json"
-    )
     
-    # Add authentication header if API key is configured
+    # Build curl command
+    local curl_args=("-s" "-X" "$method")
+    
+    # Add API key if configured
     if [[ -n "${QDRANT_API_KEY:-}" ]]; then
-        curl_cmd+=("-H" "api-key: ${QDRANT_API_KEY}")
+        curl_args+=("-H" "api-key: ${QDRANT_API_KEY}")
     fi
     
-    # Add request body for POST/PUT requests
+    # Add extra headers if provided
+    if [[ -n "$extra_headers" ]]; then
+        curl_args+=("-H" "$extra_headers")
+    fi
+    
+    # Add body for write operations
     if [[ -n "$body" ]]; then
-        curl_cmd+=("-d" "$body")
+        curl_args+=("-H" "Content-Type: application/json")
+        curl_args+=("-d" "$body")
     fi
     
-    # Add URL
-    curl_cmd+=("$url")
+    # Add timeout
+    curl_args+=("--max-time" "30")
     
-    # Execute request
-    "${curl_cmd[@]}"
-}
-
-#######################################
-# Get Qdrant cluster information
-# Outputs: Cluster information JSON
-# Returns: 0 on success, 1 on failure
-#######################################
-qdrant::api::get_cluster_info() {
-    qdrant::api::request "GET" "/cluster"
-}
-
-#######################################
-# Get Qdrant telemetry information
-# Outputs: Telemetry JSON
-# Returns: 0 on success, 1 on failure
-#######################################
-qdrant::api::get_telemetry() {
-    qdrant::api::request "GET" "/telemetry"
-}
-
-#######################################
-# Get health status
-# Returns: 0 if healthy, 1 if not
-#######################################
-qdrant::api::health_check() {
+    # Make the request
     local response
-    response=$(qdrant::api::request "GET" "/" 2>/dev/null)
+    response=$(curl "${curl_args[@]}" "$url" 2>/dev/null || echo "ERROR: Connection failed")
     
-    if [[ $? -eq 0 && -n "$response" ]]; then
-        # Check if response contains version information
-        if echo "$response" | jq -e '.version' >/dev/null 2>&1; then
-            return 0
-        fi
+    # Log debug info if verbose
+    if [[ "${VERBOSE:-false}" == "true" ]]; then
+        log::debug "API Request: $method $url"
+        [[ -n "$response" ]] && log::debug "Response: ${response:0:200}..."
     fi
     
-    return 1
-}
-
-#######################################
-# Get detailed health status with error information
-# Outputs: Detailed health status message
-# Returns: 0 if healthy, 1 if not
-#######################################
-qdrant::api::detailed_health_check() {
-    local auth_header=""
-    if [[ -n "${QDRANT_API_KEY:-}" ]]; then
-        auth_header="-H \"api-key: ${QDRANT_API_KEY}\""
-    fi
-    
-    local temp_output=$(mktemp)
-    local http_code
-    local curl_exit_code
-    
-    # Use curl with detailed options to capture both status and errors
-    http_code=$(eval "curl -s -w \"%{http_code}\" --max-time ${QDRANT_API_TIMEOUT} --connect-timeout 3 ${auth_header} --output \"$temp_output\" \"${QDRANT_BASE_URL}/\" 2>/dev/null")
-    curl_exit_code=$?
-    
-    # Clean up temp file
-    trash::safe_remove "$temp_output" --temp
-    
-    # Analyze the results and provide specific error messages
-    case $curl_exit_code in
-        0)
-            # Success - check HTTP status code
-            case $http_code in
-                200)
-                    echo "✅ Healthy"
-                    return 0
-                    ;;
-                401)
-                    echo "⚠️  Service running but authentication failed"
-                    return 1
-                    ;;
-                403)
-                    echo "⚠️  Service running but access denied"
-                    return 1
-                    ;;
-                5*)
-                    echo "⚠️  Service running but internal error (HTTP $http_code)"
-                    return 1
-                    ;;
-                *)
-                    echo "⚠️  Service responded with HTTP $http_code"
-                    return 1
-                    ;;
-            esac
-            ;;
-        7)
-            echo "⚠️  Service not running (connection refused)"
-            return 1
-            ;;
-        28)
-            echo "⚠️  Service running but health check timed out"
-            return 1
-            ;;
-        6)
-            echo "⚠️  Network connectivity problem (DNS resolution failed)"
-            return 1
-            ;;
-        *)
-            echo "⚠️  Health check failed (curl error $curl_exit_code)"
-            return 1
-            ;;
-    esac
-}
-
-#######################################
-# Get service metrics
-# Outputs: Service metrics JSON
-# Returns: 0 on success, 1 on failure
-#######################################
-qdrant::api::get_metrics() {
-    qdrant::api::request "GET" "/metrics"
-}
-
-#######################################
-# Test API connectivity with detailed diagnostics
-# Outputs: Diagnostic information
-# Returns: 0 if successful, 1 if failed
-#######################################
-qdrant::api::diagnose_connectivity() {
-    echo "=== Qdrant API Connectivity Diagnostics ==="
-    echo
-    
-    # Test basic connectivity
-    echo "1. Testing basic connectivity..."
-    if qdrant::api::health_check; then
-        echo "   ✅ API is responding"
-    else
-        echo "   ❌ API is not responding"
-        echo "   Details: $(qdrant::api::detailed_health_check)"
+    # Check for connection errors
+    if [[ "$response" == "ERROR: Connection failed" ]]; then
+        log::error "Failed to connect to Qdrant API at $url"
         return 1
     fi
     
-    # Test authentication
-    echo
-    echo "2. Testing authentication..."
-    if [[ -n "${QDRANT_API_KEY:-}" ]]; then
-        echo "   ℹ️  API key is configured"
-        local auth_test
-        if qdrant::api::request "GET" "/cluster" >/dev/null 2>&1; then
-            echo "   ✅ Authentication successful"
-        else
-            echo "   ❌ Authentication failed"
-            return 1
-        fi
-    else
-        echo "   ⚠️  No API key configured (unauthenticated access)"
-    fi
+    # Output response
+    echo "$response"
     
-    # Test cluster information
-    echo
-    echo "3. Testing cluster information retrieval..."
-    local cluster_info
-    cluster_info=$(qdrant::api::get_cluster_info 2>/dev/null)
-    if [[ $? -eq 0 && -n "$cluster_info" ]]; then
-        echo "   ✅ Cluster information retrieved"
-        local peer_count
-        peer_count=$(echo "$cluster_info" | jq -r '.result.peers | length' 2>/dev/null || echo "unknown")
-        echo "   ℹ️  Cluster peers: $peer_count"
-    else
-        echo "   ❌ Failed to retrieve cluster information"
-        return 1
-    fi
-    
-    # Test telemetry
-    echo
-    echo "4. Testing telemetry endpoint..."
-    local telemetry
-    telemetry=$(qdrant::api::get_telemetry 2>/dev/null)
-    if [[ $? -eq 0 && -n "$telemetry" ]]; then
-        echo "   ✅ Telemetry endpoint accessible"
-    else
-        echo "   ⚠️  Telemetry endpoint not accessible (may be disabled)"
-    fi
-    
-    echo
-    echo "=== Diagnostics Complete ==="
+    # Return success - let caller check response content for errors
     return 0
 }
 
 #######################################
-# Get API version information
-# Outputs: Version string
-# Returns: 0 on success, 1 on failure
+# Test Qdrant API connectivity
+# Returns:
+#   0 if API is accessible
+#   1 if API is not accessible
 #######################################
-qdrant::api::get_version() {
+qdrant::api::test() {
     local response
-    response=$(qdrant::api::request "GET" "/" 2>/dev/null)
     
-    if [[ $? -eq 0 && -n "$response" ]]; then
-        echo "$response" | jq -r '.version // "unknown"' 2>/dev/null || echo "unknown"
+    # Try to get basic info
+    response=$(qdrant::api::request "GET" "/" 2>/dev/null || true)
+    
+    # Check if we got a valid Qdrant response
+    if echo "$response" | grep -q "qdrant\|version"; then
+        log::success "Qdrant API is accessible"
         return 0
+    elif echo "$response" | grep -q "ERROR:"; then
+        log::error "Qdrant API connection failed"
+        return 1
     else
-        echo "unknown"
+        log::error "Qdrant API returned unexpected response: ${response:0:100}..."
         return 1
     fi
 }
 
 #######################################
-# Wait for API to become available
-# Arguments:
-#   $1 - Maximum wait time in seconds (optional)
-# Returns: 0 if API becomes available, 1 if timeout
+# Get Qdrant cluster info
+# Returns:
+#   Cluster information as JSON
 #######################################
-qdrant::api::wait_for_availability() {
-    local max_wait="${1:-$QDRANT_STARTUP_MAX_WAIT}"
-    local elapsed=0
+qdrant::api::cluster_info() {
+    local response
+    response=$(qdrant::api::request "GET" "/cluster" 2>/dev/null || true)
     
-    while [[ $elapsed -lt $max_wait ]]; do
-        if qdrant::api::health_check; then
-            return 0
-        fi
-        
-        sleep "${QDRANT_STARTUP_WAIT_INTERVAL}"
-        elapsed=$((elapsed + QDRANT_STARTUP_WAIT_INTERVAL))
-    done
+    # Check for error responses
+    if echo "$response" | grep -q "ERROR:"; then
+        log::error "Failed to get cluster info"
+        return 1
+    fi
     
+    echo "$response"
+    return 0
+}
+
+#######################################
+# Get Qdrant telemetry data
+# Returns:
+#   Telemetry data as JSON
+#######################################
+qdrant::api::telemetry() {
+    local response
+    response=$(qdrant::api::request "GET" "/telemetry" 2>/dev/null || true)
+    
+    if [[ $? -eq 0 ]] || [[ $? -eq 200 ]]; then
+        echo "$response"
+        return 0
+    fi
+    
+    log::error "Failed to get telemetry data"
     return 1
 }
 
 #######################################
-# Get comprehensive service status
-# Outputs: Service status information
-# Returns: 0 always (informational)
+# List all collections
+# Returns:
+#   List of collections as JSON
 #######################################
-qdrant::api::get_service_status() {
-    echo "=== Qdrant Service Status ==="
-    echo
+qdrant::api::list_collections() {
+    local response
+    response=$(qdrant::api::request "GET" "/collections" 2>/dev/null || true)
     
-    # Basic connectivity
-    echo "API Health: $(qdrant::api::detailed_health_check)"
-    
-    # Version information
-    local version
-    version=$(qdrant::api::get_version)
-    echo "Version: $version"
-    
-    # Cluster information
-    if qdrant::api::health_check; then
-        local cluster_info
-        cluster_info=$(qdrant::api::get_cluster_info 2>/dev/null)
-        if [[ $? -eq 0 && -n "$cluster_info" ]]; then
-            local peer_count
-            peer_count=$(echo "$cluster_info" | jq -r '.result.peers | length' 2>/dev/null || echo "unknown")
-            echo "Cluster Peers: $peer_count"
-        fi
+    # Check if we got a valid response
+    if [[ -n "$response" ]] && echo "$response" | jq -e '.result' >/dev/null 2>&1; then
+        echo "$response"
+        return 0
     fi
     
-    echo
+    log::error "Failed to list collections"
+    return 1
 }
+
+#######################################
+# Get collection info
+# Arguments:
+#   $1 - Collection name
+# Returns:
+#   Collection info as JSON
+#######################################
+qdrant::api::get_collection() {
+    local collection="${1:-}"
+    
+    if [[ -z "$collection" ]]; then
+        log::error "Collection name is required"
+        return 1
+    fi
+    
+    local response
+    response=$(qdrant::api::request "GET" "/collections/${collection}" 2>/dev/null || true)
+    
+    # Check for error responses
+    if echo "$response" | grep -q "ERROR:"; then
+        log::error "Failed to get collection info: $collection"
+        return 1
+    elif echo "$response" | grep -q "not found"; then
+        log::error "Collection '$collection' not found"
+        return 1
+    elif echo "$response" | grep -q '"status":"ok"\|"result"'; then
+        echo "$response"
+        return 0
+    else
+        log::error "Failed to get collection info: $collection"
+        return 1
+    fi
+}
+
+#######################################
+# Create a new collection
+# Arguments:
+#   $1 - Collection name
+#   $2 - Vector size
+#   $3 - Distance metric (Cosine, Euclid, Dot)
+# Returns:
+#   Creation response as JSON
+#######################################
+qdrant::api::create_collection() {
+    local collection="${1:-}"
+    local vector_size="${2:-1536}"
+    local distance="${3:-Cosine}"
+    
+    if [[ -z "$collection" ]]; then
+        log::error "Collection name is required"
+        return 1
+    fi
+    
+    local config
+    config=$(cat <<EOF
+{
+    "vectors": {
+        "size": ${vector_size},
+        "distance": "${distance}"
+    }
+}
+EOF
+    )
+    
+    local response
+    response=$(qdrant::api::request "PUT" "/collections/${collection}" "$config" 2>/dev/null || true)
+    
+    # Check for error responses
+    if echo "$response" | grep -q "ERROR:"; then
+        log::error "Failed to create collection: $collection"
+        return 1
+    elif echo "$response" | grep -q '"status":"ok"\|"result"'; then
+        echo "$response"
+        return 0
+    else
+        log::error "Failed to create collection: $collection"
+        echo "$response"
+        return 1
+    fi
+}
+
+#######################################
+# Delete a collection
+# Arguments:
+#   $1 - Collection name
+# Returns:
+#   Deletion response as JSON
+#######################################
+qdrant::api::delete_collection() {
+    local collection="${1:-}"
+    
+    if [[ -z "$collection" ]]; then
+        log::error "Collection name is required"
+        return 1
+    fi
+    
+    local response
+    response=$(qdrant::api::request "DELETE" "/collections/${collection}" 2>/dev/null || true)
+    local http_code=$?
+    
+    if [[ $http_code -eq 0 ]] || [[ $http_code -eq 200 ]] || [[ $http_code -eq 204 ]]; then
+        echo "$response"
+        return 0
+    elif [[ $http_code -eq 404 ]]; then
+        log::error "Collection '$collection' not found"
+        return 1
+    else
+        log::error "Failed to delete collection (HTTP code: $http_code)"
+        return 1
+    fi
+}
+
+#######################################
+# Create a snapshot of a collection
+# Arguments:
+#   $1 - Collection name
+# Returns:
+#   Snapshot info as JSON
+#######################################
+qdrant::api::create_snapshot() {
+    local collection="${1:-}"
+    
+    if [[ -z "$collection" ]]; then
+        log::error "Collection name is required"
+        return 1
+    fi
+    
+    local response
+    response=$(qdrant::api::request "POST" "/collections/${collection}/snapshots" 2>/dev/null || true)
+    local http_code=$?
+    
+    if [[ $http_code -eq 0 ]] || [[ $http_code -eq 200 ]] || [[ $http_code -eq 201 ]]; then
+        echo "$response"
+        return 0
+    else
+        log::error "Failed to create snapshot (HTTP code: $http_code)"
+        return 1
+    fi
+}
+
+#######################################
+# List snapshots for a collection
+# Arguments:
+#   $1 - Collection name
+# Returns:
+#   List of snapshots as JSON
+#######################################
+qdrant::api::list_snapshots() {
+    local collection="${1:-}"
+    
+    if [[ -z "$collection" ]]; then
+        log::error "Collection name is required"
+        return 1
+    fi
+    
+    local response
+    response=$(qdrant::api::request "GET" "/collections/${collection}/snapshots" 2>/dev/null || true)
+    local http_code=$?
+    
+    if [[ $http_code -eq 0 ]] || [[ $http_code -eq 200 ]]; then
+        echo "$response"
+        return 0
+    else
+        log::error "Failed to list snapshots (HTTP code: $http_code)"
+        return 1
+    fi
+}
+
+#######################################
+# Export all API functions
+#######################################
+export -f qdrant::api::request
+export -f qdrant::api::test
+export -f qdrant::api::cluster_info
+export -f qdrant::api::telemetry
+export -f qdrant::api::list_collections
+export -f qdrant::api::get_collection
+export -f qdrant::api::create_collection
+export -f qdrant::api::delete_collection
+export -f qdrant::api::create_snapshot
+export -f qdrant::api::list_snapshots

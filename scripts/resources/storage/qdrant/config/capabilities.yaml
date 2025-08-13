@@ -1,0 +1,294 @@
+apiVersion: vrooli.com/v1
+kind: ResourceCapability
+metadata:
+  name: qdrant
+  category: storage
+  subcategory: vector-database
+  description: "High-performance vector similarity search engine with real-time capabilities"
+  maturity: stable
+  complexity: intermediate
+  
+spec:
+  # Core capabilities this resource provides
+  capabilities:
+    primary:
+      - vector-similarity-search
+      - semantic-search
+      - embedding-storage
+      - real-time-indexing
+    secondary:
+      - payload-filtering
+      - geolocation-search
+      - hybrid-search
+      - clustering-analysis
+    specialized:
+      - quantization-optimization
+      - distributed-deployment
+      - hnsw-indexing
+      - sparse-vector-support
+  
+  # API interfaces available
+  interfaces:
+    - name: collections-management
+      endpoint: "/collections"
+      method: [GET, POST, PUT, DELETE]
+      inputTypes: [json]
+      outputTypes: [json]
+      description: "Manage vector collections and their configurations"
+    - name: points-operations
+      endpoint: "/collections/{collection}/points"
+      method: [GET, POST, PUT, DELETE]
+      inputTypes: [json]
+      outputTypes: [json]
+      description: "Insert, update, search and retrieve vectors with metadata"
+    - name: search
+      endpoint: "/collections/{collection}/points/search"
+      method: [POST]
+      inputTypes: [json]
+      outputTypes: [json]
+      description: "Semantic similarity search with filtering capabilities"
+    - name: recommendations
+      endpoint: "/collections/{collection}/points/recommend"
+      method: [POST]
+      inputTypes: [json]
+      outputTypes: [json]
+      description: "Find similar vectors based on positive and negative examples"
+    - name: cluster-management
+      endpoint: "/cluster"
+      method: [GET, POST, PUT, DELETE]
+      inputTypes: [json]
+      outputTypes: [json]
+      description: "Distributed cluster management and peer coordination"
+  
+  # Resource dependencies and requirements
+  dependencies:
+    required: []
+    optional:
+      - docker
+    incompatible: []
+  
+  # Scenario compatibility
+  scenarios:
+    primary:
+      - ai-powered-research-assistant
+      - semantic-search-engine
+      - recommendation-systems
+    secondary:
+      - document-analysis-platform
+      - similarity-matching-service
+      - content-discovery-engine
+    optimal_combinations:
+      - [qdrant, ollama, unstructured-io]     # AI-powered document processing
+      - [qdrant, whisper, agent-s2]          # Multi-modal semantic search
+      - [qdrant, n8n, postgres]              # Automated data pipelines
+      - [qdrant, minio, vault]               # Secure document storage and search
+  
+  # Business intelligence
+  business:
+    revenue_range:
+      min: 8000
+      max: 45000
+      currency: USD
+    complexity_score: 8  # 1-10 scale
+    implementation_time: "3-7 days"
+    upwork_demand: very-high
+    target_industries:
+      - ai-applications
+      - semantic-search
+      - recommendation-engines
+      - document-analysis
+      - content-platforms
+      - research-tools
+    common_project_types:
+      - "AI-powered search engine"
+      - "Semantic recommendation system"
+      - "Document similarity platform"
+      - "Content discovery engine"
+      - "Knowledge base with semantic search"
+      - "Multi-modal search platform"
+  
+  # Technical specifications
+  technical:
+    ports: [6333, 6334]
+    protocols: [http, grpc, rest]
+    data_formats: [json, binary]
+    resource_requirements:
+      memory:
+        minimum: "1GB"
+        recommended: "4GB"
+        optimal: "8GB+"
+      cpu:
+        minimum: "2 cores"
+        recommended: "4 cores"
+        optimal: "8+ cores"
+      storage:
+        minimum: "5GB"
+        recommended: "50GB"
+        optimal: "500GB+"
+      network:
+        bandwidth: "100 Mbps+"
+        latency: "<10ms optimal"
+    scaling:
+      horizontal: true
+      vertical: true
+      max_collections: unlimited
+      max_vectors_per_collection: 100000000+
+      query_performance: "sub-millisecond"
+  
+  # AI generation hints for automated scenario creation
+  ai_generation:
+    common_patterns:
+      - semantic-similarity-search
+      - embedding-based-retrieval
+      - content-recommendation
+      - document-clustering
+      - nearest-neighbor-search
+    integration_targets:
+      preferred: [ollama, unstructured-io, whisper, agent-s2]
+      compatible: [n8n, postgres, minio, vault, redis]
+      avoid: [traditional-sql-only, non-vector-data]
+    use_case_templates:
+      semantic_search: "Embed {content_type} → Store in Qdrant → Search by {query_type} → Return {result_format}"
+      recommendation: "Profile {user_data} → Find similar {content} → Score by {criteria} → Recommend {items}"
+      clustering: "Vectorize {dataset} → Cluster by {similarity} → Analyze {patterns} → Extract {insights}"
+    complexity_indicators:
+      simple: ["basic similarity search", "single collection setup", "static embeddings"]
+      intermediate: ["multi-collection search", "filtered queries", "real-time updates"]
+      advanced: ["distributed deployment", "custom quantization", "hybrid search systems"]
+  
+  # Specialized features
+  features:
+    hnsw_indexing:
+      enabled: true
+      description: "Hierarchical Navigable Small World graphs for fast approximate search"
+      performance: "sub-millisecond queries"
+    quantization:
+      enabled: true
+      description: "Scalar and product quantization for memory optimization"
+      compression_ratio: "4x-16x"
+    payload_filtering:
+      enabled: true
+      description: "Filter search results by metadata without performance loss"
+      filter_types: [exact, range, geo, text]
+    real_time_updates:
+      enabled: true
+      description: "Insert, update, delete vectors without service interruption"
+      consistency: eventual
+    distributed_deployment:
+      enabled: true
+      description: "Scale horizontally across multiple nodes with automatic sharding"
+      replication: configurable
+    hybrid_search:
+      enabled: true
+      description: "Combine dense and sparse vectors for enhanced search quality"
+      fusion_methods: [reciprocal_rank, weighted_sum]
+  
+  # Integration capabilities
+  integrations:
+    embedding_models:
+      - openai_ada_002
+      - sentence_transformers
+      - huggingface_models
+      - cohere_embeddings
+      - custom_models
+    vector_types:
+      - dense_vectors
+      - sparse_vectors
+      - multi_vectors
+      - named_vectors
+    client_libraries:
+      - python
+      - javascript
+      - rust
+      - go
+      - java
+      - dotnet
+    frameworks_compatible:
+      - langchain
+      - haystack
+      - weaviate_migration
+      - pinecone_migration
+  
+  # Default collections for Vrooli ecosystem
+  default_collections:
+    agent_memory:
+      vector_size: 1536
+      distance: "Cosine"
+      description: "AI agent conversation memory and context"
+    code_embeddings:
+      vector_size: 768
+      distance: "Dot"
+      description: "Source code semantic embeddings"
+    document_chunks:
+      vector_size: 1536
+      distance: "Cosine"
+      description: "Document chunks for RAG systems"
+    conversation_history:
+      vector_size: 1536
+      distance: "Cosine"
+      description: "Chat history and user interactions"
+  
+  # Testing and validation
+  testing:
+    test_file: "scripts/resources/storage/qdrant/test/integration-test.sh"
+    test_coverage:
+      - service_health
+      - api_functionality
+      - collection_management
+      - vector_operations
+      - search_performance
+      - backup_recovery
+    fixtures:
+      - sample_collections
+      - test_vectors
+      - search_scenarios
+    integration_tests:
+      - qdrant_ollama_embeddings
+      - qdrant_unstructured_pipeline
+      - multi_collection_search
+      - performance_benchmarks
+  
+  # Documentation and examples
+  documentation:
+    readme: "scripts/resources/storage/qdrant/README.md"
+    api_reference: "scripts/resources/storage/qdrant/docs/API.md"
+    examples_dir: "scripts/resources/storage/qdrant/examples/"
+    configuration: "scripts/resources/storage/qdrant/docs/CONFIGURATION.md"
+    troubleshooting: "scripts/resources/storage/qdrant/docs/TROUBLESHOOTING.md"
+  
+  # Performance characteristics
+  performance:
+    search_latency:
+      p50: "<1ms"
+      p95: "<5ms"
+      p99: "<20ms"
+    throughput:
+      queries_per_second: 10000+
+      inserts_per_second: 5000+
+      updates_per_second: 3000+
+    memory_efficiency:
+      compression_ratio: "4x-16x"
+      indexing_overhead: "20-40%"
+    accuracy:
+      recall_at_100: ">95%"
+      precision: ">98%"
+  
+  # Version and compatibility
+  version_info:
+    min_version: "1.0.0"
+    tested_version: "1.11.0"
+    api_version: "v1"
+    compatibility_matrix:
+      docker: ">=20.10.0"
+      memory: ">=1GB"
+      architecture: [amd64, arm64]
+      vector_dimensions: "1-65536"
+
+# Metadata for resource discovery and automation
+labels:
+  resource.vrooli.com/category: "storage"
+  resource.vrooli.com/type: "vector-database"
+  resource.vrooli.com/maturity: "stable"
+  resource.vrooli.com/business-value: "very-high"
+  resource.vrooli.com/ai-friendly: "true"
+  resource.vrooli.com/performance: "high"

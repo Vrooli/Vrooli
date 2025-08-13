@@ -68,6 +68,7 @@ EOF
     local response
     response=$(qdrant::api::request "PUT" "/collections/${collection_name}" "$config" 2>/dev/null)
     
+    # Check if request was successful (api::request returns 0 for success)
     if [[ $? -eq 0 ]]; then
         # Check if the response indicates success
         local status
@@ -126,6 +127,7 @@ qdrant::collections::delete() {
     local response
     response=$(qdrant::api::request "DELETE" "/collections/${collection_name}" 2>/dev/null)
     
+    # Check if request was successful
     if [[ $? -eq 0 ]]; then
         local status
         status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
@@ -157,6 +159,7 @@ qdrant::collections::exists() {
     local response
     response=$(qdrant::api::request "GET" "/collections/${collection_name}" 2>/dev/null)
     
+    # Check if request was successful
     if [[ $? -eq 0 ]]; then
         local status
         status=$(echo "$response" | jq -r '.status // "unknown"' 2>/dev/null)
@@ -206,7 +209,8 @@ qdrant::collections::list() {
             local collection_response
             collection_response=$(qdrant::api::request "GET" "/collections/${collection_name}" 2>/dev/null)
             
-            if [[ $? -eq 0 ]]; then
+            # Check if request was successful
+    if [[ $? -eq 0 ]]; then
                 echo "$collection_response" | jq -r '
                     .result |
                     "Name: " + "'"$collection_name"'" +
@@ -234,6 +238,7 @@ qdrant::collections::list_simple() {
     local response
     response=$(qdrant::api::request "GET" "/collections" 2>/dev/null)
     
+    # Check if request was successful
     if [[ $? -eq 0 ]]; then
         echo "$response" | jq -r '.result.collections[]?.name // empty' 2>/dev/null
     else
@@ -318,6 +323,7 @@ qdrant::collections::get_vector_count() {
     local response
     response=$(qdrant::api::request "GET" "/collections/${collection_name}" 2>/dev/null)
     
+    # Check if request was successful
     if [[ $? -eq 0 ]]; then
         echo "$response" | jq -r '.result.vectors_count // 0' 2>/dev/null || echo "0"
     else
@@ -334,6 +340,7 @@ qdrant::collections::count() {
     local response
     response=$(qdrant::api::request "GET" "/collections" 2>/dev/null)
     
+    # Check if request was successful
     if [[ $? -eq 0 ]]; then
         echo "$response" | jq -r '.result.collections | length' 2>/dev/null || echo "0"
     else

@@ -3,17 +3,27 @@
 # All configuration constants and default values
 
 # Default port constants for test reference
-readonly QDRANT_DEFAULT_PORT="6333"
-readonly QDRANT_DEFAULT_GRPC_PORT="6334"
+if [[ -z "${QDRANT_DEFAULT_PORT:-}" ]]; then
+    readonly QDRANT_DEFAULT_PORT="6333"
+fi
+if [[ -z "${QDRANT_DEFAULT_GRPC_PORT:-}" ]]; then
+    readonly QDRANT_DEFAULT_GRPC_PORT="6334"
+fi
 
 #######################################
 # Export configuration constants
 # Idempotent - safe to call multiple times
 #######################################
 qdrant::export_config() {
+    # Guard against multiple calls
+    if [[ -n "${QDRANT_CONFIG_EXPORTED:-}" ]]; then
+        return 0
+    fi
+    readonly QDRANT_CONFIG_EXPORTED="true"
+    
     # Service configuration (only set if not already defined)
     if [[ -z "${QDRANT_PORT:-}" ]]; then
-        readonly QDRANT_PORT="${QDRANT_CUSTOM_PORT:-$(resources::get_default_port "qdrant")}"
+        readonly QDRANT_PORT="${QDRANT_CUSTOM_PORT:-$QDRANT_DEFAULT_PORT}"
     fi
     if [[ -z "${QDRANT_GRPC_PORT:-}" ]]; then
         readonly QDRANT_GRPC_PORT="${QDRANT_CUSTOM_GRPC_PORT:-6334}"

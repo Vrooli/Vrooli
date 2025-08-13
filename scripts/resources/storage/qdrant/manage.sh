@@ -18,7 +18,7 @@ source "${var_SCRIPTS_RESOURCES_DIR}/common.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/args-cli.sh"
 # shellcheck disable=SC1091
-source "${var_APP_DIR}/utils/docker.sh"
+source "${var_LIB_DIR}/runtimes/docker.sh"
 
 # Source configuration
 # shellcheck disable=SC1091
@@ -30,21 +30,25 @@ source "${QDRANT_SCRIPT_DIR}/config/messages.sh"
 qdrant::export_config
 qdrant::messages::init
 
-# Source all library modules
+# Source library modules
 # shellcheck disable=SC1091
 source "${QDRANT_LIB_DIR}/common.sh"
 # shellcheck disable=SC1091
-source "${QDRANT_LIB_DIR}/docker.sh"
-# shellcheck disable=SC1091
 source "${QDRANT_LIB_DIR}/api.sh"
+# shellcheck disable=SC1091
+source "${QDRANT_LIB_DIR}/health.sh"
+# shellcheck disable=SC1091
+source "${QDRANT_LIB_DIR}/core.sh"
 # shellcheck disable=SC1091
 source "${QDRANT_LIB_DIR}/collections.sh"
 # shellcheck disable=SC1091
-source "${QDRANT_LIB_DIR}/status.sh"
+source "${QDRANT_LIB_DIR}/snapshots.sh"
+# shellcheck disable=SC1091
+source "${QDRANT_LIB_DIR}/recovery.sh"
+# shellcheck disable=SC1091
+source "${QDRANT_LIB_DIR}/inject.sh"
 # shellcheck disable=SC1091
 source "${QDRANT_LIB_DIR}/install.sh"
-# shellcheck disable=SC1091
-source "${QDRANT_LIB_DIR}/snapshots.sh"
 
 #######################################
 # Parse command line arguments
@@ -60,7 +64,7 @@ qdrant::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|info|test|diagnose|monitor|list-collections|create-collection|delete-collection|collection-info|backup|restore|index-stats|upgrade" \
+        --options "install|uninstall|start|stop|restart|status|logs|info|test|diagnose|monitor|list-collections|create-collection|delete-collection|collection-info|backup|restore|list-backups|backup-info|index-stats|upgrade|inject|validate-injection" \
         --default "status"
     
     args::register \
@@ -126,6 +130,12 @@ qdrant::parse_arguments() {
         --type "value" \
         --default "5"
     
+    args::register \
+        --name "injection-config" \
+        --desc "JSON configuration for data injection" \
+        --type "value" \
+        --default ""
+    
     if args::is_asking_for_help "$@"; then
         qdrant::usage
         exit 0
@@ -143,6 +153,25 @@ qdrant::parse_arguments() {
     export COLLECTIONS_LIST=$(args::get "collections")
     export LOG_LINES=$(args::get "lines")
     export MONITOR_INTERVAL=$(args::get "interval")
+    export INJECTION_CONFIG=$(args::get "injection-config")
+    export YES=$(args::get "yes")
+}
+
+#######################################
+# Display usage information
+#######################################
+#######################################
+# Execute command only if Qdrant is running
+# Arguments: command to execute
+# Returns: command result or exits with error
+#######################################
+qdrant::require_running() {
+    if qdrant::common::is_running; then
+        "$@"
+    else
+        log::error "Qdrant is not running"
+        exit 1
+    fi
 }
 
 #######################################
@@ -184,6 +213,12 @@ qdrant::usage() {
     echo
     echo "  # Uninstall and remove all data"
     echo "  $0 --action uninstall --remove-data yes"
+    echo
+    echo "  # Validate injection configuration"
+    echo "  $0 --action validate-injection --injection-config '{\"collections\": [{\"name\": \"docs\", \"size\": 384}]}'"
+    echo
+    echo "  # Inject collections and vectors"
+    echo "  $0 --action inject --injection-config '{\"collections\": [{\"name\": \"docs\", \"size\": 384}], \"vectors\": [{\"collection\": \"docs\", \"vectors\": \"data.json\"}]}'"
     echo
     echo "Environment Variables:"
     echo "  QDRANT_CUSTOM_PORT         - Custom REST API port (default: 6333)"
@@ -239,18 +274,13 @@ main() {
             qdrant::test
             ;;
         diagnose)
-            qdrant::status::diagnose
+            qdrant::diagnose
             ;;
         monitor)
             qdrant::status::monitor "$MONITOR_INTERVAL"
             ;;
         list-collections)
-            if qdrant::common::is_running; then
-                qdrant::collections::list
-            else
-                log::error "Qdrant is not running"
-                exit 1
-            fi
+            qdrant::require_running qdrant::collections::list
             ;;
         create-collection)
             if [[ -z "${COLLECTION:-}" ]]; then
@@ -258,12 +288,7 @@ main() {
                 log::info "Usage: $0 --action create-collection --collection <name> [--vector-size <size>] [--distance <metric>]"
                 exit 1
             fi
-            if qdrant::common::is_running; then
-                qdrant::collections::create "$COLLECTION" "$VECTOR_SIZE" "$DISTANCE_METRIC"
-            else
-                log::error "Qdrant is not running"
-                exit 1
-            fi
+            qdrant::require_running qdrant::collections::create "$COLLECTION" "$VECTOR_SIZE" "$DISTANCE_METRIC"
             ;;
         delete-collection)
             if [[ -z "${COLLECTION:-}" ]]; then
@@ -271,12 +296,7 @@ main() {
                 log::info "Usage: $0 --action delete-collection --collection <name> [--force yes]"
                 exit 1
             fi
-            if qdrant::common::is_running; then
-                qdrant::collections::delete "$COLLECTION" "$FORCE"
-            else
-                log::error "Qdrant is not running"
-                exit 1
-            fi
+            qdrant::require_running qdrant::collections::delete "$COLLECTION" "$FORCE"
             ;;
         collection-info)
             if [[ -z "${COLLECTION:-}" ]]; then
@@ -284,43 +304,59 @@ main() {
                 log::info "Usage: $0 --action collection-info --collection <name>"
                 exit 1
             fi
-            if qdrant::common::is_running; then
-                qdrant::collections::info "$COLLECTION"
-            else
-                log::error "Qdrant is not running"
-                exit 1
-            fi
+            qdrant::require_running qdrant::collections::info "$COLLECTION"
             ;;
         backup)
-            if qdrant::common::is_running; then
-                qdrant::snapshots::create "$COLLECTIONS_LIST" "$SNAPSHOT_NAME"
+            if [[ -n "${SNAPSHOT_NAME:-}" ]]; then
+                qdrant::require_running qdrant::create_backup "$SNAPSHOT_NAME"
             else
-                log::error "Qdrant is not running"
-                exit 1
+                qdrant::require_running qdrant::create_backup
             fi
             ;;
         restore)
             if [[ -z "${SNAPSHOT_NAME:-}" ]]; then
-                log::error "Snapshot name is required"
+                log::error "Backup name is required"
                 log::info "Usage: $0 --action restore --snapshot-name <name>"
                 exit 1
             fi
-            qdrant::snapshots::restore "$SNAPSHOT_NAME"
+            qdrant::restore_backup "$SNAPSHOT_NAME"
+            ;;
+        list-backups)
+            qdrant::list_backups
+            ;;
+        backup-info)
+            if [[ -z "${SNAPSHOT_NAME:-}" ]]; then
+                log::error "Backup name is required"
+                log::info "Usage: $0 --action backup-info --snapshot-name <name>"
+                exit 1
+            fi
+            qdrant::backup_info "$SNAPSHOT_NAME"
             ;;
         index-stats)
-            if qdrant::common::is_running; then
-                if [[ -n "${COLLECTION:-}" ]]; then
-                    qdrant::collections::index_stats "$COLLECTION"
-                else
-                    qdrant::collections::index_stats_all
-                fi
+            if [[ -n "${COLLECTION:-}" ]]; then
+                qdrant::require_running qdrant::collections::index_stats "$COLLECTION"
             else
-                log::error "Qdrant is not running"
-                exit 1
+                qdrant::require_running qdrant::collections::index_stats_all
             fi
             ;;
         upgrade)
             qdrant::install::upgrade
+            ;;
+        inject)
+            if [[ -z "${INJECTION_CONFIG:-}" ]]; then
+                log::error "Injection configuration is required"
+                log::info "Usage: $0 --action inject --injection-config '{...}'"
+                exit 1
+            fi
+            qdrant::require_running qdrant::inject
+            ;;
+        validate-injection)
+            if [[ -z "${INJECTION_CONFIG:-}" ]]; then
+                log::error "Injection configuration is required"
+                log::info "Usage: $0 --action validate-injection --injection-config '{...}'"
+                exit 1
+            fi
+            qdrant::validate_injection
             ;;
         *)
             log::error "Unknown action: $ACTION"
