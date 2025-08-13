@@ -292,7 +292,7 @@ ensure_workspace() {
     
     if echo "$workspace_response" | jq -e '.id' >/dev/null 2>&1; then
         log_success "Enterprise workspace '$WORKSPACE' exists"
-    else {
+    else
         log_info "Creating enterprise workspace '$WORKSPACE'..."
         
         local create_response
@@ -309,7 +309,7 @@ ensure_workspace() {
             log_verbose "Create response: $create_response"
             exit 1
         fi
-    }
+    fi
     
     # Set workspace-level environment variables for service URLs
     set_workspace_variables

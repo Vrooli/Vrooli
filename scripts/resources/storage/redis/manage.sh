@@ -4,7 +4,7 @@ set -euo pipefail
 # Redis Resource Management Script
 # This script handles installation, configuration, and management of Redis
 
-DESCRIPTION="Install and manage Redis in-memory data structure store using Docker"
+export DESCRIPTION="Install and manage Redis in-memory data structure store using Docker"
 
 REDIS_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
@@ -124,17 +124,20 @@ redis::parse_arguments() {
     args::parse "$@"
     
     # Export parsed arguments
-    export ACTION=$(args::get "action")
-    export BACKUP_NAME=$(args::get "backup-name")
-    export CLIENT_ID=$(args::get "client-id")
-    export DATABASE=$(args::get "database")
-    export REMOVE_DATA=$(args::get "remove-data")
-    export LOG_LINES=$(args::get "lines")
-    export MONITOR_INTERVAL=$(args::get "interval")
-    export CLEANUP_DAYS=$(args::get "days")
-    export MEMORY_SETTING=$(args::get "memory")
-    export PERSISTENCE_SETTING=$(args::get "persistence")
-    export YES=$(args::get "yes")
+    ACTION=$(args::get "action")
+    BACKUP_NAME=$(args::get "backup-name")
+    CLIENT_ID=$(args::get "client-id")
+    DATABASE=$(args::get "database")
+    REMOVE_DATA=$(args::get "remove-data")
+    LOG_LINES=$(args::get "lines")
+    MONITOR_INTERVAL=$(args::get "interval")
+    CLEANUP_DAYS=$(args::get "days")
+    MEMORY_SETTING=$(args::get "memory")
+    PERSISTENCE_SETTING=$(args::get "persistence")
+    YES=$(args::get "yes")
+    
+    export ACTION BACKUP_NAME CLIENT_ID DATABASE REMOVE_DATA LOG_LINES
+    export MONITOR_INTERVAL CLEANUP_DAYS MEMORY_SETTING PERSISTENCE_SETTING YES
 }
 
 #######################################

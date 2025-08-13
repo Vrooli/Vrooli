@@ -210,39 +210,41 @@ searxng::parse_arguments() {
     
     args::parse "$@"
     
-    export ACTION=$(args::get "action")
-    export FORCE=$(args::get "force")
-    export YES=$(args::get "yes")
-    export SEARCH_QUERY=$(args::get "query")
-    export SEARCH_FORMAT=$(args::get "format")
-    export SEARCH_CATEGORY=$(args::get "category")
-    export SEARCH_LANGUAGE=$(args::get "language")
-    export ENGINES=$(args::get "engines")
-    export BACKUP_DIR=$(args::get "backup-dir")
-    export OUTPUT_FILE=$(args::get "output")
-    export BENCHMARK_COUNT=$(args::get "count")
-    export MONITOR_INTERVAL=$(args::get "interval")
-    export USE_COMPOSE=$(args::get "compose")
+    ACTION=$(args::get "action")
+    FORCE=$(args::get "force")
+    YES=$(args::get "yes")
+    SEARCH_QUERY=$(args::get "query")
+    SEARCH_FORMAT=$(args::get "format")
+    SEARCH_CATEGORY=$(args::get "category")
+    SEARCH_LANGUAGE=$(args::get "language")
+    ENGINES=$(args::get "engines")
+    BACKUP_DIR=$(args::get "backup-dir")
+    OUTPUT_FILE=$(args::get "output")
+    BENCHMARK_COUNT=$(args::get "count")
+    MONITOR_INTERVAL=$(args::get "interval")
+    USE_COMPOSE=$(args::get "compose")
     
     # Advanced search parameters
-    export SEARCH_PAGENO=$(args::get "pageno")
-    export SEARCH_TIME_RANGE=$(args::get "time-range")
-    export SEARCH_SAFESEARCH=$(args::get "safesearch")
+    SEARCH_PAGENO=$(args::get "pageno")
+    SEARCH_TIME_RANGE=$(args::get "time-range")
+    SEARCH_SAFESEARCH=$(args::get "safesearch")
     
     # Output formatting
-    export OUTPUT_FORMAT=$(args::get "output-format")
-    export RESULT_LIMIT=$(args::get "limit")
+    OUTPUT_FORMAT=$(args::get "output-format")
+    RESULT_LIMIT=$(args::get "limit")
     
     # File operations
-    export SAVE_FILE=$(args::get "save")
-    export APPEND_FILE=$(args::get "append")
+    SAVE_FILE=$(args::get "save")
+    APPEND_FILE=$(args::get "append")
     
     # Batch operations
-    export BATCH_FILE=$(args::get "file")
-    export BATCH_QUERIES=$(args::get "queries")
+    BATCH_FILE=$(args::get "file")
+    BATCH_QUERIES=$(args::get "queries")
     
     # Quick actions
-    export HEADLINES_TOPIC=$(args::get "topic")
+    HEADLINES_TOPIC=$(args::get "topic")
+    
+    export ACTION FORCE YES SEARCH_QUERY SEARCH_FORMAT SEARCH_CATEGORY SEARCH_LANGUAGE ENGINES BACKUP_DIR OUTPUT_FILE BENCHMARK_COUNT MONITOR_INTERVAL USE_COMPOSE SEARCH_PAGENO SEARCH_TIME_RANGE SEARCH_SAFESEARCH OUTPUT_FORMAT RESULT_LIMIT SAVE_FILE APPEND_FILE BATCH_FILE BATCH_QUERIES HEADLINES_TOPIC
 }
 
 #######################################

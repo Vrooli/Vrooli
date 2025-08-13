@@ -53,6 +53,10 @@
           {
             "file": "initialization/automation/n8n/reasoning-chain.json",
             "type": "workflow"
+          },
+          {
+            "file": "initialization/automation/n8n/vector-conversion-service.json",
+            "type": "workflow"
           }
         ]
       },

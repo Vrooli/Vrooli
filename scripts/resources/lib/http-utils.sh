@@ -50,9 +50,14 @@ http::request() {
     
     # Extract HTTP code and body
     local http_code
-    http_code=$(echo "$response" | grep "__HTTP_CODE__:" | cut -d':' -f2)
+    http_code=$(echo "$response" | grep "__HTTP_CODE__:" | cut -d':' -f2 | tr -d '\n' | sed 's/[^0-9]//g')
     local body
     body=$(echo "$response" | grep -v "__HTTP_CODE__:")
+    
+    # Validate HTTP code is numeric
+    if [[ ! "$http_code" =~ ^[0-9]+$ ]]; then
+        http_code="0"
+    fi
     
     # Output body and return code
     echo "$body"

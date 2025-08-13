@@ -3,14 +3,14 @@
 # Extends the basic integration test library with fixture support and better patterns
 set -euo pipefail
 
-_HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_ENHANCED_TEST_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # shellcheck disable=SC1091
-source "${_HERE}/../../../../lib/utils/var.sh"
+source "${_ENHANCED_TEST_LIB_DIR}/../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh"
 # shellcheck disable=SC1091
-source "${_HERE}/integration-test-lib.sh"
+source "${_ENHANCED_TEST_LIB_DIR}/integration-test-lib.sh"
 
 # Load fixture loader for optional fixture testing
 FIXTURE_LOADER_PATH="$var_SCRIPTS_TEST_DIR/fixtures/fixture-loader.bash"

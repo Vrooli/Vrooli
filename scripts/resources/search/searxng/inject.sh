@@ -5,7 +5,7 @@ set -euo pipefail
 # This script handles injection of engines, settings, and configurations into SearXNG
 # Part of the Vrooli resource data injection system
 
-DESCRIPTION="Inject search engines, settings, and configurations into SearXNG meta search engine"
+export DESCRIPTION="Inject search engines, settings, and configurations into SearXNG meta search engine"
 
 SEARXNG_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 

@@ -23,8 +23,8 @@ qdrant::install() {
     fi
     
     # Check if already installed
-    if qdrant::common::container_exists; then
-        if qdrant::common::is_running; then
+    if docker::container_exists "$QDRANT_CONTAINER_NAME"; then
+        if docker::is_running "$QDRANT_CONTAINER_NAME"; then
             log::info "Qdrant is already installed and running"
             qdrant::docker::show_connection_info
             return 0
@@ -295,14 +295,14 @@ qdrant::install::upgrade() {
     echo "=== Upgrading Qdrant ==="
     echo
     
-    if ! qdrant::common::container_exists; then
+    if ! docker::container_exists "$QDRANT_CONTAINER_NAME"; then
         log::error "Qdrant is not installed. Use 'install' action first."
         return 1
     fi
     
     # Check current version
     local current_version
-    if qdrant::common::is_running; then
+    if docker::is_running "$QDRANT_CONTAINER_NAME"; then
         current_version=$(qdrant::api::get_version)
         log::info "Current version: $current_version"
     else
@@ -311,7 +311,7 @@ qdrant::install::upgrade() {
     
     # Create backup before upgrade
     log::info "Creating backup before upgrade..."
-    if qdrant::common::is_running; then
+    if docker::is_running "$QDRANT_CONTAINER_NAME"; then
         local backup_name="pre-upgrade-$(date +%Y%m%d-%H%M%S)"
         if ! qdrant::snapshots::create "all" "$backup_name" >/dev/null 2>&1; then
             log::warn "Failed to create backup - continuing with upgrade"
@@ -373,7 +373,7 @@ qdrant::install::upgrade() {
 qdrant::install::reset_configuration() {
     log::info "Resetting Qdrant configuration to defaults..."
     
-    if qdrant::common::is_running; then
+    if docker::is_running "$QDRANT_CONTAINER_NAME"; then
         log::info "Stopping Qdrant to reset configuration..."
         qdrant::docker::stop || return 1
     fi

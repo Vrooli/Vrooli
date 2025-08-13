@@ -47,7 +47,7 @@ tests:
         expected_status: 200
 
   - name: n8n_workflow_deployment
-    description: Verify all 5 metareasoning workflows are deployed to n8n
+    description: Verify all metareasoning workflows are deployed to n8n
     steps:
       - check: pros_cons_workflow
         command: curl -X GET http://localhost:${RESOURCE_PORTS[n8n]}/rest/workflows
@@ -64,6 +64,9 @@ tests:
       - check: reasoning_chain_workflow
         command: curl -X GET http://localhost:${RESOURCE_PORTS[n8n]}/rest/workflows
         contains: reasoning-chain
+      - check: vector_conversion_workflow
+        command: curl -X GET http://localhost:${RESOURCE_PORTS[n8n]}/rest/workflows
+        contains: vector-conversion-service
 
   - name: go_api_endpoints
     description: Test simplified Go coordinator API endpoints
@@ -202,6 +205,42 @@ tests:
         command: curl -f http://localhost:${RESOURCE_PORTS[qdrant]}/collections/prompt_templates
         expected_status: 200
         contains: "prompt_templates"
+
+  - name: vector_conversion_service_tests
+    description: Test the vector conversion service for embedding generation and storage
+    steps:
+      - check: vector_service_webhook_available
+        command: curl -f http://localhost:${RESOURCE_PORTS[n8n]}/webhook/vector-conversion
+        method: POST
+        headers:
+          Content-Type: application/json
+        body:
+          text: "test embedding generation"
+          collection: "execution_embeddings"
+        expected_status: 200
+        timeout: 30
+      - check: vector_service_workflow_embeddings
+        command: curl -X POST http://localhost:${RESOURCE_PORTS[n8n]}/webhook/vector-conversion -H "Content-Type: application/json" -d '{"text": "test workflow pattern", "collection": "workflow_embeddings", "pattern_type": "test", "pattern_name": "Test Pattern"}'
+        expected_status: 200
+        contains: "success"
+        timeout: 30
+      - check: vector_service_prompt_templates
+        command: curl -X POST http://localhost:${RESOURCE_PORTS[n8n]}/webhook/vector-conversion -H "Content-Type: application/json" -d '{"text": "analyze this prompt template", "collection": "prompt_templates", "prompt_pattern": "analysis"}'
+        expected_status: 200
+        contains: "point_id"
+        timeout: 30
+      - check: vector_service_invalid_collection
+        command: curl -X POST http://localhost:${RESOURCE_PORTS[n8n]}/webhook/vector-conversion -H "Content-Type: application/json" -d '{"text": "test", "collection": "invalid_collection"}'
+        expected_status: 400
+        timeout: 15
+      - check: vector_service_missing_text
+        command: curl -X POST http://localhost:${RESOURCE_PORTS[n8n]}/webhook/vector-conversion -H "Content-Type: application/json" -d '{"collection": "execution_embeddings"}'
+        expected_status: 400
+        timeout: 15
+      - check: vector_service_execution_logging
+        description: Verify vector conversion executions are logged to PostgreSQL
+        command: psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d metareasoning -t -c "SELECT COUNT(*) FROM execution_log WHERE platform = 'n8n_vector_service'"
+        min_value: 1
 
 validation:
   timeout: 300
