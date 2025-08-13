@@ -13,14 +13,14 @@ help: ## Show this help message
 	@echo "Metareasoning API - Available targets:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
-build: ## Build the API binary (simplified version)
-	@echo "Building Simplified $(BINARY_NAME)..."
-	@go build -o $(BINARY_NAME) cmd/server/main_simplified.go
-	@echo "Build complete: ./$(BINARY_NAME) (simplified coordinator)"
+build: ## Build the API binary
+	@echo "Building $(BINARY_NAME)..."
+	@go build -o $(BINARY_NAME) main.go
+	@echo "Build complete: ./$(BINARY_NAME)"
 
 run: ## Run the API server
 	@echo "Starting Metareasoning Coordinator API..."
-	@go run cmd/server/main_simplified.go
+	@go run main.go
 
 test: ## Run all tests
 	@echo "Running tests..."

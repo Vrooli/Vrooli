@@ -1,12 +1,37 @@
-/* Cloudflare Worker — metadata shim + transparent proxy  (dynamic domains) */
+/**
+ * ============================================================================
+ * CLOUDFLARE WORKER TEMPLATE FOR OPEN GRAPH METADATA
+ * ============================================================================
+ * 
+ * This template provides a starting point for adding dynamic Open Graph (OG) 
+ * metadata to ANY application. AI agents can customize this template to match
+ * the specific needs of the app they're enhancing.
+ * 
+ * KEY CUSTOMIZATION POINTS:
+ * 1. BASE_META - Update with your app's default metadata
+ * 2. STATIC_ROUTES - Define static pages and their metadata
+ * 3. DYNAMIC_ROUTES - Define dynamic routes that fetch data from APIs
+ * 4. API Response Interfaces - Define the shape of your API responses
+ * 5. Meta Fetcher Functions - Implement logic to fetch and transform data
+ * 
+ * ============================================================================
+ */
 
-import { parse } from "regexparam";
+// OPTIONAL: Install route parsing library if using dynamic routes
+// npm install regexparam
 
-/* -------- 0. Types & Constants ------------------------------------------ */
+/* ============================================================================
+ * SECTION 1: CONFIGURATION & TYPES
+ * Customize these to match your application
+ * ============================================================================ */
 
 interface Env {
-    BOT_UA: string;          // regex for crawler UAs (wrangler var)
-    ORIGIN_HOST: string;     // do-origin.<domain> (wrangler var)
+    // CUSTOMIZE: Add your environment variables
+    BOT_UA: string;          // Regex pattern for crawler user agents
+    ORIGIN_HOST: string;     // Your app's actual host (e.g., origin.yourapp.com)
+    API_URL?: string;        // Optional: Your API base URL if different from origin
+    SITE_URL?: string;       // Optional: Your public site URL
+    // Add more environment variables as needed...
 }
 
 interface Meta {
@@ -14,41 +39,34 @@ interface Meta {
     description: string;
     image: string;
     url: string;
-    // Extended properties for base/defaults
+    // Optional extended properties
     siteName?: string;
     type?: string;
     locale?: string;
     imageWidth?: string;
     imageHeight?: string;
     twitterCard?: string;
+    // Add custom properties as needed...
+    extra?: Record<string, string>;  // For additional meta tags
 }
 
-// IMPROVED: Added major search engines and monitoring services
-const BOT_UA_STRING =
-    "(googlebot|google-structured-data-testing-tool|google-inspectiontool|bingbot|" +
-    "bingpreview|slurp|duckduckbot|baiduspider|yandexbot|facebookexternalhit|facebot|" +
-    "facebookcatalog|meta-external(?:agent|fetcher)|twitterbot|pinterest(?:bot)?|" +
-    "linkedinbot|slackbot-linkexpanding|discordbot|telegrambot|whatsapp|" +
-    "skypeuripreview|embedly|opengraph|iframely|vkshare|bitlybot|" +
-    "applebot|chrome-lighthouse|pagespeed|gtmetrix|pingdom|uptimerobot|" +
-    "statuscake|newrelic|datadog|semrush|ahrefs|mj12bot)";
-const BOT_UA = new RegExp(BOT_UA_STRING, "i");
+/* ============================================================================
+ * CUSTOMIZE: Update this regex to match the crawlers you want to serve
+ * ============================================================================ */
+const BOT_UA_PATTERN = 
+    "(googlebot|bingbot|facebookexternalhit|twitterbot|linkedinbot|" +
+    "slackbot|discordbot|telegrambot|whatsapp|pinterest|" +
+    "applebot|chrome-lighthouse|pagespeed|gtmetrix)";
 
-// IMPROVED: Added health check paths to exclude
-const HEALTH_CHECK_PATHS = ["/health", "/api/health", "/healthz", "/ready", "/live"];
-
-// Cache configuration
-const CACHE_NAME = "og-metadata-v1"; // For future use with cache versioning
-const CACHE_TTL = 3600; // 1 hour - Cloudflare edge cache
-const CACHE_BROWSER_TTL = 300; // 5 minutes - Browser cache
-
-// Base metadata extracted from index.html
+/* ============================================================================
+ * CUSTOMIZE: Default metadata for your application
+ * This is used as fallback and base for all pages
+ * ============================================================================ */
 const BASE_META: Omit<Meta, "url"> = {
-    siteName: "Vrooli",
-    title: "Vrooli",
-    description: "A collaborative and self-improving automation platform",
-    // Define image path relative to baseHost, will be prepended later
-    image: "/og-image.webp",
+    siteName: "Your App Name",  // CHANGE THIS
+    title: "Your App Title",    // CHANGE THIS
+    description: "Your app's description that appears in social media previews",  // CHANGE THIS
+    image: "/default-og-image.jpg",  // CHANGE THIS - Path to your default OG image
     type: "website",
     locale: "en_US",
     imageWidth: "1200",
@@ -56,383 +74,303 @@ const BASE_META: Omit<Meta, "url"> = {
     twitterCard: "summary_large_image",
 };
 
-const TITLE_SUFFIX = " • Vrooli🐇";
+// Cache configuration
+const CACHE_TTL = 3600;           // 1 hour - Cloudflare edge cache
+const CACHE_BROWSER_TTL = 300;   // 5 minutes - Browser cache
 
-// Define API response interfaces
-interface ChatResponse {
-    translations: {
-        language: string;
-        description?: string;
-        name?: string;
-    }
-}
-interface IssueResponse {
-    translations: {
-        language: string;
-        description?: string;
-        name: string;
-    }
-}
-interface MeetingResponse {
-    translations: {
-        language: string;
-        description?: string;
-        link?: string; // e.g. zoom link
-        name: string;
-    }
-}
-// ResourceResponse used for Api, Note, Project, Data Structure, Prompt, Smart Contract, RoutineSingleStep, RoutineMultiStep
-interface ResourceResponse {
-    translations: {
-        language: string;
-        description?: string;
-        details?: string;
-        instructions?: string;
-        name: string;
-    }[];
-    versionLabel: string;
-}
-interface RunResponse {
-    name: string;
-}
-interface TeamResponse {
-    handle?: string;
-    profileImage?: string;
-    translations: {
-        language: string;
-        bio?: string;
-        name: string;
-    }[];
-}
-interface UserResponse {
-    handle?: string;
-    name: string;
-    profileImage?: string;
-    translations: {
-        language: string;
-        bio?: string;
-    }[];
-}
+/* ============================================================================
+ * SECTION 2: ROUTE DEFINITIONS
+ * Define your app's routes and how to fetch their metadata
+ * ============================================================================ */
 
-
-/* -------- 1. Route table ------------------------------------------------ */
-
-// Define static meta overrides (extend BASE_META)
-const STATIC_META: Record<string, Partial<Meta>> = {
+/* ----------------------------------------------------------------------------
+ * STATIC ROUTES
+ * Define metadata for static pages (About, Contact, etc.)
+ * ---------------------------------------------------------------------------- */
+const STATIC_ROUTES: Record<string, Partial<Meta>> = {
+    // CUSTOMIZE: Add your static pages here
+    "/": {
+        // Homepage uses BASE_META
+    },
     "/about": {
-        title: "About Vrooli",
-        description: "Learn more about the Vrooli platform.",
+        title: "About Us",
+        description: "Learn more about our company and mission.",
     },
-    "/calendar": {
-        title: `Calendar${TITLE_SUFFIX}`,
-        description: "Manage your schedule and events.",
-    },
-    "/create": {
-        title: `Create${TITLE_SUFFIX}`,
-        description: "Create new resources, teams, or projects.",
-    },
-    "/forgot-password": {
-        title: `Forgot Password${TITLE_SUFFIX}`,
-        description: "Reset your account password.",
-    },
-    "/login": {
-        title: `Login${TITLE_SUFFIX}`,
-        description: "Log in to your Vrooli account.",
+    "/contact": {
+        title: "Contact Us",
+        description: "Get in touch with our team.",
     },
     "/privacy": {
-        title: `Privacy Policy${TITLE_SUFFIX}`,
-        description: "Read our Privacy Policy.",
+        title: "Privacy Policy",
+        description: "Our commitment to protecting your privacy.",
     },
-    "/reports": {
-        title: `Reports${TITLE_SUFFIX}`,
-        description: "View reports.",
-    },
-    "/reset-password": {
-        title: `Reset Password${TITLE_SUFFIX}`,
-        description: "Complete your password reset.",
-    },
-    "/search": {
-        title: `Search${TITLE_SUFFIX}`,
-        description: "Search across Vrooli.",
-    },
-    "/signup": {
-        title: `Sign Up${TITLE_SUFFIX}`,
-        description: "Create a new Vrooli account.",
-    },
-    "/stats": {
-        title: `Stats${TITLE_SUFFIX}`,
-        description: "View Vrooli platform statistics.",
-    },
-    "/terms": {
-        title: `Terms of Service${TITLE_SUFFIX}`,
-        description: "Read our Terms of Service.",
-    },
-    // Add other static pages from shared/src/consts/ui.ts as needed
+    // Add more static routes as needed...
 };
 
-const routes = [
-    // Dynamic routes - fetch data from API
-    {
-        patterns: ["/u/:id"],
-        api: getUserMeta,
-        typeLabel: "User",
-    },
-    {
-        patterns: ["/team/:id"],
-        api: getTeamMeta,
-        typeLabel: "Team",
-    },
-    {
-        patterns: ["/api/:id", "/api/:id/v/:version"],
-        api: getResourceMeta,
-        typeLabel: "API",
-    },
-    {
-        patterns: ["/note/:id", "/note/:id/v/:version"],
-        api: getResourceMeta,
-        typeLabel: "Note",
-    },
-    {
-        patterns: ["/project/:id", "/project/:id/v/:version"],
-        api: getResourceMeta,
-        typeLabel: "Project",
-    },
-    {
-        patterns: ["/code/:id", "/code/:id/v/:version"],
-        api: getResourceMeta,
-        typeLabel: "Data Converter",
-    },
-    {
-        patterns: ["/ds/:id", "/ds/:id/v/:version"],
-        api: getResourceMeta,
-        typeLabel: "Data Structure",
-    },
-    {
-        patterns: ["/prompt/:id", "/prompt/:id/v/:version"],
-        api: getResourceMeta,
-        typeLabel: "Prompt",
-    },
-    {
-        patterns: ["/flow/:id", "/flow/:id/v/:version"],
-        api: getResourceMeta,
-        typeLabel: "Flow",
-    },
-    {
-        patterns: ["/action/:id", "/action/:id/v/:version"],
-        api: getResourceMeta,
-        typeLabel: "Action",
-    },
-    {
-        patterns: ["/contract/:id", "/contract/:id/v/:version"],
-        api: getResourceMeta,
-        typeLabel: "Smart Contract",
-    },
-    {
-        patterns: ["/chat/:id"],
-        api: getChatMeta,
-        typeLabel: "Chat",
-    },
-    {
-        patterns: ["/issue/:id"],
-        api: getIssueMeta,
-        typeLabel: "Issue",
-    },
-    {
-        patterns: ["/meeting/:id"],
-        api: getMeetingMeta,
-        typeLabel: "Meeting",
-    },
-    {
-        patterns: ["/run/:id"],
-        api: getRunMeta,
-        typeLabel: "Run",
-    },
-];
+/* ----------------------------------------------------------------------------
+ * DYNAMIC ROUTES
+ * Define patterns for dynamic content that needs API data
+ * ---------------------------------------------------------------------------- */
 
-// Flatten routes: Create an entry for each pattern
-const flatRoutes = routes.flatMap((route) =>
-    route.patterns.map((pattern) => ({
-        pattern,
-        routeInfo: parse(pattern),
-        api: route.api,
-        typeLabel: route.typeLabel,
-    }))
-);
-
-// Helper to build API URLs
-function buildApiUrl(originHost: string, requestPath: string): string {
-    // Ensure path starts with a slash and remove trailing slashes
-    const cleanPath = (requestPath.startsWith("/") ? requestPath : `/${requestPath}`).replace(/\/+$/, "");
-    // Handle root explicitly if necessary, though unlikely for dynamic routes
-    if (cleanPath === "") return `https://${originHost}/api/v2/`;
-    return `https://${originHost}/api/v2${cleanPath}`;
+// EXAMPLE: Blog post route
+interface BlogPostResponse {
+    title: string;
+    excerpt: string;
+    featuredImage?: string;
+    author: {
+        name: string;
+        avatar?: string;
+    };
+    publishedAt: string;
 }
 
-// Helper to parse Accept-Language header (basic)
-function getPreferredLanguages(req: Request): string[] {
-    const acceptLanguage = req.headers.get("accept-language");
-    if (!acceptLanguage) return ["en"]; // Default to English if header is missing
-
-    return acceptLanguage
-        .split(",")
-        .map(lang => lang.split(";")[0].trim().toLowerCase().split("-")[0]) // Get primary code (e.g., 'en' from 'en-US')
-        .filter(Boolean); // Remove any empty strings
+// EXAMPLE: Product route
+interface ProductResponse {
+    name: string;
+    description: string;
+    price: number;
+    currency: string;
+    images: string[];
+    inStock: boolean;
 }
 
-// Helper to find the best translation based on language preference
-function getTranslation<T extends { language: string }>( // Ensure type T has language property for array logic
-    translations: T[] | T | undefined | null, // Can be array, single object, or undefined
-    preferredLanguages: string[]
-): T | undefined {
-    if (!translations) {
-        return undefined;
-    }
-
-    // Handle if translations is potentially a single object (e.g., Chat, Issue, Meeting based on current types)
-    // We assume if it's not an array, we just return it directly.
-    // If these types change to arrays later, this check handles it.
-    if (!Array.isArray(translations)) {
-        // If the single object *doesn't* have a language property, this is fine.
-        // If it *does*, we might want to add language checking here too.
-        return translations;
-    }
-
-    // Handle Array case
-    if (translations.length === 0) {
-        return undefined;
-    }
-
-    // 1. Try preferred languages
-    for (const lang of preferredLanguages) {
-        // Ensure find callback type checks t.language
-        const found = translations.find((t: T) => t.language === lang);
-        if (found) return found;
-    }
-
-    // 2. Try English
-    const english = translations.find((t: T) => t.language === "en");
-    if (english) return english;
-
-    // 3. Fallback to the first one
-    return translations[0];
+// EXAMPLE: User profile route
+interface UserResponse {
+    username: string;
+    displayName: string;
+    bio?: string;
+    avatar?: string;
+    joinedDate: string;
 }
 
+/* ============================================================================
+ * SECTION 3: MAIN WORKER LOGIC
+ * This is the core handler - customize the route matching logic
+ * ============================================================================ */
 
-/* -------- 2. Main handler with CACHING and FAIL-OPEN ------------------- */
 export default {
     async fetch(req: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
         try {
-            // Parse URL safely
-            let urlObj: URL;
-            try {
-                urlObj = new URL(req.url);
-            } catch (error) {
-                return new Response("Invalid URL", { status: 400 });
-            }
-
-            const baseHost = `${urlObj.protocol}//${urlObj.host}`;
-            const pathname = urlObj.pathname;
-            const ua = req.headers.get("user-agent") ?? "";
-
-            // IMPROVED: Skip health check endpoints entirely
-            if (HEALTH_CHECK_PATHS.includes(pathname)) {
+            const url = new URL(req.url);
+            const pathname = url.pathname;
+            const ua = req.headers.get("user-agent") || "";
+            
+            // Skip health check endpoints
+            if (["/health", "/healthz", "/api/health"].includes(pathname)) {
                 return new Response("OK", { status: 200 });
             }
-
-            /* Humans → proxy to origin ------------------------------------------ */
-            if (!BOT_UA.test(ua)) {
+            
+            // For non-bot traffic, proxy to origin
+            const botRegex = new RegExp(env.BOT_UA || BOT_UA_PATTERN, "i");
+            if (!botRegex.test(ua)) {
                 return proxyToOrigin(req, env);
             }
-
-            /* Crawlers → Check cache first -------------------------------------- */
+            
+            // For bots, generate OG metadata
+            const baseUrl = `${url.protocol}//${url.host}`;
+            
+            // Try cache first
             const cache = caches.default;
-            // Create cache key without query params for better cache efficiency
-            const cacheUrl = `${urlObj.protocol}//${urlObj.host}${urlObj.pathname}`;
-            const cacheKey = new Request(cacheUrl);
-
-            // Try to get from cache
+            const cacheKey = new Request(url.toString());
             let response = await cache.match(cacheKey);
             if (response) {
                 return response;
             }
-
-            /* Generate metadata if not cached ----------------------------------- */
-            const cleanPath = pathname.replace(/\/+$/, "");   // drop trailing slash
-            const barePath = cleanPath.split("?")[0];
-
-            // Handle root path "/"
-            if (barePath === "/") {
-                const html = render(
-                    { ...BASE_META, url: baseHost + "/" },
-                    baseHost
-                );
-                response = createCachedHtmlResponse(html);
-                // Cache with error handling
-                ctx.waitUntil(
-                    cache.put(cacheKey, response.clone()).catch(err =>
-                        console.error("[OG-Worker] Cache put failed:", err)
-                    )
-                );
-                return response;
-            }
-
-            // Handle static routes
-            if (STATIC_META[barePath]) {
-                const staticMeta = {
-                    ...BASE_META, // Start with base
-                    ...STATIC_META[barePath], // Override with static specifics
-                    url: baseHost + barePath, // Set dynamic URL
+            
+            // Generate metadata based on route
+            let meta: Meta | null = null;
+            
+            // Check static routes first
+            if (pathname === "/" || STATIC_ROUTES[pathname]) {
+                meta = {
+                    ...BASE_META,
+                    ...STATIC_ROUTES[pathname],
+                    url: `${baseUrl}${pathname}`,
                 };
-                const html = render(staticMeta, baseHost);
-                response = createCachedHtmlResponse(html);
-                // Cache with error handling
-                ctx.waitUntil(
-                    cache.put(cacheKey, response.clone()).catch(err =>
-                        console.error("[OG-Worker] Cache put failed:", err)
-                    )
-                );
-                return response;
             }
-
-            // Handle dynamic routes with rate limiting
-            for (const { routeInfo, api, typeLabel } of flatRoutes) {
-                const m = routeInfo.pattern.exec(barePath);
-                if (!m) continue;
-
-                try {
-                    // Fetch meta, providing baseHost and typeLabel
-                    const meta = await api(env, baseHost, typeLabel, barePath, req);
-                    const html = render(meta, baseHost);
-                    response = createCachedHtmlResponse(html);
-                    ctx.waitUntil(cache.put(cacheKey, response.clone()));
-                    return response;
-                } catch (error) {
-                    // Don't cache errors
-                    const meta = fallbackMeta(baseHost, baseHost + barePath, typeLabel);
-                    const html = render(meta, baseHost);
-                    return createHtmlResponse(html);
-                }
+            
+            // CUSTOMIZE: Add your dynamic route matching here
+            // Example patterns shown below - replace with your actual routes
+            
+            // Example: Blog post route (/blog/my-post-slug)
+            if (pathname.startsWith("/blog/")) {
+                const slug = pathname.replace("/blog/", "");
+                meta = await getBlogPostMeta(slug, env, baseUrl);
             }
-
-            // If no route matched, proxy (could also return a generic 404 meta page)
-            return proxyToOrigin(req, env);
-
+            
+            // Example: Product route (/product/123)
+            else if (pathname.match(/^\/product\/\d+$/)) {
+                const productId = pathname.replace("/product/", "");
+                meta = await getProductMeta(productId, env, baseUrl);
+            }
+            
+            // Example: User profile route (/user/username)
+            else if (pathname.startsWith("/user/")) {
+                const username = pathname.replace("/user/", "");
+                meta = await getUserMeta(username, env, baseUrl);
+            }
+            
+            // If no meta generated, use fallback
+            if (!meta) {
+                meta = {
+                    ...BASE_META,
+                    title: `Page Not Found - ${BASE_META.siteName}`,
+                    url: `${baseUrl}${pathname}`,
+                };
+            }
+            
+            // Generate HTML response
+            const html = renderHTML(meta, baseUrl);
+            response = createCachedResponse(html);
+            
+            // Cache the response
+            ctx.waitUntil(
+                cache.put(cacheKey, response.clone()).catch(err => 
+                    console.error("[OG-Worker] Cache error:", err)
+                )
+            );
+            
+            return response;
+            
         } catch (error) {
-            // FAIL-OPEN: If worker fails for ANY reason, proxy to origin
-            console.error("[OG-Worker] Failed, proxying to origin:", error);
+            // On any error, proxy to origin (fail-open)
+            console.error("[OG-Worker] Error:", error);
             return proxyToOrigin(req, env);
         }
     },
 };
 
-/* -------- 3. Proxy & Response Helpers ---------------------------------- */
+/* ============================================================================
+ * SECTION 4: META FETCHER FUNCTIONS
+ * Implement these to fetch data from your APIs
+ * ============================================================================ */
 
+/**
+ * EXAMPLE: Fetch blog post metadata
+ * CUSTOMIZE: Replace with your actual API logic
+ */
+async function getBlogPostMeta(slug: string, env: Env, baseUrl: string): Promise<Meta> {
+    try {
+        // CUSTOMIZE: Update API endpoint
+        const apiUrl = env.API_URL || `https://${env.ORIGIN_HOST}`;
+        const res = await fetch(`${apiUrl}/api/posts/${slug}`, {
+            cf: { resolveOverride: env.ORIGIN_HOST }
+        });
+        
+        if (!res.ok) throw new Error("Post not found");
+        
+        const post = await res.json() as BlogPostResponse;
+        
+        return {
+            ...BASE_META,
+            title: `${post.title} - ${BASE_META.siteName}`,
+            description: post.excerpt,
+            image: post.featuredImage || BASE_META.image,
+            url: `${baseUrl}/blog/${slug}`,
+            type: "article",
+            extra: {
+                "article:author": post.author.name,
+                "article:published_time": post.publishedAt,
+            }
+        };
+    } catch (error) {
+        // Return fallback on error
+        return {
+            ...BASE_META,
+            title: `Blog Post - ${BASE_META.siteName}`,
+            url: `${baseUrl}/blog/${slug}`,
+        };
+    }
+}
+
+/**
+ * EXAMPLE: Fetch product metadata
+ * CUSTOMIZE: Replace with your actual API logic
+ */
+async function getProductMeta(productId: string, env: Env, baseUrl: string): Promise<Meta> {
+    try {
+        // CUSTOMIZE: Update API endpoint
+        const apiUrl = env.API_URL || `https://${env.ORIGIN_HOST}`;
+        const res = await fetch(`${apiUrl}/api/products/${productId}`, {
+            cf: { resolveOverride: env.ORIGIN_HOST }
+        });
+        
+        if (!res.ok) throw new Error("Product not found");
+        
+        const product = await res.json() as ProductResponse;
+        
+        return {
+            ...BASE_META,
+            title: `${product.name} - $${product.price} ${product.currency}`,
+            description: product.description,
+            image: product.images[0] || BASE_META.image,
+            url: `${baseUrl}/product/${productId}`,
+            type: "product",
+            extra: {
+                "product:price:amount": product.price.toString(),
+                "product:price:currency": product.currency,
+                "product:availability": product.inStock ? "in stock" : "out of stock",
+            }
+        };
+    } catch (error) {
+        return {
+            ...BASE_META,
+            title: `Product - ${BASE_META.siteName}`,
+            url: `${baseUrl}/product/${productId}`,
+        };
+    }
+}
+
+/**
+ * EXAMPLE: Fetch user profile metadata
+ * CUSTOMIZE: Replace with your actual API logic
+ */
+async function getUserMeta(username: string, env: Env, baseUrl: string): Promise<Meta> {
+    try {
+        // CUSTOMIZE: Update API endpoint
+        const apiUrl = env.API_URL || `https://${env.ORIGIN_HOST}`;
+        const res = await fetch(`${apiUrl}/api/users/${username}`, {
+            cf: { resolveOverride: env.ORIGIN_HOST }
+        });
+        
+        if (!res.ok) throw new Error("User not found");
+        
+        const user = await res.json() as UserResponse;
+        
+        return {
+            ...BASE_META,
+            title: `${user.displayName} (@${user.username}) - ${BASE_META.siteName}`,
+            description: user.bio || `Check out ${user.displayName}'s profile`,
+            image: user.avatar || BASE_META.image,
+            url: `${baseUrl}/user/${username}`,
+            type: "profile",
+            extra: {
+                "profile:username": user.username,
+            }
+        };
+    } catch (error) {
+        return {
+            ...BASE_META,
+            title: `User Profile - ${BASE_META.siteName}`,
+            url: `${baseUrl}/user/${username}`,
+        };
+    }
+}
+
+/* ============================================================================
+ * SECTION 5: HELPER FUNCTIONS
+ * These handle the technical details - usually don't need customization
+ * ============================================================================ */
+
+/**
+ * Proxy requests to the origin server
+ */
 function proxyToOrigin(req: Request, env: Env): Promise<Response> {
-    const origin = new URL(req.url);
-    origin.hostname = env.ORIGIN_HOST; // e.g. do-origin.vrooli.com
-
-    return fetch(origin.toString(), {
-        cf: { resolveOverride: env.ORIGIN_HOST }, // Force resolution to origin IP
+    const url = new URL(req.url);
+    url.hostname = env.ORIGIN_HOST;
+    
+    return fetch(url.toString(), {
+        cf: { resolveOverride: env.ORIGIN_HOST },
         method: req.method,
         headers: req.headers,
         body: req.body,
@@ -440,262 +378,148 @@ function proxyToOrigin(req: Request, env: Env): Promise<Response> {
     });
 }
 
-function createHtmlResponse(html: string): Response {
-    return new Response(html, {
-        headers: {
-            "Content-Type": "text/html;charset=utf-8",
-        },
-    });
-}
-
-// IMPROVED: Response with cache headers
-function createCachedHtmlResponse(html: string): Response {
+/**
+ * Create a cached HTML response
+ */
+function createCachedResponse(html: string): Response {
     return new Response(html, {
         headers: {
             "Content-Type": "text/html;charset=utf-8",
             "Cache-Control": `public, s-maxage=${CACHE_TTL}, max-age=${CACHE_BROWSER_TTL}, stale-while-revalidate=86400`,
-            "X-Robots-Tag": "index, follow", // Help search engines
+            "X-Robots-Tag": "index, follow",
         },
     });
 }
 
-
-/* -------- 4. Meta Fetchers --------------------------------------------- */
-
 /**
- * Fetches metadata for a user profile.
- * @param env Environment variables
- * @param baseHost The base URL of the current request (e.g., https://vrooli.com)
- * @param typeLabel Label for fallback messages (e.g., "User")
- * @param pathname The original pathname of the request
- * @param req The request object
- * @returns Promise<Meta>
+ * Escape HTML special characters
  */
-async function getUserMeta(env: Env, baseHost: string, typeLabel: string, pathname: string, req: Request): Promise<Meta> {
-    const apiUrl = buildApiUrl(env.ORIGIN_HOST, pathname);
-    const profileUrl = `${baseHost}${pathname}`; // Use original path for user-facing URL
-
-    try {
-        const res = await fetch(apiUrl, { cf: { resolveOverride: env.ORIGIN_HOST } });
-
-        if (!res.ok) {
-            return fallbackMeta(baseHost, profileUrl, typeLabel);
-        }
-
-        const u = await res.json() as UserResponse;
-        const preferredLanguages = getPreferredLanguages(req);
-        const translation = getTranslation(u.translations, preferredLanguages);
-        const bio = translation?.bio;
-        return {
-            ...BASE_META,
-            title: `${u.name} (${u.handle})${TITLE_SUFFIX}`,
-            description: bio ?? BASE_META.description ?? "",
-            image: u.profileImage ?? BASE_META.image,
-            url: profileUrl,
-        };
-    } catch (error) {
-        return fallbackMeta(baseHost, profileUrl, typeLabel);
-    }
-}
-
-async function getTeamMeta(env: Env, baseHost: string, typeLabel: string, pathname: string, req: Request): Promise<Meta> {
-    const apiUrl = buildApiUrl(env.ORIGIN_HOST, pathname);
-    const teamUrl = `${baseHost}${pathname}`;
-
-    try {
-        const res = await fetch(apiUrl, { cf: { resolveOverride: env.ORIGIN_HOST } });
-        if (!res.ok) throw new Error(`API Error: ${res.status}`);
-        const data = await res.json() as TeamResponse;
-        const preferredLanguages = getPreferredLanguages(req);
-        const translation = getTranslation(data.translations, preferredLanguages);
-        const bio = translation?.bio;
-        const name = translation?.name ?? data.handle ?? typeLabel;
-        return {
-            ...BASE_META,
-            title: `${name}${data.handle ? ` (${data.handle})` : ""}${TITLE_SUFFIX}`,
-            description: bio ?? BASE_META.description ?? "",
-            image: data.profileImage ?? BASE_META.image,
-            url: teamUrl,
-        };
-    } catch (error) {
-        return fallbackMeta(baseHost, teamUrl, typeLabel);
-    }
-}
-
-async function getResourceMeta(env: Env, baseHost: string, typeLabel: string, pathname: string, req: Request): Promise<Meta> {
-    const apiUrl = buildApiUrl(env.ORIGIN_HOST, pathname);
-    const resourceUrl = `${baseHost}${pathname}`;
-
-    try {
-        const res = await fetch(apiUrl, { cf: { resolveOverride: env.ORIGIN_HOST } });
-        if (!res.ok) throw new Error(`API Error: ${res.status}`);
-        const data = await res.json() as ResourceResponse;
-        const preferredLanguages = getPreferredLanguages(req);
-        const translation = getTranslation(data.translations, preferredLanguages);
-        const name = translation?.name ?? typeLabel;
-        const description = translation?.description ?? translation?.details ?? BASE_META.description ?? "";
-
-        return {
-            ...BASE_META,
-            title: `${name}${TITLE_SUFFIX}`,
-            description,
-            url: resourceUrl,
-        };
-    } catch (error) {
-        return fallbackMeta(baseHost, resourceUrl, typeLabel);
-    }
-}
-
-async function getChatMeta(env: Env, baseHost: string, typeLabel: string, pathname: string, req: Request): Promise<Meta> {
-    const apiUrl = buildApiUrl(env.ORIGIN_HOST, pathname);
-    const chatUrl = `${baseHost}${pathname}`;
-    try {
-        const res = await fetch(apiUrl, { cf: { resolveOverride: env.ORIGIN_HOST } });
-        if (!res.ok) throw new Error(`API Error: ${res.status}`);
-        const data = await res.json() as ChatResponse;
-        const preferredLanguages = getPreferredLanguages(req);
-        const translation = getTranslation(data.translations, preferredLanguages);
-
-        const name = translation?.name ?? typeLabel;
-        const description = translation?.description ?? BASE_META.description ?? "";
-
-        return {
-            ...BASE_META,
-            title: `${name}${TITLE_SUFFIX}`,
-            description,
-            url: chatUrl,
-        };
-    } catch (error) {
-        return fallbackMeta(baseHost, chatUrl, typeLabel);
-    }
-}
-
-async function getIssueMeta(env: Env, baseHost: string, typeLabel: string, pathname: string, req: Request): Promise<Meta> {
-    const apiUrl = buildApiUrl(env.ORIGIN_HOST, pathname);
-    const issueUrl = `${baseHost}${pathname}`;
-
-    try {
-        const res = await fetch(apiUrl, { cf: { resolveOverride: env.ORIGIN_HOST } });
-        if (!res.ok) throw new Error(`API Error: ${res.status}`);
-        const data = await res.json() as IssueResponse;
-        const preferredLanguages = getPreferredLanguages(req);
-        const translation = getTranslation(data.translations, preferredLanguages);
-
-        const name = translation?.name ?? typeLabel;
-        const description = translation?.description ?? BASE_META.description ?? "";
-        return {
-            ...BASE_META,
-            title: `${name}${TITLE_SUFFIX}`,
-            description,
-            url: issueUrl,
-        };
-    } catch (error) {
-        return fallbackMeta(baseHost, issueUrl, typeLabel);
-    }
-}
-
-async function getMeetingMeta(env: Env, baseHost: string, typeLabel: string, pathname: string, req: Request): Promise<Meta> {
-    const apiUrl = buildApiUrl(env.ORIGIN_HOST, pathname);
-    const meetingUrl = `${baseHost}${pathname}`;
-
-    try {
-        const res = await fetch(apiUrl, { cf: { resolveOverride: env.ORIGIN_HOST } });
-        if (!res.ok) throw new Error(`API Error: ${res.status}`);
-        const data = await res.json() as MeetingResponse;
-        const preferredLanguages = getPreferredLanguages(req);
-        const translation = getTranslation(data.translations, preferredLanguages);
-
-        const name = translation?.name ?? typeLabel;
-        const description = translation?.description ?? BASE_META.description ?? "";
-        return {
-            ...BASE_META,
-            title: `${name}${TITLE_SUFFIX}`,
-            description,
-            url: meetingUrl,
-        };
-    } catch (error) {
-        return fallbackMeta(baseHost, meetingUrl, typeLabel);
-    }
-}
-
-async function getRunMeta(env: Env, baseHost: string, typeLabel: string, pathname: string): Promise<Meta> {
-    const apiUrl = buildApiUrl(env.ORIGIN_HOST, pathname);
-    const runUrl = `${baseHost}${pathname}`;
-
-    try {
-        const res = await fetch(apiUrl, { cf: { resolveOverride: env.ORIGIN_HOST } });
-        if (!res.ok) throw new Error(`API Error: ${res.status}`);
-        const data = await res.json() as RunResponse;
-        const name = data.name ?? typeLabel;
-        return {
-            ...BASE_META,
-            title: `${name}${TITLE_SUFFIX}`,
-            description: BASE_META.description ?? "",
-            url: runUrl,
-        };
-    } catch (error) {
-        return fallbackMeta(baseHost, runUrl, typeLabel);
-    }
-}
-
-/**
- * Generates fallback metadata for when a resource is not found or an error occurs.
- * @param baseHost The base URL of the current request (e.g., https://vrooli.com)
- * @param path The requested path (e.g., /u/nonexistentuser)
- * @param typeLabel The type of resource that wasn't found (e.g., "User", "Team")
- * @returns Meta object
- */
-function fallbackMeta(_baseHost: string, url: string, typeLabel = "Page"): Meta {
-    return {
-        ...BASE_META, // Start with base
-        title: `${typeLabel} not found${TITLE_SUFFIX}`, // Custom not found title
-        description: BASE_META.description ?? "", // Keep base description
-        url, // Reflect the requested URL
-    };
-}
-
-
-/* -------- 5. HTML Renderer --------------------------------------------- */
-
-function esc(s: string) {
+function escapeHtml(str: string): string {
     const escapeMap: Record<string, string> = {
         "&": "&amp;",
         "<": "&lt;",
         ">": "&gt;",
         "\"": "&quot;",
         "'": "&#39;",
-        "`": "&#96;",  // Also escape backticks
     };
-    return s ? s.replace(/[&<>"'`]/g, (c) => escapeMap[c] || c) : "";
+    return str ? str.replace(/[&<>"']/g, c => escapeMap[c] || c) : "";
 }
 
 /**
- * Renders the final HTML with Open Graph and Twitter Card metadata.
- * @param m Metadata object
- * @param baseHost The base URL (e.g., https://vrooli.com) needed for resolving relative image paths
- * @returns HTML string
+ * Render HTML with Open Graph metadata
  */
-function render(m: Meta, baseHost: string): string {
-    // Resolve image URL (prepend baseHost if it's a relative path)
-    const imageUrl = m.image.startsWith("http") ? m.image : baseHost + m.image;
+function renderHTML(meta: Meta, baseUrl: string): string {
+    // Resolve image URL (prepend baseUrl if relative)
+    const imageUrl = meta.image.startsWith("http") 
+        ? meta.image 
+        : `${baseUrl}${meta.image}`;
+    
+    // Build extra meta tags if provided
+    const extraTags = meta.extra 
+        ? Object.entries(meta.extra)
+            .map(([key, value]) => `<meta property="${escapeHtml(key)}" content="${escapeHtml(value)}">`)
+            .join("\n")
+        : "";
+    
+    return `<!doctype html>
+<html lang="${meta.locale?.split("_")[0] || "en"}">
+<head>
+    <meta charset="utf-8">
+    <title>${escapeHtml(meta.title)}</title>
+    <meta name="description" content="${escapeHtml(meta.description)}">
+    
+    <!-- Open Graph Tags -->
+    <meta property="og:site_name" content="${escapeHtml(meta.siteName || BASE_META.siteName || "")}">
+    <meta property="og:title" content="${escapeHtml(meta.title)}">
+    <meta property="og:description" content="${escapeHtml(meta.description)}">
+    <meta property="og:url" content="${meta.url}">
+    <meta property="og:image" content="${imageUrl}">
+    <meta property="og:type" content="${escapeHtml(meta.type || "website")}">
+    ${meta.locale ? `<meta property="og:locale" content="${escapeHtml(meta.locale)}">` : ""}
+    ${meta.imageWidth ? `<meta property="og:image:width" content="${escapeHtml(meta.imageWidth)}">` : ""}
+    ${meta.imageHeight ? `<meta property="og:image:height" content="${escapeHtml(meta.imageHeight)}">` : ""}
+    
+    <!-- Twitter Card Tags -->
+    <meta name="twitter:card" content="${escapeHtml(meta.twitterCard || "summary_large_image")}">
+    <meta name="twitter:title" content="${escapeHtml(meta.title)}">
+    <meta name="twitter:description" content="${escapeHtml(meta.description)}">
+    <meta name="twitter:image" content="${imageUrl}">
+    
+    <!-- Additional Meta Tags -->
+    ${extraTags}
+</head>
+<body>
+    <!-- This body content is only shown to crawlers -->
+    <h1>${escapeHtml(meta.title)}</h1>
+    <p>${escapeHtml(meta.description)}</p>
+    <img src="${imageUrl}" alt="${escapeHtml(meta.title)}">
+    <p>Loading application...</p>
+</body>
+</html>`;
+}
 
-    return `<!doctype html><html lang="en"><head><meta charset="utf-8">
-<title>${esc(m.title)}</title>
-<meta name="description" content="${esc(m.description)}">
-<meta property="og:site_name" content="${esc(m.siteName ?? BASE_META.siteName ?? "Vrooli")}"> 
-<meta property="og:title" content="${esc(m.title)}">
-<meta property="og:description" content="${esc(m.description)}">
-<meta property="og:url" content="${m.url}">
-<meta property="og:image" content="${imageUrl}">
-<meta property="og:type" content="${esc(m.type ?? BASE_META.type ?? "website")}">
-${m.locale ?? BASE_META.locale ? `<meta property="og:locale" content="${esc(m.locale ?? BASE_META.locale ?? "en_US")}">` : ""}
-${m.imageWidth ?? BASE_META.imageWidth ? `<meta property="og:image:width" content="${esc(m.imageWidth ?? BASE_META.imageWidth ?? "")}">` : ""}
-${m.imageHeight ?? BASE_META.imageHeight ? `<meta property="og:image:height" content="${esc(m.imageHeight ?? BASE_META.imageHeight ?? "")}">` : ""}
-<meta name="twitter:card" content="${esc(m.twitterCard ?? BASE_META.twitterCard ?? "summary_large_image")}">
-${m.twitterCard !== "summary" ? `<meta name="twitter:image" content="${imageUrl}">` : ""}
-${esc(m.title) ? `<meta name="twitter:title" content="${esc(m.title)}">` : ""}
-${esc(m.description) ? `<meta name="twitter:description" content="${esc(m.description)}">` : ""}
-</head><body><p>Loading...</p></body></html>`;
-    // Note: Removed the script load, as the worker only serves metadata to bots.
-    // The actual UI loading happens when a real user hits the page and gets proxied.
+/* ============================================================================
+ * ADDITIONAL PATTERNS & EXAMPLES
+ * These show common patterns you might want to implement
+ * ============================================================================ */
+
+/**
+ * PATTERN: Multi-language support
+ * Extract language preference from request headers
+ */
+function getPreferredLanguage(req: Request): string {
+    const acceptLanguage = req.headers.get("accept-language");
+    if (!acceptLanguage) return "en";
+    
+    // Parse and return primary language code
+    return acceptLanguage.split(",")[0].split("-")[0].toLowerCase();
+}
+
+/**
+ * PATTERN: Dynamic image generation
+ * Generate OG images on the fly using external services
+ */
+function generateDynamicImage(title: string, env: Env): string {
+    // Example using Cloudinary
+    // return `https://res.cloudinary.com/${env.CLOUDINARY_NAME}/image/upload/` +
+    //        `w_1200,h_630,c_fit,l_text:Arial_60:${encodeURIComponent(title)}/og-base.jpg`;
+    
+    // Example using a separate Worker
+    // return `${env.IMAGE_WORKER_URL}?title=${encodeURIComponent(title)}`;
+    
+    return BASE_META.image;  // Fallback to static image
+}
+
+/**
+ * PATTERN: A/B testing different metadata
+ * Randomly serve different versions for testing
+ */
+function getABTestMeta(baseMeta: Meta): Meta {
+    const variant = Math.random() > 0.5 ? "A" : "B";
+    
+    if (variant === "B") {
+        return {
+            ...baseMeta,
+            title: `🔥 ${baseMeta.title}`,  // Test emoji in title
+            description: `Don't miss out! ${baseMeta.description}`,  // Test urgency
+        };
+    }
+    
+    return baseMeta;
+}
+
+/**
+ * PATTERN: Structured data for rich snippets
+ * Add JSON-LD structured data for better SEO
+ */
+function generateStructuredData(type: string, data: any): string {
+    const structuredData = {
+        "@context": "https://schema.org",
+        "@type": type,
+        ...data
+    };
+    
+    return `<script type="application/ld+json">
+        ${JSON.stringify(structuredData, null, 2)}
+    </script>`;
 }

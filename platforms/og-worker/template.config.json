@@ -1,0 +1,256 @@
+{
+    "template": {
+        "name": "Open Graph Metadata Worker",
+        "version": "1.0.0",
+        "description": "Cloudflare Worker template for adding dynamic Open Graph metadata to any application",
+        "category": "platform-enhancement",
+        "tags": ["seo", "social-media", "cloudflare", "edge-computing", "metadata"],
+        "difficulty": "intermediate",
+        "estimatedSetupTime": "30-60 minutes",
+        "maintainer": "vrooli-system"
+    },
+    
+    "capabilities": {
+        "provides": [
+            "Dynamic Open Graph meta tags for social media previews",
+            "Twitter Card support",
+            "SEO-friendly metadata for crawlers",
+            "Edge caching for performance",
+            "Fallback handling for missing data",
+            "Multi-language support patterns"
+        ],
+        "requires": [
+            "Cloudflare account (free tier works)",
+            "Domain managed by Cloudflare",
+            "Origin server with app/API",
+            "Node.js for local development"
+        ],
+        "compatible_with": [
+            "Single Page Applications (React, Vue, Angular)",
+            "Server-side rendered apps",
+            "Static sites with dynamic content",
+            "JAMstack applications",
+            "WordPress sites",
+            "E-commerce platforms"
+        ]
+    },
+    
+    "customization_points": {
+        "required": [
+            {
+                "file": "src/index.ts",
+                "section": "BASE_META",
+                "description": "Default metadata for the application",
+                "fields": ["siteName", "title", "description", "image"]
+            },
+            {
+                "file": "wrangler.jsonc",
+                "section": "name",
+                "description": "Worker name for Cloudflare deployment"
+            },
+            {
+                "file": "wrangler.jsonc",
+                "section": "routes",
+                "description": "Domain patterns that trigger the worker"
+            },
+            {
+                "file": "wrangler.jsonc",
+                "section": "ORIGIN_HOST",
+                "description": "The actual hostname where the app is hosted"
+            }
+        ],
+        "optional": [
+            {
+                "file": "src/index.ts",
+                "section": "STATIC_ROUTES",
+                "description": "Metadata for static pages like /about, /contact"
+            },
+            {
+                "file": "src/index.ts",
+                "section": "Dynamic route handlers",
+                "description": "Custom logic for fetching metadata from APIs"
+            },
+            {
+                "file": "src/index.ts",
+                "section": "API Response Interfaces",
+                "description": "TypeScript interfaces matching your API responses"
+            }
+        ]
+    },
+    
+    "common_patterns": {
+        "blog": {
+            "routes": ["/blog/:slug", "/posts/:id", "/articles/:title"],
+            "metadata": ["title", "excerpt", "author", "publishedDate", "featuredImage"],
+            "og_type": "article"
+        },
+        "ecommerce": {
+            "routes": ["/product/:id", "/shop/:category/:product", "/item/:sku"],
+            "metadata": ["name", "price", "description", "images", "availability"],
+            "og_type": "product"
+        },
+        "social": {
+            "routes": ["/user/:username", "/profile/:id", "/@:handle"],
+            "metadata": ["displayName", "bio", "avatar", "joinedDate"],
+            "og_type": "profile"
+        },
+        "portfolio": {
+            "routes": ["/project/:slug", "/work/:id", "/case-study/:name"],
+            "metadata": ["title", "description", "thumbnail", "client", "date"],
+            "og_type": "website"
+        },
+        "event": {
+            "routes": ["/event/:id", "/conference/:slug", "/meetup/:name"],
+            "metadata": ["name", "description", "date", "location", "image"],
+            "og_type": "event"
+        }
+    },
+    
+    "deployment_checklist": [
+        {
+            "step": 1,
+            "task": "Update BASE_META with app information",
+            "critical": true
+        },
+        {
+            "step": 2,
+            "task": "Configure domain routes in wrangler.jsonc",
+            "critical": true
+        },
+        {
+            "step": 3,
+            "task": "Set up DNS records (origin must be grey cloud)",
+            "critical": true
+        },
+        {
+            "step": 4,
+            "task": "Implement route handlers for dynamic content",
+            "critical": false
+        },
+        {
+            "step": 5,
+            "task": "Test locally with wrangler dev",
+            "critical": false
+        },
+        {
+            "step": 6,
+            "task": "Deploy to Cloudflare with wrangler deploy",
+            "critical": true
+        },
+        {
+            "step": 7,
+            "task": "Test with social media debuggers",
+            "critical": false
+        }
+    ],
+    
+    "testing_tools": [
+        {
+            "name": "Facebook Sharing Debugger",
+            "url": "https://developers.facebook.com/tools/debug/",
+            "purpose": "Test Facebook/Meta platform previews"
+        },
+        {
+            "name": "Twitter Card Validator",
+            "url": "https://cards-dev.twitter.com/validator",
+            "purpose": "Test Twitter/X previews"
+        },
+        {
+            "name": "LinkedIn Post Inspector",
+            "url": "https://www.linkedin.com/post-inspector/",
+            "purpose": "Test LinkedIn previews"
+        },
+        {
+            "name": "Local Testing",
+            "command": "curl -H 'User-Agent: facebookexternalhit' http://localhost:8787/your-route",
+            "purpose": "Test locally before deployment"
+        }
+    ],
+    
+    "optimization_tips": [
+        "Use Cloudflare KV for caching generated metadata",
+        "Implement stale-while-revalidate for better performance",
+        "Generate OG images dynamically with Cloudinary or similar",
+        "Add structured data (JSON-LD) for rich snippets",
+        "Use WebP format for OG images when possible",
+        "Implement proper error handling with fallbacks",
+        "Monitor worker analytics for performance insights"
+    ],
+    
+    "common_issues": {
+        "worker_not_triggering": {
+            "cause": "Domain not proxied through Cloudflare",
+            "solution": "Ensure main domain has orange cloud in Cloudflare DNS"
+        },
+        "infinite_redirect": {
+            "cause": "Worker calling itself in a loop",
+            "solution": "Use different hostname for origin (e.g., origin.domain.com)"
+        },
+        "metadata_not_showing": {
+            "cause": "Incorrect HTML structure or caching",
+            "solution": "Validate HTML, clear caches, use debugging tools"
+        },
+        "api_calls_failing": {
+            "cause": "CORS or DNS resolution issues",
+            "solution": "Add resolveOverride in fetch calls, check CORS headers"
+        }
+    },
+    
+    "agent_instructions": {
+        "analysis_steps": [
+            "Identify the app's routing structure",
+            "Determine what dynamic content needs OG tags",
+            "Find existing API endpoints for data",
+            "Check current domain configuration"
+        ],
+        "implementation_order": [
+            "Set up basic configuration (domain, origin)",
+            "Implement static routes first",
+            "Add one dynamic route as proof of concept",
+            "Test thoroughly with curl",
+            "Expand to all necessary routes",
+            "Deploy and validate with social platforms"
+        ],
+        "best_practices": [
+            "Always provide fallback metadata",
+            "Escape all user-generated content",
+            "Cache aggressively but invalidate smartly",
+            "Log errors for debugging",
+            "Test with actual social media platforms",
+            "Keep metadata concise and engaging"
+        ]
+    },
+    
+    "integration_examples": {
+        "with_nextjs": {
+            "notes": "Works alongside Next.js SSG/SSR",
+            "origin_setup": "Point to Vercel deployment or self-hosted instance"
+        },
+        "with_wordpress": {
+            "notes": "Enhances WordPress SEO plugins",
+            "origin_setup": "Point to WordPress host, may need custom API endpoints"
+        },
+        "with_static_site": {
+            "notes": "Adds dynamic capabilities to static sites",
+            "origin_setup": "Point to static host, fetch data from separate API"
+        }
+    },
+    
+    "resources": [
+        {
+            "type": "documentation",
+            "name": "Cloudflare Workers Docs",
+            "url": "https://developers.cloudflare.com/workers/"
+        },
+        {
+            "type": "specification",
+            "name": "Open Graph Protocol",
+            "url": "https://ogp.me/"
+        },
+        {
+            "type": "guide",
+            "name": "Twitter Cards Guide",
+            "url": "https://developer.twitter.com/en/docs/twitter-for-websites/cards/overview/abouts-cards"
+        }
+    ]
+}
