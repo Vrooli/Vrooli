@@ -83,12 +83,13 @@ flowchart TB
 ### **Prerequisites**
 ```bash
 # Ensure required Ollama models are available
-ollama pull llama3.2     # Primary reasoning model
-ollama pull mistral      # Alternative model for comparison
-ollama pull codellama    # Code-specific reasoning
+ollama pull llama3.2          # Primary reasoning model
+ollama pull mistral           # Alternative model for comparison
+ollama pull codellama         # Code-specific reasoning
+ollama pull nomic-embed-text  # Embedding model for semantic search
 
 # Verify models are downloaded
-ollama list | grep -E "llama3.2|mistral|codellama"
+ollama list | grep -E "llama3.2|mistral|codellama|nomic-embed-text"
 ```
 
 ### **Setup**
@@ -254,6 +255,7 @@ export PORT=$SERVICE_PORT                                          # Dynamic API
 export N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]}       # n8n instance
 export WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} # Windmill instance
 export WINDMILL_WORKSPACE=demo                                    # Windmill workspace
+export EMBEDDING_MODEL=nomic-embed-text                           # Ollama embedding model for semantic search
 
 # To get actual runtime ports:
 source ../../resources/port_registry.sh

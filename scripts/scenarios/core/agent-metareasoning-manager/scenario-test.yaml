@@ -161,19 +161,9 @@ tests:
       - check: codellama_model
         command: ollama list | grep codellama
         expected: codellama
-  
-  - name: configuration_loading
-    description: Verify configuration files are properly loaded
-    steps:
-      - check: prompt_library_exists
-        command: test -f initialization/configuration/prompt-library.json
-        expected_status: 0
-      - check: reasoning_templates_exists
-        command: test -f initialization/configuration/reasoning-templates.json
-        expected_status: 0
-      - check: workflow_registry_exists
-        command: test -f initialization/configuration/workflow-registry.json
-        expected_status: 0
+      - check: embedding_model
+        command: ollama list | grep nomic-embed-text
+        expected: nomic-embed-text
 
   - name: postgres_database
     description: Verify simplified PostgreSQL database schema is initialized

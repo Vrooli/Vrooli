@@ -17,6 +17,72 @@ import (
 	_ "github.com/lib/pq"
 )
 
+const (
+	// API version
+	apiVersion = "2.0.0"
+	serviceName = "metareasoning-coordinator"
+	
+	// Defaults
+	defaultEmbeddingModel = "nomic-embed-text"
+	defaultWorkspace = "demo"
+	defaultPort = "8090"
+	
+	// Timeouts
+	httpTimeout = 30 * time.Second
+	discoveryDelay = 5 * time.Second
+	rediscoveryInterval = 5 * time.Minute
+	
+	// Database limits
+	maxDBConnections = 25
+	maxIdleConnections = 5
+	connMaxLifetime = 5 * time.Minute
+	
+	// Search
+	defaultSearchLimit = 10
+	minSimilarityScore = 0.3
+)
+
+// Logger provides structured logging
+type Logger struct {
+	*log.Logger
+}
+
+// NewLogger creates a structured logger
+func NewLogger() *Logger {
+	return &Logger{
+		Logger: log.New(os.Stdout, "[metareasoning-api] ", log.LstdFlags|log.Lshortfile),
+	}
+}
+
+func (l *Logger) Error(msg string, err error) {
+	l.Printf("ERROR: %s: %v", msg, err)
+}
+
+func (l *Logger) Warn(msg string, err error) {
+	l.Printf("WARN: %s: %v", msg, err)
+}
+
+func (l *Logger) Info(msg string) {
+	l.Printf("INFO: %s", msg)
+}
+
+// HTTPError sends structured error response
+func HTTPError(w http.ResponseWriter, message string, statusCode int, err error) {
+	logger := NewLogger()
+	logger.Error(fmt.Sprintf("HTTP %d: %s", statusCode, message), err)
+	
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	
+	errorResp := map[string]interface{}{
+		"error":     message,
+		"status":    statusCode,
+		"timestamp": time.Now().UTC(),
+	}
+	
+	json.NewEncoder(w).Encode(errorResp)
+}
+
 // WorkflowMetadata represents lightweight workflow reference
 type WorkflowMetadata struct {
 	ID           uuid.UUID              `json:"id"`
@@ -38,6 +104,7 @@ type DiscoveryService struct {
 	windmillURL string
 	qdrantURL   string
 	httpClient  *http.Client
+	logger      *Logger
 }
 
 // NewDiscoveryService creates a new discovery service
@@ -48,118 +115,158 @@ func NewDiscoveryService(db *sql.DB, n8nURL, windmillURL, qdrantURL string) *Dis
 		windmillURL: windmillURL,
 		qdrantURL:   qdrantURL,
 		httpClient: &http.Client{
-			Timeout: 30 * time.Second,
+			Timeout: httpTimeout,
 		},
+		logger:      NewLogger(),
 	}
 }
 
 // DiscoverAndRegister queries platforms and registers workflows
 func (d *DiscoveryService) DiscoverAndRegister() error {
-	log.Println("Starting workflow discovery...")
+	d.logger.Info("Starting workflow discovery...")
 	
 	// Initialize Qdrant collection if needed
-	d.initializeQdrantCollection()
-	
-	// Discover n8n workflows
-	if err := d.discoverN8nWorkflows(); err != nil {
-		log.Printf("Warning: Failed to discover n8n workflows: %v", err)
+	if err := d.initializeQdrantCollection(); err != nil {
+		d.logger.Error("Failed to initialize Qdrant collection", err)
+		// Continue anyway - semantic search will be disabled
 	}
 	
-	// Discover Windmill apps
-	if err := d.discoverWindmillApps(); err != nil {
-		log.Printf("Warning: Failed to discover Windmill apps: %v", err)
+	// Discover workflows from all platforms
+	platforms := []string{"n8n", "windmill"}
+	for _, platform := range platforms {
+		if err := d.discoverPlatformWorkflows(platform); err != nil {
+			d.logger.Warn(fmt.Sprintf("Failed to discover %s workflows", platform), err)
+		}
 	}
 	
-	log.Println("Workflow discovery completed")
+	d.logger.Info("Workflow discovery completed")
 	return nil
 }
 
 // initializeQdrantCollection ensures the workflow embeddings collection exists
-func (d *DiscoveryService) initializeQdrantCollection() {
+func (d *DiscoveryService) initializeQdrantCollection() error {
 	// Check if collection exists
 	resp, err := d.httpClient.Get(fmt.Sprintf("%s/collections/workflow_embeddings", d.qdrantURL))
 	if err != nil {
-		log.Printf("Warning: Could not check Qdrant collection: %v", err)
-		return
+		return fmt.Errorf("could not check Qdrant collection: %w", err)
 	}
 	defer resp.Body.Close()
 	
 	// If collection exists, we're done
 	if resp.StatusCode == 200 {
-		log.Println("Qdrant collection 'workflow_embeddings' already exists")
-		return
+		d.logger.Info("Qdrant collection 'workflow_embeddings' already exists")
+		return nil
+	}
+	
+	// Get embedding dimensions from the model
+	// nomic-embed-text produces 768-dimensional embeddings
+	// mxbai-embed-large produces 1024-dimensional embeddings
+	// all-minilm produces 384-dimensional embeddings
+	embeddingModel := os.Getenv("EMBEDDING_MODEL")
+	if embeddingModel == "" {
+		embeddingModel = defaultEmbeddingModel
+	}
+	
+	embeddingSize := 768 // Default for nomic-embed-text
+	switch embeddingModel {
+	case "mxbai-embed-large":
+		embeddingSize = 1024
+	case "all-minilm":
+		embeddingSize = 384
+	case "nomic-embed-text":
+		embeddingSize = 768
+	default:
+		// Try to detect by generating a test embedding
+		testEmbedding := d.generateEmbedding("test")
+		if len(testEmbedding) > 0 {
+			embeddingSize = len(testEmbedding)
+			d.logger.Info(fmt.Sprintf("Detected embedding size: %d for model %s", embeddingSize, embeddingModel))
+		}
 	}
 	
 	// Create collection
 	collectionConfig := map[string]interface{}{
 		"vectors": map[string]interface{}{
-			"size": 384,  // Match our embedding dimension
+			"size": embeddingSize,  // Match actual embedding dimension
 			"distance": "Cosine",
 		},
 	}
 	
-	configBody, _ := json.Marshal(collectionConfig)
-	createReq, _ := http.NewRequest("PUT",
+	configBody, err := json.Marshal(collectionConfig)
+	if err != nil {
+		return fmt.Errorf("failed to marshal collection config: %w", err)
+	}
+	
+	createReq, err := http.NewRequest("PUT",
 		fmt.Sprintf("%s/collections/workflow_embeddings", d.qdrantURL),
 		bytes.NewBuffer(configBody))
+	if err != nil {
+		return fmt.Errorf("failed to create HTTP request: %w", err)
+	}
+	
 	createReq.Header.Set("Content-Type", "application/json")
 	createResp, err := d.httpClient.Do(createReq)
 	if err != nil {
-		log.Printf("Warning: Failed to create Qdrant collection: %v", err)
-		return
+		return fmt.Errorf("failed to create Qdrant collection: %w", err)
 	}
 	defer createResp.Body.Close()
 	
 	if createResp.StatusCode < 400 {
-		log.Println("Created Qdrant collection 'workflow_embeddings'")
+		d.logger.Info("Created Qdrant collection 'workflow_embeddings'")
+		return nil
 	} else {
-		log.Printf("Warning: Qdrant returned status %d when creating collection", createResp.StatusCode)
+		return fmt.Errorf("Qdrant returned status %d when creating collection", createResp.StatusCode)
 	}
 }
 
-func (d *DiscoveryService) discoverN8nWorkflows() error {
-	// Query n8n for workflows
-	resp, err := d.httpClient.Get(fmt.Sprintf("%s/rest/workflows", d.n8nBaseURL))
+// discoverPlatformWorkflows is a consolidated discovery method
+func (d *DiscoveryService) discoverPlatformWorkflows(platform string) error {
+	var url string
+	var idField, nameField string
+	
+	switch platform {
+	case "n8n":
+		url = fmt.Sprintf("%s/rest/workflows", d.n8nBaseURL)
+		idField = "id"
+		nameField = "name"
+	case "windmill":
+		url = fmt.Sprintf("%s/api/w/demo/apps", d.windmillURL)
+		idField = "path"
+		nameField = "summary"
+	default:
+		return fmt.Errorf("unsupported platform: %s", platform)
+	}
+	
+	resp, err := d.httpClient.Get(url)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 	
-	var workflows []map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&workflows); err != nil {
+	var items []map[string]interface{}
+	if err := json.NewDecoder(resp.Body).Decode(&items); err != nil {
 		return err
 	}
 	
 	// Register metareasoning workflows
-	for _, wf := range workflows {
-		name, _ := wf["name"].(string)
-		if d.isMetareasoningWorkflow(name) {
-			d.registerWorkflow("n8n", wf["id"].(string), name, extractTags(wf))
+	for _, item := range items {
+		id, _ := item[idField].(string)
+		name, _ := item[nameField].(string)
+		
+		// For n8n, also check the actual name field
+		if platform == "n8n" {
+			actualName, _ := item["name"].(string)
+			if actualName != "" {
+				name = actualName
+			}
 		}
-	}
-	
-	return nil
-}
-
-func (d *DiscoveryService) discoverWindmillApps() error {
-	// Query Windmill for apps
-	resp, err := d.httpClient.Get(fmt.Sprintf("%s/api/w/demo/apps", d.windmillURL))
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	
-	var apps []map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&apps); err != nil {
-		return err
-	}
-	
-	// Register metareasoning apps
-	for _, app := range apps {
-		path, _ := app["path"].(string)
-		summary, _ := app["summary"].(string)
-		if d.isMetareasoningWorkflow(path) || d.isMetareasoningWorkflow(summary) {
-			d.registerWorkflow("windmill", path, summary, []string{})
+		
+		if d.isMetareasoningWorkflow(name) {
+			tags := []string{}
+			if platform == "n8n" {
+				tags = extractTags(item)
+			}
+			d.registerWorkflow(platform, id, name, tags)
 		}
 	}
 	
@@ -211,6 +318,33 @@ func extractTags(workflow map[string]interface{}) []string {
 	return []string{}
 }
 
+// scanWorkflowRow is a helper to scan workflow rows and parse tags
+func scanWorkflowRow(rows *sql.Rows, includeLast bool) (*WorkflowMetadata, error) {
+	var wf WorkflowMetadata
+	var tagsArray sql.NullString
+	
+	if includeLast {
+		err := rows.Scan(&wf.ID, &wf.Platform, &wf.PlatformID, &wf.Name,
+			&wf.Description, &wf.Category, &tagsArray, &wf.UsageCount, &wf.LastUsed)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		err := rows.Scan(&wf.ID, &wf.Platform, &wf.PlatformID, &wf.Name,
+			&wf.Description, &wf.Category, &tagsArray, &wf.UsageCount)
+		if err != nil {
+			return nil, err
+		}
+	}
+	
+	// Parse tags
+	if tagsArray.Valid {
+		wf.Tags = strings.Split(strings.Trim(tagsArray.String, "{}"), ",")
+	}
+	
+	return &wf, nil
+}
+
 // API Handlers
 
 // ListWorkflows returns all discovered workflows
@@ -220,26 +354,18 @@ func (d *DiscoveryService) ListWorkflows(w http.ResponseWriter, r *http.Request)
 		FROM workflow_registry
 		ORDER BY usage_count DESC, name`)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		HTTPError(w, "Failed to query workflows", http.StatusInternalServerError, err)
 		return
 	}
 	defer rows.Close()
 	
 	var workflows []WorkflowMetadata
 	for rows.Next() {
-		var wf WorkflowMetadata
-		var tagsArray sql.NullString
-		err := rows.Scan(&wf.ID, &wf.Platform, &wf.PlatformID, &wf.Name,
-			&wf.Description, &wf.Category, &tagsArray, &wf.UsageCount, &wf.LastUsed)
+		wf, err := scanWorkflowRow(rows, true)
 		if err != nil {
 			continue
 		}
-		// Parse tags
-		if tagsArray.Valid {
-			// Simple parsing of PostgreSQL array format
-			wf.Tags = strings.Split(strings.Trim(tagsArray.String, "{}"), ",")
-		}
-		workflows = append(workflows, wf)
+		workflows = append(workflows, *wf)
 	}
 	
 	w.Header().Set("Content-Type", "application/json")
@@ -267,16 +393,9 @@ func (d *DiscoveryService) ExecuteWorkflow(w http.ResponseWriter, r *http.Reques
 	startTime := time.Now()
 	
 	// Proxy to appropriate platform
-	var result map[string]interface{}
-	var execErr error
-	
-	switch platform {
-	case "n8n":
-		result, execErr = d.executeN8nWorkflow(workflowID, r)
-	case "windmill":
-		result, execErr = d.executeWindmillJob(workflowID, r)
-	default:
-		http.Error(w, "Unknown platform", http.StatusBadRequest)
+	result, execErr := d.executePlatformWorkflow(platform, workflowID, r)
+	if execErr != nil && strings.Contains(execErr.Error(), "unsupported platform") {
+		HTTPError(w, "Unknown platform", http.StatusBadRequest, execErr)
 		return
 	}
 	
@@ -297,15 +416,18 @@ func (d *DiscoveryService) ExecuteWorkflow(w http.ResponseWriter, r *http.Reques
 	}
 	
 	// Update workflow usage stats
-	_, _ = d.db.Exec(`
+	_, err = d.db.Exec(`
 		UPDATE workflow_registry 
 		SET usage_count = usage_count + 1, last_used = NOW()
 		WHERE platform = $1 AND platform_id = $2`,
 		platform, workflowID)
+	if err != nil {
+		d.logger.Error("Failed to update workflow usage stats", err)
+	}
 	
 	// Return result
 	if execErr != nil {
-		http.Error(w, execErr.Error(), http.StatusInternalServerError)
+		HTTPError(w, "Workflow execution failed", http.StatusInternalServerError, execErr)
 		return
 	}
 	
@@ -313,38 +435,24 @@ func (d *DiscoveryService) ExecuteWorkflow(w http.ResponseWriter, r *http.Reques
 	json.NewEncoder(w).Encode(result)
 }
 
-func (d *DiscoveryService) executeN8nWorkflow(workflowID string, r *http.Request) (map[string]interface{}, error) {
-	// Forward request to n8n webhook
-	webhookURL := fmt.Sprintf("%s/webhook/%s", d.n8nBaseURL, workflowID)
+// executePlatformWorkflow is a consolidated method to execute workflows on any platform
+func (d *DiscoveryService) executePlatformWorkflow(platform, workflowID string, r *http.Request) (map[string]interface{}, error) {
+	var targetURL string
+	var method string
+	
+	switch platform {
+	case "n8n":
+		targetURL = fmt.Sprintf("%s/webhook/%s", d.n8nBaseURL, workflowID)
+		method = r.Method // n8n webhooks support various methods
+	case "windmill":
+		targetURL = fmt.Sprintf("%s/api/w/demo/jobs/run/p/%s", d.windmillURL, workflowID)
+		method = "POST" // Windmill always uses POST
+	default:
+		return nil, fmt.Errorf("unsupported platform: %s", platform)
+	}
 	
 	// Create proxy request
-	proxyReq, err := http.NewRequest(r.Method, webhookURL, r.Body)
-	if err != nil {
-		return nil, err
-	}
-	proxyReq.Header = r.Header
-	
-	// Execute
-	resp, err := d.httpClient.Do(proxyReq)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, err
-	}
-	
-	return result, nil
-}
-
-func (d *DiscoveryService) executeWindmillJob(jobID string, r *http.Request) (map[string]interface{}, error) {
-	// Forward request to Windmill
-	jobURL := fmt.Sprintf("%s/api/w/demo/jobs/run/p/%s", d.windmillURL, jobID)
-	
-	// Create proxy request
-	proxyReq, err := http.NewRequest("POST", jobURL, r.Body)
+	proxyReq, err := http.NewRequest(method, targetURL, r.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -409,45 +517,68 @@ func (d *DiscoveryService) createAndStoreEmbedding(embeddingID, text string, tag
 	}
 }
 
-// generateEmbedding creates a simple text embedding using Ollama
+// generateEmbedding creates a text embedding using Ollama's embedding models
 func (d *DiscoveryService) generateEmbedding(text string) []float32 {
-	// For simplicity, using a basic hash-based approach
-	// In production, you'd call Ollama's embedding model or use a dedicated service
-	// This creates a deterministic 384-dimensional vector from the text
-	const dimensions = 384
-	embedding := make([]float32, dimensions)
-	
-	// Simple hash-based embedding (replace with actual embedding model)
-	for i, char := range text {
-		idx := i % dimensions
-		embedding[idx] += float32(char) / 1000.0
+	// Use Ollama's embedding endpoint with a proper embedding model
+	// Common embedding models: nomic-embed-text, mxbai-embed-large, all-minilm
+	embeddingModel := os.Getenv("EMBEDDING_MODEL")
+	if embeddingModel == "" {
+		embeddingModel = defaultEmbeddingModel
 	}
 	
-	// Normalize
-	var sum float32
-	for _, v := range embedding {
-		sum += v * v
+	// Get Ollama port from port registry
+	ollamaPort := getResourcePort("ollama")
+	ollamaURL := fmt.Sprintf("http://localhost:%s", ollamaPort)
+	
+	// Prepare the embedding request
+	payload := map[string]interface{}{
+		"model":  embeddingModel,
+		"prompt": text,
 	}
-	if sum > 0 {
-		norm := float32(1.0 / sqrt(float64(sum)))
-		for i := range embedding {
-			embedding[i] *= norm
-		}
+	
+	reqBody, err := json.Marshal(payload)
+	if err != nil {
+		d.logger.Error("Failed to marshal embedding request", err)
+		return nil
 	}
+	
+	// Call Ollama's embedding endpoint
+	resp, err := d.httpClient.Post(
+		fmt.Sprintf("%s/api/embeddings", ollamaURL),
+		"application/json",
+		bytes.NewBuffer(reqBody),
+	)
+	if err != nil {
+		d.logger.Error("Failed to get embedding from Ollama", err)
+		return nil
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode != http.StatusOK {
+		d.logger.Error("Ollama returned non-200 status for embedding", fmt.Errorf("status: %d", resp.StatusCode))
+		return nil
+	}
+	
+	// Parse the response
+	var embeddingResp struct {
+		Embedding []float64 `json:"embedding"`
+	}
+	
+	if err := json.NewDecoder(resp.Body).Decode(&embeddingResp); err != nil {
+		d.logger.Error("Failed to decode Ollama embedding response", err)
+		return nil
+	}
+	
+	// Convert float64 to float32 for Qdrant compatibility
+	embedding := make([]float32, len(embeddingResp.Embedding))
+	for i, v := range embeddingResp.Embedding {
+		embedding[i] = float32(v)
+	}
+	
+	// Log successful embedding generation
+	d.logger.Info(fmt.Sprintf("Generated embedding with %d dimensions for text: %.50s...", len(embedding), text))
 	
 	return embedding
-}
-
-// sqrt helper function
-func sqrt(x float64) float64 {
-	if x < 0 {
-		return 0
-	}
-	z := x
-	for i := 0; i < 10; i++ {
-		z = (z + x/z) / 2
-	}
-	return z
 }
 
 // SearchWorkflows performs semantic search using Qdrant
@@ -458,12 +589,12 @@ func (d *DiscoveryService) SearchWorkflows(w http.ResponseWriter, r *http.Reques
 	}
 	
 	if err := json.NewDecoder(r.Body).Decode(&searchReq); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		HTTPError(w, "Invalid JSON request body", http.StatusBadRequest, err)
 		return
 	}
 	
 	if searchReq.Limit == 0 {
-		searchReq.Limit = 10
+		searchReq.Limit = defaultSearchLimit
 	}
 	
 	// Try semantic search first with Qdrant
@@ -487,24 +618,18 @@ func (d *DiscoveryService) SearchWorkflows(w http.ResponseWriter, r *http.Reques
 		ORDER BY usage_count DESC
 		LIMIT $2`, query, searchReq.Limit)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		HTTPError(w, "Failed to search workflows", http.StatusInternalServerError, err)
 		return
 	}
 	defer rows.Close()
 	
 	var workflows []WorkflowMetadata
 	for rows.Next() {
-		var wf WorkflowMetadata
-		var tagsArray sql.NullString
-		err := rows.Scan(&wf.ID, &wf.Platform, &wf.PlatformID, &wf.Name,
-			&wf.Description, &wf.Category, &tagsArray, &wf.UsageCount)
+		wf, err := scanWorkflowRow(rows, false)
 		if err != nil {
 			continue
 		}
-		if tagsArray.Valid {
-			wf.Tags = strings.Split(strings.Trim(tagsArray.String, "{}"), ",")
-		}
-		workflows = append(workflows, wf)
+		workflows = append(workflows, *wf)
 	}
 	
 	w.Header().Set("Content-Type", "application/json")
@@ -516,14 +641,18 @@ func (d *DiscoveryService) semanticSearch(query string, limit int) []WorkflowMet
 	// Generate embedding for the query
 	queryEmbedding := d.generateEmbedding(query)
 	if len(queryEmbedding) == 0 {
+		d.logger.Warn("Failed to generate embedding for semantic search", fmt.Errorf("query: %s", query))
 		return nil
 	}
+	
+	d.logger.Info(fmt.Sprintf("Performing semantic search with %d-dimensional embedding", len(queryEmbedding)))
 	
 	// Search in Qdrant
 	searchPayload := map[string]interface{}{
 		"vector": queryEmbedding,
 		"limit": limit,
 		"with_payload": true,
+		"score_threshold": minSimilarityScore,
 	}
 	
 	reqBody, _ := json.Marshal(searchPayload)
@@ -593,17 +722,11 @@ func (d *DiscoveryService) semanticSearch(query string, limit int) []WorkflowMet
 	
 	var workflows []WorkflowMetadata
 	for rows.Next() {
-		var wf WorkflowMetadata
-		var tagsArray sql.NullString
-		err := rows.Scan(&wf.ID, &wf.Platform, &wf.PlatformID, &wf.Name,
-			&wf.Description, &wf.Category, &tagsArray, &wf.UsageCount)
+		wf, err := scanWorkflowRow(rows, false)
 		if err != nil {
 			continue
 		}
-		if tagsArray.Valid {
-			wf.Tags = strings.Split(strings.Trim(tagsArray.String, "{}"), ",")
-		}
-		workflows = append(workflows, wf)
+		workflows = append(workflows, *wf)
 	}
 	
 	return workflows
@@ -614,8 +737,8 @@ func Health(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"status": "healthy",
-		"service": "metareasoning-coordinator",
-		"version": "2.0.0",
+		"service": serviceName,
+		"version": apiVersion,
 	})
 }
 
@@ -649,7 +772,7 @@ func main() {
 	if port == "" {
 		port = os.Getenv("SERVICE_PORT")
 		if port == "" {
-			port = "8090"
+			port = defaultPort
 		}
 	}
 	
@@ -682,18 +805,22 @@ func main() {
 	// Connect to database
 	db, err := sql.Open("postgres", dbURL)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		logger := NewLogger()
+		logger.Error("Failed to connect to database", err)
+		os.Exit(1)
 	}
 	defer db.Close()
 	
 	// Configure connection pool
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
+	db.SetMaxOpenConns(maxDBConnections)
+	db.SetMaxIdleConns(maxIdleConnections)
+	db.SetConnMaxLifetime(connMaxLifetime)
 	
 	// Test database connection
 	if err := db.Ping(); err != nil {
-		log.Fatal("Failed to ping database:", err)
+		logger := NewLogger()
+		logger.Error("Failed to ping database", err)
+		os.Exit(1)
 	}
 	
 	log.Println("Connected to database")
@@ -703,13 +830,13 @@ func main() {
 	
 	// Start discovery in background
 	go func() {
-		time.Sleep(5 * time.Second) // Let platforms initialize
+		time.Sleep(discoveryDelay) // Let platforms initialize
 		if err := discovery.DiscoverAndRegister(); err != nil {
 			log.Printf("Discovery failed: %v", err)
 		}
 		
 		// Periodic re-discovery
-		ticker := time.NewTicker(5 * time.Minute)
+		ticker := time.NewTicker(rediscoveryInterval)
 		for range ticker.C {
 			if err := discovery.DiscoverAndRegister(); err != nil {
 				log.Printf("Re-discovery failed: %v", err)
@@ -733,7 +860,11 @@ func main() {
 	log.Printf("  Qdrant URL: %s", qdrantURL)
 	log.Printf("  Database: %s", dbURL)
 	
+	logger := NewLogger()
+	logger.Info(fmt.Sprintf("Server starting on port %s", port))
+	
 	if err := http.ListenAndServe(":"+port, r); err != nil {
-		log.Fatal("Server failed:", err)
+		logger.Error("Server failed", err)
+		os.Exit(1)
 	}
 }

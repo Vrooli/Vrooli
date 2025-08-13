@@ -6,7 +6,7 @@
 set -euo pipefail
 
 # Handle Ctrl+C gracefully
-trap 'node_red::show_interrupt_message; exit 130' INT TERM
+trap 'log::info "\nInterrupted. Exiting..."; exit 130' INT TERM
 
 # Get the directory of this script (unique variable name)
 NODE_RED_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -23,8 +23,6 @@ source "${var_LIB_UTILS_DIR}/args-cli.sh"
 # Source configuration
 # shellcheck disable=SC1091
 source "${NODE_RED_SCRIPT_DIR}/config/defaults.sh"
-# shellcheck disable=SC1091
-source "${NODE_RED_SCRIPT_DIR}/config/messages.sh"
 
 # Export configuration
 node_red::export_config
@@ -39,10 +37,28 @@ source "${NODE_RED_LIB_DIR}/docker.sh"
 source "${NODE_RED_LIB_DIR}/health.sh"
 # shellcheck disable=SC1091
 source "${NODE_RED_LIB_DIR}/recovery.sh"
-# shellcheck disable=SC1091
-source "${NODE_RED_LIB_DIR}/status.sh"
-# shellcheck disable=SC1091
-source "${NODE_RED_LIB_DIR}/api.sh"
+# Note: status.sh and api.sh functions are now in core.sh
+
+#######################################
+# Display usage information
+#######################################
+node_red::usage() {
+    args::usage "$DESCRIPTION"
+    echo
+    echo "Examples:"
+    echo "  # Install with custom image"
+    echo "  $0 --action install --build-image yes"
+    echo
+    echo "  # Import flows from file"
+    echo "  $0 --action flow-import --flow-file ./my-flows.json"
+    echo
+    echo "  # Execute test flow"
+    echo "  $0 --action flow-execute --endpoint /test/exec --data '{\"command\":\"ls\"}'"
+    echo
+    echo "  # Export all flows"
+    echo "  $0 --action flow-export --output ./backup-flows.json"
+    echo
+}
 
 #######################################
 # Parse command line arguments
@@ -58,7 +74,7 @@ node_red::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|flow-list|flow-export|flow-import|flow-execute|flow-enable|flow-disable|test|validate-host|validate-docker|benchmark|metrics|info|health|monitor|stress-test|verify|inject|validate-injection" \
+        --options "install|uninstall|start|stop|restart|status|logs|flow-list|flow-export|flow-import|flow-execute|flow-enable|flow-disable|test|metrics|info|health|monitor|inject|validate-injection" \
         --default "install"
     
     args::register \
@@ -125,11 +141,6 @@ node_red::parse_arguments() {
         --type "value" \
         --default "5"
     
-    args::register \
-        --name "duration" \
-        --desc "Test duration in seconds" \
-        --type "value" \
-        --default "60"
     
     args::register \
         --name "backup-path" \
@@ -162,7 +173,6 @@ node_red::parse_arguments() {
     export FOLLOW=$(args::get "follow")
     export LOG_LINES=$(args::get "lines")
     export INTERVAL=$(args::get "interval")
-    export DURATION=$(args::get "duration")
     export BACKUP_PATH=$(args::get "backup-path")
     export INJECTION_CONFIG=$(args::get "injection-config")
 }
@@ -217,58 +227,28 @@ main() {
             done
             ;;
         flow-list)
-            node_red::list_flows
+            node_red::flow_operation "list"
             ;;
         flow-export)
-            node_red::export_flows "$OUTPUT"
+            node_red::flow_operation "export" "$OUTPUT"
             ;;
         flow-import)
-            node_red::import_flows "$FLOW_FILE"
+            node_red::flow_operation "import" "$FLOW_FILE"
             ;;
         flow-execute)
-            node_red::execute_flow "$ENDPOINT" "$DATA"
+            node_red::flow_operation "execute" "$ENDPOINT" "$DATA"
             ;;
         flow-enable)
-            node_red::enable_flow "$FLOW_ID"
+            node_red::flow_operation "enable" "$FLOW_ID"
             ;;
         flow-disable)
-            node_red::disable_flow "$FLOW_ID"
+            node_red::flow_operation "disable" "$FLOW_ID"
             ;;
         test)
             "${NODE_RED_SCRIPT_DIR}/test/integration-test.sh"
             ;;
-        validate-host)
-            log::info "Validating host access..."
-            if docker::check_daemon; then
-                log::success "Docker daemon accessible"
-            else
-                log::error "Docker daemon not accessible"
-                exit 1
-            fi
-            ;;
-        validate-docker)
-            log::info "Validating Docker setup..."
-            if docker::check_daemon; then
-                log::success "Docker is properly configured"
-            else
-                log::error "Docker validation failed"
-                exit 1
-            fi
-            ;;
-        benchmark)
-            log::info "Running Node-RED benchmark..."
-            node_red::benchmark
-            ;;
-        stress-test)
-            log::info "Running Node-RED stress test for ${DURATION}s..."
-            node_red::stress_test "$DURATION"
-            ;;
         metrics)
             node_red::get_status_json | jq .
-            ;;
-        verify)
-            log::info "Verifying Node-RED installation..."
-            node_red::health
             ;;
         backup)
             node_red::create_backup "manual-$(date +%Y%m%d-%H%M%S)"
@@ -277,20 +257,10 @@ main() {
             node_red::restore_backup "$BACKUP_PATH"
             ;;
         inject)
-            if [[ -z "$INJECTION_CONFIG" ]]; then
-                log::error "Injection configuration required for inject action"
-                log::info "Use: --injection-config 'JSON_CONFIG'"
-                exit 1
-            fi
-            "${NODE_RED_SCRIPT_DIR}/inject.sh" --inject "$INJECTION_CONFIG"
+            node_red::inject
             ;;
         validate-injection)
-            if [[ -z "$INJECTION_CONFIG" ]]; then
-                log::error "Injection configuration required for validate-injection action"
-                log::info "Use: --injection-config 'JSON_CONFIG'"
-                exit 1
-            fi
-            "${NODE_RED_SCRIPT_DIR}/inject.sh" --validate "$INJECTION_CONFIG"
+            node_red::validate_injection
             ;;
         *)
             log::error "Unknown action: $ACTION"

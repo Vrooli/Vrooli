@@ -134,37 +134,128 @@ run_static_analysis() {
     
     log_info "📋 Found $total_scripts shell scripts to analyze"
     
-    # Process each script
-    local current=0
-    for script in "${unique_scripts[@]}"; do
-        ((current++))
-        local relative_script
-        relative_script=$(relative_path "$script")
-        
-        log_progress "$current" "$total_scripts" "Analyzing scripts"
-        
-        # Test 1: Bash syntax validation
-        local syntax_passed=false
-        if run_cached_test "$script" "bash-syntax" "validate_shell_syntax '$script' 'shell script'" "bash-syntax: $relative_script"; then
-            syntax_passed=true
-            increment_test_counter "passed"
-        else
-            increment_test_counter "failed"
+    # Check if parallel processing is enabled
+    local use_parallel=false
+    local parallel_jobs=4  # Default number of parallel jobs
+    
+    # Check for --parallel flag from environment variable
+    if [[ -n "${PARALLEL:-}" ]]; then
+        use_parallel=true
+    fi
+    
+    # Determine number of CPU cores for optimal parallelization
+    if [[ "$use_parallel" == "true" ]]; then
+        if command -v nproc >/dev/null 2>&1; then
+            parallel_jobs=$(nproc)
+        elif command -v sysctl >/dev/null 2>&1; then
+            parallel_jobs=$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
         fi
+        log_info "🚀 Parallel processing enabled with $parallel_jobs jobs"
+    fi
+    
+    if [[ "$use_parallel" == "true" ]] && command -v xargs >/dev/null 2>&1; then
+        # Parallel processing using xargs
+        process_script_parallel() {
+            local script="$1"
+            local relative_script
+            relative_script=$(relative_path "$script")
+            
+            # Test 1: Bash syntax validation
+            local syntax_passed=false
+            if validate_shell_syntax "$script" "shell script" >/dev/null 2>&1; then
+                syntax_passed=true
+                echo "PASS:bash-syntax:$script"
+            else
+                echo "FAIL:bash-syntax:$script"
+            fi
+            
+            # Test 2: Shellcheck static analysis (only if syntax is valid)
+            if [[ "$syntax_passed" == "true" ]]; then
+                if command -v shellcheck >/dev/null 2>&1 && shellcheck "$script" >/dev/null 2>&1; then
+                    echo "PASS:shellcheck:$script"
+                else
+                    echo "FAIL:shellcheck:$script"
+                fi
+            else
+                echo "SKIP:shellcheck:$script"
+            fi
+        }
         
-        # Test 2: Shellcheck static analysis (only if syntax is valid)
-        if [[ "$syntax_passed" == "true" ]]; then
-            if run_cached_test "$script" "shellcheck" "run_shellcheck '$script' 'shell script'" "shellcheck: $relative_script"; then
+        # Export function for use in subshells
+        export -f process_script_parallel
+        export -f relative_path
+        export -f validate_shell_syntax
+        export PROJECT_ROOT
+        
+        # Run parallel processing and collect results
+        log_info "⚡ Running parallel analysis..."
+        local results_file="/tmp/static_test_results_$$"
+        printf '%s\n' "${unique_scripts[@]}" | \
+            xargs -P "$parallel_jobs" -I {} bash -c 'process_script_parallel "$@"' _ {} > "$results_file" 2>&1
+        
+        # Process results
+        local current=0
+        while IFS=: read -r status test script; do
+            ((current++))
+            local relative_script
+            relative_script=$(relative_path "$script")
+            
+            log_progress "$current" "$((total_scripts * 2))" "Processing results"
+            
+            case "$status" in
+                PASS)
+                    log_test_pass "$test: $relative_script"
+                    cache_test_result "$script" "$test" "passed" ""
+                    increment_test_counter "passed"
+                    ;;
+                FAIL)
+                    log_test_fail "$test: $relative_script" "Test failed"
+                    cache_test_result "$script" "$test" "failed" "Test failed"
+                    increment_test_counter "failed"
+                    ;;
+                SKIP)
+                    log_test_skip "$test: $relative_script" "Skipped due to syntax errors"
+                    cache_test_result "$script" "$test" "skipped" "syntax errors"
+                    increment_test_counter "skipped"
+                    ;;
+            esac
+        done < "$results_file"
+        
+        # Clean up
+        rm -f "$results_file"
+    else
+        # Sequential processing (original implementation)
+        local current=0
+        for script in "${unique_scripts[@]}"; do
+            ((current++))
+            local relative_script
+            relative_script=$(relative_path "$script")
+            
+            log_progress "$current" "$total_scripts" "Analyzing scripts"
+            
+            # Test 1: Bash syntax validation
+            local syntax_passed=false
+            if run_cached_test "$script" "bash-syntax" "validate_shell_syntax '$script' 'shell script'" "bash-syntax: $relative_script"; then
+                syntax_passed=true
                 increment_test_counter "passed"
             else
                 increment_test_counter "failed"
             fi
-        else
-            log_test_skip "shellcheck: $relative_script" "Skipped due to syntax errors"
-            cache_test_result "$script" "shellcheck" "skipped" "syntax errors"
-            increment_test_counter "skipped"
-        fi
-    done
+            
+            # Test 2: Shellcheck static analysis (only if syntax is valid)
+            if [[ "$syntax_passed" == "true" ]]; then
+                if run_cached_test "$script" "shellcheck" "run_shellcheck '$script' 'shell script'" "shellcheck: $relative_script"; then
+                    increment_test_counter "passed"
+                else
+                    increment_test_counter "failed"
+                fi
+            else
+                log_test_skip "shellcheck: $relative_script" "Skipped due to syntax errors"
+                cache_test_result "$script" "shellcheck" "skipped" "syntax errors"
+                increment_test_counter "skipped"
+            fi
+        done
+    fi
     
     # Save cache before printing results
     save_cache

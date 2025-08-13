@@ -45,10 +45,8 @@ node_red::create_backup() {
         fi
     done
     
-    # Backup example flows
-    if [[ -d "${NODE_RED_SCRIPT_DIR}/examples" ]]; then
-        cp -r "${NODE_RED_SCRIPT_DIR}/examples"/* "$temp_dir/flows/" 2>/dev/null || true
-    fi
+    # Backup flows file
+    node_red::backup_flows_file "$temp_dir/flows"
     
     # Create metadata file
     local metadata_file="$temp_dir/metadata.json"
@@ -248,67 +246,27 @@ node_red::delete_backup() {
     backup::delete "node-red" "$backup_identifier"
 }
 
-#######################################
-# Export flows to a file
-# Arguments:
-#   $1 - output file path (optional)
-# Returns: 0 on success, 1 on failure
-#######################################
-node_red::export_flows() {
-    local output_file="${1:-node-red-flows-$(date +%Y%m%d-%H%M%S).json}"
+# Internal backup helpers for flow files
+node_red::backup_flows_file() {
+    local dest_dir="${1:-}"
     
     if [[ ! -f "$NODE_RED_DATA_DIR/$NODE_RED_FLOWS_FILE" ]]; then
-        log::error "No flows file found at: $NODE_RED_DATA_DIR/$NODE_RED_FLOWS_FILE"
-        return 1
+        return 0  # No flows to backup, not an error
     fi
     
-    cp "$NODE_RED_DATA_DIR/$NODE_RED_FLOWS_FILE" "$output_file"
-    log::success "Flows exported to: $output_file"
-    
-    return 0
+    if [[ -n "$dest_dir" ]]; then
+        cp "$NODE_RED_DATA_DIR/$NODE_RED_FLOWS_FILE" "$dest_dir/"
+    fi
 }
 
-#######################################
-# Import flows from a file
-# Arguments:
-#   $1 - input file path
-# Returns: 0 on success, 1 on failure
-#######################################
-node_red::import_flows() {
-    local input_file="${1:-}"
+node_red::restore_flows_file() {
+    local src_file="${1:-}"
     
-    if [[ -z "$input_file" ]]; then
-        log::error "Input file path required"
-        return 1
+    if [[ -f "$src_file" ]] && jq empty "$src_file" 2>/dev/null; then
+        mkdir -p "$NODE_RED_DATA_DIR"
+        cp "$src_file" "$NODE_RED_DATA_DIR/$NODE_RED_FLOWS_FILE"
+        chown 1000:1000 "$NODE_RED_DATA_DIR/$NODE_RED_FLOWS_FILE" 2>/dev/null || true
     fi
-    
-    if [[ ! -f "$input_file" ]]; then
-        log::error "Input file not found: $input_file"
-        return 1
-    fi
-    
-    # Validate JSON
-    if ! jq empty "$input_file" 2>/dev/null; then
-        log::error "Invalid JSON in input file: $input_file"
-        return 1
-    fi
-    
-    # Create backup of current flows
-    if [[ -f "$NODE_RED_DATA_DIR/$NODE_RED_FLOWS_FILE" ]]; then
-        local backup_file="$NODE_RED_DATA_DIR/${NODE_RED_FLOWS_FILE}.backup.$(date +%Y%m%d-%H%M%S)"
-        cp "$NODE_RED_DATA_DIR/$NODE_RED_FLOWS_FILE" "$backup_file"
-        log::info "Current flows backed up to: $backup_file"
-    fi
-    
-    # Import new flows
-    mkdir -p "$NODE_RED_DATA_DIR"
-    cp "$input_file" "$NODE_RED_DATA_DIR/$NODE_RED_FLOWS_FILE"
-    chown 1000:1000 "$NODE_RED_DATA_DIR/$NODE_RED_FLOWS_FILE" 2>/dev/null || true
-    
-    log::success "Flows imported from: $input_file"
-    log::info "Restart Node-RED to load the new flows"
-    
-    return 0
 }
 
 #######################################

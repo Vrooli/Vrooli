@@ -1,16 +1,52 @@
-import { app, BrowserWindow, net } from "electron";
-import { type ChildProcess, fork } from "node:child_process";
+import { app, BrowserWindow, net, shell, Menu } from "electron";
+import { type ChildProcess, fork, spawn } from "node:child_process";
 import path from "node:path";
 import process from "node:process";
 
-let serverProcess: ChildProcess | null = null;
-let mainWindow: BrowserWindow | null = null; // Keep a reference to the main window
-let splashWindow: BrowserWindow | null = null; // Keep a reference to the splash window
+// ===== TEMPLATE CONFIGURATION - AI AGENTS SHOULD MODIFY THIS SECTION =====
+// This template can work with different app architectures:
+// 1. Node.js server (use fork)
+// 2. Static files (set SERVER_TYPE to 'static')
+// 3. External server (set SERVER_TYPE to 'external')
+// 4. Bundled executable (set SERVER_TYPE to 'executable')
 
-const SERVER_PORT = 3000; // Define server port
-const SERVER_URL = `http://localhost:${SERVER_PORT}`;
-const SERVER_CHECK_INTERVAL_MS = 500; // Check every 500ms
-const SERVER_CHECK_TIMEOUT_MS = 30000; // Give up after 30 seconds
+const APP_CONFIG = {
+    // Application identity
+    APP_NAME: "{{APP_NAME}}",  // Replace with your app name
+    APP_URL: "{{APP_URL}}",     // Replace with your app's help/about URL
+    
+    // Server configuration
+    SERVER_TYPE: "node",        // Options: 'node', 'static', 'external', 'executable'
+    SERVER_PORT: 3000,           // Port your backend runs on (if applicable)
+    SERVER_PATH: "{{SERVER_PATH}}", // Path to server entry point (relative to app root)
+    // Examples:
+    // - Node.js: "backend/dist/server.js"
+    // - Static: "dist/index.html"
+    // - External: "https://api.example.com"
+    // - Executable: "bin/server.exe"
+    
+    // Window configuration
+    WINDOW_WIDTH: 1200,
+    WINDOW_HEIGHT: 800,
+    WINDOW_BACKGROUND: "#2e2c29", // Default background color
+    
+    // Timing configuration
+    SERVER_CHECK_INTERVAL_MS: 500,  // How often to check if server is ready
+    SERVER_CHECK_TIMEOUT_MS: 30000, // Maximum time to wait for server
+    
+    // Features
+    ENABLE_SPLASH: true,         // Show splash screen during startup
+    ENABLE_MENU: true,           // Show application menu
+    ENABLE_SINGLE_INSTANCE: true, // Prevent multiple instances
+};
+
+let serverProcess: ChildProcess | null = null;
+let mainWindow: BrowserWindow | null = null;
+let splashWindow: BrowserWindow | null = null;
+
+const SERVER_URL = APP_CONFIG.SERVER_TYPE === 'external' 
+    ? APP_CONFIG.SERVER_PATH 
+    : `http://localhost:${APP_CONFIG.SERVER_PORT}`;
 
 // --- Function Declarations (Moved to Top Level) ---
 
@@ -57,7 +93,10 @@ async function createWindow() {
         show: false, // Keep hidden initially
         backgroundColor: "#2e2c29", // Match splash/app background
         webPreferences: {
-            preload: path.join(app.getAppPath(), "dist/desktop/preload.cjs"),
+            // AI AGENT NOTE: Ensure preload script is built to this location
+            preload: path.join(app.getAppPath(), "desktop/dist/preload.js"),
+            nodeIntegration: false,
+            contextIsolation: true,
         },
     });
 
@@ -128,7 +167,8 @@ function createSplashWindow() {
         },
     });
 
-    const splashPath = path.join(app.getAppPath(), "platforms/desktop/src/splash.html");
+    // AI AGENT NOTE: Update this path if your app structure differs
+    const splashPath = path.join(app.getAppPath(), "desktop/src/splash.html");
     console.log(`[Electron Main] Loading splash screen from: ${splashPath}`);
     splashWindow.loadFile(splashPath)
         .then(() => console.log("[Electron Main] Splash screen loaded."))
@@ -153,12 +193,15 @@ function startServer() {
         console.log("[Electron Main] Server process already requested to start.");
         return; // Avoid starting multiple server processes
     }
-    // Path to the compiled server entry point relative to ASAR root
-    const serverPath = path.resolve(app.getAppPath(), "packages/server/dist/main.js");
+    // AI AGENT NOTE: Adjust this section based on SERVER_TYPE
+    const serverPath = path.resolve(app.getAppPath(), APP_CONFIG.SERVER_PATH);
     console.log(`[Electron Main] Attempting to start server from: ${serverPath}`);
 
     try {
-        serverProcess = fork(serverPath, [], {
+        // Different server startup methods based on configuration
+        if (APP_CONFIG.SERVER_TYPE === 'node') {
+            // Fork a Node.js process
+            serverProcess = fork(serverPath, [], {
             // Pass necessary environment variables, inherit stdio, etc.
             stdio: "inherit", // Show server logs in Electron's console
             // detached: true // Consider if detaching is needed, usually not for this pattern
@@ -189,6 +232,20 @@ function startServer() {
             //   app.quit();
             // }
         });
+        } else if (APP_CONFIG.SERVER_TYPE === 'executable') {
+            // Spawn an executable
+            serverProcess = spawn(serverPath, [], {
+                stdio: "inherit",
+            });
+        } else if (APP_CONFIG.SERVER_TYPE === 'static') {
+            // No server process needed for static files
+            console.log("[Electron Main] Static mode - no server process needed.");
+            return;
+        } else if (APP_CONFIG.SERVER_TYPE === 'external') {
+            // External server - no local process to start
+            console.log("[Electron Main] External server mode - no local process needed.");
+            return;
+        }
 
         console.log("[Electron Main] Server process requested to start successfully.");
 
@@ -226,7 +283,7 @@ const menuTemplate: (Electron.MenuItemConstructorOptions | Electron.MenuItem)[] 
             {
                 label: "Learn More",
                 click: async () => {
-                    await shell.openExternal("https://github.com/Vrooli/Vrooli"); // Replace with your actual URL
+                    await shell.openExternal(APP_CONFIG.APP_URL);
                 },
             },
             // Add other help items like 'About' here

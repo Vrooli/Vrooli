@@ -80,7 +80,8 @@
         "models": [
           "llama3.2",
           "mistral",
-          "codellama"
+          "codellama",
+          "nomic-embed-text"
         ]
       }
     },
@@ -146,7 +147,7 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} ./metareasoning-api &",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} EMBEDDING_MODEL=nomic-embed-text ./metareasoning-api &",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {

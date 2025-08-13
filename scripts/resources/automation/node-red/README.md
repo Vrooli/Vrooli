@@ -7,7 +7,7 @@ Node-RED is a low-code visual programming tool for wiring together hardware devi
 - **Category**: Automation / Visual Programming
 - **Port**: 1880 (Editor & Dashboard)
 - **Container**: node-red-vrooli
-- **Data Directory**: `./data/node-red`
+- **Data Directory**: `~/.local/share/node-red`
 - **API Docs**: [Complete API Reference](docs/API.md)
 - **Status**: Production Ready ✅
 
@@ -94,10 +94,13 @@ Input Nodes → Processing Nodes → Output Nodes
 - `NODE_RED_ENABLE_SAFE_MODE`: Start in safe mode (flows disabled)
 
 ### Data Persistence
-- **Flows**: Stored in `/data/flows.json`
-- **Credentials**: Encrypted in `/data/flows_cred.json`
-- **Settings**: Configuration in `/data/settings.js`
-- **Context**: Persistent data in `/data/context/`
+All Node-RED data is stored outside the repository at `~/.local/share/node-red`:
+- **Flows**: `~/.local/share/node-red/flows.json`
+- **Credentials**: `~/.local/share/node-red/flows_cred.json` (encrypted)
+- **Settings**: `~/.local/share/node-red/settings.js`
+- **Context**: `~/.local/share/node-red/context/`
+
+This directory is automatically created on first run and persists across reinstalls.
 
 ### Custom Nodes
 ```bash
