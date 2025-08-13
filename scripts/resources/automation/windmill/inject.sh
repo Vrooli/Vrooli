@@ -5,7 +5,7 @@ set -euo pipefail
 # This script handles injection of scripts, apps, and resources into Windmill
 # Part of the Vrooli resource data injection system
 
-DESCRIPTION="Inject scripts, apps, and resources into Windmill workflow platform"
+export DESCRIPTION="Inject scripts, apps, and resources into Windmill workflow platform"
 
 # Source var.sh first with relative path
 # shellcheck disable=SC1091

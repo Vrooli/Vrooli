@@ -261,7 +261,8 @@ main() {
     
     # Ensure we have required variables
     if [[ -z "${POSTGRES_PASSWORD:-}" ]]; then
-        export POSTGRES_PASSWORD="$(openssl rand -base64 32)"
+        POSTGRES_PASSWORD="$(openssl rand -base64 32)"
+        export POSTGRES_PASSWORD
         warn "Generated random PostgreSQL password"
     fi
     

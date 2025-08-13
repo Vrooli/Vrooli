@@ -429,7 +429,8 @@ scenario_to_app::validate_initialization_paths() {
 #######################################
 scenario_to_app::create_default_service_json() {
     local dest="$1"
-    local app_name="$(basename "$(dirname "$(dirname "$dest")")")"
+    local app_name
+    app_name="$(basename "$(dirname "$(dirname "$dest")")")"
     
     cat > "$dest" << EOF
 {
@@ -808,10 +809,12 @@ scenario_to_app::process_template_variables() {
         
         # Check if content has any templates before processing
         if echo "$content" | grep -qE '\{\{[^}]+\}\}|\$\{service\.[^}]+\}'; then
-            local sub_start=$(date +"%s%N")
+            local sub_start
+            sub_start=$(date +"%s%N")
             local processed
             processed=$(echo "$content" | secrets::substitute_all_templates)
-            local sub_end=$(date +"%s%N")
+            local sub_end
+            sub_end=$(date +"%s%N")
             local sub_time=$(( (sub_end - sub_start) / 1000000 ))
             [[ "$VERBOSE" == "true" ]] && [[ $sub_time -gt 100 ]] && log::info "    Template substitution took ${sub_time}ms for $(basename "$file")"
             
@@ -857,15 +860,24 @@ scenario_to_app::copy_from_manifest() {
         local rule
         rule=$(jq -c ".copy_rules[$i]" "$manifest")
         
-        local name=$(echo "$rule" | jq -r '.name')
-        local source=$(echo "$rule" | jq -r '.source')
-        local destination=$(echo "$rule" | jq -r '.destination') 
-        local type=$(echo "$rule" | jq -r '.type')
-        local from=$(echo "$rule" | jq -r '.from // "vrooli"')
-        local required=$(echo "$rule" | jq -r '.required // false')
-        local optional=$(echo "$rule" | jq -r '.optional // false')
-        local executable=$(echo "$rule" | jq -r '.executable // false')
-        local merge=$(echo "$rule" | jq -r '.merge // "replace"')
+        local name
+        name=$(echo "$rule" | jq -r '.name')
+        local source
+        source=$(echo "$rule" | jq -r '.source')
+        local destination
+        destination=$(echo "$rule" | jq -r '.destination') 
+        local type
+        type=$(echo "$rule" | jq -r '.type')
+        local from
+        from=$(echo "$rule" | jq -r '.from // "vrooli"')
+        local required
+        required=$(echo "$rule" | jq -r '.required // false')
+        local optional
+        optional=$(echo "$rule" | jq -r '.optional // false')
+        local executable
+        executable=$(echo "$rule" | jq -r '.executable // false')
+        local merge
+        merge=$(echo "$rule" | jq -r '.merge // "replace"')
         
         # Determine source path
         local src_path
@@ -1113,13 +1125,15 @@ scenario_to_app::generate_app() {
                 log::info "Processing template variables in ${#init_files[@]} initialization files..."
                 
                 # Debug timing
-                local start_time=$(date +"%s%N")
+                local start_time
+                start_time=$(date +"%s%N")
                 
                 # Source utilities once for all files
                 local secrets_util="${var_ROOT_DIR}/scripts/lib/service/secrets.sh"
                 local service_config_util="${var_ROOT_DIR}/scripts/lib/service/service_config.sh"
                 
-                local source_start=$(date +"%s%N")
+                local source_start
+                source_start=$(date +"%s%N")
                 if [[ -f "$secrets_util" ]]; then
                     # shellcheck disable=SC1091
                     source "$secrets_util"
@@ -1129,17 +1143,21 @@ scenario_to_app::generate_app() {
                     # shellcheck disable=SC1090
                     source "$service_config_util"
                 fi
-                local source_end=$(date +"%s%N")
+                local source_end
+                source_end=$(date +"%s%N")
                 local source_time=$(( (source_end - source_start) / 1000000 ))
                 [[ "$VERBOSE" == "true" ]] && log::info "  Sourcing utilities took ${source_time}ms"
                 
                 # Process files with progress indicator
                 local processed=0
-                local process_start=$(date +"%s%N")
+                local process_start
+                process_start=$(date +"%s%N")
                 for file in "${init_files[@]}"; do
-                    local file_start=$(date +"%s%N")
+                    local file_start
+                    file_start=$(date +"%s%N")
                     scenario_to_app::process_template_variables "$file" "$SERVICE_JSON"
-                    local file_end=$(date +"%s%N")
+                    local file_end
+                    file_end=$(date +"%s%N")
                     local file_time=$(( (file_end - file_start) / 1000000 ))
                     [[ "$VERBOSE" == "true" ]] && [[ $file_time -gt 100 ]] && log::info "  File $(basename "$file") took ${file_time}ms"
                     ((processed++))
@@ -1148,7 +1166,8 @@ scenario_to_app::generate_app() {
                         echo -n "." >&2
                     fi
                 done
-                local process_end=$(date +"%s%N")
+                local process_end
+                process_end=$(date +"%s%N")
                 local process_time=$(( (process_end - process_start) / 1000000 ))
                 
                 # Clear progress line if we showed dots
@@ -1156,7 +1175,8 @@ scenario_to_app::generate_app() {
                     echo "" >&2
                 fi
                 
-                local end_time=$(date +"%s%N")
+                local end_time
+                end_time=$(date +"%s%N")
                 local total_time=$(( (end_time - start_time) / 1000000 ))
                 
                 [[ "$VERBOSE" == "true" ]] && log::info "Processed $processed initialization files in ${total_time}ms (processing: ${process_time}ms)"

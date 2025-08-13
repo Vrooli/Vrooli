@@ -17,13 +17,11 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-utils.sh"
 # shellcheck disable=SC1091
 source "${var_LIB_UTILS_DIR}/log.sh"
 
-# Source configuration and API
+# Source configuration and core functions
 # shellcheck disable=SC1091
 source "${QDRANT_HEALTH_DIR}/../config/defaults.sh"
 # shellcheck disable=SC1091
-source "${QDRANT_HEALTH_DIR}/api.sh"
-# shellcheck disable=SC1091
-source "${QDRANT_HEALTH_DIR}/common.sh"
+source "${QDRANT_HEALTH_DIR}/core.sh"
 
 # Export configuration
 qdrant::export_config
@@ -71,7 +69,7 @@ qdrant::health::basic() {
     
     # Check if API responds
     local response
-    response=$(curl -s -f -m 5 "${QDRANT_BASE_URL}/" 2>/dev/null || true)
+    response=$(qdrant::api::request "GET" "/" 2>/dev/null || true)
     
     if [[ -z "$response" ]]; then
         log::error "Qdrant API not responding"
@@ -233,7 +231,7 @@ qdrant::tiered_health_check() {
     
     # Check basic API connectivity
     local api_response
-    api_response=$(curl -s -f -m 5 "${QDRANT_BASE_URL}/" 2>/dev/null || true)
+    api_response=$(qdrant::api::request "GET" "/" 2>/dev/null || true)
     
     if [[ -z "$api_response" ]]; then
         echo "UNHEALTHY"
@@ -248,7 +246,7 @@ qdrant::tiered_health_check() {
     
     # Check collections endpoint for advanced health
     local collections_response
-    collections_response=$(curl -s -f -m 5 "${QDRANT_BASE_URL}/collections" 2>/dev/null || true)
+    collections_response=$(qdrant::api::request "GET" "/collections" 2>/dev/null || true)
     
     if [[ -z "$collections_response" ]]; then
         # API works but collections endpoint doesn't - degraded
@@ -269,6 +267,22 @@ qdrant::tiered_health_check() {
 }
 
 #######################################
+# Check if Qdrant is healthy (missing function)
+# Returns:
+#   0 if healthy, 1 if not healthy
+#######################################
+qdrant::health::is_healthy() {
+    local health_status
+    health_status=$(qdrant::tiered_health_check 2>/dev/null || echo "FAILED")
+    
+    if [[ "$health_status" == "HEALTHY" || "$health_status" == "DEGRADED" ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+#######################################
 # Export health functions
 #######################################
 export -f qdrant::get_health_config
@@ -277,3 +291,4 @@ export -f qdrant::health::advanced
 export -f qdrant::health
 export -f qdrant::test
 export -f qdrant::tiered_health_check
+export -f qdrant::health::is_healthy

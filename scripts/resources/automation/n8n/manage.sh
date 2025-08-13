@@ -4,7 +4,7 @@ set -euo pipefail
 # n8n Workflow Automation Platform Setup and Management
 # This script handles installation, configuration, and management of n8n using Docker
 
-DESCRIPTION="Install and manage n8n workflow automation platform using Docker"
+export DESCRIPTION="Install and manage n8n workflow automation platform using Docker"
 
 N8N_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
@@ -168,23 +168,24 @@ n8n::parse_arguments() {
     
     args::parse "$@"
     
-    export ACTION=$(args::get "action")
-    export FORCE=$(args::get "force")
-    export LINES=$(args::get "lines")
-    export YES=$(args::get "yes")
-    export WEBHOOK_URL=$(args::get "webhook-url")
-    export WORKFLOW_ID=$(args::get "workflow-id")
-    export API_KEY=$(args::get "api-key")
-    export WORKFLOW_DATA=$(args::get "data")
-    export BASIC_AUTH=$(args::get "basic-auth")
-    export AUTH_USERNAME=$(args::get "username")
-    export AUTH_PASSWORD=$(args::get "password")
-    export DATABASE_TYPE=$(args::get "database")
-    export TUNNEL_ENABLED=$(args::get "tunnel")
-    export BUILD_IMAGE=$(args::get "build-image")
-    export INJECTION_CONFIG=$(args::get "injection-config")
-    export VALIDATION_TYPE=$(args::get "validation-type")
-    export VALIDATION_FILE=$(args::get "validation-file")
+    ACTION=$(args::get "action")
+    FORCE=$(args::get "force")
+    LINES=$(args::get "lines")
+    YES=$(args::get "yes")
+    WEBHOOK_URL=$(args::get "webhook-url")
+    WORKFLOW_ID=$(args::get "workflow-id")
+    API_KEY=$(args::get "api-key")
+    WORKFLOW_DATA=$(args::get "data")
+    BASIC_AUTH=$(args::get "basic-auth")
+    AUTH_USERNAME=$(args::get "username")
+    AUTH_PASSWORD=$(args::get "password")
+    DATABASE_TYPE=$(args::get "database")
+    TUNNEL_ENABLED=$(args::get "tunnel")
+    BUILD_IMAGE=$(args::get "build-image")
+    INJECTION_CONFIG=$(args::get "injection-config")
+    VALIDATION_TYPE=$(args::get "validation-type")
+    VALIDATION_FILE=$(args::get "validation-file")
+    export ACTION FORCE LINES YES WEBHOOK_URL WORKFLOW_ID API_KEY WORKFLOW_DATA BASIC_AUTH AUTH_USERNAME AUTH_PASSWORD DATABASE_TYPE TUNNEL_ENABLED BUILD_IMAGE INJECTION_CONFIG VALIDATION_TYPE VALIDATION_FILE
 }
 
 #######################################

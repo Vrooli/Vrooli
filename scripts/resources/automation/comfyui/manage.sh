@@ -4,7 +4,7 @@ set -euo pipefail
 # ComfyUI Resource Management Script
 # This is the main entry point that sources all modular components
 
-DESCRIPTION="Manages ComfyUI - AI image generation workflow platform"
+export DESCRIPTION="Manages ComfyUI - AI image generation workflow platform"
 
 # Get script directory (unique variable name)
 COMFYUI_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)

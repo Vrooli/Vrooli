@@ -119,14 +119,15 @@ minio::parse_arguments() {
     
     args::parse "$@"
     
-    export ACTION=$(args::get "action")
-    export BUCKET=$(args::get "bucket")
-    export POLICY=$(args::get "policy")
-    export REMOVE_DATA=$(args::get "remove-data")
-    export FORCE=$(args::get "force")
-    export LOG_LINES=$(args::get "lines")
-    export MONITOR_INTERVAL=$(args::get "interval")
-    export INJECTION_CONFIG=$(args::get "injection-config")
+    ACTION=$(args::get "action")
+    BUCKET=$(args::get "bucket")
+    POLICY=$(args::get "policy")
+    REMOVE_DATA=$(args::get "remove-data")
+    FORCE=$(args::get "force")
+    LOG_LINES=$(args::get "lines")
+    MONITOR_INTERVAL=$(args::get "interval")
+    INJECTION_CONFIG=$(args::get "injection-config")
+    export ACTION BUCKET POLICY REMOVE_DATA FORCE LOG_LINES MONITOR_INTERVAL INJECTION_CONFIG
 }
 
 #######################################

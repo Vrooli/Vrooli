@@ -5,7 +5,7 @@ set -euo pipefail
 # This script handles injection of buckets and files into MinIO S3-compatible storage
 # Part of the Vrooli resource data injection system
 
-DESCRIPTION="Inject buckets and files into MinIO S3-compatible object storage"
+export DESCRIPTION="Inject buckets and files into MinIO S3-compatible object storage"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 

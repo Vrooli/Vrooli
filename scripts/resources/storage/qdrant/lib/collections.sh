@@ -2,6 +2,40 @@
 # Qdrant Collection Management
 # Functions for managing vector collections
 
+set -euo pipefail
+
+# Get directory of this script
+QDRANT_COLLECTIONS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Source required utilities
+# shellcheck disable=SC1091
+source "${QDRANT_COLLECTIONS_DIR}/../../../../lib/utils/var.sh"
+# shellcheck disable=SC1091
+source "${var_LIB_UTILS_DIR}/log.sh"
+
+# Source configuration and messages
+# shellcheck disable=SC1091
+source "${QDRANT_COLLECTIONS_DIR}/../config/defaults.sh"
+# shellcheck disable=SC1091
+source "${QDRANT_COLLECTIONS_DIR}/../config/messages.sh"
+
+# Configuration and messages initialized by manage.sh
+# qdrant::export_config and qdrant::messages::init called by main script
+
+#######################################
+# Verify initialization before running collection functions
+#######################################
+qdrant::collections::verify_init() {
+    if [[ -z "${QDRANT_CONFIG_EXPORTED:-}" ]]; then
+        log::error "Qdrant configuration not initialized. Run qdrant::export_config first."
+        return 1
+    fi
+    if [[ -z "${MSG_COLLECTION_CREATED:-}" ]]; then
+        log::error "Qdrant messages not initialized. Run qdrant::messages::init first."
+        return 1
+    fi
+}
+
 #######################################
 # Create a new collection
 # Arguments:
@@ -11,6 +45,8 @@
 # Returns: 0 on success, 1 on failure
 #######################################
 qdrant::collections::create() {
+    qdrant::collections::verify_init || return 1
+    
     local collection_name="$1"
     local vector_size="${2:-1536}"
     local distance_metric="${3:-Cosine}"
@@ -97,6 +133,8 @@ EOF
 # Returns: 0 on success, 1 on failure
 #######################################
 qdrant::collections::delete() {
+    qdrant::collections::verify_init || return 1
+    
     local collection_name="$1"
     local force="${2:-no}"
     
@@ -175,6 +213,8 @@ qdrant::collections::exists() {
 # Returns: 0 on success, 1 on failure
 #######################################
 qdrant::collections::list() {
+    qdrant::collections::verify_init || return 1
+    
     local response
     response=$(qdrant::api::request "GET" "/collections" 2>/dev/null)
     

@@ -74,7 +74,7 @@ node_red::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|logs|flow-list|flow-export|flow-import|flow-execute|flow-enable|flow-disable|test|metrics|info|health|monitor|inject|validate-injection" \
+        --options "install|uninstall|start|stop|restart|status|logs|flow-list|flow-export|flow-import|flow-execute|flow-enable|flow-disable|test|validate-host|validate-docker|benchmark|metrics|info|health|monitor|stress-test|verify|backup|restore|inject|validate-injection" \
         --default "install"
     
     args::register \
@@ -141,6 +141,11 @@ node_red::parse_arguments() {
         --type "value" \
         --default "5"
     
+    args::register \
+        --name "duration" \
+        --desc "Test duration in seconds" \
+        --type "value" \
+        --default "60"
     
     args::register \
         --name "backup-path" \
@@ -161,20 +166,22 @@ node_red::parse_arguments() {
     
     args::parse "$@"
     
-    export ACTION=$(args::get "action")
-    export YES=$(args::get "yes")
-    export FORCE=$(args::get "force")
-    export BUILD_IMAGE=$(args::get "build-image")
-    export FLOW_FILE=$(args::get "flow-file")
-    export FLOW_ID=$(args::get "flow-id")
-    export ENDPOINT=$(args::get "endpoint")
-    export DATA=$(args::get "data")
-    export OUTPUT=$(args::get "output")
-    export FOLLOW=$(args::get "follow")
-    export LOG_LINES=$(args::get "lines")
-    export INTERVAL=$(args::get "interval")
-    export BACKUP_PATH=$(args::get "backup-path")
-    export INJECTION_CONFIG=$(args::get "injection-config")
+    ACTION=$(args::get "action")
+    YES=$(args::get "yes")
+    FORCE=$(args::get "force")
+    BUILD_IMAGE=$(args::get "build-image")
+    FLOW_FILE=$(args::get "flow-file")
+    FLOW_ID=$(args::get "flow-id")
+    ENDPOINT=$(args::get "endpoint")
+    DATA=$(args::get "data")
+    OUTPUT=$(args::get "output")
+    FOLLOW=$(args::get "follow")
+    LOG_LINES=$(args::get "lines")
+    INTERVAL=$(args::get "interval")
+    DURATION=$(args::get "duration")
+    BACKUP_PATH=$(args::get "backup-path")
+    INJECTION_CONFIG=$(args::get "injection-config")
+    export ACTION YES FORCE BUILD_IMAGE FLOW_FILE FLOW_ID ENDPOINT DATA OUTPUT FOLLOW LOG_LINES INTERVAL DURATION BACKUP_PATH INJECTION_CONFIG
 }
 
 #######################################
@@ -227,22 +234,22 @@ main() {
             done
             ;;
         flow-list)
-            node_red::flow_operation "list"
+            node_red::list_flows
             ;;
         flow-export)
-            node_red::flow_operation "export" "$OUTPUT"
+            node_red::export_flows "$OUTPUT"
             ;;
         flow-import)
-            node_red::flow_operation "import" "$FLOW_FILE"
+            node_red::import_flows "$FLOW_FILE"
             ;;
         flow-execute)
-            node_red::flow_operation "execute" "$ENDPOINT" "$DATA"
+            node_red::execute_flow "$ENDPOINT" "$DATA"
             ;;
         flow-enable)
-            node_red::flow_operation "enable" "$FLOW_ID"
+            node_red::enable_flow "$FLOW_ID"
             ;;
         flow-disable)
-            node_red::flow_operation "disable" "$FLOW_ID"
+            node_red::disable_flow "$FLOW_ID"
             ;;
         test)
             "${NODE_RED_SCRIPT_DIR}/test/integration-test.sh"
@@ -256,11 +263,54 @@ main() {
         restore)
             node_red::restore_backup "$BACKUP_PATH"
             ;;
+        verify)
+            log::info "Verifying Node-RED installation..."
+            node_red::health
+            ;;
+        validate-host)
+            log::info "Validating host access..."
+            if docker::check_daemon; then
+                log::success "Docker daemon accessible"
+            else
+                log::error "Docker daemon not accessible"
+                exit 1
+            fi
+            ;;
+        validate-docker)
+            log::info "Validating Docker setup..."
+            if docker::check_daemon; then
+                log::success "Docker is properly configured"
+            else
+                log::error "Docker validation failed"
+                exit 1
+            fi
+            ;;
+        benchmark)
+            log::info "Running Node-RED benchmark..."
+            node_red::benchmark
+            ;;
+        stress-test)
+            log::info "Running Node-RED stress test for ${DURATION}s..."
+            node_red::stress_test "$DURATION"
+            ;;
         inject)
-            node_red::inject
+            if [[ -z "$INJECTION_CONFIG" ]]; then
+                log::error "Injection configuration required for inject action"
+                log::info "Use: --injection-config 'JSON_CONFIG'"
+                exit 1
+            fi
+            log::warn "Data injection not yet implemented for Node-RED"
+            log::info "Use the Node-RED editor interface at http://localhost:$NODE_RED_PORT"
+            log::info "Or import flows using: ./manage.sh --action flow-import --flow-file <flows.json>"
             ;;
         validate-injection)
-            node_red::validate_injection
+            if [[ -z "$INJECTION_CONFIG" ]]; then
+                log::error "Injection configuration required for validate-injection action"
+                log::info "Use: --injection-config 'JSON_CONFIG'"
+                exit 1
+            fi
+            log::warn "Injection validation not yet implemented for Node-RED"
+            log::info "For now, validate flows manually through the Node-RED editor"
             ;;
         *)
             log::error "Unknown action: $ACTION"

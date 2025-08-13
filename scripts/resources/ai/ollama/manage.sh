@@ -4,7 +4,7 @@ set -euo pipefail
 # Ollama AI Resource Management
 # This script orchestrates Ollama installation, configuration, and management using modular components
 
-DESCRIPTION="Install and manage Ollama AI resource"
+export DESCRIPTION="Install and manage Ollama AI resource"
 
 OLLAMA_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 

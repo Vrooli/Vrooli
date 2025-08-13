@@ -312,6 +312,20 @@ node_red::get_status_config() {
 # Node-RED Utility Functions
 # Consolidated from lib/common.sh
 
+#######################################
+# Tiered health check for status engine compatibility
+# This function provides the naming convention expected by status engine
+# Returns: Health tier (HEALTHY|DEGRADED|UNHEALTHY|UNKNOWN)
+#######################################
+node-red::tiered_health_check() {
+    # Delegate to the existing health function from health.sh
+    if node_red::health >/dev/null 2>&1; then
+        echo "HEALTHY"
+    else
+        echo "UNHEALTHY"
+    fi
+}
+
 # Generate secure random secret
 node_red::generate_secret() {
     if command -v openssl >/dev/null 2>&1; then
@@ -412,6 +426,7 @@ node_red::register_injection_framework() {
         --health-endpoint "/" \
         --validate-func "node_red::validate_injection_config" \
         --inject-func "node_red::perform_injection" \
+        --status-func "node_red::get_status_json" \
         --health-func "node_red::is_responding"
 }
 
@@ -426,7 +441,7 @@ node_red::inject() {
     fi
     
     node_red::register_injection_framework
-    inject_framework::main --inject --config "$injection_config"
+    inject_framework::main --inject "$injection_config"
 }
 
 # Validate injection configuration
@@ -440,7 +455,7 @@ node_red::validate_injection() {
     fi
     
     node_red::register_injection_framework
-    inject_framework::main --validate --config "$injection_config"
+    inject_framework::main --validate "$injection_config"
 }
 
 node_red::validate_injection_config() {
@@ -479,11 +494,10 @@ node_red::validate_injection_config() {
         fi
         
         # Resolve and validate file path
-        local resolved_file
-        if command -v inject_framework::resolve_file_path >/dev/null 2>&1; then
-            resolved_file=$(inject_framework::resolve_file_path "$file")
-        else
-            resolved_file="$file"
+        local resolved_file="$file"
+        # If file doesn't exist as-is, try resolving relative to script directory
+        if [[ ! -f "$resolved_file" ]] && [[ -f "${NODE_RED_SCRIPT_DIR}/$file" ]]; then
+            resolved_file="${NODE_RED_SCRIPT_DIR}/$file"
         fi
         
         if [[ ! -f "$resolved_file" ]]; then
@@ -536,11 +550,10 @@ node_red::perform_injection() {
         file=$(echo "$flow" | jq -r '.file')
         
         # Resolve file path
-        local resolved_file
-        if command -v inject_framework::resolve_file_path >/dev/null 2>&1; then
-            resolved_file=$(inject_framework::resolve_file_path "$file")
-        else
-            resolved_file="$file"
+        local resolved_file="$file"
+        # If file doesn't exist as-is, try resolving relative to script directory
+        if [[ ! -f "$resolved_file" ]] && [[ -f "${NODE_RED_SCRIPT_DIR}/$file" ]]; then
+            resolved_file="${NODE_RED_SCRIPT_DIR}/$file"
         fi
         
         log::info "Injecting flow '$name'..."
@@ -594,9 +607,15 @@ node_red::flow_operation() {
     # Define operation configurations
     case "$operation" in
         list)
-            response=$(http::request "GET" "$base_url/flows")
-            http_code=$?
-            if [[ $http_code -ne 200 ]]; then
+            # Use curl directly to avoid http::request issues
+            local full_response
+            full_response=$(curl -s -w "\nHTTP_CODE:%{http_code}" "$base_url/flows" 2>/dev/null)
+            local http_code
+            http_code=$(echo "$full_response" | grep "HTTP_CODE:" | cut -d':' -f2)
+            local response
+            response=$(echo "$full_response" | grep -v "HTTP_CODE:")
+            
+            if [[ "$http_code" != "200" ]]; then
                 log::error "Failed to fetch flows (HTTP $http_code)"
                 return 1
             fi
@@ -609,9 +628,16 @@ node_red::flow_operation() {
             
         export)
             local output_file="${1:-node-red-flows-$(date +%Y%m%d-%H%M%S).json}"
-            response=$(http::request "GET" "$base_url/flows")
-            http_code=$?
-            [[ $http_code -eq 200 ]] || { log::error "Export failed (HTTP $http_code)"; return 1; }
+            
+            # Use curl directly to avoid http::request issues
+            local full_response
+            full_response=$(curl -s -w "\nHTTP_CODE:%{http_code}" "$base_url/flows" 2>/dev/null)
+            local http_code
+            http_code=$(echo "$full_response" | grep "HTTP_CODE:" | cut -d':' -f2)
+            local response
+            response=$(echo "$full_response" | grep -v "HTTP_CODE:")
+            
+            [[ "$http_code" == "200" ]] || { log::error "Export failed (HTTP $http_code)"; return 1; }
             echo "$response" | jq . > "$output_file"
             log::success "Flows exported to: $output_file"
             ;;
@@ -623,12 +649,15 @@ node_red::flow_operation() {
             
             # Backup current flows
             local backup="flows-backup-$(date +%Y%m%d-%H%M%S).json"
-            http::request "GET" "$base_url/flows" > "$backup" 2>/dev/null
+            curl -s "$base_url/flows" > "$backup" 2>/dev/null
             
-            # Import flows
-            response=$(http::request "POST" "$base_url/flows" "$(cat "$flow_file")" "Content-Type: application/json")
-            http_code=$?
-            [[ $http_code -eq 200 || $http_code -eq 204 ]] && log::success "Flows imported from: $flow_file" || {
+            # Import flows using curl directly
+            local full_response
+            full_response=$(curl -s -w "\nHTTP_CODE:%{http_code}" -X POST -H "Content-Type: application/json" -d "@$flow_file" "$base_url/flows" 2>/dev/null)
+            local http_code
+            http_code=$(echo "$full_response" | grep "HTTP_CODE:" | cut -d':' -f2)
+            
+            [[ "$http_code" =~ ^(200|204)$ ]] && log::success "Flows imported from: $flow_file" || {
                 log::error "Import failed (HTTP $http_code)"
                 return 1
             }
@@ -638,33 +667,40 @@ node_red::flow_operation() {
             local endpoint="$1" data="${2:-}"
             [[ -n "$endpoint" ]] || { log::error "Endpoint required"; return 1; }
             
+            # Use curl directly for flow execution to avoid http::request issues
+            local curl_args=("-s" "-w" "\nHTTP_CODE:%{http_code}")
             if [[ -n "$data" ]]; then
-                response=$(http::request "POST" "$base_url$endpoint" "$data" "Content-Type: application/json")
+                curl_args+=("-X" "POST" "-H" "Content-Type: application/json" "-d" "$data")
             else
-                response=$(http::request "GET" "$base_url$endpoint")
+                curl_args+=("-X" "GET")
             fi
-            http_code=$?
-            [[ $http_code -eq 200 || $http_code -eq 201 || $http_code -eq 204 ]] && {
+            
+            local full_response
+            full_response=$(curl "${curl_args[@]}" "$base_url$endpoint" 2>/dev/null)
+            local http_code
+            http_code=$(echo "$full_response" | grep "HTTP_CODE:" | cut -d':' -f2)
+            local response_body
+            response_body=$(echo "$full_response" | grep -v "HTTP_CODE:")
+            
+            if [[ "$http_code" =~ ^(200|201|204)$ ]]; then
                 log::success "Flow executed"
-                [[ -n "$response" ]] && echo "$response"
-            } || { log::error "Execution failed (HTTP $http_code)"; return 1; }
+                [[ -n "$response_body" ]] && echo "$response_body"
+            else
+                log::error "Execution failed (HTTP $http_code)"
+                return 1
+            fi
             ;;
             
         enable|disable)
             local flow_id="$1"
             [[ -n "$flow_id" ]] || { log::error "Flow ID required"; return 1; }
             
-            # Get current flow
-            response=$(http::request "GET" "$base_url/flow/$flow_id")
-            [[ $? -eq 200 ]] || { log::error "Flow not found: $flow_id"; return 1; }
-            
-            # Update disabled flag
-            local disabled="$([[ "$operation" == "disable" ]] && echo "true" || echo "false")"
-            response=$(echo "$response" | jq ".disabled = $disabled" | http::request "PUT" "$base_url/flow/$flow_id" "-" "Content-Type: application/json")
-            [[ $? -eq 200 || $? -eq 204 ]] && log::success "Flow ${operation}d" || {
-                log::error "Failed to $operation flow"
-                return 1
-            }
+            # Node-RED doesn't support individual flow enable/disable via API
+            # This would require modifying the entire flows JSON and redeploying
+            log::error "Individual flow enable/disable not supported by Node-RED API"
+            log::info "To enable/disable flows, use the Node-RED editor interface at $base_url"
+            log::info "Or modify flows manually and use: ./manage.sh --action flow-import --flow-file <modified_flows.json>"
+            return 1
             ;;
             
         *)
@@ -754,4 +790,161 @@ node_red::get_status_json() {
     "timestamp": "$(date -Iseconds)"
 }
 EOF
+}
+
+#######################################
+# Run Node-RED benchmark test
+# Returns: 0 on success, 1 on failure
+#######################################
+node_red::benchmark() {
+    if ! docker::container_running "$NODE_RED_CONTAINER_NAME"; then
+        log::error "Node-RED is not running"
+        return 1
+    fi
+    
+    local base_url="http://localhost:$NODE_RED_PORT"
+    local start_time end_time duration
+    
+    log::info "Running Node-RED benchmark..."
+    
+    # Test 1: Health endpoint response time
+    start_time=$(date +%s%N)
+    if curl -sf "$base_url" >/dev/null 2>&1; then
+        end_time=$(date +%s%N)
+        duration=$(( (end_time - start_time) / 1000000 ))
+        log::success "Health endpoint: ${duration}ms"
+    else
+        log::error "Health endpoint: FAILED"
+        return 1
+    fi
+    
+    # Test 2: Flow API response time
+    start_time=$(date +%s%N)
+    if curl -sf "$base_url/flows" >/dev/null 2>&1; then
+        end_time=$(date +%s%N)
+        duration=$(( (end_time - start_time) / 1000000 ))
+        log::success "Flow API: ${duration}ms"
+    else
+        log::warn "Flow API: FAILED or empty"
+    fi
+    
+    # Test 3: Settings API response time
+    start_time=$(date +%s%N)
+    if curl -sf "$base_url/settings" >/dev/null 2>&1; then
+        end_time=$(date +%s%N)
+        duration=$(( (end_time - start_time) / 1000000 ))
+        log::success "Settings API: ${duration}ms"
+    else
+        log::warn "Settings API: FAILED"
+    fi
+    
+    # Test 4: Container resource usage
+    local stats
+    stats=$(docker stats --no-stream --format "{{.CPUPerc}}\t{{.MemUsage}}" "$NODE_RED_CONTAINER_NAME" 2>/dev/null || echo "")
+    if [[ -n "$stats" ]]; then
+        local cpu mem
+        cpu=$(echo "$stats" | awk '{print $1}')
+        mem=$(echo "$stats" | awk '{print $2}')
+        log::info "Resource usage - CPU: $cpu, Memory: $mem"
+    fi
+    
+    log::success "Benchmark completed"
+    return 0
+}
+
+#######################################
+# Run Node-RED stress test
+# Arguments:
+#   $1 - duration in seconds (default: 60)
+# Returns: 0 on success, 1 on failure
+#######################################
+node_red::stress_test() {
+    local duration="${1:-60}"
+    
+    if ! docker::container_running "$NODE_RED_CONTAINER_NAME"; then
+        log::error "Node-RED is not running"
+        return 1
+    fi
+    
+    local base_url="http://localhost:$NODE_RED_PORT"
+    local start_time end_time
+    local success_count=0
+    local failure_count=0
+    
+    log::info "Running Node-RED stress test for ${duration}s..."
+    start_time=$(date +%s)
+    end_time=$((start_time + duration))
+    
+    while [[ $(date +%s) -lt $end_time ]]; do
+        # Test health endpoint
+        if curl -sf "$base_url" >/dev/null 2>&1; then
+            ((success_count++))
+        else
+            ((failure_count++))
+        fi
+        
+        # Test flow API
+        if curl -sf "$base_url/flows" >/dev/null 2>&1; then
+            ((success_count++))
+        else
+            ((failure_count++))
+        fi
+        
+        # Brief pause to avoid overwhelming
+        sleep 0.1
+    done
+    
+    local total_requests=$((success_count + failure_count))
+    local success_rate=0
+    if [[ $total_requests -gt 0 ]]; then
+        success_rate=$(( (success_count * 100) / total_requests ))
+    fi
+    
+    log::info "Stress test results:"
+    log::info "  Duration: ${duration}s"
+    log::info "  Total requests: $total_requests"
+    log::info "  Successful: $success_count"
+    log::info "  Failed: $failure_count"
+    log::info "  Success rate: ${success_rate}%"
+    
+    if [[ $success_rate -ge 95 ]]; then
+        log::success "Stress test PASSED (${success_rate}% success rate)"
+        return 0
+    else
+        log::error "Stress test FAILED (${success_rate}% success rate)"
+        return 1
+    fi
+}
+
+#######################################
+# Wrapper functions for flow operations
+#######################################
+node_red::list_flows() {
+    node_red::flow_operation "list"
+}
+
+node_red::export_flows() {
+    local output_file="${1:-}"
+    node_red::flow_operation "export" "$output_file"
+}
+
+node_red::import_flows() {
+    local flow_file="${1:-}"
+    node_red::flow_operation "import" "$flow_file"
+}
+
+node_red::execute_flow() {
+    local endpoint="${1:-}"
+    local data="${2:-}"
+    node_red::flow_operation "execute" "$endpoint" "$data"
+}
+
+node_red::enable_flow() {
+    local flow_id="${1:-}"
+    node_red::flow_operation "enable" "$flow_id"
+}
+
+node_red::disable_flow() {
+    local flow_id="${1:-}"
+    node_red::flow_operation "disable" "$flow_id"
 }

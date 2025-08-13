@@ -215,8 +215,9 @@ backup::cleanup() {
     
     [[ -d "$backup_dir" ]] || return 0
     
-    # Get resource-specific policies (uppercase resource name)
+    # Get resource-specific policies (uppercase resource name, replace hyphens with underscores)
     local resource_upper="${resource^^}"
+    resource_upper="${resource_upper//-/_}"
     local max_count_var="${resource_upper}_BACKUP_MAX_COUNT"
     local max_size_var="${resource_upper}_BACKUP_MAX_SIZE_MB"
     local min_age_var="${resource_upper}_BACKUP_MIN_AGE_DAYS"
@@ -370,6 +371,68 @@ backup::info() {
 }
 
 #######################################
+# Extract backup to temporary directory for restoration
+# Args:
+#   $1 - resource name
+#   $2 - backup identifier (ID or path)
+# Returns: path to extracted backup directory via stdout, empty on failure
+#######################################
+backup::extract() {
+    local resource="$1"
+    local backup_identifier="$2"
+    
+    if [[ -z "$resource" || -z "$backup_identifier" ]]; then
+        log::error "backup::extract requires resource name and backup identifier"
+        return 1
+    fi
+    
+    local backup_path=""
+    
+    # Try to resolve backup path
+    if [[ -d "$backup_identifier" ]]; then
+        # Full path provided
+        backup_path="$backup_identifier"
+    else
+        # Try to find by ID
+        backup_path=$(backup::get_by_id "$resource" "$backup_identifier")
+        if [[ -z "$backup_path" ]]; then
+            log::error "Backup not found: $backup_identifier"
+            return 1
+        fi
+    fi
+    
+    if [[ ! -d "$backup_path" ]]; then
+        log::error "Backup directory not found: $backup_path"
+        return 1
+    fi
+    
+    # Create temporary directory for extraction
+    local temp_dir
+    temp_dir=$(mktemp -d) || {
+        log::error "Failed to create temporary directory for extraction"
+        return 1
+    }
+    
+    log::info "Extracting backup to temporary directory: $temp_dir" >&2
+    
+    # Copy backup contents to temp directory
+    if ! cp -r "$backup_path"/* "$temp_dir/" 2>/dev/null; then
+        log::error "Failed to extract backup contents" >&2
+        rm -rf "$temp_dir"
+        return 1
+    fi
+    
+    # Validate extraction
+    if [[ ! -f "$temp_dir/.metadata.json" ]]; then
+        log::warn "Backup metadata not found in extracted backup" >&2
+    fi
+    
+    log::success "Backup extracted successfully" >&2
+    echo "$temp_dir"
+    return 0
+}
+
+#######################################
 # Delete specific backup
 # Args: 
 #   $1 - resource name
@@ -425,5 +488,6 @@ export -f backup::foreach
 export -f backup::find_first
 export -f backup::cleanup
 export -f backup::info
+export -f backup::extract
 export -f backup::delete
 export -f backup::init

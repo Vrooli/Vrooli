@@ -106,23 +106,84 @@ qdrant::get_init_config() {
 }
 
 #######################################
-# Install Qdrant using init framework
+# Install Qdrant with comprehensive checks and setup
 # Arguments: None
 # Returns: 0 on success, 1 on failure
 #######################################
 qdrant::install() {
+    echo "=== Installing Qdrant Vector Database ==="
+    echo
+    
+    # Check prerequisites
+    if ! qdrant::install::check_prerequisites; then
+        return 1
+    fi
+    
+    # Check if already installed
+    if docker::container_exists "$QDRANT_CONTAINER_NAME"; then
+        if docker::is_running "$QDRANT_CONTAINER_NAME"; then
+            log::info "Qdrant is already installed and running"
+            qdrant::display_connection_info
+            return 0
+        else
+            log::info "Qdrant is installed but not running. Starting..."
+            if qdrant::start; then
+                qdrant::display_connection_info
+                return 0
+            else
+                log::error "Failed to start existing Qdrant installation"
+                return 1
+            fi
+        fi
+    fi
+    
+    # Check port availability
+    log::info "Checking port availability..."
+    if ! qdrant::common::check_ports; then
+        log::error "Required ports are not available"
+        log::info "Ports needed: $QDRANT_PORT (HTTP), $QDRANT_GRPC_PORT (gRPC)"
+        return 1
+    fi
+    
+    # Check disk space
+    if ! qdrant::common::check_disk_space; then
+        log::error "Insufficient disk space for installation"
+        return 1
+    fi
+    
+    # Use init framework for installation
     local init_config
     init_config=$(qdrant::get_init_config)
     
-    log::info "Installing Qdrant vector database..."
+    log::info "Installing Qdrant using framework..."
     
     if ! init::setup_resource "$init_config"; then
         log::error "Failed to install Qdrant"
         return 1
     fi
     
+    # Wait for startup
+    log::info "Waiting for Qdrant to start..."
+    if ! qdrant::wait_for_ready 60; then
+        log::error "Qdrant failed to start properly"
+        return 1
+    fi
+    
+    # Initialize default collections
+    log::info "Creating default collections..."
+    if ! qdrant::install::create_default_collections; then
+        log::warn "Some default collections could not be created"
+    fi
+    
+    # Update resource configuration
+    if ! qdrant::install::update_resource_config; then
+        log::warn "Failed to update resource configuration"
+    fi
+    
+    # Success
     log::success "Qdrant installation completed successfully!"
     qdrant::display_connection_info
+    
     return 0
 }
 
@@ -230,7 +291,7 @@ qdrant::display_connection_info() {
 }
 
 #######################################
-# Uninstall Qdrant
+# Uninstall Qdrant with comprehensive cleanup
 # Arguments:
 #   $1 - preserve_data (boolean): whether to preserve data
 # Returns: 0 on success, 1 on failure
@@ -238,11 +299,21 @@ qdrant::display_connection_info() {
 qdrant::uninstall() {
     local preserve_data="${1:-true}"
     
-    log::info "Uninstalling Qdrant..."
+    echo "=== Uninstalling Qdrant ==="
+    echo
     
-    # Stop and remove container
+    if [[ "$preserve_data" == "false" ]]; then
+        log::warn "This will permanently delete all Qdrant data!"
+    fi
+    
+    # Stop container if running
     if docker::container_exists "$QDRANT_CONTAINER_NAME"; then
-        docker::stop_container "$QDRANT_CONTAINER_NAME"
+        if docker::is_running "$QDRANT_CONTAINER_NAME"; then
+            log::info "Stopping Qdrant container..."
+            docker::stop_container "$QDRANT_CONTAINER_NAME"
+        fi
+        
+        log::info "Removing Qdrant container..."
         docker::remove_container "$QDRANT_CONTAINER_NAME"
     fi
     
@@ -252,12 +323,16 @@ qdrant::uninstall() {
     fi
     
     # Handle data removal
-    if [[ "$preserve_data" != "true" ]]; then
+    if [[ "$preserve_data" == "false" ]]; then
         log::info "Removing Qdrant data..."
         rm -rf "$QDRANT_DATA_DIR" "$QDRANT_CONFIG_DIR" "$QDRANT_SNAPSHOTS_DIR"
     else
         log::info "Preserving Qdrant data in $QDRANT_DATA_DIR"
+        log::info "Run with --remove-data yes to also remove data"
     fi
+    
+    # Remove from resource configuration
+    qdrant::install::remove_from_resource_config
     
     log::success "Qdrant uninstalled successfully"
     return 0
@@ -268,7 +343,7 @@ qdrant::uninstall() {
 # Returns: 0 on success
 #######################################
 qdrant::info() {
-    if ! qdrant::common::is_running; then
+    if ! docker::is_running "$QDRANT_CONTAINER_NAME"; then
         log::error "Qdrant is not running"
         return 1
     fi
@@ -368,13 +443,6 @@ qdrant::check_api_functionality() {
     return 0
 }
 
-#######################################
-# Common function: Check if Qdrant is running
-# Returns: 0 if running, 1 if not
-#######################################
-qdrant::common::is_running() {
-    docker::is_running "$QDRANT_CONTAINER_NAME"
-}
 
 #######################################
 # Common function: Show logs
@@ -385,7 +453,7 @@ qdrant::common::is_running() {
 qdrant::common::show_logs() {
     local lines="${1:-50}"
     
-    if ! qdrant::common::is_running; then
+    if ! docker::is_running "$QDRANT_CONTAINER_NAME"; then
         log::error "Qdrant container is not running"
         return 1
     fi
@@ -568,13 +636,7 @@ qdrant::api::get_version() {
     fi
 }
 
-qdrant::api::get_cluster_info() {
-    qdrant::api::request "GET" "/cluster"
-}
 
-qdrant::api::get_telemetry() {
-    qdrant::api::request "GET" "/telemetry"
-}
 
 # Additional API functions consolidated from api.sh
 qdrant::api::test() {
@@ -690,9 +752,6 @@ qdrant::api::list_snapshots() {
 # ESSENTIAL COMMON FUNCTIONS (from common.sh)
 #######################################
 
-qdrant::common::container_exists() {
-    docker::container_exists "$QDRANT_CONTAINER_NAME"
-}
 
 qdrant::common::is_port_available() {
     local port=$1
@@ -750,7 +809,7 @@ qdrant::common::cleanup() {
 }
 
 qdrant::common::get_process_info() {
-    if ! qdrant::common::is_running; then
+    if ! docker::is_running "$QDRANT_CONTAINER_NAME"; then
         echo "Qdrant container is not running"
         return 1
     fi
@@ -840,7 +899,7 @@ qdrant::display_additional_diagnostics() {
     echo "   gRPC Port: $QDRANT_GRPC_PORT"
     
     # Check collections if Qdrant is running
-    if qdrant::common::is_running; then
+    if docker::is_running "$QDRANT_CONTAINER_NAME"; then
         local collections_count
         if collections_count=$(qdrant::collections::count 2>/dev/null); then
             echo "   Collections: $collections_count"
@@ -915,8 +974,33 @@ qdrant::status::check() {
     status::display_unified_status "$config" "qdrant::display_additional_info" "$detailed"
 }
 
+#######################################
+# Monitor Qdrant status continuously
+# Arguments:
+#   $1 - interval in seconds (default: 5)
+#######################################
+qdrant::status::monitor() {
+    local interval="${1:-5}"
+    
+    log::info "Monitoring Qdrant status (interval: ${interval}s). Press Ctrl+C to stop."
+    echo
+    
+    while true; do
+        clear
+        echo "=== Qdrant Status Monitor - $(date) ==="
+        echo
+        
+        # Show status
+        qdrant::status::check true
+        
+        echo
+        echo "Next update in ${interval} seconds..."
+        sleep "$interval"
+    done
+}
+
 qdrant::display_additional_info() {
-    if ! qdrant::common::is_running; then
+    if ! docker::is_running "$QDRANT_CONTAINER_NAME"; then
         return 0
     fi
     
@@ -972,239 +1056,266 @@ qdrant::display_additional_info() {
 }
 
 #######################################
-# BACKUP AND RECOVERY (from docker.sh)
+# INSTALLATION HELPER FUNCTIONS
 #######################################
 
-qdrant::create_backup() {
-    local label="${1:-auto}"
+#######################################
+# Check installation prerequisites
+# Returns: 0 if all prerequisites met, 1 otherwise
+#######################################
+qdrant::install::check_prerequisites() {
+    log::info "Checking prerequisites..."
     
-    if ! qdrant::common::is_running; then
-        log::error "Qdrant must be running to create backup"
+    # Check Docker
+    if ! docker::check_daemon; then
+        log::error "Docker is not running or not installed"
         return 1
     fi
     
-    log::info "Creating Qdrant backup..."
+    # Check required commands
+    local required_commands=("curl" "jq")
+    local missing_commands=()
     
-    local temp_dir
-    temp_dir=$(mktemp -d)
-    
-    # Create snapshots directory in temp
-    mkdir -p "$temp_dir/snapshots"
-    mkdir -p "$temp_dir/config"
-    mkdir -p "$temp_dir/metadata"
-    
-    # Backup all collections as snapshots
-    if ! qdrant::backup_collections_data "$temp_dir/snapshots"; then
-        log::error "Failed to backup collection data"
-        rm -rf "$temp_dir"
-        return 1
-    fi
-    
-    # Backup configuration files
-    if [[ -d "$QDRANT_CONFIG_DIR" ]]; then
-        cp -r "$QDRANT_CONFIG_DIR"/* "$temp_dir/config/" 2>/dev/null || true
-    fi
-    
-    # Create backup metadata
-    qdrant::create_backup_metadata "$temp_dir/metadata"
-    
-    # Use backup framework to store
-    local backup_path
-    if backup_path=$(backup::store "qdrant" "$temp_dir" "$label"); then
-        log::success "Backup created: $(basename "$backup_path")"
-        rm -rf "$temp_dir"
-        return 0
-    else
-        log::error "Failed to store backup"
-        rm -rf "$temp_dir"
-        return 1
-    fi
-}
-
-qdrant::backup_collections_data() {
-    local target_dir="$1"
-    local success=true
-    
-    # Get list of collections
-    local collections
-    if ! collections=$(qdrant::collections::list_simple 2>/dev/null); then
-        log::warn "Unable to retrieve collections list"
-        return 0
-    fi
-    
-    # Create snapshot for each collection
-    while IFS= read -r collection; do
-        if [[ -n "$collection" ]]; then
-            log::info "Creating snapshot for collection: $collection"
-            
-            if qdrant::snapshots::create_collection_snapshot "$collection" "$target_dir"; then
-                log::debug "Snapshot created for $collection"
-            else
-                log::warn "Failed to create snapshot for $collection"
-                success=false
-            fi
-        fi
-    done <<< "$collections"
-    
-    if [[ "$success" == "true" ]]; then
-        return 0
-    else
-        return 1
-    fi
-}
-
-qdrant::create_backup_metadata() {
-    local metadata_dir="$1"
-    
-    # Create backup info file
-    cat > "$metadata_dir/backup_info.json" << EOF
-{
-    "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-    "qdrant_version": "$(qdrant::api::get_version 2>/dev/null || echo 'unknown')",
-    "container_name": "$QDRANT_CONTAINER_NAME",
-    "collections_count": $(qdrant::collections::count 2>/dev/null || echo 0),
-    "backup_type": "full",
-    "data_dir": "$QDRANT_DATA_DIR",
-    "port": $QDRANT_PORT,
-    "grpc_port": $QDRANT_GRPC_PORT
-}
-EOF
-    
-    # Create collections manifest
-    local collections_list
-    if collections_list=$(qdrant::collections::list 2>/dev/null); then
-        echo "$collections_list" > "$metadata_dir/collections.txt"
-    fi
-    
-    # Create configuration summary
-    cat > "$metadata_dir/config_summary.txt" << EOF
-Qdrant Configuration Summary
-============================
-Container: $QDRANT_CONTAINER_NAME
-REST Port: $QDRANT_PORT
-gRPC Port: $QDRANT_GRPC_PORT
-Data Directory: $QDRANT_DATA_DIR
-Image: $QDRANT_IMAGE
-API Key: $(if [[ -n "${QDRANT_API_KEY:-}" ]]; then echo "Configured"; else echo "None"; fi)
-EOF
-    
-    return 0
-}
-
-qdrant::list_backups() {
-    backup::list "qdrant"
-}
-
-qdrant::backup_info() {
-    local backup_name="$1"
-    
-    if [[ -z "$backup_name" ]]; then
-        log::error "Backup name is required"
-        return 1
-    fi
-    
-    backup::info "qdrant" "$backup_name"
-}
-
-qdrant::recover() {
-    local backup_name="$1"
-    
-    if [[ -z "$backup_name" ]]; then
-        log::error "Backup name is required"
-        return 1
-    fi
-    
-    log::info "Starting Qdrant recovery from backup: $backup_name"
-    
-    # Stop Qdrant if running
-    if qdrant::common::is_running; then
-        log::info "Stopping Qdrant for recovery..."
-        qdrant::docker::stop
-    fi
-    
-    # Extract backup
-    local restore_dir
-    if ! restore_dir=$(backup::extract "qdrant" "$backup_name"); then
-        log::error "Failed to extract backup"
-        return 1
-    fi
-    
-    # Backup current data
-    if [[ -d "$QDRANT_DATA_DIR" ]]; then
-        local current_backup
-        current_backup="${QDRANT_DATA_DIR}.backup.$(date +%Y%m%d_%H%M%S)"
-        log::info "Backing up current data to: $current_backup"
-        mv "$QDRANT_DATA_DIR" "$current_backup"
-    fi
-    
-    # Restore data
-    log::info "Restoring Qdrant data..."
-    mkdir -p "$QDRANT_DATA_DIR"
-    
-    # Restore snapshots if they exist
-    if [[ -d "$restore_dir/snapshots" ]]; then
-        cp -r "$restore_dir/snapshots"/* "$QDRANT_SNAPSHOTS_DIR/" 2>/dev/null || true
-    fi
-    
-    # Restore configuration if it exists
-    if [[ -d "$restore_dir/config" ]]; then
-        mkdir -p "$QDRANT_CONFIG_DIR"
-        cp -r "$restore_dir/config"/* "$QDRANT_CONFIG_DIR/" 2>/dev/null || true
-    fi
-    
-    # Start Qdrant
-    log::info "Starting Qdrant after recovery..."
-    if ! qdrant::docker::start; then
-        log::error "Failed to start Qdrant after recovery"
-        return 1
-    fi
-    
-    # Wait for Qdrant to be ready
-    if ! qdrant::wait_for_ready; then
-        log::error "Qdrant failed to start properly after recovery"
-        return 1
-    fi
-    
-    # Restore collections from snapshots
-    if [[ -d "$restore_dir/snapshots" ]] && [[ -n "$(ls -A "$restore_dir/snapshots" 2>/dev/null)" ]]; then
-        log::info "Restoring collections from snapshots..."
-        qdrant::restore_collections_from_snapshots "$restore_dir/snapshots"
-    fi
-    
-    # Cleanup
-    rm -rf "$restore_dir"
-    
-    log::success "Recovery completed successfully!"
-    
-    # Show status
-    qdrant::status::check
-    
-    return 0
-}
-
-qdrant::restore_collections_from_snapshots() {
-    local snapshots_dir="$1"
-    
-    # Process each snapshot file
-    for snapshot_file in "$snapshots_dir"/*.snapshot; do
-        if [[ -f "$snapshot_file" ]]; then
-            local filename
-            filename=$(basename "$snapshot_file")
-            local collection_name="${filename%.snapshot}"
-            
-            log::info "Restoring collection: $collection_name"
-            
-            if qdrant::snapshots::restore_collection_snapshot "$collection_name" "$snapshot_file"; then
-                log::success "Restored collection: $collection_name"
-            else
-                log::warn "Failed to restore collection: $collection_name"
-            fi
+    for cmd in "${required_commands[@]}"; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+            missing_commands+=("$cmd")
         fi
     done
+    
+    if [[ ${#missing_commands[@]} -gt 0 ]]; then
+        log::error "Missing required commands: ${missing_commands[*]}"
+        log::info "Please install the missing commands and try again"
+        return 1
+    fi
+    
+    log::debug "All prerequisites met"
+    return 0
 }
 
-qdrant::cleanup_backups() {
-    local days="${1:-30}"
-    log::info "Cleaning up Qdrant backups older than $days days..."
-    backup::cleanup "qdrant" "$days"
+#######################################
+# Create default collections for Vrooli
+# Returns: 0 on success, 1 if any failures
+#######################################
+qdrant::install::create_default_collections() {
+    local success_count=0
+    local total_count=${#QDRANT_COLLECTION_CONFIGS[@]}
+    
+    for config in "${QDRANT_COLLECTION_CONFIGS[@]}"; do
+        # Parse config: name:vector_size:distance_metric
+        local name
+        local vector_size
+        local distance_metric
+        
+        IFS=':' read -r name vector_size distance_metric <<< "$config"
+        
+        log::info "Creating collection: $name"
+        
+        if qdrant::collections::create "$name" "$vector_size" "$distance_metric" >/dev/null 2>&1; then
+            log::debug "Collection '$name' created successfully"
+            success_count=$((success_count + 1))
+        else
+            log::warn "Failed to create collection '$name'"
+        fi
+    done
+    
+    log::info "Created $success_count of $total_count default collections"
+    
+    if [[ $success_count -eq $total_count ]]; then
+        log::success "Default collections initialized successfully"
+        return 0
+    elif [[ $success_count -gt 0 ]]; then
+        log::warn "Some default collections could not be created"
+        return 0
+    else
+        log::warn "No default collections were created"
+        return 1
+    fi
 }
+
+#######################################
+# Update resource configuration file
+# Returns: 0 on success, 1 on failure
+#######################################
+qdrant::install::update_resource_config() {
+    local config_file="${VROOLI_RESOURCES_CONFIG:-}"
+    
+    if [[ -z "$config_file" ]] || [[ ! -f "$config_file" ]]; then
+        log::debug "No resource configuration file to update"
+        return 0
+    fi
+    
+    # Create backup
+    cp "$config_file" "${config_file}.backup" 2>/dev/null || true
+    
+    # Update configuration using jq
+    local updated_config
+    updated_config=$(jq --arg port "$QDRANT_PORT" \
+                        --arg grpc_port "$QDRANT_GRPC_PORT" \
+                        --arg base_url "$QDRANT_BASE_URL" \
+                        --arg grpc_url "$QDRANT_GRPC_URL" \
+                        --arg container "$QDRANT_CONTAINER_NAME" \
+                        --arg data_dir "$QDRANT_DATA_DIR" \
+                        --arg version "$(qdrant::version 2>/dev/null || echo 'unknown')" \
+                        '.services.storage.qdrant = {
+                            "enabled": true,
+                            "port": ($port | tonumber),
+                            "grpc_port": ($grpc_port | tonumber),
+                            "base_url": $base_url,
+                            "grpc_url": $grpc_url,
+                            "container_name": $container,
+                            "data_directory": $data_dir,
+                            "version": $version,
+                            "status": "installed",
+                            "last_updated": (now | strftime("%Y-%m-%d %H:%M:%S"))
+                        }' "$config_file" 2>/dev/null)
+    
+    if [[ -n "$updated_config" ]]; then
+        echo "$updated_config" > "${config_file}.tmp"
+        
+        if jq . "${config_file}.tmp" >/dev/null 2>&1; then
+            mv "${config_file}.tmp" "$config_file"
+            log::debug "Resource configuration updated"
+            return 0
+        fi
+    fi
+    
+    # Cleanup and restore on failure
+    trash::safe_remove "${config_file}.tmp" --temp 2>/dev/null || true
+    log::warn "Failed to update resource configuration"
+    return 1
+}
+
+#######################################
+# Remove Qdrant from resource configuration
+# Returns: 0 on success, 1 on failure
+#######################################
+qdrant::install::remove_from_resource_config() {
+    local config_file="${VROOLI_RESOURCES_CONFIG:-}"
+    
+    if [[ -z "$config_file" ]] || [[ ! -f "$config_file" ]]; then
+        return 0
+    fi
+    
+    if jq 'del(.services.storage.qdrant)' "$config_file" > "${config_file}.tmp" 2>/dev/null; then
+        mv "${config_file}.tmp" "$config_file"
+        log::debug "Removed from resource configuration"
+        return 0
+    else
+        trash::safe_remove "${config_file}.tmp" --temp 2>/dev/null || true
+        log::warn "Failed to remove from resource configuration"
+        return 1
+    fi
+}
+
+#######################################
+# Upgrade Qdrant to latest version
+# Returns: 0 on success, 1 on failure
+#######################################
+qdrant::install::upgrade() {
+    echo "=== Upgrading Qdrant ==="
+    echo
+    
+    if ! docker::container_exists "$QDRANT_CONTAINER_NAME"; then
+        log::error "Qdrant is not installed. Use 'install' action first."
+        return 1
+    fi
+    
+    # Get current version if possible
+    local current_version="unknown"
+    if docker::is_running "$QDRANT_CONTAINER_NAME"; then
+        current_version=$(qdrant::version 2>/dev/null || echo "unknown")
+        log::info "Current version: $current_version"
+    else
+        log::info "Qdrant is not running, unable to check current version"
+    fi
+    
+    # Create backup before upgrade
+    log::info "Creating backup before upgrade..."
+    if qdrant::health::is_healthy; then
+        local backup_name="pre-upgrade-$(date +%Y%m%d-%H%M%S)"
+        if ! qdrant::backup::create "$backup_name" >/dev/null 2>&1; then
+            log::warn "Failed to create backup - continuing with upgrade"
+        else
+            log::info "Backup created: $backup_name"
+        fi
+    fi
+    
+    # Stop current container
+    log::info "Stopping current Qdrant container..."
+    if ! docker::stop_container "$QDRANT_CONTAINER_NAME"; then
+        log::error "Failed to stop Qdrant container"
+        return 1
+    fi
+    
+    # Remove old container
+    log::info "Removing old container..."
+    if ! docker::remove_container "$QDRANT_CONTAINER_NAME"; then
+        log::error "Failed to remove old container"
+        return 1
+    fi
+    
+    # Pull latest image
+    log::info "Pulling latest Qdrant image..."
+    if ! docker::pull_image "$QDRANT_IMAGE"; then
+        log::error "Failed to pull latest image"
+        return 1
+    fi
+    
+    # Create new container with existing data
+    log::info "Creating new container with existing data..."
+    local init_config
+    init_config=$(qdrant::get_init_config)
+    
+    if ! init::setup_resource "$init_config"; then
+        log::error "Failed to create new container"
+        return 1
+    fi
+    
+    # Wait for startup
+    if ! qdrant::wait_for_ready 60; then
+        log::error "Upgraded Qdrant failed to start"
+        return 1
+    fi
+    
+    # Get new version
+    local new_version
+    new_version=$(qdrant::version 2>/dev/null || echo "unknown")
+    
+    log::success "Upgrade completed successfully"
+    log::info "New version: $new_version"
+    
+    # Show connection info
+    qdrant::display_connection_info
+    
+    return 0
+}
+
+#######################################
+# Reset Qdrant configuration to defaults
+# Returns: 0 on success, 1 on failure
+#######################################
+qdrant::install::reset_configuration() {
+    log::info "Resetting Qdrant configuration to defaults..."
+    
+    # Stop if running
+    if docker::is_running "$QDRANT_CONTAINER_NAME"; then
+        log::info "Stopping Qdrant to reset configuration..."
+        qdrant::stop || return 1
+    fi
+    
+    # Remove configuration directory
+    trash::safe_remove "${QDRANT_CONFIG_DIR}" --production 2>/dev/null || true
+    
+    # Recreate directories
+    mkdir -p "$QDRANT_DATA_DIR" "$QDRANT_CONFIG_DIR" "$QDRANT_SNAPSHOTS_DIR" || return 1
+    
+    # Restart with clean configuration
+    if qdrant::start; then
+        log::success "Configuration reset completed"
+        return 0
+    else
+        log::error "Failed to start with reset configuration"
+        return 1
+    fi
+}
+

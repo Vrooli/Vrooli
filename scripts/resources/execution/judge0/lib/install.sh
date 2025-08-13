@@ -122,7 +122,8 @@ judge0::install::setup_api_key() {
         log::info "Using existing API key"
     else
         # Generate new API key
-        export JUDGE0_API_KEY=$(judge0::generate_api_key)
+        JUDGE0_API_KEY=$(judge0::generate_api_key)
+        export JUDGE0_API_KEY
         judge0::save_api_key "$JUDGE0_API_KEY"
         log::success "Generated new API key"
     fi

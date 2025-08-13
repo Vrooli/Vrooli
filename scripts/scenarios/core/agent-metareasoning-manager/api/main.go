@@ -612,6 +612,106 @@ func (d *DiscoveryService) generateEmbedding(text string) []float32 {
 	return nil
 }
 
+// AnalyzeRequest represents incoming analysis request
+type AnalyzeRequest struct {
+	Type    string `json:"type"`
+	Input   string `json:"input"`
+	Context string `json:"context,omitempty"`
+	Model   string `json:"model,omitempty"`
+}
+
+// AnalyzeWorkflow handles intelligent analysis type routing to appropriate workflows
+func (d *DiscoveryService) AnalyzeWorkflow(w http.ResponseWriter, r *http.Request) {
+	var req AnalyzeRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		HTTPError(w, "Invalid JSON request body", http.StatusBadRequest, err)
+		return
+	}
+	
+	if req.Type == "" || req.Input == "" {
+		HTTPError(w, "Missing required fields: type and input", http.StatusBadRequest, nil)
+		return
+	}
+	
+	// Map analysis types to workflow IDs and platforms
+	workflowMapping := map[string]struct {
+		Platform   string
+		WorkflowID string
+	}{
+		"pros-cons":       {"n8n", "pros-cons-analyzer"},
+		"swot":           {"n8n", "swot-analysis"},
+		"risk":           {"n8n", "risk-assessment"},
+		"risk-assessment": {"n8n", "risk-assessment"},
+		"self-review":    {"n8n", "self-review"},
+		"reasoning-chain": {"n8n", "reasoning-chain"},
+		"decision":       {"windmill", "decision-analyzer"},
+	}
+	
+	mapping, exists := workflowMapping[req.Type]
+	if !exists {
+		// Try to find workflow by name pattern matching
+		rows, err := d.db.Query(`
+			SELECT platform, platform_id 
+			FROM workflow_registry 
+			WHERE LOWER(name) LIKE $1 
+			ORDER BY usage_count DESC 
+			LIMIT 1`, "%"+strings.ToLower(req.Type)+"%")
+		if err != nil {
+			HTTPError(w, "Failed to resolve analysis type", http.StatusInternalServerError, err)
+			return
+		}
+		defer rows.Close()
+		
+		if !rows.Next() {
+			HTTPError(w, fmt.Sprintf("Unknown analysis type: %s", req.Type), http.StatusBadRequest, nil)
+			return
+		}
+		
+		if err := rows.Scan(&mapping.Platform, &mapping.WorkflowID); err != nil {
+			HTTPError(w, "Failed to resolve workflow mapping", http.StatusInternalServerError, err)
+			return
+		}
+	}
+	
+	// Build execution payload
+	payload := map[string]interface{}{
+		"input":   req.Input,
+		"context": req.Context,
+		"model":   req.Model,
+	}
+	
+	if req.Model == "" {
+		payload["model"] = "llama3.2" // Default model
+	}
+	
+	// Create a mock HTTP request for execution
+	payloadBytes, _ := json.Marshal(payload)
+	mockReq, _ := http.NewRequest("POST", "", bytes.NewReader(payloadBytes))
+	mockReq.Header.Set("Content-Type", "application/json")
+	
+	// Execute the workflow
+	result, err := d.executePlatformWorkflow(mapping.Platform, mapping.WorkflowID, mockReq)
+	if err != nil {
+		HTTPError(w, "Workflow execution failed", http.StatusInternalServerError, err)
+		return
+	}
+	
+	// Return enriched result with metadata
+	response := map[string]interface{}{
+		"analysis_type": req.Type,
+		"platform":     mapping.Platform,
+		"workflow_id":  mapping.WorkflowID,
+		"result":       result,
+		"metadata": map[string]interface{}{
+			"model_used": req.Model,
+			"timestamp": time.Now().UTC(),
+		},
+	}
+	
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
 // SearchWorkflows performs semantic search using Qdrant
 func (d *DiscoveryService) SearchWorkflows(w http.ResponseWriter, r *http.Request) {
 	var searchReq struct {
@@ -932,6 +1032,7 @@ func main() {
 	r.HandleFunc("/health", Health).Methods("GET")
 	r.HandleFunc("/workflows", discovery.ListWorkflows).Methods("GET")
 	r.HandleFunc("/workflows/search", discovery.SearchWorkflows).Methods("POST")
+	r.HandleFunc("/analyze", discovery.AnalyzeWorkflow).Methods("POST")
 	r.HandleFunc("/execute/{platform}/{workflowId}", discovery.ExecuteWorkflow).Methods("POST")
 	
 	// Start server

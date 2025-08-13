@@ -112,13 +112,14 @@ common::parse_arguments() {
     
     args::parse "$@"
     
-    export ACTION=$(args::get "action")
-    export YES=$(args::get "yes")
-    export FORCE=$(args::get "force")
-    export GPU_TYPE=$(args::get "gpu")
-    export WORKFLOW_PATH=$(args::get "workflow")
-    export OUTPUT_DIR=$(args::get "output")
-    export PROMPT_ID=$(args::get "prompt-id")
+    ACTION=$(args::get "action")
+    YES=$(args::get "yes")
+    FORCE=$(args::get "force")
+    GPU_TYPE=$(args::get "gpu")
+    WORKFLOW_PATH=$(args::get "workflow")
+    OUTPUT_DIR=$(args::get "output")
+    PROMPT_ID=$(args::get "prompt-id")
+    export ACTION YES FORCE GPU_TYPE WORKFLOW_PATH OUTPUT_DIR PROMPT_ID
     
     # Apply environment variable overrides
     GPU_TYPE="${COMFYUI_GPU_TYPE:-${GPU_TYPE}}"

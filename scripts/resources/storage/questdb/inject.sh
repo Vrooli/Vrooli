@@ -5,7 +5,7 @@ set -euo pipefail
 # This script handles injection of tables and timeseries data into QuestDB
 # Part of the Vrooli resource data injection system
 
-DESCRIPTION="Inject tables and timeseries data into QuestDB database"
+export DESCRIPTION="Inject tables and timeseries data into QuestDB database"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 RESOURCES_DIR="${SCRIPT_DIR}/../.."
@@ -172,14 +172,13 @@ questdb_inject::execute_query() {
     
     # URL encode the query
     local encoded_query
+    # shellcheck disable=SC2034
     encoded_query=$(echo "$query" | jq -sRr @uri)
     
     # Execute query via HTTP API
     local response
-    response=$(curl -s -G "http://${QUESTDB_HOST}:${QUESTDB_HTTP_PORT}/exec" \
-        --data-urlencode "query=${query}" 2>&1)
-    
-    if [[ $? -eq 0 ]]; then
+    if response=$(curl -s -G "http://${QUESTDB_HOST}:${QUESTDB_HTTP_PORT}/exec" \
+        --data-urlencode "query=${query}" 2>&1); then
         # Check for error in response
         if echo "$response" | grep -q '"error"'; then
             log::error "Query failed: $(echo "$response" | jq -r '.error // "Unknown error"')"
@@ -486,6 +485,7 @@ questdb_inject::import_csv() {
     local table file format
     table=$(echo "$data_config" | jq -r '.table')
     file=$(echo "$data_config" | jq -r '.file')
+    # shellcheck disable=SC2034
     format=$(echo "$data_config" | jq -r '.format // empty')
     
     # Resolve file path
@@ -495,10 +495,8 @@ questdb_inject::import_csv() {
     
     # Use curl to upload CSV file via HTTP API
     local response
-    response=$(curl -s -F "data=@${file_path}" \
-        "http://${QUESTDB_HOST}:${QUESTDB_HTTP_PORT}/imp?name=${table}" 2>&1)
-    
-    if [[ $? -eq 0 ]]; then
+    if response=$(curl -s -F "data=@${file_path}" \
+        "http://${QUESTDB_HOST}:${QUESTDB_HTTP_PORT}/imp?name=${table}" 2>&1); then
         # Check for error in response
         if echo "$response" | grep -q '"error"'; then
             log::error "Import failed: $(echo "$response" | jq -r '.error // "Unknown error"')"
@@ -537,10 +535,8 @@ questdb_inject::import_influx() {
     data_content=$(cat "$file_path")
     
     local response
-    response=$(curl -s -X POST "http://${QUESTDB_HOST}:9009/write?db=${table}" \
-        --data-binary "$data_content" 2>&1)
-    
-    if [[ $? -eq 0 ]]; then
+    if response=$(curl -s -X POST "http://${QUESTDB_HOST}:9009/write?db=${table}" \
+        --data-binary "$data_content" 2>&1); then
         log::success "Imported InfluxDB data into table: $table"
         return 0
     else

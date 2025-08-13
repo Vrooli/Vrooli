@@ -360,7 +360,7 @@ searxng::ensure_data_dir() {
         # Set appropriate permissions for SearXNG container
         if ! chmod -R 755 "$SEARXNG_DATA_DIR" 2>/dev/null; then
             log::warn "Could not set directory permissions to 755"
-        }
+        fi
         
         # If ownership change failed, use fallback permissions
         if [[ ! -O "$SEARXNG_DATA_DIR" ]]; then

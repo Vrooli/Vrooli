@@ -5,7 +5,7 @@ set -euo pipefail
 # This script handles injection of languages, submissions, and configurations into Judge0
 # Part of the Vrooli resource data injection system
 
-DESCRIPTION="Inject languages, submissions, and configurations into Judge0 code execution service"
+export DESCRIPTION="Inject languages, submissions, and configurations into Judge0 code execution service"
 
 JUDGE0_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 

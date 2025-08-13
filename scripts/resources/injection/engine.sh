@@ -203,9 +203,24 @@ inject_resource() {
     
     # Convert array format to object format that resources expect
     if echo "$init_data" | jq -e 'type == "array"' >/dev/null 2>&1; then
-        # Group array items by type (workflows, credentials, etc.)
+        # Group array items by type and transform for resource consumption
         local grouped_data
-        grouped_data=$(echo "$init_data" | jq 'group_by(.type) | map({key: (.[0].type + "s"), value: .}) | from_entries')
+        grouped_data=$(echo "$init_data" | jq '
+            group_by(.type) | 
+            map({
+                key: (.[0].type + "s"), 
+                value: map(
+                    # Add name field from filename and set defaults
+                    . + {
+                        name: (.file | split("/")[-1] | split(".")[0]),
+                        enabled: (.enabled // true)
+                    } | 
+                    # Remove type field as resources dont need it
+                    del(.type)
+                )
+            }) | 
+            from_entries'
+        )
         init_data="$grouped_data"
     fi
     
@@ -226,7 +241,7 @@ inject_resource() {
     fi
     
     # Call manage script with inject action - pass JSON directly
-    if "$manage_script" --action inject --injection-config "$init_data" 2>/dev/null; then
+    if "$manage_script" --action inject --injection-config "$init_data" 2>&1; then
         log::success "✓ $resource_name"
         return 0
     else

@@ -5,7 +5,7 @@ set -euo pipefail
 # This script handles injection of schemas, data, and migrations into PostgreSQL
 # Part of the Vrooli resource data injection system
 
-DESCRIPTION="Inject schemas, data, and migrations into PostgreSQL database"
+export DESCRIPTION="Inject schemas, data, and migrations into PostgreSQL database"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 

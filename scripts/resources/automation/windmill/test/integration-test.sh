@@ -73,10 +73,14 @@ source "${var_SCRIPTS_RESOURCES_DIR}/automation/windmill/config/defaults.sh"
 windmill::export_config
 
 # Override library defaults with Windmill-specific settings
+# shellcheck disable=SC2034
 SERVICE_NAME="windmill"
 BASE_URL="${WINDMILL_BASE_URL:-http://localhost:8000}"
+# shellcheck disable=SC2034
 HEALTH_ENDPOINT="/api/health"
+# shellcheck disable=SC2034
 REQUIRED_TOOLS=("curl" "jq" "docker")
+# shellcheck disable=SC2034
 SERVICE_METADATA=(
     "Port: ${WINDMILL_SERVER_PORT:-8000}"
     "Server Container: ${WINDMILL_SERVER_CONTAINER:-windmill-vrooli-server}"
@@ -163,6 +167,7 @@ test_authentication_endpoints() {
     
     for endpoint in "${endpoints[@]}"; do
         local status_code
+        # shellcheck disable=SC2034
         if status_code=$(check_http_status "$endpoint" "401" "GET" 2>/dev/null ||
                          check_http_status "$endpoint" "403" "GET" 2>/dev/null); then
             auth_working=true
@@ -184,6 +189,7 @@ test_workers_endpoint() {
     
     # Workers endpoint might require admin auth, but should respond with 401/403
     local status_code
+    # shellcheck disable=SC2034
     if status_code=$(check_http_status "/api/workers/list" "401" "GET" 2>/dev/null ||
                      check_http_status "/api/workers/list" "403" "GET" 2>/dev/null ||
                      check_http_status "/api/workers/list" "200" "GET" 2>/dev/null); then

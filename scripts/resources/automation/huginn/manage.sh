@@ -7,7 +7,7 @@ trap 'huginn::show_interrupt_message; exit 130' INT TERM
 # Huginn Automation Platform Management
 # This script provides installation, configuration, and management of Huginn
 
-DESCRIPTION="Install and manage Huginn agent-based workflow automation platform"
+export DESCRIPTION="Install and manage Huginn agent-based workflow automation platform"
 
 # Get the directory of this script (unique variable name)
 HUGINN_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -135,18 +135,19 @@ huginn::parse_arguments() {
     args::parse "$@"
     
     # Export parsed arguments
-    export ACTION=$(args::get "action")
-    export FORCE=$(args::get "force")
-    export OPERATION=$(args::get "operation")
-    export AGENT_ID=$(args::get "agent-id")
-    export SCENARIO_ID=$(args::get "scenario-id")
-    export COUNT=$(args::get "count")
-    export CONTAINER_TYPE=$(args::get "container")
-    export LOG_LINES=$(args::get "lines")
-    export FOLLOW=$(args::get "follow")
-    export INTERVAL=$(args::get "interval")
-    export REMOVE_DATA=$(args::get "remove-data")
-    export REMOVE_VOLUMES=$(args::get "remove-volumes")
+    ACTION=$(args::get "action")
+    FORCE=$(args::get "force")
+    OPERATION=$(args::get "operation")
+    AGENT_ID=$(args::get "agent-id")
+    SCENARIO_ID=$(args::get "scenario-id")
+    COUNT=$(args::get "count")
+    CONTAINER_TYPE=$(args::get "container")
+    LOG_LINES=$(args::get "lines")
+    FOLLOW=$(args::get "follow")
+    INTERVAL=$(args::get "interval")
+    REMOVE_DATA=$(args::get "remove-data")
+    REMOVE_VOLUMES=$(args::get "remove-volumes")
+    export ACTION FORCE OPERATION AGENT_ID SCENARIO_ID COUNT CONTAINER_TYPE LOG_LINES FOLLOW INTERVAL REMOVE_DATA REMOVE_VOLUMES
 }
 
 #######################################
