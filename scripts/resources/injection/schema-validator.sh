@@ -69,9 +69,10 @@ validator::parse_arguments() {
     
     args::parse "$@"
     
-    export ACTION=$(args::get "action")
-    export CONFIG_FILE=$(args::get "config-file")
-    export VERBOSE=$(args::get "verbose")
+    ACTION=$(args::get "action")
+    CONFIG_FILE=$(args::get "config-file")
+    VERBOSE=$(args::get "verbose")
+    export ACTION CONFIG_FILE VERBOSE
 }
 
 #######################################

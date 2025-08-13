@@ -127,22 +127,23 @@ ollama::parse_arguments() {
     
     args::parse "$@"
     
-    export ACTION=$(args::get "action")
-    export FORCE=$(args::get "force")
-    export LINES=$(args::get "lines")
-    export YES=$(args::get "yes")
-    export MODELS_INPUT=$(args::get "models")
-    export SKIP_MODELS=$(args::get "skip-models")
-    export PROMPT_TEXT=$(args::get "text")
-    export PROMPT_MODEL=$(args::get "model")
-    export PROMPT_TYPE=$(args::get "type")
-    export OUTPUT_FORMAT=$(args::get "format")
-    export TEMPERATURE=$(args::get "temperature")
-    export MAX_TOKENS=$(args::get "max-tokens")
-    export TOP_P=$(args::get "top-p")
-    export TOP_K=$(args::get "top-k")
-    export SEED=$(args::get "seed")
-    export SYSTEM_PROMPT=$(args::get "system")
+    ACTION=$(args::get "action")
+    FORCE=$(args::get "force")
+    LINES=$(args::get "lines")
+    YES=$(args::get "yes")
+    MODELS_INPUT=$(args::get "models")
+    SKIP_MODELS=$(args::get "skip-models")
+    PROMPT_TEXT=$(args::get "text")
+    PROMPT_MODEL=$(args::get "model")
+    PROMPT_TYPE=$(args::get "type")
+    OUTPUT_FORMAT=$(args::get "format")
+    TEMPERATURE=$(args::get "temperature")
+    MAX_TOKENS=$(args::get "max-tokens")
+    TOP_P=$(args::get "top-p")
+    TOP_K=$(args::get "top-k")
+    SEED=$(args::get "seed")
+    SYSTEM_PROMPT=$(args::get "system")
+    export ACTION FORCE LINES YES MODELS_INPUT SKIP_MODELS PROMPT_TEXT PROMPT_MODEL PROMPT_TYPE OUTPUT_FORMAT TEMPERATURE MAX_TOKENS TOP_P TOP_K SEED SYSTEM_PROMPT
 }
 
 #######################################

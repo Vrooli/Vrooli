@@ -5,7 +5,7 @@ set -euo pipefail
 # This script handles injection of configurations and automations into Agent-S2
 # Part of the Vrooli resource data injection system
 
-DESCRIPTION="Inject configurations and automations into Agent-S2 web automation agent"
+export DESCRIPTION="Inject configurations and automations into Agent-S2 web automation agent"
 
 AGENT_S2_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 

@@ -115,15 +115,16 @@ browserless::parse_arguments() {
     
     args::parse "$@"
     
-    export ACTION=$(args::get "action")
-    export FORCE=$(args::get "force")
-    export YES=$(args::get "yes")
-    export MAX_BROWSERS=$(args::get "max-browsers")
-    export HEADLESS=$(args::get "headless")
-    export TIMEOUT=$(args::get "timeout")
-    export USAGE_TYPE=$(args::get "usage-type")
-    export URL=$(args::get "url")
-    export OUTPUT=$(args::get "output")
+    ACTION=$(args::get "action")
+    FORCE=$(args::get "force")
+    YES=$(args::get "yes")
+    MAX_BROWSERS=$(args::get "max-browsers")
+    HEADLESS=$(args::get "headless")
+    TIMEOUT=$(args::get "timeout")
+    USAGE_TYPE=$(args::get "usage-type")
+    URL=$(args::get "url")
+    OUTPUT=$(args::get "output")
+    export ACTION FORCE YES MAX_BROWSERS HEADLESS TIMEOUT USAGE_TYPE URL OUTPUT
 }
 
 #######################################

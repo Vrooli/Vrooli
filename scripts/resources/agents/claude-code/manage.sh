@@ -7,7 +7,7 @@ trap 'echo ""; log::info "Claude Code operation interrupted by user. Exiting..."
 # Claude Code management script
 # This script manages the Claude Code CLI installation
 
-DESCRIPTION="Manages Claude Code CLI installation and configuration"
+export DESCRIPTION="Manages Claude Code CLI installation and configuration"
 
 CLAUDE_CODE_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
@@ -305,54 +305,56 @@ claude_code::parse_arguments() {
     
     args::parse "$@"
     
-    export ACTION=$(args::get "action")
-    export SUBCOMMAND=$(args::get "subcommand")
-    export FORCE=$(args::get "force")
-    export YES=$(args::get "yes")
-    export PROMPT=$(args::get "prompt")
-    export MAX_TURNS=$(args::get "max-turns")
-    export SESSION_ID=$(args::get "session-id")
-    export ALLOWED_TOOLS=$(args::get "allowed-tools")
-    export TIMEOUT=$(args::get "timeout")
-    export OUTPUT_FORMAT=$(args::get "output-format")
-    export SKIP_PERMISSIONS=$(args::get "dangerously-skip-permissions")
+    ACTION=$(args::get "action")
+    SUBCOMMAND=$(args::get "subcommand")
+    FORCE=$(args::get "force")
+    YES=$(args::get "yes")
+    PROMPT=$(args::get "prompt")
+    MAX_TURNS=$(args::get "max-turns")
+    SESSION_ID=$(args::get "session-id")
+    ALLOWED_TOOLS=$(args::get "allowed-tools")
+    TIMEOUT=$(args::get "timeout")
+    OUTPUT_FORMAT=$(args::get "output-format")
+    SKIP_PERMISSIONS=$(args::get "dangerously-skip-permissions")
     
     # MCP-specific variables
-    export MCP_SCOPE=$(args::get "scope")
-    export MCP_API_KEY=$(args::get "api-key")
-    export MCP_SERVER_URL=$(args::get "server-url")
-    export MCP_FORMAT=$(args::get "format")
+    MCP_SCOPE=$(args::get "scope")
+    MCP_API_KEY=$(args::get "api-key")
+    MCP_SERVER_URL=$(args::get "server-url")
+    MCP_FORMAT=$(args::get "format")
     
     # Automation-specific variables
-    export INPUT_FILE=$(args::get "input-file")
-    export EXTRACT_TYPE=$(args::get "extract-type")
-    export CHECK_TYPE=$(args::get "check-type")
-    export BATCH_SIZE=$(args::get "batch-size")
-    export CONFIG_FILE=$(args::get "config-file")
-    export WORKERS=$(args::get "workers")
+    INPUT_FILE=$(args::get "input-file")
+    EXTRACT_TYPE=$(args::get "extract-type")
+    CHECK_TYPE=$(args::get "check-type")
+    BATCH_SIZE=$(args::get "batch-size")
+    CONFIG_FILE=$(args::get "config-file")
+    WORKERS=$(args::get "workers")
     
     # Error handling variables
-    export EXIT_CODE=$(args::get "exit-code")
-    export ERROR_CONTEXT=$(args::get "error-context")
-    export MAX_RETRIES=$(args::get "max-retries")
+    EXIT_CODE=$(args::get "exit-code")
+    ERROR_CONTEXT=$(args::get "error-context")
+    MAX_RETRIES=$(args::get "max-retries")
     
     # Template system variables
-    export TEMPLATE_NAME=$(args::get "template-name")
-    export TEMPLATE_VARS=$(args::get "template-vars")
-    export TEMPLATE_DESCRIPTION=$(args::get "template-description")
+    TEMPLATE_NAME=$(args::get "template-name")
+    TEMPLATE_VARS=$(args::get "template-vars")
+    TEMPLATE_DESCRIPTION=$(args::get "template-description")
     
     # Enhanced session management variables
-    export OUTPUT_FILE=$(args::get "output-file")
-    export ANALYSIS_PERIOD=$(args::get "analysis-period")
-    export RECOVERY_STRATEGY=$(args::get "recovery-strategy")
-    export CLEANUP_STRATEGY=$(args::get "cleanup-strategy")
-    export THRESHOLD=$(args::get "threshold")
-    export FILTER=$(args::get "filter")
-    export SORT_BY=$(args::get "sort-by")
-    export LIMIT=$(args::get "limit")
+    OUTPUT_FILE=$(args::get "output-file")
+    ANALYSIS_PERIOD=$(args::get "analysis-period")
+    RECOVERY_STRATEGY=$(args::get "recovery-strategy")
+    CLEANUP_STRATEGY=$(args::get "cleanup-strategy")
+    THRESHOLD=$(args::get "threshold")
+    FILTER=$(args::get "filter")
+    SORT_BY=$(args::get "sort-by")
+    LIMIT=$(args::get "limit")
     
     # Sandbox variables
-    export SANDBOX_COMMAND=$(args::get "sandbox-command")
+    SANDBOX_COMMAND=$(args::get "sandbox-command")
+    
+    export ACTION SUBCOMMAND FORCE YES PROMPT MAX_TURNS SESSION_ID ALLOWED_TOOLS TIMEOUT OUTPUT_FORMAT SKIP_PERMISSIONS MCP_SCOPE MCP_API_KEY MCP_SERVER_URL MCP_FORMAT INPUT_FILE EXTRACT_TYPE CHECK_TYPE BATCH_SIZE CONFIG_FILE WORKERS EXIT_CODE ERROR_CONTEXT MAX_RETRIES TEMPLATE_NAME TEMPLATE_VARS TEMPLATE_DESCRIPTION OUTPUT_FILE ANALYSIS_PERIOD RECOVERY_STRATEGY CLEANUP_STRATEGY THRESHOLD FILTER SORT_BY LIMIT SANDBOX_COMMAND
 }
 
 #######################################

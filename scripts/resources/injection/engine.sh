@@ -161,11 +161,11 @@ substitute_secrets() {
 }
 
 #######################################
-# Find inject script for resource
+# Find manage script for resource
 #######################################
-find_inject_script() {
+find_manage_script() {
     local resource="$1"
-    find "${var_SCRIPTS_RESOURCES_DIR}" -name "inject.sh" -path "*/${resource}/lib/*" 2>/dev/null | head -1
+    find "${var_SCRIPTS_RESOURCES_DIR}" -name "manage.sh" -path "*/${resource}/*" 2>/dev/null | head -1
 }
 
 #######################################
@@ -184,29 +184,33 @@ inject_resource() {
         return 0
     fi
     
-    # Find inject script
-    local inject_script
-    inject_script=$(find_inject_script "$resource_name")
+    # Find manage script
+    local manage_script
+    manage_script=$(find_manage_script "$resource_name")
     
-    if [[ -z "$inject_script" ]] || [[ ! -x "$inject_script" ]]; then
-        log::debug "No injection for: $resource_name"
+    if [[ -z "$manage_script" ]] || [[ ! -x "$manage_script" ]]; then
+        log::debug "No manage script for: $resource_name"
         return 0
     fi
     
-    # Get initialization data
+    # Get initialization data (handle both array and object formats)
     local init_data
-    init_data=$(echo "$resource_config" | jq -c '.initialization // {}')
+    init_data=$(echo "$resource_config" | jq -c '.initialization // []')
     
-    if [[ "$init_data" == "{}" ]]; then
+    if [[ "$init_data" == "[]" ]] || [[ "$init_data" == "{}" ]]; then
         return 0
     fi
     
-    # Fix relative paths
-    init_data=$(echo "$init_data" | jq --arg dir "$scenario_dir" '
-        walk(if type == "object" and has("file") then 
-            .file = ($dir + "/" + .file) 
-        else . end)
-    ')
+    # Convert array format to object format that resources expect
+    if echo "$init_data" | jq -e 'type == "array"' >/dev/null 2>&1; then
+        # Group array items by type (workflows, credentials, etc.)
+        local grouped_data
+        grouped_data=$(echo "$init_data" | jq 'group_by(.type) | map({key: (.[0].type + "s"), value: .}) | from_entries')
+        init_data="$grouped_data"
+    fi
+    
+    # Let resources handle their own path resolution - just pass the scenario dir context
+    init_data=$(echo "$init_data" | jq --arg dir "$scenario_dir" '. + {"_scenario_dir": $dir}')
     
     log::info "Injecting $resource_name..."
     
@@ -215,7 +219,14 @@ inject_resource() {
         return 0
     fi
     
-    if "$inject_script" --inject "$init_data" 2>/dev/null; then
+    # Validate injection config first
+    if ! "$manage_script" --action validate-injection --injection-config "$init_data" >/dev/null 2>&1; then
+        log::warn "Configuration validation failed for $resource_name (resource may not support new interface yet)"
+        # Continue anyway during migration period
+    fi
+    
+    # Call manage script with inject action - pass JSON directly
+    if "$manage_script" --action inject --injection-config "$init_data" 2>/dev/null; then
         log::success "✓ $resource_name"
         return 0
     else
@@ -293,8 +304,13 @@ process_initialization_directory() {
     elif [[ -f "${PWD}/.vrooli/service.json" ]]; then
         service_json="${PWD}/.vrooli/service.json"
     else
-        log::info "No service.json found, proceeding with directory-based injection"
-        return process_directory_based_injection "$init_dir"
+        log::error "No service.json found in expected locations"
+        log::info "Expected locations:"
+        log::info "  ${init_dir}/../.vrooli/service.json"
+        log::info "  ${init_dir}/.vrooli/service.json"
+        log::info "  ${PWD}/.vrooli/service.json"
+        log::info "Injection requires proper service.json configuration"
+        return 1
     fi
     
     # If we have a service.json, process it normally using the directory containing it
@@ -302,102 +318,6 @@ process_initialization_directory() {
     process_scenario "$parent_dir"
 }
 
-#######################################
-# Process directory-based injection (fallback when no service.json)
-#######################################
-process_directory_based_injection() {
-    local init_dir="$1"
-    
-    log::info "Scanning for resource data in: $init_dir"
-    
-    local failed=0
-    local processed=0
-    
-    # Walk through the directory structure looking for category/resource/files
-    for category_dir in "$init_dir"/*/; do
-        if [[ ! -d "$category_dir" ]]; then
-            continue
-        fi
-        
-        local category="$(basename "$category_dir")"
-        log::info "Processing category: $category"
-        
-        for resource_dir in "$category_dir"/*/; do
-            if [[ ! -d "$resource_dir" ]]; then
-                continue
-            fi
-            
-            local resource="$(basename "$resource_dir")"
-            log::info "Processing resource: $resource"
-            
-            # Find inject script
-            local inject_script
-            inject_script=$(find_inject_script "$resource")
-            
-            if [[ -z "$inject_script" ]] || [[ ! -x "$inject_script" ]]; then
-                log::debug "No injection script for: $resource"
-                continue
-            fi
-            
-            # Look for data files in the resource directory
-            local data_files=()
-            while IFS= read -r -d '' file; do
-                data_files+=("$file")
-            done < <(find "$resource_dir" -type f -print0 2>/dev/null)
-            
-            if [[ ${#data_files[@]} -eq 0 ]]; then
-                log::debug "No data files found in: $resource_dir"
-                continue
-            fi
-            
-            # Create basic initialization structure for each file
-            for file in "${data_files[@]}"; do
-                local relative_path="${file#$PWD/}"
-                local filename="$(basename "$file")"
-                local extension="${filename##*.}"
-                
-                # Determine type based on file extension
-                local file_type="workflow"
-                case "$extension" in
-                    "json") file_type="workflow" ;;
-                    "sql") file_type="script" ;;
-                    "sh"|"bash") file_type="script" ;;
-                    *) file_type="data" ;;
-                esac
-                
-                # Create JSON for this file
-                local init_data="{\"workflows\":[{\"file\":\"$relative_path\",\"type\":\"$file_type\",\"enabled\":true}]}"
-                
-                log::info "Injecting $resource from $filename..."
-                
-                if [[ "$DRY_RUN" == "yes" ]]; then
-                    log::info "[DRY RUN] Would inject $resource with $filename"
-                    ((processed++))
-                    continue
-                fi
-                
-                if "$inject_script" --inject "$init_data" 2>/dev/null; then
-                    log::success "✓ $resource ($filename)"
-                    ((processed++))
-                else
-                    log::error "✗ $resource ($filename)"
-                    ((failed++))
-                fi
-            done
-        done
-    done
-    
-    if [[ $processed -eq 0 && $failed -eq 0 ]]; then
-        log::info "No processable resource data found"
-        return 0
-    elif [[ $failed -eq 0 ]]; then
-        log::success "✅ Processed $processed items from initialization directory"
-        return 0
-    else
-        log::error "❌ Failed: $failed errors, $processed successful"
-        return 1
-    fi
-}
 
 #######################################
 # Validate scenario

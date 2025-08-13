@@ -126,14 +126,15 @@ manage::parse_arguments() {
     
     args::parse "$@"
     
-    export ACTION=$(args::get "action")
-    export FORCE=$(args::get "force")
-    export YES=$(args::get "yes")
-    export MODEL_SIZE=$(args::get "model")
-    export USE_GPU=$(args::get "gpu")
-    export AUDIO_FILE=$(args::get "file")
-    export LANGUAGE=$(args::get "language")
-    export TASK=$(args::get "task")
+    ACTION=$(args::get "action")
+    FORCE=$(args::get "force")
+    YES=$(args::get "yes")
+    MODEL_SIZE=$(args::get "model")
+    USE_GPU=$(args::get "gpu")
+    AUDIO_FILE=$(args::get "file")
+    LANGUAGE=$(args::get "language")
+    TASK=$(args::get "task")
+    export ACTION FORCE YES MODEL_SIZE USE_GPU AUDIO_FILE LANGUAGE TASK
 }
 
 #######################################

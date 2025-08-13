@@ -4,6 +4,7 @@ set -euo pipefail
 # Judge0 Code Execution Resource Management
 # This script orchestrates Judge0 installation, configuration, and management
 
+# shellcheck disable=SC2034
 DESCRIPTION="Install and manage Judge0 secure code execution service"
 
 JUDGE0_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)

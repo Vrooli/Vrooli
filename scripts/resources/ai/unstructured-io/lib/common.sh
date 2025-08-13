@@ -131,23 +131,24 @@ unstructured_io::parse_arguments() {
     # Parse the arguments
     args::parse "$@"
     
-    export ACTION=$(args::get "action")
-    export FORCE=$(args::get "force")
-    export YES=$(args::get "yes")
-    export FILE_INPUT=$(args::get "file")
-    export STRATEGY=$(args::get "strategy")
-    export OUTPUT=$(args::get "output")
-    export LANGUAGES=$(args::get "languages")
-    export BATCH=$(args::get "batch")
-    export FOLLOW=$(args::get "follow")
-    export QUIET=$(args::get "quiet")
-    export DIRECTORY=$(args::get "directory")
-    export RECURSIVE=$(args::get "recursive")
-    export REPORT_FILE=$(args::get "report-file")
-    export CHUNK_CHARS=$(args::get "chunk-chars")
-    export NEW_AFTER_CHARS=$(args::get "new-after-chars")
-    export COMBINE_UNDER_CHARS=$(args::get "combine-under-chars")
-    export INCLUDE_PAGE_BREAKS=$(args::get "include-page-breaks")
+    ACTION=$(args::get "action")
+    FORCE=$(args::get "force")
+    YES=$(args::get "yes")
+    FILE_INPUT=$(args::get "file")
+    STRATEGY=$(args::get "strategy")
+    OUTPUT=$(args::get "output")
+    LANGUAGES=$(args::get "languages")
+    BATCH=$(args::get "batch")
+    FOLLOW=$(args::get "follow")
+    QUIET=$(args::get "quiet")
+    DIRECTORY=$(args::get "directory")
+    RECURSIVE=$(args::get "recursive")
+    REPORT_FILE=$(args::get "report-file")
+    CHUNK_CHARS=$(args::get "chunk-chars")
+    NEW_AFTER_CHARS=$(args::get "new-after-chars")
+    COMBINE_UNDER_CHARS=$(args::get "combine-under-chars")
+    INCLUDE_PAGE_BREAKS=$(args::get "include-page-breaks")
+    export ACTION FORCE YES FILE_INPUT STRATEGY OUTPUT LANGUAGES BATCH FOLLOW QUIET DIRECTORY RECURSIVE REPORT_FILE CHUNK_CHARS NEW_AFTER_CHARS COMBINE_UNDER_CHARS INCLUDE_PAGE_BREAKS
 }
 
 #######################################

@@ -5,7 +5,7 @@ set -euo pipefail
 # This script handles injection of configurations and scripts into Browserless
 # Part of the Vrooli resource data injection system
 
-DESCRIPTION="Inject configurations and scripts into Browserless headless browser service"
+export DESCRIPTION="Inject configurations and scripts into Browserless headless browser service"
 
 BROWSERLESS_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 

@@ -67,10 +67,10 @@ testPaths.forEach(path => {
 // Test 3: Cache Key Generation
 console.log("\n3️⃣ Testing Cache Key Generation:");
 const testUrls = [
-    "https://vrooli.com/user/123",
-    "https://vrooli.com/user/123?utm_source=twitter",
-    "https://vrooli.com/user/123#section",
-    "https://app.vrooli.com/api/health",
+    "https://example.com/user/123",
+    "https://example.com/user/123?utm_source=twitter",
+    "https://example.com/user/123#section",
+    "https://app.example.com/api/health",
 ];
 
 testUrls.forEach(url => {

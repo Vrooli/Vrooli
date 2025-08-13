@@ -4,7 +4,7 @@ set -euo pipefail
 # Unstructured.io AI Resource Management
 # This script orchestrates Unstructured.io installation, configuration, and document processing
 
-DESCRIPTION="Install and manage Unstructured.io document processing service"
+export DESCRIPTION="Install and manage Unstructured.io document processing service"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 

@@ -106,15 +106,18 @@ resources::parse_arguments() {
     
     args::parse "$@"
     
-    export ACTION=$(args::get "action")
-    export RESOURCES_INPUT=$(args::get "resources")
-    export CATEGORY=$(args::get "category")
-    export FORCE=$(args::get "force")
-    export YES=$(args::get "yes")
-    export AUTO_CONFIGURE=$(args::get "auto-configure")
-    export TEST_TYPE=$(args::get "test-type")
-    export SCENARIO_NAME=$(args::get "scenario")
-    export SCENARIOS_CONFIG=$(args::get "scenarios-config")
+    ACTION=$(args::get "action")
+    RESOURCES_INPUT=$(args::get "resources")
+    CATEGORY=$(args::get "category")
+    FORCE=$(args::get "force")
+    YES=$(args::get "yes")
+    AUTO_CONFIGURE=$(args::get "auto-configure")
+    TEST_TYPE=$(args::get "test-type")
+    SCENARIO_NAME=$(args::get "scenario")
+    SCENARIOS_CONFIG=$(args::get "scenarios-config")
+    
+    export ACTION RESOURCES_INPUT CATEGORY FORCE YES AUTO_CONFIGURE
+    export TEST_TYPE SCENARIO_NAME SCENARIOS_CONFIG
 }
 
 #######################################
@@ -239,7 +242,7 @@ resources::resolve_list() {
             IFS=',' read -ra RESOURCE_ARRAY <<< "$input"
             for resource in "${RESOURCE_ARRAY[@]}"; do
                 resource=$(echo "$resource" | tr -d ' ')  # trim whitespace
-                if [[ " $ALL_RESOURCES " =~ " $resource " ]]; then
+                if [[ " $ALL_RESOURCES " =~ \ $resource\  ]]; then
                     resolved="$resolved $resource"
                 else
                     log::warn "Unknown resource: $resource (skipping)" >&2
@@ -255,7 +258,7 @@ resources::resolve_list() {
         local filtered=""
         local category_resources="${AVAILABLE_RESOURCES[$CATEGORY]}"
         for resource in $resolved; do
-            if [[ " $category_resources " =~ " $resource " ]]; then
+            if [[ " $category_resources " =~ \ $resource\  ]]; then
                 filtered="$filtered $resource"
             fi
         done
@@ -274,7 +277,7 @@ resources::resolve_list() {
 resources::get_category() {
     local resource="$1"
     for category in "${!AVAILABLE_RESOURCES[@]}"; do
-        if [[ " ${AVAILABLE_RESOURCES[$category]} " =~ " $resource " ]]; then
+        if [[ " ${AVAILABLE_RESOURCES[$category]} " =~ \ $resource\  ]]; then
             echo "$category"
             return
         fi
@@ -548,9 +551,7 @@ resources::discover_running() {
             if resources::is_service_running "$port"; then
                 # Validate it's actually the expected service
                 local validation_status
-                validation_status=$(resources::validate_service_identity "$resource" "$port")
-                
-                if [[ $? -eq 0 ]]; then
+                if validation_status=$(resources::validate_service_identity "$resource" "$port"); then
                     log::success "✅ $resource is running on port $port"
                     log::info "   Service validation: $validation_status"
                 else
@@ -601,9 +602,10 @@ resources::discover_running() {
                     if resources::script_exists "$resource"; then
                         local script_path
                         script_path=$(resources::get_script_path "$resource")
-                        local model_status=$("$script_path" --action status 2>&1 | grep -A5 "Model Integrity" | grep -E "✅|❌|⚠️" | wc -l)
-                        local valid_models=$("$script_path" --action status 2>&1 | grep -A5 "Model Integrity" | grep "✅" | wc -l)
-                        local invalid_models=$("$script_path" --action status 2>&1 | grep -A5 "Model Integrity" | grep "❌" | wc -l)
+                        local model_status valid_models invalid_models
+                        model_status=$("$script_path" --action status 2>&1 | grep -A5 "Model Integrity" | grep -cE "✅|❌|⚠️")
+                        valid_models=$("$script_path" --action status 2>&1 | grep -A5 "Model Integrity" | grep -c "✅")
+                        invalid_models=$("$script_path" --action status 2>&1 | grep -A5 "Model Integrity" | grep -c "❌")
                         
                         if [[ $model_status -gt 0 ]]; then
                             if [[ $invalid_models -gt 0 ]]; then
@@ -620,7 +622,8 @@ resources::discover_running() {
                     ;;
                 "ollama")
                     # Check if Ollama has models
-                    local model_count=$(curl -s http://localhost:$port/api/tags 2>/dev/null | jq -r '.models | length' 2>/dev/null || echo "0")
+                    local model_count
+                    model_count=$(curl -s "http://localhost:$port/api/tags" 2>/dev/null | jq -r '.models | length' 2>/dev/null || echo "0")
                     if [[ "$model_count" -gt 0 ]]; then
                         log::info "   Model check: ✅ $model_count models available"
                     else
@@ -902,7 +905,7 @@ resources::run_tests() {
         
         local filtered_resources=()
         for resource in $resource_list; do
-            if [[ " ${healthy_resources[*]} " =~ " $resource " ]]; then
+            if [[ " ${healthy_resources[*]} " =~ \ $resource\  ]]; then
                 filtered_resources+=("$resource")
             else
                 log::warn "⚠️  Requested resource $resource is not healthy, skipping"
@@ -955,7 +958,7 @@ resources::main() {
             return 0
             ;;
         "test")
-            resources::run_tests
+            resources::run_tests "$@"
             return 0
             ;;
         "inject")

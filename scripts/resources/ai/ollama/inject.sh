@@ -5,7 +5,7 @@ set -euo pipefail
 # This script handles injection of models and configurations into Ollama
 # Part of the Vrooli resource data injection system
 
-DESCRIPTION="Inject models and configurations into Ollama AI server"
+export DESCRIPTION="Inject models and configurations into Ollama AI server"
 
 OLLAMA_INJECT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
@@ -299,12 +299,11 @@ ollama_inject::pull_model() {
     log::info "Pulling model: $model_spec"
     
     # Pull model using Ollama API
+    # shellcheck disable=SC2034
     local pull_response
-    pull_response=$(curl -s -X POST "${OLLAMA_HOST}/api/pull" \
+    if pull_response=$(curl -s -X POST "${OLLAMA_HOST}/api/pull" \
         -H "Content-Type: application/json" \
-        -d "{\"name\": \"$model_spec\"}" 2>&1)
-    
-    if [[ $? -eq 0 ]]; then
+        -d "{\"name\": \"$model_spec\"}" 2>&1); then
         log::success "Pulled model: $model_spec"
         
         # Add rollback action
@@ -343,12 +342,11 @@ ollama_inject::build_model() {
     modelfile_content=$(cat "$modelfile_path")
     
     # Build model using Ollama API
+    # shellcheck disable=SC2034
     local build_response
-    build_response=$(curl -s -X POST "${OLLAMA_HOST}/api/create" \
+    if build_response=$(curl -s -X POST "${OLLAMA_HOST}/api/create" \
         -H "Content-Type: application/json" \
-        -d "{\"name\": \"$name\", \"modelfile\": \"$modelfile_content\"}" 2>&1)
-    
-    if [[ $? -eq 0 ]]; then
+        -d "{\"name\": \"$name\", \"modelfile\": \"$modelfile_content\"}" 2>&1); then
         log::success "Built model: $name"
         
         # Add rollback action

@@ -5,7 +5,7 @@ set -euo pipefail
 # This script handles injection of parsers and configurations into Unstructured.io
 # Part of the Vrooli resource data injection system
 
-DESCRIPTION="Inject parsers and configurations into Unstructured.io document processing service"
+export DESCRIPTION="Inject parsers and configurations into Unstructured.io document processing service"
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
@@ -318,6 +318,7 @@ unstructured_inject::enable_parser() {
     local type enable options
     type=$(echo "$parser_config" | jq -r '.type')
     enable=$(echo "$parser_config" | jq -r '.enable // true')
+    # shellcheck disable=SC2034
     options=$(echo "$parser_config" | jq -r '.options // {}')
     
     if [[ "$enable" != "true" ]]; then

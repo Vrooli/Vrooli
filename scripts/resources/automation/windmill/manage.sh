@@ -4,7 +4,7 @@ set -euo pipefail
 # Windmill Workflow Automation Platform Setup and Management
 # This script handles installation, configuration, and management of Windmill using Docker Compose
 
-DESCRIPTION="Install and manage Windmill developer-centric workflow automation platform"
+export DESCRIPTION="Install and manage Windmill developer-centric workflow automation platform"
 
 # Source var.sh first with relative path
 # shellcheck disable=SC1091

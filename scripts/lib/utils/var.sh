@@ -18,6 +18,7 @@ export var_SCRIPTS_DIR
 export var_SCRIPTS_TEST_DIR="$var_SCRIPTS_DIR/__test"
 export var_SCRIPTS_RESOURCES_DIR="$var_SCRIPTS_DIR/resources"
 export var_SCRIPTS_RESOURCES_LIB_DIR="$var_SCRIPTS_RESOURCES_DIR/lib"
+export var_SCRIPTS_RESOURCES_TESTS_LIB_DIR="$var_SCRIPTS_RESOURCES_DIR/tests/lib"
 export var_SCRIPTS_SCENARIOS_DIR="$var_SCRIPTS_DIR/scenarios"
 export var_SCRIPTS_SCENARIOS_INJECTION_DIR="$var_SCRIPTS_SCENARIOS_DIR/injection"
 var_ROOT_DIR=$(cd "$var_SCRIPTS_DIR"/.. && pwd)

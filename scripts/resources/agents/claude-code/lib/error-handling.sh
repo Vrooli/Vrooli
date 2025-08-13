@@ -254,8 +254,9 @@ claude_code::error_apply_recovery() {
             ;;
         "increase_timeout_and_retry")
             log::info "🔧 Applying recovery: Increasing timeout values"
-            export DEFAULT_TIMEOUT_MS=$((DEFAULT_TIMEOUT_MS * 2))
-            export MAX_TIMEOUT_MS=$((MAX_TIMEOUT_MS * 2))
+            DEFAULT_TIMEOUT_MS=$((DEFAULT_TIMEOUT_MS * 2))
+            MAX_TIMEOUT_MS=$((MAX_TIMEOUT_MS * 2))
+            export DEFAULT_TIMEOUT_MS MAX_TIMEOUT_MS
             ;;
         "wait_and_retry")
             local wait_time=$((attempt * 60))  # Wait longer for rate limits

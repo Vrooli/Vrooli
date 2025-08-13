@@ -99,7 +99,8 @@ run_static_analysis() {
     fi
     
     # Define exclusion patterns for directories we should skip
-    local exclude_dirs="__test __test-revised .git node_modules vendor dist build cache tmp temp"
+    # PERFORMANCE: Added more exclusion patterns to reduce unnecessary file scanning
+    local exclude_dirs="__test __test-revised .git node_modules vendor dist build cache tmp temp .next .cache .turbo coverage out target debug release .vscode .idea __pycache__ .pytest_cache .tox venv env .env .venv"
     local find_excludes=""
     for dir in $exclude_dirs; do
         find_excludes="$find_excludes -path '*/$dir' -prune -o"
@@ -114,15 +115,28 @@ run_static_analysis() {
     done < <(eval "find '$scripts_dir' $find_excludes -type f -name '*.sh' -print0 2>/dev/null")
     
     # Find files with shell shebangs (but no .sh extension, excluding test directories)
+    # PERFORMANCE: Added file existence and size checks to avoid processing invalid files
     while IFS= read -r -d '' script; do
-        if [[ ! "$script" =~ \.sh$ ]] && head -n1 "$script" 2>/dev/null | grep -q '^#!/.*sh'; then
-            shell_scripts+=("$script")
+        if [[ -f "$script" && -s "$script" && ! "$script" =~ \.sh$ ]]; then
+            if head -n1 "$script" 2>/dev/null | grep -q '^#!/.*\(bash\|sh\|zsh\|ksh\)'; then
+                shell_scripts+=("$script")
+            fi
         fi
     done < <(eval "find '$scripts_dir' $find_excludes -type f -executable -print0 2>/dev/null")
     
-    # Remove duplicates and sort
+    # Remove duplicates, sort, and validate files exist
+    # PERFORMANCE: Filter out non-existent files that cause test failures
     local unique_scripts
+    local validated_scripts=()
     mapfile -t unique_scripts < <(printf '%s\n' "${shell_scripts[@]}" | sort -u)
+    
+    # Validate each script exists and is readable
+    for script in "${unique_scripts[@]}"; do
+        if [[ -f "$script" && -r "$script" ]]; then
+            validated_scripts+=("$script")
+        fi
+    done
+    unique_scripts=("${validated_scripts[@]}")
     
     local total_scripts=${#unique_scripts[@]}
     
@@ -144,85 +158,131 @@ run_static_analysis() {
     fi
     
     # Determine number of CPU cores for optimal parallelization
+    # PERFORMANCE: Use 2x CPU cores for better throughput (I/O bound operations)
     if [[ "$use_parallel" == "true" ]]; then
         if command -v nproc >/dev/null 2>&1; then
-            parallel_jobs=$(nproc)
+            parallel_jobs=$(($(nproc) * 2))
         elif command -v sysctl >/dev/null 2>&1; then
-            parallel_jobs=$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
+            parallel_jobs=$(($(sysctl -n hw.ncpu 2>/dev/null || echo 4) * 2))
         fi
-        log_info "🚀 Parallel processing enabled with $parallel_jobs jobs"
+        # Cap at reasonable maximum to avoid resource exhaustion
+        if [[ $parallel_jobs -gt 128 ]]; then
+            parallel_jobs=128
+        fi
+        log_info "🚀 Parallel processing enabled with $parallel_jobs jobs (2x CPU cores for I/O bound operations)"
     fi
     
     if [[ "$use_parallel" == "true" ]] && command -v xargs >/dev/null 2>&1; then
-        # Parallel processing using xargs
-        process_script_parallel() {
+        # PERFORMANCE: Two-phase testing - syntax first, then shellcheck
+        log_info "⚡ Running two-phase parallel analysis..."
+        
+        # Phase 1: Syntax validation for all files in parallel
+        log_info "📋 Phase 1: Validating syntax for $total_scripts files..."
+        
+        # Function for syntax checking only
+        check_syntax_only() {
             local script="$1"
-            local relative_script
-            relative_script=$(relative_path "$script")
-            
-            # Test 1: Bash syntax validation
-            local syntax_passed=false
-            if validate_shell_syntax "$script" "shell script" >/dev/null 2>&1; then
-                syntax_passed=true
-                echo "PASS:bash-syntax:$script"
+            if [[ -f "$script" ]] && validate_shell_syntax "$script" "shell script" >/dev/null 2>&1; then
+                echo "PASS:$script"
             else
-                echo "FAIL:bash-syntax:$script"
-            fi
-            
-            # Test 2: Shellcheck static analysis (only if syntax is valid)
-            if [[ "$syntax_passed" == "true" ]]; then
-                if command -v shellcheck >/dev/null 2>&1 && shellcheck "$script" >/dev/null 2>&1; then
-                    echo "PASS:shellcheck:$script"
-                else
-                    echo "FAIL:shellcheck:$script"
-                fi
-            else
-                echo "SKIP:shellcheck:$script"
+                echo "FAIL:$script"
             fi
         }
         
-        # Export function for use in subshells
-        export -f process_script_parallel
-        export -f relative_path
+        # Export functions for parallel execution
+        export -f check_syntax_only
         export -f validate_shell_syntax
         export PROJECT_ROOT
         
-        # Run parallel processing and collect results
-        log_info "⚡ Running parallel analysis..."
-        local results_file="/tmp/static_test_results_$$"
-        printf '%s\n' "${unique_scripts[@]}" | \
-            xargs -P "$parallel_jobs" -I {} bash -c 'process_script_parallel "$@"' _ {} > "$results_file" 2>&1
+        # Run syntax checks in parallel and collect results
+        local syntax_results="/tmp/syntax_results_$$"
+        local syntax_passed_files="/tmp/syntax_passed_$$"
         
-        # Process results
-        local current=0
-        while IFS=: read -r status test script; do
-            ((current++))
+        printf '%s\n' "${unique_scripts[@]}" | \
+            xargs -P "$parallel_jobs" -I {} bash -c 'check_syntax_only "$@"' _ {} > "$syntax_results" 2>&1
+        
+        # Process syntax results and build list of files that passed
+        local syntax_passed_count=0
+        local syntax_failed_count=0
+        
+        while IFS=: read -r status script; do
             local relative_script
             relative_script=$(relative_path "$script")
             
-            log_progress "$current" "$((total_scripts * 2))" "Processing results"
-            
-            case "$status" in
-                PASS)
-                    log_test_pass "$test: $relative_script"
-                    cache_test_result "$script" "$test" "passed" ""
-                    increment_test_counter "passed"
-                    ;;
-                FAIL)
-                    log_test_fail "$test: $relative_script" "Test failed"
-                    cache_test_result "$script" "$test" "failed" "Test failed"
-                    increment_test_counter "failed"
-                    ;;
-                SKIP)
-                    log_test_skip "$test: $relative_script" "Skipped due to syntax errors"
-                    cache_test_result "$script" "$test" "skipped" "syntax errors"
-                    increment_test_counter "skipped"
-                    ;;
-            esac
-        done < "$results_file"
+            if [[ "$status" == "PASS" ]]; then
+                echo "$script" >> "$syntax_passed_files"
+                log_test_pass "bash-syntax: $relative_script"
+                cache_test_result "$script" "bash-syntax" "passed" ""
+                increment_test_counter "passed"
+                ((syntax_passed_count++))
+            else
+                log_test_fail "bash-syntax: $relative_script" "Syntax validation failed"
+                cache_test_result "$script" "bash-syntax" "failed" "Syntax validation failed"
+                increment_test_counter "failed"
+                ((syntax_failed_count++))
+            fi
+        done < "$syntax_results"
         
-        # Clean up
-        rm -f "$results_file"
+        log_info "✅ Phase 1 complete: $syntax_passed_count passed, $syntax_failed_count failed"
+        
+        # Phase 2: Run shellcheck only on files that passed syntax
+        if [[ -f "$syntax_passed_files" ]] && [[ -s "$syntax_passed_files" ]]; then
+            local shellcheck_count=$(wc -l < "$syntax_passed_files")
+            log_info "📋 Phase 2: Running shellcheck on $shellcheck_count files that passed syntax..."
+            
+            # Function for shellcheck only
+            run_shellcheck_only() {
+                local script="$1"
+                if command -v shellcheck >/dev/null 2>&1 && shellcheck "$script" >/dev/null 2>&1; then
+                    echo "PASS:$script"
+                else
+                    echo "FAIL:$script"
+                fi
+            }
+            
+            export -f run_shellcheck_only
+            
+            # Run shellcheck in parallel on syntax-valid files
+            local shellcheck_results="/tmp/shellcheck_results_$$"
+            
+            cat "$syntax_passed_files" | \
+                xargs -P "$parallel_jobs" -I {} bash -c 'run_shellcheck_only "$@"' _ {} > "$shellcheck_results" 2>&1
+            
+            # Process shellcheck results
+            while IFS=: read -r status script; do
+                local relative_script
+                relative_script=$(relative_path "$script")
+                
+                if [[ "$status" == "PASS" ]]; then
+                    log_test_pass "shellcheck: $relative_script"
+                    cache_test_result "$script" "shellcheck" "passed" ""
+                    increment_test_counter "passed"
+                else
+                    log_test_fail "shellcheck: $relative_script" "Shellcheck found issues"
+                    cache_test_result "$script" "shellcheck" "failed" "Shellcheck found issues"
+                    increment_test_counter "failed"
+                fi
+            done < "$shellcheck_results"
+            
+            # Clean up temp files
+            rm -f "$shellcheck_results"
+        else
+            log_warning "⚠️ No files passed syntax validation, skipping shellcheck phase"
+        fi
+        
+        # Mark shellcheck as skipped for files that failed syntax
+        while IFS= read -r script; do
+            if ! grep -q "^$script$" "$syntax_passed_files" 2>/dev/null; then
+                local relative_script
+                relative_script=$(relative_path "$script")
+                log_test_skip "shellcheck: $relative_script" "Skipped due to syntax errors"
+                cache_test_result "$script" "shellcheck" "skipped" "syntax errors"
+                increment_test_counter "skipped"
+            fi
+        done < <(printf '%s\n' "${unique_scripts[@]}")
+        
+        # Clean up temp files
+        rm -f "$syntax_results" "$syntax_passed_files"
     else
         # Sequential processing (original implementation)
         local current=0
