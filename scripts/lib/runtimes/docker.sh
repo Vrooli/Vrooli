@@ -277,7 +277,8 @@ docker::restart() {
 
 docker::kill_all() {
     system::is_command "docker" || return
-    local containers=$(docker::run ps -q)
+    local containers
+    containers=$(docker::run ps -q)
     # shellcheck disable=SC2086
     [[ -n "$containers" ]] && docker::run kill $containers || log::warning "No running containers"
 }

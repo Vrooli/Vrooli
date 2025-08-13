@@ -1,0 +1,26 @@
+# ShellCheck configuration for Vrooli project
+# This file configures shellcheck to understand our project structure
+
+# Enable following source statements
+external-sources=true
+
+# Add source paths relative to project root
+# This helps shellcheck find sourced files
+source-path=scripts/lib/utils
+source-path=scripts/lib/system
+source-path=scripts/lib/deps
+source-path=scripts/lib/network
+source-path=scripts/lib/lifecycle
+source-path=scripts/lib/service
+source-path=scripts/lib/deploy
+source-path=scripts/__test/fixtures
+source-path=scripts/__test/fixtures/mocks
+source-path=scripts/__test-revised/shared
+source-path=scripts/resources
+source-path=scripts/scenarios
+
+# Exclude specific warnings that are handled by our framework
+# SC1090: Can't follow non-constant source (we use dynamic paths intentionally)
+# SC1091: Not following sourced files (handled by external-sources above)
+disable=SC1090
+disable=SC1091

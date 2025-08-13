@@ -69,9 +69,12 @@ manage::execute_phase() {
     echo "$steps" | jq -c '.[]' | while IFS= read -r step; do
         step_count=$((step_count + 1))
         
-        local name=$(echo "$step" | jq -r '.name // "unnamed"')
-        local run=$(echo "$step" | jq -r '.run // ""')
-        local desc=$(echo "$step" | jq -r '.description // ""')
+        local name
+        name=$(echo "$step" | jq -r '.name // "unnamed"')
+        local run
+        run=$(echo "$step" | jq -r '.run // ""')
+        local desc
+        desc=$(echo "$step" | jq -r '.description // ""')
         
         [[ -z "$run" ]] && continue
         

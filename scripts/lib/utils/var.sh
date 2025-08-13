@@ -5,20 +5,23 @@ _HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 
 # Common directories
 export var_LIB_UTILS_DIR="$_HERE"
-export var_LIB_DIR=$(cd "$var_LIB_UTILS_DIR"/.. && pwd)
+var_LIB_DIR=$(cd "$var_LIB_UTILS_DIR"/.. && pwd)
+export var_LIB_DIR
 export var_LIB_DEPLOY_DIR="$var_LIB_DIR/deploy"
 export var_LIB_DEPS_DIR="$var_LIB_DIR/deps"
 export var_LIB_LIFECYCLE_DIR="$var_LIB_DIR/lifecycle"
 export var_LIB_NETWORK_DIR="$var_LIB_DIR/network"
 export var_LIB_SERVICE_DIR="$var_LIB_DIR/service"
 export var_LIB_SYSTEM_DIR="$var_LIB_DIR/system"
-export var_SCRIPTS_DIR=$(cd "$var_LIB_DIR"/.. && pwd)
+var_SCRIPTS_DIR=$(cd "$var_LIB_DIR"/.. && pwd)
+export var_SCRIPTS_DIR
 export var_SCRIPTS_TEST_DIR="$var_SCRIPTS_DIR/__test"
 export var_SCRIPTS_RESOURCES_DIR="$var_SCRIPTS_DIR/resources"
 export var_SCRIPTS_RESOURCES_LIB_DIR="$var_SCRIPTS_RESOURCES_DIR/lib"
 export var_SCRIPTS_SCENARIOS_DIR="$var_SCRIPTS_DIR/scenarios"
 export var_SCRIPTS_SCENARIOS_INJECTION_DIR="$var_SCRIPTS_SCENARIOS_DIR/injection"
-export var_ROOT_DIR=$(cd "$var_SCRIPTS_DIR"/.. && pwd)
+var_ROOT_DIR=$(cd "$var_SCRIPTS_DIR"/.. && pwd)
+export var_ROOT_DIR
 
 # Vrooli configuration directory and files
 export var_VROOLI_CONFIG_DIR="$var_ROOT_DIR/.vrooli"

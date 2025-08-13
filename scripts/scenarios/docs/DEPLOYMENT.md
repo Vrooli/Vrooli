@@ -8,13 +8,10 @@ Scenarios convert to running applications using the `scenario-to-app.sh` tool, w
 
 ```bash
 # Generate a standalone app from a scenario
-./tools/scenario-to-app.sh research-assistant
+vrooli scenario convert research-assistant
 
 # With verbose output
-./tools/scenario-to-app.sh research-assistant --verbose
-
-# Preview without creating files
-./tools/scenario-to-app.sh research-assistant --dry-run
+vrooli scenario convert research-assistant --verbose
 ```
 
 Generated apps are placed in `~/generated-apps/<scenario-name>/` and include the full Vrooli infrastructure.
@@ -152,7 +149,7 @@ find initialization/ -name "*.json" -o -name "*.sql"
 ```bash
 # Generated apps are self-contained - just delete and regenerate
 rm -rf ~/generated-apps/your-scenario
-./tools/scenario-to-app.sh your-scenario
+vrooli scenario convert your-scenario
 ```
 
 ## 🎯 Next Steps
@@ -160,7 +157,7 @@ rm -rf ~/generated-apps/your-scenario
 Ready to deploy a scenario as a standalone application?
 
 1. **Choose a scenario**: Browse `/scripts/scenarios/core/` for available scenarios
-2. **Generate the app**: `./tools/scenario-to-app.sh <scenario-name>`  
+2. **Generate the app**: `vrooli scenario convert <scenario-name>`  
 3. **Run the app**: `cd ~/generated-apps/<scenario-name> && ./scripts/manage.sh develop`
 
 That's it! The generated app is a complete, standalone business application ready for customer deployment.

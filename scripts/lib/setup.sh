@@ -24,7 +24,8 @@ source "${LIB_DIR}/utils/var.sh"
 phase::init() {
     local phase_name="${1:-unknown}"
     export PHASE_NAME="$phase_name"
-    export PHASE_START_TIME=$(date +%s)
+    PHASE_START_TIME=$(date +%s)
+    export PHASE_START_TIME
     
     log::header "🚀 Starting $PHASE_NAME phase"
     log::debug "Phase handler: ${BASH_SOURCE[1]:-unknown}"
@@ -32,7 +33,8 @@ phase::init() {
 }
 
 phase::complete() {
-    local end_time=$(date +%s)
+    local end_time
+    end_time=$(date +%s)
     local duration=$((end_time - ${PHASE_START_TIME:-0}))
     
     log::success "✅ $PHASE_NAME phase completed in ${duration}s"

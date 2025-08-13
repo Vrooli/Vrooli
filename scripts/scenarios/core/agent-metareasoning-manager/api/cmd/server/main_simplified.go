@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/exec"
 	"strings"
 	"time"
 
@@ -34,15 +36,17 @@ type DiscoveryService struct {
 	db          *sql.DB
 	n8nBaseURL  string
 	windmillURL string
+	qdrantURL   string
 	httpClient  *http.Client
 }
 
 // NewDiscoveryService creates a new discovery service
-func NewDiscoveryService(db *sql.DB, n8nURL, windmillURL string) *DiscoveryService {
+func NewDiscoveryService(db *sql.DB, n8nURL, windmillURL, qdrantURL string) *DiscoveryService {
 	return &DiscoveryService{
 		db:          db,
 		n8nBaseURL:  n8nURL,
 		windmillURL: windmillURL,
+		qdrantURL:   qdrantURL,
 		httpClient: &http.Client{
 			Timeout: 30 * time.Second,
 		},
@@ -52,6 +56,9 @@ func NewDiscoveryService(db *sql.DB, n8nURL, windmillURL string) *DiscoveryServi
 // DiscoverAndRegister queries platforms and registers workflows
 func (d *DiscoveryService) DiscoverAndRegister() error {
 	log.Println("Starting workflow discovery...")
+	
+	// Initialize Qdrant collection if needed
+	d.initializeQdrantCollection()
 	
 	// Discover n8n workflows
 	if err := d.discoverN8nWorkflows(); err != nil {
@@ -65,6 +72,49 @@ func (d *DiscoveryService) DiscoverAndRegister() error {
 	
 	log.Println("Workflow discovery completed")
 	return nil
+}
+
+// initializeQdrantCollection ensures the workflow embeddings collection exists
+func (d *DiscoveryService) initializeQdrantCollection() {
+	// Check if collection exists
+	resp, err := d.httpClient.Get(fmt.Sprintf("%s/collections/workflow_embeddings", d.qdrantURL))
+	if err != nil {
+		log.Printf("Warning: Could not check Qdrant collection: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+	
+	// If collection exists, we're done
+	if resp.StatusCode == 200 {
+		log.Println("Qdrant collection 'workflow_embeddings' already exists")
+		return
+	}
+	
+	// Create collection
+	collectionConfig := map[string]interface{}{
+		"vectors": map[string]interface{}{
+			"size": 384,  // Match our embedding dimension
+			"distance": "Cosine",
+		},
+	}
+	
+	configBody, _ := json.Marshal(collectionConfig)
+	createReq, _ := http.NewRequest("PUT",
+		fmt.Sprintf("%s/collections/workflow_embeddings", d.qdrantURL),
+		bytes.NewBuffer(configBody))
+	createReq.Header.Set("Content-Type", "application/json")
+	createResp, err := d.httpClient.Do(createReq)
+	if err != nil {
+		log.Printf("Warning: Failed to create Qdrant collection: %v", err)
+		return
+	}
+	defer createResp.Body.Close()
+	
+	if createResp.StatusCode < 400 {
+		log.Println("Created Qdrant collection 'workflow_embeddings'")
+	} else {
+		log.Printf("Warning: Qdrant returned status %d when creating collection", createResp.StatusCode)
+	}
 }
 
 func (d *DiscoveryService) discoverN8nWorkflows() error {
@@ -128,13 +178,25 @@ func (d *DiscoveryService) isMetareasoningWorkflow(name string) bool {
 }
 
 func (d *DiscoveryService) registerWorkflow(platform, platformID, name string, tags []string) error {
+	// Generate a unique embedding ID for this workflow
+	embeddingID := fmt.Sprintf("%s_%s_%s", platform, platformID, uuid.New().String()[:8])
+	
+	// Insert workflow metadata into database
 	_, err := d.db.Exec(`
-		INSERT INTO workflow_registry (platform, platform_id, name, tags)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO workflow_registry (platform, platform_id, name, tags, embedding_id)
+		VALUES ($1, $2, $3, $4, $5)
 		ON CONFLICT (platform, platform_id) 
-		DO UPDATE SET name = $3, updated_at = CURRENT_TIMESTAMP`,
-		platform, platformID, name, tags)
-	return err
+		DO UPDATE SET name = $3, embedding_id = $5, updated_at = CURRENT_TIMESTAMP`,
+		platform, platformID, name, tags, embeddingID)
+	
+	if err != nil {
+		return err
+	}
+	
+	// Create and store embedding in Qdrant (async to not block discovery)
+	go d.createAndStoreEmbedding(embeddingID, name, tags)
+	
+	return nil
 }
 
 func extractTags(workflow map[string]interface{}) []string {
@@ -303,10 +365,96 @@ func (d *DiscoveryService) executeWindmillJob(jobID string, r *http.Request) (ma
 	return result, nil
 }
 
-// SearchWorkflows performs semantic search (simplified version)
+// createAndStoreEmbedding creates a text embedding and stores it in Qdrant
+func (d *DiscoveryService) createAndStoreEmbedding(embeddingID, text string, tags []string) {
+	// Create search text from name and tags
+	searchText := text + " " + strings.Join(tags, " ")
+	
+	// Use Ollama to generate embeddings (using a small model like nomic-embed-text)
+	// This is a simplified approach - in production you'd use a proper embedding model
+	embedding := d.generateEmbedding(searchText)
+	if len(embedding) == 0 {
+		log.Printf("Failed to generate embedding for %s", embeddingID)
+		return
+	}
+	
+	// Store in Qdrant
+	payload := map[string]interface{}{
+		"points": []map[string]interface{}{
+			{
+				"id": embeddingID,
+				"vector": embedding,
+				"payload": map[string]interface{}{
+					"text": text,
+					"tags": tags,
+				},
+			},
+		},
+	}
+	
+	reqBody, _ := json.Marshal(payload)
+	req, _ := http.NewRequest("PUT",
+		fmt.Sprintf("%s/collections/workflow_embeddings/points", d.qdrantURL),
+		bytes.NewBuffer(reqBody))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := d.httpClient.Do(req)
+	if err != nil {
+		log.Printf("Failed to store embedding in Qdrant: %v", err)
+		return
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode >= 400 {
+		log.Printf("Qdrant returned error status %d for embedding %s", resp.StatusCode, embeddingID)
+	}
+}
+
+// generateEmbedding creates a simple text embedding using Ollama
+func (d *DiscoveryService) generateEmbedding(text string) []float32 {
+	// For simplicity, using a basic hash-based approach
+	// In production, you'd call Ollama's embedding model or use a dedicated service
+	// This creates a deterministic 384-dimensional vector from the text
+	const dimensions = 384
+	embedding := make([]float32, dimensions)
+	
+	// Simple hash-based embedding (replace with actual embedding model)
+	for i, char := range text {
+		idx := i % dimensions
+		embedding[idx] += float32(char) / 1000.0
+	}
+	
+	// Normalize
+	var sum float32
+	for _, v := range embedding {
+		sum += v * v
+	}
+	if sum > 0 {
+		norm := float32(1.0 / sqrt(float64(sum)))
+		for i := range embedding {
+			embedding[i] *= norm
+		}
+	}
+	
+	return embedding
+}
+
+// sqrt helper function
+func sqrt(x float64) float64 {
+	if x < 0 {
+		return 0
+	}
+	z := x
+	for i := 0; i < 10; i++ {
+		z = (z + x/z) / 2
+	}
+	return z
+}
+
+// SearchWorkflows performs semantic search using Qdrant
 func (d *DiscoveryService) SearchWorkflows(w http.ResponseWriter, r *http.Request) {
 	var searchReq struct {
 		Query string `json:"query"`
+		Limit int    `json:"limit,omitempty"`
 	}
 	
 	if err := json.NewDecoder(r.Body).Decode(&searchReq); err != nil {
@@ -314,16 +462,30 @@ func (d *DiscoveryService) SearchWorkflows(w http.ResponseWriter, r *http.Reques
 		return
 	}
 	
-	// Simple keyword search for now (Qdrant integration would go here)
+	if searchReq.Limit == 0 {
+		searchReq.Limit = 10
+	}
+	
+	// Try semantic search first with Qdrant
+	semanticResults := d.semanticSearch(searchReq.Query, searchReq.Limit)
+	
+	// If semantic search returns results, use them
+	if len(semanticResults) > 0 {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(semanticResults)
+		return
+	}
+	
+	// Fallback to keyword search if Qdrant is unavailable or returns no results
 	query := "%" + strings.ToLower(searchReq.Query) + "%"
 	rows, err := d.db.Query(`
-		SELECT id, platform, platform_id, name, description, category, tags
+		SELECT id, platform, platform_id, name, description, category, tags, usage_count
 		FROM workflow_registry
 		WHERE LOWER(name) LIKE $1 
 		   OR LOWER(description) LIKE $1
 		   OR LOWER(category) LIKE $1
 		ORDER BY usage_count DESC
-		LIMIT 10`, query)
+		LIMIT $2`, query, searchReq.Limit)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -335,7 +497,7 @@ func (d *DiscoveryService) SearchWorkflows(w http.ResponseWriter, r *http.Reques
 		var wf WorkflowMetadata
 		var tagsArray sql.NullString
 		err := rows.Scan(&wf.ID, &wf.Platform, &wf.PlatformID, &wf.Name,
-			&wf.Description, &wf.Category, &tagsArray)
+			&wf.Description, &wf.Category, &tagsArray, &wf.UsageCount)
 		if err != nil {
 			continue
 		}
@@ -349,6 +511,104 @@ func (d *DiscoveryService) SearchWorkflows(w http.ResponseWriter, r *http.Reques
 	json.NewEncoder(w).Encode(workflows)
 }
 
+// semanticSearch performs vector similarity search using Qdrant
+func (d *DiscoveryService) semanticSearch(query string, limit int) []WorkflowMetadata {
+	// Generate embedding for the query
+	queryEmbedding := d.generateEmbedding(query)
+	if len(queryEmbedding) == 0 {
+		return nil
+	}
+	
+	// Search in Qdrant
+	searchPayload := map[string]interface{}{
+		"vector": queryEmbedding,
+		"limit": limit,
+		"with_payload": true,
+	}
+	
+	reqBody, _ := json.Marshal(searchPayload)
+	resp, err := d.httpClient.Post(
+		fmt.Sprintf("%s/collections/workflow_embeddings/points/search", d.qdrantURL),
+		"application/json",
+		bytes.NewBuffer(reqBody),
+	)
+	if err != nil {
+		log.Printf("Qdrant search failed: %v", err)
+		return nil
+	}
+	defer resp.Body.Close()
+	
+	if resp.StatusCode >= 400 {
+		log.Printf("Qdrant search returned status %d", resp.StatusCode)
+		return nil
+	}
+	
+	// Parse Qdrant response
+	var qdrantResp struct {
+		Result []struct {
+			ID      string                 `json:"id"`
+			Score   float32               `json:"score"`
+			Payload map[string]interface{} `json:"payload"`
+		} `json:"result"`
+	}
+	
+	if err := json.NewDecoder(resp.Body).Decode(&qdrantResp); err != nil {
+		log.Printf("Failed to decode Qdrant response: %v", err)
+		return nil
+	}
+	
+	// Fetch workflow details from database based on embedding IDs
+	if len(qdrantResp.Result) == 0 {
+		return nil
+	}
+	
+	var embeddingIDs []string
+	for _, result := range qdrantResp.Result {
+		embeddingIDs = append(embeddingIDs, result.ID)
+	}
+	
+	// Build query with placeholders
+	placeholders := make([]string, len(embeddingIDs))
+	args := make([]interface{}, len(embeddingIDs))
+	for i, id := range embeddingIDs {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = id
+	}
+	
+	sqlQuery := fmt.Sprintf(`
+		SELECT id, platform, platform_id, name, description, category, tags, usage_count
+		FROM workflow_registry
+		WHERE embedding_id IN (%s)
+		ORDER BY array_position(ARRAY[%s]::text[], embedding_id)
+	`, strings.Join(placeholders, ","), strings.Join(placeholders, ","))
+	
+	// Double the args for the two placeholders in the query
+	doubledArgs := append(args, args...)
+	rows, err := d.db.Query(sqlQuery, doubledArgs...)
+	if err != nil {
+		log.Printf("Failed to fetch workflows: %v", err)
+		return nil
+	}
+	defer rows.Close()
+	
+	var workflows []WorkflowMetadata
+	for rows.Next() {
+		var wf WorkflowMetadata
+		var tagsArray sql.NullString
+		err := rows.Scan(&wf.ID, &wf.Platform, &wf.PlatformID, &wf.Name,
+			&wf.Description, &wf.Category, &tagsArray, &wf.UsageCount)
+		if err != nil {
+			continue
+		}
+		if tagsArray.Valid {
+			wf.Tags = strings.Split(strings.Trim(tagsArray.String, "{}"), ",")
+		}
+		workflows = append(workflows, wf)
+	}
+	
+	return workflows
+}
+
 // Health endpoint
 func Health(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
@@ -359,26 +619,64 @@ func Health(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// getResourcePort queries the port registry for a resource's port
+func getResourcePort(resourceName string) string {
+	cmd := exec.Command("bash", "-c", fmt.Sprintf(
+		"source /home/matthalloran8/Vrooli/scripts/resources/port-registry.sh && resources::get_default_port %s",
+		resourceName,
+	))
+	output, err := cmd.Output()
+	if err != nil {
+		log.Printf("Warning: Failed to get port for %s, using default: %v", resourceName, err)
+		// Fallback to defaults
+		defaults := map[string]string{
+			"n8n": "5678",
+			"windmill": "5681",
+			"postgres": "5433",
+			"qdrant": "6333",
+		}
+		if port, ok := defaults[resourceName]; ok {
+			return port
+		}
+		return "8080" // Generic fallback
+	}
+	return strings.TrimSpace(string(output))
+}
+
 func main() {
 	// Load configuration
 	port := os.Getenv("PORT")
 	if port == "" {
-		port = "8090"
+		port = os.Getenv("SERVICE_PORT")
+		if port == "" {
+			port = "8090"
+		}
 	}
+	
+	// Use port registry for resource ports
+	n8nPort := getResourcePort("n8n")
+	windmillPort := getResourcePort("windmill")
+	postgresPort := getResourcePort("postgres")
+	qdrantPort := getResourcePort("qdrant")
 	
 	n8nURL := os.Getenv("N8N_BASE_URL")
 	if n8nURL == "" {
-		n8nURL = "http://localhost:5678"
+		n8nURL = fmt.Sprintf("http://localhost:%s", n8nPort)
 	}
 	
 	windmillURL := os.Getenv("WINDMILL_BASE_URL")
 	if windmillURL == "" {
-		windmillURL = "http://localhost:5681"
+		windmillURL = fmt.Sprintf("http://localhost:%s", windmillPort)
+	}
+	
+	qdrantURL := os.Getenv("QDRANT_BASE_URL")
+	if qdrantURL == "" {
+		qdrantURL = fmt.Sprintf("http://localhost:%s", qdrantPort)
 	}
 	
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://postgres:postgres@localhost:5433/metareasoning?sslmode=disable"
+		dbURL = fmt.Sprintf("postgres://postgres:postgres@localhost:%s/metareasoning?sslmode=disable", postgresPort)
 	}
 	
 	// Connect to database
@@ -401,7 +699,7 @@ func main() {
 	log.Println("Connected to database")
 	
 	// Initialize discovery service
-	discovery := NewDiscoveryService(db, n8nURL, windmillURL)
+	discovery := NewDiscoveryService(db, n8nURL, windmillURL, qdrantURL)
 	
 	// Start discovery in background
 	go func() {
@@ -432,6 +730,8 @@ func main() {
 	log.Printf("Starting Metareasoning Coordinator API on port %s", port)
 	log.Printf("  n8n URL: %s", n8nURL)
 	log.Printf("  Windmill URL: %s", windmillURL)
+	log.Printf("  Qdrant URL: %s", qdrantURL)
+	log.Printf("  Database: %s", dbURL)
 	
 	if err := http.ListenAndServe(":"+port, r); err != nil {
 		log.Fatal("Server failed:", err)

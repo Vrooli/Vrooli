@@ -95,12 +95,12 @@ style External fill:#f1f8e9
 
 ## Key Technologies
 
-### AI & Execution Infrastructure
-- **Three-Tier Architecture**: SwarmStateMachine (Coordination), RunStateMachine (Process), UnifiedExecutor (Execution)
-- **AI Model Management**: Multi-provider support (OpenAI, Anthropic, Mistral) with intelligent fallback
-- **MCP Integration**: Model Context Protocol for universal tool integration
-- **Strategy Evolution**: Dynamic execution strategy selection (Conversational → Reasoning → Deterministic)
-- **Universal Navigators**: BPMN 2.0 support, planned Langchain/Temporal/Airflow/n8n integration
+### Scenario Orchestration Infrastructure
+- **Resource Orchestration**: 30+ local services (databases, AI models, automation platforms)
+- **Scenario Execution**: Direct integration with n8n, Node-RED, and automation tools
+- **AI Model Management**: Multi-provider support (OpenAI, Anthropic, Mistral, local models) with intelligent fallback
+- **Local-First Design**: Complete applications generated without external dependencies
+- **Business Application Pipeline**: Customer requirements → Resource orchestration → Deployed application
 
 ### Frontend Technologies
 - React 18+ with functional components

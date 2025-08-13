@@ -307,7 +307,8 @@ agents2::cleanup_nat_rules() {
         # Remove all OUTPUT rules in nat table that redirect to Agent-S2 ports
         while true; do
             # Find first rule that matches our patterns
-            local rule_num=$($SUDO_CMD iptables -t nat -L OUTPUT --line-numbers -n 2>/dev/null | \
+            local rule_num
+            rule_num=$($SUDO_CMD iptables -t nat -L OUTPUT --line-numbers -n 2>/dev/null | \
                 grep -E "REDIRECT.*tcp.*dpt:(80|443|8080|8443).*redir ports (8080|8085)" | \
                 head -1 | awk '{print $1}')
             

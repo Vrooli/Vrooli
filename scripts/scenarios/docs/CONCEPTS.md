@@ -138,7 +138,7 @@ cd core/customer-call-assistant
 
 ### Step 3: Live Application Deployment
 ```bash
-./tools/scenario-to-app.sh customer-call-assistant
+vrooli scenario convert customer-call-assistant
 
 # Orchestrates:
 # ✅ Resource startup (via manage.sh scripts)

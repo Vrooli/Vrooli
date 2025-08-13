@@ -11,10 +11,12 @@
       "name": "Validation Trigger",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1,
-      "position": [200, 300],
+      "position": [
+        200,
+        300
+      ],
       "webhookId": "validation-webhook"
     },
-
     {
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -24,9 +26,11 @@
       "name": "Initialize Validation",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [400, 300]
+      "position": [
+        400,
+        300
+      ]
     },
-
     {
       "parameters": {
         "operation": "executeQuery",
@@ -47,7 +51,10 @@
       "name": "Update Validation Status",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [600, 300],
+      "position": [
+        600,
+        300
+      ],
       "credentials": {
         "postgres": {
           "id": "postgres-scenario-generator",
@@ -55,7 +62,6 @@
         }
       }
     },
-
     {
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -65,9 +71,11 @@
       "name": "Prepare Scenario Files",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [800, 300]
+      "position": [
+        800,
+        300
+      ]
     },
-
     {
       "parameters": {
         "command": "/bin/bash",
@@ -80,9 +88,11 @@
       "name": "Create Temp Directory",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [1000, 300]
+      "position": [
+        1000,
+        300
+      ]
     },
-
     {
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -92,9 +102,11 @@
       "name": "Prepare File Writes",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1200, 300]
+      "position": [
+        1200,
+        300
+      ]
     },
-
     {
       "parameters": {
         "command": "/bin/bash",
@@ -107,13 +119,15 @@
       "name": "Write Scenario Files",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [1400, 300]
+      "position": [
+        1400,
+        300
+      ]
     },
-
     {
       "parameters": {
         "command": "/bin/bash",
-        "parameters": "-c \"cd ${VROOLI_ROOT:-/home/matthalloran8/Vrooli} && ./scripts/scenarios/tools/scenario-to-app.sh --scenario-path {{ $json.tempScenarioDir }} --dry-run --verbose 2>&1\"",
+        "parameters": "-c \"vrooli scenario convert {{ $json.tempScenarioDir }} --dry-run --verbose 2>&1\"",
         "options": {
           "timeout": 300000
         }
@@ -122,9 +136,11 @@
       "name": "Run Scenario Validation",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [1600, 300]
+      "position": [
+        1600,
+        300
+      ]
     },
-
     {
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -134,9 +150,11 @@
       "name": "Process Validation Results",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1800, 300]
+      "position": [
+        1800,
+        300
+      ]
     },
-
     {
       "parameters": {
         "operation": "executeQuery",
@@ -193,7 +211,10 @@
       "name": "Log Validation Result",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [2000, 300],
+      "position": [
+        2000,
+        300
+      ],
       "credentials": {
         "postgres": {
           "id": "postgres-scenario-generator",
@@ -201,7 +222,6 @@
         }
       }
     },
-
     {
       "parameters": {
         "conditions": {
@@ -218,9 +238,11 @@
       "name": "Validation Successful?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [2200, 300]
+      "position": [
+        2200,
+        300
+      ]
     },
-
     {
       "parameters": {
         "conditions": {
@@ -237,9 +259,11 @@
       "name": "More Validation Attempts?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [2000, 500]
+      "position": [
+        2000,
+        500
+      ]
     },
-
     {
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -249,9 +273,11 @@
       "name": "Prepare Validation Fixing",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1800, 500]
+      "position": [
+        1800,
+        500
+      ]
     },
-
     {
       "parameters": {
         "command": "/bin/bash",
@@ -264,9 +290,11 @@
       "name": "Call Claude for Validation Fixing",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [1600, 500]
+      "position": [
+        1600,
+        500
+      ]
     },
-
     {
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -276,9 +304,11 @@
       "name": "Process Validation Fixing",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1400, 500]
+      "position": [
+        1400,
+        500
+      ]
     },
-
     {
       "parameters": {
         "command": "/bin/bash",
@@ -291,9 +321,11 @@
       "name": "Cleanup Temp Directory",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [1200, 500]
+      "position": [
+        1200,
+        500
+      ]
     },
-
     {
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -303,9 +335,11 @@
       "name": "Handle Validation Failure",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2200, 500]
+      "position": [
+        2200,
+        500
+      ]
     },
-
     {
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -315,9 +349,11 @@
       "name": "Handle Validation Success",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2400, 300]
+      "position": [
+        2400,
+        300
+      ]
     },
-
     {
       "parameters": {
         "command": "/bin/bash",
@@ -330,9 +366,11 @@
       "name": "Deploy Scenario",
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
-      "position": [2600, 300]
+      "position": [
+        2600,
+        300
+      ]
     },
-
     {
       "parameters": {
         "mode": "runOnceForEachItem",
@@ -342,9 +380,11 @@
       "name": "Finalize Deployment",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [2800, 300]
+      "position": [
+        2800,
+        300
+      ]
     },
-
     {
       "parameters": {
         "operation": "executeQuery",
@@ -381,7 +421,10 @@
       "name": "Update Final Status",
       "type": "n8n-nodes-base.postgres",
       "typeVersion": 2,
-      "position": [3000, 400],
+      "position": [
+        3000,
+        400
+      ],
       "credentials": {
         "postgres": {
           "id": "postgres-scenario-generator",
@@ -390,7 +433,6 @@
       }
     }
   ],
-
   "connections": {
     "Validation Trigger": {
       "main": [
@@ -627,22 +669,18 @@
       ]
     }
   },
-
   "active": true,
   "settings": {
     "executionOrder": "v1",
     "saveManualExecutions": true,
     "callerPolicy": "workflowsFromSameOwner"
   },
-
   "versionId": "scenario-generator-v1-validation",
   "id": "scenario-generator-v1-validation",
-
   "meta": {
     "templateCreatedBy": "vrooli-scenario-generator-v1",
     "instanceId": "scenario-generator-v1-validation"
   },
-
   "tags": [
     {
       "id": "scenario-generator-v1",

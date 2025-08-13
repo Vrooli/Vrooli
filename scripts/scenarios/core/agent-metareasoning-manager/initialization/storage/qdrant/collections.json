@@ -1,11 +1,11 @@
 {
   "collections": [
     {
-      "name": "reasoning_patterns",
-      "description": "Embeddings of reasoning patterns and workflows for semantic search",
+      "name": "workflow_embeddings",
+      "description": "Semantic embeddings for workflow metadata discovery and search (NOT the workflow definitions themselves)",
       "config": {
         "vectors": {
-          "size": 1536,
+          "size": 384,
           "distance": "Cosine"
         },
         "optimizers_config": {
@@ -97,7 +97,7 @@
       "description": "Embeddings of actual execution inputs/outputs for similarity search",
       "config": {
         "vectors": {
-          "size": 1536,
+          "size": 384,
           "distance": "Cosine"
         },
         "optimizers_config": {
@@ -140,7 +140,7 @@
       "description": "Embeddings of prompt templates for finding similar prompts",
       "config": {
         "vectors": {
-          "size": 1536,
+          "size": 384,
           "distance": "Cosine"
         },
         "optimizers_config": {
@@ -204,11 +204,12 @@
     }
   ],
   "initialization_config": {
-    "embedding_model": "text-embedding-ada-002",
-    "embedding_dimensions": 1536,
-    "auto_create_embeddings": false,
+    "embedding_model": "simple-hash-based",
+    "embedding_dimensions": 384,
+    "auto_create_embeddings": true,
     "batch_size": 100,
-    "parallel_workers": 4
+    "parallel_workers": 4,
+    "note": "The API creates embeddings on workflow discovery. These are lightweight text embeddings for semantic search, NOT the actual workflow definitions which remain in n8n/Windmill"
   },
   "search_config": {
     "default_limit": 10,

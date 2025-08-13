@@ -725,7 +725,8 @@ network_diagnostics_fixes::fix_nat_hijacking() {
         # Look for REDIRECT rules affecting web ports
         if [[ "$line" =~ REDIRECT.*tcp.*dpt:(80|443|8080|8443) ]]; then
             local source_port="${BASH_REMATCH[1]}"
-            local rule_line_num=$(echo "$line" | awk '{print $1}')
+            local rule_line_num
+            rule_line_num=$(echo "$line" | awk '{print $1}')
             
             # Extract target port from rule details
             local full_rule

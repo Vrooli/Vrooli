@@ -19,6 +19,33 @@ Vrooli is the first platform that lets you generate complete applications locall
 
 **🔒 Your Code. Your Data. Your Hardware. Your Control.**
 
+</div>
+
+## 🚀 Quick Start
+
+```bash
+# First time setup (installs CLI, configures resources)
+make setup
+
+# Start development environment
+make dev
+
+# Run tests
+make test
+
+# See all commands
+make help
+```
+
+**Alternative commands:**
+```bash
+./scripts/manage.sh setup   # Direct setup script
+vrooli develop             # Use CLI after setup
+vrooli --help              # See all CLI commands
+```
+
+<div align="center">
+
 <table style="width: 100%; table-layout: fixed;">
   <tr style="display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;">
     <td align="center" style="flex: 0 1 auto;">
