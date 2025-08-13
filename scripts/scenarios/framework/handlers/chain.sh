@@ -122,10 +122,12 @@ execute_ollama_step() {
     print_step_info "$step_id" "Ollama generation with model $model"
     
     # Substitute variables in prompt
-    local substituted_prompt=$(substitute_variables "$prompt")
+    local substituted_prompt
+    substituted_prompt=$(substitute_variables "$prompt")
     
     # Prepare request payload
-    local payload=$(cat << EOF
+    local payload
+    payload=$(cat << EOF
 {
     "model": "$model",
     "prompt": "$substituted_prompt",
@@ -135,13 +137,12 @@ EOF
 )
     
     # Make request to Ollama
-    local response=$(curl -s --max-time 60 \
+    local response
+    if ! response=$(curl -s --max-time 60 \
         -X POST \
         -H "Content-Type: application/json" \
         -d "$payload" \
-        "$service_url/api/generate")
-    
-    if [[ $? -ne 0 ]]; then
+        "$service_url/api/generate"); then
         print_chain_error "Failed to connect to Ollama"
         return 1
     fi
@@ -183,12 +184,11 @@ execute_whisper_step() {
     fi
     
     # Make transcription request
-    local response=$(curl -s --max-time 120 \
+    local response
+    if ! response=$(curl -s --max-time 120 \
         -X POST \
         -F "audio=@$audio_file" \
-        "$service_url/transcribe")
-    
-    if [[ $? -ne 0 ]]; then
+        "$service_url/transcribe"); then
         print_chain_error "Failed to connect to Whisper"
         return 1
     fi
@@ -225,10 +225,12 @@ execute_comfyui_step() {
     print_step_info "$step_id" "ComfyUI image generation"
     
     # Substitute variables in prompt
-    local substituted_prompt=$(substitute_variables "$prompt")
+    local substituted_prompt
+    substituted_prompt=$(substitute_variables "$prompt")
     
     # Simple ComfyUI workflow (this would be more complex in reality)
-    local workflow=$(cat << EOF
+    local workflow
+    workflow=$(cat << EOF
 {
     "workflow": {
         "nodes": {
@@ -245,13 +247,11 @@ EOF
 )
     
     # Submit workflow
-    local job_response=$(curl -s --max-time 30 \
+    if ! curl -s --max-time 30 \
         -X POST \
         -H "Content-Type: application/json" \
         -d "$workflow" \
-        "$service_url/prompt")
-    
-    if [[ $? -ne 0 ]]; then
+        "$service_url/prompt" >/dev/null; then
         print_chain_error "Failed to submit ComfyUI workflow"
         return 1
     fi
@@ -275,19 +275,20 @@ execute_http_step() {
     print_step_info "$step_id" "$method $endpoint"
     
     # Substitute variables in body and endpoint
-    local substituted_endpoint=$(substitute_variables "$endpoint")
-    local substituted_body=$(substitute_variables "$body")
+    local substituted_endpoint
+    local substituted_body
+    substituted_endpoint=$(substitute_variables "$endpoint")
+    substituted_body=$(substitute_variables "$body")
     
     local full_url="${service_url}${substituted_endpoint}"
     
     # Make HTTP request
-    local response=$(curl -s --max-time 30 \
+    local response
+    if ! response=$(curl -s --max-time 30 \
         -X "$method" \
         -H "Content-Type: application/json" \
         -d "$substituted_body" \
-        "$full_url")
-    
-    if [[ $? -ne 0 ]]; then
+        "$full_url"); then
         print_chain_error "HTTP request failed: $method $full_url"
         return 1
     fi
@@ -338,10 +339,14 @@ execute_chain_step() {
     local step_config="$1"
     
     # Parse step configuration (simplified YAML parsing)
-    local step_id=$(echo "$step_config" | grep "id:" | cut -d: -f2 | xargs)
-    local service=$(echo "$step_config" | grep "service:" | cut -d: -f2 | xargs)
-    local action=$(echo "$step_config" | grep "action:" | cut -d: -f2 | xargs)
-    local output_var=$(echo "$step_config" | grep "output:" | cut -d: -f2 | xargs)
+    local step_id
+    local service
+    # local action  # Reserved for future step type identification
+    local output_var
+    step_id=$(echo "$step_config" | grep "id:" | cut -d: -f2 | xargs)
+    service=$(echo "$step_config" | grep "service:" | cut -d: -f2 | xargs)
+    # action=$(echo "$step_config" | grep "action:" | cut -d: -f2 | xargs)  # Reserved for future step type identification
+    output_var=$(echo "$step_config" | grep "output:" | cut -d: -f2 | xargs)
     
     # Get service URL
     local service_url=""
@@ -357,23 +362,30 @@ execute_chain_step() {
     # Execute based on service and action
     case "$service" in
         ollama)
-            local model=$(echo "$step_config" | grep "model:" | cut -d: -f2 | xargs)
-            local prompt=$(echo "$step_config" | grep "prompt:" | cut -d: -f2- | sed 's/prompt:[[:space:]]*//')
+            local model
+            local prompt
+            model=$(echo "$step_config" | grep "model:" | cut -d: -f2 | xargs)
+            prompt=$(echo "$step_config" | grep "prompt:" | cut -d: -f2- | sed 's/prompt:[[:space:]]*//')
             execute_ollama_step "$step_id" "$service_url" "$model" "$prompt" "$output_var"
             ;;
         whisper)
-            local audio_file=$(echo "$step_config" | grep "file:" | cut -d: -f2 | xargs)
+            local audio_file
+            audio_file=$(echo "$step_config" | grep "file:" | cut -d: -f2 | xargs)
             execute_whisper_step "$step_id" "$service_url" "$audio_file" "$output_var"
             ;;
         comfyui)
-            local prompt=$(echo "$step_config" | grep "prompt:" | cut -d: -f2- | sed 's/prompt:[[:space:]]*//')
+            local prompt
+            prompt=$(echo "$step_config" | grep "prompt:" | cut -d: -f2- | sed 's/prompt:[[:space:]]*//')
             execute_comfyui_step "$step_id" "$service_url" "$prompt" "$output_var"
             ;;
         *)
             # Generic HTTP step
-            local method=$(echo "$step_config" | grep "method:" | cut -d: -f2 | xargs)
-            local endpoint=$(echo "$step_config" | grep "endpoint:" | cut -d: -f2 | xargs)
-            local body=$(echo "$step_config" | grep "body:" | cut -d: -f2- | sed 's/body:[[:space:]]*//')
+            local method
+            local endpoint
+            local body
+            method=$(echo "$step_config" | grep "method:" | cut -d: -f2 | xargs)
+            endpoint=$(echo "$step_config" | grep "endpoint:" | cut -d: -f2 | xargs)
+            body=$(echo "$step_config" | grep "body:" | cut -d: -f2- | sed 's/body:[[:space:]]*//')
             execute_http_step "$step_id" "$service_url" "${method:-POST}" "$endpoint" "$body" "$output_var"
             ;;
     esac
@@ -382,7 +394,7 @@ execute_chain_step() {
 # Execute chain test
 execute_chain_test() {
     local test_name="$1"
-    local test_data="$2"
+    # local test_data="$2"  # Reserved for future test data handling
     
     print_chain_info "Executing chain test: $test_name"
     

@@ -318,8 +318,8 @@ qdrant::uninstall() {
     fi
     
     # Remove network if it exists and no other containers are using it
-    if docker::network_exists "$QDRANT_NETWORK_NAME"; then
-        docker::remove_network_if_unused "$QDRANT_NETWORK_NAME"
+    if docker network ls | grep -q "$QDRANT_NETWORK_NAME" 2>/dev/null; then
+        docker::remove_network_if_empty "$QDRANT_NETWORK_NAME"
     fi
     
     # Handle data removal

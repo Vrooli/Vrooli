@@ -64,7 +64,8 @@ check_yaml_parser() {
 validate_metadata_schema() {
     local metadata_file="$1"
     local collection_dir="$2"
-    local collection_name=$(basename "$collection_dir")
+    local collection_name
+    collection_name=$(basename "$collection_dir")
     
     TOTAL_COLLECTIONS=$((TOTAL_COLLECTIONS + 1))
     
@@ -83,7 +84,8 @@ validate_metadata_schema() {
     fi
     
     # Validate required top-level fields
-    local version=$(yq eval '.version' "$metadata_file" 2>/dev/null)
+    local version
+    version=$(yq eval '.version' "$metadata_file" 2>/dev/null)
     local type=$(yq eval '.type' "$metadata_file" 2>/dev/null)
     local description=$(yq eval '.description' "$metadata_file" 2>/dev/null)
     local schema_section=$(yq eval '.schema' "$metadata_file" 2>/dev/null)

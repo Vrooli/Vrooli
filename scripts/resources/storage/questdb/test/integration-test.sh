@@ -101,7 +101,8 @@ test_table_operations() {
     local test_name="table operations (basic test)"
     
     # Create a test table
-    local table_name="integration_test_$(date +%s)"
+    local table_name
+    table_name="integration_test_$(date +%s)"
     local create_sql="CREATE TABLE $table_name (ts TIMESTAMP, value DOUBLE) timestamp(ts) PARTITION BY DAY"
     local encoded_create
     encoded_create=$(printf '%s' "$create_sql" | sed 's/ /%20/g; s/(/%28/g; s/)/%29/g')

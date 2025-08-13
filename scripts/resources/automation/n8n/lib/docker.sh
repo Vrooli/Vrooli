@@ -16,6 +16,8 @@ source "${N8N_LIB_DIR}/core.sh"
 source "${N8N_LIB_DIR}/health.sh"
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/recovery.sh"
+# shellcheck disable=SC1091
+source "${N8N_LIB_DIR}/auto-credentials.sh"
 
 #######################################
 # Start n8n (delegates to core)
@@ -67,6 +69,20 @@ n8n::start() {
     if wait::for_http "${N8N_BASE_URL}/healthz" 200 60; then
         log::success "✅ n8n is ready on port $N8N_PORT"
         log::info "Access n8n at: $N8N_BASE_URL"
+        
+        # Auto-create credentials for discovered resources
+        if [[ "${AUTO_CREATE_CREDENTIALS:-yes}" == "yes" ]]; then
+            log::info ""
+            log::info "🤖 Starting auto-credential discovery..."
+            if n8n::auto_manage_credentials; then
+                log::success "✅ Auto-credential setup completed"
+            else
+                log::warn "⚠️  Auto-credential setup had issues (not fatal)"
+            fi
+        else
+            log::debug "Auto-credential creation disabled"
+        fi
+        
         return 0
     else
         log::error "n8n failed to start properly"

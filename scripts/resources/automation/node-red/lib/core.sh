@@ -867,31 +867,37 @@ node_red::stress_test() {
     fi
     
     local base_url="http://localhost:$NODE_RED_PORT"
-    local start_time end_time
     local success_count=0
     local failure_count=0
+    local iterations=0
     
     log::info "Running Node-RED stress test for ${duration}s..."
-    start_time=$(date +%s)
-    end_time=$((start_time + duration))
     
-    while [[ $(date +%s) -lt $end_time ]]; do
-        # Test health endpoint
-        if curl -sf "$base_url" >/dev/null 2>&1; then
-            ((success_count++))
-        else
-            ((failure_count++))
-        fi
+    # Simple countdown approach instead of timestamp arithmetic
+    for ((i=0; i<duration; i++)); do
+        local remaining=$((duration - i))
+        echo "  Progress: ${i}s elapsed, ${remaining}s remaining..."
         
-        # Test flow API
-        if curl -sf "$base_url/flows" >/dev/null 2>&1; then
-            ((success_count++))
-        else
-            ((failure_count++))
-        fi
-        
-        # Brief pause to avoid overwhelming
-        sleep 0.1
+        # Run tests for 1 second (10 iterations with 0.1s delay)
+        for ((j=0; j<10; j++)); do
+            ((iterations++))
+            
+            # Test health endpoint
+            if curl --max-time 1 -sf "$base_url" >/dev/null 2>&1; then
+                ((success_count++))
+            else
+                ((failure_count++))
+            fi
+            
+            # Test flow API  
+            if curl --max-time 1 -sf "$base_url/flows" >/dev/null 2>&1; then
+                ((success_count++))
+            else
+                ((failure_count++))
+            fi
+            
+            sleep 0.1
+        done
     done
     
     local total_requests=$((success_count + failure_count))
@@ -900,8 +906,10 @@ node_red::stress_test() {
         success_rate=$(( (success_count * 100) / total_requests ))
     fi
     
+    log::info ""
     log::info "Stress test results:"
     log::info "  Duration: ${duration}s"
+    log::info "  Iterations: $iterations"
     log::info "  Total requests: $total_requests"
     log::info "  Successful: $success_count"
     log::info "  Failed: $failure_count"

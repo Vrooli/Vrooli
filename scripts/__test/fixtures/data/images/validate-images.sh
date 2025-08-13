@@ -86,7 +86,8 @@ validate_image_file() {
     fi
     
     local errors=0
-    local filename=$(basename "$image_path")
+    local filename
+    filename=$(basename "$image_path")
     
     # Check file exists and is readable
     if [[ ! -r "$image_path" ]]; then

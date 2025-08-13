@@ -430,8 +430,19 @@ n8n::display_workflow_info() {
     if [[ -n "$api_key" ]]; then
         log::info "   📋 List workflows: ./manage.sh --action list-workflows"
         log::info "   ▶️  Execute: ./manage.sh --action execute --workflow-id ID"
+        
+        # Display auto-credential status
+        log::info ""
+        n8n::validate_auto_credentials
+        
+        # Show credential management commands
+        log::info ""
+        log::info "🔐 Credential Management:"
+        log::info "   🤖 Auto-create: ./manage.sh --action auto-credentials"
+        log::info "   🔄 Refresh all: ./manage.sh --action refresh-credentials"
+        log::info "   🔍 List resources: ./manage.sh --action list-discoverable"
     else
-        log::info "   Configure API key to manage workflows"
+        log::info "   Configure API key to manage workflows and credentials"
     fi
 }
 
@@ -645,7 +656,9 @@ OPTIONS:
                              Available: install, uninstall, start, stop, restart,
                                        status, reset-password, logs, info, test,
                                        execute, api-setup, save-api-key, inject,
-                                       validate-injection, url
+                                       validate-injection, url, auto-credentials,
+                                       refresh-credentials, validate-credentials,
+                                       list-discoverable
 
     --force, -f              Force action even if already installed/running
     --lines, -n NUMBER       Number of log lines to show (default: 50)
@@ -659,6 +672,7 @@ OPTIONS:
     --database TYPE         Database type: sqlite or postgres (default: sqlite)
     --tunnel yes/no         Enable tunnel for webhook testing (default: no)
     --build-image yes/no    Build custom n8n image (default: no)
+    --auto-credentials yes/no Auto-create credentials for resources (default: yes)
     --help, -h              Show this help message
 
 EXAMPLES:
@@ -673,6 +687,21 @@ EXAMPLES:
 
     # Save API key
     $0 --action save-api-key --api-key YOUR_API_KEY
+
+    # Auto-create credentials for all running resources
+    $0 --action auto-credentials
+
+    # Refresh credentials (recreate for all resources)
+    $0 --action refresh-credentials
+
+    # List discoverable resources
+    $0 --action list-discoverable
+
+    # Validate existing auto-credentials
+    $0 --action validate-credentials
+
+    # Install with auto-credentials disabled
+    $0 --action install --auto-credentials no
 
 EOF
 }

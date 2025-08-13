@@ -4,7 +4,7 @@ set -euo pipefail
 # Schema Validator for Scenarios Configuration
 # This script validates scenarios.json files against the JSON schema
 
-DESCRIPTION="Validates scenarios configuration files against the JSON schema"
+export DESCRIPTION="Validates scenarios configuration files against the JSON schema"
 
 # Source var.sh first to get standardized paths
 SCRIPTS_SCENARIOS_INJECTION_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,6 +29,8 @@ source "${var_LIB_UTILS_DIR}/args-cli.sh"
 
 # Schema file paths - use official schemas
 readonly SCHEMA_FILE="${var_VROOLI_CONFIG_DIR}/schemas/scenarios.schema.json"
+# readonly SERVICE_SCHEMA_FILE="${var_SCHEMAS_DIR}/service.schema.json"  # Reserved for future service validation
+# shellcheck disable=SC2034
 readonly SERVICE_SCHEMA_FILE="${var_SCHEMAS_DIR}/service.schema.json"
 
 #######################################

@@ -59,9 +59,15 @@ http::request() {
         http_code="0"
     fi
     
-    # Output body and return code
+    # Output body and return appropriate exit code
     echo "$body"
-    return "${http_code:-0}"
+    
+    # Return 0 for successful HTTP codes (200-299), 1 for failures
+    if [[ "$http_code" -ge 200 && "$http_code" -lt 300 ]]; then
+        return 0
+    else
+        return 1
+    fi
 }
 
 #######################################

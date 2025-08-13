@@ -55,7 +55,7 @@ n8n::parse_arguments() {
         --flag "a" \
         --desc "Action to perform" \
         --type "value" \
-        --options "install|uninstall|start|stop|restart|status|reset-password|logs|info|version|test|test-api-key|execute|api-setup|save-api-key|list-workflows|list-executions|inject|validate-injection|url|create-backup|list-backups|backup-info|recover|recover-api-key" \
+        --options "install|uninstall|start|stop|restart|status|reset-password|logs|info|version|test|test-api-key|execute|api-setup|save-api-key|list-workflows|list-executions|inject|validate-injection|url|create-backup|list-backups|backup-info|recover|recover-api-key|auto-credentials|refresh-credentials|validate-credentials|list-discoverable" \
         --default "install"
     
     args::register \
@@ -161,6 +161,13 @@ n8n::parse_arguments() {
         --type "value" \
         --default ""
     
+    args::register \
+        --name "auto-credentials" \
+        --desc "Enable/disable automatic credential creation" \
+        --type "value" \
+        --options "yes|no" \
+        --default "yes"
+    
     if args::is_asking_for_help "$@"; then
         n8n::usage
         exit 0
@@ -185,7 +192,8 @@ n8n::parse_arguments() {
     INJECTION_CONFIG=$(args::get "injection-config")
     VALIDATION_TYPE=$(args::get "validation-type")
     VALIDATION_FILE=$(args::get "validation-file")
-    export ACTION FORCE LINES YES WEBHOOK_URL WORKFLOW_ID API_KEY WORKFLOW_DATA BASIC_AUTH AUTH_USERNAME AUTH_PASSWORD DATABASE_TYPE TUNNEL_ENABLED BUILD_IMAGE INJECTION_CONFIG VALIDATION_TYPE VALIDATION_FILE
+    AUTO_CREATE_CREDENTIALS=$(args::get "auto-credentials")
+    export ACTION FORCE LINES YES WEBHOOK_URL WORKFLOW_ID API_KEY WORKFLOW_DATA BASIC_AUTH AUTH_USERNAME AUTH_PASSWORD DATABASE_TYPE TUNNEL_ENABLED BUILD_IMAGE INJECTION_CONFIG VALIDATION_TYPE VALIDATION_FILE AUTO_CREATE_CREDENTIALS
 }
 
 #######################################
@@ -270,6 +278,19 @@ n8n::main() {
             ;;
         recover-api-key)
             n8n::recover_api_key
+            ;;
+        auto-credentials)
+            n8n::auto_manage_credentials
+            ;;
+        refresh-credentials)
+            log::info "Refreshing auto-credentials for all discovered resources..."
+            AUTO_CREATE_CREDENTIALS=yes n8n::auto_manage_credentials
+            ;;
+        validate-credentials)
+            n8n::validate_auto_credentials
+            ;;
+        list-discoverable)
+            n8n::list_discoverable_resources
             ;;
         *)
             log::error "Unknown action: $ACTION"

@@ -4,7 +4,7 @@ set -euo pipefail
 # Vault Secret Management Script
 # This script handles installation, configuration, and management of HashiCorp Vault
 
-DESCRIPTION="Install and manage HashiCorp Vault secret management service using Docker"
+export DESCRIPTION="Install and manage HashiCorp Vault secret management service using Docker"
 
 # Source var.sh first to get directory variables
 # shellcheck disable=SC1091
@@ -152,20 +152,21 @@ vault::parse_arguments() {
     args::parse "$@"
     
     # Export parsed values
-    export ACTION=$(args::get "action")
-    export SECRET_PATH=$(args::get "path")
-    export SECRET_VALUE=$(args::get "value")
-    export SECRET_KEY=$(args::get "key")
-    export OUTPUT_FORMAT=$(args::get "format")
-    export ENV_FILE=$(args::get "env-file")
-    export VAULT_PREFIX=$(args::get "vault-prefix")
-    export VAULT_MODE=$(args::get "mode")
-    export VAULT_STORAGE_STRATEGY=$(args::get "storage-strategy")
-    export MONITOR_INTERVAL=$(args::get "interval")
-    export LOG_LINES=$(args::get "lines")
-    export FOLLOW_LOGS=$(args::get "follow")
-    export VAULT_REMOVE_DATA=$(args::get "remove-data")
-    export BACKUP_FILE=$(args::get "backup-file")
+    ACTION=$(args::get "action")
+    SECRET_PATH=$(args::get "path")
+    SECRET_VALUE=$(args::get "value")
+    SECRET_KEY=$(args::get "key")
+    OUTPUT_FORMAT=$(args::get "format")
+    ENV_FILE=$(args::get "env-file")
+    VAULT_PREFIX=$(args::get "vault-prefix")
+    VAULT_MODE=$(args::get "mode")
+    VAULT_STORAGE_STRATEGY=$(args::get "storage-strategy")
+    MONITOR_INTERVAL=$(args::get "interval")
+    LOG_LINES=$(args::get "lines")
+    FOLLOW_LOGS=$(args::get "follow")
+    VAULT_REMOVE_DATA=$(args::get "remove-data")
+    BACKUP_FILE=$(args::get "backup-file")
+    export ACTION SECRET_PATH SECRET_VALUE SECRET_KEY OUTPUT_FORMAT ENV_FILE VAULT_PREFIX VAULT_MODE VAULT_STORAGE_STRATEGY MONITOR_INTERVAL LOG_LINES FOLLOW_LOGS VAULT_REMOVE_DATA BACKUP_FILE
     
     # Re-export configuration with updated mode
     vault::export_config

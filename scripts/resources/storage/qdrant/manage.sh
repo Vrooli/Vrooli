@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
-set -euo pipefail
+# Enable debug mode with DEBUG=true environment variable
+if [[ "${DEBUG:-}" == "true" ]]; then
+    set -euxo pipefail  # Extra verbose for debugging
+elif [[ "${STRICT:-}" == "true" ]]; then
+    set -euo pipefail   # Strict mode
+else
+    set -eo pipefail    # Allow unbound variables for better error messages
+fi
 
 # Qdrant Vector Database Management Script
 # This script handles installation, configuration, and management of Qdrant
@@ -38,13 +45,9 @@ source "${QDRANT_LIB_DIR}/health.sh"
 # shellcheck disable=SC1091
 source "${QDRANT_LIB_DIR}/collections.sh"
 # shellcheck disable=SC1091
-source "${QDRANT_LIB_DIR}/snapshots.sh"
-# shellcheck disable=SC1091
-source "${QDRANT_LIB_DIR}/recovery.sh"
+source "${QDRANT_LIB_DIR}/backup.sh"
 # shellcheck disable=SC1091
 source "${QDRANT_LIB_DIR}/inject.sh"
-# shellcheck disable=SC1091
-source "${QDRANT_LIB_DIR}/install.sh"
 
 #######################################
 # Parse command line arguments
@@ -139,18 +142,21 @@ qdrant::parse_arguments() {
     
     args::parse "$@"
     
-    export ACTION=$(args::get "action")
-    export COLLECTION=$(args::get "collection")
-    export VECTOR_SIZE=$(args::get "vector-size")
-    export DISTANCE_METRIC=$(args::get "distance")
-    export REMOVE_DATA=$(args::get "remove-data")
-    export FORCE=$(args::get "force")
-    export SNAPSHOT_NAME=$(args::get "snapshot-name")
-    export COLLECTIONS_LIST=$(args::get "collections")
-    export LOG_LINES=$(args::get "lines")
-    export MONITOR_INTERVAL=$(args::get "interval")
-    export INJECTION_CONFIG=$(args::get "injection-config")
-    export YES=$(args::get "yes")
+    ACTION=$(args::get "action")
+    COLLECTION=$(args::get "collection")
+    VECTOR_SIZE=$(args::get "vector-size")
+    DISTANCE_METRIC=$(args::get "distance")
+    REMOVE_DATA=$(args::get "remove-data")
+    FORCE=$(args::get "force")
+    SNAPSHOT_NAME=$(args::get "snapshot-name")
+    COLLECTIONS_LIST=$(args::get "collections")
+    LOG_LINES=$(args::get "lines")
+    MONITOR_INTERVAL=$(args::get "interval")
+    INJECTION_CONFIG=$(args::get "injection-config")
+    YES=$(args::get "yes")
+    
+    export ACTION COLLECTION VECTOR_SIZE DISTANCE_METRIC REMOVE_DATA FORCE
+    export SNAPSHOT_NAME COLLECTIONS_LIST LOG_LINES MONITOR_INTERVAL INJECTION_CONFIG YES
 }
 
 #######################################
@@ -162,7 +168,7 @@ qdrant::parse_arguments() {
 # Returns: command result or exits with error
 #######################################
 qdrant::require_running() {
-    if qdrant::common::is_running; then
+    if docker::is_running "$QDRANT_CONTAINER_NAME"; then
         "$@"
     else
         log::error "Qdrant is not running"
@@ -304,9 +310,9 @@ main() {
             ;;
         backup)
             if [[ -n "${SNAPSHOT_NAME:-}" ]]; then
-                qdrant::require_running qdrant::create_backup "$SNAPSHOT_NAME"
+                qdrant::require_running qdrant::backup::create "$SNAPSHOT_NAME"
             else
-                qdrant::require_running qdrant::create_backup
+                qdrant::require_running qdrant::backup::create
             fi
             ;;
         restore)
@@ -315,10 +321,10 @@ main() {
                 log::info "Usage: $0 --action restore --snapshot-name <name>"
                 exit 1
             fi
-            qdrant::restore_backup "$SNAPSHOT_NAME"
+            qdrant::backup::restore "$SNAPSHOT_NAME"
             ;;
         list-backups)
-            qdrant::list_backups
+            qdrant::backup::list
             ;;
         backup-info)
             if [[ -z "${SNAPSHOT_NAME:-}" ]]; then
@@ -326,7 +332,7 @@ main() {
                 log::info "Usage: $0 --action backup-info --snapshot-name <name>"
                 exit 1
             fi
-            qdrant::backup_info "$SNAPSHOT_NAME"
+            qdrant::backup::info "$SNAPSHOT_NAME"
             ;;
         index-stats)
             if [[ -n "${COLLECTION:-}" ]]; then

@@ -195,7 +195,7 @@ postgres::parse_arguments() {
         --default ""
     
     if args::is_asking_for_help "$@"; then
-        postgres::usage
+        postgres::usage "$@"
         exit 0
     fi
     
@@ -238,7 +238,7 @@ USAGE:
     $0 [OPTIONS]
 
 OPTIONS:
-$(args::usage)
+$(args::usage "$@")
 
 ACTIONS:
     Resource Management:
@@ -396,11 +396,16 @@ postgres::get_connection_info_with_retry() {
     
     while [[ $attempt -le $max_attempts ]]; do
         # Try to get all required config values
-        local port=$(postgres::common::get_instance_config "$instance_name" "port" 2>/dev/null)
-        local password=$(postgres::common::get_instance_config "$instance_name" "password" 2>/dev/null)
-        local user=$(postgres::common::get_instance_config "$instance_name" "user" 2>/dev/null)
-        local database=$(postgres::common::get_instance_config "$instance_name" "database" 2>/dev/null)
-        local networks=$(postgres::common::get_instance_config "$instance_name" "networks" 2>/dev/null)
+        local port
+        local password
+        local user
+        local database
+        local networks
+        port=$(postgres::common::get_instance_config "$instance_name" "port" 2>/dev/null)
+        password=$(postgres::common::get_instance_config "$instance_name" "password" 2>/dev/null)
+        user=$(postgres::common::get_instance_config "$instance_name" "user" 2>/dev/null)
+        database=$(postgres::common::get_instance_config "$instance_name" "database" 2>/dev/null)
+        networks=$(postgres::common::get_instance_config "$instance_name" "networks" 2>/dev/null)
         
         # Check if we got the essential values
         if [[ -n "$port" && -n "$password" ]]; then
@@ -571,7 +576,8 @@ postgres::upgrade() {
         return 1
     fi
     
-    local instances=($(postgres::common::list_instances))
+    local instances
+    mapfile -t instances < <(postgres::common::list_instances)
     if [[ ${#instances[@]} -eq 0 ]]; then
         log::success "PostgreSQL image upgraded (no instances to restart)"
         return 0
@@ -850,7 +856,7 @@ postgres::main() {
             ;;
         *)
             log::error "Unknown action: $ACTION"
-            postgres::usage
+            postgres::usage "$@"
             exit 1
             ;;
     esac

@@ -28,6 +28,11 @@ readonly NETWORK_NAME="vrooli-network"
 readonly IMAGE_NAME="node-red-vrooli:latest"
 readonly OFFICIAL_IMAGE="nodered/node-red:latest"
 
+# File configuration
+readonly NODE_RED_FLOWS_FILE="flows.json"
+readonly NODE_RED_CREDENTIALS_FILE="flows_cred.json"
+readonly NODE_RED_SETTINGS_FILE="settings.js"
+
 # Default settings
 readonly DEFAULT_FLOW_FILE="flows.json"
 DEFAULT_SECRET=$(openssl rand -hex 32 2>/dev/null || echo "default-insecure-secret")
@@ -94,5 +99,4 @@ node_red::export_config() {
     export NODE_RED_IMAGE="$OFFICIAL_IMAGE"
     export NODE_RED_CUSTOM_IMAGE="$IMAGE_NAME"
     export NODE_RED_DATA_DIR="${HOME}/.local/share/node-red"
-    export NODE_RED_FLOWS_FILE="$DEFAULT_FLOW_FILE"
 }

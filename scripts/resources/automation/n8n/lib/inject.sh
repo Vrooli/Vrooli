@@ -18,8 +18,8 @@ if command -v inject_framework::load_adapter_config &>/dev/null; then
     inject_framework::load_adapter_config "n8n" "$(dirname "$N8N_LIB_DIR")"
 fi
 
-# Source n8n lib functions (load core and status)
-for lib_file in "${N8N_LIB_DIR}/"{core,status}.sh; do
+# Source n8n lib functions (load core, status, and auto-credentials)
+for lib_file in "${N8N_LIB_DIR}/"{core,status,auto-credentials}.sh; do
     if [[ -f "$lib_file" ]]; then
         # shellcheck disable=SC1090
         source "$lib_file" || log::warn "Could not load $lib_file"
@@ -168,6 +168,69 @@ n8n::validate_config() {
 }
 
 #######################################
+# Create credential in n8n via API
+# Arguments:
+#   $1 - credential configuration object
+# Returns:
+#   0 if successful, 1 if failed
+#######################################
+n8n::create_credential() {
+    local credential="$1"
+    local name type_name data
+    name=$(echo "$credential" | jq -r '.name')
+    type_name=$(echo "$credential" | jq -r '.type')
+    data=$(echo "$credential" | jq -c '.data')
+    
+    log::info "Creating credential: $name (type: $type_name)"
+    
+    # Prepare credential payload
+    local credential_data
+    credential_data=$(jq -n \
+        --arg name "$name" \
+        --arg type "$type_name" \
+        --argjson data "$data" \
+        '{
+            name: $name,
+            type: $type,
+            data: $data
+        }')
+    
+    # Get API key for authentication
+    local api_key
+    api_key=$(n8n::resolve_api_key)
+    if [[ -z "$api_key" ]]; then
+        log::error "N8N_API_KEY required for credential creation"
+        log::info "Create an API key in n8n and save it with:"
+        log::info "  ./manage.sh --action save-api-key --api-key YOUR_KEY"
+        return 1
+    fi
+    
+    # Use framework API call with authentication header
+    local auth_header="-H X-N8N-API-KEY:$api_key"
+    local response
+    if response=$(inject_framework::api_call "POST" "$N8N_API_BASE/credentials" "$credential_data" "$auth_header"); then
+        local credential_id
+        credential_id=$(inject_framework::extract_id "$response")
+        if [[ -n "$credential_id" ]]; then
+            log::success "Created credential: $name (ID: $credential_id)"
+            # Add rollback action
+            inject_framework::add_api_delete_rollback \
+                "Remove credential: $name (ID: $credential_id)" \
+                "$N8N_API_BASE/credentials/$credential_id" \
+                "$auth_header"
+            return 0
+        else
+            log::error "Credential created but no ID returned for: $name"
+            return 1
+        fi
+    else
+        log::error "Failed to create credential '$name'"
+        log::debug "Response: $response"
+        return 1
+    fi
+}
+
+#######################################
 # Import workflow into n8n - OPTIMIZED
 # Uses inject_framework::api_call() for 60% code reduction
 # Arguments:
@@ -302,10 +365,27 @@ n8n::inject_data() {
     else
         log::debug "No workflows found in config"
     fi
-    # Process credentials if present
+    # Process manual credentials if present
     if echo "$config" | jq -e '.credentials' >/dev/null 2>&1; then
-        log::warn "Credential injection not yet implemented for n8n"
-        log::info "Credentials should be added through the n8n UI for security"
+        local credentials
+        credentials=$(echo "$config" | jq -c '.credentials')
+        if ! inject_framework::process_array "$credentials" "n8n::create_credential" "credentials"; then
+            log::error "Failed to create manual credentials"
+            inject_framework::execute_rollback
+            return 1
+        fi
+    else
+        log::debug "No manual credentials found in config"
+    fi
+    
+    # Always run auto-credential discovery unless explicitly disabled
+    if [[ "${AUTO_CREATE_CREDENTIALS:-yes}" == "yes" ]]; then
+        log::info "🤖 Running auto-credential discovery..."
+        if ! n8n::auto_manage_credentials; then
+            log::warn "Auto-credential creation had issues (not fatal)"
+        fi
+    else
+        log::debug "Auto-credential creation disabled"
     fi
     # Process variables if present
     if echo "$config" | jq -e '.variables' >/dev/null 2>&1; then

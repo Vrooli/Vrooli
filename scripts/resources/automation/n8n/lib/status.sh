@@ -14,6 +14,8 @@ source "${var_SCRIPTS_RESOURCES_LIB_DIR}/docker-utils.sh"
 source "${N8N_LIB_DIR}/core.sh"
 # shellcheck disable=SC1091
 source "${N8N_LIB_DIR}/health.sh"
+# shellcheck disable=SC1091
+source "${N8N_LIB_DIR}/auto-credentials.sh"
 
 #######################################
 # Show n8n status using unified engine

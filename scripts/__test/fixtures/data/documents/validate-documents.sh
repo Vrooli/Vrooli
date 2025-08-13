@@ -64,7 +64,8 @@ validate_file() {
     fi
     
     # Check file size
-    local size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo "0")
+    local size
+    size=$(stat -f%z "$file" 2>/dev/null || stat -c%s "$file" 2>/dev/null || echo "0")
     if [[ $size -eq 0 ]]; then
         print_error "Empty file: $file"
         FAILED_FILES=$((FAILED_FILES + 1))

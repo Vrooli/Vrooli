@@ -1114,7 +1114,7 @@ docker::_cleanup_container_volumes() {
 docker::remove_network_if_empty() {
     local network_name="$1"
     
-    if ! docker network exists "$network_name" 2>/dev/null; then
+    if ! docker network ls | grep -q "$network_name" 2>/dev/null; then
         return 0  # Network doesn't exist, nothing to do
     fi
     

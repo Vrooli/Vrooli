@@ -43,6 +43,8 @@ source "${NODE_RED_LIB_DIR}/recovery.sh"
 # Display usage information
 #######################################
 node_red::usage() {
+    # DESCRIPTION is declared and exported in config/defaults.sh which is sourced
+    # shellcheck disable=SC2153
     args::usage "$DESCRIPTION"
     echo
     echo "Examples:"
@@ -290,27 +292,13 @@ main() {
             node_red::benchmark
             ;;
         stress-test)
-            log::info "Running Node-RED stress test for ${DURATION}s..."
             node_red::stress_test "$DURATION"
             ;;
         inject)
-            if [[ -z "$INJECTION_CONFIG" ]]; then
-                log::error "Injection configuration required for inject action"
-                log::info "Use: --injection-config 'JSON_CONFIG'"
-                exit 1
-            fi
-            log::warn "Data injection not yet implemented for Node-RED"
-            log::info "Use the Node-RED editor interface at http://localhost:$NODE_RED_PORT"
-            log::info "Or import flows using: ./manage.sh --action flow-import --flow-file <flows.json>"
+            node_red::inject
             ;;
         validate-injection)
-            if [[ -z "$INJECTION_CONFIG" ]]; then
-                log::error "Injection configuration required for validate-injection action"
-                log::info "Use: --injection-config 'JSON_CONFIG'"
-                exit 1
-            fi
-            log::warn "Injection validation not yet implemented for Node-RED"
-            log::info "For now, validate flows manually through the Node-RED editor"
+            node_red::validate_injection
             ;;
         *)
             log::error "Unknown action: $ACTION"

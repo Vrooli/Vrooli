@@ -131,22 +131,39 @@ unstructured_io::parse_arguments() {
     # Parse the arguments
     args::parse "$@"
     
+    local ACTION
     ACTION=$(args::get "action")
+    local FORCE
     FORCE=$(args::get "force")
+    local YES
     YES=$(args::get "yes")
+    local FILE_INPUT
     FILE_INPUT=$(args::get "file")
+    local STRATEGY
     STRATEGY=$(args::get "strategy")
+    local OUTPUT
     OUTPUT=$(args::get "output")
+    local LANGUAGES
     LANGUAGES=$(args::get "languages")
+    local BATCH
     BATCH=$(args::get "batch")
+    local FOLLOW
     FOLLOW=$(args::get "follow")
+    local QUIET
     QUIET=$(args::get "quiet")
+    local DIRECTORY
     DIRECTORY=$(args::get "directory")
+    local RECURSIVE
     RECURSIVE=$(args::get "recursive")
+    local REPORT_FILE
     REPORT_FILE=$(args::get "report-file")
+    local CHUNK_CHARS
     CHUNK_CHARS=$(args::get "chunk-chars")
+    local NEW_AFTER_CHARS
     NEW_AFTER_CHARS=$(args::get "new-after-chars")
+    local COMBINE_UNDER_CHARS
     COMBINE_UNDER_CHARS=$(args::get "combine-under-chars")
+    local INCLUDE_PAGE_BREAKS
     INCLUDE_PAGE_BREAKS=$(args::get "include-page-breaks")
     export ACTION FORCE YES FILE_INPUT STRATEGY OUTPUT LANGUAGES BATCH FOLLOW QUIET DIRECTORY RECURSIVE REPORT_FILE CHUNK_CHARS NEW_AFTER_CHARS COMBINE_UNDER_CHARS INCLUDE_PAGE_BREAKS
 }

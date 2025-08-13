@@ -80,7 +80,8 @@ validate_audio_file() {
     fi
     
     local errors=0
-    local filename=$(basename "$audio_path")
+    local filename
+    filename=$(basename "$audio_path")
     
     # Check file exists and is readable
     if [[ ! -r "$audio_path" ]]; then
@@ -89,7 +90,8 @@ validate_audio_file() {
     fi
     
     # Check file size
-    local actual_size=$(stat -c%s "$audio_path" 2>/dev/null || echo "0")
+    local actual_size
+    actual_size=$(stat -c%s "$audio_path" 2>/dev/null || echo "0")
     if [[ $actual_size -eq 0 && "$content_type" != "non-audio" ]]; then
         print_error "$filename: Empty file (expected audio content)"
         errors=$((errors + 1))
