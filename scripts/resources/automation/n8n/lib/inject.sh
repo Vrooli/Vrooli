@@ -30,8 +30,15 @@ done
 if [[ -z "${N8N_BASE_URL:-}" ]]; then
     N8N_BASE_URL="http://localhost:5678"
 fi
-readonly N8N_BASE_URL
-readonly N8N_API_BASE="$N8N_BASE_URL/api/v1"
+if ! readonly -p | grep -q "N8N_BASE_URL"; then
+    readonly N8N_BASE_URL
+fi
+if [[ -z "${N8N_API_BASE:-}" ]]; then
+    N8N_API_BASE="$N8N_BASE_URL/api/v1"
+fi
+if ! readonly -p | grep -q "N8N_API_BASE"; then
+    readonly N8N_API_BASE
+fi
 
 #######################################
 # n8n-specific health check - ULTRA-OPTIMIZED
@@ -175,35 +182,48 @@ n8n::import_workflow() {
     file=$(echo "$workflow" | jq -r '.file')
     enabled=$(echo "$workflow" | jq -r '.enabled // "true"')
     tags=$(echo "$workflow" | jq -c '.tags // []')
+    
+    
     log::info "Importing workflow: $name"
-    # Resolve file path
+    # Resolve file path using scenario directory context
     local workflow_file
-    workflow_file=$(inject_framework::resolve_file_path "$file")
+    if [[ -n "${N8N_SCENARIO_DIR:-}" ]]; then
+        workflow_file="$N8N_SCENARIO_DIR/$file"
+    else
+        workflow_file=$(inject_framework::resolve_file_path "$file")
+    fi
     # Read workflow content
     local workflow_content
     if ! workflow_content=$(jq -c . "$workflow_file" 2>/dev/null); then
         log::error "Failed to read workflow file: $workflow_file"
         return 1
     fi
-    # Prepare workflow data with metadata
+    # Prepare workflow data with metadata (without read-only fields like active/tags)
     local workflow_data
     workflow_data=$(jq -n \
         --arg name "$name" \
-        --argjson enabled "$enabled" \
-        --argjson tags "$tags" \
         --argjson content "$workflow_content" \
         '{
             name: $name,
-            active: $enabled,
-            tags: $tags,
             nodes: $content.nodes,
             connections: $content.connections,
             settings: $content.settings,
             staticData: $content.staticData
         }')
-    # Use framework API call (replaces 48 lines of manual curl with 10 lines)
+    # Get API key for authentication
+    local api_key="${N8N_API_KEY:-}"
+    if [[ -z "$api_key" ]] && [[ -f ".vrooli/secrets.json" ]]; then
+        api_key=$(jq -r '.N8N_API_KEY // empty' .vrooli/secrets.json 2>/dev/null || true)
+    fi
+    if [[ -z "$api_key" ]]; then
+        log::error "N8N_API_KEY not found in environment or .vrooli/secrets.json"
+        return 1
+    fi
+    
+    # Use framework API call with authentication header
+    local auth_header="-H X-N8N-API-KEY:$api_key"
     local response
-    if response=$(inject_framework::api_call "POST" "$N8N_API_BASE/workflows" "$workflow_data"); then
+    if response=$(inject_framework::api_call "POST" "$N8N_API_BASE/workflows" "$workflow_data" "$auth_header"); then
         local workflow_id
         workflow_id=$(inject_framework::extract_id "$response")
         if [[ -n "$workflow_id" ]]; then
@@ -257,6 +277,13 @@ n8n::set_variables() {
 n8n::inject_data() {
     local config="$1"
     log::header "🔄 Injecting data into n8n"
+    
+    
+    # Extract scenario directory for file path resolution
+    local scenario_dir
+    scenario_dir=$(echo "$config" | jq -r '._scenario_dir // ""')
+    export N8N_SCENARIO_DIR="$scenario_dir"
+    
     # Use framework accessibility check (which calls our optimized health check)
     if ! inject_framework::check_accessibility; then
         return 1
@@ -272,6 +299,8 @@ n8n::inject_data() {
             inject_framework::execute_rollback
             return 1
         fi
+    else
+        log::debug "No workflows found in config"
     fi
     # Process credentials if present
     if echo "$config" | jq -e '.credentials' >/dev/null 2>&1; then

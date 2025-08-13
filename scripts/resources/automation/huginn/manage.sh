@@ -244,7 +244,8 @@ huginn::handle_backup() {
     
     huginn::show_backup_header
     
-    local backup_file="/tmp/huginn_backup_$(date +%Y%m%d_%H%M%S).json"
+    local backup_file
+    backup_file="/tmp/huginn_backup_$(date +%Y%m%d_%H%M%S).json"
     
     log::info "Creating comprehensive backup..."
     

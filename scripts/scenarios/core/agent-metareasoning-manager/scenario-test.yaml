@@ -135,20 +135,20 @@ tests:
     description: Verify simplified metareasoning CLI is installed and functional
     steps:
       - check: cli_installed
-        command: which metareasoning
-        expected: /usr/local/bin/metareasoning
+        command: which agent-metareasoning-manager
+        expected: /usr/local/bin/agent-metareasoning-manager
       - check: cli_health
-        command: metareasoning health
+        command: agent-metareasoning-manager health
         expected_status: 0
         contains: healthy
       - check: cli_workflow_list
-        command: metareasoning list
+        command: agent-metareasoning-manager list
         expected_status: 0
       - check: cli_search
-        command: metareasoning search "risk"
+        command: agent-metareasoning-manager search "risk"
         expected_status: 0
       - check: cli_analyze_command
-        command: metareasoning analyze pros-cons "Should we adopt TypeScript?"
+        command: agent-metareasoning-manager analyze pros-cons "Should we adopt TypeScript?"
         expected_status: 0
         timeout: 30
 

@@ -4,6 +4,7 @@ set -euo pipefail
 # QuestDB Time-Series Database Management Script
 # This script handles installation, configuration, and management of QuestDB
 
+# shellcheck disable=SC2034
 DESCRIPTION="Install and manage QuestDB time-series database for high-performance analytics"
 
 QUESTDB_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -81,13 +82,13 @@ questdb::parse_arguments() {
     
     # Parse arguments
     if ! args::parse "$@"; then
-        args::usage
+        args::usage "$@"
         return 1
     fi
     
     # Show help if requested
     if args::is_help_set; then
-        args::usage
+        args::usage "$@"
         return 0
     fi
     
@@ -97,7 +98,7 @@ questdb::parse_arguments() {
     
     if [[ -z "$action" ]]; then
         echo_error "No action specified"
-        args::usage
+        args::usage "$@"
         return 1
     fi
     
@@ -161,7 +162,7 @@ questdb::parse_arguments() {
             ;;
         *)
             echo_error "Unknown action: $action"
-            args::usage
+            args::usage "$@"
             return 1
             ;;
     esac

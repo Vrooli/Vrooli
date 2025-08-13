@@ -155,7 +155,8 @@ resources::get_detailed_health_status() {
     fi
     
     # Capture both HTTP status code and curl exit code
-    local temp_output=$(mktemp)
+    local temp_output
+    temp_output=$(mktemp)
     local http_code
     local curl_exit_code
     
@@ -892,7 +893,8 @@ resources::update_cli_config() {
     
     # Use the same configuration update logic as regular resources
     local config_path="${VROOLI_CONFIG_DIR}/service.json"
-    local temp_config=$(mktemp)
+    local temp_config
+    temp_config=$(mktemp)
     
     # Try TypeScript configuration manager first
     if [[ -f "$CONFIG_MANAGER_SCRIPT" ]] && system::is_command "node"; then

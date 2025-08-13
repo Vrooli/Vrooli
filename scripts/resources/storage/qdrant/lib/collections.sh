@@ -243,30 +243,19 @@ qdrant::collections::list() {
         return 0
     fi
     
-    # Get detailed information for each collection
+    # Display collection names (simple format for now - detailed info available via collection-info)
+    local count=0
     while IFS= read -r collection_name; do
         if [[ -n "$collection_name" ]]; then
-            local collection_response
-            collection_response=$(qdrant::api::request "GET" "/collections/${collection_name}" 2>/dev/null)
-            
-            # Check if request was successful
-    if [[ $? -eq 0 ]]; then
-                echo "$collection_response" | jq -r '
-                    .result |
-                    "Name: " + "'"$collection_name"'" +
-                    "\n  Status: " + .status +
-                    "\n  Points: " + (.points_count | tostring) +
-                    "\n  Vectors: " + (.indexed_vectors_count | tostring) +
-                    "\n  Config: " + (.config.params.vectors.size | tostring) + "D, " + .config.params.vectors.distance +
-                    "\n"
-                ' 2>/dev/null || echo "Name: $collection_name\n  Status: Unable to fetch details\n"
-            else
-                echo "Name: $collection_name"
-                echo "  Status: Unable to fetch details"
-                echo
-            fi
+            echo "📁 $collection_name"
+            ((count++))
         fi
     done <<< "$collection_names"
+    
+    echo ""
+    echo "Total: $count collections"
+    echo ""
+    echo "💡 Use './manage.sh --action collection-info --collection <name>' for detailed information"
 }
 
 #######################################

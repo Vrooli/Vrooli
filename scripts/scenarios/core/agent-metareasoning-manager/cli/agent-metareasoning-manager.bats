@@ -9,7 +9,7 @@ source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 
 setup() {
-    export CLI_PATH="./metareasoning-cli.sh"
+    export CLI_PATH="./agent-metareasoning-manager-cli.sh"
     export METAREASONING_API_BASE="http://localhost:8093/api"
     export TEST_CONFIG_DIR="$(mktemp -d)"
     export HOME="$TEST_CONFIG_DIR"

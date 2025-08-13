@@ -681,6 +681,21 @@ EOF
 # Injection Functions
 # ============================================================================
 
+n8n::register_injection_framework() {
+    # Source injection framework if not already loaded
+    if ! command -v inject_framework::register >/dev/null 2>&1; then
+        source "${var_SCRIPTS_RESOURCES_LIB_DIR}/inject_framework.sh"
+    fi
+    
+    inject_framework::register "n8n" \
+        --service-host "$N8N_BASE_URL" \
+        --health-endpoint "/healthz" \
+        --validate-func "n8n::validate_config" \
+        --inject-func "n8n::inject_data" \
+        --status-func "n8n::check_status" \
+        --health-func "n8n::check_health"
+}
+
 n8n::inject() {
     local injection_config="${INJECTION_CONFIG:-}"
     
@@ -689,7 +704,12 @@ n8n::inject() {
         return 1
     fi
     
-    "${N8N_SCRIPT_DIR}/lib/inject.sh" --inject --config "$injection_config"
+    # Load n8n injection functions
+    source "${N8N_SCRIPT_DIR}/lib/inject.sh"
+    
+    # Register with framework and inject
+    n8n::register_injection_framework
+    inject_framework::main --inject "$injection_config"
 }
 
 n8n::validate_injection() {
@@ -715,7 +735,9 @@ n8n::validate_injection() {
             --content "$content"
     elif [[ -n "$injection_config" ]]; then
         # Legacy interface: full config JSON
-        "${N8N_SCRIPT_DIR}/lib/inject.sh" --validate --config "$injection_config"
+        source "${N8N_SCRIPT_DIR}/lib/inject.sh"
+        n8n::register_injection_framework
+        inject_framework::main --validate "$injection_config"
     else
         log::error "Required: --validation-type TYPE --validation-file PATH"
         log::info "   or legacy: --injection-config 'JSON_CONFIG'"

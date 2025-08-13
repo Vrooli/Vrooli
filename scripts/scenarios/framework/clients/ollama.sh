@@ -39,9 +39,7 @@ ollama_list_models() {
     print_debug "Listing Ollama models"
     
     local response
-    response=$(make_http_request "GET" "$ollama_url/api/tags" "" "" 10 1)
-    
-    if [[ $? -ne 0 ]]; then
+    if ! response=$(make_http_request "GET" "$ollama_url/api/tags" "" "" 10 1); then
         print_error "Failed to list Ollama models"
         return 1
     fi
@@ -103,9 +101,7 @@ EOF
     
     # Make pull request
     local response
-    response=$(make_http_request "POST" "$ollama_url/api/pull" "Content-Type: application/json" "$pull_payload" "$timeout" 1)
-    
-    if [[ $? -ne 0 ]]; then
+    if ! response=$(make_http_request "POST" "$ollama_url/api/pull" "Content-Type: application/json" "$pull_payload" "$timeout" 1); then
         print_error "Failed to pull model: $model_name"
         return 1
     fi
@@ -161,9 +157,7 @@ EOF
     
     # Make generation request
     local response
-    response=$(make_http_request "POST" "$ollama_url/api/generate" "Content-Type: application/json" "$generate_payload" 120 1)
-    
-    if [[ $? -ne 0 ]]; then
+    if ! response=$(make_http_request "POST" "$ollama_url/api/generate" "Content-Type: application/json" "$generate_payload" 120 1); then
         print_error "Failed to generate text with Ollama"
         return 1
     fi
@@ -196,9 +190,7 @@ ollama_generate_and_validate() {
     print_info "Generating and validating text with Ollama"
     
     local response
-    response=$(ollama_generate "$model" "$prompt" "" false)
-    
-    if [[ $? -ne 0 ]]; then
+    if ! response=$(ollama_generate "$model" "$prompt" "" false); then
         return 1
     fi
     
@@ -234,9 +226,7 @@ test_ollama_basic() {
     
     # Test generation
     local response
-    response=$(ollama_generate_and_validate "$model" "$test_prompt" "" 5)
-    
-    if [[ $? -eq 0 ]]; then
+    if response=$(ollama_generate_and_validate "$model" "$test_prompt" "" 5); then
         print_success "Ollama basic test passed"
         return 0
     else
@@ -252,16 +242,16 @@ test_ollama_performance() {
     
     print_info "Testing Ollama performance"
     
-    local start_time=$(date +%s.%N)
+    local start_time
+    start_time=$(date +%s.%N)
     
     local response
     response=$(ollama_generate "$model" "Generate a short paragraph about artificial intelligence." "" false)
     
-    local end_time=$(date +%s.%N)
+    local end_time
+    end_time=$(date +%s.%N)
     local duration
-    duration=$(echo "$end_time - $start_time" | bc -l 2>/dev/null || echo "0")
-    
-    if [[ $? -eq 0 ]]; then
+    if duration=$(echo "$end_time - $start_time" | bc -l 2>/dev/null || echo "0"); then
         print_info "Response time: ${duration}s"
         
         if (( $(echo "$duration <= $max_response_time" | bc -l 2>/dev/null || echo "0") )); then

@@ -44,6 +44,8 @@ source "${COMFYUI_SCRIPT_DIR}/config/messages.sh"
 manage::main() {
     common::parse_arguments "$@"
     
+    # ACTION is declared and set in common.sh which is sourced above
+    # shellcheck disable=SC2153
     case "$ACTION" in
         install)
             install::install
