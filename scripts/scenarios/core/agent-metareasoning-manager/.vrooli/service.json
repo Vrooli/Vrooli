@@ -136,12 +136,12 @@
         },
         {
           "name": "build-api",
-          "run": "cd api && go mod download && go build -o metareasoning-api main.go",
+          "run": "cd api && go mod download && go build -o agent-metareasoning-manager-api main.go",
           "description": "Build Go coordination API binary"
         },
         {
           "name": "show-urls",
-          "run": "echo '🚀 Agent Metareasoning Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: metareasoning --help'",
+          "run": "echo '🚀 Agent Metareasoning Manager initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: agent-metareasoning-manager --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -151,11 +151,11 @@
       "steps": [
         {
           "name": "start-api-server",
-          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} EMBEDDING_MODEL=nomic-embed-text ./metareasoning-api &",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} EMBEDDING_MODEL=nomic-embed-text ./agent-metareasoning-manager-api &",
           "description": "Start Go coordination API server in background",
           "background": true,
           "condition": {
-            "file_exists": "api/metareasoning-api"
+            "file_exists": "api/agent-metareasoning-manager-api"
           }
         },
         {
@@ -169,7 +169,7 @@
         },
         {
           "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  CLI: metareasoning --help'",
+          "run": "echo '🚀 Services running:\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  CLI: agent-metareasoning-manager --help'",
           "description": "Display all running service URLs"
         }
       ]
@@ -202,10 +202,10 @@
         },
         {
           "name": "test-cli-commands",
-          "run": "cd cli && bats metareasoning-cli.bats",
+          "run": "cd cli && bats agent-metareasoning-manager.bats",
           "description": "Run CLI test suite",
           "condition": {
-            "file_exists": "cli/metareasoning-cli.bats"
+            "file_exists": "cli/agent-metareasoning-manager.bats"
           }
         }
       ]
@@ -215,7 +215,7 @@
       "steps": [
         {
           "name": "stop-api-server",
-          "run": "pkill -f 'metareasoning-api' || true",
+          "run": "pkill -f 'agent-metareasoning-manager-api' || true",
           "description": "Stop Go API server processes"
         },
         {

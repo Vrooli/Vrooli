@@ -1,15 +1,15 @@
 #!/bin/bash
-# Build script for simplified metareasoning API
+# Build script for agent-metareasoning-manager API
 
 set -e
 
-echo "Building simplified Metareasoning Coordinator API..."
+echo "Building Agent Metareasoning Manager API..."
 
 # Clean previous build
-rm -f metareasoning-api
+rm -f agent-metareasoning-manager-api
 
-# Build the simplified version
-go build -o metareasoning-api cmd/server/main_simplified.go
+# Build the API
+go build -o agent-metareasoning-manager-api cmd/server/main.go
 
-echo "Build complete. Binary: metareasoning-api"
-echo "Size: $(du -h metareasoning-api | cut -f1)"
+echo "Build complete. Binary: agent-metareasoning-manager-api"
+echo "Size: $(du -h agent-metareasoning-manager-api | cut -f1)"

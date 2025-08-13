@@ -20,7 +20,7 @@ import (
 const (
 	// API version
 	apiVersion = "2.0.0"
-	serviceName = "metareasoning-coordinator"
+	serviceName = "agent-metareasoning-manager"
 	
 	// Defaults
 	defaultEmbeddingModel = "nomic-embed-text"
@@ -50,7 +50,7 @@ type Logger struct {
 // NewLogger creates a structured logger
 func NewLogger() *Logger {
 	return &Logger{
-		Logger: log.New(os.Stdout, "[metareasoning-api] ", log.LstdFlags|log.Lshortfile),
+		Logger: log.New(os.Stdout, "[agent-metareasoning-manager-api] ", log.LstdFlags|log.Lshortfile),
 	}
 }
 

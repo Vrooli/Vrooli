@@ -2,11 +2,13 @@
   "$schema": "../../../.vrooli/schemas/service.schema.json",
   "version": "1.0.0",
   "service": {
+    "parent": "vrooli",
     "name": "SCENARIO_ID_PLACEHOLDER",
     "displayName": "SCENARIO_NAME_PLACEHOLDER",
     "description": "SCENARIO_DESCRIPTION_PLACEHOLDER",
     "version": "SCENARIO_VERSION_PLACEHOLDER",
     "type": "business-application",
+    "category": "CATEGORY_PLACEHOLDER",
     "tags": [
       "INDUSTRY_TAG_PLACEHOLDER",
       "SOLUTION_TYPE_PLACEHOLDER",
@@ -33,20 +35,28 @@
       "chat": "CHAT_URL_PLACEHOLDER"
     }
   },
+  "ports": {
+    "api": {
+      "env_var": "SERVICE_PORT",
+      "range": "8090-8999",
+      "fallback": "auto",
+      "description": "Main API port"
+    }
+  },
   "resources": {
     "storage": {
       "postgres": {
-        "type": "postgresql",
+        "type": "postgres",
         "enabled": true,
-        "version": "16",
         "required": true,
+        "purpose": "PRIMARY_DATABASE_PURPOSE_PLACEHOLDER",
         "initialization": [
           {
-            "file": "initialization/database/schema.sql",
+            "file": "initialization/storage/postgres/schema.sql",
             "type": "script"
           },
           {
-            "file": "initialization/database/seed.sql",
+            "file": "initialization/storage/postgres/seed.sql",
             "type": "script"
           }
         ]
@@ -54,48 +64,54 @@
       "redis": {
         "type": "redis",
         "enabled": true,
-        "version": "7",
-        "required": true
+        "required": true,
+        "purpose": "Cache and event bus"
       },
       "minio": {
         "type": "minio",
-        "enabled": true,
-        "required": false
+        "enabled": false,
+        "required": false,
+        "purpose": "Object storage for files and artifacts"
       },
       "qdrant": {
         "type": "qdrant",
         "enabled": false,
-        "required": false
+        "required": false,
+        "purpose": "Vector database for semantic search"
       }
     },
     "automation": {
       "n8n": {
+        "type": "n8n",
         "enabled": true,
         "required": true,
         "initialization": [
           {
-            "file": "initialization/workflows/n8n/main-workflow.json",
+            "file": "initialization/automation/n8n/main-workflow.json",
             "type": "workflow"
           }
         ]
       },
       "windmill": {
+        "type": "windmill",
         "enabled": true,
         "required": false,
         "initialization": [
           {
-            "file": "initialization/ui/windmill-app.json",
+            "file": "initialization/automation/windmill/windmill-app.json",
             "type": "app"
           }
         ]
       },
       "node-red": {
+        "type": "node-red",
         "enabled": false,
         "required": false
       }
     },
     "ai": {
       "ollama": {
+        "type": "ollama",
         "enabled": false,
         "required": false,
         "models": ["AI_MODEL_PLACEHOLDER"]
@@ -118,8 +134,24 @@
           "description": "Add app data to resources"
         },
         {
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install CLI command globally",
+          "condition": {
+            "file_exists": "cli/install-cli.sh"
+          }
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o api-server cmd/server/main.go",
+          "description": "Build Go API server",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Application initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "run": "echo '🚀 Application initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}\\n  CLI: CLI_NAME_PLACEHOLDER --help'",
           "description": "Display service access URLs"
         }
       ]
@@ -128,9 +160,27 @@
       "description": "Start application services",
       "steps": [
         {
-          "name": "start-services",
-          "run": "cd deployment && ./startup.sh",
-          "description": "Start application services"
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} WINDMILL_BASE_URL=http://localhost:${RESOURCE_PORTS[windmill]} ./api-server &",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/api-server"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "description": "Wait for API server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Services running:\\n  Windmill: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:$SERVICE_PORT\\n  CLI: CLI_NAME_PLACEHOLDER --help'",
+          "description": "Display all running service URLs"
         }
       ]
     },
@@ -138,9 +188,38 @@
       "description": "Test application functionality",
       "steps": [
         {
-          "name": "run-tests",
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build cmd/server/main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/go.mod"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-api-endpoints",
+          "run": "bash test/test-api-endpoints.sh",
+          "description": "Test API endpoints",
+          "condition": {
+            "file_exists": "test/test-api-endpoints.sh"
+          }
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats cli-tests.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/cli-tests.bats"
+          }
+        },
+        {
+          "name": "test-integration",
           "run": "bash test.sh",
-          "description": "Run integration tests"
+          "description": "Run full integration tests"
         }
       ]
     },
@@ -148,9 +227,14 @@
       "description": "Stop application services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'application' || true",
-          "description": "Stop all application processes"
+          "name": "stop-api-server",
+          "run": "pkill -f 'api-server' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Application services stopped'",
+          "description": "Confirm services stopped"
         }
       ]
     }

@@ -36,7 +36,7 @@ tests:
     description: Verify simplified Go coordinator API is built and running
     steps:
       - check: api_binary_exists
-        command: test -f api/metareasoning-api
+        command: test -f api/agent-metareasoning-manager-api
         expected_status: 0
       - check: api_health
         command: curl -f http://localhost:${SERVICE_PORT}/health

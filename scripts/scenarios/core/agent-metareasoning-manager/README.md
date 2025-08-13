@@ -119,10 +119,11 @@ cd /path/to/vrooli/scripts/scenarios/core/agent-metareasoning-manager
 # - Connects to Windmill on ${RESOURCE_PORTS[windmill]}
 
 # Use the CLI (after setup)
-metareasoning health                                    # Check system status
-metareasoning api                                       # Show API info
-metareasoning analyze pros-cons "Remote work policy"   # Run analysis
-metareasoning workflow list                             # Show available workflows
+agent-metareasoning-manager health                                    # Check system status
+agent-metareasoning-manager api                                       # Show API info
+agent-metareasoning-manager analyze pros-cons "Remote work policy"   # Run analysis
+agent-metareasoning-manager list                                      # Show available workflows
+agent-metareasoning-manager version                                   # Show CLI version
 ```
 
 ### **API Direct Usage**
@@ -141,7 +142,7 @@ curl http://localhost:$SERVICE_PORT/workflows
 # Run analysis (requires authentication)
 curl -X POST http://localhost:$SERVICE_PORT/analyze/pros-cons \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer metareasoning_cli_default_2024" \
+  -H "Authorization: Bearer agent_metareasoning_manager_cli_default_2024" \
   -d '{"input": "Should we migrate to microservices?", "context": "Legacy monolith"}'
 ```
 
@@ -163,10 +164,10 @@ All lifecycle phases are defined in `.vrooli/service.json`:
 ```
 agent-metareasoning-manager/
 ├── api/                           # Go coordination API
-│   ├── main.go                    # Database-driven API server (771 lines)
-│   └── go.mod                     # Dependencies (3 packages: uuid, mux, pq)
+│   ├── main.go                    # Database-driven API server
+│   └── go.mod                     # Dependencies (uuid, mux, pq)
 ├── cli/                           # Command-line interface
-│   └── metareasoning-cli.sh       # Thin API wrapper (174 lines)
+│   └── agent-metareasoning-manager-cli.sh  # Thin API wrapper (90 lines)
 ├── initialization/
 │   ├── automation/n8n/            # 5 reasoning workflows
 │   ├── automation/windmill/       # UI dashboards and apps
@@ -225,14 +226,14 @@ agent-metareasoning-manager/
 ### **Manual Testing Examples**
 ```bash
 # After 'develop' is running, test CLI commands
-metareasoning analyze decision "Should we adopt GraphQL?"
-metareasoning analyze swot "Our SaaS product" "competitive market"
-metareasoning analyze risk-assessment "Cloud migration" "Limited budget"
+agent-metareasoning-manager analyze decision "Should we adopt GraphQL?"
+agent-metareasoning-manager analyze swot "Our SaaS product" "competitive market"
+agent-metareasoning-manager analyze risk-assessment "Cloud migration" "Limited budget"
 
 # Test API directly (remember authentication!)
 curl -X POST http://localhost:$SERVICE_PORT/analyze/self-review \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer metareasoning_cli_default_2024" \
+  -H "Authorization: Bearer agent_metareasoning_manager_cli_default_2024" \
   -d '{"decision": "Implement microservices", "iterations": 3}'
 ```
 
@@ -269,7 +270,7 @@ CLI configuration is stored in `~/.metareasoning/config.json`:
 {
   "api_base": "http://localhost:${SERVICE_PORT}",
   "default_format": "table",
-  "api_token": "metareasoning_cli_default_2024",
+  "api_token": "agent_metareasoning_manager_cli_default_2024",
   "created_at": "2024-01-01T00:00:00Z"
 }
 ```
@@ -305,7 +306,7 @@ curl -f http://localhost:$SERVICE_PORT/health                  # Go API
 | **Go build fails** | Ensure Go 1.21+ is installed: `go version` |
 | **CLI not found** | Re-run setup: `../../manage.sh setup --target native-linux` |
 | **Workflows missing** | Check n8n UI at `http://localhost:${RESOURCE_PORTS[n8n]}` |
-| **Authentication errors** | Use token: `metareasoning_cli_default_2024` in API calls |
+| **Authentication errors** | Use token: `agent_metareasoning_manager_cli_default_2024` in API calls |
 
 ### **Testing Checklist**
 - [ ] All resources started (`ollama`, `n8n`, `windmill`, `postgres`, `qdrant`)

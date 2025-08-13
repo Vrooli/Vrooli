@@ -1,4 +1,4 @@
-# Metareasoning Coordinator API
+# Agent Metareasoning Manager API
 
 A lightweight Go API for discovering and coordinating AI reasoning workflows across n8n and Windmill platforms.
 
@@ -14,13 +14,13 @@ This is a **simplified coordinator** that:
 
 ```bash
 # Build
-go build -o metareasoning-api cmd/server/main_simplified.go
+go build -o agent-metareasoning-manager-api cmd/server/main.go
 
 # Or use Make
 make build
 
 # Run
-./metareasoning-api
+./agent-metareasoning-manager-api
 ```
 
 ## Environment Variables

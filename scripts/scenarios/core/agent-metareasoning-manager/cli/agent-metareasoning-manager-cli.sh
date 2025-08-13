@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
-# Metareasoning CLI - Ultra-thin API wrapper
-# This is what the CLI should look like - 60 lines total
+# Agent Metareasoning Manager CLI - Ultra-thin API wrapper
+# This is what the CLI should look like - minimal and focused
 
 set -euo pipefail
 
+# Version information
+CLI_VERSION="2.0.0"
+
 # Configuration
-API_BASE="${METAREASONING_API_BASE:-http://localhost:${SERVICE_PORT:-8090}}"
-API_TOKEN="${METAREASONING_TOKEN:-metareasoning_cli_default_2024}"
+API_BASE="${AGENT_METAREASONING_MANAGER_API_BASE:-http://localhost:${SERVICE_PORT:-8090}}"
+API_TOKEN="${AGENT_METAREASONING_MANAGER_TOKEN:-agent_metareasoning_manager_cli_default_2024}"
 
 # API request helper
 api_call() {
@@ -37,6 +40,9 @@ format_output() {
 
 # Main command dispatcher
 case "${1:-help}" in
+    version|--version|-v)
+        echo "agent-metareasoning-manager CLI version $CLI_VERSION"
+        ;;
     health) 
         api_call GET "/health" | format_output
         ;;
@@ -59,7 +65,7 @@ case "${1:-help}" in
         ;;
     help|--help|-h)
         cat <<-EOF
-		Metareasoning CLI - Ultra-thin API wrapper
+		Agent Metareasoning Manager CLI - Ultra-thin API wrapper
 
 		Usage: $(basename "$0") <command> [options]
 
@@ -69,6 +75,7 @@ case "${1:-help}" in
 		  search <query>            Search workflows
 		  analyze <type> <input> [context]  Run analysis
 		  api                       Show API base URL
+		  version                   Show CLI version
 		  help                      Show this help
 
 		Examples:
@@ -79,8 +86,8 @@ case "${1:-help}" in
 		  $(basename "$0") analyze swot "New product" "competitive market"
 
 		Environment:
-		  METAREASONING_API_BASE    API base URL (default: $API_BASE)
-		  METAREASONING_TOKEN       API token
+		  AGENT_METAREASONING_MANAGER_API_BASE    API base URL (default: $API_BASE)
+		  AGENT_METAREASONING_MANAGER_TOKEN       API token
 		EOF
         ;;
     *) 

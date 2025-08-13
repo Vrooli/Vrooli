@@ -3,10 +3,13 @@
 .PHONY: help build run test coverage clean lint fmt deps benchmark profile
 
 # Variables
-BINARY_NAME=metareasoning-api
+BINARY_NAME=agent-metareasoning-manager-api
 GO_FILES=$(shell find . -name '*.go' -not -path "./vendor/*")
 COVERAGE_TARGET=90
-TEST_DB_URL=postgres://postgres:postgres@localhost:5432/metareasoning_test?sslmode=disable
+# Use dynamic port from environment or fall back to default
+POSTGRES_PORT ?= 5432
+SERVICE_PORT ?= 8090
+TEST_DB_URL=postgres://postgres:postgres@localhost:$(POSTGRES_PORT)/metareasoning_test?sslmode=disable
 
 # Default target
 help: ## Show this help message
@@ -117,11 +120,11 @@ install: build ## Install the binary to GOPATH/bin
 
 docker-build: ## Build Docker image
 	@echo "Building Docker image..."
-	@docker build -t metareasoning-api:latest .
+	@docker build -t agent-metareasoning-manager-api:latest .
 
 docker-run: ## Run API in Docker container
 	@echo "Running in Docker..."
-	@docker run -p 8093:8093 --env-file .env metareasoning-api:latest
+	@docker run -p $(SERVICE_PORT):$(SERVICE_PORT) --env-file .env agent-metareasoning-manager-api:latest
 
 # Development helpers
 dev: ## Run with hot reload (requires air)
@@ -146,7 +149,7 @@ teardown-test-db: ## Drop test database
 # Performance testing
 load-test: ## Run load tests (requires vegeta)
 	@if command -v vegeta > /dev/null; then \
-		echo "GET http://localhost:8093/health" | vegeta attack -duration=30s -rate=100 | vegeta report; \
+		echo "GET http://localhost:$(SERVICE_PORT)/health" | vegeta attack -duration=30s -rate=100 | vegeta report; \
 	else \
 		echo "Please install vegeta: go install github.com/tsenart/vegeta@latest"; \
 	fi

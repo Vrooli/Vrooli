@@ -1,24 +1,10 @@
 #!/usr/bin/env bats
-# Agent Metareasoning Manager CLI Tests
-
-# Source trash module for safe test cleanup
-SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-# shellcheck disable=SC1091
-source "${SCRIPT_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
-# shellcheck disable=SC1091
-source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
+# Agent Metareasoning Manager CLI Tests - Ultra-thin API wrapper
 
 setup() {
     export CLI_PATH="./agent-metareasoning-manager-cli.sh"
-    export METAREASONING_API_BASE="http://localhost:8093/api"
-    export TEST_CONFIG_DIR="$(mktemp -d)"
-    export HOME="$TEST_CONFIG_DIR"
-}
-
-teardown() {
-    if [[ -d "$TEST_CONFIG_DIR" ]]; then
-        trash::safe_remove "$TEST_CONFIG_DIR" --test-cleanup
-    fi
+    export AGENT_METAREASONING_MANAGER_API_BASE="http://localhost:8090"
+    export AGENT_METAREASONING_MANAGER_TOKEN="test-token"
 }
 
 # Helper function to run CLI command
@@ -26,247 +12,135 @@ run_cli() {
     bash "$CLI_PATH" "$@"
 }
 
-# Basic tests
-@test "CLI shows version" {
-    run run_cli --version
-    [[ "$status" -eq 0 ]]
-    [[ "$output" == "1.0.0" ]]
-}
+# Tests for the 5 CLI commands: health, list, search, analyze, help
 
 @test "CLI shows help" {
+    run run_cli help
+    [[ "$status" -eq 0 ]]
+    [[ "$output" == *"Agent Metareasoning Manager CLI - Ultra-thin API wrapper"* ]]
+    [[ "$output" == *"Commands:"* ]]
+}
+
+@test "CLI shows help with --help" {
     run run_cli --help
     [[ "$status" -eq 0 ]]
-    [[ "$output" == *"Agent Metareasoning Manager CLI"* ]]
-    [[ "$output" == *"Usage:"* ]]
+    [[ "$output" == *"Agent Metareasoning Manager CLI - Ultra-thin API wrapper"* ]]
 }
 
-@test "CLI shows usage with no args" {
+@test "CLI shows help with no args" {
     run run_cli
     [[ "$status" -eq 0 ]]
-    [[ "$output" == *"Usage:"* ]]
+    [[ "$output" == *"Agent Metareasoning Manager CLI - Ultra-thin API wrapper"* ]]
 }
 
-# Configuration tests
-@test "CLI creates default config on first run" {
-    run run_cli config show
+@test "CLI shows version" {
+    run run_cli version
     [[ "$status" -eq 0 ]]
-    [[ -f "$HOME/.metareasoning/config.json" ]]
+    [[ "$output" == *"agent-metareasoning-manager CLI version"* ]]
 }
 
-@test "CLI sets configuration value" {
-    run run_cli config set api_base "http://localhost:9999/api"
+@test "CLI shows version with --version" {
+    run run_cli --version
     [[ "$status" -eq 0 ]]
-    [[ "$output" == *"Configuration updated"* ]]
-    
-    # Verify the value was set
-    run run_cli config show
-    [[ "$output" == *"http://localhost:9999/api"* ]]
+    [[ "$output" == *"agent-metareasoning-manager CLI version"* ]]
 }
 
-@test "CLI resets configuration" {
-    # First set a custom value
-    run run_cli config set api_base "http://custom:9999/api"
+@test "CLI shows API base URL" {
+    run run_cli api
     [[ "$status" -eq 0 ]]
-    
-    # Then reset
-    run run_cli config reset
-    [[ "$status" -eq 0 ]]
-    [[ "$output" == *"Configuration reset to defaults"* ]]
-    
-    # Verify it's back to default
-    run run_cli config show
-    [[ "$output" == *"http://localhost:8093/api"* ]]
+    [[ "$output" == "http://localhost:8090" ]]
 }
 
-# Command validation tests
-@test "CLI requires subcommand for prompt" {
-    run run_cli prompt
-    [[ "$status" -eq 1 ]]
-    [[ "$output" == *"Unknown prompt subcommand"* ]]
-}
-
-@test "CLI requires subcommand for workflow" {
-    run run_cli workflow
-    [[ "$status" -eq 1 ]]
-    [[ "$output" == *"Unknown workflow subcommand"* ]]
-}
-
-@test "CLI requires input for analyze commands" {
-    run run_cli analyze decision
-    [[ "$status" -eq 1 ]]
-    [[ "$output" == *"Analysis input required"* ]]
-}
-
-# Format option tests
-@test "CLI accepts format option" {
-    # Mock curl to return JSON
+# Mock successful curl responses for API tests
+mock_curl_success() {
     function curl() {
-        echo '{"status":"healthy","timestamp":"2024-01-01T00:00:00Z"}'
+        case "$*" in
+            *"/health"*) echo '{"status":"healthy","timestamp":"2024-01-01T00:00:00Z"}' ;;
+            *"/workflows"*) echo '{"workflows":[{"name":"pros-cons-analyzer","platform":"n8n"}]}' ;;
+            *"/workflows/search"*) echo '{"results":[{"name":"risk-assessment","score":0.9}]}' ;;
+            *"/analyze"*) echo '{"analysis":"complete","type":"pros-cons"}' ;;
+            *) return 1 ;;
+        esac
         return 0
     }
     export -f curl
+}
+
+@test "CLI health command calls correct endpoint" {
+    mock_curl_success
     
-    run run_cli --format json health
+    run run_cli health
     [[ "$status" -eq 0 ]]
+    [[ "$output" == *"healthy"* ]]
 }
 
-# API base override test
-@test "CLI accepts api-base override" {
-    run run_cli --api-base "http://custom:8093/api" config show
+@test "CLI list command calls workflows endpoint" {
+    mock_curl_success
+    
+    run run_cli list
     [[ "$status" -eq 0 ]]
+    [[ "$output" == *"workflows"* ]]
 }
 
-# Analysis command structure tests
-@test "CLI structures decision analysis payload correctly" {
-    # Mock curl to capture the payload
-    function curl() {
-        for arg in "$@"; do
-            if [[ "$arg" == -d* ]]; then
-                echo "$arg" | grep -q '"scenario"' && echo '{"status":"success"}'
-                return 0
-            fi
-        done
-        return 1
-    }
-    export -f curl
+@test "CLI workflows command calls workflows endpoint" {
+    mock_curl_success
     
-    run run_cli analyze decision "Should we migrate?"
+    run run_cli workflows
     [[ "$status" -eq 0 ]]
+    [[ "$output" == *"workflows"* ]]
 }
 
-@test "CLI structures pros-cons analysis payload correctly" {
-    function curl() {
-        for arg in "$@"; do
-            if [[ "$arg" == -d* ]]; then
-                echo "$arg" | grep -q '"topic"' && echo '{"status":"success"}'
-                return 0
-            fi
-        done
-        return 1
-    }
-    export -f curl
+@test "CLI search requires query argument" {
+    run run_cli search
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *"Usage: $CLI_PATH search <query>"* ]]
+}
+
+@test "CLI search calls correct endpoint with query" {
+    mock_curl_success
     
-    run run_cli analyze pros-cons "Remote work"
+    run run_cli search "risk assessment"
     [[ "$status" -eq 0 ]]
+    [[ "$output" == *"results"* ]]
 }
 
-@test "CLI structures SWOT analysis payload correctly" {
-    function curl() {
-        for arg in "$@"; do
-            if [[ "$arg" == -d* ]]; then
-                echo "$arg" | grep -q '"target"' && echo '{"status":"success"}'
-                return 0
-            fi
-        done
-        return 1
-    }
-    export -f curl
+@test "CLI analyze requires type and input arguments" {
+    run run_cli analyze
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *"Usage: $CLI_PATH analyze <type> <input> [context]"* ]]
     
-    run run_cli analyze swot "New product launch"
+    run run_cli analyze pros-cons
+    [[ "$status" -eq 1 ]]
+    [[ "$output" == *"Usage: $CLI_PATH analyze <type> <input> [context]"* ]]
+}
+
+@test "CLI analyze calls correct endpoint with payload" {
+    mock_curl_success
+    
+    run run_cli analyze pros-cons "Should we adopt GraphQL?"
     [[ "$status" -eq 0 ]]
+    [[ "$output" == *"analysis"* ]]
 }
 
-@test "CLI structures risk analysis payload correctly" {
-    function curl() {
-        for arg in "$@"; do
-            if [[ "$arg" == -d* ]]; then
-                echo "$arg" | grep -q '"proposal"' && echo '{"status":"success"}'
-                return 0
-            fi
-        done
-        return 1
-    }
-    export -f curl
+@test "CLI analyze accepts optional context" {
+    mock_curl_success
     
-    run run_cli analyze risk "System migration"
+    run run_cli analyze swot "New product" "competitive market"
     [[ "$status" -eq 0 ]]
+    [[ "$output" == *"analysis"* ]]
 }
 
-# Prompt command tests
-@test "CLI creates prompt with required name" {
-    run run_cli prompt create
-    [[ "$status" -eq 1 ]]
-    [[ "$output" == *"Prompt name required"* ]]
-}
-
-@test "CLI tests prompt with required ID and input" {
-    run run_cli prompt test
-    [[ "$status" -eq 1 ]]
-    [[ "$output" == *"Prompt ID required"* ]]
-    
-    run run_cli prompt test "prompt-123"
-    [[ "$status" -eq 1 ]]
-    [[ "$output" == *"Test input required"* ]]
-}
-
-# Workflow command tests
-@test "CLI runs workflow with required ID" {
-    run run_cli workflow run
-    [[ "$status" -eq 1 ]]
-    [[ "$output" == *"Workflow ID or name required"* ]]
-}
-
-@test "CLI checks workflow status with required IDs" {
-    run run_cli workflow status
-    [[ "$status" -eq 1 ]]
-    [[ "$output" == *"Workflow ID and execution ID required"* ]]
-    
-    run run_cli workflow status "workflow-123"
-    [[ "$status" -eq 1 ]]
-    [[ "$output" == *"Workflow ID and execution ID required"* ]]
-}
-
-# Health check test (when API is not running)
 @test "CLI handles API connection failure gracefully" {
-    # Use a port where nothing is running
-    export METAREASONING_API_BASE="http://localhost:99999/api"
+    # Use invalid port
+    export AGENT_METAREASONING_MANAGER_API_BASE="http://localhost:99999"
     
     run run_cli health
     [[ "$status" -eq 1 ]]
     [[ "$output" == *"Failed to connect to API"* ]]
-    [[ "$output" == *"Is the metareasoning API server running?"* ]]
 }
 
-# Error handling tests
 @test "CLI handles unknown command" {
     run run_cli unknown-command
     [[ "$status" -eq 1 ]]
     [[ "$output" == *"Unknown command: unknown-command"* ]]
-}
-
-@test "CLI handles unknown analysis type" {
-    run run_cli analyze unknown-type "input"
-    [[ "$status" -eq 1 ]]
-    [[ "$output" == *"Unknown analysis type: unknown-type"* ]]
-}
-
-# Dependency check tests
-@test "CLI requires jq" {
-    # Mock missing jq
-    function command() {
-        if [[ "$2" == "jq" ]]; then
-            return 1
-        fi
-        return 0
-    }
-    export -f command
-    
-    run run_cli health
-    [[ "$status" -eq 1 ]]
-    [[ "$output" == *"jq is required"* ]]
-}
-
-@test "CLI requires curl" {
-    # Mock missing curl
-    function command() {
-        if [[ "$2" == "curl" ]]; then
-            return 1
-        fi
-        return 0
-    }
-    export -f command
-    
-    run run_cli health
-    [[ "$status" -eq 1 ]]
-    [[ "$output" == *"curl is required"* ]]
 }
