@@ -4,6 +4,9 @@
 
 # Source trash module for safe cleanup
 # Note: CLAUDE_CODE_SCRIPT_DIR should be set by manage.sh before sourcing this file
+# Set CLAUDE_CODE_SCRIPT_DIR if not already set (for BATS test compatibility)
+CLAUDE_CODE_SCRIPT_DIR="${CLAUDE_CODE_SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+
 # shellcheck disable=SC1091
 source "${CLAUDE_CODE_SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091

@@ -27,10 +27,15 @@ source "${SCRIPT_DIR}/../config/defaults.sh"
 source "${SCRIPT_DIR}/../lib/common.sh"
 
 # Override library defaults with PostgreSQL-specific settings
+# shellcheck disable=SC2034
 SERVICE_NAME="postgres"
+# shellcheck disable=SC2034
 BASE_URL="postgresql://localhost:${POSTGRES_DEFAULT_PORT:-5433}"
+# shellcheck disable=SC2034
 HEALTH_ENDPOINT=""  # PostgreSQL uses connection-based health checks
+# shellcheck disable=SC2034
 REQUIRED_TOOLS=("curl" "docker" "psql")
+# shellcheck disable=SC2034
 SERVICE_METADATA=(
     "Default Port: ${POSTGRES_DEFAULT_PORT:-5433}"
     "Port Range: ${POSTGRES_INSTANCE_PORT_RANGE_START:-5433}-${POSTGRES_INSTANCE_PORT_RANGE_END:-5499}"
@@ -66,7 +71,8 @@ test_instance_discovery() {
     
     # Use the common function to list instances
     local instances
-    if instances=($(postgres::common::list_instances 2>/dev/null)); then
+    mapfile -t instances < <(postgres::common::list_instances 2>/dev/null)
+    if [[ ${#instances[@]} -gt 0 ]]; then
         local instance_count=${#instances[@]}
         if [[ $instance_count -gt 0 ]]; then
             log_test_result "$test_name" "PASS" "instances found: $instance_count (${instances[*]})"
@@ -85,7 +91,8 @@ test_running_instances() {
     local test_name="running instances check"
     
     local instances
-    if instances=($(postgres::common::list_instances 2>/dev/null)); then
+    mapfile -t instances < <(postgres::common::list_instances 2>/dev/null)
+    if [[ ${#instances[@]} -gt 0 ]]; then
         local running_count=0
         local running_instances=()
         
@@ -113,7 +120,8 @@ test_instance_health_checks() {
     local test_name="instance health checks"
     
     local instances
-    if instances=($(postgres::common::list_instances 2>/dev/null)); then
+    mapfile -t instances < <(postgres::common::list_instances 2>/dev/null)
+    if [[ ${#instances[@]} -gt 0 ]]; then
         local healthy_count=0
         local tested_count=0
         
@@ -153,7 +161,8 @@ test_database_connections() {
     fi
     
     local instances
-    if instances=($(postgres::common::list_instances 2>/dev/null)); then
+    mapfile -t instances < <(postgres::common::list_instances 2>/dev/null)
+    if [[ ${#instances[@]} -gt 0 ]]; then
         local connected_count=0
         local tested_count=0
         
@@ -236,7 +245,8 @@ test_port_allocation() {
     local test_name="port allocation check"
     
     local instances
-    if instances=($(postgres::common::list_instances 2>/dev/null)); then
+    mapfile -t instances < <(postgres::common::list_instances 2>/dev/null)
+    if [[ ${#instances[@]} -gt 0 ]]; then
         local port_conflicts=0
         local used_ports=()
         
@@ -272,7 +282,8 @@ test_configuration_files() {
     local test_name="configuration files integrity"
     
     local instances
-    if instances=($(postgres::common::list_instances 2>/dev/null)); then
+    mapfile -t instances < <(postgres::common::list_instances 2>/dev/null)
+    if [[ ${#instances[@]} -gt 0 ]]; then
         local valid_configs=0
         local total_configs=0
         
@@ -320,7 +331,8 @@ test_sql_fixture_import() {
     
     # Find a running instance to test with
     local instances
-    if ! instances=($(postgres::common::list_instances 2>/dev/null)); then
+    mapfile -t instances < <(postgres::common::list_instances 2>/dev/null)
+    if [[ ${#instances[@]} -eq 0 ]]; then
         return 2  # No instances available
     fi
     
@@ -410,7 +422,8 @@ run_postgres_fixture_tests() {
     if [[ "$FIXTURES_AVAILABLE" == "true" ]]; then
         # First check if we have any running instances
         local instances
-        if ! instances=($(postgres::common::list_instances 2>/dev/null)); then
+        mapfile -t instances < <(postgres::common::list_instances 2>/dev/null)
+    if [[ ${#instances[@]} -eq 0 ]]; then
             log_test_result "fixture tests" "SKIP" "no PostgreSQL instances available"
             return 2
         fi
@@ -528,7 +541,8 @@ show_verbose_info() {
     echo "  Templates: ${POSTGRES_TEMPLATE_DIR}"
     
     local instances
-    if instances=($(postgres::common::list_instances 2>/dev/null)); then
+    mapfile -t instances < <(postgres::common::list_instances 2>/dev/null)
+    if [[ ${#instances[@]} -gt 0 ]]; then
         echo "  Instances (${#instances[@]}):"
         for instance in "${instances[@]}"; do
             local port

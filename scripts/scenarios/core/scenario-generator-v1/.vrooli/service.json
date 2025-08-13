@@ -5,7 +5,7 @@
     "parent": "vrooli",
     "name": "scenario-generator-v1",
     "displayName": "Scenario Generator V1",
-    "description": "A meta-scenario that generates Vrooli scenarios from customer requirements using AI",
+    "description": "A simplified meta-scenario that generates Vrooli scenarios using Claude Code AI",
     "version": "1.0.0",
     "type": "business-application",
     "category": "ai-development",
@@ -13,10 +13,8 @@
       "meta-scenario",
       "code-generation",
       "ai-development",
-      "saas-generator",
-      "business-automation",
       "claude-code",
-      "ultra-high-revenue-potential"
+      "scenario-builder"
     ]
   },
   "ports": {
@@ -28,59 +26,12 @@
     }
   },
   "resources": {
-    "automation": {
-      "n8n": {
-        "type": "n8n",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/automation/n8n/main-workflow.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/automation/n8n/planning-workflow.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/automation/n8n/building-workflow.json",
-            "type": "workflow"
-          },
-          {
-            "file": "initialization/automation/n8n/validation-workflow.json",
-            "type": "workflow"
-          }
-        ]
-      },
-      "windmill": {
-        "type": "windmill",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/automation/windmill/scenario-dashboard-app.json",
-            "type": "app"
-          }
-        ]
-      }
-    },
-    "ai": {
-      "ollama": {
-        "type": "ollama",
-        "enabled": false,
-        "required": false,
-        "models": [
-          "llama3.1:8b",
-          "nomic-embed-text"
-        ]
-      }
-    },
     "agents": {
       "claude-code": {
         "type": "claude-code",
         "enabled": true,
         "required": true,
-        "purpose": "AI-powered code generation and scenario building"
+        "purpose": "AI-powered scenario generation and code creation"
       }
     },
     "storage": {
@@ -88,13 +39,7 @@
         "type": "postgres",
         "enabled": true,
         "required": true,
-        "purpose": "scenario templates and generation metadata"
-      },
-      "minio": {
-        "type": "minio",
-        "enabled": true,
-        "required": true,
-        "purpose": "generated scenario artifacts and templates"
+        "purpose": "scenario metadata and generation tracking"
       }
     }
   },
@@ -109,9 +54,9 @@
           "description": "Execute generic setup (e.g. network, system, git)"
         },
         {
-          "name": "add-data",
-          "run": "scripts/resources/injection/engine.sh .",
-          "description": "Add app data to resources"
+          "name": "initialize-database",
+          "run": "cd initialization && psql -h localhost -p ${RESOURCE_PORTS[postgres]} -U postgres -d postgres -f postgres/schema.sql || echo 'Database schema initialization completed'",
+          "description": "Initialize PostgreSQL database schema"
         },
         {
           "name": "check-claude-code",
@@ -119,9 +64,14 @@
           "description": "Verify Claude Code availability for AI generation"
         },
         {
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install scenario generator CLI globally"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Scenario Generator V1 initialized\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Storage: http://localhost:${RESOURCE_PORTS[minio]}'",
-          "description": "Display service access URLs"
+          "run": "echo '🚀 Scenario Generator V1 initialized\\n  API: http://localhost:${SERVICE_PORT}\\n  Database: localhost:${RESOURCE_PORTS[postgres]}\\n  CLI: scenario-generator'",
+          "description": "Display service access information"
         }
       ]
     },
@@ -129,23 +79,29 @@
       "description": "Start scenario generator services",
       "steps": [
         {
-          "name": "start-services",
-          "run": "cd deployment && ./startup.sh &",
-          "description": "Start all scenario generator services in background",
+          "name": "start-api",
+          "run": "cd api && go run main.go &",
+          "description": "Start Go API server in background",
           "background": true
         },
         {
-          "name": "wait-for-services",
-          "run": "sleep 3 && curl -sf http://localhost:${RESOURCE_PORTS[windmill]}/api/version > /dev/null",
-          "description": "Wait for services to be ready",
+          "name": "wait-for-api",
+          "run": "sleep 3 && curl -sf http://localhost:${SERVICE_PORT}/health > /dev/null",
+          "description": "Wait for API to be ready",
           "retry": {
-            "max_attempts": 15,
+            "max_attempts": 10,
             "delay": 2
           }
         },
         {
+          "name": "start-ui",
+          "run": "cd ui && npm start &",
+          "description": "Start React UI in development mode",
+          "background": true
+        },
+        {
           "name": "show-running-services",
-          "run": "echo '🚀 Services running:\\n  Dashboard: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  Storage: http://localhost:${RESOURCE_PORTS[minio]}'",
+          "run": "echo '🚀 Services running:\\n  API: http://localhost:${SERVICE_PORT}\\n  UI: http://localhost:3000\\n  CLI: scenario-generator help'",
           "description": "Display running service URLs"
         }
       ]
@@ -154,9 +110,14 @@
       "description": "Run scenario generator tests",
       "steps": [
         {
-          "name": "test-services-health",
-          "run": "curl -sf http://localhost:${RESOURCE_PORTS[windmill]}/api/version && curl -sf http://localhost:${RESOURCE_PORTS[n8n]}/healthz",
-          "description": "Test service health endpoints"
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:${SERVICE_PORT}/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-claude-code",
+          "run": "bash ${VROOLI_ROOT:-/home/matthalloran8/Vrooli}/scripts/resources/agents/claude-code/manage.sh --action health-check --check-type basic",
+          "description": "Test Claude Code availability"
         },
         {
           "name": "run-integration-tests",
@@ -173,8 +134,8 @@
       "steps": [
         {
           "name": "stop-services",
-          "run": "pkill -f 'startup.sh' || true",
-          "description": "Stop scenario generator processes"
+          "run": "pkill -f 'go run main.go' || true; pkill -f 'npm start' || true",
+          "description": "Stop API and UI processes"
         },
         {
           "name": "confirm-stop",

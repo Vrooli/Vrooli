@@ -34,7 +34,7 @@ browserless::ensure_test_output_dir() {
 # Returns: 0 if successful, 1 if failed
 #######################################
 browserless::test_screenshot() {
-    local test_url="${1:-${URL:-https://example.com}}"
+    local test_url="${1:-${URL:-http://httpbin.org/html}}"
     
     # Ensure test output directory exists
     browserless::ensure_test_output_dir
@@ -182,7 +182,7 @@ browserless::safe_screenshot() {
 # Returns: 0 if successful, 1 if failed
 #######################################
 browserless::test_pdf() {
-    local test_url="${1:-${URL:-https://example.com}}"
+    local test_url="${1:-${URL:-http://httpbin.org/html}}"
     
     # Ensure test output directory exists
     browserless::ensure_test_output_dir
@@ -238,7 +238,7 @@ browserless::test_pdf() {
 # Returns: 0 if successful, 1 if failed
 #######################################
 browserless::test_scrape() {
-    local test_url="${1:-${URL:-https://example.com}}"
+    local test_url="${1:-${URL:-http://httpbin.org/html}}"
     
     # Ensure test output directory exists
     browserless::ensure_test_output_dir
@@ -338,7 +338,7 @@ browserless::test_pressure() {
 # Returns: 0 if successful, 1 if failed
 #######################################
 browserless::test_function() {
-    local test_url="${1:-${URL:-https://example.com}}"
+    local test_url="${1:-${URL:-http://httpbin.org/html}}"
     
     log::header "🔧 Testing Browserless Function Execution"
     
@@ -384,7 +384,7 @@ browserless::test_function() {
 # Returns: 0 if all successful, 1 if any failed
 #######################################
 browserless::test_all_apis() {
-    local test_url="${1:-${URL:-https://example.com}}"
+    local test_url="${1:-${URL:-http://httpbin.org/html}}"
     
     log::header "${MSG_USAGE_ALL}"
     

@@ -1,29 +1,34 @@
 -- Prompt Manager Database Schema
+-- Personal prompt storage and management system
 
+-- Simplified user system for personal use
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    email VARCHAR(255) UNIQUE NOT NULL,
-    name VARCHAR(255),
-    role VARCHAR(50) DEFAULT 'editor',
+    username VARCHAR(100) UNIQUE NOT NULL DEFAULT 'default',
+    email VARCHAR(255),
+    name VARCHAR(255) DEFAULT 'Personal User',
+    settings JSONB DEFAULT '{"theme": "dark", "defaultCampaign": null}'::jsonb,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    last_login TIMESTAMP,
-    settings JSONB DEFAULT '{}'::jsonb
+    last_login TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Campaign organization system (debugging, UX, coding, etc.)
 CREATE TABLE IF NOT EXISTS campaigns (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
     description TEXT,
+    color VARCHAR(7) DEFAULT '#6366f1',
+    icon VARCHAR(50) DEFAULT 'folder',
     parent_id UUID REFERENCES campaigns(id) ON DELETE CASCADE,
-    owner_id UUID REFERENCES users(id) ON DELETE SET NULL,
-    client VARCHAR(255),
-    project VARCHAR(255),
-    status VARCHAR(50) DEFAULT 'active',
-    metadata JSONB DEFAULT '{}'::jsonb,
+    sort_order INTEGER DEFAULT 0,
+    is_favorite BOOLEAN DEFAULT false,
+    prompt_count INTEGER DEFAULT 0,
+    last_used TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Core prompt storage with personal usage tracking
 CREATE TABLE IF NOT EXISTS prompts (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     campaign_id UUID REFERENCES campaigns(id) ON DELETE CASCADE,
@@ -31,10 +36,26 @@ CREATE TABLE IF NOT EXISTS prompts (
     content TEXT NOT NULL,
     description TEXT,
     variables JSONB DEFAULT '[]'::jsonb,
+    
+    -- Personal usage tracking
+    usage_count INTEGER DEFAULT 0,
+    last_used TIMESTAMP,
+    is_favorite BOOLEAN DEFAULT false,
+    is_archived BOOLEAN DEFAULT false,
+    
+    -- Quick access
+    quick_access_key VARCHAR(50) UNIQUE,
+    
+    -- Version control
     version INTEGER DEFAULT 1,
     parent_version_id UUID REFERENCES prompts(id),
-    created_by UUID REFERENCES users(id),
-    status VARCHAR(50) DEFAULT 'draft',
+    
+    -- Metadata
+    word_count INTEGER,
+    estimated_tokens INTEGER,
+    effectiveness_rating INTEGER CHECK (effectiveness_rating >= 1 AND effectiveness_rating <= 5),
+    notes TEXT,
+    
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -64,6 +85,7 @@ CREATE TABLE IF NOT EXISTS prompt_tags (
     PRIMARY KEY (prompt_id, tag_id)
 );
 
+-- Quick prompt templates for common patterns
 CREATE TABLE IF NOT EXISTS templates (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
@@ -71,72 +93,65 @@ CREATE TABLE IF NOT EXISTS templates (
     content TEXT NOT NULL,
     variables JSONB DEFAULT '[]'::jsonb,
     category VARCHAR(100),
-    is_public BOOLEAN DEFAULT false,
-    created_by UUID REFERENCES users(id),
+    usage_count INTEGER DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS metrics (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    prompt_id UUID REFERENCES prompts(id) ON DELETE CASCADE,
-    execution_count INTEGER DEFAULT 0,
-    success_rate FLOAT,
-    avg_response_time FLOAT,
-    avg_token_count INTEGER,
-    cost_estimate FLOAT,
-    performance_score FLOAT,
-    last_used TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
+-- Simple test history for prompt refinement
 CREATE TABLE IF NOT EXISTS test_results (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     prompt_id UUID REFERENCES prompts(id) ON DELETE CASCADE,
-    provider VARCHAR(100) NOT NULL,
-    model VARCHAR(100) NOT NULL,
+    model VARCHAR(100) NOT NULL DEFAULT 'ollama/llama3.2',
     input_variables JSONB,
     response TEXT,
     response_time FLOAT,
     token_count INTEGER,
-    cost FLOAT,
-    rating INTEGER,
+    rating INTEGER CHECK (rating >= 1 AND rating <= 5),
     notes TEXT,
-    tested_by UUID REFERENCES users(id),
     tested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS ab_tests (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(255) NOT NULL,
-    campaign_id UUID REFERENCES campaigns(id) ON DELETE CASCADE,
-    variant_a UUID REFERENCES prompts(id),
-    variant_b UUID REFERENCES prompts(id),
-    status VARCHAR(50) DEFAULT 'running',
-    winner UUID REFERENCES prompts(id),
-    confidence_level FLOAT,
-    start_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    end_date TIMESTAMP,
-    results JSONB
 );
 
 -- Indexes for performance
 CREATE INDEX idx_campaigns_parent ON campaigns(parent_id);
-CREATE INDEX idx_campaigns_owner ON campaigns(owner_id);
+CREATE INDEX idx_campaigns_sort_order ON campaigns(sort_order);
+CREATE INDEX idx_campaigns_last_used ON campaigns(last_used DESC);
 CREATE INDEX idx_prompts_campaign ON prompts(campaign_id);
-CREATE INDEX idx_prompts_created_by ON prompts(created_by);
+CREATE INDEX idx_prompts_last_used ON prompts(last_used DESC);
+CREATE INDEX idx_prompts_usage_count ON prompts(usage_count DESC);
+CREATE INDEX idx_prompts_favorites ON prompts(is_favorite) WHERE is_favorite = true;
+CREATE INDEX idx_prompts_quick_access ON prompts(quick_access_key) WHERE quick_access_key IS NOT NULL;
 CREATE INDEX idx_prompt_versions_prompt ON prompt_versions(prompt_id);
-CREATE INDEX idx_metrics_prompt ON metrics(prompt_id);
 CREATE INDEX idx_test_results_prompt ON test_results(prompt_id);
 
 -- Full text search
 CREATE INDEX idx_prompts_content_search ON prompts USING gin(to_tsvector('english', content));
 CREATE INDEX idx_prompts_title_search ON prompts USING gin(to_tsvector('english', title));
+CREATE INDEX idx_prompts_description_search ON prompts USING gin(to_tsvector('english', description));
 
--- Default data
-INSERT INTO tags (name, color, description) VALUES
-    ('marketing', '#FF6B6B', 'Marketing and advertising prompts'),
-    ('technical', '#4ECDC4', 'Technical documentation and code'),
-    ('creative', '#95E77E', 'Creative writing and content'),
-    ('analysis', '#FFE66D', 'Data analysis and research'),
-    ('customer', '#A8E6CF', 'Customer communication')
-ON CONFLICT (name) DO NOTHING;
+-- Function to update campaign prompt count
+CREATE OR REPLACE FUNCTION update_campaign_prompt_count()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF TG_OP = 'INSERT' THEN
+        UPDATE campaigns SET prompt_count = prompt_count + 1, updated_at = CURRENT_TIMESTAMP 
+        WHERE id = NEW.campaign_id;
+        RETURN NEW;
+    ELSIF TG_OP = 'DELETE' THEN
+        UPDATE campaigns SET prompt_count = prompt_count - 1, updated_at = CURRENT_TIMESTAMP 
+        WHERE id = OLD.campaign_id;
+        RETURN OLD;
+    ELSIF TG_OP = 'UPDATE' AND NEW.campaign_id != OLD.campaign_id THEN
+        UPDATE campaigns SET prompt_count = prompt_count - 1, updated_at = CURRENT_TIMESTAMP 
+        WHERE id = OLD.campaign_id;
+        UPDATE campaigns SET prompt_count = prompt_count + 1, updated_at = CURRENT_TIMESTAMP 
+        WHERE id = NEW.campaign_id;
+        RETURN NEW;
+    END IF;
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to maintain campaign prompt counts
+CREATE TRIGGER trigger_update_campaign_prompt_count
+    AFTER INSERT OR DELETE OR UPDATE ON prompts
+    FOR EACH ROW EXECUTE FUNCTION update_campaign_prompt_count();

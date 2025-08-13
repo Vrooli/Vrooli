@@ -59,17 +59,6 @@
             "type": "workflow"
           }
         ]
-      },
-      "windmill": {
-        "type": "windmill",
-        "enabled": true,
-        "required": true,
-        "initialization": [
-          {
-            "file": "initialization/automation/windmill/retro-game-launcher-ui.json",
-            "type": "app"
-          }
-        ]
       }
     },
     "ai": {
@@ -100,29 +89,106 @@
           "description": "Add app data to resources"
         },
         {
+          "name": "install-cli",
+          "run": "cd cli && ./install-cli.sh",
+          "description": "Install CLI command globally"
+        },
+        {
+          "name": "build-api",
+          "run": "cd api && go mod download && go build -o retro-game-launcher-api main.go",
+          "description": "Build Go API binary"
+        },
+        {
+          "name": "install-ui-deps",
+          "run": "cd ui && npm install",
+          "description": "Install React UI dependencies"
+        },
+        {
           "name": "show-urls",
-          "run": "echo '🚀 Retro Game Launcher initialized\\n  Game Launcher: http://localhost:${RESOURCE_PORTS[windmill]}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  API: http://localhost:${SERVICE_PORT}'",
+          "run": "echo '🚀 Retro Game Launcher initialized\\n  UI: http://localhost:${UI_PORT}\\n  API: http://localhost:${SERVICE_PORT}\\n  n8n workflows: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: retro-game-launcher --help'",
           "description": "Display service access URLs"
         }
       ]
     },
     "develop": {
-      "description": "Start retro game launcher services",
+      "description": "Start retro game launcher with custom UI and Go API",
       "steps": [
         {
-          "name": "start-services",
-          "run": "cd deployment && ./startup.sh",
-          "description": "Start retro game launcher services"
+          "name": "start-api-server",
+          "run": "cd api && PORT=$SERVICE_PORT N8N_BASE_URL=http://localhost:${RESOURCE_PORTS[n8n]} POSTGRES_URL=postgres://postgres:postgres@localhost:${RESOURCE_PORTS[postgres]}/retro_games ./retro-game-launcher-api &",
+          "description": "Start Go API server in background",
+          "background": true,
+          "condition": {
+            "file_exists": "api/retro-game-launcher-api"
+          }
+        },
+        {
+          "name": "wait-for-api",
+          "run": "sleep 2 && curl -sf http://localhost:$SERVICE_PORT/health > /dev/null",
+          "description": "Wait for API server to be ready",
+          "retry": {
+            "max_attempts": 15,
+            "delay": 1
+          }
+        },
+        {
+          "name": "start-ui",
+          "run": "cd ui && PORT=$UI_PORT REACT_APP_API_URL=http://localhost:$SERVICE_PORT npm start &",
+          "description": "Start React UI in background",
+          "background": true,
+          "condition": {
+            "directory_exists": "ui/node_modules"
+          }
+        },
+        {
+          "name": "wait-for-ui",
+          "run": "sleep 5 && curl -sf http://localhost:$UI_PORT > /dev/null",
+          "description": "Wait for UI to be ready",
+          "retry": {
+            "max_attempts": 30,
+            "delay": 1
+          }
+        },
+        {
+          "name": "show-running-services",
+          "run": "echo '🚀 Retro Game Launcher running:\\n  UI: http://localhost:$UI_PORT\\n  API: http://localhost:$SERVICE_PORT\\n  n8n: http://localhost:${RESOURCE_PORTS[n8n]}\\n  CLI: retro-game-launcher --help'",
+          "description": "Display all running service URLs"
         }
       ]
     },
     "test": {
-      "description": "Test retro game launcher functionality",
+      "description": "Test retro game launcher API, UI, and CLI",
       "steps": [
         {
-          "name": "run-tests",
-          "run": "bash test.sh",
-          "description": "Run integration tests"
+          "name": "test-go-build",
+          "run": "cd api && go build -o test-build main.go && rm test-build",
+          "description": "Test Go compilation",
+          "condition": {
+            "file_exists": "api/main.go"
+          }
+        },
+        {
+          "name": "test-api-health",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/health",
+          "description": "Test API health endpoint"
+        },
+        {
+          "name": "test-games-endpoint",
+          "run": "curl -sf http://localhost:$SERVICE_PORT/api/games",
+          "description": "Test API games endpoint"
+        },
+        {
+          "name": "test-ui-serving",
+          "run": "curl -sf http://localhost:$UI_PORT",
+          "description": "Test UI is serving content"
+        },
+        {
+          "name": "test-cli-commands",
+          "run": "cd cli && bats retro-game-launcher.bats",
+          "description": "Run CLI test suite",
+          "condition": {
+            "file_exists": "cli/retro-game-launcher.bats"
+          }
         }
       ]
     },
@@ -130,9 +196,19 @@
       "description": "Stop retro game launcher services",
       "steps": [
         {
-          "name": "stop-services",
-          "run": "pkill -f 'retro-game' || true",
-          "description": "Stop all retro game launcher processes"
+          "name": "stop-api-server",
+          "run": "pkill -f 'retro-game-launcher-api' || true",
+          "description": "Stop Go API server processes"
+        },
+        {
+          "name": "stop-ui-server",
+          "run": "pkill -f 'react-scripts' || true",
+          "description": "Stop React UI development server"
+        },
+        {
+          "name": "confirm-stop",
+          "run": "echo '🛑 Retro Game Launcher services stopped'",
+          "description": "Confirm services stopped"
         }
       ]
     }

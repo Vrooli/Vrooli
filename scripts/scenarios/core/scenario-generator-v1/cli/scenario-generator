@@ -1,0 +1,477 @@
+#!/usr/bin/env bash
+# Scenario Generator V1 CLI
+# Command-line interface for managing AI-powered scenario generation
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+CLI_NAME="scenario-generator"
+VERSION="1.0.0"
+
+# Default API URL - can be overridden via environment
+API_URL="${SCENARIO_API_URL:-http://localhost:8080}"
+
+# Color codes for styling
+RED='\033[1;31m'
+GREEN='\033[1;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[1;34m'
+MAGENTA='\033[1;35m'
+CYAN='\033[1;36m'
+WHITE='\033[1;37m'
+NC='\033[0m' # No Color
+
+# Banner
+show_banner() {
+    echo -e "${CYAN}"
+    cat << 'EOF'
+     ██████╗ ███████╗███╗   ██╗███████╗██████╗  █████╗ ████████╗ ██████╗ ██████╗ 
+    ██╔════╝ ██╔════╝████╗  ██║██╔════╝██╔══██╗██╔══██╗╚══██╔══╝██╔═══██╗██╔══██╗
+    ██║  ███╗█████╗  ██╔██╗ ██║█████╗  ██████╔╝███████║   ██║   ██║   ██║██████╔╝
+    ██║   ██║██╔══╝  ██║╚██╗██║██╔══╝  ██╔══██╗██╔══██║   ██║   ██║   ██║██╔══██╗
+    ╚██████╔╝███████╗██║ ╚████║███████╗██║  ██║██║  ██║   ██║   ╚██████╔╝██║  ██║
+     ╚═════╝ ╚══════╝╚═╝  ╚═══╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝
+                                                                                   
+                🤖 AI-Powered Vrooli Scenario Generator v${VERSION} 🤖
+EOF
+    echo -e "${NC}"
+}
+
+# Error handling
+error() {
+    echo -e "${RED}❌ Error: $1${NC}" >&2
+    exit 1
+}
+
+success() {
+    echo -e "${GREEN}✅ $1${NC}"
+}
+
+info() {
+    echo -e "${CYAN}ℹ️  $1${NC}"
+}
+
+warn() {
+    echo -e "${YELLOW}⚠️  $1${NC}"
+}
+
+# API helper functions
+api_get() {
+    local endpoint="$1"
+    curl -s "${API_URL}${endpoint}" || error "Failed to connect to API at ${API_URL}"
+}
+
+api_post() {
+    local endpoint="$1"
+    local data="$2"
+    curl -s -X POST -H "Content-Type: application/json" -d "$data" "${API_URL}${endpoint}" || error "Failed to post to API"
+}
+
+# Check if API is available
+check_api() {
+    if ! api_get "/health" > /dev/null 2>&1; then
+        error "Scenario Generator API is not running at ${API_URL}. Please start it first."
+    fi
+}
+
+# Command implementations
+cmd_status() {
+    info "Checking Scenario Generator status..."
+    
+    local health
+    health=$(api_get "/health")
+    
+    if [[ -n "$health" ]]; then
+        success "API is running at ${API_URL}"
+        echo -e "${WHITE}Health Status:${NC}"
+        echo "$health" | jq '.'
+    else
+        error "API is not responding"
+    fi
+}
+
+cmd_list() {
+    local filter="${1:-all}"
+    
+    info "Fetching scenarios..."
+    check_api
+    
+    case "$filter" in
+        "featured")
+            local scenarios
+            scenarios=$(api_get "/api/featured")
+            ;;
+        "completed")
+            local scenarios
+            scenarios=$(api_get "/api/scenarios" | jq '[.[] | select(.status == "completed")]')
+            ;;
+        "generating")
+            local scenarios
+            scenarios=$(api_get "/api/scenarios" | jq '[.[] | select(.status == "generating")]')
+            ;;
+        *)
+            local scenarios
+            scenarios=$(api_get "/api/scenarios")
+            ;;
+    esac
+    
+    if [[ "$scenarios" == "[]" ]] || [[ -z "$scenarios" ]]; then
+        warn "No scenarios found"
+        return 0
+    fi
+    
+    echo -e "${WHITE}🚀 Available Scenarios:${NC}"
+    echo "$scenarios" | jq -r '.[] | "\(.name) - \(.status) - \(.complexity) - $\(.estimated_revenue) - ID: \(.id)"' | while read -r line; do
+        echo -e "${BLUE}  • ${NC}$line"
+    done
+}
+
+cmd_search() {
+    local query="$1"
+    [[ -z "$query" ]] && error "Search query required"
+    
+    info "Searching for: $query"
+    check_api
+    
+    local results
+    results=$(api_get "/api/search/scenarios?q=$(echo "$query" | jq -R -r @uri)")
+    
+    if [[ "$results" == "[]" ]]; then
+        warn "No scenarios found matching: $query"
+        return 0
+    fi
+    
+    echo -e "${WHITE}🔍 Search Results:${NC}"
+    echo "$results" | jq -r '.[] | "\(.name) - \(.description) - \(.status) - ID: \(.id)"' | while read -r line; do
+        echo -e "${GREEN}  • ${NC}$line"
+    done
+}
+
+cmd_show() {
+    local scenario_id="$1"
+    [[ -z "$scenario_id" ]] && error "Scenario ID required"
+    
+    info "Fetching scenario details..."
+    check_api
+    
+    local scenario
+    scenario=$(api_get "/api/scenarios/$scenario_id")
+    
+    if [[ -z "$scenario" ]] || [[ "$scenario" == "null" ]]; then
+        error "Scenario not found: $scenario_id"
+    fi
+    
+    echo -e "${WHITE}🚀 Scenario Details:${NC}"
+    echo -e "${CYAN}Name:${NC} $(echo "$scenario" | jq -r '.name')"
+    echo -e "${CYAN}Description:${NC} $(echo "$scenario" | jq -r '.description')"
+    echo -e "${CYAN}Status:${NC} $(echo "$scenario" | jq -r '.status')"
+    echo -e "${CYAN}Complexity:${NC} $(echo "$scenario" | jq -r '.complexity')"
+    echo -e "${CYAN}Category:${NC} $(echo "$scenario" | jq -r '.category')"
+    echo -e "${CYAN}Estimated Revenue:${NC} \$$(echo "$scenario" | jq -r '.estimated_revenue')"
+    echo -e "${CYAN}Resources Used:${NC} $(echo "$scenario" | jq -r '.resources_used | join(", ")')"
+    echo -e "${CYAN}Created:${NC} $(echo "$scenario" | jq -r '.created_at')"
+    echo -e "${CYAN}ID:${NC} $(echo "$scenario" | jq -r '.id')"
+    
+    local prompt
+    prompt=$(echo "$scenario" | jq -r '.prompt')
+    if [[ "$prompt" != "null" ]] && [[ -n "$prompt" ]]; then
+        echo -e "\n${YELLOW}Original Prompt:${NC}"
+        echo "$prompt"
+    fi
+    
+    local claude_response
+    claude_response=$(echo "$scenario" | jq -r '.claude_response')
+    if [[ "$claude_response" != "null" ]] && [[ -n "$claude_response" ]]; then
+        echo -e "\n${MAGENTA}Claude Output (truncated):${NC}"
+        echo "$claude_response" | head -n 20
+        echo -e "${CYAN}... (use 'scenario-generator logs $scenario_id' for full output)${NC}"
+    fi
+}
+
+cmd_generate() {
+    local name="$1"
+    local description="$2"
+    local prompt="$3"
+    local complexity="${4:-intermediate}"
+    local category="${5:-general}"
+    
+    [[ -z "$name" ]] && error "Scenario name required"
+    [[ -z "$description" ]] && error "Scenario description required" 
+    [[ -z "$prompt" ]] && error "Scenario prompt required"
+    
+    info "Generating scenario: $name"
+    info "Complexity: $complexity"
+    info "Category: $category"
+    check_api
+    
+    local request
+    request=$(jq -n \
+        --arg name "$name" \
+        --arg description "$description" \
+        --arg prompt "$prompt" \
+        --arg complexity "$complexity" \
+        --arg category "$category" \
+        '{
+            name: $name,
+            description: $description,
+            prompt: $prompt,
+            complexity: $complexity,
+            category: $category,
+            resources: []
+        }')
+    
+    local response
+    response=$(api_post "/api/generate" "$request")
+    
+    if [[ -n "$response" ]]; then
+        success "Scenario generation started!"
+        echo -e "${WHITE}Generation Details:${NC}"
+        echo "$response" | jq '.'
+        
+        local generation_id
+        generation_id=$(echo "$response" | jq -r '.generation_id')
+        local scenario_id
+        scenario_id=$(echo "$response" | jq -r '.scenario_id')
+        
+        info "Track progress with: $CLI_NAME status-generation $generation_id"
+        info "View scenario with: $CLI_NAME show $scenario_id"
+    else
+        error "Failed to start scenario generation"
+    fi
+}
+
+cmd_status_generation() {
+    local generation_id="$1"
+    [[ -z "$generation_id" ]] && error "Generation ID required"
+    
+    info "Checking generation status..."
+    check_api
+    
+    local status
+    status=$(api_get "/api/generate/status/$generation_id")
+    
+    if [[ -n "$status" ]]; then
+        echo -e "${WHITE}Generation Status:${NC}"
+        echo "$status" | jq '.'
+    else
+        error "Generation not found: $generation_id"
+    fi
+}
+
+cmd_logs() {
+    local scenario_id="$1"
+    [[ -z "$scenario_id" ]] && error "Scenario ID required"
+    
+    info "Fetching generation logs..."
+    check_api
+    
+    local logs
+    logs=$(api_get "/api/scenarios/$scenario_id/logs")
+    
+    if [[ "$logs" == "[]" ]]; then
+        warn "No logs found for scenario: $scenario_id"
+        return 0
+    fi
+    
+    echo -e "${WHITE}📋 Generation Logs:${NC}"
+    echo "$logs" | jq -r '.[] | "\(.started_at) - \(.step) - Success: \(.success) - \(.error_message // "OK")"' | while read -r line; do
+        if [[ "$line" == *"Success: true"* ]]; then
+            echo -e "${GREEN}  ✓ ${NC}$line"
+        else
+            echo -e "${RED}  ✗ ${NC}$line"
+        fi
+    done
+}
+
+cmd_templates() {
+    info "Fetching scenario templates..."
+    
+    # Try to get templates from API, but don't fail if API is not available
+    local templates=""
+    if curl -s --max-time 2 "${API_URL}/health" > /dev/null 2>&1; then
+        templates=$(curl -s --max-time 2 "${API_URL}/api/templates" 2>/dev/null || echo "[]")
+    fi
+    
+    if [[ -z "$templates" ]] || [[ "$templates" == "[]" ]]; then
+        echo -e "\n${WHITE}Example scenario prompts you can try:${NC}"
+        echo -e "${GREEN}  • ${NC}Create a SaaS dashboard for managing customer data and analytics"
+        echo -e "${GREEN}  • ${NC}Build an AI-powered document processing pipeline"
+        echo -e "${GREEN}  • ${NC}Make a content generation platform for social media"
+        echo -e "${GREEN}  • ${NC}Create a customer support automation system"
+        echo -e "${GREEN}  • ${NC}Build an e-commerce management assistant"
+        echo -e "${GREEN}  • ${NC}Make a project management tool with AI insights"
+        echo -e "${GREEN}  • ${NC}Create a financial reporting automation platform"
+        echo -e "${GREEN}  • ${NC}Build a marketing campaign optimization system"
+    else
+        echo -e "${WHITE}📝 Available Templates:${NC}"
+        echo "$templates" | jq -r '.[] | "• \(.name) (\(.category)) - \(.description)"' | while read -r line; do
+            echo -e "${GREEN}$line${NC}"
+        done
+        echo -e "\n${CYAN}Use template with: $CLI_NAME generate-from-template <template-id>${NC}"
+    fi
+}
+
+cmd_generate_from_template() {
+    local template_id="$1"
+    [[ -z "$template_id" ]] && error "Template ID required"
+    
+    info "Fetching template: $template_id"
+    check_api
+    
+    local template
+    template=$(api_get "/api/templates/$template_id")
+    
+    if [[ -z "$template" ]] || [[ "$template" == "null" ]]; then
+        error "Template not found: $template_id"
+    fi
+    
+    local name
+    name=$(echo "$template" | jq -r '.name')
+    local description
+    description=$(echo "$template" | jq -r '.description')
+    local prompt
+    prompt=$(echo "$template" | jq -r '.prompt_template')
+    local complexity
+    complexity=$(echo "$template" | jq -r '.complexity_level')
+    local category
+    category=$(echo "$template" | jq -r '.category')
+    
+    echo -e "${WHITE}Using template: $name${NC}"
+    echo -e "${CYAN}Description: $description${NC}"
+    echo -e "${CYAN}Complexity: $complexity${NC}"
+    echo -e "${CYAN}Category: $category${NC}"
+    echo
+    
+    # Confirm before generating
+    read -p "Generate scenario from this template? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        info "Generation cancelled"
+        return 0
+    fi
+    
+    cmd_generate "$name" "$description" "$prompt" "$complexity" "$category"
+}
+
+cmd_export() {
+    local scenario_id="$1"
+    local output_dir="${2:-./scenario-export}"
+    
+    [[ -z "$scenario_id" ]] && error "Scenario ID required"
+    
+    info "Exporting scenario: $scenario_id"
+    check_api
+    
+    local scenario
+    scenario=$(api_get "/api/scenarios/$scenario_id")
+    
+    if [[ -z "$scenario" ]] || [[ "$scenario" == "null" ]]; then
+        error "Scenario not found: $scenario_id"
+    fi
+    
+    # Create output directory
+    mkdir -p "$output_dir"
+    
+    # Export scenario metadata
+    echo "$scenario" | jq '.' > "$output_dir/scenario.json"
+    
+    # Export Claude response if available
+    local claude_response
+    claude_response=$(echo "$scenario" | jq -r '.claude_response')
+    if [[ "$claude_response" != "null" ]] && [[ -n "$claude_response" ]]; then
+        echo "$claude_response" > "$output_dir/claude_output.md"
+    fi
+    
+    # Export generation logs
+    local logs
+    logs=$(api_get "/api/scenarios/$scenario_id/logs" 2>/dev/null || echo "[]")
+    echo "$logs" | jq '.' > "$output_dir/generation_logs.json"
+    
+    success "Scenario exported to: $output_dir"
+    info "Files created:"
+    info "  - scenario.json (metadata)"
+    if [[ "$claude_response" != "null" ]]; then
+        info "  - claude_output.md (generated content)"
+    fi
+    info "  - generation_logs.json (generation history)"
+}
+
+cmd_help() {
+    show_banner
+    echo -e "${WHITE}Usage: $CLI_NAME <command> [arguments]${NC}"
+    echo
+    echo -e "${CYAN}Commands:${NC}"
+    echo -e "  ${GREEN}status${NC}                          Check API and service status"
+    echo -e "  ${GREEN}list${NC} [all|featured|completed|generating]  List scenarios"
+    echo -e "  ${GREEN}search${NC} <query>                  Search scenarios by name/description"
+    echo -e "  ${GREEN}show${NC} <scenario-id>              Show detailed scenario information"
+    echo -e "  ${GREEN}generate${NC} <name> <desc> <prompt> [complexity] [category]  Generate new scenario"
+    echo -e "  ${GREEN}status-generation${NC} <gen-id>      Check generation progress"
+    echo -e "  ${GREEN}logs${NC} <scenario-id>              Show generation logs"
+    echo -e "  ${GREEN}templates${NC}                       Show available templates"
+    echo -e "  ${GREEN}generate-from-template${NC} <tmpl-id> Generate from template"
+    echo -e "  ${GREEN}export${NC} <scenario-id> [dir]      Export scenario files"
+    echo -e "  ${GREEN}help${NC}                            Show this help message"
+    echo
+    echo -e "${CYAN}Examples:${NC}"
+    echo -e "  $CLI_NAME list completed"
+    echo -e "  $CLI_NAME search \"dashboard\""
+    echo -e "  $CLI_NAME generate \"My App\" \"A SaaS dashboard\" \"Create a business dashboard with charts and user management\" intermediate business-tool"
+    echo -e "  $CLI_NAME show 123e4567-e89b-12d3-a456-426614174000"
+    echo -e "  $CLI_NAME export 123e4567-e89b-12d3-a456-426614174000 ./my-scenario"
+    echo
+    echo -e "${CYAN}Environment Variables:${NC}"
+    echo -e "  ${YELLOW}SCENARIO_API_URL${NC}    API base URL (default: http://localhost:8080)"
+    echo
+    echo -e "${MAGENTA}🤖 Happy Scenario Building! 🤖${NC}"
+}
+
+# Main command dispatch
+main() {
+    local command="${1:-help}"
+    
+    case "$command" in
+        "status")
+            cmd_status
+            ;;
+        "list")
+            cmd_list "${2:-all}"
+            ;;
+        "search")
+            cmd_search "${2:-}"
+            ;;
+        "show"|"details")
+            cmd_show "${2:-}"
+            ;;
+        "generate"|"create")
+            cmd_generate "${2:-}" "${3:-}" "${4:-}" "${5:-intermediate}" "${6:-general}"
+            ;;
+        "status-generation"|"status-gen")
+            cmd_status_generation "${2:-}"
+            ;;
+        "logs"|"log")
+            cmd_logs "${2:-}"
+            ;;
+        "templates"|"template")
+            cmd_templates
+            ;;
+        "generate-from-template"|"from-template")
+            cmd_generate_from_template "${2:-}"
+            ;;
+        "export")
+            cmd_export "${2:-}" "${3:-}"
+            ;;
+        "help"|"--help"|"-h")
+            cmd_help
+            ;;
+        "version"|"--version")
+            echo "$CLI_NAME version $VERSION"
+            ;;
+        *)
+            error "Unknown command: $command. Run '$CLI_NAME help' for usage."
+            ;;
+    esac
+}
+
+# Run main function with all arguments
+main "$@"

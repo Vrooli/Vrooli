@@ -5,7 +5,7 @@ set -euo pipefail
 # This script handles injection of secrets and policies into HashiCorp Vault
 # Part of the Vrooli resource data injection system
 
-DESCRIPTION="Inject secrets and policies into HashiCorp Vault"
+export DESCRIPTION="Inject secrets and policies into HashiCorp Vault"
 
 VAULT_SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 RESOURCES_DIR="${VAULT_SCRIPT_DIR}/../.."
@@ -107,9 +107,7 @@ EOF
 vault_inject::check_accessibility() {
     # Check if Vault is sealed
     local health_response
-    health_response=$(curl -s "${VAULT_ADDR}/v1/sys/health" 2>/dev/null)
-    
-    if [[ $? -ne 0 ]]; then
+    if ! health_response=$(curl -s "${VAULT_ADDR}/v1/sys/health" 2>/dev/null); then
         log::error "Vault is not accessible at $VAULT_ADDR"
         log::info "Ensure Vault is running: ./scripts/resources/storage/vault/manage.sh --action start"
         return 1
@@ -361,12 +359,10 @@ vault_inject::write_secret() {
     
     # Write secret via Vault API
     local response
-    response=$(curl -s -X POST \
+    if response=$(curl -s -X POST \
         -H "X-Vault-Token: ${VAULT_TOKEN}" \
         -d "{\"data\": $data}" \
-        "${VAULT_ADDR}/v1/${path}" 2>&1)
-    
-    if [[ $? -eq 0 ]]; then
+        "${VAULT_ADDR}/v1/${path}" 2>&1); then
         # Check for errors in response
         if echo "$response" | jq -e '.errors' >/dev/null 2>&1; then
             log::error "Failed to write secret: $(echo "$response" | jq -r '.errors[]')"
@@ -405,12 +401,10 @@ vault_inject::create_policy() {
     
     # Create policy via Vault API
     local response
-    response=$(curl -s -X PUT \
+    if response=$(curl -s -X PUT \
         -H "X-Vault-Token: ${VAULT_TOKEN}" \
         -d "{\"policy\": \"$rules\"}" \
-        "${VAULT_ADDR}/v1/sys/policies/acl/${name}" 2>&1)
-    
-    if [[ $? -eq 0 ]]; then
+        "${VAULT_ADDR}/v1/sys/policies/acl/${name}" 2>&1); then
         # Check for errors in response
         if echo "$response" | jq -e '.errors' >/dev/null 2>&1; then
             log::error "Failed to create policy: $(echo "$response" | jq -r '.errors[]')"
@@ -464,12 +458,10 @@ vault_inject::create_auth() {
             
             # Create user
             local response
-            response=$(curl -s -X POST \
+            if response=$(curl -s -X POST \
                 -H "X-Vault-Token: ${VAULT_TOKEN}" \
                 -d "{\"password\": \"$password\", \"policies\": \"$policies\"}" \
-                "${VAULT_ADDR}/v1/auth/userpass/users/${username}" 2>&1)
-            
-            if [[ $? -eq 0 ]]; then
+                "${VAULT_ADDR}/v1/auth/userpass/users/${username}" 2>&1); then
                 log::success "Created userpass auth for user: $username"
                 
                 # Add rollback action
@@ -508,18 +500,17 @@ vault_inject::mount_engine() {
     log::info "Mounting secret engine '$type' at path: $path"
     
     # Mount secret engine via Vault API
-    local mount_data=$(jq -n \
+    local mount_data
+    mount_data=$(jq -n \
         --arg type "$type" \
         --argjson config "$config" \
         '{type: $type, config: $config}')
     
     local response
-    response=$(curl -s -X POST \
+    if response=$(curl -s -X POST \
         -H "X-Vault-Token: ${VAULT_TOKEN}" \
         -d "$mount_data" \
-        "${VAULT_ADDR}/v1/sys/mounts/${path}" 2>&1)
-    
-    if [[ $? -eq 0 ]]; then
+        "${VAULT_ADDR}/v1/sys/mounts/${path}" 2>&1); then
         # Check for errors in response
         if echo "$response" | jq -e '.errors' >/dev/null 2>&1; then
             # Check if already mounted

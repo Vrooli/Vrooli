@@ -119,6 +119,9 @@ scenario_to_app::parse_args() {
                 scenario_to_app::show_usage
                 exit 0
                 ;;
+            # Ignore shell redirections and operators that might be passed accidentally
+            '2>&1'|'1>&2'|'&>'|'>'|'<'|'|'|'&&'|'||'|';')
+                ;; # Silently ignore
             *)
                 log::error "Unknown option: $1"
                 scenario_to_app::show_usage
@@ -594,7 +597,7 @@ scenario_to_app::adjust_inheritance_path() {
             local temp_base="/tmp/base_lifecycle_$$.json"
             echo "$base_lifecycle" > "$temp_base"
             
-            [[ "$VERBOSE" == "true" ]] && log::info "DEBUG: Base lifecycle file content: $(cat "$temp_base" | jq -c '.')"
+            [[ "$VERBOSE" == "true" ]] && log::info "DEBUG: Base lifecycle file content: $(jq -c '.' < "$temp_base")"
             
             # Simplified approach: create a clean base with essential phases
             filtered_base=$(jq -c '
@@ -744,7 +747,7 @@ scenario_to_app::enhance_service_json_lifecycle() {
               "steps": [
                 {
                   "name": "clean-artifacts",
-                  "run": "# Clean build artifacts safely\nfor dir in dist build .next 'node_modules/.cache'; do\n  [ -d \"\$dir\" ] && rm -rf \"\$dir\" || true\ndone"
+                  "run": "# Clean build artifacts safely\nfor dir in dist build .next node_modules/.cache; do\n  [ -d \"\$dir\" ] && rm -rf \"\$dir\" || true\ndone"
                 }
               ]
             }
@@ -762,7 +765,7 @@ scenario_to_app::enhance_service_json_lifecycle() {
 # Process template variables in files (conditionally based on inheritance)
 scenario_to_app::process_template_variables() {
     local file="$1"
-    local service_json="$2"
+    # local service_json="$2"  # Currently unused but may be needed for future template processing
     
     # Skip if file doesn't exist or is binary
     [[ ! -f "$file" ]] && return 0
@@ -1101,8 +1104,8 @@ scenario_to_app::generate_app() {
             return 1
         }
         
-        # Set up cleanup trap (use || true to prevent trap failures from affecting exit code)
-        trap "trash::safe_remove '$temp_path' --no-confirm 2>/dev/null || true" EXIT ERR INT TERM
+        # Set up cleanup trap for error cases only (use || true to prevent trap failures from affecting exit code)
+        trap 'trash::safe_remove "$temp_path" --no-confirm 2>/dev/null || true' ERR INT TERM
         
         log::info "Building app in temporary directory..."
         
@@ -1186,7 +1189,19 @@ scenario_to_app::generate_app() {
         # Atomic move: Remove old and move temp to final location
         if [[ -d "$app_path" ]]; then
             log::info "Removing existing app directory..."
+            
+            # Temporarily remove .git directory to avoid project root detection in trash system
+            local git_backup=""
+            if [[ -d "$app_path/.git" ]]; then
+                git_backup="$app_path/.git-backup-$$"
+                mv "$app_path/.git" "$git_backup" 2>/dev/null || true
+            fi
+            
             if ! trash::safe_remove "$app_path" --no-confirm; then
+                # Restore .git directory if deletion failed
+                if [[ -n "$git_backup" && -d "$git_backup" ]]; then
+                    mv "$git_backup" "$app_path/.git" 2>/dev/null || true
+                fi
                 log::error "Failed to remove existing app directory: $app_path"
                 trash::safe_remove "$temp_path" --no-confirm
                 return 1
@@ -1200,7 +1215,7 @@ scenario_to_app::generate_app() {
         }
         
         # Clear trap since we succeeded
-        trap - EXIT ERR INT TERM
+        trap - ERR INT TERM
         
         log::success "Created app directory: $app_path"
         

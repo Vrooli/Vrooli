@@ -1,0 +1,65 @@
+{
+  "name": "prompt-manager",
+  "displayName": "Prompt Manager",
+  "description": "Personal prompt storage and management tool organized by campaigns",
+  "version": "1.0.0",
+  "ports": {
+    "api": 8085,
+    "ui": 3005
+  },
+  "database": {
+    "name": "prompt_manager",
+    "host": "localhost",
+    "port": 5433,
+    "user": "postgres"
+  },
+  "services": {
+    "qdrant": {
+      "url": "http://localhost:6333",
+      "collection": "prompts",
+      "vector_size": 384
+    },
+    "ollama": {
+      "url": "http://localhost:11434",
+      "embedding_model": "nomic-embed-text",
+      "chat_model": "llama3.2"
+    }
+  },
+  "features": {
+    "semantic_search": true,
+    "prompt_testing": true,
+    "version_control": false,
+    "collaboration": false,
+    "export_formats": ["json", "markdown", "csv"]
+  },
+  "ui": {
+    "theme": {
+      "default": "light",
+      "support_dark_mode": true
+    },
+    "sidebar": {
+      "default_collapsed": false,
+      "show_prompt_counts": true
+    },
+    "editor": {
+      "font_family": "monospace",
+      "auto_save": true,
+      "syntax_highlighting": false
+    }
+  },
+  "cli": {
+    "install_globally": true,
+    "enable_completions": true
+  },
+  "limits": {
+    "max_campaigns": 50,
+    "max_prompts_per_campaign": 1000,
+    "max_prompt_length": 50000,
+    "max_tags_per_prompt": 10
+  },
+  "defaults": {
+    "campaign_color": "#3b82f6",
+    "campaign_icon": "folder",
+    "prompt_effectiveness_rating": null
+  }
+}

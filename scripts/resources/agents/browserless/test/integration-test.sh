@@ -1,464 +1,624 @@
 #!/usr/bin/env bash
-# Browserless Integration Test
-# Tests real Browserless Chrome-as-a-Service functionality
-# Tests API endpoints, screenshot capture, PDF generation, and browser automation
+# Browserless Integration Tests
+# Comprehensive testing using enhanced-integration-test-lib.sh
 
 set -euo pipefail
 
-# Source enhanced integration test library with fixture support
-BROWSERLESS_TEST_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck disable=SC1091
-source "$BROWSERLESS_TEST_DIR/../../../tests/lib/enhanced-integration-test-lib.sh"
+# Get the directory of this script
+TEST_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+BROWSERLESS_DIR=$(dirname "$TEST_DIR")
 
-#######################################
-# SERVICE-SPECIFIC CONFIGURATION
-#######################################
-
-# Load Browserless configuration
-RESOURCES_DIR="$BROWSERLESS_TEST_DIR/../../.."
+# Source test framework
 # shellcheck disable=SC1091
-source "$RESOURCES_DIR/common.sh"
+source "${BROWSERLESS_DIR}/../../../../lib/utils/var.sh"
 # shellcheck disable=SC1091
-source "$BROWSERLESS_TEST_DIR/../config/defaults.sh"
+source "${var_SCRIPTS_RESOURCES_TESTS_LIB_DIR}/enhanced-integration-test-lib.sh"
+# shellcheck disable=SC1091
+source "${var_RESOURCES_COMMON_FILE}"
+# shellcheck disable=SC1091
+source "${BROWSERLESS_DIR}/config/defaults.sh"
+# Export configuration
 browserless::export_config
 
-# Override library defaults with Browserless-specific settings
-SERVICE_NAME="browserless"
-BASE_URL="${BROWSERLESS_BASE_URL:-http://localhost:4110}"
-HEALTH_ENDPOINT="/pressure"
-REQUIRED_TOOLS=("curl" "jq" "docker")
-SERVICE_METADATA=(
-    "API Port: ${BROWSERLESS_PORT:-4110}"
-    "Container: ${BROWSERLESS_CONTAINER_NAME:-browserless}"
-    "Max Browsers: ${BROWSERLESS_MAX_BROWSERS:-5}"
-    "Timeout: ${BROWSERLESS_TIMEOUT:-30000}ms"
-)
+# Source management functions
+# shellcheck disable=SC1091
+source "${BROWSERLESS_DIR}/lib/core.sh"
+# shellcheck disable=SC1091
+source "${BROWSERLESS_DIR}/lib/health.sh"
+# shellcheck disable=SC1091
+source "${BROWSERLESS_DIR}/lib/recovery.sh"
 
 # Test configuration
-readonly API_TIMEOUT="${BROWSERLESS_API_TIMEOUT:-10}"
+export SERVICE_NAME="browserless"
+export SERVICE_PORT="${BROWSERLESS_PORT}"
+export SERVICE_CONTAINER="${BROWSERLESS_CONTAINER_NAME}"
+export SERVICE_HEALTH_ENDPOINT="/pressure"
+export SERVICE_API_BASE="${BROWSERLESS_BASE_URL}"
+
+# Define test suites
+SERVICE_TESTS=(
+    "test_browserless_installation"
+    "test_browserless_health_endpoint"
+    "test_browserless_api_endpoints"
+    "test_container_health"
+    "test_configuration_validation"
+    "test_browserless_screenshot"
+    "test_browserless_pdf"
+    "test_browserless_scraping"
+    "test_browserless_function"
+    "test_browserless_pressure"
+    "test_backup_recovery"
+    "run_browserless_fixture_tests"
+)
 
 #######################################
-# BROWSERLESS-SPECIFIC TEST FUNCTIONS
+# Test Browserless installation
 #######################################
-
-#######################################
-# FIXTURE-BASED TEST FUNCTIONS
-#######################################
-
-test_screenshot_with_fixture() {
-    local fixture_path="$1"
-    local expected_response="${2:-}"
+test_browserless_installation() {
+    test::start "Browserless Installation"
     
-    # Create HTML that displays the fixture image
-    local html_content="<html><body><h1>Fixture Test</h1><img src='file://$fixture_path' alt='test'/></body></html>"
-    local encoded_html
-    encoded_html=$(echo "$html_content" | sed 's/"/\\"/g')
-    
-    local screenshot_data="{\"html\": \"$encoded_html\"}"
-    
-    local response
-    local status_code
-    if response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
-        -H "Content-Type: application/json" \
-        -d "$screenshot_data" \
-        "$BASE_URL/chrome/screenshot" 2>/dev/null); then
+    # Check if already installed
+    if docker::container_exists "$SERVICE_CONTAINER"; then
+        test::pass "Browserless already installed"
         
-        status_code=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
-        
-        if [[ "$status_code" == "200" ]]; then
-            return 0
-        fi
-    fi
-    
-    return 1
-}
-
-test_pdf_with_web_fixture() {
-    local fixture_path="$1"
-    
-    if [[ ! -f "$fixture_path" ]]; then
-        return 1
-    fi
-    
-    # Read HTML content from fixture
-    local html_content
-    html_content=$(cat "$fixture_path")
-    local encoded_html
-    encoded_html=$(echo "$html_content" | sed 's/"/\\"/g' | tr '\n' ' ')
-    
-    local pdf_data="{\"html\": \"$encoded_html\"}"
-    
-    local response
-    local status_code
-    if response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
-        -H "Content-Type: application/json" \
-        -d "$pdf_data" \
-        "$BASE_URL/chrome/pdf" 2>/dev/null); then
-        
-        status_code=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
-        
-        if [[ "$status_code" == "200" ]]; then
-            return 0
-        fi
-    fi
-    
-    return 1
-}
-
-test_scrape_with_fixture() {
-    local fixture_path="$1"
-    
-    if [[ ! -f "$fixture_path" ]]; then
-        return 1
-    fi
-    
-    # Read HTML content from fixture
-    local html_content
-    html_content=$(cat "$fixture_path")
-    local encoded_html
-    encoded_html=$(echo "$html_content" | sed 's/"/\\"/g' | tr '\n' ' ')
-    
-    local scrape_data="{\"html\": \"$encoded_html\", \"elements\": [{\"selector\": \"h1\"}]}"
-    
-    local response
-    if response=$(make_api_request "/chrome/scrape" "POST" "$API_TIMEOUT" \
-        "-H 'Content-Type: application/json' -d '$scrape_data'"); then
-        
-        if validate_json_field "$response" ".data"; then
-            return 0
-        fi
-    fi
-    
-    return 1
-}
-
-# Run fixture-based tests if fixtures are available
-run_fixture_tests() {
-    if [[ "$FIXTURES_AVAILABLE" == "true" ]]; then
-        # Test with real-world images
-        test_with_fixture "screenshot real-world image" "images" "real-world/architecture/architecture-city.jpg" \
-            test_screenshot_with_fixture
-        
-        test_with_fixture "screenshot nature image" "images" "real-world/nature/nature-landscape.jpg" \
-            test_screenshot_with_fixture
-        
-        # Test with web documents
-        test_with_fixture "PDF from HTML article" "documents" "web/article.html" \
-            test_pdf_with_web_fixture
-        
-        test_with_fixture "PDF from HTML dashboard" "documents" "web/dashboard.html" \
-            test_pdf_with_web_fixture
-        
-        # Test scraping with HTML fixtures
-        test_with_fixture "scrape HTML form" "documents" "web/form.html" \
-            test_scrape_with_fixture
-        
-        # Test with rotating fixtures for variety
-        local image_fixtures
-        if image_fixtures=$(rotate_fixtures "images/real-world" 3); then
-            for fixture in $image_fixtures; do
-                local fixture_name
-                fixture_name=$(basename "$fixture")
-                test_with_fixture "screenshot $fixture_name" "" "$fixture" \
-                    test_screenshot_with_fixture
-            done
-        fi
-    fi
-}
-
-test_pressure_endpoint() {
-    local test_name="pressure/health endpoint"
-    
-    local response
-    if response=$(make_api_request "/pressure" "GET" "$API_TIMEOUT"); then
-        if validate_json_field "$response" ".pressure"; then
-            local pressure
-            pressure=$(echo "$response" | jq -r '.pressure // 0')
-            log_test_result "$test_name" "PASS" "pressure: $pressure"
-            return 0
-        elif [[ -n "$response" ]]; then
-            log_test_result "$test_name" "PASS" "health endpoint responsive"
-            return 0
-        fi
-    fi
-    
-    log_test_result "$test_name" "FAIL" "pressure endpoint not accessible"
-    return 1
-}
-
-test_metrics_endpoint() {
-    local test_name="metrics endpoint"
-    
-    local response
-    if response=$(make_api_request "/metrics" "GET" "$API_TIMEOUT"); then
-        if echo "$response" | grep -q "browserless_\|# HELP\|# TYPE"; then
-            log_test_result "$test_name" "PASS" "Prometheus metrics available"
-            return 0
-        elif [[ -n "$response" ]]; then
-            log_test_result "$test_name" "PASS" "metrics endpoint responsive"
-            return 0
-        fi
-    fi
-    
-    log_test_result "$test_name" "SKIP" "metrics endpoint not available"
-    return 2
-}
-
-test_screenshot_endpoint() {
-    local test_name="screenshot functionality"
-    
-    # Test basic screenshot API
-    local screenshot_data
-    screenshot_data='{"url": "data:text/html,<html><body><h1>Test Page</h1></body></html>"}'
-    
-    local response
-    local status_code
-    if response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
-        -H "Content-Type: application/json" \
-        -d "$screenshot_data" \
-        "$BASE_URL/chrome/screenshot" 2>/dev/null); then
-        
-        status_code=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
-        
-        if [[ "$status_code" == "200" ]]; then
-            log_test_result "$test_name" "PASS" "can capture screenshots"
-            return 0
-        elif [[ "$status_code" == "429" ]]; then
-            log_test_result "$test_name" "SKIP" "rate limited (service busy)"
-            return 2
-        elif [[ "$status_code" == "503" ]]; then
-            log_test_result "$test_name" "SKIP" "service unavailable"
-            return 2
-        fi
-    fi
-    
-    log_test_result "$test_name" "FAIL" "screenshot endpoint not working"
-    return 1
-}
-
-test_pdf_endpoint() {
-    local test_name="PDF generation"
-    
-    # Test basic PDF generation API
-    local pdf_data
-    pdf_data='{"url": "data:text/html,<html><body><h1>Test PDF</h1></body></html>"}'
-    
-    local response
-    local status_code
-    if response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
-        -H "Content-Type: application/json" \
-        -d "$pdf_data" \
-        "$BASE_URL/chrome/pdf" 2>/dev/null); then
-        
-        status_code=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
-        
-        if [[ "$status_code" == "200" ]]; then
-            log_test_result "$test_name" "PASS" "can generate PDFs"
-            return 0
-        elif [[ "$status_code" == "429" ]]; then
-            log_test_result "$test_name" "SKIP" "rate limited (service busy)"
-            return 2
-        elif [[ "$status_code" == "503" ]]; then
-            log_test_result "$test_name" "SKIP" "service unavailable"
-            return 2
-        fi
-    fi
-    
-    log_test_result "$test_name" "FAIL" "PDF endpoint not working"
-    return 1
-}
-
-test_scrape_endpoint() {
-    local test_name="web scraping functionality"
-    
-    # Test basic scraping API
-    local scrape_data
-    scrape_data='{
-        "url": "data:text/html,<html><body><h1>Test Title</h1><p>Test content</p></body></html>",
-        "elements": [{"selector": "h1", "property": "innerText"}]
-    }'
-    
-    local response
-    local status_code
-    if response=$(curl -s -w "HTTPSTATUS:%{http_code}" -X POST \
-        -H "Content-Type: application/json" \
-        -d "$scrape_data" \
-        "$BASE_URL/chrome/scrape" 2>/dev/null); then
-        
-        status_code=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
-        
-        if [[ "$status_code" == "200" ]]; then
-            log_test_result "$test_name" "PASS" "can scrape web content"
-            return 0
-        elif [[ "$status_code" == "429" ]]; then
-            log_test_result "$test_name" "SKIP" "rate limited (service busy)"
-            return 2
-        elif [[ "$status_code" == "503" ]]; then
-            log_test_result "$test_name" "SKIP" "service unavailable"
-            return 2
-        fi
-    fi
-    
-    log_test_result "$test_name" "FAIL" "scrape endpoint not working"
-    return 1
-}
-
-test_browser_pool_status() {
-    local test_name="browser pool status"
-    
-    local response
-    if response=$(make_api_request "/pressure" "GET" "$API_TIMEOUT"); then
-        if validate_json_field "$response" ".running"; then
-            local running browsers
-            running=$(echo "$response" | jq -r '.running // 0')
-            browsers=$(echo "$response" | jq -r '.maxBrowsers // "unknown"')
-            log_test_result "$test_name" "PASS" "running: $running/$browsers browsers"
-            return 0
-        elif validate_json_field "$response" ".pressure"; then
-            local pressure
-            pressure=$(echo "$response" | jq -r '.pressure // 0')
-            log_test_result "$test_name" "PASS" "pool pressure: $pressure"
-            return 0
-        fi
-    fi
-    
-    log_test_result "$test_name" "FAIL" "browser pool status unavailable"
-    return 1
-}
-
-test_websocket_endpoint() {
-    local test_name="WebSocket endpoint availability"
-    
-    # Test if websocket endpoint is accessible (we expect connection to be refused/upgraded)
-    local response
-    local status_code
-    if response=$(curl -s -w "HTTPSTATUS:%{http_code}" \
-        -H "Connection: Upgrade" \
-        -H "Upgrade: websocket" \
-        "$BASE_URL/chrome" 2>/dev/null); then
-        
-        status_code=$(echo "$response" | grep -o "HTTPSTATUS:[0-9]*" | cut -d: -f2)
-        
-        # WebSocket upgrade attempts typically return 400 or 426 when not proper websocket request
-        if [[ "$status_code" == "400" ]] || [[ "$status_code" == "426" ]] || [[ "$status_code" == "101" ]]; then
-            log_test_result "$test_name" "PASS" "WebSocket endpoint accessible"
-            return 0
-        fi
-    fi
-    
-    log_test_result "$test_name" "SKIP" "WebSocket endpoint status unclear"
-    return 2
-}
-
-test_container_health() {
-    local test_name="Docker container health"
-    
-    if ! command -v docker >/dev/null 2>&1; then
-        log_test_result "$test_name" "SKIP" "Docker not available"
-        return 2
-    fi
-    
-    local container_name="${BROWSERLESS_CONTAINER_NAME:-browserless}"
-    
-    # Check if container exists and is running
-    if docker ps --format '{{.Names}}' | grep -q "^${container_name}$"; then
-        local container_status
-        container_status=$(docker inspect "${container_name}" --format '{{.State.Status}}' 2>/dev/null || echo "unknown")
-        
-        if [[ "$container_status" == "running" ]]; then
-            # Check container health if health check is configured
-            local health_status
-            health_status=$(docker inspect "${container_name}" --format '{{.State.Health.Status}}' 2>/dev/null || echo "none")
-            
-            if [[ "$health_status" == "healthy" ]]; then
-                log_test_result "$test_name" "PASS" "container running and healthy"
-                return 0
-            elif [[ "$health_status" == "none" ]]; then
-                log_test_result "$test_name" "PASS" "container running (no health check)"
-                return 0
+        # Ensure it's running
+        if docker::is_running "$SERVICE_CONTAINER"; then
+            test::pass "Container is running"
+        else
+            # Try to start it
+            if browserless::start; then
+                test::pass "Container started successfully"
             else
-                log_test_result "$test_name" "FAIL" "container running but unhealthy: $health_status"
+                test::fail "Failed to start existing container"
                 return 1
             fi
+        fi
+    else
+        # Install Browserless
+        if browserless::install; then
+            test::pass "Installation completed"
         else
-            log_test_result "$test_name" "FAIL" "container status: $container_status"
+            test::fail "Installation failed"
+            return 1
+        fi
+    fi
+    
+    # Wait for service to be ready
+    if browserless::wait_for_ready; then
+        test::pass "Service is ready"
+    else
+        test::fail "Service failed to become ready"
+        return 1
+    fi
+    
+    test::success "Browserless installation test completed"
+}
+
+#######################################
+# Test health endpoint
+#######################################
+test_browserless_health_endpoint() {
+    test::start "Health Endpoint"
+    
+    local response
+    response=$(curl -s -o /dev/null -w "%{http_code}" "${SERVICE_API_BASE}${SERVICE_HEALTH_ENDPOINT}")
+    
+    if [[ "$response" == "200" ]]; then
+        test::pass "Health endpoint returned 200"
+    else
+        test::fail "Health endpoint returned $response"
+        return 1
+    fi
+    
+    # Check pressure data structure
+    local pressure_data
+    pressure_data=$(curl -s "${SERVICE_API_BASE}${SERVICE_HEALTH_ENDPOINT}")
+    
+    if echo "$pressure_data" | jq -e '.running' >/dev/null 2>&1; then
+        test::pass "Pressure data contains 'running' field"
+    else
+        test::fail "Pressure data missing 'running' field"
+        return 1
+    fi
+    
+    if echo "$pressure_data" | jq -e '.maxConcurrent' >/dev/null 2>&1; then
+        test::pass "Pressure data contains 'maxConcurrent' field"
+    else
+        test::fail "Pressure data missing 'maxConcurrent' field"
+        return 1
+    fi
+    
+    test::success "Health endpoint test completed"
+}
+
+#######################################
+# Test API endpoints
+#######################################
+test_browserless_api_endpoints() {
+    test::start "API Endpoints"
+    
+    local endpoints=(
+        "/metrics"
+        "/config"
+        "/json/version"
+    )
+    
+    for endpoint in "${endpoints[@]}"; do
+        local response
+        response=$(curl -s -o /dev/null -w "%{http_code}" "${SERVICE_API_BASE}${endpoint}")
+        
+        if [[ "$response" == "200" ]]; then
+            test::pass "Endpoint $endpoint returned 200"
+        else
+            test::warn "Endpoint $endpoint returned $response (might not be available in this version)"
+        fi
+    done
+    
+    test::success "API endpoints test completed"
+}
+
+#######################################
+# Test container health
+#######################################
+test_container_health() {
+    test::start "Container Health"
+    
+    # Check if container exists
+    if ! docker::container_exists "$SERVICE_CONTAINER"; then
+        test::fail "Container does not exist"
+        return 1
+    fi
+    
+    # Check if container is running
+    if docker::is_running "$SERVICE_CONTAINER"; then
+        test::pass "Container is running"
+    else
+        test::fail "Container is not running"
+        return 1
+    fi
+    
+    # Check resource usage
+    local stats
+    stats=$(docker stats --no-stream --format "json" "$SERVICE_CONTAINER" 2>/dev/null || echo "{}")
+    
+    if [[ -n "$stats" ]] && [[ "$stats" != "{}" ]]; then
+        test::pass "Container stats retrieved successfully"
+        
+        # Parse and display key metrics
+        local cpu_percent mem_usage
+        cpu_percent=$(echo "$stats" | jq -r '.CPUPerc' 2>/dev/null | tr -d '%' || echo "0")
+        mem_usage=$(echo "$stats" | jq -r '.MemUsage' 2>/dev/null || echo "Unknown")
+        
+        test::info "CPU Usage: ${cpu_percent}%"
+        test::info "Memory Usage: $mem_usage"
+    else
+        test::warn "Unable to retrieve container stats"
+    fi
+    
+    test::success "Container health test completed"
+}
+
+#######################################
+# Test configuration validation
+#######################################
+test_configuration_validation() {
+    test::start "Configuration Validation"
+    
+    # Check if configuration is applied
+    local config_data
+    config_data=$(curl -s "${SERVICE_API_BASE}/config" 2>/dev/null || echo "{}")
+    
+    if [[ -n "$config_data" ]] && [[ "$config_data" != "{}" ]]; then
+        test::pass "Configuration endpoint accessible"
+        
+        # Verify some expected configuration values
+        local max_concurrent
+        max_concurrent=$(echo "$config_data" | jq -r '.maxConcurrentSessions // .concurrent // 0' 2>/dev/null || echo "0")
+        
+        if [[ "$max_concurrent" -gt 0 ]]; then
+            test::pass "Max concurrent sessions configured: $max_concurrent"
+        else
+            test::info "Max concurrent sessions not found in config (might use different field name)"
+        fi
+    else
+        test::warn "Configuration endpoint not available (might not be supported in this version)"
+    fi
+    
+    test::success "Configuration validation completed"
+}
+
+#######################################
+# Test screenshot functionality
+#######################################
+test_browserless_screenshot() {
+    test::start "Screenshot API"
+    
+    local test_url="https://example.com"
+    local temp_file="/tmp/browserless_test_screenshot_$$.png"
+    local response
+    
+    response=$(curl -s -X POST \
+        "${SERVICE_API_BASE}/screenshot" \
+        -H "Content-Type: application/json" \
+        -d "{\"url\":\"$test_url\"}" \
+        -w "\n%{http_code}" \
+        -o "$temp_file" \
+        2>/dev/null | tail -n1)
+    
+    if [[ "$response" == "200" ]]; then
+        test::pass "Screenshot API returned 200"
+        
+        # Check if file was created and has content
+        if [[ -f "$temp_file" ]] && [[ -s "$temp_file" ]]; then
+            local file_size
+            file_size=$(stat -f%z "$temp_file" 2>/dev/null || stat -c%s "$temp_file" 2>/dev/null || echo "0")
+            test::pass "Screenshot file created (size: $file_size bytes)"
+            rm -f "$temp_file"
+        else
+            test::fail "Screenshot file is empty or missing"
+            rm -f "$temp_file"
             return 1
         fi
     else
-        log_test_result "$test_name" "FAIL" "container not found"
+        test::fail "Screenshot API returned $response"
+        rm -f "$temp_file"
         return 1
     fi
+    
+    test::success "Screenshot API test completed"
 }
 
-test_resource_limits() {
-    local test_name="resource usage monitoring"
+#######################################
+# Test PDF generation
+#######################################
+test_browserless_pdf() {
+    test::start "PDF API"
     
+    local test_url="https://example.com"
+    local temp_file="/tmp/browserless_test_document_$$.pdf"
     local response
-    if response=$(make_api_request "/pressure" "GET" "$API_TIMEOUT"); then
-        # Check if we can get resource information
-        if validate_json_field "$response" ".running"; then
-            local running max_browsers
-            running=$(echo "$response" | jq -r '.running // 0')
-            max_browsers=$(echo "$response" | jq -r '.maxBrowsers // 5')
+    
+    response=$(curl -s -X POST \
+        "${SERVICE_API_BASE}/pdf" \
+        -H "Content-Type: application/json" \
+        -d "{\"url\":\"$test_url\"}" \
+        -w "\n%{http_code}" \
+        -o "$temp_file" \
+        2>/dev/null | tail -n1)
+    
+    if [[ "$response" == "200" ]]; then
+        test::pass "PDF API returned 200"
+        
+        # Check if file was created and has content
+        if [[ -f "$temp_file" ]] && [[ -s "$temp_file" ]]; then
+            local file_size
+            file_size=$(stat -f%z "$temp_file" 2>/dev/null || stat -c%s "$temp_file" 2>/dev/null || echo "0")
+            test::pass "PDF file created (size: $file_size bytes)"
             
-            # Validate resource usage is within limits
-            if [[ "$running" -le "$max_browsers" ]]; then
-                log_test_result "$test_name" "PASS" "resource usage within limits ($running/$max_browsers)"
-                return 0
+            # Verify it's actually a PDF
+            if file "$temp_file" | grep -q "PDF"; then
+                test::pass "File is a valid PDF"
             else
-                log_test_result "$test_name" "FAIL" "resource usage exceeds limits ($running/$max_browsers)"
-                return 1
+                test::warn "File might not be a valid PDF"
             fi
+            rm -f "$temp_file"
+        else
+            test::fail "PDF file is empty or missing"
+            rm -f "$temp_file"
+            return 1
+        fi
+    else
+        test::fail "PDF API returned $response"
+        rm -f "$temp_file"
+        return 1
+    fi
+    
+    test::success "PDF API test completed"
+}
+
+#######################################
+# Test web scraping
+#######################################
+test_browserless_scraping() {
+    test::start "Scraping API"
+    
+    local test_url="https://example.com"
+    local response_code
+    local response_body
+    
+    response_body=$(curl -s -X POST \
+        "${SERVICE_API_BASE}/content" \
+        -H "Content-Type: application/json" \
+        -d "{\"url\":\"$test_url\"}" \
+        2>/dev/null)
+    
+    response_code=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+        "${SERVICE_API_BASE}/content" \
+        -H "Content-Type: application/json" \
+        -d "{\"url\":\"$test_url\"}")
+    
+    if [[ "$response_code" == "200" ]]; then
+        test::pass "Content API returned 200"
+        
+        # Check if response contains expected content
+        if echo "$response_body" | grep -qi "example" 2>/dev/null; then
+            test::pass "Content contains expected text"
+        else
+            test::warn "Content might not be complete"
+        fi
+    else
+        test::fail "Content API returned $response_code"
+        return 1
+    fi
+    
+    test::success "Scraping API test completed"
+}
+
+#######################################
+# Test function execution
+#######################################
+test_browserless_function() {
+    test::start "Function API"
+    
+    local code='() => { return document.title; }'
+    local response
+    local response_code
+    
+    response=$(curl -s -X POST \
+        "${SERVICE_API_BASE}/function" \
+        -H "Content-Type: application/json" \
+        -d "{\"code\":\"$code\",\"context\":{}}" \
+        2>/dev/null)
+    
+    response_code=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+        "${SERVICE_API_BASE}/function" \
+        -H "Content-Type: application/json" \
+        -d "{\"code\":\"$code\",\"context\":{}}")
+    
+    if [[ "$response_code" == "200" ]]; then
+        test::pass "Function API returned 200"
+        test::info "Function result: $(echo "$response" | head -c 100)"
+    else
+        test::warn "Function API returned $response_code (may not be available in all versions)"
+    fi
+    
+    test::success "Function API test completed"
+}
+
+#######################################
+# Test browser pressure
+#######################################
+test_browserless_pressure() {
+    test::start "Browser Pressure"
+    
+    local pressure_data
+    pressure_data=$(curl -s "${SERVICE_API_BASE}/pressure")
+    
+    if [[ -z "$pressure_data" ]]; then
+        test::fail "Unable to get pressure data"
+        return 1
+    fi
+    
+    local running queued max_concurrent
+    running=$(echo "$pressure_data" | jq -r '.running // -1' 2>/dev/null)
+    queued=$(echo "$pressure_data" | jq -r '.queued // -1' 2>/dev/null)
+    max_concurrent=$(echo "$pressure_data" | jq -r '.maxConcurrent // -1' 2>/dev/null)
+    
+    if [[ "$running" -ge 0 ]]; then
+        test::pass "Running browsers: $running"
+    else
+        test::fail "Unable to get running browser count"
+    fi
+    
+    if [[ "$queued" -ge 0 ]]; then
+        test::pass "Queued requests: $queued"
+    else
+        test::fail "Unable to get queued request count"
+    fi
+    
+    if [[ "$max_concurrent" -gt 0 ]]; then
+        test::pass "Max concurrent browsers: $max_concurrent"
+    else
+        test::fail "Unable to get max concurrent browser count"
+    fi
+    
+    # Test pressure under load
+    test::info "Testing pressure under load..."
+    
+    # Send multiple concurrent requests
+    for i in {1..3}; do
+        curl -s -X POST \
+            "${SERVICE_API_BASE}/screenshot" \
+            -H "Content-Type: application/json" \
+            -d '{"url":"https://example.com"}' \
+            -o /dev/null &
+    done
+    
+    # Wait a moment for requests to register
+    sleep 2
+    
+    # Check pressure again
+    pressure_data=$(curl -s "${SERVICE_API_BASE}/pressure")
+    running=$(echo "$pressure_data" | jq -r '.running // 0' 2>/dev/null)
+    
+    if [[ "$running" -gt 0 ]]; then
+        test::pass "Browsers actively processing requests: $running"
+    else
+        test::info "No active browsers (requests may have completed quickly)"
+    fi
+    
+    # Wait for background jobs to complete
+    wait
+    
+    test::success "Browser pressure test completed"
+}
+
+#######################################
+# Test backup and recovery
+#######################################
+test_backup_recovery() {
+    test::start "Backup and Recovery"
+    
+    # Create a backup
+    local backup_label="test_backup_$$"
+    if browserless::create_backup "$backup_label"; then
+        test::pass "Backup created successfully"
+    else
+        test::fail "Failed to create backup"
+        return 1
+    fi
+    
+    # List backups to verify
+    local backup_list
+    backup_list=$(backup::list "browserless" 2>/dev/null || echo "")
+    
+    if echo "$backup_list" | grep -q "$backup_label"; then
+        test::pass "Backup appears in list"
+    else
+        test::fail "Backup not found in list"
+        return 1
+    fi
+    
+    # Validate the backup
+    if browserless::validate_backup; then
+        test::pass "Backup validation successful"
+    else
+        test::warn "Backup validation had warnings"
+    fi
+    
+    test::success "Backup and recovery test completed"
+}
+
+#######################################
+# Run fixture-based tests
+#######################################
+run_browserless_fixture_tests() {
+    test::start "Fixture Tests"
+    
+    # Test with known good URLs
+    local test_sites=("https://example.com" "https://www.google.com" "https://httpbin.org/html")
+    
+    for site in "${test_sites[@]}"; do
+        test::info "Testing with $site"
+        
+        # Test screenshot
+        local response
+        response=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+            "${SERVICE_API_BASE}/screenshot" \
+            -H "Content-Type: application/json" \
+            -d "{\"url\":\"$site\"}" \
+            --max-time 30)
+        
+        if [[ "$response" == "200" ]]; then
+            test::pass "Successfully captured screenshot of $site"
+        else
+            test::warn "Failed to capture $site (response: $response)"
+        fi
+    done
+    
+    # Test with different options
+    test::info "Testing with custom options"
+    
+    local custom_response
+    custom_response=$(curl -s -o /dev/null -w "%{http_code}" -X POST \
+        "${SERVICE_API_BASE}/screenshot" \
+        -H "Content-Type: application/json" \
+        -d '{
+            "url": "https://example.com",
+            "options": {
+                "fullPage": true,
+                "type": "png",
+                "quality": 80
+            }
+        }' \
+        --max-time 30)
+    
+    if [[ "$custom_response" == "200" ]]; then
+        test::pass "Successfully captured with custom options"
+    else
+        test::warn "Failed with custom options (response: $custom_response)"
+    fi
+    
+    test::success "Fixture tests completed"
+}
+
+#######################################
+# Main test execution
+#######################################
+main() {
+    test::header "Browserless Integration Tests"
+    
+    # Initialize test environment
+    test::init
+    
+    # Check Docker availability
+    if ! docker info >/dev/null 2>&1; then
+        test::fail "Docker is not running or not accessible"
+        exit 1
+    fi
+    
+    # Check if Browserless is installed
+    if ! docker::container_exists "$SERVICE_CONTAINER"; then
+        log::info "Browserless not installed, installing for tests..."
+        if ! browserless::install; then
+            test::fail "Failed to install Browserless for testing"
+            exit 1
         fi
     fi
     
-    log_test_result "$test_name" "SKIP" "resource monitoring not available"
-    return 2
-}
-
-#######################################
-# SERVICE-SPECIFIC VERBOSE INFO
-#######################################
-
-show_verbose_info() {
+    # Ensure container is running
+    if ! docker::is_running "$SERVICE_CONTAINER"; then
+        log::info "Starting Browserless container..."
+        if ! browserless::start; then
+            test::fail "Failed to start Browserless container"
+            exit 1
+        fi
+    fi
+    
+    # Wait for service to be ready
+    log::info "Waiting for Browserless to be ready..."
+    if ! browserless::wait_for_ready; then
+        test::fail "Browserless failed to become ready"
+        exit 1
+    fi
+    
+    # Run all tests
+    local failed_tests=0
+    local skipped_tests=0
+    
+    for test_func in "${SERVICE_TESTS[@]}"; do
+        echo
+        if declare -f "$test_func" >/dev/null; then
+            if ! $test_func; then
+                ((failed_tests++))
+            fi
+        else
+            test::warn "Test function $test_func not found, skipping"
+            ((skipped_tests++))
+        fi
+    done
+    
+    # Summary
     echo
-    echo "Browserless Information:"
-    echo "  API Endpoints:"
-    echo "    - Health/Pressure: GET $BASE_URL/pressure"
-    echo "    - Screenshots: POST $BASE_URL/chrome/screenshot"
-    echo "    - PDF Generation: POST $BASE_URL/chrome/pdf"
-    echo "    - Web Scraping: POST $BASE_URL/chrome/scrape"
-    echo "    - WebSocket: WS $BASE_URL/chrome"
-    echo "    - Metrics: GET $BASE_URL/metrics"
-    echo "  Container: ${BROWSERLESS_CONTAINER_NAME:-browserless}"
-    echo "  Max Browsers: ${BROWSERLESS_MAX_BROWSERS:-5}"
-    echo "  Timeout: ${BROWSERLESS_TIMEOUT:-30000}ms"
+    test::header "Test Summary"
+    local total_tests=${#SERVICE_TESTS[@]}
+    local passed_tests=$((total_tests - failed_tests - skipped_tests))
+    
+    echo "Total Tests: $total_tests"
+    echo "Passed: $passed_tests"
+    echo "Failed: $failed_tests"
+    echo "Skipped: $skipped_tests"
+    
+    if [[ $failed_tests -eq 0 ]]; then
+        test::success "All tests passed!"
+        exit 0
+    else
+        test::fail "$failed_tests test(s) failed"
+        exit 1
+    fi
 }
 
-#######################################
-# TEST REGISTRATION AND EXECUTION
-#######################################
-
-# Register standard interface tests first (manage.sh validation, config checks, etc.)
-register_standard_interface_tests
-
-# Register Browserless-specific tests
-register_tests \
-    "test_pressure_endpoint" \
-    "test_metrics_endpoint" \
-    "test_screenshot_endpoint" \
-    "test_pdf_endpoint" \
-    "test_scrape_endpoint" \
-    "test_browser_pool_status" \
-    "test_websocket_endpoint" \
-    "test_container_health" \
-    "test_resource_limits"
-
-# Register fixture-based tests
-register_tests \
-    "run_fixture_tests"
-
-# Execute main test framework if script is run directly
+# Execute main function if script is run directly
 if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-    integration_test_main "$@"
+    main "$@"
 fi

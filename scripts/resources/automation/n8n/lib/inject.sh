@@ -191,7 +191,7 @@ n8n::create_credential() {
         --argjson data "$data" \
         '{
             name: $name,
-            type: $type,
+            type: $type_name,
             data: $data
         }')
     

@@ -55,13 +55,13 @@ browserless::update_config() {
         "timeout": "$BROWSERLESS_TIMEOUT"
     },
     "api": {
-        "version": "v1",
+        "version": "v2",
         "statusEndpoint": "/pressure",
-        "screenshotEndpoint": "/screenshot",
-        "pdfEndpoint": "/pdf",
-        "contentEndpoint": "/content",
-        "functionEndpoint": "/function",
-        "scrapeEndpoint": "/scrape"
+        "screenshotEndpoint": "/chrome/screenshot",
+        "pdfEndpoint": "/chrome/pdf",
+        "contentEndpoint": "/chrome/content",
+        "functionEndpoint": "/chrome/function",
+        "scrapeEndpoint": "/chrome/scrape"
     },
     "container": {
         "name": "$BROWSERLESS_CONTAINER_NAME",

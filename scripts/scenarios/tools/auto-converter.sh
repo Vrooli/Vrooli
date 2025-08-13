@@ -36,6 +36,8 @@ while [[ $# -gt 0 ]]; do
             echo "  --dry-run  Show what would be done without doing it"
             exit 0
             ;;
+        # Ignore shell redirections and operators that might be passed accidentally
+        '2>&1'|'1>&2'|'&>'|'>'|'<'|'|'|'&&'|'||'|';') ;; # Silently ignore
         *) log::error "Unknown option: $1"; exit 1 ;;
     esac
     shift
@@ -222,11 +224,13 @@ while IFS= read -r scenario_info; do
                 fi
             fi
             
-            if "$SCENARIO_TO_APP" "$name" ${VERBOSE:+--verbose} --force >/dev/null 2>&1; then
+            # Run scenario-to-app and capture output for debugging
+            if output=$(bash "$SCENARIO_TO_APP" "$name" ${VERBOSE:+--verbose} --force 2>&1); then
                 log::success "✓ $name"
                 converted=$((converted + 1))
             else
                 log::error "✗ $name"
+                [[ "$VERBOSE" == "true" ]] && echo "$output" | tail -10
                 failed=$((failed + 1))
                 continue
             fi
@@ -234,7 +238,7 @@ while IFS= read -r scenario_info; do
         new_hashes["$name"]="$current_hash"
     else
         [[ "$VERBOSE" == "true" ]] && log::info "Skipping $name (unchanged)"
-        new_hashes["$name"]="${stored_hashes[$name]}"
+        new_hashes["$name"]="${stored_hashes[$name]:-$current_hash}"
         skipped=$((skipped + 1))
     fi
 done <<< "$enabled_scenarios"
@@ -242,31 +246,34 @@ done <<< "$enabled_scenarios"
 [[ "$VERBOSE" == "true" ]] && log::info "Processing completed. Converted: $converted, Skipped: $skipped, Failed: $failed"
 
 # Save updated hashes
-[[ "$VERBOSE" == "true" ]] && log::info "Saving ${#new_hashes[@]} hashes to $HASH_FILE"
-if [[ "$DRY_RUN" != "true" ]] && [[ ${#new_hashes[@]} -gt 0 ]]; then
-    # Create temp file first to avoid partial writes
-    temp_file="${HASH_FILE}.tmp"
-    {
-        echo "{"
-        first=true
-        for name in "${!new_hashes[@]}"; do
-            [[ "$first" == "true" ]] && first=false || echo ","
-            printf '  "%s": "%s"' "$name" "${new_hashes[$name]}"
-        done
-        echo ""
-        echo "}"
-    } > "$temp_file" || {
-        log::error "Failed to write hash file"
-        rm -f "$temp_file"
-        exit 1
-    }
-    
-    # Atomic move
-    mv "$temp_file" "$HASH_FILE" || {
-        log::error "Failed to save hash file"
-        rm -f "$temp_file"
-        exit 1
-    }
+# Check if array is defined and has elements
+if [[ -v new_hashes[@] ]] && [[ ${#new_hashes[@]} -gt 0 ]]; then
+    [[ "$VERBOSE" == "true" ]] && log::info "Saving ${#new_hashes[@]} hashes to $HASH_FILE"
+    if [[ "$DRY_RUN" != "true" ]]; then
+        # Create temp file first to avoid partial writes
+        temp_file="${HASH_FILE}.tmp"
+        {
+            echo "{"
+            first=true
+            for name in "${!new_hashes[@]}"; do
+                [[ "$first" == "true" ]] && first=false || echo ","
+                printf '  "%s": "%s"' "$name" "${new_hashes[$name]}"
+            done
+            echo ""
+            echo "}"
+        } > "$temp_file" || {
+            log::error "Failed to write hash file"
+            rm -f "$temp_file"
+            exit 1
+        }
+        
+        # Atomic move
+        mv "$temp_file" "$HASH_FILE" || {
+            log::error "Failed to save hash file"
+            rm -f "$temp_file"
+            exit 1
+        }
+    fi
 fi
 
 # Summary

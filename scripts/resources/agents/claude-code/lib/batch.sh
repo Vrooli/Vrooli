@@ -2,10 +2,12 @@
 # Claude Code Enhanced Batch Execution Framework
 # Provides clean, reusable batch execution patterns
 
+# Set CLAUDE_CODE_SCRIPT_DIR if not already set (for BATS test compatibility)
+CLAUDE_CODE_SCRIPT_DIR="${CLAUDE_CODE_SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+
 # Source trash module for safe cleanup
-CLAUDE_CODE_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
-source "${CLAUDE_CODE_LIB_DIR}/../../../../lib/utils/var.sh" 2>/dev/null || true
+source "${CLAUDE_CODE_SCRIPT_DIR}/../../../lib/utils/var.sh" 2>/dev/null || true
 # shellcheck disable=SC1091
 source "${var_LIB_SYSTEM_DIR}/trash.sh" 2>/dev/null || true
 

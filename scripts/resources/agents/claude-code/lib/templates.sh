@@ -2,8 +2,11 @@
 # Claude Code Composable Prompt Template System
 # Provides reusable prompt templates for common development tasks
 
+# Set CLAUDE_CODE_SCRIPT_DIR if not already set (for BATS test compatibility)
+CLAUDE_CODE_SCRIPT_DIR="${CLAUDE_CODE_SCRIPT_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+
 # Template directory
-TEMPLATES_DIR="${SCRIPT_DIR}/templates/prompts"
+TEMPLATES_DIR="${CLAUDE_CODE_SCRIPT_DIR}/templates/prompts"
 
 #######################################
 # List available prompt templates

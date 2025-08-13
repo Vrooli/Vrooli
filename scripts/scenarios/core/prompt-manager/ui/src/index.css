@@ -1,0 +1,217 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles */
+@layer base {
+  html {
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  
+  body {
+    @apply text-gray-900 dark:text-gray-100;
+  }
+  
+  /* Better focus styles */
+  *:focus {
+    @apply outline-none;
+  }
+  
+  *:focus-visible {
+    @apply ring-2 ring-primary-500 ring-offset-2 ring-offset-white dark:ring-offset-gray-900;
+  }
+}
+
+/* Component styles */
+@layer components {
+  /* Button variants */
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2;
+  }
+  
+  .btn-primary {
+    @apply bg-primary-600 text-white hover:bg-primary-700 disabled:bg-gray-300 disabled:cursor-not-allowed;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-200 text-gray-900 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-100 dark:hover:bg-gray-600;
+  }
+  
+  .btn-ghost {
+    @apply text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800;
+  }
+  
+  .btn-danger {
+    @apply bg-red-600 text-white hover:bg-red-700;
+  }
+  
+  .btn-sm {
+    @apply px-3 py-1.5 text-sm;
+  }
+  
+  .btn-xs {
+    @apply px-2 py-1 text-xs;
+  }
+  
+  /* Input styles */
+  .input {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 placeholder-gray-500 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-400 dark:focus:border-primary-400;
+  }
+  
+  .textarea {
+    @apply input resize-none;
+  }
+  
+  /* Card styles */
+  .card {
+    @apply bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700;
+  }
+  
+  .card-header {
+    @apply px-6 py-4 border-b border-gray-200 dark:border-gray-700;
+  }
+  
+  .card-body {
+    @apply px-6 py-4;
+  }
+  
+  /* Sidebar styles */
+  .sidebar-item {
+    @apply flex items-center px-3 py-2 text-sm rounded-lg transition-colors duration-150 cursor-pointer;
+  }
+  
+  .sidebar-item:hover {
+    @apply bg-gray-100 dark:bg-gray-800;
+  }
+  
+  .sidebar-item.active {
+    @apply bg-primary-50 text-primary-700 dark:bg-primary-900 dark:text-primary-200;
+  }
+  
+  /* Badge styles */
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .badge-gray {
+    @apply bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200;
+  }
+  
+  .badge-primary {
+    @apply bg-primary-100 text-primary-800 dark:bg-primary-900 dark:text-primary-200;
+  }
+  
+  .badge-green {
+    @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200;
+  }
+  
+  .badge-yellow {
+    @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200;
+  }
+  
+  .badge-red {
+    @apply bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200;
+  }
+}
+
+/* Utility classes */
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .text-balance {
+    text-wrap: balance;
+  }
+}
+
+/* Animation keyframes */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideIn {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* Loading and transition classes */
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.slide-in {
+  animation: slideIn 0.3s ease-out;
+}
+
+.pulse-animation {
+  animation: pulse 1.5s infinite;
+}
+
+/* Custom prompt editor styles */
+.prompt-editor {
+  @apply font-mono text-sm leading-relaxed;
+}
+
+.prompt-editor textarea {
+  @apply min-h-[200px] resize-y;
+}
+
+/* Tag input styles */
+.tag-input {
+  @apply flex flex-wrap items-center gap-2 p-2 border border-gray-300 rounded-lg bg-white dark:border-gray-600 dark:bg-gray-800;
+}
+
+.tag-chip {
+  @apply inline-flex items-center gap-1 px-2 py-1 bg-primary-100 text-primary-800 text-sm rounded-md dark:bg-primary-900 dark:text-primary-200;
+}
+
+.tag-chip button {
+  @apply hover:text-primary-600 dark:hover:text-primary-300;
+}
+
+/* Search highlight */
+.search-highlight {
+  @apply bg-yellow-200 text-yellow-900 px-1 rounded dark:bg-yellow-900 dark:text-yellow-200;
+}
+
+/* Responsive breakpoint indicators (dev only) */
+.debug-breakpoint::after {
+  content: 'xs';
+  @apply sm:hidden absolute top-0 right-0 bg-red-500 text-white px-2 py-1 text-xs;
+}
+
+@screen sm {
+  .debug-breakpoint::after {
+    content: 'sm';
+  }
+}
+
+@screen md {
+  .debug-breakpoint::after {
+    content: 'md';
+  }
+}
+
+@screen lg {
+  .debug-breakpoint::after {
+    content: 'lg';
+  }
+}
+
+@screen xl {
+  .debug-breakpoint::after {
+    content: 'xl';
+  }
+}

@@ -142,7 +142,8 @@ test_collection_creation() {
     local test_name="collection creation (basic test)"
     
     # Test creating a simple test collection
-    local collection_name="integration_test_$(date +%s)"
+    local collection_name
+    collection_name="integration_test_$(date +%s)"
     local collection_data='{
         "vectors": {
             "size": 384,
@@ -174,7 +175,8 @@ test_point_operations() {
     local test_name="point operations (basic test)"
     
     # Create a temporary collection for testing
-    local collection_name="integration_points_test_$(date +%s)"
+    local collection_name
+    collection_name="integration_points_test_$(date +%s)"
     local collection_data='{
         "vectors": {
             "size": 3,

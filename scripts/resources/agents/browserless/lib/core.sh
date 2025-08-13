@@ -365,8 +365,8 @@ browserless::get_urls() {
     echo "Pressure: http://localhost:$BROWSERLESS_PORT/pressure"
     echo
     echo "API Endpoints:"
-    echo "Screenshot: http://localhost:$BROWSERLESS_PORT/screenshot"
-    echo "PDF: http://localhost:$BROWSERLESS_PORT/pdf"
-    echo "Content: http://localhost:$BROWSERLESS_PORT/content"
-    echo "Function: http://localhost:$BROWSERLESS_PORT/function"
+    echo "Screenshot: http://localhost:$BROWSERLESS_PORT/chrome/screenshot"
+    echo "PDF: http://localhost:$BROWSERLESS_PORT/chrome/pdf"
+    echo "Content: http://localhost:$BROWSERLESS_PORT/chrome/content"
+    echo "Function: http://localhost:$BROWSERLESS_PORT/chrome/function"
 }

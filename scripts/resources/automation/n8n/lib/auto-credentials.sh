@@ -76,8 +76,11 @@ n8n::discover_resources() {
             log::debug "Checking resource: $resource_name"
             
             # Check if resource is running by examining the exit status and output
+            # Look for positive status indicators, avoiding false positives from "not running" messages
             local status_output
-            if status_output=$("$manage_script" --action status 2>&1) && echo "$status_output" | grep -iq "healthy\|running\|ready"; then
+            if status_output=$("$manage_script" --action status 2>&1) && \
+               echo "$status_output" | grep -Eq "✅.*(Running|Health|Healthy)|Status:.*running|Container.*running" && \
+               ! echo "$status_output" | grep -q "not running\|is not running\|stopped"; then
                 local resource_info
                 resource_info=$(n8n::extract_resource_info "$resource_name" "$resource_dir" "$category_name")
                 
